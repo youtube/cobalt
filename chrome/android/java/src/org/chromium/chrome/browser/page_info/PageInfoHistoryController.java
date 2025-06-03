@@ -9,8 +9,7 @@ import android.text.format.DateUtils;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.annotation.VisibleForTesting;
-
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
@@ -80,12 +79,13 @@ public class PageInfoHistoryController
     @Override
     public View createViewForSubpage(ViewGroup parent) {
         assert !mDelegate.isIncognito();
+        Profile profile = (Profile) mDelegate.getBrowserContext();
         mContentManager = new HistoryContentManager(mMainController.getActivity(), this,
                 /* isSeparateActivity */ false,
-                /* isIncognito */ false, /* shouldShowPrivacyDisclaimers */ true,
+                /* profile */ profile, /* shouldShowPrivacyDisclaimers */ true,
                 /* shouldShowClearData */ false, mHost,
                 /* selectionDelegate */ null, mTabSupplier, new ObservableSupplierImpl<>(),
-                vg -> null, new BrowsingHistoryBridge(Profile.getLastUsedRegularProfile()));
+                vg -> null, new BrowsingHistoryBridge(profile));
         mContentManager.startLoadingItems();
         return mContentManager.getRecyclerView();
     }
@@ -99,9 +99,10 @@ public class PageInfoHistoryController
     }
 
     private void updateLastVisit() {
-        mHistoryProvider = sProviderForTests != null
-                ? sProviderForTests
-                : new BrowsingHistoryBridge(Profile.getLastUsedRegularProfile());
+        mHistoryProvider =
+                sProviderForTests != null
+                        ? sProviderForTests
+                        : new BrowsingHistoryBridge((Profile) mDelegate.getBrowserContext());
         mHistoryProvider.getLastVisitToHostBeforeRecentNavigations(mHost, (timestamp) -> {
             mLastVisitedTimestamp = timestamp;
             if (mHistoryProvider != null) {
@@ -208,13 +209,14 @@ public class PageInfoHistoryController
     public void onHistoryDeletedExternally() {}
 
     /** @param provider The {@link HistoryProvider} that is used in place of a real one. */
-    @VisibleForTesting
     public static void setProviderForTests(HistoryProvider provider) {
         sProviderForTests = provider;
+        ResettersForTesting.register(() -> sProviderForTests = null);
     }
 
-    @VisibleForTesting
     static void setClockForTesting(Clock clock) {
+        var oldValue = sClock;
         sClock = clock;
+        ResettersForTesting.register(() -> sClock = oldValue);
     }
 }

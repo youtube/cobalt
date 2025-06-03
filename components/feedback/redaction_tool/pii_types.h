@@ -37,7 +37,7 @@ enum class PIIType {
   // tower object that's used by ModemManager.
   // 2- Cell ID as unique identifier of the cell of the Cell tower object that's
   // used by ModemManager.
-  kLocationInfo = 6,
+  kCellularLocationInfo = 6,
   // MAC address is a unique identifier assigned to a network interface
   // controller (NIC) for use as a network address in communications within a
   // network segment (e.g 00:00:5e:00:53:af). MAC addresses with general meaning
@@ -68,7 +68,13 @@ enum class PIIType {
   kVolumeLabel = 13,
   // Extensible Authentication Protocol (EAP) properties provided by shill.
   kEAP = 14,
-  kMaxValue = kEAP,
+  // Credit card numbers.
+  kCreditCard = 15,
+  // International Bank Account Numbers.
+  kIBAN = 16,
+  // Crash ID is a hex number identifying an uploaded crash report.
+  kCrashId = 17,
+  kMaxValue = kCrashId,
 };
 
 }  // namespace redaction

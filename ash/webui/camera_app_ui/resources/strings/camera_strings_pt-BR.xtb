@@ -12,7 +12,7 @@
 <translation id="1467231725790366244">A <ph name="CAMERA" /> foi desconectada.</translation>
 <translation id="1473110567575736769">Timer de 3 segundos</translation>
 <translation id="148783771699678004">Movendo para o canto direito de cima</translation>
-<translation id="1545749641540134597">Ler código QR</translation>
+<translation id="1545749641540134597">Ler QR code</translation>
 <translation id="1560052704389894104">GIF</translation>
 <translation id="1588438908519853928">Normal</translation>
 <translation id="1620510694547887537">Câmera</translation>
@@ -30,7 +30,7 @@
 <translation id="2064538373111010176"><ph name="CAMERA" /> ativa</translation>
 <translation id="2134029355740465625">Configurações de vídeo</translation>
 <translation id="2144806332417375165">Parâmetros de vídeo personalizados</translation>
-<translation id="2175927920773552910">Código QR</translation>
+<translation id="2175927920773552910">QR code</translation>
 <translation id="2244252133441425811">Ativar o seletor de QPS de vídeo</translation>
 <translation id="2271433936731426666">Ativar a síntese do desempenho do vídeo no tamanho original</translation>
 <translation id="2320741269052147773">Movimentar para a esquerda</translation>
@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Movendo para o canto esquerdo de cima</translation>
 <translation id="3573890771273113519">Mudar para o modo de digitalização</translation>
 <translation id="3583444040776960729">Canto inferior esquerdo do documento</translation>
+<translation id="3642192109456033823">Processando vídeo…</translation>
 <translation id="3789724198583203151">Girar 90 graus no sentido anti-horário</translation>
 <translation id="3810838688059735925">Vídeo</translation>
 <translation id="3892148308691398805">Copiar texto</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Pausar gravação</translation>
 <translation id="4121305183798804752">Documento detectado</translation>
 <translation id="414641094616694804">Esta câmera não pode mudar de resolução</translation>
+<translation id="4176463684765177261">Desativado</translation>
 <translation id="4269820728363426813">Copiar endereço do link</translation>
-<translation id="4281620174117014503">Resolução média</translation>
 <translation id="428234092390943511">Miniatura da página</translation>
+<translation id="4349714250734879769">Dimensionar frames pelo Chrome</translation>
 <translation id="4383571725254449280">Registros de desempenho de impressão</translation>
 <translation id="4445542136948522167">Parar de tirar foto</translation>
 <translation id="4570032796877367747">Câmera frontal</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Digitalizando a página <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Quadrado</translation>
+<translation id="574392208103952083">Médio</translation>
 <translation id="5746169159649715125">Salvar como PDF</translation>
 <translation id="5753488212459587150">Ativar o modo Especialista</translation>
 <translation id="5759254179196327752">Digitalizar documento</translation>
@@ -148,11 +151,12 @@ Caso seu feedback seja sobre a qualidade da imagem ou do vídeo, adicione uma fo
 <translation id="8145038249676204903">Mudar para tirar foto</translation>
 <translation id="8167081290930651932">Salvar como foto</translation>
 <translation id="8239780215768881278">Fazer um instantâneo de vídeo</translation>
+<translation id="8346544573713510785">Dimensionar frames pela HAL da câmera</translation>
 <translation id="8425673304802773841">Inclinar para baixo</translation>
 <translation id="8428213095426709021">Configurações</translation>
 <translation id="8629662593426079630">360 p</translation>
 <translation id="8711011893539266636">Alterne o status do microfone. O microfone está desativado</translation>
-<translation id="8730621377337864115">Concluído</translation>
+<translation id="8730621377337864115">Concluir</translation>
 <translation id="8732462232047530626">Visualizar metadados</translation>
 <translation id="8815966864175525708">Mudar para fotografar no modo retrato</translation>
 <translation id="8828441885228359828">Retomar gravação</translation>

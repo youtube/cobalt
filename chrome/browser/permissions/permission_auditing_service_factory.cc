@@ -6,7 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/after_startup_task_utils.h"
@@ -29,7 +29,8 @@ PermissionAuditingServiceFactory::~PermissionAuditingServiceFactory() = default;
 // static
 PermissionAuditingServiceFactory*
 PermissionAuditingServiceFactory::GetInstance() {
-  return base::Singleton<PermissionAuditingServiceFactory>::get();
+  static base::NoDestructor<PermissionAuditingServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -44,7 +45,8 @@ bool PermissionAuditingServiceFactory::ServiceIsCreatedWithBrowserContext()
   return true;
 }
 
-KeyedService* PermissionAuditingServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PermissionAuditingServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!base::FeatureList::IsEnabled(features::kPermissionAuditing)) {
     return nullptr;
@@ -52,13 +54,14 @@ KeyedService* PermissionAuditingServiceFactory::BuildServiceInstanceFor(
   auto backend_task_runner = base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-  auto* instance =
-      new permissions::PermissionAuditingService(backend_task_runner);
+  std::unique_ptr<permissions::PermissionAuditingService> instance =
+      std::make_unique<permissions::PermissionAuditingService>(
+          backend_task_runner);
   base::FilePath database_path =
       context->GetPath().Append(FILE_PATH_LITERAL("Permission Auditing Logs"));
   instance->Init(database_path);
   AfterStartupTaskUtils::PostTask(
-      FROM_HERE, backend_task_runner,
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
       base::BindOnce(&permissions::PermissionAuditingService::
                          StartPeriodicCullingOfExpiredSessions,
                      instance->AsWeakPtr()));

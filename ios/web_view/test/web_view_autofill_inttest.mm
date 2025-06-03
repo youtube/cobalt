@@ -17,10 +17,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #include "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 using base::test::ios::kWaitForPageLoadTimeout;
@@ -242,11 +238,13 @@ TEST_F(WebViewAutofillTest, TestDelegateCallbacks) {
   [autofill_controller_delegate_
       verifyWithDelay:kWaitForActionTimeout.InSecondsF()];
 
-  [[autofill_controller_delegate_ expect]
+  // TODO(crbug.com/1444468): `userInitiated` flipped from `NO` in iOS 16.1 to
+  // `YES` in 16.4, so we cannot reliably verify it until the bug is fixed.
+  [[[autofill_controller_delegate_ expect] ignoringNonObjectArgs]
          autofillController:autofill_controller_
       didSubmitFormWithName:kTestFormName
                     frameID:[OCMArg any]
-              userInitiated:NO];
+              userInitiated:[OCMArg any]];
   // The 'submit' event listener defined in form.js is only called during the
   // bubbling phase.
   NSString* submit_script =

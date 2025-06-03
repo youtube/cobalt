@@ -72,15 +72,22 @@ UkmBackgroundRecorderService* UkmBackgroundRecorderFactory::GetForProfile(
 UkmBackgroundRecorderFactory::UkmBackgroundRecorderFactory()
     : ProfileKeyedServiceFactory(
           "UkmBackgroundRecorderService",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
 }
 
 UkmBackgroundRecorderFactory::~UkmBackgroundRecorderFactory() = default;
 
-KeyedService* UkmBackgroundRecorderFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+UkmBackgroundRecorderFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new UkmBackgroundRecorderService(Profile::FromBrowserContext(context));
+  return std::make_unique<UkmBackgroundRecorderService>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace ukm

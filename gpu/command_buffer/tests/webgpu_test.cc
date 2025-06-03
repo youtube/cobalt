@@ -5,6 +5,8 @@
 #include "gpu/command_buffer/tests/webgpu_test.h"
 
 #include <dawn/dawn_proc.h>
+#include <dawn/dawn_thread_dispatch_proc.h>
+#include <dawn/native/DawnNative.h>
 #include <dawn/webgpu.h>
 
 #include "base/command_line.h"
@@ -54,6 +56,11 @@ bool WebGPUTest::WebGPUSupported() const {
     return false;
   }
 
+  // Pixel 2 does not support WebGPU
+  if (GPUTestBotConfig::CurrentConfigMatches("Android Qualcomm 0x5040001")) {
+    return false;
+  }
+
   return true;
 }
 
@@ -90,15 +97,29 @@ void WebGPUTest::Initialize(const Options& options) {
     return;
   }
 
+  // The test will run both service and client in the same process, so we need
+  // to set dawn procs for both.
+  dawnProcSetProcs(&dawnThreadDispatchProcTable);
+
+  {
+    // Use the native procs as default procs for all threads. It will be used
+    // for GPU service side threads.
+    dawnProcSetDefaultThreadProcs(&dawn::native::GetProcs());
+  }
+
   gpu::GpuPreferences gpu_preferences;
   gpu_preferences.enable_webgpu = true;
   gpu_preferences.use_passthrough_cmd_decoder =
       gles2::UsePassthroughCommandDecoder(
           base::CommandLine::ForCurrentProcess());
+  if (options.use_skia_graphite) {
+    gpu_preferences.gr_context_type = gpu::GrContextType::kGraphiteDawn;
+  } else {
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && BUILDFLAG(USE_DAWN)
-  gpu_preferences.use_vulkan = gpu::VulkanImplementationName::kNative;
-  gpu_preferences.gr_context_type = gpu::GrContextType::kVulkan;
+    gpu_preferences.use_vulkan = gpu::VulkanImplementationName::kNative;
+    gpu_preferences.gr_context_type = gpu::GrContextType::kVulkan;
 #endif
+  }
   gpu_preferences.enable_unsafe_webgpu = options.enable_unsafe_webgpu;
   gpu_preferences.texture_target_exception_list =
       gpu::CreateBufferUsageAndFormatExceptionList();
@@ -126,12 +147,17 @@ void WebGPUTest::Initialize(const Options& options) {
   webgpu_impl()->SetLostContextCallback(base::BindLambdaForTesting(
       []() { GTEST_FAIL() << "Context lost unexpectedly."; }));
 
-  DawnProcTable procs = webgpu()->GetAPIChannel()->GetProcs();
-  dawnProcSetProcs(&procs);
+  {
+    // Use the wire procs for the test main thread.
+    DawnProcTable procs = webgpu()->GetAPIChannel()->GetProcs();
+    dawnProcSetPerThreadProcs(&procs);
+  }
+
   instance_ = wgpu::Instance(webgpu()->GetAPIChannel()->GetWGPUInstance());
 
   wgpu::RequestAdapterOptions ra_options = {};
   ra_options.forceFallbackAdapter = options.force_fallback_adapter;
+  ra_options.compatibilityMode = options.compatibility_mode;
 
   bool done = false;
   auto* callback = webgpu::BindWGPUOnceCallback(
@@ -195,7 +221,6 @@ void WebGPUTest::WaitForCompletion(wgpu::Device device) {
   wgpu::Queue queue = device.GetQueue();
   bool done = false;
   queue.OnSubmittedWorkDone(
-      0u,
       [](WGPUQueueWorkDoneStatus, void* userdata) {
         *static_cast<bool*>(userdata) = true;
       },
@@ -386,7 +411,7 @@ TEST_F(WebGPUTest, RequestDeviceWithUnsupportedFeature) {
 
   DCHECK(adapter_);
   wgpu::DeviceDescriptor device_desc = {};
-  device_desc.requiredFeaturesCount = 1;
+  device_desc.requiredFeatureCount = 1;
   device_desc.requiredFeatures = &invalid_feature;
 
   adapter_.RequestDevice(&device_desc, callback->UnboundCallback(),
@@ -461,6 +486,38 @@ TEST_F(WebGPUTest, ImplicitFallbackAdapterIsDisallowed) {
     // If we got an Adapter, it must not be a CPU adapter.
     EXPECT_NE(properties.adapterType, wgpu::AdapterType::CPU);
   }
+}
+
+TEST_F(WebGPUTest, CompatibilityMode) {
+  auto options = WebGPUTest::Options();
+  options.compatibility_mode = true;
+  options.enable_unsafe_webgpu = true;
+  // Initialize attempts to create an adapter.
+  Initialize(options);
+
+  // Compatibility adapter should be available.
+  EXPECT_NE(adapter_, nullptr);
+
+  wgpu::AdapterProperties properties;
+  adapter_.GetProperties(&properties);
+
+  EXPECT_TRUE(properties.compatibilityMode);
+}
+
+TEST_F(WebGPUTest, NonCompatibilityMode) {
+  auto options = WebGPUTest::Options();
+  options.compatibility_mode = false;
+  options.enable_unsafe_webgpu = true;
+  // Initialize attempts to create an adapter.
+  Initialize(options);
+
+  // Non-compatibility adapter should be available.
+  EXPECT_NE(adapter_, nullptr);
+
+  wgpu::AdapterProperties properties;
+  adapter_.GetProperties(&properties);
+
+  EXPECT_FALSE(properties.compatibilityMode);
 }
 
 }  // namespace gpu

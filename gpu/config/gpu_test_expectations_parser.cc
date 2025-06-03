@@ -46,6 +46,7 @@ enum Token {
   kConfigMacBigSur,
   kConfigMacMonterey,
   kConfigMacVentura,
+  kConfigMacSonoma,
   kConfigMac,
   kConfigLinux,
   kConfigChromeOS,
@@ -53,6 +54,7 @@ enum Token {
   // gpu vendor
   kConfigNVidia,
   kConfigAMD,
+  kConfigARM,
   kConfigIntel,
   kConfigVMWare,
   kConfigQualcomm,
@@ -107,12 +109,14 @@ const TokenInfo kTokenData[] = {
     {"bigsur", GPUTestConfig::kOsMacBigSur},
     {"monterey", GPUTestConfig::kOsMacMonterey},
     {"ventura", GPUTestConfig::kOsMacVentura},
+    {"sonoma", GPUTestConfig::kOsMacSonoma},
     {"mac", GPUTestConfig::kOsMac},
     {"linux", GPUTestConfig::kOsLinux},
     {"chromeos", GPUTestConfig::kOsChromeOS},
     {"android", GPUTestConfig::kOsAndroid},
     {"nvidia", 0x10DE},
     {"amd", 0x1002},
+    {"arm", 0x13b5},
     {"intel", 0x8086},
     {"vmware", 0x15ad},
     {"qualcomm", 0x5143},
@@ -276,12 +280,14 @@ bool GPUTestExpectationsParser::ParseConfig(
       case kConfigMacBigSur:
       case kConfigMacMonterey:
       case kConfigMacVentura:
+      case kConfigMacSonoma:
       case kConfigMac:
       case kConfigLinux:
       case kConfigChromeOS:
       case kConfigAndroid:
       case kConfigNVidia:
       case kConfigAMD:
+      case kConfigARM:
       case kConfigIntel:
       case kConfigVMWare:
       case kConfigQualcomm:
@@ -341,12 +347,14 @@ bool GPUTestExpectationsParser::ParseLine(
       case kConfigMacBigSur:
       case kConfigMacMonterey:
       case kConfigMacVentura:
+      case kConfigMacSonoma:
       case kConfigMac:
       case kConfigLinux:
       case kConfigChromeOS:
       case kConfigAndroid:
       case kConfigNVidia:
       case kConfigAMD:
+      case kConfigARM:
       case kConfigIntel:
       case kConfigVMWare:
       case kConfigQualcomm:
@@ -469,6 +477,7 @@ bool GPUTestExpectationsParser::UpdateTestConfig(GPUTestConfig* config,
     case kConfigMacBigSur:
     case kConfigMacMonterey:
     case kConfigMacVentura:
+    case kConfigMacSonoma:
     case kConfigMac:
     case kConfigLinux:
     case kConfigChromeOS:
@@ -482,6 +491,7 @@ bool GPUTestExpectationsParser::UpdateTestConfig(GPUTestConfig* config,
       break;
     case kConfigNVidia:
     case kConfigAMD:
+    case kConfigARM:
     case kConfigIntel:
     case kConfigVMWare:
     case kConfigQualcomm: {

@@ -403,14 +403,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // B2  A2
 //     |
 //     C3
-// TODO(crbug.com/1012185): Flaky timeouts on Linux and Mac.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
-#define MAYBE_UnloadHandlerSubframes DISABLED_UnloadHandlerSubframes
-#else
-#define MAYBE_UnloadHandlerSubframes UnloadHandlerSubframes
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       MAYBE_UnloadHandlerSubframes) {
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UnloadHandlerSubframes) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(c(b),c(a(c))),d)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -887,9 +880,11 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   shutdown_C.Wait();
 }
 
-#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER)
-// Too slow under sanitizers, even with increased timeout:
+#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER) || \
+    !defined(NDEBUG) || BUILDFLAG(IS_LINUX)
+// Too slow under sanitizers and debug builds, even with increased timeout:
 // https://crbug.com/1096612
+// Disabled for Linux due to failures: https://crbug.com/1494811
 #define MAYBE_DetachedIframeUnloadHandlerABCB \
   DISABLED_DetachedIframeUnloadHandlerABCB
 #else
@@ -912,15 +907,18 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   // 1) Navigate to a(b(c(b)))
   EXPECT_TRUE(NavigateToURL(shell(), initial_url));
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
-  RenderFrameHostImpl* rfh_a = root->current_frame_host();
-  RenderFrameHostImpl* rfh_b1 = rfh_a->child_at(0)->current_frame_host();
-  RenderFrameHostImpl* rfh_c = rfh_b1->child_at(0)->current_frame_host();
-  RenderFrameHostImpl* rfh_b2 = rfh_c->child_at(0)->current_frame_host();
+  RenderFrameHostImplWrapper rfh_a(root->current_frame_host());
+  RenderFrameHostImplWrapper rfh_b1(rfh_a->child_at(0)->current_frame_host());
+  RenderFrameHostImplWrapper rfh_c(rfh_b1->child_at(0)->current_frame_host());
+  RenderFrameHostImplWrapper rfh_b2(rfh_c->child_at(0)->current_frame_host());
 
   // 2) Add unload handlers on B1, B2 and C.
   UnloadPrint(rfh_b1->frame_tree_node(), "B1");
+  rfh_b1->DisableUnloadTimerForTesting();
   UnloadPrint(rfh_b2->frame_tree_node(), "B2");
+  rfh_b2->DisableUnloadTimerForTesting();
   UnloadPrint(rfh_c->frame_tree_node(), "C");
+  rfh_c->DisableUnloadTimerForTesting();
 
   DOMMessageQueue dom_message_queue(web_contents());
   RenderProcessHostWatcher shutdown_B(
@@ -1343,8 +1341,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // 2. Navigate A1 to A3, same-process.
 // 3. A1 requests the browser to detach B1, but this message is dropped.
 // 4. The browser must be resilient and detach B1 when A3 commits.
+// TODO(crbug.com/1449668): Fix flakes and re-enable test.
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       SameProcessNavigationResilientToDetachDropped) {
+                       DISABLED_SameProcessNavigationResilientToDetachDropped) {
   // The test assumes the previous page gets deleted after navigation. Disable
   // back-forward cache to ensure that it doesn't get preserved in the cache.
   DisableBackForwardCacheForTesting(shell()->web_contents(),
@@ -1394,14 +1393,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   UnloadPrint(C4, "C4");
 
   // Navigate the iframe same-process.
+  bool will_delete_b2 = B2->ShouldChangeRenderFrameHostOnSameSiteNavigation();
   ExecuteScriptAsync(B2, JsReplace("location.href = $1", iframe_new_url));
 
   DOMMessageQueue dom_message_queue(
       WebContents::FromRenderFrameHost(web_contents()->GetPrimaryMainFrame()));
 
   // All the documents must be properly deleted:
-  if (ShouldCreateNewHostForSameSiteSubframe())
+  if (will_delete_b2) {
     delete_B2.WaitUntilDeleted();
+  }
   delete_B3.WaitUntilDeleted();
   delete_C4.WaitUntilDeleted();
 

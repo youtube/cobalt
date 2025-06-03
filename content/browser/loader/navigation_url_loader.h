@@ -13,6 +13,7 @@
 #include "content/common/content_export.h"
 #include "services/network/public/mojom/cookie_access_observer.mojom.h"
 #include "services/network/public/mojom/devtools_observer.mojom-forward.h"
+#include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
 #include "services/network/public/mojom/trust_token_access_observer.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
 
@@ -74,6 +75,8 @@ class CONTENT_EXPORT NavigationURLLoader {
       mojo::PendingRemote<network::mojom::CookieAccessObserver> cookie_observer,
       mojo::PendingRemote<network::mojom::TrustTokenAccessObserver>
           trust_token_observer,
+      mojo::PendingRemote<network::mojom::SharedDictionaryAccessObserver>
+          shared_dictionary_observer,
       mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
           url_loader_network_observer,
       mojo::PendingRemote<network::mojom::DevToolsObserver> devtools_observer,
@@ -110,6 +113,8 @@ class CONTENT_EXPORT NavigationURLLoader {
   // started successfully. Repeated calls will be ignored (they won't reset the
   // timeout) and will return `false`.
   virtual bool SetNavigationTimeout(base::TimeDelta timeout) = 0;
+
+  static uint32_t GetURLLoaderOptions(bool is_outermost_main_frame);
 
  protected:
   NavigationURLLoader() {}

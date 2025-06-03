@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -36,6 +37,7 @@ class MediaConstraints;
 class MediaTrackCapabilities;
 class MediaTrackConstraints;
 class MediaStream;
+class MediaStreamTrackVideoStats;
 class MediaTrackSettings;
 class ScriptState;
 
@@ -45,7 +47,7 @@ String ContentHintToString(
 String ReadyStateToString(const MediaStreamSource::ReadyState& ready_state);
 
 class MODULES_EXPORT MediaStreamTrack
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ActiveScriptWrappable<MediaStreamTrack> {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -58,7 +60,7 @@ class MODULES_EXPORT MediaStreamTrack
 
   // For carrying data to the FromTransferredState method.
   struct TransferredValues {
-    const WrapperTypeInfo* track_impl_subtype;
+    raw_ptr<const WrapperTypeInfo, ExperimentalRenderer> track_impl_subtype;
     base::UnguessableToken session_id;
     base::UnguessableToken transfer_id;
     String kind;
@@ -70,7 +72,7 @@ class MODULES_EXPORT MediaStreamTrack
     MediaStreamSource::ReadyState ready_state;
     // Set only if
     // track_impl_subtype->IsSubclass(BrowserCaptureMediaStreamTrack::GetStaticWrapperTypeInfo())
-    absl::optional<uint32_t> crop_version;
+    absl::optional<uint32_t> sub_capture_target_version;
   };
 
   // See SetFromTransferredStateImplForTesting in ./test/transfer_test_utils.h.
@@ -101,6 +103,7 @@ class MODULES_EXPORT MediaStreamTrack
   virtual MediaTrackCapabilities* getCapabilities() const = 0;
   virtual MediaTrackConstraints* getConstraints() const = 0;
   virtual MediaTrackSettings* getSettings() const = 0;
+  virtual MediaStreamTrackVideoStats* stats() = 0;
   virtual CaptureHandle* getCaptureHandle() const = 0;
   virtual ScriptPromise applyConstraints(ScriptState*,
                                          const MediaTrackConstraints*) = 0;
@@ -150,9 +153,7 @@ class MODULES_EXPORT MediaStreamTrack
 
   virtual void AddObserver(Observer*) = 0;
 
-  void Trace(Visitor* visitor) const override {
-    EventTargetWithInlineData::Trace(visitor);
-  }
+  void Trace(Visitor* visitor) const override { EventTarget::Trace(visitor); }
 
  private:
   // Friend in order to allow setting a new impl for FromTransferredState.

@@ -8,26 +8,21 @@
 
 #import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/drag_and_drop/drag_item_util.h"
-#import "ios/chrome/browser/main/browser_list.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
-#import "ios/chrome/browser/main/test_browser.h"
-#import "ios/chrome/browser/tabs/features.h"
+#import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/ui/tab_switcher/test/fake_drag_session.h"
 #import "ios/chrome/browser/ui/tab_switcher/test/fake_drop_session.h"
 #import "ios/chrome/browser/ui/tab_switcher/test/fake_tab_collection_consumer.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -60,8 +55,6 @@ class PinnedTabsMediatorTest : public PlatformTest {
         BrowserListFactory::GetForBrowserState(browser_state_.get());
     browser_list_->AddBrowser(regular_browser_.get());
     browser_list_->AddIncognitoBrowser(incognito_browser_.get());
-
-    feature_list_.InitAndEnableFeature(kEnablePinnedTabs);
 
     // The Pinned Tabs feature is not available on iPad.
     if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
@@ -114,7 +107,7 @@ TEST_F(PinnedTabsMediatorTest, ConsumerInsertItem) {
   auto web_state2 = CreateFakeWebStateWithURL(GURLWithIndex(2));
   regular_browser_->GetWebStateList()->InsertWebState(
       0, std::move(web_state2), WebStateList::INSERT_PINNED, WebStateOpener());
-  EXPECT_EQ(2UL, consumer_.items.count);
+  EXPECT_EQ(2UL, consumer_.items.size());
 
   // Inserts one regular and one incoginto tab.
   auto web_state3 = CreateFakeWebStateWithURL(GURLWithIndex(3));
@@ -125,13 +118,13 @@ TEST_F(PinnedTabsMediatorTest, ConsumerInsertItem) {
   incognito_browser_->GetWebStateList()->InsertWebState(
       0, std::move(web_state4), WebStateList::INSERT_FORCE_INDEX,
       WebStateOpener());
-  EXPECT_EQ(2UL, consumer_.items.count);
+  EXPECT_EQ(2UL, consumer_.items.size());
 
   // Inserts a third pinned tab.
   auto web_state5 = CreateFakeWebStateWithURL(GURLWithIndex(5));
   regular_browser_->GetWebStateList()->InsertWebState(
       0, std::move(web_state5), WebStateList::INSERT_PINNED, WebStateOpener());
-  EXPECT_EQ(3UL, consumer_.items.count);
+  EXPECT_EQ(3UL, consumer_.items.size());
 }
 
 // Tests that the correct UIDropOperation is returned when dropping tabs in the

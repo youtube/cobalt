@@ -8,7 +8,9 @@
 
 #include "base/numerics/checked_math.h"
 #include "base/ranges/algorithm.h"
+#include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
+#include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
@@ -18,11 +20,15 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_clamp_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_compute_result.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_conv_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_conv_transpose_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_elu_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_gemm_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_leaky_relu_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pad_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pool_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_reduce_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_resample_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_split_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_transpose_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/ml/ml.h"
@@ -41,6 +47,13 @@
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 
 namespace blink {
+
+// According to the tests on multiple systems, there will be a performance
+// regression of XNNPACK model inference when the number of work items is
+// greater than `kMaxNumWorkItems`.
+//
+// TODO(crbug.com/1273291): Ensure `kMaxNumWorkItems` value setting makes sense.
+constexpr uint32_t kMaxNumWorkItems = 4;
 
 // Maps MLOperand pointer address to its XNNPACK Value ID.
 //
@@ -112,6 +125,10 @@ String XnnDataTypeToString(xnn_datatype datatype) {
       return "xnn_datatype_qcint8";
     case xnn_datatype_qcint32:
       return "xnn_datatype_qcint32";
+    case xnn_datatype_qcint4:
+      return "xnn_datatype_qcint4";
+    case xnn_datatype_qdint8:
+      return "xnn_datatype_qdint8";
   }
 }
 
@@ -158,10 +175,6 @@ class SharedXnnpackContext : public ThreadSafeRefCounted<SharedXnnpackContext> {
                         XnnStatusToString(status);
         return nullptr;
       }
-
-      // TODO(crbug.com/1273291): Integrate XNNPACK pthreadpool with
-      // base::ThreadPool for performance optimziation on multi-cores in the
-      // future.
 
       // Create a new instance of SharedXnnpackContext.
       return base::MakeRefCounted<SharedXnnpackContext>();
@@ -230,23 +243,55 @@ class XnnRuntimeWrapper : public ThreadSafeRefCounted<XnnRuntimeWrapper> {
   // executions. This method can run either in a background thread for
   // asynchronous graph building or in the caller's thread for synchronous graph
   // building.
+  //
+  // The `num_threads` indicates how many work items will be scheduled to
+  // base::ThreadPool that run XNNPACK operators in parallel. The value `0`
+  // (default value of `MLContextOptions.numThreads`) and `1` mean executing
+  // operators without parallelization.
   static scoped_refptr<XnnRuntimeWrapper> Create(
       XnnSubgraphPtr subgraph,
       scoped_refptr<SharedXnnpackContext> xnn_context,
       Vector<DataBufferPtr> static_data_buffers,
+      uint32_t num_threads,
       String& error_message) {
     TRACE_EVENT("blink", "XnnRuntimeWrapper::Create");
     CHECK(xnn_context);
     CHECK(subgraph);
+
+    // The current implementation interprets the default value of
+    // `MLContextOptions.numThreads` (0) as single-threaded execution.
+    if (num_threads == 0) {
+      num_threads = 1;
+    }
+    // Cap the user-supplied value to the minimum value of `kMaxNumWorkItems`
+    // and the number of logical processors that avoids too much scheduling
+    // overhead.
+    num_threads = std::min(
+        {num_threads,
+         base::checked_cast<uint32_t>(base::SysInfo::NumberOfProcessors()),
+         kMaxNumWorkItems});
+    pthreadpool_t pthreadpool_ptr = nullptr;
+    pthreadpool_ptr = pthreadpool_create(num_threads);
+    if (pthreadpool_ptr == nullptr) {
+      error_message = "Failed to create pthreadpool";
+      return nullptr;
+    }
+
     xnn_runtime_t runtime_ptr = nullptr;
-    xnn_status status = xnn_create_runtime(subgraph.get(), &runtime_ptr);
+    // Because the integration of pthreadpool and Chromium Jobs API yields
+    // to ThreadPool's scheduler after executing each operator, e.g.
+    // https://source.chromium.org/chromium/chromium/src/+/main:third_party/pthreadpool/chromium/jobs.cc;l=102,
+    // setting XNN_FLAG_YIELD_WORKERS flag is not required.
+    xnn_status status = xnn_create_runtime_v2(subgraph.get(), pthreadpool_ptr,
+                                              /* flags */ 0, &runtime_ptr);
     if (status != xnn_status_success) {
       error_message = "Failed to create XNNPACK Runtime.";
       return nullptr;
     }
     CHECK(runtime_ptr);
     return base::MakeRefCounted<XnnRuntimeWrapper>(
-        runtime_ptr, std::move(xnn_context), std::move(static_data_buffers));
+        runtime_ptr, pthreadpool_ptr, std::move(xnn_context),
+        std::move(static_data_buffers));
   }
 
   // Invoke the XNNPACK Runtime object. If there are any data pointers changed,
@@ -254,6 +299,7 @@ class XnnRuntimeWrapper : public ThreadSafeRefCounted<XnnRuntimeWrapper> {
   // invocation.
   xnn_status Invoke(XnnExternalValuesPtr external_values,
                     String& error_message) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     TRACE_EVENT("blink", "XnnRuntimeWrapper::Invoke");
     CHECK(external_values);
 
@@ -291,12 +337,14 @@ class XnnRuntimeWrapper : public ThreadSafeRefCounted<XnnRuntimeWrapper> {
   friend scoped_refptr<T> base::MakeRefCounted(Args&&... args);
 
   XnnRuntimeWrapper(xnn_runtime_t xnn_runtime,
+                    pthreadpool_t pthreadpool,
                     scoped_refptr<SharedXnnpackContext> xnn_context,
                     Vector<DataBufferPtr> static_data_buffers)
       : xnn_context_(std::move(xnn_context)),
         static_data_buffers_(std::move(static_data_buffers)),
         xnn_external_values_(std::make_unique<Vector<xnn_external_value>>()),
-        xnn_runtime_({xnn_runtime, &xnn_delete_runtime}) {}
+        xnn_runtime_({xnn_runtime, &xnn_delete_runtime}),
+        pthreadpool_({pthreadpool, &pthreadpool_destroy}) {}
 
   // The SharedXnnpackContext is shared and reference-counted by all instances
   // of MLGraphXnnpack. It initializes (and also deinitializes) the XNNPACK
@@ -313,155 +361,20 @@ class XnnRuntimeWrapper : public ThreadSafeRefCounted<XnnRuntimeWrapper> {
   XnnExternalValuesPtr xnn_external_values_;
 
   // The XNNPACK Runtime object for the accelerated executions.
-  std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> xnn_runtime_;
+  std::unique_ptr<xnn_runtime, decltype(&xnn_delete_runtime)> xnn_runtime_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // The pthreadpool is used by XNNPACK Runtime to execute operators in
+  // parallel. With the integration with `base::PostJob()` API, pthreadpool
+  // schedules the parallel executions with `base::ThreadPool` workers. Because
+  // the `struct pthreadpool` is accessed by XNNPACK Runtime without a lock, a
+  // SequenceChecker is used to ensure the accessing is thread-safe.
+  std::unique_ptr<struct pthreadpool, decltype(&pthreadpool_destroy)>
+      pthreadpool_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // The sequence on which `Invoke()` method is executed.
+  SEQUENCE_CHECKER(sequence_checker_);
 };
-
-// Stores information about a transferred `ArrayBufferView`. This struct doesn't
-// include Blink GC objects, and can be accessed by any threads.
-//
-// The information is used to recreate `ArrayBufferView` when computation
-// completes.
-struct ArrayBufferViewInfo {
-  ArrayBufferViewInfo() = default;
-  ~ArrayBufferViewInfo() = default;
-
-  ArrayBufferViewInfo(ArrayBufferViewInfo&& other) = default;
-  ArrayBufferViewInfo& operator=(ArrayBufferViewInfo&& other) = default;
-
-  ArrayBufferViewInfo(const ArrayBufferViewInfo&) = delete;
-  ArrayBufferViewInfo& operator=(const ArrayBufferViewInfo&) = delete;
-
-  DOMArrayBufferView::ViewType type;
-  size_t offset;
-  size_t length;
-  ArrayBufferContents contents;
-};
-
-absl::optional<ArrayBufferViewInfo> TransferArrayBufferView(
-    v8::Isolate* isolate,
-    NotShared<DOMArrayBufferView> source_view,
-    ExceptionState& exception_state) {
-  // A detached ArrayBufferView should be caught by
-  // `ValidateNamedArrayBufferViews()` called in `MLGraph::ComputeAsync()`.
-  CHECK(!source_view->IsDetached());
-
-  // Avoid transferring a non-detachable ArrayBuffer.
-  // `DOMArrayBuffer::Transfer()` would make a copy if the ArrayBuffer is not
-  // detachable. This behavior doesn't follow the algorithm to transfer an
-  // ArrayBuffer of WebIDL spec:
-  // https://webidl.spec.whatwg.org/#arraybuffer-transfer
-  if (!source_view->buffer()->IsDetachable(isolate)) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The ArrayBuffer is not detachable.");
-    return absl::nullopt;
-  }
-
-  // Get the offset and length of the source view before transferring it.
-  ArrayBufferViewInfo view_info;
-  view_info.type = source_view->GetType();
-  view_info.offset = source_view->byteOffset();
-  view_info.length = source_view->byteLength() / source_view->TypeSize();
-
-  ArrayBufferContents contents;
-  // The following `DOMArrayBuffer::Transfer()` call would fail if the
-  // detach key of the ArrayBuffer is not `undefined`.
-  if (!source_view->buffer()->Transfer(isolate, view_info.contents,
-                                       exception_state)) {
-    return absl::nullopt;
-  }
-
-  return view_info;
-}
-
-DOMArrayBufferView* CreateArrayBufferView(ArrayBufferViewInfo view_info) {
-  auto* target_buffer = DOMArrayBuffer::Create(std::move(view_info.contents));
-
-  // Align with the ArrayBufferView types supported by WebNN MLOperandType:
-  // https://www.w3.org/TR/webnn/#appendices-mloperandtype-arraybufferview-compatibility
-  DOMArrayBufferView* target_view = nullptr;
-  switch (view_info.type) {
-    case DOMArrayBufferView::kTypeFloat32:
-      // Float32Array is used for MLOperandType::float32.
-      target_view = DOMFloat32Array::Create(target_buffer, view_info.offset,
-                                            view_info.length);
-      break;
-    case DOMArrayBufferView::kTypeUint16:
-      // Using Uint16Array for float16 is a workaround of WebNN spec issue:
-      // https://github.com/webmachinelearning/webnn/issues/127
-      target_view = DOMUint16Array::Create(target_buffer, view_info.offset,
-                                           view_info.length);
-      break;
-    case DOMArrayBufferView::kTypeInt32:
-      // Int32Array is used for MLOperandType::int32.
-      target_view = DOMInt32Array::Create(target_buffer, view_info.offset,
-                                          view_info.length);
-      break;
-    case DOMArrayBufferView::kTypeUint32:
-      // Uint32Array is used for MLOperandType::uint32.
-      target_view = DOMUint32Array::Create(target_buffer, view_info.offset,
-                                           view_info.length);
-      break;
-    case DOMArrayBufferView::kTypeInt8:
-      // Int8Array is used for MLOperandType::int8.
-      target_view = DOMInt8Array::Create(target_buffer, view_info.offset,
-                                         view_info.length);
-      break;
-    case DOMArrayBufferView::kTypeUint8:
-      // Uint8Array is used for MLOperandType::uint8.
-      target_view = DOMUint8Array::Create(target_buffer, view_info.offset,
-                                          view_info.length);
-      break;
-    default:
-      // Other ArrayBufferView types should not pass the
-      // `ValidateNamedArrayBufferViews()` and reach here.
-      NOTREACHED_NORETURN();
-  }
-  return target_view;
-}
-
-// `TransferNamedArrayBufferViews()` and `CreateNamedArrayBufferViews()`
-// implement the MLNamedArrayBufferViews transfer algorithm of WebNN spec:
-// https://www.w3.org/TR/webnn/#mlnamedarraybufferviews-transfer
-//
-// The `NamedArrayBufferViewsInfo` returned by `TransferNamedArrayBufferViews()`
-// doesn't contain any GC objects, so it is safe to be posted to a background
-// thread that invokes the XNNPACK Runtime. After that,
-// `NamedArrayBufferViewsInfo` should be posted back to the calling thread and
-// call `CreateNamedArrayBufferViews()` to create `MLNamedArrayBufferViews` from
-// the info.
-//
-// If it fails to transfer an `ArrayBufferView` of the
-// `MLNamedArrayBufferViews`, the current implementation leaves the
-// already-transferred views detached, the failing one and remaining others
-// unchanged.
-//
-// TODO(crbug.com/1273291): Revisit the error handling once the WebNN spec issue
-// is resolved: https://github.com/webmachinelearning/webnn/issues/351
-NamedArrayBufferViewsInfoPtr TransferNamedArrayBufferViews(
-    v8::Isolate* isolate,
-    const MLNamedArrayBufferViews& source_views,
-    ExceptionState& exception_state) {
-  auto views_info = std::make_unique<NamedArrayBufferViewsInfo>();
-  for (const auto& [name, source_view] : source_views) {
-    auto view_info =
-        TransferArrayBufferView(isolate, source_view, exception_state);
-    if (!view_info) {
-      return nullptr;
-    }
-    views_info->push_back(std::make_pair(name, std::move(view_info.value())));
-  }
-  return views_info;
-}
-
-MLNamedArrayBufferViews* CreateNamedArrayBufferViews(
-    NamedArrayBufferViewsInfoPtr views_info) {
-  auto* target_views = MakeGarbageCollected<MLNamedArrayBufferViews>();
-  for (auto& [name, view_info] : *views_info) {
-    target_views->push_back(
-        std::make_pair(name, CreateArrayBufferView(std::move(view_info))));
-  }
-  return target_views;
-}
 
 xnn_datatype GetXnnDataType(V8MLOperandType::Enum operand_type) {
   switch (operand_type) {
@@ -682,12 +595,34 @@ XnnPadding2D GetXnnPadding2D(const OptionsType* options,
                              uint32_t stride_width,
                              uint32_t dilation_height,
                              uint32_t dilation_width) {
+  auto padding = CalculatePadding2D(
+      options, input_height, input_width, filter_height, filter_width,
+      stride_height, stride_width, dilation_height, dilation_width);
+  return XnnPadding2D{.top = padding.beginning.height,
+                      .bottom = padding.ending.height,
+                      .left = padding.beginning.width,
+                      .right = padding.ending.width};
+}
+
+// Helper to get padding sizes for XNNPACK convTranspose2d Nodes.
+XnnPadding2D GetXnnConvTransposePadding2D(
+    const MLConvTranspose2dOptions* options,
+    uint32_t input_height,
+    uint32_t input_width,
+    uint32_t filter_height,
+    uint32_t filter_width,
+    uint32_t stride_height,
+    uint32_t stride_width,
+    uint32_t dilation_height,
+    uint32_t dilation_width,
+    uint32_t output_padding_height,
+    uint32_t output_padding_width) {
   XnnPadding2D xnn_padding;
   switch (options->autoPad().AsEnum()) {
     case V8MLAutoPad::Enum::kExplicit: {
-      // Set the XNNPACK padding from WebNN explicit padding that is in
-      // [beginning_height, ending_height, beginning_width, ending_width],
-      // default to 0.
+      // Set the XNNPACK convTranspose2d padding from WebNN explicit padding
+      // that is in [beginning_height, ending_height, beginning_width,
+      // ending_width], default to 0.
       const Vector<uint32_t> default_pads({0, 0, 0, 0});
       xnn_padding.top = options->getPaddingOr(default_pads)[0];
       xnn_padding.bottom = options->getPaddingOr(default_pads)[1];
@@ -697,17 +632,20 @@ XnnPadding2D GetXnnPadding2D(const OptionsType* options,
     }
     case V8MLAutoPad::Enum::kSameUpper:
     case V8MLAutoPad::Enum::kSameLower: {
-      // Calculate the XNNPACK padding based on WebNN auto padding mode and
-      // sizes.
-      auto padding_sizes_height = MLGraphBuilder::CalculateConv2dPadding(
-          options->autoPad().AsEnum(), input_height, filter_height,
-          stride_height, dilation_height);
-      DCHECK(padding_sizes_height);
+      // Calculate the XNNPACK convTranspose2d padding based on WebNN auto
+      // padding mode and sizes.
+      auto padding_sizes_height =
+          MLGraphBuilder::CalculateConvTransposed2dPadding(
+              options->autoPad().AsEnum(), input_height, filter_height,
+              stride_height, dilation_height, output_padding_height);
+      CHECK(padding_sizes_height);
       xnn_padding.top = padding_sizes_height.value().begin;
       xnn_padding.bottom = padding_sizes_height.value().end;
-      auto padding_sizes_width = MLGraphBuilder::CalculateConv2dPadding(
-          options->autoPad().AsEnum(), input_width, filter_width, stride_width,
-          dilation_width);
+      auto padding_sizes_width =
+          MLGraphBuilder::CalculateConvTransposed2dPadding(
+              options->autoPad().AsEnum(), input_width, filter_width,
+              stride_width, dilation_width, output_padding_width);
+      CHECK(padding_sizes_width);
       xnn_padding.left = padding_sizes_width.value().begin;
       xnn_padding.right = padding_sizes_width.value().end;
       break;
@@ -858,6 +796,151 @@ xnn_status DefineXnnNodeForConv2d(xnn_subgraph_t subgraph,
   return xnn_status_success;
 }
 
+xnn_status DefineXnnNodeForConvTranspose2d(
+    xnn_subgraph_t subgraph,
+    const MLOperator* convTranspose2d,
+    const OperandValueIdMap& operand_value_id_map,
+    String& error_message) {
+  const uint32_t input_id =
+      GetOperatorInputValueId(convTranspose2d, operand_value_id_map, 0);
+  const uint32_t filter_id =
+      GetOperatorInputValueId(convTranspose2d, operand_value_id_map, 1);
+  // If there is no bias operand, set the XNNPACK Value ID of bias tensor to
+  // XNN_INVALID_VALUE_ID.
+  const uint32_t bias_id =
+      convTranspose2d->Inputs().size() == 3
+          ? GetOperatorInputValueId(convTranspose2d, operand_value_id_map, 2)
+          : XNN_INVALID_VALUE_ID;
+  const uint32_t output_id =
+      GetOperatorOutputValueId(convTranspose2d, operand_value_id_map);
+
+  const MLConvTranspose2dOptions* options =
+      static_cast<const MLConvTranspose2dOptions*>(convTranspose2d->Options());
+
+  // Set strides of XNNPACK convTranspose2d, default to 1.
+  const Vector<uint32_t> default_strides({1, 1});
+  const uint32_t stride_height = options->getStridesOr(default_strides)[0];
+  const uint32_t stride_width = options->getStridesOr(default_strides)[1];
+
+  // Set dilations of XNNPACK convTranspose2d, default to 1.
+  const Vector<uint32_t> default_dilations({1, 1});
+  const uint32_t dilation_height =
+      options->getDilationsOr(default_dilations)[0];
+  const uint32_t dilation_width = options->getDilationsOr(default_dilations)[1];
+
+  // Set input and filter sizes of XNNPACK convTranspose2d.
+  uint32_t input_height, input_width;
+  uint32_t filter_height, filter_width;
+  uint32_t input_channels, output_channels;
+  uint32_t output_height, output_width;
+  const uint32_t groups = options->groups();
+  if (options->inputLayout().AsEnum() == V8MLInputOperandLayout::Enum::kNhwc) {
+    const auto* input = convTranspose2d->Inputs()[0].Get();
+    CHECK(input);
+    input_height = input->Dimensions()[1];
+    input_width = input->Dimensions()[2];
+    input_channels = input->Dimensions()[3];
+    const auto* output = convTranspose2d->Outputs()[0].Get();
+    CHECK(output);
+    output_height = output->Dimensions()[1];
+    output_width = output->Dimensions()[2];
+    output_channels = output->Dimensions()[3];
+    // For convTranspose2d, XNNPACK expects weights layout in ohwi that is
+    // [groups * group_output_channels, kernel_height, kernel_width,
+    // group_input_channels]
+    //
+    // TODO(crbug.com/1273291): support other layouts by transposing the filter
+    // operand.
+    if (options->filterLayout().AsEnum() !=
+        V8MLConvTranspose2dFilterOperandLayout::Enum::kOhwi) {
+      error_message = String::Format("The filter layout %s is not supported.",
+                                     options->filterLayout().AsCStr());
+      return xnn_status_unsupported_parameter;
+    }
+    const auto* filter = convTranspose2d->Inputs()[1].Get();
+    CHECK(filter);
+    filter_height = filter->Dimensions()[1];
+    filter_width = filter->Dimensions()[2];
+  } else {
+    // TODO(crbug.com/1273291): support other layouts by transposing the input
+    // operand.
+    error_message = String::Format("The input layout %s is not supported.",
+                                   options->inputLayout().AsCStr());
+    return xnn_status_unsupported_parameter;
+  }
+
+  const Vector<uint32_t> default_output_padding({0, 0});
+  uint32_t output_padding_height, output_padding_width;
+  if (options->hasOutputSizes()) {
+    // Calculate output padding of XNNPACK convTranspose2d using validated
+    // calculated output sizes.
+    const auto calculated_output_sizes =
+        MLGraphBuilder::ValidateAndCalculateConvTranspose2dOutputSizes(
+            input_height, input_width, filter_height, filter_width,
+            // If padding is not present, the values are assumed to be
+            // [0,0,0,0].
+            options->getPaddingOr({0, 0, 0, 0}), {stride_height, stride_width},
+            {dilation_height, dilation_width},
+            // Calculate the output sizes without output padding.
+            {0u, 0u}, options->autoPad());
+    CHECK(calculated_output_sizes.has_value());
+    CHECK_GE(output_height, calculated_output_sizes->height);
+    output_padding_height = output_height - calculated_output_sizes->height;
+    CHECK_GE(output_width, calculated_output_sizes->width);
+    output_padding_width = output_width - calculated_output_sizes->width;
+  } else {
+    // Set output padding of XNNPACK convTranspose2d.
+    output_padding_height =
+        options->getOutputPaddingOr(default_output_padding)[0];
+    output_padding_width =
+        options->getOutputPaddingOr(default_output_padding)[1];
+  }
+
+  // Set or calculate padding sizes of XNNPACK convTranspose2d.
+  const auto padding = GetXnnConvTransposePadding2D(
+      options, input_height, input_width, filter_height, filter_width,
+      stride_height, stride_width, dilation_height, dilation_width,
+      output_padding_height, output_padding_width);
+
+  // Set the minimum and maximum output values for XNNPACK convTranspose2d based
+  // on the fused activation function. If no fused activation function is set,
+  // there are no limits for output values.
+  XnnOutputRange output_range{.min = -std::numeric_limits<float>::infinity(),
+                              .max = +std::numeric_limits<float>::infinity()};
+  if (options->hasActivation()) {
+    switch (options->activation()->Operator()->Kind()) {
+      case MLOperator::OperatorKind::kClamp:
+      case MLOperator::OperatorKind::kRelu:
+        output_range =
+            GetXnnOutputRangeForActivation(options->activation()->Operator());
+        break;
+      default:
+        // TODO(crbug.com/1273291): Support other fused operators by standalone
+        // XNNPACK operators.
+        error_message = "The fused operator (" +
+                        MLOperator::OperatorKindToString(
+                            options->activation()->Operator()->Kind()) +
+                        ") is not supported by convTranspose2d.";
+        return xnn_status_unsupported_parameter;
+    }
+  }
+
+  // Set group input and output channels of XNNPACK convTranspose2d.
+  const auto group_input_channels = input_channels / groups;
+  const auto group_output_channels = output_channels / groups;
+
+  // Define XNNPACK convTranspose2d Node for the Subgraph object.
+  const uint32_t flags = 0;
+  XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_deconvolution_2d(
+      subgraph, padding.top, padding.right, padding.bottom, padding.left,
+      output_padding_height, output_padding_width, filter_height, filter_width,
+      stride_height, stride_width, dilation_height, dilation_width, groups,
+      group_input_channels, group_output_channels, output_range.min,
+      output_range.max, input_id, filter_id, bias_id, output_id, flags));
+
+  return xnn_status_success;
+}
+
 xnn_status DefineXnnNodeForElementWiseBinary(
     xnn_subgraph_t subgraph,
     const MLOperator* binary,
@@ -903,9 +986,114 @@ xnn_status DefineXnnNodeForElementWiseBinary(
           xnn_define_minimum2(subgraph, lhs_id, rhs_id, output_id, flags));
       break;
     }
+    // Currently, XNNPACK doesn't support the generic pow operator.
+    // The implementation of pow only supports two special cases,
+    // square and square root, by xnn_define_square and xnn_define_square_root.
+    // TODO(crbug.com/1273291): Once the sqrt operator is supported by WebNN
+    // spec, we will map that to XNNPACK square root directly. And there is a
+    // proposal in WG to support dedicated square root operator -
+    // https://github.com/webmachinelearning/webnn/issues/438.
+    case MLOperator::OperatorKind::kPow: {
+      const auto* operand_a = binary->Inputs()[0].Get();
+      CHECK(operand_a);
+      const auto* operand_b = binary->Inputs()[1].Get();
+      CHECK(operand_b);
+      if (operand_b->Kind() != MLOperand::OperandKind::kConstant) {
+        error_message = "Operand b should be defined as a constant for pow.";
+        return xnn_status_unsupported_parameter;
+      }
+      // A scalar can be represented by empty dimensions which is still under WG
+      // discussion. An issue has been filed to track it -
+      // https://github.com/webmachinelearning/webnn/issues/390.
+      if (operand_b->Dimensions().size() != 1 ||
+          operand_b->Dimensions()[0] != 1) {
+        error_message = "Pow only supports scalar operand b.";
+        return xnn_status_unsupported_parameter;
+      }
+
+      // Currently, XNNPACK only supports fp32 input type for square and
+      // square_root operators.
+      if (operand_a->Type() != V8MLOperandType::Enum::kFloat32) {
+        error_message = "Pow only supports float32 operands.";
+        return xnn_status_unsupported_parameter;
+      }
+      CHECK_EQ(operand_b->Type(), V8MLOperandType::Enum::kFloat32);
+
+      const auto* array_buffer_view = operand_b->ArrayBufferView();
+      CHECK(array_buffer_view);
+      CHECK(!array_buffer_view->IsDetached());
+      CHECK_EQ(array_buffer_view->byteLength(), 4U);
+      float exp = static_cast<float*>(array_buffer_view->BaseAddress())[0];
+      if (fabs(exp - 2.0f) <= std::numeric_limits<float>::epsilon()) {
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+            xnn_define_square(subgraph, lhs_id, output_id, flags));
+      } else if (fabs(exp - 0.5f) <= std::numeric_limits<float>::epsilon()) {
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+            xnn_define_square_root(subgraph, lhs_id, output_id, flags));
+      } else {
+        error_message =
+            "The value of scalar operand b must be 2 or 0.5 for pow.";
+        return xnn_status_unsupported_parameter;
+      }
+      break;
+    }
     default:
       NOTREACHED();
   }
+  return xnn_status_success;
+}
+
+xnn_status DefineXnnNodeForElementWiseUnary(
+    xnn_subgraph_t subgraph,
+    const MLOperator* unary,
+    const OperandValueIdMap& operand_value_id_map,
+    String& error_message) {
+  const uint32_t input_id =
+      GetOperatorInputValueId(unary, operand_value_id_map);
+  const uint32_t output_id =
+      GetOperatorOutputValueId(unary, operand_value_id_map);
+  const uint32_t flags = 0;
+  switch (unary->Kind()) {
+    case MLOperator::OperatorKind::kAbs: {
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+          xnn_define_abs(subgraph, input_id, output_id, flags));
+      break;
+    }
+    case MLOperator::OperatorKind::kCeil: {
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+          xnn_define_ceiling(subgraph, input_id, output_id, flags));
+      break;
+    }
+    case MLOperator::OperatorKind::kFloor: {
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+          xnn_define_floor(subgraph, input_id, output_id, flags));
+      break;
+    }
+    case MLOperator::OperatorKind::kNeg: {
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+          xnn_define_negate(subgraph, input_id, output_id, flags));
+      break;
+    }
+    default:
+      NOTREACHED_NORETURN() << "Unsupported element-wise unary operator.";
+  }
+  return xnn_status_success;
+}
+
+xnn_status DefineXnnNodeForElu(xnn_subgraph_t subgraph,
+                               const MLOperator* elu,
+                               const OperandValueIdMap& operand_value_id_map,
+                               String& error_message) {
+  const uint32_t input_id = GetOperatorInputValueId(elu, operand_value_id_map);
+  const uint32_t output_id =
+      GetOperatorOutputValueId(elu, operand_value_id_map);
+  const MLEluOptions* options =
+      static_cast<const MLEluOptions*>(elu->Options());
+  CHECK(options);
+  const float alpha = options->alpha();
+  const uint32_t flags = 0;
+  XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+      xnn_define_elu(subgraph, alpha, input_id, output_id, flags));
   return xnn_status_success;
 }
 
@@ -1149,6 +1337,100 @@ xnn_status DefineXnnNodeForPool2d(xnn_subgraph_t subgraph,
   return xnn_status_success;
 }
 
+xnn_status DefineXnnNodeForPRelu(xnn_subgraph_t subgraph,
+                                 const MLOperator* prelu,
+                                 const OperandValueIdMap& operand_value_id_map,
+                                 String& error_message) {
+  CHECK_EQ(prelu->Inputs().size(), 2U);
+  const uint32_t input_id =
+      GetOperatorInputValueId(prelu, operand_value_id_map, 0);
+  const uint32_t slope_id =
+      GetOperatorInputValueId(prelu, operand_value_id_map, 1);
+  const auto* input = prelu->Inputs()[0].Get();
+  CHECK(input);
+  const auto* slope = prelu->Inputs()[1].Get();
+  CHECK(slope);
+
+  // XNNPACK prelu operator expects slope to be a static value (constant
+  // operand) but it currently misses checking it:
+  // https://github.com/google/XNNPACK/issues/4692. This issue would cause a
+  // crash if the slope is an external value (input operand). As a workaround,
+  // we check whether the slope is a constant operand here.
+  //
+  // TODO(crbug.com/1273291): Consider implementing prelu by other XNNPACK ops
+  // as max(0, x) + slope ∗ min(0, x) formula when slope is a non-constant
+  // operand.
+  if (slope->Kind() != MLOperand::OperandKind::kConstant) {
+    error_message = "Slope should be defined as a constant operand.";
+    return xnn_status_invalid_parameter;
+  }
+  const auto slope_rank = slope->Dimensions().size();
+  for (wtf_size_t i = 0; i < slope_rank - 1; i++) {
+    if (slope->Dimensions()[i] != 1) {
+      error_message =
+          "Expected all dimensions of slope to be 1 except the last dimension.";
+      return xnn_status_unsupported_parameter;
+    }
+  }
+  if (slope->Dimensions()[slope_rank - 1] !=
+      input->Dimensions()[input->Dimensions().size() - 1]) {
+    error_message = "The input and slope should have the same last dimension.";
+    return xnn_status_unsupported_parameter;
+  }
+
+  const uint32_t output_id =
+      GetOperatorOutputValueId(prelu, operand_value_id_map);
+  const uint32_t flags = 0;
+  XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+      xnn_define_prelu(subgraph, input_id, slope_id, output_id, flags));
+  return xnn_status_success;
+}
+
+xnn_status DefineXnnNodeForReduce(xnn_subgraph_t subgraph,
+                                  const MLOperator* reduce,
+                                  const OperandValueIdMap& operand_value_id_map,
+                                  String& error_message) {
+  const uint32_t input_id =
+      GetOperatorInputValueId(reduce, operand_value_id_map);
+  const uint32_t output_id =
+      GetOperatorOutputValueId(reduce, operand_value_id_map);
+
+  const MLReduceOptions* options =
+      static_cast<const MLReduceOptions*>(reduce->Options());
+  const auto* input = reduce->Inputs()[0].Get();
+  CHECK(input);
+  const auto input_rank = input->Dimensions().size();
+  Vector<uint32_t> default_axes(input_rank);
+  for (wtf_size_t i = 0; i < input_rank; i++) {
+    default_axes[i] = i;
+  }
+  const Vector<uint32_t> axes = options->getAxesOr(std::move(default_axes));
+  Vector<size_t> reduction_axes(axes.size());
+  base::ranges::transform(axes, reduction_axes.begin(), [](uint32_t value) {
+    return base::checked_cast<size_t>(value);
+  });
+
+  if (options->keepDimensions()) {
+    error_message = "XNNPACK can't support keep dimensions.";
+    return xnn_status_unsupported_parameter;
+  }
+  const uint32_t flags = 0;
+  switch (reduce->Kind()) {
+    case MLOperator::OperatorKind::kReduceMean: {
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_static_mean(
+          subgraph, reduction_axes.size(), reduction_axes.data(), input_id,
+          output_id, flags));
+      break;
+    }
+    default: {
+      // Because this method only supports reduceMean currently, it should
+      // already throw unsupported error for other operators.
+      NOTREACHED_NORETURN();
+    }
+  }
+  return xnn_status_success;
+}
+
 xnn_status DefineXnnNodeForRelu(xnn_subgraph_t subgraph,
                                 const MLOperator* relu,
                                 const OperandValueIdMap& operand_value_id_map,
@@ -1202,6 +1484,45 @@ xnn_status DefineXnnNodeForSigmoid(
   const uint32_t flags = 0;
   XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
       xnn_define_sigmoid(subgraph, input_id, output_id, flags));
+  return xnn_status_success;
+}
+
+xnn_status DefineXnnNodeForSlice(xnn_subgraph_t subgraph,
+                                 const MLOperator* slice,
+                                 const OperandValueIdMap& operand_value_id_map,
+                                 String& error_message) {
+  const MLSliceOperator* slice_operator =
+      static_cast<const MLSliceOperator*>(slice);
+  const uint32_t input_id =
+      GetOperatorInputValueId(slice_operator, operand_value_id_map);
+  const uint32_t output_id =
+      GetOperatorOutputValueId(slice_operator, operand_value_id_map);
+
+  const auto* input = slice->Inputs()[0].Get();
+  CHECK(input);
+  const auto input_rank = input->Dimensions().size();
+  const Vector<uint32_t>& starts = slice_operator->Starts();
+  CHECK_EQ(input_rank, starts.size());
+  Vector<size_t> offsets(input_rank);
+  base::ranges::transform(starts, offsets.begin(), [](uint32_t value) {
+    return base::checked_cast<size_t>(value);
+  });
+  const Vector<uint32_t>& lengths = slice_operator->Sizes();
+  CHECK_EQ(input_rank, lengths.size());
+  Vector<size_t> sizes(input_rank);
+  base::ranges::transform(lengths, sizes.begin(), [](uint32_t value) {
+    return base::checked_cast<size_t>(value);
+  });
+
+  const uint32_t flags = 0;
+  // XNNPACK will memcpy the content of `offsets` and `sizes`
+  // vectors to its internal structure, so it is safe to release `offsets`
+  // and `sizes` vectors after this call. Please refer to the
+  // implementation at:
+  // https://source.chromium.org/chromium/chromium/src/+/main:third_party/xnnpack/src/src/subgraph/static-slice.c;l=254
+  XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+      xnn_define_static_slice(subgraph, input_rank, offsets.data(),
+                              sizes.data(), input_id, output_id, flags));
   return xnn_status_success;
 }
 
@@ -1260,6 +1581,88 @@ xnn_status DefineXnnNodeForResample2d(
   return xnn_status_success;
 }
 
+xnn_status DefineXnnNodeForSplit(xnn_subgraph_t subgraph,
+                                 const MLOperator* ml_operator,
+                                 const OperandValueIdMap& operand_value_id_map,
+                                 String& error_message) {
+  const MLSplitOperator* split =
+      static_cast<const MLSplitOperator*>(ml_operator);
+  const uint32_t input_id =
+      GetOperatorInputValueId(split, operand_value_id_map);
+  const auto outputs_size = split->Outputs().size();
+  Vector<uint32_t> output_ids(outputs_size);
+  for (uint32_t i = 0; i < outputs_size; ++i) {
+    output_ids[i] = GetOperatorOutputValueId(split, operand_value_id_map, i);
+  }
+  const MLSplitOptions* options =
+      static_cast<const MLSplitOptions*>(ml_operator->Options());
+  const auto axis = options->axis();
+  const uint32_t flags = 0;
+  if (split->IsEvenSplit()) {
+    const auto split_number = split->SplitNumber();
+    switch (split_number) {
+      case 1u:
+        // Use XNNPACK copy operator to supoprt single output.
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+            xnn_define_copy(subgraph, input_id, output_ids[0], flags));
+        break;
+      case 2u:
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_even_split2(
+            subgraph, axis, input_id, output_ids[0], output_ids[1], flags));
+        break;
+      case 3u:
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+            xnn_define_even_split3(subgraph, axis, input_id, output_ids[0],
+                                   output_ids[1], output_ids[2], flags));
+        break;
+      case 4u:
+        XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_even_split4(
+            subgraph, axis, input_id, output_ids[0], output_ids[1],
+            output_ids[2], output_ids[3], flags));
+        break;
+      default:
+        // TODO(crbug.com/1273291): Consider decomposing the split with splits >
+        // 4 into multiple XNNPACK Slice Nodes.
+        error_message = "XNNPACK backend doesn't support evenly split in to " +
+                        String::Number(split_number);
+        return xnn_status_unsupported_parameter;
+    }
+  } else {
+    const auto input_shape = split->Inputs()[0]->Dimensions();
+    const auto input_rank = input_shape.size();
+    const auto split_sizes = split->SplitSizes();
+    Vector<size_t> offsets(input_rank, 0);
+    Vector<size_t> sizes(input_shape);
+    size_t offset = 0;
+    for (uint32_t i = 0; i < outputs_size; ++i) {
+      sizes[axis] = split_sizes[i];
+      // XNNPACK will memcpy the content of `offsets` and `sizes` vectors to its
+      // internal structure, so it is safe to release `offsets` and `sizes`
+      // vectors after this call. Please refer to the implementation at:
+      // https://source.chromium.org/chromium/chromium/src/+/main:third_party/xnnpack/src/src/subgraph/static-slice.c;l=254
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_static_slice(
+          subgraph, input_rank, offsets.data(), sizes.data(), input_id,
+          output_ids[i], flags));
+      offset += split_sizes[i];
+      offsets[axis] = offset;
+    }
+  }
+  return xnn_status_success;
+}
+
+xnn_status DefineXnnNodeForTanh(xnn_subgraph_t subgraph,
+                                const MLOperator* tanh,
+                                const OperandValueIdMap& operand_value_id_map,
+                                String& error_message) {
+  const uint32_t input_id = GetOperatorInputValueId(tanh, operand_value_id_map);
+  const uint32_t output_id =
+      GetOperatorOutputValueId(tanh, operand_value_id_map);
+  const uint32_t flags = 0;
+  XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+      xnn_define_tanh(subgraph, input_id, output_id, flags));
+  return xnn_status_success;
+}
+
 xnn_status DefineXnnNodeForTranspose(
     xnn_subgraph_t subgraph,
     const MLOperator* transpose,
@@ -1305,27 +1708,12 @@ xnn_status DefineXnnNodeForTranspose(
   return xnn_status_success;
 }
 
-// Helper to find the concat axis by comparing the first input shape and output
-// shape which is already calculated by `MLGraphBuilder::concat()`.
-absl::optional<uint32_t> GetConcatAxis(const MLOperator* concat) {
-  // The output tensor should has the same shape size with all the input tensors
-  const auto& output_dims = concat->Outputs()[0]->Dimensions();
-  for (const auto& input : concat->Inputs()) {
-    CHECK_EQ(input->Dimensions().size(), output_dims.size());
-  }
-  const auto& input_dims = concat->Inputs()[0]->Dimensions();
-  for (wtf_size_t i = 0; i < input_dims.size(); ++i) {
-    if (input_dims[i] != output_dims[i]) {
-      return i;
-    }
-  }
-  return absl::nullopt;
-}
-
 xnn_status DefineXnnNodeForConcat(xnn_subgraph_t subgraph,
-                                  const MLOperator* concat,
+                                  const MLOperator* ml_operator,
                                   const OperandValueIdMap& operand_value_id_map,
                                   String& error_message) {
+  const MLConcatOperator* concat =
+      static_cast<const MLConcatOperator*>(ml_operator);
   const auto inputs_size = concat->Inputs().size();
   Vector<uint32_t> input_ids(inputs_size);
   for (uint32_t i = 0; i < inputs_size; ++i) {
@@ -1340,25 +1728,20 @@ xnn_status DefineXnnNodeForConcat(xnn_subgraph_t subgraph,
         xnn_define_copy(subgraph, input_ids[0], output_id, flags));
     return xnn_status_success;
   }
-  absl::optional<uint32_t> axis = GetConcatAxis(concat);
-  if (!axis) {
-    error_message = "Can not find the concat axis.";
-    return xnn_status_unsupported_parameter;
-  }
+  const auto axis = concat->Axis();
   switch (inputs_size) {
     case 2u:
-      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
-          xnn_define_concatenate2(subgraph, axis.value(), input_ids[0],
-                                  input_ids[1], output_id, flags));
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_concatenate2(
+          subgraph, axis, input_ids[0], input_ids[1], output_id, flags));
       break;
     case 3u:
-      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_concatenate3(
-          subgraph, axis.value(), input_ids[0], input_ids[1], input_ids[2],
-          output_id, flags));
+      XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(
+          xnn_define_concatenate3(subgraph, axis, input_ids[0], input_ids[1],
+                                  input_ids[2], output_id, flags));
       break;
     case 4u:
       XNN_CHECK_STATUS_AND_SET_ERROR_MESSAGE(xnn_define_concatenate4(
-          subgraph, axis.value(), input_ids[0], input_ids[1], input_ids[2],
+          subgraph, axis, input_ids[0], input_ids[1], input_ids[2],
           input_ids[3], output_id, flags));
       break;
     default:
@@ -1389,17 +1772,35 @@ xnn_status DefineXnnNode(xnn_subgraph_t subgraph,
       XNN_CHECK_STATUS(DefineXnnNodeForConv2d(
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
+    case MLOperator::OperatorKind::kConvTranspose2d:
+      XNN_CHECK_STATUS(DefineXnnNodeForConvTranspose2d(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
     // Define XNNPACK Node for element-wise binary operators.
     case MLOperator::OperatorKind::kAdd:
     case MLOperator::OperatorKind::kSub:
     case MLOperator::OperatorKind::kMul:
     case MLOperator::OperatorKind::kDiv:
     case MLOperator::OperatorKind::kMax:
-    case MLOperator::OperatorKind::kMin: {
+    case MLOperator::OperatorKind::kMin:
+    case MLOperator::OperatorKind::kPow: {
       XNN_CHECK_STATUS(DefineXnnNodeForElementWiseBinary(
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
     }
+    // Define XNNPACK Node for element-wise unary operators.
+    case MLOperator::OperatorKind::kAbs:
+    case MLOperator::OperatorKind::kCeil:
+    case MLOperator::OperatorKind::kFloor:
+    case MLOperator::OperatorKind::kNeg: {
+      XNN_CHECK_STATUS(DefineXnnNodeForElementWiseUnary(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
+    }
+    case MLOperator::OperatorKind::kElu:
+      XNN_CHECK_STATUS(DefineXnnNodeForElu(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
     case MLOperator::OperatorKind::kGemm:
       XNN_CHECK_STATUS(DefineXnnNodeForGemm(
           subgraph, ml_operator, operand_value_id_map, error_message));
@@ -1423,6 +1824,15 @@ xnn_status DefineXnnNode(xnn_subgraph_t subgraph,
       XNN_CHECK_STATUS(DefineXnnNodeForLeakyRelu(
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
+    case MLOperator::OperatorKind::kPRelu:
+      XNN_CHECK_STATUS(DefineXnnNodeForPRelu(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
+      // Define XNNPACK Node for reduction operators.
+    case MLOperator::OperatorKind::kReduceMean:
+      XNN_CHECK_STATUS(DefineXnnNodeForReduce(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
     case MLOperator::OperatorKind::kRelu:
       XNN_CHECK_STATUS(DefineXnnNodeForRelu(
           subgraph, ml_operator, operand_value_id_map, error_message));
@@ -1435,6 +1845,10 @@ xnn_status DefineXnnNode(xnn_subgraph_t subgraph,
       XNN_CHECK_STATUS(DefineXnnNodeForSigmoid(
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
+    case MLOperator::OperatorKind::kSlice:
+      XNN_CHECK_STATUS(DefineXnnNodeForSlice(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
     case MLOperator::OperatorKind::kSoftmax:
       XNN_CHECK_STATUS(DefineXnnNodeForSoftmax(
           subgraph, ml_operator, operand_value_id_map, error_message));
@@ -1444,8 +1858,18 @@ xnn_status DefineXnnNode(xnn_subgraph_t subgraph,
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
     }
+    case MLOperator::OperatorKind::kSplit: {
+      XNN_CHECK_STATUS(DefineXnnNodeForSplit(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
+    }
     case MLOperator::OperatorKind::kTranspose: {
       XNN_CHECK_STATUS(DefineXnnNodeForTranspose(
+          subgraph, ml_operator, operand_value_id_map, error_message));
+      break;
+    }
+    case MLOperator::OperatorKind::kTanh: {
+      XNN_CHECK_STATUS(DefineXnnNodeForTanh(
           subgraph, ml_operator, operand_value_id_map, error_message));
       break;
     }
@@ -1575,8 +1999,8 @@ void MLGraphXnnpack::OnDidGetSharedXnnpackContext(
       CrossThreadBindOnce(
           &CreateXnnRuntimeOnBackgroundThread, std::move(subgraph),
           std::move(xnn_context), std::move(static_data_buffers),
-          MakeCrossThreadHandle(this), MakeCrossThreadHandle(resolver),
-          resolver_task_runner_));
+          MakeCrossThreadHandle(this), ml_context_->GetNumThreads(),
+          MakeCrossThreadHandle(resolver), resolver_task_runner_));
 }
 
 // static
@@ -1585,13 +2009,14 @@ void MLGraphXnnpack::CreateXnnRuntimeOnBackgroundThread(
     scoped_refptr<SharedXnnpackContext> xnn_context,
     Vector<DataBufferPtr> static_data_buffers,
     CrossThreadHandle<MLGraphXnnpack> graph,
+    uint32_t num_threads,
     CrossThreadHandle<ScriptPromiseResolver> resolver,
     scoped_refptr<base::SequencedTaskRunner> resolver_task_runner) {
   CHECK(!IsMainThread());
   String error_message;
-  auto xnn_runtime_wrapper =
-      XnnRuntimeWrapper::Create(std::move(subgraph), std::move(xnn_context),
-                                std::move(static_data_buffers), error_message);
+  auto xnn_runtime_wrapper = XnnRuntimeWrapper::Create(
+      std::move(subgraph), std::move(xnn_context),
+      std::move(static_data_buffers), num_threads, error_message);
   PostCrossThreadTask(
       *resolver_task_runner, FROM_HERE,
       CrossThreadBindOnce(&MLGraphXnnpack::OnDidCreateXnnRuntime,
@@ -1636,7 +2061,8 @@ MLGraph* MLGraphXnnpack::BuildSyncImpl(const MLNamedOperands& named_outputs,
   }
   xnn_runtime_wrapper_ =
       XnnRuntimeWrapper::Create(std::move(subgraph), std::move(xnn_context),
-                                std::move(static_data_buffers), error_message);
+                                std::move(static_data_buffers),
+                                ml_context_->GetNumThreads(), error_message);
   if (!xnn_runtime_wrapper_) {
     exception_state.ThrowDOMException(
         XnnStatusToDOMExceptionCode(xnn_status_invalid_parameter),
@@ -1828,6 +2254,8 @@ xnn_status MLGraphXnnpack::CreateXnnSubgraph(
           // buffer into the newly-allocated buffer and it is used to initialize
           // the XNNPACK Value.
           const auto* array_buffer_view = operand->ArrayBufferView();
+          CHECK(array_buffer_view);
+          CHECK(!array_buffer_view->IsDetached());
           auto data =
               std::make_unique<uint8_t[]>(array_buffer_view->byteLength());
           DCHECK(data);

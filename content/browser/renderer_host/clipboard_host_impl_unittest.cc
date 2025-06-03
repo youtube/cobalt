@@ -143,7 +143,7 @@ class ClipboardHostImplTest : public RenderViewHostTestHarness {
   ui::Clipboard* system_clipboard() { return clipboard_; }
 
  private:
-  raw_ptr<ui::Clipboard> clipboard_;
+  raw_ptr<ui::Clipboard, DanglingUntriaged> clipboard_;
   mojo::Remote<blink::mojom::ClipboardHost> remote_;
 };
 
@@ -206,7 +206,7 @@ TEST_F(ClipboardHostImplTest, IsPasteContentAllowedRequest_AddCallback) {
 TEST_F(ClipboardHostImplTest, IsPasteContentAllowedRequest_Complete) {
   ClipboardHostImpl::IsPasteContentAllowedRequest request;
   ClipboardHostImpl::ClipboardPasteData final_clipboard_paste_data =
-      ClipboardHostImpl::ClipboardPasteData("data", std::string(), {});
+      ClipboardHostImpl::ClipboardPasteData("text", "image", {});
 
   int count = 0;
 
@@ -217,6 +217,8 @@ TEST_F(ClipboardHostImplTest, IsPasteContentAllowedRequest_Complete) {
               clipboard_paste_data) {
         ++count;
         ASSERT_EQ(clipboard_paste_data->text, final_clipboard_paste_data.text);
+        ASSERT_EQ(clipboard_paste_data->image,
+                  final_clipboard_paste_data.image);
       }));
   EXPECT_EQ(0, count);
 
@@ -232,6 +234,8 @@ TEST_F(ClipboardHostImplTest, IsPasteContentAllowedRequest_Complete) {
               clipboard_paste_data) {
         ++count;
         ASSERT_EQ(clipboard_paste_data->text, final_clipboard_paste_data.text);
+        ASSERT_EQ(clipboard_paste_data->image,
+                  final_clipboard_paste_data.image);
       }));
   EXPECT_EQ(2, count);
 }
@@ -319,10 +323,10 @@ class ClipboardHostImplScanTest : public RenderViewHostTestHarness {
 
  private:
   mojo::Remote<blink::mojom::ClipboardHost> remote_;
-  const raw_ptr<ui::Clipboard> clipboard_;
+  const raw_ptr<ui::Clipboard, DanglingUntriaged> clipboard_;
   // `FakeClipboardHostImpl` is a `DocumentService` and manages its own
   // lifetime.
-  raw_ptr<FakeClipboardHostImpl> fake_clipboard_host_impl_;
+  raw_ptr<FakeClipboardHostImpl, DanglingUntriaged> fake_clipboard_host_impl_;
 };
 
 TEST_F(ClipboardHostImplScanTest,

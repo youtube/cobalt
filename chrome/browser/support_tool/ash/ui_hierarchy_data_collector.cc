@@ -5,6 +5,7 @@
 #include "chrome/browser/support_tool/ash/ui_hierarchy_data_collector.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -23,7 +24,6 @@
 #include "components/feedback/redaction_tool/redaction_tool.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
-#include "third_party/re2/src/re2/stringpiece.h"
 
 UiHierarchyDataCollector::UiHierarchyDataCollector() = default;
 UiHierarchyDataCollector::~UiHierarchyDataCollector() = default;
@@ -73,23 +73,23 @@ std::string UiHierarchyDataCollector::RemoveWindowTitles(
   // `ui_hierarchy_data` stores every component in a new line. Window titles are
   // stored in "title=<window title>\n" format in `ui_hierarchy_data`.
   re2::RE2 regex_pattern("(?s)(.*?)title=(?-s)(.+)\\n");
-  re2::StringPiece input(ui_hierarchy_data);
+  std::string_view input(ui_hierarchy_data);
 
   // `regex_pattern` has two matching groups: first one is for the skipped input
   // that doesn't contain any window titles and second one is for the matched
   // window title.
-  re2::StringPiece skipped_part;
-  re2::StringPiece matched_window_title;
+  std::string_view skipped_part;
+  std::string_view matched_window_title;
   std::string redacted;
 
   while (re2::RE2::Consume(&input, regex_pattern, &skipped_part,
                            &matched_window_title)) {
-    skipped_part.AppendToString(&redacted);
+    redacted.append(skipped_part);
     redacted += "title=<REDACTED>\n";
   }
   // Append the rest of the input to `redacted`. Only the unmatched last part
   // will be present in the `input` as we're using Consume() function.
-  input.AppendToString(&redacted);
+  redacted.append(input);
   return redacted;
 }
 
@@ -140,8 +140,9 @@ void UiHierarchyDataCollector::OnDataExportDone(
     bool success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!success) {
-    SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
-                              "Failed on data export."};
+    SupportToolError error = {
+        SupportToolErrorCode::kDataCollectorError,
+        "UiHierarchyDataCollector failed on data export."};
     std::move(on_exported_callback).Run(error);
     return;
   }

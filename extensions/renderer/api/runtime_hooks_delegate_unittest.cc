@@ -6,13 +6,14 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
+#include "base/values.h"
 #include "components/crx_file/id_util.h"
-#include "extensions/common/api/messaging/serialization_format.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_messages.h"
-#include "extensions/common/value_builder.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/renderer/api/messaging/message_target.h"
 #include "extensions/renderer/api/messaging/native_renderer_messaging_service.h"
 #include "extensions/renderer/api/messaging/send_message_tester.h"
@@ -98,7 +99,7 @@ class RuntimeHooksDelegateTest : public NativeExtensionBindingsSystemUnittest {
  private:
   std::unique_ptr<NativeRendererMessagingService> messaging_service_;
 
-  ScriptContext* script_context_ = nullptr;
+  raw_ptr<ScriptContext, ExperimentalRenderer> script_context_ = nullptr;
   scoped_refptr<const Extension> extension_;
 };
 
@@ -110,7 +111,7 @@ TEST_F(RuntimeHooksDelegateTest, RuntimeId) {
     scoped_refptr<const Extension> connectable_extension =
         ExtensionBuilder("connectable")
             .SetManifestPath("externally_connectable.matches",
-                             ListBuilder().Append("*://example.com/*").Build())
+                             base::Value::List().Append("*://example.com/*"))
             .Build();
     RegisterExtension(connectable_extension);
   }
@@ -369,13 +370,14 @@ TEST_F(RuntimeHooksDelegateNativeMessagingTest, ConnectNative) {
         "(function() { return chrome.runtime.connectNative(%s); })";
     PortId expected_port_id(script_context()->context_id(),
                             next_context_port_id++, true,
-                            SerializationFormat::kJson);
+                            mojom::SerializationFormat::kJson);
     MessageTarget expected_target(
         MessageTarget::ForNativeApp(expected_app_name));
-    EXPECT_CALL(*ipc_message_sender(),
-                SendOpenMessageChannel(script_context(), expected_port_id,
-                                       expected_target, ChannelType::kNative,
-                                       kEmptyExpectedChannel));
+    EXPECT_CALL(
+        *ipc_message_sender(),
+        SendOpenMessageChannel(script_context(), expected_port_id,
+                               expected_target, mojom::ChannelType::kNative,
+                               kEmptyExpectedChannel, testing::_, testing::_));
 
     v8::Local<v8::Function> add_port = FunctionFromString(
         context, base::StringPrintf(kAddPortTemplate, args.c_str()));

@@ -33,7 +33,9 @@ class SavedTabGroupUtils {
       const GURL& url,
       Browser* browser,
       Profile* profile,
-      WindowOpenDisposition disposition);
+      WindowOpenDisposition disposition,
+      absl::optional<int> tabstrip_index = absl::nullopt,
+      absl::optional<tab_groups::TabGroupId> local_group_id = absl::nullopt);
 
   // Returns the Browser that contains a local group with id `group_id`.
   static Browser* GetBrowserWithTabGroupId(tab_groups::TabGroupId group_id);
@@ -44,6 +46,9 @@ class SavedTabGroupUtils {
   // Returns the list of WebContentses in the local group `group_id` in order.
   static std::vector<content::WebContents*> GetWebContentsesInGroup(
       tab_groups::TabGroupId group_id);
+
+  // Returns whether the tab's URL is viable for saving in a saved tab group.
+  static bool IsURLValidForSavedTabGroups(const GURL& gurl);
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_SAVED_TAB_GROUPS_SAVED_TAB_GROUP_UTILS_H_

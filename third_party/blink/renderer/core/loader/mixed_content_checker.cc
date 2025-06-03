@@ -34,6 +34,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
@@ -406,7 +407,7 @@ bool MixedContentChecker::ShouldBlockFetch(
     const KURL& url_before_redirects,
     ResourceRequest::RedirectStatus redirect_status,
     const KURL& url,
-    const absl::optional<String>& devtools_id,
+    const String& devtools_id,
     ReportingDisposition reporting_disposition,
     mojom::blink::ContentSecurityNotifier& notifier) {
   Frame* mixed_frame = InWhichFrameIsContentMixed(frame, url);
@@ -535,12 +536,19 @@ bool MixedContentChecker::ShouldBlockFetch(
   };
 
   // Skip mixed content check for private and local targets.
+  // `target_address_space` here is private/local only when resource request
+  // has explicitly set `targetAddressSpace` fetch option.
   // TODO(lyf): check the IP address space for initiator, only skip when the
   // initiator is more public.
-  if (RuntimeEnabledFeatures::PrivateNetworkAccessPermissionPromptEnabled()) {
-    if (target_address_space == network::mojom::blink::IPAddressSpace::kLocal ||
-        target_address_space ==
-            network::mojom::blink::IPAddressSpace::kLoopback) {
+  if (base::FeatureList::IsEnabled(
+          network::features::kPrivateNetworkAccessPermissionPrompt) &&
+      RuntimeEnabledFeatures::PrivateNetworkAccessPermissionPromptEnabled(
+          frame->DomWindow())) {
+    if (target_address_space ==
+            network::mojom::blink::IPAddressSpace::kPrivate ||
+        target_address_space == network::mojom::blink::IPAddressSpace::kLocal) {
+      UseCounter::Count(frame->GetDocument(),
+                        WebFeature::kPrivateNetworkAccessPermissionPrompt);
       allowed = true;
     }
   }
@@ -691,7 +699,7 @@ bool MixedContentChecker::IsWebSocketAllowed(
       mojom::blink::RequestContextType::FETCH, frame,
       allowed ? MixedContentResolutionStatus::kMixedContentWarning
               : MixedContentResolutionStatus::kMixedContentBlocked,
-      absl::optional<String>());
+      String());
   return allowed;
 }
 
@@ -766,8 +774,7 @@ bool MixedContentChecker::IsMixedFormAction(
       MainResourceUrlForFrame(mixed_frame), url,
 
       mojom::blink::RequestContextType::FORM, frame,
-      MixedContentResolutionStatus::kMixedContentWarning,
-      absl::optional<String>());
+      MixedContentResolutionStatus::kMixedContentWarning, String());
 
   return true;
 }
@@ -798,19 +805,21 @@ bool MixedContentChecker::ShouldAutoupgrade(
   // autoupgrade because it might not make sense to request a certificate for
   // an IP address.
   if (GURL(request_url).HostIsIPAddress()) {
-    if (auto* window =
-            DynamicTo<LocalDOMWindow>(execution_context_for_logging)) {
-      window->AddConsoleMessage(
-          MixedContentChecker::
-              CreateConsoleMessageAboutFetchIPAddressNoAutoupgrade(
-                  fetch_client_settings_object->GlobalObjectUrl(),
-                  request_url));
-      AuditsIssue::ReportMixedContentIssue(
-          fetch_client_settings_object->GlobalObjectUrl(),
-          resource_request.Url(), resource_request.GetRequestContext(),
-          window->document()->GetFrame(),
-          MixedContentResolutionStatus::kMixedContentWarning,
-          resource_request.GetDevToolsId());
+    if (!request_url.ProtocolIs("https")) {
+      if (auto* window =
+              DynamicTo<LocalDOMWindow>(execution_context_for_logging)) {
+        window->AddConsoleMessage(
+            MixedContentChecker::
+                CreateConsoleMessageAboutFetchIPAddressNoAutoupgrade(
+                    fetch_client_settings_object->GlobalObjectUrl(),
+                    request_url));
+        AuditsIssue::ReportMixedContentIssue(
+            fetch_client_settings_object->GlobalObjectUrl(),
+            resource_request.Url(), resource_request.GetRequestContext(),
+            window->document()->GetFrame(),
+            MixedContentResolutionStatus::kMixedContentWarning,
+            resource_request.GetDevToolsId());
+      }
     }
     return false;
   }
@@ -855,7 +864,7 @@ void MixedContentChecker::MixedContentFound(
       main_resource_url, mixed_content_url, request_context, frame,
       was_allowed ? MixedContentResolutionStatus::kMixedContentWarning
                   : MixedContentResolutionStatus::kMixedContentBlocked,
-      absl::optional<String>());
+      String());
   // Reports to the CSP policy.
   ContentSecurityPolicy* policy =
       frame->DomWindow()->GetContentSecurityPolicy();

@@ -27,17 +27,12 @@
 #include "components/autofill/core/common/form_data.h"
 #include "components/password_manager/core/browser/affiliation/affiliated_match_helper.h"
 #include "components/password_manager/core/browser/affiliation/affiliation_service.h"
-#include "components/password_manager/core/browser/get_logins_with_affiliations_request_handler.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
-#include "components/password_manager/core/browser/password_reuse_manager_impl.h"
 #include "components/password_manager/core/browser/password_store_backend.h"
 #include "components/password_manager/core/browser/password_store_consumer.h"
-#include "components/password_manager/core/browser/password_store_signin_notifier.h"
 #include "components/password_manager/core/browser/password_store_util.h"
 #include "components/password_manager/core/browser/psl_matching_helper.h"
-#include "components/password_manager/core/browser/statistics_table.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -47,11 +42,6 @@
 namespace password_manager {
 
 namespace {
-
-bool FormSupportsPSL(const PasswordFormDigest& digest) {
-  return digest.scheme == PasswordForm::Scheme::kHtml &&
-         !GetRegistryControlledDomain(GURL(digest.signon_realm)).empty();
-}
 
 // Helper function which invokes |notifying_callback| and |completion_callback|
 // when changes are received.
@@ -92,6 +82,7 @@ void PasswordStore::Init(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       "passwords", "PasswordStore::InitOnBackgroundSequence", this);
   backend_->InitBackend(
+      affiliated_match_helper_.get(),
       base::BindRepeating(&PasswordStore::NotifyLoginsChangedOnMainSequence,
                           this, LoginsChangedTrigger::ExternalUpdate),
       base::BindPostTask(
@@ -264,7 +255,7 @@ void PasswordStore::Unblocklist(const PasswordFormDigest& form_digest,
       base::BindOnce(&GetLoginsOrEmptyListOnFailure)
           .Then(base::BindOnce(&PasswordStore::UnblocklistInternal, this,
                                std::move(completion))),
-      FormSupportsPSL(form_digest), {form_digest});
+      /*include_psl=*/false, {form_digest});
 }
 
 void PasswordStore::GetLogins(const PasswordFormDigest& form,
@@ -276,27 +267,10 @@ void PasswordStore::GetLogins(const PasswordFormDigest& form,
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("passwords", "PasswordStore::GetLogins",
                                     consumer.get());
 
-  // Combines the credentials retrieved for `form` with credentials
-  // retrieved for the form's realm's affiliations and passes them on to
-  // the `consumer`. If an error occurs while fetching one or the other,
-  // the error is passed on instead.
-  scoped_refptr<GetLoginsWithAffiliationsRequestHandler> request_handler =
-      new GetLoginsWithAffiliationsRequestHandler(form, consumer,
-                                                  /*store=*/this);
-
-  if (affiliated_match_helper_) {
-    // If there is an affiliation helper, both logins for `form` as well
-    // as for the realm's affiliations should be retrieved.
-    GetLoginsForFormAndForAffiliatedRealms(form, request_handler);
-    return;
-  }
-  // If there is no helper to retrieve affiliations with, inform the
-  // `request_handler` that there are no affiliated logins.
-  request_handler->NonFormLoginsClosure().Run({});
-
-  // And request the regular logins for `form`.
-  backend_->FillMatchingLoginsAsync(request_handler->LoginsForFormClosure(),
-                                    FormSupportsPSL(form), {form});
+  backend_->GetGroupedMatchingLoginsAsync(
+      form, base::BindOnce(
+                &PasswordStoreConsumer::OnGetPasswordStoreResultsOrErrorFrom,
+                consumer, base::RetainedRef(this)));
 }
 
 void PasswordStore::GetAutofillableLogins(
@@ -333,19 +307,12 @@ void PasswordStore::GetAllLoginsWithAffiliationAndBrandingInformation(
   auto consumer_reply = base::BindOnce(
       &PasswordStoreConsumer::OnGetPasswordStoreResultsOrErrorFrom, consumer,
       base::RetainedRef(this));
-
-  auto affiliation_injection =
-      base::BindOnce(&PasswordStore::InjectAffiliationAndBrandingInformation,
-                     this, std::move(consumer_reply));
-  backend_->GetAllLoginsAsync(std::move(affiliation_injection));
+  backend_->GetAllLoginsWithAffiliationAndBrandingAsync(
+      std::move(consumer_reply));
 }
 
 SmartBubbleStatsStore* PasswordStore::GetSmartBubbleStatsStore() {
   return backend_ ? backend_->GetSmartBubbleStatsStore() : nullptr;
-}
-
-FieldInfoStore* PasswordStore::GetFieldInfoStore() {
-  return backend_ ? backend_->GetFieldInfoStore() : nullptr;
 }
 
 void PasswordStore::AddObserver(Observer* observer) {
@@ -368,15 +335,19 @@ void PasswordStore::ShutdownOnUIThread() {
   // after shutdown.
   sync_enabled_or_disabled_cbs_.reset();
 
-  // The AffiliationService must be destroyed from the main sequence.
-  affiliated_match_helper_.reset();
-
   if (backend_) {
     backend_->Shutdown(base::BindOnce(
         [](std::unique_ptr<PasswordStoreBackend> backend) { backend.reset(); },
         std::move(backend_)));
     // Now, backend_ == nullptr (guaranteed by move).
   }
+
+  // The AffiliationService must be destroyed from the main sequence.
+  affiliated_match_helper_.reset();
+
+  // PrefService is destroyed together with BrowserContext, and cannot be used
+  // anymore.
+  prefs_ = nullptr;
 }
 
 std::unique_ptr<syncer::ProxyModelTypeControllerDelegate>
@@ -505,8 +476,7 @@ void PasswordStore::UnblocklistInternal(
 
   std::vector<PasswordForm> forms_to_remove;
   for (auto& form : forms) {
-    // Ignore PSL matches for blocked entries.
-    if (form->blocked_by_user && !form->is_public_suffix_match) {
+    if (form->blocked_by_user) {
       forms_to_remove.push_back(std::move(*form));
     }
   }
@@ -532,70 +502,6 @@ void PasswordStore::UnblocklistInternal(
   for (const auto& form : forms_to_remove) {
     backend_->RemoveLoginAsync(form, barrier_callback);
   }
-}
-
-void PasswordStore::GetLoginsForFormAndForAffiliatedRealms(
-    const PasswordFormDigest& form,
-    scoped_refptr<GetLoginsWithAffiliationsRequestHandler> request_handler) {
-  DCHECK(affiliated_match_helper_);
-
-  auto branding_injection_for_affiliations_callback =
-      base::BindOnce(&PasswordStore::InjectAffiliationAndBrandingInformation,
-                     this, request_handler->NonFormLoginsClosure());
-
-  // This callback is to be owned and executed from `affiliated_match_helper_`.
-  // Since `Shutdown` resets the `affiliated_match_helper_` before shutting down
-  // the `backend_`, base::Unretained is safe here.
-  auto get_logins_for_affiliations_callback =
-      base::BindOnce(&PasswordStoreBackend::FillMatchingLoginsAsync,
-                     base::Unretained(backend_.get()),
-                     std::move(branding_injection_for_affiliations_callback),
-                     /*include_psl=*/false);
-
-  // Retrieve affiliations, then retrieve logins for those affiliations.
-  affiliated_match_helper_->GetAffiliatedAndroidAndWebRealms(
-      form, request_handler->AffiliationsClosure().Then(
-                std::move(get_logins_for_affiliations_callback)));
-
-  if (base::FeatureList::IsEnabled(
-          features::kFillingAcrossAffiliatedWebsites) &&
-      base::FeatureList::IsEnabled(features::kFillingAcrossGroupedSites)) {
-    auto branding_injection_for_group_callback =
-        base::BindOnce(&PasswordStore::InjectAffiliationAndBrandingInformation,
-                       this, request_handler->NonFormLoginsClosure());
-    auto get_logins_for_group_callback =
-        base::BindOnce(&PasswordStoreBackend::FillMatchingLoginsAsync,
-                       base::Unretained(backend_.get()),
-                       std::move(branding_injection_for_group_callback),
-                       /*include_psl=*/false);
-
-    // Retrieve the group, then retrieve logins for those realms.
-    affiliated_match_helper_->GetGroup(
-        form, request_handler->GroupClosure().Then(
-                  std::move(get_logins_for_group_callback)));
-  }
-
-  // Retrieve logins for `form`. The request will be handled by the
-  // `request_handler`.
-  auto branding_injection_for_regular_logins_callback =
-      base::BindOnce(&PasswordStore::InjectAffiliationAndBrandingInformation,
-                     this, request_handler->LoginsForFormClosure());
-  backend_->FillMatchingLoginsAsync(
-      std::move(branding_injection_for_regular_logins_callback),
-      FormSupportsPSL(form), {form});
-}
-
-void PasswordStore::InjectAffiliationAndBrandingInformation(
-    LoginsOrErrorReply callback,
-    LoginsResultOrError forms_or_error) {
-  if (!affiliated_match_helper_ ||
-      absl::holds_alternative<PasswordStoreBackendError>(forms_or_error) ||
-      absl::get<LoginsResult>(forms_or_error).empty()) {
-    std::move(callback).Run(std::move(forms_or_error));
-    return;
-  }
-  affiliated_match_helper_->InjectAffiliationAndBrandingInformation(
-      std::move(absl::get<LoginsResult>(forms_or_error)), std::move(callback));
 }
 
 }  // namespace password_manager

@@ -266,6 +266,10 @@ HRESULT TSFTextStore::GetStatus(TS_STATUS* status) {
   // TODO(IME): Remove TS_SS_TRANSITORY to support Korean reconversion
   status->dwStaticFlags = TS_SS_TRANSITORY | TS_SS_NOHIDDENTEXT;
 
+  // No text support is needed for empty text store.
+  if (is_empty_text_store_) {
+    status->dwDynamicFlags |= TS_SD_READONLY;
+  }
   return S_OK;
 }
 
@@ -574,6 +578,17 @@ HRESULT TSFTextStore::RequestAttrsTransitioningAtPosition(
 HRESULT TSFTextStore::RequestLock(DWORD lock_flags, HRESULT* result) {
   if (!text_input_client_)
     return E_UNEXPECTED;
+  // No lock is necessary for an empty text store. This is to deny lock to an
+  // unsuspecting TSF in the wild that always assumes a text update with a
+  // store.
+  if (is_empty_text_store_) {
+    return E_FAIL;
+  }
+  // If the text input type has already switched to NONE in the text input
+  // client, then do nothing. See crbug.com/1483978.
+  if (text_input_client_->GetTextInputType() == ui::TEXT_INPUT_TYPE_NONE) {
+    return E_FAIL;
+  }
 
   if (!text_store_acp_sink_.Get())
     return E_FAIL;
@@ -1388,8 +1403,9 @@ bool TSFTextStore::ConfirmComposition() {
 void TSFTextStore::SendOnLayoutChange() {
   // A re-entrant call leads to infinite loop in TSF.
   // We bail out if are in the process of notifying TSF about changes.
-  if (is_notification_in_progress_)
+  if (is_notification_in_progress_ || is_empty_text_store_) {
     return;
+  }
   CalculateTextandSelectionDiffAndNotifyIfNeeded();
   if (text_store_acp_sink_ &&
       (text_store_acp_sink_mask_ & TS_AS_LAYOUT_CHANGE)) {
@@ -1652,6 +1668,25 @@ bool TSFTextStore::IsInputProcessorWithoutVerticalWriting() const {
   bool result = base::StartsWith(description, L"Google Japanese Input");
   ::SysFreeString(description);
   return result;
+}
+
+void ui::TSFTextStore::SetUseEmptyTextStore(bool isEnabled) {
+  is_empty_text_store_ = isEnabled;
+}
+
+bool TSFTextStore::MaybeSendOnUrlChanged() {
+  // When the user interacts with a traditional editing control, TSF will query
+  // for the current Url as needed. However, when TSF supports empty stores, we
+  // will also notify the OS when a frame with a committed Url is focused, to
+  // enable scenarios where, for example, a page implements its own controls in
+  // JavaScript (crbug.com/1447061).
+  if (!is_empty_text_store_ || (text_store_acp_sink_ == nullptr)) {
+    return false;
+  }
+  TS_ATTRID attrs[1];
+  attrs[0] = GUID_PROP_URL;
+  text_store_acp_sink_->OnAttrsChange(NULL, NULL, 1, attrs);
+  return true;
 }
 
 }  // namespace ui

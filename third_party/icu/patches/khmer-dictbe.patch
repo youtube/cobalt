@@ -1,5 +1,5 @@
 diff --git a/source/common/dictbe.cpp b/source/common/dictbe.cpp
-index 768eb49b..85731bf8 100644
+index 0e420c67..af0ba6ec 100644
 --- a/source/common/dictbe.cpp
 +++ b/source/common/dictbe.cpp
 @@ -818,11 +818,11 @@ foundBest:

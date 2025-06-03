@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">सबसे ऊपर बाईं ओर जा रहा है</translation>
 <translation id="3573890771273113519">स्कैन मोड पर स्विच करें</translation>
 <translation id="3583444040776960729">दस्ताेवज़ का सबसे नीचे वाला बायां कोना</translation>
+<translation id="3642192109456033823">वीडियो प्रोसेस किया जा रहा है...</translation>
 <translation id="3789724198583203151">घड़ी की उल्टी दिशा में 90 डिग्री घुमाएं</translation>
 <translation id="3810838688059735925">वीडियो</translation>
 <translation id="3892148308691398805">टेक्स्ट कॉपी करें</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">रिकॉर्डिंग रोकें</translation>
 <translation id="4121305183798804752">दस्तावेज़ मिल गया है</translation>
 <translation id="414641094616694804">कैमरे का रिज़ॉल्यूशन नहीं बदला जा सकता</translation>
+<translation id="4176463684765177261">बंद किया गया</translation>
 <translation id="4269820728363426813">लिंक पते को कॉपी करें</translation>
-<translation id="4281620174117014503">मीडियम रिज़ॉल्यूशन</translation>
 <translation id="428234092390943511">पेज का थंबनेल</translation>
+<translation id="4349714250734879769">फ़्रेम को Chrome के हिसाब से स्केल करें</translation>
 <translation id="4383571725254449280">परफ़ॉर्मेंस लॉग प्रिंट करें</translation>
 <translation id="4445542136948522167">फ़ोटो न खींचें</translation>
 <translation id="4570032796877367747">सामने का कैमरा</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160 पिक्सल)</translation>
 <translation id="5662366948659129155">पेज <ph name="COUNT" /> को स्कैन किया जा रहा है</translation>
 <translation id="5671277269877808209">वर्ग</translation>
+<translation id="574392208103952083">मीडियम</translation>
 <translation id="5746169159649715125">PDF के रूप में सेव करें</translation>
 <translation id="5753488212459587150">एक्सपर्ट मोड चालू करें</translation>
 <translation id="5759254179196327752">दस्तावेज़ स्कैन करें</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">फ़ोटो खींचने वाले मोड पर जाएं</translation>
 <translation id="8167081290930651932">फ़ोटो फ़ॉर्मैट में सेव करें</translation>
 <translation id="8239780215768881278">वीडियो के स्नैपशॉट लें</translation>
+<translation id="8346544573713510785">फ़्रेम को कैमरा एचएएल के हिसाब से स्केल करें</translation>
 <translation id="8425673304802773841">नीचे झुकाएं</translation>
 <translation id="8428213095426709021">सेटिंग</translation>
 <translation id="8629662593426079630">360p</translation>

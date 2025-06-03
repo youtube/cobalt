@@ -49,6 +49,10 @@
 #include "ui/gfx/selection_bound.h"
 #include "ui/touch_selection/touch_selection_controller.h"
 
+namespace cc::slim {
+class SurfaceLayer;
+}
+
 namespace ui {
 class MotionEventAndroid;
 class OverscrollRefreshHandler;
@@ -82,8 +86,14 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
       public ui::ViewAndroidObserver,
       public ui::WindowAndroidObserver {
  public:
+  static RenderWidgetHostViewAndroid* FromRenderWidgetHostView(
+      RenderWidgetHostView* view);
+
+  // Note: The tree of `gfx::NativeView` might not match the tree of
+  // `cc::slim::Layer`.
   RenderWidgetHostViewAndroid(RenderWidgetHostImpl* widget,
-                              gfx::NativeView parent_native_view);
+                              gfx::NativeView parent_native_view,
+                              cc::slim::Layer* parent_layer);
 
   RenderWidgetHostViewAndroid(const RenderWidgetHostViewAndroid&) = delete;
   RenderWidgetHostViewAndroid& operator=(const RenderWidgetHostViewAndroid&) =
@@ -139,6 +149,10 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
       base::OnceCallback<void(const SkBitmap&)> callback) override;
+  void CopyFromExactSurface(
+      const gfx::Rect& src_rect,
+      const gfx::Size& output_size,
+      base::OnceCallback<void(const SkBitmap&)> callback) override;
   void EnsureSurfaceSynchronizedForWebTest() override;
   uint32_t GetCaptureSequenceNumber() const override;
   int GetMouseWheelMinimumGranularity() const override;
@@ -178,6 +192,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   blink::mojom::PointerLockResult ChangeMouseLock(
       bool request_unadjusted_movement) override;
   void UnlockMouse() override;
+  void InvalidateLocalSurfaceIdAndAllocationGroup() override;
   void ClearFallbackSurfaceForCommitPending() override;
   void ResetFallbackToFirstNavigationSurface() override;
   bool RequestRepaintForTesting() override;
@@ -186,7 +201,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   bool CanSynchronizeVisualProperties() override;
   std::unique_ptr<SyntheticGestureTarget> CreateSyntheticGestureTarget()
       override;
-  void OnDidNavigateMainFrameToNewPage() override;
+  void DidNavigateMainFramePreCommit() override;
+  void DidEnterBackForwardCache() override;
   const viz::FrameSinkId& GetFrameSinkId() const override;
   viz::FrameSinkId GetRootFrameSinkId() override;
   viz::SurfaceId GetCurrentSurfaceId() const override;
@@ -236,6 +252,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void OnAttachCompositor() override;
   void OnDetachCompositor() override;
   void OnAnimate(base::TimeTicks begin_frame_time) override;
+  void OnUnfoldStarted(base::TimeTicks unfold_begin_time) override;
   void OnActivityStopped() override;
   void OnActivityStarted() override;
 
@@ -260,7 +277,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void ShowTouchSelectionContextMenu(const gfx::Point& location) override;
 
   // Non-virtual methods
-  void UpdateNativeViewTree(gfx::NativeView parent_native_view);
+  void UpdateNativeViewTree(gfx::NativeView parent_native_view,
+                            cc::slim::Layer* parent_layer);
 
   // Returns the temporary background color of the underlaying document, for
   // example, returns black during screen rotation.
@@ -309,8 +327,12 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
 
   void MoveCaret(const gfx::Point& point);
   void DismissTextHandles();
+  void SetTextHandlesHiddenForDropdownMenu(bool hide_handles);
   void SetTextHandlesTemporarilyHidden(bool hide_handles);
-  void SelectAroundCaretAck(blink::mojom::SelectAroundCaretResultPtr result);
+  void SelectAroundCaretAck(int startOffset,
+                            int endOffset,
+                            int surroundingTextLength,
+                            blink::mojom::SelectAroundCaretResultPtr result);
 
   void SetSynchronousCompositorClient(SynchronousCompositorClient* client);
 
@@ -326,7 +348,9 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
                                     bool did_change_state) override;
   void OnImeCompositionRangeChanged(
       TextInputManager* text_input_manager,
-      RenderWidgetHostViewBase* updated_view) override;
+      RenderWidgetHostViewBase* updated_view,
+      bool character_bounds_changed,
+      const absl::optional<std::vector<gfx::Rect>>& line_bounds) override;
   void OnImeCancelComposition(TextInputManager* text_input_manager,
                               RenderWidgetHostViewBase* updated_view) override;
   void OnTextSelectionChanged(TextInputManager* text_input_manager,
@@ -398,6 +422,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   }
 
   void SetNeedsBeginFrameForFlingProgress();
+
+  const cc::slim::SurfaceLayer* GetSurfaceLayer() const;
 
  protected:
   ~RenderWidgetHostViewAndroid() override;
@@ -561,6 +587,10 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   bool is_window_activity_started_;
 
   PageVisibilityState page_visibility_ = PageVisibilityState::kHidden;
+
+  // Specifies whether touch selection handles are hidden due to the dropdown
+  // menu.
+  bool handles_hidden_by_dropdown_menu_ = false;
 
   // Specifies whether touch selection handles are hidden due to stylus.
   bool handles_hidden_by_stylus_ = false;

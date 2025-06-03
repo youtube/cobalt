@@ -9,7 +9,7 @@
 
 #include "components/viz/common/gpu/context_provider.h"
 #include "device/vr/openxr/context_provider_callbacks.h"
-#include "device/vr/openxr/openxr_util.h"
+#include "device/vr/openxr/openxr_platform_helper.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
 #include "device/vr/vr_device_base.h"
 #include "device/vr/vr_export.h"
@@ -28,7 +28,8 @@ class DEVICE_VR_EXPORT OpenXrDevice
       public mojom::XRSessionController,
       public mojom::XRCompositorHost {
  public:
-  OpenXrDevice(VizContextProviderFactoryAsync context_provider_factory_async);
+  OpenXrDevice(VizContextProviderFactoryAsync context_provider_factory_async,
+               OpenXrPlatformHelper* platform_helper);
 
   OpenXrDevice(const OpenXrDevice&) = delete;
   OpenXrDevice& operator=(const OpenXrDevice&) = delete;
@@ -53,13 +54,17 @@ class DEVICE_VR_EXPORT OpenXrDevice
 
   void EnsureRenderLoop();
 
+  void OnCreateInstanceResult(mojom::XRRuntimeSessionOptionsPtr options,
+                              XrResult result,
+                              XrInstance instance);
+
   void OnRequestSessionResult(bool result, mojom::XRSessionPtr session);
   void ForceEndSession(ExitXrPresentReason reason);
   void OnPresentingControllerMojoConnectionError();
   bool IsArBlendModeSupported();
 
-  XrInstance instance_;
-  OpenXrExtensionHelper extension_helper_;
+  XrInstance instance_{XR_NULL_HANDLE};
+  std::unique_ptr<OpenXrExtensionHelper> extension_helper_;
   std::unique_ptr<OpenXrRenderLoop> render_loop_;
 
   mojo::Receiver<mojom::XRSessionController> exclusive_controller_receiver_{
@@ -70,9 +75,12 @@ class DEVICE_VR_EXPORT OpenXrDevice
 
   VizContextProviderFactoryAsync context_provider_factory_async_;
 
+  // Owned by our creator who guarantees the lifetime.
+  raw_ptr<OpenXrPlatformHelper> platform_helper_;
+
   mojom::XRRuntime::RequestSessionCallback request_session_callback_;
 
-  base::WeakPtrFactory<OpenXrDevice> weak_ptr_factory_;
+  base::WeakPtrFactory<OpenXrDevice> weak_ptr_factory_{this};
 };
 
 }  // namespace device

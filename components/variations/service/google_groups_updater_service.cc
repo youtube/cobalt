@@ -4,25 +4,11 @@
 
 #include "components/variations/service/google_groups_updater_service.h"
 
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/variations/pref_names.h"
-
-// Per-profile preference for the sync data containing the list of dogfood group
-// gaia IDs for a given syncing user.
-// The variables below are the pref name, and the key for the gaia ID within
-// the dictionary value.
-const char kDogfoodGroupsSyncPrefName[] = "sync.dogfood_groups";
-const char kDogfoodGroupsSyncPrefGaiaIdKey[] = "gaia_id";
-
-// This feature controls whether variations code copies the dogfood group
-// information from per-profile data to local-state.
-BASE_FEATURE(kVariationsGoogleGroupFiltering,
-             "VariationsGoogleGroupFiltering",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 GoogleGroupsUpdaterService::GoogleGroupsUpdaterService(
     PrefService& target_prefs,
@@ -32,7 +18,11 @@ GoogleGroupsUpdaterService::GoogleGroupsUpdaterService(
   // Register for preference changes.
   pref_change_registrar_.Init(&source_prefs_.get());
   pref_change_registrar_.Add(
-      kDogfoodGroupsSyncPrefName,
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+      variations::kOsDogfoodGroupsSyncPrefName,
+#else
+      variations::kDogfoodGroupsSyncPrefName,
+#endif
       base::BindRepeating(&GoogleGroupsUpdaterService::UpdateGoogleGroups,
                           base::Unretained(this)));
 
@@ -46,8 +36,27 @@ GoogleGroupsUpdaterService::~GoogleGroupsUpdaterService() = default;
 void GoogleGroupsUpdaterService::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterListPref(
-      kDogfoodGroupsSyncPrefName,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+      variations::kOsDogfoodGroupsSyncPrefName,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PRIORITY_PREF
+#else
+      variations::kDogfoodGroupsSyncPrefName,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF
+#endif
+  );
+}
+
+void GoogleGroupsUpdaterService::ClearSigninScopedState() {
+  source_prefs_->ClearPref(
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+      variations::kOsDogfoodGroupsSyncPrefName
+#else
+      variations::kDogfoodGroupsSyncPrefName
+#endif
+  );
+
+  // UpdateGoogleGroups() will be called via the PrefChangeRegistrar, and will
+  // propagate this change to local state.
 }
 
 void GoogleGroupsUpdaterService::UpdateGoogleGroups() {
@@ -57,14 +66,19 @@ void GoogleGroupsUpdaterService::UpdateGoogleGroups() {
   base::Value::Dict& target_prefs_dict = target_prefs_update.Get();
 
   base::Value::List groups;
-  for (const auto& group_value :
-       source_prefs_->GetList(kDogfoodGroupsSyncPrefName)) {
+  for (const auto& group_value : source_prefs_->GetList(
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+           variations::kOsDogfoodGroupsSyncPrefName
+#else
+           variations::kDogfoodGroupsSyncPrefName
+#endif
+           )) {
     const base::Value::Dict* group_dict = group_value.GetIfDict();
     if (group_dict == nullptr) {
       continue;
     }
     const std::string* group_str =
-        group_dict->FindString(kDogfoodGroupsSyncPrefGaiaIdKey);
+        group_dict->FindString(variations::kDogfoodGroupsSyncPrefGaiaIdKey);
     if ((group_str == nullptr) || group_str->empty()) {
       continue;
     }

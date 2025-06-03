@@ -2,6 +2,7 @@ include_rules = [
   "+components/autofill/core/browser",
   "+components/autofill/core/common",
   "+components/autofill/ios/browser",
+  "+components/autofill/ios/common",
   "+components/autofill/ios/form_util",
   "+components/bookmarks",
   "+components/breadcrumbs/core",
@@ -17,6 +18,7 @@ include_rules = [
   "+components/crash/core/app",
   "+components/crash/core/browser",
   "+components/crash/core/common",
+  "+components/device_reauth",
   "+components/dom_distiller/core",
   "+components/download",
   "+components/dom_distiller/ios",
@@ -68,12 +70,14 @@ include_rules = [
   "+components/password_manager/ios",
   "+components/payments/core",
   "+components/payments/mojom",
+  "+components/plus_addresses",
   "+components/policy/core/browser",
   "+components/policy/core/common",
   "+components/policy/policy_constants.h",
   "+components/policy/proto/device_management_backend.pb.h",
   "+components/pref_registry",
-  "+components/startup_metric_utils",
+  "+components/startup_metric_utils/browser",
+  "+components/startup_metric_utils/common",
   "+components/prefs",
   "+components/profile_metrics",
   "+components/proxy_config",
@@ -160,6 +164,13 @@ include_rules = [
   "-components/metrics/gpu",
   "-components/sessions/content",
 
+  # Features should add explicit dependencies.
+  "-ios/chrome/browser",
+
+  # Shared dependencies.
+  "+ios/chrome/browser/shared/model",
+  "+ios/chrome/browser/shared/public",
+
   # ios/chrome/browser should not depend on ios/chrome/browser/ui except
   # on commands.
   "-ios/chrome/browser/ui",
@@ -182,5 +193,7 @@ specific_include_rules = {
     # TODO(crbug.com/1294160): browser should not depend on UI, this is a
     # blanket exception for tests.
     "+ios/chrome/browser/ui",
+    # Blanket exception for tests to be allowed to depend on everything.
+    "+ios/chrome/browser",
   ],
 }

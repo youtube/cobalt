@@ -8,10 +8,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 using ArchivableCredentialTest = PlatformTest;
@@ -24,7 +20,6 @@ ArchivableCredential* TestCredential() {
                                      serviceIdentifier:@"serviceIdentifier"
                                            serviceName:@"serviceName"
                                                   user:@"user"
-                                  validationIdentifier:@"validationIdentifier"
                                                   note:@"note"];
 }
 
@@ -38,7 +33,6 @@ TEST_F(ArchivableCredentialTest, create) {
                                   serviceIdentifier:@"serviceIdentifier"
                                         serviceName:@"serviceName"
                                                user:@"user"
-                               validationIdentifier:@"validationIdentifier"
                                                note:@"note"];
   EXPECT_TRUE(credential);
 }
@@ -83,8 +77,6 @@ TEST_F(ArchivableCredentialTest, retrieveData) {
               unarchivedCredential.serviceIdentifier);
   EXPECT_NSEQ(credential.serviceName, unarchivedCredential.serviceName);
   EXPECT_NSEQ(credential.user, unarchivedCredential.user);
-  EXPECT_NSEQ(credential.validationIdentifier,
-              unarchivedCredential.validationIdentifier);
 }
 
 // Tests ArchivableCredential equality.
@@ -94,16 +86,15 @@ TEST_F(ArchivableCredentialTest, equality) {
   EXPECT_NSEQ(credential, credentialIdentical);
   EXPECT_EQ(credential.hash, credentialIdentical.hash);
 
-  ArchivableCredential* credentialSameIdentifier = [[ArchivableCredential alloc]
-           initWithFavicon:@"other_favicon"
-        keychainIdentifier:@"other_keychainIdentifier"
-                      rank:credential.rank + 10
-          recordIdentifier:@"recordIdentifier"
-         serviceIdentifier:@"other_serviceIdentifier"
-               serviceName:@"other_serviceName"
-                      user:@"other_user"
-      validationIdentifier:@"other_validationIdentifier"
-                      note:@"other_note"];
+  ArchivableCredential* credentialSameIdentifier =
+      [[ArchivableCredential alloc] initWithFavicon:@"other_favicon"
+                                 keychainIdentifier:@"other_keychainIdentifier"
+                                               rank:credential.rank + 10
+                                   recordIdentifier:@"recordIdentifier"
+                                  serviceIdentifier:@"other_serviceIdentifier"
+                                        serviceName:@"other_serviceName"
+                                               user:@"other_user"
+                                               note:@"other_note"];
   EXPECT_NSNE(credential, credentialSameIdentifier);
 
   ArchivableCredential* credentialDiferentIdentifier =
@@ -114,7 +105,6 @@ TEST_F(ArchivableCredentialTest, equality) {
                                   serviceIdentifier:@"serviceIdentifier"
                                         serviceName:@"serviceName"
                                                user:@"user"
-                               validationIdentifier:@"validationIdentifier"
                                                note:@"note"];
   EXPECT_NSNE(credential, credentialDiferentIdentifier);
 

@@ -106,7 +106,7 @@ class LambdaPeerConnectionObserver final : public PeerConnectionObserver {
       handler(candidates);
   }
   void OnAddTrack(rtc::scoped_refptr<RtpReceiverInterface> receiver,
-                  const std::vector<rtc::scoped_refptr<MediaStreamInterface> >&
+                  const std::vector<rtc::scoped_refptr<MediaStreamInterface>>&
                       streams) override {
     for (const auto& handler : handlers_->on_add_track)
       handler(receiver, streams);
@@ -338,6 +338,7 @@ PeerScenarioClient::VideoSendTrack PeerScenarioClient::CreateVideo(
   capturer->Init();
   res.source = rtc::make_ref_counted<FrameGeneratorCapturerVideoTrackSource>(
       std::move(capturer), config.screencast);
+  res.source->Start();
   auto track = pc_factory_->CreateVideoTrack(res.source, track_id);
   res.track = track.get();
   res.sender =

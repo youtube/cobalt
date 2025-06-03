@@ -9,8 +9,8 @@
 
 #include "base/functional/bind.h"
 #include "components/sync/base/passphrase_enums.h"
-#include "components/sync/driver/sync_client.h"
-#include "components/sync/driver/sync_service_impl.h"
+#include "components/sync/service/sync_client.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 ServerPassphraseTypeChecker::ServerPassphraseTypeChecker(
@@ -28,6 +28,27 @@ bool ServerPassphraseTypeChecker::IsExitConditionSatisfied(std::ostream* os) {
          syncer::ProtoPassphraseInt32ToEnum(
              nigori_entities[0].specifics().nigori().passphrase_type()) ==
              expected_passphrase_type_;
+}
+
+CrossUserSharingKeysChecker::CrossUserSharingKeysChecker() = default;
+
+bool CrossUserSharingKeysChecker::IsExitConditionSatisfied(std::ostream* os) {
+  *os << "Waiting for a Nigori node with cross-user sharing keys to be "
+         "available on the server.";
+
+  std::vector<sync_pb::SyncEntity> nigori_entities =
+      fake_server()->GetPermanentSyncEntitiesByModelType(syncer::NIGORI);
+  EXPECT_LE(nigori_entities.size(), 1U);
+  return !nigori_entities.empty() &&
+         nigori_entities[0]
+             .specifics()
+             .nigori()
+             .has_cross_user_sharing_public_key() &&
+         nigori_entities[0]
+             .specifics()
+             .nigori()
+             .cross_user_sharing_public_key()
+             .has_x25519_public_key();
 }
 
 ServerNigoriKeyNameChecker::ServerNigoriKeyNameChecker(
@@ -54,7 +75,8 @@ PassphraseRequiredChecker::PassphraseRequiredChecker(
 
 bool PassphraseRequiredChecker::IsExitConditionSatisfied(std::ostream* os) {
   *os << "Checking whether passhrase is required";
-  return service()->GetUserSettings()->IsPassphraseRequired();
+  return service()->IsEngineInitialized() &&
+         service()->GetUserSettings()->IsPassphraseRequired();
 }
 
 PassphraseAcceptedChecker::PassphraseAcceptedChecker(
@@ -63,18 +85,32 @@ PassphraseAcceptedChecker::PassphraseAcceptedChecker(
 
 bool PassphraseAcceptedChecker::IsExitConditionSatisfied(std::ostream* os) {
   *os << "Checking whether passhrase is accepted";
-  switch (service()->GetUserSettings()->GetPassphraseType()) {
+  switch (service()->GetUserSettings()->GetPassphraseType().value_or(
+      syncer::PassphraseType::kKeystorePassphrase)) {
     case syncer::PassphraseType::kKeystorePassphrase:
     case syncer::PassphraseType::kTrustedVaultPassphrase:
       return false;
-    // With kImplicitPassphrase user needs to enter the passphrase even despite
-    // it's not treat as explicit passphrase.
+    // With kImplicitPassphrase the user needs to enter the passphrase even
+    // though it's not treated as an explicit passphrase.
     case syncer::PassphraseType::kImplicitPassphrase:
     case syncer::PassphraseType::kFrozenImplicitPassphrase:
     case syncer::PassphraseType::kCustomPassphrase:
       break;
   }
-  return !service()->GetUserSettings()->IsPassphraseRequired();
+  return service()->IsEngineInitialized() &&
+         !service()->GetUserSettings()->IsPassphraseRequired();
+}
+
+PassphraseTypeChecker::PassphraseTypeChecker(
+    syncer::SyncServiceImpl* service,
+    syncer::PassphraseType expected_passphrase_type)
+    : SingleClientStatusChangeChecker(service),
+      expected_passphrase_type_(expected_passphrase_type) {}
+
+bool PassphraseTypeChecker::IsExitConditionSatisfied(std::ostream* os) {
+  *os << "Checking expected passhrase type";
+  return service()->GetUserSettings()->GetPassphraseType() ==
+         expected_passphrase_type_;
 }
 
 TrustedVaultKeyRequiredStateChecker::TrustedVaultKeyRequiredStateChecker(
@@ -116,3 +152,17 @@ void TrustedVaultKeysChangedStateChecker::OnTrustedVaultKeysChanged() {
 
 void TrustedVaultKeysChangedStateChecker::
     OnTrustedVaultRecoverabilityChanged() {}
+
+TrustedVaultRecoverabilityDegradedStateChecker::
+    TrustedVaultRecoverabilityDegradedStateChecker(
+        syncer::SyncServiceImpl* service,
+        bool degraded)
+    : SingleClientStatusChangeChecker(service), degraded_(degraded) {}
+
+bool TrustedVaultRecoverabilityDegradedStateChecker::IsExitConditionSatisfied(
+    std::ostream* os) {
+  *os << "Waiting until trusted vault recoverability degraded state is "
+      << degraded_;
+  return service()->GetUserSettings()->IsTrustedVaultRecoverabilityDegraded() ==
+         degraded_;
+}

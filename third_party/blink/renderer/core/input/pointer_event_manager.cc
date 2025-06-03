@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/pointer_lock_controller.h"
+#include "third_party/blink/renderer/core/page/touch_adjustment.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar.h"
 #include "third_party/blink/renderer/core/timing/event_timing.h"
@@ -97,9 +98,11 @@ PointerEventManager::PointerEventManager(LocalFrame& frame,
 }
 
 void PointerEventManager::Clear() {
-  for (auto& entry : prevent_mouse_event_for_pointer_type_)
+  for (auto& entry : prevent_mouse_event_for_pointer_type_) {
     entry = false;
+  }
   touch_event_manager_->Clear();
+  mouse_event_manager_->Clear();
   non_hovering_pointers_canceled_ = false;
   pointer_event_factory_.Clear();
   touch_ids_for_canceled_pointerdowns_.clear();
@@ -108,7 +111,11 @@ void PointerEventManager::Clear() {
   pending_pointer_capture_target_.clear();
   dispatching_pointer_id_ = 0;
   resize_scrollable_area_.Clear();
-  offset_from_resize_corner_ = LayoutSize();
+  offset_from_resize_corner_ = {};
+  skip_touch_filter_discrete_ = false;
+  skip_touch_filter_all_ = false;
+  discarded_event_.target = kInvalidDOMNodeId;
+  discarded_event_.time = base::TimeTicks();
 }
 
 void PointerEventManager::Trace(Visitor* visitor) const {
@@ -126,46 +133,12 @@ PointerEventManager::PointerEventBoundaryEventDispatcher::
     PointerEventBoundaryEventDispatcher(
         PointerEventManager* pointer_event_manager,
         PointerEvent* pointer_event)
-    : pointer_event_manager_(pointer_event_manager),
+    : BoundaryEventDispatcher(event_type_names::kPointerover,
+                              event_type_names::kPointerout,
+                              event_type_names::kPointerenter,
+                              event_type_names::kPointerleave),
+      pointer_event_manager_(pointer_event_manager),
       pointer_event_(pointer_event) {}
-
-void PointerEventManager::PointerEventBoundaryEventDispatcher::DispatchOut(
-    EventTarget* target,
-    EventTarget* related_target) {
-  Dispatch(target, related_target, event_type_names::kPointerout, false);
-}
-
-void PointerEventManager::PointerEventBoundaryEventDispatcher::DispatchOver(
-    EventTarget* target,
-    EventTarget* related_target) {
-  Dispatch(target, related_target, event_type_names::kPointerover, false);
-}
-
-void PointerEventManager::PointerEventBoundaryEventDispatcher::DispatchLeave(
-    EventTarget* target,
-    EventTarget* related_target,
-    bool check_for_listener) {
-  Dispatch(target, related_target, event_type_names::kPointerleave,
-           check_for_listener);
-}
-
-void PointerEventManager::PointerEventBoundaryEventDispatcher::DispatchEnter(
-    EventTarget* target,
-    EventTarget* related_target,
-    bool check_for_listener) {
-  Dispatch(target, related_target, event_type_names::kPointerenter,
-           check_for_listener);
-}
-
-AtomicString
-PointerEventManager::PointerEventBoundaryEventDispatcher::GetLeaveEvent() {
-  return event_type_names::kPointerleave;
-}
-
-AtomicString
-PointerEventManager::PointerEventBoundaryEventDispatcher::GetEnterEvent() {
-  return event_type_names::kPointerenter;
-}
 
 void PointerEventManager::PointerEventBoundaryEventDispatcher::Dispatch(
     EventTarget* target,
@@ -289,23 +262,20 @@ void PointerEventManager::SendBoundaryEvents(EventTarget* exited_target,
 
 void PointerEventManager::SetElementUnderPointer(PointerEvent* pointer_event,
                                                  Element* target) {
-  if (element_under_pointer_.Contains(pointer_event->pointerId())) {
-    EventTargetAttributes* node =
-        element_under_pointer_.at(pointer_event->pointerId());
+  Element* exited_target =
+      element_under_pointer_.Contains(pointer_event->pointerId())
+          ? element_under_pointer_.at(pointer_event->pointerId())
+          : nullptr;
+  if (exited_target) {
     if (!target) {
       element_under_pointer_.erase(pointer_event->pointerId());
-    } else if (target != node->target) {
-      element_under_pointer_.Set(
-          pointer_event->pointerId(),
-          MakeGarbageCollected<EventTargetAttributes>(target));
+    } else if (target != exited_target) {
+      element_under_pointer_.Set(pointer_event->pointerId(), target);
     }
-    SendBoundaryEvents(node->target, target, pointer_event);
   } else if (target) {
-    element_under_pointer_.insert(
-        pointer_event->pointerId(),
-        MakeGarbageCollected<EventTargetAttributes>(target));
-    SendBoundaryEvents(nullptr, target, pointer_event);
+    element_under_pointer_.insert(pointer_event->pointerId(), target);
   }
+  SendBoundaryEvents(exited_target, target, pointer_event);
 }
 
 void PointerEventManager::HandlePointerInterruption(
@@ -346,7 +316,7 @@ void PointerEventManager::HandlePointerInterruption(
     // target before.
     Element* target = nullptr;
     if (element_under_pointer_.Contains(pointer_event->pointerId()))
-      target = element_under_pointer_.at(pointer_event->pointerId())->target;
+      target = element_under_pointer_.at(pointer_event->pointerId());
 
     DispatchPointerEvent(
         GetEffectiveTargetForPointerEvent(target, pointer_event->pointerId()),
@@ -418,9 +388,9 @@ void PointerEventManager::AdjustPointerEvent(WebPointerEvent& pointer_event,
         (device_scale_factor / page_scale_factor);
   }
 
-  LayoutSize hit_rect_size = GetHitTestRectForAdjustment(
-      *frame_,
-      LayoutSize(LayoutUnit(adjustment_width), LayoutUnit(adjustment_height)));
+  PhysicalSize hit_rect_size = GetHitTestRectForAdjustment(
+      *frame_, PhysicalSize(LayoutUnit(adjustment_width),
+                            LayoutUnit(adjustment_height)));
 
   if (hit_rect_size.IsEmpty())
     return;
@@ -432,15 +402,17 @@ void PointerEventManager::AdjustPointerEvent(WebPointerEvent& pointer_event,
   // TODO(szager): Shouldn't this be PositionInScreen() ?
   PhysicalOffset hit_test_point =
       PhysicalOffset::FromPointFRound(pointer_event.PositionInWidget());
-  hit_test_point -= PhysicalOffset(hit_rect_size * 0.5f);
+  hit_test_point -= PhysicalOffset(LayoutUnit(hit_rect_size.width * 0.5f),
+                                   LayoutUnit(hit_rect_size.height * 0.5f));
   HitTestLocation location(PhysicalRect(hit_test_point, hit_rect_size));
   HitTestResult hit_test_result =
       root_frame.GetEventHandler().HitTestResultAtLocation(location, hit_type);
   gfx::Point adjusted_point;
 
   if (pointer_event.pointer_type == WebPointerProperties::PointerType::kTouch) {
-    bool adjusted = frame_->GetEventHandler().BestClickableNodeForHitTestResult(
-        location, hit_test_result, adjusted_point, adjusted_node);
+    bool adjusted = frame_->GetEventHandler().BestNodeForHitTestResult(
+        TouchAdjustmentCandidateType::kClickable, location, hit_test_result,
+        adjusted_point, adjusted_node);
 
     if (adjusted)
       pointer_event.SetPositionInWidget(adjusted_point.x(), adjusted_point.y());
@@ -453,9 +425,9 @@ void PointerEventManager::AdjustPointerEvent(WebPointerEvent& pointer_event,
                  WebPointerProperties::PointerType::kEraser) {
     // We don't cache the adjusted point for Stylus in EventHandler to avoid
     // taps being adjusted; this is intended only for stylus handwriting.
-    bool adjusted =
-        frame_->GetEventHandler().BestStylusWritableNodeForHitTestResult(
-            location, hit_test_result, adjusted_point, adjusted_node);
+    bool adjusted = frame_->GetEventHandler().BestNodeForHitTestResult(
+        TouchAdjustmentCandidateType::kStylusWritable, location,
+        hit_test_result, adjusted_point, adjusted_node);
 
     if (adjusted)
       pointer_event.SetPositionInWidget(adjusted_point.x(), adjusted_point.y());
@@ -679,10 +651,24 @@ WebInputEventResult PointerEventManager::HandlePointerEvent(
   event_handling_util::PointerEventTarget pointer_event_target =
       ComputePointerEventTarget(pointer_event);
 
+  bool is_pointer_down = event.GetType() == WebInputEvent::Type::kPointerDown;
+  if (is_pointer_down && discarded_event_.target != kInvalidDOMNodeId &&
+      discarded_event_.target ==
+          pointer_event_target.target_element->GetDomNodeId() &&
+      pointer_event.TimeStamp() - discarded_event_.time <
+          event_handling_util::kDiscardedEventMistakeInterval) {
+    pointer_event_target.target_element->GetDocument().CountUse(
+        WebFeature::kInputEventToRecentlyMovedIframeMistakenlyDiscarded);
+  }
   bool discard = pointer_event_target.target_frame &&
                  event_handling_util::ShouldDiscardEventTargetingFrame(
                      event, *pointer_event_target.target_frame);
   if (discard) {
+    if (is_pointer_down) {
+      discarded_event_.target =
+          pointer_event_target.target_element->GetDomNodeId();
+      discarded_event_.time = pointer_event.TimeStamp();
+    }
     PointerEvent* core_pointer_event = pointer_event_factory_.Create(
         event, coalesced_events, predicted_events,
         pointer_event_target.target_element
@@ -706,6 +692,11 @@ WebInputEventResult PointerEventManager::HandlePointerEvent(
         pointer_cancel_event, coalesced_events, pointer_event_target);
 
     return WebInputEventResult::kHandledSuppressed;
+  }
+
+  if (is_pointer_down) {
+    discarded_event_.target = kInvalidDOMNodeId;
+    discarded_event_.time = base::TimeTicks();
   }
 
   if (HandleScrollbarTouchDrag(event, pointer_event_target.scrollbar))
@@ -732,7 +723,7 @@ WebInputEventResult PointerEventManager::HandlePointerEvent(
     non_hovering_pointers_canceled_ = false;
   }
   Node* pointerdown_node = nullptr;
-  if (event.GetType() == WebInputEvent::Type::kPointerDown) {
+  if (is_pointer_down) {
     pointerdown_node =
         touch_event_manager_->GetTouchPointerNode(event, pointer_event_target);
   }
@@ -800,7 +791,7 @@ bool PointerEventManager::HandleResizerDrag(
         frame_->GetPage()->GetChromeClient().SetTouchAction(frame_,
                                                             TouchAction::kNone);
         offset_from_resize_corner_ =
-            LayoutSize(resize_scrollable_area_->OffsetFromResizeCorner(p));
+            resize_scrollable_area_->OffsetFromResizeCorner(p);
         return true;
       }
       break;
@@ -819,7 +810,7 @@ bool PointerEventManager::HandleResizerDrag(
       if (resize_scrollable_area_ && resize_scrollable_area_->InResizeMode()) {
         resize_scrollable_area_->SetInResizeMode(false);
         resize_scrollable_area_.Clear();
-        offset_from_resize_corner_ = LayoutSize();
+        offset_from_resize_corner_ = {};
         return true;
       }
       break;
@@ -1133,8 +1124,9 @@ Element* PointerEventManager::ProcessCaptureAndPositionOfPointerEvent(
   PointerCapturingMap::const_iterator it =
       pointer_capture_target_.find(pointer_event->pointerId());
   if (Element* pointercapture_target =
-          (it != pointer_capture_target_.end()) ? it->value : nullptr)
+          (it != pointer_capture_target_.end()) ? it->value : nullptr) {
     hit_test_target = pointercapture_target;
+  }
 
   SetElementUnderPointer(pointer_event, hit_test_target);
   if (mouse_event) {
@@ -1281,7 +1273,7 @@ bool PointerEventManager::IsPointerIdActiveOnFrame(PointerId pointer_id,
                                                    LocalFrame* frame) const {
   Element* last_element_receiving_event =
       element_under_pointer_.Contains(pointer_id)
-          ? element_under_pointer_.at(pointer_id)->target
+          ? element_under_pointer_.at(pointer_id)
           : nullptr;
   return last_element_receiving_event &&
          last_element_receiving_event->GetDocument().GetFrame() == frame;
@@ -1314,7 +1306,7 @@ void PointerEventManager::SetLastPointerPositionForFrameBoundary(
   PointerId pointer_id =
       pointer_event_factory_.GetPointerEventId(web_pointer_event);
   Element* last_target = element_under_pointer_.Contains(pointer_id)
-                             ? element_under_pointer_.at(pointer_id)->target
+                             ? element_under_pointer_.at(pointer_id)
                              : nullptr;
   if (!new_target) {
     pointer_event_factory_.RemoveLastPosition(pointer_id);
@@ -1330,9 +1322,10 @@ void PointerEventManager::RemoveLastMousePosition() {
   pointer_event_factory_.RemoveLastPosition(PointerEventFactory::kMouseId);
 }
 
-int PointerEventManager::GetPointerEventId(
-    const WebPointerProperties& web_pointer_properties) const {
-  return pointer_event_factory_.GetPointerEventId(web_pointer_properties);
+PointerId PointerEventManager::GetPointerIdForTouchGesture(
+    const uint32_t unique_touch_event_id) {
+  return pointer_event_factory_.GetPointerIdForTouchGesture(
+      unique_touch_event_id);
 }
 
 Element* PointerEventManager::CurrentTouchDownElement() {

@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/apple/owned_objc.h"
 #include "base/check.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
@@ -37,7 +38,7 @@ std::unique_ptr<EventMonitor> EventMonitor::CreateWindowMonitor(
 }
 
 struct EventMonitorMac::ObjCStorage {
-  id monitor_ = nil;
+  id __strong monitor = nil;
 };
 
 EventMonitorMac::EventMonitorMac(ui::EventObserver* event_observer,
@@ -57,7 +58,8 @@ EventMonitorMac::EventMonitorMac(ui::EventObserver* event_observer,
     }
 
     if (!target_window || [event window] == target_window) {
-      std::unique_ptr<ui::Event> ui_event = ui::EventFromNative(event);
+      std::unique_ptr<ui::Event> ui_event =
+          ui::EventFromNative(base::apple::OwnedNSEvent(event));
       if (ui_event && types_.find(ui_event->type()) != types_.end()) {
         event_observer->OnEvent(*ui_event);
       }
@@ -65,13 +67,13 @@ EventMonitorMac::EventMonitorMac(ui::EventObserver* event_observer,
     return event;
   };
 
-  objc_storage_->monitor_ =
+  objc_storage_->monitor =
       [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskAny
                                             handler:block];
 }
 
 EventMonitorMac::~EventMonitorMac() {
-  [NSEvent removeMonitor:objc_storage_->monitor_];
+  [NSEvent removeMonitor:objc_storage_->monitor];
 }
 
 gfx::Point EventMonitorMac::GetLastMouseLocation() {

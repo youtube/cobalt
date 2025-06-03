@@ -58,7 +58,7 @@ class BodyConsumerBase : public GarbageCollected<BodyConsumerBase>,
   BodyConsumerBase(const BodyConsumerBase&) = delete;
   BodyConsumerBase& operator=(const BodyConsumerBase&) = delete;
 
-  ScriptPromiseResolver* Resolver() { return resolver_; }
+  ScriptPromiseResolver* Resolver() { return resolver_.Get(); }
   void DidFetchDataLoadFailed() override {
     ScriptState::Scope scope(Resolver()->GetScriptState());
     resolver_->Reject(V8ThrowException::CreateTypeError(
@@ -406,15 +406,6 @@ bool Body::IsBodyUsed() const {
 bool Body::IsBodyLocked() const {
   auto* body_buffer = BodyBuffer();
   return body_buffer && body_buffer->IsStreamLocked();
-}
-
-bool Body::HasPendingActivity() const {
-  if (!GetExecutionContext() || GetExecutionContext()->IsContextDestroyed())
-    return false;
-  auto* body_buffer = BodyBuffer();
-  if (!body_buffer)
-    return false;
-  return body_buffer->HasPendingActivity();
 }
 
 Body::Body(ExecutionContext* context) : ExecutionContextClient(context) {}

@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/federated_identity_modal_dialog_view_delegate.h"
 #include "content/public/browser/identity_request_account.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
@@ -28,6 +29,11 @@ struct CONTENT_EXPORT ClientMetadata {
   GURL privacy_policy_url;
 };
 
+struct CONTENT_EXPORT IdentityCredentialTokenError {
+  std::string code;
+  GURL url;
+};
+
 struct CONTENT_EXPORT IdentityProviderMetadata {
   IdentityProviderMetadata();
   IdentityProviderMetadata(const IdentityProviderMetadata& other);
@@ -36,7 +42,7 @@ struct CONTENT_EXPORT IdentityProviderMetadata {
   absl::optional<SkColor> brand_text_color;
   absl::optional<SkColor> brand_background_color;
   GURL brand_icon_url;
-  GURL idp_signin_url;
+  GURL idp_login_url;
   // The URL of the configuration endpoint. This is stored in
   // IdentityProviderMetadata so that the UI code can pass it along when an
   // Account is selected by the user.
@@ -76,8 +82,10 @@ class CONTENT_EXPORT IdentityRequestDialogController {
     kCloseButton = 1,
     kSwipe = 2,
     kVirtualKeyboardShown = 3,
+    kGotItButton = 4,
+    kMoreDetailsButton = 5,
 
-    kMaxValue = kVirtualKeyboardShown,
+    kMaxValue = kMoreDetailsButton,
   };
 
   using AccountSelectionCallback =
@@ -88,6 +96,8 @@ class CONTENT_EXPORT IdentityRequestDialogController {
 
   using DismissCallback =
       base::OnceCallback<void(DismissReason dismiss_reason)>;
+  using SigninToIdPCallback = base::OnceCallback<void()>;
+  using MoreDetailsCallback = base::OnceCallback<void()>;
 
   IdentityRequestDialogController() = default;
 
@@ -113,7 +123,6 @@ class CONTENT_EXPORT IdentityRequestDialogController {
   // is called with the selected account id or empty string otherwise.
   // |sign_in_mode| represents whether this is an auto re-authn flow.
   virtual void ShowAccountsDialog(
-      WebContents* rp_web_contents,
       const std::string& top_frame_for_display,
       const absl::optional<std::string>& iframe_for_display,
       const std::vector<IdentityProviderData>& identity_provider_data,
@@ -126,12 +135,24 @@ class CONTENT_EXPORT IdentityRequestDialogController {
   // observable by users. This could happen when an IDP claims that the user is
   // signed in but not respond with any user account during browser fetches.
   virtual void ShowFailureDialog(
-      WebContents* rp_web_contents,
       const std::string& top_frame_for_display,
       const absl::optional<std::string>& iframe_for_display,
       const std::string& idp_for_display,
+      const blink::mojom::RpContext& rp_context,
       const IdentityProviderMetadata& idp_metadata,
-      DismissCallback dismiss_callback);
+      DismissCallback dismiss_callback,
+      SigninToIdPCallback signin_callback);
+
+  // Shows an error UI when the user's sign-in attempt failed.
+  virtual void ShowErrorDialog(
+      const std::string& top_frame_for_display,
+      const absl::optional<std::string>& iframe_for_display,
+      const std::string& idp_for_display,
+      const blink::mojom::RpContext& rp_context,
+      const IdentityProviderMetadata& idp_metadata,
+      const absl::optional<IdentityCredentialTokenError>& error,
+      DismissCallback dismiss_callback,
+      MoreDetailsCallback more_details_callback);
 
   // Only to be called after a dialog is shown.
   virtual std::string GetTitle() const;
@@ -140,10 +161,12 @@ class CONTENT_EXPORT IdentityRequestDialogController {
   // Show dialog notifying user that IdP sign-in failed.
   virtual void ShowIdpSigninFailureDialog(base::OnceClosure dismiss_callback);
 
-  // Show a pop-up window that the IdP controls.
-  virtual void ShowPopUpWindow(const GURL& url,
-                               TokenCallback on_resolve,
-                               DismissCallback dismiss_callback);
+  // Show a modal dialog that loads content from the IdP.
+  virtual WebContents* ShowModalDialog(const GURL& url,
+                                       DismissCallback dismiss_callback);
+
+  // Closes the modal dialog.
+  virtual void CloseModalDialog();
 
  protected:
   bool is_interception_enabled_{false};

@@ -14,7 +14,6 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/extensions/chrome_extension_browser_constants.h"
 #include "chrome/browser/extensions/context_menu_matcher.h"
 #include "chrome/browser/extensions/extension_management.h"
@@ -29,10 +28,8 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -54,10 +51,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/models/menu_separator_types.h"
-#include "ui/base/resource/resource_bundle.h"
-#include "ui/gfx/color_palette.h"
-#include "ui/gfx/image/image.h"
-#include "ui/gfx/paint_vector_icon.h"
 
 namespace extensions {
 
@@ -97,15 +90,14 @@ bool IsExtensionForcePinned(const Extension& extension, Profile* profile) {
 }
 
 // Returns the id for the visibility command for the given |extension|.
-int GetVisibilityStringId(
-    Profile* profile,
-    const Extension* extension,
-    ExtensionContextMenuModel::ButtonVisibility button_visibility) {
-  if (IsExtensionForcePinned(*extension, profile))
+int GetVisibilityStringId(Profile* profile,
+                          const Extension* extension,
+                          bool is_pinned) {
+  if (IsExtensionForcePinned(*extension, profile)) {
     return IDS_EXTENSIONS_PINNED_BY_ADMIN;
-  if (button_visibility == ExtensionContextMenuModel::PINNED)
-    return IDS_EXTENSIONS_UNPIN_FROM_TOOLBAR;
-  return IDS_EXTENSIONS_PIN_TO_TOOLBAR;
+  }
+  return is_pinned ? IDS_EXTENSIONS_UNPIN_FROM_TOOLBAR
+                   : IDS_EXTENSIONS_PIN_TO_TOOLBAR;
 }
 
 // Returns true if the given |extension| is required to remain installed by
@@ -155,6 +147,8 @@ ExtensionContextMenuModel::ContextMenuAction CommandIdToContextMenuAction(
       break;
     case ExtensionContextMenuModel::VIEW_WEB_PERMISSIONS:
       return ContextMenuAction::kViewWebPermissions;
+    case ExtensionContextMenuModel::POLICY_INSTALLED:
+      return ContextMenuAction::kPolicyInstalled;
     default:
       break;
   }
@@ -205,6 +199,17 @@ void LogPageAccessAction(int command_id) {
   }
 }
 
+// Logs the action's visibility in the toolbar after it was set to `visible`.
+void LogToggleVisibility(bool visible) {
+  if (visible) {
+    base::RecordAction(
+        base::UserMetricsAction("Extensions.ContextMenu.PinExtension"));
+  } else {
+    base::RecordAction(
+        base::UserMetricsAction("Extensions.ContextMenu.UnpinExtension"));
+  }
+}
+
 void OpenUrl(Browser& browser, const GURL& url) {
   content::OpenURLParams params(
       url, content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
@@ -229,8 +234,8 @@ class UninstallDialogHelper : public ExtensionUninstallDialog::Delegate {
 
  private:
   // This class handles its own lifetime.
-  UninstallDialogHelper() {}
-  ~UninstallDialogHelper() override {}
+  UninstallDialogHelper() = default;
+  ~UninstallDialogHelper() override = default;
 
   void BeginUninstall(Browser* browser, const Extension* extension) {
     uninstall_dialog_ = ExtensionUninstallDialog::Create(
@@ -254,7 +259,7 @@ class UninstallDialogHelper : public ExtensionUninstallDialog::Delegate {
 ExtensionContextMenuModel::ExtensionContextMenuModel(
     const Extension* extension,
     Browser* browser,
-    ButtonVisibility button_visibility,
+    bool is_pinned,
     PopupDelegate* delegate,
     bool can_show_icon_in_toolbar,
     ContextMenuSource source)
@@ -264,9 +269,14 @@ ExtensionContextMenuModel::ExtensionContextMenuModel(
       browser_(browser),
       profile_(browser->profile()),
       delegate_(delegate),
-      button_visibility_(button_visibility),
+      is_pinned_(is_pinned),
       source_(source) {
-  InitMenu(extension, can_show_icon_in_toolbar);
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kExtensionsMenuAccessControl)) {
+    InitMenuWithFeature(extension, can_show_icon_in_toolbar);
+  } else {
+    InitMenu(extension, can_show_icon_in_toolbar);
+  }
 }
 
 bool ExtensionContextMenuModel::IsCommandIdChecked(int command_id) const {
@@ -280,14 +290,9 @@ bool ExtensionContextMenuModel::IsCommandIdChecked(int command_id) const {
   if (command_id == PAGE_ACCESS_RUN_ON_CLICK ||
       command_id == PAGE_ACCESS_RUN_ON_SITE ||
       command_id == PAGE_ACCESS_RUN_ON_ALL_SITES) {
-    content::WebContents* web_contents = GetActiveWebContents();
-    if (!web_contents)
-      return false;
-
     auto* permissions = PermissionsManager::Get(profile_);
     PermissionsManager::UserSiteAccess current_access =
-        permissions->GetUserSiteAccess(*extension,
-                                       web_contents->GetLastCommittedURL());
+        permissions->GetUserSiteAccess(*extension, origin_.GetURL());
     return current_access == CommandIdToSiteAccess(command_id);
   }
 
@@ -334,20 +339,30 @@ bool ExtensionContextMenuModel::IsCommandIdEnabled(int command_id) const {
                  sessions::SessionTabHelper::IdForTab(web_contents).id());
     }
     case UNINSTALL:
-      return !IsExtensionRequiredByPolicy(extension, profile_);
+      // Uninstall is always enabled since it will only be visible when the
+      // extension can be removed.
+      return true;
+    case POLICY_INSTALLED:
+      // This option is always disabled since user cannot remove a policy
+      // installed extension.
+      return false;
     case PAGE_ACCESS_CANT_ACCESS:
     case PAGE_ACCESS_ALL_EXTENSIONS_GRANTED:
     case PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED:
+      // When these commands are shown, they are always disabled.
+      return false;
     case PAGE_ACCESS_SUBMENU:
+    case PAGE_ACCESS_PERMISSIONS_PAGE:
+    case PAGE_ACCESS_LEARN_MORE:
+      // When these commands are shown, they are always enabled.
+      return true;
     case PAGE_ACCESS_RUN_ON_CLICK:
     case PAGE_ACCESS_RUN_ON_SITE:
     case PAGE_ACCESS_RUN_ON_ALL_SITES:
-    case PAGE_ACCESS_PERMISSIONS_PAGE:
-    case PAGE_ACCESS_LEARN_MORE: {
-      return IsPageAccessCommandEnabled(*extension, command_id);
-    }
-    // Extension pinning/unpinning is not available for Incognito as this leaves
-    // a trace of user activity.
+      return PermissionsManager::Get(profile_)->CanUserSelectSiteAccess(
+          *extension, origin_.GetURL(), CommandIdToSiteAccess(command_id));
+    // Extension pinning/unpinning is not available for Incognito as this
+    // leaves a trace of user activity.
     case TOGGLE_VISIBILITY:
       return !browser_->profile()->IsOffTheRecord() &&
              !IsExtensionForcePinned(*extension, profile_);
@@ -387,9 +402,10 @@ void ExtensionContextMenuModel::ExecuteCommand(int command_id,
       ExtensionTabUtil::OpenOptionsPage(extension, browser_);
       break;
     case TOGGLE_VISIBILITY: {
-      bool currently_visible = button_visibility_ == PINNED;
+      bool visible = !is_pinned_;
       ToolbarActionsModel::Get(browser_->profile())
-          ->SetActionVisibility(extension->id(), !currently_visible);
+          ->SetActionVisibility(extension->id(), visible);
+      LogToggleVisibility(visible);
       break;
     }
     case UNINSTALL: {
@@ -407,12 +423,45 @@ void ExtensionContextMenuModel::ExecuteCommand(int command_id,
       delegate_->InspectPopup();
       break;
     }
+    case POLICY_INSTALLED:
+      // When visible, this option is always disabled.
+      break;
     case PAGE_ACCESS_RUN_ON_CLICK:
     case PAGE_ACCESS_RUN_ON_SITE:
-    case PAGE_ACCESS_RUN_ON_ALL_SITES:
+    case PAGE_ACCESS_RUN_ON_ALL_SITES: {
+      // Do nothing if the web contents have navigated to a different origin.
+      auto* web_contents = GetActiveWebContents();
+      if (!web_contents ||
+          !origin_.IsSameOriginWith(web_contents->GetLastCommittedURL())) {
+        return;
+      }
+
+      LogPageAccessAction(command_id);
+
+      // Do nothing if the extension cannot have its site permissions updated.
+      // Page access option should only be enabled when the extension site
+      // permissions can be changed. However, sometimes the command still gets
+      // invoked (crbug.com/1468151). Thus, we exit early to prevent any
+      // crashes.
+      if (!PermissionsManager::Get(profile_)->CanAffectExtension(*extension)) {
+        return;
+      }
+
+      SitePermissionsHelper permissions(profile_);
+      permissions.UpdateSiteAccess(*extension, web_contents,
+                                   CommandIdToSiteAccess(command_id));
+      break;
+    }
     case PAGE_ACCESS_PERMISSIONS_PAGE:
+      LogPageAccessAction(command_id);
+      OpenUrl(*browser_,
+              GURL(chrome_extension_constants::kExtensionsSitePermissionsURL));
+      break;
     case PAGE_ACCESS_LEARN_MORE:
-      HandlePageAccessCommand(command_id, extension);
+      LogPageAccessAction(command_id);
+      OpenUrl(*browser_,
+              GURL(chrome_extension_constants::kRuntimeHostPermissionsHelpURL));
+
       break;
     default:
       NOTREACHED() << "Unknown option";
@@ -432,7 +481,170 @@ void ExtensionContextMenuModel::MenuClosed(ui::SimpleMenuModel* menu) {
   }
 }
 
-ExtensionContextMenuModel::~ExtensionContextMenuModel() {}
+ExtensionContextMenuModel::~ExtensionContextMenuModel() = default;
+
+void ExtensionContextMenuModel::InitMenuWithFeature(
+    const Extension* extension,
+    bool can_show_icon_in_toolbar) {
+  DCHECK(base::FeatureList::IsEnabled(
+      extensions_features::kExtensionsMenuAccessControl));
+  DCHECK(extension);
+
+  extension_action_ =
+      ExtensionActionManager::Get(profile_)->GetExtensionAction(*extension);
+  absl::optional<ActionInfo::Type> action_type =
+      extension_action_
+          ? absl::optional<ActionInfo::Type>(extension_action_->action_type())
+          : absl::nullopt;
+
+  extension_items_ = std::make_unique<ContextMenuMatcher>(
+      profile_, this, this,
+      base::BindRepeating(MenuItemMatchesAction, action_type));
+
+  // Home page section.
+  std::string extension_name = extension->name();
+  // Ampersands need to be escaped to avoid being treated like
+  // mnemonics in the menu.
+  base::ReplaceChars(extension_name, "&", "&&", &extension_name);
+  AddItem(HOME_PAGE, base::UTF8ToUTF16(extension_name));
+  AppendExtensionItems();
+
+  // Site permissions section.
+  bool policy_entry_in_subpage = false;
+  bool is_required_by_policy = IsExtensionRequiredByPolicy(extension, profile_);
+
+  // Show section only when the extension requests host permissions.
+  auto* permissions_manager = PermissionsManager::Get(profile_);
+  if (permissions_manager->ExtensionRequestsHostPermissionsOrActiveTab(
+          *extension)) {
+    content::WebContents* web_contents = GetActiveWebContents();
+    const GURL& url = web_contents->GetLastCommittedURL();
+    // We store the origin to make sure it's the same when executing page access
+    // commands.
+    origin_ = url::Origin::Create(url);
+    auto site_setting = permissions_manager->GetUserSiteSetting(origin_);
+
+    if (site_setting ==
+        PermissionsManager::UserSiteSetting::kGrantAllExtensions) {
+      AddItem(
+          PAGE_ACCESS_ALL_EXTENSIONS_GRANTED,
+          l10n_util::GetStringFUTF16(
+              IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_ALL_EXTENSIONS_GRANTED,
+              GetCurrentSite(url)));
+    } else if (site_setting ==
+                   PermissionsManager::UserSiteSetting::kBlockAllExtensions &&
+               !is_required_by_policy) {
+      // An extension required by policy can have access when the user
+      // blocked all extensions. Thus, we only show the 'all extensions blocked'
+      // item for extensions not required by policy.
+      AddItem(
+          PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED,
+          l10n_util::GetStringFUTF16(
+              IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED,
+              GetCurrentSite(url)));
+    } else if (SitePermissionsHelper(profile_).GetSiteInteraction(
+                   *extension, web_contents) ==
+               SitePermissionsHelper::SiteInteraction::kNone) {
+      // Extensions that don't request site access to this site have no site
+      // interaction. Note: it's important this comes after handling the 'block
+      // all extensions' site settings, since such setting changes all the
+      // extensions site interaction to 'none' even if the extension requested
+      // access to this site.
+      AddItemWithStringId(PAGE_ACCESS_CANT_ACCESS,
+                          IDS_EXTENSIONS_CONTEXT_MENU_CANT_ACCESS_PAGE);
+    } else {
+      // The extension wants site access and can run on the page. Add the three
+      // site access options, which may be disabled.
+      static constexpr int kRadioGroup = 0;
+      page_access_submenu_ = std::make_unique<ui::SimpleMenuModel>(this);
+      page_access_submenu_->AddRadioItemWithStringId(
+          PAGE_ACCESS_RUN_ON_CLICK,
+          IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK_V2, kRadioGroup);
+      page_access_submenu_->AddRadioItem(
+          PAGE_ACCESS_RUN_ON_SITE,
+          l10n_util::GetStringFUTF16(
+              IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_SITE_V2,
+              GetCurrentSite(url)),
+          kRadioGroup);
+      page_access_submenu_->AddRadioItemWithStringId(
+          PAGE_ACCESS_RUN_ON_ALL_SITES,
+          IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2,
+          kRadioGroup);
+
+      // When the page access submenu is visible, it holds the policy entry.
+      page_access_submenu_->AddSeparator(ui::NORMAL_SEPARATOR);
+      page_access_submenu_->AddItemWithStringIdAndIcon(
+          POLICY_INSTALLED, IDS_EXTENSIONS_INSTALLED_BY_ADMIN,
+          ui::ImageModel::FromVectorIcon(vector_icons::kBusinessIcon,
+                                         ui::kColorIcon, 16));
+      policy_entry_in_subpage = true;
+
+      AddSubMenuWithStringId(PAGE_ACCESS_SUBMENU,
+                             IDS_EXTENSIONS_CONTEXT_MENU_SITE_PERMISSIONS,
+                             page_access_submenu_.get());
+    }
+
+    // Permissions page is always visible when the extension requests host
+    // permissions.
+    AddItemWithStringId(
+        PAGE_ACCESS_PERMISSIONS_PAGE,
+        IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE);
+  }
+
+  // Policy section.
+  if (!is_component_ && is_required_by_policy && !policy_entry_in_subpage) {
+    AddSeparator(ui::NORMAL_SEPARATOR);
+    // TODO (kylixrd): Investigate the usage of the hard-coded color.
+    AddItemWithStringIdAndIcon(
+        POLICY_INSTALLED, IDS_EXTENSIONS_INSTALLED_BY_ADMIN,
+        ui::ImageModel::FromVectorIcon(vector_icons::kBusinessIcon,
+                                       ui::kColorIcon, 16));
+  }
+
+  // Controls section.
+  bool has_options_page = OptionsPageInfo::HasOptionsPage(extension);
+  bool can_uninstall_extension = !is_component_ && is_required_by_policy;
+  if (can_show_icon_in_toolbar || has_options_page || can_uninstall_extension) {
+    AddSeparator(ui::NORMAL_SEPARATOR);
+  }
+
+  if (can_show_icon_in_toolbar) {
+    if (IsExtensionForcePinned(*extension, profile_)) {
+      AddItemWithStringIdAndIcon(
+          TOGGLE_VISIBILITY, IDS_EXTENSIONS_PINNED_BY_ADMIN,
+          ui::ImageModel::FromVectorIcon(vector_icons::kBusinessIcon,
+                                         ui::kColorIcon, 16));
+    } else {
+      int message_id = is_pinned_
+                           ? IDS_EXTENSIONS_CONTEXT_MENU_UNPIN_FROM_TOOLBAR
+                           : IDS_EXTENSIONS_CONTEXT_MENU_PIN_TO_TOOLBAR;
+      AddItemWithStringId(TOGGLE_VISIBILITY, message_id);
+    }
+  }
+
+  if (has_options_page) {
+    AddItemWithStringId(OPTIONS, IDS_EXTENSIONS_OPTIONS_MENU_ITEM);
+  }
+
+  if (can_uninstall_extension) {
+    AddItemWithStringId(UNINSTALL, IDS_EXTENSIONS_UNINSTALL);
+  }
+
+  // Settings section.
+  if (!is_component_) {
+    AddSeparator(ui::NORMAL_SEPARATOR);
+    AddItemWithStringId(MANAGE_EXTENSIONS, IDS_MANAGE_EXTENSION);
+    AddItemWithStringId(VIEW_WEB_PERMISSIONS, IDS_VIEW_WEB_PERMISSIONS);
+  }
+
+  // Developer section.
+  const ActionInfo* action_info = ActionInfo::GetExtensionActionInfo(extension);
+  if (delegate_ && !is_component_ && action_info && !action_info->synthesized &&
+      profile_->GetPrefs()->GetBoolean(prefs::kExtensionsUIDeveloperMode)) {
+    AddSeparator(ui::NORMAL_SEPARATOR);
+    AddItemWithStringId(INSPECT_POPUP, IDS_EXTENSION_ACTION_INSPECT_POPUP);
+  }
+}
 
 void ExtensionContextMenuModel::InitMenu(const Extension* extension,
                                          bool can_show_icon_in_toolbar) {
@@ -471,31 +683,22 @@ void ExtensionContextMenuModel::InitMenu(const Extension* extension,
     AddItemWithStringId(OPTIONS, IDS_EXTENSIONS_OPTIONS_MENU_ITEM);
 
   if (!is_component_) {
-    bool is_required_by_policy =
-        IsExtensionRequiredByPolicy(extension, profile_);
-    int message_id = is_required_by_policy ? IDS_EXTENSIONS_INSTALLED_BY_ADMIN
-                                           : IDS_EXTENSIONS_UNINSTALL;
-    AddItem(UNINSTALL, l10n_util::GetStringUTF16(message_id));
-    if (is_required_by_policy) {
-      size_t uninstall_index = GetIndexOfCommandId(UNINSTALL).value();
+    if (IsExtensionRequiredByPolicy(extension, profile_)) {
       // TODO (kylixrd): Investigate the usage of the hard-coded color.
-      SetIcon(uninstall_index,
-              ui::ImageModel::FromVectorIcon(vector_icons::kBusinessIcon,
-                                             ui::kColorIcon, 16));
+      AddItemWithStringIdAndIcon(
+          POLICY_INSTALLED, IDS_EXTENSIONS_INSTALLED_BY_ADMIN,
+          ui::ImageModel::FromVectorIcon(vector_icons::kBusinessIcon,
+                                         ui::kColorIcon, 16));
+
+    } else {
+      AddItemWithStringId(UNINSTALL, IDS_EXTENSIONS_UNINSTALL);
     }
   }
 
-  // Extensions menu using kExtensionsMenuAccessControl doesn't have pin button
-  // in the menu items and thus context menu should display it (whereas
-  // extensions menu without the feature could have pin buttons).
-  bool show_toggle_visibility_button =
-      can_show_icon_in_toolbar &&
-      (base::FeatureList::IsEnabled(
-           extensions_features::kExtensionsMenuAccessControl) ||
-       source_ == ContextMenuSource::kToolbarAction);
-  if (show_toggle_visibility_button) {
+  if (can_show_icon_in_toolbar &&
+      source_ == ContextMenuSource::kToolbarAction) {
     int visibility_string_id =
-        GetVisibilityStringId(profile_, extension, button_visibility_);
+        GetVisibilityStringId(profile_, extension, is_pinned_);
     DCHECK_NE(-1, visibility_string_id);
     AddItemWithStringId(TOGGLE_VISIBILITY, visibility_string_id);
     if (IsExtensionForcePinned(*extension, profile_)) {
@@ -540,203 +743,54 @@ void ExtensionContextMenuModel::AppendExtensionItems() {
                                          true);  // is_action_menu
 }
 
-bool ExtensionContextMenuModel::IsPageAccessCommandEnabled(
-    const Extension& extension,
-    int command_id) const {
-  content::WebContents* web_contents = GetActiveWebContents();
-  if (!web_contents)
-    return false;
-
-  switch (command_id) {
-    case PAGE_ACCESS_CANT_ACCESS:
-    case PAGE_ACCESS_ALL_EXTENSIONS_GRANTED:
-    case PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED:
-      // When these commands are shown, they are always disabled.
-      return false;
-
-    case PAGE_ACCESS_SUBMENU:
-    case PAGE_ACCESS_LEARN_MORE:
-    case PAGE_ACCESS_PERMISSIONS_PAGE:
-      // When these commands are shown, they are always enabled.
-      return true;
-
-    case PAGE_ACCESS_RUN_ON_CLICK:
-    case PAGE_ACCESS_RUN_ON_SITE:
-    case PAGE_ACCESS_RUN_ON_ALL_SITES:
-      // Verify the extension wants access to the page - that's the only time
-      // these commands should be shown.
-      const GURL& url = web_contents->GetLastCommittedURL();
-      auto* permissions_manager = PermissionsManager::Get(profile_);
-      DCHECK(permissions_manager->HasActiveTabAndCanAccess(extension, url) ||
-             permissions_manager->CanAffectExtension(extension) &&
-                 permissions_manager->CanUserSelectSiteAccess(
-                     extension, url,
-                     PermissionsManager::UserSiteAccess::kOnClick));
-
-      // TODO(devlin): This can lead to some fun race-like conditions, where the
-      // menu is constructed during navigation. Since we get the URL both here
-      // and in execution of the command, there's a chance we'll find two
-      // different URLs. This would be solved if we maintained the URL that the
-      // menu was showing for.
-      return permissions_manager->CanUserSelectSiteAccess(
-          extension, url, CommandIdToSiteAccess(command_id));
-  }
-
-  NOTREACHED() << "Unexpected command id: " << command_id;
-  return false;
-}
-
 void ExtensionContextMenuModel::CreatePageAccessItems(
     const Extension* extension,
     content::WebContents* web_contents) {
+  DCHECK(!base::FeatureList::IsEnabled(
+      extensions_features::kExtensionsMenuAccessControl));
+
   const GURL& url = web_contents->GetLastCommittedURL();
   // We store the origin to make sure it's the same when executing page access
   // commands.
   origin_ = url::Origin::Create(url);
-
   auto* permissions_manager = PermissionsManager::Get(profile_);
 
-  if (base::FeatureList::IsEnabled(
-          extensions_features::kExtensionsMenuAccessControl)) {
-    auto add_page_access_secondary_buttons = [](ui::SimpleMenuModel* parent) {
-      parent->AddSeparator(ui::NORMAL_SEPARATOR);
-      parent->AddItemWithStringId(
-          PAGE_ACCESS_PERMISSIONS_PAGE,
-          IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_PERMISSIONS_PAGE);
-      parent->AddItemWithStringId(
-          PAGE_ACCESS_LEARN_MORE,
-          IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_LEARN_MORE);
-    };
-
-    // User site setting takes preference over extension settings. Therefore, we
-    // only show the page access submenu with change extension settings options
-    // if the site settings is set to "customize by extension". Otherwise, shows
-    // a message that informs the user about the site setting.
-    auto site_setting = permissions_manager->GetUserSiteSetting(origin_);
-    switch (site_setting) {
-      case PermissionsManager::UserSiteSetting::kGrantAllExtensions:
-        AddItem(
-            PAGE_ACCESS_ALL_EXTENSIONS_GRANTED,
-            l10n_util::GetStringFUTF16(
-                IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_ALL_EXTENSIONS_GRANTED,
-                GetCurrentSite(url)));
-        add_page_access_secondary_buttons(this);
-        return;
-
-      case PermissionsManager::UserSiteSetting::kBlockAllExtensions:
-        AddItem(
-            PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED,
-            l10n_util::GetStringFUTF16(
-                IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_ALL_EXTENSIONS_BLOCKED,
-                GetCurrentSite(url)));
-        add_page_access_secondary_buttons(this);
-        return;
-
-      case PermissionsManager::UserSiteSetting::kCustomizeByExtension:
-        // The extension wants site access but cant't run on the page if it does
-        // not have at least "on click" access.
-        if (!permissions_manager->CanUserSelectSiteAccess(
-                *extension, url,
-                PermissionsManager::UserSiteAccess::kOnClick)) {
-          AddItemWithStringId(PAGE_ACCESS_CANT_ACCESS,
-                              IDS_EXTENSIONS_CONTEXT_MENU_CANT_ACCESS_PAGE);
-          return;
-        }
-
-        // The extension wants site access and can ran on the page.  Add the
-        // three options for "on click", "on this site", "on all sites". Though
-        // we always add these three, some may be disabled.
-        const int kRadioGroup = 0;
-        page_access_submenu_ = std::make_unique<ui::SimpleMenuModel>(this);
-        page_access_submenu_->AddRadioItemWithStringId(
-            PAGE_ACCESS_RUN_ON_CLICK,
-            IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK_V2,
-            kRadioGroup);
-        page_access_submenu_->AddRadioItem(
-            PAGE_ACCESS_RUN_ON_SITE,
-            l10n_util::GetStringFUTF16(
-                IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_SITE_V2,
-                GetCurrentSite(url)),
-            kRadioGroup);
-        page_access_submenu_->AddRadioItemWithStringId(
-            PAGE_ACCESS_RUN_ON_ALL_SITES,
-            IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES_V2,
-            kRadioGroup);
-        add_page_access_secondary_buttons(page_access_submenu_.get());
-
-        AddSubMenuWithStringId(PAGE_ACCESS_SUBMENU,
-                               IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS,
-                               page_access_submenu_.get());
-    }
-  } else {
-    // The extension wants site access but cant't run on the page if it does
-    // not have at least "on click" access.
-    if (!permissions_manager->CanUserSelectSiteAccess(
-            *extension, url, PermissionsManager::UserSiteAccess::kOnClick)) {
-      AddItemWithStringId(PAGE_ACCESS_CANT_ACCESS,
-                          IDS_EXTENSIONS_CONTEXT_MENU_CANT_ACCESS_PAGE);
-      return;
-    }
-
-    // The extension wants site access and can ran on the page.  Add the three
-    // options for "on click", "on this site", "on all sites". Though we
-    // always add these three, some may be disabled.
-    const int kRadioGroup = 0;
-    page_access_submenu_ = std::make_unique<ui::SimpleMenuModel>(this);
-
-    page_access_submenu_->AddRadioItemWithStringId(
-        PAGE_ACCESS_RUN_ON_CLICK,
-        IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK, kRadioGroup);
-    page_access_submenu_->AddRadioItem(
-        PAGE_ACCESS_RUN_ON_SITE,
-        l10n_util::GetStringFUTF16(
-            IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_SITE,
-            GetCurrentSite(url)),
-        kRadioGroup);
-    page_access_submenu_->AddRadioItemWithStringId(
-        PAGE_ACCESS_RUN_ON_ALL_SITES,
-        IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES, kRadioGroup);
-
-    page_access_submenu_->AddSeparator(ui::NORMAL_SEPARATOR);
-    page_access_submenu_->AddItemWithStringId(
-        PAGE_ACCESS_LEARN_MORE,
-        IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_LEARN_MORE);
-
-    AddSubMenuWithStringId(PAGE_ACCESS_SUBMENU,
-                           IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS,
-                           page_access_submenu_.get());
-  }
-}
-
-void ExtensionContextMenuModel::HandlePageAccessCommand(
-    int command_id,
-    const Extension* extension) const {
-  content::WebContents* web_contents = GetActiveWebContents();
-  if (!web_contents) {
+  // The extension wants site access but can't run on the page if it does
+  // not have at least "on click" access.
+  if (!permissions_manager->CanUserSelectSiteAccess(
+          *extension, url, PermissionsManager::UserSiteAccess::kOnClick)) {
+    AddItemWithStringId(PAGE_ACCESS_CANT_ACCESS,
+                        IDS_EXTENSIONS_CONTEXT_MENU_CANT_ACCESS_PAGE);
     return;
   }
 
-  LogPageAccessAction(command_id);
+  // The extension wants site access and can ran on the page.  Add the three
+  // options for "on click", "on this site", "on all sites". Though we
+  // always add these three, some may be disabled.
+  static constexpr int kRadioGroup = 0;
+  page_access_submenu_ = std::make_unique<ui::SimpleMenuModel>(this);
 
-  if (command_id == PAGE_ACCESS_PERMISSIONS_PAGE) {
-    OpenUrl(*browser_,
-            GURL(chrome_extension_constants::kExtensionsSitePermissionsURL));
-    return;
-  }
-  if (command_id == PAGE_ACCESS_LEARN_MORE) {
-    OpenUrl(*browser_,
-            GURL(chrome_extension_constants::kRuntimeHostPermissionsHelpURL));
-    return;
-  }
+  page_access_submenu_->AddRadioItemWithStringId(
+      PAGE_ACCESS_RUN_ON_CLICK,
+      IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_CLICK, kRadioGroup);
+  page_access_submenu_->AddRadioItem(
+      PAGE_ACCESS_RUN_ON_SITE,
+      l10n_util::GetStringFUTF16(
+          IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_SITE,
+          GetCurrentSite(url)),
+      kRadioGroup);
+  page_access_submenu_->AddRadioItemWithStringId(
+      PAGE_ACCESS_RUN_ON_ALL_SITES,
+      IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_RUN_ON_ALL_SITES, kRadioGroup);
 
-  // If the web contents have navigated to a different origin, do nothing.
-  if (!origin_.IsSameOriginWith(web_contents->GetLastCommittedURL())) {
-    return;
-  }
+  page_access_submenu_->AddSeparator(ui::NORMAL_SEPARATOR);
+  page_access_submenu_->AddItemWithStringId(
+      PAGE_ACCESS_LEARN_MORE,
+      IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS_LEARN_MORE);
 
-  SitePermissionsHelper permissions(profile_);
-  permissions.UpdateSiteAccess(*extension, web_contents,
-                               CommandIdToSiteAccess(command_id));
+  AddSubMenuWithStringId(PAGE_ACCESS_SUBMENU,
+                         IDS_EXTENSIONS_CONTEXT_MENU_PAGE_ACCESS,
+                         page_access_submenu_.get());
 }
 
 content::WebContents* ExtensionContextMenuModel::GetActiveWebContents() const {

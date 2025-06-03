@@ -6,6 +6,7 @@
 #define ASH_PUBLIC_CPP_CAPTURE_MODE_CAPTURE_MODE_TEST_API_H_
 
 #include "ash/ash_export.h"
+#include "ash/capture_mode/capture_mode_behavior.h"
 #include "ash/capture_mode/capture_mode_types.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
@@ -107,13 +108,13 @@ class ASH_EXPORT CaptureModeTestApi {
   // finished.
   void SetOnVideoRecordCountdownFinishedCallback(base::OnceClosure callback);
 
-  // Sets whether or not audio will be recorded when capturing a video. Should
-  // only be called before recording starts, otherwise it has no effect.
-  void SetAudioRecordingEnabled(bool enabled);
+  // Sets the audio recording mode when capturing a video. Should only be called
+  // before recording starts, otherwise it has no effect.
+  void SetAudioRecordingMode(AudioRecordingMode mode);
 
-  // Returns the effective enabled state of audio recording which takes into
-  // account the `AudioCaptureAllowed` policy.
-  bool GetAudioRecordingEnabled() const;
+  // Returns the effective mode of audio recording which takes into account the
+  // `AudioCaptureAllowed` policy.
+  AudioRecordingMode GetEffectiveAudioRecordingMode() const;
 
   // Flushes the recording service pipe synchronously. Can only be called while
   // recording is in progress.
@@ -156,6 +157,8 @@ class ASH_EXPORT CaptureModeTestApi {
 
   // Returns the camera preview widget if exists and nullptr otherwise.
   views::Widget* GetCameraPreviewWidget();
+
+  CaptureModeBehavior* GetBehavior(BehaviorType behavior_type);
 
  private:
   // Sets the capture mode type to a video capture if |for_video| is true, or

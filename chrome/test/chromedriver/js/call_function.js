@@ -122,7 +122,9 @@ function isElement(value) {
  */
 function isCollection(value) {
   const Symbol = window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol || window.Symbol;
-  return (typeof value[Symbol.iterator] === 'function');
+  return (typeof value[Symbol.iterator] === 'function') &&
+      ('length' in value) &&
+      (typeof value.length === 'number');
 }
 
 /**
@@ -320,6 +322,7 @@ function callFunction(func, args, w3c, nodes) {
       status: error.code || StatusCode.JAVA_SCRIPT_ERROR,
       value: error.message || error
     });
+    const JSON = window.cdc_adoQpoasnfa76pfcZLmcfl_JSON || window.JSON;
     return [JSON.stringify(errorResponse)];
   }
 
@@ -342,6 +345,7 @@ function callFunction(func, args, w3c, nodes) {
         status: 0,
         value: preprocessResult(result, [], ret_nodes)
       };
+      const JSON = window.cdc_adoQpoasnfa76pfcZLmcfl_JSON || window.JSON;
       return [JSON.stringify(response), ...ret_nodes];
     }).catch(buildError);
   } catch (error) {

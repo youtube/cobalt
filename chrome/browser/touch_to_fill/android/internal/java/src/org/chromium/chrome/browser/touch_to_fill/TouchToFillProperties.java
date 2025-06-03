@@ -10,6 +10,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 
 import org.chromium.base.Callback;
+import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.data.Credential;
 import org.chromium.chrome.browser.touch_to_fill.data.WebAuthnCredential;
 import org.chromium.ui.modelutil.ListModel;
@@ -74,9 +75,12 @@ class TouchToFillProperties {
         static final PropertyModel
                 .ReadableObjectPropertyKey<Callback<Credential>> ON_CLICK_LISTENER =
                 new PropertyModel.ReadableObjectPropertyKey<>("on_click_listener");
+        static final PropertyModel
+                .ReadableObjectPropertyKey<FillableItemCollectionInfo> ITEM_COLLECTION_INFO =
+                new PropertyModel.ReadableObjectPropertyKey<>("item_collection_info");
 
         static final PropertyKey[] ALL_KEYS = {FAVICON_OR_FALLBACK, CREDENTIAL, FORMATTED_ORIGIN,
-                ON_CLICK_LISTENER, SHOW_SUBMIT_BUTTON};
+                ON_CLICK_LISTENER, SHOW_SUBMIT_BUTTON, ITEM_COLLECTION_INFO};
 
         private CredentialProperties() {}
     }
@@ -96,11 +100,25 @@ class TouchToFillProperties {
         static final PropertyModel.ReadableObjectPropertyKey<Callback<WebAuthnCredential>>
                 ON_WEBAUTHN_CLICK_LISTENER =
                 new PropertyModel.ReadableObjectPropertyKey<>("on_webauthn_click_listener");
-
+        static final PropertyModel.ReadableObjectPropertyKey<FillableItemCollectionInfo>
+                WEBAUTHN_ITEM_COLLECTION_INFO =
+                new PropertyModel.ReadableObjectPropertyKey<>("item_collection_info");
         static final PropertyKey[] ALL_KEYS = {WEBAUTHN_CREDENTIAL, WEBAUTHN_FAVICON_OR_FALLBACK,
-                ON_WEBAUTHN_CLICK_LISTENER, SHOW_WEBAUTHN_SUBMIT_BUTTON};
+                ON_WEBAUTHN_CLICK_LISTENER, SHOW_WEBAUTHN_SUBMIT_BUTTON,
+                WEBAUTHN_ITEM_COLLECTION_INFO};
 
         private WebAuthnCredentialProperties() {}
+    }
+
+    static class MorePasskeysProperties {
+        static final PropertyModel.ReadableObjectPropertyKey<Runnable> ON_CLICK =
+                new PropertyModel.ReadableObjectPropertyKey<>("more_passkeys_on_click");
+        static final PropertyModel.ReadableObjectPropertyKey<String> TITLE =
+                new PropertyModel.ReadableObjectPropertyKey<>("more_passkeys_title");
+
+        static final PropertyKey[] ALL_KEYS = {ON_CLICK, TITLE};
+
+        private MorePasskeysProperties() {}
     }
 
     /**
@@ -134,14 +152,19 @@ class TouchToFillProperties {
                 new PropertyModel.WritableObjectPropertyKey<>("on_click_manage");
         static final PropertyModel.WritableObjectPropertyKey<String> MANAGE_BUTTON_TEXT =
                 new PropertyModel.WritableObjectPropertyKey<>("manage_button_text");
+        static final PropertyModel.WritableObjectPropertyKey<Runnable> ON_CLICK_HYBRID =
+                new PropertyModel.WritableObjectPropertyKey<>("on_click_hybrid");
+        static final PropertyModel.WritableBooleanPropertyKey SHOW_HYBRID =
+                new PropertyModel.WritableBooleanPropertyKey("show_hybrid");
 
-        static final PropertyKey[] ALL_KEYS = {ON_CLICK_MANAGE, MANAGE_BUTTON_TEXT};
+        static final PropertyKey[] ALL_KEYS = {
+                ON_CLICK_MANAGE, MANAGE_BUTTON_TEXT, ON_CLICK_HYBRID, SHOW_HYBRID};
 
         private FooterProperties() {}
     }
 
     @IntDef({ItemType.HEADER, ItemType.CREDENTIAL, ItemType.WEBAUTHN_CREDENTIAL,
-            ItemType.FILL_BUTTON, ItemType.FOOTER})
+            ItemType.MORE_PASSKEYS, ItemType.FILL_BUTTON, ItemType.FOOTER})
     @Retention(RetentionPolicy.SOURCE)
     @interface ItemType {
         /**
@@ -160,14 +183,19 @@ class TouchToFillProperties {
         int WEBAUTHN_CREDENTIAL = 3;
 
         /**
+         * A section that opens Android Credential Manager API.
+         */
+        int MORE_PASSKEYS = 4;
+
+        /**
          * The fill button at the end of the sheet that filling more obvious for one suggestion.
          */
-        int FILL_BUTTON = 4;
+        int FILL_BUTTON = 5;
 
         /**
          * A footer section containing additional actions.
          */
-        int FOOTER = 5;
+        int FOOTER = 6;
     }
 
     /**

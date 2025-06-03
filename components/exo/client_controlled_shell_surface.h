@@ -99,8 +99,11 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Called when the client was restored.
   void SetRestored();
 
-  // Called when the client changed the fullscreen state.
-  void SetFullscreen(bool fullscreen);
+  // Called when the client changed the fullscreen state. When `fullscreen` is
+  // true, `display_id` indicates the id of the display where the surface should
+  // be shown, otherwise it is ignored. When `display::kInvalidDisplayId` is
+  // specified, the current display may be used.
+  void SetFullscreen(bool fullscreen, int64_t display_id);
 
   // Returns true if this shell surface is currently being dragged.
   bool IsDragging();
@@ -123,13 +126,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
 
   // Set the pending scale.
   void SetScale(double scale);
-
-  // Commit the pending scale if it was changed. The scale set by SetScale() is
-  // otherwise committed by OnPostWidgetCommit().
-  void CommitPendingScale();
-
-  // Set top inset for surface.
-  void SetTopInset(int height);
 
   // Sends the request to change the zoom level to the client.
   void ChangeZoomLevel(ZoomChange change);
@@ -188,7 +184,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   void SetSnapSecondary(float snap_ratio) override;
   void SetPip() override;
   void UnsetPip() override;
-  void SetFloat() override;
+  void SetFloatToLocation(
+      chromeos::FloatStartLocation float_start_location) override;
 
   // Overridden from views::WidgetDelegate:
   bool CanMaximize() const override;
@@ -226,10 +223,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
 
   ash::WideFrameView* wide_frame_for_test() { return wide_frame_.get(); }
 
-  // Exposed for testing. Returns the effective scale as opposed to
-  // |pending_scale_|.
-  double scale() const { return scale_; }
-
   // Used to scale incoming coordinates from the client to DP.
   float GetClientToDpScale() const;
 
@@ -250,6 +243,9 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Overridden from ShellSurfaceBase:
   float GetScale() const override;
 
+  // Overridden from SurfaceTreeHost:
+  float GetScaleFactor() const override;
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ClientControlledShellSurfaceTest,
                            OverlayShadowBounds);
@@ -259,6 +255,7 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // Overridden from ShellSurfaceBase:
   void SetWidgetBounds(const gfx::Rect& bounds,
                        bool adjusted_by_server) override;
+  gfx::Rect GetVisibleBounds() const override;
   gfx::Rect GetShadowBounds() const override;
   void InitializeWindowState(ash::WindowState* window_state) override;
   absl::optional<gfx::Rect> GetWidgetBounds() const override;
@@ -266,7 +263,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   bool OnPreWidgetCommit() override;
   void OnPostWidgetCommit() override;
   void OnSurfaceDestroying(Surface* surface) override;
-  void OnContentSizeChanged(Surface* surface) override;
 
   // Update frame status. This may create (or destroy) a wide frame
   // that spans the full work area width if the surface didn't cover
@@ -300,14 +296,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   gfx::Rect GetClientBoundsForWindowBoundsAndWindowState(
       const gfx::Rect& window_bounds,
       chromeos::WindowStateType window_state) const;
-
-  int top_inset_height_ = 0;
-  int pending_top_inset_height_ = 0;
-
-  double scale_ = 1.0;
-  // The pending scale is initialized to 0.0 to indicate that the scale is not
-  // yet initialized.
-  double pending_scale_ = 0.0;
 
   uint32_t frame_visible_button_mask_ = 0;
   uint32_t frame_enabled_button_mask_ = 0;

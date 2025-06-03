@@ -14,6 +14,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ash/arc/process/arc_process.h"
 #include "chrome/browser/ash/arc/process/arc_process_service.h"
+#include "chrome/browser/ash/arc/vmm/arcvm_working_set_trim_executor.h"
 #include "chrome/browser/performance_manager/policies/policy_features.h"
 #include "chrome/browser/performance_manager/policies/working_set_trimmer_policy_arcvm.h"
 #include "components/performance_manager/graph/graph_impl_operations.h"
@@ -69,7 +70,7 @@ using testing::Return;
 // system update.
 int64_t GetSystemTimeInPastAsMsSinceUptime(base::TimeDelta delta) {
   const base::Time cur_time = base::Time::NowFromSystemTime();
-  return (cur_time - delta).ToJavaTime();
+  return (cur_time - delta).InMillisecondsSinceUnixEpoch();
 }
 
 class ScopedTestArcVmDelegate
@@ -367,8 +368,9 @@ class WorkingSetTrimmerPolicyChromeOSTest : public GraphTestHarness {
 
  private:
   std::unique_ptr<base::RunLoop> run_loop_;
-  raw_ptr<MockWorkingSetTrimmerPolicyChromeOS, ExperimentalAsh> policy_ =
-      nullptr;  // Not owned.
+  raw_ptr<MockWorkingSetTrimmerPolicyChromeOS,
+          DanglingUntriaged | ExperimentalAsh>
+      policy_ = nullptr;  // Not owned.
   std::unique_ptr<mechanism::MockWorkingSetTrimmerChromeOS> trimmer_;
 };
 

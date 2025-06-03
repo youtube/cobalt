@@ -14,6 +14,8 @@ import android.os.Process;
 import androidx.annotation.StringDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ApplicationStateListener;
@@ -21,12 +23,12 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.components.background_task_scheduler.TaskIds;
 import org.chromium.components.crash.browser.ProcessExitReasonFromSystem;
@@ -116,7 +118,7 @@ public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
 
     private static ApplicationStateListener createApplicationStateListener() {
         return newState -> {
-            SharedPreferencesManager.getInstance().writeInt(
+            ChromeSharedPreferences.getInstance().writeInt(
                     ChromePreferenceKeys.LAST_SESSION_APPLICATION_STATE, newState);
         };
     }
@@ -127,7 +129,7 @@ public class MinidumpUploadServiceImpl extends MinidumpUploadService.Impl {
     public static void storeBreakpadUploadStatsInUma(CrashUploadCountStore pref) {
         sBrowserCrashMetricsInitialized.set(true);
 
-        SharedPreferencesManager sharedPrefs = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPrefs = ChromeSharedPreferences.getInstance();
         int previousPid = sharedPrefs.readInt(ChromePreferenceKeys.LAST_SESSION_BROWSER_PID);
         @ApplicationState
         int applicationExitState =

@@ -5124,6 +5124,12 @@ void main()
 // Test fragment shader read a image, followed by compute shader sample it.
 TEST_P(ComputeShaderTest, FSReadImageThenCSSample)
 {
+    GLint maxFragmentImageUniforms = 0;
+    glGetIntegerv(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, &maxFragmentImageUniforms);
+
+    // MAX_FRAGMENT_IMAGE_UNIFORMS can be 0 according to OpenGL ES 3.1 SPEC.
+    ANGLE_SKIP_TEST_IF(maxFragmentImageUniforms == 0);
+
     constexpr char kVSSource[] = R"(#version 310 es
 in vec4 a_position;
 out vec2 v_texCoord;
@@ -5335,6 +5341,113 @@ TEST_P(ComputeShaderTest, SSBOAliasOverWrite)
     EXPECT_EQ(false, error);
 }
 
+// Performs an atomic operation and assigns the previous value to an SSBO.
+TEST_P(ComputeShaderTest, AtomicOpPreviousValueAssignedToSSBO)
+{
+
+    constexpr char kCSSource[] = R"(#version 310 es
+    shared int wg;
+    layout(binding = 0, std430) buffer Storage0 {
+      int inner[16];
+    } buf;
+
+    layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+    void main() {
+      wg = 0;
+      atomicExchange(wg, 0);
+      barrier();
+      buf.inner[gl_WorkGroupID.x] = atomicOr(wg, 1);
+    })";
+
+    const int dispatchSize = 16;
+
+    // define compute shader output buffer
+    const int outputBufferSizeInBytes   = dispatchSize * sizeof(int32_t);
+    const int outputBufferElementsCount = dispatchSize;
+    std::vector<int32_t> minusOnes(outputBufferElementsCount, -1);
+    GLBuffer resultBuffer;
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, resultBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, outputBufferSizeInBytes, &minusOnes[0], GL_STATIC_DRAW);
+    ASSERT_GL_NO_ERROR();
+
+    ANGLE_GL_COMPUTE_PROGRAM(csProgram, kCSSource);
+    glUseProgram(csProgram);
+    ASSERT_GL_NO_ERROR();
+
+    // Bind storage buffer to compute shader binding locations
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, resultBuffer);
+
+    glDispatchCompute(dispatchSize, 1, 1);
+    ASSERT_GL_NO_ERROR();
+
+    // verify the result
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, resultBuffer);
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+    void *mappedResults =
+        glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, outputBufferSizeInBytes, GL_MAP_READ_BIT);
+    std::vector<int32_t> results(outputBufferElementsCount);
+    memcpy(results.data(), mappedResults, outputBufferSizeInBytes);
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    ASSERT_GL_NO_ERROR();
+
+    for (int index = 0; index < static_cast<int>(results.size()); ++index)
+    {
+        EXPECT_EQ(results[index], 0);
+    }
+}
+
+class StorageImageRenderProgramTest : public ANGLETest<>
+{};
+
+// Test creating a program with a vertex shader using storage image.
+TEST_P(StorageImageRenderProgramTest, StorageImageInVertexShader)
+{
+    GLint maxVertexShaderImage = 0;
+    glGetIntegerv(GL_MAX_VERTEX_IMAGE_UNIFORMS, &maxVertexShaderImage);
+
+    // MAX_VERTEX_IMAGE_UNIFORMS can be 0 according to OpenGL ES 3.1 SPEC.
+    ANGLE_SKIP_TEST_IF(maxVertexShaderImage == 0);
+
+    constexpr char kVSSource_readonly[] = R"(#version 310 es
+layout(rgba32f, binding = 0) readonly uniform highp image2D uIn;
+void main()
+{
+    gl_Position = imageLoad(uIn, ivec2(0, 0));
+})";
+
+    constexpr char kVSSource_writeonly[] = R"(#version 310 es
+layout(rgba32f, binding = 0) writeonly uniform highp image2D uOut;
+void main()
+{
+    gl_Position = vec4(0, 0, 0, 1);
+    imageStore(uOut, ivec2(0, 0), vec4(0, 0, 0, 1));
+})";
+
+    constexpr char kVSSource_readwrite[] = R"(#version 310 es
+layout(r32f, binding = 0) uniform highp image2D uImage;
+void main()
+{
+    gl_Position = imageLoad(uImage, ivec2(0, 0));
+    imageStore(uImage, ivec2(0, 0), vec4(0, 0, 0, 1));
+})";
+
+    constexpr char kFSSource[] = R"(#version 310 es
+precision mediump float;
+out vec4 out_FragColor;
+void main()
+{
+    out_FragColor = vec4(0, 1, 0, 1);
+})";
+    ANGLE_GL_PROGRAM(program1, kVSSource_readonly, kFSSource);
+    EXPECT_GL_NO_ERROR();
+
+    ANGLE_GL_PROGRAM(program2, kVSSource_writeonly, kFSSource);
+    EXPECT_GL_NO_ERROR();
+
+    ANGLE_GL_PROGRAM(program3, kVSSource_readwrite, kFSSource);
+    EXPECT_GL_NO_ERROR();
+}
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ComputeShaderTest);
 ANGLE_INSTANTIATE_TEST_ES31(ComputeShaderTest);
 
@@ -5343,4 +5456,7 @@ ANGLE_INSTANTIATE_TEST_ES3(ComputeShaderTestES3);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(WebGL2ComputeTest);
 ANGLE_INSTANTIATE_TEST_ES31(WebGL2ComputeTest);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(StorageImageRenderProgramTest);
+ANGLE_INSTANTIATE_TEST_ES31(StorageImageRenderProgramTest);
 }  // namespace

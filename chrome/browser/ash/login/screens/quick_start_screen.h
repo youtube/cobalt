@@ -7,25 +7,32 @@
 
 #include <string>
 
-#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ash/login/oobe_quick_start/target_device_bootstrap_controller.h"
+#include "chrome/browser/ash/login/quickstart_controller.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
+#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/quick_start_screen_handler.h"
 
 namespace ash {
 
-class QuickStartScreen
-    : public BaseScreen,
-      public quick_start::TargetDeviceBootstrapController::Observer {
+class QuickStartScreen : public BaseScreen,
+                         public quick_start::QuickStartController::UiDelegate {
  public:
   using TView = QuickStartView;
 
-  enum class Result { CANCEL };
+  enum class Result {
+    CANCEL_AND_RETURN_TO_WELCOME,
+    CANCEL_AND_RETURN_TO_NETWORK,
+    CANCEL_AND_RETURN_TO_SIGNIN,
+    WIFI_CREDENTIALS_RECEIVED,
+    WIFI_CONNECTED
+  };
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
 
   QuickStartScreen(base::WeakPtr<TView> view,
+                   quick_start::QuickStartController* controller,
                    const ScreenExitCallback& exit_callback);
 
   QuickStartScreen(const QuickStartScreen&) = delete;
@@ -42,22 +49,17 @@ class QuickStartScreen
   void HideImpl() override;
   void OnUserAction(const base::Value::List& args) override;
 
-  // quick_start::TargetDeviceBootstrapController::Observer:
-  void OnStatusChanged(
-      const quick_start::TargetDeviceBootstrapController::Status& status) final;
+  // quick_start::QuickStartController::UiDelegate:
+  void OnUiUpdateRequested(
+      quick_start::QuickStartController::UiState state) final;
 
-  void UnbindFromBootstrapController();
-  void SendRandomFiguresForTesting() const;
-
-  // Retrieves the connected phone ID and saves it for later use in OOBE on the
-  // MultideviceSetupScreen.
-  void SavePhoneInstanceID();
+  // Exits the screen and returns to the appropriate entry point. This is called
+  // whenever the user aborts the flow, or when an error occurs.
+  void ExitScreen();
 
   base::WeakPtr<TView> view_;
+  raw_ptr<quick_start::QuickStartController> controller_;
   ScreenExitCallback exit_callback_;
-
-  base::WeakPtr<quick_start::TargetDeviceBootstrapController>
-      bootstrap_controller_;
 };
 
 }  // namespace ash

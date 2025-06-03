@@ -9,10 +9,10 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.util.SparseArray;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.resources.ResourceLoader.ResourceLoaderCallback;
@@ -26,7 +26,6 @@ import org.chromium.ui.resources.system.SystemResourceLoader;
  * This class does not hold any resource state, but passes it directly to native as they are loaded.
  */
 @JNINamespace("ui")
-@MainDex
 public class ResourceManager implements ResourceLoaderCallback {
     private final SparseArray<ResourceLoader> mResourceLoaders = new SparseArray<ResourceLoader>();
     private final SparseArray<SparseArray<LayoutResource>> mLoadedResources =

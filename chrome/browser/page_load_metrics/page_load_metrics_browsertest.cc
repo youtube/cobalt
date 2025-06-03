@@ -23,6 +23,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/to_vector.h"
 #include "base/test/trace_event_analyzer.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
@@ -35,6 +36,7 @@
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_test_utils.h"
+#include "chrome/browser/preloading/preview/preview_test_util.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
@@ -238,17 +240,15 @@ class PageLoadMetricsBrowserTest : public InProcessBrowserTest {
   }
 
   void MakeComponentFullscreen(const std::string& id) {
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         browser()->tab_strip_model()->GetActiveWebContents(),
         "document.getElementById(\"" + id + "\").webkitRequestFullscreen();"));
   }
 
   std::string GetRecordedPageLoadMetricNames() {
     auto entries = histogram_tester_->GetTotalCountsForPrefix("PageLoad.");
-    std::vector<std::string> names;
-    base::ranges::transform(
-        entries, std::back_inserter(names),
-        &base::HistogramTester::CountsMap::value_type::first);
+    std::vector<std::string> names = base::test::ToVector(
+        entries, &base::HistogramTester::CountsMap::value_type::first);
     return base::JoinString(names, ",");
   }
 
@@ -1015,9 +1015,16 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, Redirect) {
   VerifyNavigationMetrics({final_url});
 }
 
+// TODO(crbug.com/1482170): Re-enable this test on Lacros.
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#define MAYBE_NoStatePrefetchMetrics DISABLED_NoStatePrefetchMetrics
+#else
+#define MAYBE_NoStatePrefetchMetrics NoStatePrefetchMetrics
+#endif
 // Triggers nostate prefetch, and verifies that the UKM metrics related to
 // nostate prefetch are recorded correctly.
-IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, NoStatePrefetchMetrics) {
+IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
+                       MAYBE_NoStatePrefetchMetrics) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL url = embedded_test_server()->GetURL("/title1.html");
@@ -1474,7 +1481,13 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, NoDocumentWrite) {
       internal::kHistogramDocWriteBlockParseStartToFirstContentfulPaint, 0);
 }
 
-IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, DocumentWriteBlock) {
+// Flaky on lacros. See https://crbug.com/1484915
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#define MAYBE_DocumentWriteBlock DISABLED_DocumentWriteBlock
+#else
+#define MAYBE_DocumentWriteBlock DocumentWriteBlock
+#endif
+IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, MAYBE_DocumentWriteBlock) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   auto waiter = CreatePageLoadMetricsTestWaiter("waiter");
@@ -1489,7 +1502,13 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, DocumentWriteBlock) {
       internal::kHistogramDocWriteBlockParseStartToFirstContentfulPaint, 1);
 }
 
-IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, DocumentWriteReload) {
+// TODO(crbug.com/1482261): Re-enable this test on Lacros.
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#define MAYBE_DocumentWriteReload DISABLED_DocumentWriteReload
+#else
+#define MAYBE_DocumentWriteReload DocumentWriteReload
+#endif
+IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, MAYBE_DocumentWriteReload) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   auto waiter = CreatePageLoadMetricsTestWaiter("waiter");
@@ -2569,6 +2588,9 @@ class SoftNavigationBrowserTest : public PageLoadMetricsBrowserTest {
     content::WaitForHitTestData(web_contents->GetPrimaryMainFrame());
 
     waiter->AddPageExpectation(TimingField::kSoftNavigationCountUpdated);
+    if (wait_for_second_lcp) {
+      waiter->AddPageExpectation(TimingField::kLargestContentfulPaint);
+    }
 
     const std::string wait_for_lcp = R"(
       (async () => {
@@ -2671,6 +2693,7 @@ class SoftNavigationBrowserTest : public PageLoadMetricsBrowserTest {
     EXPECT_EQ(expected_event_number, num_events);
 
     std::string previous_frame;
+    std::string navigation_id;
     double soft_navigation_timestamp = 0.0;
     for (auto* event : events) {
       EXPECT_TRUE(event->HasStringArg("frame"));
@@ -2681,8 +2704,15 @@ class SoftNavigationBrowserTest : public PageLoadMetricsBrowserTest {
       previous_frame = frame;
       if (event->name == "SoftNavigationHeuristics_SoftNavigationDetected") {
         soft_navigation_timestamp = event->timestamp;
+        EXPECT_TRUE(event->HasStringArg("navigationId"));
+        navigation_id = event->GetKnownArgAsString("navigationId");
       } else if (soft_navigation_timestamp > 0.0) {
         EXPECT_LE(soft_navigation_timestamp, event->timestamp);
+        EXPECT_EQ(event->name, "largestContentfulPaint::Candidate");
+        base::Value::Dict data = event->GetKnownArgAsDict("data");
+        if (!navigation_id.empty()) {
+          EXPECT_EQ(navigation_id, *data.FindString("navigationId"));
+        }
       }
     }
     // If we have more than one event, one of them needs to be a soft
@@ -2707,9 +2737,11 @@ class SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag
   base::test::ScopedFeatureList features_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(SoftNavigationBrowserTest, SoftNavigation) {
+// TODO(crbug.com/1431821): Flaky on many platforms.
+IN_PROC_BROWSER_TEST_F(SoftNavigationBrowserTest, DISABLED_SoftNavigation) {
   TestSoftNavigation(/*wait_for_second_lcp=*/false);
 }
+
 IN_PROC_BROWSER_TEST_F(
     SoftNavigationBrowserTestWithSoftNavigationHeuristicsFlag,
     SoftNavigation) {
@@ -3255,6 +3287,41 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, PageLCPStopsUponInput) {
   ASSERT_EQ(all_frames_value, main_frame_value);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+class PageLoadMetricsPreviewBrowserTest : public PageLoadMetricsBrowserTest {
+ public:
+  PageLoadMetricsPreviewBrowserTest() {
+    helper_ = std::make_unique<test::PreviewTestHelper>(
+        base::BindRepeating(&PageLoadMetricsPreviewBrowserTest::web_contents,
+                            base::Unretained(this)));
+  }
+
+ protected:
+  std::unique_ptr<test::PreviewTestHelper> helper_;
+};
+
+IN_PROC_BROWSER_TEST_F(PageLoadMetricsPreviewBrowserTest,
+                       PreviewPrimaryPageType) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/title1.html")));
+
+  histogram_tester_->ExpectBucketCount(
+      page_load_metrics::internal::kPageLoadTrackerPageType,
+      page_load_metrics::internal::PageLoadTrackerPageType::kPrimaryPage, 1);
+
+  helper_->InitiatePreview(embedded_test_server()->GetURL("/title2.html"));
+  helper_->WaitUntilLoadFinished();
+
+  histogram_tester_->ExpectBucketCount(
+      page_load_metrics::internal::kPageLoadTrackerPageType,
+      page_load_metrics::internal::PageLoadTrackerPageType::kPreviewPrimaryPage,
+      1);
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 class PageLoadMetricsBrowserTestTerminatedPage
     : public PageLoadMetricsBrowserTest {
  protected:
@@ -3457,8 +3524,15 @@ class PageLoadMetricsBrowserTestCrashedPage
     : public PageLoadMetricsBrowserTestTerminatedPage,
       public ::testing::WithParamInterface<const char*> {};
 
+// TODO(crbug.com/1479116): Very flaky on Lacros.
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#define MAYBE_UkmIsRecordedForCrashedTabPage \
+  DISABLED_UkmIsRecordedForCrashedTabPage
+#else
+#define MAYBE_UkmIsRecordedForCrashedTabPage UkmIsRecordedForCrashedTabPage
+#endif
 IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestCrashedPage,
-                       UkmIsRecordedForCrashedTabPage) {
+                       MAYBE_UkmIsRecordedForCrashedTabPage) {
   // Open a new foreground tab and navigate.
   content::WebContents* contents = OpenTabAndNavigate();
 
@@ -3568,7 +3642,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, DISABLED_PortalActivation) {
 
   // Create a portal to a.com.
   GURL a_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
-  std::string script = R"(
+  static constexpr char kScript[] = R"(
     var portal = document.createElement('portal');
     portal.src = '%s';
     document.body.appendChild(portal);
@@ -3577,7 +3651,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, DISABLED_PortalActivation) {
   content::TestNavigationObserver portal_nav_observer(a_url);
   portal_nav_observer.StartWatchingNewWebContents();
   EXPECT_TRUE(ExecJs(outer_contents,
-                     base::StringPrintf(script.c_str(), a_url.spec().c_str())));
+                     base::StringPrintf(kScript, a_url.spec().c_str())));
   portal_nav_observer.WaitForNavigationFinished();
   content::WebContents* portal_contents = contents_observer.GetWebContents();
 
@@ -3973,7 +4047,7 @@ class PrerenderPageLoadMetricsBrowserTest : public PageLoadMetricsBrowserTest {
             base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     PageLoadMetricsBrowserTest::SetUp();
   }
 
@@ -4303,13 +4377,13 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsBackForwardCacheBrowserTest,
   // Switch back to the tab for url_a.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url_a, WindowOpenDisposition::SWITCH_TO_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // And then switch back to url_b's tab. This should call OnHidden for the
   // url_a tab again, but no new foreground duration should be logged.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url_b, WindowOpenDisposition::SWITCH_TO_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   int64_t bf_count_after_switch = CountForMetricForURL(
       HistoryNavigation::kEntryName,
@@ -4326,7 +4400,7 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsBackForwardCacheBrowserTest,
   // a new foreground duration to be logged.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url_a, WindowOpenDisposition::SWITCH_TO_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   CloseBrowserSynchronously(browser());
 
   // Neither of the metrics for url_a should have moved.

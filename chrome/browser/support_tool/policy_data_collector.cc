@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,7 +50,10 @@ absl::optional<redaction::PIIType> GetPIITypeOfStatusField(
             {policy::kMachineKey, redaction::PIIType::kStableIdentifier},
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
             {policy::kAssetIdKey, redaction::PIIType::kStableIdentifier},
-            {policy::kLocationKey, redaction::PIIType::kLocationInfo},
+            // kLocationKey is the "Asset location" which is an identifier for
+            // the device that is set during enterprise enrollment or by the
+            // administrator.
+            {policy::kLocationKey, redaction::PIIType::kStableIdentifier},
             {policy::kDirectoryApiIdKey, redaction::PIIType::kStableIdentifier},
             {policy::kGaiaIdKey, redaction::PIIType::kGaiaID},
             {policy::kClientIdKey, redaction::PIIType::kStableIdentifier},

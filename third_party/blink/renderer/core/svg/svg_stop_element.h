@@ -52,6 +52,10 @@ class SVGStopElement final : public SVGElement {
     return false;
   }
 
+  SVGAnimatedPropertyBase* PropertyFromAttribute(
+      const QualifiedName& attribute_name) const override;
+  void SynchronizeAllSVGAttributes() const override;
+
   Member<SVGAnimatedNumber> offset_;
 };
 

@@ -70,11 +70,13 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/input/keyboard_shortcut_recorder.h"
+#include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
@@ -200,6 +202,14 @@ StaticRangeVector* RangesFromCurrentSelectionOrExtendCaret(
     const LocalFrame& frame,
     SelectionModifyDirection direction,
     TextGranularity granularity) {
+  // Due to interoperability differences in getTargetRanges() when deleting
+  // content, we do not provide these ranges for EditContext. Developers are
+  // expected to compute the ranges themselves based on selection position.
+  // See https://github.com/w3c/input-events/issues/146.
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return nullptr;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   SelectionModifier selection_modifier(
       frame, frame.Selection().GetSelectionInDOMTree());
@@ -298,8 +308,13 @@ static bool HasChildTags(Element& element, const QualifiedName& tag_name) {
   return !element.getElementsByTagName(tag_name.LocalName())->IsEmpty();
 }
 
-static EditingTriState SelectionListState(const FrameSelection& selection,
+static EditingTriState SelectionListState(LocalFrame& frame,
                                           const QualifiedName& tag_name) {
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return EditingTriState::kFalse;
+  }
+
+  const FrameSelection& selection = frame.Selection();
   if (selection.ComputeVisibleSelectionInDOMTreeDeprecated().IsCaret()) {
     if (EnclosingElementWithTag(
             selection.ComputeVisibleSelectionInDOMTreeDeprecated().Start(),
@@ -1052,6 +1067,11 @@ static bool Enabled(LocalFrame&, Event*, EditorCommandSource) {
 static bool EnabledVisibleSelection(LocalFrame& frame,
                                     Event* event,
                                     EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
@@ -1070,6 +1090,11 @@ static bool EnabledVisibleSelection(LocalFrame& frame,
 static bool EnabledVisibleSelectionAndMark(LocalFrame& frame,
                                            Event* event,
                                            EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
@@ -1087,6 +1112,11 @@ static bool EnabledVisibleSelectionAndMark(LocalFrame& frame,
 static bool EnableCaretInEditableText(LocalFrame& frame,
                                       Event* event,
                                       EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
@@ -1100,6 +1130,11 @@ static bool EnableCaretInEditableText(LocalFrame& frame,
 static bool EnabledInEditableText(LocalFrame& frame,
                                   Event* event,
                                   EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
       !frame.Selection().SelectionHasFocus())
@@ -1136,6 +1171,11 @@ static bool EnabledDelete(LocalFrame& frame,
 static bool EnabledInRichlyEditableText(LocalFrame& frame,
                                         Event*,
                                         EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
       !frame.Selection().SelectionHasFocus())
@@ -1149,6 +1189,11 @@ static bool EnabledInRichlyEditableText(LocalFrame& frame,
 static bool EnabledRangeInEditableText(LocalFrame& frame,
                                        Event*,
                                        EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
       !frame.Selection().SelectionHasFocus())
@@ -1164,6 +1209,11 @@ static bool EnabledRangeInEditableText(LocalFrame& frame,
 static bool EnabledRangeInRichlyEditableText(LocalFrame& frame,
                                              Event*,
                                              EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   if (source == EditorCommandSource::kMenuOrKeyBinding &&
       !frame.Selection().SelectionHasFocus())
@@ -1183,7 +1233,12 @@ static bool EnabledUndo(LocalFrame& frame, Event*, EditorCommandSource) {
 
 static bool EnabledUnselect(LocalFrame& frame,
                             Event* event,
-                            EditorCommandSource) {
+                            EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   // The term "visible" here includes a caret in editable text or a range in any
@@ -1197,6 +1252,11 @@ static bool EnabledUnselect(LocalFrame& frame,
 static bool EnabledSelectAll(LocalFrame& frame,
                              Event*,
                              EditorCommandSource source) {
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return false;
+  }
+
   // TODO(editing-dev): The use of UpdateStyleAndLayout
   // needs to be audited.  See http://crbug.com/590369 for more details.
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
@@ -1213,11 +1273,21 @@ static bool EnabledSelectAll(LocalFrame& frame,
     if (!root->hasChildren())
       return false;
 
-    // When the editable contains a BR only, it appears as an empty line, in
-    // which case allowing select-all confuses users.
-    if (root->firstChild() == root->lastChild() &&
-        IsA<HTMLBRElement>(root->firstChild()))
-      return false;
+    // When the editable appears as an empty line without any visible content,
+    // allowing select-all confuses users.
+    if (root->firstChild() == root->lastChild()) {
+      if (IsA<HTMLBRElement>(root->firstChild())) {
+        return false;
+      }
+      if (RuntimeEnabledFeatures::DisableSelectAllForEmptyTextEnabled()) {
+        if (Text* text = DynamicTo<Text>(root->firstChild())) {
+          LayoutText* layout_text = text->GetLayoutObject();
+          if (!layout_text || !layout_text->HasNonCollapsedText()) {
+            return false;
+          }
+        }
+      }
+    }
 
     // TODO(amaralp): Return false if already fully selected.
   }
@@ -1232,11 +1302,11 @@ static EditingTriState StateNone(LocalFrame&, Event*) {
 }
 
 EditingTriState StateOrderedList(LocalFrame& frame, Event*) {
-  return SelectionListState(frame.Selection(), html_names::kOlTag);
+  return SelectionListState(frame, html_names::kOlTag);
 }
 
 static EditingTriState StateUnorderedList(LocalFrame& frame, Event*) {
-  return SelectionListState(frame.Selection(), html_names::kUlTag);
+  return SelectionListState(frame, html_names::kUlTag);
 }
 
 static EditingTriState StateJustifyCenter(LocalFrame& frame, Event*) {

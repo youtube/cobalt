@@ -6,23 +6,17 @@
 
 #import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service.h"
-#import "ios/chrome/browser/bring_android_tabs/metrics.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/bring_android_tabs/model/metrics.h"
 #import "ios/chrome/browser/favicon/favicon_loader.h"
 #import "ios/chrome/browser/net/crurl.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
-#import "ios/chrome/browser/synced_sessions/distant_tab.h"
-#import "ios/chrome/browser/synced_sessions/synced_sessions_util.h"
+#import "ios/chrome/browser/synced_sessions/model/distant_tab.h"
+#import "ios/chrome/browser/synced_sessions/model/synced_sessions_util.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/constants.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/tab_list_from_android_consumer.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/tab_list_from_android_table_view_item.h"
-#import "ios/chrome/browser/url_loading/url_loading_browser_agent.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -88,7 +82,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 }
 
 - (void)tabListFromAndroidViewControllerDidTapOpenButtonWithTabIndices:
-    (NSArray*)tabIndices {
+    (NSArray<NSNumber*>*)tabIndices {
   base::UmaHistogramEnumeration(
       bring_android_tabs::kTabListActionHistogramName,
       bring_android_tabs::TabsListActionType::kOpenTabs);
@@ -99,11 +93,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
   base::UmaHistogramCounts1000(
       bring_android_tabs::kDeselectedTabCountHistogramName, deselected);
 
+  std::vector<size_t> indicesVector;
   for (size_t i = 0; i < numTabs; i++) {
-    int index = [[tabIndices objectAtIndex:i] intValue];
-    OpenDistantTabInBackground(_bringAndroidTabsService->GetTabAtIndex(index),
-                               NO, _URLLoader, UrlLoadStrategy::NORMAL);
+    NSUInteger idx = [[tabIndices objectAtIndex:i] unsignedIntValue];
+    indicesVector.push_back(static_cast<size_t>(idx));
   }
+  _bringAndroidTabsService->OpenTabsAtIndices(indicesVector, _URLLoader);
 }
 
 #pragma mark - Private

@@ -28,61 +28,46 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.flags.ActivityType;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
+import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 
 import java.util.Arrays;
 
-/**
- * Unit tests for {@link TabModelImpl}.
- */
+/** Unit tests for {@link TabModelImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TabModelImplUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
     private static final long FAKE_NATIVE_ADDRESS = 123L;
 
-    /**
-     * Disable native calls from {@link TabModelJniBridge}.
-     */
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
-    @Mock
-    private TabModelJniBridge.Natives mTabModelJniBridge;
-    /**
-     * Required to be non-null for {@link TabModelJniBridge}.
-     */
-    @Mock
-    private Profile mProfile;
-    /**
-     * Required to simulate tab thumbnail deletion.
-     */
-    @Mock
-    private TabContentManager mTabContentManager;
-    /**
-     * Required to handle some tab lookup actions.
-     */
-    @Mock
-    private TabModelDelegate mTabModelDelegate;
-    /**
-     * Required to handle some actions and initialize {@link TabModelOrderControllerImpl}.
-     */
-    @Mock
-    private TabModelSelector mTabModelSelector;
+    /** Disable native calls from {@link TabModelJniBridge}. */
+    @Rule public JniMocker mJniMocker = new JniMocker();
 
-    @Mock
-    private TabModelFilterProvider mTabModelFilterProvider;
-    @Mock
-    private TabModelFilter mTabModelFilter;
+    @Mock private TabModelJniBridge.Natives mTabModelJniBridge;
+
+    /** Required to be non-null for {@link TabModelJniBridge}. */
+    @Mock private Profile mProfile;
+
+    @Mock private Profile mIncognitoProfile;
+
+    /** Required to simulate tab thumbnail deletion. */
+    @Mock private TabContentManager mTabContentManager;
+
+    /** Required to handle some tab lookup actions. */
+    @Mock private TabModelDelegate mTabModelDelegate;
+
+    /** Required to handle some actions and initialize {@link TabModelOrderControllerImpl}. */
+    @Mock private TabModelSelector mTabModelSelector;
+
+    @Mock private TabModelFilterProvider mTabModelFilterProvider;
+    @Mock private TabModelFilter mTabModelFilter;
 
     private int mNextTabId;
 
@@ -92,6 +77,9 @@ public class TabModelImplUnitTest {
 
         // Disable HomepageManager#shouldCloseAppWithZeroTabs() for TabModelImpl#closeAllTabs().
         HomepageManager.getInstance().setPrefHomepageEnabled(false);
+
+        when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
+        PriceTrackingFeatures.setPriceTrackingEnabledForTesting(false);
 
         mJniMocker.mock(TabModelJniBridgeJni.TEST_HOOKS, mTabModelJniBridge);
         when(mTabModelJniBridge.init(any(), any(), anyInt())).thenReturn(FAKE_NATIVE_ADDRESS);
@@ -113,11 +101,9 @@ public class TabModelImplUnitTest {
 
     private Tab createTab(final TabModel model, long activeTimestampMillis, int parentId) {
         final int launchType = TabLaunchType.FROM_CHROME_UI;
-        MockTab tab = new MockTab(mNextTabId++, model.isIncognito());
-        CriticalPersistedTabData data = new CriticalPersistedTabData(tab);
-        data.setTimestampMillis(activeTimestampMillis);
-        data.setParentId(parentId);
-        tab = (MockTab) MockTab.initializeWithCriticalPersistedTabData(tab, data);
+        MockTab tab = MockTab.createAndInitialize(mNextTabId++, model.getProfile());
+        tab.setTimestampMillis(activeTimestampMillis);
+        tab.setParentId(parentId);
         tab.setIsInitialized(true);
         model.addTab(tab, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
         return tab;
@@ -127,22 +113,25 @@ public class TabModelImplUnitTest {
         model.setIndex(model.indexOf(tab), TabSelectionType.FROM_USER, false);
     }
 
-    /**
-     * Create a {@link TabModel} to use for the test.
-     */
+    /** Create a {@link TabModel} to use for the test. */
     private TabModel createTabModel(boolean isActive, boolean isIncognito) {
         AsyncTabParamsManager realAsyncTabParamsManager =
                 AsyncTabParamsManagerFactory.createAsyncTabParamsManager();
         TabModelOrderControllerImpl orderController =
                 new TabModelOrderControllerImpl(mTabModelSelector);
-        TabModel tabModel;
-        when(mProfile.isOffTheRecord()).thenReturn(isIncognito);
-        tabModel = new TabModelImpl(mProfile, ActivityType.TABBED,
-                /*regularTabCreator=*/null, /*incognitoTabCreator=*/null, orderController,
-                mTabContentManager,
-                ()
-                        -> NextTabPolicy.HIERARCHICAL,
-                realAsyncTabParamsManager, mTabModelDelegate, /*supportsUndo=*/false);
+        Profile profile = isIncognito ? mIncognitoProfile : mProfile;
+        TabModel tabModel =
+                new TabModelImpl(
+                        profile,
+                        ActivityType.TABBED,
+                        /* regularTabCreator= */ null,
+                        /* incognitoTabCreator= */ null,
+                        orderController,
+                        mTabContentManager,
+                        () -> NextTabPolicy.HIERARCHICAL,
+                        realAsyncTabParamsManager,
+                        mTabModelDelegate,
+                        /* supportsUndo= */ false);
         when(mTabModelSelector.getModel(isIncognito)).thenReturn(tabModel);
         tabModel.setActive(isActive);
         if (isActive) {
@@ -283,7 +272,6 @@ public class TabModelImplUnitTest {
 
     @Test
     @SmallTest
-    @Features.EnableFeatures(ChromeFeatureList.TAB_STATE_V1_OPTIMIZATIONS)
     public void testDontSwitchModelsIfIncognitoGroupClosed() {
         TabModel activeIncognito = createTabModel(true, true);
         TabModel inactiveNormal = createTabModel(false, false);

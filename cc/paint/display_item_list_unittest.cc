@@ -351,7 +351,8 @@ TEST_F(DisplayItemListTest, FilterPairedRange) {
   unsigned char pixels[4 * 100 * 100] = {0};
   auto list = base::MakeRefCounted<DisplayItemList>();
 
-  sk_sp<SkSurface> source_surface = SkSurface::MakeRasterN32Premul(50, 50);
+  sk_sp<SkSurface> source_surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50));
   SkCanvas* source_canvas = source_surface->getCanvas();
   source_canvas->clear(SkColorSetRGB(128, 128, 128));
   PaintImage source_image = PaintImageBuilder::WithDefault()
@@ -383,8 +384,7 @@ TEST_F(DisplayItemListTest, FilterPairedRange) {
     list->push<TranslateOp>(filter_bounds.x(), filter_bounds.y());
 
     PaintFlags flags;
-    flags.setImageFilter(
-        RenderSurfaceFilters::BuildImageFilter(filters, filter_bounds.size()));
+    flags.setImageFilter(RenderSurfaceFilters::BuildImageFilter(filters));
 
     SkRect layer_bounds = gfx::RectFToSkRect(filter_bounds);
     layer_bounds.offset(-filter_bounds.x(), -filter_bounds.y());

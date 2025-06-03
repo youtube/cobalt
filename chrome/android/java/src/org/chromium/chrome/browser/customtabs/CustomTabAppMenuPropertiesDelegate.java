@@ -37,12 +37,14 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.appmenu.CustomViewBinder;
 import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.components.webapps.WebappsUtils;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * App menu properties delegate for {@link CustomTabActivity}.
@@ -58,6 +60,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
     private final boolean mIsOpenedByChrome;
     private final boolean mIsIncognito;
     private final boolean mIsStartIconMenu;
+    private final BooleanSupplier mIsPageInsightsHubEnabled;
 
     private final List<String> mMenuEntries;
     private final Map<String, Integer> mTitleToItemIdMap = new HashMap<String, Integer>();
@@ -73,9 +76,10 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             ObservableSupplier<BookmarkModel> bookmarkModelSupplier, Verifier verifier,
             @CustomTabsUiType final int uiType, List<String> menuEntries, boolean isOpenedByChrome,
             boolean showShare, boolean showStar, boolean showDownload, boolean isIncognito,
-            boolean isStartIconMenu) {
+            boolean isStartIconMenu, BooleanSupplier isPageInsightsHubEnabled) {
         super(context, activityTabProvider, multiWindowModeStateDispatcher, tabModelSelector,
-                toolbarManager, decorView, null, null, bookmarkModelSupplier, null);
+                toolbarManager, decorView, null, null, bookmarkModelSupplier, null,
+                /*readAloudControllerSupplier=*/null);
         mVerifier = verifier;
         mUiType = uiType;
         mMenuEntries = menuEntries;
@@ -85,6 +89,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
         mShowDownload = showDownload;
         mIsIncognito = isIncognito;
         mIsStartIconMenu = isStartIconMenu;
+        mIsPageInsightsHubEnabled = isPageInsightsHubEnabled;
     }
 
     @Override
@@ -177,7 +182,13 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
 
             boolean isChromeScheme = url.getScheme().equals(UrlConstants.CHROME_SCHEME)
                     || url.getScheme().equals(UrlConstants.CHROME_NATIVE_SCHEME);
-            if (isChromeScheme || url.isEmpty()) {
+            boolean isFileScheme = url.getScheme().equals(UrlConstants.FILE_SCHEME);
+            boolean isContentScheme = url.getScheme().equals(UrlConstants.CONTENT_SCHEME);
+            if (isChromeScheme || isFileScheme || isContentScheme || url.isEmpty()) {
+                addToHomeScreenVisible = false;
+            }
+
+            if (!WebappsUtils.isAddToHomeIntentSupported()) {
                 addToHomeScreenVisible = false;
             }
 
@@ -207,6 +218,10 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
                 openInChromeItem.setTitle(title);
             } else {
                 openInChromeItem.setVisible(false);
+            }
+
+            if (mIsPageInsightsHubEnabled.getAsBoolean()) {
+                menu.findItem(R.id.page_insights_id).setVisible(true);
             }
 
             // Add custom menu items.

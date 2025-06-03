@@ -38,6 +38,9 @@ class ArcNotificationDelegate : public message_center::NotificationDelegate {
   void Click(const absl::optional<int>& button_index,
              const absl::optional<std::u16string>& reply) override;
   void SettingsClick() override;
+  void ExpandStateChanged(bool expanded) override;
+  void SnoozeButtonClicked() override;
+  message_center::NotificationDelegate* GetDelegateForParentCopy() override;
 
  private:
   // The destructor is private since this class is ref-counted.

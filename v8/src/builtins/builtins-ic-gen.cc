@@ -58,11 +58,6 @@ void Builtins::Generate_KeyedLoadIC_Megamorphic(
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedLoadIC_Megamorphic();
 }
-void Builtins::Generate_KeyedLoadIC_MegamorphicStringKey(
-    compiler::CodeAssemblerState* state) {
-  AccessorAssembler assembler(state);
-  assembler.GenerateKeyedLoadIC_MegamorphicStringKey();
-}
 void Builtins::Generate_KeyedLoadIC_PolymorphicName(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
@@ -82,11 +77,6 @@ void Builtins::Generate_KeyedLoadICTrampoline_Megamorphic(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedLoadICTrampoline_Megamorphic();
-}
-void Builtins::Generate_KeyedLoadICTrampoline_MegamorphicStringKey(
-    compiler::CodeAssemblerState* state) {
-  AccessorAssembler assembler(state);
-  assembler.GenerateKeyedLoadICTrampoline_MegamorphicStringKey();
 }
 void Builtins::Generate_LoadGlobalIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
@@ -141,6 +131,11 @@ void Builtins::Generate_KeyedStoreICTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateKeyedStoreICTrampoline();
+}
+void Builtins::Generate_KeyedStoreICTrampoline_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateKeyedStoreICTrampoline_Megamorphic();
 }
 void Builtins::Generate_KeyedStoreICBaseline(
     compiler::CodeAssemblerState* state) {

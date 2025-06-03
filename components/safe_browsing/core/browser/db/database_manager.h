@@ -152,12 +152,15 @@ class SafeBrowsingDatabaseManager
   // result when it is ready. The URL will only be checked for the threat types
   // in |threat_types|. |experiment_cache_selection| specifies which cache to
   // use. See comments above MechanismExperimentHashDatabaseCache's definition
-  // for more details.
+  // for more details. |check_type| specifies the type of check the url will be
+  // checked against. See comments above CheckBrowseUrlType's definition for
+  // more details.
   virtual bool CheckBrowseUrl(
       const GURL& url,
       const SBThreatTypeSet& threat_types,
       Client* client,
-      MechanismExperimentHashDatabaseCache experiment_cache_selection) = 0;
+      MechanismExperimentHashDatabaseCache experiment_cache_selection,
+      CheckBrowseUrlType check_type) = 0;
 
   // Check if the prefix for |url| is in safebrowsing download add lists.
   // Result will be passed to callback in |client|.
@@ -184,29 +187,29 @@ class SafeBrowsingDatabaseManager
                                             Client* client) = 0;
 
   // Called on the IO thread to check whether |url| is safe by checking if it
-  // appears on a high-confidence allowlist. The return value is true if it
-  // matches the allowlist, and is false if it does not. The high confidence
-  // allowlist is a list of full hashes of URLs that are expected to be safe so
-  // in the case of a match on this list, the realtime full URL Safe Browsing
-  // lookup isn't performed. |metric_variation| is used for logging purposes to
-  // specify the consumer mechanism performing this check in histograms.
-  virtual bool CheckUrlForHighConfidenceAllowlist(
+  // appears on a high-confidence allowlist. `callback` is run asynchronously
+  // with true if it matches the allowlist, and is false if it does not. The
+  // high confidence allowlist is a list of full hashes of URLs that are
+  // expected to be safe so in the case of a match on this list, the realtime
+  // full URL Safe Browsing lookup isn't performed. |metric_variation| is used
+  // for logging purposes to specify the consumer mechanism performing this
+  // check in histograms.
+  virtual void CheckUrlForHighConfidenceAllowlist(
       const GURL& url,
-      const std::string& metric_variation) = 0;
+      const std::string& metric_variation,
+      base::OnceCallback<void(bool)> callback) = 0;
 
   //
   // Match*(): Methods to synchronously check if various types are safe.
   //
 
   // Check if the |url| matches any of the full-length hashes from the download
-  // allowlist.  Returns true if there was a match and false otherwise. To make
-  // sure we are conservative we will return true if an error occurs.  This
-  // method must be called on the IO thread.
-  virtual bool MatchDownloadAllowlistUrl(const GURL& url) = 0;
-
-  // Check if the given IP address (either IPv4 or IPv6) matches the malware
-  // IP blocklist.
-  virtual bool MatchMalwareIP(const std::string& ip_address) = 0;
+  // allowlist. Runs `callback` asynchronously with true if there was a match
+  // and false otherwise. To make sure we are conservative we will return true
+  // if an error occurs.  This method must be called on the IO thread.
+  virtual void MatchDownloadAllowlistUrl(
+      const GURL& url,
+      base::OnceCallback<void(bool)> callback) = 0;
 
   //
   // Methods to check the config of the DatabaseManager.
@@ -219,8 +222,15 @@ class SafeBrowsingDatabaseManager
   // syncs.
   virtual std::unique_ptr<StoreStateMap> GetStoreStateMap();
 
-  // Returns the ThreatSource for this implementation.
-  virtual ThreatSource GetThreatSource() const = 0;
+  // Returns the ThreatSource of browse URL check (i.e. URLs checked by the
+  // |CheckBrowseUrl| function) for this implementation.
+  virtual ThreatSource GetBrowseUrlThreatSource(
+      CheckBrowseUrlType check_type) const = 0;
+
+  // Returns the ThreatSource of non-browse URL check (i.e. URLs or other
+  // entities that are not checked by the |CheckBrowseUrl| function) for this
+  // implementation.
+  virtual ThreatSource GetNonBrowseUrlThreatSource() const = 0;
 
   // Returns whether download protection is enabled.
   virtual bool IsDownloadProtectionEnabled() const = 0;
@@ -237,8 +247,8 @@ class SafeBrowsingDatabaseManager
   // v4 protocol manager.  This may be called multiple times during the life of
   // the DatabaseManager. Must be called on IO thread unless
   // kSafeBrowsingOnUIThread is enabled in which case it'll be UI thread. All
-  // subclasses should override this method, set enabled_ to true and call the
-  // base class method at the top of it.
+  // subclasses should override this method and call the base class method at
+  // the top of it.
   virtual void StartOnSBThread(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       const V4ProtocolConfig& config);
@@ -256,12 +266,12 @@ class SafeBrowsingDatabaseManager
 
   // Called to stop or shutdown operations on the io_thread unless
   // kSafeBrowsingOnUIThread is enabled in which case it'll be UI thread. All
-  // subclasses should override this method, set enabled_ to false and call the
-  // base class method at the bottom of it.
+  // subclasses should override this method and call the base class method at
+  // the bottom of it.
   virtual void StopOnSBThread(bool shutdown);
 
   // Called to check if database is ready or not.
-  virtual bool IsDatabaseReady();
+  virtual bool IsDatabaseReady() const = 0;
 
  protected:
   // Bundled client info for an API abuse hash prefix check.
@@ -338,10 +348,6 @@ class SafeBrowsingDatabaseManager
   // In-progress checks. This set owns the SafeBrowsingApiCheck pointers and is
   // responsible for deleting them when removing from the set.
   ApiCheckSet api_checks_;
-
-  // Whether the service is running. 'enabled_' is used by the
-  // SafeBrowsingDatabaseManager on the IO thread during normal operations.
-  bool enabled_;
 
   // Make callbacks about the completion of database update process. This is
   // currently used by the extension blocklist checker to disable any installed

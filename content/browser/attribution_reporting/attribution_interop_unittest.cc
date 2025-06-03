@@ -9,14 +9,14 @@
 #include "base/base_paths.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_piece.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "components/attribution_reporting/features.h"
 #include "content/browser/attribution_reporting/attribution_config.h"
 #include "content/browser/attribution_reporting/attribution_interop_parser.h"
 #include "content/browser/attribution_reporting/attribution_interop_runner.h"
@@ -29,17 +29,15 @@ namespace content {
 
 namespace {
 
-constexpr char kDefaultConfigFileName[] = "default_config.json";
+using ::testing::AllOf;
+using ::testing::Field;
+using ::testing::UnorderedElementsAreArray;
 
-base::Value::Dict ReadJsonFromFile(const base::FilePath& path) {
-  std::string contents;
-  EXPECT_TRUE(base::ReadFileToString(path, &contents));
-  return base::test::ParseJsonDict(contents);
-}
+constexpr char kDefaultConfigFileName[] = "default_config.json";
 
 base::FilePath GetInputDir() {
   base::FilePath input_dir;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &input_dir);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &input_dir);
   return input_dir.AppendASCII(
       "content/test/data/attribution_reporting/interop");
 }
@@ -64,25 +62,31 @@ std::vector<base::FilePath> GetInputs() {
   return input_paths;
 }
 
-void ProcessReports(base::Value::Dict& dict, base::StringPiece key) {
-  base::Value::List* list = dict.FindList(key);
-  if (!list) {
-    return;
+void PreProcessOutput(AttributionInteropOutput& output) {
+  // Ensure that integral values for this field are replaced with the equivalent
+  // double, since they are equivalent at the JSON level.
+  for (auto& report : output.reports) {
+    base::Value::Dict* dict = report.payload.GetIfDict();
+    if (!dict) {
+      continue;
+    }
+
+    base::Value* rate = dict->Find("randomized_trigger_rate");
+    if (!rate || !rate->is_int()) {
+      continue;
+    }
+
+    // This coerces the integer to a double.
+    *rate = base::Value(rate->GetDouble());
   }
-  if (list->empty()) {
-    dict.Remove(key);
-    return;
-  }
-  base::ranges::sort(*list);
 }
 
 class AttributionInteropTest : public ::testing::TestWithParam<base::FilePath> {
  public:
   static void SetUpTestSuite() {
-    auto maybe_config = ParseAttributionConfig(
-        ReadJsonFromFile(GetInputDir().AppendASCII(kDefaultConfigFileName)));
-    ASSERT_TRUE(maybe_config.has_value()) << maybe_config.error();
-    g_config_ = *maybe_config;
+    ASSERT_OK_AND_ASSIGN(
+        g_config_, ParseAttributionConfig(base::test::ParseJsonDictFromFile(
+                       GetInputDir().AppendASCII(kDefaultConfigFileName))));
   }
 
   AttributionInteropTest() {
@@ -109,7 +113,13 @@ AttributionConfig AttributionInteropTest::g_config_;
 // JSON schema.
 TEST_P(AttributionInteropTest, HasExpectedOutput) {
   AttributionConfig config = GetConfig();
-  base::Value::Dict dict = ReadJsonFromFile(GetParam());
+  base::Value::Dict dict = base::test::ParseJsonDictFromFile(GetParam());
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  if (dict.FindBool("needs_trigger_config").value_or(false)) {
+    scoped_feature_list.InitAndEnableFeature(
+        attribution_reporting::features::kAttributionReportingTriggerConfig);
+  }
 
   if (const base::Value* api_config = dict.Find("api_config")) {
     ASSERT_TRUE(api_config->is_dict());
@@ -119,23 +129,26 @@ TEST_P(AttributionInteropTest, HasExpectedOutput) {
   absl::optional<base::Value> input = dict.Extract("input");
   ASSERT_TRUE(input && input->is_dict());
 
-  auto actual_output =
-      RunAttributionInteropSimulation(std::move(*input).TakeDict(), config);
-  ASSERT_TRUE(actual_output.has_value()) << actual_output.error();
+  absl::optional<base::Value> output = dict.Extract("output");
+  ASSERT_TRUE(output && output->is_dict());
 
-  absl::optional<base::Value> expected_output = dict.Extract("output");
-  ASSERT_TRUE(expected_output.has_value());
+  ASSERT_OK_AND_ASSIGN(
+      auto expected_output,
+      AttributionInteropOutput::Parse(std::move(*output).TakeDict()));
 
-  base::Value::Dict& expected_output_dict = expected_output->GetDict();
+  ASSERT_OK_AND_ASSIGN(
+      AttributionInteropOutput actual_output,
+      RunAttributionInteropSimulation(std::move(*input).TakeDict(), config));
 
-  for (const char* key : {kEventLevelResultsKey, kDebugEventLevelResultsKey,
-                          kAggregatableResultsKey, kDebugAggregatableResultsKey,
-                          kVerboseDebugReportsKey}) {
-    ProcessReports(*actual_output, key);
-    ProcessReports(expected_output_dict, key);
-  }
+  PreProcessOutput(expected_output);
+  PreProcessOutput(actual_output);
 
-  EXPECT_THAT(*actual_output, base::test::IsJson(expected_output_dict));
+  EXPECT_THAT(actual_output,
+              AllOf(Field(&AttributionInteropOutput::reports,
+                          UnorderedElementsAreArray(expected_output.reports)),
+                    Field(&AttributionInteropOutput::unparsable_registrations,
+                          UnorderedElementsAreArray(
+                              expected_output.unparsable_registrations))));
 }
 
 INSTANTIATE_TEST_SUITE_P(

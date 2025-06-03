@@ -16,6 +16,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/trusted_vault/trusted_vault_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -58,7 +59,7 @@ AppPtr MakeApp(const std::string& app_id,
   return app;
 }
 
-void AddApp(AppRegistryCache& cache,
+void AddApp(AppServiceProxy* proxy,
             const std::string& app_id,
             AppType app_type,
             const std::string& publisher_id,
@@ -68,11 +69,12 @@ void AddApp(AppRegistryCache& cache,
             bool should_notify_initialized,
             bool is_platform_app,
             WindowMode window_mode) {
+  CHECK(proxy);
   std::vector<AppPtr> deltas;
   deltas.push_back(MakeApp(app_id, app_type, publisher_id, readiness,
                            install_reason, install_source, is_platform_app,
                            window_mode));
-  cache.OnApps(std::move(deltas), app_type, should_notify_initialized);
+  proxy->OnApps(std::move(deltas), app_type, should_notify_initialized);
 }
 
 AppPlatformMetricsServiceTestBase::AppPlatformMetricsServiceTestBase() =
@@ -101,7 +103,7 @@ void AppPlatformMetricsServiceTestBase::SetUp() {
 
   // Install a BuiltIn app before app_platform_metrics_service_ started to
   // verify the install AppKM.
-  AddApp(AppServiceProxyFactory::GetForProfile(profile())->AppRegistryCache(),
+  AddApp(AppServiceProxyFactory::GetForProfile(profile()),
          /*app_id=*/"bu", AppType::kBuiltIn, "", Readiness::kReady,
          InstallReason::kSystem, InstallSource::kSystem,
          true /* should_notify_initialized */);
@@ -125,8 +127,7 @@ void AppPlatformMetricsServiceTestBase::InstallOneApp(
     bool is_platform_app,
     WindowMode window_mode) {
   auto* proxy = AppServiceProxyFactory::GetForProfile(profile());
-  AppRegistryCache& cache = proxy->AppRegistryCache();
-  AddApp(cache, app_id, app_type, publisher_id, readiness, InstallReason::kUser,
+  AddApp(proxy, app_id, app_type, publisher_id, readiness, InstallReason::kUser,
          install_source, false /* should_notify_initialized */, is_platform_app,
          window_mode);
 }
@@ -202,6 +203,8 @@ void AppPlatformMetricsServiceTestBase::AddRegularUser(
   fake_user_manager_->SimulateUserProfileLoad(account_id);
 
   TestingProfile::Builder builder;
+  builder.AddTestingFactory(TrustedVaultServiceFactory::GetInstance(),
+                            TrustedVaultServiceFactory::GetDefaultFactory());
   builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
                             SyncServiceFactory::GetDefaultFactory());
   testing_profile_ = builder.Build();
@@ -211,7 +214,7 @@ void AppPlatformMetricsServiceTestBase::AddRegularUser(
   sync_service_ = static_cast<syncer::TestSyncService*>(
       SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
           profile(), base::BindRepeating(&TestingSyncFactoryFunction)));
-  sync_service_->SetFirstSetupComplete(true);
+  sync_service_->SetInitialSyncFeatureSetupComplete(true);
 }
 
 }  // namespace apps

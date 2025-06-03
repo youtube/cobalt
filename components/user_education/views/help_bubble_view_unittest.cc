@@ -12,6 +12,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
+#include "components/user_education/common/events.h"
 #include "components/user_education/common/feature_promo_specification.h"
 #include "components/user_education/common/help_bubble.h"
 #include "components/user_education/common/help_bubble_params.h"
@@ -103,7 +104,7 @@ class HelpBubbleViewTest : public views::ViewsTestBase {
   }
 
   test::TestHelpBubbleDelegate test_delegate_;
-  base::raw_ptr<views::View> view_;
+  raw_ptr<views::View, DanglingUntriaged> view_;
   std::unique_ptr<views::Widget> widget_;
 };
 
@@ -161,9 +162,9 @@ TEST_F(HelpBubbleViewTest, StableButtonOrder) {
   button3.is_default = false;
   params.buttons.push_back(std::move(button3));
 
-  auto* bubble = new HelpBubbleView(&test_delegate_,
-                                    internal::HelpBubbleAnchorParams{view_},
-                                    std::move(params));
+  auto* bubble = new HelpBubbleView(
+      &test_delegate_, internal::HelpBubbleAnchorParams{view_.get()},
+      std::move(params));
   EXPECT_EQ(kButton1Text, bubble->GetNonDefaultButtonForTesting(0)->GetText());
   EXPECT_EQ(kButton2Text, bubble->GetDefaultButtonForTesting()->GetText());
   EXPECT_EQ(kButton3Text, bubble->GetNonDefaultButtonForTesting(1)->GetText());

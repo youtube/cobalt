@@ -62,19 +62,24 @@ TEST_F(CastMediaNotificationProducerTest, AddAndRemoveRoute) {
   const std::string route_id_1 = "route-id-1";
   const std::string route_id_2 = "route-id-2";
   const std::string route_id_3 = "route-id-3";
+  const std::string route_id_4 = "route-id-4";
   MediaRoute cast_route = CreateRoute(route_id_1);
   MediaRoute site_initiated_mirroring_route =
       CreateRoute(route_id_2, "cast:0F5096E8");
   MediaRoute dial_route = CreateRoute(route_id_3, "dial:123456");
+  MediaRoute cast_off_screen_tab_route =
+      CreateRoute(route_id_4, "https://example.com/");
 
   EXPECT_CALL(item_manager_, OnItemsChanged());
   notification_producer_->OnRoutesUpdated(
-      {cast_route, site_initiated_mirroring_route, dial_route});
+      {cast_route, site_initiated_mirroring_route, dial_route,
+       cast_off_screen_tab_route});
   testing::Mock::VerifyAndClearExpectations(&item_manager_);
-  EXPECT_EQ(3u, notification_producer_->GetActiveItemCount());
+  EXPECT_EQ(4u, notification_producer_->GetActiveItemCount());
   EXPECT_NE(nullptr, notification_producer_->GetMediaItem(route_id_1));
   EXPECT_NE(nullptr, notification_producer_->GetMediaItem(route_id_2));
   EXPECT_NE(nullptr, notification_producer_->GetMediaItem(route_id_3));
+  EXPECT_NE(nullptr, notification_producer_->GetMediaItem(route_id_4));
 
   EXPECT_CALL(item_manager_, OnItemsChanged());
   notification_producer_->OnRoutesUpdated({});
@@ -150,6 +155,7 @@ TEST_F(CastMediaNotificationProducerTest, RoutesWithoutNotifications) {
        remote_streaming_route});
   EXPECT_EQ(0u, notification_producer_->GetActiveItemCount());
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(CastMediaNotificationProducerTest, NonLocalRoutesWithoutNotifications) {
   MediaRoute non_local_route = CreateRoute("non-local-route");
@@ -157,14 +163,27 @@ TEST_F(CastMediaNotificationProducerTest, NonLocalRoutesWithoutNotifications) {
   sync_preferences::TestingPrefServiceSyncable* pref_service =
       profile()->GetTestingPrefService();
 
+  EXPECT_CALL(item_manager_, ShowItem).Times(0);
+  pref_service->SetBoolean(
+      media_router::prefs::kMediaRouterShowCastSessionsStartedByOtherDevices,
+      false);
   notification_producer_->OnRoutesUpdated({non_local_route});
+  testing::Mock::VerifyAndClearExpectations(&item_manager_);
+
+  // When the pref changes to show the non-local route, it is shown the next
+  // time `OnRoutesUpdated()` is called.
+  EXPECT_CALL(item_manager_, ShowItem).Times(1);
+  pref_service->SetBoolean(
+      media_router::prefs::kMediaRouterShowCastSessionsStartedByOtherDevices,
+      true);
+  notification_producer_->OnRoutesUpdated({non_local_route});
+  testing::Mock::VerifyAndClearExpectations(&item_manager_);
   EXPECT_EQ(1u, notification_producer_->GetActiveItemCount());
 
-  // There is no need to call |OnRouteUpdated()| here because this is a
+  // There is no need to call `OnRouteUpdated()` here because this is a
   // client-side change.
   pref_service->SetBoolean(
       media_router::prefs::kMediaRouterShowCastSessionsStartedByOtherDevices,
       false);
   EXPECT_EQ(0u, notification_producer_->GetActiveItemCount());
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)

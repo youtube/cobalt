@@ -18,6 +18,27 @@ COMPONENT_EXPORT(CROSAPI)
 inline constexpr base::StringPiece
     kInputMethodTestCapabilityConfirmComposition = "ConfirmComposition";
 
+// When the input method wants to commit the composition, always call
+// ConfirmCompositionText even if Ash thinks there's no composition.
+// Fixes b/265853952.
+COMPONENT_EXPORT(CROSAPI)
+inline constexpr base::StringPiece
+    kInputMethodTestCapabilityAlwaysConfirmComposition =
+        "AlwaysConfirmComposition";
+
+COMPONENT_EXPORT(CROSAPI)
+inline constexpr base::StringPiece
+    kInputMethodTestCapabilityDeleteSurroundingText = "DeleteSurroundingText";
+
+COMPONENT_EXPORT(CROSAPI)
+inline constexpr base::StringPiece
+    kInputMethodTestCapabilityExtendedConfirmComposition =
+        "ExtendedConfirmComposition";
+
+COMPONENT_EXPORT(CROSAPI)
+inline constexpr base::StringPiece kInputMethodTestCapabilityChangeInputMethod =
+    "ChangeInputMethod";
+
 }  // namespace crosapi
 
 #endif  // CHROMEOS_CROSAPI_CPP_INPUT_METHOD_TEST_INTERFACE_CONSTANTS_H_

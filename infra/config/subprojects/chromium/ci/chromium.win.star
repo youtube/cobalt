@@ -19,10 +19,12 @@ ci.defaults.set(
     sheriff_rotations = sheriff_rotations.CHROMIUM,
     tree_closing = True,
     main_console_view = "main",
+    contact_team_email = "chrome-desktop-engprod@google.com",
     execution_timeout = ci.DEFAULT_EXECUTION_TIMEOUT,
     reclient_instance = reclient.instance.DEFAULT_TRUSTED,
     reclient_jobs = reclient.jobs.DEFAULT,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
 )
 
 consoles.console_view(
@@ -163,6 +165,10 @@ ci.builder(
         short_name = "32",
     ),
     cq_mirrors_console_view = "mirrors",
+    # TODO(crbug/1473182): Remove once the bug is closed.
+    reclient_bootstrap_env = {
+        "RBE_experimental_exit_on_stuck_actions": "true",
+    },
 )
 
 ci.builder(
@@ -172,6 +178,9 @@ ci.builder(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
             apply_configs = [
+                # This is necessary due to child builders running the
+                # telemetry_perf_unittests suite.
+                "chromium_with_telemetry_dependencies",
                 "use_clang_coverage",
             ],
         ),

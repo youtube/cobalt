@@ -10,11 +10,10 @@
 #include <memory>
 #include <vector>
 
-#import "base/mac/scoped_nsobject.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "components/remote_cocoa/app_shim/immersive_mode_controller.h"
-#include "components/remote_cocoa/app_shim/immersive_mode_tabbed_controller.h"
+#include "components/remote_cocoa/app_shim/immersive_mode_controller_cocoa.h"
+#include "components/remote_cocoa/app_shim/immersive_mode_tabbed_controller_cocoa.h"
 #import "components/remote_cocoa/app_shim/mouse_capture_delegate.h"
 #include "components/remote_cocoa/app_shim/native_widget_ns_window_fullscreen_controller.h"
 #include "components/remote_cocoa/app_shim/ns_view_ids.h"
@@ -83,7 +82,7 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
       gfx::NativeWindow window);
 
   // Create an NSWindow for the specified parameters.
-  static base::scoped_nsobject<NativeWidgetMacNSWindow> CreateNSWindow(
+  static NativeWidgetMacNSWindow* CreateNSWindow(
       const remote_cocoa::mojom::CreateWindowParams* params);
 
   // Creates one side of the bridge. |host| and |parent| must not be NULL.
@@ -106,11 +105,10 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
                         remote_cocoa::mojom::NativeWidgetNSWindow> receiver,
                     base::OnceClosure connection_closed_callback);
 
-  // Initialize the NSWindow by taking ownership of the specified object.
-  // TODO(ccameron): When a NativeWidgetNSWindowBridge is allocated across a
-  // process boundary, it will not be possible to explicitly set an NSWindow in
-  // this way.
-  void SetWindow(base::scoped_nsobject<NativeWidgetMacNSWindow> window);
+  // Initialize the NSWindow. TODO(ccameron): When a NativeWidgetNSWindowBridge
+  // is allocated across a process boundary, it will not be possible to
+  // explicitly set an NSWindow in this way.
+  void SetWindow(NativeWidgetMacNSWindow* window);
 
   // Set the command dispatcher delegate for the window. This will retain
   // |delegate| for the lifetime of |this|.
@@ -142,8 +140,8 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   // being reordered in (or out of) the screen list.
   void OnVisibilityChanged();
 
-  // Called by the NSWindowDelegate when the system control tint changes.
-  void OnSystemControlTintChanged();
+  // Called by the NSWindowDelegate when the system colors change.
+  void OnSystemColorsChanged();
 
   // Called by the NSWindowDelegate on screen, scale, or color space changes.
   void OnScreenOrBackingPropertiesChanged();
@@ -242,6 +240,8 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
                         const gfx::Size& minimum_content_size) override;
   void SetBounds(const gfx::Rect& new_bounds,
                  const gfx::Size& minimum_content_size) override;
+  void SetSize(const gfx::Size& new_size,
+               const gfx::Size& minimum_content_size) override;
   void SetSizeAndCenter(const gfx::Size& content_size,
                         const gfx::Size& minimum_content_size) override;
   void SetVisibilityState(
@@ -278,10 +278,8 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
       const std::vector<uint8_t>& native_event_data) override;
   void SetLocalEventMonitorEnabled(bool enable) override;
   void SetCursor(const ui::Cursor& cursor) override;
-  void EnableImmersiveFullscreen(
-      uint64_t fullscreen_overlay_widget_id,
-      uint64_t tab_widget_id,
-      EnableImmersiveFullscreenCallback callback) override;
+  void EnableImmersiveFullscreen(uint64_t fullscreen_overlay_widget_id,
+                                 uint64_t tab_widget_id) override;
   void DisableImmersiveFullscreen() override;
   void UpdateToolbarVisibility(
       remote_cocoa::mojom::ToolbarVisibilityStyle style) override;
@@ -299,16 +297,22 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   // update widget and compositor size.
   void UpdateWindowGeometry();
 
-  // Is immersive fullscreen enabled. True will be returned at the start of the
-  // fullscreen transition.
-  bool ImmersiveFullscreenIsEnabled();
+  bool ShouldUseCustomTitlebarHeightForFullscreen() const;
 
-  // Returns true if kImmersiveFullscreenTabs is being used.
-  bool ImmersiveFullscreenIsTabbed();
+  // Called by the ImmersiveModeController when the toolbar reveal status
+  // changes. Note that the toolbar may be revealed while the menubar is hidden,
+  // e.g. when "Always Show Toolbar in Full Screen" is enabled or there're
+  // reveal locks.
+  void OnImmersiveFullscreenToolbarRevealChanged(bool is_revealed);
 
-  // Returns the last style set with `UpdateToolbarVisibility()`. Defaults to
-  // kAlways.
-  mojom::ToolbarVisibilityStyle ImmersiveFullscreenLastUsedStyle();
+  // Called by the ImmersiveModeController when the menubar reveal status
+  // changes. `reveal_amount` ranges in [0, 1]. This is the opacity of the
+  // menubar and the browser window traffic lights.
+  void OnImmersiveFullscreenMenuBarRevealChanged(float reveal_amount);
+
+  // Called by the ImmersiveModeController at the end of fullscreen transition
+  // with the height of the menu bar if it autohides, or 0 if it doesn't.
+  void OnAutohidingMenuBarHeightChanged(int menu_bar_height);
 
  private:
   friend class views::test::BridgedNativeWidgetTestApi;
@@ -359,19 +363,18 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   const raw_ptr<remote_cocoa::mojom::TextInputHost>
       text_input_host_;  // Weak, owned by |host_|.
 
-  base::scoped_nsobject<NativeWidgetMacNSWindow> window_;
-  base::scoped_nsobject<ViewsNSWindowDelegate> window_delegate_;
-  base::scoped_nsobject<NSObject<CommandDispatcherDelegate>>
-      window_command_dispatcher_delegate_;
+  NativeWidgetMacNSWindow* __strong window_;
+  ViewsNSWindowDelegate* __strong window_delegate_;
+  NSObject<CommandDispatcherDelegate>* window_command_dispatcher_delegate_;
 
-  base::scoped_nsobject<BridgedContentView> bridged_view_;
+  BridgedContentView* __strong bridged_view_;
   std::unique_ptr<remote_cocoa::ScopedNSViewIdMapping> bridged_view_id_mapping_;
-  base::scoped_nsobject<ModalShowAnimationWithLayer> show_animation_;
+  ModalShowAnimationWithLayer* __strong show_animation_;
   std::unique_ptr<CocoaMouseCapture> mouse_capture_;
   std::unique_ptr<CocoaWindowMoveLoop> window_move_loop_;
   ui::ModalType modal_type_ = ui::MODAL_TYPE_NONE;
   bool is_translucent_window_ = false;
-  id key_down_event_monitor_ = nil;
+  id __strong key_down_event_monitor_;
 
   raw_ptr<NativeWidgetNSWindowBridge> parent_ =
       nullptr;  // Weak. If non-null, owns this.
@@ -426,7 +429,7 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   std::vector<uint8_t> pending_restoration_data_;
 
   // Manages immersive mode when in fullscreen.
-  std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
+  std::unique_ptr<ImmersiveModeControllerCocoa> immersive_mode_controller_;
 
   // This tracks headless window visibility and fullscreen states.
   // In headless mode the platform window is never made visible or change its

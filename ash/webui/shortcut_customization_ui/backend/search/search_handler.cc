@@ -17,24 +17,40 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/accelerators/accelerator.h"
 
+// Sets the relevance_threshold to be low enough for single-character queries
+// to produce results, but high enough to avoid too many irrelevant results.
+// The default value is 0.64, at which we observed single-character queries
+// produced no or few results. In testing, 0.4 was discovered to be too low of
+// a threshold and reduced the quality of search results. We arrived at the
+// current value by testing various combinations of queries. This value may
+// need to be amended in the future.
+const double search_service_relevance_threshold = 0.52;
+
 namespace ash::shortcut_ui {
 
 SearchHandler::SearchHandler(
     SearchConceptRegistry* search_concept_registry,
     local_search_service::LocalSearchServiceProxy* local_search_service_proxy)
     : search_concept_registry_(search_concept_registry) {
-  DCHECK(local_search_service_proxy);
+  CHECK(local_search_service_proxy);
   local_search_service_proxy->GetIndex(
       local_search_service::IndexId::kShortcutsApp,
       local_search_service::Backend::kLinearMap,
       index_remote_.BindNewPipeAndPassReceiver());
-  DCHECK(index_remote_.is_bound());
+  CHECK(index_remote_.is_bound());
+  CHECK(search_concept_registry_);
 
   search_concept_registry_->AddObserver(this);
+
+  index_remote_->SetSearchParams(
+      {/*relevance_threshold=*/search_service_relevance_threshold},
+      base::OnceCallback<void()>());
 }
 
 SearchHandler::~SearchHandler() {
-  search_concept_registry_->RemoveObserver(this);
+  if (search_concept_registry_) {
+    search_concept_registry_->RemoveObserver(this);
+  }
 }
 
 void SearchHandler::BindInterface(

@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Presúvate doľava nahor</translation>
 <translation id="3573890771273113519">Prepnúť na režim skenovania</translation>
 <translation id="3583444040776960729">Ľavý dolný roh dokumentu</translation>
+<translation id="3642192109456033823">Video sa spracúva…</translation>
 <translation id="3789724198583203151">Otočiť o 90 stupňov proti smeru hodinových ručičiek</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Kopírovať text</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Pozastaviť nahrávanie</translation>
 <translation id="4121305183798804752">Bol rozpoznaný dokument</translation>
 <translation id="414641094616694804">Rozlíšenie tejto kamery sa nedá zmeniť</translation>
+<translation id="4176463684765177261">Deaktivované</translation>
 <translation id="4269820728363426813">Kopírovať adresu odkazu</translation>
-<translation id="4281620174117014503">Stredné rozlíšenie</translation>
 <translation id="428234092390943511">Miniatúra stránky</translation>
+<translation id="4349714250734879769">Zmeniť veľkosť snímok podľa Chromu</translation>
 <translation id="4383571725254449280">Tlačiť denníky výkonnosti</translation>
 <translation id="4445542136948522167">Zastaviť fotenie</translation>
 <translation id="4570032796877367747">Predný fotoaparát</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Skenuje sa <ph name="COUNT" />. strana</translation>
 <translation id="5671277269877808209">Štvorec</translation>
+<translation id="574392208103952083">Stredné</translation>
 <translation id="5746169159649715125">Uložiť ako PDF</translation>
 <translation id="5753488212459587150">Povoliť expertný režim</translation>
 <translation id="5759254179196327752">Skenovať dokument</translation>
@@ -148,6 +151,7 @@ Ak sa týka kvality obrázkov či videí, priložte ukážku fotky alebo videa a
 <translation id="8145038249676204903">Prepnúť na fotenie</translation>
 <translation id="8167081290930651932">Uložiť ako fotku</translation>
 <translation id="8239780215768881278">Vytvoriť snímku videa</translation>
+<translation id="8346544573713510785">Zmeniť veľkosť snímok podľa vrstvy HAL kamery</translation>
 <translation id="8425673304802773841">Naklonenie nadol</translation>
 <translation id="8428213095426709021">Nastavenia</translation>
 <translation id="8629662593426079630">360p</translation>

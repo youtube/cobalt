@@ -7,6 +7,7 @@
 
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace autofill {
 
@@ -33,6 +34,14 @@ bool IsStreetNameOrHouseNumberType(const ServerFieldType type);
 
 // Returns true if `type` is address-related.
 bool IsAddressType(const AutofillType& type);
+
+// Returns 0-based index of an address line type, which is X-1 for
+// ADDRESS_HOME_LINEX. Expects only ADDRESS_HOME_LINE(1|2|3) types.
+size_t AddressLineIndex(ServerFieldType type);
+
+// Returns whether the expiration year should be filled with two or four
+// digits.
+size_t DetermineExpirationYearLength(ServerFieldType assumed_field_type);
 
 }  // namespace autofill
 

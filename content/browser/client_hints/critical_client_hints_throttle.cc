@@ -9,12 +9,12 @@
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/client_hints_controller_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -129,8 +129,7 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   blink::EnabledClientHints hints;
   for (const WebClientHintsType hint :
        response_head.parsed_headers->accept_ch.value())
-    hints.SetIsEnabled(response_url_, /*third_party_url=*/absl::nullopt,
-                       response_head.headers.get(), hint, true);
+    hints.SetIsEnabled(hint, true);
 
   std::vector<WebClientHintsType> critical_hints;
   for (const WebClientHintsType hint :
@@ -177,6 +176,7 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   for (auto modified_header : modified_headers.GetHeaderVector()) {
     if (!initial_request_headers_.HasHeader(modified_header.key)) {
       LogCriticalCHStatus(CriticalCHRestart::kNavigationRestarted);
+      delegate_->DidRestartForCriticalClientHint();
       delegate_->RestartWithURLResetAndFlags(/*additional_load_flags=*/0);
       return;
     }

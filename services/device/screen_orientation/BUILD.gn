@@ -5,7 +5,8 @@
 import("//build/config/features.gni")
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 source_set("screen_orientation") {
@@ -43,7 +44,7 @@ if (is_android) {
     sources = [ "android/java/src/org/chromium/device/screen_orientation/ScreenOrientationListener.java" ]
     deps = [
       "//base:base_java",
-      "//base:jni_java",
+      "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_no_recycler_view_java",
     ]
   }

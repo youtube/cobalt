@@ -55,7 +55,7 @@ class TestUnderlyingSource final : public UnderlyingSourceBase {
                              ScriptPromise::CastUndefined(script_state)) {}
   ~TestUnderlyingSource() override = default;
 
-  ScriptPromise Start(ScriptState* script_state) override {
+  ScriptPromise Start(ScriptState* script_state, ExceptionState&) override {
     started_ = true;
     if (type_ == SourceType::kPush) {
       for (int element : sequence_) {
@@ -66,7 +66,7 @@ class TestUnderlyingSource final : public UnderlyingSourceBase {
     }
     return start_promise_;
   }
-  ScriptPromise pull(ScriptState* script_state) override {
+  ScriptPromise Pull(ScriptState* script_state, ExceptionState&) override {
     if (type_ == SourceType::kPush) {
       return ScriptPromise::CastUndefined(script_state);
     }
@@ -78,7 +78,9 @@ class TestUnderlyingSource final : public UnderlyingSourceBase {
     ++index_;
     return ScriptPromise::CastUndefined(script_state);
   }
-  ScriptPromise Cancel(ScriptState* script_state, ScriptValue reason) override {
+  ScriptPromise Cancel(ScriptState* script_state,
+                       ScriptValue reason,
+                       ExceptionState&) override {
     cancelled_ = true;
     cancel_reason_ = reason;
     return ScriptPromise::CastUndefined(script_state);

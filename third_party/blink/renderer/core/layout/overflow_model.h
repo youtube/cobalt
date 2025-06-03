@@ -25,29 +25,16 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
-
-inline void UniteLayoutOverflowRect(LayoutRect& layout_overflow,
-                                    const LayoutRect& rect) {
-  LayoutUnit max_x = std::max(rect.MaxX(), layout_overflow.MaxX());
-  LayoutUnit max_y = std::max(rect.MaxY(), layout_overflow.MaxY());
-  LayoutUnit min_x = std::min(rect.X(), layout_overflow.X());
-  LayoutUnit min_y = std::min(rect.Y(), layout_overflow.Y());
-  // In case the width/height is larger than LayoutUnit can represent, fix the
-  // right/bottom edge and shift the top/left ones.
-  layout_overflow.SetWidth(max_x - min_x);
-  layout_overflow.SetHeight(max_y - min_y);
-  layout_overflow.SetX(max_x - layout_overflow.Width());
-  layout_overflow.SetY(max_y - layout_overflow.Height());
-}
 
 // BoxOverflowModel class tracks content that spills out of an object.
 // It is used by LayoutBox.
 //
-// All overflows are in the coordinate space of the object (i.e. physical
-// coordinates with flipped block-flow direction). See documentation of
-// LayoutBoxModelObject and LayoutBox::NoOverflowRect() for more details.
+// All overflows are in the physical coordinate space of the object. See
+// documentation of LayoutBoxModelObject and LayoutBox::NoOverflowRect() for
+// more details.
 //
 // The class models the overflows as rectangles that unite all the sources of
 // overflow. This is the natural choice for layout overflow (scrollbars are
@@ -106,48 +93,46 @@ inline void UniteLayoutOverflowRect(LayoutRect& layout_overflow,
 // invariant.
 class BoxLayoutOverflowModel {
  public:
-  BoxLayoutOverflowModel(const LayoutRect& layout_rect)
-      : layout_overflow_(layout_rect) {}
+  explicit BoxLayoutOverflowModel(const PhysicalRect& overflow_rect)
+      : layout_overflow_(overflow_rect) {}
   BoxLayoutOverflowModel(const BoxLayoutOverflowModel&) = delete;
   BoxLayoutOverflowModel& operator=(const BoxLayoutOverflowModel&) = delete;
 
-  const LayoutRect& LayoutOverflowRect() const { return layout_overflow_; }
-  void AddLayoutOverflow(const LayoutRect& rect) {
-    UniteLayoutOverflowRect(layout_overflow_, rect);
-  }
+  const PhysicalRect& LayoutOverflowRect() const { return layout_overflow_; }
 
  private:
-  LayoutRect layout_overflow_;
+  PhysicalRect layout_overflow_;
 };
 
 class BoxVisualOverflowModel {
  public:
-  BoxVisualOverflowModel(const LayoutRect& self_visual_overflow_rect)
+  explicit BoxVisualOverflowModel(const PhysicalRect& self_visual_overflow_rect)
       : self_visual_overflow_(self_visual_overflow_rect) {}
   BoxVisualOverflowModel(const BoxVisualOverflowModel&) = delete;
   BoxVisualOverflowModel& operator=(const BoxVisualOverflowModel&) = delete;
 
-  void SetSelfVisualOverflow(const LayoutRect& rect) {
+  void SetSelfVisualOverflow(const PhysicalRect& rect) {
     self_visual_overflow_ = rect;
   }
 
-  const LayoutRect& SelfVisualOverflowRect() const {
+  const PhysicalRect& SelfVisualOverflowRect() const {
     return self_visual_overflow_;
   }
-  void AddSelfVisualOverflow(const LayoutRect& rect) {
+  void AddSelfVisualOverflow(const PhysicalRect& rect) {
     self_visual_overflow_.Unite(rect);
   }
 
-  const LayoutRect& ContentsVisualOverflowRect() const {
+  const PhysicalRect& ContentsVisualOverflowRect() const {
     return contents_visual_overflow_;
   }
-  void AddContentsVisualOverflow(const LayoutRect& rect) {
+  void AddContentsVisualOverflow(const PhysicalRect& rect) {
     contents_visual_overflow_.Unite(rect);
   }
 
   void Move(LayoutUnit dx, LayoutUnit dy) {
-    self_visual_overflow_.Move(dx, dy);
-    contents_visual_overflow_.Move(dx, dy);
+    PhysicalOffset offset(dx, dy);
+    self_visual_overflow_.Move(offset);
+    contents_visual_overflow_.Move(offset);
   }
 
   void SetHasSubpixelVisualEffectOutsets(bool b) {
@@ -158,12 +143,12 @@ class BoxVisualOverflowModel {
   }
 
  private:
-  LayoutRect self_visual_overflow_;
-  LayoutRect contents_visual_overflow_;
+  PhysicalRect self_visual_overflow_;
+  PhysicalRect contents_visual_overflow_;
   bool has_subpixel_visual_effect_outsets_ = false;
 };
 
-struct BoxOverflowModel {
+struct BoxOverflowModel : public GarbageCollected<BoxOverflowModel> {
   absl::optional<BoxLayoutOverflowModel> layout_overflow;
   absl::optional<BoxVisualOverflowModel> visual_overflow;
 
@@ -171,12 +156,12 @@ struct BoxOverflowModel {
   // last paint invalidation.
   struct PreviousOverflowData {
     PhysicalRect previous_physical_layout_overflow_rect;
-    PhysicalRect previous_physical_visual_overflow_rect;
-    PhysicalRect previous_physical_self_visual_overflow_rect;
+    PhysicalRect previous_visual_overflow_rect;
+    PhysicalRect previous_self_visual_overflow_rect;
   };
   absl::optional<PreviousOverflowData> previous_overflow_data;
 
-  USING_FAST_MALLOC(BoxOverflowModel);
+  void Trace(Visitor*) const {}
 };
 
 }  // namespace blink

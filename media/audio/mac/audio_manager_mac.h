@@ -20,6 +20,13 @@
 #include "media/audio/mac/audio_auhal_mac.h"
 #include "media/audio/mac/audio_device_listener_mac.h"
 
+namespace base {
+
+namespace apple {
+class ScopedObjCClassSwizzler;
+}  // namespace apple
+}  // namespace base
+
 namespace media {
 
 class AUAudioInputStream;
@@ -96,10 +103,23 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase,
   void StopAmplitudePeakTrace() override;
 
   static int HardwareSampleRateForDevice(AudioDeviceID device_id);
-  static int HardwareSampleRate();
-  static bool GetDefaultOutputDevice(AudioDeviceID* device);
+  static bool GetDefaultInputDevice(AudioDeviceID* input_device);
+  static bool GetDefaultOutputDevice(AudioDeviceID* output_device);
   static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
                                              const std::string& device_id);
+
+  // Returns the maximum microphone analog volume or 0.0 if device does not
+  // have volume control.
+  static double GetMaxInputVolume(AudioDeviceID device_id);
+
+  // Sets the microphone analog volume, with range [0.0, 1.0] inclusive.
+  static void SetInputVolume(AudioDeviceID device_id, double volume);
+
+  // Returns the microphone analog volume, with range [0.0, 1.0] inclusive.
+  static double GetInputVolume(AudioDeviceID device_id);
+
+  // Returns the current muting state for the microphone.
+  static bool IsMuted(AudioDeviceID device_id);
 
   // Returns a vector with the IDs of all devices related to the given
   // |device_id|. The vector is empty if there are no related devices or
@@ -199,6 +219,14 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase,
   // Returns true if any active input stream is using the specified |device_id|.
   bool AudioDeviceIsUsedForInput(AudioDeviceID device_id);
 
+  // Helper function to check if the volume control is available on specific
+  // channel of a device.
+  static bool IsVolumeSettableOnChannel(AudioDeviceID device_id, int channel);
+
+  // Return the number of channels in each frame of audio data, which is used
+  // when querying the volume of each channel.
+  static int GetNumberOfChannelsForDevice(AudioDeviceID device_id);
+
   std::string GetDefaultDeviceID(bool is_input);
 
   std::unique_ptr<AudioDeviceListenerMac> output_device_listener_;
@@ -222,6 +250,10 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase,
   std::list<AudioInputStream*> basic_input_streams_;
   std::list<AUAudioInputStream*> low_latency_input_streams_;
   std::list<AUHALStream*> output_streams_;
+
+  // Used to swizzle SCStreamManager when performing loopback capture.
+  std::unique_ptr<base::apple::ScopedObjCClassSwizzler>
+      screen_capture_kit_swizzler_;
 
   // Set to true in the destructor. Ensures that methods that touches native
   // Core Audio APIs are not executed during shutdown.

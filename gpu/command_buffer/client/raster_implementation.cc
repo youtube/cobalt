@@ -36,6 +36,7 @@
 #include "cc/paint/skottie_serialization_history.h"
 #include "cc/paint/transfer_cache_entry.h"
 #include "cc/paint/transfer_cache_serialize_helper.h"
+#include "components/miracle_parameter/common/public/miracle_parameter.h"
 #include "gpu/command_buffer/client/gpu_control.h"
 #include "gpu/command_buffer/client/image_decode_accelerator_interface.h"
 #include "gpu/command_buffer/client/query_tracker.h"
@@ -89,6 +90,20 @@ namespace gpu {
 namespace raster {
 
 namespace {
+
+BASE_FEATURE(kPaintCacheBudgetConfigurableFeature,
+             "PaintCacheBudgetConfigurableFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+MIRACLE_PARAMETER_FOR_INT(GetNormalPaintCacheBudget,
+                          kPaintCacheBudgetConfigurableFeature,
+                          "NormalPaintCacheBudgetBytes",
+                          4 * 1024 * 1024)
+
+MIRACLE_PARAMETER_FOR_INT(GetLowEndPaintCacheBudget,
+                          kPaintCacheBudgetConfigurableFeature,
+                          "LowEndPaintCacheBudgetBytes",
+                          256 * 1024)
 
 const uint32_t kMaxTransferCacheEntrySizeForTransferBuffer = 1024;
 const size_t kMaxImmediateDeletedPaintCachePaths = 1024;
@@ -359,7 +374,7 @@ class RasterImplementation::PaintOpSerializer {
 
  private:
   const raw_ptr<RasterImplementation> ri_;
-  raw_ptr<char, AllowPtrArithmetic> buffer_;
+  raw_ptr<char, AllowPtrArithmetic | AcrossTasksDanglingUntriaged> buffer_;
   const raw_ptr<cc::DecodeStashingImageProvider> stashing_image_provider_;
   const raw_ptr<TransferCacheSerializeHelperImpl> transfer_cache_helper_;
   raw_ptr<ClientFontManager> font_manager_;
@@ -1259,12 +1274,73 @@ void RasterImplementation::WritePixels(const gpu::Mailbox& dest_mailbox,
       dest_mailbox.name);
 }
 
+void RasterImplementation::WritePixelsYUV(const gpu::Mailbox& dest_mailbox,
+                                          const SkYUVAPixmaps& src_yuv_pixmap) {
+  TRACE_EVENT0("gpu", "RasterImplementation::WritePixelsYUV");
+  const auto& src_yuv_info = src_yuv_pixmap.yuvaInfo();
+  const auto& src_yuv_pixmap_info = src_yuv_pixmap.pixmapsInfo();
+  const std::array<SkPixmap, SkYUVAInfo::kMaxPlanes>& src_sk_pixmaps =
+      src_yuv_pixmap.planes();
+
+  GLuint total_size = 0;
+  for (int plane = 0; plane < src_yuv_info.numPlanes(); plane++) {
+    CHECK(src_sk_pixmaps[plane].addr());
+    total_size += base::bits::AlignUp(src_sk_pixmaps[plane].computeByteSize(),
+                                      sizeof(uint64_t));
+  }
+
+  ScopedSharedMemoryPtr scoped_shared_memory(total_size, transfer_buffer_,
+                                             mapped_memory_.get(), helper());
+  if (!scoped_shared_memory.valid()) {
+    SetGLError(GL_INVALID_OPERATION, "WritePixelsYUV", "size too big");
+    return;
+  }
+
+  GLint shm_id = scoped_shared_memory.shm_id();
+  GLuint shm_offset = scoped_shared_memory.offset();
+  void* address = scoped_shared_memory.address();
+
+  // Copy the pixels for first plane at `address`.
+  CHECK(src_sk_pixmaps[0].addr());
+  memcpy(static_cast<uint8_t*>(address), src_sk_pixmaps[0].addr(),
+         src_sk_pixmaps[0].computeByteSize());
+
+  GLuint plane_offsets[SkYUVAInfo::kMaxPlanes] = {};
+  for (int plane = 1; plane < src_yuv_info.numPlanes(); plane++) {
+    CHECK(src_sk_pixmaps[plane].addr());
+    // Calculate the offset based on previous plane offset and previous plane
+    // size, and copy pixels for current plane starting at current plane
+    // offset.
+    GLuint prev_plane_size = src_sk_pixmaps[plane - 1].computeByteSize();
+    plane_offsets[plane] =
+        plane_offsets[plane - 1] +
+        base::bits::AlignUp(prev_plane_size,
+                            static_cast<GLuint>(sizeof(uint64_t)));
+    memcpy(static_cast<uint8_t*>(address) + plane_offsets[plane],
+           src_sk_pixmaps[plane].addr(),
+           src_sk_pixmaps[plane].computeByteSize());
+  }
+
+  helper_->WritePixelsYUVINTERNALImmediate(
+      src_yuv_info.width(), src_yuv_info.height(), src_sk_pixmaps[0].rowBytes(),
+      src_sk_pixmaps[1].rowBytes(), src_sk_pixmaps[2].rowBytes(),
+      src_sk_pixmaps[3].rowBytes(),
+      static_cast<int>(src_yuv_info.planeConfig()),
+      static_cast<int>(src_yuv_info.subsampling()),
+      static_cast<int>(src_yuv_pixmap_info.dataType()), shm_id, shm_offset,
+      plane_offsets[1], plane_offsets[2], plane_offsets[3], dest_mailbox.name);
+}
+
 namespace {
 constexpr size_t kNumMailboxes = SkYUVAInfo::kMaxPlanes + 1;
 }  // namespace
 
 void RasterImplementation::ConvertYUVAMailboxesToRGB(
     const gpu::Mailbox& dest_mailbox,
+    GLint src_x,
+    GLint src_y,
+    GLsizei width,
+    GLsizei height,
     SkYUVColorSpace planes_yuv_color_space,
     const SkColorSpace* planes_rgb_color_space,
     SkYUVAInfo::PlaneConfig plane_config,
@@ -1301,8 +1377,9 @@ void RasterImplementation::ConvertYUVAMailboxesToRGB(
   DCHECK_EQ(offset, kByteSize);
 
   helper_->ConvertYUVAMailboxesToRGBINTERNALImmediate(
-      planes_yuv_color_space, static_cast<GLenum>(plane_config),
-      static_cast<GLenum>(subsampling), reinterpret_cast<GLbyte*>(bytes));
+      src_x, src_y, width, height, planes_yuv_color_space,
+      static_cast<GLenum>(plane_config), static_cast<GLenum>(subsampling),
+      reinterpret_cast<GLbyte*>(bytes));
 }
 
 void RasterImplementation::ConvertRGBAToYUVAMailboxes(
@@ -1329,13 +1406,14 @@ void RasterImplementation::BeginRasterCHROMIUM(
     GLboolean can_use_lcd_text,
     GLboolean visible,
     const gfx::ColorSpace& color_space,
+    float hdr_headroom,
     const GLbyte* mailbox) {
   DCHECK(!raster_properties_);
 
   helper_->BeginRasterCHROMIUMImmediate(
       sk_color_4f.fR, sk_color_4f.fG, sk_color_4f.fB, sk_color_4f.fA,
       needs_clear, msaa_sample_count, msaa_mode, can_use_lcd_text, visible,
-      mailbox);
+      hdr_headroom, mailbox);
 
   raster_properties_.emplace(sk_color_4f, can_use_lcd_text,
                              color_space.ToSkColorSpace());
@@ -1526,12 +1604,7 @@ void RasterImplementation::ReadbackImagePixelsINTERNAL(
     argb_request_queue_.push(std::move(request));
     SignalQuery(query,
                 base::BindOnce(&RasterImplementation::OnAsyncARGBReadbackDone,
-                               // We know that at least one or both pointers
-                               // were dangling. Crash reports was not precise
-                               // enough to determine which was it was. Marking
-                               // the two so that the study can move forward.
-                               base::UnsafeDanglingUntriaged(this),
-                               base::UnsafeDanglingUntriaged(request_ptr)));
+                               base::Unretained(this), request_ptr));
   } else {
     WaitForCmd();
 
@@ -1576,6 +1649,7 @@ void RasterImplementation::OnAsyncARGBReadbackDone(
 }
 
 void RasterImplementation::CancelRequests() {
+  gpu_control_->CancelAllQueries();
   while (!argb_request_queue_.empty()) {
     if (argb_request_queue_.front()->query)
       DeleteQueriesEXT(1, &argb_request_queue_.front()->query);
@@ -1733,7 +1807,8 @@ void RasterImplementation::ReadbackYUVPixelsAsync(
   yuv_request_queue_.push(std::move(request));
   SignalQuery(query,
               base::BindOnce(&RasterImplementation::OnAsyncYUVReadbackDone,
-                             base::Unretained(this), request_ptr));
+                             base::Unretained(this),
+                             base::UnsafeDanglingUntriaged(request_ptr)));
 }
 
 void RasterImplementation::OnAsyncYUVReadbackDone(
@@ -1869,13 +1944,12 @@ void RasterImplementation::SetActiveURLCHROMIUM(const char* url) {
 
 cc::ClientPaintCache* RasterImplementation::GetOrCreatePaintCache() {
   if (!paint_cache_) {
-    constexpr size_t kNormalPaintCacheBudget = 4 * 1024 * 1024;
-    constexpr size_t kLowEndPaintCacheBudget = 256 * 1024;
     size_t paint_cache_budget = 0u;
-    if (base::SysInfo::IsLowEndDevice())
-      paint_cache_budget = kLowEndPaintCacheBudget;
-    else
-      paint_cache_budget = kNormalPaintCacheBudget;
+    if (base::SysInfo::IsLowEndDevice()) {
+      paint_cache_budget = GetLowEndPaintCacheBudget();
+    } else {
+      paint_cache_budget = GetNormalPaintCacheBudget();
+    }
     paint_cache_ = std::make_unique<cc::ClientPaintCache>(paint_cache_budget);
   }
   return paint_cache_.get();

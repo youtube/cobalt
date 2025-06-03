@@ -18,7 +18,6 @@
 #include "media/gpu/macros.h"
 #include "media/gpu/vaapi/vaapi_common.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
-#include "media/gpu/video_rate_control.h"
 #include "media/gpu/vp9_svc_layers.h"
 #include "third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h"
 
@@ -139,6 +138,44 @@ scoped_refptr<VP9Picture> GetVP9Picture(
 }
 }  // namespace
 
+std::unique_ptr<VP9RateControlWrapper> VP9RateControlWrapper::Create(
+    const libvpx::VP9RateControlRtcConfig& config) {
+  auto impl = libvpx::VP9RateControlRTC::Create(config);
+  if (!impl) {
+    DLOG(ERROR) << "Failed creating video RateControlRTC";
+    return nullptr;
+  }
+  return std::make_unique<VP9RateControlWrapper>(std::move(impl));
+}
+
+VP9RateControlWrapper::VP9RateControlWrapper() = default;
+VP9RateControlWrapper::VP9RateControlWrapper(
+    std::unique_ptr<libvpx::VP9RateControlRTC> impl)
+    : impl_(std::move(impl)) {}
+
+void VP9RateControlWrapper::UpdateRateControl(
+    const libvpx::VP9RateControlRtcConfig& rate_control_config) {
+  impl_->UpdateRateControl(rate_control_config);
+}
+
+VP9RateControlWrapper::~VP9RateControlWrapper() = default;
+
+int VP9RateControlWrapper::ComputeQP(
+    const libvpx::VP9FrameParamsQpRTC& frame_params) {
+  impl_->ComputeQP(frame_params);
+  return impl_->GetQP();
+}
+
+void VP9RateControlWrapper::PostEncodeUpdate(
+    uint64_t encoded_frame_size,
+    const libvpx::VP9FrameParamsQpRTC& frame_params) {
+  impl_->PostEncodeUpdate(encoded_frame_size, frame_params);
+}
+
+int VP9RateControlWrapper::GetLoopfilterLevel() const {
+  return impl_->GetLoopfilterLevel();
+}
+
 VP9VaapiVideoEncoderDelegate::EncodeParams::EncodeParams()
     : kf_period_frames(kKFPeriod),
       framerate(0),
@@ -146,7 +183,7 @@ VP9VaapiVideoEncoderDelegate::EncodeParams::EncodeParams()
       max_qp(kMaxQP) {}
 
 void VP9VaapiVideoEncoderDelegate::set_rate_ctrl_for_testing(
-    std::unique_ptr<VP9RateControl> rate_ctrl) {
+    std::unique_ptr<VP9RateControlWrapper> rate_ctrl) {
   rate_ctrl_ = std::move(rate_ctrl);
 }
 
@@ -213,23 +250,17 @@ bool VP9VaapiVideoEncoderDelegate::Initialize(
       return false;
     }
     if (num_spatial_layers > 1 &&
-        config.inter_layer_pred !=
-            VideoEncodeAccelerator::Config::InterLayerPredMode::kOnKeyPic) {
-      std::string inter_layer_pred;
-      if (config.inter_layer_pred ==
-          VideoEncodeAccelerator::Config::InterLayerPredMode::kOn)
-        inter_layer_pred = base::StringPrintf("InterLayerPredMode::kOn");
-      else
-        inter_layer_pred = base::StringPrintf("InterLayerPredMode::kOff");
-      VLOGF(1) << "Support only k-SVC encoding. inter_layer_pred="
-               << inter_layer_pred;
+        config.inter_layer_pred != SVCInterLayerPredMode::kOnKeyPic &&
+        config.inter_layer_pred != SVCInterLayerPredMode::kOff) {
+      VLOGF(1) << "Only k-SVC and S-mode encoding are supported";
       return false;
     }
     for (const auto& spatial_layer : config.spatial_layers) {
       spatial_layer_resolutions.emplace_back(
           gfx::Size(spatial_layer.width, spatial_layer.height));
     }
-    svc_layers_ = std::make_unique<VP9SVCLayers>(config.spatial_layers);
+    svc_layers_ = std::make_unique<VP9SVCLayers>(config.spatial_layers,
+                                                 config.inter_layer_pred);
 
     current_params_.error_resilident_mode = true;
   }
@@ -242,7 +273,7 @@ bool VP9VaapiVideoEncoderDelegate::Initialize(
 
   // |rate_ctrl_| might be injected for tests.
   if (!rate_ctrl_) {
-    rate_ctrl_ = VP9RateControl::Create(CreateRateControlConfig(
+    rate_ctrl_ = VP9RateControlWrapper::Create(CreateRateControlConfig(
         current_params_, initial_bitrate_allocation, num_temporal_layers,
         spatial_layer_resolutions));
   }
@@ -274,6 +305,9 @@ size_t VP9VaapiVideoEncoderDelegate::GetMaxNumOfRefFrames() const {
 bool VP9VaapiVideoEncoderDelegate::PrepareEncodeJob(EncodeJob& encode_job) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (svc_layers_) {
+    // In S-mode encoding, this return true only for the first spatial layer.
+    // key_frame is set to true for the first frame in an upper spatial layer
+    // when svc_layers->FillUsedRefFramesAndMetadata() in SetFrameHeader().
     if (svc_layers_->UpdateEncodeJob(encode_job.IsKeyframeRequested(),
                                      current_params_.kf_period_frames)) {
       encode_job.ProduceKeyframe();
@@ -315,6 +349,12 @@ BitstreamBufferMetadata VP9VaapiVideoEncoderDelegate::GetMetadata(
   auto picture = GetVP9Picture(encode_job);
   DCHECK(picture);
   metadata.vp9 = picture->metadata_for_encoding;
+
+  // Overwrite |metadata.key_frame| by |picture->frame_hdr->IsKeframe()| because
+  // encode_job.IsKeyframeRequested() is false for the first frames on upper
+  // spatial layers in VP9 S-mode encoding.
+  metadata.key_frame = picture->frame_hdr->IsKeyframe();
+
   metadata.qp =
       base::strict_cast<int32_t>(picture->frame_hdr->quant_params.base_q_idx);
   return metadata;
@@ -440,14 +480,29 @@ void VP9VaapiVideoEncoderDelegate::SetFrameHeader(
   DCHECK(ref_frames_used);
 
   *picture->frame_hdr = GetDefaultFrameHeader(keyframe);
+  picture->frame_hdr->refresh_frame_context =
+      !current_params_.error_resilident_mode;
   if (svc_layers_) {
     // Reference frame settings for k-SVC stream.
     svc_layers_->FillUsedRefFramesAndMetadata(picture, ref_frames_used);
+
+    // Update the |keyframe| as it will be reset to keyframe for upper layers
+    // when |frame_num_=0| in S mode encoding.
+    keyframe = picture->frame_hdr->IsKeyframe();
   } else {
     // Reference frame settings for simple stream.
     if (keyframe) {
       picture->frame_hdr->refresh_frame_flags = 0xff;
       ref_frame_index_ = 0;
+
+      // TODO(b/297226972): Remove the workaround once the iHD driver is fixed.
+      // Consecutive key frames must not refresh the frame context in iHD-VP9 to
+      // avoid corruption.
+      if (VaapiWrapper::GetImplementationType() ==
+              VAImplementation::kIntelIHD &&
+          is_last_encoded_key_frame_) {
+        picture->frame_hdr->refresh_frame_context = false;
+      }
     } else {
       picture->frame_hdr->ref_frame_idx[0] = ref_frame_index_;
       picture->frame_hdr->ref_frame_idx[1] =
@@ -484,6 +539,8 @@ void VP9VaapiVideoEncoderDelegate::SetFrameHeader(
                        ", temporal_id=" +
                        base::NumberToString(frame_params.temporal_layer_id))
                     : "");
+
+  is_last_encoded_key_frame_ = keyframe;
 }
 
 void VP9VaapiVideoEncoderDelegate::UpdateReferenceFrames(
@@ -569,7 +626,7 @@ bool VP9VaapiVideoEncoderDelegate::SubmitFrameParameters(
   pic_param.pic_flags.bits.reset_frame_context =
       frame_header->reset_frame_context;
   pic_param.pic_flags.bits.refresh_frame_context =
-      !encode_params.error_resilident_mode;
+      frame_header->refresh_frame_context;
   pic_param.pic_flags.bits.frame_context_idx = frame_header->frame_context_idx;
 
   pic_param.refresh_frame_flags = frame_header->refresh_frame_flags;

@@ -194,6 +194,8 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   GLint GetProgramResourceLocationHelper(
       GLuint program, GLenum program_interface, const char* name);
 
+  const GLCapabilities& gl_capabilities() const { return gl_capabilities_; }
+
   const scoped_refptr<ShareGroup>& share_group() const { return share_group_; }
 
   GpuControl* gpu_control() {
@@ -688,6 +690,9 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
 
   GLStaticState static_state_;
   ClientContextState state_;
+
+  // GLES specific capabilities.
+  GLCapabilities gl_capabilities_;
 
   // pack alignment as last set by glPixelStorei
   GLint pack_alignment_;

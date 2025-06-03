@@ -6,6 +6,7 @@ import 'chrome://password-manager/password_manager.js';
 
 import {Page, PasswordManagerImpl, Router, SyncBrowserProxyImpl} from 'chrome://password-manager/password_manager.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {fakeMetricsPrivate, MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
@@ -16,9 +17,11 @@ import {createAffiliatedDomain, createPasswordEntry} from './test_util.js';
 suite('AddPasswordDialogTest', function() {
   let passwordManager: TestPasswordManagerProxy;
   let syncProxy: TestSyncBrowserProxy;
+  let metricsTracker: MetricsTracker;
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    metricsTracker = fakeMetricsPrivate();
     passwordManager = new TestPasswordManagerProxy();
     PasswordManagerImpl.setInstance(passwordManager);
     syncProxy = new TestSyncBrowserProxy();
@@ -192,6 +195,12 @@ suite('AddPasswordDialogTest', function() {
     assertFalse(dialog.$.addButton.disabled);
     dialog.$.addButton.click();
 
+    assertEquals(
+        1,
+        metricsTracker.count(
+            'PasswordManager.PasswordNoteActionInSettings2',
+            /*NOTE_ADDED_IN_ADD_DIALOG*/ 0));
+
     const params = await passwordManager.whenCalled('addPassword');
 
     assertEquals('https://www.example.com/login', params.url);
@@ -341,13 +350,24 @@ suite('AddPasswordDialogTest', function() {
     await flushTasks();
 
     assertFalse(dialog.$.websiteInput.invalid);
-
+    assertFalse(dialog.$.websiteInput.hasAttribute('show-error-message'));
+    assertEquals(null, dialog.$.websiteInput.errorMessage);
+    // Simulate losing focus.
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('blur'));
-    await flushTasks();
 
     assertTrue(dialog.$.websiteInput.invalid);
+    assertFalse(dialog.$.websiteInput.hasAttribute('show-error-message'));
+    assertEquals('', dialog.$.websiteInput.errorMessage);
+
+    // Simulate losing focus.
+    dialog.$.websiteInput.value = 'abc';
+    dialog.$.websiteInput.dispatchEvent(new CustomEvent('blur'));
+
+    assertTrue(dialog.$.websiteInput.invalid);
+    assertTrue(dialog.$.websiteInput.hasAttribute('show-error-message'));
     assertEquals(
-        dialog.i18n('notValidWebsite'), dialog.$.websiteInput.errorMessage);
+        dialog.i18n('missingTLD', 'abc.com'),
+        dialog.$.websiteInput.errorMessage);
   });
 
   test('error when leaving password blank', async function() {

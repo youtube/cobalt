@@ -11,20 +11,21 @@
 
 #include "ash/ambient/ambient_access_token_controller.h"
 #include "ash/ambient/ambient_controller.h"
-#include "ash/ambient/test/test_ambient_client.h"
+#include "ash/ambient/ambient_ui_launcher.h"
 #include "ash/ambient/ui/ambient_animation_view.h"
 #include "ash/ambient/ui/ambient_background_image_view.h"
 #include "ash/ambient/ui/ambient_info_view.h"
 #include "ash/ambient/ui/photo_view.h"
-#include "ash/constants/ambient_theme.h"
 #include "ash/public/cpp/ambient/proto/photo_cache_entry.pb.h"
 #include "ash/public/cpp/test/test_image_downloader.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/test/test_ash_web_view_factory.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/functional/callback.h"
 #include "base/time/time.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 
@@ -41,6 +42,15 @@ class AmbientPhotoController;
 class AmbientUiSettings;
 class FakeAmbientBackendControllerImpl;
 class MediaStringView;
+class ScreensaverImagesPolicyHandler;
+
+namespace {
+
+// The default factor to multiply ambient timeouts by. Slightly greater than 1
+// to reduce flakiness by making sure the timeouts have expired.
+inline constexpr float kDefaultFastForwardFactor = 1.01;
+
+}  // namespace
 
 // The base class to test the Ambient Mode in Ash.
 class AmbientAshTestBase : public AshTestBase {
@@ -65,16 +75,18 @@ class AmbientAshTestBase : public AshTestBase {
   // case, the ambient screen must be closed, and the new settings will take
   // effect with the next call to ShowAmbientScreen().
   void SetAmbientUiSettings(const AmbientUiSettings& settings);
+  AmbientUiSettings GetCurrentUiSettings();
 
   // Convenient form of the above that only sets |AmbientUiSettings::theme| and
   // leaves the rest of the settings unset.
-  void SetAmbientTheme(AmbientTheme theme);
+  void SetAmbientTheme(personalization_app::mojom::AmbientTheme theme);
 
   // Sets jitters configs to zero for pixel testing.
   void DisableJitter();
 
   // Creates ambient screen in its own widget.
-  void ShowAmbientScreen();
+  void SetAmbientShownAndWaitForWidgets();
+  void SetAmbientPreviewAndWaitForWidgets();
 
   // Hides ambient screen. Can only be called after |ShowAmbientScreen| has been
   // called.
@@ -135,28 +147,48 @@ class AmbientAshTestBase : public AshTestBase {
   void SetPhotoTopicType(::ambient::TopicType topic_type);
 
   // Advance the task environment timer to expire the lock screen inactivity
-  // timer.
-  void FastForwardToLockScreenTimeout();
+  // timer, scaled by `factor`.
+  void FastForwardByLockScreenInactivityTimeout(
+      float factor = kDefaultFastForwardFactor);
 
-  // Advance the task environment timer to load the next photo.
-  void FastForwardToNextImage();
+  // Approximately how much of the lock screen inactivity timeout is left.
+  // Bounded to [0,1], 1 meaning that the timer just started. If the lock screen
+  // inactivity timer is not running, returns null.
+  absl::optional<float> GetRemainingLockScreenTimeoutFraction();
+
+  // Advance the task environment timer to load the next photo, scaled by
+  // `factor`.
+  void FastForwardByPhotoRefreshInterval(
+      float factor = kDefaultFastForwardFactor);
 
   // Advance the task environment timer a tiny amount. This is intended to
   // trigger any pending async operations.
   void FastForwardTiny();
 
   // Advance the task environment timer to load the weather info.
-  void FastForwardToRefreshWeather();
+  void FastForwardByWeatherRefreshInterval();
 
-  // Advance the task environment timer to ambient mode lock screen delay.
-  void FastForwardToBackgroundLockScreenTimeout();
-  void FastForwardHalfLockScreenDelay();
+  // Advance the task environment timer to ambient mode lock screen delay,
+  // scaled by `factor`.
+  void FastForwardByBackgroundLockScreenTimeout(
+      float factor = kDefaultFastForwardFactor);
+
+  // Advance the task environment timer to screen saver duration in minutes.
+  void FastForwardByDurationInMinutes(int minutes);
 
   void SetPowerStateCharging();
   void SetPowerStateDischarging();
   void SetPowerStateFull();
+
+  // An official, non-USB external power is connected.
   void SetExternalPowerConnected();
+
+  // A USB external power is connected.
+  void SetExternalUsbPowerConnected();
+
+  // No external power of any form is connected.
   void SetExternalPowerDisconnected();
+
   void SetBatteryPercent(double percent);
 
   // Returns the number of active wake locks of type |type|.
@@ -189,9 +221,13 @@ class AmbientAshTestBase : public AshTestBase {
 
   AmbientController* ambient_controller();
 
+  AmbientUiLauncher* ambient_ui_launcher();
+
   AmbientPhotoController* photo_controller();
 
   AmbientManagedPhotoController* managed_photo_controller();
+
+  ScreensaverImagesPolicyHandler* managed_policy_handler();
 
   AmbientPhotoCache* photo_cache();
 
@@ -232,9 +268,15 @@ class AmbientAshTestBase : public AshTestBase {
 
   void SetScreenSaverDuration(int minutes);
 
-  absl::optional<int> GetScreenSaverDuration();
+  int GetScreenSaverDuration();
 
  private:
+  class FakePhotoDownloadServer;
+
+  // Waits for the ambient UI to start rendering (i.e. a widget is created and
+  // the ambient UI is visible to the user). A fatal error occurs if the
+  // `timeout` elapses before the UI starts rendering.
+  void WaitForWidgets(base::TimeDelta timeout);
   void SpinWaitForAmbientViewAvailable(
       const base::RepeatingClosure& quit_closure);
 
@@ -242,7 +284,8 @@ class AmbientAshTestBase : public AshTestBase {
   std::unique_ptr<views::Widget> widget_;
   power_manager::PowerSupplyProperties proto_;
   TestImageDownloader image_downloader_;
-  std::unique_ptr<ash::AuthMetricsRecorder> recorder_;
+  std::unique_ptr<ash::AuthEventsRecorder> recorder_;
+  std::unique_ptr<FakePhotoDownloadServer> fake_photo_download_server_;
 };
 
 }  // namespace ash

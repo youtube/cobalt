@@ -16,7 +16,6 @@
 #include "cc/test/pixel_comparator.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/test/test_in_process_context_provider.h"
-#include "gpu/command_buffer/client/gles2_interface.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 
@@ -173,10 +172,15 @@ TEST_P(LayerTreeHostScrollbarsPixelTest, MAYBE_HugeTransformScale) {
   pixel_comparator_ =
       std::make_unique<AlphaDiscardingFuzzyPixelOffByOneComparator>();
 
-  RunPixelTest(background,
-               base::FilePath(use_skia_vulkan()
-                                  ? FILE_PATH_LITERAL("spiral_64_scale_vk.png")
-                                  : FILE_PATH_LITERAL("spiral_64_scale.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("spiral_64_scale.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  if (use_skia_vulkan()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_vk");
+  }
+  RunPixelTest(background, expected_result);
 }
 
 class LayerTreeHostOverlayScrollbarsPixelTest
@@ -198,7 +202,7 @@ class PaintedOverlayScrollbar : public FakeScrollbar {
   PaintedOverlayScrollbar() {
     set_should_paint(true);
     set_has_thumb(true);
-    set_orientation(ScrollbarOrientation::VERTICAL);
+    set_orientation(ScrollbarOrientation::kVertical);
     set_is_overlay(true);
     set_thumb_size(gfx::Size(15, 50));
     set_track_rect(gfx::Rect(0, 0, 15, 400));

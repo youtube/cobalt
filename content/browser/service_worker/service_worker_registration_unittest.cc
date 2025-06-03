@@ -20,7 +20,6 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/service_worker/fake_embedded_worker_instance_client.h"
 #include "content/browser/service_worker/fake_service_worker.h"
@@ -184,6 +183,10 @@ class ServiceWorkerRegistrationTest : public testing::Test {
         storage_partition_impl_.get());
   }
 
+  void TearDown() override {
+    storage_partition_impl_->OnBrowserContextWillBeDestroyed();
+  }
+
   ServiceWorkerContextCore* context() { return helper_->context(); }
   ServiceWorkerRegistry* registry() { return helper_->context()->registry(); }
 
@@ -191,8 +194,9 @@ class ServiceWorkerRegistrationTest : public testing::Test {
    public:
     RegistrationListener() {}
     ~RegistrationListener() {
-      if (observed_registration_.get())
+      if (observed_registration_.get()) {
         observed_registration_->RemoveListener(this);
+      }
     }
 
     void OnVersionAttributesChanged(
@@ -445,10 +449,13 @@ class ServiceWorkerActivationTest : public ServiceWorkerRegistrationTest,
     // Setup the Mojo implementation fakes for the renderer-side service worker.
     // These will be bound once the service worker starts.
     version_1_client_ =
-        helper_->AddNewPendingInstanceClient<FakeEmbeddedWorkerInstanceClient>(
-            helper_.get());
+        helper_
+            ->AddNewPendingInstanceClient<FakeEmbeddedWorkerInstanceClient>(
+                helper_.get())
+            ->GetWeakPtr();
     version_1_service_worker_ =
-        helper_->AddNewPendingServiceWorker<FakeServiceWorker>(helper_.get());
+        helper_->AddNewPendingServiceWorker<FakeServiceWorker>(helper_.get())
+            ->AsWeakPtr();
 
     // Start the active version and give it an in-flight request.
     inflight_request_id_ = CreateInflightRequest(version_1.get());
@@ -495,9 +502,7 @@ class ServiceWorkerActivationTest : public ServiceWorkerRegistrationTest,
     }
   }
 
-  void TearDown() override {
-    ServiceWorkerRegistrationTest::TearDown();
-  }
+  void TearDown() override { ServiceWorkerRegistrationTest::TearDown(); }
 
   bool devtools_should_be_attached() const { return GetParam(); }
 
@@ -543,13 +548,13 @@ class ServiceWorkerActivationTest : public ServiceWorkerRegistrationTest,
     base::RunLoop().RunUntilIdle();
   }
 
-  FakeEmbeddedWorkerInstanceClient* version_1_client() {
+  base::WeakPtr<FakeEmbeddedWorkerInstanceClient> version_1_client() {
     return version_1_client_;
   }
   FakeEmbeddedWorkerInstanceClient* version_2_client() {
     return version_2_client_;
   }
-  FakeServiceWorker* version_1_service_worker() {
+  base::WeakPtr<FakeServiceWorker> version_1_service_worker() {
     return version_1_service_worker_;
   }
   FakeServiceWorker* version_2_service_worker() {
@@ -561,8 +566,8 @@ class ServiceWorkerActivationTest : public ServiceWorkerRegistrationTest,
 
   // Mojo implementation fakes for the renderer-side service workers. Their
   // lifetime is bound to the Mojo connection.
-  raw_ptr<FakeEmbeddedWorkerInstanceClient> version_1_client_ = nullptr;
-  raw_ptr<FakeServiceWorker> version_1_service_worker_ = nullptr;
+  base::WeakPtr<FakeEmbeddedWorkerInstanceClient> version_1_client_;
+  base::WeakPtr<FakeServiceWorker> version_1_service_worker_;
   raw_ptr<FakeEmbeddedWorkerInstanceClient> version_2_client_ = nullptr;
   raw_ptr<FakeServiceWorker> version_2_service_worker_ = nullptr;
 
@@ -586,11 +591,13 @@ TEST_P(ServiceWorkerActivationTest, NoInflightRequest) {
   EXPECT_EQ(version_1.get(), reg->active_version());
   // The idle timer living in the renderer is requested to notify the idle state
   // to the browser ASAP.
+  ASSERT_TRUE(version_1_service_worker());
   EXPECT_EQ(base::Seconds(0), version_1_service_worker()->idle_delay().value());
 
   // Finish the request. Activation should happen.
   version_1->FinishRequest(inflight_request_id(), /*was_handled=*/true);
   EXPECT_EQ(version_1.get(), reg->active_version());
+  ASSERT_TRUE(version_1_client());
   RequestTermination(&version_1_client()->host());
 
   TestServiceWorkerObserver observer(helper_->context_wrapper());
@@ -612,6 +619,7 @@ TEST_P(ServiceWorkerActivationTest, SkipWaitingWithInflightRequest) {
                                   skip_waiting_loop.QuitClosure());
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(version_1.get(), reg->active_version());
+  ASSERT_TRUE(version_1_service_worker());
   EXPECT_EQ(base::Seconds(0), version_1_service_worker()->idle_delay().value());
 
   // Finish the request. FinishRequest() doesn't immediately make the worker
@@ -620,6 +628,7 @@ TEST_P(ServiceWorkerActivationTest, SkipWaitingWithInflightRequest) {
   version_1->FinishRequest(inflight_request_id(), /*was_handled=*/true);
 
   EXPECT_EQ(version_1.get(), reg->active_version());
+  ASSERT_TRUE(version_1_client());
   RequestTermination(&version_1_client()->host());
 
   // Wait until SkipWaiting resolves.
@@ -648,9 +657,11 @@ TEST_P(ServiceWorkerActivationTest, SkipWaiting) {
   SimulateSkipWaitingWithCallback(version_2.get(), &result,
                                   skip_waiting_loop.QuitClosure());
 
+  ASSERT_TRUE(version_1_service_worker());
   EXPECT_EQ(base::Seconds(0), version_1_service_worker()->idle_delay().value());
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(version_1.get(), reg->active_version());
+  ASSERT_TRUE(version_1_client());
   RequestTermination(&version_1_client()->host());
 
   // Wait until SkipWaiting resolves.
@@ -693,6 +704,11 @@ TEST_P(ServiceWorkerActivationTest, TimeSinceSkipWaiting_Installing) {
   SimulateSkipWaiting(version.get(), &result);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(base::Seconds(33), version->TimeSinceSkipWaiting());
+
+  // Restore the TickClock to the default. This is required because the
+  // TickClock must outlive ServiceWorkerVersion, otherwise ServiceWorkerVersion
+  // will hold a dangling pointer.
+  version->SetTickClockForTesting(base::DefaultTickClock::GetInstance());
 }
 
 // Test lame duck timer triggered by skip waiting.
@@ -727,9 +743,9 @@ TEST_P(ServiceWorkerActivationTest, LameDuckTime_SkipWaiting) {
   EXPECT_EQ(version_2.get(), reg->active_version());
   EXPECT_FALSE(IsLameDuckTimerRunning());
 
-  // Restore the TickClock to the default. This is required because the dtor
-  // of ServiceWorkerVersions can access the TickClock and it should outlive
-  // ServiceWorkerVersion.
+  // Restore the TickClock to the default. This is required because the
+  // TickClock must outlive ServiceWorkerVersion, otherwise ServiceWorkerVersion
+  // will hold a dangling pointer.
   version_1->SetTickClockForTesting(base::DefaultTickClock::GetInstance());
   version_2->SetTickClockForTesting(base::DefaultTickClock::GetInstance());
 }
@@ -786,6 +802,12 @@ TEST_P(ServiceWorkerActivationTest, LameDuckTime_NoControllee) {
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(version_2.get(), reg->active_version());
   EXPECT_FALSE(IsLameDuckTimerRunning());
+
+  // Restore the TickClock to the default. This is required because the
+  // TickClock must outlive ServiceWorkerVersion, otherwise ServiceWorkerVersion
+  // will hold a dangling pointer.
+  version_1->SetTickClockForTesting(base::DefaultTickClock::GetInstance());
+  version_2->SetTickClockForTesting(base::DefaultTickClock::GetInstance());
 }
 
 INSTANTIATE_TEST_SUITE_P(ServiceWorkerActivationTestWithDevTools,
@@ -946,8 +968,9 @@ class ServiceWorkerRegistrationObjectHostTest
     container_host->UpdateUrls(
         document_url, url::Origin::Create(document_url),
         blink::StorageKey::CreateFirstParty(url::Origin::Create(document_url)));
-    if (out_container_host)
+    if (out_container_host) {
       *out_container_host = container_host;
+    }
     return remote_endpoint;
   }
 
@@ -986,6 +1009,7 @@ class ServiceWorkerRegistrationObjectHostUpdateTest
   ServiceWorkerRegistrationObjectHostUpdateTest()
       : interceptor_(base::BindRepeating(&FakeNetwork::HandleRequest,
                                          base::Unretained(&fake_network_))) {}
+
  private:
   FakeNetwork fake_network_;
   URLLoaderInterceptor interceptor_;

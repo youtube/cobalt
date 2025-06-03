@@ -38,7 +38,7 @@ FormFieldTestBase::FormFieldTestBase(
 
 FormFieldTestBase::~FormFieldTestBase() = default;
 
-void FormFieldTestBase::AddFormFieldData(std::string control_type,
+void FormFieldTestBase::AddFormFieldData(FormControlType control_type,
                                          std::string name,
                                          std::string label,
                                          ServerFieldType expected_type) {
@@ -47,7 +47,7 @@ void FormFieldTestBase::AddFormFieldData(std::string control_type,
 }
 
 void FormFieldTestBase::AddFormFieldDataWithLength(
-    std::string control_type,
+    FormControlType control_type,
     std::string name,
     std::string label,
     int max_length,
@@ -68,27 +68,16 @@ void FormFieldTestBase::AddSelectOneFormFieldData(
     std::string label,
     const std::vector<SelectOption>& options,
     ServerFieldType expected_type) {
-  AddSelectOneFormFieldDataWithLength(name, label, 0, options, expected_type);
-}
-
-void FormFieldTestBase::AddSelectOneFormFieldDataWithLength(
-    std::string name,
-    std::string label,
-    int max_length,
-    const std::vector<SelectOption>& options,
-    ServerFieldType expected_type) {
-  AddFormFieldData("select-one", name, label, expected_type);
+  AddFormFieldData(FormControlType::kSelectOne, name, label, expected_type);
   FormFieldData* field_data = list_.back().get();
-  field_data->max_length = max_length;
   field_data->options = options;
 }
 
 // Convenience wrapper for text control elements.
-void FormFieldTestBase::AddTextFormFieldData(
-    std::string name,
-    std::string label,
-    ServerFieldType expected_classification) {
-  AddFormFieldData("text", name, label, expected_classification);
+void FormFieldTestBase::AddTextFormFieldData(std::string name,
+                                             std::string label,
+                                             ServerFieldType expected_type) {
+  AddFormFieldData(FormControlType::kInputText, name, label, expected_type);
 }
 
 // Apply parsing and verify the expected types.
@@ -98,7 +87,7 @@ void FormFieldTestBase::AddTextFormFieldData(
 void FormFieldTestBase::ClassifyAndVerify(ParseResult parse_result,
                                           const LanguageCode& page_language) {
   AutofillScanner scanner(list_);
-  field_ = Parse(&scanner, page_language);
+  field_ = Parse(&scanner, GeoIpCountryCode(""), page_language);
 
   if (parse_result == ParseResult::NOT_PARSED) {
     ASSERT_EQ(nullptr, field_.get());
@@ -118,10 +107,9 @@ void FormFieldTestBase::TestClassificationExpectations() {
             ? field_candidates_map_[field_id].BestHeuristicType()
             : UNKNOWN_TYPE;
     SCOPED_TRACE(testing::Message()
-                 << "Found type "
-                 << AutofillType::ServerFieldTypeToString(actual_field_type)
+                 << "Found type " << FieldTypeToStringView(actual_field_type)
                  << ", expected type "
-                 << AutofillType::ServerFieldTypeToString(expected_field_type));
+                 << FieldTypeToStringView(expected_field_type));
     EXPECT_EQ(expected_field_type, actual_field_type);
     num_classifications += expected_field_type != UNKNOWN_TYPE;
   }

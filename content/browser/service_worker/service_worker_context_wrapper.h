@@ -143,18 +143,22 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       int64_t version_id,
       const std::string& uuid,
       GlobalRenderFrameHostId render_frame_host_id) override;
+  void OnStarting(int64_t version_id) override;
   void OnStarted(int64_t version_id,
                  const GURL& scope,
                  int process_id,
                  const GURL& script_url,
                  const blink::ServiceWorkerToken& token,
                  const blink::StorageKey& key) override;
+  void OnStopping(int64_t version_id) override;
   void OnStopped(int64_t version_id) override;
   void OnDeleteAndStartOver() override;
   void OnVersionStateChanged(int64_t version_id,
                              const GURL& scope,
                              const blink::StorageKey& key,
                              ServiceWorkerVersion::Status status) override;
+  void OnWindowOpened(const GURL& script_url, const GURL& url) override;
+  void OnClientNavigated(const GURL& script_url, const GURL& url) override;
 
   // ServiceWorkerContext implementation:
   void AddObserver(ServiceWorkerContextObserver* observer) override;
@@ -171,13 +175,16 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
   void UnregisterServiceWorker(const GURL& scope,
                                const blink::StorageKey& key,
                                ResultCallback callback) override;
+  void UnregisterServiceWorkerImmediately(const GURL& scope,
+                                          const blink::StorageKey& key,
+                                          ResultCallback callback) override;
   ServiceWorkerExternalRequestResult StartingExternalRequest(
       int64_t service_worker_version_id,
       ServiceWorkerExternalRequestTimeoutType timeout_type,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   ServiceWorkerExternalRequestResult FinishedExternalRequest(
       int64_t service_worker_version_id,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   size_t CountExternalRequestsForTest(const blink::StorageKey& key) override;
   bool ExecuteScriptForTest(
       const std::string& script,
@@ -208,13 +215,20 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       const GURL& document_url,
       const blink::StorageKey& key,
       StartServiceWorkerForNavigationHintCallback callback) override;
+  void WarmUpServiceWorker(
+      const GURL& document_url,
+      const blink::StorageKey& key,
+      ServiceWorkerContextCore::WarmUpServiceWorkerCallback callback);
   void StopAllServiceWorkersForStorageKey(
       const blink::StorageKey& key) override;
   void StopAllServiceWorkers(base::OnceClosure callback) override;
   const base::flat_map<int64_t, ServiceWorkerRunningInfo>&
   GetRunningServiceWorkerInfos() override;
+  bool IsLiveStartingServiceWorker(int64_t service_worker_version_id) override;
   bool IsLiveRunningServiceWorker(int64_t service_worker_version_id) override;
   service_manager::InterfaceProvider& GetRemoteInterfaces(
+      int64_t service_worker_version_id) override;
+  blink::AssociatedInterfaceProvider& GetRemoteAssociatedInterfaces(
       int64_t service_worker_version_id) override;
 
   scoped_refptr<ServiceWorkerRegistration> GetLiveRegistration(
@@ -433,6 +447,15 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
                                     bool include_installing_version,
                                     FindRegistrationCallback callback);
 
+  // Helper method for `UnregisterServiceWorker()` and
+  // `UnregisterServiceWorkerImmediately()`.
+  void UnregisterServiceWorkerImpl(const GURL& scope,
+                                   const blink::StorageKey& key,
+                                   bool is_immediate,
+                                   ResultCallback callback);
+
+  void MaybeProcessPendingWarmUpRequest();
+
   void DidFindRegistrationForFindImpl(
       bool include_installing_version,
       FindRegistrationCallback callback,
@@ -458,9 +481,19 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
       blink::ServiceWorkerStatusCode status,
       scoped_refptr<ServiceWorkerRegistration> registration);
 
+  void DidFindRegistrationForWarmUp(
+      ServiceWorkerContextCore::WarmUpServiceWorkerCallback callback,
+      blink::ServiceWorkerStatusCode status,
+      scoped_refptr<ServiceWorkerRegistration> registration);
+
   void DidStartServiceWorkerForNavigationHint(
       const GURL& scope,
       StartServiceWorkerForNavigationHintCallback callback,
+      blink::ServiceWorkerStatusCode code);
+
+  void DidWarmUpServiceWorker(
+      const GURL& scope,
+      ServiceWorkerContextCore::WarmUpServiceWorkerCallback callback,
       blink::ServiceWorkerStatusCode code);
 
   void DidFindRegistrationForMessageDispatch(
@@ -506,6 +539,10 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
   base::ObserverList<ServiceWorkerContextObserver, true>::Unchecked
       observer_list_;
 
+  // `browser_context_` is maintained to be valid within the lifetime of the
+  // browser context.
+  raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
+
   const std::unique_ptr<ServiceWorkerProcessManager> process_manager_;
   std::unique_ptr<ServiceWorkerContextCore> context_core_;
 
@@ -517,7 +554,7 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
   bool is_deleting_and_starting_over_ = false;
 
   // Raw pointer to the StoragePartitionImpl owning |this|.
-  raw_ptr<StoragePartitionImpl> storage_partition_ = nullptr;
+  raw_ptr<StoragePartitionImpl, DanglingUntriaged> storage_partition_ = nullptr;
 
   // Map that contains all service workers that are considered "running". Used
   // to dispatch OnVersionStartedRunning()/OnVersionStoppedRunning() events.
@@ -539,6 +576,10 @@ class CONTENT_EXPORT ServiceWorkerContextWrapper
 
   // A loader factory used to register a service worker. Used for tests.
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_for_test_;
+
+ private:
+  // Returns a version if the worker is live, otherwise nullptr.
+  ServiceWorkerVersion* GetLiveServiceWorker(int64_t service_worker_version_id);
 };
 
 }  // namespace content

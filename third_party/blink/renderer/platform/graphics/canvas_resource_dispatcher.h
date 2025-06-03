@@ -7,10 +7,10 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cc/paint/paint_flags.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
@@ -169,9 +169,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
 
   viz::BeginFrameAck current_begin_frame_ack_;
 
-  CanvasResourceDispatcherClient* client_;
-
-  std::unique_ptr<power_scheduler::PowerModeVoter> animation_power_mode_voter_;
+  raw_ptr<CanvasResourceDispatcherClient, ExperimentalRenderer> client_;
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner>

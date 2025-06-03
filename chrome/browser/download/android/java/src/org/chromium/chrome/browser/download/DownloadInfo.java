@@ -8,7 +8,8 @@ import android.graphics.Bitmap;
 
 import androidx.annotation.NonNull;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+
 import org.chromium.chrome.browser.profiles.OTRProfileID;
 import org.chromium.components.download.DownloadState;
 import org.chromium.components.offline_items_collection.ContentId;
@@ -105,8 +106,7 @@ public final class DownloadInfo {
         mShouldPromoteOrigin = builder.mShouldPromoteOrigin;
     }
 
-    @NonNull
-    public GURL getUrl() {
+    public @NonNull GURL getUrl() {
         return mUrl;
     }
 
@@ -134,13 +134,11 @@ public final class DownloadInfo {
         return mFilePath;
     }
 
-    @NonNull
-    public GURL getReferrer() {
+    public @NonNull GURL getReferrer() {
         return mReferrer;
     }
 
-    @NonNull
-    public GURL getOriginalUrl() {
+    public @NonNull GURL getOriginalUrl() {
         return mOriginalUrl;
     }
 

@@ -24,10 +24,6 @@ js_library("foreground_window") {
   ]
 }
 
-js_library("banner") {
-  deps = [ "//ui/file_manager/file_manager/common/js:volume_manager_types" ]
-}
-
 js_library("command_handler_deps") {
   deps = [
     ":files_app_entry_interfaces",
@@ -35,14 +31,12 @@ js_library("command_handler_deps") {
     "background:crostini",
     "background:file_operation_manager",
     "background:progress_center",
-    "//ui/file_manager/file_manager/common/js:dialog_type",
     "//ui/file_manager/file_manager/common/js:files_app_state",
     "//ui/file_manager/file_manager/foreground/js:actions_controller",
     "//ui/file_manager/file_manager/foreground/js:directory_contents",
     "//ui/file_manager/file_manager/foreground/js:directory_model",
     "//ui/file_manager/file_manager/foreground/js:directory_tree_naming_controller",
     "//ui/file_manager/file_manager/foreground/js:file_selection",
-    "//ui/file_manager/file_manager/foreground/js:file_transfer_controller",
     "//ui/file_manager/file_manager/foreground/js:naming_controller",
     "//ui/file_manager/file_manager/foreground/js:providers_model",
     "//ui/file_manager/file_manager/foreground/js:spinner_controller",
@@ -56,18 +50,8 @@ js_library("directory_change_event") {
   deps = [ ":files_app_entry_interfaces" ]
 }
 
-js_library("drive_dialog_controller") {
-}
-
-js_library("entries_changed_event") {
-  deps = [ "//ui/file_manager/file_manager/common/js:util" ]
-}
-
 js_library("entry_location") {
-  deps = [
-    ":volume_info",
-    "//ui/file_manager/file_manager/common/js:volume_manager_types",
-  ]
+  deps = [ "//ui/file_manager/file_manager/common/js:volume_manager_types" ]
 }
 
 js_library("exif_entry") {
@@ -95,19 +79,6 @@ js_library("volume_manager") {
   deps = [
     ":entry_location",
     ":files_app_entry_interfaces",
-    ":volume_info",
-    ":volume_info_list",
     "//ui/file_manager/file_manager/common/js:volume_manager_types",
   ]
-}
-
-js_library("volume_info") {
-  deps = [
-    ":files_app_entry_interfaces",
-    "//ui/file_manager/file_manager/common/js:volume_manager_types",
-  ]
-}
-
-js_library("volume_info_list") {
-  deps = [ ":volume_info" ]
 }

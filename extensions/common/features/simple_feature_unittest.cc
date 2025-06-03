@@ -16,6 +16,7 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"

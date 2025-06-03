@@ -397,6 +397,42 @@ void Layer::SetMasksToBounds(bool masks_to_bounds) {
   NotifySubtreeChanged();
 }
 
+void Layer::SetRoundedCorner(const gfx::RoundedCornersF& corner_radii) {
+  if (cc_layer()) {
+    cc_layer()->SetRoundedCorner(corner_radii);
+    return;
+  }
+  if (rounded_corners_ == corner_radii) {
+    return;
+  }
+  rounded_corners_ = corner_radii;
+  NotifySubtreeChanged();
+}
+
+const gfx::RoundedCornersF& Layer::corner_radii() const {
+  return cc_layer() ? cc_layer()->corner_radii() : rounded_corners_;
+}
+
+void Layer::SetGradientMask(const gfx::LinearGradient& gradient_mask) {
+  if (cc_layer()) {
+    cc_layer()->SetGradientMask(gradient_mask);
+    return;
+  }
+  if (gradient_mask_ == gradient_mask) {
+    return;
+  }
+  gradient_mask_ = gradient_mask;
+  NotifySubtreeChanged();
+}
+
+const gfx::LinearGradient& Layer::gradient_mask() const {
+  return cc_layer() ? cc_layer()->gradient_mask() : gradient_mask_;
+}
+
+bool Layer::HasNonTrivialMaskFilterInfo() const {
+  return !rounded_corners_.IsEmpty() || !gradient_mask_.IsEmpty();
+}
+
 bool Layer::masks_to_bounds() const {
   return cc_layer() ? cc_layer()->masks_to_bounds() : masks_to_bounds_;
 }
@@ -483,6 +519,7 @@ void Layer::AppendQuads(viz::CompositorRenderPass& render_pass,
 
 viz::SharedQuadState* Layer::CreateAndAppendSharedQuadState(
     viz::CompositorRenderPass& render_pass,
+    FrameData& data,
     const gfx::Transform& transform_to_target,
     const gfx::Rect* clip_in_target,
     const gfx::Rect& visible_rect,
@@ -496,8 +533,11 @@ viz::SharedQuadState* Layer::CreateAndAppendSharedQuadState(
     clip_opt = *clip_in_target;
   }
   quad_state->SetAll(transform_to_target, layer_rect, visible_rect,
-                     gfx::MaskFilterInfo(), clip_opt, contents_opaque(),
-                     opacity, SkBlendMode::kSrcOver, 0);
+                     data.mask_filter_info_in_target, clip_opt,
+                     contents_opaque(), opacity, SkBlendMode::kSrcOver,
+                     /*sorting_context=*/0,
+                     /*layer_id=*/0u, /*fast_rounded_corner=*/false);
+  quad_state->is_fast_rounded_corner = true;
   return quad_state;
 }
 

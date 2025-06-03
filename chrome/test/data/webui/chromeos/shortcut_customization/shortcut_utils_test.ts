@@ -5,10 +5,10 @@
 import 'chrome://webui-test/mojo_webui_test_support.js';
 
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {CycleTabsTextSearchResult, SnapWindowLeftSearchResult, TakeScreenshotSearchResult} from 'chrome://shortcut-customization/js/fake_data.js';
-import {stringToMojoString16} from 'chrome://shortcut-customization/js/mojo_utils.js';
-import {Accelerator, AcceleratorCategory, Modifier, MojoAccelerator, StandardAcceleratorInfo, TextAcceleratorPart, TextAcceleratorPartType} from 'chrome://shortcut-customization/js/shortcut_types.js';
-import {areAcceleratorsEqual, compareAcceleratorInfos, getAccelerator, getAcceleratorId, getModifiersForAcceleratorInfo, getModifierString, getSortedModifiers, getURLForSearchResult, isCustomizationDisabled, isSearchEnabled, isStandardAcceleratorInfo, isTextAcceleratorInfo, SHORTCUTS_APP_URL} from 'chrome://shortcut-customization/js/shortcut_utils.js';
+import {Accelerator, AcceleratorCategory, AcceleratorKeyState, Modifier, StandardAcceleratorInfo, TextAcceleratorPart, TextAcceleratorPartType} from 'chrome://shortcut-customization/js/shortcut_types.js';
+import {areAcceleratorsEqual, compareAcceleratorInfos, getAccelerator, getAcceleratorId, getModifiersForAcceleratorInfo, getModifierString, getSortedModifiers, getSourceAndActionFromAcceleratorId, getURLForSearchResult, isCustomizationAllowed, isStandardAcceleratorInfo, isTextAcceleratorInfo, SHORTCUTS_APP_URL} from 'chrome://shortcut-customization/js/shortcut_utils.js';
 import {assertArrayEquals, assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {createStandardAcceleratorInfo, createTextAcceleratorInfo} from './shortcut_customization_test_util.js';
@@ -36,71 +36,14 @@ function areStandardAcceleratorInfosEqual(
 }
 
 suite('shortcutUtilsTest', function() {
-  test('CustomizationDisabled', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: false});
-    assertTrue(isCustomizationDisabled());
+  test('CustomizationAllowed', async () => {
+    loadTimeData.overrideValues({isCustomizationAllowed: true});
+    assertTrue(isCustomizationAllowed());
   });
 
-  test('CustomizationEnabled', async () => {
-    loadTimeData.overrideValues({isCustomizationEnabled: true});
-    assertFalse(isCustomizationDisabled());
-  });
-
-  test('SearchDisabled', async () => {
-    loadTimeData.overrideValues({isSearchEnabled: false});
-    assertFalse(isSearchEnabled());
-  });
-
-  test('SearchEnabled', async () => {
-    loadTimeData.overrideValues({isSearchEnabled: true});
-    assertTrue(isSearchEnabled());
-  });
-
-  test('AreAcceleratorsEqual', async () => {
-    const accelShiftC: Accelerator = {
-      modifiers: Modifier.SHIFT,
-      keyCode: 67,  // c
-    };
-    const accelShiftCCopy: Accelerator = {
-      ...accelShiftC,
-    };
-    const accelAltC: Accelerator = {
-      modifiers: Modifier.ALT,
-      keyCode: 67,  // c
-    };
-    const accelShiftD: Accelerator = {
-      modifiers: Modifier.SHIFT,
-      keyCode: 68,  // d
-    };
-
-    // Compare the same accelerator.
-    assertTrue(areAcceleratorsEqual(accelShiftC, accelShiftC));
-
-    // Compare accelerators with the same properties.
-    assertTrue(areAcceleratorsEqual(accelShiftC, accelShiftCCopy));
-
-    // Compare accelerators with different modifiers.
-    assertFalse(areAcceleratorsEqual(accelShiftC, accelAltC));
-
-    // Compare accelerators with different key and keyDisplay.
-    assertFalse(areAcceleratorsEqual(accelShiftC, accelShiftD));
-  });
-
-  test('AreAcceleratorsEqualMojo', async () => {
-    const accelShiftC: Accelerator = {
-      modifiers: Modifier.SHIFT,
-      keyCode: 67,  // c
-    };
-    const accelShiftCMojo: MojoAccelerator = {
-      modifiers: Modifier.SHIFT,
-      keyCode: 67,  // c
-      keyState: 0,
-      timeStamp: {internalValue: BigInt(0)},
-    };
-
-    // Accelerators and MojoAccelerators are comparable,
-    // and shouldn't throw an error.
-    assertTrue(areAcceleratorsEqual(accelShiftC, accelShiftCMojo));
+  test('CustomizationDisallowed', async () => {
+    loadTimeData.overrideValues({isCustomizationAllowed: false});
+    assertFalse(isCustomizationAllowed());
   });
 
   test('GetAcceleratorId', async () => {
@@ -133,6 +76,7 @@ suite('shortcutUtilsTest', function() {
     const expectedAccelerator: Accelerator = {
       modifiers: Modifier.ALT,
       keyCode: 221,  // c
+      keyState: AcceleratorKeyState.PRESSED,
     };
     const actualAccelerator = getAccelerator(acceleratorInfo);
     assertDeepEquals(expectedAccelerator, actualAccelerator);
@@ -210,35 +154,47 @@ suite('shortcutUtilsTest', function() {
   });
 
   test('sortStandardAcceleratorInfo', () => {
+    // Low modifiers, relatively high priority.
     const standardAcceleratorInfo1 = createStandardAcceleratorInfo(
         Modifier.ALT,
         /*keyCode=*/ 221,
         /*keyDisplay=*/ ']');
 
-    // No modifier, this should get the highest priority.
+    // Meta only key, highest priority.
     const standardAcceleratorInfo2 = createStandardAcceleratorInfo(
         Modifier.NONE,
-        /*keyCode=*/ 221,
-        /*keyDisplay=*/ ']');
+        /*keyCode=*/ 91,
+        /*keyDisplay=*/ 'Meta');
 
+    // Lots of modifiers, low priority.
     const standardAcceleratorInfo3 = createStandardAcceleratorInfo(
         Modifier.ALT | Modifier.SHIFT | Modifier.COMMAND,
         /*keyCode=*/ 221,
         /*keyDisplay=*/ ']');
 
+    // Medium amount of modifiers, middle priority.
     const standardAcceleratorInfo4 = createStandardAcceleratorInfo(
         Modifier.ALT | Modifier.SHIFT,
         /*keyCode=*/ 221,
         /*keyDisplay=*/ ']');
+
+    // No modifier, high priority.
+    const standardAcceleratorInfo5 = createStandardAcceleratorInfo(
+        Modifier.NONE,
+        /*keyCode=*/ 221,
+        /*keyDisplay=*/ ']');
+
 
     const initialOrder = [
       standardAcceleratorInfo1,
       standardAcceleratorInfo2,
       standardAcceleratorInfo3,
       standardAcceleratorInfo4,
+      standardAcceleratorInfo5,
     ];
     const expectedOrder = [
       standardAcceleratorInfo2,
+      standardAcceleratorInfo5,
       standardAcceleratorInfo1,
       standardAcceleratorInfo4,
       standardAcceleratorInfo3,
@@ -276,5 +232,36 @@ suite('shortcutUtilsTest', function() {
     ];
     initialOrder.sort(compareAcceleratorInfos);
     areStandardAcceleratorInfosEqual(expectedOrder, initialOrder);
+  });
+
+  test('getSourceAndActionFromAcceleratorId', async () => {
+    const result1 = getSourceAndActionFromAcceleratorId('3-45');
+    assertDeepEquals(result1, {source: 3, action: 45});
+
+    const result2 = getSourceAndActionFromAcceleratorId('0-33');
+    assertDeepEquals(result2, {source: 0, action: 33});
+  });
+
+  test('areAcceleratorsEqual', async () => {
+    const accelerator1: Accelerator = {
+      keyCode: 65,  // A
+      modifiers: Modifier.ALT,
+      keyState: AcceleratorKeyState.PRESSED,
+    };
+
+    const accelerator2: Accelerator = {
+      keyCode: 65,  // A
+      modifiers: Modifier.ALT,
+      keyState: AcceleratorKeyState.PRESSED,
+    };
+
+    const accelerator3: Accelerator = {
+      keyCode: 66,  // B
+      modifiers: Modifier.ALT,
+      keyState: AcceleratorKeyState.PRESSED,
+    };
+
+    assertTrue(areAcceleratorsEqual(accelerator1, accelerator2));
+    assertFalse(areAcceleratorsEqual(accelerator1, accelerator3));
   });
 });

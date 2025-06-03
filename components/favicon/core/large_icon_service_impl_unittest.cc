@@ -29,7 +29,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
@@ -105,8 +105,7 @@ bool HasBackgroundColor(
 class LargeIconServiceTest : public testing::Test {
  public:
   LargeIconServiceTest()
-      : scoped_set_supported_scale_factors_({ui::k200Percent}),
-        mock_image_fetcher_(new NiceMock<MockImageFetcher>()),
+      : mock_image_fetcher_(new NiceMock<MockImageFetcher>()),
         large_icon_service_(&mock_favicon_service_,
                             base::WrapUnique(mock_image_fetcher_.get()),
                             /*desired_size_in_dip_for_server_requests=*/24,
@@ -122,8 +121,8 @@ class LargeIconServiceTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_;
   ui::test::ScopedSetSupportedResourceScaleFactors
-      scoped_set_supported_scale_factors_;
-  raw_ptr<NiceMock<MockImageFetcher>> mock_image_fetcher_;
+      scoped_set_supported_scale_factors_{{ui::k200Percent}};
+  raw_ptr<NiceMock<MockImageFetcher>, DanglingUntriaged> mock_image_fetcher_;
   testing::NiceMock<MockFaviconService> mock_favicon_service_;
   LargeIconServiceImpl large_icon_service_;
   base::HistogramTester histogram_tester_;

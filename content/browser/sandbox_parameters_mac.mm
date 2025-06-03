@@ -6,12 +6,12 @@
 
 #include <unistd.h>
 
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
 #include "base/no_destructor.h"
 #include "base/numerics/checked_math.h"
@@ -20,6 +20,7 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/system/sys_info.h"
 #include "components/services/screen_ai/buildflags/buildflags.h"
+#include "content/browser/mac_helpers.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
@@ -104,11 +105,11 @@ void SetupCommonSandboxParameters(
       sandbox::policy::kParamDisableSandboxDenialLogging, !enable_logging));
 
   std::string bundle_path =
-      sandbox::policy::GetCanonicalPath(base::mac::MainBundlePath()).value();
+      sandbox::policy::GetCanonicalPath(base::apple::MainBundlePath()).value();
   CHECK(compiler->SetParameter(sandbox::policy::kParamBundlePath, bundle_path));
 
-  std::string bundle_id = base::mac::BaseBundleID();
-  DCHECK(!bundle_id.empty()) << "base::mac::OuterBundle is unset";
+  std::string bundle_id = base::apple::BaseBundleID();
+  DCHECK(!bundle_id.empty()) << "base::apple::OuterBundle is unset";
   CHECK(compiler->SetParameter(sandbox::policy::kParamBundleId, bundle_id));
 
   CHECK(compiler->SetParameter(sandbox::policy::kParamBrowserPid,
@@ -124,7 +125,7 @@ void SetupCommonSandboxParameters(
 #if defined(COMPONENT_BUILD)
   // For component builds, allow access to one directory level higher, where
   // the dylibs live.
-  base::FilePath component_path = base::mac::MainBundlePath().Append("..");
+  base::FilePath component_path = base::apple::MainBundlePath().Append("..");
   std::string component_path_canonical =
       sandbox::policy::GetCanonicalPath(component_path).value();
   CHECK(compiler->SetParameter(sandbox::policy::kParamComponentPath,
@@ -182,7 +183,7 @@ void SetupPPAPISandboxParameters(
   SetupCommonSandboxParameters(compiler, command_line);
 
   base::FilePath bundle_path =
-      sandbox::policy::GetCanonicalPath(base::mac::MainBundlePath());
+      sandbox::policy::GetCanonicalPath(base::apple::MainBundlePath());
 
   const std::string param_base_name = "PPAPI_PATH_";
   int index = 0;
@@ -209,6 +210,23 @@ void SetupGpuSandboxParameters(sandbox::SandboxCompiler* compiler,
       sandbox::policy::kParamDisableMetalShaderCache,
       command_line.HasSwitch(
           sandbox::policy::switches::kDisableMetalShaderCache)));
+
+  base::FilePath helper_bundle_path =
+      base::apple::GetInnermostAppBundlePath(command_line.GetProgram());
+
+  // The helper may not be contained in an app bundle for unit tests.
+  // In that case `kParamHelperBundleId` will remain unset.
+  if (!helper_bundle_path.empty()) {
+    @autoreleasepool {
+      NSBundle* helper_bundle = [NSBundle
+          bundleWithPath:base::SysUTF8ToNSString(helper_bundle_path.value())];
+      CHECK(helper_bundle);
+
+      CHECK(compiler->SetParameter(
+          sandbox::policy::kParamHelperBundleId,
+          base::SysNSStringToUTF8(helper_bundle.bundleIdentifier)));
+    }
+  }
 }
 
 }  // namespace
@@ -227,6 +245,7 @@ void SetupSandboxParameters(sandbox::mojom::Sandbox sandbox_type,
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
     case sandbox::mojom::Sandbox::kPrintBackend:
 #endif
+    case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
     case sandbox::mojom::Sandbox::kPrintCompositor:
     case sandbox::mojom::Sandbox::kRenderer:
     case sandbox::mojom::Sandbox::kService:

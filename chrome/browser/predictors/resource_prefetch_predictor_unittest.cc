@@ -18,6 +18,7 @@
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_test_util.h"
 #include "chrome/browser/predictors/predictors_features.h"
@@ -42,6 +43,7 @@ namespace {
 
 using RedirectDataMap = std::map<std::string, RedirectData>;
 using OriginDataMap = std::map<std::string, OriginData>;
+using LcppDataMap = std::map<std::string, LcppData>;
 
 template <typename T>
 class FakeLoadingPredictorKeyValueTable
@@ -92,8 +94,13 @@ class MockResourcePrefetchPredictorTables
     return &origin_table_;
   }
 
+  sqlite_proto::KeyValueTable<LcppData>* lcpp_table() override {
+    return &lcpp_table_;
+  }
+
   FakeLoadingPredictorKeyValueTable<RedirectData> host_redirect_table_;
   FakeLoadingPredictorKeyValueTable<OriginData> origin_table_;
+  FakeLoadingPredictorKeyValueTable<LcppData> lcpp_table_;
 
  protected:
   ~MockResourcePrefetchPredictorTables() override = default;
@@ -138,16 +145,42 @@ class ResourcePrefetchPredictorTest : public testing::Test {
 
   void InitializeSampleData();
 
+  double SumOfLcppStringFrequencyStatData(
+      const LcppStringFrequencyStatData& data) {
+    double sum = data.other_bucket_frequency();
+    for (const auto& [url, frequency] : data.main_buckets()) {
+      sum += frequency;
+    }
+    return sum;
+  }
+
+  void LearnLcpp(const std::string& host,
+                 const std::string& lcp_element_locator,
+                 const std::vector<GURL>& lcp_influencer_scripts) {
+    predictors::LcppDataInputs inputs;
+    inputs.lcp_element_locator = lcp_element_locator;
+    inputs.lcp_influencer_scripts = lcp_influencer_scripts;
+    predictor_->LearnLcpp(host, inputs);
+  }
+
+  void LearnFontUrls(const std::string& host,
+                     const std::vector<GURL>& font_urls) {
+    LcppDataInputs inputs;
+    inputs.font_urls = font_urls;
+    predictor_->LearnLcpp(host, inputs);
+  }
+
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
   scoped_refptr<base::TestSimpleTaskRunner> db_task_runner_;
 
   std::unique_ptr<LoadingPredictor> loading_predictor_;
-  raw_ptr<ResourcePrefetchPredictor> predictor_;
+  raw_ptr<ResourcePrefetchPredictor, DanglingUntriaged> predictor_;
   scoped_refptr<StrictMock<MockResourcePrefetchPredictorTables>> mock_tables_;
 
   RedirectDataMap test_host_redirect_data_;
   OriginDataMap test_origin_data_;
+  LcppDataMap test_lcpp_data_;
 
   std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
@@ -192,6 +225,8 @@ void ResourcePrefetchPredictorTest::TearDown() {
             mock_tables_->host_redirect_table_.data_);
   EXPECT_EQ(predictor_->origin_data_->GetAllCached(),
             mock_tables_->origin_table_.data_);
+  EXPECT_EQ(predictor_->lcpp_data_->GetAllCached(),
+            mock_tables_->lcpp_table_.data_);
   loading_predictor_->Shutdown();
 }
 
@@ -232,18 +267,36 @@ void ResourcePrefetchPredictorTest::InitializeSampleData() {
                          12, 0, 0, 3., false, true);
     test_origin_data_.insert({"twitter.com", twitter});
   }
+
+  {  // LCPP data.
+    LcppData google = CreateLcppData("google.com", 20);
+    InitializeLcpElementLocatorBucket(google, "/#lcpImage1", 3);
+    InitializeLcpElementLocatorBucket(google, "/#lcpImage2", 2);
+    InitializeLcpInfluencerScriptUrlsBucket(
+        google, {GURL("https://google.com/script1.js")}, 3);
+    test_lcpp_data_.insert({"google.com", google});
+
+    LcppData twitter = CreateLcppData("twitter.com", 20);
+    InitializeLcpElementLocatorBucket(twitter, "/#lcpImageA", 5);
+    InitializeLcpElementLocatorBucket(twitter, "/#lcpImageB", 1);
+    InitializeLcpInfluencerScriptUrlsBucket(
+        twitter, {GURL("https://twitter.com/script2.js")}, 5);
+    test_lcpp_data_.insert({"twitter.com", twitter});
+  }
 }
 
 // Tests that the predictor initializes correctly without any data.
 TEST_F(ResourcePrefetchPredictorTest, LazilyInitializeEmpty) {
   EXPECT_TRUE(mock_tables_->host_redirect_table_.data_.empty());
   EXPECT_TRUE(mock_tables_->origin_table_.data_.empty());
+  EXPECT_TRUE(mock_tables_->lcpp_table_.data_.empty());
 }
 
 // Tests that the history and the db tables data are loaded correctly.
 TEST_F(ResourcePrefetchPredictorTest, LazilyInitializeWithData) {
   mock_tables_->host_redirect_table_.data_ = test_host_redirect_data_;
   mock_tables_->origin_table_.data_ = test_origin_data_;
+  mock_tables_->lcpp_table_.data_ = test_lcpp_data_;
 
   ResetPredictor();
   InitializePredictor();
@@ -720,6 +773,7 @@ TEST_F(ResourcePrefetchPredictorTest, DeleteUrls) {
 TEST_F(ResourcePrefetchPredictorTest, DeleteAllUrlsUninitialized) {
   mock_tables_->host_redirect_table_.data_ = test_host_redirect_data_;
   mock_tables_->origin_table_.data_ = test_origin_data_;
+  mock_tables_->lcpp_table_.data_ = test_lcpp_data_;
   ResetPredictor();
 
   CHECK_EQ(predictor_->initialization_state_,
@@ -859,9 +913,8 @@ TEST_P(ResourcePrefetchPredictorPreconnectToRedirectTargetTest,
   EXPECT_FALSE(
       predictor_->PredictPreconnectOrigins(main_frame_url, prediction.get()));
 
-  const char* cdn_origin = "https://cdn%d.google.com";
-  auto gen_origin = [cdn_origin](int n) {
-    return base::StringPrintf(cdn_origin, n);
+  auto gen_origin = [](int n) {
+    return base::StringPrintf("https://cdn%d.google.com", n);
   };
 
   // Add origins associated with the main frame host.
@@ -957,9 +1010,8 @@ TEST_F(ResourcePrefetchPredictorTest,
   EXPECT_FALSE(
       predictor_->PredictPreconnectOrigins(main_frame_url, prediction.get()));
 
-  const char* cdn_origin = "https://cdn%d.google.com";
-  auto gen_origin = [cdn_origin](int n) {
-    return base::StringPrintf(cdn_origin, n);
+  auto gen_origin = [](int n) {
+    return base::StringPrintf("https://cdn%d.google.com", n);
   };
 
   // Add origins associated with the main frame host.
@@ -1036,6 +1088,194 @@ TEST_F(ResourcePrefetchPredictorTest,
            www_google_redirected_to_network_anonymization_key},
       });
   EXPECT_EQ(expected_prediction_redirected_to, *prediction);
+}
+
+TEST_F(ResourcePrefetchPredictorTest, LearnLcpp) {
+  ResetPredictor();
+  InitializePredictor();
+  EXPECT_EQ(5U, predictor_->config_.lcpp_histogram_sliding_window_size);
+  EXPECT_EQ(2U, predictor_->config_.max_lcpp_histogram_buckets);
+  EXPECT_TRUE(mock_tables_->lcpp_table_.data_.empty());
+
+  auto SumOfElementLocatorFrequency = [](const LcppData& data) {
+    const LcpElementLocatorStat& stat =
+        data.lcpp_stat().lcp_element_locator_stat();
+    double sum = stat.other_bucket_frequency();
+    for (const auto& bucket : stat.lcp_element_locator_buckets()) {
+      sum += bucket.frequency();
+    }
+    return sum;
+  };
+
+  auto SumOfInfluencerUrlFrequency = [](const LcppData& data) {
+    const LcppStringFrequencyStatData& stat =
+        data.lcpp_stat().lcp_script_url_stat();
+    double sum = stat.other_bucket_frequency();
+    for (const auto& [url, frequency] : stat.main_buckets()) {
+      sum += frequency;
+    }
+    return sum;
+  };
+
+  for (int i = 0; i < 3; ++i) {
+    LearnLcpp("a.com", "/#a", {});
+  }
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 3);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(3, SumOfElementLocatorFrequency(data));
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    LearnLcpp("a.com", "/#b", {});
+  }
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 3);
+    InitializeLcpElementLocatorBucket(data, "/#b", 2);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
+  }
+
+  LearnLcpp("a.com", "/#c", {});
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 2.4);
+    InitializeLcpElementLocatorBucket(data, "/#b", 1.6);
+    InitializeLcpElementLocatorOtherBucket(data, 1);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
+  }
+
+  LearnLcpp("a.com", "/#d", {});
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 1.92);
+    InitializeLcpElementLocatorBucket(data, "/#b", 1.28);
+    InitializeLcpElementLocatorOtherBucket(data, 1.8);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    LearnLcpp("a.com", "/#c", {});
+    LearnLcpp("a.com", "/#d", {});
+  }
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#d", 1);
+    InitializeLcpElementLocatorBucket(data, "/#c", 0.8);
+    InitializeLcpElementLocatorOtherBucket(data, 3.2);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
+  }
+
+  // Test that element locators and influencer scripts are independently learnt.
+  for (int i = 0; i < 2; ++i) {
+    LearnLcpp(
+        "a.com", "",
+        {GURL("https://a.com/script1.js"), GURL("https://a.com/script2.js")});
+  }
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#d", 1);
+    InitializeLcpElementLocatorBucket(data, "/#c", 0.8);
+    InitializeLcpElementLocatorOtherBucket(data, 3.2);
+    InitializeLcpInfluencerScriptUrlsBucket(
+        data,
+        {GURL("https://a.com/script1.js"), GURL("https://a.com/script2.js")},
+        2);
+    InitializeLcpInfluencerScriptUrlsOtherBucket(data, 0);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfElementLocatorFrequency(data));
+    EXPECT_DOUBLE_EQ(4, SumOfInfluencerUrlFrequency(data));
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    LearnLcpp(
+        "a.com", "",
+        {GURL("https://a.com/script3.js"), GURL("https://a.com/script4.js")});
+  }
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#d", 1);
+    InitializeLcpElementLocatorBucket(data, "/#c", 0.8);
+    InitializeLcpElementLocatorOtherBucket(data, 3.2);
+    InitializeLcpInfluencerScriptUrlsBucket(
+        data, {GURL("https://a.com/script3.js")}, 0.8);
+    InitializeLcpInfluencerScriptUrlsBucket(
+        data, {GURL("https://a.com/script4.js")}, 1);
+    InitializeLcpInfluencerScriptUrlsOtherBucket(data, 3.2);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfInfluencerUrlFrequency(data));
+  }
+}
+
+TEST_F(ResourcePrefetchPredictorTest, LearnFontUrls) {
+  ResetPredictor();
+  InitializePredictor();
+  EXPECT_EQ(5U, predictor_->config_.lcpp_histogram_sliding_window_size);
+  EXPECT_EQ(2U, predictor_->config_.max_lcpp_histogram_buckets);
+  EXPECT_TRUE(mock_tables_->lcpp_table_.data_.empty());
+
+  auto SumOfFontUrlFrequency = [this](const LcppData& data) {
+    return SumOfLcppStringFrequencyStatData(
+        data.lcpp_stat().fetched_font_url_stat());
+  };
+  for (int i = 0; i < 2; ++i) {
+    LearnFontUrls("example.com", {
+                                     GURL("https://example.com/test.woff"),
+                                     GURL("https://example.com/test.ttf"),
+                                 });
+  }
+  {
+    LcppData data = CreateLcppData("example.com", 10);
+    InitializeFontUrlsBucket(data,
+                             {GURL("https://example.com/test.woff"),
+                              GURL("https://example.com/test.ttf")},
+                             2);
+    InitializeFontUrlsOtherBucket(data, 0);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["example.com"]);
+    EXPECT_DOUBLE_EQ(4, SumOfFontUrlFrequency(data));
+  }
+  for (int i = 0; i < 3; ++i) {
+    LearnFontUrls("example.com", {
+                                     GURL("https://example.org/test.otf"),
+                                     GURL("https://example.net/test.svg"),
+                                 });
+  }
+  {
+    LcppData data = CreateLcppData("example.com", 10);
+    InitializeFontUrlsBucket(data, {GURL("https://example.org/test.otf")}, 0.8);
+    InitializeFontUrlsBucket(data, {GURL("https://example.net/test.svg")}, 1);
+    InitializeFontUrlsOtherBucket(data, 3.2);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["example.com"]);
+    EXPECT_DOUBLE_EQ(5, SumOfFontUrlFrequency(data));
+  }
+}
+
+TEST_F(ResourcePrefetchPredictorTest, WhenLcppDataIsCorrupted_ResetData) {
+  EXPECT_TRUE(mock_tables_->lcpp_table_.data_.empty());
+
+  // Prepare a corrupted data.
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 1.92);
+    InitializeLcpElementLocatorBucket(data, "/#b", 1.28);
+    InitializeLcpElementLocatorBucket(data, "/#c", -1);
+    InitializeLcpElementLocatorOtherBucket(data, -1);
+    predictor_->lcpp_data_->UpdateData(data.host(), data);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+  }
+
+  // Confirm that new learning process reset the corrupted data.
+  LearnLcpp("a.com", "/#a", {});
+  {
+    LcppData data = CreateLcppData("a.com", 10);
+    InitializeLcpElementLocatorBucket(data, "/#a", 1);
+    EXPECT_EQ(data, mock_tables_->lcpp_table_.data_["a.com"]);
+  }
 }
 
 }  // namespace predictors

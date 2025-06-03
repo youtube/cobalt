@@ -11,7 +11,7 @@
 
 #include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
-#include "compiler/translator/TranslatorGLSL.h"
+#include "compiler/translator/glsl/TranslatorGLSL.h"
 #include "gtest/gtest.h"
 
 using namespace sh;
@@ -58,7 +58,6 @@ class CollectVariablesTest : public testing::Test
     {
         const char *shaderStrings[]     = {shaderString.c_str()};
         ShCompileOptions compileOptions = {};
-        compileOptions.variables        = true;
         ASSERT_TRUE(mTranslator->compile(shaderStrings, 1, compileOptions));
 
         const std::vector<ShaderVariable> &uniforms = mTranslator->getUniforms();
@@ -110,7 +109,6 @@ class CollectVariablesTest : public testing::Test
     {
         const char *shaderStrings[]     = {shaderString.c_str()};
         ShCompileOptions compileOptions = {};
-        compileOptions.variables        = true;
         ASSERT_TRUE(mTranslator->compile(shaderStrings, 1, compileOptions))
             << mTranslator->getInfoSink().info.str();
 
@@ -126,8 +124,6 @@ class CollectVariablesTest : public testing::Test
 
     void compile(const std::string &shaderString, ShCompileOptions *compileOptions)
     {
-        compileOptions->variables = true;
-
         const char *shaderStrings[] = {shaderString.c_str()};
         ASSERT_TRUE(mTranslator->compile(shaderStrings, 1, *compileOptions));
     }

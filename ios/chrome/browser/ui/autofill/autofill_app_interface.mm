@@ -4,11 +4,13 @@
 
 #import "ios/chrome/browser/ui/autofill/autofill_app_interface.h"
 
+#import "base/check.h"
 #import "base/memory/singleton.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/autofill/core/browser/autofill_test_utils.h"
+#import "components/autofill/core/browser/browser_autofill_manager_test_api.h"
 #import "components/autofill/core/browser/form_data_importer.h"
 #import "components/autofill/core/browser/payments/credit_card_save_manager.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
@@ -20,10 +22,10 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store_interface.h"
-#import "ios/chrome/browser/application_context/application_context.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
 #import "ios/chrome/test/app/tab_test_util.h"
 #import "ios/public/provider/chrome/browser/risk_data/risk_data_api.h"
@@ -31,10 +33,6 @@
 #import "ios/web/public/web_state.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "services/network/test/test_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -48,7 +46,7 @@ scoped_refptr<password_manager::PasswordStoreInterface> GetPasswordStore() {
   // This test does not deal with Incognito, and should not run in Incognito
   // context. Therefore IMPLICIT_ACCESS is used to let the test fail if in
   // Incognito context.
-  return IOSChromePasswordStoreFactory::GetForBrowserState(
+  return IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
       chrome_test_util::GetOriginalBrowserState(),
       ServiceAccessType::IMPLICIT_ACCESS);
 }
@@ -169,8 +167,8 @@ void AddAutofillProfile(autofill::PersonalDataManager* personalDataManager,
   ConditionBlock conditionBlock = ^bool {
     return profileCount < personalDataManager->GetProfiles().size();
   };
-  base::test::ios::TimeUntilCondition(nil, conditionBlock, false,
-                                      base::test::ios::kWaitForActionTimeout);
+  CHECK(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, conditionBlock));
 }
 
 }  // namespace
@@ -201,9 +199,9 @@ class SaveCardInfobarEGTestHelper
             web_state);
     web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
     return AutofillDriverIOS::FromWebStateAndWebFrame(web_state, main_frame)
-        ->autofill_manager()
-        ->client()
-        ->GetFormDataImporter()
+        ->GetAutofillManager()
+        .client()
+        .GetFormDataImporter()
         ->credit_card_save_manager_.get();
   }
 
@@ -216,9 +214,9 @@ class SaveCardInfobarEGTestHelper
     web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
     DCHECK(web_state);
     return AutofillDriverIOS::FromWebStateAndWebFrame(web_state, main_frame)
-        ->autofill_manager()
-        ->client()
-        ->GetPaymentsClient();
+        ->GetAutofillManager()
+        .client()
+        .GetPaymentsClient();
   }
 
   // Delete all failed attempds registered on every cards.
@@ -315,6 +313,9 @@ class SaveCardInfobarEGTestHelper
     payments_client->set_url_loader_factory_for_testing(
         shared_url_loader_factory_);
 
+    // Set a fake access token to avoid fetch requests.
+    payments_client->set_access_token_for_testing("fake_access_token");
+
     // Observe actions in CreditCardSaveManager.
     CreditCardSaveManager* credit_card_save_manager =
         SaveCardInfobarEGTestHelper::GetCreditCardSaveManager();
@@ -359,13 +360,6 @@ class SaveCardInfobarEGTestHelper
   return personalDataManager->GetProfiles().size();
 }
 
-+ (void)setAutoAcceptAddressImports:(BOOL)autoAccept {
-  autofill::PersonalDataManager* personalDataManager =
-      [self personalDataManager];
-  return personalDataManager->set_auto_accept_address_imports_for_testing(
-      autoAccept);
-}
-
 + (void)clearProfilesStore {
   ChromeBrowserState* browserState =
       chrome_test_util::GetOriginalBrowserState();
@@ -378,8 +372,8 @@ class SaveCardInfobarEGTestHelper
   ConditionBlock conditionBlock = ^bool {
     return 0 == personalDataManager->GetProfiles().size();
   };
-  base::test::ios::TimeUntilCondition(nil, conditionBlock, false,
-                                      base::test::ios::kWaitForActionTimeout);
+  CHECK(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, conditionBlock));
 
   autofill::prefs::SetAutofillProfileEnabled(browserState->GetPrefs(), YES);
 }
@@ -409,7 +403,8 @@ class SaveCardInfobarEGTestHelper
 
   ChromeBrowserState* browserState =
       chrome_test_util::GetOriginalBrowserState();
-  autofill::prefs::SetAutofillCreditCardEnabled(browserState->GetPrefs(), YES);
+  autofill::prefs::SetAutofillPaymentMethodsEnabled(browserState->GetPrefs(),
+                                                    YES);
 }
 
 + (NSString*)saveLocalCreditCard {
@@ -421,9 +416,8 @@ class SaveCardInfobarEGTestHelper
   ConditionBlock conditionBlock = ^bool {
     return card_count < personalDataManager->GetCreditCards().size();
   };
-  base::test::ios::TimeUntilCondition(
-      nil, conditionBlock, false,
-      base::test::ios::kWaitForFileOperationTimeout);
+  CHECK(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForFileOperationTimeout, conditionBlock));
   personalDataManager->NotifyPersonalDataObserver();
   return base::SysUTF16ToNSString(card.NetworkAndLastFourDigits());
 }
@@ -432,15 +426,17 @@ class SaveCardInfobarEGTestHelper
   return [self personalDataManager] -> GetCreditCards().size();
 }
 
-+ (void)saveMaskedCreditCard {
++ (NSString*)saveMaskedCreditCard {
   autofill::PersonalDataManager* personalDataManager =
       [self personalDataManager];
-  autofill::CreditCard card = autofill::test::GetMaskedServerCard();
-  DCHECK(card.record_type() != autofill::CreditCard::LOCAL_CARD);
+  autofill::CreditCard card =
+      autofill::test::WithCvc(autofill::test::GetMaskedServerCard());
+  DCHECK(card.record_type() != autofill::CreditCard::RecordType::kLocalCard);
 
   personalDataManager->AddServerCreditCardForTest(
       std::make_unique<autofill::CreditCard>(card));
   personalDataManager->NotifyPersonalDataObserver();
+  return base::SysUTF16ToNSString(card.NetworkAndLastFourDigits());
 }
 
 + (void)setUpSaveCardInfobarEGTestHelper {
@@ -477,6 +473,18 @@ class SaveCardInfobarEGTestHelper
 + (void)setPaymentsRiskData:(NSString*)riskData {
   return autofill::SaveCardInfobarEGTestHelper::SharedInstance()
       ->SetPaymentsRiskData(base::SysNSStringToUTF8(riskData));
+}
+
++ (void)considerCreditCardFormSecureForTesting {
+  web::WebState* web_state = chrome_test_util::GetCurrentWebState();
+  web::WebFramesManager* frames_manager =
+      autofill::AutofillJavaScriptFeature::GetInstance()->GetWebFramesManager(
+          web_state);
+  web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
+  test_api(autofill::AutofillDriverIOS::FromWebStateAndWebFrame(web_state,
+                                                                main_frame)
+               ->GetAutofillManager())
+      .SetConsiderFormAsSecureForTesting(true);
 }
 
 + (NSString*)paymentsRiskData {

@@ -30,8 +30,10 @@
 #include "base/functional/bind.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/ash/crosapi/browser_manager.h"
+#include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #endif
@@ -158,10 +160,12 @@ bool IsFromUserInteraction(FeedbackSource source) {
     case kFeedbackSourceBrowserCommand:
     case kFeedbackSourceConnectivityDiagnostics:
     case kFeedbackSourceDesktopTabGroups:
+    case kFeedbackSourceCookieControls:
     case kFeedbackSourceNetworkHealthPage:
     case kFeedbackSourceMdSettingsAboutPage:
     case kFeedbackSourceOldSettingsAboutPage:
     case kFeedbackSourceOsSettingsSearch:
+    case kFeedbackSourcePriceInsights:
     case kFeedbackSourceQuickAnswers:
     case kFeedbackSourceQuickOffice:
     case kFeedbackSourceSettingsPerformancePage:
@@ -171,7 +175,7 @@ bool IsFromUserInteraction(FeedbackSource source) {
   }
 }
 
-void OnLacrosActiveTabUrlFeteched(
+void OnLacrosActiveTabUrlFetched(
     Profile* profile,
     chrome::FeedbackSource source,
     const std::string& description_template,
@@ -221,14 +225,15 @@ void RequestFeedbackFlow(const GURL& page_url,
     include_bluetooth_logs = IsFromUserInteraction(source);
     show_questionnaire = IsFromUserInteraction(source);
   }
-  if (base::FeatureList::IsEnabled(ash::features::kOsFeedback)) {
+  // Disable the new feedback tool for kiosk, when SWAs are disabled there.
+  if (!chromeos::IsKioskSession() ||
+      base::FeatureList::IsEnabled(ash::features::kKioskEnableSystemWebApps)) {
     // TODO(crbug.com/1407646): Include autofill metadata into CrOS new feedback
     // tool.
-    ash::SystemAppLaunchParams params{};
+    ash::SystemAppLaunchParams params;
     params.url = BuildFeedbackUrl(
         extra_diagnostics, description_template, description_placeholder_text,
         category_tag, page_url, source, std::move(autofill_metadata));
-
     ash::LaunchSystemWebAppAsync(profile, ash::SystemWebAppType::OS_FEEDBACK,
                                  std::move(params));
     return;
@@ -286,7 +291,7 @@ void ShowFeedbackPage(const Browser* browser,
   if (!browser && crosapi::BrowserManager::Get()->IsRunning() &&
       crosapi::BrowserManager::Get()->GetActiveTabUrlSupported()) {
     crosapi::BrowserManager::Get()->GetActiveTabUrl(base::BindOnce(
-        &OnLacrosActiveTabUrlFeteched, profile, source, description_template,
+        &OnLacrosActiveTabUrlFetched, profile, source, description_template,
         description_placeholder_text, category_tag, extra_diagnostics,
         std::move(autofill_metadata)));
   } else {

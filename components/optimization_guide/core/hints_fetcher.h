@@ -30,31 +30,6 @@ class SimpleURLLoader;
 
 namespace optimization_guide {
 
-// Status of a request to fetch hints.
-// This enum must remain synchronized with the enum
-// |OptimizationGuideHintsFetcherRequestStatus| in
-// tools/metrics/histograms/enums.xml.
-enum class HintsFetcherRequestStatus {
-  // No fetch status known. Used in testing.
-  kUnknown,
-  // Fetch request was sent and a response received.
-  kSuccess,
-  // Fetch request was sent but no response received.
-  kResponseError,
-  // DEPRECATED: Fetch request not sent because of offline network status.
-  kDeprecatedNetworkOffline,
-  // Fetch request not sent because fetcher was busy with another request.
-  kFetcherBusy,
-  // Fetch request not sent because the host and URL lists were empty.
-  kNoHostsOrURLsToFetch,
-  // Fetch request not sent because no supported optimization types were
-  // provided.
-  kNoSupportedOptimizationTypes,
-
-  // Insert new values before this line.
-  kMaxValue = kNoSupportedOptimizationTypes
-};
-
 // Callback to inform the caller that the remote hints have been fetched and
 // to pass back the fetched hints response from the remote Optimization Guide
 // Service.
@@ -97,6 +72,7 @@ class HintsFetcher {
           optimization_types,
       optimization_guide::proto::RequestContext request_context,
       const std::string& locale,
+      const std::string& access_token,
       bool skip_cache,
       HintsFetchedCallback hints_fetched_callback);
 
@@ -165,6 +141,10 @@ class HintsFetcher {
   // The URL for the remote Optimization Guide Service.
   const GURL optimization_guide_service_url_;
 
+  // The API key used to call the remote Optimization Guide Service when no
+  // access token is present.
+  const std::string optimization_guide_service_api_key_;
+
   // Holds the |URLLoader| for an active hints request.
   std::unique_ptr<network::SimpleURLLoader> active_url_loader_;
 
@@ -173,7 +153,7 @@ class HintsFetcher {
   optimization_guide::proto::RequestContext request_context_;
 
   // A reference to the PrefService for this profile. Not owned.
-  raw_ptr<PrefService> pref_service_ = nullptr;
+  raw_ptr<PrefService, DanglingUntriaged> pref_service_ = nullptr;
 
   // Holds the hosts being requested by the hints fetcher.
   std::vector<std::string> hosts_fetched_;

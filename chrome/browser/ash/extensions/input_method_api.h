@@ -17,6 +17,7 @@ namespace chromeos {
 class ExtensionDictionaryEventRouter;
 class ExtensionInputMethodEventRouter;
 class ExtensionImeMenuEventRouter;
+class LanguagePackEventRouter;
 }
 
 namespace extensions {
@@ -394,6 +395,29 @@ class InputMethodPrivateNotifyInputMethodReadyForTestingFunction
       INPUTMETHODPRIVATE_NOTIFYINPUTMETHODREADYFORTESTING)
 };
 
+class InputMethodPrivateGetLanguagePackStatusFunction
+    : public ExtensionFunction {
+ public:
+  InputMethodPrivateGetLanguagePackStatusFunction() = default;
+
+  InputMethodPrivateGetLanguagePackStatusFunction(
+      const InputMethodPrivateGetLanguagePackStatusFunction&) = delete;
+  InputMethodPrivateGetLanguagePackStatusFunction& operator=(
+      const InputMethodPrivateGetLanguagePackStatusFunction&) = delete;
+
+ protected:
+  ~InputMethodPrivateGetLanguagePackStatusFunction() override = default;
+
+  ResponseAction Run() override;
+
+ private:
+  DECLARE_EXTENSION_FUNCTION("inputMethodPrivate.getLanguagePackStatus",
+                             INPUTMETHODPRIVATE_GETLANGUAGEPACKSTATUS)
+
+  void OnGetLanguagePackStatusComplete(
+      const api::input_method_private::LanguagePackStatus result);
+};
+
 class InputMethodAPI : public BrowserContextKeyedAPI,
                        public extensions::EventRouter::Observer {
  public:
@@ -434,6 +458,8 @@ class InputMethodAPI : public BrowserContextKeyedAPI,
   std::unique_ptr<chromeos::ExtensionDictionaryEventRouter>
       dictionary_event_router_;
   std::unique_ptr<chromeos::ExtensionImeMenuEventRouter> ime_menu_event_router_;
+  std::unique_ptr<chromeos::LanguagePackEventRouter>
+      language_pack_event_router_;
 };
 
 }  // namespace extensions

@@ -13,6 +13,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -21,6 +22,7 @@
 #include "base/trace_event/memory_usage_estimator.h"
 #include "build/build_config.h"
 #include "components/history/core/browser/url_database.h"
+#include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/url_index_private_data.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
@@ -161,8 +163,12 @@ std::string GetValueForRuleInContextFromVariationParams(
 }
 
 OmniboxFieldTrial::MLConfig& GetMLConfigInternal() {
-  static OmniboxFieldTrial::MLConfig s_config;
-  return s_config;
+  static base::NoDestructor<OmniboxFieldTrial::MLConfig> s_config;
+  return *s_config;
+}
+
+bool IsKoreanLocale(const std::string& locale) {
+  return locale == "ko" || locale == "ko-KR";
 }
 
 }  // namespace
@@ -286,9 +292,15 @@ size_t OmniboxFieldTrial::GetProviderMaxMatches(
     AutocompleteProvider::Type provider) {
   size_t default_max_matches_per_provider = 3;
 
-  std::string param_value = base::GetFieldTrialParamValueByFeature(
-      omnibox::kUIExperimentMaxAutocompleteMatches,
-      OmniboxFieldTrial::kUIMaxAutocompleteMatchesByProviderParam);
+  std::string param_value;
+  if (OmniboxFieldTrial::IsMlUrlScoringEnabled()) {
+    param_value =
+        OmniboxFieldTrial::GetMLConfig().ml_url_scoring_max_matches_by_provider;
+  } else {
+    param_value = base::GetFieldTrialParamValueByFeature(
+        omnibox::kUIExperimentMaxAutocompleteMatches,
+        OmniboxFieldTrial::kUIMaxAutocompleteMatchesByProviderParam);
+  }
 
   // If the experiment param specifies a max results for |provider|, return the
   // specified limit.
@@ -538,78 +550,25 @@ bool OmniboxFieldTrial::HUPSearchDatabase() {
   return value.empty() || (value == "true");
 }
 
-int OmniboxFieldTrial::KeywordScoreForSufficientlyCompleteMatch() {
-  std::string value_str = base::GetFieldTrialParamValue(
-      kBundledExperimentFieldTrialName,
-      kKeywordScoreForSufficientlyCompleteMatchRule);
-  if (value_str.empty()) {
-    return -1;
-  }
-  // This is a best-effort conversion; we trust the hand-crafted parameters
-  // downloaded from the server to be perfect.  There's no need for handle
-  // errors smartly.
-  int value;
-  base::StringToInt(value_str, &value);
-  return value;
+bool OmniboxFieldTrial::IsActionsUISimplificationEnabled() {
+  return base::FeatureList::IsEnabled(omnibox::kOmniboxActionsUISimplification);
 }
 
-bool OmniboxFieldTrial::IsFuzzyUrlSuggestionsEnabled() {
-  return base::FeatureList::IsEnabled(omnibox::kOmniboxFuzzyUrlSuggestions);
+bool OmniboxFieldTrial::IsKeywordModeRefreshEnabled() {
+  return base::FeatureList::IsEnabled(omnibox::kOmniboxKeywordModeRefresh);
 }
 
 const base::FeatureParam<bool>
-    OmniboxFieldTrial::kFuzzyUrlSuggestionsCounterfactual(
-        &omnibox::kOmniboxFuzzyUrlSuggestions,
-        "FuzzyUrlSuggestionsCounterfactual",
-        false);
+    OmniboxFieldTrial::kActionsUISimplificationIncludeRealbox(
+        &omnibox::kOmniboxActionsUISimplification,
+        "ActionsUISimplificationIncludeRealbox",
+        true);
 
 const base::FeatureParam<bool>
-    OmniboxFieldTrial::kFuzzyUrlSuggestionsLowEndBypass(
-        &omnibox::kOmniboxFuzzyUrlSuggestions,
-        "FuzzyUrlSuggestionsLowEndBypass",
-        false);
-
-const base::FeatureParam<bool> OmniboxFieldTrial::kFuzzyUrlSuggestionsTranspose(
-    &omnibox::kOmniboxFuzzyUrlSuggestions,
-    "FuzzyUrlSuggestionsTranspose",
-    true);
-
-const base::FeatureParam<int>
-    OmniboxFieldTrial::kFuzzyUrlSuggestionsMinInputLength(
-        &omnibox::kOmniboxFuzzyUrlSuggestions,
-        "FuzzyUrlSuggestionsMinInputLength",
-        3);
-
-// Note about this default, which produces good results for most inputs:
-// Using 10% reasonably took a 1334 relevance match down to 1200,
-// but was harmful to HQP suggestions: as soon as a '.' was
-// appended, a bunch of ~800 navsuggest results overtook a better
-// HQP result that was bumped down to ~770. Using 5% lets this
-// result compete in the navsuggest range.
-const base::FeatureParam<int> OmniboxFieldTrial::kFuzzyUrlSuggestionsPenaltyLow(
-    &omnibox::kOmniboxFuzzyUrlSuggestions,
-    "FuzzyUrlSuggestionsPenaltyLow",
-    5);
-
-// Keeping the default for high penalty equal to preserve current behavior, but
-// this is the parameter most likely to need tuning for very short inputs.
-const base::FeatureParam<int>
-    OmniboxFieldTrial::kFuzzyUrlSuggestionsPenaltyHigh(
-        &omnibox::kOmniboxFuzzyUrlSuggestions,
-        "FuzzyUrlSuggestionsPenaltyHigh",
-        5);
-
-// The default value of zero means "no taper", and only the lowest penalty
-// will be applied.
-const base::FeatureParam<int>
-    OmniboxFieldTrial::kFuzzyUrlSuggestionsPenaltyTaperLength(
-        &omnibox::kOmniboxFuzzyUrlSuggestions,
-        "FuzzyUrlSuggestionsPenaltyTaperLength",
-        0);
-
-bool OmniboxFieldTrial::IsExperimentalKeywordModeEnabled() {
-  return base::FeatureList::IsEnabled(omnibox::kExperimentalKeywordMode);
-}
+    OmniboxFieldTrial::kActionsUISimplificationTrimExtra(
+        &omnibox::kOmniboxActionsUISimplification,
+        "ActionsUISimplificationTrimExtra",
+        true);
 
 bool OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForIncognito() {
   return base::FeatureList::IsEnabled(omnibox::kOnDeviceHeadProviderIncognito);
@@ -637,6 +596,15 @@ bool OmniboxFieldTrial::ShouldEncodeLeadingSpaceForOnDeviceTailSuggest() {
                                                  /*default_value=*/false);
 }
 
+bool OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForLocale(
+    const std::string& locale) {
+  if (IsKoreanLocale(locale) &&
+      !base::FeatureList::IsEnabled(omnibox::kOnDeviceHeadProviderKorean)) {
+    return false;
+  }
+  return IsOnDeviceHeadSuggestEnabledForAnyMode();
+}
+
 std::string OmniboxFieldTrial::OnDeviceHeadModelLocaleConstraint(
     bool is_incognito) {
   const base::Feature* feature =
@@ -652,19 +620,11 @@ std::string OmniboxFieldTrial::OnDeviceHeadModelLocaleConstraint(
   return constraint;
 }
 
-bool OmniboxFieldTrial::ShouldDisableCGIParamMatching() {
-  return base::FeatureList::IsEnabled(omnibox::kDisableCGIParamMatching);
-}
-
-bool OmniboxFieldTrial::IsSiteSearchStarterPackEnabled() {
-  return base::FeatureList::IsEnabled(omnibox::kSiteSearchStarterPack);
-}
-
 // Omnibox UI simplification - Uniform Suggestion Row Heights
 const base::FeatureParam<bool> OmniboxFieldTrial::kSquareSuggestIconAnswers(
     &omnibox::kSquareSuggestIcons,
     "OmniboxSquareSuggestIconAnswers",
-    false);
+    true);
 const base::FeatureParam<bool> OmniboxFieldTrial::kSquareSuggestIconIcons(
     &omnibox::kSquareSuggestIcons,
     "OmniboxSquareSuggestIconIcons",
@@ -678,6 +638,10 @@ const base::FeatureParam<double>
         &omnibox::kSquareSuggestIcons,
         "OmniboxSquareSuggestIconEntitiesScale",
         0.8722);
+const base::FeatureParam<bool> OmniboxFieldTrial::kSquareSuggestIconWeather(
+    &omnibox::kSquareSuggestIcons,
+    "OmniboxSquareSuggestIconWeather",
+    true);
 
 bool OmniboxFieldTrial::IsUniformRowHeightEnabled() {
   return base::FeatureList::IsEnabled(omnibox::kUniformRowHeight);
@@ -686,18 +650,36 @@ bool OmniboxFieldTrial::IsUniformRowHeightEnabled() {
 const base::FeatureParam<int> OmniboxFieldTrial::kRichSuggestionVerticalMargin(
     &omnibox::kUniformRowHeight,
     "OmniboxRichSuggestionVerticalMargin",
-    4);
+    6);
 
 bool OmniboxFieldTrial::IsChromeRefreshIconsEnabled() {
-  return features::GetChromeRefresh2023Level() ==
-             features::ChromeRefresh2023Level::kLevel2 ||
-         base::FeatureList::IsEnabled(omnibox::kOmniboxCR23SteadyStateIcons);
+  static bool enabled = omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kOmniboxCR23SteadyStateIcons);
+  return enabled;
+}
+
+bool OmniboxFieldTrial::IsChromeRefreshSuggestIconsEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kExpandedStateSuggestIcons);
+}
+
+bool OmniboxFieldTrial::IsChromeRefreshActionChipIconsEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kCr2023ActionChipsIcons);
+}
+
+bool OmniboxFieldTrial::IsChromeRefreshActionChipShapeEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kCr2023ActionChips);
+}
+
+bool OmniboxFieldTrial::IsChromeRefreshSuggestHoverFillShapeEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kSuggestionHoverFillShape);
 }
 
 bool OmniboxFieldTrial::IsGM3TextStyleEnabled() {
-  return features::GetChromeRefresh2023Level() ==
-             features::ChromeRefresh2023Level::kLevel2 ||
-         base::FeatureList::IsEnabled(omnibox::kOmniboxSteadyStateTextStyle);
+  return base::FeatureList::IsEnabled(omnibox::kOmniboxSteadyStateTextStyle);
 }
 
 // In order to control the value of this "font size" param via Finch, the
@@ -726,7 +708,17 @@ const base::FeatureParam<int> OmniboxFieldTrial::kFontSizeTouchUI(
 const base::FeatureParam<int> OmniboxFieldTrial::kFontSizeNonTouchUI(
     &omnibox::kOmniboxSteadyStateTextStyle,
     "OmniboxFontSizeNonTouchUI",
-    12);
+    13);
+
+bool OmniboxFieldTrial::IsCr23LayoutEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kExpandedLayout);
+}
+
+bool OmniboxFieldTrial::IsChromeRefreshSteadyStateBackgroundColorEnabled() {
+  return omnibox::IsOmniboxCr23CustomizeGuardedFeatureEnabled(
+      omnibox::kOmniboxSteadyStateBackgroundColor);
+}
 
 const char OmniboxFieldTrial::kBundledExperimentFieldTrialName[] =
     "OmniboxBundledExperimentV1";
@@ -750,11 +742,6 @@ const char OmniboxFieldTrial::kHQPNumTitleWordsRule[] = "HQPNumTitleWords";
 const char OmniboxFieldTrial::kHQPAlsoDoHUPLikeScoringRule[] =
     "HQPAlsoDoHUPLikeScoring";
 const char OmniboxFieldTrial::kHUPSearchDatabaseRule[] = "HUPSearchDatabase";
-const char OmniboxFieldTrial::kKeywordRequiresRegistryRule[] =
-    "KeywordRequiresRegistry";
-const char OmniboxFieldTrial::kKeywordScoreForSufficientlyCompleteMatchRule[] =
-    "KeywordScoreForSufficientlyCompleteMatch";
-
 const char OmniboxFieldTrial::kHUPNewScoringTypedCountRelevanceCapParam[] =
     "TypedCountRelevanceCap";
 const char OmniboxFieldTrial::kHUPNewScoringTypedCountHalfLifeTimeParam[] =
@@ -805,43 +792,6 @@ int OmniboxFieldTrial::kDefaultMinimumTimeBetweenSuggestQueriesMs = 100;
 
 namespace OmniboxFieldTrial {
 
-// Autocomplete stability.
-
-const base::FeatureParam<bool>
-    kAutocompleteStabilityPreserveDefaultExcludeKeywordInputs(
-        &omnibox::kPreserveDefault,
-        "AutocompleteStabilityPreserveDefaultExcludeKeywordInputs",
-        true);
-const base::FeatureParam<bool>
-    kAutocompleteStabilityPreserveDefaultAfterTransfer(
-        &omnibox::kPreserveDefault,
-        "AutocompleteStabilityPreserveDefaultAfterTransfer",
-        true);
-const base::FeatureParam<int>
-    kAutocompleteStabilityPreserveDefaultForSyncUpdatesMinInputLength(
-        &omnibox::kPreserveDefault,
-        "AutocompleteStabilityPreserveDefaultForSyncUpdatesMinInputLength",
-        3);
-const base::FeatureParam<bool>
-    kAutocompleteStabilityPreserveDefaultForAsyncUpdates(
-        &omnibox::kPreserveDefault,
-        "AutocompleteStabilityPreserveDefaultForAsyncUpdates",
-        true);
-const base::FeatureParam<bool>
-    kAutocompleteStabilityPreventDefaultPreviousMatches(
-        &omnibox::kPreserveDefault,
-        "AutocompleteStabilityPreventDefaultPreviousMatches",
-        true);
-const base::FeatureParam<bool>
-    kAutocompleteStabilityUpdateResultDebounceFromLastRun(
-        &omnibox::kUpdateResultDebounce,
-        "AutocompleteStabilityUpdateResultDebounceFromLastRun",
-        false);
-const base::FeatureParam<int> kAutocompleteStabilityUpdateResultDebounceDelay(
-    &omnibox::kUpdateResultDebounce,
-    "AutocompleteStabilityUpdateResultDebounceDelay",
-    0);
-
 // Local history zero-prefix (aka zero-suggest) and prefix suggestions:
 
 // The maximum number of entries stored by the in-memory zero-suggest cache at
@@ -879,74 +829,6 @@ bool IsZeroSuggestPrefetchingEnabledInContext(
       return false;
   }
 }
-
-// Short bookmarks.
-
-bool IsShortBookmarkSuggestionsEnabled() {
-  return base::FeatureList::IsEnabled(omnibox::kShortBookmarkSuggestions);
-}
-
-bool IsShortBookmarkSuggestionsByTotalInputLengthEnabled() {
-  return base::FeatureList::IsEnabled(
-             omnibox::kShortBookmarkSuggestionsByTotalInputLength) ||
-         (IsRichAutocompletionEnabled() &&
-          (kRichAutocompletionAutocompleteTitles.Get() ||
-           kRichAutocompletionAutocompleteNonPrefixAll.Get()));
-}
-
-size_t ShortBookmarkSuggestionsByTotalInputLengthThreshold() {
-  // The rich autocompletion feature requires this feature to be enabled. If
-  // short bookmarks is enabled transitively; i.e. rich autocompletion is
-  // enabled, but short bookmarks isn't explicitly enabled, then use the rich
-  // autocompletion min char limit.
-  if (!base::FeatureList::IsEnabled(
-          omnibox::kShortBookmarkSuggestionsByTotalInputLength) &&
-      IsRichAutocompletionEnabled()) {
-    if (kRichAutocompletionAutocompleteTitles.Get() &&
-        kRichAutocompletionAutocompleteNonPrefixAll.Get()) {
-      return std::min(kRichAutocompletionAutocompleteTitlesMinChar.Get(),
-                      kRichAutocompletionAutocompleteNonPrefixMinChar.Get());
-    } else if (kRichAutocompletionAutocompleteTitles.Get()) {
-      return kRichAutocompletionAutocompleteTitlesMinChar.Get();
-    } else if (kRichAutocompletionAutocompleteNonPrefixAll.Get()) {
-      return kRichAutocompletionAutocompleteNonPrefixMinChar.Get();
-    }
-  }
-
-  return kShortBookmarkSuggestionsByTotalInputLengthThreshold.Get();
-}
-
-const base::FeatureParam<bool>
-    kShortBookmarkSuggestionsByTotalInputLengthCounterfactual(
-        &omnibox::kShortBookmarkSuggestionsByTotalInputLength,
-        "ShortBookmarkSuggestionsByTotalInputLengthCounterfactual",
-        false);
-
-const base::FeatureParam<int>
-    kShortBookmarkSuggestionsByTotalInputLengthThreshold(
-        &omnibox::kShortBookmarkSuggestionsByTotalInputLength,
-        "ShortBookmarkSuggestionsByTotalInputLengthThreshold",
-        3);
-
-// Shortcut Expanding
-
-bool IsShortcutExpandingEnabled() {
-  return base::FeatureList::IsEnabled(omnibox::kShortcutExpanding);
-}
-
-// Shortcut boost
-const base::FeatureParam<int> kShortcutBoostSearchScore(
-    &omnibox::kShortcutBoost,
-    "ShortcutBoostSearchScore",
-    0);
-const base::FeatureParam<int> kShortcutBoostUrlScore(&omnibox::kShortcutBoost,
-                                                     "ShortcutBoostUrlScore",
-                                                     0);
-
-const base::FeatureParam<bool> kShortcutBoostCounterfactual(
-    &omnibox::kShortcutBoost,
-    "ShortcutBoostCounterfactual",
-    false);
 
 // Rich autocompletion.
 
@@ -1023,20 +905,6 @@ const base::FeatureParam<bool>
         "RichAutocompletionAutocompletePreferUrlsOverPrefixes",
         false);
 
-const base::FeatureParam<int> kSiteSearchStarterPackRelevanceScore(
-    &omnibox::kSiteSearchStarterPack,
-    "SiteSearchStarterPackRelevanceScore",
-    1350);
-
-// Rather than have a special default value of -1 to signify no limit, simply
-// set it to a large value that'll never be reached in practice.
-// TODO(manukh): Launched (set to 1) 3/2/23 m113. Clean up feature code 5/2 when
-//   m113 reaches stable.
-const base::FeatureParam<int> kDocumentProviderMaxLowQualitySuggestions(
-    &omnibox::kDocumentProvider,
-    "DocumentProviderMaxLowQualitySuggestions",
-    1);
-
 const base::FeatureParam<bool> kDomainSuggestionsCounterfactual(
     &omnibox::kDomainSuggestions,
     "DomainSuggestionsCounterfactual",
@@ -1087,14 +955,41 @@ const base::FeatureParam<bool> kDomainSuggestionsAlternativeScoring(
     "DomainSuggestionsAlternativeScoring",
     false);
 
+const base::FeatureParam<omnibox::CompanyEntityIconAdjustmentGroup>::Option
+    kCompanyEntityIconAdjustmentGroupOptions[] = {
+        {omnibox::CompanyEntityIconAdjustmentGroup::kLeastAggressive,
+         "least-aggressive"},
+        {omnibox::CompanyEntityIconAdjustmentGroup::kModerate, "moderate"},
+        {omnibox::CompanyEntityIconAdjustmentGroup::kMostAggressive,
+         "most-aggressive"},
+};
+
+const base::FeatureParam<omnibox::CompanyEntityIconAdjustmentGroup>
+    kCompanyEntityIconAdjustmentGroup{
+        &omnibox::kCompanyEntityIconAdjustment,
+        "OmniboxCompanyEntityAdjustmentGroup",
+        omnibox::CompanyEntityIconAdjustmentGroup::kLeastAggressive,
+        &kCompanyEntityIconAdjustmentGroupOptions};
+
+const base::FeatureParam<bool> kCompanyEntityIconAdjustmentCounterfactual(
+    &omnibox::kCompanyEntityIconAdjustment,
+    "CompanyEntityIconAdjustmentCounterfactual",
+    false);
+
 // ---------------------------------------------------------
 // ML Relevance Scoring ->
 
 // If true, enables scoring signal annotators for logging Omnibox scoring
 // signals to OmniboxEventProto.
-const base::FeatureParam<bool> kEnableScoringSignalsAnnotators(
+const base::FeatureParam<bool> kEnableScoringSignalsAnnotatorsForLogging(
     &omnibox::kLogUrlScoringSignals,
     "enable_scoring_signals_annotators",
+    false);
+
+// If true, enables scoring signal annotators for ML scoring.
+const base::FeatureParam<bool> kEnableScoringSignalsAnnotatorsForMlScoring(
+    &omnibox::kMlUrlScoring,
+    "enable_scoring_signals_annotators_for_ml_scoring",
     false);
 
 // If true, runs the ML scoring model but does not assign new relevance scores
@@ -1106,9 +1001,9 @@ const base::FeatureParam<bool> kMlUrlScoringCounterfactual(
 
 // If true, increases the number of candidates the URL autocomplete providers
 // pass to the controller beyond `provider_max_matches`.
-const base::FeatureParam<bool> kMlUrlScoringIncreaseNumCandidates(
+const base::FeatureParam<bool> kMlUrlScoringUnlimitedNumCandidates(
     &omnibox::kMlUrlScoring,
-    "MlUrlScoringIncreaseNumCandidates",
+    "MlUrlScoringUnlimitedNumCandidates",
     false);
 
 // If true, the ML model only re-scores and re-ranks the final set of matches
@@ -1129,22 +1024,51 @@ const base::FeatureParam<bool> kMlUrlScoringPreserveDefault(
     "MlUrlScoringPreserveDefault",
     false);
 
+const base::FeatureParam<std::string> kMlUrlScoringMaxMatchesByProvider(
+    &omnibox::kMlUrlScoring,
+    "MlUrlScoringMaxMatchesByProvider",
+    "");
+
+// If true, synchronously runs the ML model for a batch of urls.
+const base::FeatureParam<bool> kMlSyncBatchUrlScoring(&omnibox::kMlUrlScoring,
+                                                      "MlSyncBatchUrlScoring",
+                                                      true);
+
 MLConfig::MLConfig() {
   log_url_scoring_signals =
       base::FeatureList::IsEnabled(omnibox::kLogUrlScoringSignals);
-  enable_scoring_signals_annotators = kEnableScoringSignalsAnnotators.Get();
+  enable_scoring_signals_annotators =
+      kEnableScoringSignalsAnnotatorsForLogging.Get() ||
+      kEnableScoringSignalsAnnotatorsForMlScoring.Get();
+  shortcut_document_signals =
+      base::FeatureParam<bool>(&omnibox::kLogUrlScoringSignals,
+                               "MlUrlScoringShortcutDocumentSignals", false)
+          .Get() ||
+      base::FeatureParam<bool>(&omnibox::kMlUrlScoring,
+                               "MlUrlScoringShortcutDocumentSignals", false)
+          .Get();
+
   ml_url_scoring = base::FeatureList::IsEnabled(omnibox::kMlUrlScoring);
+  ml_sync_batch_url_scoring = kMlSyncBatchUrlScoring.Get();
   ml_url_scoring_counterfactual = kMlUrlScoringCounterfactual.Get();
-  ml_url_scoring_increase_num_candidates =
-      kMlUrlScoringIncreaseNumCandidates.Get();
+  ml_url_scoring_unlimited_num_candidates =
+      kMlUrlScoringUnlimitedNumCandidates.Get();
   ml_url_scoring_preserve_default = kMlUrlScoringPreserveDefault.Get();
   ml_url_scoring_rerank_final_matches_only =
       kMlUrlscoringRerankFinalMatchesOnly.Get();
+  ml_url_scoring_max_matches_by_provider =
+      kMlUrlScoringMaxMatchesByProvider.Get();
   url_scoring_model = base::FeatureList::IsEnabled(omnibox::kUrlScoringModel);
 }
 
+MLConfig::MLConfig(const MLConfig&) = default;
+
+MLConfig& MLConfig::operator=(const MLConfig& other) = default;
+
 ScopedMLConfigForTesting::ScopedMLConfigForTesting()
-    : original_config_(std::make_unique<MLConfig>(GetMLConfig())) {}
+    : original_config_(std::make_unique<MLConfig>(GetMLConfig())) {
+  GetMLConfigInternal() = {};
+}
 
 ScopedMLConfigForTesting::~ScopedMLConfigForTesting() {
   GetMLConfigInternal() = *original_config_;
@@ -1158,9 +1082,14 @@ const MLConfig& GetMLConfig() {
   return GetMLConfigInternal();
 }
 
-bool IsLogUrlScoringSignalsEnabled() {
+bool IsReportingUrlScoringSignalsEnabled() {
   return GetMLConfig().log_url_scoring_signals;
 }
+
+bool IsPopulatingUrlScoringSignalsEnabled() {
+  return IsReportingUrlScoringSignalsEnabled() || IsMlUrlScoringEnabled();
+}
+
 bool AreScoringSignalsAnnotatorsEnabled() {
   return GetMLConfig().enable_scoring_signals_annotators;
 }
@@ -1171,12 +1100,19 @@ bool IsMlUrlScoringEnabled() {
   return false;
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 }
+bool IsMlSyncBatchUrlScoringEnabled() {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  return IsMlUrlScoringEnabled() && GetMLConfig().ml_sync_batch_url_scoring;
+#else
+  return false;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+}
 bool IsMlUrlScoringCounterfactual() {
   return IsMlUrlScoringEnabled() && GetMLConfig().ml_url_scoring_counterfactual;
 }
-bool IsMlUrlScoringIncreaseNumCandidatesEnabled() {
+bool IsMlUrlScoringUnlimitedNumCandidatesEnabled() {
   return IsMlUrlScoringEnabled() &&
-         GetMLConfig().ml_url_scoring_increase_num_candidates;
+         GetMLConfig().ml_url_scoring_unlimited_num_candidates;
 }
 bool IsUrlScoringModelEnabled() {
   return GetMLConfig().url_scoring_model;
@@ -1198,28 +1134,20 @@ const base::FeatureParam<bool> kRealboxSecondaryZeroSuggestCounterfactual(
 
 // <- Two-column realbox
 // ---------------------------------------------------------
-// Inspire Me ->
-
-const base::FeatureParam<int> kInspireMeAdditionalRelatedQueries(
-    &omnibox::kInspireMe,
-    "AdditionalRelatedQueries",
-    0);
-
-const base::FeatureParam<int> kInspireMeAdditionalTrendingQueries(
-    &omnibox::kInspireMe,
-    "AdditionalTrendingQueries",
-    0);
-
-// <- Inspire Me
+// Android UI Revamp ->
+const base::FeatureParam<bool> kOmniboxModernizeVisualUpdateMergeClipboardOnNTP(
+    &omnibox::kOmniboxModernizeVisualUpdate,
+    "modernize_visual_update_merge_clipboard_on_ntp",
+    true);
+// <- Android UI Revamp
 // ---------------------------------------------------------
-// Actions In Suggest ->
-// When set to true, permits Entity suggestion with associated Actions to be
-// promoted over the Escape Hatch.
-const base::FeatureParam<bool> kActionsInSuggestPromoteEntitySuggestion(
-    &omnibox::kActionsInSuggest,
-    "PromoteEntitySuggestion",
-    false);
-// <- Actions In Suggest
+// Touch Down Trigger For Prefetch ->
+const base::FeatureParam<int>
+    kTouchDownTriggerForPrefetchMaxPrefetchesPerOmniboxSession(
+        &omnibox::kOmniboxTouchDownTriggerForPrefetch,
+        "max_prefetches_per_omnibox_session",
+        5);
+// <- Touch Down Trigger For Prefetch
 // ---------------------------------------------------------
 
 }  // namespace OmniboxFieldTrial

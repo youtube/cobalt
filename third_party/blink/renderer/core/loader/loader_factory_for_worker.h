@@ -19,8 +19,7 @@ class WebWorkerFetchContext;
 class LoaderFactoryForWorker : public ResourceFetcher::LoaderFactory {
  public:
   LoaderFactoryForWorker(WorkerOrWorkletGlobalScope& global_scope,
-                         scoped_refptr<WebWorkerFetchContext> web_context)
-      : global_scope_(global_scope), web_context_(std::move(web_context)) {}
+                         scoped_refptr<WebWorkerFetchContext> web_context);
 
   void Trace(Visitor* visitor) const override;
 
@@ -31,7 +30,7 @@ class LoaderFactoryForWorker : public ResourceFetcher::LoaderFactory {
       scoped_refptr<base::SingleThreadTaskRunner> freezable_task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> unfreezable_task_runner,
       BackForwardCacheLoaderHelper*) override;
-  std::unique_ptr<WebCodeCacheLoader> CreateCodeCacheLoader() override;
+  CodeCacheHost* GetCodeCacheHost() override;
 
  private:
   const Member<WorkerOrWorkletGlobalScope> global_scope_;

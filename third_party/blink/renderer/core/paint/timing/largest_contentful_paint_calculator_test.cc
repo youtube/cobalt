@@ -60,7 +60,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
   }
 
   void SetImage(const char* id, int width, int height, int bytes = 0) {
-    To<HTMLImageElement>(GetDocument().getElementById(id))
+    To<HTMLImageElement>(GetElementById(id))
         ->SetImageForTest(CreateImageForTest(width, height, bytes));
   }
 
@@ -70,7 +70,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
     sk_sp<SkColorSpace> src_rgb_color_space = SkColorSpace::MakeSRGB();
     SkImageInfo raster_image_info =
         SkImageInfo::MakeN32Premul(width, height, src_rgb_color_space);
-    sk_sp<SkSurface> surface(SkSurface::MakeRaster(raster_image_info));
+    sk_sp<SkSurface> surface(SkSurfaces::Raster(raster_image_info));
     sk_sp<SkImage> image = surface->makeImageSnapshot();
     scoped_refptr<UnacceleratedStaticBitmapImage> original_image_data =
         UnacceleratedStaticBitmapImage::Create(image);
@@ -218,7 +218,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, ImageSmallerText) {
     <img id='target'/>
     <p>.</p>
   )HTML");
-  SetImage("target", 100, 200);
+  SetImage("target", 100, 200, /*bytes=*/250);
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
   EXPECT_EQ(LargestReportedSize(), 20000u);
@@ -227,7 +227,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, ImageSmallerText) {
 
   // Text should not be reported, since it is smaller than the image.
   EXPECT_EQ(LargestReportedSize(), 20000u);
-  EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.0f);
+  EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.1f);
   EXPECT_EQ(CountCandidates(), 1u);
   trace_analyzer::Stop();
 }
@@ -238,7 +238,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, TextLargerImage) {
     <img id='target'/>
     <p>.</p>
   )HTML");
-  SetImage("target", 100, 200);
+  SetImage("target", 100, 200, /*bytes=*/250);
   UpdateAllLifecyclePhasesForTest();
   SimulateContentPresentationPromise();
 
@@ -253,11 +253,12 @@ TEST_F(LargestContentfulPaintCalculatorTest, TextSmallerImage) {
     <img id='target'/>
     <p>This text should be larger than the image!!!!</p>
   )HTML");
-  SetImage("target", 3, 3);
+  SetImage("target", 3, 3, /*bytes=*/9);
   UpdateAllLifecyclePhasesForTest();
   SimulateContentPresentationPromise();
 
-  // Image should not be reported, since it is smaller than the text.
+  // Image should not be reported, since it is smaller than the text. No image
+  // BPP should be recorded.
   EXPECT_GT(LargestReportedSize(), 9u);
   EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.0f);
   EXPECT_EQ(CountCandidates(), 1u);
@@ -281,7 +282,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestImageRemoved) {
   EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.08f);
   EXPECT_EQ(CountCandidates(), 1u);
 
-  GetDocument().getElementById("large")->remove();
+  GetDocument().getElementById(AtomicString("large"))->remove();
   UpdateAllLifecyclePhasesForTest();
   // The LCP does not move after the image is removed.
   EXPECT_EQ(LargestReportedSize(), 20000u);
@@ -301,7 +302,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestTextRemoved) {
     </p>
     <p id='small'>.</p>
   )HTML");
-  SetImage("medium", 10, 5);
+  SetImage("medium", 10, 5, /*bytes=*/50);
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
   SimulateTextPresentationPromise();
@@ -310,7 +311,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestTextRemoved) {
   // Image presentation occurred first, so we have would have two candidates.
   EXPECT_EQ(CountCandidates(), 2u);
 
-  GetDocument().getElementById("large")->remove();
+  GetDocument().getElementById(AtomicString("large"))->remove();
   UpdateAllLifecyclePhasesForTest();
   // The LCP should not move after removal.
   EXPECT_GT(LargestReportedSize(), 50u);

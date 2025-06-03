@@ -106,9 +106,9 @@ MediaSource MediaSource::ForRemotePlayback(int tab_id,
                                            media::VideoCodec video_codec,
                                            media::AudioCodec audio_codec) {
   return MediaSource(
-      base::StringPrintf(blink::kRemotePlaybackDesktopUrlFormat, tab_id,
+      base::StringPrintf(blink::kRemotePlaybackDesktopUrlFormat,
                          media::GetCodecName(video_codec).c_str(),
-                         media::GetCodecName(audio_codec).c_str()));
+                         media::GetCodecName(audio_codec).c_str(), tab_id));
 }
 
 // static
@@ -211,6 +211,20 @@ std::string MediaSource::TruncateForLogging(size_t max_length) const {
   const size_t length =
       query_start_index == std::string::npos ? max_length : query_start_index;
   return id_.substr(0, length);
+}
+
+void MediaSource::AppendTabIdToRemotePlaybackUrlQuery(int tab_id) {
+  if (url_.is_empty()) {
+    return;
+  }
+
+  GURL::Replacements replacements;
+  std::string tab_id_query = base::StringPrintf("tab_id=%d", tab_id);
+  std::string new_query =
+      (url_.has_query() ? url_.query() + "&" : "") + tab_id_query;
+  replacements.SetQueryStr(new_query);
+  url_ = url_.ReplaceComponents(replacements);
+  id_ = url_.spec();
 }
 
 }  // namespace media_router

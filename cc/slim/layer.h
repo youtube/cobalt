@@ -16,9 +16,11 @@
 #include "cc/slim/frame_data.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/gfx/geometry/linear_gradient.h"
 #include "ui/gfx/geometry/point3_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/transform.h"
 
@@ -192,9 +194,30 @@ class COMPONENT_EXPORT(CC_SLIM) Layer : public base::RefCounted<Layer> {
   // opacity blending, so always prefer to use additional layers if possible.
   void SetFilters(std::vector<Filter> filters);
 
+  // Set the rounded corner radii in layer space (same as `SetBounds`). It
+  // is applied to the layer and its subtree. Setting this to non-empty also has
+  // similar effect as `SetMasksToBounds(true)` that the subtree is clipped to
+  // its bounds (with rounded corner).
+  // This is stored in the same structure as `SetGradientMask`. It is more
+  // efficient to avoid setting multiple rounded corner or linear gradient in
+  // the same subtree.
+  void SetRoundedCorner(const gfx::RoundedCornersF& corner_radii);
+  const gfx::RoundedCornersF& corner_radii() const;
+
+  // Set the linear gradient mask, applied to this layer's bounds. It is applied
+  // to the layer and its subtree. Setting this to non-empty also has similar
+  // effect as `SetMasksToBounds(true)` that the subtree is clipped to its
+  // bounds.
+  // This is stored in the same structure as `SetRoundedCorner`. It is more
+  // efficient to avoid setting multiple rounded corner or linear gradient in
+  // the same subtree.
+  void SetGradientMask(const gfx::LinearGradient& gradient_mask);
+  const gfx::LinearGradient& gradient_mask() const;
+
  protected:
   friend class LayerTreeCcWrapper;
   friend class LayerTreeImpl;
+  friend class SlimLayerTest;
 
   explicit Layer(scoped_refptr<cc::Layer> cc_layer);
   virtual ~Layer();
@@ -204,6 +227,7 @@ class COMPONENT_EXPORT(CC_SLIM) Layer : public base::RefCounted<Layer> {
   absl::optional<gfx::Transform> ComputeTransformFromParent() const;
   bool HasFilters() const;
   cc::FilterOperations GetFilters() const;
+  bool HasNonTrivialMaskFilterInfo() const;
   // This method counts this layer, This is different from
   // `NumDescendantsThatDrawContent` which counts descendent layers only.
   int GetNumDrawingLayersInSubtree() const;
@@ -233,6 +257,7 @@ class COMPONENT_EXPORT(CC_SLIM) Layer : public base::RefCounted<Layer> {
                            float opacity);
   virtual viz::SharedQuadState* CreateAndAppendSharedQuadState(
       viz::CompositorRenderPass& render_pass,
+      FrameData& data,
       const gfx::Transform& transform_to_target,
       const gfx::Rect* clip_in_target,
       const gfx::Rect& visible_rect,
@@ -272,6 +297,8 @@ class COMPONENT_EXPORT(CC_SLIM) Layer : public base::RefCounted<Layer> {
   gfx::Point3F transform_origin_;
 
   std::vector<Filter> filters_;
+  gfx::RoundedCornersF rounded_corners_;
+  gfx::LinearGradient gradient_mask_;
 
   SkColor4f background_color_ = SkColors::kTransparent;
   float opacity_ = 1.0f;

@@ -12,10 +12,10 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
-import org.chromium.chrome.browser.metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.metrics.UmaUtils;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
+import org.chromium.chrome.browser.page_load_metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewMetrics.PaintPreviewMetricsObserver;
 import org.chromium.chrome.browser.paint_preview.services.PaintPreviewTabServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
@@ -103,14 +103,6 @@ public class StartupPaintPreviewHelper {
                 return !httpOrHttps;
             }
         });
-    }
-
-    /**
-     * Checks whether the paint preview feature is enabled
-     * @return the feature availability
-     */
-    public static boolean isEnabled() {
-        return true;
     }
 
     /**

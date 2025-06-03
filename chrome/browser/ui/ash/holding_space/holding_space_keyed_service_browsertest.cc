@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_image.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_model.h"
@@ -234,10 +235,15 @@ const HoldingSpaceItem* AddHoldingSpaceItem(
   auto* holding_space_model = ash::HoldingSpaceController::Get()->model();
   EXPECT_TRUE(holding_space_model);
 
+  const GURL file_system_url =
+      holding_space_util::ResolveFileSystemUrl(profile, item_path);
+  const HoldingSpaceFile::FileSystemType file_system_type =
+      holding_space_util::ResolveFileSystemType(profile, file_system_url);
+
   std::unique_ptr<HoldingSpaceItem> item =
       HoldingSpaceItem::CreateFileBackedItem(
-          HoldingSpaceItem::Type::kDownload, item_path,
-          holding_space_util::ResolveFileSystemUrl(profile, item_path),
+          HoldingSpaceItem::Type::kDownload,
+          HoldingSpaceFile(item_path, file_system_type, file_system_url),
           progress,
           base::BindLambdaForTesting([&](HoldingSpaceItem::Type type,
                                          const base::FilePath& file_path) {
@@ -372,7 +378,7 @@ class HoldingSpaceKeyedServiceBrowserTest : public InProcessBrowserTest {
   // Used to set up drive fs for for drive tests.
   base::ScopedTempDir test_cache_root_;
   std::unique_ptr<drive::FakeDriveFsHelper> fake_drivefs_helper_;
-  raw_ptr<drive::DriveIntegrationService, ExperimentalAsh>
+  raw_ptr<drive::DriveIntegrationService, DanglingUntriaged | ExperimentalAsh>
       drive_integration_service_ = nullptr;
   drive::DriveIntegrationServiceFactory::FactoryCallback
       create_drive_integration_service_;
@@ -403,7 +409,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // Verify the item exists in the model.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), src);
+  EXPECT_EQ(item->file().file_path, src);
 
   base::FilePath dst =
       CreateTextFile(GetTestMountPoint(), /*relative_path=*/absl::nullopt);
@@ -428,7 +434,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // the new location of its backing file.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), dst);
+  EXPECT_EQ(item->file().file_path, dst);
 
   std::swap(src, dst);
 
@@ -457,7 +463,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // Verify the item exists in the model.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), src);
+  EXPECT_EQ(item->file().file_path, src);
 
   // Prep a batch of `changes` to indicate that `src` has been deleted and that
   // `dst` has been created. Note the absence of `stable_id`. The `kDelete` and
@@ -485,7 +491,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // Verify the item exists in the model.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), src);
+  EXPECT_EQ(item->file().file_path, src);
 
   // Prep a batch of `changes` to indicate that `src` has moved to `dst` and has
   // then been deleted. Note the consistent `stable_id` to associate all changes
@@ -519,7 +525,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // Verify the item exists in the model.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), src);
+  EXPECT_EQ(item->file().file_path, src);
 
   base::FilePath dst_dir = GetTestMountPoint().Append("dst/");
   dst = CreateTextFile(
@@ -546,7 +552,7 @@ IN_PROC_BROWSER_TEST_F(HoldingSpaceKeyedServiceBrowserTest,
   // the new location of its backing file.
   ASSERT_EQ(holding_space_model->items().size(), 1u);
   EXPECT_EQ(holding_space_model->items()[0].get(), item);
-  EXPECT_EQ(item->file_path(), dst);
+  EXPECT_EQ(item->file().file_path, dst);
 
   std::swap(src_dir, dst_dir);
   std::swap(src, dst);
@@ -639,7 +645,7 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
     // checks have run.
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(base::DeleteFile(
-        in_progress_holding_space_item_to_delete->file_path()));
+        in_progress_holding_space_item_to_delete->file().file_path));
   }
 
   // Create a completed `holding_space_item_to_delete`.
@@ -653,7 +659,7 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
       holding_space_item_to_delete, base::BindLambdaForTesting([&]() {
         base::ScopedAllowBlockingForTesting allow_blocking;
         EXPECT_TRUE(
-            base::DeleteFile(holding_space_item_to_delete->file_path()));
+            base::DeleteFile(holding_space_item_to_delete->file().file_path));
       }));
 
   // Now that scheduled validity checks have run, verify that the in-progress
@@ -673,9 +679,10 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
     // space item still exists after we are sure that scheduled validity checks
     // have run.
     base::ScopedAllowBlockingForTesting allow_blocking;
-    EXPECT_TRUE(base::Move(in_progress_holding_space_item_to_move->file_path(),
-                           GetTestMountPoint().Append(
-                               base::UnguessableToken::Create().ToString())));
+    EXPECT_TRUE(
+        base::Move(in_progress_holding_space_item_to_move->file().file_path,
+                   GetTestMountPoint().Append(
+                       base::UnguessableToken::Create().ToString())));
   }
 
   // Create a completed `holding_space_item_to_move`.
@@ -689,7 +696,7 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
       holding_space_item_to_move, base::BindLambdaForTesting([&]() {
         base::ScopedAllowBlockingForTesting allow_blocking;
         EXPECT_TRUE(
-            base::Move(holding_space_item_to_move->file_path(),
+            base::Move(holding_space_item_to_move->file().file_path,
                        GetTestMountPoint().Append(
                            base::UnguessableToken::Create().ToString())));
       }));
@@ -723,7 +730,7 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
       base::BindLambdaForTesting([&]() {
         base::ScopedAllowBlockingForTesting allow_blocking;
         EXPECT_TRUE(base::DeleteFile(
-            in_progress_holding_space_item_to_complete->file_path()));
+            in_progress_holding_space_item_to_complete->file().file_path));
       }));
 }
 
@@ -769,30 +776,35 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceFlexibleFsBrowserTest,
   WaitForItemInitialization(
       base::BindLambdaForTesting([this](const HoldingSpaceItem* item) {
         return item->type() == HoldingSpaceItem::Type::kDownload &&
-               item->file_path() == GetPredefinedTestFile(0);
+               item->file().file_path == GetPredefinedTestFile(0);
       }));
 }
 
 // HoldingSpaceKeyedServiceLacrosBrowserTest -----------------------------------
 
+// TODO(http://b/306459683): Remove the code that relates to the download
+// controller when the downloads integration V2 feature is enabled.
 class HoldingSpaceKeyedServiceLacrosBrowserTest
     : public HoldingSpaceKeyedServiceBrowserTest,
       public ::testing::WithParamInterface<
           std::tuple<FileSystemType,
                      /*from_incognito_profile=*/bool,
-                     /*in_progress_downloads_eligible_client=*/bool>> {
+                     /*in_progress_downloads_eligible_client=*/bool,
+                     /*enable_downloads_integration_v2=*/bool>> {
  public:
   HoldingSpaceKeyedServiceLacrosBrowserTest()
       : HoldingSpaceKeyedServiceBrowserTest(std::get<0>(GetParam())) {
-    std::vector<base::test::FeatureRef> enabled_features;
-    std::vector<base::test::FeatureRef> disabled_features;
-
-    scoped_feature_list.InitWithFeatures(enabled_features, disabled_features);
+    scoped_feature_list.InitWithFeatureState(
+        features::kSysUiDownloadsIntegrationV2,
+        IsDownloadsIntegrationV2Enabled());
   }
 
   bool FromIncognitoProfile() const { return std::get<1>(GetParam()); }
   bool InProgressDownloadsEligibleClient() const {
     return std::get<2>(GetParam());
+  }
+  bool IsDownloadsIntegrationV2Enabled() const {
+    return std::get<3>(GetParam());
   }
 
   crosapi::DownloadControllerAsh* download_controller() {
@@ -811,7 +823,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(FileSystemType::kDownloads, FileSystemType::kDriveFs),
         /*from_incognito_profile=*/::testing::Bool(),
-        /*in_progress_downloads_eligible_client=*/::testing::Bool()));
+        /*in_progress_downloads_eligible_client=*/::testing::Bool(),
+        /*enable_downloads_integration_v2=*/::testing::Bool()));
 
 // Tests -----------------------------------------------------------------------
 
@@ -849,13 +862,14 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceLacrosBrowserTest,
 
   // In-progress downloads should only be added to holding space if the Lacros
   // client owning the download is supported.
-  if (InProgressDownloadsEligibleClient()) {
+  if (!IsDownloadsIntegrationV2Enabled() &&
+      InProgressDownloadsEligibleClient()) {
     ASSERT_EQ(1u, model->items().size());
     const auto& download_item = model->items().front();
     EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kLacrosDownload);
-    EXPECT_EQ(download_item->file_path(), download->full_path);
+    EXPECT_EQ(download_item->file().file_path, download->full_path);
   } else {
-    ASSERT_EQ(0u, model->items().size());
+    EXPECT_EQ(0u, model->items().size());
   }
 
   // Complete `download` and notify observers.
@@ -863,10 +877,14 @@ IN_PROC_BROWSER_TEST_P(HoldingSpaceKeyedServiceLacrosBrowserTest,
   download->full_path = download->target_file_path;
   download_controller()->OnDownloadUpdated(download.Clone());
 
-  // Completed downloads should always be added to holding space.
-  const auto& download_item = model->items().front();
-  EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kLacrosDownload);
-  EXPECT_EQ(download_item->file_path(), download->full_path);
+  if (!IsDownloadsIntegrationV2Enabled()) {
+    // Completed downloads should always be added to holding space.
+    const auto& download_item = model->items().front();
+    EXPECT_EQ(download_item->type(), HoldingSpaceItem::Type::kLacrosDownload);
+    EXPECT_EQ(download_item->file().file_path, download->full_path);
+  } else {
+    EXPECT_EQ(0u, model->items().size());
+  }
 }
 
 }  // namespace ash

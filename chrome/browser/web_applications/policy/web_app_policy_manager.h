@@ -9,12 +9,12 @@
 #include <string>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/web_applications/externally_installed_web_app_prefs.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -36,8 +36,9 @@ class PrefRegistrySyncable;
 
 namespace web_app {
 
-class WebAppSyncBridge;
-class OsIntegrationManager;
+BASE_DECLARE_FEATURE(kDesktopPWAsForceUnregisterOSIntegration);
+
+class WebAppProvider;
 
 // Policy installation allows enterprise admins to control and manage
 // Web Apps on behalf of their managed users. This class tracks the policy that
@@ -57,15 +58,16 @@ class WebAppPolicyManager {
   WebAppPolicyManager& operator=(const WebAppPolicyManager&) = delete;
   ~WebAppPolicyManager();
 
-  void SetSubsystems(
-      ExternallyManagedAppManager* externally_managed_app_manager,
-      WebAppRegistrar* app_registrar,
-      WebAppSyncBridge* sync_bridge,
-      OsIntegrationManager* os_integration_manager);
+  void set_provider(base::PassKey<WebAppProvider>, WebAppProvider& provider) {
+    provider_ = &provider;
+  }
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   void SetSystemWebAppDelegateMap(
       const ash::SystemWebAppDelegateMap* system_web_apps_delegate_map);
 #endif
+
+  void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
 
   // `policy_settings_and_force_installs_applied_` waits for the first
   // `SynchronizeInstalledApps` to finish if it's triggered on `Start`.
@@ -87,15 +89,16 @@ class WebAppPolicyManager {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   // Gets ids of web apps disabled by SystemFeaturesDisableList policy.
-  const std::set<AppId>& GetDisabledWebAppsIds() const;
+  const std::set<webapps::AppId>& GetDisabledWebAppsIds() const;
 
   // Checks if web app is disabled by SystemFeaturesDisableList policy.
-  bool IsWebAppInDisabledList(const AppId& app_id) const;
+  bool IsWebAppInDisabledList(const webapps::AppId& app_id) const;
 
   // Checks if UI mode of disabled web apps is hidden.
   bool IsDisabledAppsModeHidden() const;
 
-  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(const AppId& app_id) const;
+  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(
+      const webapps::AppId& app_id) const;
 
   void SetOnAppsSynchronizedCompletedCallbackForTesting(
       base::OnceClosure callback);
@@ -107,7 +110,9 @@ class WebAppPolicyManager {
   void MaybeOverrideManifest(content::RenderFrameHost* frame_host,
                              blink::mojom::ManifestPtr& manifest) const;
 
-  bool IsPreventCloseEnabled(const AppId& app_id) const;
+  bool IsPreventCloseEnabled(const webapps::AppId& app_id) const;
+
+  void RefreshPolicyInstalledAppsForTesting();
 
  private:
   friend class WebAppPolicyManagerTest;
@@ -118,11 +123,12 @@ class WebAppPolicyManager {
     WebAppSetting& operator=(const WebAppSetting&) = default;
     ~WebAppSetting() = default;
 
-    bool Parse(const base::Value& dict, bool for_default_settings);
+    bool Parse(const base::Value::Dict& dict, bool for_default_settings);
     void ResetSettings();
 
     RunOnOsLoginPolicy run_on_os_login_policy;
     bool prevent_close;
+    bool force_unregister_os_integration = false;
   };
 
   struct CustomManifestValues {
@@ -151,12 +157,17 @@ class WebAppPolicyManager {
       std::map<GURL, ExternallyManagedAppManager::InstallResult>
           install_results,
       std::map<GURL, bool> uninstall_results);
+
   void ApplyPolicySettings();
+  void ApplyRunOnOsLoginPolicySettings(
+      base::OnceClosure policy_settings_applied_callback);
+  void ApplyForceOSUnregistrationPolicySettings(
+      base::OnceClosure policy_settings_applied_callback);
 
   void OverrideManifest(const GURL& custom_values_key,
                         blink::mojom::ManifestPtr& manifest) const;
-  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicyByUnhashedAppId(
-      const std::string& unhashed_app_id) const;
+  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicyByManifestId(
+      const std::string& manifest_id) const;
 
   // Parses install options from a `base::Value::Dict`, which represents one
   // entry of the kWepAppInstallForceList. If the value contains a custom_name
@@ -168,28 +179,33 @@ class WebAppPolicyManager {
 
   void OnDisableModePolicyChanged();
 
-  void OnSyncPolicySettingsCommandsComplete(std::vector<std::string> app_ids);
+  void OnSyncPolicySettingsCommandsComplete();
 
   // Populates ids lists of web apps disabled by SystemFeaturesDisableList
   // policy.
   void PopulateDisabledWebAppsIdsLists();
   void OnWebAppForceInstallPolicyParsed();
 
-  raw_ptr<Profile> profile_;
-  raw_ptr<PrefService> pref_service_;
+  // An error loaded policy app is one that:
+  // 1. Is installed as a legit non-placeholder app from a policy install URL.
+  // 2. Has a start_url that matches the policy install URL.
+  // 3. Has an empty manifest URL.
+  // This usually happened before crbug.com/1440946 was fixed, when URL loading
+  // failures of 4xx and 5xx HTTP errors were not treated erroneously, leading
+  // to an app that is installed with an invalid start URL. This has an unique
+  // id compared to its default app counterpart (if any), and is hence treated
+  // as a valid app w.r.t to the web apps system even though it is invalid.
+  bool IsMaybeErrorLoadedPolicyApp(const webapps::AppId& app_id,
+                                   const GURL& policy_install_url);
 
-  // Used to install, uninstall, and update apps. Should outlive this class
-  // (owned by WebAppProvider).
-  raw_ptr<ExternallyManagedAppManager> externally_managed_app_manager_ =
-      nullptr;
-  raw_ptr<WebAppRegistrar> app_registrar_ = nullptr;
-  raw_ptr<WebAppSyncBridge> sync_bridge_ = nullptr;
+  raw_ptr<Profile> profile_ = nullptr;
+  raw_ptr<PrefService> pref_service_ = nullptr;
+  raw_ptr<WebAppProvider> provider_ = nullptr;
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   raw_ptr<const ash::SystemWebAppDelegateMap, DanglingUntriaged>
       system_web_apps_delegate_map_ = nullptr;
 #endif
-  raw_ptr<OsIntegrationManager, DanglingUntriaged> os_integration_manager_ =
-      nullptr;
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
 
@@ -199,7 +215,7 @@ class WebAppPolicyManager {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   // List of disabled system and progressive web apps, containing app ids.
-  std::set<AppId> disabled_web_apps_;
+  std::set<webapps::AppId> disabled_web_apps_;
 
   // Testing callbacks
   base::OnceClosure refresh_policy_settings_completed_;
@@ -211,8 +227,6 @@ class WebAppPolicyManager {
   base::flat_map<std::string, WebAppSetting> settings_by_url_;
   base::flat_map<GURL, CustomManifestValues> custom_manifest_values_by_url_;
   std::unique_ptr<WebAppSetting> default_settings_;
-
-  ExternallyInstalledWebAppPrefs externally_installed_app_prefs_;
 
   base::OnceClosure policy_settings_and_force_installs_applied_;
 

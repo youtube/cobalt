@@ -9,13 +9,29 @@
 #include <string>
 
 #include "base/values.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/frame.mojom-forward.h"
+#include "extensions/common/mojom/message_port.mojom-forward.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "services/accessibility/public/mojom/accessibility_service.mojom.h"
+
+namespace base {
+class Uuid;
+}
+
+namespace blink {
+class WebServiceWorkerContextProxy;
+}
 
 namespace extensions {
 
+namespace mojom {
 enum class ChannelType;
+}
+
 class ScriptContext;
 class WorkerThreadDispatcher;
 struct Message;
@@ -38,9 +54,10 @@ class IPCMessageSender {
   virtual void SendRequestIPC(ScriptContext* context,
                               mojom::RequestParamsPtr params) = 0;
 
-  // Handles sending any additional messages required after receiving a response
-  // to a request.
-  virtual void SendOnRequestResponseReceivedIPC(int request_id) = 0;
+  // Sends an "ack" back to the browser that the response to an API request was
+  // received.
+  virtual void SendResponseAckIPC(ScriptContext* context,
+                                  const base::Uuid& request_uuid) = 0;
 
   // Sends a message to add/remove an unfiltered listener.
   virtual void SendAddUnfilteredEventListenerIPC(
@@ -69,14 +86,23 @@ class IPCMessageSender {
       const base::Value::Dict& filter,
       bool remove_lazy_listener) = 0;
 
-  // Opens a message channel to the specified target.
-  virtual void SendOpenMessageChannel(ScriptContext* script_context,
-                                      const PortId& port_id,
-                                      const MessageTarget& target,
-                                      ChannelType channel_type,
-                                      const std::string& channel_name) = 0;
+  // Sends a message to bind a pipe for the Automation API.
+  virtual void SendBindAutomationIPC(
+      ScriptContext* context,
+      mojo::PendingAssociatedRemote<ax::mojom::Automation> pending_remote) = 0;
 
-  // Sends a message to open/close a mesage port or send a message to an
+  // Opens a message channel to the specified target.
+  virtual void SendOpenMessageChannel(
+      ScriptContext* script_context,
+      const PortId& port_id,
+      const MessageTarget& target,
+      mojom::ChannelType channel_type,
+      const std::string& channel_name,
+      mojo::PendingAssociatedRemote<mojom::MessagePort> port,
+      mojo::PendingAssociatedReceiver<mojom::MessagePortHost> port_host) = 0;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+  // Sends a message to open/close a message port or send a message to an
   // existing port.
   virtual void SendOpenMessagePort(int routing_id, const PortId& port_id) = 0;
   virtual void SendCloseMessagePort(int routing_id,
@@ -89,6 +115,7 @@ class IPCMessageSender {
   // plans to send a response later.
   virtual void SendMessageResponsePending(int routing_id,
                                           const PortId& port_id) = 0;
+#endif
 
   // Sends activityLog IPC to the browser process.
   virtual void SendActivityLogIPC(const ExtensionId& extension_id,
@@ -103,6 +130,7 @@ class IPCMessageSender {
   // Creates an IPCMessageSender for use on a worker thread.
   static std::unique_ptr<IPCMessageSender> CreateWorkerThreadIPCMessageSender(
       WorkerThreadDispatcher* dispatcher,
+      blink::WebServiceWorkerContextProxy* context_proxy,
       int64_t service_worker_version_id);
 
  protected:

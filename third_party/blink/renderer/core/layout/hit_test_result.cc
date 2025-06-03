@@ -58,6 +58,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 HitTestResult::HitTestResult()
     : hit_test_request_(HitTestRequest::kReadOnly | HitTestRequest::kActive),
       cacheable_(true),
@@ -223,7 +225,7 @@ PositionWithAffinity HitTestResult::GetPositionForInnerNodeOrImageMapImage()
   return position;
 }
 
-void HitTestResult::SetToShadowHostIfInRestrictedShadowRoot() {
+void HitTestResult::SetToShadowHostIfInUAShadowRoot() {
   Node* node = InnerNode();
   if (!node)
     return;
@@ -233,9 +235,7 @@ void HitTestResult::SetToShadowHostIfInRestrictedShadowRoot() {
 
   // Consider a closed shadow tree of SVG's <use> element as a special
   // case so that a toolip title in the shadow tree works.
-  while (containing_shadow_root &&
-         (containing_shadow_root->IsUserAgent() ||
-          IsA<SVGUseElement>(containing_shadow_root->host()))) {
+  while (containing_shadow_root && containing_shadow_root->IsUserAgent()) {
     shadow_host = &containing_shadow_root->host();
     containing_shadow_root = shadow_host->ContainingShadowRoot();
     // TODO(layout-dev): Not updating local_point_ here seems like a mistake?
@@ -420,12 +420,13 @@ KURL HitTestResult::AbsoluteImageURL(const Node* node) {
   auto* html_input_element = DynamicTo<HTMLInputElement>(node);
   if (IsA<HTMLImageElement>(*node) ||
       (html_input_element &&
-       html_input_element->type() == input_type_names::kImage))
+       html_input_element->FormControlType() == FormControlType::kInputImage)) {
     url_string = To<Element>(*node).ImageSourceURL();
-  else if ((node->GetLayoutObject() && node->GetLayoutObject()->IsImage()) &&
-           (IsA<HTMLEmbedElement>(*node) || IsA<HTMLObjectElement>(*node) ||
-            IsA<SVGImageElement>(*node)))
+  } else if ((node->GetLayoutObject() && node->GetLayoutObject()->IsImage()) &&
+             (IsA<HTMLEmbedElement>(*node) || IsA<HTMLObjectElement>(*node) ||
+              IsA<SVGImageElement>(*node))) {
     url_string = To<Element>(*node).ImageSourceURL();
+  }
   if (url_string.empty())
     return KURL();
 

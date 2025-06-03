@@ -9,7 +9,6 @@ import android.text.TextUtils;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.IntentUtils;
-import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.CustomTabNavigationEventObserver;
 import org.chromium.chrome.browser.customtabs.CustomTabObserver;
@@ -67,7 +66,7 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
                         getGurlForUrl(params.getUrl()), passwordChangeUsername);
             }
 
-            mNavigationController.navigate(params, getTimestamp(intentDataProvider));
+            mNavigationController.navigate(params, intentDataProvider.getIntent());
         }
     }
 
@@ -99,7 +98,12 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
 
         // No actual load to do if the hidden tab already has the exact correct url.
         String speculatedUrl = mTabProvider.getSpeculatedUrl();
-        if (TextUtils.equals(speculatedUrl, url)) {
+
+        boolean useSpeculation = TextUtils.equals(speculatedUrl, url);
+        boolean hasCommitted = !tab.getWebContents().getLastCommittedUrl().isEmpty();
+        mCustomTabObserver.get().trackNextPageLoadForHiddenTab(
+                useSpeculation, hasCommitted, intentDataProvider.getIntent());
+        if (useSpeculation) {
             if (tab.isLoading()) {
                 // CustomTabObserver and CustomTabActivityNavigationObserver are attached
                 // as observers in CustomTabActivityTabController, not when the navigation is
@@ -120,7 +124,7 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
             params.setShouldReplaceCurrentEntry(true);
         }
 
-        mNavigationController.navigate(params, getTimestamp(intentDataProvider));
+        mNavigationController.navigate(params, intentDataProvider.getIntent());
     }
 
     @Override
@@ -137,10 +141,6 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
             params.setShouldClearHistoryList(true);
         }
 
-        mNavigationController.navigate(params, getTimestamp(intentDataProvider));
-    }
-
-    private long getTimestamp(BrowserServicesIntentDataProvider intentDataProvider) {
-        return IntentHandler.getTimestampFromIntent(intentDataProvider.getIntent());
+        mNavigationController.navigate(params, intentDataProvider.getIntent());
     }
 }

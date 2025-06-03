@@ -16,8 +16,8 @@
 #include "components/optimization_guide/proto/page_entities_model_metadata.pb.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
 #endif
 
 // IMPORTANT: All functions in this file that call dlsym()'ed
@@ -86,8 +86,8 @@ EntityAnnotatorNativeLibrary::Create(bool should_provide_filter_path) {
   base::FilePath base_dir;
 #if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_MAC)
-  if (base::mac::AmIBundled()) {
-    base_dir = base::mac::FrameworkBundlePath().Append("Libraries");
+  if (base::apple::AmIBundled()) {
+    base_dir = base::apple::FrameworkBundlePath().Append("Libraries");
   } else {
 #endif  // BUILDFLAG(IS_MAC)
     if (!base::PathService::Get(base::DIR_MODULE, &base_dir)) {

@@ -146,30 +146,31 @@ Type::bitset Type::BitsetLub() const {
 template <typename MapRefLike>
 Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
   switch (map.instance_type()) {
-    case CONS_STRING_TYPE:
+    case CONS_TWO_BYTE_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
-    case THIN_STRING_TYPE:
-    case SLICED_STRING_TYPE:
+    case THIN_TWO_BYTE_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
+    case SLICED_TWO_BYTE_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_TYPE:
+    case EXTERNAL_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_STRING_TYPE:
+    case UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
-    case SHARED_STRING_TYPE:
-    case SHARED_EXTERNAL_STRING_TYPE:
-    case SHARED_ONE_BYTE_STRING_TYPE:
+    case SEQ_TWO_BYTE_STRING_TYPE:
+    case SEQ_ONE_BYTE_STRING_TYPE:
+    case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
+    case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
+    case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHARED_UNCACHED_EXTERNAL_STRING_TYPE:
+    case SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
       return kString;
-    case EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case INTERNALIZED_STRING_TYPE:
-    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
+    case INTERNALIZED_TWO_BYTE_STRING_TYPE:
+    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
       return kInternalizedString;
     case SYMBOL_TYPE:
       return kSymbol;
@@ -179,19 +180,17 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
       switch (map.oddball_type(broker)) {
         case OddballType::kNone:
           break;
-        case OddballType::kHole:
-          return kHole;
         case OddballType::kBoolean:
           return kBoolean;
         case OddballType::kNull:
           return kNull;
         case OddballType::kUndefined:
           return kUndefined;
-        case OddballType::kUninitialized:
-        case OddballType::kOther:
-          // TODO(neis): We should add a kOtherOddball type.
-          return kOtherInternal;
       }
+      UNREACHABLE();
+    case HOLE_TYPE:
+      // Holes have a single map and we should have distinguished them earlier
+      // by pointer comparison on the value.
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
@@ -344,6 +343,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case ACCESSOR_PAIR_TYPE:
     case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
+    case CLASS_BOILERPLATE_TYPE:
     case PROPERTY_DESCRIPTOR_OBJECT_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -917,6 +917,9 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
+  if (ref.HoleType() != HoleType::kNone) {
+    return Type::Hole();
+  }
   return HeapConstant(ref.AsHeapObject(), broker, zone);
 }
 
@@ -1157,6 +1160,7 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 // static
 Type Type::HeapConstant(HeapObjectRef value, JSHeapBroker* broker, Zone* zone) {
   DCHECK(!value.IsHeapNumber());
+  DCHECK_EQ(value.HoleType(), HoleType::kNone);
   DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
   BitsetType::bitset bitset =
       BitsetType::Lub(value.GetHeapObjectType(broker), broker);

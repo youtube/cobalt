@@ -10,8 +10,8 @@
 
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
@@ -41,7 +41,8 @@ enum class ManifestUpdateResult {
   kAppIdentityUpdateRejectedAndUninstalled = 16,
   kAppIsIsolatedWebApp = 17,
   kCancelledDueToMainFrameNavigation = 18,
-  kMaxValue = kCancelledDueToMainFrameNavigation,
+  kShortcutIgnoresManifest = 19,
+  kMaxValue = kShortcutIgnoresManifest,
 };
 
 std::ostream& operator<<(std::ostream& os, ManifestUpdateResult result);

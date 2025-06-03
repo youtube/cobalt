@@ -11,19 +11,16 @@
 #import "base/numerics/math_constants.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/time/time.h"
+#import "ios/chrome/browser/ntp/home/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/ui/content_suggestions/ntp_home_constant.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/grit/ios_theme_resources.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -902,7 +899,9 @@ const CGFloat kActionViewBackgroundColorBrightnessIncognito = 80.0 / 256.0;
   _style = style;
   switch (self.style) {
     case OverscrollStyle::NTP_NON_INCOGNITO:
-      self.backgroundColor = ntp_home::NTPBackgroundColor();
+      self.backgroundColor = IsMagicStackEnabled()
+                                 ? [UIColor clearColor]
+                                 : ntp_home::NTPBackgroundColor();
       break;
     case OverscrollStyle::NTP_INCOGNITO:
       self.backgroundColor = [UIColor colorWithWhite:0 alpha:0];

@@ -43,10 +43,10 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
 /**
@@ -54,9 +54,10 @@ import org.chromium.url.Origin;
  * properly loaded in Custom Tabs in different conditions.
  */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {CustomTabActivityUrlLoadingTest.ShadowOrigin.class})
-@DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-@EnableFeatures({ChromeFeatureList.OPAQUE_ORIGIN_FOR_INCOMING_INTENTS})
+@Config(
+        manifest = Config.NONE,
+        shadows = {CustomTabActivityUrlLoadingTest.ShadowOrigin.class})
+@DisableFeatures(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS)
 public class CustomTabActivityUrlLoadingTest {
     public static final String PASSWORD_CHANGE_USERNAME = "Peter";
 
@@ -72,29 +73,25 @@ public class CustomTabActivityUrlLoadingTest {
     public final CustomTabActivityContentTestEnvironment env =
             new CustomTabActivityContentTestEnvironment();
 
-    @Rule
-    public Features.JUnitProcessor processor = new Features.JUnitProcessor();
+    @Rule public Features.JUnitProcessor processor = new Features.JUnitProcessor();
 
-    @Mock
-    private Profile mProfile;
+    @Mock private Profile mProfile;
 
     private CustomTabActivityTabController mTabController;
     private CustomTabActivityNavigationController mNavigationController;
     private CustomTabIntentHandler mIntentHandler;
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
+    @Rule public JniMocker mocker = new JniMocker();
 
-    @Mock
-    UrlUtilities.Natives mUrlUtilitiesJniMock;
-    @Mock
-    PasswordChangeSuccessTrackerBridge.Natives mPasswordChangeSuccessTrackerBridge;
+    @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
+    @Mock PasswordChangeSuccessTrackerBridge.Natives mPasswordChangeSuccessTrackerBridge;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         mocker.mock(UrlUtilitiesJni.TEST_HOOKS, mUrlUtilitiesJniMock);
-        mocker.mock(PasswordChangeSuccessTrackerBridgeJni.TEST_HOOKS,
+        mocker.mock(
+                PasswordChangeSuccessTrackerBridgeJni.TEST_HOOKS,
                 mPasswordChangeSuccessTrackerBridge);
         Profile.setLastUsedProfileForTesting(mProfile);
         mTabController = env.createTabController();
@@ -155,7 +152,8 @@ public class CustomTabActivityUrlLoadingTest {
         env.changeTab(newTab);
 
         clearInvocations(env.tabFromFactory);
-        mNavigationController.navigate(OTHER_URL);
+        LoadUrlParams params = new LoadUrlParams(OTHER_URL);
+        mNavigationController.navigate(params, new Intent());
         verify(newTab).loadUrl(any());
         verify(env.tabFromFactory, never()).loadUrl(any());
     }
@@ -172,6 +170,7 @@ public class CustomTabActivityUrlLoadingTest {
     public void doesntLoadUrl_IfEqualsSpeculatedUrl_AndIsFirstLoad() {
         Tab hiddenTab = env.prepareHiddenTab();
         when(env.intentDataProvider.getUrlToLoad()).thenReturn(SPECULATED_URL);
+        when(env.webContents.getLastCommittedUrl()).thenReturn(GURL.emptyGURL());
         env.reachNativeInit(mTabController);
         verify(hiddenTab, never()).loadUrl(any());
     }
@@ -180,17 +179,19 @@ public class CustomTabActivityUrlLoadingTest {
     public void loadUrl_IfEqualsSpeculatedUrl_ButIsntFirstLoad() {
         Tab hiddenTab = env.prepareHiddenTab();
         when(env.intentDataProvider.getUrlToLoad()).thenReturn(OTHER_URL);
+        when(env.webContents.getLastCommittedUrl()).thenReturn(GURL.emptyGURL());
         env.reachNativeInit(mTabController);
 
         clearInvocations(env.tabFromFactory);
         LoadUrlParams params = new LoadUrlParams(SPECULATED_URL);
-        mNavigationController.navigate(params, 0);
+        mNavigationController.navigate(params, new Intent());
         verify(hiddenTab).loadUrl(params);
     }
 
     @Test
     public void loadsUrlInHiddenTab_IfExists() {
         Tab hiddenTab = env.prepareHiddenTab();
+        when(env.webContents.getLastCommittedUrl()).thenReturn(GURL.emptyGURL());
         env.reachNativeInit(mTabController);
         verify(hiddenTab).loadUrl(any());
     }

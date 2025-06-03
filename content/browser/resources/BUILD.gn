@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//device/vr/buildflags/buildflags.gni")
+
 group("resources") {
   public_deps = [
     "aggregation_service:resources",
@@ -9,6 +11,14 @@ group("resources") {
     "gpu:resources",
     "histograms:resources",
     "indexed_db:resources",
+    "net:resources",
+    "process:resources",
     "quota:resources",
+    "service_worker:resources",
+    "traces_internals:resources",
   ]
+
+  if (enable_vr) {
+    public_deps += [ "webxr_internals:resources" ]
+  }
 }

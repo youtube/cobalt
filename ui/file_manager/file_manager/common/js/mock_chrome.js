@@ -8,24 +8,24 @@
  */
 export function installMockChrome(mockChrome) {
   /** @suppress {const|checkTypes} */
+  // @ts-ignore: error TS2739: Type '{}' is missing the following properties
+  // from type 'typeof chrome': fileManagerPrivate, metricsPrivate, runtime,
+  // tabs
   window.chrome = window.chrome || {};
-  const metricsPrivate = mockChrome['metricsPrivate'] || getMetricsApiMock();
-  mockChrome['metricsPrivate'] = metricsPrivate;
+  // @ts-ignore: error TS2339: Property 'metricsPrivate' does not exist on type
+  // 'Object'.
+  mockChrome.metricsPrivate = mockChrome.metricsPrivate || new MockMetrics();
 
   const chrome = window.chrome;
   for (const [key, value] of Object.entries(mockChrome)) {
-    const target = chrome[key] || {};
-    chrome[key] = target;
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type 'typeof chrome'.
+    const target = chrome[key] || value;
     Object.assign(target, value);
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type 'typeof chrome'.
+    chrome[key] = target;
   }
-}
-
-export function getMetricsApiMock() {
-  return {
-    recordSmallCount() {},
-    recordPercentage() {},
-    recordValue() {},
-  };
 }
 
 /**
@@ -38,10 +38,16 @@ export class MockCommandLinePrivate {
       installMockChrome({});
     }
 
+    // @ts-ignore: error TS2339: Property 'commandLinePrivate' does not exist on
+    // type 'typeof chrome'.
     if (!chrome.commandLinePrivate) {
       /** @suppress {checkTypes, const} */
+      // @ts-ignore: error TS2339: Property 'commandLinePrivate' does not exist
+      // on type 'typeof chrome'.
       chrome.commandLinePrivate = {};
     }
+    // @ts-ignore: error TS7006: Parameter 'callback' implicitly has an 'any'
+    // type.
     chrome.commandLinePrivate.hasSwitch = (name, callback) => {
       window.setTimeout(() => {
         callback(name in this.flags_);
@@ -54,6 +60,8 @@ export class MockCommandLinePrivate {
    * @param {string} name of the switch to add.
    */
   addSwitch(name) {
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     this.flags_[name] = true;
   }
 }
@@ -63,14 +71,23 @@ export class MockCommandLinePrivate {
  */
 export class MockChromeStorageAPI {
   constructor() {
+    // @ts-ignore: error TS2315: Type 'Object' is not generic.
     /** @type {Object<?>} */
     this.state = {};
 
     /** @suppress {const} */
+    // @ts-ignore: error TS2739: Type '{}' is missing the following properties
+    // from type 'typeof chrome': fileManagerPrivate, metricsPrivate, runtime,
+    // tabs
     window.chrome = window.chrome || {};
     /** @suppress {const} */
+    // @ts-ignore: error TS2739: Type '{}' is missing the following properties
+    // from type 'typeof runtime': getURL, getManifest, lastError, id,
+    // onMessageExternal
     window.chrome.runtime = window.chrome.runtime || {};  // For lastError.
     /** @suppress {checkTypes, const} */
+    // @ts-ignore: error TS2339: Property 'storage' does not exist on type
+    // 'typeof chrome'.
     window.chrome.storage = {
       local: {
         get: this.get_.bind(this),
@@ -84,7 +101,7 @@ export class MockChromeStorageAPI {
 
   /**
    * @param {Array<string>|string} keys
-   * @param {function(Object<?>)} callback
+   * @param {function(Object):void} callback
    * @private
    */
   get_(keys, callback) {
@@ -92,6 +109,8 @@ export class MockChromeStorageAPI {
     const result = {};
     keys.forEach((key) => {
       if (key in this.state) {
+        // @ts-ignore: error TS7053: Element implicitly has an 'any' type
+        // because expression of type 'string' can't be used to index type '{}'.
         result[key] = this.state[key];
       }
     });
@@ -99,7 +118,7 @@ export class MockChromeStorageAPI {
   }
 
   /**
-   * @param {Object<?>} values
+   * @param {Record<string, any>} values
    * @param {function()=} opt_callback
    * @private
    */
@@ -121,27 +140,34 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
   constructor() {
     /**
      * Listeners attached to listen for directory changes.
-     * @private {!Array<!function(!Event)>}
+     * @private @type {!Array<!function(!Event):void>}
      * */
     this.listeners_ = [];
 
     /**
      * Mocked out size stats to return when testing.
-     * @private {!Object<string,
+     * @private @type {!Object<string,
      *     (!chrome.fileManagerPrivate.MountPointSizeStats|undefined)>}
      */
     this.sizeStats_ = {};
 
     /**
      * Mocked out drive quota metadata to return when testing.
-     * @private {!chrome.fileManagerPrivate.DriveQuotaMetadata|undefined}
+     * @private @type {!chrome.fileManagerPrivate.DriveQuotaMetadata|undefined}
      */
     this.driveQuotaMetadata_ = undefined;
 
     /** @suppress {const} */
+    // @ts-ignore: error TS2739: Type '{}' is missing the following properties
+    // from type 'typeof chrome': fileManagerPrivate, metricsPrivate, runtime,
+    // tabs
     window.chrome = window.chrome || {};
 
     /** @suppress {const} */
+    // @ts-ignore: error TS2740: Type '{}' is missing the following properties
+    // from type 'typeof fileManagerPrivate': setPreferences,
+    // getDriveConnectionState, PreferencesChange, DriveConnectionStateType, and
+    // 186 more.
     window.chrome.fileManagerPrivate = window.chrome.fileManagerPrivate || {};
 
     /** @suppress {const} */
@@ -170,7 +196,7 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
 
   /**
    * Store a copy of the listener to emit changes to
-   * @param {!function(!Event)} newListener
+   * @param {!function(!Event):void} newListener
    * @private
    */
   addListener_(newListener) {
@@ -179,7 +205,7 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
 
   /**
    *
-   * @param {!function(!Event)} listenerToRemove
+   * @param {!function(!Event):void} listenerToRemove
    * @private
    */
   removeListener_(listenerToRemove) {
@@ -194,16 +220,20 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
   /**
    * Returns the stubbed out file stats for a directory change.
    * @param {string} volumeId The underlying volumeId requesting size stats for.
-   * @param {!function((!chrome.fileManagerPrivate.MountPointSizeStats|undefined))}
+   * @param {!function((!chrome.fileManagerPrivate.MountPointSizeStats|undefined)):void}
    *     callback
    * @private
    */
   getSizeStats_(volumeId, callback) {
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     if (!this.sizeStats_[volumeId]) {
       callback(undefined);
       return;
     }
 
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     callback(this.sizeStats_[volumeId]);
   }
 
@@ -214,6 +244,8 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
    *     sizeStats
    */
   setVolumeSizeStats(volumeId, sizeStats) {
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     this.sizeStats_[volumeId] = sizeStats;
   }
 
@@ -223,16 +255,19 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
    * @param {string} volumeId The volumeId to unset.
    */
   unsetVolumeSizeStats(volumeId) {
+    // @ts-ignore: error TS7053: Element implicitly has an 'any' type because
+    // expression of type 'string' can't be used to index type '{}'.
     delete this.sizeStats_[volumeId];
   }
 
   /**
    * Returns the stubbed out drive quota metadata for a directory change.
    * @param {Entry} entry
-   * @param {!function((!chrome.fileManagerPrivate.DriveQuotaMetadata|undefined))}
+   * @param {!function((!chrome.fileManagerPrivate.DriveQuotaMetadata|undefined)):void}
    *     callback
    * @private
    */
+  // @ts-ignore: error TS6133: 'entry' is declared but its value is never read.
   getDriveQuotaMetadata_(entry, callback) {
     callback(this.driveQuotaMetadata_);
   }
@@ -260,10 +295,115 @@ export class MockChromeFileManagerPrivateDirectoryChanged {
    */
   dispatchOnDirectoryChanged() {
     const event = new Event('fake-event');
+    // @ts-ignore: error TS2339: Property 'entry' does not exist on type
+    // 'Event'.
     event.entry = 'fake-entry';
 
     for (const listener of this.listeners_) {
       listener(event);
     }
+  }
+}
+
+/**
+ * Mock for chrome.metricsPrivate.
+ *
+ * It records the method calls made to chrome.metricsPrivate.
+ *
+ * Typical usage:
+ * const mockMetrics = new MockMetrics();
+ *
+ * // NOTE: installMockChrome() mocks metricsPrivate by default, which useful
+ * when you don't want to check the calls to metrics.
+ * installMockChrome({
+ *   metricsPrivate: mockMetrics,
+ * });
+ *
+ * // Run the code under test:
+ * Then check the calls made to metrics private using either:
+ * mockMetrics.apiCalls
+ * mockMetrics.metricCalls
+ */
+export class MockMetrics {
+  constructor() {
+    /**
+     * Maps the API name to every call which is an array of the call arguments.
+     * @type {!Record<string, undefined|!Array<*>>}
+     *
+     */
+    this.apiCalls = {};
+
+    /**
+     * Maps the metric names to every call with its arguments, similar to
+     * `apiCalls` but recorded by metric instead of API method.
+     * @type {!Record<string, undefined|!Array<*>>}
+     *
+     */
+    this.metricCalls = {};
+
+    // The API has this enum which referenced in the code.
+    this.MetricTypeType = {
+      'HISTOGRAM_LINEAR': 'HISTOGRAM_LINEAR',
+    };
+  }
+
+  // @ts-ignore: error TS7006: Parameter 'args' implicitly has an 'any' type.
+  call(apiName, args) {
+    console.log(apiName, args);
+    this.apiCalls[apiName] = this.apiCalls[apiName] || [];
+    this.apiCalls[apiName]?.push(args);
+    if (args.length > 0) {
+      let metricName = args[0];
+      // Ignore the first position because it's the metric name.
+      let metricArgs = args.slice(1);
+      // Some APIs uses `metricName` instead of first argument.
+      if (metricName.metricName) {
+        metricArgs = [metricName, ...metricArgs];
+        metricName = metricName.metricName;
+      }
+      this.metricCalls[metricName] = this.metricCalls[metricName] || [];
+      this.metricCalls[metricName]?.push(metricArgs);
+    }
+  }
+
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordMediumCount(...args) {
+    this.call('recordMediumCount', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordSmallCount(...args) {
+    this.call('recordSmallCount', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordTime(...args) {
+    this.call('recordTime', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordBoolean(...args) {
+    this.call('recordBoolean', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordUserAction(...args) {
+    this.call('recordUserAction', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordValue(...args) {
+    this.call('recordValue', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordInterval(...args) {
+    this.call('recordInterval', args);
+  }
+  // @ts-ignore: error TS7019: Rest parameter 'args' implicitly has an 'any[]'
+  // type.
+  recordEnum(...args) {
+    this.call('recordEnum', args);
   }
 }

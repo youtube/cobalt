@@ -58,14 +58,23 @@
        "A9A9FC0228ADF541F0334F22BEFB8F9C245B21D7"   // http://crbug.com/839189
     ]
   },
+  "accessibilityServicePrivate": {
+    "dependencies": ["permission:accessibilityServicePrivate"],
+    "channel": "stable",
+    "contexts": ["blessed_extension"],
+    "platforms": ["chromeos", "lacros"]
+  },
   "action": {
     "dependencies": ["manifest:action"],
     "contexts": ["blessed_extension"]
   },
-  "action.openPopup": {
+  "action.openPopup": [{
     // TODO(https://crbug.com/1245093): Upgrade to stable channel.
     "channel": "dev"
-  },
+  }, {
+    "channel": "stable",
+    "location": "policy"
+  }],
   "action.isEnabled": {
     "channel": "stable"
   },
@@ -222,7 +231,7 @@
     "matches": [
       "chrome://version/*"
     ],
-    "platforms": ["chromeos"]
+    "platforms": ["chromeos", "lacros"]
   }],
   "chromeWebViewInternal": [{
     "internal": true,
@@ -309,8 +318,7 @@
   },
   "debugger": {
     "dependencies": ["permission:debugger"],
-    "contexts": ["blessed_extension"],
-    "developer_mode_only": true
+    "contexts": ["blessed_extension"]
   },
   "declarativeContent": {
     "dependencies": ["permission:declarativeContent"],
@@ -571,12 +579,12 @@
     "dependencies": ["permission:identity"],
     "contexts": ["blessed_extension"]
   },
-  "identityPrivate": {
-    "dependencies": ["permission:identityPrivate"],
-    "contexts": ["blessed_extension"]
-  },
   "idltest": {
     "dependencies": ["permission:idltest"],
+    "contexts": ["blessed_extension"]
+  },
+  "imageLoaderPrivate": {
+    "dependencies": ["permission:imageLoaderPrivate"],
     "contexts": ["blessed_extension"]
   },
   "input.ime": {
@@ -615,8 +623,7 @@
   }],
   "login": {
     "dependencies": ["permission:login"],
-    "contexts": ["blessed_extension"],
-    "disallow_for_service_workers": true
+    "contexts": ["blessed_extension"]
   },
   "loginScreenStorage": {
     "dependencies": ["permission:loginScreenStorage"],
@@ -744,6 +751,11 @@
     ],
     "platforms": ["chromeos", "lacros"]
   },
+  "readingList": {
+    "dependencies": ["permission:readingList"],
+    "contexts": ["blessed_extension"],
+    "feature_flag": "ApiReadingList"
+  },
   "resourcesPrivate": [{
     "dependencies": ["permission:resourcesPrivate"],
     "contexts": ["blessed_extension"]
@@ -795,6 +807,15 @@
     "dependencies": ["permission:sidePanel"],
     "contexts": ["blessed_extension"]
   },
+  "sidePanel.open": [{
+    "feature_flag": "ApiSidePanelOpen"
+  }, {
+    "allowlist": [
+      // Note: this list is also enforced in the sidePanel.open() implementation
+      // as a sanity check.
+      "3CEFE7915CDBD48D769E214807ACAA51581724A0"  // https://crbug.com/1446731
+    ]
+  }],
   "smartCardProviderPrivate": {
     "dependencies": ["permission:smartCardProviderPrivate"],
     "contexts": ["blessed_extension"]
@@ -817,7 +838,9 @@
   },
   "tabCapture": {
     "dependencies": ["permission:tabCapture"],
-    "contexts": ["blessed_extension"],
+    "contexts": ["blessed_extension"]
+  },
+  "tabCapture.capture": {
     "disallow_for_service_workers": true
   },
   "tabGroups": {

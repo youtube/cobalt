@@ -7,9 +7,11 @@ package org.chromium.chrome.browser.price_tracking;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.FeatureList;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
 
 /** Utility class for price tracking. */
 public class PriceTrackingUtilities {
@@ -35,7 +37,7 @@ public class PriceTrackingUtilities {
 
     @VisibleForTesting
     public static final SharedPreferencesManager SHARED_PREFERENCES_MANAGER =
-            SharedPreferencesManager.getInstance();
+            ChromeSharedPreferences.getInstance();
 
     /**
      * Update SharedPreferences when users turn on/off the feature tracking prices on tabs.
@@ -47,10 +49,11 @@ public class PriceTrackingUtilities {
     /**
      * @return Whether the track prices on tabs is turned on by users.
      */
-    public static boolean isTrackPricesOnTabsEnabled() {
-        return PriceTrackingFeatures.isPriceTrackingEligible()
+    public static boolean isTrackPricesOnTabsEnabled(Profile profile) {
+        return PriceTrackingFeatures.isPriceTrackingEligible(profile)
                 && SHARED_PREFERENCES_MANAGER.readBoolean(
-                        TRACK_PRICES_ON_TABS, PriceTrackingFeatures.isPriceTrackingEnabled());
+                        TRACK_PRICES_ON_TABS,
+                        PriceTrackingFeatures.isPriceTrackingEnabled(profile));
     }
 
     /**
@@ -63,10 +66,11 @@ public class PriceTrackingUtilities {
     /**
      * @return Whether the PriceWelcomeMessageCard is enabled.
      */
-    public static boolean isPriceWelcomeMessageCardEnabled() {
-        return PriceTrackingFeatures.isPriceTrackingEligible()
+    public static boolean isPriceWelcomeMessageCardEnabled(Profile profile) {
+        return PriceTrackingFeatures.isPriceTrackingEligible(profile)
                 && SHARED_PREFERENCES_MANAGER.readBoolean(
-                        PRICE_WELCOME_MESSAGE_CARD, PriceTrackingFeatures.isPriceTrackingEnabled());
+                        PRICE_WELCOME_MESSAGE_CARD,
+                        PriceTrackingFeatures.isPriceTrackingEnabled(profile));
     }
 
     /**
@@ -94,13 +98,14 @@ public class PriceTrackingUtilities {
     // TODO(crbug.com/1326572): Needs to rethink these conditions before starting implicit tracking.
     /**
      * @return Whether the PriceAlertsMessageCard is enabled. We don't show this message card if
-     *         user can already receive price drop notifications, see {@link
-     *         PriceDropNotificationManager#canPostNotification()}.
+     *     user can already receive price drop notifications, see {@link
+     *     PriceDropNotificationManager#canPostNotification()}.
      */
-    public static boolean isPriceAlertsMessageCardEnabled() {
+    public static boolean isPriceAlertsMessageCardEnabled(Profile profile) {
         return isImplicitSubscriptionsEnabled()
                 && SHARED_PREFERENCES_MANAGER.readBoolean(
-                        PRICE_ALERTS_MESSAGE_CARD, PriceTrackingFeatures.isPriceTrackingEnabled());
+                        PRICE_ALERTS_MESSAGE_CARD,
+                        PriceTrackingFeatures.isPriceTrackingEnabled(profile));
     }
 
     /**

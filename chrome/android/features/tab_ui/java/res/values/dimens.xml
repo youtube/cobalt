@@ -43,6 +43,7 @@ found in the LICENSE file.
     <dimen name="selection_tab_list_toggle_button_vertical_inset">22dp</dimen>
     <dimen name="tab_carousel_card_width">168dp</dimen>
     <dimen name="tasks_view_items_vertical_spacing">8dp</dimen>
+    <dimen name="tab_thumbnail_placeholder_vertical_offset">2dp</dimen>
 
     <!-- Dimens for incognito reauth promo message icon -->
     <dimen name="incognito_reauth_promo_message_icon_width">52dp</dimen>
@@ -66,7 +67,7 @@ found in the LICENSE file.
     <dimen name="tab_grid_dialog_app_bar_padding">8dp</dimen>
 
     <!-- Elevation -->
-    <dimen name="tab_bg_elevation">@dimen/default_elevation_4</dimen>
+    <dimen name="tab_bg_elevation">@dimen/default_elevation_5</dimen>
 
     <integer name="tab_thumbnail_placeholder_color_alpha">255</integer>
     <integer name="tab_thumbnail_placeholder_selected_color_alpha">38</integer>
@@ -79,8 +80,19 @@ found in the LICENSE file.
     <dimen name="tasks_surface_location_bar_url_button_size"> 20dp</dimen>
     <dimen name="tasks_surface_location_bar_url_button_start_margin"> 16dp</dimen>
 
-    <!-- Dimens for TabSelectionEditorV2 -->
+    <!-- Dimens for TabSelectionEditor -->
     <dimen name="tab_selection_editor_action_view_padding">14dp</dimen>
     <dimen name="tab_selection_editor_longpress_entry_threshold">20dp</dimen>
     <dimen name="tab_selection_editor_share_sheet_preview_thumbnail_padding">10dp</dimen>
+
+    <!-- Large form factor device strip tab hover card dimensions -->
+    <dimen name="tab_hover_card_width">264dp</dimen>
+    <dimen name="tab_hover_card_window_horizontal_margin">8dp</dimen>
+    <dimen name="tab_hover_card_thumbnail_height">135dp</dimen>
+    <dimen name="tab_hover_card_text_content_margin">16dp</dimen>
+    <dimen name="tab_hover_card_url_top_margin">4dp</dimen>
+    <dimen name="tab_hover_card_bg_color_elev">@dimen/default_elevation_0</dimen>
+    <dimen name="tab_hover_card_corner_radius">8dp</dimen>
+    <dimen name="tab_hover_card_elevation">6dp</dimen>
+    <dimen name="tsr_no_feet_tab_hover_card_x_offset">16dp</dimen>
 </resources>

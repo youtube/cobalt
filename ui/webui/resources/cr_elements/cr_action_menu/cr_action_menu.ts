@@ -4,12 +4,12 @@
 
 import '../cr_shared_vars.css.js';
 
-import {assert} from '//resources/js/assert_ts.js';
+import {assert} from '//resources/js/assert.js';
 import {FocusOutlineManager} from '//resources/js/focus_outline_manager.js';
 import {FocusRow} from '//resources/js/focus_row.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
 import {isMac, isWindows} from '//resources/js/platform.js';
-import {getDeepActiveElement} from '//resources/js/util_ts.js';
+import {getDeepActiveElement} from '//resources/js/util.js';
 import {FlattenedNodesObserver, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './cr_action_menu.html.js';
@@ -19,8 +19,8 @@ interface ShowAtConfig {
   left?: number;
   width?: number;
   height?: number;
-  anchorAlignmentX?: number;
-  anchorAlignmentY?: number;
+  anchorAlignmentX?: AnchorAlignment;
+  anchorAlignmentY?: AnchorAlignment;
   minX?: number;
   minY?: number;
   maxX?: number;
@@ -33,8 +33,8 @@ export interface ShowAtPositionConfig {
   left: number;
   width?: number;
   height?: number;
-  anchorAlignmentX?: number;
-  anchorAlignmentY?: number;
+  anchorAlignmentX?: AnchorAlignment;
+  anchorAlignmentY?: AnchorAlignment;
   minX?: number;
   minY?: number;
   maxX?: number;
@@ -68,7 +68,7 @@ function getStartPointWithAnchor(
   let startPoint = 0;
   switch (anchorAlignment) {
     case AnchorAlignment.BEFORE_START:
-      startPoint = -menuLength;
+      startPoint = start - menuLength;
       break;
     case AnchorAlignment.AFTER_START:
       startPoint = start;

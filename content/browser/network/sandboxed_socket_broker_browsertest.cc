@@ -5,14 +5,13 @@
 #include "base/feature_list.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
-#include "content/browser/buildflags.h"
 #include "content/browser/network/socket_broker_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/shell/browser/shell.h"
@@ -23,16 +22,11 @@
 #include "net/socket/tcp_server_socket.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
-#include "sandbox/features.h"
 #include "sandbox/policy/features.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
 
 namespace content {
 namespace {
@@ -48,34 +42,28 @@ class SandboxedSocketBrokerBrowserTest : public ContentBrowserTest {
     // functionality with the featurelist we won't enable it on Android versions
     // prior to R.
     const int sdk_version = base::android::BuildInfo::GetInstance()->sdk_int();
-    if (sdk_version >= base::android::SdkVersion::SDK_VERSION_R) {
-      std::vector<base::test::FeatureRef> enabled_features = {
-          sandbox::policy::features::kNetworkServiceSandbox,
-      };
-      scoped_feature_list_.InitWithFeatures(
-          enabled_features, {features::kNetworkServiceInProcess});
-    } else {
+    check_sandbox_ = sdk_version >= base::android::SdkVersion::SDK_VERSION_R;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN)
+    if (!sandbox::policy::features::IsNetworkSandboxSupported()) {
       check_sandbox_ = false;
     }
-#else
-#if BUILDFLAG(IS_WIN)
-    if (!sandbox::features::IsAppContainerSandboxSupported())
-      check_sandbox_ = false;
 #endif  // BUILDFLAG(IS_WIN)
-    std::vector<base::test::FeatureRef> enabled_features = {
+
+    if (check_sandbox_) {
 #if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
       // Network Service Sandboxing is unconditionally enabled on these
       // platforms.
-      sandbox::policy::features::kNetworkServiceSandbox,
+      scoped_feature_list_.InitAndEnableFeature(
+          sandbox::policy::features::kNetworkServiceSandbox);
 #endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
-    };
-    scoped_feature_list_.InitWithFeatures(enabled_features,
-                                          {features::kNetworkServiceInProcess});
-#endif  // BUILDFLAG(IS_ANDROID)
+      ForceOutOfProcessNetworkService();
+    }
   }
 
   void SetUp() override {
-#if BUILDFLAG(USE_SOCKET_BROKER)
+#if BUILDFLAG(IS_WIN)
     if (check_sandbox_) {
       ASSERT_TRUE(IsOutOfProcessNetworkService());
       ASSERT_TRUE(sandbox::policy::features::IsNetworkSandboxEnabled());
@@ -92,7 +80,7 @@ class SandboxedSocketBrokerBrowserTest : public ContentBrowserTest {
 #endif
   }
 
-#if BUILDFLAG(USE_SOCKET_BROKER)
+#if BUILDFLAG(IS_WIN)
   void SetUpOnMainThread() override {
     embedded_test_server_.StartAcceptingConnections();
   }
@@ -234,7 +222,7 @@ IN_PROC_BROWSER_TEST_F(SandboxedSocketBrokerBrowserTest,
   network_context_params->cert_verifier_params = GetCertVerifierParams(
       cert_verifier::mojom::CertVerifierCreationParams::New());
   network_context_params->http_cache_enabled = true;
-  network_context_params->http_cache_directory =
+  network_context_params->file_paths->http_cache_directory =
       shell()
           ->web_contents()
           ->GetBrowserContext()

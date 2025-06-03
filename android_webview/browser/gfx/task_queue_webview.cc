@@ -30,6 +30,8 @@ namespace {
 // other way around. This achieves viz scheduling tasks to gpu by first blocking
 // render thread on the viz thread so render thread is ready to receive and run
 // tasks.
+//
+// Lifetime: Singleton
 class TaskQueueViz : public TaskQueueWebView {
  public:
   TaskQueueViz();
@@ -47,6 +49,9 @@ class TaskQueueViz : public TaskQueueWebView {
   void InitializeVizThread(const scoped_refptr<base::SingleThreadTaskRunner>&
                                viz_task_runner) override;
   void ScheduleOnVizAndBlock(VizTask viz_task) override;
+  void ResetRenderThreadForTesting() override {
+    DETACH_FROM_THREAD(render_thread_checker_);
+  }
 
  private:
   void RunOnViz(VizTask viz_task);

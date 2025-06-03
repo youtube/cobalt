@@ -37,7 +37,7 @@ suite('allInputsDisabledTest', function() {
   let service = null;
 
   setup(() => {
-    document.body.innerHTML = '';
+    document.body.innerHTML = trustedTypes.emptyHTML;
     service = new FakeShimlessRmaService();
     setShimlessRmaServiceForTesting(service);
     setupFakeService();
@@ -61,8 +61,8 @@ suite('allInputsDisabledTest', function() {
     service.setGetOriginalSerialNumberResult('');
     service.setGetRegionListResult([]);
     service.setGetOriginalRegionResult(0);
-    service.setGetWhiteLabelListResult([]);
-    service.setGetOriginalWhiteLabelResult(0);
+    service.setGetCustomLabelListResult([]);
+    service.setGetOriginalCustomLabelResult(0);
     service.setGetSkuListResult([]);
     service.setGetOriginalSkuResult(0);
     service.setGetOriginalDramPartNumberResult('');

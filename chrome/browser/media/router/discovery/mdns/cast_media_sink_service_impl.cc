@@ -75,8 +75,7 @@ std::string EnumToString(MediaRouterChannelError error) {
     case MediaRouterChannelError::PING_TIMEOUT:
       return "PING_TIMEOUT";
     case MediaRouterChannelError::TOTAL_COUNT:
-      NOTREACHED();
-      return "";
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -311,12 +310,11 @@ void CastMediaSinkServiceImpl::OpenChannelsWithRandomizedDelay(
   // Add a random backoff between 0s to 5s before opening channels to prevent
   // different browser instances connecting to the same receiver at the same
   // time.
-  base::TimeDelta delay = base::Milliseconds(base::RandInt(0, 50) * 100);
   task_runner()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&CastMediaSinkServiceImpl::OpenChannels, GetWeakPtr(),
                      cast_sinks, sink_source),
-      delay);
+      base::RandTimeDeltaUpTo(base::Seconds(5)));
 }
 
 void CastMediaSinkServiceImpl::OpenChannels(
@@ -390,6 +388,9 @@ void CastMediaSinkServiceImpl::OnMessage(
     const cast_channel::CastSocket& socket,
     const cast::channel::CastMessage& message) {}
 
+void CastMediaSinkServiceImpl::OnReadyStateChanged(
+    const cast_channel::CastSocket& socket) {}
+
 void CastMediaSinkServiceImpl::OnNetworksChanged(
     const std::string& network_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -420,7 +421,7 @@ void CastMediaSinkServiceImpl::OnNetworksChanged(
   LoggerList::GetInstance()->Log(
       LoggerImpl::Severity::kError, mojom::LogCategory::kDiscovery,
       kLoggerComponent,
-      base::StringPrintf("Network ID chagned from \"%s\" to \"%s\".",
+      base::StringPrintf("Network ID changed from \"%s\" to \"%s\".",
                          last_network_id.c_str(), current_network_id_.c_str()),
       "", "", "");
 

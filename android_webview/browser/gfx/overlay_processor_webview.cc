@@ -52,9 +52,14 @@ scoped_refptr<gpu::SyncPointClientState> CreateSyncPointClientState(
 // Manages ASurfaceControl life-cycle and handles ASurfaceTransactions. Created
 // on Android RenderThread, but both used on both Android RenderThread and GPU
 // Main thread, so can be destroyed on one of them.
+//
+// Lifetime: WebView
+// Each OverlayProcessorWebView owns one Manager. Ref-counted for callbacks.
 class OverlayProcessorWebView::Manager
     : public base::RefCountedThreadSafe<OverlayProcessorWebView::Manager> {
  private:
+  // Instances are either directly owned by Manager or indirectly through
+  // OverlaySurface.
   class Resource {
    public:
     Resource(gpu::SharedImageManager* shared_image_manager,
@@ -77,7 +82,7 @@ class OverlayProcessorWebView::Manager
 
       gfx::GpuFenceHandle acquire_fence = read_access_->TakeAcquireFence();
       if (!acquire_fence.is_null()) {
-        begin_read_fence_ = std::move(acquire_fence.owned_fd);
+        begin_read_fence_ = acquire_fence.Release();
       }
 
       AHardwareBuffer_Desc desc;
@@ -106,7 +111,7 @@ class OverlayProcessorWebView::Manager
       // surface in this case.
       if (read_access_) {
         gfx::GpuFenceHandle fence_handle;
-        fence_handle.owned_fd = std::move(end_read_fence);
+        fence_handle.Adopt(std::move(end_read_fence));
         read_access_->SetReleaseFence(std::move(fence_handle));
         read_access_.reset();
       } else {
@@ -411,6 +416,8 @@ class OverlayProcessorWebView::Manager
   friend class base::RefCountedThreadSafe<Manager>;
 
   // Class that holds SurfaceControl and associated resources.
+  //
+  // Instances are owned by Manager.
   class OverlaySurface {
    public:
     OverlaySurface(const gfx::SurfaceControl::Surface& parent)
@@ -867,9 +874,9 @@ void OverlayProcessorWebView::UpdateOverlayResource(
     auto result = LockResource(overlay->second);
 
     gpu_thread_sequence_->ScheduleTask(
-        base::BindOnce(&Manager::UpdateOverlayBuffer,
-                       base::Unretained(manager_.get()), overlay->second.id,
-                       result.mailbox, uv_rect, std::move(result.unlock_cb)),
+        base::BindOnce(&Manager::UpdateOverlayBuffer, manager_,
+                       overlay->second.id, result.mailbox, uv_rect,
+                       std::move(result.unlock_cb)),
         {result.sync_token, overlay->second.create_sync_token});
   }
 }

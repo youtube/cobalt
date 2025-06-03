@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/borealis/borealis_token_hardware_checker.h"
 
+#include "ash/constants/ash_features.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/borealis/borealis_features.h"
 #include "chrome/browser/ash/borealis/borealis_features_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,13 +35,16 @@ TEST(BorealisTokenHardwareCheckerTest, Volteer) {
   EXPECT_EQ(check("volteer", "lindar",
                   "11th Gen Intel(R) Core(TM) i5-1145G7 @ 2.60GHz", 8, ""),
             AllowStatus::kAllowed);
+  EXPECT_EQ(check("volteer-foo", "lindar",
+                  "11th Gen Intel(R) Core(TM) i5-1145G7 @ 2.60GHz", 8, ""),
+            AllowStatus::kAllowed);
 
   // Insufficient ram/cpu
   EXPECT_EQ(check("volteer", "lindar",
                   "11th Gen Intel(R) Core(TM) i5-1145G7 @ 2.60GHz", 2, ""),
             AllowStatus::kHardwareChecksFailed);
   EXPECT_EQ(check("volteer", "lindar",
-                  "10th Gen Intel(R) Core(TM) i5-1045G7 @ 2.60GHz", 8, ""),
+                  "11th Gen Intel(R) Core(TM) i1-1145G7 @ 2.60GHz", 8, ""),
             AllowStatus::kHardwareChecksFailed);
 
   // Bad model
@@ -55,14 +60,55 @@ TEST(BorealisTokenHardwareCheckerTest, GuybrushMajolica) {
   EXPECT_EQ(
       check("majolica", "", "AMD Ryzen 5 5625C with Radeon Graphics", 8, ""),
       AllowStatus::kAllowed);
+  EXPECT_EQ(check("guybrush-dash", "", "AMD Ryzen 5 5625C with Radeon Graphics",
+                  8, ""),
+            AllowStatus::kAllowed);
 
   EXPECT_EQ(
       check("majolica", "", "AMD Ryzen 5 5625C with Radeon Graphics", 1, ""),
       AllowStatus::kHardwareChecksFailed);
 }
 
-TEST(BorealisTokenHardwareCheckerTest, Draco) {
-  EXPECT_EQ(check("draco", "", "", 0, ""), AllowStatus::kAllowed);
+TEST(BorealisTokenHardwareCheckerTest, Aurora) {
+  EXPECT_EQ(check("aurora", "", "", 0, ""), AllowStatus::kAllowed);
+}
+
+TEST(BorealisTokenHardwareCheckerTest, Myst) {
+  EXPECT_EQ(check("myst", "", "", 0, ""), AllowStatus::kAllowed);
+}
+
+TEST(BorealisTokenHardwareCheckerTest, Nissa) {
+  auto check_nissa = []() {
+    return check("nissa", "", "Intel(R) Core(TM) i3-X105", 8, "");
+  };
+
+  // Nissa without FeatureManagement's flag are disallowed
+  EXPECT_EQ(check_nissa(), AllowStatus::kUnsupportedModel);
+
+  // With FeatureManagement's flag, they are allowed
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatureState(ash::features::kFeatureManagementBorealis,
+                                /*enabled=*/true);
+  EXPECT_EQ(check_nissa(), AllowStatus::kAllowed);
+}
+
+TEST(BorealisTokenHardwareCheckerTest, Skyrim) {
+  auto check_skyrim = []() {
+    return check("skyrim", "", "AMD Ryzen 5 X303 with Radeon Graphics", 8, "");
+  };
+
+  EXPECT_EQ(check_skyrim(), AllowStatus::kUnsupportedModel);
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatureState(ash::features::kFeatureManagementBorealis,
+                                /*enabled=*/true);
+  EXPECT_EQ(check_skyrim(), AllowStatus::kAllowed);
+}
+
+TEST(BorealisTokenHardwareCheckerTest, Rex) {
+  // TODO(307825451): Put the real CPU here.
+  EXPECT_EQ(check("rex", "", "Fake Cpu", 8, ""), AllowStatus::kAllowed);
+  EXPECT_EQ(check("rex", "", "Fake Cpu", 4, ""),
+            AllowStatus::kHardwareChecksFailed);
 }
 
 // Procedure for adding and new token:

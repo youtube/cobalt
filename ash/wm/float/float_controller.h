@@ -12,6 +12,7 @@
 #include "ash/rotator/screen_rotation_animator_observer.h"
 #include "ash/shell_observer.h"
 #include "ash/wm/desks/desks_controller.h"
+#include "base/gtest_prod_util.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
 #include "chromeos/ui/base/window_state_type.h"
@@ -58,11 +59,17 @@ class ASH_EXPORT FloatController : public TabletModeObserver,
   ~FloatController() override;
 
   // Returns float window bounds in clamshell mode in root window coordinates.
-  static gfx::Rect GetPreferredFloatWindowClamshellBounds(aura::Window* window);
+  static gfx::Rect GetFloatWindowClamshellBounds(
+      aura::Window* window,
+      chromeos::FloatStartLocation location);
 
   // Gets the ideal float bounds of `window` in tablet mode if it were to be
   // floated, in root window coordinates.
-  static gfx::Rect GetPreferredFloatWindowTabletBounds(aura::Window* window);
+  static gfx::Rect GetFloatWindowTabletBounds(aura::Window* window);
+
+  // Float the `window` if it's not floated, otherwise unfloat it. If called in
+  // clamshell mode, the default location is the bottom right.
+  void ToggleFloat(aura::Window* window);
 
   // Untucks `floated_window`. Does nothing if the window is already untucked.
   void MaybeUntuckFloatedWindowForTablet(aura::Window* floated_window);
@@ -138,7 +145,9 @@ class ASH_EXPORT FloatController : public TabletModeObserver,
   void OnPinnedStateChanged(aura::Window* pinned_window) override;
 
   // chromeos::FloatControllerBase:
-  void ToggleFloat(aura::Window* window) override;
+  void SetFloat(aura::Window* window,
+                chromeos::FloatStartLocation float_start_location) override;
+  void UnsetFloat(aura::Window* window) override;
 
   // ScreenRotationAnimatorObserver:
   void OnScreenCopiedBeforeRotation() override;
@@ -147,13 +156,13 @@ class ASH_EXPORT FloatController : public TabletModeObserver,
 
  private:
   class FloatedWindowInfo;
-  friend class DefaultState;
-  friend class TabletModeWindowState;
   friend class ClientControlledState;
-  friend class WindowFloatTest;
-  FRIEND_TEST_ALL_PREFIXES(WindowFloatMetricsTest, FloatWindowCountPerSession);
-  FRIEND_TEST_ALL_PREFIXES(WindowFloatMetricsTest,
-                           FloatWindowMovedToAnotherDeskCountPerSession);
+  friend class DefaultState;
+  friend class FloatTestApi;
+  friend class TabletModeWindowState;
+
+  static MagnetismCorner GetMagnetismCornerForBounds(
+      const gfx::Rect& bounds_in_screen);
 
   // Calls `FloatImpl()` and additionally updates the magnetism if needed.
   void FloatForTablet(aura::Window* window,

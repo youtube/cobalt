@@ -8,16 +8,13 @@
 #include "components/autofill/core/browser/ui/payments/payments_bubble_closed_reasons.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/scoped_java_ref.h"
-#endif
-
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_UI_PAYMENTS_VIRTUAL_CARD_ENROLL_BUBBLE_CONTROLLER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_UI_PAYMENTS_VIRTUAL_CARD_ENROLL_BUBBLE_CONTROLLER_H_
 
 namespace autofill {
 
 class AutofillBubbleBase;
+enum class VirtualCardEnrollmentBubbleSource;
 enum class VirtualCardEnrollmentState;
 
 // Interface that exposes controller functionality to virtual card enrollment
@@ -54,6 +51,11 @@ class VirtualCardEnrollBubbleController {
   virtual const VirtualCardEnrollmentFields GetVirtualCardEnrollmentFields()
       const = 0;
 
+  // Returns the "source" of the virtual card number enrollment flow, e.g.,
+  // "upstream", "downstream", "settings".
+  virtual VirtualCardEnrollmentBubbleSource
+  GetVirtualCardEnrollmentBubbleSource() const = 0;
+
   // Returns the currently active virtual card enroll bubble view. Can be
   // nullptr if no bubble is visible.
   virtual AutofillBubbleBase* GetVirtualCardEnrollBubbleView() const = 0;
@@ -72,15 +74,6 @@ class VirtualCardEnrollBubbleController {
 
   // Returns whether the omnibox icon should be visible.
   virtual bool IsIconVisible() const = 0;
-
-#if BUILDFLAG(IS_ANDROID)
-  // Returns either the fully initialized java delegate object or a is_null()
-  // reference if the creation failed. By using this method, the controller will
-  // try to recreate the java object if it failed previously (e.g. because there
-  // was no native window available).
-  virtual base::android::ScopedJavaGlobalRef<jobject>
-  GetOrCreateJavaDelegate() = 0;
-#endif
 };
 
 }  // namespace autofill

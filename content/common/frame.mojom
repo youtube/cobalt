@@ -15,6 +15,7 @@ import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "skia/public/mojom/skcolor.mojom";
+import "services/network/public/mojom/attribution.mojom";
 import "services/network/public/mojom/content_security_policy.mojom";
 import "services/network/public/mojom/url_loader.mojom";
 import "services/network/public/mojom/url_loader_completion_status.mojom";
@@ -46,6 +47,7 @@ import "third_party/blink/public/mojom/loader/url_loader_factory_bundle.mojom";
 import "third_party/blink/public/mojom/messaging/transferable_message.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_params.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_initiator_activation_and_ad_status.mojom";
+import "third_party/blink/public/mojom/page/browsing_context_group_info.mojom";
 import "third_party/blink/public/mojom/page/page.mojom";
 import "third_party/blink/public/mojom/picture_in_picture_window_options/picture_in_picture_window_options.mojom";
 import "third_party/blink/public/mojom/widget/platform_widget.mojom";
@@ -158,6 +160,13 @@ struct CreateViewParams {
 
   // Base background color of this view. Only used by a local main frame.
   skia.mojom.SkColor? base_background_color;
+
+  // Indicates which browsing context group the page in this view belongs to.
+  blink.mojom.BrowsingContextGroupInfo browsing_context_group_info;
+
+  // Indicates whether web or OS-level Attribution Reporting is supported. See
+  // https://github.com/WICG/attribution-reporting-api/blob/main/app_to_web.md
+  network.mojom.AttributionSupport attribution_support;
 };
 
 // A union to distinguish between parameters specific to local main frame
@@ -234,6 +243,10 @@ struct CreateFrameWidgetParams {
 
   // The initial visual properties of the widget.
   blink.mojom.VisualProperties visual_properties;
+
+  // If set, this widget should take the compositor from this frame instead of
+  // creating a new instance.
+  blink.mojom.FrameToken? previous_frame_token_for_compositor_reuse;
 };
 
 // Used for recreating child frames after a crash (does this still happen?) and
@@ -470,14 +483,6 @@ interface Frame {
       blink.mojom.RemoteFrameInterfacesFromBrowser new_remote_frame_interfaces,
       blink.mojom.RemoteMainFrameInterfaces new_remote_main_frame_interfaces);
 
-  // Causes all new subresource requests to be blocked (not being started) until
-  // ResumeBlockedRequests is called.
-  BlockRequests();
-
-  // Resumes blocked requests.
-  // It is safe to call this without calling BlockRequests.
-  ResumeBlockedRequests();
-
   GetInterfaceProvider(
       pending_receiver<service_manager.mojom.InterfaceProvider> interfaces);
 
@@ -660,6 +665,9 @@ struct CreateNewWindowReply {
   // The policy container for the new frame that will be created by Blink in
   // response.
   blink.mojom.PolicyContainer policy_container;
+
+  // Indicates which browsing context group the page in this view belongs to.
+  blink.mojom.BrowsingContextGroupInfo browsing_context_group_info;
 };
 
 // A per-navigation interface passed along with the BeginNavigation call, used
@@ -754,8 +762,8 @@ interface FrameHost {
   // issuing this mojo call, there is no need to pass
   // |initiator_policy_container_keep_alive_handle|, since the initiator
   // PolicyContainerHost is kept alive by LocalFrame's PolicyContainer.
-  // TODO(ahemery): |navigation_client| should not be optional. Make it
-  // mandatory.
+  // TODO(https://crbug.com/1467502): |navigation_client| should not be
+  // optional. Make it mandatory.
   // |renderer_cancellation_listener| is a per-navigation interface used to
   // listen to the end of the renderer-initiated navigation cancelation window
   // for this navigation. See comment for NavigationRendererCancellationListener

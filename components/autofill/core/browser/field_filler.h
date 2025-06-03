@@ -26,15 +26,23 @@ class FieldFiller {
               AddressNormalizer* address_normalizer);
   ~FieldFiller();
 
+  // Returns the appropriate `profile` value based on `field_type` to fill
+  // into `field_data`.
+  static std::u16string GetValueForProfile(const AutofillProfile& profile,
+                                           const std::string& app_locale,
+                                           const AutofillType& field_type,
+                                           const FormFieldData* field_data,
+                                           std::string* failure_to_fill);
+
   // Based on |field.Type()|, returns value that is supposed to be filled in the
   // |field_data|.
   std::u16string GetValueForFilling(
       const AutofillField& field,
       absl::variant<const AutofillProfile*, const CreditCard*>
           profile_or_credit_card,
-      FormFieldData* field_data,
+      const FormFieldData* field_data,
       const std::u16string& cvc,
-      mojom::RendererFormDataAction action,
+      mojom::ActionPersistence action_persistence,
       std::string* failure_to_fill);
 
   // Set |field_data|'s value to the right value in |profile_or_credit_card|.
@@ -56,23 +64,23 @@ class FieldFiller {
       const std::map<FieldGlobalId, std::u16string>& forced_fill_values,
       FormFieldData* field_data,
       const std::u16string& cvc,
-      mojom::RendererFormDataAction action,
+      mojom::ActionPersistence action_persistence,
       std::string* failure_to_fill = nullptr);
 
-  // Returns the phone number value for the given |field|. The returned value
-  // might be |number|, or |phone_home_city_and_number|, or could possibly be a
-  // meaningful subset |number|, if that's appropriate for the field.
+  // Returns the phone number value for the given `field_max_length`. The
+  // returned value might be `number`, or `city_and_number`, or could possibly
+  // be a meaningful subset `number`, if that's appropriate for the field.
   static std::u16string GetPhoneNumberValueForInput(
-      const AutofillField& field,
+      uint64_t field_max_length,
       const std::u16string& number,
-      const std::u16string& phone_home_city_and_number,
-      const FormFieldData& field_data);
+      const std::u16string& city_and_number);
 
   // Returns the index of the shortest entry in the given select field of which
   // |value| is a substring. Returns -1 if no such entry exists.
-  static int FindShortestSubstringMatchInSelect(const std::u16string& value,
-                                                bool ignore_whitespace,
-                                                const FormFieldData* field);
+  static int FindShortestSubstringMatchInSelect(
+      const std::u16string& value,
+      bool ignore_whitespace,
+      base::span<const SelectOption> field_options);
 
  private:
   const std::string app_locale_;

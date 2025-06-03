@@ -44,6 +44,7 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/clipboard/clipboard_content_type.h"
+#include "ui/base/clipboard/custom_data_helper.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
@@ -532,6 +533,37 @@ TYPED_TEST(ClipboardTest, URLTest) {
 #endif
 }
 
+#if BUILDFLAG(IS_WIN)
+// See crbug.com/1477344 for more details on the issue.
+TYPED_TEST(ClipboardTest, ChromiumCustomFormatTest) {
+  std::u16string markup(u"<strong>Hi!</string>"), markup_result;
+  std::string url("http://www.example.com/"), url_result;
+
+  {
+    ScopedClipboardWriter clipboard_writer(ClipboardBuffer::kCopyPaste);
+    clipboard_writer.WriteHTML(markup, url, ClipboardContentType::kSanitized);
+  }
+
+  EXPECT_THAT(this->GetAvailableTypes(ClipboardBuffer::kCopyPaste),
+              Contains(ASCIIToUTF16(kMimeTypeHTML)));
+  EXPECT_THAT(this->GetAvailableTypes(ClipboardBuffer::kCopyPaste),
+              testing::Not(Contains(ASCIIToUTF16(kMimeTypeWebCustomData))));
+  {
+    ScopedClipboardWriter clipboard_writer(ClipboardBuffer::kCopyPaste);
+    base::flat_map<std::u16string, std::u16string> custom_data;
+    custom_data[ASCIIToUTF16(kMimeTypeWebCustomData)] = u"data";
+    base::Pickle pickle;
+    WriteCustomDataToPickle(custom_data, &pickle);
+    clipboard_writer.WritePickledData(pickle,
+                                      ClipboardFormatType::WebCustomDataType());
+  }
+  EXPECT_THAT(this->GetAvailableTypes(ClipboardBuffer::kCopyPaste),
+              testing::Not(Contains(ASCIIToUTF16(kMimeTypeHTML))));
+  EXPECT_THAT(this->GetAvailableTypes(ClipboardBuffer::kCopyPaste),
+              Contains(ASCIIToUTF16(kMimeTypeWebCustomData)));
+}
+#endif  // BUILDFLAG(IS_WIN)
+
 namespace {
 
 using U8x4 = std::array<uint8_t, 4>;
@@ -596,7 +628,7 @@ static void TestBitmapWriteAndPngRead(Clipboard* clipboard,
 TYPED_TEST(ClipboardTest, BitmapWriteAndPngRead_F16_Premul) {
   constexpr F16x4 kRGBAF16Premul = {0x30c5, 0x2d86, 0x2606, 0x3464};
   constexpr U8x4 kRGBAPremul = {0x26, 0x16, 0x06, 0x46};
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       TestBitmapWriteAndPngRead(
           &this->clipboard(),
           SkImageInfo::Make(1, 1, kRGBA_F16_SkColorType, kPremul_SkAlphaType),
@@ -720,7 +752,7 @@ TYPED_TEST(ClipboardTest, MultiplePickleTest) {
 }
 
 // TODO(crbug.com/106449): Implement multiple custom format write on Chrome OS.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS_ASH) && !(BUILDFLAG(IS_IOS) && BUILDFLAG(USE_BLINK))
 TYPED_TEST(ClipboardTest, DataTest) {
   const std::string kFormatString = "web chromium/x-test-format";
   const std::u16string kFormatString16 = u"chromium/x-test-format";

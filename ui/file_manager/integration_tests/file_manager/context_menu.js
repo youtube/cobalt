@@ -5,7 +5,8 @@
 import {addEntries, ENTRIES, RootPath, sendTestMessage, TestEntryInfo} from '../test_util.js';
 import {testcase} from '../testcase.js';
 
-import {navigateWithDirectoryTree, openNewWindow, remoteCall, setupAndWaitUntilReady} from './background.js';
+import {openNewWindow, remoteCall, setupAndWaitUntilReady} from './background.js';
+import {DirectoryTreePageObject} from './page_objects/directory_tree.js';
 import {FakeTask} from './tasks.js';
 import {COMPLEX_DOCUMENTS_PROVIDER_ENTRY_SET, COMPLEX_DRIVE_ENTRY_SET, RECENT_ENTRY_SET} from './test_data.js';
 
@@ -229,7 +230,7 @@ testcase.checkCopyEnabledForReadOnlyDocument = () => {
  * document is selected.
  */
 testcase.checkCopyDisabledForStrictReadOnlyDocument = () => {
-  return checkContextMenu('copy', 'Read-Only Doc.gdoc', true);
+  return checkContextMenu('copy', 'Read-Only (Strict) Doc.gdoc', false);
 };
 
 /**
@@ -503,7 +504,8 @@ async function checkContextMenuInDriveFolder(
   await maybeCopyToClipboard(appId, commandId);
 
   // Navigate to folder.
-  await navigateWithDirectoryTree(appId, '/My Drive/' + folderName);
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.navigateToPath('/My Drive/' + folderName);
 
   // Right-click inside the file list.
   chrome.test.assertTrue(!!await remoteCall.callRemoteTestUtil(
@@ -586,7 +588,8 @@ async function checkMyFilesRootItemContextMenu(itemName, commandStates) {
       await setupAndWaitUntilReady(RootPath.DOWNLOADS, [ENTRIES.photos], []);
 
   // Navigate to My files.
-  await navigateWithDirectoryTree(appId, '/My files');
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.navigateToPath('/My files');
 
   // Wait for the navigation to complete.
   const expectedRows = [
@@ -686,8 +689,7 @@ testcase.checkLinuxFilesContextMenu = () => {
  */
 async function checkDocumentsProviderContextMenu(
     commandId, path, expectedEnabledState) {
-  const documentsProviderVolumeQuery =
-      '[has-children="true"] [volume-type-icon="documents_provider"]';
+  const documentsProviderVolumeType = 'documents_provider';
 
   // Add files to the DocumentsProvider volume.
   await addEntries(
@@ -697,13 +699,12 @@ async function checkDocumentsProviderContextMenu(
   const appId = await openNewWindow(RootPath.DOWNLOADS);
 
   // Wait for the DocumentsProvider volume to mount.
-  await remoteCall.waitForElement(appId, documentsProviderVolumeQuery);
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.waitForItemToHaveChildrenByType(
+      documentsProviderVolumeType, /* hasChildren= */ true);
 
   // Click to open the DocumentsProvider volume.
-  chrome.test.assertTrue(
-      !!await remoteCall.callRemoteTestUtil(
-          'fakeMouseClick', appId, [documentsProviderVolumeQuery]),
-      'fakeMouseClick failed');
+  await directoryTree.selectItemByType(documentsProviderVolumeType);
 
   // Check: the DocumentsProvider files should appear in the file list.
   const files =
@@ -788,7 +789,8 @@ async function checkRecentsContextMenu(
       [ENTRIES.desktop, ENTRIES.world, ENTRIES.testDocument]);
 
   // Navigate to Recents.
-  await navigateWithDirectoryTree(appId, '/Recent');
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.navigateToPath('/Recent');
 
   // Wait for the navigation to complete.
   const expectedRows = TestEntryInfo.getExpectedRows(RECENT_ENTRY_SET);
@@ -985,6 +987,91 @@ testcase.checkPolicyAssignedDefaultHasManagedIcon = async () => {
   for (const nonDefaultTaskItem of tasksMenuNonDefaultTaskItems) {
     chrome.test.assertFalse('is-default' in nonDefaultTaskItem.attributes);
     chrome.test.assertFalse('is-managed' in nonDefaultTaskItem.attributes);
-    chrome.test.assertFalse(nonDefaultTaskItem.attributes['class'].includes('change-default'));
+    chrome.test.assertFalse(
+        nonDefaultTaskItem.attributes['class'].includes('change-default'));
   }
+};
+
+/*
+ * Test that the "copy" context menu item is disabled for Google Drive CSE
+ * files.
+ */
+testcase.checkEncryptedCopyDisabled = async () => {
+  const appId =
+      await setupAndWaitUntilReady(RootPath.DRIVE, [], [ENTRIES.testCSEFile]);
+
+  await remoteCall.showContextMenuFor(appId, ENTRIES.testCSEFile.nameText);
+
+  await remoteCall.waitForElement(
+      appId,
+      '#file-context-menu:not([hidden]) [command="#copy"][disabled]:not([hidden])');
+};
+
+/*
+ * Test that a Google Drive CSE files can be moved (using cut+paste) within
+ * Google Drive.
+ */
+testcase.checkEncryptedMoveEnabled = async () => {
+  const appId = await setupAndWaitUntilReady(
+      RootPath.DRIVE, [], [ENTRIES.testCSEFile, ENTRIES.photos]);
+
+  await remoteCall.showContextMenuFor(appId, ENTRIES.testCSEFile.nameText);
+
+  // Check that the cut command is available for the user.
+  await remoteCall.waitForElement(
+      appId,
+      '#file-context-menu:not([hidden]) [command="#cut"]:not([disabled]):not([hidden])');
+
+  await remoteCall.waitUntilSelected(appId, ENTRIES.testCSEFile.nameText);
+  chrome.test.assertTrue(
+      !!await remoteCall.callRemoteTestUtil('execCommand', appId, ['cut']),
+      'execCommand failed');
+
+  // Navigate to a folder, ENTRIES.photos appears to be just a writeable test
+  // folder.
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.navigateToPath('/My Drive/photos');
+
+  // Right-click inside the file list.
+  chrome.test.assertTrue(!!await remoteCall.callRemoteTestUtil(
+      'fakeMouseRightClick', appId, ['#file-list']));
+
+  // Wait for the command option to appear.
+  await remoteCall.waitForElement(
+      appId,
+      '#file-context-menu:not([hidden]) [command="#paste"]:not([disabled]):not([hidden])');
+};
+
+/*
+ * Test that a Google Drive CSE files can not be moved (using cut+paste) outside
+ * of Google Drive.
+ */
+testcase.checkEncryptedCrossVolumeMoveDisabled = async () => {
+  const appId =
+      await setupAndWaitUntilReady(RootPath.DRIVE, [], [ENTRIES.testCSEFile]);
+
+  await remoteCall.showContextMenuFor(appId, ENTRIES.testCSEFile.nameText);
+
+  // Check that the cut command is available for the user.
+  await remoteCall.waitForElement(
+      appId,
+      '#file-context-menu:not([hidden]) [command="#cut"]:not([disabled]):not([hidden])');
+
+  await remoteCall.waitUntilSelected(appId, ENTRIES.testCSEFile.nameText);
+  chrome.test.assertTrue(
+      !!await remoteCall.callRemoteTestUtil('execCommand', appId, ['cut']),
+      'execCommand failed');
+
+  // Navigate to a folder, “My files“ is just an example of a writeable one.
+  const directoryTree = await DirectoryTreePageObject.create(appId, remoteCall);
+  await directoryTree.navigateToPath('/My files');
+
+  // Right-click inside the file list.
+  chrome.test.assertTrue(!!await remoteCall.callRemoteTestUtil(
+      'fakeMouseRightClick', appId, ['#file-list']));
+
+  // Wait for the command option to appear.
+  await remoteCall.waitForElement(
+      appId,
+      '#file-context-menu:not([hidden]) [command="#paste"][disabled]:not([hidden])');
 };

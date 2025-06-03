@@ -5,7 +5,7 @@
 package org.chromium.chrome.test.util;
 
 import androidx.annotation.Nullable;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -58,8 +58,7 @@ public class BookmarkTestRule implements TestRule {
     /**
      * Returns the bookmark activity.
      */
-    @Nullable
-    public BookmarkActivity getBookmarkActivity() {
+    public @Nullable BookmarkActivity getBookmarkActivity() {
         return mBookmarkActivity;
     }
 

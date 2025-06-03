@@ -8,6 +8,8 @@
  */
 import './sandboxed_load_time_data.js';
 
+import {COLOR_PROVIDER_CHANGED, ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+
 import {MessagePipe} from './message_pipe.js';
 import {Message} from './message_types.js';
 
@@ -27,6 +29,10 @@ const DELEGATE = {
   },
   async showParentalControls() {
     await parentMessagePipe.sendMessage(Message.SHOW_PARENTAL_CONTROLS);
+  },
+  async triggerWelcomeTipCallToAction(actionTypeId) {
+    await parentMessagePipe.sendMessage(
+        Message.TRIGGER_WELCOME_TIP_CALL_TO_ACTION, actionTypeId);
   },
   /**
    * @override
@@ -61,6 +67,9 @@ const DELEGATE = {
     await parentMessagePipe.sendMessage(
         Message.UPDATE_LAUNCHER_SEARCH_INDEX, data);
   },
+  async launchMicrosoft365Setup() {
+    await parentMessagePipe.sendMessage(Message.LAUNCH_MICROSOFT_365_SETUP);
+  },
   async maybeShowDiscoverNotification() {
     await parentMessagePipe.sendMessage(
         Message.MAYBE_SHOW_DISCOVER_NOTIFICATION);
@@ -77,13 +86,33 @@ const DELEGATE = {
    * @override
    * @param {string} url
    */
-  async openUrlInBrowser(url) {
-    await parentMessagePipe.sendMessage(Message.OPEN_URL_IN_BROWSER, url);
+  async openUrlInBrowserAndTriggerInstallDialog(url) {
+    await parentMessagePipe.sendMessage(
+        Message.OPEN_URL_IN_BROWSER_AND_TRIGGER_INSTALL_DIALOG, url);
   },
 };
 
 window.customLaunchData = {
   delegate: DELEGATE,
 };
+
+window.addEventListener(
+    'DOMContentLoaded', /** @suppress {checkTypes} */ function() {
+      // Start listening to color change events. These events get picked up by
+      // logic in ts_helpers.ts on the google3 side.
+      ColorChangeUpdater.forDocument().start();
+    });
+// Expose functions to bind to color change events to window so they can be
+// automatically picked up by installColors(). See ts_helpers.ts in google3.
+window['addColorChangeListener'] =
+    /** @suppress {checkTypes} */ function(listener) {
+      ColorChangeUpdater.forDocument().eventTarget.addEventListener(
+          COLOR_PROVIDER_CHANGED, listener);
+    };
+window['removeColorChangeListener'] =
+    /** @suppress {checkTypes} */ function(listener) {
+      ColorChangeUpdater.forDocument().eventTarget.removeEventListener(
+          COLOR_PROVIDER_CHANGED, listener);
+    };
 
 export const TEST_ONLY = {parentMessagePipe};

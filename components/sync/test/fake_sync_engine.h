@@ -43,9 +43,13 @@ class FakeSyncEngine : public SyncEngine,
     return started_handling_invalidations_;
   }
 
+  void SetPollIntervalElapsed(bool elapsed);
+
   // Manual completion of Initialize(), required if auto-completion was disabled
   // in the constructor.
   void TriggerInitializationCompletion(bool success);
+
+  void SetDetailedStatus(const SyncStatus& status);
 
   // Immediately calls params.host->OnEngineInitialized.
   void Initialize(InitParams params) override;
@@ -90,9 +94,10 @@ class FakeSyncEngine : public SyncEngine,
                        std::unique_ptr<DataTypeActivationResponse>) override;
   void DisconnectDataType(ModelType type) override;
 
-  void SetProxyTabsDatatypeEnabled(bool enabled) override;
-
   const SyncStatus& GetDetailedStatus() const override;
+
+  void GetTypesWithUnsyncedData(
+      base::OnceCallback<void(ModelTypeSet)> cb) const override;
 
   void HasUnsyncedItemsForTest(
       base::OnceCallback<void(bool)> cb) const override;
@@ -104,19 +109,22 @@ class FakeSyncEngine : public SyncEngine,
 
   void OnCookieJarChanged(bool account_mismatch,
                           base::OnceClosure callback) override;
-  void SetInvalidationsForSessionsEnabled(bool enabled) override;
+  bool IsNextPollTimeInThePast() const override;
   void GetNigoriNodeForDebugging(AllNodesCallback callback) override;
+  void RecordNigoriMemoryUsageAndCountsHistograms() override;
 
  private:
   const bool allow_init_completion_;
   const bool is_first_time_sync_configure_;
   const base::RepeatingClosure sync_transport_data_cleared_cb_;
-  // DanglingUntriaged because it is assigned a DanglingUntriaged pointer.
-  raw_ptr<SyncEngineHost, DanglingUntriaged> host_ = nullptr;
+  // AcrossTasksDanglingUntriaged because it is assigned a
+  // AcrossTasksDanglingUntriaged pointer.
+  raw_ptr<SyncEngineHost, AcrossTasksDanglingUntriaged> host_ = nullptr;
   bool initialized_ = false;
-  const SyncStatus default_sync_status_;
+  SyncStatus sync_status_;
   CoreAccountId authenticated_account_id_;
   bool started_handling_invalidations_ = false;
+  bool is_next_poll_time_in_the_past_ = false;
 };
 
 }  // namespace syncer

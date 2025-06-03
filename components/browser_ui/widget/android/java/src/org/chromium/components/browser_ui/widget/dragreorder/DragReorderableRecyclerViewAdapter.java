@@ -190,12 +190,12 @@ public class DragReorderableRecyclerViewAdapter extends SimpleRecyclerViewAdapte
     public DragReorderableRecyclerViewAdapter(Context context, ModelList modelList) {
         super(modelList);
 
-        Resources resource = context.getResources();
+        Resources resources = context.getResources();
         // Set the alpha to 90% when dragging which is 230/255
         mDraggedBackgroundColor = ColorUtils.setAlphaComponent(
                 ChromeColors.getSurfaceColor(context, R.dimen.default_elevation_4),
-                resource.getInteger(R.integer.list_item_dragged_alpha));
-        mDraggedElevation = resource.getDimension(R.dimen.list_item_dragged_elevation);
+                resources.getInteger(R.integer.list_item_dragged_alpha));
+        mDraggedElevation = resources.getDimension(R.dimen.list_item_dragged_elevation);
     }
 
     /**
@@ -326,7 +326,6 @@ public class DragReorderableRecyclerViewAdapter extends SimpleRecyclerViewAdapte
      * @param start The index of the ViewHolder that you want to drag.
      * @param end The index this ViewHolder should be dragged to and dropped at.
      */
-    @VisibleForTesting
     public void simulateDragForTests(int start, int end) {
         RecyclerView.ViewHolder viewHolder = mRecyclerView.findViewHolderForAdapterPosition(start);
         mItemTouchHelper.startDrag(viewHolder);

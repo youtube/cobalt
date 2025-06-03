@@ -37,9 +37,11 @@
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/download/public/common/download_danger_type.h"
@@ -74,6 +76,7 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_features.h"
 #include "ash/constants/notifier_catalogs.h"
+#include "chrome/browser/apps/app_service/policy_util.h"
 #include "chrome/browser/ash/file_manager/file_tasks.h"
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
 #include "chromeos/startup/browser_params_proxy.h"
@@ -200,9 +203,12 @@ void RecordButtonClickAction(DownloadCommands::Command command) {
     // Not actually displayed in notification, so should never be reached.
     case DownloadCommands::ALWAYS_OPEN_TYPE:
     case DownloadCommands::LEARN_MORE_INTERRUPTED:
+    case DownloadCommands::LEARN_MORE_DOWNLOAD_BLOCKED:
+    case DownloadCommands::OPEN_SAFE_BROWSING_SETTING:
     case DownloadCommands::BYPASS_DEEP_SCANNING:
+    case DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN:
+    case DownloadCommands::CANCEL_DEEP_SCAN:
     case DownloadCommands::RETRY:
-    case DownloadCommands::MAX:
       NOTREACHED();
       break;
   }
@@ -211,42 +217,6 @@ void RecordButtonClickAction(DownloadCommands::Command command) {
 bool IsExtensionDownload(DownloadUIModel* item) {
   return item->GetDownloadItem() &&
          download_crx_util::IsExtensionDownload(*item->GetDownloadItem());
-}
-
-bool IsHoldingSpaceIncognitoProfileIntegrationEnabled() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  return true;
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  return chromeos::BrowserParamsProxy::Get()
-      ->IsHoldingSpaceIncognitoProfileIntegrationEnabled();
-#else
-  return false;
-#endif
-}
-
-bool IsHoldingSpaceInProgressDownloadsNotificationSuppressionEnabled() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  return ash::features::
-      IsHoldingSpaceInProgressDownloadsNotificationSuppressionEnabled();
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  return chromeos::BrowserParamsProxy::Get()
-      ->IsHoldingSpaceInProgressDownloadsNotificationSuppressionEnabled();
-#else
-  return false;
-#endif
-}
-
-bool IsNotificationEligibleForSuppression(const DownloadUIModel* item) {
-  // Only notifications for in-progress downloads are eligible for suppression.
-  if (item->GetState() != download::DownloadItem::IN_PROGRESS)
-    return false;
-  // Notifications associated with dangerous or insecure downloads are not
-  // eligible for suppression as they likely contain important information.
-  if (item->IsDangerous() || item->IsInsecure())
-    return false;
-  // Otherwise notifications are assumed to be informational only and are
-  // therefore eligible for suppression.
-  return true;
 }
 
 }  // namespace
@@ -321,14 +291,6 @@ void DownloadItemNotification::DisablePopup() {
   if (notification_->priority() == message_center::LOW_PRIORITY)
     return;
 
-  // When the `notification_` is `suppressed_`, it is sufficient to simply
-  // update priority. Since the `notification_` should not be displayed to
-  // the user, no interaction with the `NotificationDisplayService` is needed.
-  if (suppressed_) {
-    notification_->set_priority(message_center::LOW_PRIORITY);
-    return;
-  }
-
   // Hides a notification from popup notifications if it's a pop-up, by
   // decreasing its priority and reshowing itself. Low-priority notifications
   // doesn't pop-up itself so this logic works as disabling pop-up.
@@ -341,11 +303,6 @@ void DownloadItemNotification::DisablePopup() {
 }
 
 void DownloadItemNotification::Close(bool by_user) {
-  if (suppressed_) {
-    DCHECK(!by_user);
-    return;
-  }
-
   closed_ = true;
 
   if (item_ && item_->IsDangerous() && !item_->IsDone()) {
@@ -410,8 +367,20 @@ void DownloadItemNotification::Click(
     }
 
     if (command == DownloadCommands::REVIEW) {
-      item_->ReviewScanningVerdict(
-          GetBrowser()->tab_strip_model()->GetActiveWebContents());
+      content::WebContents* contents =
+          GetBrowser()->tab_strip_model()->GetActiveWebContents();
+
+      // If there is no currently active web contents, just show the user the
+      // downloads page so they get more context on the warned download needing
+      // to be reviewed.
+      // TODO(b/285119059): Expand this solution by having the review dialog
+      // also open immediately after the download page is available.
+      if (!contents) {
+        chrome::ShowDownloads(GetBrowser());
+        return;
+      }
+
+      item_->ReviewScanningVerdict(contents);
       in_review_ = true;
       Update();
     }
@@ -506,28 +475,6 @@ void DownloadItemNotification::UpdateNotificationData(bool display,
                                                       bool force_pop_up) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  const bool was_suppressed = suppressed_;
-
-  // When holding space in-progress downloads notification suppression is
-  // enabled, eligible download notifications should be suppressed. Note that
-  // download notifications associated with an incognito profile are only
-  // suppressed if holding space incognito profile integration is also enabled.
-  if (!item_->profile()->IsIncognitoProfile() ||
-      IsHoldingSpaceIncognitoProfileIntegrationEnabled()) {
-    suppressed_ =
-        display && IsNotificationEligibleForSuppression(item_.get()) &&
-        IsHoldingSpaceInProgressDownloadsNotificationSuppressionEnabled();
-  } else {
-    suppressed_ = false;
-  }
-
-  if (suppressed_) {
-    if (!was_suppressed)
-      RecordDownloadNotificationSuppressed();
-    CloseNotification();
-    return;
-  }
-
   if (item_->GetState() == download::DownloadItem::CANCELLED) {
     // Confirms that a download is cancelled by user action.
     DCHECK(item_->GetLastFailState() == FailState::USER_CANCELED ||
@@ -609,10 +556,10 @@ void DownloadItemNotification::UpdateNotificationData(bool display,
   }
   SkColor notification_color = GetNotificationIconColor();
   if (chromeos::features::IsJellyEnabled()) {
-    ui::ColorId color_id = cros_tokens::kCrosSysOnPrimary;
+    ui::ColorId color_id = cros_tokens::kCrosSysPrimary;
     switch (notification_color) {
       case ash::kSystemNotificationColorNormal:
-        color_id = cros_tokens::kCrosSysOnPrimary;
+        color_id = cros_tokens::kCrosSysPrimary;
         break;
       case ash::kSystemNotificationColorWarning:
         color_id = cros_tokens::kCrosSysWarning;
@@ -836,8 +783,14 @@ DownloadItemNotification::GetExtraActions() const {
       break;
     case download::DownloadItem::COMPLETE:
       actions->push_back(DownloadCommands::SHOW_IN_FOLDER);
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+      // We disable this functionality for now as the usage is very low, the
+      // feature gets re-written at this time and there is currently no secure
+      // way to determine the caller on the Ash side as the dialog is still
+      // active when |seat::SetSelection| is reached.
       if (!notification_->image().IsEmpty())
         actions->push_back(DownloadCommands::COPY_TO_CLIPBOARD);
+#endif
       if (IsGalleryAppPdfEditNotificationEligible())
         actions->push_back(DownloadCommands::PLATFORM_OPEN);
       break;
@@ -856,16 +809,27 @@ bool DownloadItemNotification::IsGalleryAppPdfEditNotificationEligible() const {
   if (!download_commands.IsDownloadPdf())
     return false;
 
-  file_manager::file_tasks::TaskDescriptor task_descriptor;
-  if (!file_manager::file_tasks::GetDefaultTaskFromPrefs(
-          *(profile_->GetPrefs()), "application/pdf", ".pdf",
-          &task_descriptor)) {
+  auto* prefs = profile_->GetPrefs();
+  if (auto* policy_default_handler =
+          prefs->GetDict(prefs::kDefaultHandlersForFileExtensions)
+              .FindString(".pdf")) {
+    std::vector<std::string> app_ids =
+        apps_util::GetAppIdsFromPolicyId(profile_, *policy_default_handler);
+    // Sometimes the default handler policy might be misconfigured and not match
+    // any real apps; ignore it in this case.
+    if (!app_ids.empty()) {
+      return base::Contains(app_ids, web_app::kMediaAppId);
+    }
+  }
+
+  auto task_descriptor = file_manager::file_tasks::GetDefaultTaskFromPrefs(
+      *prefs, "application/pdf", ".pdf");
+  if (!task_descriptor) {
     // GetDefaultTaskFromPrefs returns false if no default app is specified. If
     // no default app is specified, a pdf will be opened with Gallery app.
     return true;
   }
-
-  return task_descriptor.app_id == web_app::kMediaAppId;
+  return task_descriptor->app_id == web_app::kMediaAppId;
 #else
   return false;
 #endif
@@ -992,9 +956,12 @@ std::u16string DownloadItemNotification::GetCommandLabel(
 #endif
     case DownloadCommands::ALWAYS_OPEN_TYPE:
     case DownloadCommands::LEARN_MORE_INTERRUPTED:
+    case DownloadCommands::LEARN_MORE_DOWNLOAD_BLOCKED:
+    case DownloadCommands::OPEN_SAFE_BROWSING_SETTING:
     case DownloadCommands::BYPASS_DEEP_SCANNING:
+    case DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN:
+    case DownloadCommands::CANCEL_DEEP_SCAN:
     case DownloadCommands::RETRY:
-    case DownloadCommands::MAX:
       // Only for menu.
       NOTREACHED();
       return std::u16string();
@@ -1068,6 +1035,12 @@ std::u16string DownloadItemNotification::GetWarningStatusString() const {
       return l10n_util::GetStringFUTF16(IDS_PROMPT_DEEP_SCANNING,
                                         elided_filename);
     }
+    case download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING: {
+      // TODO(crbug.com/1491184): Implement UX for this danger type.
+      NOTREACHED();
+      break;
+    }
+    case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED:
     case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_SAFE:
     case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_OPENED_DANGEROUS:
     case download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:

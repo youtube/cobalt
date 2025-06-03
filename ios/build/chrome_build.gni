@@ -19,11 +19,14 @@ declare_args() {
   # Enable share extension.
   ios_enable_share_extension = true
 
+  # Enable open in extension.
+  ios_enable_open_extension = true
+
   # Enable credential provider extension.
   ios_enable_credential_provider_extension = true
 
   # Enable intents extension.
-  ios_enable_intents_extension = false
+  ios_enable_intents_extension = true
 
   # Enable iOS 14, WidgetKit extension.
   ios_enable_widget_kit_extension = true
@@ -32,7 +35,10 @@ declare_args() {
   ios_enable_lockscreen_widget = true
 
   # Enable iOS shortcut widget in WidgetKit extension.
-  ios_enable_shortcuts_widget = false
+  ios_enable_shortcuts_widget = true
+
+  # Enable iOS search passwords widget in WidgetKit extension.
+  ios_enable_search_passwords_widget = true
 
   # Label of the target providing implementation for AccountVerificationProvider.
   # Overridden when using the Google-internal repository to build Chrome on iOS.
@@ -84,6 +90,7 @@ if (target_environment == "catalyst") {
   ios_enable_credential_provider_extension = false
   ios_enable_widget_kit_extension = false
   ios_enable_prebuilt_widget_kit_extension = false
+  ios_enable_open_extension = false
 
   # ScreenTime framework is not available in the iOS support libraries provided
   # by "catalyst" environment.

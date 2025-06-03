@@ -15,7 +15,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/extension_system_factory.h"
 #include "chrome/browser/extensions/menu_manager_test_observer.h"
 #include "chrome/browser/extensions/test_extension_prefs.h"
@@ -33,6 +32,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/state_store.h"
+#include "extensions/browser/state_store_test_observer.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -88,6 +88,26 @@ class MenuManagerTest : public testing::Test {
     const MenuItem::ExtensionKey key(extension->id());
     MenuItem::Id id(false, key);
     id.string_uid = string_id;
+    return std::make_unique<MenuItem>(id, "test", false, true, true, type,
+                                      contexts);
+  }
+
+  std::unique_ptr<MenuItem> CreateTestItemForWebView(
+      const Extension* extension,
+      int webview_embedder_process_id,
+      int webview_instance_id,
+      const std::string& string_id) {
+    MenuItem::Type type = MenuItem::NORMAL;
+    MenuItem::ContextList contexts(MenuItem::ALL);
+    std::string extension_id = extension ? extension->id() : "";
+    const MenuItem::ExtensionKey key(extension_id, webview_embedder_process_id,
+                                     webview_instance_id);
+    MenuItem::Id id(false, key);
+    if (string_id.empty()) {
+      id.uid = next_id_++;
+    } else {
+      id.string_uid = string_id;
+    }
     return std::make_unique<MenuItem>(id, "test", false, true, true, type,
                                       contexts);
   }
@@ -162,6 +182,74 @@ TEST_F(MenuManagerTest, AddGetRemoveItems) {
   std::unique_ptr<MenuItem> item2other =
       CreateTestItemWithID(extension2, "id2");
   ASSERT_TRUE(manager_.AddContextItem(extension2, std::move(item2other)));
+}
+
+TEST_F(MenuManagerTest, AddGetRemoveItemsNoExtension) {
+  static constexpr int kFakeWebViewEmbedderPid = 1;
+  static constexpr int kFakeWebViewInstanceId = 1;
+  // Add a new item, make sure you can get it back.
+  std::unique_ptr<MenuItem> item1 = CreateTestItemForWebView(
+      /*extension=*/nullptr, kFakeWebViewEmbedderPid, kFakeWebViewInstanceId,
+      /*string_id=*/"");
+  ASSERT_TRUE(item1 != nullptr);
+  MenuItem* item1_ptr = item1.get();
+  ASSERT_TRUE(manager_.AddContextItem(/*extension=*/nullptr, std::move(item1)));
+  ASSERT_EQ(item1_ptr, manager_.GetItemById(item1_ptr->id()));
+  const MenuItem::OwnedList* items =
+      manager_.MenuItems(item1_ptr->id().extension_key);
+  ASSERT_EQ(1u, items->size());
+  ASSERT_EQ(item1_ptr, items->at(0).get());
+
+  // Add a second item, make sure it comes back too.
+  std::unique_ptr<MenuItem> item2 = CreateTestItemForWebView(
+      /*extension=*/nullptr, kFakeWebViewEmbedderPid, kFakeWebViewInstanceId,
+      /*string_id=*/"id2");
+  MenuItem* item2_ptr = item2.get();
+  ASSERT_TRUE(manager_.AddContextItem(/*extension=*/nullptr, std::move(item2)));
+  ASSERT_EQ(item2_ptr, manager_.GetItemById(item2_ptr->id()));
+  items = manager_.MenuItems(item2_ptr->id().extension_key);
+  ASSERT_EQ(2u, items->size());
+  ASSERT_EQ(item1_ptr, items->at(0).get());
+  ASSERT_EQ(item2_ptr, items->at(1).get());
+
+  // Try adding item 3, then removing it.
+  std::unique_ptr<MenuItem> item3 = CreateTestItemForWebView(
+      /*extension=*/nullptr, kFakeWebViewEmbedderPid, kFakeWebViewInstanceId,
+      /*string_id=*/"");
+  MenuItem* item3_ptr = item3.get();
+  MenuItem::Id id3 = item3_ptr->id();
+  const MenuItem::ExtensionKey extension_key3(item3_ptr->id().extension_key);
+  ASSERT_TRUE(manager_.AddContextItem(/*extension=*/nullptr, std::move(item3)));
+  ASSERT_EQ(item3_ptr, manager_.GetItemById(id3));
+  ASSERT_EQ(3u, manager_.MenuItems(extension_key3)->size());
+  ASSERT_TRUE(manager_.RemoveContextMenuItem(id3));
+  ASSERT_EQ(nullptr, manager_.GetItemById(id3));
+  ASSERT_EQ(2u, manager_.MenuItems(extension_key3)->size());
+  item3_ptr = nullptr;
+
+  // Make sure removing a non-existent item returns false.
+  const MenuItem::ExtensionKey key(/*extension_id=*/"", kFakeWebViewEmbedderPid,
+                                   kFakeWebViewInstanceId);
+  MenuItem::Id id(false, key);
+  id.uid = id3.uid + 50;
+  ASSERT_FALSE(manager_.RemoveContextMenuItem(id));
+
+  // Make sure adding an item with the same string ID returns false.
+  std::unique_ptr<MenuItem> item2too = CreateTestItemForWebView(
+      /*extension=*/nullptr, kFakeWebViewEmbedderPid, kFakeWebViewInstanceId,
+      /*string_id=*/"id2");
+  ASSERT_FALSE(
+      manager_.AddContextItem(/*extension=*/nullptr, std::move(item2too)));
+
+  // But the same string ID should not collide with another WebView instance.
+  static constexpr int kFakeWebViewEmbedderPid2 = 2;
+  std::unique_ptr<MenuItem> item2other = CreateTestItemForWebView(
+      /*extension=*/nullptr, kFakeWebViewEmbedderPid2, kFakeWebViewInstanceId,
+      /*string_id=*/"id2");
+  ASSERT_TRUE(
+      manager_.AddContextItem(/*extension=*/nullptr, std::move(item2other)));
+  item1_ptr = nullptr;
+  item2_ptr = nullptr;
 }
 
 // Test adding/removing child items.
@@ -914,8 +1002,12 @@ INSTANTIATE_TEST_SUITE_P(ServiceWorker,
 // persistent background page-based extensions are not written to or
 // read from storage.
 TEST_P(MenuManagerStorageTest, WriteToAndReadFromStorage) {
-  // Observer reads and writes from storage for the MenuManager.
+  // Observe reads and writes from storage for the MenuManager.
   MenuManagerTestObserver observer(&manager_);
+
+  // Observe writes to storage for the StateStore. Only for
+  // non-persistent background pages.
+  StateStoreTestObserver ss_observer(profile_.get());
 
   scoped_refptr<const Extension> extension = CreateTestExtension();
   ASSERT_TRUE(extension);
@@ -943,6 +1035,7 @@ TEST_P(MenuManagerStorageTest, WriteToAndReadFromStorage) {
   if (IsPersistent()) {
     EXPECT_FALSE(observer.will_write_for_extension(extension->id()));
   } else {
+    ss_observer.WaitForExtensionAndKey(extension->id(), "context_menus");
     EXPECT_TRUE(observer.will_write_for_extension(extension->id()));
     manager_.RemoveAllContextItems(extension_key);
     EXPECT_FALSE(manager_.GetItemById(item1_id));

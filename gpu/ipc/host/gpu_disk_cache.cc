@@ -53,7 +53,7 @@ class GpuDiskCacheEntry {
   OpType op_type_ = OPEN_ENTRY;
   std::string key_;
   std::string blob_;
-  raw_ptr<disk_cache::Entry, DanglingUntriaged> entry_;
+  raw_ptr<disk_cache::Entry, AcrossTasksDanglingUntriaged> entry_;
   base::WeakPtr<GpuDiskCacheEntry> weak_ptr_;
   base::WeakPtrFactory<GpuDiskCacheEntry> weak_ptr_factory_{this};
 };
@@ -96,7 +96,7 @@ class GpuDiskCacheReadHelper {
   OpType op_type_ = OPEN_NEXT;
   std::unique_ptr<disk_cache::Backend::Iterator> iter_;
   scoped_refptr<net::IOBufferWithSize> buf_;
-  raw_ptr<disk_cache::Entry, DanglingUntriaged> entry_;
+  raw_ptr<disk_cache::Entry, AcrossTasksDanglingUntriaged> entry_;
   base::WeakPtrFactory<GpuDiskCacheReadHelper> weak_ptr_factory_{this};
 };
 
@@ -564,12 +564,15 @@ void GpuDiskCacheFactory::ClearByPath(const base::FilePath& path,
     return;
   }
 
-  // We may end up creating the cache if the path that is specified isn't
-  // already an opened path. In this case, we don't need to set a blob loaded
-  // callback since the cache is being cleared anyways, hence the DoNothing
-  // callback.
-  ClearByCache(GetOrCreateByPath(path), delete_begin, delete_end,
-               std::move(callback));
+  // Don't need to do anything if there is no cache in the path. This happens
+  // when clearing an in-memory storage partition.
+  auto iter = gpu_cache_map_.find(path);
+  if (iter == gpu_cache_map_.end()) {
+    std::move(callback).Run();
+    return;
+  }
+
+  ClearByCache(iter->second, delete_begin, delete_end, std::move(callback));
 }
 
 void GpuDiskCacheFactory::CacheCleared(GpuDiskCache* cache) {

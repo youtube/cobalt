@@ -28,7 +28,6 @@ class StubDevToolsClient : public DevToolsClient {
   bool IsNull() const override;
   bool WasCrashed() override;
   bool IsConnected() const override;
-  Status Connect() override;
   Status PostBidiCommand(base::Value::Dict command) override;
   Status SendCommand(const std::string& method,
                      const base::Value::Dict& params) override;
@@ -66,7 +65,7 @@ class StubDevToolsClient : public DevToolsClient {
   std::string session_id_;
   std::string tunnel_session_id_;
   std::list<DevToolsEventListener*> listeners_;
-  base::raw_ptr<WebViewImpl> owner_ = nullptr;
+  raw_ptr<WebViewImpl> owner_ = nullptr;
   bool is_connected_ = false;
 };
 

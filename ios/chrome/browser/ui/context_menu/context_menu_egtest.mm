@@ -5,11 +5,12 @@
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 
+#import "base/apple/foundation_util.h"
 #import "base/functional/bind.h"
-#import "base/mac/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/tabs/model/inactive_tabs/features.h"
 #import "ios/chrome/browser/ui/fullscreen/test/fullscreen_app_interface.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
@@ -20,6 +21,8 @@
 #import "ios/chrome/test/earl_grey/chrome_xcui_actions.h"
 #import "ios/chrome/test/earl_grey/scoped_block_popups_pref.h"
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
+#import "ios/testing/earl_grey/app_launch_configuration.h"
+#import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/disabled_test_macros.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/web/common/features.h"
@@ -29,12 +32,8 @@
 #import "net/test/embedded_test_server/http_response.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using chrome_test_util::ButtonWithAccessibilityLabelId;
 using chrome_test_util::ContextMenuCopyButton;
+using chrome_test_util::ContextMenuItemWithAccessibilityLabelId;
 using chrome_test_util::OmniboxText;
 using chrome_test_util::OpenLinkInNewTabButton;
 using chrome_test_util::SystemSelectionCalloutCopyButton;
@@ -156,12 +155,13 @@ NSString* const kLongImgTitle =
 
 // Matcher for the open image button in the context menu.
 id<GREYMatcher> OpenImageButton() {
-  return ButtonWithAccessibilityLabelId(IDS_IOS_CONTENT_CONTEXT_OPENIMAGE);
+  return ContextMenuItemWithAccessibilityLabelId(
+      IDS_IOS_CONTENT_CONTEXT_OPENIMAGE);
 }
 
 // Matcher for the open image in new tab button in the context menu.
 id<GREYMatcher> OpenImageInNewTabButton() {
-  return ButtonWithAccessibilityLabelId(
+  return ContextMenuItemWithAccessibilityLabelId(
       IDS_IOS_CONTENT_CONTEXT_OPENIMAGENEWTAB);
 }
 
@@ -227,6 +227,16 @@ void TapOnContextMenuButton(id<GREYMatcher> context_menu_item_button) {
       assertWithMatcher:grey_notNil()];
   [[EarlGrey selectElementWithMatcher:context_menu_item_button]
       performAction:grey_tap()];
+}
+
+void RelaunchAppWithInactiveTabs2WeeksEnabled() {
+  AppLaunchConfiguration config;
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  config.additional_args.push_back(
+      "--enable-features=" + std::string(kTabInactivityThreshold.name) + ":" +
+      kTabInactivityThresholdParameterName + "/" +
+      kTabInactivityThresholdTwoWeeksParam);
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
 }
 
 }  // namespace
@@ -428,7 +438,9 @@ void TapOnContextMenuButton(id<GREYMatcher> context_menu_item_button) {
       assertWithMatcher:grey_nil()];
 
   // Verify that system text selection callout is displayed.
-  [[EarlGrey selectElementWithMatcher:SystemSelectionCalloutCopyButton()]
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(SystemSelectionCalloutCopyButton(),
+                                          grey_sufficientlyVisible(), nil)]
       assertWithMatcher:grey_notNil()];
 
   // TODO(crbug.com/1233056): Tap to dismiss the system selection callout
@@ -495,20 +507,19 @@ void TapOnContextMenuButton(id<GREYMatcher> context_menu_item_button) {
 
   // Check the different buttons.
   [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
+      selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
                                    IDS_IOS_CONTENT_CONTEXT_OPENLINKNEWTAB)]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
+      selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
                                    IDS_IOS_OPEN_IN_INCOGNITO_ACTION_TITLE)]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
+      selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
                                    IDS_IOS_CONTENT_CONTEXT_ADDTOREADINGLIST)]
       assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_COPY_LINK_ACTION_TITLE)]
+  [[EarlGrey selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
+                                          IDS_IOS_COPY_LINK_ACTION_TITLE)]
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
@@ -584,15 +595,13 @@ void TapOnContextMenuButton(id<GREYMatcher> context_menu_item_button) {
   LongPressElement(kInitialPageDestinationLinkId);
 
   // Check the different buttons.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_COPY_LINK_ACTION_TITLE)]
+  [[EarlGrey selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
+                                          IDS_IOS_COPY_LINK_ACTION_TITLE)]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Make sure that the open action is not displayed.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_CONTENT_CONTEXT_OPEN)]
+  [[EarlGrey selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
+                                          IDS_IOS_CONTENT_CONTEXT_OPEN)]
       assertWithMatcher:grey_nil()];
 }
 
@@ -604,10 +613,47 @@ void TapOnContextMenuButton(id<GREYMatcher> context_menu_item_button) {
   LongPressElement(kInitialPageDestinationLinkId);
 
   // Check the different buttons.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_COPY_LINK_ACTION_TITLE)]
+  [[EarlGrey selectElementWithMatcher:ContextMenuItemWithAccessibilityLabelId(
+                                          IDS_IOS_COPY_LINK_ACTION_TITLE)]
       assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Checks that opening a tab in the background doesn't mark it as inactive.
+// This is a regression test against crbug.com/1490604, where background tabs
+// had an unset last active time, and thus were considered inactive on the next
+// launch.
+- (void)testOpenedInBackgroundStaysActiveAfterRelaunch {
+  const GURL initialURL = self.testServer->GetURL(kInitialPageUrl);
+  [ChromeEarlGrey loadURL:initialURL];
+  [ChromeEarlGrey
+      waitForWebStateContainingText:kInitialPageDestinationLinkText];
+  [ChromeEarlGrey waitForWebStateZoomScale:1.0];
+
+  LongPressElement(kInitialPageDestinationLinkId);
+  TapOnContextMenuButton(OpenLinkInNewTabButton());
+
+  [ChromeEarlGrey waitForMainTabCount:2];
+
+  // There should be 2 active tabs and no inactive tab.
+  GREYAssertTrue([ChromeEarlGrey mainTabCount] == 2,
+                 @"Main tab count should be 2");
+  GREYAssertTrue([ChromeEarlGrey incognitoTabCount] == 0,
+                 @"Incognito tab count should be 0");
+  GREYAssertTrue([ChromeEarlGrey inactiveTabCount] == 0,
+                 @"Inactive tab count should be 0");
+
+  RelaunchAppWithInactiveTabs2WeeksEnabled();
+
+  // Open the Tab Grid.
+  [ChromeEarlGreyUI openTabGrid];
+
+  // There should still be 2 active tabs and no inactive tab.
+  GREYAssertTrue([ChromeEarlGrey mainTabCount] == 2,
+                 @"Main tab count should be 2");
+  GREYAssertTrue([ChromeEarlGrey incognitoTabCount] == 0,
+                 @"Incognito tab count should be 0");
+  GREYAssertTrue([ChromeEarlGrey inactiveTabCount] == 0,
+                 @"Inactive tab count should be 0");
 }
 
 @end

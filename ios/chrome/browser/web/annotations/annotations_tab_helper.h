@@ -10,12 +10,17 @@
 #import "base/memory/weak_ptr.h"
 #import "base/sequence_checker.h"
 #import "base/values.h"
+#import "ios/public/provider/chrome/browser/context_menu/context_menu_api.h"
 #import "ios/web/public/annotations/annotations_text_observer.h"
+#import "ios/web/public/annotations/custom_text_checking_result.h"
 #import "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
 
 @protocol CRWWebViewHandlerDelegate;
+@protocol MiniMapCommands;
+@protocol ParcelTrackingOptInCommands;
+@protocol UnitConversionCommands;
 @class UIViewController;
 
 namespace web {
@@ -32,12 +37,29 @@ class AnnotationsTabHelper : public web::AnnotationsTextObserver,
   ~AnnotationsTabHelper() override;
 
   // Sets the BaseViewController from which to present UI.
-  void SetBaseViewController(UIViewController* baseViewController);
+  void SetBaseViewController(UIViewController* base_view_controller);
+
+  // Sets the MiniMapCommands that can display mini maps.
+  void SetMiniMapCommands(id<MiniMapCommands> mini_map_handler);
+
+  // Sets the ParcelTrackingOptInCommands that can display the parcel tracking
+  // opt-in prompt.
+  void SetParcelTrackingOptInCommands(
+      id<ParcelTrackingOptInCommands> parcel_tracking_handler);
+
+  // Sets the UnitConversionCommands that can display unit conversion.
+  void SetUnitConversionCommands(
+      id<UnitConversionCommands> unit_conversion_handler);
+
+  // Returns pointer to latest metadata extracted or `nullptr`. See
+  // i/w/p/a/annotations_text_observer.h for metadata key/pair values.
+  base::Value::Dict* GetMetadata() { return metadata_.get(); }
 
   // AnnotationsTextObserver methods:
   void OnTextExtracted(web::WebState* web_state,
                        const std::string& text,
-                       int seq_id) override;
+                       int seq_id,
+                       const base::Value::Dict& metadata) override;
   void OnDecorated(web::WebState* web_state,
                    int successes,
                    int annotations) override;
@@ -48,6 +70,9 @@ class AnnotationsTabHelper : public web::AnnotationsTextObserver,
 
   // WebStateObserver methods:
   void WebStateDestroyed(web::WebState* web_state) override;
+  void PageLoaded(
+      web::WebState* web_state,
+      web::PageLoadCompletionStatus load_completion_status) override;
 
   WEB_STATE_USER_DATA_KEY_DECL();
 
@@ -60,12 +85,40 @@ class AnnotationsTabHelper : public web::AnnotationsTextObserver,
   // `seq_id` comes from `OnTextExtracted` and is meant to be passed on to
   // `AnnotationsTextManager::DecorateAnnotations` to validate decorations
   // against the text extracted.
-  void ApplyDeferredProcessing(int seq_id,
-                               absl::optional<base::Value> deferred);
+  void ApplyDeferredProcessing(
+      int seq_id,
+      absl::optional<std::vector<web::TextAnnotation>> deferred);
+
+  // Records the measurement detection, and triggers the parcel tracking UI
+  // display if the given list of annotations contains at least one parcel
+  // number and the user is eligible for the prompt. Removes parcels from
+  // `annotations_list`.
+  void ProcessAnnotations(std::vector<web::TextAnnotation>& annotations_list);
+
+  // Triggers the parcel tracking UI display for the given parcel
+  // list `parcels`.
+  void MaybeShowParcelTrackingUI(NSArray<CustomTextCheckingResult*>* parcels);
+
+  // Puts annotations data in `match_cache_` and replaces it with a uuid key
+  // to be passed to JS and expect back in `OnClick`. Builds `decorations`
+  // from annotations.
+  void BuildCacheAndDecorations(
+      std::vector<web::TextAnnotation>& annotations_list,
+      base::Value::List& decorations);
 
   UIViewController* base_view_controller_ = nil;
 
+  id<MiniMapCommands> mini_map_handler_ = nil;
+
+  id<ParcelTrackingOptInCommands> parcel_tracking_handler_ = nil;
+
+  id<UnitConversionCommands> unit_conversion_handler_ = nil;
+
   web::WebState* web_state_ = nullptr;
+
+  std::unique_ptr<base::Value::Dict> metadata_;
+
+  std::map<std::string, NSTextCheckingResult*> match_cache_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

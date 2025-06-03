@@ -21,11 +21,12 @@
 #include "chrome/browser/chromeos/policy/dlp/dialogs/dlp_warn_notifier.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_confidential_contents.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_histogram_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_notification_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager.h"
 #include "chrome/browser/ui/ash/capture_mode/chrome_capture_mode_delegate.h"
+#include "components/enterprise/data_controls/dlp_histogram_helper.h"
 #include "components/exo/surface.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/visibility.h"
@@ -132,16 +133,17 @@ void DlpContentManagerAsh::CheckScreenshotRestriction(
     MaybeReportEvent(info.restriction_info,
                      DlpRulesManager::Restriction::kScreenshot);
   }
-  DlpBooleanHistogram(dlp::kScreenshotBlockedUMA,
-                      IsBlocked(info.restriction_info));
-  DlpBooleanHistogram(dlp::kScreenshotWarnedUMA, IsWarn(info.restriction_info));
+  data_controls::DlpBooleanHistogram(data_controls::dlp::kScreenshotBlockedUMA,
+                                     IsBlocked(info.restriction_info));
+  data_controls::DlpBooleanHistogram(data_controls::dlp::kScreenshotWarnedUMA,
+                                     IsWarn(info.restriction_info));
   CheckScreenCaptureRestriction(info, std::move(callback));
 }
 
 void DlpContentManagerAsh::CheckScreenShareRestriction(
     const content::DesktopMediaID& media_id,
     const std::u16string& application_title,
-    OnDlpRestrictionCheckedCallback callback) {
+    WarningCallback callback) {
   ConfidentialContentsInfo info = GetScreenShareConfidentialContentsInfo(
       media_id, GetWebContentsFromMediaId(media_id));
   ProcessScreenShareRestriction(application_title, info, std::move(callback));
@@ -183,8 +185,9 @@ void DlpContentManagerAsh::CheckStoppedVideoCapture(
   }
   // If some confidential content was shown during the recording, but not
   // before, warn the user before saving the file.
-  DlpBooleanHistogram(dlp::kScreenshotWarnedUMA,
-                      running_video_capture_info_->had_warning_restriction);
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kScreenshotWarnedUMA,
+      running_video_capture_info_->had_warning_restriction);
   if (!running_video_capture_info_->confidential_contents.IsEmpty()) {
     const GURL& url =
         running_video_capture_info_->confidential_contents.GetContents()
@@ -206,7 +209,8 @@ void DlpContentManagerAsh::CheckStoppedVideoCapture(
                        std::move(reporting_callback).Then(std::move(callback))),
         running_video_capture_info_->confidential_contents);
   } else {
-    DlpBooleanHistogram(dlp::kScreenshotWarnSilentProceededUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kScreenshotWarnSilentProceededUMA, true);
     std::move(callback).Run(/*proceed=*/true);
   }
 
@@ -241,10 +245,12 @@ void DlpContentManagerAsh::CheckCaptureModeInitRestriction(
                      DlpRulesManager::Restriction::kScreenshot);
   }
 
-  DlpBooleanHistogram(dlp::kCaptureModeInitBlockedUMA,
-                      IsBlocked(info.restriction_info));
-  DlpBooleanHistogram(dlp::kCaptureModeInitWarnedUMA,
-                      IsWarn(info.restriction_info));
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kCaptureModeInitBlockedUMA,
+      IsBlocked(info.restriction_info));
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kCaptureModeInitWarnedUMA,
+      IsWarn(info.restriction_info));
   CheckScreenCaptureRestriction(info, std::move(callback));
 }
 
@@ -367,7 +373,8 @@ void DlpContentManagerAsh::OnScreenRestrictionsChanged(
           DlpContentRestriction::kPrivacyScreen);
 
   if (added_restriction_info.level == DlpRulesManager::Level::kBlock) {
-    DlpBooleanHistogram(dlp::kPrivacyScreenEnforcedUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kPrivacyScreenEnforcedUMA, true);
     privacy_screen_helper->SetEnforced(true);
   }
 
@@ -390,7 +397,8 @@ void DlpContentManagerAsh::MaybeRemovePrivacyScreenEnforcement() const {
   if (GetOnScreenPresentRestrictions().GetRestrictionLevel(
           DlpContentRestriction::kPrivacyScreen) !=
       DlpRulesManager::Level::kBlock) {
-    DlpBooleanHistogram(dlp::kPrivacyScreenEnforcedUMA, false);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kPrivacyScreenEnforcedUMA, false);
     ash::PrivacyScreenDlpHelper::Get()->SetEnforced(false);
   }
 }
@@ -652,7 +660,8 @@ void DlpContentManagerAsh::CheckRunningVideoCapture() {
   }
 
   if (IsBlocked(info.restriction_info)) {
-    DlpBooleanHistogram(dlp::kVideoCaptureInterruptedUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kVideoCaptureInterruptedUMA, true);
     InterruptVideoRecording();
     running_video_capture_info_.reset();
     return;
@@ -680,6 +689,11 @@ void DlpContentManagerAsh::CheckScreenCaptureRestriction(
     ConfidentialContentsInfo info,
     ash::OnCaptureModeDlpRestrictionChecked callback) {
   if (IsBlocked(info.restriction_info)) {
+    // TODO(296534642): Remove once proper tooling is added.
+    LOG(WARNING) << "Screenshot blocked due to following URL(s) visible:";
+    for (const auto& content : info.confidential_contents.GetContents()) {
+      LOG(WARNING) << content.url;
+    }
     ShowDlpScreenCaptureDisabledNotification();
     std::move(callback).Run(false);
     return;
@@ -691,7 +705,8 @@ void DlpContentManagerAsh::CheckScreenCaptureRestriction(
                           DlpRulesManager::Restriction::kScreenshot);
     if (info.confidential_contents.IsEmpty()) {
       // The user already allowed all the visible content.
-      DlpBooleanHistogram(dlp::kScreenshotWarnSilentProceededUMA, true);
+      data_controls::DlpBooleanHistogram(
+          data_controls::dlp::kScreenshotWarnSilentProceededUMA, true);
       std::move(callback).Run(true);
       return;
     }

@@ -9,7 +9,9 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
+#include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
 #include "content/browser/interest_group/interest_group_manager_impl.h"
@@ -23,6 +25,7 @@ class QuotaOverrideHandle;
 }
 
 namespace content {
+class AttributionManager;
 class StoragePartition;
 
 namespace protocol {
@@ -30,7 +33,8 @@ namespace protocol {
 class StorageHandler
     : public DevToolsDomainHandler,
       public Storage::Backend,
-      private content::InterestGroupManagerImpl::InterestGroupObserver {
+      public content::InterestGroupManagerImpl::InterestGroupObserver,
+      public AttributionObserver {
  public:
   explicit StorageHandler(bool client_is_trusted);
 
@@ -135,8 +139,13 @@ class StorageHandler
       bool enable) override;
 
   DispatchResponse DeleteStorageBucket(
-      const std::string& serialized_storage_key,
-      const std::string& bucket_name) override;
+      std::unique_ptr<protocol::Storage::StorageBucket> bucket) override;
+
+  void SetAttributionReportingLocalTestingMode(
+      bool enabled,
+      std::unique_ptr<SetAttributionReportingLocalTestingModeCallback>)
+      override;
+  Response SetAttributionReportingTracking(bool enable) override;
 
  private:
   // See definition for lifetime information.
@@ -154,6 +163,7 @@ class StorageHandler
   absl::variant<protocol::Response, storage::SharedStorageManager*>
   GetSharedStorageManager();
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
+  AttributionManager* GetAttributionManager();
 
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
@@ -161,6 +171,13 @@ class StorageHandler
       InterestGroupManagerImpl::InterestGroupObserver::AccessType type,
       const url::Origin& owner_origin,
       const std::string& name) override;
+
+  // AttributionObserver
+  void OnSourceHandled(
+      const StorableSource&,
+      base::Time source_time,
+      absl::optional<uint64_t> cleared_debug_key,
+      attribution_reporting::mojom::StoreSourceResult) override;
 
   void NotifySharedStorageAccessed(
       const base::Time& access_time,
@@ -170,13 +187,13 @@ class StorageHandler
       const std::string& owner_origin,
       const SharedStorageEventParams& params);
 
-  void NotifyCacheStorageListChanged(const blink::StorageKey& storage_key);
-  void NotifyCacheStorageContentChanged(const blink::StorageKey& storage_key,
-                                        const std::string& name);
-  void NotifyIndexedDBListChanged(const std::string& origin,
-                                  const std::string& storage_key);
-  void NotifyIndexedDBContentChanged(const std::string& origin,
-                                     const std::string& storage_key,
+  void NotifyCacheStorageListChanged(
+      const storage::BucketLocator& bucket_locator);
+  void NotifyCacheStorageContentChanged(
+      const storage::BucketLocator& bucket_locator,
+      const std::string& name);
+  void NotifyIndexedDBListChanged(storage::BucketLocator bucket_locator);
+  void NotifyIndexedDBContentChanged(storage::BucketLocator bucket_locator,
                                      const std::u16string& database_name,
                                      const std::u16string& object_store_name);
   void NotifyCreateOrUpdateBucket(const storage::BucketInfo& bucket_info);
@@ -184,6 +201,8 @@ class StorageHandler
 
   Response FindStoragePartition(const Maybe<std::string>& browser_context_id,
                                 StoragePartition** storage_partition);
+
+  void ResetAttributionReporting();
 
   std::unique_ptr<Storage::Frontend> frontend_;
   StoragePartition* storage_partition_{nullptr};
@@ -196,6 +215,9 @@ class StorageHandler
   // Exposes the API for managing storage quota overrides.
   std::unique_ptr<storage::QuotaOverrideHandle> quota_override_handle_;
   bool client_is_trusted_;
+
+  base::ScopedObservation<AttributionManager, AttributionObserver>
+      attribution_observation_{this};
 
   base::WeakPtrFactory<StorageHandler> weak_ptr_factory_{this};
 };

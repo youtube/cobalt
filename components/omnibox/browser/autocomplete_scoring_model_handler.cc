@@ -26,6 +26,7 @@ using ::optimization_guide::proto::ScoringSignalSpec;
 using ::optimization_guide::proto::ScoringSignalTransformation;
 
 constexpr float kDefaultMissingValue = -1;
+constexpr float kSecondsInDay = 86400;
 
 namespace {
 
@@ -67,7 +68,10 @@ AutocompleteScoringModelHandler::AutocompleteScoringModelHandler(
           /*model_inference_timeout=*/absl::nullopt,
           optimization_target,
           model_metadata) {
-  // Keep the model in memory.
+  // Store the model in memory as soon as it is available and keep it loaded for
+  // the whole browser session since model inference is latency sensitive and it
+  // cannot wait for the model to be loaded from disk.
+  SetShouldPreloadModel(true);
   SetShouldUnloadModelOnComplete(false);
 }
 
@@ -87,10 +91,39 @@ AutocompleteScoringModelHandler::GetModelInput(
                                         model_metadata.value());
 }
 
+absl::optional<std::vector<std::vector<float>>>
+AutocompleteScoringModelHandler::GetBatchModelInput(
+    const std::vector<const ScoringSignals*>& scoring_signals_vec) {
+  std::vector<std::vector<float>> batch_model_input;
+  for (const auto* scoring_signals : scoring_signals_vec) {
+    const absl::optional<std::vector<float>> model_input =
+        GetModelInput(*scoring_signals);
+    if (model_input) {
+      batch_model_input.push_back(std::move(*model_input));
+    } else {
+      // Return null if any input in the batch is invalid.
+      return absl::nullopt;
+    }
+  }
+  return batch_model_input;
+}
+
 std::vector<float>
 AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
     const ScoringSignals& scoring_signals,
     const AutocompleteScoringModelMetadata& metadata) {
+  // Keep consistent:
+  // - omnibox_event.proto `ScoringSignals`
+  // - autocomplete_scoring_model_handler.cc
+  //   `AutocompleteScoringModelHandler::ExtractInputFromScoringSignals()`
+  // - autocomplete_match.cc `AutocompleteMatch::MergeScoringSignals()`
+  // - omnibox.mojom `struct Signals`
+  // - omnibox_page_handler.cc `TypeConverter<AutocompleteMatch::ScoringSignals,
+  //   mojom::SignalsPtr>`
+  // - omnibox_page_handler.cc `TypeConverter<mojom::SignalsPtr,
+  //   AutocompleteMatch::ScoringSignals>`
+  // - omnibox_util.ts `signalNames`
+
   std::vector<float> model_input;
   for (const auto& scoring_signal_spec : metadata.scoring_signal_specs()) {
     absl::optional<float> val;
@@ -110,6 +143,14 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
         if (scoring_signals.has_elapsed_time_last_visit_secs()) {
           val = static_cast<float>(
               scoring_signals.elapsed_time_last_visit_secs());
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_ELAPSED_TIME_LAST_VISIT_DAYS:
+        if (scoring_signals.has_elapsed_time_last_visit_secs()) {
+          val = static_cast<float>(
+                    scoring_signals.elapsed_time_last_visit_secs()) /
+                kSecondsInDay;
         }
         break;
       case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_HOST_ONLY:
@@ -229,6 +270,26 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
               scoring_signals.elapsed_time_last_shortcut_visit_sec());
         }
         break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_ELAPSED_TIME_LAST_SHORTCUT_VISIT_DAYS:
+        if (scoring_signals.has_elapsed_time_last_shortcut_visit_sec()) {
+          val = static_cast<float>(
+                    scoring_signals.elapsed_time_last_shortcut_visit_sec()) /
+                kSecondsInDay;
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_MATCHES_TITLE_OR_HOST_OR_SHORTCUT_TEXT: {
+        bool matches_title_or_host_or_shortcut_text = false;
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.total_host_match_length() > 0);
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.total_title_match_length() > 0);
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.shortcut_visit_count() > 0);
+
+        val = static_cast<float>(matches_title_or_host_or_shortcut_text);
+      } break;
       case optimization_guide::proto::SCORING_SIGNAL_TYPE_UNKNOWN:
       default:
         // Reached when the metadata is updated to have a new signal that
@@ -258,6 +319,13 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
       val = scoring_signal_spec.has_missing_value()
                 ? scoring_signal_spec.missing_value()
                 : kDefaultMissingValue;
+    }
+
+    // Normalize signal if configured.
+    if (scoring_signal_spec.has_norm_upper_boundary()) {
+      float upper_boundary = scoring_signal_spec.norm_upper_boundary();
+      DCHECK_GT(upper_boundary, 0);
+      val = std::clamp(*val, -upper_boundary, upper_boundary) / upper_boundary;
     }
 
     model_input.push_back(*val);

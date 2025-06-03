@@ -21,17 +21,21 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/display/display_configuration_controller_test_api.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
 #include "ash/frame/non_client_frame_view_ash.h"
+#include "ash/game_dashboard/test_game_dashboard_delegate.h"
 #include "ash/ime/ime_controller_impl.h"
 #include "ash/ime/test_ime_controller_client.h"
 #include "ash/media/media_controller_impl.h"
 #include "ash/public/cpp/accelerators.h"
+#include "ash/public/cpp/arc_game_controls_flag.h"
 #include "ash/public/cpp/capture_mode/capture_mode_test_api.h"
 #include "ash/public/cpp/ime_info.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/public/cpp/test/test_new_window_delegate.h"
+#include "ash/public/cpp/window_properties.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/system/brightness_control_delegate.h"
@@ -54,6 +58,7 @@
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_event.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/json/json_writer.h"
@@ -63,6 +68,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
+#include "base/test/scoped_chromeos_version_info.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/frame/caption_buttons/frame_size_button.h"
@@ -430,10 +436,11 @@ class AcceleratorControllerTest : public AshTestBase {
     return true;
   }
 
-  raw_ptr<AcceleratorControllerImpl, ExperimentalAsh> controller_ =
-      nullptr;  // Not owned.
+  raw_ptr<AcceleratorControllerImpl, DanglingUntriaged | ExperimentalAsh>
+      controller_ = nullptr;  // Not owned.
   std::unique_ptr<AcceleratorControllerImpl::TestApi> test_api_;
-  raw_ptr<MockNewWindowDelegate, ExperimentalAsh> new_window_delegate_;
+  raw_ptr<MockNewWindowDelegate, DanglingUntriaged | ExperimentalAsh>
+      new_window_delegate_;
   std::unique_ptr<TestNewWindowDelegateProvider> delegate_provider_;
 };
 
@@ -599,13 +606,15 @@ TEST_F(AcceleratorControllerTest, WindowSnap) {
   window_state->Activate();
 
   {
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                        {});
     gfx::Rect expected_bounds = GetDefaultSnappedWindowBoundsInParent(
         window.get(), SnapViewType::kPrimary);
     EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
   }
   {
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+    controller_->PerformActionIfEnabled(
+        AcceleratorAction::kWindowCycleSnapRight, {});
     gfx::Rect expected_bounds = GetDefaultSnappedWindowBoundsInParent(
         window.get(), SnapViewType::kSecondary);
     EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
@@ -613,11 +622,13 @@ TEST_F(AcceleratorControllerTest, WindowSnap) {
   {
     gfx::Rect normal_bounds = window_state->GetRestoreBoundsInParent();
 
-    controller_->PerformActionIfEnabled(TOGGLE_MAXIMIZED, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleMaximized,
+                                        {});
     EXPECT_TRUE(window_state->IsMaximized());
     EXPECT_NE(normal_bounds.ToString(), window->bounds().ToString());
 
-    controller_->PerformActionIfEnabled(TOGGLE_MAXIMIZED, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleMaximized,
+                                        {});
     EXPECT_FALSE(window_state->IsMaximized());
 
     // Window gets restored to its right snapped window bounds and its window
@@ -627,45 +638,108 @@ TEST_F(AcceleratorControllerTest, WindowSnap) {
     EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
     EXPECT_EQ(window_state->GetStateType(), WindowStateType::kSecondarySnapped);
 
-    controller_->PerformActionIfEnabled(TOGGLE_MAXIMIZED, {});
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleMaximized,
+                                        {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                        {});
     EXPECT_FALSE(window_state->IsMaximized());
 
-    controller_->PerformActionIfEnabled(TOGGLE_MAXIMIZED, {});
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleMaximized,
+                                        {});
+    controller_->PerformActionIfEnabled(
+        AcceleratorAction::kWindowCycleSnapRight, {});
     EXPECT_FALSE(window_state->IsMaximized());
 
-    controller_->PerformActionIfEnabled(TOGGLE_MAXIMIZED, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleMaximized,
+                                        {});
     EXPECT_TRUE(window_state->IsMaximized());
-    controller_->PerformActionIfEnabled(WINDOW_MINIMIZE, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowMinimize, {});
     EXPECT_FALSE(window_state->IsMaximized());
     EXPECT_TRUE(window_state->IsMinimized());
     window_state->Restore();
     window_state->Activate();
 
-    controller_->PerformActionIfEnabled(TOGGLE_FULLSCREEN, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleFullscreen,
+                                        {});
     EXPECT_TRUE(window_state->IsFullscreen());
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                        {});
     EXPECT_TRUE(window_state->IsSnapped());
     EXPECT_FALSE(window_state->IsFullscreen());
-    controller_->PerformActionIfEnabled(TOGGLE_FULLSCREEN, {});
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kToggleFullscreen,
+                                        {});
+    controller_->PerformActionIfEnabled(
+        AcceleratorAction::kWindowCycleSnapRight, {});
     EXPECT_TRUE(window_state->IsSnapped());
     EXPECT_FALSE(window_state->IsFullscreen());
   }
   {
     // Tests that window snap doesn't work while the window is minimized.
-    controller_->PerformActionIfEnabled(WINDOW_MINIMIZE, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowMinimize, {});
     EXPECT_TRUE(window_state->IsMinimized());
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                        {});
     EXPECT_TRUE(window_state->IsMinimized());
 
     // Unminimize the window. Now window snap should work.
-    controller_->PerformActionIfEnabled(WINDOW_MINIMIZE, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowMinimize, {});
     EXPECT_FALSE(window_state->IsMinimized());
-    controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                        {});
     EXPECT_TRUE(window_state->IsSnapped());
   }
+}
+
+// Tests that if the screen is upside down, the left/right accelerators go to
+// the physical left/top side of the screen.
+TEST_F(AcceleratorControllerTest, WindowSnapUpsideDown) {
+  const int64_t primary_display_id =
+      WindowTreeHostManager::GetPrimaryDisplayId();
+
+  // Make the display upside down.
+  DisplayConfigurationController* controller =
+      Shell::Get()->display_configuration_controller();
+  controller->SetDisplayRotation(
+      primary_display_id, display::Display::ROTATE_180,
+      display::Display::RotationSource::USER,
+      DisplayConfigurationController::ANIMATION_SYNC);
+  display::Display current_display =
+      display_manager()->GetDisplayForId(primary_display_id);
+  ASSERT_TRUE(chromeos::IsDisplayLayoutHorizontal(current_display));
+  ASSERT_FALSE(chromeos::IsDisplayLayoutPrimary(current_display));
+
+  // Snap the window. Test that it goes to the physical left/right as expected.
+  auto window = CreateAppWindow(gfx::Rect(300, 300));
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
+  EXPECT_EQ(gfx::Point(0, 0), window->GetBoundsInScreen().origin());
+
+  gfx::Rect work_area_bounds = current_display.work_area();
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
+  EXPECT_EQ(work_area_bounds.top_right(),
+            window->GetBoundsInScreen().top_right());
+
+  // Make the display 90 degrees (upside down vertically).
+  controller->SetDisplayRotation(
+      primary_display_id, display::Display::ROTATE_90,
+      display::Display::RotationSource::USER,
+      DisplayConfigurationController::ANIMATION_SYNC);
+  current_display = display_manager()->GetDisplayForId(primary_display_id);
+  ASSERT_FALSE(chromeos::IsDisplayLayoutHorizontal(current_display));
+  ASSERT_FALSE(chromeos::IsDisplayLayoutPrimary(current_display));
+
+  window = CreateAppWindow(gfx::Rect(300, 300));
+  work_area_bounds = current_display.work_area();
+
+  // Snap the window. Test that it goes to the physical top/bottom as expected.
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
+  EXPECT_EQ(gfx::Point(0, 0), window->GetBoundsInScreen().origin());
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
+  EXPECT_EQ(work_area_bounds.bottom_left(),
+            window->GetBoundsInScreen().bottom_left());
 }
 
 // Tests that window snapping works.
@@ -677,27 +751,32 @@ TEST_F(AcceleratorControllerTest, TestRepeatedSnap) {
   window_state->Activate();
 
   // Snap right.
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
   gfx::Rect normal_bounds = window_state->GetRestoreBoundsInParent();
   gfx::Rect expected_bounds = GetDefaultSnappedWindowBoundsInParent(
       window.get(), SnapViewType::kSecondary);
   EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
   EXPECT_TRUE(window_state->IsSnapped());
   // Snap right again ->> becomes normal.
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
   EXPECT_TRUE(window_state->IsNormalStateType());
   EXPECT_EQ(normal_bounds.ToString(), window->bounds().ToString());
   // Snap right.
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
   EXPECT_TRUE(window_state->IsSnapped());
   // Snap left.
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
   EXPECT_TRUE(window_state->IsSnapped());
   expected_bounds = GetDefaultSnappedWindowBoundsInParent(
       window.get(), SnapViewType::kPrimary);
   EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
   // Snap left again ->> becomes normal.
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
   EXPECT_TRUE(window_state->IsNormalStateType());
   EXPECT_EQ(normal_bounds.ToString(), window->bounds().ToString());
 }
@@ -724,7 +803,7 @@ class AcceleratorControllerTestWithClamshellSplitView
  private:
   void EnterOverviewAndDragTo(aura::Window* window,
                               const gfx::Point& destination) {
-    DCHECK(!Shell::Get()->overview_controller()->InOverviewSession());
+    CHECK(!OverviewController::Get()->InOverviewSession());
     ToggleOverview();
 
     ui::test::EventGenerator* generator = GetEventGenerator();
@@ -760,6 +839,9 @@ TEST_F(AcceleratorControllerTestWithClamshellSplitView, WindowSnapUma) {
     EXPECT_EQ(
         left_clamshell_no_overview + left_clamshell_overview + left_tablet,
         user_action_tester.GetActionCount("Accel_Window_Snap_Left"));
+    histogram_tester.ExpectTotalCount(
+        "Ash.Accelerators.Actions.WindowCycleSnapLeft",
+        left_clamshell_no_overview + left_clamshell_overview + left_tablet);
     EXPECT_EQ(
         right_clamshell_no_overview + right_clamshell_overview + right_tablet,
         user_action_tester.GetActionCount("Accel_Window_Snap_Right"));
@@ -790,67 +872,73 @@ TEST_F(AcceleratorControllerTestWithClamshellSplitView, WindowSnapUma) {
   // Alt+[, clamshell, no overview
   wm::ActivateWindow(window1.get());
   left_clamshell_no_overview = 1;
-  test("Snap left, clamshell, no overview", WINDOW_CYCLE_SNAP_LEFT,
+  test("Snap left, clamshell, no overview",
+       AcceleratorAction::kWindowCycleSnapLeft,
        WindowStateType::kPrimarySnapped);
   left_clamshell_no_overview = 2;
-  test("Unsnap left, clamshell, no overview", WINDOW_CYCLE_SNAP_LEFT,
-       WindowStateType::kNormal);
+  test("Unsnap left, clamshell, no overview",
+       AcceleratorAction::kWindowCycleSnapLeft, WindowStateType::kNormal);
   // Alt+[, clamshell, overview
   EnterOverviewAndDragToSnapRight(window1.get());
   left_clamshell_overview = 1;
-  test("Snap left, clamshell, overview", WINDOW_CYCLE_SNAP_LEFT,
+  test("Snap left, clamshell, overview",
+       AcceleratorAction::kWindowCycleSnapLeft,
        WindowStateType::kPrimarySnapped);
   left_clamshell_overview = 2;
-  test("Unsnap left, clamshell, overview", WINDOW_CYCLE_SNAP_LEFT,
-       WindowStateType::kNormal);
+  test("Unsnap left, clamshell, overview",
+       AcceleratorAction::kWindowCycleSnapLeft, WindowStateType::kNormal);
   // Alt+], clamshell, no overview
   right_clamshell_no_overview = 1;
-  test("Snap right, clamshell, no overview", WINDOW_CYCLE_SNAP_RIGHT,
+  test("Snap right, clamshell, no overview",
+       AcceleratorAction::kWindowCycleSnapRight,
        WindowStateType::kSecondarySnapped);
   right_clamshell_no_overview = 2;
-  test("Unsnap right, clamshell, no overview", WINDOW_CYCLE_SNAP_RIGHT,
-       WindowStateType::kNormal);
+  test("Unsnap right, clamshell, no overview",
+       AcceleratorAction::kWindowCycleSnapRight, WindowStateType::kNormal);
   // Alt+], clamshell, overview
   EnterOverviewAndDragToSnapLeft(window1.get());
   right_clamshell_overview = 1;
-  test("Snap right, clamshell, overview", WINDOW_CYCLE_SNAP_RIGHT,
+  test("Snap right, clamshell, overview",
+       AcceleratorAction::kWindowCycleSnapRight,
        WindowStateType::kSecondarySnapped);
   right_clamshell_overview = 2;
-  test("Unsnap right, clamshell, overview", WINDOW_CYCLE_SNAP_RIGHT,
-       WindowStateType::kNormal);
+  test("Unsnap right, clamshell, overview",
+       AcceleratorAction::kWindowCycleSnapRight, WindowStateType::kNormal);
   // Alt+[, tablet, no overview
   ShellTestApi().SetTabletModeEnabledForTest(true);
   left_tablet = 1;
-  test("Snap left, tablet, no overview", WINDOW_CYCLE_SNAP_LEFT,
+  test("Snap left, tablet, no overview",
+       AcceleratorAction::kWindowCycleSnapLeft,
        WindowStateType::kPrimarySnapped);
   ToggleOverview();
   left_tablet = 2;
-  test("Unsnap left, tablet, no overview", WINDOW_CYCLE_SNAP_LEFT,
-       WindowStateType::kMaximized);
+  test("Unsnap left, tablet, no overview",
+       AcceleratorAction::kWindowCycleSnapLeft, WindowStateType::kMaximized);
   // Alt+[, tablet, overview
   EnterOverviewAndDragToSnapRight(window1.get());
   left_tablet = 3;
-  test("Snap left, tablet, overview", WINDOW_CYCLE_SNAP_LEFT,
+  test("Snap left, tablet, overview", AcceleratorAction::kWindowCycleSnapLeft,
        WindowStateType::kPrimarySnapped);
   left_tablet = 4;
-  test("Unsnap left, tablet, overview", WINDOW_CYCLE_SNAP_LEFT,
+  test("Unsnap left, tablet, overview", AcceleratorAction::kWindowCycleSnapLeft,
        WindowStateType::kMaximized);
   // Alt+], tablet, no overview
   right_tablet = 1;
-  test("Snap right, tablet, no overview", WINDOW_CYCLE_SNAP_RIGHT,
+  test("Snap right, tablet, no overview",
+       AcceleratorAction::kWindowCycleSnapRight,
        WindowStateType::kSecondarySnapped);
   ToggleOverview();
   right_tablet = 2;
-  test("Unsnap right, tablet, no overview", WINDOW_CYCLE_SNAP_RIGHT,
-       WindowStateType::kMaximized);
+  test("Unsnap right, tablet, no overview",
+       AcceleratorAction::kWindowCycleSnapRight, WindowStateType::kMaximized);
   // Alt+], tablet, overview
   EnterOverviewAndDragToSnapLeft(window1.get());
   right_tablet = 3;
-  test("Snap right, tablet, overview", WINDOW_CYCLE_SNAP_RIGHT,
+  test("Snap right, tablet, overview", AcceleratorAction::kWindowCycleSnapRight,
        WindowStateType::kSecondarySnapped);
   right_tablet = 4;
-  test("Unsnap right, tablet, overview", WINDOW_CYCLE_SNAP_RIGHT,
-       WindowStateType::kMaximized);
+  test("Unsnap right, tablet, overview",
+       AcceleratorAction::kWindowCycleSnapRight, WindowStateType::kMaximized);
 }
 
 TEST_F(AcceleratorControllerTestWithClamshellSplitView,
@@ -870,7 +958,8 @@ TEST_F(AcceleratorControllerTestWithClamshellSplitView,
       SplitViewMetricsController::DeviceOrientation::kLandscape, 0);
 
   window_state->Activate();
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
   gfx::Rect expected_bounds = GetDefaultSnappedWindowBoundsInParent(
       window.get(), SnapViewType::kPrimary);
   EXPECT_EQ(expected_bounds.ToString(), window->bounds().ToString());
@@ -881,7 +970,8 @@ TEST_F(AcceleratorControllerTestWithClamshellSplitView,
       kSnapWindowDeviceOrientationHistogram,
       SplitViewMetricsController::DeviceOrientation::kPortrait, 0);
 
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_RIGHT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapRight,
+                                      {});
   histogram_tester.ExpectBucketCount(
       kSnapWindowDeviceOrientationHistogram,
       SplitViewMetricsController::DeviceOrientation::kLandscape, 2);
@@ -892,7 +982,8 @@ TEST_F(AcceleratorControllerTestWithClamshellSplitView,
 
   window_state2->Activate();
   UpdateDisplay("800x600/l");
-  controller_->PerformActionIfEnabled(WINDOW_CYCLE_SNAP_LEFT, {});
+  controller_->PerformActionIfEnabled(AcceleratorAction::kWindowCycleSnapLeft,
+                                      {});
   histogram_tester.ExpectBucketCount(
       kSnapWindowDeviceOrientationHistogram,
       SplitViewMetricsController::DeviceOrientation::kPortrait, 1);
@@ -1142,8 +1233,8 @@ TEST_F(AcceleratorControllerTest, Previous) {
 
 TEST_F(AcceleratorControllerTest, DontRepeatToggleFullscreen) {
   const AcceleratorData accelerators[] = {
-      {true, ui::VKEY_J, ui::EF_ALT_DOWN, TOGGLE_FULLSCREEN},
-      {true, ui::VKEY_K, ui::EF_ALT_DOWN, TOGGLE_FULLSCREEN},
+      {true, ui::VKEY_J, ui::EF_ALT_DOWN, AcceleratorAction::kToggleFullscreen},
+      {true, ui::VKEY_K, ui::EF_ALT_DOWN, AcceleratorAction::kToggleFullscreen},
   };
   test_api_->RegisterAccelerators(accelerators);
 
@@ -1156,7 +1247,8 @@ TEST_F(AcceleratorControllerTest, DontRepeatToggleFullscreen) {
   widget->Activate();
   widget->GetNativeView()->SetProperty(
       aura::client::kResizeBehaviorKey,
-      aura::client::kResizeBehaviorCanMaximize);
+      aura::client::kResizeBehaviorCanMaximize |
+          aura::client::kResizeBehaviorCanFullscreen);
 
   ui::test::EventGenerator* generator = GetEventGenerator();
   WindowState* window_state = WindowState::Get(widget->GetNativeView());
@@ -1184,11 +1276,9 @@ TEST_F(AcceleratorControllerTest, DontToggleFullscreenWhenOverviewStarts) {
   generator->PressKey(ui::VKEY_MEDIA_LAUNCH_APP1, ui::EF_NONE);
   generator->PressKey(ui::VKEY_ZOOM, ui::EF_NONE);
   EXPECT_FALSE(WindowState::Get(widget->GetNativeWindow())->IsFullscreen());
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
-  EXPECT_TRUE(Shell::Get()
-                  ->overview_controller()
-                  ->overview_session()
-                  ->IsWindowInOverview(widget->GetNativeWindow()));
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->overview_session()->IsWindowInOverview(
+      widget->GetNativeWindow()));
 }
 
 // Tests that window shortcuts don't work on a minimized, i.e. not visible,
@@ -1201,7 +1291,7 @@ TEST_F(AcceleratorControllerTest, MinimizedWindowInOverview) {
   EXPECT_TRUE(window_state->IsMinimized());
   ToggleOverview();
   GetEventGenerator()->PressKey(ui::VKEY_OEM_4, ui::EF_ALT_DOWN);
-  EXPECT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
+  EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
   EXPECT_TRUE(window_state->IsMinimized());
 }
 
@@ -1222,7 +1312,8 @@ TEST_F(AcceleratorControllerTest, ProcessOnce) {
   ui::EventDispatchDetails details = sink->OnEventFromSource(&key_event1);
   EXPECT_TRUE(key_event1.handled() || details.dispatcher_destroyed);
 
-  ui::KeyEvent key_event2('A', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
+  ui::KeyEvent key_event2 = ui::KeyEvent::FromCharacter(
+      'A', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
   details = sink->OnEventFromSource(&key_event2);
   EXPECT_FALSE(key_event2.handled() || details.dispatcher_destroyed);
 
@@ -1444,13 +1535,13 @@ TEST_F(AcceleratorControllerTest, GlobalAcceleratorsToggleQuickSettings) {
 }
 
 TEST_F(AcceleratorControllerTest, ToggleMultitaskMenu) {
-  base::test::ScopedFeatureList scoped_feature_list;
   // Accelerators behind a flag should also be accompanied by the
   // `kShortcutCustomization` to support dynamic accelerator registration.
-  scoped_feature_list.InitWithFeatures(
-      {chromeos::wm::features::kWindowLayoutMenu,
-       ::features::kShortcutCustomization},
-      {});
+  base::test::ScopedFeatureList scoped_feature_list(
+      ::features::kShortcutCustomization);
+
+  // Simulate fake user login to ensure pref registration is done correctly.
+  SimulateUserLogin("fakeuser");
   // Enabling `kShortcutCustomization` will start letting
   // `AcceleratorControllerImpl` to observe changes to the accelerator list.
   // This includes accelerators added by enabling flags.
@@ -1809,7 +1900,7 @@ INSTANTIATE_TEST_SUITE_P(
          std::make_pair<std::string, std::string>(kVolumeButtonRegionScreen,
                                                   kVolumeButtonSideBottom)}));
 
-// Tests the TOGGLE_CAPS_LOCK accelerator.
+// Tests the AcceleratorAction::kToggleCapsLock accelerator.
 TEST_F(AcceleratorControllerTest, ToggleCapsLockAccelerators) {
   ImeControllerImpl* controller = Shell::Get()->ime_controller();
 
@@ -2029,9 +2120,9 @@ TEST_F(AcceleratorControllerTest, DisallowedAtModalWindow) {
   for (size_t k = 0; k < kActionsAllowedAtModalWindowLength; ++k)
     actionsAllowedAtModalWindow.insert(kActionsAllowedAtModalWindow[k]);
   for (const auto& action : actionsAllowedAtModalWindow) {
-    EXPECT_TRUE(all_actions.find(action) != all_actions.end() ||
-                all_debug_actions.find(action) != all_debug_actions.end() ||
-                all_dev_actions.find(action) != all_dev_actions.end())
+    EXPECT_TRUE(base::Contains(all_actions, action) ||
+                base::Contains(all_debug_actions, action) ||
+                base::Contains(all_dev_actions, action))
         << " action from kActionsAllowedAtModalWindow"
         << " not found in kAcceleratorData, kDebugAcceleratorData or"
         << " kDeveloperAcceleratorData action: " << action;
@@ -2041,8 +2132,7 @@ TEST_F(AcceleratorControllerTest, DisallowedAtModalWindow) {
   wm::ActivateWindow(window.get());
   ShellTestApi().SimulateModalWindowOpenForTest(true);
   for (const auto& action : all_actions) {
-    if (actionsAllowedAtModalWindow.find(action) ==
-        actionsAllowedAtModalWindow.end()) {
+    if (!base::Contains(actionsAllowedAtModalWindow, action)) {
       EXPECT_TRUE(controller_->PerformActionIfEnabled(action, {}))
           << " for action (disallowed at modal window): " << action;
     }
@@ -2144,13 +2234,15 @@ TEST_F(AcceleratorControllerTest, DisallowedWithNoWindow) {
   for (size_t i = 0; i < kAcceleratorDataLength; ++i) {
     const auto& accelerator_data = kAcceleratorData[i];
     auto iter = actions_needing_window.find(accelerator_data.action);
-    if (iter == actions_needing_window.end())
+    if (!base::Contains(actions_needing_window, accelerator_data.action)) {
       continue;
+    }
 
     ui::Accelerator accelerator{accelerator_data.keycode,
                                 accelerator_data.modifiers};
-    if (!accelerator_data.trigger_on_press)
+    if (!accelerator_data.trigger_on_press) {
       accelerator.set_key_state(ui::Accelerator::KeyState::RELEASED);
+    }
     accelerators_needing_window[*iter] = accelerator;
   }
 
@@ -2176,7 +2268,7 @@ TEST_F(AcceleratorControllerTest, DisallowedWithNoWindow) {
   for (const auto& iter : accelerators_needing_window) {
     window.reset(CreateTestWindowInShellWithBounds(gfx::Rect(5, 5, 20, 20)));
     wm::ActivateWindow(window.get());
-    controller_->PerformActionIfEnabled(WINDOW_MINIMIZE, {});
+    controller_->PerformActionIfEnabled(AcceleratorAction::kWindowMinimize, {});
     accessibility_controller->TriggerAccessibilityAlert(
         AccessibilityAlert::NONE);
     controller_->PerformActionIfEnabled(iter.first, iter.second);
@@ -2263,8 +2355,9 @@ TEST_F(AcceleratorControllerTest, CalculatorKey) {
   EXPECT_CALL(*new_window_delegate_, OpenCalculator)
       .WillOnce(testing::Return());
   EXPECT_CALL(*observer, OnActionPerformed)
-      .WillOnce(
-          [](AcceleratorAction action) { EXPECT_EQ(OPEN_CALCULATOR, action); });
+      .WillOnce([](AcceleratorAction action) {
+        EXPECT_EQ(AcceleratorAction::kOpenCalculator, action);
+      });
   EXPECT_TRUE(ProcessInController(accelerator));
   accelerator_controller->RemoveObserver(observer.get());
 }
@@ -2344,8 +2437,8 @@ class AcceleratorControllerImprovedKeyboardShortcutsTest
   }
 
  protected:
-  raw_ptr<TestInputMethodManager, ExperimentalAsh> input_method_manager_ =
-      nullptr;  // Not owned.
+  raw_ptr<TestInputMethodManager, DanglingUntriaged | ExperimentalAsh>
+      input_method_manager_ = nullptr;  // Not owned.
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -2357,17 +2450,18 @@ TEST_F(AcceleratorControllerImprovedKeyboardShortcutsTest, InputMethodChanged) {
       ui::VKEY_OEM_1, ui::DomCode::BRACKET_LEFT, ui::EF_ALT_DOWN);
 
   // With positional shortcuts disabled, the accelerator should not match
-  // WINDOW_CYCLE_SNAP_LEFT.
+  // AcceleratorAction::kWindowCycleSnapLeft.
   input_method_manager_->use_positional_shortcuts_ = false;
   input_method_manager_->NotifyInputMethodChanged();
-  EXPECT_FALSE(controller_->DoesAcceleratorMatchAction(accelerator,
-                                                       WINDOW_CYCLE_SNAP_LEFT));
+  EXPECT_FALSE(controller_->DoesAcceleratorMatchAction(
+      accelerator, AcceleratorAction::kWindowCycleSnapLeft));
 
-  // When enabled, accelerator should match WINDOW_CYCLE_SNAP_LEFT.
+  // When enabled, accelerator should match
+  // AcceleratorAction::kWindowCycleSnapLeft.
   input_method_manager_->use_positional_shortcuts_ = true;
   input_method_manager_->NotifyInputMethodChanged();
-  EXPECT_TRUE(controller_->DoesAcceleratorMatchAction(accelerator,
-                                                      WINDOW_CYCLE_SNAP_LEFT));
+  EXPECT_TRUE(controller_->DoesAcceleratorMatchAction(
+      accelerator, AcceleratorAction::kWindowCycleSnapLeft));
 }
 
 class AcceleratorControllerInputMethodTest : public AcceleratorControllerTest {
@@ -2398,8 +2492,8 @@ class AcceleratorControllerInputMethodTest : public AcceleratorControllerTest {
   }
 
  protected:
-  raw_ptr<AcceleratorMockInputMethod, ExperimentalAsh> mock_input_ =
-      nullptr;  // Not owned.
+  raw_ptr<AcceleratorMockInputMethod, DanglingUntriaged | ExperimentalAsh>
+      mock_input_ = nullptr;  // Not owned.
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -2513,8 +2607,9 @@ TEST_F(DeprecatedAcceleratorTester, TestDeprecatedAcceleratorsBehavior) {
         ContainsDeprecatedAcceleratorNotification(data->uma_histogram_name));
     RemoveAllNotifications();
 
-    // If the action is LOCK_SCREEN, we must reset the state by unlocking the
-    // screen before we proceed testing the rest of accelerators.
+    // If the action is AcceleratorAction::kLockScreen, we must reset the state
+    // by unlocking the screen before we proceed testing the rest of
+    // accelerators.
     ResetStateIfNeeded();
   }
 }
@@ -2522,17 +2617,19 @@ TEST_F(DeprecatedAcceleratorTester, TestDeprecatedAcceleratorsBehavior) {
 TEST_F(DeprecatedAcceleratorTester, TestNewAccelerators) {
   // Add below the new accelerators that replaced the deprecated ones (if any).
   const AcceleratorData kNewAccelerators[] = {
-      {true, ui::VKEY_L, ui::EF_COMMAND_DOWN, LOCK_SCREEN},
+      {true, ui::VKEY_L, ui::EF_COMMAND_DOWN, AcceleratorAction::kLockScreen},
       {true, ui::VKEY_SPACE, ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
-       SWITCH_TO_NEXT_IME},
-      {true, ui::VKEY_ESCAPE, ui::EF_COMMAND_DOWN, SHOW_TASK_MANAGER},
+       AcceleratorAction::kSwitchToNextIme},
+      {true, ui::VKEY_ESCAPE, ui::EF_COMMAND_DOWN,
+       AcceleratorAction::kShowTaskManager},
       {true, ui::VKEY_K, ui::EF_SHIFT_DOWN | ui::EF_COMMAND_DOWN,
-       TOGGLE_IME_MENU_BUBBLE},
+       AcceleratorAction::kToggleImeMenuBubble},
       {true, ui::VKEY_H, ui::EF_COMMAND_DOWN | ui::EF_CONTROL_DOWN,
-       TOGGLE_HIGH_CONTRAST},
+       AcceleratorAction::kToggleHighContrast},
   };
 
-  // The SWITCH_TO_NEXT_IME accelerator requires multiple IMEs to be available.
+  // The AcceleratorAction::kSwitchToNextIme accelerator requires multiple IMEs
+  // to be available.
   AddTestImes();
 
   EXPECT_TRUE(IsMessageCenterEmpty());
@@ -2541,14 +2638,15 @@ TEST_F(DeprecatedAcceleratorTester, TestNewAccelerators) {
     EXPECT_TRUE(ProcessInController(CreateAccelerator(data)));
 
     // Expect no notifications from the new accelerators.
-    if (data.action != TOGGLE_HIGH_CONTRAST) {
+    if (data.action != AcceleratorAction::kToggleHighContrast) {
       // The toggle high contrast accelerator displays a notification specific
       // to the high contrast mode.
       EXPECT_TRUE(IsMessageCenterEmpty());
     }
 
-    // If the action is LOCK_SCREEN, we must reset the state by unlocking the
-    // screen before we proceed testing the rest of accelerators.
+    // If the action is AcceleratorAction::kLockScreen, we must reset the state
+    // by unlocking the screen before we proceed testing the rest of
+    // accelerators.
     ResetStateIfNeeded();
   }
 
@@ -2562,7 +2660,7 @@ TEST_F(AcceleratorControllerGuestModeTest, IncognitoWindowDisabled) {
 
   // New incognito window is disabled.
   EXPECT_FALSE(Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      NEW_INCOGNITO_WINDOW, {}));
+      AcceleratorAction::kNewIncognitoWindow, {}));
 }
 
 constexpr char kUserEmail[] = "user@magnifier";
@@ -3252,14 +3350,13 @@ TEST_P(MediaSessionAcceleratorTest,
 class AcceleratorControllerGameDashboardTests
     : public AcceleratorControllerTest {
  public:
-  AcceleratorControllerGameDashboardTests() = default;
+  AcceleratorControllerGameDashboardTests()
+      : scoped_version_info_("CHROMEOS_RELEASE_TRACK=testimage-channel",
+                             base::SysInfo::GetLsbReleaseTime()) {}
   ~AcceleratorControllerGameDashboardTests() override = default;
 
   void SetUp() override {
     EXPECT_FALSE(features::IsGameDashboardEnabled());
-    base::SysInfo::SetChromeOSVersionInfoForTest(
-        "CHROMEOS_RELEASE_TRACK=testimage-channel",
-        base::SysInfo::GetLsbReleaseTime());
     scoped_feature_list_.InitAndEnableFeature(features::kGameDashboard);
     AcceleratorControllerTest::SetUp();
     EXPECT_TRUE(features::IsGameDashboardEnabled());
@@ -3267,6 +3364,7 @@ class AcceleratorControllerGameDashboardTests
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedChromeOSVersionInfo scoped_version_info_;
 };
 
 TEST_F(AcceleratorControllerGameDashboardTests,
@@ -3276,24 +3374,24 @@ TEST_F(AcceleratorControllerGameDashboardTests,
   // No active window.
   EXPECT_FALSE(ProcessInController(accelerator));
 
-  // Create a new window.
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindowInShellWithBounds(gfx::Rect(5, 5, 20, 20)));
-  wm::ActivateWindow(window.get());
-
   // Verify cannot toggle for unsupported app types.
   const AppType unsupported_window_types[] = {
       AppType::NON_APP,      AppType::BROWSER,    AppType::CHROME_APP,
       AppType::CROSTINI_APP, AppType::SYSTEM_APP, AppType::LACROS};
   for (AppType unsupported_window_type : unsupported_window_types) {
+    std::unique_ptr<aura::Window> window =
+        CreateAppWindow(gfx::Rect(5, 5, 20, 20), unsupported_window_type);
     window->SetProperty(aura::client::kAppType,
                         static_cast<int>(unsupported_window_type));
     EXPECT_FALSE(ProcessInController(accelerator));
   }
 
-  // Set the window's app type to ARC.
-  window->SetProperty(aura::client::kAppType,
-                      static_cast<int>(AppType::ARC_APP));
+  std::unique_ptr<aura::Window> window =
+      CreateAppWindow(gfx::Rect(5, 5, 20, 20), AppType::ARC_APP);
+  window->SetProperty(kAppIDKey,
+                      std::string(TestGameDashboardDelegate::kGameAppId));
+  EXPECT_FALSE(ProcessInController(accelerator));
+  window->SetProperty(kArcGameControlsFlagsKey, ArcGameControlsFlag::kKnown);
   EXPECT_TRUE(ProcessInController(accelerator));
 }
 

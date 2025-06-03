@@ -14,7 +14,7 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/common/pref_names.h"
 #include "components/sync/base/features.h"
-#include "components/sync/driver/sync_service_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "content/public/test/browser_test.h"
 
 using bookmarks_helper::AddURL;
@@ -29,12 +29,14 @@ namespace {
 // Utility functions to make a model type set out of a small number of
 // model types.
 
+// TODO(crbug/1444105): MakeSet() seems pretty redundant, can be replaced with
+// its body.
 syncer::ModelTypeSet MakeSet(syncer::ModelType type) {
-  return syncer::ModelTypeSet(type);
+  return {type};
 }
 
 syncer::ModelTypeSet MakeSet(syncer::ModelType type1, syncer::ModelType type2) {
-  return syncer::ModelTypeSet(type1, type2);
+  return {type1, type2};
 }
 
 // An ordered list of model types sets to migrate.  Used by
@@ -118,14 +120,6 @@ class MigrationTest : public SyncTest {
     // Doesn't make sense to migrate commit only types.
     preferred_data_types.RemoveAll(syncer::CommitOnlyTypes());
 
-    if (base::FeatureList::IsEnabled(syncer::kSyncEnableHistoryDataType)) {
-      // The "SyncEnableHistoryDataType" feature soft-disables TYPES_URLS: It'll
-      // still be technically registered, but will never actually become active
-      // (due to the controller's GetPreconditionState()). For the purposes of
-      // these tests, consider it not preferred.
-      preferred_data_types.Remove(syncer::TYPED_URLS);
-    }
-
     return preferred_data_types;
   }
 
@@ -196,7 +190,7 @@ class MigrationTest : public SyncTest {
     }
 
     // Phase 3: Wait for all clients to catch up.
-    AwaitQuiescence();
+    ASSERT_TRUE(AwaitQuiescence());
   }
 
  private:

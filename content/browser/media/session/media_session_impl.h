@@ -16,6 +16,7 @@
 #include "base/containers/id_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "content/browser/media/session/audio_focus_delegate.h"
@@ -273,6 +274,10 @@ class MediaSessionImpl : public MediaSession,
   // Exit picture-in-picture.
   void ExitPictureInPicture() override;
 
+  // Automatically enter picture-in-picture from a non-user source (e.g. in
+  // reaction to content being hidden).
+  void EnterAutoPictureInPicture() override;
+
   // Routes the audio from this Media Session to the given output device. If
   // |id| is null, we will route to the default output device.
   // Players created after this setting has been set will also have their audio
@@ -341,6 +346,9 @@ class MediaSessionImpl : public MediaSession,
 
   // Returns the Audio Focus request ID associated with this media session.
   const base::UnguessableToken& GetRequestId() const;
+
+  // Returns a WeakPtr to `this`.
+  base::WeakPtr<MediaSessionImpl> GetWeakPtr();
 
   CONTENT_EXPORT bool HasImageCacheForTest(const GURL& image_url) const;
 
@@ -451,6 +459,15 @@ class MediaSessionImpl : public MediaSession,
   // Rebuilds |metadata_| and |images_| and notifies observers if they have
   // changed.
   void RebuildAndNotifyMetadataChanged();
+
+#if BUILDFLAG(IS_CHROMEOS)
+  void BuildPlaceholderMetadata(
+      media_session::MediaMetadata& metadata,
+      std::vector<media_session::MediaImage>& artwork);
+#endif
+
+  void BuildMetadata(media_session::MediaMetadata& metadata,
+                     std::vector<media_session::MediaImage>& artwork);
 
   bool IsPictureInPictureAvailable() const;
 
@@ -623,6 +640,8 @@ class MediaSessionImpl : public MediaSession,
   absl::optional<PlayerIdentifier> guarding_player_id_;
 
   media_session::mojom::RemotePlaybackMetadataPtr remote_playback_metadata_;
+
+  base::WeakPtrFactory<MediaSessionImpl> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

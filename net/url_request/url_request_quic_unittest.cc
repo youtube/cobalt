@@ -108,7 +108,6 @@ class URLRequestQuicTest
         HostPortPair(kTestServerHost, 443));
     context_builder_->set_quic_context(std::move(quic_context));
     params.enable_quic = true;
-    params.enable_server_push_cancellation = true;
     context_builder_->set_host_resolver(std::move(host_resolver_));
     context_builder_->set_http_network_session_params(params);
     context_builder_->SetCertVerifier(std::move(cert_verifier));
@@ -180,8 +179,8 @@ class URLRequestQuicTest
            std::string(path);
   }
 
-  void SetDelay(absl::string_view host,
-                absl::string_view path,
+  void SetDelay(std::string_view host,
+                std::string_view path,
                 base::TimeDelta delay) {
     memory_cache_backend_.SetResponseDelay(
         host, path,
@@ -229,7 +228,7 @@ class URLRequestQuicTest
 
   std::string ServerPushCacheDirectory() {
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
     path = path.AppendASCII("net").AppendASCII("data").AppendASCII(
         "quic_http_response_cache_data_with_push");
     // The file path is known to be an ascii string.

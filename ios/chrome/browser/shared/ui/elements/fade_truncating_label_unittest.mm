@@ -15,10 +15,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 /// Width used for `kShortText`, `kTwoLineText` and `kThreeLineText` to be true.
@@ -54,10 +50,6 @@ class FadeTruncatingLabelTest : public PlatformTest {
 
  protected:
   void SetUp() override {
-    PlatformTest::SetUp();
-    base::test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.InitAndEnableFeature(kMultilineFadeTruncatingLabel);
-
     short_text_ = [[FadeTruncatingLabel alloc] init];
     short_text_.text = [kShortText copy];
     two_lines_text_ = [[FadeTruncatingLabel alloc] init];
@@ -183,9 +175,6 @@ TEST_F(FadeTruncatingLabelTest, ValidConstants) {
 // Tests that FadeTruncatinglabel returns valid bounding rect when calling
 // `textRectForBounds`
 TEST_F(FadeTruncatingLabelTest, ValidBoundingRect) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kMultilineFadeTruncatingLabel);
-
   CGFloat max_bound = 200;
   CGFloat bound_increment = 20;
   NSInteger max_number_of_lines = 4;
@@ -207,9 +196,6 @@ TEST_F(FadeTruncatingLabelTest, ValidBoundingRect) {
 // Tests that FadeTruncatingLabel draws with valid rect when calling
 // `drawTextInRect`.
 TEST_F(FadeTruncatingLabelTest, ValidDrawingRect) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kMultilineFadeTruncatingLabel);
-
   CGFloat max_bound = 200;
   CGFloat bound_increment = 20;
   NSInteger max_number_of_lines = 4;
@@ -232,9 +218,6 @@ TEST_F(FadeTruncatingLabelTest, ValidDrawingRect) {
 
 // Tests that the gradient is only applied on the last line.
 TEST_F(FadeTruncatingLabelTest, GradientOnLastLine) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kMultilineFadeTruncatingLabel);
-
   CGRect bounds = CGRectMake(0, 0, kLimitedWidth, FLT_MAX);
   for (size_t label_index = 0; label_index < labels_.count; label_index++) {
     FadeTruncatingLabel* label = labels_[label_index];

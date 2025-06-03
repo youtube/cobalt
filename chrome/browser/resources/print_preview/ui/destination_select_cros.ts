@@ -4,7 +4,7 @@
 
 import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/js/util_ts.js';
+import 'chrome://resources/js/util.js';
 import 'chrome://resources/polymer/v3_0/iron-iconset-svg/iron-iconset-svg.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/iron-media-query/iron-media-query.js';
@@ -19,7 +19,7 @@ import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {Destination, DestinationOrigin, GooglePromotedDestinationId, PDF_DESTINATION_KEY} from '../data/destination.js';
-import {ERROR_STRING_KEY_MAP, getPrinterStatusIcon, PrinterStatusReason} from '../data/printer_status_cros.js';
+import {ERROR_STRING_KEY_MAP, getPrinterStatusIcon, getStatusTextColorClass, PrinterStatusReason} from '../data/printer_status_cros.js';
 
 import {PrintPreviewDestinationDropdownCrosElement} from './destination_dropdown_cros.js';
 import {getTemplate} from './destination_select_cros.html.js';
@@ -265,6 +265,22 @@ export class PrintPreviewDestinationSelectCrosElement extends
   private computeIsCurrentDestinationCrosLocal_(): boolean {
     return this.destination &&
         this.destination.origin === DestinationOrigin.CROS;
+  }
+
+  private computeStatusClass_(): string {
+    const statusClass = 'destination-status';
+    if (!this.destination) {
+      return statusClass;
+    }
+
+    const printerStatusReason = this.destination.printerStatusReason;
+    if (printerStatusReason === null ||
+        printerStatusReason === PrinterStatusReason.NO_ERROR ||
+        printerStatusReason === PrinterStatusReason.UNKNOWN_REASON) {
+      return statusClass;
+    }
+
+    return `${statusClass} ${getStatusTextColorClass(printerStatusReason)}`;
   }
 
   /**

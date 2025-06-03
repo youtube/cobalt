@@ -677,16 +677,24 @@ TEST_P(AudioDecoderTest, ProduceAudioSamples) {
   }
 }
 
-TEST_P(AudioDecoderTest, DecodeMismatchedSubsamples) {
+TEST_P(AudioDecoderTest, Decode) {
+  ASSERT_NO_FATAL_FAILURE(Initialize());
+  Decode();
+  EXPECT_TRUE(last_decode_status().is_ok());
+}
+
+TEST_P(AudioDecoderTest, MismatchedSubsampleBuffer) {
   ASSERT_NO_FATAL_FAILURE(Initialize());
   DecodeBuffer(CreateMismatchedBufferForTest());
   EXPECT_TRUE(!last_decode_status().is_ok());
 }
 
-TEST_P(AudioDecoderTest, Decode) {
+// The AudioDecoders do not support encrypted buffers since they were
+// initialized without cdm_context.
+TEST_P(AudioDecoderTest, EncryptedBuffer) {
   ASSERT_NO_FATAL_FAILURE(Initialize());
-  Decode();
-  EXPECT_TRUE(last_decode_status().is_ok());
+  DecodeBuffer(CreateFakeEncryptedBuffer());
+  EXPECT_TRUE(!last_decode_status().is_ok());
 }
 
 TEST_P(AudioDecoderTest, Reset) {
@@ -700,6 +708,12 @@ TEST_P(AudioDecoderTest, NoTimestamp) {
   buffer->set_timestamp(kNoTimestamp);
   DecodeBuffer(std::move(buffer));
   EXPECT_THAT(last_decode_status(), IsDecodeErrorStatus());
+}
+
+TEST_P(AudioDecoderTest, EOSBuffer) {
+  ASSERT_NO_FATAL_FAILURE(Initialize());
+  DecodeBuffer(DecoderBuffer::CreateEOSBuffer());
+  EXPECT_TRUE(last_decode_status().is_ok());
 }
 
 INSTANTIATE_TEST_SUITE_P(FFmpeg,

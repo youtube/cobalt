@@ -1,4 +1,5 @@
 include_rules = [
+  "+chrome/browser/flags/android/java/src/org/chromium/chrome/browser/flags/ChromeFeatureList.java",
   "+chromeos/crosapi/cpp/gurl_os_handler_utils.h",
   "+chromeos/crosapi/cpp/lacros_startup_state.h",
   "+components/bookmarks/browser",
@@ -27,6 +28,7 @@ include_rules = [
   "+components/prefs",
   "+components/query_parser",
   "+components/query_tiles",
+  "+components/safe_browsing/core/common",
   "+components/search",
   "+components/search_engines",
   "+components/security_state",

@@ -14,6 +14,7 @@
 #include "android_webview/nonembedded/component_updater/aw_component_updater_configurator.h"
 #include "base/android/path_utils.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
@@ -102,16 +103,18 @@ class FailingNetworkFetcher : public update_client::NetworkFetcher {
              /* x_header_retry_after_sec= */ 0ll);
   }
 
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override {
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override {
     std::move(download_to_file_complete_callback)
         .Run(
             /* network_error= */ -2,
             /* content_size= */ 0);
+    return base::DoNothing();
   }
 };
 
@@ -141,16 +144,18 @@ class OnDemandNetworkFetcher : public update_client::NetworkFetcher {
              /* x_header_retry_after_sec= */ 0ll);
   }
 
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override {
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override {
     std::move(download_to_file_complete_callback)
         .Run(
             /* network_error= */ -2,
             /* content_size= */ 0);
+    return base::DoNothing();
   }
 };
 
@@ -178,10 +183,10 @@ class FakeCrxNetworkFetcher : public update_client::NetworkFetcher {
         .Run(/* responseCode= */ 200, /* content_size= */ 0);
     std::string response_body;
     int network_error = 0;
-    if (post_data.find("updatecheck") != std::string::npos) {
+    if (base::Contains(post_data, "updatecheck")) {
       ASSERT_TRUE(base::ReadFileToString(
           GetTestFile("fake_component_update_response.json"), &response_body));
-    } else if (post_data.find("eventtype") != std::string::npos) {
+    } else if (base::Contains(post_data, "eventtype")) {
       ASSERT_TRUE(base::ReadFileToString(
           GetTestFile("fake_component_ping_response.json"), &response_body));
     } else {  // error post request not a ping nor update.
@@ -195,19 +200,21 @@ class FakeCrxNetworkFetcher : public update_client::NetworkFetcher {
              /* x_header_retry_after_sec= */ 0ll);
   }
 
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override {
-    ASSERT_TRUE(base::CopyFile(GetTestFile("fake_component.crx"), file_path));
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override {
+    EXPECT_TRUE(base::CopyFile(GetTestFile("fake_component.crx"), file_path));
     std::move(response_started_callback)
         .Run(/* responseCode= */ 200, /* content_size= */ kCrxContentLength);
     std::move(download_to_file_complete_callback)
         .Run(
             /* network_error= */ 0,
             /* content_size= */ kCrxContentLength);
+    return base::DoNothing();
   }
 };
 

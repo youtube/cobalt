@@ -5,6 +5,7 @@
 #include "chromeos/ash/components/login/auth/auth_session_authenticator.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_switches.h"
 #include "base/check.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -12,6 +13,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
+#include "base/time/default_clock.h"
 #include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_util.h"
@@ -19,7 +21,7 @@
 #include "chromeos/ash/components/cryptohome/userdataauth_util.h"
 #include "chromeos/ash/components/dbus/cryptohome/UserDataAuth.pb.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "chromeos/ash/components/login/auth/cryptohome_parameter_utils.h"
 #include "chromeos/ash/components/login/auth/public/auth_failure.h"
 #include "chromeos/ash/components/login/auth/public/auth_session_intent.h"
@@ -37,7 +39,7 @@ namespace {
 
 std::unique_ptr<UserContext> RecordConfiguredFactors(
     std::unique_ptr<UserContext> context) {
-  AuthMetricsRecorder::Get()->RecordUserAuthFactors(
+  AuthEventsRecorder::Get()->RecordUserAuthFactors(
       context->GetAuthFactorsData().GetSessionFactors());
   return context;
 }
@@ -48,16 +50,15 @@ AuthSessionAuthenticator::AuthSessionAuthenticator(
     AuthStatusConsumer* consumer,
     std::unique_ptr<SafeModeDelegate> safe_mode_delegate,
     base::RepeatingCallback<void(const AccountId&)> user_recorder,
-    bool is_ephemeral_mount_enforced,
     PrefService* local_state)
     : Authenticator(consumer),
-      is_ephemeral_mount_enforced_(is_ephemeral_mount_enforced),
       user_recorder_(std::move(user_recorder)),
       safe_mode_delegate_(std::move(safe_mode_delegate)),
-      auth_factor_editor_(std::make_unique<AuthFactorEditor>()),
+      auth_factor_editor_(
+          std::make_unique<AuthFactorEditor>(UserDataAuthClient::Get())),
       auth_performer_(
-          std::make_unique<AuthPerformer>(UserDataAuthClient::Get())),
-      hibernate_manager_(std::make_unique<HibernateManager>()),
+          std::make_unique<AuthPerformer>(UserDataAuthClient::Get(),
+                                          base::DefaultClock::GetInstance())),
       mount_performer_(std::make_unique<MountPerformer>()),
       local_state_(local_state) {
   DCHECK(safe_mode_delegate_);
@@ -73,18 +74,19 @@ AuthSessionAuthenticator::~AuthSessionAuthenticator() = default;
 // decides to remove old cryptohome and start anew, which can only happen
 // as a result of prior CompleteLogin call.
 void AuthSessionAuthenticator::CompleteLogin(
+    bool ephemeral,
     std::unique_ptr<UserContext> user_context) {
   PrepareForNewAttempt("CompleteLogin", "Regular user after online sign-in");
-  CompleteLoginImpl(std::move(user_context));
+  CompleteLoginImpl(ephemeral, std::move(user_context));
 }
 
 // Implementation part, shared by CompleteLogin and ResyncEncryptedData.
 void AuthSessionAuthenticator::CompleteLoginImpl(
+    bool ephemeral,
     std::unique_ptr<UserContext> context) {
   DCHECK(context);
   DCHECK(context->GetUserType() == user_manager::USER_TYPE_REGULAR ||
-         context->GetUserType() == user_manager::USER_TYPE_CHILD ||
-         context->GetUserType() == user_manager::USER_TYPE_ACTIVE_DIRECTORY);
+         context->GetUserType() == user_manager::USER_TYPE_CHILD);
   // For now we don't support empty passwords:
   if (context->GetKey()->GetKeyType() == Key::KEY_TYPE_PASSWORD_PLAIN) {
     bool has_knowledge_factor = !context->GetKey()->GetSecret().empty();
@@ -95,15 +97,14 @@ void AuthSessionAuthenticator::CompleteLoginImpl(
     }
   }
   StartAuthSessionForLogin(
-      std::move(context), is_ephemeral_mount_enforced_,
-      AuthSessionIntent::kDecrypt,
+      ephemeral, std::move(context), AuthSessionIntent::kDecrypt,
       base::BindOnce(&AuthSessionAuthenticator::DoCompleteLogin,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), ephemeral));
 }
 
 void AuthSessionAuthenticator::StartAuthSessionForLogin(
-    std::unique_ptr<UserContext> context,
     bool ephemeral,
+    std::unique_ptr<UserContext> context,
     AuthSessionIntent intent,
     StartAuthSessionCallback callback) {
   // Clone the context to be able to retry the StartAuthSession operation in
@@ -112,13 +113,13 @@ void AuthSessionAuthenticator::StartAuthSessionForLogin(
   auth_performer_->StartAuthSession(
       std::move(context), ephemeral, intent,
       base::BindOnce(&AuthSessionAuthenticator::OnStartAuthSessionForLogin,
-                     weak_factory_.GetWeakPtr(), std::move(original_context),
-                     ephemeral, intent, std::move(callback)));
+                     weak_factory_.GetWeakPtr(), ephemeral,
+                     std::move(original_context), intent, std::move(callback)));
 }
 
 void AuthSessionAuthenticator::OnStartAuthSessionForLogin(
-    std::unique_ptr<UserContext> original_context,
     bool ephemeral,
+    std::unique_ptr<UserContext> original_context,
     AuthSessionIntent intent,
     StartAuthSessionCallback callback,
     bool user_exists,
@@ -200,8 +201,8 @@ void AuthSessionAuthenticator::OnStartAuthSessionForLoginAfterStaleRemoval(
 }
 
 void AuthSessionAuthenticator::StartAuthSessionForLoggedIn(
-    std::unique_ptr<UserContext> context,
     bool ephemeral,
+    std::unique_ptr<UserContext> context,
     AuthSessionIntent intent,
     StartAuthSessionCallback callback) {
   auth_performer_->StartAuthSession(std::move(context), ephemeral, intent,
@@ -227,23 +228,26 @@ void AuthSessionAuthenticator::RecordFirstAuthFactorAdded(
 }
 
 void AuthSessionAuthenticator::DoCompleteLogin(
+    bool ephemeral,
     bool user_exists,
     std::unique_ptr<UserContext> context,
     absl::optional<AuthenticationError> error) {
-  AuthErrorCallback error_callback = base::BindOnce(
-      &AuthSessionAuthenticator::ProcessCryptohomeError,
-      weak_factory_.GetWeakPtr(),
-      is_ephemeral_mount_enforced_ ? AuthFailure::COULD_NOT_MOUNT_TMPFS
-                                   : AuthFailure::COULD_NOT_MOUNT_CRYPTOHOME);
+  AuthErrorCallback error_callback =
+      base::BindOnce(&AuthSessionAuthenticator::ProcessCryptohomeError,
+                     weak_factory_.GetWeakPtr(),
+                     ephemeral ? AuthFailure::COULD_NOT_MOUNT_TMPFS
+                               : AuthFailure::COULD_NOT_MOUNT_CRYPTOHOME);
   if (error.has_value()) {
     LOGIN_LOG(ERROR) << "Error starting authsession for Regular user "
                      << error.value().get_cryptohome_code();
     std::move(error_callback).Run(std::move(context), error.value());
     return;
   }
-  DCHECK(!user_exists || !is_ephemeral_mount_enforced_);
+  DCHECK(!user_exists || !ephemeral);
   LOGIN_LOG(EVENT) << "Regular user CompleteLogin " << user_exists;
-  bool challenge_response_auth = !context->GetChallengeResponseKeys().empty();
+  const bool challenge_response_auth =
+      !context->GetChallengeResponseKeys().empty();
+  const bool has_password = !context->GetKey()->GetSecret().empty();
   std::vector<AuthOperation> steps;
   if (!user_exists) {
     if (safe_mode_delegate_->IsSafeMode()) {
@@ -252,7 +256,7 @@ void AuthSessionAuthenticator::DoCompleteLogin(
       return;
     }
 
-    if (is_ephemeral_mount_enforced_) {  // New ephemeral user
+    if (ephemeral) {  // New ephemeral user
       steps.push_back(base::BindOnce(&MountPerformer::MountEphemeralDirectory,
                                      mount_performer_->AsWeakPtr()));
     } else {  // New persistent user
@@ -268,9 +272,6 @@ void AuthSessionAuthenticator::DoCompleteLogin(
                                      weak_factory_.GetWeakPtr()));
       steps.push_back(base::BindOnce(&MountPerformer::CreateNewUser,
                                      mount_performer_->AsWeakPtr()));
-      steps.push_back(base::BindOnce(
-          &HibernateManager::PrepareHibernateAndMaybeResumeAuthOp,
-          hibernate_manager_->AsWeakPtr()));
       steps.push_back(base::BindOnce(&MountPerformer::MountPersistentDirectory,
                                      mount_performer_->AsWeakPtr()));
     }
@@ -279,18 +280,44 @@ void AuthSessionAuthenticator::DoCompleteLogin(
       steps.push_back(
           base::BindOnce(&AuthFactorEditor::AddContextChallengeResponseKey,
                          auth_factor_editor_->AsWeakPtr()));
+      steps.push_back(
+          base::BindOnce(&AuthSessionAuthenticator::RecordFirstAuthFactorAdded,
+                         weak_factory_.GetWeakPtr()));
     } else {
-      steps.push_back(base::BindOnce(&AuthFactorEditor::AddContextKnowledgeKey,
-                                     auth_factor_editor_->AsWeakPtr()));
-    }
+      if (ash::switches::AreEmptyPasswordsAllowedForForTesting()) {
+        // Empty passwords are currently not supported in ChromeOS, and
+        // upcoming work on local passwords would significantly change code
+        // behavior if empty password is used during initial login.
+        // Some older tests might still use empty string as a password.
+        // Such tests should be fixed by owners to use non-empty passwords.
+        // If such fix requires non-trivial changes, the following flag
+        // can be used as a short-term solution:
+        // `--allow-empty-passwords-in-tests`
+        steps.push_back(
+            base::BindOnce(&AuthFactorEditor::AddContextKnowledgeKey,
+                           auth_factor_editor_->AsWeakPtr()));
+        steps.push_back(base::BindOnce(
+            &AuthSessionAuthenticator::RecordFirstAuthFactorAdded,
+            weak_factory_.GetWeakPtr()));
+      } else if (!ash::features::AreLocalPasswordsEnabledForConsumers()) {
+        CHECK(has_password)
+            << "Empty passwords are not supported during user creation";
+        steps.push_back(
+            base::BindOnce(&AuthFactorEditor::AddContextKnowledgeKey,
+                           auth_factor_editor_->AsWeakPtr()));
+        steps.push_back(base::BindOnce(
+            &AuthSessionAuthenticator::RecordFirstAuthFactorAdded,
+            weak_factory_.GetWeakPtr()));
+      } else {
+        // If Local passwords are enabled, password setup would
+        // happen later in OOBE flow.
+      }
     // In addition to factors suitable for authentication, fetch a set of
     // supported factor types for new users.
     steps.push_back(
         base::BindOnce(&AuthFactorEditor::GetAuthFactorsConfiguration,
                        auth_factor_editor_->AsWeakPtr()));
-    steps.push_back(
-        base::BindOnce(&AuthSessionAuthenticator::RecordFirstAuthFactorAdded,
-                       weak_factory_.GetWeakPtr()));
+    }       // challenge-response
   } else {  // existing user
     if (!challenge_response_auth) {
       // We are sure that password is correct, so intercept authentication
@@ -314,11 +341,6 @@ void AuthSessionAuthenticator::DoCompleteLogin(
           base::BindOnce(&AuthPerformer::AuthenticateUsingKnowledgeKey,
                          auth_performer_->AsWeakPtr()));
     }
-    // TODO(b/233103309): Abort resume from hibernate here as the user just went
-    // through online login and may need auth tokens synced.
-    steps.push_back(
-        base::BindOnce(&HibernateManager::PrepareHibernateAndMaybeResumeAuthOp,
-                       hibernate_manager_->AsWeakPtr()));
     steps.push_back(base::BindOnce(&MountPerformer::MountPersistentDirectory,
                                    mount_performer_->AsWeakPtr()));
     if (safe_mode_delegate_->IsSafeMode()) {
@@ -337,13 +359,12 @@ void AuthSessionAuthenticator::DoCompleteLogin(
 // Authentication from user pod.
 // *  User could mistype their password/PIN.
 // *  User homedir is expected to exist
-// *  Should not be used when ephemeral login is enforced.
 void AuthSessionAuthenticator::AuthenticateToLogin(
+    bool ephemeral,
     std::unique_ptr<UserContext> context) {
   DCHECK(context);
   DCHECK(context->GetUserType() == user_manager::USER_TYPE_REGULAR ||
          context->GetUserType() == user_manager::USER_TYPE_CHILD ||
-         context->GetUserType() == user_manager::USER_TYPE_ACTIVE_DIRECTORY ||
          context->GetUserType() == user_manager::USER_TYPE_PUBLIC_ACCOUNT);
   PrepareForNewAttempt("AuthenticateToLogin", "Returning regular user");
 
@@ -357,19 +378,17 @@ void AuthSessionAuthenticator::AuthenticateToLogin(
     }
   }
   StartAuthSessionForLogin(
-      std::move(context), is_ephemeral_mount_enforced_,
-      AuthSessionIntent::kDecrypt,
+      ephemeral, std::move(context), AuthSessionIntent::kDecrypt,
       base::BindOnce(&AuthSessionAuthenticator::DoLoginAsExistingUser,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), ephemeral));
 }
 
 void AuthSessionAuthenticator::AuthenticateToUnlock(
+    bool ephemeral,
     std::unique_ptr<UserContext> user_context) {
   DCHECK(user_context);
   DCHECK(user_context->GetUserType() == user_manager::USER_TYPE_REGULAR ||
          user_context->GetUserType() == user_manager::USER_TYPE_CHILD ||
-         user_context->GetUserType() ==
-             user_manager::USER_TYPE_ACTIVE_DIRECTORY ||
          user_context->GetUserType() == user_manager::USER_TYPE_PUBLIC_ACCOUNT);
   PrepareForNewAttempt("AuthenticateToUnlock", "Returning regular user");
 
@@ -384,25 +403,23 @@ void AuthSessionAuthenticator::AuthenticateToUnlock(
       LOGIN_LOG(ERROR) << "Empty password used in AuthenticateToLogin";
     }
   }
-  const bool is_user_ephemeral =
-      is_ephemeral_mount_enforced_ ||
-      (user_context->GetUserType() == user_manager::USER_TYPE_PUBLIC_ACCOUNT);
+
   StartAuthSessionForLoggedIn(
-      std::move(user_context), is_user_ephemeral,
-      AuthSessionIntent::kVerifyOnly,
+      ephemeral, std::move(user_context), AuthSessionIntent::kVerifyOnly,
       base::BindOnce(&AuthSessionAuthenticator::DoUnlock,
-                     weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr(), ephemeral));
 }
 
 void AuthSessionAuthenticator::DoLoginAsExistingUser(
+    bool ephemeral,
     bool user_exists,
     std::unique_ptr<UserContext> context,
     absl::optional<AuthenticationError> error) {
-  AuthErrorCallback error_callback = base::BindOnce(
-      &AuthSessionAuthenticator::ProcessCryptohomeError,
-      weak_factory_.GetWeakPtr(),
-      is_ephemeral_mount_enforced_ ? AuthFailure::COULD_NOT_MOUNT_TMPFS
-                                   : AuthFailure::COULD_NOT_MOUNT_CRYPTOHOME);
+  AuthErrorCallback error_callback =
+      base::BindOnce(&AuthSessionAuthenticator::ProcessCryptohomeError,
+                     weak_factory_.GetWeakPtr(),
+                     ephemeral ? AuthFailure::COULD_NOT_MOUNT_TMPFS
+                               : AuthFailure::COULD_NOT_MOUNT_CRYPTOHOME);
   if (error.has_value()) {
     LOGIN_LOG(ERROR) << "Error starting authsession for Regular user "
                      << error.value().get_cryptohome_code();
@@ -420,7 +437,7 @@ void AuthSessionAuthenticator::DoLoginAsExistingUser(
                  user_data_auth::CRYPTOHOME_ERROR_ACCOUNT_NOT_FOUND});
     return;
   }
-  DCHECK(user_exists && !is_ephemeral_mount_enforced_);
+  DCHECK(user_exists && !ephemeral);
 
   bool challenge_response_auth = !context->GetChallengeResponseKeys().empty();
 
@@ -445,9 +462,6 @@ void AuthSessionAuthenticator::DoLoginAsExistingUser(
         base::BindOnce(&AuthPerformer::AuthenticateUsingKnowledgeKey,
                        auth_performer_->AsWeakPtr()));
   }
-  steps.push_back(
-      base::BindOnce(&HibernateManager::PrepareHibernateAndMaybeResumeAuthOp,
-                     hibernate_manager_->AsWeakPtr()));
   steps.push_back(base::BindOnce(&MountPerformer::MountPersistentDirectory,
                                  mount_performer_->AsWeakPtr()));
   if (safe_mode_delegate_->IsSafeMode()) {
@@ -460,6 +474,7 @@ void AuthSessionAuthenticator::DoLoginAsExistingUser(
 }
 
 void AuthSessionAuthenticator::DoUnlock(
+    bool ephemeral,
     bool user_exists,
     std::unique_ptr<UserContext> context,
     absl::optional<AuthenticationError> error) {
@@ -474,13 +489,9 @@ void AuthSessionAuthenticator::DoUnlock(
     return;
   }
 
-  bool is_user_ephemeral =
-      is_ephemeral_mount_enforced_ ||
-      (context->GetUserType() == user_manager::USER_TYPE_PUBLIC_ACCOUNT);
-  LOGIN_LOG(EVENT) << "Regular User Unlock " << user_exists << " "
-                   << is_ephemeral_mount_enforced_ << " " << is_user_ephemeral;
+  LOGIN_LOG(EVENT) << "Regular User Unlock " << user_exists << " " << ephemeral;
 
-  if (!user_exists && !is_user_ephemeral) {
+  if (!user_exists && !ephemeral) {
     LOGIN_LOG(ERROR)
         << "User directory does not exist for supposedly existing user";
     std::move(error_callback)
@@ -489,7 +500,7 @@ void AuthSessionAuthenticator::DoUnlock(
                  user_data_auth::CRYPTOHOME_ERROR_ACCOUNT_NOT_FOUND});
     return;
   }
-  DCHECK(user_exists || is_user_ephemeral);
+  DCHECK(user_exists || ephemeral);
 
   bool challenge_response_auth = !context->GetChallengeResponseKeys().empty();
 
@@ -557,7 +568,7 @@ void AuthSessionAuthenticator::LoginAsPublicSession(
   }
 
   StartAuthSessionForLogin(
-      std::move(context), true /* ephemeral */, AuthSessionIntent::kDecrypt,
+      /*ephemeral=*/true, std::move(context), AuthSessionIntent::kDecrypt,
       base::BindOnce(&AuthSessionAuthenticator::DoLoginAsPublicSession,
                      weak_factory_.GetWeakPtr()));
 }
@@ -636,7 +647,7 @@ void AuthSessionAuthenticator::LoginAsKioskImpl(
     return;
   }
   StartAuthSessionForLogin(
-      std::move(context), ephemeral, AuthSessionIntent::kDecrypt,
+      ephemeral, std::move(context), AuthSessionIntent::kDecrypt,
       base::BindOnce(&AuthSessionAuthenticator::DoLoginAsKiosk,
                      weak_factory_.GetWeakPtr(), ephemeral));
 }
@@ -697,8 +708,6 @@ void AuthSessionAuthenticator::DoLoginAsKiosk(
 
 void AuthSessionAuthenticator::LoginAuthenticated(
     std::unique_ptr<UserContext> context) {
-  DCHECK(!is_ephemeral_mount_enforced_);
-
   AuthErrorCallback error_callback = base::BindOnce(
       &AuthSessionAuthenticator::ProcessCryptohomeError,
       weak_factory_.GetWeakPtr(), AuthFailure::COULD_NOT_MOUNT_CRYPTOHOME);
@@ -726,7 +735,6 @@ void AuthSessionAuthenticator::RecoverEncryptedData(
     const std::string& old_password) {
   DCHECK(context);
   DCHECK(!context->GetAuthSessionId().empty());
-  DCHECK(!is_ephemeral_mount_enforced_);
   LOGIN_LOG(USER) << "Attempting to update user password";
 
   auto* password_factor =
@@ -770,12 +778,6 @@ void AuthSessionAuthenticator::RecoverEncryptedData(
                                  auth_performer_->AsWeakPtr()));
   steps.push_back(base::BindOnce(&AuthFactorEditor::ReplaceContextKey,
                                  auth_factor_editor_->AsWeakPtr()));
-  // TODO(b/233103309): Abort resume from hibernate here as the user just went
-  // through the recovery flow and online login, so they may have tokens that
-  // need to be synced.
-  steps.push_back(
-      base::BindOnce(&HibernateManager::PrepareHibernateAndMaybeResumeAuthOp,
-                     hibernate_manager_->AsWeakPtr()));
   steps.push_back(base::BindOnce(&MountPerformer::MountPersistentDirectory,
                                  mount_performer_->AsWeakPtr()));
   if (safe_mode_delegate_->IsSafeMode()) {
@@ -788,6 +790,7 @@ void AuthSessionAuthenticator::RecoverEncryptedData(
 }
 
 void AuthSessionAuthenticator::ResyncEncryptedData(
+    bool ephemeral,
     std::unique_ptr<UserContext> context) {
   LOGIN_LOG(USER) << "Re-create cryptohome";
 
@@ -795,8 +798,9 @@ void AuthSessionAuthenticator::ResyncEncryptedData(
       &AuthSessionAuthenticator::ProcessCryptohomeError,
       weak_factory_.GetWeakPtr(), AuthFailure::DATA_REMOVAL_FAILED);
 
-  AuthSuccessCallback success_callback = base::BindOnce(
-      &AuthSessionAuthenticator::CompleteLoginImpl, weak_factory_.GetWeakPtr());
+  AuthSuccessCallback success_callback =
+      base::BindOnce(&AuthSessionAuthenticator::CompleteLoginImpl,
+                     weak_factory_.GetWeakPtr(), ephemeral);
 
   std::vector<AuthOperation> steps;
   steps.push_back(base::BindOnce(&MountPerformer::RemoveUserDirectory,
@@ -907,8 +911,14 @@ bool AuthSessionAuthenticator::ResolveCryptohomeError(
       error.ResolveToFailure(AuthFailure::TPM_ERROR);
       break;
     case user_data_auth::CRYPTOHOME_ERROR_TPM_DEFEND_LOCK:
+    case user_data_auth::CRYPTOHOME_ERROR_CREDENTIAL_LOCKED:
       // PIN is locked out, for now mark it as auth failure, and pin lockout
       // would be detected by PinStorageCryptohome.
+      error.ResolveToFailure(default_error);
+      break;
+    case user_data_auth::CRYPTOHOME_ERROR_CREDENTIAL_EXPIRED:
+      // TODO(b/285459974): Decide how to deal with credential expired error
+      // from cryptohome.
       error.ResolveToFailure(default_error);
       break;
     case user_data_auth::CRYPTOHOME_ERROR_MOUNT_MOUNT_POINT_BUSY:
@@ -1016,6 +1026,14 @@ void AuthSessionAuthenticator::HandleMigrationRequired(
 void AuthSessionAuthenticator::NotifyAuthSuccess(
     std::unique_ptr<UserContext> context) {
   LOGIN_LOG(EVENT) << "Logged in successfully";
+
+  if (HibernateManager::IsHibernateSupported()) {
+    // Pass the AccountID and AuthSessionID to HibernateManager so once the
+    // user's profile is created we can notify hiberman.
+    HibernateManager::Get()->SetAuthInfo(context->GetAccountId().GetUserEmail(),
+                                         context->GetAuthSessionId());
+  }
+
   if (consumer_)
     consumer_->OnAuthSuccess(*context);
 }

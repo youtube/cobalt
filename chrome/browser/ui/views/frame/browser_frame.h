@@ -106,9 +106,6 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   // popups, the web contents for app windows and varies for fullscreen windows.
   int GetTopInset() const;
 
-  // Returns the amount that the theme background should be inset.
-  int GetThemeBackgroundXInset() const;
-
   // Tells the frame to update the throbber.
   void UpdateThrobber(bool running);
 
@@ -154,7 +151,7 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   bool GetAccelerator(int command_id,
                       ui::Accelerator* accelerator) const override;
   const ui::ThemeProvider* GetThemeProvider() const override;
-  ui::ColorProviderManager::ThemeInitializerSupplier* GetCustomTheme()
+  ui::ColorProviderKey::ThemeInitializerSupplier* GetCustomTheme()
       const override;
   void OnNativeWidgetWorkspaceChanged() override;
 
@@ -180,8 +177,8 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
 
  protected:
   // views::Widget:
-  ui::ColorProviderManager::Key GetColorProviderKey() const override;
-  absl::optional<SkColor> GetUserColor() const override;
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
+  ui::ColorProviderKey GetColorProviderKey() const override;
 
  private:
   void OnTouchUiChanged();
@@ -189,16 +186,17 @@ class BrowserFrame : public views::Widget, public views::ContextMenuController {
   // Callback for MenuRunner.
   void OnMenuClosed();
 
-  // Select a native theme that is appropriate for the current context.
+  // Select a native theme that is appropriate for the current context. This is
+  // currently only needed for Linux to switch between the regular NativeTheme
+  // and the GTK NativeTheme instance.
   void SelectNativeTheme();
 
   // Regenerate the frame on theme change if necessary. Returns true if
   // regenerated.
   bool RegenerateFrameOnThemeChange(BrowserThemeChangeType theme_change_type);
 
-  // Returns whether the browser should always use the dark theme no matter user
-  // makes any selection.
-  bool ShouldUseDarkTheme() const;
+  // Returns true if the browser instance belongs to an incognito profile.
+  bool IsIncognitoBrowser() const;
 
   raw_ptr<NativeBrowserFrame> native_browser_frame_;
 

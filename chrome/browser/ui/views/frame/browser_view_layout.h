@@ -64,6 +64,7 @@ class BrowserViewLayout : public views::LayoutManager {
                     views::View* left_aligned_side_panel_separator,
                     views::View* unified_side_panel,
                     views::View* right_aligned_side_panel_separator,
+                    views::View* side_panel_rounded_corner,
                     ImmersiveModeController* immersive_mode_controller,
                     views::View* contents_separator);
 
@@ -175,27 +176,32 @@ class BrowserViewLayout : public views::LayoutManager {
   // Child views that the layout manager manages.
   // NOTE: If you add a view, try to add it as a views::View, which makes
   // testing much easier.
-  const raw_ptr<views::View, DanglingUntriaged> top_container_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged> top_container_;
   const raw_ptr<WebAppFrameToolbarView, DanglingUntriaged>
       web_app_frame_toolbar_;
   const raw_ptr<views::Label, DanglingUntriaged> web_app_window_title_;
-  const raw_ptr<TabStripRegionView, DanglingUntriaged> tab_strip_region_view_;
-  const raw_ptr<views::View, DanglingUntriaged> toolbar_;
-  const raw_ptr<InfoBarContainerView, DanglingUntriaged> infobar_container_;
-  const raw_ptr<views::View, DanglingUntriaged> contents_container_;
-  const raw_ptr<views::View, DanglingUntriaged>
+  const raw_ptr<TabStripRegionView, AcrossTasksDanglingUntriaged>
+      tab_strip_region_view_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged> toolbar_;
+  const raw_ptr<InfoBarContainerView, AcrossTasksDanglingUntriaged>
+      infobar_container_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged> contents_container_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged>
       left_aligned_side_panel_separator_;
-  const raw_ptr<views::View, DanglingUntriaged> unified_side_panel_;
-  const raw_ptr<views::View, DanglingUntriaged>
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged> unified_side_panel_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged>
       right_aligned_side_panel_separator_;
-  const raw_ptr<ImmersiveModeController, DanglingUntriaged>
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged>
+      side_panel_rounded_corner_;
+  const raw_ptr<ImmersiveModeController, AcrossTasksDanglingUntriaged>
       immersive_mode_controller_;
-  const raw_ptr<views::View, DanglingUntriaged> contents_separator_;
+  const raw_ptr<views::View, AcrossTasksDanglingUntriaged> contents_separator_;
 
   raw_ptr<views::View, DanglingUntriaged> webui_tab_strip_ = nullptr;
   raw_ptr<views::View, DanglingUntriaged> loading_bar_ = nullptr;
-  raw_ptr<TabStrip, DanglingUntriaged> tab_strip_ = nullptr;
-  raw_ptr<BookmarkBarView, DanglingUntriaged> bookmark_bar_ = nullptr;
+  raw_ptr<TabStrip, AcrossTasksDanglingUntriaged> tab_strip_ = nullptr;
+  raw_ptr<BookmarkBarView, AcrossTasksDanglingUntriaged> bookmark_bar_ =
+      nullptr;
   raw_ptr<views::View, DanglingUntriaged> download_shelf_ = nullptr;
 
   // The widget displaying a border on top of contents container for
@@ -212,7 +218,7 @@ class BrowserViewLayout : public views::LayoutManager {
   std::unique_ptr<WebContentsModalDialogHostViews> dialog_host_;
 
   // The latest dialog bounds applied during a layout pass.
-  gfx::Rect latest_dialog_bounds_;
+  gfx::Rect latest_dialog_bounds_in_screen_;
 
   // The latest contents bounds applied during a layout pass, in screen
   // coordinates.
@@ -221,9 +227,9 @@ class BrowserViewLayout : public views::LayoutManager {
   // Directly tied to SetContentBorderBounds() - more details there.
   absl::optional<gfx::Rect> dynamic_content_border_bounds_;
 
-  // The distance the web contents modal dialog is from the top of the window,
-  // in pixels.
-  int web_contents_modal_dialog_top_y_ = -1;
+  // The distance the web contents modal dialog is from the top of the dialog
+  // host widget.
+  int dialog_top_y_ = -1;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_VIEW_LAYOUT_H_

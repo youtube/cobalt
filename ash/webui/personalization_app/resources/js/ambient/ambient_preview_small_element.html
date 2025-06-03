@@ -1,5 +1,5 @@
 <style include="common cros-button-style">
-  #container.jelly-disabled {
+  #container {
     border: none;
     display: grid;
     grid-template-areas:
@@ -11,23 +11,21 @@
     grid-template-rows: 20px 118px 34px 20px;
   }
 
+  :host-context(body.jelly-enabled) #container {
+    grid-template-areas:
+      'image          . subpage-desc'
+      'image          . buttons'
+      '.              . .';
+    grid-template-rows: 118px 34px 20px;
+  }
+
+
   #container.ambient-mode-disabled {
     grid-template-areas:
       'image          . subpage-desc'
       '.              . .';
     grid-template-columns: 224px 32px minmax(0, 1fr);
     grid-template-rows: 152px 20px;
-  }
-
-  #container {
-    border: none;
-    display: grid;
-    grid-template-areas:
-      'image          . subpage-desc'
-      'image          . buttons'
-      '.              . .';
-    grid-template-columns: 224px 32px minmax(0, 1fr);
-    grid-template-rows: 118px 34px 20px;
   }
 
   #buttonContainer,
@@ -69,6 +67,7 @@
   }
 
   #buttonContainer .spinner {
+    --paper-spinner-color: var(--cros-sys-primary, --cros-button-label-color-primary);
     height: 20px;
     width: 20px;
   }
@@ -112,9 +111,10 @@
               alt$="[[getAlbumTitle_(firstPreviewAlbum_)]]"
               is-google-photos>
         </div>
-        <h3 id="textContainer"
+        <h3 aria-label$="[[getPreviewTextAriaLabel_(firstPreviewAlbum_, topicSource_, previewAlbums_)]]"
             class="preview-text-container album-info-subpage jelly-disabled"
-            aria-label$="[[getPreviewTextAriaLabel_(firstPreviewAlbum_, topicSource_, previewAlbums_)]]">
+            id="textContainer"
+            role="alert">
           <span id="currentlySet" class="currently-set-text" aria-hidden="true">
             $i18n{currentlySet}
           </span>
@@ -126,7 +126,7 @@
             [[getAlbumDescription_(topicSource_, previewAlbums_)]]
           </span>
         </h3>
-        <div id="buttonContainer" hidden$="[[!isScreenSaverPreviewEnabled_]]">
+        <div id="buttonContainer">
           <cr-button
               class$="[[getScreenSaverPreviewClass_(ambientUiVisibility_)]]"
               aria-label$="[[getScreenSaverPreviewAriaLabel_(ambientUiVisibility_)]]"

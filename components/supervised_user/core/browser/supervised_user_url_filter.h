@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,8 @@
 #include "build/chromeos_buildflags.h"
 #include "components/safe_search_api/url_checker.h"
 #include "components/supervised_user/core/browser/supervised_user_error_page.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "ui/base/page_transition_types.h"
 
 class GURL;
 
@@ -95,6 +98,24 @@ class SupervisedUserURLFilter {
     kMaxValue = kBoth,
   };
 
+  // This enum describes the kind of conflicts between allow and block list
+  // entries that match a given input host and resolve to different filtering
+  // results.
+  // They distinguish between conflicts:
+  // 1) entirely due to trivial subdomain differences,
+  // 2) due to differences other than the trivial subdomain and
+  // 3) due to both kinds of differences.
+  // These values are logged to UMA. Entries should not be renumbered and
+  // numeric values should never be reused. Please keep in sync with
+  // "FamilyLinkFilteringSubdomainConflictType" in
+  // src/tools/metrics/histograms/enums.xml.
+  enum class FilteringSubdomainConflictType {
+    kTrivialSubdomainConflictOnly = 0,
+    kOtherConflictOnly = 1,
+    kTrivialSubdomainConflictAndOtherConflict = 2,
+    kMaxValue = kTrivialSubdomainConflictAndOtherConflict,
+  };
+
   // Provides access to functionality from services on which we don't want
   // to depend directly.
   class Delegate {
@@ -125,16 +146,14 @@ class SupervisedUserURLFilter {
       ValidateURLSupportCallback check_webstore_url_callback,
       std::unique_ptr<Delegate> delegate);
 
-  SupervisedUserURLFilter(const SupervisedUserURLFilter&) = delete;
-  SupervisedUserURLFilter& operator=(const SupervisedUserURLFilter&) = delete;
-
-  ~SupervisedUserURLFilter();
+  virtual ~SupervisedUserURLFilter();
 
   static const char* GetWebFilterTypeHistogramNameForTest();
   static const char* GetManagedSiteListHistogramNameForTest();
   static const char* GetApprovedSitesCountHistogramNameForTest();
   static const char* GetBlockedSitesCountHistogramNameForTest();
   static const char* GetManagedSiteListConflictHistogramNameForTest();
+  static const char* GetManagedSiteListConflictTypeHistogramNameForTest();
 
   static FilteringBehavior BehaviorFromInt(int behavior_value);
 
@@ -161,6 +180,13 @@ class SupervisedUserURLFilter {
   // string included in the user feedback log.
   static std::string WebFilterTypeToDisplayString(
       WebFilterType web_filter_type);
+
+  // Records the metrics on navigation loaded after completing a filtering
+  // event.
+  static void RecordFilterResultEvent(FilteringBehavior behavior,
+                                      FilteringBehaviorReason reason,
+                                      bool is_filtering_behavior_known,
+                                      ui::PageTransition transition_type);
 
   // Returns the filtering behavior for a given URL, based on the default
   // behavior and whether it is on a site list.
@@ -245,13 +271,30 @@ class SupervisedUserURLFilter {
 
  private:
   friend class SupervisedUserURLFilterTest;
+  friend class SupervisedUserURLFilteringWithConflictsTest;
+
+  // Converts FilteringBehavior to the SupervisedUserFilterTopLevelResult
+  // histogram value in tools/metrics/histograms/enums.xml to be used in the
+  // "ManagedUsers.TopLevelFilteringResult" histogram.
+  static SupervisedUserFilterTopLevelResult
+  GetHistogramValueForTopLevelFilteringBehavior(
+      FilteringBehavior behavior,
+      FilteringBehaviorReason reason,
+      bool is_filtering_behavior_known);
+
+  // Converts FilteringBehavior to SupervisedUserSafetyFilterResult histogram
+  // value in tools/metrics/histograms/enums.xml.
+  static int GetHistogramValueForFilteringBehavior(
+      FilteringBehavior behavior,
+      FilteringBehaviorReason reason,
+      bool is_filtering_behavior_known);
 
   bool IsExemptedFromGuardianApproval(const GURL& effective_url);
 
   bool RunAsyncChecker(const GURL& url,
                        FilteringBehaviorCallback callback) const;
 
-  FilteringBehavior GetFilteringBehaviorForURL(
+  virtual FilteringBehavior GetFilteringBehaviorForURL(
       const GURL& url,
       supervised_user::FilteringBehaviorReason* reason);
   FilteringBehavior GetManualFilteringBehaviorForURL(const GURL& url);
@@ -269,9 +312,9 @@ class SupervisedUserURLFilter {
   // (false).
   std::map<GURL, bool> url_map_;
 
-  // Maps from a hostname to whether it is manually allowed (true) or blocked
-  // (false).
-  std::map<std::string, bool> host_map_;
+  // Blocked and Allowed host lists.
+  std::set<std::string> blocked_host_list_;
+  std::set<std::string> allowed_host_list_;
 
   std::unique_ptr<Delegate> service_delegate_;
 

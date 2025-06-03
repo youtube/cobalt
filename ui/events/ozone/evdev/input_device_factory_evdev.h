@@ -98,6 +98,12 @@ class COMPONENT_EXPORT(EVDEV) InputDeviceFactoryEvdev {
   void GetGesturePropertiesService(
       mojo::PendingReceiver<ozone::mojom::GesturePropertiesService> receiver);
 
+  // Describe internal state for system log.
+  void DescribeForLog(InputController::DescribeForLogReply reply) const;
+
+  void DisableKeyboardImposterCheck();
+  void ForceReloadKeyboards();
+
   base::WeakPtr<InputDeviceFactoryEvdev> GetWeakPtr();
 
  private:
@@ -122,6 +128,7 @@ class COMPONENT_EXPORT(EVDEV) InputDeviceFactoryEvdev {
   void NotifyMouseDevicesUpdated();
   void NotifyPointingStickDevicesUpdated();
   void NotifyTouchpadDevicesUpdated();
+  void NotifyGraphicsTabletDevicesUpdated();
   void NotifyGamepadDevicesUpdated();
   void NotifyUncategorizedDevicesUpdated();
 
@@ -181,6 +188,7 @@ class COMPONENT_EXPORT(EVDEV) InputDeviceFactoryEvdev {
   bool mouse_list_dirty_ = true;
   bool pointing_stick_list_dirty_ = true;
   bool touchpad_list_dirty_ = true;
+  bool graphics_tablet_list_dirty_ = true;
   bool gamepad_list_dirty_ = true;
   bool uncategorized_list_dirty_ = true;
 

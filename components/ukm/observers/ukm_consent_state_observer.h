@@ -10,8 +10,8 @@
 
 #include "base/feature_list.h"
 #include "base/scoped_multi_source_observation.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "components/ukm/ukm_consent_state.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "services/metrics/public/cpp/metrics_export.h"
@@ -19,9 +19,6 @@
 class PrefService;
 
 namespace ukm {
-
-// This feature controls whether App Sync relies on MSBB to be enabled.
-BASE_DECLARE_FEATURE(kAppMetricsOnlyRelyOnAppSync);
 
 // Observer that monitors whether UKM is allowed for all profiles.
 //
@@ -139,7 +136,7 @@ class UkmConsentStateObserver
       std::unique_ptr<unified_consent::UrlKeyedDataCollectionConsentHelper>>
       consent_helpers_;
 
-  // Tracks what type of UKM is allowed for all profiles after the last state
+  // Tracks what consent type is granted on all profiles after the last state
   // change. Consent is only granted when EVERY profile consents.
   // Empty means none.
   UkmConsentState ukm_consent_state_;

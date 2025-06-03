@@ -13,21 +13,18 @@ import android.util.SparseArray;
 import android.view.Display;
 import android.view.WindowManager;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.compat.ApiHelperForR;
-import org.chromium.build.annotations.MainDex;
 
 /**
  * DisplayAndroidManager is a class that informs its observers Display changes.
  */
 @JNINamespace("ui")
-@MainDex
 public class DisplayAndroidManager {
     /**
      * DisplayListenerBackend is used to handle the actual listening of display changes. It handles
@@ -197,14 +194,14 @@ public class DisplayAndroidManager {
                 displayAndroid.getDisplayHeight(), displayAndroid.getDipScale(),
                 displayAndroid.getRotationDegrees(), displayAndroid.getBitsPerPixel(),
                 displayAndroid.getBitsPerComponent(), displayAndroid.getIsWideColorGamut(),
-                displayAndroid.getHdrMaxLuminanceRatio());
+                displayAndroid.getIsHdr(), displayAndroid.getHdrMaxLuminanceRatio());
     }
 
     @NativeMethods
     interface Natives {
         void updateDisplay(long nativeDisplayAndroidManager, DisplayAndroidManager caller,
                 int sdkDisplayId, int width, int height, float dipScale, int rotationDegrees,
-                int bitsPerPixel, int bitsPerComponent, boolean isWideColorGamut,
+                int bitsPerPixel, int bitsPerComponent, boolean isWideColorGamut, boolean isHdr,
                 float hdrMaxLuminanceRatio);
         void removeDisplay(
                 long nativeDisplayAndroidManager, DisplayAndroidManager caller, int sdkDisplayId);
@@ -213,7 +210,6 @@ public class DisplayAndroidManager {
     }
 
     /** Clears the object returned by {@link #getInstance()} */
-    @VisibleForTesting
     public static void resetInstanceForTesting() {
         sDisplayAndroidManager = null;
     }

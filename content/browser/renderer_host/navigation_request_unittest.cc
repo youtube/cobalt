@@ -30,49 +30,13 @@
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/navigation/navigation_params.h"
 #include "third_party/blink/public/common/origin_trials/scoped_test_origin_trial_policy.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
 
 namespace content {
-
-// Test version of a NavigationThrottle that will execute a callback when
-// called.
-class DeletingNavigationThrottle : public NavigationThrottle {
- public:
-  DeletingNavigationThrottle(NavigationHandle* handle,
-                             const base::RepeatingClosure& deletion_callback)
-      : NavigationThrottle(handle), deletion_callback_(deletion_callback) {}
-  ~DeletingNavigationThrottle() override = default;
-
-  NavigationThrottle::ThrottleCheckResult WillStartRequest() override {
-    deletion_callback_.Run();
-    return NavigationThrottle::PROCEED;
-  }
-
-  NavigationThrottle::ThrottleCheckResult WillRedirectRequest() override {
-    deletion_callback_.Run();
-    return NavigationThrottle::PROCEED;
-  }
-
-  NavigationThrottle::ThrottleCheckResult WillFailRequest() override {
-    deletion_callback_.Run();
-    return NavigationThrottle::PROCEED;
-  }
-
-  NavigationThrottle::ThrottleCheckResult WillProcessResponse() override {
-    deletion_callback_.Run();
-    return NavigationThrottle::PROCEED;
-  }
-
-  const char* GetNameForLogging() override {
-    return "DeletingNavigationThrottle";
-  }
-
- private:
-  base::RepeatingClosure deletion_callback_;
-};
 
 class NavigationRequestTest : public RenderViewHostImplTestHarness {
  public:
@@ -230,8 +194,6 @@ class NavigationRequestTest : public RenderViewHostImplTestHarness {
     auto request = NavigationRequest::CreateBrowserInitiated(
         main_test_rfh()->frame_tree_node(), std::move(common_params),
         std::move(commit_params), false /* was_opener_suppressed */,
-        nullptr /* initiator_frame_token */,
-        ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
         std::string() /* extra_headers */, nullptr /* frame_entry */,
         nullptr /* entry */, false /* is_form_submission */,
         nullptr /* navigation_ui_data */, absl::nullopt /* impression */,
@@ -517,6 +479,92 @@ TEST_F(NavigationRequestTest, WillFailRequestSetsSSLInfo) {
             navigation->GetNavigationHandle()->GetSSLInfo()->connection_status);
 }
 
+TEST_F(NavigationRequestTest, SharedStorageWritable) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{blink::features::kSharedStorageAPI,
+                            blink::features::kSharedStorageAPIM118,
+                            blink::features::kFencedFrames},
+      /*disabled_features=*/{});
+
+  // Create and start a simulated `NavigationRequest` for the main frame.
+  GURL main_url = GURL("https://main.com");
+  auto main_navigation =
+      NavigationSimulatorImpl::CreateBrowserInitiated(main_url, contents());
+  main_navigation->Start();
+  main_navigation->ReadyToCommit();
+
+  // Verify that the main frame's `NavigationRequest` will not be
+  // SharedStorageWritable.
+  ASSERT_TRUE(main_navigation->GetNavigationHandle());
+  EXPECT_FALSE(main_navigation->GetNavigationHandle()
+                   ->shared_storage_writable_eligible());
+
+  // Commit the navigation.
+  main_navigation->Commit();
+
+  // Append a child frame and set its `shared_storage_writable` attribute to
+  // true.
+  TestRenderFrameHost* child_frame = static_cast<TestRenderFrameHost*>(
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("child"));
+  blink::mojom::IframeAttributesPtr child_attributes =
+      blink::mojom::IframeAttributes::New();
+  child_attributes->shared_storage_writable = true;
+  child_frame->frame_tree_node()->SetAttributes(std::move(child_attributes));
+
+  // Create and start a simulated `NavigationRequest` for the child frame.
+  GURL a_url = GURL("https://a.com");
+  auto child_navigation =
+      NavigationSimulatorImpl::CreateRendererInitiated(a_url, child_frame);
+  child_navigation->Start();
+
+  // Verify that the `NavigationRequest` will be SharedStorageWritable.
+  ASSERT_TRUE(child_navigation->GetNavigationHandle());
+  EXPECT_TRUE(child_navigation->GetNavigationHandle()
+                  ->shared_storage_writable_eligible());
+
+  // Commit the navigation.
+  child_navigation->Commit();
+
+  // Append a fenced frame and give it permission to access Shared Storage.
+  TestRenderFrameHost* fenced_frame_root = static_cast<TestRenderFrameHost*>(
+      content::RenderFrameHostTester::For(main_rfh())->AppendFencedFrame());
+  FrameTreeNode* fenced_frame_node =
+      static_cast<RenderFrameHostImpl*>(fenced_frame_root)->frame_tree_node();
+  absl::optional<FencedFrameProperties> new_props =
+      fenced_frame_node->GetFencedFrameProperties();
+  new_props->effective_enabled_permissions.push_back(
+      blink::mojom::PermissionsPolicyFeature::kSharedStorage);
+  fenced_frame_node->set_fenced_frame_properties(new_props);
+  fenced_frame_root->ResetPermissionsPolicy();
+
+  // Append a child frame to the fenced frame root and set its
+  // `shared_storage_writable` attribute to true.
+  TestRenderFrameHost* child_of_fenced_frame =
+      static_cast<TestRenderFrameHost*>(
+          fenced_frame_root->AppendChild("child_of_fenced"));
+  blink::mojom::IframeAttributesPtr child_of_fenced_frame_attributes =
+      blink::mojom::IframeAttributes::New();
+  child_of_fenced_frame_attributes->shared_storage_writable = true;
+  child_of_fenced_frame->frame_tree_node()->SetAttributes(
+      std::move(child_of_fenced_frame_attributes));
+
+  // Create and start a simulated `NavigationRequest` for the child frame.
+  GURL b_url = GURL("https://b.com");
+  auto child_of_fenced_frame_navigation =
+      NavigationSimulatorImpl::CreateRendererInitiated(b_url,
+                                                       child_of_fenced_frame);
+  child_of_fenced_frame_navigation->Start();
+
+  // Verify that the `NavigationRequest` will be SharedStorageWritable.
+  ASSERT_TRUE(child_of_fenced_frame_navigation->GetNavigationHandle());
+  EXPECT_TRUE(child_of_fenced_frame_navigation->GetNavigationHandle()
+                  ->shared_storage_writable_eligible());
+
+  // Commit the navigation.
+  child_of_fenced_frame_navigation->Commit();
+}
+
 namespace {
 
 // Helper throttle which checks that it can access NavigationHandle's
@@ -709,7 +757,7 @@ TEST_F(NavigationRequestTest, StorageKeyToCommit) {
   EXPECT_EQ(blink::StorageKey::CreateWithNonce(
                 url::Origin::Create(kUrl),
                 child_document->GetMainFrame()->credentialless_iframes_nonce()),
-            child_document->storage_key());
+            child_document->GetStorageKey());
 }
 
 // Test that the StorageKey's value is correctly affected by the
@@ -910,14 +958,14 @@ TEST_F(NavigationRequestTest, IsolatedAppPolicyInjection) {
   // Validate CSP.
   EXPECT_EQ(1UL, policies.content_security_policies.size());
   const auto& csp = policies.content_security_policies[0];
-  EXPECT_EQ(10UL, csp->raw_directives.size());
+  EXPECT_EQ(11UL, csp->raw_directives.size());
   using Directive = network::mojom::CSPDirectiveName;
   EXPECT_EQ("'none'", csp->raw_directives[Directive::BaseURI]);
   EXPECT_EQ("'none'", csp->raw_directives[Directive::ObjectSrc]);
   EXPECT_EQ("'self'", csp->raw_directives[Directive::DefaultSrc]);
   EXPECT_EQ("'self' https: blob: data:",
             csp->raw_directives[Directive::FrameSrc]);
-  EXPECT_EQ("'self' https:", csp->raw_directives[Directive::ConnectSrc]);
+  EXPECT_EQ("'self' https: wss:", csp->raw_directives[Directive::ConnectSrc]);
   EXPECT_EQ("'self' 'wasm-unsafe-eval'",
             csp->raw_directives[Directive::ScriptSrc]);
   EXPECT_EQ("'self' https: blob: data:",
@@ -925,53 +973,21 @@ TEST_F(NavigationRequestTest, IsolatedAppPolicyInjection) {
   EXPECT_EQ("'self' https: blob: data:",
             csp->raw_directives[Directive::MediaSrc]);
   EXPECT_EQ("'self' blob: data:", csp->raw_directives[Directive::FontSrc]);
+  EXPECT_EQ("'self' 'unsafe-inline'", csp->raw_directives[Directive::StyleSrc]);
   EXPECT_EQ("'script'", csp->raw_directives[Directive::RequireTrustedTypesFor]);
 }
 
-TEST_F(NavigationRequestTest, GetIsThirdPartyCookiesUserBypassEnabled) {
-  GURL url = GURL("https://example.test/");
-  GURL child_url = GURL("https://example.test/child");
+TEST_F(NavigationRequestTest, UpdatePrivateNetworkRequestPolicy) {
+  std::unique_ptr<NavigationSimulator> navigation =
+      NavigationSimulator::CreateRendererInitiated(GURL("https://example.com/"),
+                                                   main_test_rfh());
+  navigation->SetSocketAddress(net::IPEndPoint());
 
-  std::unique_ptr<NavigationSimulator> simulator =
-      NavigationSimulator::CreateRendererInitiated(url, main_rfh());
-  simulator->Start();
-
-  // Set user bypass BREF and prepare a committing navigation.
-  // Verify that GetIsThirdPartyCookiesUserBypassEnabled returns true.
-  {
-    blink::RuntimeFeatureStateContext& context =
-        NavigationRequest::From(simulator->GetNavigationHandle())
-            ->GetMutableRuntimeFeatureStateContext();
-    context.SetThirdPartyCookiesUserBypassEnabled(true);
-  }
-  simulator->ReadyToCommit();
-  {
-    auto* navigation_request =
-        NavigationRequest::From(simulator->GetNavigationHandle());
-    EXPECT_TRUE(navigation_request->GetIsThirdPartyCookiesUserBypassEnabled());
-  }
-  simulator->Commit();
-
-  // Start a different navigation on a new child frame and verify that the
-  // the value still comes from the committed main frame.
-  {
-    auto* main_rfh =
-        static_cast<TestRenderFrameHost*>(simulator->GetFinalRenderFrameHost());
-    TestRenderFrameHost* child_rfh = main_rfh->AppendChild("child");
-    std::unique_ptr<NavigationSimulator> child_simulator =
-        NavigationSimulator::CreateRendererInitiated(child_url, child_rfh);
-    child_simulator->Start();
-    blink::RuntimeFeatureStateContext& context =
-        NavigationRequest::From(child_simulator->GetNavigationHandle())
-            ->GetMutableRuntimeFeatureStateContext();
-    context.SetThirdPartyCookiesUserBypassEnabled(false);
-    child_simulator->ReadyToCommit();
-    auto* child_navigation_request =
-        NavigationRequest::From(child_simulator->GetNavigationHandle());
-    EXPECT_TRUE(
-        child_navigation_request->GetIsThirdPartyCookiesUserBypassEnabled());
-    child_simulator->Commit();
-  }
+  navigation->ReadyToCommit();
+  NavigationRequest* request =
+      NavigationRequest::From(navigation->GetNavigationHandle());
+  EXPECT_FALSE(request->GetSocketAddress().address().IsValid());
+  navigation->Commit();
 }
 
 // Test that the required CSP of every frame is computed/inherited correctly and
@@ -1207,10 +1223,10 @@ class OriginTrialsControllerDelegateMock
       const base::Time current_time) override {
     NOTREACHED() << "not used by test";
   }
-  bool IsTrialPersistedForOrigin(const url::Origin& origin,
-                                 const url::Origin& partition_origin,
-                                 const base::StringPiece trial_name,
-                                 const base::Time current_time) override {
+  bool IsFeaturePersistedForOrigin(const url::Origin& origin,
+                                   const url::Origin& partition_origin,
+                                   blink::mojom::OriginTrialFeature feature,
+                                   const base::Time current_time) override {
     DCHECK(false) << "Method not implemented for test.";
     return false;
   }
@@ -1295,6 +1311,165 @@ TEST_F(PersistentOriginTrialNavigationRequestTest,
   // still updated and cleared.
   NavigationSimulatorImpl::CreateRendererInitiated(kUrl, main_rfh())->Commit();
   EXPECT_EQ(std::vector<std::string>(), GetPersistedTokens(origin));
+}
+
+namespace {
+
+// Test version of a NavigationThrottle that requests the response body.
+class ResponseBodyNavigationThrottle : public NavigationThrottle {
+ public:
+  using ResponseBodyCallback = base::OnceCallback<void(const std::string&)>;
+
+  ResponseBodyNavigationThrottle(NavigationHandle* handle,
+                                 ResponseBodyCallback callback)
+      : NavigationThrottle(handle), callback_(std::move(callback)) {}
+  ResponseBodyNavigationThrottle(const ResponseBodyNavigationThrottle&) =
+      delete;
+  ResponseBodyNavigationThrottle& operator=(
+      const ResponseBodyNavigationThrottle&) = delete;
+  ~ResponseBodyNavigationThrottle() override = default;
+
+  NavigationThrottle::ThrottleCheckResult WillProcessResponse() override {
+    navigation_handle()->GetResponseBody(
+        base::BindOnce(&ResponseBodyNavigationThrottle::OnResponseBodyReady,
+                       base::Unretained(this)));
+    return NavigationThrottle::DEFER;
+  }
+
+  const char* GetNameForLogging() override {
+    return "ResponseBodyNavigationThrottle";
+  }
+
+ private:
+  void OnResponseBodyReady(const std::string& response_body) {
+    std::move(callback_).Run(response_body);
+    NavigationRequest::From(navigation_handle())
+        ->GetNavigationThrottleRunnerForTesting()
+        ->CallResumeForTesting();
+  }
+
+  ResponseBodyCallback callback_;
+};
+
+}  // namespace
+
+// Tests response body.
+class NavigationRequestResponseBodyTest : public NavigationRequestTest {
+ public:
+  std::unique_ptr<NavigationSimulator> CreateNavigationSimulator() {
+    auto navigation = NavigationSimulatorImpl::CreateRendererInitiated(
+        GURL("http://example.test"), main_rfh());
+    navigation->SetAutoAdvance(false);
+    navigation->Start();
+    // It is safe to use base::Unretained as the NavigationThrottle will not be
+    // destroyed before the callback is called.
+    auto throttle = std::make_unique<ResponseBodyNavigationThrottle>(
+        navigation->GetNavigationHandle(),
+        base::BindOnce(&NavigationRequestResponseBodyTest::UpdateResponseBody,
+                       base::Unretained(this)));
+    navigation->GetNavigationHandle()->RegisterThrottleForTesting(
+        std::move(throttle));
+    return navigation;
+  }
+
+  void UpdateResponseBody(const std::string& response_body) {
+    response_body_ = response_body;
+    was_callback_called_ = true;
+  }
+
+  bool was_callback_called() const { return was_callback_called_; }
+
+  const std::string& response_body() const { return response_body_; }
+
+ protected:
+  mojo::ScopedDataPipeProducerHandle producer_handle_;
+  mojo::ScopedDataPipeConsumerHandle consumer_handle_;
+
+ private:
+  bool was_callback_called_ = false;
+  std::string response_body_;
+};
+
+TEST_F(NavigationRequestResponseBodyTest, Received) {
+  auto navigation = CreateNavigationSimulator();
+  std::string response = "response-body-content";
+  uint32_t write_size = response.size();
+  ASSERT_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(write_size, producer_handle_,
+                                                 consumer_handle_));
+  navigation->SetResponseBody(std::move(consumer_handle_));
+
+  navigation->ReadyToCommit();
+  EXPECT_EQ(
+      NavigationRequest::WILL_PROCESS_RESPONSE,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_FALSE(was_callback_called());
+  EXPECT_EQ(std::string(), response_body());
+
+  ASSERT_EQ(MOJO_RESULT_OK,
+            producer_handle_->WriteData(response.c_str(), &write_size,
+                                        MOJO_WRITE_DATA_FLAG_NONE));
+  EXPECT_EQ(write_size, response.size());
+
+  navigation->Wait();
+  EXPECT_EQ(
+      NavigationRequest::READY_TO_COMMIT,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_TRUE(was_callback_called());
+  EXPECT_EQ(response, response_body());
+}
+
+TEST_F(NavigationRequestResponseBodyTest, PartiallyReceived) {
+  auto navigation = CreateNavigationSimulator();
+
+  // The data pipe size is smaller than the response body size.
+  uint32_t pipe_size = 8u;
+  ASSERT_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(pipe_size, producer_handle_,
+                                                 consumer_handle_));
+  navigation->SetResponseBody(std::move(consumer_handle_));
+
+  navigation->ReadyToCommit();
+  EXPECT_EQ(
+      NavigationRequest::WILL_PROCESS_RESPONSE,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_FALSE(was_callback_called());
+  EXPECT_EQ(std::string(), response_body());
+
+  std::string response = "response-body-content";
+  uint32_t write_size = response.size();
+  ASSERT_EQ(MOJO_RESULT_OK,
+            producer_handle_->WriteData(response.c_str(), &write_size,
+                                        MOJO_WRITE_DATA_FLAG_NONE));
+  EXPECT_EQ(write_size, pipe_size);
+
+  navigation->Wait();
+  EXPECT_EQ(
+      NavigationRequest::READY_TO_COMMIT,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_TRUE(was_callback_called());
+  // Only the first part of the response body that fits in the pipe is received.
+  EXPECT_EQ("response", response_body());
+}
+
+TEST_F(NavigationRequestResponseBodyTest, PipeClosed) {
+  auto navigation = CreateNavigationSimulator();
+  ASSERT_EQ(MOJO_RESULT_OK,
+            mojo::CreateDataPipe(10u, producer_handle_, consumer_handle_));
+  navigation->SetResponseBody(std::move(consumer_handle_));
+  navigation->ReadyToCommit();
+  EXPECT_EQ(
+      NavigationRequest::WILL_PROCESS_RESPONSE,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_FALSE(was_callback_called());
+  EXPECT_EQ(std::string(), response_body());
+
+  // Close the pipe before any data is sent.
+  producer_handle_.reset();
+  navigation->Wait();
+  EXPECT_EQ(
+      NavigationRequest::READY_TO_COMMIT,
+      NavigationRequest::From(navigation->GetNavigationHandle())->state());
+  EXPECT_TRUE(was_callback_called());
+  EXPECT_EQ(std::string(), response_body());
 }
 
 }  // namespace content

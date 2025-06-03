@@ -11,7 +11,9 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
+#include "ash/style/ash_color_provider.h"
 #include "ash/system/screen_layout_observer.h"
+#include "ash/utility/cursor_setter.h"
 #include "ash/wm/snap_group/snap_group.h"
 #include "ash/wm/snap_group/snap_group_controller.h"
 #include "ash/wm/snap_group/snap_group_expanded_menu_view.h"
@@ -26,10 +28,11 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/background.h"
 #include "ui/views/highlight_border.h"
+#include "ui/views/view.h"
+#include "ui/wm/core/coordinate_conversion.h"
 
 namespace ash {
 
@@ -86,6 +89,8 @@ SplitViewDividerView::SplitViewDividerView(SplitViewController* controller,
   }
 }
 
+SplitViewDividerView::~SplitViewDividerView() = default;
+
 void SplitViewDividerView::DoSpawningAnimation(int spawn_position) {
   const gfx::Rect bounds = GetBoundsInScreen();
   int divider_signed_offset;
@@ -130,7 +135,7 @@ void SplitViewDividerView::Layout() {
 
   SetBoundsRect(GetLocalBounds());
   divider_handler_view_->Refresh(
-      split_view_controller_->is_resizing_with_divider());
+      split_view_controller_->IsResizingWithDivider());
 
   if (IsSnapGroupEnabledInClamshellMode()) {
     const gfx::Size kebab_button_size = kebab_button_->GetPreferredSize();
@@ -142,10 +147,31 @@ void SplitViewDividerView::Layout() {
   }
 }
 
+void SplitViewDividerView::OnMouseEntered(const ui::MouseEvent& event) {
+  gfx::Point screen_location = event.location();
+  ConvertPointToScreen(this, &screen_location);
+
+  // Only set cursor type as the resize cursor when it's on the split view
+  // divider.
+  if (kebab_button_ &&
+      !kebab_button_->GetBoundsInScreen().Contains(screen_location)) {
+    // TODO(b/276801578): Use `kRowResize` cursor type for vertical split view.
+    cursor_setter_.UpdateCursor(split_view_controller_->root_window(),
+                                ui::mojom::CursorType::kColumnResize);
+  }
+}
+
+void SplitViewDividerView::OnMouseExited(const ui::MouseEvent& event) {
+  // Since `notify_enter_exit_on_child_` in view.h is default to false, on mouse
+  // exit `this` the cursor will be reset, which includes resetting the cursor
+  // when hovering over the kebab button area.
+  cursor_setter_.ResetCursor();
+}
+
 bool SplitViewDividerView::OnMousePressed(const ui::MouseEvent& event) {
   gfx::Point location(event.location());
   views::View::ConvertPointToScreen(this, &location);
-  split_view_controller_->StartResizeWithDivider(location);
+  divider_->StartResizeWithDivider(location);
   OnResizeStatusChanged();
   return true;
 }
@@ -153,14 +179,14 @@ bool SplitViewDividerView::OnMousePressed(const ui::MouseEvent& event) {
 bool SplitViewDividerView::OnMouseDragged(const ui::MouseEvent& event) {
   gfx::Point location(event.location());
   views::View::ConvertPointToScreen(this, &location);
-  split_view_controller_->ResizeWithDivider(location);
+  divider_->ResizeWithDivider(location);
   return true;
 }
 
 void SplitViewDividerView::OnMouseReleased(const ui::MouseEvent& event) {
   gfx::Point location(event.location());
   views::View::ConvertPointToScreen(this, &location);
-  split_view_controller_->EndResizeWithDivider(location);
+  divider_->EndResizeWithDivider(location);
   OnResizeStatusChanged();
   if (event.GetClickCount() == 2) {
     split_view_controller_->SwapWindows(
@@ -180,14 +206,14 @@ void SplitViewDividerView::OnGestureEvent(ui::GestureEvent* event) {
       break;
     case ui::ET_GESTURE_TAP_DOWN:
     case ui::ET_GESTURE_SCROLL_BEGIN:
-      split_view_controller_->StartResizeWithDivider(location);
+      divider_->StartResizeWithDivider(location);
       OnResizeStatusChanged();
       break;
     case ui::ET_GESTURE_SCROLL_UPDATE:
-      split_view_controller_->ResizeWithDivider(location);
+      divider_->ResizeWithDivider(location);
       break;
     case ui::ET_GESTURE_END:
-      split_view_controller_->EndResizeWithDivider(location);
+      divider_->EndResizeWithDivider(location);
       OnResizeStatusChanged();
       break;
     default:
@@ -220,7 +246,7 @@ void SplitViewDividerView::OnResizeStatusChanged() {
   const gfx::Rect old_bounds =
       divider_->GetDividerBoundsInScreen(/*is_dragging=*/false);
   const gfx::Rect new_bounds = divider_->GetDividerBoundsInScreen(
-      split_view_controller_->is_resizing_with_divider());
+      split_view_controller_->IsResizingWithDivider());
   gfx::Transform transform;
   transform.Translate(new_bounds.x() - old_bounds.x(),
                       new_bounds.y() - old_bounds.y());
@@ -236,7 +262,7 @@ void SplitViewDividerView::OnResizeStatusChanged() {
   SetTransform(transform);
 
   divider_handler_view_->Refresh(
-      split_view_controller_->is_resizing_with_divider());
+      split_view_controller_->IsResizingWithDivider());
 }
 
 void SplitViewDividerView::OnKebabButtonPressed() {
@@ -251,8 +277,7 @@ void SplitViewDividerView::OnKebabButtonPressed() {
     snap_group_expanded_menu_widget_ = std::make_unique<views::Widget>();
     snap_group_expanded_menu_widget_->Init(CreateWidgetInitParams(
         split_view_controller_->root_window(), "SnapGroupExpandedMenuWidget"));
-    SnapGroupController* snap_group_controller =
-        Shell::Get()->snap_group_controller();
+    SnapGroupController* snap_group_controller = SnapGroupController::Get();
     SnapGroup* snap_group = snap_group_controller->GetSnapGroupForGivenWindow(
         split_view_controller_->primary_window());
     CHECK(snap_group);

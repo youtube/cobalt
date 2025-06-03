@@ -29,7 +29,7 @@
 #include "mojo/core/embedder/features.h"
 
 #if BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
-#include "base/mac/mach_logging.h"
+#include "base/apple/mach_logging.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/win_util.h"
 #endif
@@ -184,10 +184,11 @@ struct ComplexMessage : public Channel::Message {
 
 #if BUILDFLAG(IS_WIN)
   // On Windows, handles are serialised into the extra header section.
-  raw_ptr<HandleEntry> handles_ = nullptr;
+  raw_ptr<HandleEntry, AllowPtrArithmetic> handles_ = nullptr;
 #elif BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
   // On OSX, handles are serialised into the extra header section.
-  raw_ptr<MachPortsExtraHeader> mach_ports_header_ = nullptr;
+  raw_ptr<MachPortsExtraHeader, AllowPtrArithmetic> mach_ports_header_ =
+      nullptr;
 #endif
 };
 
@@ -943,7 +944,9 @@ bool Channel::OnReadComplete(size_t bytes_read, size_t* next_read_size_hint) {
                                            read_buffer_->num_occupied_bytes()),
                            next_read_size_hint);
     if (result == DispatchResult::kOK) {
-      MaybeLogHistogramForIPCMetrics(MessageType::kReceive);
+      if (ShouldRecordSubsampledHistograms()) {
+        LogHistogramForIPCMetrics(MessageType::kReceive);
+      }
       read_buffer_->Discard(*next_read_size_hint);
       *next_read_size_hint = 0;
     } else if (result == DispatchResult::kNotEnoughData) {
@@ -1090,12 +1093,8 @@ bool Channel::OnControlMessage(Message::MessageType message_type,
   return false;
 }
 
-void Channel::MaybeLogHistogramForIPCMetrics(MessageType type) {
-  {
-    base::AutoLock hold(lock_);
-    if (!sub_sampler_.ShouldSample(0.001))
-      return;
-  }
+// static
+void Channel::LogHistogramForIPCMetrics(MessageType type) {
   if (type == MessageType::kSent) {
     UMA_HISTOGRAM_ENUMERATION(
         "Mojo.Channel.WriteSendMessageProcessType",
@@ -1121,6 +1120,11 @@ MOJO_SYSTEM_IMPL_EXPORT void Channel::OfferChannelUpgrade() {
   return;
 }
 #endif
+
+bool Channel::ShouldRecordSubsampledHistograms() {
+  base::AutoLock hold(lock_);
+  return sub_sampler_.ShouldSample(0.001);
+}
 
 }  // namespace core
 }  // namespace mojo

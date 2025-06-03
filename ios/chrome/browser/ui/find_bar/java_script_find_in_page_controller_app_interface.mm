@@ -4,11 +4,7 @@
 
 #import "ios/chrome/browser/ui/find_bar/java_script_find_in_page_controller_app_interface.h"
 
-#import "ios/chrome/browser/find_in_page/java_script_find_in_page_controller.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/find_in_page/model/java_script_find_in_page_controller.h"
 
 @implementation JavaScriptFindInPageControllerAppInterface
 

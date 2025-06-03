@@ -27,10 +27,10 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrBackendSemaphore.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gl/buildflags.h"
 
 #if BUILDFLAG(USE_DAWN)
@@ -69,28 +69,25 @@ class ExternalVkImageBackingFactoryDawnTest
 
     ExternalVkImageBackingFactoryTest::SetUp();
 
-    // Create a Dawn Vulkan device
-    dawn_instance_.DiscoverDefaultAdapters();
+    dawnProcSetProcs(&dawn::native::GetProcs());
 
-    std::vector<dawn::native::Adapter> adapters = dawn_instance_.GetAdapters();
-    auto adapter_it = base::ranges::find(adapters, wgpu::BackendType::Vulkan,
-                                         [](dawn::native::Adapter adapter) {
-                                           wgpu::AdapterProperties properties;
-                                           adapter.GetProperties(&properties);
-                                           return properties.backendType;
-                                         });
-    ASSERT_NE(adapter_it, adapters.end());
+    // Find a Dawn Vulkan adapter
+    wgpu::RequestAdapterOptions adapter_options;
+    adapter_options.backendType = wgpu::BackendType::Vulkan;
+    std::vector<dawn::native::Adapter> adapters =
+        dawn_instance_.EnumerateAdapters(&adapter_options);
+    ASSERT_GT(adapters.size(), 0u);
 
-    DawnProcTable procs = dawn::native::GetProcs();
-    dawnProcSetProcs(&procs);
-
-    dawn::native::DawnDeviceDescriptor device_descriptor;
     // We need to request internal usage to be able to do operations with
     // internal methods that would need specific usages.
-    device_descriptor.requiredFeatures.push_back("dawn-internal-usages");
+    wgpu::FeatureName dawn_internal_usage =
+        wgpu::FeatureName::DawnInternalUsages;
+    wgpu::DeviceDescriptor device_descriptor;
+    device_descriptor.requiredFeatureCount = 1;
+    device_descriptor.requiredFeatures = &dawn_internal_usage;
 
     dawn_device_ =
-        wgpu::Device::Acquire(adapter_it->CreateDevice(&device_descriptor));
+        wgpu::Device::Acquire(adapters[0].CreateDevice(&device_descriptor));
     DCHECK(dawn_device_) << "Failed to create Dawn device";
   }
 
@@ -125,11 +122,11 @@ TEST_F(ExternalVkImageBackingFactoryDawnTest, DawnWrite_SkiaVulkanRead) {
   {
     // Create a Dawn representation to clear the texture contents to a green.
     auto dawn_representation = shared_image_representation_factory_.ProduceDawn(
-        mailbox, dawn_device_.Get(), WGPUBackendType_Vulkan, {});
+        mailbox, dawn_device_, wgpu::BackendType::Vulkan, {});
     ASSERT_TRUE(dawn_representation);
 
     auto dawn_scoped_access = dawn_representation->BeginScopedAccess(
-        WGPUTextureUsage_RenderAttachment,
+        wgpu::TextureUsage::RenderAttachment,
         SharedImageRepresentation::AllowUnclearedAccess::kYes);
     ASSERT_TRUE(dawn_scoped_access);
 
@@ -269,7 +266,7 @@ TEST_F(ExternalVkImageBackingFactoryDawnTest, SkiaVulkanWrite_DawnRead) {
     flush_info.fSignalSemaphores = end_semaphores.data();
     gpu::AddVulkanCleanupTaskForSkiaFlush(vulkan_context_provider_.get(),
                                           &flush_info);
-    dest_surface->flush(flush_info, nullptr);
+    gr_context()->flush(dest_surface, flush_info, nullptr);
     skia_scoped_access->ApplyBackendSurfaceEndState();
     gr_context()->submit();
   }
@@ -277,13 +274,13 @@ TEST_F(ExternalVkImageBackingFactoryDawnTest, SkiaVulkanWrite_DawnRead) {
   {
     // Create a Dawn representation
     auto dawn_representation = shared_image_representation_factory_.ProduceDawn(
-        mailbox, dawn_device_.Get(), WGPUBackendType_Vulkan, {});
+        mailbox, dawn_device_, wgpu::BackendType::Vulkan, {});
     ASSERT_TRUE(dawn_representation);
 
     // Begin access to copy the data out. Skia should have initialized the
     // contents.
     auto dawn_scoped_access = dawn_representation->BeginScopedAccess(
-        WGPUTextureUsage_CopySrc,
+        wgpu::TextureUsage::CopySrc,
         SharedImageRepresentation::AllowUnclearedAccess::kNo);
     ASSERT_TRUE(dawn_scoped_access);
 
@@ -420,7 +417,8 @@ TEST_P(ExternalVkImageBackingFactoryWithFormatTest, Basic) {
         flush_info.fSignalSemaphores = end_semaphores.data();
       }
       for (int plane = 0; plane < format.NumberOfPlanes(); ++plane) {
-        scoped_write_access->surface(plane)->flush(flush_info, nullptr);
+        gr_context()->flush(scoped_write_access->surface(plane), flush_info,
+                            nullptr);
       }
       gr_context()->submit();
     }
@@ -521,7 +519,7 @@ TEST_P(ExternalVkImageBackingFactoryWithFormatTest, Upload) {
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
   ASSERT_TRUE(shared_image_ref);
 
-  VerifyPixelsWithReadback(mailbox, bitmaps);
+  VerifyPixelsWithReadbackGanesh(mailbox, bitmaps);
 }
 
 std::string TestParamToString(
@@ -535,7 +533,8 @@ const auto kSharedImageFormats =
                       viz::SinglePlaneFormat::kR_8,
                       viz::SinglePlaneFormat::kRG_88,
                       viz::MultiPlaneFormat::kNV12,
-                      viz::MultiPlaneFormat::kYV12);
+                      viz::MultiPlaneFormat::kYV12,
+                      viz::MultiPlaneFormat::kI420);
 
 INSTANTIATE_TEST_SUITE_P(,
                          ExternalVkImageBackingFactoryWithFormatTest,

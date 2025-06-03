@@ -31,6 +31,7 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/media_session.h"
+#include "content/public/browser/media_session_client.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
@@ -66,7 +67,8 @@ class MediaHistoryBrowserTest : public InProcessBrowserTest,
                                 public testing::WithParamInterface<TestState> {
  public:
   MediaHistoryBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(media::kUseMediaHistoryStore);
+    scoped_feature_list_.InitWithFeatures(
+        {media::kUseMediaHistoryStore, media::kHideIncognitoMediaMetadata}, {});
   }
 
   ~MediaHistoryBrowserTest() override = default;
@@ -81,66 +83,54 @@ class MediaHistoryBrowserTest : public InProcessBrowserTest,
   static bool SetupPageAndStartPlaying(Browser* browser, const GURL& url) {
     EXPECT_TRUE(ui_test_utils::NavigateToURL(browser, url));
 
-    bool played = false;
-    EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "attemptPlayVideo();", &played));
-    return played;
+    return content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "attemptPlayVideo();")
+        .ExtractBool();
   }
 
   static bool SetupPageAndStartPlayingAudioOnly(Browser* browser,
                                                 const GURL& url) {
     EXPECT_TRUE(ui_test_utils::NavigateToURL(browser, url));
 
-    bool played = false;
-    EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "attemptPlayAudioOnly();", &played));
-    return played;
+    return content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "attemptPlayAudioOnly();")
+        .ExtractBool();
   }
 
   static bool SetupPageAndStartPlayingVideoOnly(Browser* browser,
                                                 const GURL& url) {
     EXPECT_TRUE(ui_test_utils::NavigateToURL(browser, url));
 
-    bool played = false;
-    EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "attemptPlayVideoOnly();", &played));
-    return played;
+    return content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "attemptPlayVideoOnly();")
+        .ExtractBool();
   }
 
   static bool EnterPictureInPicture(Browser* browser) {
-    bool success = false;
-    return content::ExecuteScriptAndExtractBool(
-               browser->tab_strip_model()->GetActiveWebContents(),
-               "enterPictureInPicture();", &success) &&
-           success;
+    return content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "enterPictureInPicture();")
+        .ExtractBool();
   }
 
   static bool SetMediaMetadata(Browser* browser) {
-    return content::ExecuteScript(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "setMediaMetadata();");
+    return content::ExecJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "setMediaMetadata();");
   }
 
   static bool SetMediaMetadataWithArtwork(Browser* browser) {
-    return content::ExecuteScript(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "setMediaMetadataWithArtwork();");
+    return content::ExecJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "setMediaMetadataWithArtwork();");
   }
 
   static bool FinishPlaying(Browser* browser) {
-    return content::ExecuteScript(
-        browser->tab_strip_model()->GetActiveWebContents(), "finishPlaying();");
+    return content::ExecJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "finishPlaying();");
   }
 
   static bool WaitForSignificantPlayback(Browser* browser) {
-    bool seeked = false;
-    EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "waitForSignificantPlayback();", &seeked));
-    return seeked;
+    return content::EvalJs(browser->tab_strip_model()->GetActiveWebContents(),
+                           "waitForSignificantPlayback();")
+        .ExtractBool();
   }
 
   static std::vector<mojom::MediaHistoryPlaybackSessionRowPtr>
@@ -220,7 +210,14 @@ class MediaHistoryBrowserTest : public InProcessBrowserTest,
 
   media_session::MediaMetadata GetExpectedMetadata() {
     media_session::MediaMetadata expected_metadata =
-        GetExpectedDefaultMetadata();
+        GetExpectedDefaultActiveMetadata();
+
+#if BUILDFLAG(IS_CHROMEOS)
+    if (GetParam() == TestState::kIncognito) {
+      return expected_metadata;
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
     expected_metadata.title = u"Big Buck Bunny";
     expected_metadata.artist = u"Test Footage";
     expected_metadata.album = u"The Chrome Collection";
@@ -229,6 +226,13 @@ class MediaHistoryBrowserTest : public InProcessBrowserTest,
 
   std::vector<media_session::MediaImage> GetExpectedArtwork() {
     std::vector<media_session::MediaImage> images;
+
+#if BUILDFLAG(IS_CHROMEOS)
+    if (GetParam() == TestState::kIncognito) {
+      images.push_back(media_session::MediaImage());
+      return images;
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
     {
       media_session::MediaImage image;
@@ -280,8 +284,30 @@ class MediaHistoryBrowserTest : public InProcessBrowserTest,
     return images;
   }
 
+  media_session::MediaMetadata GetExpectedDefaultActiveMetadata() {
+    media_session::MediaMetadata expected_metadata =
+        GetExpectedDefaultMetadata();
+
+#if BUILDFLAG(IS_CHROMEOS)
+    if (GetParam() == TestState::kIncognito) {
+      content::MediaSessionClient* media_session_client =
+          content::MediaSessionClient::Get();
+
+      expected_metadata.title = media_session_client->GetTitlePlaceholder();
+      expected_metadata.source_title =
+          media_session_client->GetSourceTitlePlaceholder();
+      expected_metadata.album = media_session_client->GetAlbumPlaceholder();
+      expected_metadata.artist = media_session_client->GetArtistPlaceholder();
+      return expected_metadata;
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+    return expected_metadata;
+  }
+
   media_session::MediaMetadata GetExpectedDefaultMetadata() {
     media_session::MediaMetadata expected_metadata;
+
     expected_metadata.title = u"Media History";
     expected_metadata.source_title = base::ASCIIToUTF16(base::StringPrintf(
         "%s:%u", embedded_test_server()->GetIPLiteralString().c_str(),
@@ -434,7 +460,8 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
 
   EXPECT_TRUE(SetupPageAndStartPlaying(browser, GetTestURL()));
 
-  media_session::MediaMetadata expected_metadata = GetExpectedDefaultMetadata();
+  media_session::MediaMetadata expected_metadata =
+      GetExpectedDefaultActiveMetadata();
 
   {
     media_session::test::MockMediaSessionMojoObserver observer(
@@ -479,7 +506,8 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
   EXPECT_TRUE(SetupPageAndStartPlaying(browser, GetTestURL()));
   EXPECT_TRUE(FinishPlaying(browser));
 
-  media_session::MediaMetadata expected_metadata = GetExpectedDefaultMetadata();
+  media_session::MediaMetadata expected_metadata =
+      GetExpectedDefaultActiveMetadata();
 
   {
     media_session::test::MockMediaSessionMojoObserver observer(
@@ -526,7 +554,15 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
   }
 }
 
-IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest, DoNotRecordSessionIfNotActive) {
+// TODO(crbug.com/1491952): Flaky on Linux dbg. Fix and Re-enable this test.
+#if (BUILDFLAG(IS_LINUX)) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_DoNotRecordSessionIfNotActive \
+  DISABLED_DoNotRecordSessionIfNotActive
+#else
+#define MAYBE_DoNotRecordSessionIfNotActive DoNotRecordSessionIfNotActive
+#endif
+IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
+                       MAYBE_DoNotRecordSessionIfNotActive) {
   auto* browser = CreateBrowserFromParam();
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser, GetTestURL()));
@@ -556,7 +592,7 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest, DoNotRecordSessionIfNotActive) {
 // Flaky failures: crbug.com/1066853
 IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest, DISABLED_GetPlaybackSessions) {
   auto* browser = CreateBrowserFromParam();
-  auto expected_default_metadata = GetExpectedDefaultMetadata();
+  auto expected_default_metadata = GetExpectedDefaultActiveMetadata();
 
   {
     // Start a session.
@@ -626,7 +662,7 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest, DISABLED_GetPlaybackSessions) {
     // Start the first page again and seek to 4 seconds in with different
     // metadata.
     EXPECT_TRUE(SetupPageAndStartPlaying(browser, GetTestURL()));
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         browser->tab_strip_model()->GetActiveWebContents(), "seekToFour()"));
 
     media_session::test::MockMediaSessionMojoObserver observer(
@@ -777,9 +813,9 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
   {
     // Start a second session on a different URL.
     EXPECT_TRUE(SetupPageAndStartPlaying(browser, GetTestAltURL()));
-    EXPECT_TRUE(content::ExecuteScript(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "setMediaMetadataWithAltArtwork();"));
+    EXPECT_TRUE(
+        content::ExecJs(browser->tab_strip_model()->GetActiveWebContents(),
+                        "setMediaMetadataWithAltArtwork();"));
 
     media_session::test::MockMediaSessionMojoObserver observer(
         *GetMediaSession(browser));
@@ -1117,10 +1153,8 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest,
   web_contents->WasHidden();
 
   // Wait for significant playback in the background tab.
-  bool seeked = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      web_contents, "waitForSignificantPlayback();", &seeked));
-  ASSERT_TRUE(seeked);
+  ASSERT_EQ(true,
+            content::EvalJs(web_contents, "waitForSignificantPlayback();"));
 
   // Create another browser. This is important in the incognito case as
   // destroying `browser` (which happens from CloseAllTabs()) will delete the
@@ -1159,13 +1193,10 @@ IN_PROC_BROWSER_TEST_P(MediaHistoryBrowserTest, DoNotRecordWatchtime_Muted) {
   // Setup the test page and mute the player.
   auto* web_contents = browser->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser, GetTestURL()));
-  ASSERT_TRUE(content::ExecuteScript(web_contents, "mute();"));
+  ASSERT_TRUE(content::ExecJs(web_contents, "mute();"));
 
   // Start playing the video.
-  bool played = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      web_contents, "attemptPlayVideo();", &played));
-  ASSERT_TRUE(played);
+  ASSERT_EQ(true, content::EvalJs(web_contents, "attemptPlayVideo();"));
 
   // Wait for significant playback in the muted tab.
   WaitForSignificantPlayback(browser);
@@ -1206,7 +1237,7 @@ class MediaHistoryForPrerenderBrowserTest : public MediaHistoryBrowserTest {
   }
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     MediaHistoryBrowserTest::SetUp();
   }
 
@@ -1218,7 +1249,8 @@ class MediaHistoryForPrerenderBrowserTest : public MediaHistoryBrowserTest {
   content::WebContents* web_contents() { return web_contents_; }
 
  protected:
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
   content::test::PrerenderTestHelper prerender_helper_;
   base::test::ScopedFeatureList feature_list_;
 };

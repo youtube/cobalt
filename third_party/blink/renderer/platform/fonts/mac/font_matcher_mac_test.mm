@@ -20,11 +20,13 @@ void TestSystemFontContainsString(FontSelectionValue desired_weight,
 
 TEST(FontMatcherMacTest, NoUniqueFontMatchOnUnavailableFont) {
   NSFont* font = MatchUniqueFont(
-      "ThisFontNameDoesNotExist07F444B9-4DDF-4A41-8F30-C80D4ED4CCA2", 12);
+      AtomicString(
+          "ThisFontNameDoesNotExist07F444B9-4DDF-4A41-8F30-C80D4ED4CCA2"),
+      12);
   EXPECT_FALSE(font);
 }
 
-// If these font names are unavaiable on future Mac OS versions, please try to
+// If these font names are unavailable on future Mac OS versions, please try to
 // find replacements or remove individual lines.
 TEST(FontMatcherMacTest, MatchFullFontName) {
   const char* font_names[] = {"American Typewriter Condensed Light",
@@ -40,13 +42,13 @@ TEST(FontMatcherMacTest, MatchFullFontName) {
 
   for (const char* font_name : font_names) {
     @autoreleasepool {
-      NSFont* font = MatchUniqueFont(font_name, 12);
+      NSFont* font = MatchUniqueFont(AtomicString(font_name), 12);
       EXPECT_TRUE(font);
     }
   }
 }
 
-// If these font names are unavaiable on future Mac OS versions, please try to
+// If these font names are unavailable on future Mac OS versions, please try to
 // find replacements or remove individual lines.
 TEST(FontMatcherMacTest, MatchPostscriptName) {
   const char* font_names[] = {
@@ -64,7 +66,7 @@ TEST(FontMatcherMacTest, MatchPostscriptName) {
 
   for (const char* font_name : font_names) {
     @autoreleasepool {
-      NSFont* font = MatchUniqueFont(font_name, 12);
+      NSFont* font = MatchUniqueFont(AtomicString(font_name), 12);
       EXPECT_TRUE(font);
     }
   }

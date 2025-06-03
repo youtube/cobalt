@@ -9,6 +9,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/scoped_observation_traits.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -17,6 +18,7 @@
 #include "components/signin/public/base/signin_metrics.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
+#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -37,6 +39,14 @@ namespace mojom {
 class CookieManager;
 }
 }  // namespace network
+
+namespace version_info {
+enum class Channel;
+}
+
+namespace signin {
+class PrimaryAccountChangeEvent;
+}
 
 // An interface that needs to be supplied to the Signin component by its
 // embedder.
@@ -131,8 +141,35 @@ class SigninClient : public KeyedService {
   virtual void RemoveAllAccounts() = 0;
 #endif
 
+  // Returns the channel for the client installation.
+  virtual version_info::Channel GetClientChannel() = 0;
+
+  // Called when the primary account is changed, with additional information.
+  // `event_details` contains information on how the account changed.
+  // `event_source` contains information on how the signin/signout happened.
+  virtual void OnPrimaryAccountChangedWithEventSource(
+      signin::PrimaryAccountChangeEvent event_details,
+      absl::variant<signin_metrics::AccessPoint, signin_metrics::ProfileSignout>
+          event_source) = 0;
+
  protected:
   absl::optional<SignoutDecision> is_clear_primary_account_allowed_for_testing_;
 };
+
+namespace base {
+
+template <>
+struct ScopedObservationTraits<SigninClient, content_settings::Observer> {
+  static void AddObserver(SigninClient* source,
+                          content_settings::Observer* observer) {
+    source->AddContentSettingsObserver(observer);
+  }
+  static void RemoveObserver(SigninClient* source,
+                             content_settings::Observer* observer) {
+    source->RemoveContentSettingsObserver(observer);
+  }
+};
+
+}  // namespace base
 
 #endif  // COMPONENTS_SIGNIN_PUBLIC_BASE_SIGNIN_CLIENT_H_

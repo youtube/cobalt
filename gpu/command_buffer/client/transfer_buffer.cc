@@ -119,7 +119,7 @@ void TransferBuffer::AllocateRingBuffer(unsigned int size) {
   for (;size >= min_buffer_size_; size /= 2) {
     int32_t id = -1;
     scoped_refptr<gpu::Buffer> buffer =
-        helper_->command_buffer()->CreateTransferBuffer(size, &id);
+        helper_->command_buffer()->CreateTransferBuffer(size, &id, alignment_);
     if (id != -1) {
       last_allocated_size_ = size;
       DCHECK(buffer.get());
@@ -332,7 +332,7 @@ void ScopedTransferBufferPtr::Shrink(unsigned int new_size) {
 bool ScopedTransferBufferPtr::BelongsToBuffer(char* memory) const {
   if (!buffer_)
     return false;
-  char* start = reinterpret_cast<char*>(buffer_);
+  char* start = static_cast<char*>(buffer_.get());
   char* end = start + size_;
   return memory >= start && memory <= end;
 }

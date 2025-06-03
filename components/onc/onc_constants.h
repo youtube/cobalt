@@ -156,6 +156,7 @@ COMPONENT_EXPORT(ONC) extern const char kSignalStrength[];
 COMPONENT_EXPORT(ONC) extern const char kSIMLockStatus[];
 COMPONENT_EXPORT(ONC) extern const char kSIMPresent[];
 COMPONENT_EXPORT(ONC) extern const char kSMDPAddress[];
+COMPONENT_EXPORT(ONC) extern const char kSMDSAddress[];
 COMPONENT_EXPORT(ONC) extern const char kSupportNetworkScan[];
 COMPONENT_EXPORT(ONC) extern const char kTechnologyCdma1Xrtt[];
 COMPONENT_EXPORT(ONC) extern const char kTechnologyEdge[];
@@ -168,6 +169,9 @@ COMPONENT_EXPORT(ONC) extern const char kTechnologyLte[];
 COMPONENT_EXPORT(ONC) extern const char kTechnologyLteAdvanced[];
 COMPONENT_EXPORT(ONC) extern const char kTechnologyUmts[];
 COMPONENT_EXPORT(ONC) extern const char kTechnology5gNr[];
+COMPONENT_EXPORT(ONC) extern const char kTextMessagesAllow[];
+COMPONENT_EXPORT(ONC) extern const char kTextMessagesSuppress[];
+COMPONENT_EXPORT(ONC) extern const char kTextMessagesUnset[];
 }  // namespace cellular
 
 namespace cellular_provider {
@@ -200,6 +204,7 @@ COMPONENT_EXPORT(ONC) extern const char kIpTypeIpv4Ipv6[];
 COMPONENT_EXPORT(ONC) extern const char kApnTypes[];
 COMPONENT_EXPORT(ONC) extern const char kApnTypeDefault[];
 COMPONENT_EXPORT(ONC) extern const char kApnTypeAttach[];
+COMPONENT_EXPORT(ONC) extern const char kApnTypeTether[];
 }  // namespace cellular_apn
 
 namespace cellular_found_network {
@@ -261,6 +266,7 @@ COMPONENT_EXPORT(ONC) extern const char kAllowGatewayARPPolling[];
 COMPONENT_EXPORT(ONC) extern const char kAutoConnect[];
 COMPONENT_EXPORT(ONC) extern const char kBSSID[];
 COMPONENT_EXPORT(ONC) extern const char kBSSIDAllowlist[];
+COMPONENT_EXPORT(ONC) extern const char kBSSIDRequested[];
 COMPONENT_EXPORT(ONC) extern const char kEAP[];
 COMPONENT_EXPORT(ONC) extern const char kFrequency[];
 COMPONENT_EXPORT(ONC) extern const char kFrequencyList[];
@@ -536,14 +542,20 @@ COMPONENT_EXPORT(ONC) extern const char kWPAD[];
 
 namespace global_network_config {
 COMPONENT_EXPORT(ONC) extern const char kAllowCellularSimLock[];
+COMPONENT_EXPORT(ONC) extern const char kAllowCellularHotspot[];
 COMPONENT_EXPORT(ONC) extern const char kAllowOnlyPolicyCellularNetworks[];
 COMPONENT_EXPORT(ONC) extern const char kAllowOnlyPolicyNetworksToAutoconnect[];
 COMPONENT_EXPORT(ONC) extern const char* const kAllowOnlyPolicyWiFiToConnect;
 COMPONENT_EXPORT(ONC)
 extern const char* const kAllowOnlyPolicyWiFiToConnectIfAvailable;
+COMPONENT_EXPORT(ONC)
+extern const char* const kAllowTextMessages;
 COMPONENT_EXPORT(ONC) extern const char kBlacklistedHexSSIDs[];  // Deprecated
 COMPONENT_EXPORT(ONC) extern const char kBlockedHexSSIDs[];
 COMPONENT_EXPORT(ONC) extern const char kDisableNetworkTypes[];
+COMPONENT_EXPORT(ONC) extern const char kRecommendedValuesAreEphemeral[];
+COMPONENT_EXPORT(ONC)
+extern const char kUserCreatedNetworkConfigurationsAreEphemeral[];
 }  // namespace global_network_config
 
 namespace device_state {

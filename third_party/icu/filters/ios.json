@@ -137,7 +137,7 @@
     },
     "brkitr_rules": {
       "excludelist": [
-// Exclude *phrase_cj
+// Exclude *phrase_cj. Only Blink needs them, Browser doesn't.
         "line_phrase_cj",
         "line_normal_phrase_cj",
         "line_loose_phrase_cj",

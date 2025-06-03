@@ -220,7 +220,7 @@ const AtomicString& ServiceWorkerRegistration::InterfaceName() const {
 NavigationPreloadManager* ServiceWorkerRegistration::navigationPreload() {
   if (!navigation_preload_)
     navigation_preload_ = MakeGarbageCollected<NavigationPreloadManager>(this);
-  return navigation_preload_;
+  return navigation_preload_.Get();
 }
 
 String ServiceWorkerRegistration::scope() const {
@@ -358,7 +358,7 @@ void ServiceWorkerRegistration::Trace(Visitor* visitor) const {
   visitor->Trace(navigation_preload_);
   visitor->Trace(host_);
   visitor->Trace(receiver_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   Supplementable<ServiceWorkerRegistration>::Trace(visitor);
 }

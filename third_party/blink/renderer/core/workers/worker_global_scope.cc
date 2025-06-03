@@ -46,7 +46,6 @@
 #include "third_party/blink/renderer/core/events/error_event.h"
 #include "third_party/blink/renderer/core/events/message_event.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/core/frame/dom_timer_coordinator.h"
 #include "third_party/blink/renderer/core/frame/font_matching_metrics.h"
 #include "third_party/blink/renderer/core/frame/user_activation.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -392,7 +391,7 @@ void WorkerGlobalScope::AddConsoleMessageImpl(ConsoleMessage* console_message,
                                               bool discard_duplicates) {
   DCHECK(IsContextThread());
   ReportingProxy().ReportConsoleMessage(
-      console_message->Source(), console_message->Level(),
+      console_message->GetSource(), console_message->GetLevel(),
       console_message->Message(), console_message->Location());
   GetThread()->GetConsoleMessageStorage()->AddConsoleMessage(
       this, console_message, discard_duplicates);

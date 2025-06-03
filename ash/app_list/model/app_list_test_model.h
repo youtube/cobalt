@@ -68,6 +68,7 @@ class AppListTestModel : public AppListModel, public AppListModelDelegate {
                            const std::string& new_name) override;
   void RequestAppListSort(AppListSortOrder order) override;
   void RequestAppListSortRevert() override;
+  void RequestCommitTemporarySortOrder() override;
 
   // Raw pointer version convenience versions of AppListModel methods.
   AppListItem* AddItem(AppListItem* item);
@@ -101,6 +102,11 @@ class AppListTestModel : public AppListModel, public AppListModelDelegate {
   // Creates and adds an item with id |id| to the model. Returns an unowned
   // pointer to the created item.
   AppListTestItem* CreateAndAddItem(const std::string& id);
+
+  // Creates and adds a promise app item with id |id| to the model (i.e. item
+  // will be created with status as AppStatus::kPending). Returns an unowned
+  // pointer to the created item.
+  AppListTestItem* CreateAndAddPromiseItem(const std::string& id);
 
   int activate_count() { return activate_count_; }
   AppListItem* last_activated() { return last_activated_; }

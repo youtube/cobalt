@@ -7,8 +7,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "base/allocator/partition_allocator/page_allocator.h"
-#include "base/allocator/partition_allocator/partition_alloc.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/page_allocator.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_root.h"
 #include "base/bits.h"
 #include "base/check_op.h"
 #include "base/no_destructor.h"
@@ -30,40 +31,45 @@ static_assert(V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT == 2,
               "array buffers must have two internal fields");
 
 // ArrayBufferAllocator -------------------------------------------------------
-partition_alloc::ThreadSafePartitionRoot* ArrayBufferAllocator::partition_ =
-    nullptr;
+partition_alloc::PartitionRoot* ArrayBufferAllocator::partition_ = nullptr;
 
 void* ArrayBufferAllocator::Allocate(size_t length) {
-  unsigned int flags = partition_alloc::AllocFlags::kZeroFill |
-                       partition_alloc::AllocFlags::kReturnNull;
-  return AllocateInternal(length, flags);
+  constexpr partition_alloc::AllocFlags flags =
+      partition_alloc::AllocFlags::kZeroFill |
+      partition_alloc::AllocFlags::kReturnNull;
+  return AllocateInternal<flags>(length);
 }
 
 void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
-  unsigned int flags = partition_alloc::AllocFlags::kReturnNull;
-  return AllocateInternal(length, flags);
+  constexpr partition_alloc::AllocFlags flags =
+      partition_alloc::AllocFlags::kReturnNull;
+  return AllocateInternal<flags>(length);
 }
 
-void* ArrayBufferAllocator::AllocateInternal(size_t length,
-                                             unsigned int flags) {
+template <partition_alloc::AllocFlags flags>
+void* ArrayBufferAllocator::AllocateInternal(size_t length) {
 #ifdef V8_ENABLE_SANDBOX
   // The V8 sandbox requires all ArrayBuffer backing stores to be allocated
   // inside the sandbox address space. This isn't guaranteed if allocation
   // override hooks (which are e.g. used by GWP-ASan) are enabled or if a
   // memory tool (e.g. ASan) overrides malloc, so disable both.
-  flags |= partition_alloc::AllocFlags::kNoOverrideHooks;
-  flags |= partition_alloc::AllocFlags::kNoMemoryToolOverride;
+  constexpr auto new_flags = flags |
+                             partition_alloc::AllocFlags::kNoOverrideHooks |
+                             partition_alloc::AllocFlags::kNoMemoryToolOverride;
+#else
+  constexpr auto new_flags = flags;
 #endif
-  return partition_->AllocWithFlags(flags, length, "gin::ArrayBufferAllocator");
+  return partition_->AllocInline<new_flags>(length,
+                                            "gin::ArrayBufferAllocator");
 }
 
 void ArrayBufferAllocator::Free(void* data, size_t length) {
-  unsigned int flags = 0;
 #ifdef V8_ENABLE_SANDBOX
-  // See |AllocateInternal|.
-  flags |= partition_alloc::FreeFlags::kNoMemoryToolOverride;
+  // See |AllocateMemoryWithFlags|.
+  partition_->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(data);
+#else
+  partition_->Free(data);
 #endif
-  partition_->FreeWithFlags(flags, data);
 }
 
 // static
@@ -75,18 +81,11 @@ ArrayBufferAllocator* ArrayBufferAllocator::SharedInstance() {
 // static
 void ArrayBufferAllocator::InitializePartition() {
   static base::NoDestructor<partition_alloc::PartitionAllocator>
-      partition_allocator{};
-
-  // These configuration options are copied from blink's ArrayBufferPartition.
-  partition_allocator->init({
-      partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-      partition_alloc::PartitionOptions::ThreadCache::kDisabled,
-      partition_alloc::PartitionOptions::Quarantine::kAllowed,
-      partition_alloc::PartitionOptions::Cookie::kAllowed,
-      partition_alloc::PartitionOptions::BackupRefPtr::kDisabled,
-      partition_alloc::PartitionOptions::BackupRefPtrZapping::kDisabled,
-      partition_alloc::PartitionOptions::UseConfigurablePool::kIfAvailable,
-  });
+      partition_allocator(partition_alloc::PartitionOptions{
+          .star_scan_quarantine = partition_alloc::PartitionOptions::kAllowed,
+          .backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled,
+          .use_configurable_pool = partition_alloc::PartitionOptions::kAllowed,
+      });
 
   partition_ = partition_allocator->root();
 }

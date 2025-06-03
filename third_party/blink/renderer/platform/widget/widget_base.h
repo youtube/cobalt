@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_WIDGET_BASE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WIDGET_WIDGET_BASE_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "cc/animation/animation_timeline.h"
@@ -101,7 +102,8 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
       const display::ScreenInfos& screen_infos,
       const cc::LayerTreeSettings* settings,
       base::WeakPtr<mojom::blink::FrameWidgetInputHandler>
-          frame_widget_input_handler);
+          frame_widget_input_handler,
+      WidgetBase* previous_widget);
 
   // Similar to `InitializeCompositing()` but for non-compositing widgets.
   // Exactly one of either `InitializeCompositing()` or this method must
@@ -147,7 +149,7 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
       override;
   void CancelSuccessfulPresentationTimeRequest() override;
 
-  // LayerTreeDelegate overrides:
+  // LayerTreeViewDelegate overrides:
   // Applies viewport related properties during a commit from the compositor
   // thread.
   void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) override;
@@ -185,6 +187,8 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   void RunPaintBenchmark(int repeat_count,
                          cc::PaintBenchmarkResult& result) override;
   void ScheduleAnimationForWebTests() override;
+  std::unique_ptr<cc::RenderFrameMetadataObserver> CreateRenderFrameObserver()
+      override;
 
   cc::AnimationHost* AnimationHost() const;
   cc::AnimationTimeline* ScrollAnimationTimeline() const;
@@ -383,7 +387,11 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   // Returns null if the compositing stack has not been initialized yet.
   absl::optional<int> GetMaxRenderBufferBounds() const;
 
+  bool WillBeDestroyed() const { return will_be_destroyed_; }
+
  private:
+  static void AssertAreCompatible(const WidgetBase& a, const WidgetBase& b);
+
   bool CanComposeInline();
   void UpdateTextInputStateInternal(bool show_virtual_keyboard,
                                     bool immediate_request);
@@ -431,6 +439,10 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
       LayerTreeFrameSinkCallback callback,
       scoped_refptr<gpu::GpuChannelHost> gpu_channel_host);
 
+  // Detaches the LayerTreeView from this widget and attaches it to
+  // `new_widget`, if provided.
+  void DisconnectLayerTreeView(WidgetBase* new_widget);
+
   // Indicates that we are never visible, so never produce graphical output.
   const bool never_composited_;
   // Indicates this is for a child local root or a nested main frame.
@@ -444,7 +456,7 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
 
   // The client which handles behaviour specific to the type of widget.
   // It's the owner of the widget and will outlive this class.
-  WidgetBaseClient* const client_;
+  const raw_ptr<WidgetBaseClient, ExperimentalRenderer> client_;
 
   mojo::AssociatedRemote<mojom::blink::WidgetHost> widget_host_;
   mojo::AssociatedReceiver<mojom::blink::Widget> receiver_;
@@ -521,7 +533,7 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
 
   // It is possible that one ImeEventGuard is nested inside another
   // ImeEventGuard. We keep track of the outermost one, and update it as needed.
-  ImeEventGuard* ime_event_guard_ = nullptr;
+  raw_ptr<ImeEventGuard, ExperimentalRenderer> ime_event_guard_ = nullptr;
 
   // The screen rects of the view and the window that contains it. These do not
   // include any scaling by device scale factor, so are logical pixels not
@@ -556,11 +568,16 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
   // The task runner on the main thread used for compositor tasks.
   scoped_refptr<base::SingleThreadTaskRunner>
       main_thread_compositor_task_runner_;
+  base::PlatformThreadId main_thread_id_ = base::kInvalidThreadId;
 
   // The maximum bounds for buffers allocated for rasterization and compositing.
   // Set when the compositor is initialized.
   absl::optional<int> max_render_buffer_bounds_gpu_;
   absl::optional<int> max_render_buffer_bounds_sw_;
+
+  // Tracks when the compositing setup for this widget has been torn down or
+  // disconnected in preparation to destroy this widget.
+  bool will_be_destroyed_ = false;
 
   base::WeakPtrFactory<WidgetBase> weak_ptr_factory_{this};
 };

@@ -9,11 +9,14 @@
 
 #include "base/containers/enum_set.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback.h"
 #include "base/supports_user_data.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "components/policy/core/browser/signin/profile_separation_policies.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/tribool.h"
+#include "net/cookies/canonical_cookie.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
@@ -23,7 +26,6 @@ namespace signin_util {
 enum class ProfileSeparationPolicyState {
   kEnforcedByExistingProfile,
   kEnforcedByInterceptedAccount,
-  kStrict,
   kEnforcedOnMachineLevel,
   kKeepsBrowsingData,
   kMaxValue = kKeepsBrowsingData
@@ -46,6 +48,40 @@ class ScopedForceSigninSetterForTesting {
       const ScopedForceSigninSetterForTesting&) = delete;
 };
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+// Utility class that moves cookies linked to a URL from one profile to the
+// other. This will be mostly used when a new profile is created after a
+// signin interception of an account linked a SAML signin.
+class CookiesMover {
+ public:
+  // Moves cookies related to `url` from `source_profile` to
+  // `destination_profile` and calls `callback` when it is done.
+  CookiesMover(base::WeakPtr<Profile> source_profile,
+               base::WeakPtr<Profile> destination_profile,
+               base::OnceCallback<void()> callback);
+
+  CookiesMover(const CookiesMover& copy) = delete;
+  CookiesMover& operator=(const CookiesMover&) = delete;
+  ~CookiesMover();
+
+  void StartMovingCookies();
+
+ private:
+  void OnCookiesReceived(
+      const std::vector<net::CookieWithAccessResult>& included,
+      const std::vector<net::CookieWithAccessResult>& excluded);
+
+  // Called when all the cookies have been moved.
+  void OnCookiesMoved();
+
+  GURL url_;
+  base::WeakPtr<Profile> source_profile_;
+  base::WeakPtr<Profile> destination_profile_;
+  base::OnceCallback<void()> callback_;
+  base::WeakPtrFactory<CookiesMover> weak_pointer_factory_{this};
+};
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+
 // Return whether the force sign in policy is enabled or not.
 // The state of this policy will not be changed without relaunch Chrome.
 bool IsForceSigninEnabled();
@@ -63,29 +99,30 @@ bool IsProfileDeletionAllowed(Profile* profile);
 
 #if !BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_CHROMEOS)
-// Returns the state of profile separation on any account that would signin
-// inside `profile`. Returns an empty set if profile separation is not enforced
-// on accounts that will sign in the content area of `profile`.
-ProfileSeparationPolicyStateSet GetProfileSeparationPolicyState(
-    Profile* profile,
-    const absl::optional<std::string>& intercepted_account_level_policy_value =
-        absl::nullopt);
 
-// Returns true if profile separation must be enforced on an account signing in
-// the content area of `profile` by the ManagedAccountsSigninRestriction policy
-// for `profile` or if the value of 'intercepted_account_level_policy_value'
-// enforces profile separation for an intercepted account.
-// `intercepted_account_level_policy_value` has a value only in the case of an
-// account interception. This is used mainly in DiceWebSigninInterceptor to
-// determine if an intercepted account requires a new profile.
-bool ProfileSeparationEnforcedByPolicy(
+// Returns true if managed accounts signin are required to create a new profile
+// by policies set in `profile`. This will check the by default check the
+// ManagedAccountsSigninRestriction policy.
+// The optional `intercepted_account_email` will trigger a check to the
+// ProfileSeparationDomainExceptionList policy. Unless
+// `intercepted_account_email` is not available, it should always be passed.
+bool IsProfileSeparationEnforcedByProfile(
     Profile* profile,
-    const absl::optional<std::string>& intercepted_account_level_policy_value =
-        absl::nullopt);
+    const std::string& intercepted_account_email);
+
+// Returns true if profile separation is enforced by
+// `intercepted_account_separation_policies`.
+bool IsProfileSeparationEnforcedByPolicies(
+    const policy::ProfileSeparationPolicies&
+        intercepted_profile_separation_policies);
 
 bool ProfileSeparationAllowsKeepingUnmanagedBrowsingDataInManagedProfile(
     Profile* profile,
-    const std::string& intercepted_account_level_policy_value);
+    const policy::ProfileSeparationPolicies&
+        intercepted_profile_separation_policies);
+
+bool IsAccountExemptedFromEnterpriseProfileSeparation(Profile* profile,
+                                                      const std::string& email);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 // Records a UMA metric if the user accepts or not to create an enterprise
 // profile.

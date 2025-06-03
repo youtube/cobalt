@@ -51,27 +51,27 @@ bool IsValidName(const String& name) {
 mojom::blink::BucketPoliciesPtr ToMojoBucketPolicies(
     const StorageBucketOptions* options) {
   auto policies = mojom::blink::BucketPolicies::New();
-  if (options->hasPersistedNonNull()) {
-    policies->persisted = options->persistedNonNull();
+  if (options->persisted()) {
+    policies->persisted = *options->persisted();
     policies->has_persisted = true;
   }
 
-  if (options->hasQuotaNonNull()) {
-    DCHECK_LE(options->quotaNonNull(),
-              uint64_t{std::numeric_limits<int64_t>::max()});
-    policies->quota = options->quotaNonNull();
+  if (options->quota()) {
+    DCHECK_LE(*options->quota(), uint64_t{std::numeric_limits<int64_t>::max()});
+    policies->quota = *options->quota();
     policies->has_quota = true;
   }
 
-  if (options->hasDurabilityNonNull()) {
-    policies->durability = options->durabilityNonNull() == "strict"
+  if (options->durability()) {
+    policies->durability = *options->durability() == "strict"
                                ? mojom::blink::BucketDurability::kStrict
                                : mojom::blink::BucketDurability::kRelaxed;
     policies->has_durability = true;
   }
 
-  if (options->hasExpiresNonNull()) {
-    policies->expires = base::Time::FromJsTime(options->expiresNonNull());
+  if (options->expires()) {
+    policies->expires =
+        base::Time::FromMillisecondsSinceUnixEpoch(*options->expires());
   }
 
   return policies;
@@ -120,7 +120,7 @@ ScriptPromise StorageBucketManager::open(ScriptState* script_state,
     return promise;
   }
 
-  if (options->hasQuotaNonNull() && options->quotaNonNull() == 0) {
+  if (options->quota() && *options->quota() == 0) {
     resolver->Reject(V8ThrowException::CreateTypeError(
         script_state->GetIsolate(), "The bucket's quota cannot equal zero."));
     return promise;
@@ -265,42 +265,22 @@ void StorageBucketManager::DidDelete(ScriptPromiseResolver* resolver,
   resolver->Resolve();
 }
 
-void StorageBucketManager::GetBucketForDevtools(
+StorageBucket* StorageBucketManager::GetBucketForDevtools(
     ScriptState* script_state,
-    const String& name,
-    base::OnceCallback<void(StorageBucket*)> callback) {
+    const String& name) {
   ExecutionContext* context = ExecutionContext::From(script_state);
   if (!context->GetSecurityOrigin()->CanAccessStorageBuckets()) {
-    std::move(callback).Run(nullptr);
-    return;
+    return nullptr;
   }
+
+  mojo::PendingRemote<mojom::blink::BucketHost> bucket_remote;
 
   GetBucketManager(script_state)
-      ->GetBucketForDevtools(
-          name,
-          WTF::BindOnce(&StorageBucketManager::DidGetBucketForDevtools,
-                        WrapPersistent(this), WrapPersistent(script_state),
-                        name, std::move(callback)));
-}
+      ->GetBucketForDevtools(name,
+                             bucket_remote.InitWithNewPipeAndPassReceiver());
 
-void StorageBucketManager::DidGetBucketForDevtools(
-    ScriptState* script_state,
-    const String& name,
-    base::OnceCallback<void(StorageBucket*)> callback,
-    mojo::PendingRemote<mojom::blink::BucketHost> bucket_remote,
-    mojom::blink::BucketError) {
-  if (!script_state->ContextIsValid()) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
-  ScriptState::Scope scope(script_state);
-
-  if (!bucket_remote) {
-    std::move(callback).Run(nullptr);
-    return;
-  }
-  std::move(callback).Run(MakeGarbageCollected<StorageBucket>(
-      navigator_base_, name, std::move(bucket_remote)));
+  return MakeGarbageCollected<StorageBucket>(navigator_base_, name,
+                                             std::move(bucket_remote));
 }
 
 void StorageBucketManager::Trace(Visitor* visitor) const {

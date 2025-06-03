@@ -38,6 +38,9 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_streamer.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_code_cache.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_common.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_consumer.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_producer.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_initializer.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/bindings/core/v8/worker_or_worklet_script_controller.h"
@@ -118,8 +121,7 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
     v8::ScriptCompiler::NoCacheReason no_cache_reason,
     absl::optional<inspector_compile_script_event::V8ConsumeCacheResult>*
         cache_result) {
-  v8::Local<v8::String> code = V8String(isolate, classic_script.SourceText(),
-                                        classic_script.ResourceKeepAlive());
+  v8::Local<v8::String> code = V8String(isolate, classic_script.SourceText());
 
   // TODO(kouhei): Plumb the ScriptState into this function and replace all
   // Isolate->GetCurrentContext in this function with ScriptState->GetContext.
@@ -151,6 +153,33 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
   }
 
   switch (compile_options) {
+    case v8::ScriptCompiler::kConsumeCompileHints: {
+      ExecutionContext* execution_context =
+          ExecutionContext::From(script_state);
+      // Based on how `can_use_compile_hints` in CompileScript is computed, we
+      // must get a non-null LocalDOMWindow and LocalFrame here.
+      LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(execution_context);
+      CHECK(window);
+      LocalFrame* frame = window->GetFrame();
+      CHECK(frame);
+      Page* page = frame->GetPage();
+      CHECK(page);
+      // This ptr keeps the data alive during v8::ScriptCompiler::Compile.
+      std::unique_ptr<v8_compile_hints::V8CrowdsourcedCompileHintsConsumer::
+                          DataAndScriptNameHash>
+          compile_hint_data =
+              page->GetV8CrowdsourcedCompileHintsConsumer()
+                  .GetDataWithScriptNameHash(v8_compile_hints::ScriptNameHash(
+                      origin.ResourceName(), script_state->GetContext(),
+                      isolate));
+      v8::ScriptCompiler::Source source(
+          code, origin,
+          &v8_compile_hints::V8CrowdsourcedCompileHintsConsumer::
+              CompileHintCallback,
+          compile_hint_data.get());
+      return v8::ScriptCompiler::Compile(script_state->GetContext(), &source,
+                                         compile_options, no_cache_reason);
+    }
     case v8::ScriptCompiler::kNoCompileOptions:
     case v8::ScriptCompiler::kEagerCompile:
     case v8::ScriptCompiler::kProduceCompileHints: {
@@ -165,6 +194,7 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
       ScriptCacheConsumer* cache_consumer = classic_script.CacheConsumer();
       scoped_refptr<CachedMetadata> cached_metadata =
           V8CodeCache::GetCachedMetadata(cache_handler);
+      const bool full_code_cache = V8CodeCache::IsFull(cached_metadata.get());
       v8::ScriptCompiler::Source source(
           code, origin,
           V8CodeCache::CreateCachedData(cached_metadata).release(),
@@ -193,7 +223,7 @@ v8::MaybeLocal<v8::Script> CompileScriptInternal(
       if (cache_result) {
         *cache_result = absl::make_optional(
             inspector_compile_script_event::V8ConsumeCacheResult(
-                cached_data->length, cached_data->rejected));
+                cached_data->length, cached_data->rejected, full_code_cache));
       }
       return script;
     }
@@ -300,6 +330,10 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
         code, origin);
   } else {
     switch (compile_options) {
+      case v8::ScriptCompiler::kConsumeCompileHints:
+        // TODO(chromium:1406506): Compile hints for modules.
+        compile_options = v8::ScriptCompiler::kNoCompileOptions;
+        ABSL_FALLTHROUGH_INTENDED;
       case v8::ScriptCompiler::kNoCompileOptions:
       case v8::ScriptCompiler::kEagerCompile:
       case v8::ScriptCompiler::kProduceCompileHints: {
@@ -315,6 +349,9 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
         CachedMetadataHandler* cache_handler = params.CacheHandler();
         DCHECK(cache_handler);
         cache_handler->DidUseCodeCache();
+        const scoped_refptr<CachedMetadata> cached_metadata =
+            V8CodeCache::GetCachedMetadata(cache_handler);
+        const bool full_code_cache = V8CodeCache::IsFull(cached_metadata.get());
         // TODO(leszeks): Add support for passing in ScriptCacheConsumer.
         v8::ScriptCompiler::Source source(
             code, origin,
@@ -336,7 +373,7 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
         }
         cache_result = absl::make_optional(
             inspector_compile_script_event::V8ConsumeCacheResult(
-                cached_data->length, cached_data->rejected));
+                cached_data->length, cached_data->rejected, full_code_cache));
         break;
       }
       default:
@@ -398,8 +435,8 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::RunCompiledScript(
 
     // ToCoreString here should be zero copy due to externalized string
     // unpacked.
-    probe::ExecuteScript probe(context, isolate->GetCurrentContext(),
-                               ToCoreString(script_url),
+    String url = ToCoreString(script_url);
+    probe::ExecuteScript probe(context, isolate->GetCurrentContext(), url,
                                script->GetUnboundScript()->GetId());
     result = script->Run(isolate->GetCurrentContext(), host_defined_options);
   }
@@ -499,9 +536,17 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
     v8::ScriptCompiler::CompileOptions compile_options;
     V8CodeCache::ProduceCacheOptions produce_cache_options;
     v8::ScriptCompiler::NoCacheReason no_cache_reason;
+    Page* page = frame != nullptr ? frame->GetPage() : nullptr;
+    bool might_generate_compile_hints =
+        page ? page->GetV8CrowdsourcedCompileHintsProducer().MightGenerateData()
+             : false;
+    bool can_use_compile_hints =
+        page != nullptr && page->MainFrame() == frame &&
+        page->GetV8CrowdsourcedCompileHintsConsumer().HasData();
     std::tie(compile_options, produce_cache_options, no_cache_reason) =
-        V8CodeCache::GetCompileOptions(execution_context->GetV8CacheOptions(),
-                                       *classic_script);
+        V8CodeCache::GetCompileOptions(
+            execution_context->GetV8CacheOptions(), *classic_script,
+            might_generate_compile_hints, can_use_compile_hints);
 
     v8::ScriptOrigin origin = classic_script->CreateScriptOrigin(isolate);
     v8::MaybeLocal<v8::Value> maybe_result;
@@ -558,9 +603,8 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
             produce_cache_options);
       }
 
-#if BUILDFLAG(ENABLE_V8_COMPILE_HINTS)
-      Page* page;
-      if (frame != nullptr && (page = frame->GetPage()) != nullptr) {
+#if BUILDFLAG(PRODUCE_V8_COMPILE_HINTS)
+      if (page != nullptr) {
         if (compile_options == v8::ScriptCompiler::kProduceCompileHints) {
           // TODO(chromium:1406506): Add a compile hints solution for workers.
           // TODO(chromium:1406506): Add a compile hints solution for fenced
@@ -571,7 +615,7 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
               frame, execution_context, script, script_state);
         }
       }
-#endif  // BUILDFLAG(ENABLE_V8_COMPILE_HINTS)
+#endif  // BUILDFLAG(PRODUCE_V8_COMPILE_HINTS)
     }
 
     // TODO(crbug/1114601): Investigate whether to check CanContinue() in other
@@ -702,7 +746,6 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallFunction(
     v8::Local<v8::Value> argv[],
     v8::Isolate* isolate) {
   LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(context);
-  LocalFrame* frame = window ? window->GetFrame() : nullptr;
   TRACE_EVENT0("v8", "v8.callFunction");
   RuntimeCallStatsScopedTracer rcs_scoped_tracer(isolate);
   RUNTIME_CALL_TIMER_SCOPE(isolate, RuntimeCallStats::CounterId::kV8);
@@ -724,10 +767,9 @@ v8::MaybeLocal<v8::Value> V8ScriptRunner::CallFunction(
     DCHECK(!ScriptForbiddenScope::WillBeScriptForbidden());
   }
 
-  DCHECK(!frame ||
-         BindingSecurity::ShouldAllowAccessToFrame(
-             ToLocalDOMWindow(function->GetCreationContextChecked()), frame,
-             BindingSecurity::ErrorReportOption::kDoNotReport));
+  DCHECK(!window || !window->GetFrame() ||
+         BindingSecurity::ShouldAllowAccessTo(
+             ToLocalDOMWindow(function->GetCreationContextChecked()), window));
   v8::Isolate::SafeForTerminationScope safe_for_termination(isolate);
   v8::MicrotasksScope microtasks_scope(isolate, microtask_queue,
                                        v8::MicrotasksScope::kRunMicrotasks);

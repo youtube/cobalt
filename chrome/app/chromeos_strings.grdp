@@ -134,6 +134,10 @@
     Finalizing...
   </message>
 
+  <message name="IDS_GETTING_DEVICE_READY" desc="Message that the system is getting the device ready">
+    Getting the device ready...
+  </message>
+
   <!-- Cellular Setup UI Strings -->
   <message name="IDS_CELLULAR_SETUP_BACK_LABEL" desc="Label for button to go to previous screen during cellular setup">
     Back
@@ -204,17 +208,38 @@
   <message name="IDS_CELLULAR_SETUP_ESIM_PROFILE_DETECT_MESSAGE" desc="Message displayed during loading page in eSIM setup flow when looking for eSIM profiles.">
     Looking for available profiles...
   </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_TITLE" desc="Title message displayed during loading page in eSIM setup flow when looking for eSIM profiles.">
+    Looking for available eSIM profiles
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_MESSAGE" desc="Message displayed during loading page in eSIM setup flow when looking for eSIM profiles.">
+   This may cause your mobile network to disconnect for a few minutes.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_PROFILE_DISCOVERY_PAGE_TITLE" desc="Title message informing user that they can choose a profile from the list below to download.">
+    Choose an eSIM profile to download
+  </message>
+  <message name="IDS_CELLULAR_SETUP_CONFIRMATION_CODE_PAGE_TITLE" desc="Title message informing user that they can enter confirmation code in the text box below.">
+    Enter confirmation code
+  </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PROFILE_DETECT_DURING_ACTIVE_CELLULAR_CONNECTION_MESSAGE" desc="Message displayed during loading page in eSIM setup flow when looking for eSIM profiles informing the user that cellular setup may disconnect their current cellular network connection.">
     Looking for available profiles. This may cause your mobile network to disconnect for a few minutes.
   </message>
   <message name="IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE" desc="Label informing the user that they are able to select multiple eSIM profiles for downloading.">
     We've found multiple profiles available to download. Select the ones you would like to download before proceeding.
   </message>
-  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE" desc="Label for informing the user on ways to retrieve an eSim profile">
-    Scan a QR Code using your device camera or enter the activation code provided by your carrier
+  <message name="IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE_WITH_LINK" desc="Label informing the user that they can choose to setup an eSIM profile manually.">
+    You can also setup an eSIM profile <ph name="BEGIN_LINK">&lt;a href="#" &gt;</ph>manually<ph name="END_LINK">&lt;/a&gt;</ph>.
   </message>
-  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_ENTER_ACTIVATION_CODE" desc="Label for informing the user to enter activation code when no media devices have been found">
-    Please enter your activation code
+ <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE" desc="Label for informing the user on ways to retrieve an eSim profile">
+    Scan a QR Code using your device camera or enter the activation code provided by your carrier.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_NO_PROFILES_FOUND" desc="Label for informing the user on ways to retrieve an eSim profile when no profiles could be automatically discovered.">
+    No profiles were found. Try scanning the QR Code using your device camera or enter the activation code provided by your carrier.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE" desc="Label for informing the user to enter activation code when no media devices have been found">
+    Please enter the activation code provided by your carrier.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE_NO_PROFILES_FOUND" desc="Label for informing the user to enter activation code when no media devices have been found and no available profiles could be automatically discovered">
+    No profiles were found. Please enter the activation code provided by your carrier.
   </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_USE_CAMERA" desc="Label for button that uses the camera to scan for QR Codes when clicked.">
     Use camera to scan QR Code
@@ -243,17 +268,17 @@
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_LOADING" desc="Label informing the user that the activation code is currently being verified.">
     Verifying activation code...
   </message>
-  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_VERIFYING_ACTIVATION_CODE" desc="Label informing the user that the activation code is currently being verified, and that it may take a couple of minutes before it is complete.">
-    Verifying activation code. This may take a few minutes.
+  <message name="IDS_CELLULAR_SETUP_ESIM_PROFILE_INSTALLING_MESSAGE" desc="Label informing the user that an eSIM profile is being added, and that it may take a couple of minutes before it is complete.">
+    Adding eSIM profile. This may take a few minutes.
   </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INVALID" desc="Label informing the user that the code used to install an eSIM profile is invalid.">
     Invalid code. Please try again.
   </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INPUT_SUBTITLE" desc="Subtitle for input informing the user that the code used to install an eSIM profile must follow a specific format.">
-    Your entry should have the format LPA:1$&lt;smdp address&gt;$&lt;activation code&gt;
+      Your entry should have the format <ph name="LPA_0">LPA:1</ph>&#36;<ph name="LPA_1">&lt;</ph>SM-DP+ address<ph name="LPA_2">&gt;</ph>&#36;<ph name="LPA_3">&lt;</ph>optional matching id<ph name="LPA_4">&gt;</ph>
   </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INPUT_ERROR" desc="Error label for input informing the user that the code used to install an eSIM profile is invalid and must follow a specific format.">
-    Invalid code. Your entry should have the format LPA:1$&lt;smdp address&gt;$&lt;activation code&gt;
+      Invalid code. Your entry should have the format <ph name="LPA_0">LPA:1</ph>&#36;<ph name="LPA_1">&lt;</ph>SM-DP+ address<ph name="LPA_2">&gt;</ph>&#36;<ph name="LPA_3">&lt;</ph>optional matching id<ph name="LPA_4">&gt;</ph>
   </message>
   <message name="IDS_CELLULAR_SETUP_ESTABLISH_NETWORK_CONNECTION" desc="Message, informing user that a network connection is being established during cellular setup">
     Establishing network connection ...
@@ -264,11 +289,26 @@
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_INPUT" desc="Label for the input used to enter the confirmation code to activate an eSIM profile.">
     Confirmation code
   </message>
-  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR" desc="Message, informing the user the confirmation code entered to activate an eSIM profile is invalid and to contact their carrier.">
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR_LEGACY" desc="Message, informing the user the confirmation code entered to activate an eSIM profile is invalid and to contact their carrier.">
     Unable to connect to this profile. For technical support, please contact your carrier.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR" desc="Message, informing the user the confirmation code entered to activate an eSIM profile is invalid and to contact their carrier.">
+    Unable to install this profile. For technical support, please contact your carrier.
   </message>
   <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_LOADING" desc="Message, informing the user the confirmation code entered to activate an eSIM profile is currently being verified.">
     Verifying confirmation code...
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_TITLE" desc="Title asking for consent to scan automatically for available eSIM profiles.">
+    Automatically scan for available eSIM profiles?
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_MESSAGE_WITH_LINK" desc="Message, informing the user that device information will be shared with third parties.">
+    By continuing, you allow third parties to verify information that identifies this device on the network. If you do not wish to allow third parties access to device information, you can set up an eSIM profile <ph name="BEGIN_LINK">&lt;a href="#" &gt;</ph>manually<ph name="END_LINK">&lt;/a&gt;</ph>.
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_SCAN" desc="Label for button to trigger automatic scanning.">
+    Scan
+  </message>
+  <message name="IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_CANCEL" desc="Label for button to cancel and return to previous page.">
+    Cancel
   </message>
 
   <!-- ChromeOS Strings -->
@@ -591,10 +631,10 @@
     You can customize this device to fit your needs. These accessibility features can be changed later in Settings.
   </message>
   <message name="IDS_NETWORK_SELECTION_TITLE" desc="Title of network selection screen" meaning="A title of the dialog where user should select network to connect to Internet">
-    Connect to network
+    Get connected to enjoy all the features on your new <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
   </message>
-  <message name="IDS_NETWORK_SELECTION_HINT" desc="Under-title line on the network selection screen" meaning="A hint to the user why device should be connected to the network">
-    To restore your data, connect to the internet
+  <message name="IDS_NETWORK_SELECTION_SUBTITLE" desc="Subtitle of the network selection screen">
+    We will remember your network the next time you use the <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
   </message>
   <message name="IDS_NETWORK_SELECTION_ERROR" desc="Error shown when connection to network failed or timed out.">
     <ph name="PRODUCT_NAME">$1<ex>ChromeOS</ex></ph> was unable to connect to <ph name="NETWORK_ID">$2<ex>Public Wifi</ex></ph>. Please select another network or try again.
@@ -711,10 +751,10 @@
     Bluetooth is turned off. To see available devices, turn Bluetooth on.
   </message>
   <message name="IDS_BLUETOOTH_PAIRING_LEARN_MORE" desc="Bluetooth pairing dialog: Message informing the user on what actions to take in order to see a device in the list of available devices.">
-    Make sure your Bluetooth device is in pairing mode and nearby. Only pair with devices you trust. <ph name="BEGIN_LINK_LEARN_MORE">&lt;a target="_blank" href="$1"&gt;</ph>Learn more<ph name="END_LINK_LEARN_MORE">&lt;/a&gt;</ph>
+    Make sure your Bluetooth device is in pairing mode and nearby. Only pair with devices you trust. Paired devices are visible to all accounts on this Chromebook. <ph name="BEGIN_LINK_LEARN_MORE">&lt;a target="_blank" href="$1"&gt;</ph>Learn more<ph name="END_LINK_LEARN_MORE">&lt;/a&gt;</ph>
   </message>
   <message name="IDS_BLUETOOTH_PAIRING_DESCRIPTION" desc="Bluetooth pairing dialog: Message informing the user on what actions to take in order to see a device in the list of available devices.">
-    Make sure your Bluetooth device is in pairing mode and nearby. Only pair with devices you trust.
+    Make sure your Bluetooth device is in pairing mode and nearby. Only pair with devices you trust. Paired devices are visible to all accounts on this Chromebook.
   </message>
   <message name="IDS_BLUETOOTH_PAIRING_ENTER_PIN" desc="Bluetooth pairing dialog: Message displayed informing the user to enter a PIN in other to complete device pairing.">
     Enter PIN to pair with <ph name="DEVICE_NAME">$1<ex>Nexus S</ex></ph>
@@ -771,6 +811,12 @@
   <message name="IDS_OOBE_USER_CREATION_TITLE" desc="Title of the screen which allows users to choose whom the device is set up for.">
     Who's using this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>?
   </message>
+  <message name="IDS_OOBE_USER_CREATION_NEW_TITLE" desc="New Title of the screen which allows users to choose whom the device is set up for.">
+    Choose your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>’s setup
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_NEW_SUBTITLE" desc="New Subtitle of the screen which allows users to choose whom the device is set up for.">
+    You can always add another person to the device after setup. Each person can personalize their experience and keep data private.
+  </message>
   <message name="IDS_OOBE_USER_CREATION_SUBTITLE" desc="Subtitle of the screen which allows users to choose whom the device is set up for.">
     You can always add more people after setup. Each person can personalize their account and keep data private.
   </message>
@@ -779,6 +825,12 @@
   </message>
   <message name="IDS_OOBE_USER_CREATION_ADD_PERSON_SUBTITLE" desc="Subtitle of the screen which allows users to add person to the device.">
     Each person can personalize their account and keep data private.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ADD_PERSON_NEW_TITLE" desc="Title of the screen which allows users to add person to the device.">
+    Choose your setup
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ADD_PERSON_NEW_SUBTITLE" desc="Subtitle of the screen which allows users to add person to the device.">
+    Each person can personalize their experience and keep data private.
   </message>
   <message name="IDS_OOBE_USER_CREATION_SELF_BUTTON_LABEL" desc="The label of the button that leads to set up device for self.">
     You
@@ -791,6 +843,24 @@
   </message>
   <message name="IDS_OOBE_USER_CREATION_CHILD_BUTTON_DESCRIPTION" desc="The description of the button that leads to set up device for child.">
     Set digital ground rules to help children play, explore and do schoolwork at home
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_PERSONEL_USE_BUTTON_LABEL" desc="The label of the button that leads to set up device for personal use.">
+    For personal use
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_PERSONEL_USE_BUTTON_DESCRIPTION" desc="The description of the button that leads to set up device for personal use.">
+    Use your personal Google Account
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_USE_BUTTON_LABEL" desc="The label of the button that leads to set up device for child.">
+    For a child
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_USE_BUTTON_DESCRIPTION" desc="The description of the button that leads to set up device for child.">
+    Use your child’s Google Account or a school account. You can also set parental controls.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_USE_BUTTON_LABEL" desc="The label of the button that leads to set up device for work or school.">
+    For work or school
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_USE_BUTTON_DESCRIPTION"  desc="The description of the button that leads to set up device for work or shcool.">
+   Use your organization’s email address
   </message>
   <message name="IDS_OOBE_USER_CREATION_CHILD_SIGNIN_TITLE" desc="Title of the screen which allows users to choose signin method for child.">
     Set up this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> for a child
@@ -815,6 +885,81 @@
   </message>
   <message name="IDS_OOBE_USER_CREATION_CHILD_SIGN_IN_LEARN_MORE_DIALOG_TEXT" desc="Text of the learn more dialog on child account creation screen.">
     Parental controls are not supported for school accounts. To add a school account to access Google Classroom and other websites for schoolwork at home, sign in with the child's personal account first. You can add the school account later in setup.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_TRIAGE_TITLE" desc="Title of the screen which allows triage users to choose signin or enroll.">
+    Enroll the device in your organization?
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_SUBTITLE" desc="Subtitle of the screen which allows triage users to choose signin or enroll.">
+    Your organization may require enrollment so you can access apps, extensions, and more. This also allows your organization to manage things like security and device settings.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_LEARN_MORE"  desc="Learn more link text in enroll triage step in user creation screen.">
+    Learn more
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_LEARN_MORE_ARIA"  desc="Aria Label for the more link text in enroll triage step in user creation screen will be announced by chromVox.">
+    Learn more about Device Management
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_ADDITIONAL_DESCRIPTION_TITLE"  desc="The title of additional description in enroll triage step in user creation screen.">
+    Not sure if you should enroll?
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_ADDITIONAL_DESCRIPTION" desc="The additional description in enroll triage step in user creation screen.">
+    Ask your organization, or enroll with your work email to check if your account is eligible.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_TRIAGE_ACCEPT_ENROLL_BUTTON_LABEL" desc="The label of the button that leads to enroll the device in the in enroll triage step in user creation screen.">
+    Enroll the device
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_TRIAGE_DECLINE_ENROLL_BUTTON_LABEL" desc="The label of the button that leads that leads to not enroll the device and normal signin in the in enroll triage step in user creation screen.">
+    Don’t enroll the device
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_SETUP_TITLE" desc="Title of the child setup step in the user creation screen which allows users to choose setup with child’s Google account (to setup Family Link) or setup with child’s school.">
+    Choose the account to use for setup
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_SETUP_CHILD_ACCOUNT_BUTTON_LABEL"  desc="The label of the button that leads to set up device setup with child’s Google account (to setup Family Link).">
+    Child’s Google Account
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_SETUP_CHILD_ACCOUNT_BUTTON_DESCRIPTION"  desc="The description of the button that leads to set up device setup with child’s Google account (to setup Family Link).">
+    Parents can approve or block apps, set time limits, and control web browsing. A school account can be added later to access most school resources.
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_SETUP_SCHOOL_ACCOUNT_BUTTON_LABEL" desc="The label of the button that leads to set up device setup with child’s school.">
+    Child’s school account
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_CHILD_SETUP_SCHOOL_ACCOUNT_BUTTON_DESCRIPTION" desc="The description of the button that leads to set up device setup with child’s school">
+    Your child can use all of their school apps, bookmarks, and resources just like they do in class. The school sets the ground rules.
+  </message>
+
+   <!-- Strings for Learn more in Enroll Triage-->
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_LEARN_MORE_TITLE" desc="The title of the learn more dialogue in the enrollment triage step in user creation screen.">
+    Device enrollment
+  </message>
+  <message name="IDS_OOBE_USER_CREATION_ENROLL_LEARN_MORE_TEXT" desc="The description of the learn more dialogue in the enrollment triage step in user creation screen.">
+    <ph name="BEGIN_DESCRIPTION">&lt;p&gt;</ph>Enrolling your devices in your organization sets it up for centralized device management. Your organization may require enrollment for multiple reasons:<ph name="END_DESCRIPTION">&lt;/p&gt;</ph>
+    <ph name="BEGIN_SUBTITLE1">&lt;p&gt;</ph><ph name="BEGIN_BOLD">&lt;b&gt;</ph>Enhance security<ph name="END_BOLD">&lt;/b&gt;</ph><ph name="END_SUBTITLE1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_DESCRIPTION1">&lt;p&gt;</ph>By configuring additional security settings, the organization can keep user and device data safe. It can also perform actions such as remote reset or disabling a lost device.<ph name="END_DESCRIPTION1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_SUBTITLE2">&lt;p&gt;</ph><ph name="BEGIN_BOLD">&lt;b&gt;</ph>Customize the experience<ph name="END_BOLD">&lt;/b&gt;</ph><ph name="END_SUBTITLE2">&lt;/p&gt;</ph>
+    <ph name="BEGIN_DESCRIPTION2">&lt;p&gt;</ph>The device behavior on bootup, on the login screen, and after login can be customized to the organization’s needs.<ph name="END_DESCRIPTION2">&lt;/p&gt;</ph>
+    <ph name="BEGIN_SUBTITLE3">&lt;p&gt;</ph><ph name="BEGIN_BOLD">&lt;b&gt;</ph>Provide support<ph name="END_BOLD">&lt;/b&gt;</ph><ph name="END_SUBTITLE3">&lt;/p&gt;</ph>
+    <ph name="BEGIN_DESCRIPTION3">&lt;p&gt;</ph>The organization can remotely access a device session in order to provide troubleshooting.<ph name="END_DESCRIPTION3">&lt;/p&gt;</ph>
+    <ph name="BEGIN_SUBTITLE4">&lt;p&gt;</ph><ph name="BEGIN_BOLD">&lt;b&gt;</ph>Enable access<ph name="END_BOLD">&lt;/b&gt;</ph><ph name="END_SUBTITLE4">&lt;/p&gt;</ph>
+    <ph name="BEGIN_DESCRIPTION4">&lt;p&gt;</ph>Organization apps, services, and networks may only be available on enrolled devices.<ph name="END_DESCRIPTION4">&lt;/p&gt;</ph>
+  </message>
+
+  <!-- Strings for the OOBE consumer update screen -->
+  <message name="IDS_CONSUMER_UPDATE_ACCEPT_BUTTON" desc="Label on the button that accept using cellular data for the consumer update screen">
+    Install update
+  </message>
+  <message name="IDS_CONSUMER_UPDATE_CELLULAR_TITLE" desc="Title of the dialog shown to the user in ChromeOS OOBE before consumer update is attempted if the ChromeOS device is connected to a cellular/metered network. The dialog warns the user that procceeding with OOBE on a mobile network can cause overage charges.">
+    Software update available
+  </message>
+  <message name="IDS_CONSUMER_UPDATE_SKIP_BUTTON" desc="Label on the button that skip the consumer update screen.">
+    Skip and remind me later
+  </message>
+  <message name="IDS_CONSUMER_UPDATE_PROGRESS_TITLE" desc="Title of the dialog shown to the user  consumer update screen when update in progress.">
+    Installing the latest update
+  </message>
+   <message name="IDS_CONSUMER_UPDATE_PROGRESS_SUBTITLE" desc="Subtitle of the dialog shown to the user consumer update screen when update in progress.">
+    You’re getting the latest software update for enhanced security and the newest Chromebook features. This update includes an improved setup experience to help you get off to a smooth start on your Chromebook.
+  </message>
+   <message name="IDS_CONSUMER_UPDATE_PROGRESS_ADDITIONAL_SUBTITLE" desc="Additional subtitle of the dialog shown to the user  consumer update screen when update in progress.">
+    Your Chromebook will restart once the download is complete and you can continue setup.
   </message>
 
    <!-- Strings for the OOBE demo setup flow -->
@@ -1164,54 +1309,54 @@
   <message name="IDS_LOGIN_SYNC_CONSENT_SCREEN_DECLINE2" desc="Alternate label on the button that closes the dialog while not agreeing to sync.">
     No thanks
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TITLE" desc="Title of the screen that explains Chrome Sync and privacy options."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TITLE" desc="Title of the screen that explains Chrome Sync and privacy options.">
     Back up and restore your apps and settings
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SUBTITLE" desc="Subtitle of the dialog that explains Chrome Sync and privacy options."  translateable="false">
-    Turn on device sync to restore your apps, settings, Wi-Fi networks, and wallpaper from your previous Chromebook. Make changes anytime in Settings > Accounts.
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SUBTITLE" desc="Subtitle of the dialog that explains Chrome Sync and privacy options.">
+    Turn on device sync to restore your apps, settings, Wi-Fi networks, and wallpaper from your previous Chromebook. Make changes anytime in Settings &gt; Accounts.
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_ADDITIONAL_SUBTITLE" desc="Additional subtitle of the dialog that explains Chrome Sync and privacy options."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_ADDITIONAL_SUBTITLE" desc="Additional subtitle of the dialog that explains Chrome Sync and privacy options.">
     New to Chromebook? Turn on sync so your preferences will be backed up.
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SYNC_OPTIONS" desc="The label on the button that displays the manage sync option screen." translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SYNC_OPTIONS" desc="The label on the button that displays the manage sync option screen.">
     Manage sync options
   </message>
   <!-- Strings for OS sync consent screen options -->
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_TITLE" desc="Title of the os sync screen option Apps."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_TITLE" desc="Title of the os sync screen option Apps.">
     Apps
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_SUBTITLE" desc="Subtitle of the os sync screen option Apps."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_SUBTITLE" desc="Subtitle of the os sync screen option Apps.">
     Apps installed from the Play Store and web apps from Chrome browser
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_TITLE" desc="Title of the os sync screen option Settings."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_TITLE" desc="Title of the os sync screen option Settings.">
     Settings
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_SUBTITLE" desc="Subtitle of the os sync screen option Settings."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_SUBTITLE" desc="Subtitle of the os sync screen option Settings.">
     Keyboard and mouse behavior, language preferences, and more
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_TITLE" desc="Title of the os sync screen option Wifi networks."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_TITLE" desc="Title of the os sync screen option Wifi networks.">
     Wi-Fi networks
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_SUBTITLE" desc="Subtitle of the os sync screen option Wifi networks."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_SUBTITLE" desc="Subtitle of the os sync screen option Wifi networks.">
     Saved networks and passwords so you can connect instantly
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_TITLE" desc="Title of the os sync screen option Wallpaper."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_TITLE" desc="Title of the os sync screen option Wallpaper.">
     Wallpaper
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_SUBTITLE" desc="Subtitle of the os sync screen option Wallpaper."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_SUBTITLE" desc="Subtitle of the os sync screen option Wallpaper.">
     Remember your desktop background across devices
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_TEXT" desc="Text of the disclaimer to the toggle of the Apps item in sync screen option."  translateable="false">
-    Once turned on, your apps will be available on any ChromeOS devices after you sign in with your Google Account.  Web apps will be synced through Chrome even if other browser sync features are turned off.
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_TEXT" desc="Text of the disclaimer to the toggle of the Apps item in sync screen option." >
+    Once turned on, your apps will be available on any ChromeOS devices after you sign in with your Google Account. Web apps installed from Chrome browser will be synced even if browser sync is turned off.
   </message>
-   <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_ADDITIONAL_TEXT" desc="Additional text of the disclaimer to the toggle of the Apps item in sync screen option."  translateable="false">
+   <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_ADDITIONAL_TEXT" desc="Additional text of the disclaimer to the toggle of the Apps item in sync screen option.">
     If you also chose to send diagnostic and usage data in the previous step, this data will be collected for installed apps.
   </message>
-  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_TITLE" desc="Title of the screen that displays sync options and allows user to control them."  translateable="false">
+  <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_TITLE" desc="Title of the screen that displays sync options and allows user to control them.">
     Manage sync options
   </message>
-   <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_SUBTITLE" desc="Subtitle of the dialog that displays sync options and allows user to control them."  translateable="false">
-    Selected items will be available on this Chromebook. If you're new to Chromebook, sync all items so your preferences will be backed up. Make changes anytime in Settings > Accounts.
+   <message name="IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_SUBTITLE" desc="Subtitle of the dialog that displays sync options and allows user to control them.">
+    Selected items will be available on this Chromebook. If you're new to Chromebook, sync all items so your preferences will be backed up. Make changes anytime in Settings &gt; Accounts.
   </message>
   <!-- Strings for recommend apps screen -->
   <message name="IDS_LOGIN_RECOMMEND_APPS_SCREEN_TITLE" desc="The title of the dialog that recommend apps to user">
@@ -1289,6 +1434,63 @@
   </message>
   <message name="IDS_LOGIN_QUICK_START_SETUP" desc="A label on the button. Used on multiple screens in OOBE to allow the user to initiate the Quick Start flow which allows them to set up their Chromebook using an existing Android phone.">
     Set up with Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_NETWORK_SCREEN_ENTRY_POINT" desc="A label on the button. Used on OOBE's network screen to allow the user to initiate the Quick Start flow which allows them to set up their Chromebook using an existing Android phone.">
+    Connect to Wi-Fi with Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_SIGNIN_SCREEN_ENTRY_POINT" desc="A label on the button. Used on OOBE's sign-in screen to allow the user to initiate the Quick Start flow which allows them to set up their Chromebook using an existing Android phone.">
+    Sign in with Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_TITLE" desc="A title used on OOBE's Quick Start screen for setting up a Chromebook using an Android device.">
+    Set up with your Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_SUBTITLE_QR_CODE" desc="A subtitle used on OOBE's Quick Start screen for setting up a Chromebook using an Android device prompting the user to scan the QR code.">
+    Follow the instructions on your phone to scan the QR code. Make sure your phone's Bluetooth and Wi-Fi are turned on.
+    <ph name="BR">&lt;br&gt;</ph>
+    <ph name="BR">&lt;br&gt;</ph>
+    You can use your phone to add your Wi-Fi and Google Account info to your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
+    <ph name="BR">&lt;br&gt;</ph>
+    <ph name="BR">&lt;br&gt;</ph>
+    Visible to nearby devices as <ph name="QUICK_START_DEVICE_DISPLAY_NAME">$2<ex>Chromebook (123)</ex></ph>...
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_SUBTITLE_PIN_CODE" desc="A subtitle used on OOBE's Quick Start screen for setting up a Chromebook using an Android device prompting the user to verify the code shown on the screen.">
+    Follow the instructions on your phone to verify the code. Make sure your phone's Bluetooth and Wi-Fi are turned on.
+    <ph name="BR">&lt;br&gt;</ph>
+    <ph name="BR">&lt;br&gt;</ph>
+    You can use your phone to add your Wi-Fi and Google Account info to your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
+    <ph name="BR">&lt;br&gt;</ph>
+    <ph name="BR">&lt;br&gt;</ph>
+    Visible to nearby devices as <ph name="QUICK_START_DEVICE_DISPLAY_NAME">$2<ex>Chromebook (123)</ex></ph>...
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_WIFI_TRANSFER_TITLE" desc="A title used on OOBE's Quick Start screen when WiFi credentials are being transferred to the Chromebook from the Android device.">
+    Connecting to Wi-Fi...
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_WIFI_TRANSFER_SUBTITLE" desc="A subtitle used on OOBE's Quick Start screen when WiFi credentials are being transferred to the Chromebook from the Android device.">
+    Transfering Wi-Fi from your Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_NETWORK_NEEDED_SUBTITLE" desc="A subtitle used on OOBE's Quick Start flow prompting the user to connect to a WiFi network in order to continue the Chromebook setup using the Android device.">
+    To continue setup with your Android device, connect your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> to a network
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_RESUME_AFTER_REBOOT_TITLE" desc="A title used on OOBE's Quick Start flow when the device reboots after applying an update and tries to continue the setup by connecting to the Android device.">
+    Connecting to your Android phone...
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_RESUME_AFTER_REBOOT_SUBTITLE" desc="A subtitle used on OOBE's Quick Start flow when the device reboots after applying an update and tries to continue the setup by connecting to the Android device.">
+    Follow the instructions on your phone to continue setup. Make sure your phone is nearby and Bluetooth is turned on.
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_ACCOUNT_TRANSFER_STEP_TITLE" desc="A title used on OOBE's Quick Start flow when the user's credentails are being transferred from the Android device to ChromeOS.">
+    Getting Google Account info...
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_ACCOUNT_TRANSFER_STEP_SUBTITLE" desc="A subtitle used on OOBE's Quick Start flow when the  user's credentails are being transferred from the Android device to ChromeOS.">
+    Transfering Google Account info from your Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_FROM_SIGNIN_SCREEN_TITLE" desc="A title used on OOBE's Quick Start screen for signing-in into their Chromebook using an Android device prompting the user to scan a QR code.">
+    Sign in with your Android phone
+  </message>
+  <message name="IDS_LOGIN_QUICK_START_SETUP_FROM_SIGNIN_SCREEN_SUBTITLE" desc="A subtitle used on OOBE's Quick Start screen for signing-in into their Chromebook using an Android device.">
+    Follow the instructions on your phone to scan the QR code. Make sure your phone's Bluetooth is on.
+    <ph name="BR">&lt;br&gt;</ph>
+    <ph name="BR">&lt;br&gt;</ph>
+    Visible to nearby devices as <ph name="QUICK_START_DEVICE_DISPLAY_NAME">$1<ex>Chromebook (123)</ex></ph>...
   </message>
   <message name="IDS_LOGIN_MARKETING_OPT_IN_SCREEN_SWIPE_FROM_SHELF_LABEL" desc="The label shown in ChromeOS system shelf above a drag handle UI on the last dialog in the set of screens displayed to the user on the first login to the ChromeOS device. The label informs the user that swiping up from the shelf will start the session.">
     Swipe up to get started
@@ -1371,7 +1573,15 @@
   <message name="IDS_APP_START_WAIT_FOR_APP_WINDOW_INSTALL_FAILED_MESSAGE" desc="Message displayed when kiosk app meta-data obtention fails, but we try to run the app anyway without it.">
     Failed to obtain app data, trying to run the app anyway...
   </message>
-
+  <message name="IDS_PASSWORD_SELECTION_TITLE" desc="Message displayed on the password selection screen.">
+    Use a password to sign in to your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
+  </message>
+  <message name="IDS_PASSWORD_SELECTION_LOCAL_PASSWORD_LABEL" desc="Label for the local password option on the password selection screen.">
+    Create <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> password
+  </message>
+  <message name="IDS_PASSWORD_SELECTION_GAIA_PASSWORD_LABEL" desc="Label for the online password option on the password selection screen.">
+    Use Google Account password
+  </message>
 
   <message name="IDS_APP_START_CONFIGURE_NETWORK" desc="Text displayed for configure network button while installing and/or launching web application in kiosk mode.">
     Configure network
@@ -1487,6 +1697,21 @@
   </message>
   <message name="IDS_LOGIN_CONFIRM_PASSWORD_TITLE" desc="Title for the confirm password dialog.">
     Please re-enter your password to update your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> profile.
+  </message>
+  <message name="IDS_LOGIN_LOCAL_PASSWORD_SETUP_TITLE" desc="Title for the local password setup dialog.">
+    Set <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> password
+  </message>
+  <message name="IDS_LOGIN_LOCAL_PASSWORD_RESET_TITLE" desc="Title for the local password reset dialog.">
+    Reset <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> password
+  </message>
+  <message name="IDS_LOGIN_LOCAL_PASSWORD_SETUP_DONE_TITLE" desc="Title for the local password setup done dialog.">
+    Your password is set
+  </message>
+  <message name="IDS_LOGIN_LOCAL_PASSWORD_RESET_DONE_TITLE" desc="Title for the local password reset done dialog.">
+    Your password has been updated
+  </message>
+  <message name="IDS_LOGIN_LOCAL_PASSWORD_SETUP_DONE_SUBTITLE" desc="Subitle for the local password setup done dialog.">
+    You can use this password to sign in to your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
   </message>
   <message name="IDS_LOGIN_MANUAL_PASSWORD_TITLE" desc="Title for the manual password setting dialog.">
     Please create a password to protect your local data.
@@ -1715,7 +1940,12 @@
   <message name="IDS_NETWORK_ACTIVATION_NEEDS_CONNECTION" desc="Message when attempting to activate a mobile network that requires a connection">
     To activate '<ph name="name">$1<ex>Generic Wireless</ex></ph>' data, first connect to a Wi-Fi network
   </message>
-
+  <message name="IDS_NETWORK_CARRIER_UNLOCK_TITLE" desc="Title for notification shown when device is carrier unlocked">
+    Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> is now unlocked
+  </message>
+ <message name="IDS_NETWORK_CARRIER_UNLOCK_BODY" desc="Message in notification shown when device is carrier unlocked informing the user any eligible mobile network is available for connection">
+    You can connect to any eligible mobile network in Settings
+  </message>
   <!-- ONC (Open Network Configuration) strings have moved to //chromeos/chromeos_strings.grd -->
 
   <!-- Strings shown within Tether notifications -->
@@ -2036,9 +2266,6 @@
   </message>
   <message name="IDS_CONTROLLED_SETTING_DEMO_SESSION" desc="Text displayed in the controlled settings bubble when a setting's value is enforced by demo session.">
     This setting can't be changed in a demo session.
-  </message>
-  <message name="IDS_CONTROLLED_SETTING_PARENT" desc="Text displayed in the controlled settings bubble when a setting's value is controlled by user's parent.">
-    This setting is managed by a parent.
   </message>
   <message name="IDS_STATUSBAR_DISABLE_SPOKEN_FEEDBACK" desc="The menu option to disable spoken feedback accessibility feature.">
     Disable ChromeVox (spoken feedback)
@@ -2613,6 +2840,14 @@
   </message>
   <message name="IDS_U2F_INSECURE_NOTIFICATION_RESET" desc="Label for the reset button in the notification shown to inform the user that the legacy U2F feature is insecure.">
     Reset
+  </message>
+
+    <!-- Update Notification Strings -->
+  <message name="IDS_UPDATE_NOTIFICATION_HEADER" desc="Notification title shown for a system update.">
+    You’ve been upgraded to <ph name="NAME">$1<ex>Chromebook</ex></ph>
+  </message>
+  <message name="IDS_UPDATE_NOTIFICATION_MESSAGE" desc="Notification shown for a system update.">
+     New features include Magic Eraser on Google Photos to remove distractions, improved video call tools, and more
   </message>
 
   <!-- Update Required Screen Strings-->
@@ -3400,6 +3635,9 @@
   <message name="IDS_NETWORK_UI_RESET_EUICC_LABEL" desc="Label and button text for section of the debug networking page which allows developers and QA testers to reset Euicc.">
     Reset eSIM
   </message>
+  <message name="IDS_NETWORK_UI_RESET_APN_MIGRATOR_LABEL" desc="Label and button text for section of the debug networking page which allows developers and QA testers to reset ApnMigrator.">
+    Reset ApnMigrator
+  </message>
   <message name="IDS_NETWORK_UI_ADD_NEW_WIFI_LABEL" desc="Label for section dealing with showing the 'Add new Wi-Fi network' dialog.">
     New Wi-Fi Network Dialog
   </message>
@@ -3793,12 +4031,6 @@
   <message name="IDS_ARC_OPT_IN_PRIVACY_POLICY_LINK" desc="Text of the Link to Goolge Privacy Policy in opt-in dialog">
     Google privacy policy
   </message>
-  <message name="IDS_ARC_OPT_IN_ACTIVE_DIRECTORY_AUTH_TITLE" desc="Title displayed in opt-in dialog to inform an Active Directory user that they may have to enter their credentials">
-    Google Play Store Account
-  </message>
-  <message name="IDS_ARC_OPT_IN_ACTIVE_DIRECTORY_AUTH_DESC" desc="Description displayed in opt-in dialog to inform an Active Directory user that they may have to enter their credentials">
-    To enable your account to access the Google Play Store, please authenticate with your Identity Provider.
-  </message>
   <message name="IDS_ARC_OPT_OUT_TAB_TITLE" desc="Tab title when viewing opt-out setting dialog for android apps.">
     Settings - Remove Android apps
   </message>
@@ -4039,6 +4271,12 @@
   <message name="IDS_ASSISTANT_RELATED_INFO_SCREEN_EXAMPLE_CHILD" desc="Message to illustrate the use cases for assistant related info, when a child account is in use.">
     Try “Hey Google, what song is this?” or “Hey Google, what's on my screen?”
   </message>
+  <message name="IDS_ASSISTANT_RELATED_INFO_SCREEN_EXAMPLE_NEW" desc="Message to illustrate the use cases for assistant related info.">
+    You could ask “Hey Google, what song is this?”
+  </message>
+  <message name="IDS_ASSISTANT_RELATED_INFO_SCREEN_EXAMPLE_CHILD_NEW" desc="Message to illustrate the use cases for assistant related info, when a child account is in use.">
+    Try “Hey Google, what song is this?”
+  </message>
   <message name="IDS_ASSISTANT_CONTINUE_BUTTON" desc="Continue button for asssitant optin flow.">
     Continue
   </message>
@@ -4204,21 +4442,21 @@
     <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can start or stop allowing these reports any time in your child's ChromeOS device settings. If you're a domain administrator, you can change this setting in the admin console.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
   </message>
     <message name="IDS_CONSOLIDATED_CONSENT_USAGE_OPT_IN_LEARN_MORE_OWNER_LACROS" desc="Text shown in a pop-up dialog in the consolidated consent screen when the device owner clicks on the learn more for metrics opt-in when lacros is enabled.">
-    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing your ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features you use, how much memory you typically use, and Android app diagnostic and usage data. Some aggregate data will also help Google apps and partners, such as Android developers. Other app diagnostic and usage data, including for Android and web apps, will be collected if Apps sync is also enabled.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing your ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features you use, how much memory you typically use. Some aggregate data will also help Google apps and partners, such as Android developers. Other app diagnostic and usage data, including for Android and web apps, will be collected if apps sync is also turned on.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can start or stop allowing these reports any time in your ChromeOS device settings. If you’re a domain administrator, you can change this setting in the admin console.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>If the Web &amp; App Activity setting is turned on for your Google Account, your Android data may be saved to your Google Account. You can see your data, delete it, and change your account settings at account.google.com.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
   </message>
   <message name="IDS_CONSOLIDATED_CONSENT_USAGE_OPT_IN_LEARN_MORE_CHILD_OWNER_LACROS" desc="Text shown in a pop-up dialog in the consolidated consent screen when the user clicks on the learn more for metrics opt-in for a child device owner account when lacros is enabled..">
-    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features were used, how much memory was typically used, and Android app diagnostic and usage data. Some aggregate data will also help Google apps and partners, such as Android developers. Other app diagnostic and usage data, including for Android and web apps, will be collected if Apps sync is also enabled.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features were used, how much memory was typically used. Some aggregate data will also help Google apps and partners, such as Android developers. Other app diagnostic and usage data, including for Android and web apps, will be collected if apps sync is also turned on.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can start or stop allowing these reports any time in your child's ChromeOS device settings. If you're a domain administrator, you can change this setting in the admin console.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH4">&lt;p&gt;</ph>If the Web &amp; App Activity setting is turned on for your child's Google Account, your child's data may be saved to their Google Account. Learn more about these settings and how to adjust them at families.google.com.<ph name="END_PARAGRAPH4">&lt;/p&gt;</ph>
   </message>
   <message name="IDS_CONSOLIDATED_CONSENT_USAGE_OPT_IN_LEARN_MORE_ARC_DISABLED_OWNER_LACROS" desc="Text shown in a pop-up dialog in the consolidated consent screen when the device owner clicks on the learn more for metrics opt-in when ARC is disabled when lacros is enabled..">
-    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing your ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features you use and how much memory you typically use. Other app diagnostic and usage data, including for Android and web apps, will be collected if Apps sync is also enabled.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing your ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features you use and how much memory you typically use. Other app diagnostic and usage data, including for Android and web apps, will be collected if apps sync is also turned on.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can start or stop allowing these reports any time in your Chrome device settings. If you’re a domain administrator, you can change this setting in the admin console.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
   </message>
   <message name="IDS_CONSOLIDATED_CONSENT_USAGE_OPT_IN_LEARN_MORE_ARC_DISABLED_CHILD_OWNER_LACROS" desc="Text shown in a pop-up dialog in the consolidated consent screen when the user clicks on the learn more for metrics opt-in when ARC is disabled in a child account when lacros is enabled..">
-    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features were used, and how much memory was typically used. Other app diagnostic and usage data, including for Android and web apps, will be collected if Apps sync is also enabled.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
+    <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>Allowing ChromeOS devices to send automatic reports helps us prioritize what to fix and improve in ChromeOS. These reports can include things like when ChromeOS crashes, which features were used, and how much memory was typically used. Other app diagnostic and usage data, including for Android and web apps, will be collected if apps sync is also turned on.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can start or stop allowing these reports any time in your child's ChromeOS device settings. If you're a domain administrator, you can change this setting in the admin console.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
   </message>
   <message name="IDS_CONSOLIDATED_CONSENT_BACKUP_OPT_IN_TITLE" desc="Title for the message in the consolidated consent screen to opt-in for back-up.">
@@ -4352,7 +4590,7 @@
   </message>
   <message name="IDS_HW_DATA_COLLECTION_CONTENT" desc="Content of the hardware data collection notice screen.">
     <ph name="BEGIN_PARAGRAPH1">&lt;p&gt;</ph>To provide the best experience, <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> collects hardware data about devices and shares it with Google to determine which updates should be delivered. Optionally, you can allow Google to use this data for additional purposes like support and improvements to the <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> experience and service.<ph name="END_PARAGRAPH1">&lt;/p&gt;</ph>
-    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and visit the CHROMEOSFLEX_HARDWARE_INFO section in chrome://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
+    <ph name="BEGIN_PARAGRAPH2">&lt;p&gt;</ph>You can log in on this device and view fields listed as chromeosflex_ in chrome://system to see the data sent to Google for update filtering, as well as any other instances where you choose to share data with Google.<ph name="END_PARAGRAPH2">&lt;/p&gt;</ph>
     <ph name="BEGIN_PARAGRAPH3">&lt;p&gt;</ph>For more details on data <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph> may share with Google, and how it is used visit g.co/flex/HWDataCollection.<ph name="END_PARAGRAPH3">&lt;/p&gt;</ph>
   </message>
   <message name="IDS_HW_DATA_COLLECTION_USAGE_INFO" desc="Checkbox description for additional hardware data usage. This message is followed by a 'Learn more' link.">
@@ -4448,7 +4686,15 @@
     Relaunch to update
   </message>
   <message name="IDS_LACROS_DATA_MIGRATION_OUT_OF_DISK_ERROR_TEXT" desc="Message shown when a user clicks 'Relaunch to update' button, but failed to restart due to out of disk space.">
-    There isn't enough space on this device to complete this update. Clear up <ph name="NECESSARY_SPACE">$1<ex>10 MB</ex></ph> on your device and try again.
+    There isn't enough space on this device to complete this update. Free up <ph name="NECESSARY_SPACE">$1<ex>10 MB</ex></ph> on your device and try again.
+  </message>
+
+  <!-- Lacros data backward migration screen. -->
+  <message name="IDS_LACROS_DATA_BACKWARD_MIGRATION_SCREEN_ERROR_SUBTITLE" desc="Shown if Lacros data backward migration fails.">
+    If you click “Cancel”, it may affect your browser data and you may need to perform a factory reset.
+  </message>
+  <message name="IDS_LACROS_DATA_BACKWARD_MIGRATION_SCREEN_ERROR_RETRY_BUTTON" desc="Shown if Lacros data backward migration fails.">
+    Retry
   </message>
 
   <!-- Print Job Notification -->
@@ -4463,6 +4709,9 @@
   </message>
   <message name="IDS_PRINT_JOB_ERROR_NOTIFICATION_TITLE" desc="Title of the error printing notification.">
     Couldn't print. Check printer and try again.
+  </message>
+  <message name="IDS_PRINT_JOB_EXPIRED_CERT_ERROR_NOTIFICATION_TITLE" desc="Title of the expired certificate error printing notification">
+    Printer SSL certificate is expired. Restart printer and try again.
   </message>
   <message name="IDS_PRINT_JOB_AUTHORIZATION_ERROR_NOTIFICATION_TITLE" desc="Title of the authorization error printing notification.">
     Authorization Failed
@@ -4569,9 +4818,6 @@
   </message>
   <message name="IDS_INTERNAL_APP_SETTINGS" desc="The name of Settings.">
     Settings
-  </message>
-  <message name="IDS_INTERNAL_APP_CONTINUOUS_READING" desc="The default title of Chrome browser to allow users to seamlessly continue reading a web page when they switch from phones or tablets to Chromebook.">
-    Continue reading in Chrome
   </message>
 
   <!-- Launcher Settings shortcuts -->
@@ -4794,7 +5040,7 @@
     Upgrade Linux
   </message>
   <message name="IDS_CROSTINI_UPGRADER_BODY" desc="Description for the Crostini upgrader, a dialog for upgrading Linux.">
-    For the best performance, upgrade to the latest version. Backing up your files is recommended in case the upgrade can’t be completed. Once the upgrade begins, Linux will shut down. Save open files before continuing. <ph name="LINK_START">&lt;a href="$1" target="_top"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
+    For the best performance, upgrade to the latest version. Backing up your files is recommended in case the upgrade can’t be completed. Once the upgrade begins, Linux will shut down. Save open files before continuing. <ph name="LINK_START">&lt;a href="$1" target="_blank"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
   </message>
   <message name="IDS_CROSTINI_UPGRADER_UPGRADE_BUTTON" desc="Label for the button in the Crostini upgrader dialog to begin upgrading Linux.">
     Upgrade
@@ -5101,14 +5347,20 @@
   </message>
 
   <!-- Bruschetta -->
-  <message name="IDS_BRUSCHETTA_NAME" desc="Bruschetta" translateable="false">
-    Bruschetta
+  <message name="IDS_BRUSCHETTA_NAME" desc="The display name for Bruschetta (codename) when a specific VM name cannot be used.">
+    Managed Development Environment
+  </message>
+  <message name="IDS_BRUSCHETTA_INSTALLER_WINDOW_TITLE" desc="Title for the installer window while Bruschetta (codename) is installing.">
+    <ph name="VM_NAME">$1<ex>Managed VM</ex></ph> Installer
   </message>
   <message name="IDS_BRUSCHETTA_INSTALLER_INSTALL_BUTTON" desc="Label for the button in the Bruschetta (codename) installer dialog to begin installing.">
     Install
   </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_CONFIRMATION_TITLE" desc="Title for the installer for Bruschetta (codename_).">
+  <message name="IDS_BRUSCHETTA_INSTALLER_CONFIRMATION_TITLE" desc="In-window title for when the installer for Bruschetta (codename) first opens.">
     Welcome
+  </message>
+  <message name="IDS_BRUSCHETTA_INSTALLER_CONFIRMATION_MESSAGE" desc="More detailed message for when the installer for Bruschetta (codename) first opens.">
+    Select which version of <ph name="VM_NAME">$1<ex>Managed VM</ex></ph> to install.
   </message>
   <message name="IDS_BRUSCHETTA_INSTALLER_ONGOING_TITLE" desc="Title for the installer while Bruschetta (codename) is installing.">
     Installing
@@ -5116,10 +5368,10 @@
   <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_TITLE" desc="Title for the installer when Bruschetta (codename) fails to install.">
     Sorry, an error occurred
   </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta (codename, do not translate) fails to install.">
+  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install.">
     Sorry, something went wrong. Please file feedback with #bruschetta in the description. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
   </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_CLEANUP_MESSAGE" desc="More detailed message for the installer when Bruschetta (codename, do not translate) fails to install and the cleaning up the incomplete install also failed.">
+  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_CLEANUP_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install and the cleaning up the incomplete install also failed.">
     Sorry, something went wrong. Please file feedback with #bruschetta in the description. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>. Cleaning up failed, you may need to do so manually.
   </message>
   <message name="IDS_BRUSCHETTA_INSTALLER_INSTALLING_DLC_MESSAGE" desc="Message while DLC (DownLoadable Content - codename) to support Bruschetta is being installed.">
@@ -5135,10 +5387,13 @@
     Install failed, cleaning up
   </message>
   <message name="IDS_BRUSCHETTA_UNINSTALLER_TITLE" desc="Title of the Bruschetta (codename) uninstaller, a dialog for uninstalling Bruschetta, the associated VM and files.">
-    Remove Bruschetta
+    Remove <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph>
   </message>
   <message name="IDS_BRUSCHETTA_UNINSTALLER_BODY" desc="Description for the Bruschetta (codename) uninstaller, a dialog for uninstalling Bruschetta, the associated VM and files.">
-    Remove Bruschetta from your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>?
+    Remove <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph> from your <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph>? This will delete all apps and data in the virtual machine!
+  </message>
+  <message name="IDS_BRUSCHETTA_UNINSTALLER_UNINSTALL_BUTTON_ARIA_DESCRIPTION" desc="Accessible description for the 'remove' button of the the Bruschetta (codename) uninstaller e.g. read out by screenreaders.">
+    Removes <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph> from your <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph>. This will delete all apps and data in the virtual machine!
   </message>
   <message name="IDS_BRUSCHETTA_UNINSTALLER_UNINSTALL_BUTTON" desc="Label for the button in the Bruschetta uninstaller dialog to uninstall the VM.">
     Remove
@@ -5147,7 +5402,7 @@
     Removing...
   </message>
   <message name="IDS_BRUSCHETTA_UNINSTALLER_ERROR" desc="Text shown in the Bruschetta (codename) uninstaller dialog when uninstallation fails.">
-    Error removing Bruschetta. Please try again.
+    Error removing <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph>. Please try again.
   </message>
   <message name="IDS_BRUSCHETTA_INSTALLER_RETRY_BUTTON" desc="Button for Bruschetta (Codename) installer to retry after failing.">
     Retry
@@ -5418,12 +5673,21 @@
   <message name="IDS_OOBE_ACTIVATE_CHROMEVOX" desc="Label for the button in the ChromeVox hint dialog that will activate ChromeVox.">
     Yes, activate ChromeVox
   </message>
+  <message name="IDS_OOBE_CHROMEVOX_HINT_TITLE" desc="The title of the ChromeVox hint dialog.">
+    Turn on screen reader
+  </message>
   <message name="IDS_OOBE_CONTINUE_WITHOUT_CHROMEVOX" desc="Label for the button in the ChromeVox hint dialog that will close the dialog.">
     No, continue without ChromeVox
+  </message>
+  <message name="IDS_OOBE_CHROMEVOX_HINT_CLOSE" desc="Label for the button in the ChromeVox hint dialog that will close the dialog.">
+    Close
   </message>
   <if expr="reven">
     <message name="IDS_OOBE_CHROMEVOX_HINT_TEXT" desc="Text content in the ChromeVox hint dialog, asking the user if they would like to activate ChromeVox.">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS Flex?
+    </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_TEXT_EXPANDED" desc="Text content in the ChromeVox hint dialog, asking the user if they would like to activate ChromeVox.">
+      The screen reader on ChromeOS Flex, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press the space bar to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
     </message>
     <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_LAPTOP" desc="The string spoken when the ChromeVox hint is activated when the device is in laptop mode." is_accessibility_with_no_ui="true">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS Flex? If so, press the space bar.
@@ -5431,16 +5695,31 @@
     <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_TABLET" desc="The string spoken when the ChromeVox hint is activated when the device is in tablet mode." is_accessibility_with_no_ui="true">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS Flex? If so, press and hold both volume keys for five seconds.
     </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_LAPTOP_EXPANDED" desc="The new string spoken when the ChromeVox hint is activated when the device is in laptop mode." is_accessibility_with_no_ui="true">
+      The screen reader on ChromeOS Flex, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press the space bar to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
+    </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_TABLET_EXPANDED" desc="The new string spoken when the ChromeVox hint is activated when the device is in tablet mode." is_accessibility_with_no_ui="true">
+      The screen reader on ChromeOS Flex, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press and hold both volume keys for five seconds to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
+    </message>
   </if>
   <if expr="not reven">
     <message name="IDS_OOBE_CHROMEVOX_HINT_TEXT" desc="Text content in the ChromeVox hint dialog, asking the user if they would like to activate ChromeVox.">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS?
+    </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_TEXT_EXPANDED" desc="Text content in the ChromeVox hint dialog, asking the user if they would like to activate ChromeVox.">
+      The screen reader on ChromeOS, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press the space bar to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
     </message>
     <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_LAPTOP" desc="The string spoken when the ChromeVox hint is activated when the device is in laptop mode." is_accessibility_with_no_ui="true">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS? If so, press the space bar.
     </message>
     <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_TABLET" desc="The string spoken when the ChromeVox hint is activated when the device is in tablet mode." is_accessibility_with_no_ui="true">
       Do you want to activate ChromeVox, the built-in screen reader for ChromeOS? If so, press and hold both volume keys for five seconds.
+    </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_LAPTOP_EXPANDED" desc="The new string spoken when the ChromeVox hint is activated when the device is in laptop mode." is_accessibility_with_no_ui="true">
+      The screen reader on ChromeOS, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press the space bar to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
+    </message>
+    <message name="IDS_OOBE_CHROMEVOX_HINT_ANNOUNCEMENT_TEXT_TABLET_EXPANDED" desc="The new string spoken when the ChromeVox hint is activated when the device is in tablet mode." is_accessibility_with_no_ui="true">
+      The screen reader on ChromeOS, ChromeVox, is primarily used by people with blindness or low vision to read text displayed on the screen with a speech synthesizer or braille display. Press and hold both volume keys for five seconds to turn on ChromeVox. When ChromeVox is activated, you’ll go through a quick tour.
     </message>
   </if>
 
@@ -5708,9 +5987,6 @@
   </message>
   <message name="IDS_PLUGIN_VM_INSTALLER_DOWNLOAD_PROGRESS_MESSAGE" desc="Text of the Plugin VM installer during downloading Plugin VM image, showing download progress.">
     <ph name="DOWNLOADED_SIZE">$1<ex>1.2</ex></ph>/<ph name="DOWNLOAD_SIZE">$2<ex>3.4 GB</ex></ph>
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_DOWNLOAD_PROGRESS_WITHOUT_DOWNLOAD_SIZE_MESSAGE" desc="Text of the Plugin VM installer while downloading Plugin VM image, showing download progress when the full download size is not known.">
-    <ph name="DOWNLOADED_SIZE">$1<ex>1.2 GB</ex></ph>
   </message>
   <message name="IDS_PLUGIN_VM_INSTALLER_CONTINUE_BUTTON" desc="Label for the button in the Plugin VM installer to continue installation.">
     Continue
@@ -6003,124 +6279,123 @@ Permissions you've already given to websites and apps may apply to this account.
   <message name="IDS_BOREALIS_CREDITS_PLACEHOLDER" desc="Shown to users who navigate to about://borealis-credits when the real credits file can't be shown (e.g. because borealis is not running)" translateable="false">
     Steam is either not installed or not running. Please run Steam to view credits.
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_TITLE" desc="Title of the dialog shown to users who are unable to install Steam on Chromebook (Steam is a video game distribution service)">
-    Steam cannot be installed
+  <message name="IDS_BOREALIS_DISALLOWED_TITLE" desc="Title of the dialog shown to users who are unable to install 'Steam for Chromebook' (Steam is a video game distribution service)">
+    Can't install Steam
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_DISABLED" desc="Message shown to the user when Steam on Chromebook is disabled on their device">
-    This device does not currently support Steam on Chromebook
+  <message name="IDS_BOREALIS_DISALLOWED_HARDWARE" desc="Message shown to the user when 'Steam for Chromebook' is disabled on their device">
+    Steam for Chromebook (beta) is not available on your Chromebook.
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_FAILED" desc="Message shown to the user when Steam on Chromebook failed to determine whether it should be allowed">
-    Please restart your device and try again
+  <message name="IDS_BOREALIS_DISALLOWED_FAILED" desc="Message shown to the user when 'Steam for Chromebook' failed to determine whether it should be allowed">
+    Restart your Chromebook and try again
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_IRREGULAR" desc="Message shown to users when they try to install Steam on Chromebook on an irregular (incognito, kiosk, etc) profile">
-    Please sign in to a user account and try again
+  <message name="IDS_BOREALIS_DISALLOWED_IRREGULAR" desc="Message shown to users when they try to install 'Steam for Chromebook' on an irregular (incognito, kiosk, etc) profile">
+    You need to be signed-in to a Google Account to use Steam for Chromebook (Beta). Sign in and try again.
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_PRIMARY" desc="Message shown to users when they try to install Steam on Chromebook on a secondary profile">
-    Please install using your primary profile
+  <message name="IDS_BOREALIS_DISALLOWED_PRIMARY" desc="Message shown to users when they try to install 'Steam for Chromebook' on a secondary profile">
+    Steam for Chromebook (Beta) is only available for the account that signed in first on this Chromebook.
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_CHILD" desc="Message shown to the users when they try to install Steam on Chromebook on a child account">
-    Accounts managed by Family Link are not yet supported
+  <message name="IDS_BOREALIS_DISALLOWED_CHILD" desc="Message shown to the users when they try to install 'Steam for Chromebook' on a child account">
+    Steam for Chromebook (Beta) is not available for child Google Accounts
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when Steam on Chromebook is blocked by their admin">
-    Please contact your administrator
+  <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when 'Steam for Chromebook' is blocked by their admin. The placeholders are the names of policy settings.">
+    Steam for Chromebook (Beta) is blocked by your administrator. Your administrator needs to turn on these policies:
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_CHANNEL" desc="Message shown to the user when they try to install Steam on Chromebook without setting their updates to the correct channel">
-    Device must be in Beta Channel
+  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct chrome://flags setting enabled">
+    You need to turn on the “Borealis Enabled” flag
   </message>
-  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when Steam on Chromebook doesn't have the correct chrome://flags setting enabled">
-    #borealis-enabled must be enabled in chrome://flags
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_BUTTON" desc="Button label used to dismiss the Steam on Chromebook disallowed dialog">
-    Got it
+  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's chrome://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
+    ChromeOS flags
   </message>
   <message name="IDS_BOREALIS_INSTALLER_APP_NAME" desc="Name of a utility which is used to install the Steam application (Steam is a video game distribution service)">
-    Steam Installer
+    Steam installer
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_TITLE" desc="Title for installer for Steam (noun, name of app).">
-    Welcome to Steam on Chromebook
+  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_TITLE" desc="Title of the installer for 'Steam for Chromebook'. 'Steam for Chromebook' is the name of the piece of software used to run 'Steam' (a software distribution platform) on Chromebooks.">
+    Welcome to Steam for Chromebook
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_MESSAGE" desc="Body for installer for Steam (noun, name of app).">
-    Let’s get started
+  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_MESSAGE" desc="Body text shown in the installer for 'Steam for Chromebook'.">
+    This is a beta program. You can now use Steam to play some games on your Chromebook.
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_INSTALL_BUTTON" desc="Button on installer to install Steam (noun, name of app).">
+  <message name="IDS_BOREALIS_INSTALLER_INSTALL_BUTTON" desc="Button on installer to install 'Steam for Chromebook'.">
     Install
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_TITLE" desc="Title for installer while Steam (noun, name of app) is installing.">
-    Setting up Steam on Chromebook
+  <message name="IDS_BOREALIS_INSTALLER_ONGOING_TITLE" desc="Title for installer while 'Steam for Chromebook' is installing.">
+    Setting up Steam for Chromebook
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_MESSAGE" desc="Body for Steam (noun, name of app) installer while Steam is installing.">
+  <message name="IDS_BOREALIS_INSTALLER_ONGOING_MESSAGE" desc="Body text shown in the installer while 'Steam for Chromebook' is installing.">
     This may take a few minutes
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_INACTIVE" desc="Message shown while the steam installer is initializing.">
-    Starting installation
+  <message name="IDS_BOREALIS_INSTALLER_ONGOING_PERCENTAGE" desc="Message containing the progress percentage of the ongoing 'Steam for Chromebook' installation.">
+    <ph name="PERCENTAGE_COMPLETE">$1<ex>42</ex></ph>% completed
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_DLC" desc="Message shown while the steam installer is downloading its content.">
-    Downloading
+  <message name="IDS_BOREALIS_INSTALLER_ONGOING_INITIAL" desc="Message shown while the 'Steam for Chromebook' installer is calculating how much longer it will need to complete.">
+    estimating time
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_DRYRUN" desc="Message shown while the steam installer is performing a post-installation trial.">
-    Performing setup
+  <message name="IDS_BOREALIS_INSTALLER_FINISHED_TITLE" desc="Title for installer when installation for 'Steam for Chromebook' completes succesfully.">
+    Let’s get gaming
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_FINISHED_TITLE" desc="Title for installer when installation for Steam (noun, name of app) completes succesfully.">
-    You’re all set!
+  <message name="IDS_BOREALIS_INSTALLER_FINISHED_MESSAGE" desc="Body text shown in the installer when 'Steam for Chromebook' installation suceeded.">
+    You can now use Steam for Chromebook (Beta)
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_FINISHED_MESSAGE" desc="Title for Steam (noun, name of app) installer when installation suceeded.">
-    Enjoy gaming on your Chromebook
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_LAUNCH_BUTTON" desc="Button in Steam (noun, name of app) installer to launch Steam.">
-    Launch Steam
+  <message name="IDS_BOREALIS_INSTALLER_LAUNCH_BUTTON" desc="Button in the installer for 'Steam for Chromebook' to launch Steam.">
+    Open Steam
   </message>
   <message name="IDS_BOREALIS_INSTALLER_ERROR_TITLE" desc="Title for installer when Steam (noun, name of app) fails to install.">
-    There was a problem setting up Steam on Chromebook
+    Can’t set up Steam for Chromebook (Beta)
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_DISALLOWED" desc="Title for Steam (noun, name of app) installer when it does not have permission to install.">
-    Steam could not be installed on this device
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_DUPLICATE" desc="Body for Steam (noun, name of app) when installation fails due to another process already running.">
+    Steam is already being set up. Wait for setup to complete.
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_PROGRESS" desc="Body for Steam (noun, name of app) when installation fails due to another process already running.">
-    Another Steam setup is running. Please wait for it to complete before trying again
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_UPDATE" desc="Body for Steam (noun, name of app) installer when installation fails due to device being out of date.">
+    Make sure your Chromebook is on the latest version. Then, restart your Chromebook and try again.
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_DLC_INTERNAL" desc="Body for Steam (noun, name of app) installer when installation fails due to device being out of date.">
-    Ensure that your device is up to date and try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_DLC_BUSY" desc="Body for Steam (noun, name of app) installer when installation fails with suggestion to try again.">
-    Please wait a few minutes and try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_REBOOT" desc="Body for Steam (noun, name of app) installer when a restart is needed.">
-    Please restart your device to use Steam on Chromebook
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUSY" desc="Body for Steam (noun, name of app) installer when installation fails with suggestion to try again.">
+    Wait a few minutes and try again
   </message>
   <message name="IDS_BOREALIS_INSTALLER_ERROR_SPACE" desc="Body for Steam (noun, name of app) installer when installation fails due to low space.">
-    There is not enough available storage to complete setup. Please free up storage and try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_DLC_UNKNOWN" desc="Body for Steam (noun, name of app) installer when installation fails due to an unknown dlc-related reason">
-    Please restart your device and try again
+    There is not enough device storage to complete setup. Free up space and try again.
   </message>
   <message name="IDS_BOREALIS_INSTALLER_ERROR_OFFLINE" desc="Body for Steam (noun, name of app) installer when installation fails due to being offline.">
-    Please ensure that your device is connected to the internet
+    Make sure you’re connected to the internet and try again
   </message>
   <message name="IDS_BOREALIS_INSTALLER_ERROR_STARTUP" desc="Body for Steam (noun, name of app) installer when installation fails trying to start up after installing">
-    Couldn't launch Steam on Chromebook. Please try again
+    Something went wrong. Try again.
   </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_RETRY" desc="Button for Steam (noun, name of app) installer to retry after failing.">
-    Retry
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUTTON_RETRY" desc="Button for Steam (noun, name of app) installer to retry after failing.">
+    Try again
+  </message>
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUTTON_STORAGE" desc="Button for Steam (noun, name of app) installer to free disk-space if needed.">
+    Storage management
+  </message>
+  <message name="IDS_BOREALIS_INSTALLER_ERROR_LEARN_MORE" desc="Hyperlink to help page to learn more about the error encountered.">
+    Learn more
+  </message>
+  <message name="IDS_BOREALIS_LAUNCH_ERROR_TITLE" desc="Title of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch.">
+    Can’t open Steam for Chromebook (Beta)
+  </message>
+  <message name="IDS_BOREALIS_LAUNCH_ERROR_BODY" desc="Body of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch.">
+    Something went wrong. Try again.
+  </message>
+  <message name="IDS_BOREALIS_BETA_BADGE" desc="Badge text indicating that borealis (steam on chromeos) is a beta product, i.e. it is still under development.">
+    Beta
   </message>
   <message name="IDS_BOREALIS_CLIENT_UNINSTALL_CONFIRM_BODY" desc="Confirmation dialog for uninstalling Steam (name of app).">
-      Any games and apps installed via Steam will also be removed from this device
+      Any apps and games installed using Steam for Chromebook (Beta) will be removed from this device. Data associated with these apps and games will also be removed. Make sure to back up saved apps and games before uninstalling.
   </message>
   <message name="IDS_BOREALIS_APPLICATION_UNINSTALL_CONFIRM_BODY" desc="Confirmation dialog for uninstalling a game.">
       Data associated with this app may be removed from this device
   </message>
-  <message name="IDS_BOREALIS_FEEDBACK_NOTIFICATION_TITLE" desc="Title shown in notification that prompts users for feedback">
-    How was your gameplay experience?
-  </message>
-  <message name="IDS_BOREALIS_FEEDBACK_NOTIFICATION_MESSAGE" desc="Message shown in notification that prompts users for feedback">
-    Help us improve gaming on Chromebooks
-  </message>
-  <message name="IDS_BOREALIS_FEEDBACK_NOTIFICATION_SOURCE" desc="Source of notification that prompts users for feedback">
-    Chromebook Gaming
+  <message name="IDS_BOREALIS_SPLASHSCREEN_TITLE" desc="Title on splashscreen when starting Steam on Chrome OS. 'Steam for Chromebook' is the name of the product.">
+    Steam for Chromebook
   </message>
   <message name="IDS_BOREALIS_SPLASHSCREEN_MESSAGE" desc="Message on splashscreen when starting Steam on Chrome OS.">
-    starting up...
+    Loading...
   </message>
-
+  <message name="IDS_BOREALIS_HATS_TITLE" desc="Title for HaTS notification requesting feedback. It will appear occasionally when a user closes a Steam game. Clicking it will show a satisfaction survey to the user.">
+    Help us improve Steam for Chromebook
+  </message>
+  <message name="IDS_BOREALIS_HATS_BODY" desc="Message on HaTS notification requesting feedback. It will appear occasionally when a user closes a Steam game. Clicking it will show a satisfaction survey to the user.">
+    Tell us about your recent gameplay
+  </message>
   <!-- TPM firmware auto-update notifications -->
   <message name="IDS_TPM_AUTO_UPDATE_PLANNED_NOTIFICATION_TITLE" desc="Title for the notification informing the user that local data will be deleted.">
     Your local data will soon be deleted
@@ -6161,6 +6436,9 @@ Permissions you've already given to websites and apps may apply to this account.
   <message name="IDS_ADD_SUPERVISION_PAGE_TITLE" desc="Title for the ChromeOS Add Supervision screen. Since the title bar is not visible, this string is only used by screen readers.">
     Set Up Parental Controls
   </message>
+  <message name="IDS_ADD_SUPERVISION_WEBVIEW_LOADING_MESSAGE" desc="Message shown while the Add Supervision screen is loading.">
+    Please wait...
+  </message>
   <message name="IDS_ADD_SUPERVISION_EXIT_DIALOG_TITLE" desc="Title for the dialog shown when attempting to exit the Add Supervision screen.">
     Are you sure you want to exit?
   </message>
@@ -6181,6 +6459,9 @@ You can manage this account’s settings by installing the Family Link app on yo
   <!-- Strings for Parent Access screen -->
   <message name="IDS_PARENT_ACCESS_PAGE_TITLE" desc="Title for the ChromeOS Parent Access screen.">
     Parent Access
+  </message>
+  <message name="IDS_PARENT_ACCESS_CLOSE_BUTTON_TITLE" desc="Title for the ChromeOS Parent Access Widget close button.">
+    Close
   </message>
   <message name="IDS_PARENT_ACCESS_LOCAL_WEB_APPROVALS_AFTER_TITLE" desc="Title for the local web approvals dialog.">
     Approve web request?
@@ -6276,7 +6557,19 @@ You can manage this account’s settings by installing the Family Link app on yo
     Please try again.
   </message>
 
-  <!-- PIN keyboard-->
+  <!-- Shared (OOBE, settings) auth setup webuis -->
+  <message name="IDS_AUTH_SETUP_SET_LOCAL_PASSWORD_PLACEHOLDER" desc="Placeholder text for the input that lets the user enter a new local password.">
+    Password
+  </message>
+  <message name="IDS_AUTH_SETUP_SET_LOCAL_PASSWORD_CONFIRM_PLACEHOLDER" desc="Placeholder text for the input where the user should enter a new local password for a second time for confirmation.">
+    Confirm password
+  </message>
+  <message name="IDS_AUTH_SETUP_SET_LOCAL_PASSWORD_MIN_CHARS_HINT" desc="The hint about the minimal length of a password when the user sets a new password.">
+    Password must be at least 8 characters
+  </message>
+  <message name="IDS_AUTH_SETUP_SET_LOCAL_PASSWORD_NO_MATCH_ERROR" desc="Error message shown when the user sets a password but the first entry does not match the second entry.">
+    Passwords do not match
+  </message>
   <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_WEAK_PIN" desc="Message shown below the title that warns the user they have entered a PIN that is easy to guess.">
     PIN may be easy to guess
   </message>
@@ -6336,7 +6629,7 @@ You can manage this account’s settings by installing the Family Link app on yo
     <ph name="EMOJI_NAME">$1<ex>Party popper</ex></ph>. <ph name="EMOJI_INDEX">$2<ex>5</ex></ph> of <ph name="EMOJI_COUNT">$3<ex>5</ex></ph>.
   </message>
   <message name="IDS_SUGGESTION_DIACRITICS_OPEN" desc="String announced by screenreader when diacritics suggestion pops up.">
-    Accent marks menu open. Press left or right to navigate and enter to insert.
+    Accent marks menu open. Press left, right, or number keys to navigate and enter to insert.
   </message>
   <message name="IDS_SUGGESTION_DIACRITICS_INSERTED" desc="String announced by screenreader when diacritics are inserted.">
     Accent mark inserted.
@@ -6377,7 +6670,12 @@ You can manage this account’s settings by installing the Family Link app on yo
     Emoji Picker
   </message>
   <message name="IDS_ASH_EMOJI_PICKER_COPY_GIF_TO_CLIPBOARD" translateable="false" desc="Message shown to users when they click a gif in emoji picker.">
-    GIF has been copied to your clipboard
+    GIF not supported. Copied to clipboard.
+  </message>
+
+  <!-- Strings for orca-->
+  <message name="IDS_ACCNAME_ORCA" desc="The name for the orca feature in the task manager (this is a code name)">
+    Orca
   </message>
 
   <!-- Strings for Custom Tab UI -->
@@ -6521,11 +6819,6 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
     ChromeOS-URLs
   </message>
 
-     <!-- Strings for WebAppSettings -->
-  <message name="IDS_RUN_ON_OS_LOGIN_ENABLED" desc="This is the message of the notification when an application is automatically started on OS login.">
-    The app <ph name="APP_NAME">$1</ph> has been configured by your admin to run on OS login
-  </message>
-
   <!-- Theme Selection -->
   <message name="IDS_THEME_SELECTION_TITLE" desc="Title of the theme selection screen.">
     Personalize your display theme
@@ -6556,60 +6849,78 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   </message>
 
   <!-- Touchpad Scroll -->
-  <!-- TODO(b/265107054): Remove translateable tags when strings are finalized. -->
-  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TITLE" desc="Title of the touchpad scroll direction screen." translateable="false">
+  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TITLE" desc="Title of the touchpad scroll direction screen.">
     Change touchpad scrolling direction
   </message>
-  <message name="IDS_OOBE_TOUCHPAD_SCROLL_DESCRIPTION" desc="Description of the touchpad scroll direction screen." translateable="false">
-    Try it out. Turn the setting on or off, then scroll with two fingers on your touchpad in the test area.
+  <message name="IDS_OOBE_TOUCHPAD_SCROLL_DESCRIPTION" desc="Description of the touchpad scroll direction screen.">
+    Try it out. Turn the setting on or off, then scroll with two fingers on your touchpad in the test area. You can also find this later in Settings > Device > Mouse and touchpad.
   </message>
-   <message name="IDS_OOBE_TOUCHPAD_SCROLL_DESCRIPTION_ADDITIONAL" desc="Additional description of the touchpad scroll direction screen." translateable="false">
-    You can also find this later in Settings > Device > Mouse and touchpad.
-  </message>
-  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TOGGLE_TITLE" desc="Title for a toggle that allows reversing the scrolling directions." translateable="false">
+  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TOGGLE_TITLE" desc="Title for a toggle that allows reversing the scrolling directions.">
     Reverse scrolling
   </message>
-  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TOGGLE_DESC" desc="Description for a toggle that allows reversing the scrolling directions" translateable="false">
+  <message name="IDS_OOBE_TOUCHPAD_SCROLL_TOGGLE_DESC" desc="Description for a toggle that allows reversing the scrolling directions">
     Swipe up to move the page down
   </message>
-  <message name="IDS_OOBE_TOUCHPAD_SCROLL_AREA_DESC" desc="Description for a scroll area that allows user to try the selected scrolling directions" translateable="false">
-    Scroll with two fingers on your touchpad in this area
+  <message name="IDS_OOBE_TOUCHPAD_SCROLL_AREA_DESC" desc="Description for a scroll area that allows user to try the selected scrolling directions">
+    Preview
   </message>
 
   <!-- Display Size -->
-  <!-- TODO(b/258503542): Remove translateable tags when strings are finalized. -->
-  <message name="IDS_OOBE_DISPLAY_SIZE_TITLE" desc="Title of the display size screen." translateable="false">
-    Change text size
+  <message name="IDS_OOBE_DISPLAY_SIZE_TITLE" desc="Title of the display size screen.">
+    Change display and text size
   </message>
-  <message name="IDS_OOBE_DISPLAY_SIZE_DESCRIPTION" desc="Description of the display size screen." translateable="false">
-    Adjust the display size to make items on your screen, including text, larger or smaller.
+  <message name="IDS_OOBE_DISPLAY_SIZE_DESCRIPTION" desc="Description of the display size screen.">
+    Make items on your screen, including text, larger or smaller. You can also find this later in Settings &gt; Device &gt; Displays.
   </message>
-   <message name="IDS_OOBE_DISPLAY_SIZE_DESCRIPTION_ADDITIONAL" desc="Additional description of the display size screen." translateable="false">
-    You can also find this later in Settings &gt; Device &gt; Displays.
+  <message name="IDS_OOBE_DISPLAY_SIZE_SLIDER_TITLE" desc="Title of the zoom levels slider in the display size screen.">
+    Display and text size
   </message>
-  <message name="IDS_OOBE_DISPLAY_SIZE_SLIDER_TITLE" desc="Title of the zoom levels slider in the display size screen." translateable="false">
-    Display Size
+  <message name="IDS_OOBE_DISPLAY_SIZE_SLIDER_DESCRIPTION" desc="Description of the zoom levels slider in the display size screen.">
+    Changes will be applied after setup
   </message>
-  <message name="IDS_OOBE_DISPLAY_SIZE_SLIDER_DESCRIPTION" desc="Description of the zoom levels slider in the display size screen." translateable="false">
-    Make everything bigger or smaller
+  <message name="IDS_OOBE_DISPLAY_SIZE_PREVIEW" desc="Title of the preview section of the display size screen.">
+    Preview
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_A4_APP_NAME" desc="A4 app name in the preview section of the display size screen.">
+    A4
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_CALCULATOR_APP_NAME" desc="Calculator app name in the preview section of the display size screen.">
+    Calculator
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_CAMERA_APP_NAME" desc="Camera app name in the preview section of the display size screen.">
+    Camera
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_FILES_APP_NAME" desc="Files app name in the preview section of the display size screen.">
+    Files
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_PHOTOS_APP_NAME" desc="Photos app name in the preview section of the display size screen.">
+    Photos
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_SETTINGS_APP_NAME" desc="Settings app name in the preview section of the display size screen.">
+    Settings
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_VALUE" desc="The currently selected display size percentage.">
+    <ph name="DISPLAY_ZOOM">$1<ex>120</ex></ph>%
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_POSITIVE_BUTTON_ARIA" desc="The message to be announced by ChromeVox in the display size screen when the button to increase the size is focused">
+    Increase display and text size
+  </message>
+  <message name="IDS_OOBE_DISPLAY_SIZE_NEGATIVE_BUTTON_ARIA" desc="The message to be announced by ChromeVox in the display size screen when the button to decrease the size is focused">
+    Decrease display and text size
   </message>
 
   <!-- Drive Offline-->
-  <!-- TODO(b/278024582): Remove translateable tags when strings are finalized. -->
-  <message name="IDS_OOBE_DRIVE_PINNING_TITLE" desc="Title of the drive pinning screen." translateable="false">
-    Keep your files available when you're offline
+  <message name="IDS_OOBE_DRIVE_PINNING_TITLE" desc="Title of the drive pinning screen.">
+    Access your Google Drive files when you’re offline
   </message>
-  <message name="IDS_OOBE_DRIVE_PINNING_SUBTITLE" desc="Description of the drive pinning screen." translateable="false">
-    Automatically download files in your My Drive so you can access and edit them without an internet connection.
+  <message name="IDS_OOBE_DRIVE_PINNING_SUBTITLE" desc="Description of the drive pinning screen.">
+    Your files in My Drive will sync to your Chromebook automatically so you can access them without an internet connection. You can change this anytime in Settings > Files.
   </message>
-  <message name="IDS_OOBE_DRIVE_PINNING_ADDITIONAL_SUBTITLE" desc="Additional description of the drive pinning screen." translateable="false">
-    This will use about <ph name="REQUIRED_SPACE">$1<ex>12.2 GB</ex></ph> leaving <ph name="FREE_SPACE">$2<ex>96.8 GB</ex></ph> available
+  <message name="IDS_OOBE_DRIVE_PINNING_TOGGLE_TITLE" desc="Title of the toggle button of the drive pinning screen.">
+    File sync
   </message>
-  <message name="IDS_OOBE_DRIVE_PINNING_ACCEPT_BUTTON" desc="Label for button to accept sync drive files pinning." translateable="false">
-    Turn on sync
-  </message>
-  <message name="IDS_OOBE_DRIVE_PINNING_DECLINE_BUTTON" desc="Label for button to decline sync drive files pinning." translateable="false">
-    Skip
+  <message name="IDS_OOBE_DRIVE_PINNING_TOGGLE_SUBTITLE" desc="Subtitle of the toggle button of the drive pinning screen.">
+    This will use about <ph name="REQUIRED_SPACE">$1<ex>12.2 GB</ex></ph>. You currently have <ph name="FREE_SPACE">$2<ex>96.8 GB</ex></ph> available.
   </message>
 
   <!-- Strings for the locale switch notification inside the OOBE. -->
@@ -6627,27 +6938,54 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   </message>
 
   <!-- CHOOBE Screen -->
-  <!-- TODO(b/258503542): Remove translateable tags when strings are finalized. -->
-  <message name="IDS_OOBE_CHOOBE_TITLE" desc="Title of the CHOOBE screen." translateable="false">
-    Select features you want to set up next
+  <message name="IDS_OOBE_CHOOBE_TITLE" desc="Title of the CHOOBE screen.">
+    Choose more features to set up
   </message>
-  <message name="IDS_OOBE_CHOOBE_DESCRIPTION" desc="Subitle of the CHOOBE screen." translateable="false">
-    Or you can click Done for now and find them later in system Settings
+  <message name="IDS_OOBE_CHOOBE_DESCRIPTION" desc="Subitle of the CHOOBE screen.">
+    You can select all that apply. You can also find these options in Settings after you finish setting up your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
   </message>
-  <message name="IDS_OOBE_CHOOBE_SKIP_BUTTON" desc="Skip button for the CHOOBE screen" translateable="false">
-    Remind me later
+  <message name="IDS_OOBE_CHOOBE_SKIP_BUTTON" desc="Skip button for the CHOOBE screen">
+    Skip
   </message>
 
   <!-- CHOOBE Tiles -->
-  <!-- TODO(b/258503542): Remove translateable tags when strings are finalized. -->
-  <message name="IDS_OOBE_CHOOBE_THEME_SELECTION_TILE_TITLE" desc="Title of the theme selection tile in the CHOOBE screen." translateable="false">
-    Select dark/light theme
+  <message name="IDS_OOBE_CHOOBE_THEME_SELECTION_TILE_TITLE" desc="Title of the theme selection tile in the CHOOBE screen.">
+    Select light or dark theme
   </message>
-  <message name="IDS_OOBE_CHOOBE_TOUCHPAD_SCROLL_TILE_TITLE" desc="Title of the touchpad scroll tile in the CHOOBE screen." translateable="false">
+  <message name="IDS_OOBE_CHOOBE_TOUCHPAD_SCROLL_TILE_TITLE" desc="Title of the touchpad scroll tile in the CHOOBE screen.">
     Change touchpad scrolling direction
   </message>
-  <message name="IDS_OOBE_CHOOBE_DISPLAY_SIZE_TILE_TITLE" desc="Title of the display size tile in the CHOOBE screen." translateable="false">
-    Display size
+  <message name="IDS_OOBE_CHOOBE_DRIVE_PINNING_TILE_TITLE" desc="Title of the drive pinning tile in the CHOOBE screen.">
+    Access your Google Drive files when you’re offline
+  </message>
+  <message name="IDS_OOBE_CHOOBE_DISPLAY_SIZE_TILE_TITLE" desc="Title of the display size tile in the CHOOBE screen.">
+    Change display and text size
+  </message>
+  <message name="IDS_OOBE_CHOOBE_RETURN_BUTTON" desc="Label for the return button shown in the last optional screen selected by the user if there still exists more features thaat the user can select.">
+    Save and see more
+  </message>
+  <message name="IDS_OOBE_CHOOBE_TOUCHPAD_SCROLL_SUBTITLE_ENABLED" desc="Subtitle of the touchpad scroll tile in the CHOOBE screen if reverse scroll enabled.">
+    Reverse scrolling enabled
+  </message>
+  <message name="IDS_OOBE_CHOOBE_TOUCHPAD_SCROLL_SUBTITLE_DISABLED" desc="Subtitle of the touchpad scroll tile in the CHOOBE screen if reverse scroll disabled.">
+    Reverse scrolling disabled
+  </message>
+  <message name="IDS_OOBE_CHOOBE_DRIVE_PINNING_SUBTITLE_ENABLED" desc="Subtitle of the drive pinning tile in the CHOOBE screen if drive offline is enabled.">
+    File sync turned on
+  </message>
+  <message name="IDS_OOBE_CHOOBE_DRIVE_PINNING_SUBTITLE_DISABLED" desc="Subtitle of the drive pinning tile in the CHOOBE screen if drive offline is disabled.">
+    File sync turned off
+  </message>
+  <message name="IDS_OOBE_CHOOBE_DISPLAY_SIZE_TILE_SUBTITLE" desc="Subtitle of the display size tile in the CHOOBE screen if display size is visited.">
+    Display and text size <ph name="DISPLAY_ZOOM">$1<ex>120</ex></ph>%
+  </message>
+
+  <!-- CHOOBE Tiles Accessibility -->
+  <message name="IDS_OOBE_CHOOBE_TILE_SYNCED" desc="message will be announced by the chromevox if the tile is synced and contain the sync icons.">
+    Setting synced from your previous device.
+  </message>
+  <message name="IDS_OOBE_CHOOBE_TILE_VISITED" desc="message will be announced by the chromevox if the tile is visited.">
+    Visited
   </message>
 
   <!-- Strings for the office fallback dialog -->
@@ -6675,26 +7013,248 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   <message name="IDS_OFFICE_FALLBACK_REASON_DRIVE_UNAVAILABLE" desc="Explanation for a dialog that appears when an office file is unable to be opened due to Google Drive not being available.">
     The application <ph name="APPLICATION_NAME">$1<ex>Google Docs</ex></ph> requires Drive to be available.
   </message>
-  <message name="IDS_OFFICE_FALLBACK_TITLE_ONEDRIVE_UNAVAILABLE" desc="Title for a dialog that appears when an office file is unable to be opened due to OneDrive not being available.">
-    Can't open <ph name="FILE_NAMES">$1<ex>file.docx</ex></ph> when OneDrive is not available
-  </message>
-  <message name="IDS_OFFICE_FALLBACK_REASON_ONEDRIVE_UNAVAILABLE" desc="Explanation for a dialog that appears when an office file is unable to be opened due to OneDrive not being available.">
-    The application <ph name="APPLICATION_NAME">$1<ex>Microsoft 365</ex></ph> requires OneDrive to be available.
-  </message>
-  <message name="IDS_OFFICE_FALLBACK_TITLE_ERROR_OPENING_WEB" desc="Title for a dialog that appears when an office file is unable to be opened due to an error opening the URL.">
-    Can't open the URL for <ph name="FILE_NAMES">$1<ex>file.docx</ex></ph>
-  </message>
-  <message name="IDS_OFFICE_FALLBACK_REASON_ERROR_OPENING_WEB" desc="Explanation for a dialog that appears when an office file is unable to be opened due to OneDrive not being available.">
-    The application <ph name="APPLICATION_NAME">$1<ex>Microsoft 365</ex></ph> requires OneDrive to be available.
-  </message>
-  <message name="IDS_OFFICE_FALLBACK_TITLE_INVALID_GOOGLE_DOCS_URL" desc="Title for a dialog that appears when an office file is unable to be opened due to the URL for the office file being inaccessible.">
-    Can't open the URL for <ph name="FILE_NAMES">$1<ex>file.docx</ex></ph>
-  </message>
-  <message name="IDS_OFFICE_FALLBACK_REASON_INVALID_GOOGLE_DOCS_URL" desc="Explanation for a dialog that appears when an office file is unable to be opened from Google Drive due to the URL for the office file being inaccessible.">
-    The application <ph name="APPLICATION_NAME">$1<ex>Google Docs</ex></ph> requires a valid <ph name="APPLICATION_NAME">$1<ex>Google Docs</ex></ph> URL.
-  </message>
   <message name="IDS_OFFICE_FALLBACK_INSTRUCTIONS" desc="Office Fallback dialog instructions for the choices (buttons) the user has available to open the office file.">
     Choose "Try again", or choose "Open in offline editor" to use limited view and editing options.
+  </message>
+  <message name="IDS_OFFICE_FALLBACK_INSTRUCTIONS_DRIVE_UNAVAILABLE" desc="Office Fallback dialog instructions for when Google Drive is not available in Files app and the user should try to enable it." translateable="false">
+    Try enabling Google Drive in Settings.
+  </message>
+
+  <!-- Office file handler selection dialog -->
+  <message name="IDS_OFFICE_FILE_HANDLER_TITLE" desc="Title for office file handler selection dialog, which allows the user to choose an app to open office files.">
+    Choose an app to open <ph name="FILE_TYPE">$1<ex>Word</ex></ph> files
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_FILE_TYPE_WORD" desc="File type for Word.">
+    Word
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_FILE_TYPE_EXCEL" desc="File type for Excel.">
+    Excel
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_FILE_TYPE_POWERPOINT" desc="File type for PowerPoint.">
+    PowerPoint
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_APP_GOOGLE_DOCS" desc="App name for Google Docs.">
+    Google Docs
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_APP_GOOGLE_SHEETS" desc="App name for Google Sheets.">
+    Google Sheets
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_APP_GOOGLE_SLIDES" desc="App name for Google Slides.">
+    Google Slides
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_APP_MICROSOFT" desc="App name for Microsoft 365.">
+    Microsoft 365
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_APP_OTHERS" desc="App name for others.">
+    Other apps
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_STORAGE_GOOGLE" desc="Description for using Google Drive as storage.">
+    Uses Google Drive storage
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_STORAGE_MICROSOFT" desc="Description for using Microsoft OneDrive as storage.">
+    Uses Microsoft OneDrive storage
+  </message>
+  <message name="IDS_OFFICE_FILE_HANDLER_OPEN_BUTTON" desc="Text for a button located in the dialog footer which opens the app.">
+    Open
+  </message>
+
+  <!-- Office setup welcome dialog -->
+  <message name="IDS_OFFICE_WELCOME_TITLE" desc="Title for the welcome dialog when the user sets up Microsoft Office for the first time.">
+    Set up Microsoft 365 to open files
+  </message>
+  <message name="IDS_OFFICE_WELCOME_BODY_TEXT" desc="Body text for the welcome dialog when the user sets up Microsoft Office for the first time.">
+    <ph name="LINK_BEGIN">&lt;a href="https://support.google.com/chromebook?p=edit_office_files" target="_blank"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph> about Microsoft 365 on your Chromebook.
+  </message>
+  <message name="IDS_OFFICE_WELCOME_INSTALL_MICROSOFT365" desc="A bullet point in the welcome dialog when the user sets up Microsoft Office for the first time, telling the user that Microsoft 365 web app will be installed.">
+    Install Microsoft 365
+  </message>
+  <message name="IDS_OFFICE_WELCOME_CONNECT_ONEDRIVE" desc="A bullet point in the welcome dialog when the user sets up Microsoft Office for the first time, telling the user that Microsoft OneDrive account will be installed.">
+    Connect to Microsoft OneDrive
+  </message>
+  <message name="IDS_OFFICE_WELCOME_FILES_WILL_MOVE" desc="A bullet point in the welcome dialog when the user sets up Microsoft Office for the first time, telling the user that selected files will be moved to the user's Microsoft OneDrive account when opened with Microsoft 365 web app.">
+    Files will move to OneDrive when opening in Microsoft 365
+  </message>
+  <message name="IDS_OFFICE_WELCOME_GET_STARTED" desc="Caption for a button that starts the setup flow in the welcome dialog when the user sets up Microsoft Office for the first time.">
+    Get started
+  </message>
+  <message name="IDS_OFFICE_WELCOME_SET_UP" desc="Caption for a button that starts the setup flow in the welcome dialog when the user sets up Microsoft Office, but both Microsoft 365 web app and Microsoft OneDrive were previously set up.">
+    Set up
+  </message>
+
+  <!-- Office setup Connect OneDrive dialog -->
+  <message name="IDS_CONNECT_TO_ONEDRIVE_TITLE" desc="Title for a dialog which allows the user to connect Files app and Microsoft OneDrive storage.">
+    Connect to Microsoft OneDrive
+  </message>
+  <message name="IDS_CONNECT_TO_ONEDRIVE_BODY_TEXT" desc="Explanation text for a dialog which allows the user to connect Files app and Microsoft OneDrive storage.">
+    Connect OneDrive to the Files app to manage your stored documents from your Chromebook. You'll need to sign in with your Microsoft account.
+  </message>
+  <message name="IDS_CONNECT_TO_ONEDRIVE_SIGNIN_FLOW_BODY_TEXT" desc="Explanation text for a dialog which allows the user to connect Files app and Microsoft OneDrive storage via sign in flow.">
+    Microsoft 365 uses OneDrive to open and edit Word, Excel, and PowerPoint files. These files will be found in the Files app side navigation labeled “Microsoft OneDrive.” You'll need to sign in with your Microsoft account. <ph name="LINK_BEGIN">&lt;a href="https://support.google.com/chromebook?p=edit_office_files" target="_blank"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
+  </message>
+  <message name="IDS_CANT_CONNECT_ONEDRIVE" desc="Error message text displayed when the user has tried to connect to OneDrive storage, but failed for any reason.">
+    Can't connect to OneDrive. Try again.
+  </message>
+  <message name="IDS_CONNECT_ONEDRIVE" desc="Text for a button which triggers a UI flow to connect the user to OneDrive storage.">
+    Connect to OneDrive
+  </message>
+  <message name="IDS_ONEDRIVE_CONNECTED_TITLE" desc="Text for a button which triggers a UI flow to connect the user to OneDrive storage.">
+    Microsoft OneDrive connected
+  </message>
+  <message name="IDS_ONEDRIVE_CONNECTED_BODY_TEXT" desc="Text for a button which triggers a UI flow to connect the user to OneDrive storage.">
+    OneDrive will now appear in the Files app
+  </message>
+
+  <!-- Office install PWA dialog -->
+  <message name="IDS_OFFICE_INSTALL_PWA_TITLE" desc="Title for a dialog which allows the user to install Microsoft 365 PWA.">
+    Install Microsoft 365
+  </message>
+  <message name="IDS_OFFICE_INSTALL_PWA_BODY_TEXT" desc="Explanation text for a dialog which allows the user to install Microsoft 365 PWA.">
+    Open, edit, and save Word, Excel, and PowerPoint files. A subscription may be required for some features.
+  </message>
+  <message name="IDS_OFFICE_INSTALL_PWA_INSTALLING_BUTTON" desc="Text for a button that indicates the PWA is now installing.">
+    Installing
+  </message>
+  <message name="IDS_OFFICE_INSTALL_PWA_INSTALLED_BUTTON" desc="Text for a button that indicates the PWA is successfully installed.">
+    Installed
+  </message>
+
+  <!-- Office cancel setup dialog -->
+  <message name="IDS_OFFICE_CANCEL_SETUP_TITLE" desc="Title for a dialog which allows the user to cancel the Microsoft 365 setup.">
+    Cancel Microsoft 365 setup?
+  </message>
+  <message name="IDS_OFFICE_CANCEL_SETUP_BODY_TEXT" desc="Explanation text for a dialog which allows the user to cancel the Microsoft 365 setup.">
+    You won’t be able to open files in Microsoft 365 until setup is complete.
+  </message>
+  <message name="IDS_OFFICE_CANCEL_SETUP_CANCEL_BUTTON" desc="Text for a button which cancels the Microsoft 365 setup flow.">
+    Cancel setup
+  </message>
+  <message name="IDS_OFFICE_CANCEL_SETUP_CONTINUE_BUTTON" desc="Text for a button which continues the Microsoft 365 setup flow.">
+    Continue setup
+  </message>
+
+  <!-- Office Microsoft 365 setup complete dialog -->
+  <message name="IDS_OFFICE_ONEDRIVE_SETUP_COMPLETE_TITLE" desc="Title for a dialog which indicates the Microsoft 365 setup has been completed.">
+    Microsoft 365 setup complete
+  </message>
+  <message name="IDS_OFFICE_ONEDRIVE_SETUP_COMPLETE_BODY_TEXT" desc="Explanation text for a dialog which indicates the Microsoft 365 setup has been completed.">
+    When opening Word, Excel, and Powerpoint files, the files will move to Microsoft OneDrive before opening in Microsoft 365
+  </message>
+
+  <!-- Office move confirmation dialog -->
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_MOVE_TITLE" desc="Title for a dialog asking the user to confirm moving one file to OneDrive/Google Drive before opening it.">
+    Move 1 file to <ph name="CLOUD_PROVIDER">$1<ex>Microsoft OneDrive</ex></ph> to open?
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_MOVE_TITLE_PLURAL" desc="Title for a dialog asking the user to confirm moving more than one files to OneDrive/Google Drive before opening it.">
+    Move <ph name="NUM_OF_FILES">$2<ex>5</ex></ph> files to <ph name="CLOUD_PROVIDER">$1<ex>Microsoft OneDrive</ex></ph> to open?
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_COPY_TITLE" desc="Title for a dialog asking the user to confirm copying one file to OneDrive/Google Drive before opening it.">
+    Copy 1 file to <ph name="CLOUD_PROVIDER">$1<ex>Microsoft OneDrive</ex></ph> to open?
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_COPY_TITLE_PLURAL" desc="Title for a dialog asking the user to confirm copying more than one files to OneDrive/Google Drive before opening it.">
+    Copy <ph name="NUM_OF_FILES">$2<ex>5</ex></ph> files to <ph name="CLOUD_PROVIDER">$1<ex>Microsoft OneDrive</ex></ph> to open?
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_ONEDRIVE_BODY_TEXT" desc="Explanation text for a dialog asking the user to confirm moving files to OneDrive before opening it.">
+    Microsoft 365 requires files to be stored in OneDrive. Local files will move and files from other locations will copy. Your files can be found in the Microsoft OneDrive folder in the Files app.
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_GOOGLE_DRIVE_BODY_TEXT" desc="Explanation text for a dialog asking the user to confirm moving files to Google Drive before opening it.">
+    Google Docs, Sheets, and Slides require files to be stored in Google Drive. Local files will move and files from other locations will copy. Your files can be found in the Google Drive folder in the Files app.
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_ALWAYS_MOVE_CHECKBOX" desc="Checkbox label which allows the user to always move/copy files to OneDrive/Google Drive without asking each time.">
+    Don’t ask again
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_MOVE_BUTTON" desc="Text for a button which triggers the move and open action for the file.">
+    Move and open
+  </message>
+  <message name="IDS_OFFICE_MOVE_CONFIRMATION_COPY_BUTTON" desc="Text for a button which triggers the copy and open action for the file.">
+    Copy and open
+  </message>
+  <message name="IDS_OFFICE_CLOUD_PROVIDER_ONEDRIVE" desc="Cloud provider name for OneDrive.">
+    Microsoft OneDrive
+  </message>
+  <message name="IDS_OFFICE_CLOUD_PROVIDER_ONEDRIVE_SHORT" desc="Short name for OneDrive.">
+    OneDrive
+  </message>
+  <message name="IDS_OFFICE_CLOUD_PROVIDER_GOOGLE_DRIVE" desc="Cloud provider name for Google Drive.">
+    Google Drive
+  </message>
+  <message name="IDS_OFFICE_CLOUD_PROVIDER_GOOGLE_DRIVE_SHORT" desc="Short name for Google Drive.">
+    Drive
+  </message>
+
+  <!-- Office notification -->
+  <message name="IDS_OFFICE_NOTIFICATION_MOVING_FILES" desc="Title for a notification indicating that files are in the process of moving to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Moving 1 file to <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph>}
+      other {Moving {NUM_OF_FILES} files to <ph name="CLOUD_PROVIDER">{1}<ex>Google Drive</ex></ph>}}
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_FILES_MOVED" desc="Title for a notification indicating that files are already moved to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Moved 1 file}
+      other {Moved {NUM_OF_FILES} files}}
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_COPYING_FILES" desc="Title for a notification indicating that files are in the process of copying to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Copying 1 file to <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph>}
+      other {Copying {NUM_OF_FILES} files to <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph>}}
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_FILES_COPIED" desc="Title for a notification indicating that files are already copied to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Copied 1 file}
+      other {Copied {NUM_OF_FILES} files}}
+  </message>
+  <!-- TODO(b/272601262) Display or delete this message. -->
+  <message name="IDS_OFFICE_NOTIFICATION_FILES_WILL_OPEN" desc="Subtitle for a notification indicating that files will open in Microsoft 365 or Google Docs/Sheets/Slides." translateable="false">
+    {NUM_OF_FILES, plural,
+      =1 {File will open in <ph name="TARGET_APP">{1}<ex>Microsoft 365</ex></ph>}
+      other {Files will open in <ph name="TARGET_APP">{1}<ex>Google Docs</ex></ph>}}
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_FILES_OPENING" desc="Subtitle for a notification indicating that files is opening in Microsoft 365 or Google Docs/Sheets/Slides.">
+    Opening in <ph name="TARGET_APP">$1<ex>Microsoft 365</ex></ph>
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_SHOW_IN_FOLDER_BUTTON" desc="Text for a button in the office notification which allows the user to see the file in the Files folder after clicking.">
+    Show in folder
+  </message>
+  <message name="IDS_OFFICE_NOTIFICATION_SIGN_IN_BUTTON" desc="Text for a button in the office notification which allows the user to sign in when reauthentication is needed.">
+    Sign in
+  </message>
+
+  <!-- Office upload errors -->
+  <message name="IDS_OFFICE_UPLOAD_ERROR_CANT_MOVE_FILES" desc="Error message for uploading office files indicating that the files cannot be moved to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Can't move file to <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph>}
+      other {Can't move files to <ph name="CLOUD_PROVIDER">{1}<ex>Google Drive</ex></ph>}}
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_CANT_COPY_FILES" desc="Error message for uploading office files indicating that files cannot be copied to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Can't copy file to <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph>}
+      other {Can't copy files to <ph name="CLOUD_PROVIDER">{1}<ex>Google Drive</ex></ph>}}
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_FREE_UP_SPACE_TO_MOVE" desc="Error message for uploading office files indicating that the user needs to free up space before moving files to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Free up space in <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph> to move this file}
+      other {Free up space in <ph name="CLOUD_PROVIDER">{1}<ex>Google Drive</ex></ph> to move these files}}
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_FREE_UP_SPACE_TO_COPY" desc="Error message for uploading office files indicating that the user needs to free up space before copying files to OneDrive/Google Drive.">
+    {NUM_OF_FILES, plural,
+      =1 {Free up space in <ph name="CLOUD_PROVIDER">{1}<ex>Microsoft OneDrive</ex></ph> to copy this file}
+      other {Free up space in <ph name="CLOUD_PROVIDER">{1}<ex>Google Drive</ex></ph> to copy these files}}
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_FILE_NOT_EXIST_TO_MOVE" desc="Error message for uploading office files indicating that the file does not exist so it cannot be moved.">
+    The file can't be moved because it no longer exists
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_FILE_NOT_EXIST_TO_COPY" desc="Error message for uploading office files indicating that the file does not exist so it cannot be copied.">
+    The file can't be copied because it no longer exists
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_GENERIC" desc="Generic error message for uploading office files.">
+    Something went wrong. Try again.
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_REAUTHENTICATION_REQUIRED" desc="Error message for uploading office files indicating that the needs to sign in to Microsoft first before uploading the files.">
+    Sign in to your Microsoft account and then try again
+  </message>
+  <message name="IDS_OFFICE_UPLOAD_ERROR_CANT_OPEN_FILE" desc="Error message for uploading office files indicating that file cannot be open.">
+    {NUM_OF_FILES, plural,
+      =1 {Can't open file}
+      other {Can't open files}}
   </message>
 
   <!-- security curtain -->
@@ -6703,6 +7263,71 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   </message>
   <message name="IDS_SECURITY_CURTAIN_DESCRIPTION" desc="Detailed description displayed to inform the user a remote admin has taken control of the ChromeOs device.">
     Your administrator has logged in to look into an issue. You can continue to use the device after the administrator gives the control back to you.
+  </message>
+
+  <!-- Gaia Info -->
+  <message name="IDS_GAIA_INFO_TITLE" desc="Title of the Gaia Info screen.">
+    Use your Google Account on your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
+  </message>
+  <message name="IDS_GAIA_INFO_DESCRIPTION" desc="Description of the Gaia Info screen.">
+    Your Google Account is the same account you use for Gmail, YouTube, Chrome, and other Google products.
+    Use your account to easily access all of your bookmarks, files, and more. If you don't have an account, you can create one on the next screen.
+  </message>
+
+  <!-- Floating Workspace -->
+  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_TITLE" desc="Title of Floating Workspace notification when there is no network connection.">
+    Can't resume session
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_MESSAGE" desc="Message for Floating Workspace notification when is no network connection.">
+    ChromeOS can't resume your previous session due to a network problem. Connect to a stable network and retry.
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_BUTTON" desc="Button to show network settings for Floating Workspace notification when is no network connection.">
+    Network settings
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_TITLE" desc="Title of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
+    Resume previous session?
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_MESSAGE" desc="Message of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
+    You can resume your previous session while your current session remains active.
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_RESTORATION_BUTTON" desc="Button for restoration option of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
+    Resume
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_ERROR_TITLE" desc="Title for Floating Workspace notification when there is an sync service error or timeout.">
+    Can't resume previous session
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_ERROR_MESSAGE" desc="Message for Floating Workspace notification when there is an sync service error or timeout.">
+    Something went wrong. Open the windows manually instead.
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_DISPLAY_SOURCE" desc="This is the string shown as the display source of the notification to notify user about floating workspace status.">
+    ChromeOS
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_PROGRESS_BAR_TITLE" desc="Title of the floating workspace notification progress bar status.">
+    Resuming Session
+  </message>
+  <message name="IDS_FLOATING_WORKSPACE_PROGRESS_BAR_MESSAGE" desc="Message for floating workspace notification progress bar status.">
+    Opening windows from your previous device
+  </message>
+
+  <!-- Shortcut Removal Dialog -->
+  <message name="IDS_PROMP_SHORTCUT_REMOVAL_TITLE"
+    desc="Title text for remove a shortcut in its host app. Example: 'Remove Fortnite - GeForce Now shortcut?'">
+    Remove "<ph name="SHORTCUT_NAME">$1<ex>Fortnite</ex></ph> - <ph name="APP_NAME">$2<ex>GeForce Now</ex></ph>" shortcut?
+  </message>
+  <message name="IDS_PROMP_REMOVE_SHORTCUT_BUTTON"
+    desc="Text for the remove button on the shortcut removal prompt">
+    Remove
+  </message>
+
+  <!-- Remote activity notification dialog -->
+  <message name="IDS_REMOTE_ACTIVITY_NOTIFICATION_TITLE" desc="Title text displayed to inform the user a remote admin had taken control of the ChromeOS device for maintenance.">
+    Maintenance is done
+  </message>
+  <message name="IDS_REMOTE_ACTIVITY_NOTIFICATION_DESCRIPTION" desc="Detailed description displayed to inform the user a remote admin had taken control of the ChromeOS device for maintenance.">
+    Your administrator has logged out. You're in control now.
+  </message>
+  <message name="IDS_REMOTE_ACTIVITY_NOTIFICATION_BUTTON_LABEL" desc="Button label for describing that the device is available for use and user can click on the button to remove the full screen notification.">
+    Continue to use the device
   </message>
 
 </grit-part>

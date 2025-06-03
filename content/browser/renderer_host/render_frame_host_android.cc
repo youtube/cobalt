@@ -13,8 +13,9 @@
 #include "base/android/unguessable_token_android.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/json/json_writer.h"
 #include "content/browser/bad_message.h"
-#include "content/browser/renderer_host/close_listener_host.h"
+#include "content/browser/closewatcher/close_listener_host.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/android/content_jni_headers/RenderFrameHostImpl_jni.h"
@@ -49,6 +50,17 @@ void OnGetCanonicalUrlForSharing(
 
   base::android::RunObjectCallbackAndroid(
       jcallback, url::GURLAndroid::FromNativeGURL(env, url.value()));
+}
+
+void JavaScriptResultCallback(
+    const base::android::ScopedJavaGlobalRef<jobject>& callback,
+    base::Value result) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::string json;
+  base::JSONWriter::Write(result, &json);
+  base::android::ScopedJavaLocalRef<jstring> j_json =
+      ConvertUTF8ToJavaString(env, json);
+  Java_RenderFrameHostImpl_onEvaluateJavaScriptResult(env, j_json, callback);
 }
 
 }  // namespace
@@ -113,7 +125,7 @@ ScopedJavaLocalRef<jobject> RenderFrameHostAndroid::GetLastCommittedURL(
 ScopedJavaLocalRef<jobject> RenderFrameHostAndroid::GetLastCommittedOrigin(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj) {
-  return render_frame_host_->GetLastCommittedOrigin().CreateJavaObject();
+  return render_frame_host_->GetLastCommittedOrigin().ToJavaObject();
 }
 
 void RenderFrameHostAndroid::GetCanonicalUrlForSharing(
@@ -162,6 +174,20 @@ void RenderFrameHostAndroid::NotifyUserActivation(
     const base::android::JavaParamRef<jobject>&) {
   render_frame_host_->GetAssociatedLocalFrame()->NotifyUserActivation(
       blink::mojom::UserActivationNotificationType::kVoiceSearch);
+}
+
+void RenderFrameHostAndroid::NotifyWebAuthnAssertionRequestSucceeded(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>&) {
+  render_frame_host_->WebAuthnAssertionRequestSucceeded();
+}
+
+jboolean RenderFrameHostAndroid::IsCloseWatcherActive(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>&) const {
+  auto* close_listener_host =
+      CloseListenerHost::GetOrCreateForCurrentDocument(render_frame_host_);
+  return close_listener_host->IsActive();
 }
 
 jboolean RenderFrameHostAndroid::SignalCloseWatcherIfActive(
@@ -238,6 +264,26 @@ jint RenderFrameHostAndroid::GetLifecycleState(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>&) const {
   return static_cast<jint>(render_frame_host_->GetLifecycleState());
+}
+
+void RenderFrameHostAndroid::ExecuteJavaScriptInIsolatedWorld(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& jscript,
+    jint jworldId,
+    const base::android::JavaParamRef<jobject>& jcallback) {
+  if (!jcallback) {
+    render_frame_host()->ExecuteJavaScriptInIsolatedWorld(
+        ConvertJavaStringToUTF16(env, jscript), base::DoNothing(), jworldId);
+    return;
+  }
+  // Secure the Java callback in a scoped object and give ownership of it to the
+  // base::OnceCallback below.
+  base::android::ScopedJavaGlobalRef<jobject> java_callback;
+  java_callback.Reset(env, jcallback);
+
+  render_frame_host()->ExecuteJavaScriptInIsolatedWorld(
+      ConvertJavaStringToUTF16(env, jscript),
+      base::BindOnce(&JavaScriptResultCallback, java_callback), jworldId);
 }
 
 void RenderFrameHostAndroid::InsertVisualStateCallback(

@@ -7,12 +7,13 @@ package org.chromium.chrome.browser.privacy_guide;
 import android.content.Context;
 import android.content.Intent;
 
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridge;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingState;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridge;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.components.content_settings.CookieControlsMode;
 import org.chromium.components.content_settings.PrefNames;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -27,29 +28,31 @@ import java.util.Set;
  * PrivacyGuideFragment.FragmentType}s.
  */
 class PrivacyGuideUtils {
-    static boolean isMsbbEnabled() {
-        return UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionEnabled(
-                Profile.getLastUsedRegularProfile());
+    static boolean isMsbbEnabled(Profile profile) {
+        return UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionEnabled(profile);
     }
 
-    static boolean isHistorySyncEnabled() {
-        Set<Integer> syncTypes = SyncService.get().getSelectedTypes();
+    static boolean isHistorySyncEnabled(Profile profile) {
+        Set<Integer> syncTypes = SyncServiceFactory.getForProfile(profile).getSelectedTypes();
         return syncTypes.contains(UserSelectableType.HISTORY);
     }
 
-    static boolean isUserSignedIn() {
-        IdentityManager identityManager = IdentityServicesProvider.get().getIdentityManager(
-                Profile.getLastUsedRegularProfile());
+    static boolean isUserSignedIn(Profile profile) {
+        IdentityManager identityManager =
+                IdentityServicesProvider.get().getIdentityManager(profile);
         return identityManager.hasPrimaryAccount(ConsentLevel.SIGNIN);
+    }
+
+    static boolean isSearchSuggestionsEnabled(Profile profile) {
+        return UserPrefs.get(profile).getBoolean(Pref.SEARCH_SUGGEST_ENABLED);
     }
 
     static @SafeBrowsingState int getSafeBrowsingState() {
         return SafeBrowsingBridge.getSafeBrowsingState();
     }
 
-    static @CookieControlsMode int getCookieControlsMode() {
-        return UserPrefs.get(Profile.getLastUsedRegularProfile())
-                .getInteger(PrefNames.COOKIE_CONTROLS_MODE);
+    static @CookieControlsMode int getCookieControlsMode(Profile profile) {
+        return UserPrefs.get(profile).getInteger(PrefNames.COOKIE_CONTROLS_MODE);
     }
 
     /**

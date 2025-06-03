@@ -21,7 +21,6 @@
 #include <string>
 #include <utility>
 
-#include "base/base64.h"
 #include "base/command_line.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -31,7 +30,6 @@
 #include "base/hash/md5.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
@@ -43,13 +41,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/values.h"
-#include "base/win/access_token.h"
 #include "base/win/default_apps_util.h"
-#include "base/win/pe_image.h"
 #include "base/win/registry.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/shortcut.h"
-#include "base/win/sid.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "chrome/common/chrome_constants.h"
@@ -96,8 +91,6 @@ enum RegistrationConfirmationLevel {
 
 const wchar_t kReinstallCommand[] = L"ReinstallCommand";
 
-constexpr wchar_t kRegHash[] = L"Hash";
-
 const wchar_t kRegProgId[] = L"ProgId";
 
 const wchar_t kFilePathSeparator[] = L"\\";
@@ -106,25 +99,31 @@ const wchar_t kFileHandlerProgIds[] = L"FileHandlerProgIds";
 
 const wchar_t kFileExtensions[] = L"FileExtensions";
 
-// Returns the current (or installed) browser's ProgId (e.g.
-// "ChromeHTML|suffix|").
-// |suffix| can be the empty string.
-std::wstring GetBrowserProgId(const std::wstring& suffix) {
-  std::wstring chrome_html =
-      base::StrCat({install_static::GetProgIdPrefix(), suffix});
-
-  // ProgIds cannot be longer than 39 characters.
-  // Ref: http://msdn.microsoft.com/en-us/library/aa911706.aspx.
-  // Make all new registrations comply with this requirement (existing
-  // registrations must be preserved).
+// ProgIds cannot be longer than 39 characters.
+// Ref: http://msdn.microsoft.com/en-us/library/aa911706.aspx.
+// Make all new registrations comply with this requirement (existing
+// registrations must be preserved).
+std::wstring LegalizeNewProgId(std::wstring prog_id,
+                               const std::wstring suffix) {
   std::wstring new_style_suffix;
   if (ShellUtil::GetUserSpecificRegistrySuffix(&new_style_suffix) &&
-      suffix == new_style_suffix && chrome_html.length() > 39) {
+      suffix == new_style_suffix && prog_id.length() > 39) {
     NOTREACHED();
-    chrome_html.erase(39);
+    prog_id.erase(39);
   }
-  return chrome_html;
+  return prog_id;
 }
+
+// Returns the current (or installed) browser's ProgId (e.g.
+// "ChromeHTML|suffix|").
+// suffix| can be the empty string.
+std::wstring GetBrowserProgId(const std::wstring& suffix) {
+  return LegalizeNewProgId(
+      base::StrCat({install_static::GetBrowserProgIdPrefix(), suffix}), suffix);
+}
+
+// TODO(https://crbug.com/414141): Add method to get the PDF viewer's ProgId,
+// which will also require LegalizeNewProgId.
 
 // Returns the browser's application name. This application name will be
 // suffixed as is appropriate for the current install. This is the name that is
@@ -335,20 +334,19 @@ void GetProgIdEntries(const ShellUtil::ApplicationInfo& app_info,
 }
 
 // This method returns a list of all the registry entries that are needed to
-// register this installation's ProgId and AppId. These entries need to be
-// registered in HKLM prior to Win8.
+// register this installation's ProgIds and AppId.
 void GetChromeProgIdEntries(
     const base::FilePath& chrome_exe,
     const std::wstring& suffix,
     std::vector<std::unique_ptr<RegistryEntry>>* entries) {
-  int chrome_icon_index = install_static::GetIconResourceIndex();
+  int chrome_html_icon_index = install_static::GetHTMLIconResourceIndex();
 
   ShellUtil::ApplicationInfo app_info;
   app_info.prog_id = GetBrowserProgId(suffix);
-  app_info.file_type_name = install_static::GetProgIdDescription();
+  app_info.file_type_name = install_static::GetBrowserProgIdDescription();
   // File types associated with Chrome are just given the Chrome icon.
   app_info.file_type_icon_path = chrome_exe;
-  app_info.file_type_icon_index = chrome_icon_index;
+  app_info.file_type_icon_index = chrome_html_icon_index;
   app_info.command_line = ShellUtil::GetChromeShellOpenCmd(chrome_exe);
   // For user-level installs: entries for the app id will be in HKCU; thus we
   // do not need a suffix on those entries.
@@ -359,7 +357,7 @@ void GetChromeProgIdEntries(
   // resource for name, description, and company.
   app_info.application_name = InstallUtil::GetDisplayName();
   app_info.application_icon_path = chrome_exe;
-  app_info.application_icon_index = chrome_icon_index;
+  app_info.application_icon_index = chrome_html_icon_index;
   app_info.application_description = InstallUtil::GetAppDescription();
   app_info.publisher_name = InstallUtil::GetPublisherName();
   app_info.delegate_clsid = install_static::GetLegacyCommandExecuteImplClsid();
@@ -395,15 +393,14 @@ void GetProtocolCapabilityEntries(
 
 // This method returns a list of the registry entries required to register this
 // installation in "RegisteredApplications" on Windows (to appear in Default
-// Programs, StartMenuInternet, etc.). These entries need to be registered in
-// HKLM prior to Win8. If |suffix| is not empty, these entries are guaranteed to
-// be unique on this machine.
+// Programs, StartMenuInternet, etc.). If `suffix` is not empty, these entries
+// are guaranteed to be unique on this machine.
 void GetShellIntegrationEntries(
     const base::FilePath& chrome_exe,
     const std::wstring& suffix,
     std::vector<std::unique_ptr<RegistryEntry>>* entries) {
   const std::wstring icon_path(ShellUtil::FormatIconLocation(
-      chrome_exe, install_static::GetIconResourceIndex()));
+      chrome_exe, install_static::GetAppIconResourceIndex()));
   const std::wstring quoted_exe_path(L"\"" + chrome_exe.value() + L"\"");
 
   // Register for the Start Menu "Internet" link (pre-Win7).
@@ -597,7 +594,7 @@ void GetXPStyleDefaultBrowserUserEntries(
   // Protocols associations.
   std::wstring chrome_open = ShellUtil::GetChromeShellOpenCmd(chrome_exe);
   std::wstring chrome_icon = ShellUtil::FormatIconLocation(
-      chrome_exe, install_static::GetIconResourceIndex());
+      chrome_exe, install_static::GetAppIconResourceIndex());
   for (int i = 0; ShellUtil::kBrowserProtocolAssociations[i] != nullptr; i++) {
     GetXPStyleUserProtocolEntries(ShellUtil::kBrowserProtocolAssociations[i],
                                   chrome_icon, chrome_open, entries);
@@ -734,7 +731,7 @@ bool QuickIsChromeRegisteredForMode(
     case CONFIRM_PROGID_REGISTRATION:
       // Software\Classes\ChromeHTML|suffix|
       reg_key = base::StrCat({ShellUtil::kRegClasses, kFilePathSeparator,
-                              mode.prog_id_prefix, suffix});
+                              mode.browser_prog_id_prefix, suffix});
       break;
     case CONFIRM_SHELL_REGISTRATION:
     case CONFIRM_SHELL_REGISTRATION_IN_HKLM:
@@ -867,7 +864,7 @@ bool RegisterChromeAsDefaultProtocolClientXPStyle(
   std::vector<std::unique_ptr<RegistryEntry>> entries;
   const std::wstring chrome_open(ShellUtil::GetChromeShellOpenCmd(chrome_exe));
   const std::wstring chrome_icon(ShellUtil::FormatIconLocation(
-      chrome_exe, install_static::GetIconResourceIndex()));
+      chrome_exe, install_static::GetAppIconResourceIndex()));
   GetXPStyleUserProtocolEntries(protocol, chrome_icon, chrome_open, &entries);
   // Change the default protocol handler for current user.
   if (!ShellUtil::AddRegistryEntries(HKEY_CURRENT_USER, entries)) {
@@ -981,7 +978,7 @@ ShellUtil::DefaultState ProbeCurrentDefaultHandlers(
 
   // Get the ProgID for the current install mode.
   std::wstring prog_id =
-      base::StrCat({install_static::GetProgIdPrefix(),
+      base::StrCat({install_static::GetBrowserProgIdPrefix(),
                     ShellUtil::GetCurrentInstallationSuffix(chrome_exe)});
 
   const int current_install_mode_index =
@@ -1005,7 +1002,7 @@ ShellUtil::DefaultState ProbeCurrentDefaultHandlers(
          current_app_len](const install_static::InstallConstants& mode) {
           if (mode.index == current_install_mode_index)
             return false;
-          const std::wstring mode_prog_id_prefix(mode.prog_id_prefix);
+          const std::wstring mode_prog_id_prefix(mode.browser_prog_id_prefix);
           // Does the current app either match this mode's ProgID or contain
           // this mode's ProgID as a prefix followed by the '.' separator for a
           // per-user install's suffix?
@@ -1169,16 +1166,15 @@ bool ShortcutOpListOrRemoveUnknownArgs(
   if (!base::win::ResolveShortcut(shortcut_path, nullptr, &args))
     return false;
 
-  base::CommandLine current_args(base::CommandLine::FromString(
-      base::StringPrintf(L"unused_program %ls", args.c_str())));
+  base::CommandLine current_args(
+      base::CommandLine::FromString(L"unused_program " + args));
   const char* const kept_switches[] = {
       switches::kApp,
       switches::kAppId,
       switches::kProfileDirectory,
   };
   base::CommandLine desired_args(base::CommandLine::NO_PROGRAM);
-  desired_args.CopySwitchesFrom(current_args, kept_switches,
-                                std::size(kept_switches));
+  desired_args.CopySwitchesFrom(current_args, kept_switches);
   if (desired_args.argv().size() == current_args.argv().size())
     return true;
   if (shortcuts)
@@ -1292,12 +1288,9 @@ std::wstring ShortenAppModelIdComponent(const std::wstring& component,
 // Gets the registry entry which stores the default handler for |protocol|.
 std::unique_ptr<RegistryEntry> GetProtocolUserChoiceEntry(
     const std::wstring& protocol) {
-  static constexpr wchar_t kUrlAssociationFormat[] =
-      L"SOFTWARE\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\"
-      L"%ls\\UserChoice";
-
-  std::wstring user_choice_path =
-      base::StringPrintf(kUrlAssociationFormat, protocol.c_str());
+  std::wstring user_choice_path = base::StrCat(
+      {L"SOFTWARE\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\",
+       protocol, L"\\UserChoice"});
   return std::make_unique<RegistryEntry>(user_choice_path.c_str(), kRegProgId);
 }
 
@@ -1505,216 +1498,6 @@ bool DeleteFileExtensionsForProgId(const std::wstring& prog_id) {
   return ShellUtil::DeleteApplicationClass(prog_id);
 }
 
-std::wstring GetSID() {
-  std::wstring result;
-  absl::optional<base::win::AccessToken> current_process =
-      base::win::AccessToken::FromProcess(GetCurrentProcess(), false);
-  if (!current_process)
-    return result;
-
-  absl::optional<std::wstring> sid = current_process->User().ToSddlString();
-  if (!sid)
-    return result;
-
-  result = std::move(*sid);
-  return result;
-}
-
-std::wstring GetCurrentDateTimeForHashing() {
-  SYSTEMTIME system_time;
-  ::GetSystemTime(&system_time);
-  // The user choice hash function uses the registry write time as an input into
-  // the hash function. Considering only time down to the minute significantly
-  // increases the chance that the computed hash and registry write time are the
-  // same. If the registry write occurs near a minute boundary, the hash will
-  // likely need to be recomputed and rewritten.
-  system_time.wSecond = 0;
-  system_time.wMilliseconds = 0;
-  FILETIME file_time;
-  ::SystemTimeToFileTime(&system_time, &file_time);
-  return base::StringPrintf(L"%08lx%08lx", file_time.dwHighDateTime,
-                            file_time.dwLowDateTime);
-}
-
-// The user choice hash function uses a shell32 wide string as a salt. This
-// function attempts to extract that string.
-std::wstring GetShellUserChoiceSalt() {
-  std::wstring result;
-  HMODULE shell32 = GetModuleHandle(L"shell32.dll");
-  if (!shell32)
-    return result;
-
-  base::win::PEImage shell32_image(shell32);
-  IMAGE_SECTION_HEADER* data_section_header =
-      shell32_image.GetImageSectionHeaderByName(".rdata");
-  if (!data_section_header)
-    data_section_header = shell32_image.GetImageSectionHeaderByName(".text");
-
-  if (!data_section_header)
-    return result;
-
-  base::span<const uint8_t> data_section(
-      reinterpret_cast<const uint8_t*>(
-          shell32_image.RVAToAddr(data_section_header->VirtualAddress)),
-      data_section_header->SizeOfRawData);
-  static constexpr base::WStringPiece kSaltSubstring(
-      L"User Choice set via Windows User Experience");
-  base::span<const uint8_t> subsalt_span(
-      reinterpret_cast<const uint8_t*>(kSaltSubstring.data()),
-      kSaltSubstring.size() * sizeof(decltype(kSaltSubstring)::value_type));
-  auto salt_start = base::ranges::search(data_section, subsalt_span);
-  if (salt_start == data_section.end())
-    return result;
-
-  static constexpr wchar_t kBracket = L'}';
-  base::span<const uint8_t> bracket_span(
-      reinterpret_cast<const uint8_t*>(&kBracket), sizeof(kBracket));
-  // The salt string is currently not expected to be longer than 256 bytes.
-  // It could be shorter, and so the bracket helps find the end of the string.
-  auto salt_end_limited = salt_start + 256;
-  auto salt_end =
-      std::search(salt_start + subsalt_span.size(), salt_end_limited,
-                  bracket_span.begin(), bracket_span.end());
-  if (salt_end == salt_end_limited)
-    return result;
-
-  const size_t string_size = salt_end - salt_start + sizeof(kBracket);
-  result.assign(reinterpret_cast<const wchar_t*>(&*salt_start),
-                string_size / sizeof(wchar_t));
-  return result;
-}
-
-std::array<uint32_t, 4> ComputeHash(base::span<const uint8_t> input) {
-  const size_t items = input.size() / sizeof(uint32_t);
-  const size_t items_block_aligned = items - (items & 1);
-  base::span<const uint32_t> input_32(
-      reinterpret_cast<const uint32_t*>(input.data()), items_block_aligned);
-
-  base::MD5Digest md5_digest;
-  MD5Sum(input.data(), input.size_bytes(), &md5_digest);
-  uint32_t md5[2];
-  memcpy(md5, md5_digest.a, sizeof(md5));
-
-  std::array<uint32_t, 4> result{};
-
-  const uint32_t md5_0 = (md5[0] | 1) + 0x69FB0000;
-  const uint32_t md5_1 = (md5[1] | 1) + 0x13DB0000;
-  const uint32_t md5_2 = md5[0] | 1;
-  const uint32_t md5_3 = md5[1] | 1;
-  size_t length = input_32.size();
-  uint32_t part_1 = 0;
-  uint32_t part_2 = 0;
-  for (size_t pos = 0; pos < length; ++pos) {
-    if (pos & 1) {
-      const uint32_t prev_part_1 = part_1;
-      part_1 = input_32[pos] + prev_part_1;
-      part_1 = part_1 * md5_1 - 0x3CE8EC25 * (part_1 >> 16);
-      part_1 = 0x59C3AF2D * part_1 - 0x2232E0F1 * (part_1 >> 16);
-      result[0] = 0x1EC90001 * part_1 + 0x35BD1EC9 * (part_1 >> 16);
-      result[1] = result[0] + prev_part_1 + result[1];
-
-      const uint32_t prev_part_2 = part_2;
-      part_2 = input_32[pos] + prev_part_2;
-      part_2 = md5_3 * part_2;
-      part_2 = 0x16F50000 * part_2 + 0xA27416F5 * (part_2 >> 16);
-      part_2 = 0x96FF0000 * part_2 + 0xD38396FF * (part_2 >> 16);
-      part_2 = 0x2B890000 * part_2 + 0x7C932B89 * (part_2 >> 16);
-      result[2] = 0x9F690000 * part_2 + 0xBFA49F69 * (part_2 >> 16);
-      result[3] = result[2] + prev_part_2 + result[3];
-    } else {
-      part_1 = input_32[pos] + result[0];
-      part_1 = part_1 * md5_0 - 0x10FA9605 * (part_1 >> 16);
-      part_1 = 0x79F8A395 * part_1 + 0x689B6B9F * (part_1 >> 16);
-      part_1 = 0xEA970001 * part_1 - 0x3C101569 * (part_1 >> 16);
-      part_2 = md5_2 * (input_32[pos] + result[2]);
-      part_2 = 0xB1110000 * part_2 + 0xCF98B111 * (part_2 >> 16);
-      part_2 = 0x5B9F0000 * part_2 + 0x87085B9F * (part_2 >> 16);
-      part_2 = 0xB96D0000 * part_2 + 0x12CEB96D * (part_2 >> 16);
-      part_2 = 0x1D830000 * part_2 + 0x257E1D83 * (part_2 >> 16);
-    }
-  }
-
-  return result;
-}
-
-std::wstring ComputeUserChoiceHash(const std::wstring& extension,
-                                   const std::wstring& sid,
-                                   const std::wstring& prog_id,
-                                   const std::wstring& datetime,
-                                   const std::wstring& salt) {
-  std::wstring hash_input = base::ToLowerASCII(
-      base::StrCat({extension, sid, prog_id, datetime, salt}));
-  base::span<const uint8_t> hash_input_span(
-      reinterpret_cast<const uint8_t*>(hash_input.c_str()),
-      sizeof(decltype(hash_input)::value_type) * (hash_input.size() + 1));
-  std::array<uint32_t, 4> result = ComputeHash(hash_input_span);
-  uint32_t input[] = {result[0] ^ result[2], result[1] ^ result[3]};
-  return base::UTF8ToWide(base::Base64Encode(
-      base::span<uint8_t>(reinterpret_cast<uint8_t*>(input), sizeof(input))));
-}
-
-bool IsUserChoiceHashValid(
-    const base::win::ExportDerivedRegKey& user_choice_reg_key,
-    const std::wstring& extension,
-    const std::wstring& sid,
-    const std::wstring& prog_id,
-    const std::wstring& salt) {
-  // Manually validate the hash instead of using
-  // IApplicationAssociationRegistration because
-  // IApplicationAssociationRegistration may trigger a UI notification and reset
-  // all of the defaults upon encountering an invalid hash.
-  FILETIME last_write_time = user_choice_reg_key.GetLastWriteTime();
-  SYSTEMTIME last_write_system_time;
-  ::FileTimeToSystemTime(&last_write_time, &last_write_system_time);
-  // The hash computation aligns the time to minute boundaries.
-  last_write_system_time.wSecond = 0;
-  last_write_system_time.wMilliseconds = 0;
-  ::SystemTimeToFileTime(&last_write_system_time, &last_write_time);
-  std::wstring last_write_time_string =
-      base::StringPrintf(L"%08lx%08lx", last_write_time.dwHighDateTime,
-                         last_write_time.dwLowDateTime);
-  std::wstring current_hash;
-  if (user_choice_reg_key.ReadValue(kRegHash, &current_hash) != ERROR_SUCCESS)
-    return false;
-
-  std::wstring expected_hash = ComputeUserChoiceHash(
-      extension, sid, prog_id, last_write_time_string, salt);
-  return current_hash == expected_hash;
-}
-
-bool WriteUserChoiceValues(base::win::ExportDerivedRegKey& user_choice_reg_key,
-                           const std::wstring& extension,
-                           const std::wstring& sid,
-                           const std::wstring& prog_id,
-                           const std::wstring& salt) {
-  // Allow 5 retries in the event the hash is computed near a minute boundary.
-  for (int i = 0; i < 5; ++i) {
-    std::wstring datetime = GetCurrentDateTimeForHashing();
-    std::wstring hash =
-        ComputeUserChoiceHash(extension, sid, prog_id, datetime, salt);
-    user_choice_reg_key.WriteValue(kRegHash, hash.c_str());
-    user_choice_reg_key.WriteValue(kRegProgId, prog_id.c_str());
-    if (IsUserChoiceHashValid(user_choice_reg_key, extension, sid, prog_id,
-                              salt)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-enum class DirectSettingAttemptResult {
-  kSucceeded = 0,
-  kFailedSID = 1,
-  kFailedSalt = 2,
-  kFailedRegistrySet = 3,
-  kMaxValue = kFailedRegistrySet,
-};
-
-void ReportDirectSettingResult(DirectSettingAttemptResult result) {
-  base::UmaHistogramEnumeration("Windows.MakeChromeDefaultDirectly.Result",
-                                result);
-}
-
 }  // namespace
 
 const wchar_t* ShellUtil::kRegAppProtocolHandlers = L"\\AppProtocolHandlers";
@@ -1863,7 +1646,7 @@ void ShellUtil::AddDefaultShortcutProperties(const base::FilePath& target_exe,
     properties->set_target(target_exe);
 
   if (!properties->has_icon())
-    properties->set_icon(target_exe, install_static::GetIconResourceIndex());
+    properties->set_icon(target_exe, install_static::GetAppIconResourceIndex());
 
   if (!properties->has_app_id()) {
     properties->set_app_id(
@@ -2263,81 +2046,6 @@ bool ShellUtil::MakeChromeDefault(int shell_change,
   // file associations.
   SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
   return ret;
-}
-
-bool ShellUtil::MakeChromeDefaultDirectly(int shell_change,
-                                          const base::FilePath& chrome_exe,
-                                          bool elevate_if_not_admin) {
-  DCHECK(!(shell_change & SYSTEM_LEVEL) || IsUserAnAdmin());
-
-  if (!install_static::SupportsSetAsDefaultBrowser())
-    return false;
-
-  if (!RegisterChromeBrowser(chrome_exe, std::wstring(),
-                             elevate_if_not_admin)) {
-    return false;
-  }
-
-  std::wstring suffix;
-  if (!GetInstallationSpecificSuffix(chrome_exe, &suffix))
-    return false;
-
-  std::wstring prog_id = GetBrowserProgId(suffix);
-
-  std::wstring sid = GetSID();
-  if (sid.empty()) {
-    ReportDirectSettingResult(DirectSettingAttemptResult::kFailedSID);
-    return false;
-  }
-
-  std::wstring shell_salt = GetShellUserChoiceSalt();
-  if (shell_salt.empty()) {
-    ReportDirectSettingResult(DirectSettingAttemptResult::kFailedSalt);
-    return false;
-  }
-
-  base::win::ExportDerivedRegKey url_associations_key(
-      HKEY_CURRENT_USER,
-      L"SOFTWARE\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations",
-      KEY_READ | KEY_WRITE);
-  for (size_t i = 0; kBrowserProtocolAssociations[i] != nullptr; ++i) {
-    std::wstring subkey_path(
-        base::StrCat({kBrowserProtocolAssociations[i], L"\\UserChoice"}));
-    // Deleting the key works around the deny set value ACL on UserChoice.
-    url_associations_key.DeleteKey(subkey_path.c_str());
-    base::win::ExportDerivedRegKey key(url_associations_key.Handle(),
-                                       subkey_path.c_str(),
-                                       KEY_READ | KEY_WRITE);
-    if (!WriteUserChoiceValues(key, kBrowserProtocolAssociations[i], sid,
-                               prog_id, shell_salt)) {
-      ReportDirectSettingResult(DirectSettingAttemptResult::kFailedRegistrySet);
-      return false;
-    }
-  }
-
-  base::win::ExportDerivedRegKey file_extensions_key(
-      HKEY_CURRENT_USER,
-      L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts",
-      KEY_READ | KEY_WRITE);
-  for (size_t i = 0; kDefaultFileAssociations[i] != nullptr; ++i) {
-    std::wstring subkey_path(
-        base::StrCat({kDefaultFileAssociations[i], L"\\UserChoice"}));
-    // Deleting the key works around the deny set value ACL on UserChoice.
-    file_extensions_key.DeleteKey(subkey_path.c_str());
-    base::win::ExportDerivedRegKey key(file_extensions_key.Handle(),
-                                       subkey_path.c_str(),
-                                       KEY_READ | KEY_WRITE);
-    if (!WriteUserChoiceValues(key, kDefaultFileAssociations[i], sid, prog_id,
-                               shell_salt)) {
-      ReportDirectSettingResult(DirectSettingAttemptResult::kFailedRegistrySet);
-      return false;
-    }
-  }
-
-  ::SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
-
-  ReportDirectSettingResult(DirectSettingAttemptResult::kSucceeded);
-  return true;
 }
 
 // static
@@ -2991,33 +2699,4 @@ bool ShellUtil::AddRegistryEntries(
     return false;
   }
   return true;
-}
-
-// static
-std::array<uint32_t, 4> ShellUtil::ComputeHashForTesting(
-    base::span<const uint8_t> input) {
-  return ComputeHash(input);
-}
-
-// static
-std::wstring ShellUtil::ComputeUserChoiceHashForTesting(
-    const std::wstring& extension,
-    const std::wstring& sid,
-    const std::wstring& prog_id,
-    const std::wstring& datetime) {
-  std::wstring shell_salt = GetShellUserChoiceSalt();
-  if (shell_salt.empty())
-    return std::wstring();
-
-  return ComputeUserChoiceHash(extension, sid, prog_id, datetime, shell_salt);
-}
-
-// static
-std::wstring ShellUtil::GetCurrentProgIdForTesting(
-    const base::FilePath& chrome_exe) {
-  std::wstring suffix;
-  if (!GetInstallationSpecificSuffix(chrome_exe, &suffix))
-    return std::wstring();
-
-  return GetBrowserProgId(suffix);
 }

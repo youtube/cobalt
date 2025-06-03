@@ -4,11 +4,13 @@
 
 #include "chrome/browser/renderer_context_menu/pdf_ocr_menu_observer.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/renderer_context_menu/mock_render_view_context_menu.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/test/browser_test.h"
@@ -18,7 +20,7 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #else
-#include "content/public/browser/browser_accessibility_state.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace {
@@ -91,7 +93,7 @@ IN_PROC_BROWSER_TEST_F(PdfOcrMenuObserverTest,
   ash::AccessibilityManager::Get()->EnableSpokenFeedback(true);
 #else
   // Spoof a screen reader.
-  content::testing::ScopedContentAXModeSetter scoped_accessibility_mode(
+  content::ScopedAccessibilityModeOverride scoped_accessibility_mode(
       ui::AXMode::kScreenReader);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   menu()->GetPrefs()->SetBoolean(prefs::kAccessibilityPdfOcrAlwaysActive,
@@ -99,7 +101,7 @@ IN_PROC_BROWSER_TEST_F(PdfOcrMenuObserverTest,
   InitMenu();
 
   // Shows but is not checked.
-  ASSERT_EQ(3u, menu()->GetMenuSize());
+  EXPECT_EQ(1u, menu()->GetMenuSize());
   MockRenderViewContextMenu::MockMenuItem item;
   menu()->GetMenuItem(0, &item);
   EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR, item.command_id);
@@ -107,27 +109,79 @@ IN_PROC_BROWSER_TEST_F(PdfOcrMenuObserverTest,
   EXPECT_FALSE(item.checked);
   EXPECT_FALSE(item.hidden);
 
-  // The submenu items exist.
-  menu()->GetMenuItem(1, &item);
-  EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR_ALWAYS, item.command_id);
-  EXPECT_TRUE(item.enabled);
-  EXPECT_FALSE(item.checked);
-  EXPECT_FALSE(item.hidden);
-  menu()->GetMenuItem(2, &item);
-  EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR_ONCE, item.command_id);
-  EXPECT_TRUE(item.enabled);
-  EXPECT_FALSE(item.checked);
-  EXPECT_FALSE(item.hidden);
-
   Reset(false);
-  // Shows and is checked when a screen reader and the setting are both on.
+  // Shows and is checked when a screen reader and PDF OCR are both on.
   menu()->GetPrefs()->SetBoolean(prefs::kAccessibilityPdfOcrAlwaysActive, true);
   InitMenu();
 
-  ASSERT_EQ(1u, menu()->GetMenuSize());
+  EXPECT_EQ(1u, menu()->GetMenuSize());
   menu()->GetMenuItem(0, &item);
   EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR, item.command_id);
   EXPECT_TRUE(item.enabled);
   EXPECT_TRUE(item.checked);
   EXPECT_FALSE(item.hidden);
+}
+
+IN_PROC_BROWSER_TEST_F(PdfOcrMenuObserverTest,
+                       CheckUmaWhenTurnOnPdfOcrFromContextMenu) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // Enable Chromevox.
+  ash::AccessibilityManager::Get()->EnableSpokenFeedback(true);
+#else
+  // Spoof a screen reader.
+  content::ScopedAccessibilityModeOverride scoped_accessibility_mode(
+      ui::AXMode::kScreenReader);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+  menu()->GetPrefs()->SetBoolean(prefs::kAccessibilityPdfOcrAlwaysActive,
+                                 false);
+  InitMenu();
+  EXPECT_EQ(1u, menu()->GetMenuSize());
+
+  // Get the PDF OCR menu item.
+  MockRenderViewContextMenu::MockMenuItem item;
+  menu()->GetMenuItem(0, &item);
+  EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR, item.command_id);
+  EXPECT_FALSE(item.checked);
+
+  // Turn on PDF OCR.
+  base::HistogramTester histograms;
+  menu()->ExecuteCommand(item.command_id, 0);
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample(
+      "Accessibility.PdfOcr.UserSelection",
+      PdfOcrUserSelection::kTurnOnAlwaysFromContextMenu,
+      /*expected_bucket_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(PdfOcrMenuObserverTest,
+                       CheckUmaWhenTurnOffPdfOcrFromContextMenu) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // Enable Chromevox.
+  ash::AccessibilityManager::Get()->EnableSpokenFeedback(true);
+#else
+  // Spoof a screen reader.
+  content::ScopedAccessibilityModeOverride scoped_accessibility_mode(
+      ui::AXMode::kScreenReader);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+  menu()->GetPrefs()->SetBoolean(prefs::kAccessibilityPdfOcrAlwaysActive, true);
+  InitMenu();
+  EXPECT_EQ(1u, menu()->GetMenuSize());
+
+  // Get the PDF OCR checked menu item.
+  MockRenderViewContextMenu::MockMenuItem item;
+  menu()->GetMenuItem(0, &item);
+  EXPECT_EQ(IDC_CONTENT_CONTEXT_PDF_OCR, item.command_id);
+  EXPECT_TRUE(item.checked);
+
+  // Turn off PDF OCR.
+  base::HistogramTester histograms;
+  menu()->ExecuteCommand(item.command_id, 0);
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample("Accessibility.PdfOcr.UserSelection",
+                                PdfOcrUserSelection::kTurnOffFromContextMenu,
+                                /*expected_bucket_count=*/1);
 }

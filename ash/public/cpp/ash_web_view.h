@@ -15,6 +15,9 @@ enum class WindowOpenDisposition;
 
 namespace ash {
 
+// Id to be used to get the wrapped web view using views::View::GetViewByID.
+inline constexpr int kAshWebViewChildWebViewId = 41;
+
 // A view which wraps a views::WebView (and associated WebContents) to work
 // around dependency restrictions in Ash.
 class ASH_PUBLIC_EXPORT AshWebView : public views::View {
@@ -51,6 +54,10 @@ class ASH_PUBLIC_EXPORT AshWebView : public views::View {
     // If enabled, AshWebView fixes its zoom level to 1 (100%) for this
     // AshWebView. This uses zoom level 1 regardless of default zoom level.
     bool fix_zoom_level_to_one = false;
+
+    // Enables AshWebView to hold wake locks, for example, to keep the screen on
+    // while playing video. Passed as an param to init WebContents.
+    bool enable_wake_locks = true;
   };
 
   // An observer which receives AshWebView events.
@@ -93,6 +100,12 @@ class ASH_PUBLIC_EXPORT AshWebView : public views::View {
 
   // Invoke to navigate the embedded WebContents' to |url|.
   virtual void Navigate(const GURL& url) = 0;
+
+  // See `WebContents::GetVisibleURL()`.
+  virtual const GURL& GetVisibleURL() = 0;
+
+  // See `RenderFrameHost::IsErrorDocument()`.
+  virtual bool IsErrorDocument() = 0;
 
  protected:
   AshWebView();

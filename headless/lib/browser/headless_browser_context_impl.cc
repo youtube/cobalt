@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/guid.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -377,6 +376,13 @@ HeadlessBrowserContext::Builder&
 HeadlessBrowserContext::Builder::SetUserDataDir(
     const base::FilePath& user_data_dir) {
   options_->user_data_dir_ = user_data_dir;
+  return *this;
+}
+
+HeadlessBrowserContext::Builder&
+HeadlessBrowserContext::Builder::SetDiskCacheDir(
+    const base::FilePath& disk_cache_dir) {
+  options_->disk_cache_dir_ = disk_cache_dir;
   return *this;
 }
 

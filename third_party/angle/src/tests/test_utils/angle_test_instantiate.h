@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common/platform.h"
+#include "common/platform_helpers.h"
 
 namespace angle
 {
@@ -20,14 +20,7 @@ struct SystemInfo;
 struct PlatformParameters;
 
 // Operating systems
-bool IsAndroid();
-bool IsLinux();
-bool IsOSX();
-bool IsIOS();
 bool IsOzone();
-bool IsWindows();
-bool IsWindows7();
-bool IsFuchsia();
 
 // CPU architectures
 bool IsARM64();
@@ -46,7 +39,7 @@ bool IsNVIDIAShield();
 // GPU vendors.
 bool IsIntel();
 bool IsAMD();
-bool IsApple();
+bool IsAppleGPU();
 bool IsARM();
 bool IsNVIDIA();
 bool IsQualcomm();
@@ -55,7 +48,6 @@ bool IsQualcomm();
 bool IsSwiftshaderDevice();
 bool IsIntelUHD630Mobile();
 
-bool Is64Bit();
 bool HasMesa();
 
 bool IsPlatformAvailable(const PlatformParameters &param);
@@ -127,37 +119,54 @@ struct CombinedPrintToStringParamName
 #    define ANGLE_TEST_PLATFORMS_ES1_SYSTEM_EGL
 #    define ANGLE_TEST_PLATFORMS_ES2_SYSTEM_EGL
 #    define ANGLE_TEST_PLATFORMS_ES3_SYSTEM_EGL
+#    define ANGLE_TEST_PLATFORMS_ES31_SYSTEM_EGL
+#    define ANGLE_TEST_PLATFORMS_ES32_SYSTEM_EGL
 #else
 #    define ANGLE_TEST_PLATFORMS_ES1_SYSTEM_EGL ES1_EGL(),
 #    define ANGLE_TEST_PLATFORMS_ES2_SYSTEM_EGL ES2_EGL(),
 #    define ANGLE_TEST_PLATFORMS_ES3_SYSTEM_EGL ES3_EGL(),
+#    define ANGLE_TEST_PLATFORMS_ES31_SYSTEM_EGL ES31_EGL(),
+#    define ANGLE_TEST_PLATFORMS_ES32_SYSTEM_EGL ES32_EGL(),
 #endif
 
 #define ANGLE_ALL_TEST_PLATFORMS_ES1                                                   \
     ANGLE_TEST_PLATFORMS_ES1_SYSTEM_EGL                                                \
     ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES(), ES1_VULKAN(), ES1_VULKAN_SWIFTSHADER(), \
         ES1_VULKAN().enable(Feature::AsyncCommandQueue),                               \
-        ES1_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue)
+        ES1_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue),                   \
+        ES1_VULKAN().enable(Feature::EnableParallelCompileAndLink)
 
 #define ANGLE_ALL_TEST_PLATFORMS_ES2                                                               \
     ANGLE_TEST_PLATFORMS_ES2_SYSTEM_EGL                                                            \
     ES2_D3D9(), ES2_D3D11(), ES2_OPENGL(), ES2_OPENGLES(), ES2_VULKAN(), ES2_VULKAN_SWIFTSHADER(), \
         ES2_METAL(), ES2_VULKAN().enable(Feature::AsyncCommandQueue),                              \
-        ES2_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue)
+        ES2_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue),                               \
+        ES2_VULKAN_SWIFTSHADER().enable(Feature::EnableParallelCompileAndLink),                    \
+        ES2_VULKAN_SWIFTSHADER()                                                                   \
+            .enable(Feature::EnableParallelCompileAndLink)                                         \
+            .enable(Feature::AsyncCommandQueue)
 
 #define ANGLE_ALL_TEST_PLATFORMS_ES3                                                   \
     ANGLE_TEST_PLATFORMS_ES3_SYSTEM_EGL                                                \
     ES3_D3D11(), ES3_OPENGL(), ES3_OPENGLES(), ES3_VULKAN(), ES3_VULKAN_SWIFTSHADER(), \
         ES3_METAL(), ES3_VULKAN().enable(Feature::AsyncCommandQueue),                  \
-        ES3_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue)
+        ES3_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue),                   \
+        ES3_VULKAN().enable(Feature::EnableParallelCompileAndLink),                    \
+        ES3_VULKAN_SWIFTSHADER().enable(Feature::EnableParallelCompileAndLink)
 
 #define ANGLE_ALL_TEST_PLATFORMS_ES31                                                       \
+    ANGLE_TEST_PLATFORMS_ES31_SYSTEM_EGL                                                    \
     ES31_D3D11(), ES31_OPENGL(), ES31_OPENGLES(), ES31_VULKAN(), ES31_VULKAN_SWIFTSHADER(), \
         ES31_VULKAN().enable(Feature::AsyncCommandQueue),                                   \
-        ES31_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue)
+        ES31_VULKAN_SWIFTSHADER().enable(Feature::AsyncCommandQueue),                       \
+        ES31_VULKAN_SWIFTSHADER().enable(Feature::EnableParallelCompileAndLink)
 
-#define ANGLE_ALL_TEST_PLATFORMS_ES32 \
-    ES32_VULKAN(), ES32_VULKAN().enable(Feature::AsyncCommandQueue)
+#define ANGLE_ALL_TEST_PLATFORMS_ES32                                \
+    ANGLE_TEST_PLATFORMS_ES32_SYSTEM_EGL                             \
+    ES32_VULKAN(), ES32_VULKAN().enable(Feature::AsyncCommandQueue), \
+        ES32_VULKAN()                                                \
+            .enable(Feature::AsyncCommandQueue)                      \
+            .enable(Feature::EnableParallelCompileAndLink)
 
 #define ANGLE_ALL_TEST_PLATFORMS_GL32_CORE GL32_CORE_VULKAN(), GL32_CORE_VULKAN_SWIFTSHADER()
 

@@ -25,8 +25,16 @@
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/process_manager.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/test/extension_background_page_waiter.h"
 #include "extensions/test/result_catcher.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
+#include "chrome/common/pref_names.h"
+#include "chrome/test/base/testing_profile.h"
+#endif
 
 namespace extensions {
 namespace {
@@ -60,6 +68,59 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingApiTestBase, UserLevelSendNativeMessage) {
   ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestHost(kUserLevel));
   ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message"));
 }
+
+#if BUILDFLAG(IS_WIN)
+// On Windows, a new codepath is used to directly launch .EXE-based Native
+// Hosts. This codepath allows launching of Native Hosts even when cmd.exe is
+// disabled or misconfigured.
+class NativeMessagingLaunchExeTest : public NativeMessagingApiTestBase,
+                                     public testing::WithParamInterface<bool> {
+ public:
+  NativeMessagingLaunchExeTest() {
+    feature_list_.InitWithFeatureState(
+        extensions_features::kLaunchWindowsNativeHostsDirectly,
+        IsDirectLaunchEnabled());
+  }
+
+  bool IsDirectLaunchEnabled() const { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(NativeMessagingLaunchExe,
+                         NativeMessagingLaunchExeTest,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       UserLevelSendNativeMessageWinExe) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_host.exe", /*user_level=*/true));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+// The Host's filename deliberately contains the character '&' which causes the
+// Host to fail to launch if cmd.exe is used as an intermediary between the
+// extension and the host executable, unless extra quotes are used.
+// crbug.com/335558
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       SendNativeMessageWinExeAmpersand) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+// Make sure that a filename with a space is supported.
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       SendNativeMessageWinExeSpace) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_ _host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+#endif
 
 class NativeMessagingApiTest : public NativeMessagingApiTestBase,
                                public testing::WithParamInterface<ContextType> {
@@ -435,6 +496,64 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchBackgroundModeApiTest,
 }
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_WIN)
+class NativeHostExecutablesLaunchDirectlyPolicyTest
+    : public extensions::NativeMessagingApiTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  NativeHostExecutablesLaunchDirectlyPolicyTest() {
+    feature_list_.InitWithFeatureState(
+        extensions_features::kLaunchWindowsNativeHostsDirectly,
+        IsDirectLaunchEnabled());
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    profile_ = std::make_unique<TestingProfile>();
+  }
+
+  void TearDownOnMainThread() override {
+    profile_.reset();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+
+  bool IsDirectLaunchEnabled() const { return GetParam(); }
+
+ protected:
+  extensions::ScopedTestNativeMessagingHost test_host_;
+  std::unique_ptr<TestingProfile> profile_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NativeHostExecutablesLaunchDirectlyPolicyTest,
+                       PolicyDisabledTest) {
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetBoolean(prefs::kNativeHostsExecutablesLaunchDirectly, true);
+
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+IN_PROC_BROWSER_TEST_P(NativeHostExecutablesLaunchDirectlyPolicyTest,
+                       PolicyEnabledTest) {
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetBoolean(prefs::kNativeHostsExecutablesLaunchDirectly, false);
+
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+INSTANTIATE_TEST_SUITE_P(NativeHostExecutablesLaunchDirectlyPolicyTestP,
+                         NativeHostExecutablesLaunchDirectlyPolicyTest,
+                         testing::Bool());
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace
 }  // namespace extensions

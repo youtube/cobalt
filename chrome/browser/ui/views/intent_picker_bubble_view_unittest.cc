@@ -14,9 +14,9 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/apps/intent_helper/apps_navigation_types.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_features.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_helpers.h"
+#include "chrome/browser/apps/link_capturing/intent_picker_info.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -61,7 +61,7 @@ using content::Referrer;
 class IntentPickerBubbleViewTest : public TestWithBrowserView {
  public:
   IntentPickerBubbleViewTest() {
-    feature_list_.InitAndDisableFeature(apps::features::kLinkCapturingUiUpdate);
+    apps::DisableLinkCapturingUXForTesting(feature_list_);
   }
 
   IntentPickerBubbleViewTest(const IntentPickerBubbleViewTest&) = delete;
@@ -98,18 +98,9 @@ class IntentPickerBubbleViewTest : public TestWithBrowserView {
                       ui::PAGE_TRANSITION_TYPED, false));
     CommitPendingLoad(&web_contents->GetController());
 
-    std::vector<AppInfo> app_info;
-
-    // AppInfo is move only. Manually create a new app_info array to pass into
-    // the bubble constructor.
-    for (const auto& app : app_info_) {
-      app_info.emplace_back(app.type, app.icon_model, app.launch_name,
-                            app.display_name);
-    }
-
     auto* widget = IntentPickerBubbleView::ShowBubble(
         anchor_view_, /*highlighted_button=*/nullptr, bubble_type, web_contents,
-        std::move(app_info), show_stay_in_chrome,
+        app_info_, show_stay_in_chrome,
         /*show_remember_selection=*/true, initiating_origin,
         base::BindOnce(&IntentPickerBubbleViewTest::OnBubbleClosed,
                        base::Unretained(this)));
@@ -149,7 +140,7 @@ class IntentPickerBubbleViewTest : public TestWithBrowserView {
   }
 
   views::LabelButton* GetLabelButtonAtIndex(size_t index) {
-    CHECK(!apps::features::LinkCapturingUiUpdateEnabled());
+    CHECK(!apps::features::ShouldShowLinkCapturingUX());
     return static_cast<views::LabelButton*>(GetButtonAtIndex(index));
   }
 
@@ -182,8 +173,8 @@ class IntentPickerBubbleViewTest : public TestWithBrowserView {
 
   base::test::ScopedFeatureList feature_list_;
 
-  raw_ptr<IntentPickerBubbleView> bubble_ = nullptr;
-  raw_ptr<views::View> anchor_view_;
+  raw_ptr<IntentPickerBubbleView, DanglingUntriaged> bubble_ = nullptr;
+  raw_ptr<views::View, DanglingUntriaged> anchor_view_;
   std::vector<AppInfo> app_info_;
   std::unique_ptr<ui::test::EventGenerator> event_generator_;
 
@@ -360,11 +351,9 @@ class IntentPickerBubbleViewLayoutTest
  public:
   IntentPickerBubbleViewLayoutTest() {
     if (GetParam() == BubbleInterfaceType::kGridView) {
-      feature_list_.InitAndEnableFeature(
-          apps::features::kLinkCapturingUiUpdate);
+      apps::EnableLinkCapturingUXForTesting(feature_list_);
     } else {
-      feature_list_.InitAndDisableFeature(
-          apps::features::kLinkCapturingUiUpdate);
+      apps::DisableLinkCapturingUXForTesting(feature_list_);
     }
   }
 
@@ -388,9 +377,10 @@ TEST_P(IntentPickerBubbleViewLayoutTest, RememberCheckbox) {
   ClickApp(0);
   ASSERT_FALSE(checkbox->GetEnabled());
 
-  // kWeb entries should allow persistence when PWA persistence is enabled.
+  // kWeb entries should allow persistence on CrOS. The checkbox does not pop up
+  // on non-ChromeOS platforms, and persistence results in a no-op behavior.
   ClickApp(1);
-  ASSERT_EQ(checkbox->GetEnabled(), apps::IntentPickerPwaPersistenceEnabled());
+  ASSERT_TRUE(checkbox->GetEnabled());
 
   // Other app types can be persisted.
   ClickApp(2);
@@ -513,9 +503,13 @@ INSTANTIATE_TEST_SUITE_P(All,
                                          BubbleInterfaceType::kGridView));
 
 class IntentPickerBubbleViewGridLayoutTest : public IntentPickerBubbleViewTest {
+ public:
+  IntentPickerBubbleViewGridLayoutTest() {
+    apps::EnableLinkCapturingUXForTesting(feature_list_);
+  }
+
  private:
-  base::test::ScopedFeatureList feature_list_{
-      apps::features::kLinkCapturingUiUpdate};
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(IntentPickerBubbleViewGridLayoutTest, DefaultSelectionOneApp) {

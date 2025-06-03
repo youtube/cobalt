@@ -14,15 +14,17 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.build.annotations.UsedByReflection;
 
 import java.net.InetAddress;
 
 /**
- * Class to evaluate PAC scripts.
+ * Class to evaluate PAC scripts. Its lifecycle is independent of
+ * any Renderer, Profile, or WebView instance.
  */
 @JNINamespace("android_webview")
 @RequiresApi(Build.VERSION_CODES.P)

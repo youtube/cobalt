@@ -17,7 +17,7 @@
 #include "chrome/browser/predictors/loading_test_util.h"
 #include "chrome/browser/predictors/proxy_lookup_client_impl.h"
 #include "chrome/browser/predictors/resolve_host_client_impl.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -52,9 +52,7 @@ net::ProxyInfo GetDirectProxyInfo() {
   return proxy_info;
 }
 
-class MockPreconnectManagerDelegate
-    : public PreconnectManager::Delegate,
-      public base::SupportsWeakPtr<MockPreconnectManagerDelegate> {
+class MockPreconnectManagerDelegate : public PreconnectManager::Delegate {
  public:
   // Gmock doesn't support mocking methods with move-only argument types.
   void PreconnectFinished(std::unique_ptr<PreconnectStats> stats) override {
@@ -64,6 +62,13 @@ class MockPreconnectManagerDelegate
   MOCK_METHOD1(PreconnectFinishedProxy, void(const GURL& url));
   MOCK_METHOD2(PreconnectInitiated,
                void(const GURL& url, const GURL& preconnect_url));
+
+  base::WeakPtr<MockPreconnectManagerDelegate> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<MockPreconnectManagerDelegate> weak_ptr_factory_{this};
 };
 
 class MockNetworkContext : public network::TestNetworkContext {

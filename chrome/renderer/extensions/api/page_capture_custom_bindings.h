@@ -5,14 +5,17 @@
 #ifndef CHROME_RENDERER_EXTENSIONS_API_PAGE_CAPTURE_CUSTOM_BINDINGS_H_
 #define CHROME_RENDERER_EXTENSIONS_API_PAGE_CAPTURE_CUSTOM_BINDINGS_H_
 
+#include "base/memory/raw_ptr.h"
 #include "extensions/renderer/object_backed_native_handler.h"
 
 namespace extensions {
+class IPCMessageSender;
 
 // Implements custom bindings for the pageCapture API.
 class PageCaptureCustomBindings : public ObjectBackedNativeHandler {
  public:
-  explicit PageCaptureCustomBindings(ScriptContext* context);
+  PageCaptureCustomBindings(ScriptContext* context,
+                            IPCMessageSender* ipc_message_sender);
 
   // ObjectBackedNativeHandler:
   void AddRoutes() override;
@@ -21,6 +24,9 @@ class PageCaptureCustomBindings : public ObjectBackedNativeHandler {
   // Creates a Blob with the content of the specified file.
   void CreateBlob(const v8::FunctionCallbackInfo<v8::Value>& args);
   void SendResponseAck(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // The IPCMessageSender for this context. Must outlive this class.
+  const raw_ptr<IPCMessageSender, ExperimentalRenderer> ipc_message_sender_;
 };
 
 }  // namespace extensions

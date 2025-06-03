@@ -10,7 +10,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/engine/cycle/sync_cycle_snapshot.h"
 #include "google_apis/gaia/google_service_auth_error.h"
-#include "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#include "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #include "ios/web/public/test/web_task_environment.h"
 #include "testing/platform_test.h"
@@ -22,6 +22,7 @@ class MockSyncService;
 @class AppState;
 class Browser;
 @class SceneState;
+@class SettingsNavigationController;
 class TestChromeBrowserState;
 @class UINavigationController;
 @class UIViewController;
@@ -60,7 +61,7 @@ class PassphraseTableViewControllerTest : public ChromeTableViewControllerTest {
   // Dummy navigation stack for testing self-removal.
   // Only valid when SetUpNavigationController has been called.
   UIViewController* dummy_controller_;
-  UINavigationController* nav_controller_;
+  SettingsNavigationController* nav_controller_;
 
   // Dummy scene state.
   SceneState* scene_state_;

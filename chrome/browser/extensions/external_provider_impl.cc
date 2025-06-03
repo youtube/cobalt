@@ -56,6 +56,8 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/app_mode/kiosk_app_external_loader.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
+#include "chromeos/components/mgs/managed_guest_session_utils.h"
 #endif  // BUIDLFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -683,7 +685,7 @@ void ExternalProviderImpl::CreateExternalProviders(
     }
   }
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (profiles::IsKioskSession() || profiles::IsPublicSession()) {
+  if (chromeos::IsKioskSession() || chromeos::IsManagedGuestSession()) {
     if (DeviceLocalAccountExtensionInstallerLacros::Get()) {
       external_loader =
           DeviceLocalAccountExtensionInstallerLacros::Get()->extension_loader();
@@ -724,8 +726,8 @@ void ExternalProviderImpl::CreateExternalProviders(
 
       auto kiosk_app_provider = std::make_unique<ExternalProviderImpl>(
           service,
-          base::MakeRefCounted<ash::KioskAppExternalLoader>(
-              ash::KioskAppExternalLoader::AppClass::kPrimary),
+          base::MakeRefCounted<chromeos::KioskAppExternalLoader>(
+              chromeos::KioskAppExternalLoader::AppClass::kPrimary),
           profile, location, ManifestLocation::kInvalidLocation,
           Extension::NO_FLAGS);
       kiosk_app_provider->set_auto_acknowledge(true);
@@ -737,8 +739,8 @@ void ExternalProviderImpl::CreateExternalProviders(
       auto secondary_kiosk_app_provider =
           std::make_unique<ExternalProviderImpl>(
               service,
-              base::MakeRefCounted<ash::KioskAppExternalLoader>(
-                  ash::KioskAppExternalLoader::AppClass::kSecondary),
+              base::MakeRefCounted<chromeos::KioskAppExternalLoader>(
+                  chromeos::KioskAppExternalLoader::AppClass::kSecondary),
               profile, ManifestLocation::kExternalPref,
               ManifestLocation::kExternalPrefDownload, Extension::NO_FLAGS);
       secondary_kiosk_app_provider->set_auto_acknowledge(true);

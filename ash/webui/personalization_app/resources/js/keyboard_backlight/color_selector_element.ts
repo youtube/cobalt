@@ -16,8 +16,8 @@ import './color_icon_element.js';
 import '../../css/common.css.js';
 import '../../css/cros_button_style.css.js';
 
-import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 import {IronA11yKeysElement} from 'chrome://resources/polymer/v3_0/iron-a11y-keys/iron-a11y-keys.js';
 import {IronSelectorElement} from 'chrome://resources/polymer/v3_0/iron-selector/iron-selector.js';
@@ -47,14 +47,14 @@ declare global {
   }
 }
 
-export interface ColorSelector {
+export interface ColorSelectorElement {
   $: {
     keys: IronA11yKeysElement,
     selector: IronSelectorElement,
   };
 }
 
-export class ColorSelector extends WithPersonalizationStore {
+export class ColorSelectorElement extends WithPersonalizationStore {
   static get is() {
     return 'color-selector';
   }
@@ -134,12 +134,12 @@ export class ColorSelector extends WithPersonalizationStore {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.watch<ColorSelector['currentBacklightState_']>(
+    this.watch<ColorSelectorElement['currentBacklightState_']>(
         'currentBacklightState_',
         state => state.keyboardBacklight.currentBacklightState);
-    this.watch<ColorSelector['shouldShowNudge_']>(
+    this.watch<ColorSelectorElement['shouldShowNudge_']>(
         'shouldShowNudge_', state => state.keyboardBacklight.shouldShowNudge);
-    this.watch<ColorSelector['wallpaperColor_']>(
+    this.watch<ColorSelectorElement['wallpaperColor_']>(
         'wallpaperColor_', state => state.keyboardBacklight.wallpaperColor);
     this.updateFromStore();
 
@@ -215,9 +215,13 @@ export class ColorSelector extends WithPersonalizationStore {
     if (!isSelectionEvent(e)) {
       return;
     }
-    this.dispatchEvent(new CustomEvent(
-        wallpaperColorSelectedEventName,
-        {bubbles: true, composed: true, detail: null}));
+    const eventTarget = e.target as HTMLElement;
+    if (eventTarget.id === 'wallpaperColorIcon') {
+      // Only dispatch the event if the icon is clicked.
+      this.dispatchEvent(new CustomEvent(
+          wallpaperColorSelectedEventName,
+          {bubbles: true, composed: true, detail: null}));
+    }
   }
 
   /** Invoked when a preset color is selected. */
@@ -316,4 +320,4 @@ export class ColorSelector extends WithPersonalizationStore {
   }
 }
 
-customElements.define(ColorSelector.is, ColorSelector);
+customElements.define(ColorSelectorElement.is, ColorSelectorElement);

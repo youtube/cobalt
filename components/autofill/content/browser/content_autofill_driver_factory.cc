@@ -6,10 +6,9 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/feature_list.h"
-#include "base/functional/bind.h"
-#include "base/memory/ptr_util.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
@@ -22,6 +21,8 @@
 #include "third_party/blink/public/common/features.h"
 
 namespace autofill {
+
+class ScopedAutofillManagersObservation;
 
 namespace {
 
@@ -98,7 +99,7 @@ ContentAutofillDriverFactory::~ContentAutofillDriverFactory() {
 
 std::unique_ptr<ContentAutofillDriver>
 ContentAutofillDriverFactory::CreateDriver(content::RenderFrameHost* rfh) {
-  auto driver = std::make_unique<ContentAutofillDriver>(rfh, &router_);
+  auto driver = std::make_unique<ContentAutofillDriver>(rfh, this);
   driver_init_hook_.Run(driver.get());
   return driver;
 }
@@ -108,10 +109,7 @@ ContentAutofillDriver* ContentAutofillDriverFactory::DriverForFrame(
   // Within fenced frames and their descendants, Password Manager should for now
   // be disabled (crbug.com/1294378).
   if (render_frame_host->IsNestedWithinFencedFrame() &&
-      !(base::FeatureList::IsEnabled(
-            features::kAutofillEnableWithinFencedFrame) &&
-        base::FeatureList::IsEnabled(
-            blink::features::kFencedFramesAPIChanges))) {
+      !base::FeatureList::IsEnabled(blink::features::kFencedFramesAPIChanges)) {
     return nullptr;
   }
 
@@ -158,27 +156,15 @@ void ContentAutofillDriverFactory::RenderFrameDeleted(
   DCHECK(driver);
 
   if (!render_frame_host->IsInLifecycleState(
-          content::RenderFrameHost::LifecycleState::kPrerendering) &&
-      driver->autofill_manager()) {
-    driver->autofill_manager()->ReportAutofillWebOTPMetrics(
+          content::RenderFrameHost::LifecycleState::kPrerendering)) {
+    driver->GetAutofillManager().ReportAutofillWebOTPMetrics(
         render_frame_host->DocumentUsedWebOTP());
-  }
-
-  // If the popup menu has been triggered from within an iframe and that
-  // frame is deleted, hide the popup. This is necessary because the popup
-  // may actually be shown by the AutofillExternalDelegate of an ancestor
-  // frame, which is not notified about |render_frame_host|'s destruction
-  // and therefore won't close the popup.
-  bool is_iframe = !driver->IsInAnyMainFrame();
-  if (is_iframe && router_.last_queried_source() == driver) {
-    DCHECK(!render_frame_host->IsInLifecycleState(
-        content::RenderFrameHost::LifecycleState::kPrerendering));
-    driver->renderer_events().HidePopup();
   }
 
   for (Observer& observer : observers_) {
     observer.OnContentAutofillDriverWillBeDeleted(*this, *driver);
   }
+
   driver_map_.erase(it);
 }
 
@@ -206,18 +192,13 @@ void ContentAutofillDriverFactory::DidFinishNavigation(
   if (!navigation_handle->HasCommitted()) {
     return;
   }
-  // TODO(crbug.com/1064709): Should we really return early?
-  if (!navigation_handle->IsInMainFrame() &&
-      !navigation_handle->HasSubframeNavigationEntryCommitted()) {
-    return;
-  }
-
   auto* driver = DriverForFrame(navigation_handle->GetRenderFrameHost());
   if (!driver) {
     return;
   }
-  if (!navigation_handle->IsInPrerenderedMainFrame()) {
-    client_->HideAutofillPopup(PopupHidingReason::kNavigation);
+  if (!navigation_handle->IsInPrerenderedMainFrame() &&
+      (navigation_handle->IsInMainFrame() ||
+       navigation_handle->HasSubframeNavigationEntryCommitted())) {
     if (client_->IsTouchToFillCreditCardSupported()) {
       client_->HideTouchToFillCreditCard();
     }
@@ -242,14 +223,21 @@ void ContentAutofillDriverFactory::DidFinishNavigation(
       navigation_handle->IsPrerenderedPageActivation()) {
     return;
   }
+
   driver->Reset();
 }
 
-void ContentAutofillDriverFactory::OnVisibilityChanged(
-    content::Visibility visibility) {
-  if (visibility == content::Visibility::HIDDEN) {
-    client_->HideAutofillPopup(PopupHidingReason::kTabGone);
+std::vector<ContentAutofillDriver*>
+ContentAutofillDriverFactory::GetExistingDrivers(
+    base::PassKey<ScopedAutofillManagersObservation>) {
+  std::vector<ContentAutofillDriver*> drivers;
+  drivers.reserve(driver_map_.size());
+  for (const std::pair<content::RenderFrameHost*,
+                       std::unique_ptr<ContentAutofillDriver>>& entry :
+       driver_map_) {
+    drivers.push_back(entry.second.get());
   }
+  return drivers;
 }
 
 }  // namespace autofill

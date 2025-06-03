@@ -4,8 +4,6 @@
 
 #include "components/segmentation_platform/internal/service_proxy_impl.h"
 
-#include <inttypes.h>
-#include <limits>
 #include <memory>
 #include <sstream>
 
@@ -17,7 +15,6 @@
 #include "components/segmentation_platform/internal/database/segment_info_database.h"
 #include "components/segmentation_platform/internal/database/signal_storage_config.h"
 #include "components/segmentation_platform/internal/database/storage_service.h"
-#include "components/segmentation_platform/internal/execution/default_model_manager.h"
 #include "components/segmentation_platform/internal/metadata/metadata_utils.h"
 #include "components/segmentation_platform/internal/scheduler/execution_service.h"
 #include "components/segmentation_platform/internal/selection/segment_result_provider.h"
@@ -78,15 +75,13 @@ base::flat_set<proto::SegmentId> GetAllSegmentIds(
 
 ServiceProxyImpl::ServiceProxyImpl(
     SegmentInfoDatabase* segment_db,
-    DefaultModelManager* default_manager,
     SignalStorageConfig* signal_storage_config,
-    std::vector<std::unique_ptr<Config>>* configs,
+    const std::vector<std::unique_ptr<Config>>* configs,
     const PlatformOptions& platform_options,
     base::flat_map<std::string, std::unique_ptr<SegmentSelectorImpl>>*
         segment_selectors)
     : force_refresh_results_(platform_options.force_refresh_results),
       segment_db_(segment_db),
-      default_manager_(default_manager),
       signal_storage_config_(signal_storage_config),
       configs_(configs),
       segment_selectors_(segment_selectors) {}
@@ -119,13 +114,12 @@ void ServiceProxyImpl::UpdateObservers(bool update_service_status) {
       obs.OnServiceStatusChanged(is_service_initialized_, service_status_flag_);
   }
 
-  if (default_manager_ &&
+  if (segment_db_ &&
       (static_cast<int>(ServiceStatus::kSegmentationInfoDbInitialized) &
        service_status_flag_)) {
-    default_manager_->GetAllSegmentInfoFromBothModels(
-        GetAllSegmentIds(*configs_), segment_db_,
-        base::BindOnce(&ServiceProxyImpl::OnGetAllSegmentationInfo,
-                       weak_ptr_factory_.GetWeakPtr()));
+    auto available_segments =
+        segment_db_->GetSegmentInfoForBothModels(GetAllSegmentIds(*configs_));
+    OnGetAllSegmentationInfo(std::move(available_segments));
   }
 }
 
@@ -133,7 +127,7 @@ void ServiceProxyImpl::SetExecutionService(
     ExecutionService* model_execution_scheduler) {
   execution_service_ = model_execution_scheduler;
   segment_result_provider_ = SegmentResultProvider::Create(
-      segment_db_, signal_storage_config_, default_manager_, execution_service_,
+      segment_db_, signal_storage_config_, execution_service_,
       base::DefaultClock::GetInstance(), /*force_refresh_results=*/true);
 }
 
@@ -177,25 +171,19 @@ void ServiceProxyImpl::SetSelectedSegment(const std::string& segmentation_key,
 }
 
 void ServiceProxyImpl::OnGetAllSegmentationInfo(
-    DefaultModelManager::SegmentInfoList segment_info_list) {
+    std::unique_ptr<SegmentInfoDatabase::SegmentInfoList> segment_info_list) {
   if (!configs_)
     return;
-
+  // TODO(ritikagup@) : Use TrainingDataCollectorImpl GetPreferredInfo method.
   // Convert the |segment_info| vector to a map for quick lookup.
-  base::flat_map<SegmentId, proto::SegmentInfo> segment_info_map;
-  for (const auto& info : segment_info_list) {
-    const SegmentId segment_id = info->segment_info.segment_id();
-    switch (info->segment_source) {
-      case DefaultModelManager::SegmentSource::DATABASE:
-        // If database info is available, then overwrite the existing entry.
-        segment_info_map[segment_id] = std::move(info->segment_info);
-        break;
-      case DefaultModelManager::SegmentSource::DEFAULT_MODEL:
-        // If database info is not available then use default model info.
-        if (segment_info_map.count(segment_id) == 0) {
-          segment_info_map[segment_id] = std::move(info->segment_info);
-        }
-        break;
+  base::flat_map<SegmentId, const proto::SegmentInfo*> segment_info_map;
+  for (const auto& segment_id_and_info : *segment_info_list) {
+    const SegmentId segment_id = segment_id_and_info.first;
+    auto it = segment_info_map.find(segment_id);
+    if (it == segment_info_map.end() ||
+        segment_id_and_info.second->model_source() !=
+            proto::ModelSource::DEFAULT_MODEL_SOURCE) {
+      segment_info_map[segment_id] = segment_id_and_info.second;
     }
   }
 
@@ -225,15 +213,15 @@ void ServiceProxyImpl::OnGetAllSegmentationInfo(
       // from all segments once we have ranking API support.
       absl::optional<float> current_segment_rank =
           segment_id.first == selected ? selected_segment_rank : absl::nullopt;
-      const auto& info = segment_info_map[segment_id.first];
+      const auto* info = segment_info_map[segment_id.first];
       bool can_execute_segment =
           force_refresh_results_ ||
           (signal_storage_config_ &&
            signal_storage_config_->MeetsSignalCollectionRequirement(
-               info.model_metadata()));
+               info->model_metadata()));
       result.back().segment_status.emplace_back(
-          segment_id.first, SegmentMetadataToString(info),
-          PredictionResultToString(info, current_segment_rank),
+          segment_id.first, SegmentMetadataToString(*info),
+          PredictionResultToString(*info, current_segment_rank),
           can_execute_segment);
     }
   }

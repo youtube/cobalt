@@ -81,7 +81,7 @@ module.exports = {
 
   'overrides': [{
     'files': ['**/*.ts'],
-    'parser': './third_party/node/node_modules/@typescript-eslint/parser',
+    'parser': './third_party/node/node_modules/@typescript-eslint/parser/dist/index.js',
     'plugins': [
       '@typescript-eslint',
     ],
@@ -94,6 +94,14 @@ module.exports = {
         }
       ],
 
+      // https://google.github.io/styleguide/tsguide.html#array-constructor
+      // Note: The rule below only partially enforces the styleguide, since it
+      // it does not flag invocations of the constructor with a single
+      // parameter.
+      'no-array-constructor': 'off',
+      '@typescript-eslint/no-array-constructor': 'error',
+
+      // https://google.github.io/styleguide/tsguide.html#automatic-semicolon-insertion
       'semi': 'off',
       '@typescript-eslint/semi': ['error'],
 
@@ -108,7 +116,15 @@ module.exports = {
       }],
 
       // https://google.github.io/styleguide/tsguide.html#interfaces-vs-type-aliases
-      "@typescript-eslint/consistent-type-definitions": ['error', 'interface'],
+      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+
+      // https://google.github.io/styleguide/tsguide.html#visibility
+      '@typescript-eslint/explicit-member-accessibility': ['error', {
+        accessibility: 'no-public',
+        overrides: {
+          parameterProperties: 'off',
+        },
+      }],
 
       // https://google.github.io/styleguide/jsguide.html#naming
       '@typescript-eslint/naming-convention': [
@@ -144,6 +160,14 @@ module.exports = {
           format: ['strictCamelCase'],
           modifiers: ['private'],
           trailingUnderscore: 'allow',
+
+          // Disallow the 'Tap_' suffix, in favor of 'Click_' in event handlers.
+          // Note: Unfortunately this ESLint rule does not provide a way to
+          // customize the error message to better inform developers.
+          custom: {
+            regex: '^on[a-zA-Z0-9]+Tap$',
+            match: false,
+          },
         },
         {
           selector: 'classProperty',
@@ -177,6 +201,7 @@ module.exports = {
         },
       ],
 
+      // https://google.github.io/styleguide/tsguide.html#member-property-declarations
       '@typescript-eslint/member-delimiter-style': ['error', {
         multiline: {
           delimiter: 'comma',

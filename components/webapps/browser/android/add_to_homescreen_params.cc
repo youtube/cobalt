@@ -11,9 +11,9 @@ namespace webapps {
 AddToHomescreenParams::AddToHomescreenParams() = default;
 AddToHomescreenParams::~AddToHomescreenParams() = default;
 
-std::string AddToHomescreenParams::GetAppIdentifier() {
-  return native_app_data.is_null() ? shortcut_info->url.spec()
-                                   : native_app_package_name;
+bool AddToHomescreenParams::HasMaskablePrimaryIcon() {
+  return app_type != AddToHomescreenParams::AppType::NATIVE &&
+         shortcut_info->is_primary_icon_maskable;
 }
 
 }  // namespace webapps

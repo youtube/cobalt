@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "base/metrics/histogram_functions.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
 #include "components/page_load_metrics/common/page_visit_final_status.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -324,6 +323,11 @@ bool IsGoogleSearchRedirectorUrl(const GURL& url) {
   return url.path_piece() == "/searchurl/r.html" && url.has_ref();
 }
 
+bool IsZstdUrl(const GURL& url) {
+  return url.DomainIs("facebook.com") || url.DomainIs("instagram.com") ||
+         url.DomainIs("whatsapp.com") || url.DomainIs("messenger.com");
+}
+
 bool QueryContainsComponent(const base::StringPiece query,
                             const base::StringPiece component) {
   return QueryContainsComponentHelper(query, component, false);
@@ -360,8 +364,8 @@ PageVisitFinalStatus RecordPageVisitFinalStatusForTiming(
                             ? PageVisitFinalStatus::kReachedFCP
                             : PageVisitFinalStatus::kAborted;
   }
-  UMA_HISTOGRAM_ENUMERATION("UserPerceivedPageVisit.PageVisitFinalStatus",
-                            page_visit_status);
+  base::UmaHistogramEnumeration("UserPerceivedPageVisit.PageVisitFinalStatus",
+                                page_visit_status);
   ukm::builders::UserPerceivedPageVisit pageVisitBuilder(source_id);
   pageVisitBuilder.SetPageVisitFinalStatus(static_cast<int>(page_visit_status));
   pageVisitBuilder.Record(ukm::UkmRecorder::Get());

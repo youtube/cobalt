@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -33,6 +33,10 @@ class PasswordNotesTable {
   // Initializes `db_`. `db_` should not be null and outlive this class.
   void Init(sql::Database* db);
 
+  // Migrates this table from `current_version` to `kCurrentVersionNumber`
+  // defined in the login db.
+  bool MigrateTable(int current_version, bool is_account_store);
+
   // Adds the note if it doesn't exist.
   // If it does, it removes the previous entry and adds the new one.
   bool InsertOrReplace(FormPrimaryKey parent_id, const PasswordNote& note);
@@ -47,9 +51,7 @@ class PasswordNotesTable {
   GetAllPasswordNotesForTest() const;
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION sql::Database* db_ = nullptr;
+  raw_ptr<sql::Database> db_ = nullptr;
 };
 
 }  // namespace password_manager

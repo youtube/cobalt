@@ -71,6 +71,7 @@ message SourcesProto {
   optional bool command_line = 8;
   optional bool oem = 9;
   optional bool one_drive_integration = 10;
+  optional bool aps_default = 11;
 }
 
 // Properties for integrating with Chrome OS.
@@ -81,8 +82,7 @@ message ChromeOSDataProto {
   required bool is_disabled = 4;
   optional bool oem_installed = 5;
   optional bool handles_file_open_intents = 6;
-  // See explanation on IsolationDataProto for storing path as bytes.
-  optional bytes app_profile_path = 7;
+  reserved 7;
 }
 
 message ClientDataProto {
@@ -127,6 +127,7 @@ enum WebAppManagementProto {
   COMMAND_LINE = 8;
   OEM = 9;
   ONEDRIVEINTEGRATION = 10;
+  APS_DEFAULT = 11;
 }
 
 // This stores data per-external-WebAppManagement::Type, as each installation
@@ -175,6 +176,47 @@ message IsolationDataProto {
     DevModeBundle dev_mode_bundle = 2;
     DevModeProxy dev_mode_proxy = 3;
   }
+
+  // The partition_name of every <controlledframe> StoragePartition managed by
+  // this Isolated Web App.
+  repeated string controlled_frame_partitions = 4;
+
+  // The version of the IWA.
+  required string version = 5;
+
+  message PendingUpdateInfo {
+    oneof location {
+      InstalledBundle installed_bundle = 1;
+      DevModeBundle dev_mode_bundle = 2;
+      DevModeProxy dev_mode_proxy = 3;
+    }
+    required string version = 4;
+  }
+
+  optional PendingUpdateInfo pending_update_info = 6;
+}
+
+// The initiator of a sync generated icon fix time window.
+enum GeneratedIconFixSource {
+  GeneratedIconFixSource_UNKNOWN = 0;
+  GeneratedIconFixSource_SYNC_INSTALL = 1;
+  GeneratedIconFixSource_RETROACTIVE = 2;
+  GeneratedIconFixSource_MANIFEST_UPDATE = 3;
+};
+
+// Represents the current state of attempts to fix broken icons from sync
+// installed web apps.
+message GeneratedIconFix {
+  // Required.
+  optional GeneratedIconFixSource source = 1;
+
+  // Required.
+  optional int64 window_start_time = 2;
+
+  optional int64 last_attempt_time = 3;
+
+  // Required.
+  optional uint32 attempt_count = 4;
 }
 
 // Full WebApp object data. See detailed comments in
@@ -241,7 +283,7 @@ message WebAppProto {
 
   // Time the app is installed.
   // ms since the Unix epoch. See sync/base/time.h.
-  optional int64 install_time = 16;
+  optional int64 first_install_time = 16;
 
   // A list of protocol handlers.
   repeated WebAppProtocolHandler protocol_handlers = 17;
@@ -421,4 +463,24 @@ message WebAppProto {
   // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
   // for association requirements.
   repeated WebAppScopeExtensionProto scope_extensions_validated = 62;
+
+  // Stores whether the current web app is set as the default app to capture
+  // links.
+  optional bool is_user_selected_app_for_capturing_links = 63;
+
+  // Time the app was updated as part of a full install. For example when a
+  // policy installs an app that is already in the DB installed as a
+  // default/sync installed app and the DB data is overwritten. ms since the
+  // Unix epoch. See sync/base/time.h.
+  optional int64 latest_install_time = 64;
+
+  // Contains bookkeeping details about attempts to fix broken icons from sync
+  // installed web apps.
+  optional GeneratedIconFix generated_icon_fix = 65;
+
+  // Records the number of times the user has ignored/dismissed the offer to
+  // turn on user link capturing after launching the app via the intent picker,
+  // specifically from the `EnableLinkCapturingInfoBarDelegate`.
+  optional int32 supported_links_offer_ignore_count = 66;
+  optional int32 supported_links_offer_dismiss_count = 67;
 }

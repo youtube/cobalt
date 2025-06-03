@@ -28,7 +28,7 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
   DCHECK_GT(pc_jump, 0);
   base::VLQEncodeUnsigned(
-      [this](byte byte) {
+      [this](uint8_t byte) {
         *--pos_ = byte;
         return pos_;
       },
@@ -44,7 +44,7 @@ void RelocInfoWriter::WriteShortTaggedPC(uint32_t pc_delta, int tag) {
 }
 
 void RelocInfoWriter::WriteShortData(intptr_t data_delta) {
-  *--pos_ = static_cast<byte>(data_delta);
+  *--pos_ = static_cast<uint8_t>(data_delta);
 }
 
 void RelocInfoWriter::WriteMode(RelocInfo::Mode rmode) {
@@ -61,7 +61,7 @@ void RelocInfoWriter::WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode) {
 
 void RelocInfoWriter::WriteIntData(int number) {
   for (int i = 0; i < kIntSize; i++) {
-    *--pos_ = static_cast<byte>(number);
+    *--pos_ = static_cast<uint8_t>(number);
     // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
     number = number >> kBitsPerByte;
   }
@@ -70,7 +70,7 @@ void RelocInfoWriter::WriteIntData(int number) {
 void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   RelocInfo::Mode rmode = rinfo->rmode();
 #ifdef DEBUG
-  byte* begin_pos = pos_;
+  uint8_t* begin_pos = pos_;
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
   DCHECK_GE(rinfo->pc() - reinterpret_cast<Address>(last_pc_), 0);
@@ -94,17 +94,19 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
                RelocInfo::IsDeoptPosition(rmode) ||
-               RelocInfo::IsDeoptNodeId(rmode)) {
+               RelocInfo::IsDeoptNodeId(rmode) ||
+               RelocInfo::IsRelativeSwitchTableEntry(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
-  last_pc_ = reinterpret_cast<byte*>(rinfo->pc());
+  last_pc_ = reinterpret_cast<uint8_t*>(rinfo->pc());
 #ifdef DEBUG
   DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
 }
 
-void RelocIterator::AdvanceReadInt() {
+template <typename RelocInfoT>
+void RelocIteratorBase<RelocInfoT>::AdvanceReadInt() {
   int x = 0;
   for (int i = 0; i < kIntSize; i++) {
     x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
@@ -112,7 +114,8 @@ void RelocIterator::AdvanceReadInt() {
   rinfo_.data_ = x;
 }
 
-void RelocIterator::AdvanceReadLongPCJump() {
+template <typename RelocInfoT>
+void RelocIteratorBase<RelocInfoT>::AdvanceReadLongPCJump() {
   // Read the 32-kSmallPCDeltaBits most significant bits of the
   // pc jump as a VLQ encoded integer.
   uint32_t pc_jump = base::VLQDecodeUnsigned([this] { return *--pos_; });
@@ -121,12 +124,14 @@ void RelocIterator::AdvanceReadLongPCJump() {
   rinfo_.pc_ += pc_jump << kSmallPCDeltaBits;
 }
 
-inline void RelocIterator::ReadShortData() {
+template <typename RelocInfoT>
+inline void RelocIteratorBase<RelocInfoT>::ReadShortData() {
   uint8_t unsigned_b = *pos_;
   rinfo_.data_ = unsigned_b;
 }
 
-void RelocIterator::next() {
+template <typename RelocInfoT>
+void RelocIteratorBase<RelocInfoT>::next() {
   DCHECK(!done());
   // Basically, do the opposite of RelocInfoWriter::Write.
   // Reading of data is as far as possible avoided for unwanted modes,
@@ -161,7 +166,8 @@ void RelocIterator::next() {
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
                    RelocInfo::IsDeoptPosition(rmode) ||
-                   RelocInfo::IsDeoptNodeId(rmode)) {
+                   RelocInfo::IsDeoptNodeId(rmode) ||
+                   RelocInfo::IsRelativeSwitchTableEntry(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -176,41 +182,64 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-RelocIterator::RelocIterator(Code code, int mode_mask)
-    : RelocIterator(
-          code.instruction_start(), code.constant_pool(),
-          code.instruction_stream().relocation_info().GetDataEndAddress(),
-          code.instruction_stream().relocation_info().GetDataStartAddress(),
-          mode_mask) {}
+RelocIterator::RelocIterator(Tagged<Code> code, int mode_mask)
+    : RelocIteratorBase<RelocInfo>(
+          code->instruction_start(), code->constant_pool(),
+          code->instruction_stream()->relocation_info()->end(),
+          code->instruction_stream()->relocation_info()->begin(), mode_mask) {}
 
-RelocIterator::RelocIterator(Code code, InstructionStream instruction_stream,
-                             ByteArray relocation_info, int mode_mask)
-    : RelocIterator(instruction_stream.instruction_start(),
-                    code.constant_pool(instruction_stream),
-                    relocation_info.GetDataEndAddress(),
-                    relocation_info.GetDataStartAddress(), mode_mask) {}
+RelocIterator::RelocIterator(Tagged<Code> code,
+                             Tagged<InstructionStream> instruction_stream,
+                             Tagged<ByteArray> relocation_info, int mode_mask)
+    : RelocIteratorBase<RelocInfo>(instruction_stream->instruction_start(),
+                                   code->constant_pool(instruction_stream),
+                                   relocation_info->end(),
+                                   relocation_info->begin(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference)
-    : RelocIterator(code_reference.instruction_start(),
-                    code_reference.constant_pool(),
-                    code_reference.relocation_end(),
-                    code_reference.relocation_start(), kAllModesMask) {}
+    : RelocIteratorBase<RelocInfo>(
+          code_reference.instruction_start(), code_reference.constant_pool(),
+          code_reference.relocation_end(), code_reference.relocation_start(),
+          kAllModesMask) {}
 
-RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
+RelocIterator::RelocIterator(EmbeddedData* embedded_data, Tagged<Code> code,
                              int mode_mask)
-    : RelocIterator(embedded_data->InstructionStartOf(code.builtin_id()),
-                    code.constant_pool(), code.relocation_end(),
-                    code.relocation_start(), mode_mask) {}
+    : RelocIteratorBase<RelocInfo>(
+          embedded_data->InstructionStartOf(code->builtin_id()),
+          code->constant_pool(), code->relocation_end(),
+          code->relocation_start(), mode_mask) {}
 
-RelocIterator::RelocIterator(base::Vector<byte> instructions,
-                             base::Vector<const byte> reloc_info,
+RelocIterator::RelocIterator(base::Vector<uint8_t> instructions,
+                             base::Vector<const uint8_t> reloc_info,
                              Address const_pool, int mode_mask)
-    : RelocIterator(reinterpret_cast<Address>(instructions.begin()), const_pool,
-                    reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
-                    mode_mask) {}
+    : RelocIteratorBase<RelocInfo>(
+          reinterpret_cast<Address>(instructions.begin()), const_pool,
+          reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
+          mode_mask) {}
 
-RelocIterator::RelocIterator(Address pc, Address constant_pool, const byte* pos,
-                             const byte* end, int mode_mask)
+WritableRelocIterator::WritableRelocIterator(
+    WritableJitAllocation& jit_allocation, Tagged<InstructionStream> istream,
+    Address constant_pool, int mode_mask)
+    : RelocIteratorBase<WritableRelocInfo>(
+          istream->instruction_start(), constant_pool,
+          istream->unchecked_relocation_info()->end(),
+          istream->unchecked_relocation_info()->begin(), mode_mask) {}
+
+WritableRelocIterator::WritableRelocIterator(
+    WritableJitAllocation& jit_allocation, base::Vector<uint8_t> instructions,
+    base::Vector<const uint8_t> reloc_info, Address constant_pool,
+    int mode_mask)
+    : RelocIteratorBase<WritableRelocInfo>(
+          reinterpret_cast<Address>(instructions.begin()), constant_pool,
+          reloc_info.begin() + reloc_info.size(), reloc_info.begin(),
+          mode_mask) {}
+
+template <typename RelocInfoT>
+RelocIteratorBase<RelocInfoT>::RelocIteratorBase(Address pc,
+                                                 Address constant_pool,
+                                                 const uint8_t* pos,
+                                                 const uint8_t* end,
+                                                 int mode_mask)
     : pos_(pos),
       end_(end),
       rinfo_(pc, RelocInfo::NO_INFO, 0, constant_pool),
@@ -242,8 +271,8 @@ Address RelocInfo::wasm_call_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_wasm_call_address(Address address,
-                                      ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_wasm_call_address(
+    Address address, ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, WASM_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
                                    icache_flush_mode);
@@ -254,27 +283,28 @@ Address RelocInfo::wasm_stub_call_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_wasm_stub_call_address(Address address,
-                                           ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_wasm_stub_call_address(
+    Address address, ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, WASM_STUB_CALL);
   Assembler::set_target_address_at(pc_, constant_pool_, address,
                                    icache_flush_mode);
 }
 
-void RelocInfo::set_target_address(Address target,
-                                   ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_address(Address target,
+                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTargetMode(rmode_) || IsNearBuiltinEntry(rmode_) ||
          IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
 }
 
-void RelocInfo::set_target_address(InstructionStream host, Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
+                                           Address target,
+                                           WriteBarrierMode write_barrier_mode,
+                                           ICacheFlushMode icache_flush_mode) {
   set_target_address(target, icache_flush_mode);
   if (IsCodeTargetMode(rmode_) && !v8_flags.disable_write_barriers) {
-    InstructionStream target_code =
+    Tagged<InstructionStream> target_code =
         InstructionStream::FromTargetAddress(target);
     WriteBarrierForCode(host, this, target_code, write_barrier_mode);
   }
@@ -324,6 +354,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
+    case RELATIVE_SWITCH_TABLE_ENTRY:
+      return "relative switch table entry";
     case OFF_HEAP_TARGET:
       return "off heap target";
     case NEAR_BUILTIN_ENTRY:
@@ -375,10 +407,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
        << ")";
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
-    Code target_code = Code::FromTargetAddress(code_target);
-    os << " (" << CodeKindToString(target_code.kind());
+    Tagged<Code> target_code = Code::FromTargetAddress(code_target);
+    os << " (" << CodeKindToString(target_code->kind());
     if (Builtins::IsBuiltin(target_code)) {
-      os << " " << Builtins::name(target_code.builtin_id());
+      os << " " << Builtins::name(target_code->builtin_id());
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsConstPool(rmode_)) {
@@ -414,18 +446,20 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
-      InstructionStream code = InstructionStream::FromTargetAddress(addr);
-      Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
-      CHECK_EQ(code.address(), lookup_result.instruction_stream().address());
+      Tagged<InstructionStream> code =
+          InstructionStream::FromTargetAddress(addr);
+      Tagged<Code> lookup_result =
+          isolate->heap()->FindCodeForInnerPointer(addr);
+      CHECK_EQ(code.address(), lookup_result->instruction_stream().address());
       break;
     }
     case INTERNAL_REFERENCE:
     case INTERNAL_REFERENCE_ENCODED: {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
-      Code lookup_result = isolate->heap()->FindCodeForInnerPointer(pc);
-      CHECK_GE(target, lookup_result.instruction_start());
-      CHECK_LT(target, lookup_result.instruction_end());
+      Tagged<Code> lookup_result = isolate->heap()->FindCodeForInnerPointer(pc);
+      CHECK_GE(target, lookup_result->instruction_start());
+      CHECK_LT(target, lookup_result->instruction_end());
       break;
     }
     case OFF_HEAP_TARGET: {
@@ -453,6 +487,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case VENEER_POOL:
     case WASM_CALL:
     case NO_INFO:
+    case RELATIVE_SWITCH_TABLE_ENTRY:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:
@@ -460,6 +495,11 @@ void RelocInfo::Verify(Isolate* isolate) {
   }
 }
 #endif  // VERIFY_HEAP
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    RelocIteratorBase<RelocInfo>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    RelocIteratorBase<WritableRelocInfo>;
 
 }  // namespace internal
 }  // namespace v8

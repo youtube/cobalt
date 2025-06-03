@@ -11,9 +11,11 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigation_intercept_handler.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigation_intercept_options.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
+#include "third_party/blink/renderer/core/dom/abort_controller.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
@@ -51,7 +53,8 @@ class NavigateEvent::Reaction final : public ScriptFunction::Callable {
 
 NavigateEvent::NavigateEvent(ExecutionContext* context,
                              const AtomicString& type,
-                             NavigateEventInit* init)
+                             NavigateEventInit* init,
+                             AbortController* controller)
     : Event(type, init),
       ExecutionContextClient(context),
       navigation_type_(init->navigationType()),
@@ -59,14 +62,18 @@ NavigateEvent::NavigateEvent(ExecutionContext* context,
       can_intercept_(init->canIntercept()),
       user_initiated_(init->userInitiated()),
       hash_change_(init->hashChange()),
+      controller_(controller),
       signal_(init->signal()),
       form_data_(init->formData()),
       download_request_(init->downloadRequest()),
       info_(init->hasInfo()
                 ? init->info()
                 : ScriptValue(context->GetIsolate(),
-                              v8::Undefined(context->GetIsolate()))) {
+                              v8::Undefined(context->GetIsolate()))),
+      has_ua_visual_transition_(init->hasUAVisualTransition()),
+      source_element_(init->sourceElement()) {
   CHECK(IsA<LocalDOMWindow>(context));
+  CHECK(!controller_ || controller_->signal() == signal_);
 }
 
 bool NavigateEvent::PerformSharedChecks(const String& function_name,
@@ -350,7 +357,8 @@ void NavigateEvent::Abort(ScriptState* script_state, ScriptValue error) {
   if (IsBeingDispatched()) {
     preventDefault();
   }
-  signal_->SignalAbort(script_state, error);
+  CHECK(controller_);
+  controller_->abort(script_state, error);
   delayed_load_start_task_handle_.Cancel();
 }
 
@@ -395,7 +403,7 @@ void NavigateEvent::PotentiallyResetTheFocus() {
   }
 
   if (Element* focus_delegate = document->GetAutofocusDelegate()) {
-    focus_delegate->Focus();
+    focus_delegate->Focus(FocusParams(FocusTrigger::kUserGesture));
   } else {
     document->ClearFocusedElement();
     document->SetSequentialFocusNavigationStartingPoint(nullptr);
@@ -490,9 +498,11 @@ void NavigateEvent::Trace(Visitor* visitor) const {
   ExecutionContextClient::Trace(visitor);
   visitor->Trace(dispatch_params_);
   visitor->Trace(destination_);
+  visitor->Trace(controller_);
   visitor->Trace(signal_);
   visitor->Trace(form_data_);
   visitor->Trace(info_);
+  visitor->Trace(source_element_);
   visitor->Trace(navigation_action_promises_list_);
   visitor->Trace(navigation_action_handlers_list_);
 }

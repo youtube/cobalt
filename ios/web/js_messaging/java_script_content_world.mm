@@ -5,6 +5,8 @@
 #import "ios/web/js_messaging/java_script_content_world.h"
 
 #import "base/check_op.h"
+#import "base/containers/contains.h"
+#import "base/debug/crash_logging.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/web/js_messaging/web_view_js_utils.h"
@@ -18,10 +20,6 @@
 #import "ios/web/web_state/web_state_impl.h"
 #import "net/base/mac/url_conversions.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -70,7 +68,7 @@ WKContentWorld* JavaScriptContentWorld::GetWKContentWorld() {
 JavaScriptContentWorld::~JavaScriptContentWorld() {}
 
 bool JavaScriptContentWorld::HasFeature(const JavaScriptFeature* feature) {
-  return features_.find(feature) != features_.end();
+  return base::Contains(features_, feature);
 }
 
 void JavaScriptContentWorld::AddFeature(const JavaScriptFeature* feature) {
@@ -157,6 +155,9 @@ void JavaScriptContentWorld::ScriptMessageReceived(
     JavaScriptFeature::ScriptMessageHandler handler,
     BrowserState* browser_state,
     WKScriptMessage* script_message) {
+  SCOPED_CRASH_KEY_STRING32("ScriptMessage", "name",
+                            base::SysNSStringToUTF8(script_message.name));
+
   web::WebViewWebStateMap* map =
       web::WebViewWebStateMap::FromBrowserState(browser_state);
   web::WebState* web_state = map->GetWebStateForWebView(script_message.webView);

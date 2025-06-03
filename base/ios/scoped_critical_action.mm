@@ -5,10 +5,10 @@
 #include "base/ios/scoped_critical_action.h"
 
 #import <UIKit/UIKit.h>
+#include <float.h>
 
 #include <atomic>
 
-#include <float.h>
 #include "base/ios/ios_util.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -19,13 +19,7 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/synchronization/lock.h"
 
-namespace base {
-namespace ios {
-
-BASE_FEATURE(kScopedCriticalActionReuseEnabled,
-             "ScopedCriticalActionReuseEnabled",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
+namespace base::ios {
 namespace {
 
 constexpr base::TimeDelta kMaxTaskReuseDelay = base::Seconds(3);
@@ -35,25 +29,12 @@ std::atomic<int> g_num_active_background_tasks_for_test{0};
 
 }  // namespace
 
-ScopedCriticalAction::ScopedCriticalAction(StringPiece task_name) {
-  if (base::FeatureList::IsEnabled(kScopedCriticalActionReuseEnabled)) {
-    task_handle_ = ActiveBackgroundTaskCache::GetInstance()
-                       ->EnsureBackgroundTaskExistsWithName(task_name);
-    DCHECK(!core_);
-  } else {
-    core_ = MakeRefCounted<Core>();
-    Core::StartBackgroundTask(core_, task_name);
-  }
-}
+ScopedCriticalAction::ScopedCriticalAction(StringPiece task_name)
+    : task_handle_(ActiveBackgroundTaskCache::GetInstance()
+                       ->EnsureBackgroundTaskExistsWithName(task_name)) {}
 
 ScopedCriticalAction::~ScopedCriticalAction() {
-  if (core_) {
-    // kScopedCriticalActionReuseEnabled was disabled upon construction.
-    Core::EndBackgroundTask(core_);
-  } else {
-    // kScopedCriticalActionReuseEnabled was enabled upon construction.
-    ActiveBackgroundTaskCache::GetInstance()->ReleaseHandle(task_handle_);
-  }
+  ActiveBackgroundTaskCache::GetInstance()->ReleaseHandle(task_handle_);
 }
 
 // static
@@ -80,7 +61,7 @@ ScopedCriticalAction::Core::~Core() {
 // static
 void ScopedCriticalAction::Core::StartBackgroundTask(scoped_refptr<Core> core,
                                                      StringPiece task_name) {
-  UIApplication* application = [UIApplication sharedApplication];
+  UIApplication* application = UIApplication.sharedApplication;
   if (!application) {
     return;
   }
@@ -226,5 +207,4 @@ void ScopedCriticalAction::ActiveBackgroundTaskCache::ReleaseHandle(
   }
 }
 
-}  // namespace ios
-}  // namespace base
+}  // namespace base::ios

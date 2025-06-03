@@ -6,14 +6,46 @@
 
 #include <string>
 
+#include "base/containers/flat_tree.h"
 #include "base/logging.h"
 #include "base/observer_list.h"
+#include "base/values.h"
+#include "net/cert/x509_certificate_net_log_param.h"
+#include "net/log/net_log.h"
+#include "net/log/net_log_event_type.h"
 #include "net/socket/ssl_client_socket_impl.h"
 #include "net/socket/stream_socket.h"
 #include "net/ssl/ssl_client_session_cache.h"
 #include "net/ssl/ssl_key_logger.h"
 
 namespace net {
+
+namespace {
+
+// Returns true if |first_cert| and |second_cert| represent the same certificate
+// (with the same chain), or if they're both NULL.
+bool AreCertificatesEqual(const scoped_refptr<X509Certificate>& first_cert,
+                          const scoped_refptr<X509Certificate>& second_cert) {
+  return (!first_cert && !second_cert) ||
+         (first_cert && second_cert &&
+          first_cert->EqualsIncludingChain(second_cert.get()));
+}
+
+// Returns a base::Value::Dict value NetLog parameter with the expected format
+// for events of type CLEAR_CACHED_CLIENT_CERT.
+base::Value::Dict NetLogClearCachedClientCertParams(
+    const net::HostPortPair& host,
+    const scoped_refptr<net::X509Certificate>& cert,
+    bool is_cleared) {
+  base::Value::Dict dict;
+  dict.Set("host", host.ToString());
+  dict.Set("certificates", cert ? net::NetLogX509CertificateList(cert.get())
+                                : base::Value(base::Value::List()));
+  dict.Set("is_cleared", is_cleared);
+  return dict;
+}
+
+}  // namespace
 
 SSLClientSocket::SSLClientSocket() = default;
 
@@ -103,9 +135,9 @@ void SSLClientContext::SetClientCertificate(
   if (ssl_client_session_cache_) {
     // Session resumption bypasses client certificate negotiation, so flush all
     // associated sessions when preferences change.
-    ssl_client_session_cache_->FlushForServer(server);
+    ssl_client_session_cache_->FlushForServers({server});
   }
-  NotifySSLConfigForServerChanged(server);
+  NotifySSLConfigForServersChanged({server});
 }
 
 bool SSLClientContext::ClearClientCertificate(const HostPortPair& server) {
@@ -116,9 +148,9 @@ bool SSLClientContext::ClearClientCertificate(const HostPortPair& server) {
   if (ssl_client_session_cache_) {
     // Session resumption bypasses client certificate negotiation, so flush all
     // associated sessions when preferences change.
-    ssl_client_session_cache_->FlushForServer(server);
+    ssl_client_session_cache_->FlushForServers({server});
   }
-  NotifySSLConfigForServerChanged(server);
+  NotifySSLConfigForServersChanged({server});
   return true;
 }
 
@@ -131,11 +163,10 @@ void SSLClientContext::RemoveObserver(Observer* observer) {
 }
 
 void SSLClientContext::OnSSLContextConfigChanged() {
-  // TODO(davidben): Should we flush |ssl_client_session_cache_| here? We flush
-  // the socket pools, but not the session cache. While BoringSSL-based servers
-  // never change version or cipher negotiation based on client-offered
-  // sessions, other servers do.
   config_ = ssl_config_service_->GetSSLContextConfig();
+  if (ssl_client_session_cache_) {
+    ssl_client_session_cache_->Flush();
+  }
   NotifySSLConfigChanged(SSLConfigChangeType::kSSLConfigChanged);
 }
 
@@ -143,13 +174,50 @@ void SSLClientContext::OnCertVerifierChanged() {
   NotifySSLConfigChanged(SSLConfigChangeType::kCertVerifierChanged);
 }
 
-void SSLClientContext::OnCertDBChanged() {
-  // Both the trust store and client certificate store may have changed.
+void SSLClientContext::OnTrustStoreChanged() {
+  NotifySSLConfigChanged(SSLConfigChangeType::kCertDatabaseChanged);
+}
+
+void SSLClientContext::OnClientCertStoreChanged() {
+  base::flat_set<HostPortPair> servers =
+      ssl_client_auth_cache_.GetCachedServers();
   ssl_client_auth_cache_.Clear();
   if (ssl_client_session_cache_) {
-    ssl_client_session_cache_->Flush();
+    ssl_client_session_cache_->FlushForServers(servers);
   }
-  NotifySSLConfigChanged(SSLConfigChangeType::kCertDatabaseChanged);
+  NotifySSLConfigForServersChanged(servers);
+}
+
+void SSLClientContext::ClearClientCertificateIfNeeded(
+    const net::HostPortPair& host,
+    const scoped_refptr<net::X509Certificate>& certificate) {
+  scoped_refptr<X509Certificate> cached_certificate;
+  scoped_refptr<SSLPrivateKey> cached_private_key;
+  if (!ssl_client_auth_cache_.Lookup(host, &cached_certificate,
+                                     &cached_private_key) ||
+      AreCertificatesEqual(cached_certificate, certificate)) {
+    // No cached client certificate preference for this host.
+    net::NetLog::Get()->AddGlobalEntry(
+        NetLogEventType::CLEAR_CACHED_CLIENT_CERT, [&]() {
+          return NetLogClearCachedClientCertParams(host, certificate,
+                                                   /*is_cleared=*/false);
+        });
+    return;
+  }
+
+  net::NetLog::Get()->AddGlobalEntry(
+      NetLogEventType::CLEAR_CACHED_CLIENT_CERT, [&]() {
+        return NetLogClearCachedClientCertParams(host, certificate,
+                                                 /*is_cleared=*/true);
+      });
+
+  ssl_client_auth_cache_.Remove(host);
+
+  if (ssl_client_session_cache_) {
+    ssl_client_session_cache_->FlushForServers({host});
+  }
+
+  NotifySSLConfigForServersChanged({host});
 }
 
 void SSLClientContext::NotifySSLConfigChanged(SSLConfigChangeType change_type) {
@@ -158,10 +226,10 @@ void SSLClientContext::NotifySSLConfigChanged(SSLConfigChangeType change_type) {
   }
 }
 
-void SSLClientContext::NotifySSLConfigForServerChanged(
-    const HostPortPair& server) {
+void SSLClientContext::NotifySSLConfigForServersChanged(
+    const base::flat_set<HostPortPair>& servers) {
   for (Observer& observer : observers_) {
-    observer.OnSSLConfigForServerChanged(server);
+    observer.OnSSLConfigForServersChanged(servers);
   }
 }
 

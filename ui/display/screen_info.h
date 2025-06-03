@@ -5,6 +5,8 @@
 #ifndef UI_DISPLAY_SCREEN_INFO_H_
 #define UI_DISPLAY_SCREEN_INFO_H_
 
+#include <string>
+
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/display/display_export.h"
 #include "ui/display/mojom/screen_orientation.mojom-shared.h"
@@ -36,7 +38,7 @@ struct DISPLAY_EXPORT ScreenInfo {
 
   // The display frequency in Hz of the monitor. Set to 0 if it fails in the
   // monitor frequency query.
-  int display_frequency = 0;
+  float display_frequency = 0;
 
   // This is set from the rcMonitor member of MONITORINFOEX, to whit:
   //   "A RECT structure that specifies the display monitor rectangle,
@@ -54,12 +56,6 @@ struct DISPLAY_EXPORT ScreenInfo {
   //   bars. Note that if the monitor is not the primary display monitor,
   //   some of the rectangle's coordinates may be negative values".
   gfx::Rect available_rect;
-
-  // This lets `window.screen` provide viewport dimensions while the frame is
-  // fullscreen as a speculative site compatibility measure, because web authors
-  // may assume that screen dimensions match window.innerWidth/innerHeight while
-  // a page is fullscreen, but that is not always true. crbug.com/1367416
-  absl::optional<gfx::Size> size_override;
 
   // This is the orientation 'type' or 'name', as in landscape-primary or
   // portrait-secondary for examples.
@@ -98,6 +94,9 @@ struct DISPLAY_EXPORT ScreenInfo {
   ScreenInfo& operator=(const ScreenInfo& other);
   bool operator==(const ScreenInfo& other) const;
   bool operator!=(const ScreenInfo& other) const;
+
+  // Returns a string representation of the screen.
+  std::string ToString() const;
 };
 
 }  // namespace display

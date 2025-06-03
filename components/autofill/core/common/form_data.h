@@ -125,7 +125,7 @@ struct FrameTokenWithPredecessor {
 // The unowned fields of the frame constitute that frame's *unowned form*.
 //
 // Forms from different frames of the same WebContents may furthermore be
-// merged. For details, see ContentAutofillRouter.
+// merged. For details, see AutofillDriverRouter.
 //
 // clang-format off
 // [1] https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#reset-the-form-owner
@@ -169,26 +169,13 @@ struct FormData {
   // elements.
   bool SameFormAs(const FormData& other) const;
 
-  // Finds a field in FormData by its id attribute.
   // Returns a pointer to the field if found, otherwise returns nullptr.
-  FormFieldData* FindFieldByGlobalId(const FieldGlobalId& global_id);
+  const FormFieldData* FindFieldByGlobalId(
+      const FieldGlobalId& global_id) const;
 
   // Finds a field in the FormData by its name or id.
   // Returns a pointer to the field if found, otherwise returns nullptr.
   FormFieldData* FindFieldByName(const base::StringPiece16 name_or_id);
-
-  // TODO(crbug/1211834): This function is deprecated.
-  // Same as SameFormAs() except calling FormFieldData.SimilarFieldAs() to
-  // compare fields.
-  bool SimilarFormAs(const FormData& other) const;
-
-  // TODO(crbug/1211834): This function is deprecated.
-  // If |form| is the same as this from the POV of dynamic refills.
-  bool DynamicallySameFormAs(const FormData& form) const;
-
-  // TODO(crbug/1211834): This function is deprecated.
-  // Allow FormData to be a key in STL containers.
-  bool operator<(const FormData& form) const;
 
   // The id attribute of the form.
   std::u16string id_attribute;
@@ -196,9 +183,8 @@ struct FormData {
   // The name attribute of the form.
   std::u16string name_attribute;
 
-  // NOTE: update SameFormAs()            if needed when adding new a member.
-  // NOTE: update SimilarFormAs()         if needed when adding new a member.
-  // NOTE: update DynamicallySameFormAs() if needed when adding new a member.
+  // NOTE: Update `SameFormAs()` and `FormDataAndroid::SimilarFormAs()` if
+  // needed when adding new a member.
 
   // The name by which autofill knows this form. This is generally either the
   // name attribute or the id_attribute value, which-ever is non-empty with
@@ -275,7 +261,7 @@ struct FormData {
   // usernames. The order matters: elements are sorted in descending likelihood
   // of being a username (the first one is the most likely username). Can
   // contain IDs of elements which are not in |fields|. This is only used during
-  // parsing into PasswordForm, and hence not serialised for storage.
+  // parsing into PasswordForm, and hence not serialized for storage.
   std::vector<FieldRendererId> username_predictions;
 
   // True if this is a Gaia form which should be skipped on saving.

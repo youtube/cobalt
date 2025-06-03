@@ -53,6 +53,8 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
       screenshotUrl: {type: String, readOnly: false, notify: true},
       shouldShowBluetoothCheckbox:
           {type: Boolean, readOnly: false, notify: true},
+      shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox:
+          {type: Boolean, readOnly: false, notify: true},
       shouldShowAssistantCheckbox:
           {type: Boolean, readOnly: false, notify: true},
       shouldShowAutofillCheckbox:
@@ -77,6 +79,11 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
      * @type {boolean}
      */
     this.shouldShowBluetoothCheckbox;
+
+    /**
+     * @type {boolean}
+     */
+    this.shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox;
 
     /**
      * @type {boolean}
@@ -122,6 +129,12 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
      * @type {string}
      * @protected
      */
+    this.linkCrossDeviceDogfoodFeedbackCheckboxLabel_;
+
+    /**
+     * @type {string}
+     * @protected
+     */
     this.privacyNote_;
 
     /** @private {!FeedbackServiceProviderInterface} */
@@ -135,6 +148,7 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
     this.setPerformanceTraceCheckboxLabel_();
     this.setAssistantLogsCheckboxLabelAndAttributes_();
     this.setBluetoothLogsCheckboxLabelAndAttributes_();
+    this.setLinkCrossDeviceDogfoodFeedbackCheckboxLabelAndAttributes_();
     this.setAutofillCheckboxLabelAndAttributes_();
     // Set the aria description works the best for screen reader.
     // It reads the description when the checkbox is focused, and when it is
@@ -290,6 +304,26 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
    * @param {!Event} e
    * @protected
    */
+  handleOpenLinkCrossDeviceDogfoodFeedbackInfoDialog_(e) {
+    // The default behavior of clicking on an anchor tag
+    // with href="#" is a scroll to the top of the page.
+    // This link opens a dialog, so we want to prevent
+    // this default behavior.
+    e.preventDefault();
+
+    this.getElement_('#linkCrossDeviceDogfoodFeedbackDialog').showModal();
+    this.getElement_('#linkCrossDeviceDogfoodFeedbackDialogDoneButton').focus();
+  }
+
+  /** @protected */
+  handleCloseLinkCrossDeviceDogfoodFeedbackDialogClicked_() {
+    this.getElement_('#linkCrossDeviceDogfoodFeedbackDialog').close();
+  }
+
+  /**
+   * @param {!Event} e
+   * @protected
+   */
   handleOpenAssistantLogsDialog_(e) {
     // The default behavior of clicking on an anchor tag
     // with href="#" is a scroll to the top of the page.
@@ -393,11 +427,22 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
       report.feedbackContext.categoryTag = this.feedbackContext.categoryTag;
     }
 
+    const isLinkCrossDeviceIssue =
+        !this.getElement_('#linkCrossDeviceDogfoodFeedbackCheckboxContainer')
+             .hidden &&
+        this.getElement_('#linkCrossDeviceDogfoodFeedbackCheckbox').checked;
+
     if (!this.getElement_('#bluetoothCheckboxContainer').hidden &&
         this.getElement_('#bluetoothLogsCheckbox').checked) {
-      report.feedbackContext.categoryTag = 'BluetoothReportWithLogs';
+      report.feedbackContext.categoryTag = isLinkCrossDeviceIssue ?
+          'linkCrossDeviceDogfoodFeedbackWithBluetoothLogs' :
+          'BluetoothReportWithLogs';
       report.sendBluetoothLogs = true;
     } else {
+      if (isLinkCrossDeviceIssue) {
+        report.feedbackContext.categoryTag =
+            'linkCrossDeviceDogfoodFeedbackWithoutBluetoothLogs';
+      }
       report.sendBluetoothLogs = false;
     }
 
@@ -444,12 +489,50 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
    */
   openLinkInNewWindow_(linkSelector, linkUrl) {
     const linkElement = this.shadowRoot.querySelector(linkSelector);
-    linkElement.setAttribute('href', linkUrl);
-    linkElement.setAttribute('target', '_blank');
+    if (linkElement) {
+      linkElement.setAttribute('href', linkUrl);
+      linkElement.setAttribute('target', '_blank');
+    }
+  }
+
+  /**
+   * When the feedback app is launched from OOBE or the login screen, the
+   * categoryTag is set to "Login".
+   * @returns {boolean} True if the categoryTag is not equal to Login.
+   * @protected
+   */
+  isUserLoggedIn_() {
+    return this.feedbackContext?.categoryTag !== 'Login';
+  }
+
+  /** @protected */
+  getAttachFilesLabel_() {
+    return this.isUserLoggedIn_() ? this.i18n('attachFilesLabelLoggedIn') :
+                                    this.i18n('attachFilesLabelLoggedOut');
   }
 
   /** @private */
   setPrivacyNote_() {
+    if (this.isUserLoggedIn_()) {
+      this.setPrivacyNoteForLoggedInUsers_();
+    } else {
+      this.setPrivacyNoteForLoggedOutUsers_();
+    }
+  }
+
+  /** @private */
+  setPrivacyNoteForLoggedOutUsers_() {
+    this.privacyNote_ = this.i18nAdvanced('privacyNoteLoggedOut', {
+      substitutions: [
+        FEEDBACK_PRIVACY_POLICY_URL,
+        FEEDBACK_TERMS_OF_SERVICE_URL,
+        FEEDBACK_LEGAL_HELP_URL,
+      ],
+    });
+  }
+
+  /** @private */
+  setPrivacyNoteForLoggedInUsers_() {
     this.privacyNote_ = this.i18nAdvanced('privacyNote', {attrs: ['id']});
 
     this.openLinkInNewWindow_('#legalHelpPageUrl', FEEDBACK_LEGAL_HELP_URL);
@@ -528,6 +611,22 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
   }
 
   /** @private */
+  setLinkCrossDeviceDogfoodFeedbackCheckboxLabelAndAttributes_() {
+    this.linkCrossDeviceDogfoodFeedbackCheckboxLabel_ = this.i18nAdvanced(
+        'linkCrossDeviceDogfoodFeedbackInfo', {attrs: ['id']});
+
+    const linkCrossDeviceDogfoodFeedbackLink = this.shadowRoot.querySelector(
+        '#linkCrossDeviceDogfoodFeedbackInfoLink');
+
+    // Setting href causes <a> tag to display as link.
+    linkCrossDeviceDogfoodFeedbackLink.setAttribute('href', '#');
+    linkCrossDeviceDogfoodFeedbackLink.addEventListener(
+        'click',
+        (e) =>
+            void this.handleOpenLinkCrossDeviceDogfoodFeedbackInfoDialog_(e));
+  }
+
+  /** @private */
   onFeedbackContextChanged_() {
     // We can only set up the hyperlink for the performance trace checkbox once
     // we receive the trace id.
@@ -536,6 +635,8 @@ export class ShareDataPageElement extends ShareDataPageElementBase {
           '#performanceTraceLink',
           `chrome://slow_trace/tracing.zip#${this.feedbackContext.traceId}`);
     }
+    // Update the privacy note when the feedback context changed.
+    this.setPrivacyNote_();
   }
 
   /**

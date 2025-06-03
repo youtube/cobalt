@@ -9,7 +9,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
-#include "components/safe_browsing/core/common/safe_browsing_settings_metrics.h"
+#include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/security_interstitials/content/settings_page_helper.h"
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "content/public/browser/navigation_entry.h"
@@ -54,9 +54,16 @@ void SecurityInterstitialControllerClient::GoBackAfterNavigationCommitted() {
   if (web_contents_->GetController().CanGoBack()) {
     web_contents_->GetController().GoBack();
   } else {
-    web_contents_->GetController().LoadURL(
-        default_safe_page_, content::Referrer(),
-        ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+    // For <webview> tags (also known as guests), use about:blank as the
+    // default safe page. This is because unlike a normal WebContents, guests
+    // cannot load pages like WebUI, including the NTP, which is often used as
+    // the default safe page here.
+    GURL url_to_load = web_contents_->GetSiteInstance()->IsGuest()
+                           ? GURL(url::kAboutBlankURL)
+                           : default_safe_page_;
+    web_contents_->GetController().LoadURL(url_to_load, content::Referrer(),
+                                           ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+                                           std::string());
   }
 }
 
@@ -91,12 +98,9 @@ void SecurityInterstitialControllerClient::OpenEnhancedProtectionSettings() {
 #if BUILDFLAG(IS_ANDROID)
   settings_page_helper_->OpenEnhancedProtectionSettings(web_contents_);
 #else
-  if (safe_browsing::kEsbIphBubbleAndCollapseSettingsEnableIph.Get()) {
-    safe_browsing::LogShowEnhancedProtectionAction();
-    settings_page_helper_->OpenEnhancedProtectionSettingsWithIph(web_contents_);
-  } else {
-    settings_page_helper_->OpenEnhancedProtectionSettings(web_contents_);
-  }
+  settings_page_helper_->OpenEnhancedProtectionSettingsWithIph(
+      web_contents_,
+      safe_browsing::SafeBrowsingSettingReferralMethod::kSecurityInterstitial);
 #endif
 }
 

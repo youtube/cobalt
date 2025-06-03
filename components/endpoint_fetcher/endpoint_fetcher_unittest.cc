@@ -35,6 +35,7 @@ const char kExpectedPrimaryAccountError[] = "No primary accounts found";
 const char kExpectedSanitizationError[] = "There was a sanitization error";
 const char kHttpPostMethod[] = "POST";
 const char kMalformedResponse[] = "asdf";
+const char kJsonMimeType[] = "application/json";
 const char kMockPostData[] = "mock_post_data";
 int64_t kMockTimeoutMs = 1000000;
 const char kOAuthConsumerName[] = "mock_oauth_consumer_name";
@@ -64,7 +65,7 @@ class EndpointFetcherTest : public testing::Test {
         kOAuthConsumerName, GURL(kEndpoint), kHttpPostMethod, kContentType,
         std::vector<std::string>{kScope}, kMockTimeoutMs, kMockPostData,
         TRAFFIC_ANNOTATION_FOR_TESTS, test_url_loader_factory,
-        identity_test_env_.identity_manager());
+        identity_test_env_.identity_manager(), signin::ConsentLevel::kSync);
     in_process_data_decoder_ =
         std::make_unique<data_decoder::test::InProcessDataDecoder>();
   }
@@ -91,15 +92,16 @@ class EndpointFetcherTest : public testing::Test {
 
   void SetMockResponse(const GURL& request_url,
                        const std::string& response_data,
+                       const std::string& mime_type,
                        net::HttpStatusCode response_code,
                        net::Error error) {
     auto head = network::mojom::URLResponseHead::New();
     std::string headers(base::StringPrintf(
-        "HTTP/1.1 %d %s\nContent-type: application/json\n\n",
-        static_cast<int>(response_code), GetHttpReasonPhrase(response_code)));
+        "HTTP/1.1 %d %s\nContent-type: %s\n\n", static_cast<int>(response_code),
+        GetHttpReasonPhrase(response_code), mime_type.c_str()));
     head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
         net::HttpUtil::AssembleRawHeaders(headers));
-    head->mime_type = "application/json";
+    head->mime_type = mime_type;
     network::URLLoaderCompletionStatus status(error);
     status.decoded_body_length = response_data.size();
     test_url_loader_factory_.AddResponse(request_url, std::move(head),
@@ -118,93 +120,147 @@ class EndpointFetcherTest : public testing::Test {
 
 TEST_F(EndpointFetcherTest, FetchResponse) {
   SignIn();
-  SetMockResponse(GURL(kEndpoint), kExpectedResponse, net::HTTP_OK, net::OK);
+  SetMockResponse(GURL(kEndpoint), kExpectedResponse, kJsonMimeType,
+                  net::HTTP_OK, net::OK);
+
+  base::RunLoop run_loop;
   EXPECT_CALL(endpoint_fetcher_callback(),
               Run(Pointee(AllOf(
                   Field(&EndpointResponse::response, kExpectedResponse),
                   Field(&EndpointResponse::http_status_code, net::HTTP_OK),
-                  Field(&EndpointResponse::error_type, absl::nullopt)))));
+                  Field(&EndpointResponse::error_type, absl::nullopt)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, FetchMalformedResponse) {
   SignIn();
-  SetMockResponse(GURL(kEndpoint), kMalformedResponse, net::HTTP_OK, net::OK);
+  SetMockResponse(GURL(kEndpoint), kMalformedResponse, kJsonMimeType,
+                  net::HTTP_OK, net::OK);
+
+  base::RunLoop run_loop;
   EXPECT_CALL(endpoint_fetcher_callback(),
               Run(Pointee(AllOf(
                   Field(&EndpointResponse::response,
                         testing::StartsWith(kExpectedSanitizationError)),
                   Field(&EndpointResponse::http_status_code, net::HTTP_OK),
                   Field(&EndpointResponse::error_type,
-                        FetchErrorType::kResultParseError)))));
+                        FetchErrorType::kResultParseError)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, FetchEndpointResponseError) {
   SignIn();
-  SetMockResponse(GURL(kEndpoint), kExpectedResponse, net::HTTP_BAD_REQUEST,
-                  net::ERR_FAILED);
+  SetMockResponse(GURL(kEndpoint), kExpectedResponse, kJsonMimeType,
+                  net::HTTP_BAD_REQUEST, net::ERR_FAILED);
+
+  base::RunLoop run_loop;
   EXPECT_CALL(
       endpoint_fetcher_callback(),
       Run(Pointee(AllOf(
           Field(&EndpointResponse::response, kExpectedResponseError),
           Field(&EndpointResponse::http_status_code, -1),
-          Field(&EndpointResponse::error_type, FetchErrorType::kNetError)))));
+          Field(&EndpointResponse::error_type, FetchErrorType::kNetError)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, FetchRedirectionResponse) {
   SignIn();
-  SetMockResponse(GURL(kEndpoint), kExpectedResponse, net::HTTP_FOUND, net::OK);
+  SetMockResponse(GURL(kEndpoint), kExpectedResponse, kJsonMimeType,
+                  net::HTTP_FOUND, net::OK);
+
+  base::RunLoop run_loop;
   EXPECT_CALL(endpoint_fetcher_callback(),
               Run(Pointee(AllOf(
                   Field(&EndpointResponse::response, kExpectedResponse),
                   Field(&EndpointResponse::http_status_code, net::HTTP_FOUND),
-                  Field(&EndpointResponse::error_type, absl::nullopt)))));
+                  Field(&EndpointResponse::error_type, absl::nullopt)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, FetchOAuthError) {
   SignIn();
   identity_test_env().SetAutomaticIssueOfAccessTokens(false);
+
+  base::RunLoop run_loop;
   EXPECT_CALL(
       endpoint_fetcher_callback(),
       Run(Pointee(AllOf(
           Field(&EndpointResponse::response, kExpectedAuthError),
           Field(&EndpointResponse::http_status_code, -1),
-          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))));
+          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
   identity_test_env().WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
       GoogleServiceAuthError(GoogleServiceAuthError::SERVICE_UNAVAILABLE));
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, FetchOAuthNoPrimaryAccount) {
+  base::RunLoop run_loop;
   EXPECT_CALL(
       endpoint_fetcher_callback(),
       Run(Pointee(AllOf(
           Field(&EndpointResponse::response, kExpectedPrimaryAccountError),
           Field(&EndpointResponse::http_status_code, -1),
-          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))));
+          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
   endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 }
 
 TEST_F(EndpointFetcherTest, PerformRequestAuthError) {
-  SetMockResponse(GURL(kEndpoint), kEmptyResponse, net::HTTP_UNAUTHORIZED,
-                  net::OK);
+  SetMockResponse(GURL(kEndpoint), kEmptyResponse, kJsonMimeType,
+                  net::HTTP_UNAUTHORIZED, net::OK);
+  base::RunLoop run_loop;
   EXPECT_CALL(
       endpoint_fetcher_callback(),
       Run(Pointee(AllOf(
           Field(&EndpointResponse::response, kEmptyResponse),
           Field(&EndpointResponse::http_status_code, net::HTTP_UNAUTHORIZED),
-          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))));
+          Field(&EndpointResponse::error_type, FetchErrorType::kAuthError)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
 
   endpoint_fetcher()->PerformRequest(endpoint_fetcher_callback().Get(),
                                      kApiKey);
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
+}
+
+TEST_F(EndpointFetcherTest, FetchNonJsonResponse) {
+  SignIn();
+  SetMockResponse(GURL(kEndpoint), kMalformedResponse, "application/x-protobuf",
+                  net::HTTP_OK, net::OK);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(endpoint_fetcher_callback(),
+              Run(Pointee(AllOf(
+                  Field(&EndpointResponse::response, kMalformedResponse),
+                  Field(&EndpointResponse::http_status_code, net::HTTP_OK),
+                  Field(&EndpointResponse::error_type, absl::nullopt)))))
+      .WillOnce([&run_loop](std::unique_ptr<EndpointResponse> ignored) {
+        run_loop.Quit();
+      });
+  endpoint_fetcher()->Fetch(endpoint_fetcher_callback().Get());
+  run_loop.Run();
 }

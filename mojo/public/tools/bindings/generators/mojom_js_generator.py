@@ -77,9 +77,22 @@ _kind_to_closure_type = {
     mojom.INT32: "number",
     mojom.UINT32: "number",
     mojom.FLOAT: "number",
-    mojom.INT64: "number",
-    mojom.UINT64: "number",
+    mojom.INT64: "bigint",
+    mojom.UINT64: "bigint",
     mojom.DOUBLE: "number",
+    # The nullability annotation i.e. '?' is added by the code that needs it, so
+    # these have the same types as the above non-nullable kinds.
+    mojom.NULLABLE_BOOL: "boolean",
+    mojom.NULLABLE_INT8: "number",
+    mojom.NULLABLE_UINT8: "number",
+    mojom.NULLABLE_INT16: "number",
+    mojom.NULLABLE_UINT16: "number",
+    mojom.NULLABLE_INT32: "number",
+    mojom.NULLABLE_UINT32: "number",
+    mojom.NULLABLE_FLOAT: "number",
+    mojom.NULLABLE_INT64: "bigint",
+    mojom.NULLABLE_UINT64: "bigint",
+    mojom.NULLABLE_DOUBLE: "number",
     mojom.STRING: "string",
     mojom.NULLABLE_STRING: "string",
     mojom.HANDLE: "MojoHandle",
@@ -173,16 +186,27 @@ _js_reserved_keywords = [
 
 _primitive_kind_to_fuzz_type = {
     mojom.BOOL: "Bool",
+    mojom.NULLABLE_BOOL: "Bool",
     mojom.INT8: "Int8",
+    mojom.NULLABLE_INT8: "Int8",
     mojom.UINT8: "Uint8",
+    mojom.NULLABLE_UINT8: "Uint8",
     mojom.INT16: "Int16",
+    mojom.NULLABLE_INT16: "Int16",
     mojom.UINT16: "Uint16",
+    mojom.NULLABLE_UINT16: "Uint16",
     mojom.INT32: "Int32",
+    mojom.NULLABLE_INT32: "Int32",
     mojom.UINT32: "Uint32",
+    mojom.NULLABLE_UINT32: "Uint32",
     mojom.FLOAT: "Float",
+    mojom.NULLABLE_FLOAT: "Float",
     mojom.INT64: "Int64",
+    mojom.NULLABLE_INT64: "Int64",
     mojom.UINT64: "Uint64",
+    mojom.NULLABLE_UINT64: "Uint64",
     mojom.DOUBLE: "Double",
+    mojom.NULLABLE_DOUBLE: "Double",
     mojom.STRING: "String",
     mojom.NULLABLE_STRING: "String",
     mojom.HANDLE: "Handle",
@@ -328,6 +352,10 @@ class Generator(generator.Generator):
 
   def GetFilters(self):
     js_filters = {
+        "is_nullable_value_kind_packed_field":
+        pack.IsNullableValueKindPackedField,
+        "is_primary_nullable_value_kind_packed_field":
+        pack.IsPrimaryNullableValueKindPackedField,
         "closure_type": self._ClosureType,
         "constant_value": self._GetConstantValue,
         "constant_value_in_js_module": self._GetConstantValueInJsModule,
@@ -436,8 +464,7 @@ class Generator(generator.Generator):
                           "%s-lite-for-compile.js" % self.module.path)
     self.WriteWithComment(self._GenerateJsModule(),
                           "%s.m.js" % self.module.path)
-    if (_GetWebUiModulePath(self.module) is not None
-        and self.module.metadata.get("legacy_js_only") is None):
+    if self.module.metadata.get("generate_webui_js") is not None:
       self.WriteWithComment(self._GenerateWebUiModule(),
                             "mojom-webui/%s-webui.js" % self.module.path)
 
@@ -517,6 +544,8 @@ class Generator(generator.Generator):
                                  kind,
                                  with_nullability=False,
                                  for_module=False):
+    # If `with_nullability` is true, we'll include a nullable annotation which
+    # in the Closure case is `?`. Otherwise, the annotation will be omitted.
     def recurse_with_nullability(kind):
       return self._GetTypeNameForNewBindings(kind,
                                              with_nullability=True,
@@ -580,6 +609,8 @@ class Generator(generator.Generator):
         return "Object"
       raise Exception("No valid closure type: %s" % kind)
 
+    # Prepend `?` for nullable kinds and `!` for non-nullable kinds. These are
+    # used by Closure.
     if with_nullability:
       return ('?' if mojom.IsNullableKind(kind) else '!') + get_type_name(kind)
 
@@ -788,7 +819,10 @@ class Generator(generator.Generator):
     if field.kind in mojom.PRIMITIVES:
       return _kind_to_javascript_default_value[field.kind]
     if mojom.IsEnumKind(field.kind):
+      if field.kind.min_value is not None:
+        return f'{field.kind.min_value}'
       return "0"
+
     return "null"
 
   def _LiteJavaScriptDefaultValue(self, field):

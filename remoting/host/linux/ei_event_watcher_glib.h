@@ -54,9 +54,14 @@ class EiEventWatcherGlib {
   static gboolean WatchSourceDispatch(GSource* source,
                                       GSourceFunc unused_func,
                                       gpointer data);
+  static void WatchSourceFinalize(GSource* source);
 
   static constexpr GSourceFuncs kWatchSourceFuncs = {
-      WatchSourcePrepare, WatchSourceCheck, WatchSourceDispatch, nullptr};
+      WatchSourcePrepare,
+      WatchSourceCheck,
+      WatchSourceDispatch,
+      WatchSourceFinalize,
+  };
 
   bool Prepare();
   void Dispatch();
@@ -67,8 +72,8 @@ class EiEventWatcherGlib {
   // FD to watch for events.
   int fd_ = -1;
 
-  base::raw_ptr<ei> ei_ = nullptr;
-  base::raw_ptr<EiEventHandler> handler_ = nullptr;
+  raw_ptr<ei> ei_ = nullptr;
+  raw_ptr<EiEventHandler> handler_ = nullptr;
 };
 
 }  // namespace remoting

@@ -5,8 +5,8 @@
 #include "chrome/browser/ui/views/bubble/webui_bubble_dialog_view.h"
 
 #include "content/public/browser/keyboard_event_processing_result.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "content/public/browser/visibility.h"
+#include "content/public/common/input/native_web_keyboard_event.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
@@ -25,6 +25,7 @@ constexpr gfx::Size kMinSize(25, 25);
 // within a Views hierarchy.
 class WebUIBubbleView : public views::WebView {
  public:
+  METADATA_HEADER(WebUIBubbleView);
   explicit WebUIBubbleView(content::WebContents* web_contents) {
     SetWebContents(web_contents);
     // Allow the embedder to handle accelerators not handled by the WebContents.
@@ -41,13 +42,17 @@ class WebUIBubbleView : public views::WebView {
   }
 };
 
+BEGIN_METADATA(WebUIBubbleView, views::WebView)
+END_METADATA
+
 }  // namespace
 
 WebUIBubbleDialogView::WebUIBubbleDialogView(
     views::View* anchor_view,
     BubbleContentsWrapper* contents_wrapper,
-    const absl::optional<gfx::Rect>& anchor_rect)
-    : BubbleDialogDelegateView(anchor_view, views::BubbleBorder::TOP_RIGHT),
+    const absl::optional<gfx::Rect>& anchor_rect,
+    views::BubbleBorder::Arrow arrow)
+    : BubbleDialogDelegateView(anchor_view, arrow),
       contents_wrapper_(contents_wrapper),
       web_view_(AddChildView(std::make_unique<WebUIBubbleView>(
           contents_wrapper_->web_contents()))),

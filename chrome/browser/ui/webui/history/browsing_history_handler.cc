@@ -40,13 +40,14 @@
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/history_clusters/core/config.h"
 #include "components/history_clusters/core/features.h"
+#include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/prefs/pref_service.h"
 #include "components/query_parser/snippet.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/supervised_user/core/common/buildflags.h"
-#include "components/sync/driver/sync_service.h"
 #include "components/sync/protocol/sync_enums.pb.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_sync_service.h"
 #include "components/sync_device_info/device_info_tracker.h"
@@ -57,8 +58,8 @@
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
 #include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #endif
 
@@ -209,12 +210,14 @@ base::Value::Dict HistoryEntryToValue(
   result.Set("fallbackFaviconText",
              base::UTF16ToASCII(favicon::GetFallbackIconText(entry.url)));
 
-  result.Set("time", entry.time.ToJsTime());
+  result.Set("time", entry.time.InMillisecondsFSinceUnixEpoch());
 
   // Pass the timestamps in a list.
   base::Value::List timestamps;
   for (int64_t timestamp : entry.all_timestamps) {
-    timestamps.Append(base::Time::FromInternalValue(timestamp).ToJsTime());
+    timestamps.Append(
+        base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(timestamp))
+            .InMillisecondsFSinceUnixEpoch());
   }
   result.Set("allTimestamps", std::move(timestamps));
 
@@ -256,7 +259,7 @@ base::Value::Dict HistoryEntryToValue(
   result.Set("deviceType", device_type);
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  SupervisedUserService* supervised_user_service =
+  supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForProfile(profile);
   if (supervised_user_service &&
       supervised_user_service->IsURLFilteringEnabled()) {
@@ -346,6 +349,10 @@ void BrowsingHistoryHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "removeBookmark",
       base::BindRepeating(&BrowsingHistoryHandler::HandleRemoveBookmark,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setLastSelectedTab",
+      base::BindRepeating(&BrowsingHistoryHandler::HandleSetLastSelectedTab,
                           base::Unretained(this)));
 }
 
@@ -464,7 +471,8 @@ void BrowsingHistoryHandler::HandleRemoveVisits(const base::Value::List& args) {
         continue;
       }
 
-      base::Time visit_time = base::Time::FromJsTime(timestamp.GetDouble());
+      base::Time visit_time =
+          base::Time::FromMillisecondsSinceUnixEpoch(timestamp.GetDouble());
       entry.all_timestamps.insert(visit_time.ToInternalValue());
     }
 
@@ -478,8 +486,7 @@ void BrowsingHistoryHandler::HandleClearBrowsingData(
     const base::Value::List& args) {
   // TODO(beng): This is an improper direct dependency on Browser. Route this
   // through some sort of delegate.
-  Browser* browser =
-      chrome::FindBrowserWithWebContents(web_ui()->GetWebContents());
+  Browser* browser = chrome::FindBrowserWithTab(web_ui()->GetWebContents());
   chrome::ShowClearBrowsingDataDialog(browser);
 }
 
@@ -490,6 +497,14 @@ void BrowsingHistoryHandler::HandleRemoveBookmark(
   Profile* profile = GetProfile();
   BookmarkModel* model = BookmarkModelFactory::GetForBrowserContext(profile);
   bookmarks::RemoveAllBookmarks(model, GURL(url));
+}
+
+void BrowsingHistoryHandler::HandleSetLastSelectedTab(
+    const base::Value::List& args) {
+  const base::Value& last_tab = args[0];
+  Profile* profile = GetProfile();
+  profile->GetPrefs()->SetInteger(history_clusters::prefs::kLastSelectedTab,
+                                  last_tab.GetInt());
 }
 
 void BrowsingHistoryHandler::OnQueryComplete(

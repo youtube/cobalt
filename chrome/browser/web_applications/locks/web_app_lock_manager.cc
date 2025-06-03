@@ -9,6 +9,8 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/location.h"
+#include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -23,10 +25,10 @@
 #include "chrome/browser/web_applications/locks/shared_web_contents_lock.h"
 #include "chrome/browser/web_applications/locks/shared_web_contents_with_app_lock.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_id.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
@@ -73,10 +75,10 @@ GetSharedWebContentsLock() {
 }
 
 std::vector<content::PartitionedLockManager::PartitionedLockRequest>
-GetExclusiveAppIdLocks(const base::flat_set<AppId>& app_ids) {
+GetExclusiveAppIdLocks(const base::flat_set<webapps::AppId>& app_ids) {
   std::vector<content::PartitionedLockManager::PartitionedLockRequest>
       lock_requests;
-  for (const AppId& app_id : app_ids) {
+  for (const webapps::AppId& app_id : app_ids) {
     lock_requests.emplace_back(
         content::PartitionedLockId(
             {static_cast<int>(LockPartition::kApp), app_id}),
@@ -132,9 +134,13 @@ void LogLockRequest(
 
 }  // namespace
 
-WebAppLockManager::WebAppLockManager(WebAppProvider& provider)
-    : provider_(provider) {}
+WebAppLockManager::WebAppLockManager() = default;
 WebAppLockManager::~WebAppLockManager() = default;
+
+void WebAppLockManager::SetProvider(base::PassKey<WebAppCommandManager>,
+                                    WebAppProvider& provider) {
+  provider_ = &provider;
+}
 
 bool WebAppLockManager::IsSharedWebContentsLockFree() {
   return lock_manager_.TestLock(GetSharedWebContentsLock()) ==
@@ -149,7 +155,8 @@ void WebAppLockManager::AcquireLock(
   CHECK(lock_description.type() == LockDescription::Type::kNoOp);
 
   auto lock = base::WrapUnique(
-      new NoopLock(std::make_unique<content::PartitionedLockHolder>()));
+      new NoopLock(std::make_unique<content::PartitionedLockHolder>(),
+                   weak_factory_.GetWeakPtr()));
   base::WeakPtr<content::PartitionedLockHolder> holder =
       lock->holder_->AsWeakPtr();
   AcquireLock(holder, lock_description,
@@ -236,7 +243,7 @@ void WebAppLockManager::AcquireLock(
 std::unique_ptr<SharedWebContentsWithAppLockDescription>
 WebAppLockManager::UpgradeAndAcquireLock(
     std::unique_ptr<SharedWebContentsLock> lock,
-    const base::flat_set<AppId>& app_ids,
+    const base::flat_set<webapps::AppId>& app_ids,
     base::OnceCallback<void(std::unique_ptr<SharedWebContentsWithAppLock>)>
         on_lock_acquired,
     const base::Location& location) {
@@ -265,7 +272,7 @@ WebAppLockManager::UpgradeAndAcquireLock(
 
 std::unique_ptr<AppLockDescription> WebAppLockManager::UpgradeAndAcquireLock(
     std::unique_ptr<NoopLock> lock,
-    const base::flat_set<AppId>& app_ids,
+    const base::flat_set<webapps::AppId>& app_ids,
     base::OnceCallback<void(std::unique_ptr<AppLock>)> on_lock_acquired,
     const base::Location& location) {
   std::unique_ptr<AppLockDescription> result_lock_description =

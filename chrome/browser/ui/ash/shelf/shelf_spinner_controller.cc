@@ -90,7 +90,8 @@ class ShelfSpinnerController::ShelfSpinnerData {
   base::Time removal_time() const { return removal_time_; }
 
  private:
-  raw_ptr<ShelfSpinnerItemController, ExperimentalAsh> controller_;
+  raw_ptr<ShelfSpinnerItemController, DanglingUntriaged | ExperimentalAsh>
+      controller_;
   base::Time creation_time_;
   base::Time removal_time_;
 };
@@ -350,7 +351,8 @@ void ShelfSpinnerController::AddSpinnerToShelf(
   controller->SetHost(weak_ptr_factory_.GetWeakPtr());
   ShelfSpinnerItemController* item_controller = controller.get();
   if (!item) {
-    owner_->CreateAppItem(std::move(controller), ash::STATUS_RUNNING);
+    owner_->CreateAppItem(std::move(controller), ash::STATUS_RUNNING,
+                          /*pinned=*/false);
   } else {
     owner_->shelf_model()->ReplaceShelfItemDelegate(shelf_id,
                                                     std::move(controller));

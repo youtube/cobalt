@@ -17,7 +17,7 @@
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/page_navigator.h"
@@ -110,7 +110,8 @@ void ShowOutdatedUpgradeBubble(Browser* browser, bool auto_update_enabled) {
               base::UserMetricsAction("OutdatedUpgradeBubble.Later")))
           .Build();
 
-  chrome::ShowBubble(browser, kAppMenuButtonElementId, std::move(dialog_model));
+  chrome::ShowBubble(browser, kToolbarAppMenuButtonElementId,
+                     std::move(dialog_model));
 
   base::RecordAction(
       auto_update_enabled

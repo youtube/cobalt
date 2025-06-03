@@ -21,6 +21,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/local_card_migration_metrics.h"
 #include "components/autofill/core/browser/payments/client_behavior_constants.h"
+#include "components/autofill/core/browser/payments/credit_card_save_manager.h"
 #include "components/autofill/core/browser/payments/payments_client.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
@@ -33,7 +34,18 @@ namespace autofill {
 MigratableCreditCard::MigratableCreditCard(const CreditCard& credit_card)
     : credit_card_(credit_card) {}
 
-MigratableCreditCard::~MigratableCreditCard() {}
+MigratableCreditCard::MigratableCreditCard(const MigratableCreditCard&) =
+    default;
+
+MigratableCreditCard::MigratableCreditCard(MigratableCreditCard&&) = default;
+
+MigratableCreditCard& MigratableCreditCard::operator=(
+    const MigratableCreditCard&) = default;
+
+MigratableCreditCard& MigratableCreditCard::operator=(MigratableCreditCard&&) =
+    default;
+
+MigratableCreditCard::~MigratableCreditCard() = default;
 
 LocalCardMigrationManager::LocalCardMigrationManager(
     AutofillClient* client,
@@ -49,13 +61,14 @@ LocalCardMigrationManager::LocalCardMigrationManager(
 LocalCardMigrationManager::~LocalCardMigrationManager() {}
 
 bool LocalCardMigrationManager::ShouldOfferLocalCardMigration(
-    const absl::optional<CreditCard>& credit_card_import_candidate,
+    const absl::optional<CreditCard>& extracted_credit_card,
     int credit_card_import_type) {
   // Reset and store the extracted credit card info for a later check of whether
   // the extracted card is supported.
   extracted_credit_card_number_.reset();
-  if (credit_card_import_candidate)
-    extracted_credit_card_number_ = credit_card_import_candidate->number();
+  if (extracted_credit_card) {
+    extracted_credit_card_number_ = extracted_credit_card->number();
+  }
   credit_card_import_type_ = credit_card_import_type;
   // Must be an existing card. New cards always get Upstream or local save.
   switch (credit_card_import_type_) {
@@ -196,7 +209,7 @@ void LocalCardMigrationManager::OnUserDeletedLocalCardViaMigrationDialog(
 
 bool LocalCardMigrationManager::IsCreditCardMigrationEnabled() {
   return ::autofill::IsCreditCardMigrationEnabled(
-      personal_data_manager_, client_->GetPrefs(), client_->GetSyncService(),
+      personal_data_manager_, client_->GetSyncService(),
       /*is_test_mode=*/observer_for_testing_, client_->GetLogManager());
 }
 

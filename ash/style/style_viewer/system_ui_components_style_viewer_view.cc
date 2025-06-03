@@ -157,8 +157,6 @@ void SystemUIComponentsStyleViewerView::CreateAndShowWidget() {
   viewer_view->AddComponent(
       u"IconButton", base::BindRepeating(&CreateIconButtonInstancesGridView));
   viewer_view->AddComponent(
-      u"IconSwitch", base::BindRepeating(&CreateIconSwitchInstancesGridView));
-  viewer_view->AddComponent(
       u"Checkbox", base::BindRepeating(&CreateCheckboxInstancesGridView));
   viewer_view->AddComponent(
       u"CheckboxGroup",
@@ -177,6 +175,8 @@ void SystemUIComponentsStyleViewerView::CreateAndShowWidget() {
       base::BindRepeating(&CreateSystemTextfieldInstancesGridView));
   viewer_view->AddComponent(
       u"Pagination", base::BindRepeating(&CreatePaginationInstancesGridView));
+  viewer_view->AddComponent(
+      u"Combobox", base::BindRepeating(&CreateComboboxInstancesGridView));
   viewer_view->AddComponent(
       u"Typography", base::BindRepeating(&CreateTypographyInstancesGridView));
 

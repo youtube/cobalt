@@ -13,7 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/values.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
@@ -28,10 +28,10 @@ class WebAppLockManager;
 
 enum class CommandResult { kSuccess, kFailure, kShutdown };
 
-// Each command has a queue id, which is either an `AppId` corresponding to a
-// specific web app, or `absl::nullopt` for the global queue. The global queue
-// is independent (does not block) of other queues.
-using WebAppCommandQueueId = absl::optional<AppId>;
+// Each command has a queue id, which is either an `webapps::AppId`
+// corresponding to a specific web app, or `absl::nullopt` for the global queue.
+// The global queue is independent (does not block) of other queues.
+using WebAppCommandQueueId = absl::optional<webapps::AppId>;
 
 // Encapsulates code that reads or modifies the WebAppProvider system. All
 // reading or writing to the system should occur in a WebAppCommand to ensure
@@ -66,6 +66,9 @@ using WebAppCommandQueueId = absl::optional<AppId>;
 //   }
 //   ...
 // };
+//
+// See https://chromium-review.googlesource.com/c/chromium/src/+/4812799 for a
+// hello world example of adding a new command.
 //
 // See the `WebAppLockManager` for information about the available locks & how
 // they work.
@@ -122,14 +125,6 @@ class WebAppCommand {
                            WebAppLockManager* lock_manager,
                            LockAcquiredCallback on_lock_acquired,
                            const base::Location& location) = 0;
-
-  // This is called when the sync system has triggered an uninstall for an app
-  // id that is relevant to this command and this command is running
-  // (`StartWithLock()` has been called). Relevance is determined by the
-  // `WebAppCommandLock::IsAppLocked()` function for this command's lock). The
-  // web app should still be in the registry, but it will no longer have the
-  // `WebAppManagement::kSync` source and `is_uninstalling()` will return true.
-  virtual void OnSyncSourceRemoved() = 0;
 
   // Signals the system is shutting down. Used to cancel any pending operations,
   // if possible, to prevent re-entry. Only called if the command has been

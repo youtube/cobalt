@@ -8,13 +8,18 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/utf_string_conversions.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/signin/public/base/consent_level.h"
+#include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "password_sync_util.h"
 
 namespace password_manager {
 
@@ -28,7 +33,7 @@ SyncCredentialsFilter::SyncCredentialsFilter(
 SyncCredentialsFilter::~SyncCredentialsFilter() = default;
 
 bool SyncCredentialsFilter::ShouldSave(const PasswordForm& form) const {
-  if (client_->IsIncognito())
+  if (client_->IsOffTheRecord())
     return false;
 
   if (form.form_data.is_gaia_with_skip_save_password_form)
@@ -65,23 +70,25 @@ bool SyncCredentialsFilter::ShouldSave(const PasswordForm& form) const {
                                 primary_account.email);
   }
 
-  // The browser is signed-out and the web just signed-in. On desktop, this
-  // immediately leads to browser sign-in, so don't offer saving.
-  // TODO(crbug.com/1446361): The above is false if the user disabled browser
-  // sign-in. Return true then. Currently these users can't save Gaia passwords.
-
+// The browser is signed-out and the web just signed-in.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  // On desktop, this normally leads to immediate browser sign-in, in which case
+  // we shouldn't offer saving. One exception is if browser sign-in is disabled.
+  return !client_->GetPrefs()->GetBoolean(prefs::kSigninAllowed);
+#else
   // On mobile, sign-in via the web page doesn't lead to browser sign-in, so
   // offer saving.
   // (Navigating to the Gaia web page opens Chrome UI which must be accepted to
   // perform browser+web sign-in. The code path here is only hit if that UI was
   // suppressed/ dismissed and the user interacted directly with the page.)
-  return BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS);
+  return true;
+#endif
 }
 
 bool SyncCredentialsFilter::ShouldSaveGaiaPasswordHash(
     const PasswordForm& form) const {
   if (base::FeatureList::IsEnabled(features::kPasswordReuseDetectionEnabled)) {
-    return !client_->IsIncognito() &&
+    return !client_->IsOffTheRecord() &&
            sync_util::IsGaiaCredentialPage(form.signon_realm);
   }
   return false;
@@ -89,13 +96,17 @@ bool SyncCredentialsFilter::ShouldSaveGaiaPasswordHash(
 
 bool SyncCredentialsFilter::ShouldSaveEnterprisePasswordHash(
     const PasswordForm& form) const {
-  return !client_->IsIncognito() && sync_util::ShouldSaveEnterprisePasswordHash(
-                                        form, *client_->GetPrefs());
+  return !client_->IsOffTheRecord() &&
+         sync_util::ShouldSaveEnterprisePasswordHash(form,
+                                                     *client_->GetPrefs());
 }
 
 bool SyncCredentialsFilter::IsSyncAccountEmail(
     const std::string& username) const {
-  return sync_util::IsSyncAccountEmail(username, client_->GetIdentityManager());
+  // TODO(https://crbug.com/1464264): `signin::ConsentLevel::kSync` is
+  // deprecated. Remove this usage.
+  return sync_util::IsSyncAccountEmail(username, client_->GetIdentityManager(),
+                                       signin::ConsentLevel::kSync);
 }
 
 void SyncCredentialsFilter::ReportFormLoginSuccess(

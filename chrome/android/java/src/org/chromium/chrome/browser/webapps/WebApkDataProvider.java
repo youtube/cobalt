@@ -15,9 +15,11 @@ import android.graphics.drawable.Drawable;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.browserservices.intents.BitmapHelper;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -49,6 +51,7 @@ public class WebApkDataProvider {
 
     public static void setWebappInfoForTesting(WebappInfo webappInfo) {
         sWebappInfoForTesting = webappInfo;
+        ResettersForTesting.register(() -> sWebappInfoForTesting = null);
     }
 
     /**
@@ -62,7 +65,7 @@ public class WebApkDataProvider {
                 (((color) >> 0) & 0xFF));
     }
 
-    private static WebappInfo getPartialWebappInfo(String url) {
+    public static WebappInfo getPartialWebappInfo(String url) {
         if (sWebappInfoForTesting != null) return sWebappInfoForTesting;
 
         Context appContext = ContextUtils.getApplicationContext();

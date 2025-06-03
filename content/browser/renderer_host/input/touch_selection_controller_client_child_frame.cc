@@ -40,6 +40,18 @@ void TouchSelectionControllerClientChildFrame::DidStopFlinging() {
   manager_->DidStopFlinging();
 }
 
+void TouchSelectionControllerClientChildFrame::OnSwipeToMoveCursorBegin() {
+  manager_->OnSwipeToMoveCursorBegin();
+}
+
+void TouchSelectionControllerClientChildFrame::OnSwipeToMoveCursorEnd() {
+  manager_->OnSwipeToMoveCursorEnd();
+}
+
+void TouchSelectionControllerClientChildFrame::OnHitTestRegionUpdated() {
+  manager_->OnClientHitTestRegionUpdated(this);
+}
+
 void TouchSelectionControllerClientChildFrame::
     TransformSelectionBoundsAndUpdate() {
   gfx::SelectionBound transformed_selection_start(selection_start_);
@@ -159,7 +171,6 @@ bool TouchSelectionControllerClientChildFrame::IsCommandIdEnabled(
     int command_id) const {
   bool editable = rwhv_->GetTextInputType() != ui::TEXT_INPUT_TYPE_NONE;
   bool readable = rwhv_->GetTextInputType() != ui::TEXT_INPUT_TYPE_PASSWORD;
-
   bool has_selection = !rwhv_->GetSelectedText().empty();
   switch (command_id) {
     case ui::TouchEditable::kCut:
@@ -174,10 +185,20 @@ bool TouchSelectionControllerClientChildFrame::IsCommandIdEnabled(
           ui::ClipboardBuffer::kCopyPaste, &data_dst, &result);
       return editable && !result.empty();
     }
-    case ui::TouchEditable::kSelectAll:
+    case ui::TouchEditable::kSelectAll: {
+      gfx::Range text_range;
+      if (rwhv_->GetTextRange(&text_range)) {
+        return text_range.length() > rwhv_->GetSelectedText().length();
+      }
       return true;
-    case ui::TouchEditable::kSelectWord:
-      return editable && !has_selection;
+    }
+    case ui::TouchEditable::kSelectWord: {
+      gfx::Range text_range;
+      if (rwhv_->GetTextRange(&text_range)) {
+        return readable && !has_selection && !text_range.is_empty();
+      }
+      return readable && !has_selection;
+    }
     default:
       return false;
   }
@@ -185,11 +206,12 @@ bool TouchSelectionControllerClientChildFrame::IsCommandIdEnabled(
 
 void TouchSelectionControllerClientChildFrame::ExecuteCommand(int command_id,
                                                               int event_flags) {
-  if (command_id != ui::TouchEditable::kSelectAll &&
-      command_id != ui::TouchEditable::kSelectWord) {
-    manager_->GetTouchSelectionController()
-        ->HideAndDisallowShowingAutomatically();
-  }
+  const bool should_dismiss_handles =
+      command_id != ui::TouchEditable::kSelectAll &&
+      command_id != ui::TouchEditable::kSelectWord;
+  manager_->GetTouchSelectionController()->OnMenuCommand(
+      should_dismiss_handles);
+
   RenderWidgetHostDelegate* host_delegate = rwhv_->host()->delegate();
   if (!host_delegate)
     return;

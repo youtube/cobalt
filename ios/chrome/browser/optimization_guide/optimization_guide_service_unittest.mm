@@ -21,10 +21,10 @@
 #import "components/ukm/test_ukm_recorder.h"
 #import "components/unified_consent/pref_names.h"
 #import "components/unified_consent/unified_consent_service.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_test_utils.h"
-#import "ios/chrome/browser/prefs/browser_prefs.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -33,10 +33,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // These tests are roughly similarly to the tests in
 // optimization_guide_keyed_service_browsertest.cc
@@ -111,7 +107,9 @@ class OptimizationGuideServiceTest : public PlatformTest {
     optimization_guide_service_ =
         OptimizationGuideServiceFactory::GetForBrowserState(
             browser_state_.get());
-    optimization_guide_service_->DoFinalInit();
+    optimization_guide_service_->DoFinalInit(
+        BackgroundDownloadServiceFactory::GetForBrowserState(
+            browser_state_.get()));
   }
 
   void CreateOTRBrowserState() {
@@ -190,8 +188,8 @@ class OptimizationGuideServiceTest : public PlatformTest {
       NavigationContextAndData* context_and_data,
       base::OnceClosure on_decision_callback,
       optimization_guide::OptimizationGuideDecision expected_decision) {
-    optimization_guide_service()->CanApplyOptimizationAsync(
-        context_and_data->navigation_context_.get(),
+    optimization_guide_service()->CanApplyOptimization(
+        context_and_data->navigation_context_.get()->GetUrl(),
         optimization_guide::proto::NOSCRIPT,
         base::BindOnce(
             [](base::OnceClosure on_decision_callback,

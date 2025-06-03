@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/dom/events/window_event_context.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/editing/editor.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
 #include "third_party/blink/renderer/core/events/simulated_event_util.h"
@@ -61,7 +62,6 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/keyboard_codes.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
-
 namespace blink {
 
 DispatchEventResult EventDispatcher::DispatchEvent(Node& node, Event& event) {
@@ -187,7 +187,8 @@ DispatchEventResult EventDispatcher::Dispatch() {
     return DispatchEventResult::kNotCanceled;
   }
   std::unique_ptr<EventTiming> eventTiming;
-  LocalFrame* frame = node_->GetDocument().GetFrame();
+  auto& document = node_->GetDocument();
+  LocalFrame* frame = document.GetFrame();
   LocalDOMWindow* window = nullptr;
   if (frame) {
     window = frame->DomWindow();
@@ -206,19 +207,35 @@ DispatchEventResult EventDispatcher::Dispatch() {
   const bool is_click =
       event_->IsMouseEvent() && event_->type() == event_type_names::kClick;
 
+  Node* target_node = event_->target() ? event_->target()->ToNode() : nullptr;
+  const bool is_target_body_element =
+      target_node && target_node->IsHTMLElement() &&
+      DynamicTo<HTMLElement>(target_node)->IsHTMLBodyElement();
+  const bool is_unfocused_keyboard_event =
+      event_->IsKeyboardEvent() &&
+      (event_->type() == event_type_names::kKeydown ||
+       event_->type() == event_type_names::kKeypress ||
+       event_->type() == event_type_names::kKeyup) &&
+      is_target_body_element;
+
   std::unique_ptr<SoftNavigationEventScope> soft_navigation_scope;
-  if (is_click && event_->isTrusted() && frame) {
-    if (window && frame->IsMainFrame()) {
+  if ((is_click || is_unfocused_keyboard_event) && event_->isTrusted() &&
+      frame) {
+    ScriptState* script_state = ToScriptStateForMainWorld(frame);
+    if (window && frame->IsMainFrame() && script_state) {
+      bool is_new_interaction =
+          is_click || (event_->type() == event_type_names::kKeydown);
       soft_navigation_scope = std::make_unique<SoftNavigationEventScope>(
-          SoftNavigationHeuristics::From(*window),
-          ToScriptStateForMainWorld(frame));
+          SoftNavigationHeuristics::From(*window), script_state,
+          is_unfocused_keyboard_event, is_new_interaction);
     }
     // A genuine mouse click cannot be triggered by script so we don't expect
     // there are any script in the stack.
-    DCHECK(!frame->GetAdTracker() || !frame->GetAdTracker()->IsAdScriptInStack(
-                                         AdTracker::StackType::kBottomAndTop));
-    if (frame->IsAdFrame()) {
-      UseCounter::Count(node_->GetDocument(), WebFeature::kAdClick);
+    DCHECK(!is_click || !frame->GetAdTracker() ||
+           !frame->GetAdTracker()->IsAdScriptInStack(
+               AdTracker::StackType::kBottomAndTop));
+    if (is_click && frame->IsAdFrame()) {
+      UseCounter::Count(document, WebFeature::kAdClick);
     }
   }
 
@@ -265,9 +282,6 @@ DispatchEventResult EventDispatcher::Dispatch() {
                            pre_dispatch_event_handler_result);
 
   auto result = EventTarget::GetDispatchEventResult(*event_);
-  if (soft_navigation_scope) {
-    soft_navigation_scope->SetResult(result);
-  }
 
   return result;
 }

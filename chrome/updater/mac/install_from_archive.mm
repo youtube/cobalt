@@ -22,7 +22,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/numerics/checked_math.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
@@ -34,6 +33,7 @@
 #include "base/time/time.h"
 #include "base/version.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/mac_util.h"
 #include "chrome/updater/util/util.h"
@@ -60,7 +60,7 @@ bool RunHDIUtil(const std::vector<std::string>& args,
     command.AppendArg(arg);
 
   std::string output;
-  bool result = base::GetAppOutputAndError(command, &output);
+  bool result = base::GetAppOutput(command, &output);
   if (!result)
     VLOG(1) << "hdiutil failed.";
 
@@ -85,8 +85,14 @@ bool MountDMG(const base::FilePath& dmg_path, std::string* mount_point) {
     return false;
   }
   @autoreleasepool {
-    NSString* output = base::SysUTF8ToNSString(command_output);
-    NSDictionary* plist = [output propertyList];
+    NSDictionary* plist = nil;
+    @try {
+      plist = [base::SysUTF8ToNSString(command_output) propertyList];
+    } @catch (NSException*) {
+      // `[NSString propertyList]` throws an NSParseErrorException if bad data.
+      VLOG(1) << "Unable to parse command output: [" << command_output << "]";
+      return false;
+    }
     // Look for the mountpoint.
     NSArray* system_entities = [plist objectForKey:@"system-entities"];
     NSString* dmg_mount_point = nil;
@@ -189,6 +195,7 @@ int RunExecutable(const base::FilePath& existence_checker_path,
     options.clear_environment = true;
     options.environment = {
         {"KS_TICKET_AP", ap},
+        {"KS_TICKET_SERVER_URL", UPDATE_CHECK_URL},
         {"KS_TICKET_XC_PATH", existence_checker_path.value()},
         {"PATH", env_path},
         {"PREVIOUS_VERSION", pv.GetString()},
@@ -261,37 +268,35 @@ int RunExecutable(const base::FilePath& existence_checker_path,
 
 void CopyDMGContents(const base::FilePath& dmg_path,
                      const base::FilePath& destination_path) {
-  base::FileEnumerator file_enumerator(
+  base::FileEnumerator(
       dmg_path, false,
-      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES)
+      .ForEach([&destination_path](const base::FilePath& path) {
+        base::File::Info file_info;
+        if (!base::GetFileInfo(path, &file_info)) {
+          VLOG(0) << "Couldn't get file info for: " << path.value();
+          return;
+        }
 
-  for (base::FilePath path = file_enumerator.Next(); !path.empty();
-       path = file_enumerator.Next()) {
-    base::File::Info file_info;
-    if (!base::GetFileInfo(path, &file_info)) {
-      VLOG(0) << "Couldn't get file info for: " << path.value();
-      continue;
-    }
+        if (base::IsLink(path)) {
+          VLOG(0) << "File is symbolic link: " << path.value();
+          return;
+        }
 
-    if (base::IsLink(path)) {
-      VLOG(0) << "File is symbolic link: " << path.value();
-      continue;
-    }
-
-    if (file_info.is_directory) {
-      if (!base::CopyDirectory(path, destination_path, true)) {
-        VLOG(0) << "Couldn't copy directory for: " << path.value() << " to "
-                << destination_path.value();
-        continue;
-      }
-    } else {
-      if (!base::CopyFile(path, destination_path.Append(path.BaseName()))) {
-        VLOG(0) << "Couldn't copy file for: " << path.value() << " to "
-                << destination_path.value();
-        continue;
-      }
-    }
-  }
+        if (file_info.is_directory) {
+          if (!base::CopyDirectory(path, destination_path, true)) {
+            VLOG(0) << "Couldn't copy directory for: " << path.value() << " to "
+                    << destination_path.value();
+            return;
+          }
+        } else {
+          if (!base::CopyFile(path, destination_path.Append(path.BaseName()))) {
+            VLOG(0) << "Couldn't copy file for: " << path.value() << " to "
+                    << destination_path.value();
+            return;
+          }
+        }
+      });
 }
 
 // Mounts the DMG specified by `dmg_file_path`. The install executable located

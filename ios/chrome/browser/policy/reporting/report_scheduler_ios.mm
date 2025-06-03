@@ -5,11 +5,7 @@
 #import "ios/chrome/browser/policy/reporting/report_scheduler_ios.h"
 
 #import "components/policy/core/common/cloud/dm_token.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 namespace enterprise_reporting {
 
 ReportSchedulerIOS::ReportSchedulerIOS() = default;
@@ -34,21 +30,9 @@ void ReportSchedulerIOS::OnBrowserVersionUploaded() {
   // Not used on iOS because there is no in-app auto-update.
 }
 
-void ReportSchedulerIOS::StartWatchingExtensionRequestIfNeeded() {
-  // Not used on iOS because there is no extension.
-}
-
-void ReportSchedulerIOS::StopWatchingExtensionRequest() {
-  // Not used on iOS because there is no extension.
-}
-
-void ReportSchedulerIOS::OnExtensionRequestUploaded() {
-  // Not used on iOS because there is no extension.
-}
-
 policy::DMToken ReportSchedulerIOS::GetProfileDMToken() {
   // Profile reporting is not supported.
-  return policy::DMToken();
+  return policy::DMToken::CreateEmptyToken();
 }
 std::string ReportSchedulerIOS::GetProfileClientId() {
   // Profile reporting is not supported.

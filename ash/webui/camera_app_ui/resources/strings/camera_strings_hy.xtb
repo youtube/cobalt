@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Տեղափոխվում է վերև ու ձախ</translation>
 <translation id="3573890771273113519">Անցնել սկանավորման ռեժիմին</translation>
 <translation id="3583444040776960729">Փաստաթղթի ներքևի ձախ անկյուն</translation>
+<translation id="3642192109456033823">Տեսանյութը մշակվում է…</translation>
 <translation id="3789724198583203151">Պտտել 90 աստիճան ժամացույցի սլաքի հակառակ ուղղությամբ</translation>
 <translation id="3810838688059735925">Տեսանյութ</translation>
 <translation id="3892148308691398805">Պատճենել տեքստը</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Դադարեցնել տեսագրումը</translation>
 <translation id="4121305183798804752">Փաստաթուղթը ջնջված է</translation>
 <translation id="414641094616694804">Այս տեսախցիկի լուծաչափը հնարավոր չէ փոխել</translation>
+<translation id="4176463684765177261">Անջատված է</translation>
 <translation id="4269820728363426813">Պատճենել հղման հասցեն</translation>
-<translation id="4281620174117014503">Միջին լուծաչափ</translation>
 <translation id="428234092390943511">Էջի մանրապատկեր</translation>
+<translation id="4349714250734879769">Մասշտաբավորել շրջանակները Chrome-ի միջոցով</translation>
 <translation id="4383571725254449280">Տպման վիճակագրության մատյաններ</translation>
 <translation id="4445542136948522167">Դադարեցնել լուսանկարումը</translation>
 <translation id="4570032796877367747">Առջևի տեսախցիկ</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Սկանավորվում է էջ <ph name="COUNT" />-ը</translation>
 <translation id="5671277269877808209">Քառակուսի</translation>
+<translation id="574392208103952083">Միջին</translation>
 <translation id="5746169159649715125">Պահել որպես PDF</translation>
 <translation id="5753488212459587150">Միացնել փորձագետի ռեժիմը</translation>
 <translation id="5759254179196327752">Սկանավորել փաստաթուղթը</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">Լուսանկարել</translation>
 <translation id="8167081290930651932">Պահել որպես լուսանկար</translation>
 <translation id="8239780215768881278">Լուսանկարել տեսանյութի կադր</translation>
+<translation id="8346544573713510785">Մասշտաբավորել շրջանակները Camera HAL-ի միջոցով</translation>
 <translation id="8425673304802773841">Թեքել ներքև</translation>
 <translation id="8428213095426709021">Կարգավորումներ</translation>
 <translation id="8629662593426079630">360p</translation>

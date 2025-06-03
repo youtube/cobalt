@@ -78,6 +78,11 @@ class CORE_EXPORT WorkletGlobalScope
   const base::UnguessableToken& GetDevToolsToken() const override;
   bool IsInitialized() const final { return true; }
   CodeCacheHost* GetCodeCacheHost() override;
+  absl::optional<mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>>
+  FindRaceNetworkRequestURLLoaderFactory(
+      const base::UnguessableToken& token) override {
+    return absl::nullopt;
+  }
 
   // Returns `blob_url_store_pending_remote_` for use when instantiating the
   // PublicURLManager in threaded worklet contexts. This method should only be
@@ -123,21 +128,15 @@ class CORE_EXPORT WorkletGlobalScope
 
   // Constructs an instance as a main thread worklet. Must be called on the main
   // thread.
-  // When |create_microtask_queue| is true, creates a microtask queue separated
-  // from the Isolate's default microtask queue.
   WorkletGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                      WorkerReportingProxy&,
-                     LocalFrame*,
-                     bool create_microtask_queue);
+                     LocalFrame*);
 
   // Constructs an instance as a threaded worklet. Must be called on a worker
   // thread.
-  // When |create_microtask_queue| is true, creates a microtask queue separated
-  // from the Isolate's default microtask queue.
   WorkletGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                      WorkerReportingProxy&,
-                     WorkerThread*,
-                     bool create_microtask_queue);
+                     WorkerThread*);
 
   const BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() const override;
 
@@ -169,8 +168,7 @@ class CORE_EXPORT WorkletGlobalScope
                      v8::Isolate*,
                      ThreadType,
                      LocalFrame*,
-                     WorkerThread*,
-                     bool create_microtask_queue);
+                     WorkerThread*);
 
   // Returns a destination used for fetching worklet scripts.
   // https://html.spec.whatwg.org/C/#worklet-destination-type

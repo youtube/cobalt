@@ -14,8 +14,8 @@
 #import "components/gcm_driver/gcm_client_factory.h"
 #import "components/gcm_driver/gcm_profile_service.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ios/web/public/thread/web_task_traits.h"
@@ -23,10 +23,6 @@
 #import "mojo/public/cpp/bindings/pending_receiver.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "services/network/public/mojom/proxy_resolving_socket.mojom.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 

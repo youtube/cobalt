@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
@@ -406,7 +407,7 @@ class PaymentResponseFunction : public ScriptFunction::Callable {
   }
 
  private:
-  ScriptValue* const value_;
+  const raw_ptr<ScriptValue, ExperimentalRenderer> value_;
 };
 
 // If the merchant requests shipping information, the resolved show() promise
@@ -439,8 +440,8 @@ TEST(OnPaymentResponseTest, CanRequestShippingInformation) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* resp = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* resp =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_EQ("standardShipping", resp->shippingOption());
 }
 
@@ -473,8 +474,8 @@ TEST(OnPaymentResponseTest, CanRequestName) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_EQ("Jon Doe", pr->payerName());
 }
 
@@ -506,8 +507,8 @@ TEST(OnPaymentResponseTest, CanRequestEmail) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_EQ("abc@gmail.com", pr->payerEmail());
 }
 
@@ -538,8 +539,8 @@ TEST(OnPaymentResponseTest, CanRequestPhone) {
   static_cast<payments::mojom::blink::PaymentRequestClient*>(request)
       ->OnPaymentResponse(std::move(response));
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
 
   EXPECT_EQ("0123", pr->payerPhone());
 }
@@ -569,8 +570,8 @@ TEST(OnPaymentResponseTest, ShippingInformationNotRequired) {
       ->OnPaymentResponse(BuildPaymentResponseForTest());
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* resp = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* resp =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_TRUE(resp->shippingOption().IsNull());
   EXPECT_EQ(nullptr, resp->shippingAddress());
 }
@@ -603,8 +604,8 @@ TEST(OnPaymentResponseTest, PhoneNotRequired) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_TRUE(pr->payerPhone().IsNull());
 }
 
@@ -636,8 +637,8 @@ TEST(OnPaymentResponseTest, NameNotRequired) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_TRUE(pr->payerName().IsNull());
 }
 
@@ -669,8 +670,8 @@ TEST(OnPaymentResponseTest, EmailNotRequired) {
       ->OnPaymentResponse(std::move(response));
 
   scope.PerformMicrotaskCheckpoint();
-  PaymentResponse* pr = V8PaymentResponse::ToImplWithTypeCheck(
-      scope.GetIsolate(), out_value.V8Value());
+  PaymentResponse* pr =
+      V8PaymentResponse::ToWrappable(scope.GetIsolate(), out_value.V8Value());
   EXPECT_TRUE(pr->payerEmail().IsNull());
 }
 

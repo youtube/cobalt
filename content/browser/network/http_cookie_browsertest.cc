@@ -44,10 +44,9 @@ class HttpCookieBrowserTest : public ContentBrowserTest,
                               public ::testing::WithParamInterface<bool> {
  public:
   HttpCookieBrowserTest() : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    if (DoesSameSiteConsiderRedirectChain()) {
-      feature_list_.InitAndEnableFeature(
-          net::features::kCookieSameSiteConsidersRedirectChain);
-    }
+    feature_list_.InitWithFeatureState(
+        net::features::kCookieSameSiteConsidersRedirectChain,
+        DoesSameSiteConsiderRedirectChain());
   }
 
   ~HttpCookieBrowserTest() override = default;
@@ -58,15 +57,6 @@ class HttpCookieBrowserTest : public ContentBrowserTest,
     https_server()->SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
     https_server()->AddDefaultHandlers(GetTestDataFilePath());
     ASSERT_TRUE(https_server()->Start());
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(
-        network::switches::kUseFirstPartySet,
-        base::StringPrintf(R"({"primary": "https://%s",)"
-                           R"("associatedSites": ["https://%s","https://%s"]})",
-                           kHostA, kHostB, kHostC));
   }
 
   bool DoesSameSiteConsiderRedirectChain() { return GetParam(); }

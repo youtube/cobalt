@@ -6,7 +6,6 @@
 
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
-#import "base/guid.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/autofill_client.h"
 #import "components/autofill/core/browser/autofill_save_update_address_profile_delegate_ios.h"
@@ -25,13 +24,10 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using autofill_address_profile_infobar_overlays::
     SaveAddressProfileModalRequestConfig;
 using save_address_profile_infobar_modal_responses::CancelViewAction;
+using save_address_profile_infobar_modal_responses::EditedProfileSaveAction;
 using save_address_profile_infobar_modal_responses::
     LegacyEditedProfileSaveAction;
 using save_address_profile_infobar_modal_responses::NoThanksViewAction;
@@ -42,6 +38,7 @@ class SaveAddressProfileInfobarModalOverlayMediatorTest : public PlatformTest {
   SaveAddressProfileInfobarModalOverlayMediatorTest()
       : callback_installer_(&callback_receiver_,
                             {LegacyEditedProfileSaveAction::ResponseSupport(),
+                             EditedProfileSaveAction::ResponseSupport(),
                              CancelViewAction::ResponseSupport(),
                              NoThanksViewAction::ResponseSupport()}),
         mediator_delegate_(
@@ -51,7 +48,7 @@ class SaveAddressProfileInfobarModalOverlayMediatorTest : public PlatformTest {
         delegate = std::make_unique<
             autofill::AutofillSaveUpdateAddressProfileDelegateIOS>(
             profile, /*original_profile=*/nullptr,
-            /*syncing_user_email=*/absl::nullopt,
+            /*user_email=*/absl::nullopt,
             /*locale=*/"en-US",
             autofill::AutofillClient::SaveAddressProfilePromptOptions{},
             base::DoNothing());
@@ -125,6 +122,17 @@ TEST_F(SaveAddressProfileInfobarModalOverlayMediatorTest, LegacyEditAction) {
                        LegacyEditedProfileSaveAction::ResponseSupport()));
   OCMExpect([mediator_delegate_ stopOverlayForMediator:mediator_]);
   [mediator_ saveEditedProfileWithData:@{}.mutableCopy];
+}
+
+// Tests that calling saveEditedProfileWithProfileData: triggers a
+// EditedProfileSaveAction response.
+TEST_F(SaveAddressProfileInfobarModalOverlayMediatorTest, EditAction) {
+  autofill::AutofillProfile profile;
+  EXPECT_CALL(callback_receiver_,
+              DispatchCallback(request_.get(),
+                               EditedProfileSaveAction::ResponseSupport()));
+  OCMExpect([mediator_delegate_ stopOverlayForMediator:mediator_]);
+  [mediator_ saveEditedProfileWithProfileData:&profile];
 }
 
 // Tests that calling dismissInfobarModal triggers a CancelViewAction response.

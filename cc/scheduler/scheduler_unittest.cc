@@ -27,7 +27,6 @@
 #include "cc/metrics/event_metrics.h"
 #include "cc/test/fake_compositor_frame_reporting_controller.h"
 #include "cc/test/scheduler_test_common.h"
-#include "components/power_scheduler/power_mode_arbiter.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/test/begin_frame_args_test.h"
 #include "components/viz/test/fake_delay_based_time_source.h"
@@ -48,10 +47,6 @@
 
 namespace cc {
 namespace {
-
-using power_scheduler::PowerMode;
-using power_scheduler::PowerModeArbiter;
-using power_scheduler::PowerModeVoter;
 
 base::TimeDelta kSlowDuration = base::Seconds(1);
 base::TimeDelta kFastDuration = base::Milliseconds(1);
@@ -177,7 +172,7 @@ class FakeSchedulerClient : public SchedulerClient,
     PushAction("ScheduledActionDrawIfPossible");
     num_draws_++;
     if (!draw_will_happen_)
-      return DRAW_ABORTED_CHECKERBOARD_ANIMATIONS;
+      return DrawResult::kAbortedCheckerboardAnimations;
 
     if (swap_will_happen_if_draw_happens_) {
       last_begin_frame_ack_ = scheduler_->CurrentBeginFrameAckForActiveTree();
@@ -188,14 +183,14 @@ class FakeSchedulerClient : public SchedulerClient,
       if (automatic_ack_)
         scheduler_->DidReceiveCompositorFrameAck();
     }
-    return DRAW_SUCCESS;
+    return DrawResult::kSuccess;
   }
   DrawResult ScheduledActionDrawForced() override {
     EXPECT_FALSE(inside_action_);
     base::AutoReset<bool> mark_inside(&inside_action_, true);
     PushAction("ScheduledActionDrawForced");
     last_begin_frame_ack_ = scheduler_->CurrentBeginFrameAckForActiveTree();
-    return DRAW_SUCCESS;
+    return DrawResult::kSuccess;
   }
   void ScheduledActionCommit() override {
     EXPECT_FALSE(inside_action_);
@@ -279,8 +274,6 @@ class FakeSchedulerClient : public SchedulerClient,
     PushAction("RemoveObserver(this)");
   }
 
-  bool HasInvalidationAnimation() const override { return false; }
-
  protected:
   bool InsideBeginImplFrameCallback(bool state) {
     return inside_begin_impl_frame_ == state;
@@ -300,7 +293,7 @@ class FakeSchedulerClient : public SchedulerClient,
   viz::BeginFrameAck last_begin_frame_ack_;
   base::TimeTicks posted_begin_impl_frame_deadline_;
   std::vector<const char*> actions_;
-  raw_ptr<TestScheduler> scheduler_ = nullptr;
+  raw_ptr<TestScheduler, DanglingUntriaged> scheduler_ = nullptr;
   base::TimeDelta frame_interval_;
   absl::optional<FrameSkippedReason> last_frame_skipped_reason_;
 };
@@ -416,7 +409,7 @@ class SchedulerTest : public testing::Test {
     scheduler_ = std::make_unique<TestScheduler>(
         task_runner_->GetMockTickClock(), client_.get(), scheduler_settings_, 0,
         task_runner_.get(), std::move(fake_compositor_timing_history),
-        reporting_controller.get(), &power_mode_arbiter_);
+        reporting_controller.get());
     client_->set_scheduler(scheduler_.get());
     scheduler_->SetBeginFrameSource(frame_source);
 
@@ -598,7 +591,6 @@ class SchedulerTest : public testing::Test {
   std::unique_ptr<viz::SyntheticBeginFrameSource> unthrottled_frame_source_;
   SchedulerSettings scheduler_settings_;
   std::unique_ptr<FakeSchedulerClient> client_;
-  PowerModeArbiter power_mode_arbiter_;
   std::unique_ptr<TestScheduler> scheduler_;
   raw_ptr<FakeCompositorTimingHistory> fake_compositor_timing_history_;
   DroppedFrameCounter dropped_counter;
@@ -866,7 +858,7 @@ class SchedulerClientThatsetNeedsDrawInsideDraw : public FakeSchedulerClient {
 
   DrawResult ScheduledActionDrawForced() override {
     NOTREACHED();
-    return DRAW_SUCCESS;
+    return DrawResult::kSuccess;
   }
 
  private:
@@ -973,7 +965,7 @@ class SchedulerClientThatSetNeedsBeginMainFrameInsideDraw
 
   DrawResult ScheduledActionDrawForced() override {
     NOTREACHED();
-    return DRAW_SUCCESS;
+    return DrawResult::kSuccess;
   }
 
   void SetNeedsBeginMainFrameOnNextDraw() {
@@ -1682,7 +1674,7 @@ TEST_F(SchedulerTest, MainFrameNotSkippedAfterLateBeginMainFrameAbort) {
   // After aborting the frame, make sure we don't skip the
   // next BeginMainFrame.
   client_->Reset();
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
+  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
   EXPECT_FALSE(scheduler_->MainThreadMissedLastDeadline());
   scheduler_->SetNeedsBeginMainFrame();
   EXPECT_FALSE(scheduler_->MainThreadMissedLastDeadline());
@@ -3356,7 +3348,7 @@ TEST_F(SchedulerTest, NoLayerTreeFrameSinkCreationWhileCommitPending) {
   client_->Reset();
   scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
   scheduler_->BeginMainFrameAborted(
-      CommitEarlyOutReason::ABORTED_DEFERRED_COMMIT);
+      CommitEarlyOutReason::kAbortedDeferredCommit);
   EXPECT_ACTIONS("ScheduledActionBeginLayerTreeFrameSinkCreation");
 }
 
@@ -3413,7 +3405,7 @@ TEST_F(SchedulerTest, AbortedCommitsTriggerImplSideInvalidations) {
   client_->Reset();
   scheduler_->SetNeedsBeginMainFrame();
   scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
+  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
   EXPECT_ACTIONS("ScheduledActionPerformImplSideInvalidation");
 }
 
@@ -4003,7 +3995,7 @@ TEST_F(SchedulerTest, SendEarlyDidNotProduceFrameIfIdle) {
   // Request a new commit before finishing the current one to simulate behavior
   // seen in certain OOPIF renderers.
   scheduler_->SetNeedsBeginMainFrame();
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
+  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::kFinishedNoUpdates);
   EXPECT_EQ(client_->last_begin_frame_ack().frame_id.sequence_number,
             begin_main_frame_args.frame_id.sequence_number);
 }
@@ -4045,162 +4037,6 @@ TEST_F(SchedulerTest,
   // No invalidation should be performed since we are waiting for the main
   // thread to respond and merge with the commit.
   EXPECT_ACTIONS("WillBeginImplFrame");
-}
-
-namespace {
-class FakePowerModeObserver : public PowerModeArbiter::Observer {
- public:
-  void OnPowerModeChanged(PowerMode old_mode, PowerMode new_mode) override {}
-};
-
-class SchedulerTestForPowerMode : public SchedulerTest {
- public:
-  SchedulerTestForPowerMode()
-      : time_overrides_(
-            /*time_override=*/nullptr,
-            &SchedulerTestForPowerMode::TimeTicksNow,
-            /*thread_ticks_override=*/nullptr) {
-    DCHECK_EQ(nullptr, current_test_);
-    current_test_ = this;
-
-    // Clear the arbiter's initial kCharging vote.
-    power_mode_arbiter_.SetOnBatteryPowerForTesting(/*on_battery_power=*/true);
-    power_mode_arbiter_.SetTaskRunnerForTesting(task_runner_);
-
-    // Add a fake observer so that reset tasks are executed.
-    power_mode_arbiter_.AddObserver(&observer_);
-  }
-
-  ~SchedulerTestForPowerMode() override {
-    DCHECK_EQ(this, current_test_);
-    current_test_ = nullptr;
-    power_mode_arbiter_.RemoveObserver(&observer_);
-  }
-
-  void AdvanceToArbiterSnapAfter(base::TimeDelta delay) {
-    // Align the mock clock with the phase of the arbiter's reset tasks.
-    base::TimeTicks target_time =
-        (task_runner_->NowTicks() + delay)
-            .SnappedToNextTick(base::TimeTicks(),
-                               PowerModeArbiter::kResetVoteTimeResolution);
-    task_runner_->RunUntilTime(target_time);
-  }
-
-  static base::TimeTicks TimeTicksNow() {
-    DCHECK_NE(nullptr, current_test_);
-    return current_test_->task_runner_->NowTicks();
-  }
-
- private:
-  // The ScopedTimeClockOverrides below require a function pointer (as opposed
-  // to a bound callback). We store the current test instance in this static
-  // variable to access its members from the static TimeTicksNow() method above.
-  static SchedulerTestForPowerMode* current_test_;
-
-  // The arbiter uses base::TimeTicks::Now(), which needs to be overridden by
-  // the test's task runner. Ideally we'd be using base::test::TaskEnvironment
-  // for scheduler unittests, which would do this for us.
-  base::subtle::ScopedTimeClockOverrides time_overrides_;
-
-  FakePowerModeObserver observer_;
-};
-
-// static
-SchedulerTestForPowerMode* SchedulerTestForPowerMode::current_test_;
-}  // namespace
-
-TEST_F(SchedulerTestForPowerMode, BeginMainFramePowerModeVoter) {
-  // Arbiter should start out in idle mode.
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-
-  // SetUpScheduler will cause a BeginMainFrame and commit, which should change
-  // the PowerMode vote.
-  SetUpScheduler(EXTERNAL_BFS);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-
-  // The scheduler should now be idle, so the PowerMode vote should be reset
-  // after kAnimationTimeout.
-  AdvanceToArbiterSnapAfter(PowerModeVoter::kAnimationTimeout);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-
-  scheduler_->SetNeedsBeginMainFrame();
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-
-  // While BeginMainFrame is needed, the vote is not reset
-  AdvanceToArbiterSnapAfter(PowerModeVoter::kAnimationTimeout);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-
-  client_->Reset();
-  EXPECT_SCOPED(AdvanceFrame());
-  EXPECT_ACTIONS("WillBeginImplFrame", "ScheduledActionSendBeginMainFrame");
-
-  client_->Reset();
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-
-  // While BeginMainFrame is active, the vote is not reset
-  AdvanceToArbiterSnapAfter(PowerModeVoter::kAnimationTimeout);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
-
-  // After aborting, the vote is reset.
-  AdvanceToArbiterSnapAfter(PowerModeVoter::kAnimationTimeout);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-
-  // Go through another two BeginMainFrames that are aborted.
-  scheduler_->SetNeedsBeginMainFrame();
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-  client_->Reset();
-  EXPECT_SCOPED(AdvanceFrame());
-  EXPECT_ACTIONS("WillBeginImplFrame", "ScheduledActionSendBeginMainFrame");
-  client_->Reset();
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
-
-  scheduler_->SetNeedsBeginMainFrame();
-  client_->Reset();
-  EXPECT_SCOPED(AdvanceFrame());
-  EXPECT_ACTIONS("WillBeginImplFrame", "ScheduledActionSendBeginMainFrame");
-  client_->Reset();
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
-
-  // Still in animation mode, but a reset is pending.
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-  AdvanceToArbiterSnapAfter(PowerModeVoter::kAnimationTimeout);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-
-  // Further BeginMainFrame will be ignored, because the main-thread animation
-  // is considered no-op after three consecutive aborted BeginMainFrames.
-  scheduler_->SetNeedsBeginMainFrame();
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-  client_->Reset();
-  EXPECT_SCOPED(AdvanceFrame());
-  EXPECT_ACTIONS("WillBeginImplFrame", "ScheduledActionSendBeginMainFrame");
-  client_->Reset();
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->BeginMainFrameAborted(CommitEarlyOutReason::FINISHED_NO_UPDATES);
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-
-  // But once the BeginMainFrame produces updates, we vote for animation again.
-  scheduler_->SetNeedsBeginMainFrame();
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(), PowerMode::kIdle);
-  client_->Reset();
-  EXPECT_SCOPED(AdvanceFrame());
-  EXPECT_ACTIONS("WillBeginImplFrame", "ScheduledActionSendBeginMainFrame");
-  client_->Reset();
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->NotifyReadyToCommit(nullptr);
-  EXPECT_ACTIONS("ScheduledActionCommit", "ScheduledActionPostCommit");
-  EXPECT_EQ(power_mode_arbiter_.GetActiveModeForTesting(),
-            PowerMode::kMainThreadAnimation);
-  client_->Reset();
 }
 
 }  // namespace

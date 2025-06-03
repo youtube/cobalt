@@ -110,6 +110,9 @@ namespace printing {
     // The printer is unreachable and doesn't accept print jobs.
     UNREACHABLE,
 
+    // The SSL certificate is expired. Printer accepts jobs but they fail.
+    EXPIRED_CERTIFICATE,
+
     // The printer is available.
     AVAILABLE
   };
@@ -151,8 +154,10 @@ namespace printing {
 
   interface Functions {
     // Submits the job for print.
-    // If the extension is not listed in PrintingAPIExtensionsAllowlist policy,
-    // the user will be prompted to accept the print job.
+    // Use the
+    // <a href="https://chromeenterprise.google/policies/#PrintingAPIExtensionsAllowlist">
+    // <code>PrintingAPIExtensionsAllowlist</code></a> to bypass promting
+    // the user to confirm printing.
     [supportsPromises] static void submitJob(SubmitJobRequest request,
                                              SubmitJobCallback callback);
 

@@ -12,7 +12,7 @@
 #include "ash/wm/desks/templates/saved_desk_item_view.h"
 #include "ash/wm/desks/templates/saved_desk_name_view.h"
 #include "ash/wm/overview/overview_controller.h"
-#include "ash/wm/overview/overview_highlight_controller.h"
+#include "ash/wm/overview/overview_focus_cycler.h"
 #include "ash/wm/overview/overview_session.h"
 #include "base/i18n/string_compare.h"
 #include "base/ranges/algorithm.h"
@@ -25,7 +25,6 @@
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/transform_util.h"
 #include "ui/views/animation/animation_builder.h"
-#include "ui/views/animation/bounds_animator.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/core/window_util.h"
 
@@ -106,8 +105,8 @@ void SavedDeskGridView::SortEntries(const base::Uuid& order_first_uuid) {
       rest, grid_items_.end(),
       [&collator](const SavedDeskItemView* a, const SavedDeskItemView* b) {
         return base::i18n::CompareString16WithCollator(
-                   *collator, a->name_view()->GetAccessibleName(),
-                   b->name_view()->GetAccessibleName()) < 0;
+                   *collator, a->name_view()->GetText(),
+                   b->name_view()->GetText()) < 0;
       });
 
   // A11y traverses views based on the order of the children, so we need to
@@ -153,12 +152,9 @@ void SavedDeskGridView::AddOrUpdateEntries(
 
 void SavedDeskGridView::DeleteEntries(const std::vector<base::Uuid>& uuids,
                                       bool delete_animation) {
-  OverviewHighlightController* highlight_controller =
-      Shell::Get()
-          ->overview_controller()
-          ->overview_session()
-          ->highlight_controller();
-  DCHECK(highlight_controller);
+  OverviewFocusCycler* focus_cycler =
+      Shell::Get()->overview_controller()->overview_session()->focus_cycler();
+  CHECK(focus_cycler);
 
   for (const base::Uuid& uuid : uuids) {
     auto iter = base::ranges::find(grid_items_, uuid, &SavedDeskItemView::uuid);
@@ -167,8 +163,8 @@ void SavedDeskGridView::DeleteEntries(const std::vector<base::Uuid>& uuids,
       continue;
 
     SavedDeskItemView* grid_item = *iter;
-    highlight_controller->OnViewDestroyingOrDisabling(grid_item);
-    highlight_controller->OnViewDestroyingOrDisabling(grid_item->name_view());
+    focus_cycler->OnViewDestroyingOrDisabling(grid_item);
+    focus_cycler->OnViewDestroyingOrDisabling(grid_item->name_view());
 
     // Performs an animation of changing the deleted grid item opacity
     // from 1 to 0 and scales down to `kAddOrDeleteItemScale`. `old_layer_tree`

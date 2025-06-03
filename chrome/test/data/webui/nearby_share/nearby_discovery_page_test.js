@@ -9,12 +9,13 @@ import {setDiscoveryManagerForTesting} from 'chrome://nearby/discovery_manager.j
 import {SelectShareTargetResult, ShareTargetListenerRemote, StartDiscoveryResult} from 'chrome://nearby/shared/nearby_share.mojom-webui.js';
 import {ShareType} from 'chrome://nearby/shared/nearby_share_share_type.mojom-webui.js';
 import {getDeepActiveElement} from 'chrome://resources/ash/common/util.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {ShareTargetType} from 'chrome://resources/mojo/chromeos/ash/services/nearby/public/mojom/nearby_share_target_types.mojom-webui.js';
 import {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {keyEventOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {assertEquals, assertFalse, assertTrue} from '../chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertTrue} from '../chromeos/chai_assert.js';
 import {isVisible} from '../chromeos/test_util.js';
 
 import {FakeConfirmationManagerRemote, FakeDiscoveryManagerRemote} from './fake_mojo_interfaces.js';
@@ -58,7 +59,7 @@ suite('DiscoveryPageTest', function() {
     flush();
     const selector =
         /** @type {{items: !Array<NearbyDiscoveryPageElement>}} */ (
-            discoveryPageElement.shadowRoot.querySelector('#selector'));
+            discoveryPageElement.shadowRoot.querySelector('.selector'));
 
     // If the device list isn't found, it's because the dom-if wrapping it
     // isn't showing because there are no elements.
@@ -76,6 +77,32 @@ suite('DiscoveryPageTest', function() {
     const container =
         discoveryPageElement.shadowRoot.querySelector('.device-list-container');
     const nearbyDeviceElements = container.querySelectorAll('nearby-device');
+
+    assertTrue(nearbyDeviceElements.length > index);
+    return nearbyDeviceElements[index];
+  }
+
+  /**
+   * Returns the |index|+1 positioned Share Target in the list of Your Devices
+   * share targets.
+   */
+  function getNearbyDeviceSelfShareDevicesElementAt(index) {
+    const selfShareDevices =
+        discoveryPageElement.shadowRoot.querySelector('#selfShareDevices');
+    const nearbyDeviceElements =
+        selfShareDevices.querySelectorAll('nearby-device');
+    return nearbyDeviceElements[index];
+  }
+
+  /**
+   * Returns the |index|+1 positioned Share Target in the list of Non-Your
+   * Devices share targets.
+   */
+  function getNearbyDeviceNonSelfShareDevicesElementAt(index) {
+    const nonSelfShareDevices =
+        discoveryPageElement.shadowRoot.querySelector('#nonSelfShareDevices');
+    const nearbyDeviceElements =
+        nonSelfShareDevices.querySelectorAll('nearby-device');
     return nearbyDeviceElements[index];
   }
 
@@ -197,9 +224,10 @@ suite('DiscoveryPageTest', function() {
 
   /**
    * @param {!string} name Device name
+   * @param {!boolean} for_self_share
    * @return {!ShareTarget}
    */
-  function createShareTarget(name) {
+  function createShareTarget(name, for_self_share = false) {
     return {
       id: {high: BigInt(0), low: BigInt(nextId++)},
       name,
@@ -212,6 +240,7 @@ suite('DiscoveryPageTest', function() {
         fileCount: 0,
         shareType: /** @type {!ShareType} */ (0),
       },
+      forSelfShare: for_self_share,
     };
   }
 
@@ -259,7 +288,20 @@ suite('DiscoveryPageTest', function() {
 
   teardown(function() {
     discoveryPageElement.remove();
+    loadTimeData.overrideValues({'isSelfShareEnabled': false});
   });
+
+  /**
+   * Sets up self share tests which need isSelfShareEnabled enabled.
+   */
+  async function setupSelfShare() {
+    discoveryPageElement.remove();
+    PolymerTest.clearBody();
+    loadTimeData.overrideValues({'isSelfShareEnabled': true});
+    discoveryPageElement = /** @type {!NearbyDiscoveryPageElement} */ (
+        document.createElement('nearby-discovery-page'));
+    document.body.appendChild(discoveryPageElement);
+  }
 
   test('renders component', async function() {
     assertEquals('NEARBY-DISCOVERY-PAGE', discoveryPageElement.tagName);
@@ -377,7 +419,8 @@ suite('DiscoveryPageTest', function() {
     await listener.$.flushForTesting();
     flush();
     const deviceList = /** @type{?HTMLElement} */
-        (discoveryPageElement.shadowRoot.querySelector('#deviceList'));
+        (discoveryPageElement.shadowRoot.querySelector(
+            '.device-list-container'));
     const placeholder =
         discoveryPageElement.shadowRoot.querySelector('#placeholder');
     assertTrue(!!deviceList && !deviceList.hidden);
@@ -583,5 +626,129 @@ suite('DiscoveryPageTest', function() {
         assertTrue(arrowUpOnDevice(2));
         assertEquals(getNearbyDeviceElementAt(1), getDeepActiveElement());
       });
+
+  test(
+      'self share targets top device list when self share is enabled',
+      async function() {
+        setupSelfShare();
+        const listener = await startDiscovery();
+
+        // Add 2 non-self share targets.
+        let targets = [
+          createShareTarget('Device 1', /*for_self_share=*/ false),
+          createShareTarget('Device 2', /*for_self_share=*/ false),
+        ];
+        targets.forEach((target) => listener.onShareTargetDiscovered(target));
+        await listener.$.flushForTesting();
+
+        // Add 2 self share targets.
+        targets = [
+          createShareTarget('Device 3', /*for_self_share=*/ true),
+          createShareTarget('Device 4', /*for_self_share=*/ true),
+        ];
+        targets.forEach((target) => listener.onShareTargetDiscovered(target));
+        await listener.$.flushForTesting();
+        flush();
+
+        assertEquals(
+            getNearbyDeviceSelfShareDevicesElementAt(0).$.name.innerHTML,
+            'Device 3');
+        assertEquals(
+            getNearbyDeviceSelfShareDevicesElementAt(1).$.name.innerHTML,
+            'Device 4');
+        assertEquals(
+            getNearbyDeviceNonSelfShareDevicesElementAt(0).$.name.innerHTML,
+            'Device 1');
+        assertEquals(
+            getNearbyDeviceNonSelfShareDevicesElementAt(1).$.name.innerHTML,
+            'Device 2');
+      });
+
+  test(
+      'share targets ordered by earliest discovery when self share disabled',
+      async function() {
+        const listener = await startDiscovery();
+
+        // Add 2 non-self share targets.
+        let targets = [
+          createShareTarget('Device 1', /*for_self_share=*/ false),
+          createShareTarget('Device 2', /*for_self_share=*/ false),
+        ];
+        targets.forEach((target) => listener.onShareTargetDiscovered(target));
+        await listener.$.flushForTesting();
+
+        // Add 2 self share targets.
+        targets = [
+          createShareTarget('Device 3', /*for_self_share=*/ true),
+          createShareTarget('Device 4', /*for_self_share=*/ true),
+        ];
+        targets.forEach((target) => listener.onShareTargetDiscovered(target));
+        await listener.$.flushForTesting();
+        flush();
+
+        assertEquals(getNearbyDeviceElementAt(0).$.name.innerHTML, 'Device 1');
+        assertEquals(getNearbyDeviceElementAt(1).$.name.innerHTML, 'Device 2');
+        assertEquals(getNearbyDeviceElementAt(2).$.name.innerHTML, 'Device 3');
+        assertEquals(getNearbyDeviceElementAt(3).$.name.innerHTML, 'Device 4');
+      });
+
+  test('one self share target in device list', async function() {
+    setupSelfShare();
+    const listener = await startDiscovery();
+
+    // Add a self share target.
+    const target = createShareTarget('Device 1', /*for_self_share=*/ true);
+    listener.onShareTargetDiscovered(target);
+    await listener.$.flushForTesting();
+
+    assertEquals(
+        getNearbyDeviceSelfShareDevicesElementAt(0).$.name.innerHTML,
+        'Device 1');
+  });
+
+  test('one non-self share target in device list', async function() {
+    setupSelfShare();
+    const listener = await startDiscovery();
+
+    // Add a non-self share target.
+    const target = createShareTarget('Device 1', /*for_self_share=*/ false);
+    listener.onShareTargetDiscovered(target);
+    await listener.$.flushForTesting();
+
+    assertEquals(
+        getNearbyDeviceNonSelfShareDevicesElementAt(0).$.name.innerHTML,
+        'Device 1');
+  });
+
+  test('add and remove share targets to/from device list', async function() {
+    setupSelfShare();
+    const listener = await startDiscovery();
+
+    // Add self, non-self share targets.
+    const selfShareTarget =
+        createShareTarget('self share target', /*for_self_share=*/ true);
+    listener.onShareTargetDiscovered(selfShareTarget);
+    const nonSelfShareTarget =
+        createShareTarget('non self share target', /*for_self_share=*/ false);
+    listener.onShareTargetDiscovered(nonSelfShareTarget);
+    await listener.$.flushForTesting();
+    assertEquals(
+        getNearbyDeviceSelfShareDevicesElementAt(0).$.name.innerHTML,
+        'self share target');
+    assertEquals(
+        getNearbyDeviceNonSelfShareDevicesElementAt(0).$.name.innerHTML,
+        'non self share target');
+
+    // Remove share targets.
+    listener.onShareTargetLost(selfShareTarget);
+    listener.onShareTargetLost(nonSelfShareTarget);
+    await listener.$.flushForTesting();
+
+    // Check device list length.
+    const container =
+        discoveryPageElement.shadowRoot.querySelector('#deviceLists');
+    const nearbyDeviceElements = container.querySelectorAll('nearby-device');
+    assertEquals(0, nearbyDeviceElements.length);
+  });
 
 });

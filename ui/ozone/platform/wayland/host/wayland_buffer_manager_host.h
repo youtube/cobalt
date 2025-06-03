@@ -12,6 +12,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -64,6 +65,14 @@ class WaylandBufferManagerHost : public ozone::mojom::WaylandBufferManagerHost {
   // Called by WaylandFrameManager if overlay data is invalid.
   void OnCommitOverlayError(const std::string& message);
 
+  // Called by WaylandZAuraShell when all bug fix ids are ready.
+  void OnAllBugFixesSent(std::vector<uint32_t> bug_fix_ids);
+
+  // Waits for all bug fix ids sent from the server asynchronously. If all bug
+  // ids are ready, `callback` runs synchronously.
+  void WaitForAllBugFixIds(
+      base::OnceCallback<void(const std::vector<uint32_t>&)> callback);
+
   // Returns supported buffer formats either from zwp_linux_dmabuf or wl_drm.
   wl::BufferFormatsWithModifiersMap GetSupportedBufferFormats() const;
 
@@ -72,6 +81,7 @@ class WaylandBufferManagerHost : public ozone::mojom::WaylandBufferManagerHost {
   bool SupportsViewporter() const;
   bool SupportsOverlays() const;
   bool SupportsNonBackedSolidColorBuffers() const;
+  bool SupportsSinglePixelBuffer() const;
   uint32_t GetSurfaceAugmentorVersion() const;
 
   // ozone::mojom::WaylandBufferManagerHost overrides:
@@ -100,13 +110,19 @@ class WaylandBufferManagerHost : public ozone::mojom::WaylandBufferManagerHost {
                             uint64_t length,
                             const gfx::Size& size,
                             uint32_t buffer_id) override;
-  // Called by the GPU and asks to import a solid color wl_buffer. Check
+  // Called by the GPU and asks to create a solid color wl_buffer. Check
   // comments in the
   // ui/ozone/platform/wayland/mojom/wayland_buffer_manager.mojom. The
   // availability of this depends on existence of surface-augmenter protocol.
   void CreateSolidColorBuffer(const gfx::Size& size,
                               const SkColor4f& color,
                               uint32_t buffer_id) override;
+  // Called by the GPU and asks to create a single pixel wl_buffer. Check
+  // comments in the
+  // ui/ozone/platform/wayland/mojom/wayland_buffer_manager.mojom. The
+  // availability of this depends on existence of single pixel buffer protocol.
+  void CreateSinglePixelBuffer(const SkColor4f& color,
+                               uint32_t buffer_id) override;
 
   // Called by the GPU to destroy the imported wl_buffer with a |buffer_id|.
   void DestroyBuffer(uint32_t buffer_id) override;
@@ -144,6 +160,26 @@ class WaylandBufferManagerHost : public ozone::mojom::WaylandBufferManagerHost {
       gfx::AcceleratedWidget widget,
       const std::vector<wl::WaylandPresentationInfo>& presentation_infos);
 
+  // Inserts a sync_file into the write fence list of the DMA-BUF. When the
+  // compositor tries to read from this DMA-BUF via GL, the kernel will
+  // automatically force its GPU context to wait on all write fences in the
+  // DMA-BUF, including the fence we inserted. This is used to synchronize with
+  // compositors that don't support the
+  // linux-explicit-synchronization-unstable-v1 protocol. Requires Linux 6.0 or
+  // higher.
+  void InsertAcquireFence(uint32_t buffer_id, int sync_fd);
+
+  // Extracts a sync_file that represents all pending fences inside the DMA-BUF
+  // kernel object. When the compositor reads the DMA-BUF from GL, the kernel
+  // automatically adds a completion fence to the read fences list of the
+  // DMA-BUF that will be signalled once the read operation completes. This is
+  // used to synchronize with compositors that don't support the
+  // linux-explicit-synchronization-unstable-v1 protocol. Requires Linux 6.0 or
+  // higher.
+  base::ScopedFD ExtractReleaseFence(uint32_t buffer_id);
+
+  static bool SupportsImplicitSyncInterop();
+
  private:
   // Validates data sent from GPU. If invalid, returns false and sets an error
   // message to |error_message_|.
@@ -180,9 +216,16 @@ class WaylandBufferManagerHost : public ozone::mojom::WaylandBufferManagerHost {
   // data sent by the GPU to the browser process.
   base::OnceCallback<void(std::string)> terminate_gpu_cb_;
 
+  // A callback, which is called when all bug fix ids are ready. This is called
+  // from OnAllBugFixesSent.
+  base::OnceCallback<void(const std::vector<uint32_t>&)>
+      all_bug_fixes_sent_callback_;
+
   // Maps buffer_id's to corresponding WaylandBufferBacking objects.
   base::flat_map<uint32_t, std::unique_ptr<WaylandBufferBacking>>
       buffer_backings_;
+
+  base::flat_map<uint32_t, base::ScopedFD> dma_buffers_;
 };
 
 }  // namespace ui

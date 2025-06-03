@@ -18,7 +18,6 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.gesturenav.HistoryNavigationCoordinator;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -87,8 +86,7 @@ public class SwipeRefreshHandler
         return handler;
     }
 
-    @Nullable
-    public static SwipeRefreshHandler get(Tab tab) {
+    public static @Nullable SwipeRefreshHandler get(Tab tab) {
         return tab.getUserDataHost().getUserData(USER_DATA_KEY);
     }
 
@@ -120,11 +118,8 @@ public class SwipeRefreshHandler
         mSwipeRefreshLayout.setLayoutParams(
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         final boolean incognito = mTab.isIncognito();
-        final @ColorInt int incognitoColor = ChromeFeatureList.sBaselineGm3SurfaceColors.isEnabled()
-                ? context.getColor(R.color.default_bg_color_dark_elev_2_gm3_baseline)
-                : context.getColor(R.color.default_bg_color_dark_elev_2_baseline);
         final @ColorInt int backgroundColor = incognito
-                ? incognitoColor
+                ? context.getColor(R.color.default_bg_color_dark_elev_2_baseline)
                 : ChromeColors.getSurfaceColor(context, R.dimen.default_elevation_2);
         mSwipeRefreshLayout.setProgressBackgroundColorSchemeColor(backgroundColor);
         final @ColorInt int iconColor = incognito

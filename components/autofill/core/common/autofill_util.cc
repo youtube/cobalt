@@ -4,13 +4,19 @@
 
 #include "components/autofill/core/common/autofill_util.h"
 
+#include <stddef.h>
+
 #include <algorithm>
+#include <numeric>
+#include <string_view>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/i18n/case_conversion.h"
+#include "base/i18n/rtl.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
@@ -23,9 +29,6 @@
 
 namespace autofill {
 
-#if BUILDFLAG(IS_ANDROID)
-using features::kAutofillKeyboardAccessory;
-#endif
 using mojom::FocusedFieldType;
 using mojom::SubmissionIndicatorEvent;
 using mojom::SubmissionSource;
@@ -49,10 +52,6 @@ struct Compare : base::CaseInsensitiveCompareASCII<Char> {
 
 }  // namespace
 
-bool IsFeatureSubstringMatchEnabled() {
-  return base::FeatureList::IsEnabled(features::kAutofillTokenPrefixMatching);
-}
-
 bool IsShowAutofillSignaturesEnabled() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kShowAutofillSignatures);
@@ -60,26 +59,10 @@ bool IsShowAutofillSignaturesEnabled() {
 
 bool IsKeyboardAccessoryEnabled() {
 #if BUILDFLAG(IS_ANDROID)
-  return base::FeatureList::IsEnabled(kAutofillKeyboardAccessory);
+  return true;
 #else  // !BUILDFLAG(IS_ANDROID)
   return false;
 #endif
-}
-
-bool FieldIsSuggestionSubstringStartingOnTokenBoundary(
-    const std::u16string& suggestion,
-    const std::u16string& field_contents,
-    bool case_sensitive) {
-  if (!IsFeatureSubstringMatchEnabled()) {
-    return base::StartsWith(suggestion, field_contents,
-                            case_sensitive
-                                ? base::CompareCase::SENSITIVE
-                                : base::CompareCase::INSENSITIVE_ASCII);
-  }
-
-  return suggestion.length() >= field_contents.length() &&
-         GetTextSelectionStart(suggestion, field_contents, case_sensitive) !=
-             std::u16string::npos;
 }
 
 bool IsPrefixOfEmailEndingWithAtSign(const std::u16string& full_string,
@@ -145,13 +128,81 @@ bool SanitizedFieldIsEmpty(const std::u16string& value) {
   // Some sites enter values such as ____-____-____-____ or (___)-___-____ in
   // their fields. Check if the field value is empty after the removal of the
   // formatting characters.
-  static std::u16string formatting =
+  static const base::NoDestructor<std::u16string> formatting(
       base::StrCat({u"-_()/",
                     {&base::i18n::kRightToLeftMark, 1},
                     {&base::i18n::kLeftToRightMark, 1},
-                    base::kWhitespaceUTF16});
+                    base::kWhitespaceUTF16}));
 
-  return (value.find_first_not_of(formatting) == base::StringPiece::npos);
+  return base::ContainsOnlyChars(value, *formatting);
+}
+
+size_t LevenshteinDistance(std::u16string_view a,
+                           std::u16string_view b,
+                           std::optional<size_t> max_distance) {
+  if (a.size() > b.size()) {
+    a.swap(b);
+  }
+
+  // max(a.size(), b.size()) steps always suffice.
+  const size_t k = max_distance.value_or(b.size());
+  // If the string's lengths differ by more than `k`, so does their
+  // Levenshtein distance.
+  if (a.size() + k < b.size() || a.size() > b.size() + k) {
+    return k + 1;
+  }
+  // The classical Levenshtein distance DP defines dp[i][j] as the minimum
+  // number of insert, remove and replace operation to convert a[:i] to b[:j].
+  // To make this more efficient, one can define dp[i][d] as the distance of
+  // a[:i] and b[:i + d]. Intuitively, d represents the delta between j and i in
+  // the former dp. Since the Levenshtein distance is restricted by `k`, abs(d)
+  // can be bounded by `k`. Since dp[i][d] only depends on values from dp[i-1],
+  // it is not necessary to store the entire 2D table. Instead, this code just
+  // stores the d-dimension, which represents "the distance with the current
+  // prefix of the string, for a given delta d". Since d is between `-k` and
+  // `k`, the implementation shifts the d-index by `k`, bringing it in range
+  // [0, `2*k`].
+
+  // The algorithm only cares if the Levenshtein distance is at most `k`. Thus,
+  // any unreachable states and states in which the distance is certainly larger
+  // than `k` can be set to any value larger than `k`, without affecting the
+  // result.
+  const size_t kInfinity = k + 1;
+  std::vector<size_t> dp(2 * k + 1, kInfinity);
+  // Initially, `dp[d]` represents the Levenshtein distance of the empty prefix
+  // of `a` and the j = d - k characters of `b`. Their distance is j, since j
+  // removals are required. States with negative d are not reachable, since that
+  // corresponds to a negative index into `b`.
+  std::iota(dp.begin() + static_cast<long>(k), dp.end(), 0);
+  for (size_t i = 0; i < a.size(); i++) {
+    // Right now, `dp` represents the Levenshtein distance when considering the
+    // first `i` characters (up to index `i-1`) of `a`. After the next loop,
+    // `dp` will represent the Levenshtein distance when considering the first
+    // `i+1` characters.
+    for (size_t d = 0; d <= 2 * k; d++) {
+      if (i + d < k || i + d >= b.size() + k) {
+        // `j = i + d - k` is out of range of `b`.
+        dp[d] = kInfinity;
+        continue;
+      }
+      const size_t j = i + d - k;
+      // If `a[i] == `b[j]` the Levenshtein distance for `d` remained the same.
+      if (a[i] != b[j]) {
+        // (i, j) -> (i-1, j-1), `d` stays the same.
+        const size_t replace = dp[d];
+        // (i, j) -> (i-1, j), `d` increases by 1.
+        // If the distance between `i` and `j` becomes larger than `k`, their
+        // distance is at least `k + 1`. Same in the `insert` case.
+        const size_t remove = d != 2 * k ? dp[d + 1] : kInfinity;
+        // (i, j) -> (i, j-1), `d` decreases by 1. Since `i` stays the same,
+        // this is intentionally using the dp value updated in the previous
+        // iteration.
+        const size_t insert = d != 0 ? dp[d - 1] : kInfinity;
+        dp[d] = 1 + std::min({replace, remove, insert});
+      }
+    }
+  }
+  return std::min(dp[b.size() + k - a.size()], k + 1);
 }
 
 bool ShouldAutoselectFirstSuggestionOnArrowDown() {
@@ -164,11 +215,19 @@ bool ShouldAutoselectFirstSuggestionOnArrowDown() {
 }
 
 bool IsFillable(FocusedFieldType focused_field_type) {
-  return focused_field_type == FocusedFieldType::kFillableTextArea ||
-         focused_field_type == FocusedFieldType::kFillableSearchField ||
-         focused_field_type == FocusedFieldType::kFillableNonSearchField ||
-         focused_field_type == FocusedFieldType::kFillableUsernameField ||
-         focused_field_type == FocusedFieldType::kFillablePasswordField;
+  switch (focused_field_type) {
+    case FocusedFieldType::kFillableTextArea:
+    case FocusedFieldType::kFillableSearchField:
+    case FocusedFieldType::kFillableNonSearchField:
+    case FocusedFieldType::kFillableUsernameField:
+    case FocusedFieldType::kFillablePasswordField:
+    case FocusedFieldType::kFillableWebauthnTaggedField:
+      return true;
+    case FocusedFieldType::kUnfillableElement:
+    case FocusedFieldType::kUnknown:
+      return false;
+  }
+  NOTREACHED_NORETURN();
 }
 
 SubmissionIndicatorEvent ToSubmissionIndicatorEvent(SubmissionSource source) {

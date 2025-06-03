@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "ash/public/cpp/app_list/app_list_config.h"
+#include "ash/public/cpp/app_list/app_list_controller.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -41,7 +42,7 @@ AppListTestModel::AppListTestItem::AppListTestItem(const std::string& id,
   const int icon_dimension =
       SharedAppListConfig::instance().default_grid_icon_dimension();
   SetDefaultIconAndColor(CreateImageSkia(icon_dimension, icon_dimension),
-                         IconColor());
+                         IconColor(), /*is_placeholder_icon=*/false);
 }
 
 AppListTestModel::AppListTestItem::~AppListTestItem() = default;
@@ -154,6 +155,13 @@ void AppListTestModel::RequestAppListSortRevert() {
   requested_sort_order_.reset();
 }
 
+void AppListTestModel::RequestCommitTemporarySortOrder() {
+  // Committing the temporary sort order should not introduce item reorder so
+  // reset the sort order without reorder animation.
+  AppListController::Get()->UpdateAppListWithNewTemporarySortOrder(
+      /*new_order=*/absl::nullopt, /*animate=*/false, base::NullCallback());
+}
+
 AppListItem* AppListTestModel::AddItemToFolder(AppListItem* item,
                                                const std::string& folder_id) {
   return AppListModel::AddItemToFolder(base::WrapUnique(item), folder_id);
@@ -236,6 +244,14 @@ AppListTestModel::AppListTestItem* AppListTestModel::CreateItem(
 AppListTestModel::AppListTestItem* AppListTestModel::CreateAndAddItem(
     const std::string& id) {
   std::unique_ptr<AppListTestItem> test_item(CreateItem(id));
+  AppListItem* item = AppListModel::AddItem(std::move(test_item));
+  return static_cast<AppListTestItem*>(item);
+}
+
+AppListTestModel::AppListTestItem* AppListTestModel::CreateAndAddPromiseItem(
+    const std::string& id) {
+  std::unique_ptr<AppListTestItem> test_item(CreateItem(id));
+  test_item->UpdateAppStatusForTesting(AppStatus::kPending);
   AppListItem* item = AppListModel::AddItem(std::move(test_item));
   return static_cast<AppListTestItem*>(item);
 }

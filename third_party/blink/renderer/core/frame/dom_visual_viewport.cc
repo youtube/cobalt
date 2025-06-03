@@ -48,7 +48,7 @@ DOMVisualViewport::~DOMVisualViewport() = default;
 
 void DOMVisualViewport::Trace(Visitor* visitor) const {
   visitor->Trace(window_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 const AtomicString& DOMVisualViewport::InterfaceName() const {
@@ -188,8 +188,10 @@ double DOMVisualViewport::scale() const {
 absl::optional<HeapVector<Member<DOMRect>>> DOMVisualViewport::segments()
     const {
   LocalFrame* frame = window_->GetFrame();
-  if (!frame || !frame->IsOutermostMainFrame())
+  if (!frame || !frame->GetWidgetForLocalRoot() ||
+      !frame->IsOutermostMainFrame()) {
     return absl::nullopt;
+  }
 
   WebVector<gfx::Rect> web_segments =
       frame->GetWidgetForLocalRoot()->WindowSegments();

@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/navigation_body_loader.h"
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
@@ -23,7 +24,6 @@
 #include "third_party/blink/public/mojom/loader/code_cache.mojom-blink.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
 #include "third_party/blink/public/platform/resource_load_info_notifier_wrapper.h"
-#include "third_party/blink/public/platform/web_code_cache_loader.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/platform/web_url_response.h"
 #include "third_party/blink/public/web/web_navigation_params.h"
@@ -319,7 +319,7 @@ class NavigationBodyLoader::MainThreadBodyReader : public BodyReader {
   }
 
  private:
-  NavigationBodyLoader* loader_;
+  raw_ptr<NavigationBodyLoader, DanglingUntriaged> loader_;
 };
 
 NavigationBodyLoader::NavigationBodyLoader(
@@ -541,8 +541,7 @@ void NavigationBodyLoader::NotifyCompletionIfAppropriate() {
   client_ = nullptr;
   client->BodyLoadingFinished(
       status_.completion_time, status_.encoded_data_length,
-      status_.encoded_body_length, status_.decoded_body_length,
-      status_.should_report_corb_blocking, error);
+      status_.encoded_body_length, status_.decoded_body_length, error);
 }
 
 void NavigationBodyLoader::
@@ -608,11 +607,10 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
 
   if (redirect_count != commit_params->redirects.size()) {
     // We currently incorrectly send empty redirect_response and redirect_infos
-    // on frame reloads and some cases involving throttles.
+    // on frame reloads and some cases involving throttles. There are also other
+    // reports of non-empty cases, so further investigation is still needed.
     // TODO(https://crbug.com/1171225): Fix this.
-    DCHECK_EQ(0u, redirect_count);
-    DCHECK_EQ(0u, commit_params->redirect_infos.size());
-    DCHECK_NE(0u, commit_params->redirects.size());
+    redirect_count = std::min(redirect_count, commit_params->redirects.size());
   }
   navigation_params->redirects.reserve(redirect_count);
   navigation_params->redirects.resize(redirect_count);

@@ -26,9 +26,11 @@
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "chromeos/ui/frame/frame_header.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/ash/keyboard_capability.h"
 #include "ui/gfx/geometry/point.h"
@@ -153,24 +155,28 @@ bool IsCaptureModeActive() {
   return CaptureModeController::Get()->IsActive();
 }
 
+gfx::PointF GetEventScreenLocation(const ui::LocatedEvent& event) {
+  return event.target()->GetScreenLocationF(event);
+}
+
 gfx::Point GetLocationForFineTunePosition(const gfx::Rect& rect,
                                           FineTunePosition position) {
   switch (position) {
-    case FineTunePosition::kTopLeft:
+    case FineTunePosition::kTopLeftVertex:
       return rect.origin();
-    case FineTunePosition::kTopCenter:
+    case FineTunePosition::kTopEdge:
       return rect.top_center();
-    case FineTunePosition::kTopRight:
+    case FineTunePosition::kTopRightVertex:
       return rect.top_right();
-    case FineTunePosition::kRightCenter:
+    case FineTunePosition::kRightEdge:
       return rect.right_center();
-    case FineTunePosition::kBottomRight:
+    case FineTunePosition::kBottomRightVertex:
       return rect.bottom_right();
-    case FineTunePosition::kBottomCenter:
+    case FineTunePosition::kBottomEdge:
       return rect.bottom_center();
-    case FineTunePosition::kBottomLeft:
+    case FineTunePosition::kBottomLeftVertex:
       return rect.bottom_left();
-    case FineTunePosition::kLeftCenter:
+    case FineTunePosition::kLeftEdge:
       return rect.left_center();
     default:
       break;
@@ -182,10 +188,10 @@ gfx::Point GetLocationForFineTunePosition(const gfx::Rect& rect,
 
 bool IsCornerFineTunePosition(FineTunePosition position) {
   switch (position) {
-    case FineTunePosition::kTopLeft:
-    case FineTunePosition::kTopRight:
-    case FineTunePosition::kBottomRight:
-    case FineTunePosition::kBottomLeft:
+    case FineTunePosition::kTopLeftVertex:
+    case FineTunePosition::kTopRightVertex:
+    case FineTunePosition::kBottomRightVertex:
+    case FineTunePosition::kBottomLeftVertex:
       return true;
     default:
       break;
@@ -240,6 +246,23 @@ void TriggerAccessibilityAlertSoon(int message_id) {
   TriggerAccessibilityAlertSoon(l10n_util::GetStringUTF8(message_id));
 }
 
+void AdjustBoundsWithinConfinedBounds(const gfx::Rect& confined_bounds,
+                                      gfx::Rect& out_bounds) {
+  if (int confined_x = confined_bounds.x(); confined_x > out_bounds.x()) {
+    out_bounds.set_x(confined_x);
+  } else if (int confined_right = confined_bounds.right();
+             confined_right < out_bounds.right()) {
+    out_bounds.set_x(confined_right - out_bounds.width());
+  }
+
+  if (int confined_y = confined_bounds.y(); confined_y > out_bounds.y()) {
+    out_bounds.set_y(confined_y);
+  } else if (int confined_bottom = confined_bounds.bottom();
+             confined_bottom < out_bounds.bottom()) {
+    out_bounds.set_y(confined_bottom - out_bounds.height());
+  }
+}
+
 CameraPreviewSnapPosition GetCameraNextHorizontalSnapPosition(
     CameraPreviewSnapPosition current,
     bool going_left) {
@@ -278,7 +301,7 @@ std::unique_ptr<views::View> CreateClipboardShortcutView() {
       views::BoxLayout::Orientation::kHorizontal));
 
   const std::u16string shortcut_key = l10n_util::GetStringUTF16(
-      Shell::Get()->keyboard_capability()->HasLauncherButton()
+      Shell::Get()->keyboard_capability()->HasLauncherButtonOnAnyKeyboard()
           ? IDS_ASH_SHORTCUT_MODIFIER_LAUNCHER
           : IDS_ASH_SHORTCUT_MODIFIER_SEARCH);
 
@@ -422,23 +445,9 @@ aura::Window* GetTopMostCapturableWindowAtPoint(
     ignore_windows.insert(camera_preview_widget->GetNativeWindow());
 
   if (controller->IsActive()) {
-    auto* capture_session = controller->capture_mode_session();
-    DCHECK(capture_session->capture_mode_bar_widget());
-    ignore_windows.insert(
-        capture_session->capture_mode_bar_widget()->GetNativeWindow());
-
-    if (auto* capture_settings_widget =
-            capture_session->capture_mode_settings_widget()) {
-      ignore_windows.insert(capture_settings_widget->GetNativeWindow());
-    }
-
-    if (auto* capture_label_widget = capture_session->capture_label_widget())
-      ignore_windows.insert(capture_label_widget->GetNativeWindow());
-
-    if (auto* capture_toast_widget = capture_session->capture_toast_controller()
-                                         ->capture_toast_widget()) {
-      ignore_windows.insert(capture_toast_widget->GetNativeWindow());
-    }
+    std::set<aura::Window*> session_windows =
+        controller->capture_mode_session()->GetWindowsToIgnoreFromWidgets();
+    ignore_windows.insert(session_windows.begin(), session_windows.end());
   }
 
   return GetTopmostWindowAtPoint(screen_point, ignore_windows);
@@ -548,27 +557,43 @@ gfx::Rect CalculateHighlightLayerBounds(const gfx::PointF& center_point,
                    highlight_layer_radius * 2, highlight_layer_radius * 2);
 }
 
-int GetNumberOfSupportedRecordingTypes(bool is_in_projector_mode) {
-  int total = 0;
-  for (const auto& type : {RecordingType::kGif, RecordingType::kWebM}) {
-    switch (type) {
-      case RecordingType::kGif:
-        total +=
-            features::IsGifRecordingEnabled() && !is_in_projector_mode ? 1 : 0;
-        break;
-      case RecordingType::kWebM:
-        total += 1;
-        break;
-    }
-  }
-  return total;
-}
-
 void SetHighlightBorder(views::View* view,
                         int corner_radius,
                         views::HighlightBorder::Type type) {
   view->SetBorder(
       std::make_unique<views::HighlightBorder>(corner_radius, type));
+}
+
+chromeos::FrameHeader* GetWindowFrameHeader(aura::Window* window) {
+  CHECK(window);
+
+  if (auto* widget = views::Widget::GetWidgetForNativeWindow(window)) {
+    return chromeos::FrameHeader::Get(widget);
+  }
+
+  return nullptr;
+}
+
+gfx::Rect GetCaptureWindowConfineBounds(aura::Window* window) {
+  CHECK(window);
+  CHECK(!window->IsRootWindow());
+
+  // When the surface being captured is a window, on-capture-surface UI
+  // elements, such as the selfie camera or the demo tools key combo widget,
+  // need to be confined within the *local* bounds of this window, since
+  // they are added as direct children of the window so that they can get
+  // captured.
+  gfx::Rect result(window->bounds().size());
+
+  // Inset from the top by the height of the frame header, in order to avoid for
+  // example having the selfie camera intersecting with the caption buttons.
+  // TODO(afakhry): This will not work for lacros. Fix this if it becomes a
+  // priority.
+  if (auto* frame_header = GetWindowFrameHeader(window)) {
+    result.Inset(gfx::Insets::TLBR(frame_header->GetHeaderHeight(), 0, 0, 0));
+  }
+
+  return result;
 }
 
 }  // namespace ash::capture_mode_util

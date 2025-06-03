@@ -34,7 +34,7 @@ class TestResultSinkTestBase(unittest.TestCase):
         f, fname = host.filesystem.open_text_tempfile()
         json.dump(section_values, f)
         f.close()
-        host.environ['LUCI_CONTEXT'] = f.path
+        host.environ['LUCI_CONTEXT'] = f.name
 
 
 class TestCreateTestResultSink(TestResultSinkTestBase):
@@ -133,15 +133,15 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             },
             {
                 'key': 'web_tests_base_timeout',
-                'value': '6'
+                'value': '6',
+            },
+            {
+                'key': 'web_tests_test_was_slow',
+                'value': 'false',
             },
             {
                 'key': 'web_tests_used_expectations_file',
                 'value': 'TestExpectations',
-            },
-            {
-                'key': 'web_tests_used_expectations_file',
-                'value': 'WebDriverExpectations',
             },
             {
                 'key': 'web_tests_used_expectations_file',
@@ -193,7 +193,11 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             },
             {
                 'key': 'web_tests_base_timeout',
-                'value': '6'
+                'value': '6',
+            },
+            {
+                'key': 'web_tests_test_was_slow',
+                'value': 'false',
             },
             {
                 'key': 'web_tests_used_expectations_file',
@@ -201,7 +205,52 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             },
             {
                 'key': 'web_tests_used_expectations_file',
-                'value': 'WebDriverExpectations',
+                'value': 'NeverFixTests',
+            },
+            {
+                'key': 'web_tests_used_expectations_file',
+                'value': 'StaleTestExpectations',
+            },
+            {
+                'key': 'web_tests_used_expectations_file',
+                'value': 'SlowTests',
+            },
+        ]
+        sent_data = self.sink(True, tr)
+        self.assertEqual(sent_data['tags'], expected_tags)
+
+    def test_sink_with_long_duration(self):
+        tr = test_results.TestResult(test_name='test-name')
+        tr.total_run_time = 2
+        tr.type = ResultType.Crash
+        expected_tags = [
+            {
+                'key': 'test_name',
+                'value': 'test-name'
+            },
+            {
+                'key': 'web_tests_device_failed',
+                'value': 'False'
+            },
+            {
+                'key': 'web_tests_result_type',
+                'value': 'CRASH'
+            },
+            {
+                'key': 'web_tests_flag_specific_config_name',
+                'value': '',
+            },
+            {
+                'key': 'web_tests_base_timeout',
+                'value': '6',
+            },
+            {
+                'key': 'web_tests_test_was_slow',
+                'value': 'true',
+            },
+            {
+                'key': 'web_tests_used_expectations_file',
+                'value': 'TestExpectations',
             },
             {
                 'key': 'web_tests_used_expectations_file',
@@ -247,7 +296,11 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             },
             {
                 'key': 'web_tests_base_timeout',
-                'value': '6'
+                'value': '6',
+            },
+            {
+                'key': 'web_tests_test_was_slow',
+                'value': 'false',
             },
             {
                 'key': 'web_tests_actual_image_hash',
@@ -264,10 +317,6 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             {
                 'key': 'web_tests_used_expectations_file',
                 'value': 'TestExpectations',
-            },
-            {
-                'key': 'web_tests_used_expectations_file',
-                'value': 'WebDriverExpectations',
             },
             {
                 'key': 'web_tests_used_expectations_file',
@@ -309,7 +358,11 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             },
             {
                 'key': 'web_tests_base_timeout',
-                'value': '6'
+                'value': '6',
+            },
+            {
+                'key': 'web_tests_test_was_slow',
+                'value': 'false',
             },
             {
                 'key': 'web_tests_test_type',
@@ -322,10 +375,6 @@ class TestResultSinkMessage(TestResultSinkTestBase):
             {
                 'key': 'web_tests_used_expectations_file',
                 'value': 'TestExpectations',
-            },
-            {
-                'key': 'web_tests_used_expectations_file',
-                'value': 'WebDriverExpectations',
             },
             {
                 'key': 'web_tests_used_expectations_file',

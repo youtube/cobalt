@@ -20,6 +20,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -41,6 +42,7 @@ namespace cc {
 
 CC_EXPORT BASE_DECLARE_FEATURE(kPurgeOldCacheEntriesOnTimer);
 
+class ColorFilter;
 class RasterDarkModeFilter;
 
 // OVERVIEW:
@@ -159,8 +161,8 @@ class CC_EXPORT GpuImageDecodeCache
   // Returns the GL texture ID backing the given SkImage.
   static GrGLuint GlIdFromSkImage(const SkImage* image);
 
-  static constexpr base::TimeDelta kPurgeInterval = base::Seconds(30);
-  static constexpr base::TimeDelta kPurgeMaxAge = base::Seconds(30);
+  static base::TimeDelta get_purge_interval();
+  static base::TimeDelta get_max_purge_age();
 
   // ImageDecodeCache overrides.
 
@@ -244,16 +246,16 @@ class CC_EXPORT GpuImageDecodeCache
     return has_pending_purge_task();
   }
 
-  void SetTimerTaskRunnerForTesting(
-      scoped_refptr<base::SequencedTaskRunner> task_runner)
-      LOCKS_EXCLUDED(lock_) {
-    base::AutoLock locker(lock_);
-    timer_.SetTaskRunner(task_runner);
+  size_t ids_pending_deletion_count_for_testing() const {
+    return ids_pending_deletion_.size();
   }
 
   // Updating the |last_use| field of the associated |ImageData|.
   void TouchCacheEntryForTesting(const DrawImage& draw_image)
       LOCKS_EXCLUDED(lock_);
+
+  bool AcquireContextLockForTesting();
+  void ReleaseContextLockForTesting();
 
  private:
   enum class DecodedDataMode { kGpu, kCpu, kTransferCache };
@@ -398,7 +400,7 @@ class CC_EXPORT GpuImageDecodeCache
       }
     };
 
-    base::flat_map<SkIRect, sk_sp<SkColorFilter>, SkIRectCompare>
+    base::flat_map<SkIRect, sk_sp<ColorFilter>, SkIRectCompare>
         dark_mode_color_filter_cache;
 
    private:
@@ -595,7 +597,7 @@ class CC_EXPORT GpuImageDecodeCache
   struct ImageData : public base::RefCountedThreadSafe<ImageData> {
     ImageData(PaintImage::Id paint_image_id,
               DecodedDataMode mode,
-              const TargetColorParams& target_color_params,
+              const gfx::ColorSpace& target_color_space,
               PaintFlags::FilterQuality quality,
               int upload_scale_mip_level,
               bool needs_mips,
@@ -626,7 +628,7 @@ class CC_EXPORT GpuImageDecodeCache
 
     const PaintImage::Id paint_image_id;
     const DecodedDataMode mode;
-    TargetColorParams target_color_params;
+    const gfx::ColorSpace target_color_space;
     PaintFlags::FilterQuality quality;
     int upload_scale_mip_level;
     bool needs_mips = false;
@@ -680,7 +682,7 @@ class CC_EXPORT GpuImageDecodeCache
     PaintImage::FrameKey frame_key;
     int upload_scale_mip_level;
     PaintFlags::FilterQuality filter_quality;
-    TargetColorParams target_color_params;
+    gfx::ColorSpace target_color_space;
   };
   struct InUseCacheKeyHash {
     size_t operator()(const InUseCacheKey&) const;
@@ -823,19 +825,19 @@ class CC_EXPORT GpuImageDecodeCache
       const DrawImage& draw_image,
       ImageData* image_data,
       sk_sp<SkColorSpace> decoded_target_colorspace,
-      absl::optional<TargetColorParams> target_color_params)
-      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+      const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+      sk_sp<SkColorSpace> target_color_space) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void UploadImageIfNecessary_GpuCpu_YUVA(
       const DrawImage& draw_image,
       ImageData* image_data,
       sk_sp<SkImage> uploaded_image,
-      GrMipMapped image_needs_mips,
+      skgpu::Mipmapped image_needs_mips,
       sk_sp<SkColorSpace> decoded_target_colorspace,
       sk_sp<SkColorSpace> color_space) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void UploadImageIfNecessary_GpuCpu_RGBA(const DrawImage& draw_image,
                                           ImageData* image_data,
                                           sk_sp<SkImage> uploaded_image,
-                                          GrMipMapped image_needs_mips,
+                                          skgpu::Mipmapped image_needs_mips,
                                           sk_sp<SkColorSpace> color_space)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -892,8 +894,11 @@ class CC_EXPORT GpuImageDecodeCache
   // this behavior is turned on.
   void MaybePurgeOldCacheEntries() EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void PostPurgeOldCacheEntriesTask() EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  void DoPurgeOldCacheEntries(base::TimeDelta max_age)
+  // Returns true iff we were able to flush the pending work on the GPU side.
+  bool DoPurgeOldCacheEntries(base::TimeDelta max_age)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  // Tries to flush pending work on GPU side. Returns true iff we succeeded.
+  bool TryFlushPendingWork() NO_THREAD_SAFETY_ANALYSIS;
   void PurgeOldCacheEntriesCallback() LOCKS_EXCLUDED(lock_);
 
   // Adds mips to an image if required.
@@ -905,7 +910,7 @@ class CC_EXPORT GpuImageDecodeCache
       const ImageTaskMap& task_map);
 
   bool has_pending_purge_task() const EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    return timer_.IsRunning();
+    return has_pending_purge_task_;
   }
 
   const SkColorType color_type_;
@@ -918,12 +923,14 @@ class CC_EXPORT GpuImageDecodeCache
   SkYUVAPixmapInfo::SupportedDataTypes yuva_supported_data_types_;
   const bool enable_clipped_image_scaling_;
 
+  scoped_refptr<base::SequencedTaskRunner> task_runner_ = nullptr;
+
   // All members below this point must only be accessed while holding |lock_|.
   // The exception are const members like |normal_max_cache_bytes_| that can
   // be accessed without a lock since they are thread safe.
   mutable base::Lock lock_;
 
-  base::OneShotTimer timer_ GUARDED_BY(lock_);
+  bool has_pending_purge_task_ GUARDED_BY(lock_) = false;
 
   PersistentCache persistent_cache_ GUARDED_BY(lock_);
 
@@ -976,6 +983,7 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_deletion_;
 
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 
 }  // namespace cc

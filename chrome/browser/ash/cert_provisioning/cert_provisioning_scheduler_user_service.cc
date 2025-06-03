@@ -43,12 +43,11 @@ CertProvisioningSchedulerUserServiceFactory::GetInstance() {
 
 CertProvisioningSchedulerUserServiceFactory::
     CertProvisioningSchedulerUserServiceFactory()
-    : ProfileKeyedServiceFactory(
-          "CertProvisioningSchedulerUserService",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {
+    : ProfileKeyedServiceFactory("CertProvisioningSchedulerUserService",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {
   DependsOn(platform_keys::PlatformKeysServiceFactory::GetInstance());
   DependsOn(invalidation::ProfileInvalidationProviderFactory::GetInstance());
 }
@@ -58,15 +57,15 @@ bool CertProvisioningSchedulerUserServiceFactory::
   return true;
 }
 
-KeyedService*
-CertProvisioningSchedulerUserServiceFactory::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
+std::unique_ptr<KeyedService> CertProvisioningSchedulerUserServiceFactory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   if (!profile || !profile->GetProfilePolicyConnector()->IsManaged()) {
     return nullptr;
   }
 
-  return new CertProvisioningSchedulerUserService(profile);
+  return std::make_unique<CertProvisioningSchedulerUserService>(profile);
 }
 
 }  // namespace cert_provisioning

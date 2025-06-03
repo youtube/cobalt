@@ -63,6 +63,12 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO)
   void AddAudioPrefObserver(AudioPrefObserver* observer) override;
   void RemoveAudioPrefObserver(AudioPrefObserver* observer) override;
 
+  bool GetForceRespectUiGainsState() override;
+  void SetForceRespectUiGainsState(bool force_respect_ui_gains) override;
+
+  bool GetHfpMicSrState() override;
+  void SetHfpMicSrState(bool hfp_mic_sr_state) override;
+
   // Registers volume and mute preferences.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 

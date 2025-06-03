@@ -8,7 +8,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "ui/gfx/buffer_format_util.h"
-#include "ui/gl/buffer_format_utils.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/scoped_binders.h"
@@ -32,22 +31,10 @@ namespace {
 #define DRM_FORMAT_XBGR8888 FOURCC('X', 'B', '2', '4')
 #define DRM_FORMAT_ABGR2101010 FOURCC('A', 'B', '3', '0')
 #define DRM_FORMAT_ARGB2101010 FOURCC('A', 'R', '3', '0')
+#define DRM_FORMAT_ABGR16161616F FOURCC('A', 'B', '4', 'H')
 #define DRM_FORMAT_YVU420 FOURCC('Y', 'V', '1', '2')
 #define DRM_FORMAT_NV12 FOURCC('N', 'V', '1', '2')
 #define DRM_FORMAT_P010 FOURCC('P', '0', '1', '0')
-
-// Returns corresponding internalformat if supported, and GL_NONE otherwise.
-unsigned GLInternalFormat(gfx::BufferFormat format) {
-  switch (format) {
-    case gfx::BufferFormat::RGBA_4444:
-    case gfx::BufferFormat::RGBA_F16:
-    case gfx::BufferFormat::P010:
-      return GL_RGB_YCBCR_P010_CHROMIUM;
-    default:
-      break;
-  }
-  return gl::BufferFormatToGLInternalFormat(format);
-}
 
 EGLint FourCC(gfx::BufferFormat format) {
   switch (format) {
@@ -79,8 +66,9 @@ EGLint FourCC(gfx::BufferFormat format) {
       return DRM_FORMAT_NV12;
     case gfx::BufferFormat::P010:
       return DRM_FORMAT_P010;
-    case gfx::BufferFormat::RGBA_4444:
     case gfx::BufferFormat::RGBA_F16:
+      return DRM_FORMAT_ABGR16161616F;
+    case gfx::BufferFormat::RGBA_4444:
     case gfx::BufferFormat::YUVA_420_TRIPLANAR:
       return 0;
   }
@@ -161,7 +149,7 @@ bool NativePixmapEGLBinding::InitializeFromNativePixmap(
     GLenum target,
     GLuint texture_id) {
   DCHECK(!pixmap_);
-  if (GLInternalFormat(format_) == GL_NONE) {
+  if (GetInternalFormat() == GL_NONE) {
     LOG(ERROR) << "Unsupported format: " << gfx::BufferFormatToString(format_);
     return false;
   }
@@ -182,7 +170,8 @@ bool NativePixmapEGLBinding::InitializeFromNativePixmap(
   attrs.push_back(FourCC(format_));
 
   if (format_ == gfx::BufferFormat::YUV_420_BIPLANAR ||
-      format_ == gfx::BufferFormat::YVU_420) {
+      format_ == gfx::BufferFormat::YVU_420 ||
+      format_ == gfx::BufferFormat::P010) {
     // TODO(b/233667677): Since https://crrev.com/c/3855381, the only NV12
     // quads that we allow to be promoted to overlays are those that don't use
     // the BT.2020 primaries and that don't use full range. Furthermore, since
@@ -276,7 +265,12 @@ bool NativePixmapEGLBinding::InitializeFromNativePixmap(
 }
 
 GLuint NativePixmapEGLBinding::GetInternalFormat() {
-  return GLInternalFormat(format_);
+  if (format_ == gfx::BufferFormat::RGBA_4444) {
+    return GL_RGB_YCBCR_P010_CHROMIUM;
+  }
+
+  return NativePixmapGLBinding::BufferFormatToGLInternalFormatDefaultMapping(
+      format_);
 }
 
 GLenum NativePixmapEGLBinding::GetDataType() {

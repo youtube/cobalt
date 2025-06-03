@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,33 +12,40 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "components/exo/security_delegate.h"
+#include "components/exo/wayland/server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace exo::wayland::test {
 
-WaylandServerTest::WaylandServerTest() = default;
+WaylandServerTest::WaylandServerTest() {
+  Server::SetServerGetter(base::BindLambdaForTesting([&](wl_display* display) {
+    // Currently tests run with a single Server instance.
+    EXPECT_EQ(display, server_->GetWaylandDisplay());
+    return server_.get();
+  }));
+}
 
-WaylandServerTest::~WaylandServerTest() = default;
+WaylandServerTest::~WaylandServerTest() {
+  Server::SetServerGetter(base::NullCallback());
+}
 
 void WaylandServerTest::SetUp() {
   WaylandServerTestBase::SetUp();
 
+  socket_ = std::make_unique<ScopedTempSocket>();
   server_ = CreateServer();
 
-  std::string socket_name;
   base::RunLoop loop;
-  server_->StartAsync(
-      base::BindLambdaForTesting([&](bool success, const base::FilePath& path) {
-        DCHECK(success);
-        socket_name = path.AsUTF8Unsafe();
-        loop.Quit();
-      }));
+  server_->StartWithFdAsync(socket_->TakeFd(),
+                            base::BindLambdaForTesting([&](bool success) {
+                              ASSERT_TRUE(success);
+                              loop.Quit();
+                            }));
   loop.Run();
 
   client_thread_ = std::make_unique<TestWaylandClientThread>("client");
-  ASSERT_TRUE(client_thread_->Start(
-      base::BindOnce(&WaylandServerTest::InitOnClientThread,
-                     base::Unretained(this), socket_name)));
+  ASSERT_TRUE(client_thread_->Start(base::BindOnce(
+      &WaylandServerTest::InitOnClientThread, base::Unretained(this))));
 }
 
 void WaylandServerTest::TearDown() {
@@ -57,10 +64,9 @@ void WaylandServerTest::PostToClientAndWait(base::OnceClosure closure) {
   client_thread_->RunAndWait(std::move(closure));
 }
 
-std::unique_ptr<TestClient> WaylandServerTest::InitOnClientThread(
-    const std::string& wayland_socket) {
+std::unique_ptr<TestClient> WaylandServerTest::InitOnClientThread() {
   auto client = std::make_unique<TestClient>();
-  if (!client->Init(wayland_socket)) {
+  if (!client->Init(socket_->server_path().value())) {
     return nullptr;
   }
 

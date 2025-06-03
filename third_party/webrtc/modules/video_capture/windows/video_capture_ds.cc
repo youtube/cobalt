@@ -56,6 +56,8 @@ VideoCaptureDS::~VideoCaptureDS() {
 }
 
 int32_t VideoCaptureDS::Init(const char* deviceUniqueIdUTF8) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   const int32_t nameLength = (int32_t)strlen((char*)deviceUniqueIdUTF8);
   if (nameLength >= kVideoCaptureUniqueNameLength)
     return -1;
@@ -113,15 +115,7 @@ int32_t VideoCaptureDS::Init(const char* deviceUniqueIdUTF8) {
     return -1;
   }
 
-  // Temporary connect here.
-  // This is done so that no one else can use the capture device.
   if (SetCameraOutput(_requestedCapability) != 0) {
-    return -1;
-  }
-  hr = _mediaControl->Pause();
-  if (FAILED(hr)) {
-    RTC_LOG(LS_INFO)
-        << "Failed to Pause the Capture device. Is it already occupied? " << hr;
     return -1;
   }
   RTC_LOG(LS_INFO) << "Capture device '" << deviceUniqueIdUTF8
@@ -130,7 +124,7 @@ int32_t VideoCaptureDS::Init(const char* deviceUniqueIdUTF8) {
 }
 
 int32_t VideoCaptureDS::StartCapture(const VideoCaptureCapability& capability) {
-  MutexLock lock(&api_lock_);
+  RTC_DCHECK_RUN_ON(&api_checker_);
 
   if (capability != _requestedCapability) {
     DisconnectGraph();
@@ -139,7 +133,13 @@ int32_t VideoCaptureDS::StartCapture(const VideoCaptureCapability& capability) {
       return -1;
     }
   }
-  HRESULT hr = _mediaControl->Run();
+  HRESULT hr = _mediaControl->Pause();
+  if (FAILED(hr)) {
+    RTC_LOG(LS_INFO)
+        << "Failed to Pause the Capture device. Is it already occupied? " << hr;
+    return -1;
+  }
+  hr = _mediaControl->Run();
   if (FAILED(hr)) {
     RTC_LOG(LS_INFO) << "Failed to start the Capture device.";
     return -1;
@@ -148,9 +148,9 @@ int32_t VideoCaptureDS::StartCapture(const VideoCaptureCapability& capability) {
 }
 
 int32_t VideoCaptureDS::StopCapture() {
-  MutexLock lock(&api_lock_);
+  RTC_DCHECK_RUN_ON(&api_checker_);
 
-  HRESULT hr = _mediaControl->Pause();
+  HRESULT hr = _mediaControl->StopWhenReady();
   if (FAILED(hr)) {
     RTC_LOG(LS_INFO) << "Failed to stop the capture graph. " << hr;
     return -1;
@@ -159,6 +159,8 @@ int32_t VideoCaptureDS::StopCapture() {
 }
 
 bool VideoCaptureDS::CaptureStarted() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   OAFilterState state = 0;
   HRESULT hr = _mediaControl->GetState(1000, &state);
   if (hr != S_OK && hr != VFW_S_CANT_CUE) {
@@ -169,12 +171,15 @@ bool VideoCaptureDS::CaptureStarted() {
 }
 
 int32_t VideoCaptureDS::CaptureSettings(VideoCaptureCapability& settings) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
   settings = _requestedCapability;
   return 0;
 }
 
 int32_t VideoCaptureDS::SetCameraOutput(
     const VideoCaptureCapability& requestedCapability) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   // Get the best matching capability
   VideoCaptureCapability capability;
   int32_t capabilityIndex;
@@ -263,6 +268,8 @@ int32_t VideoCaptureDS::SetCameraOutput(
 }
 
 int32_t VideoCaptureDS::DisconnectGraph() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   HRESULT hr = _mediaControl->Stop();
   hr += _graphBuilder->Disconnect(_outputCapturePin);
   hr += _graphBuilder->Disconnect(_inputSendPin);
@@ -281,6 +288,8 @@ int32_t VideoCaptureDS::DisconnectGraph() {
 }
 
 HRESULT VideoCaptureDS::ConnectDVCamera() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   HRESULT hr = S_OK;
 
   if (!_dvFilter) {

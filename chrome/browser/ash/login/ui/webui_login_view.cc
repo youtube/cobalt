@@ -18,7 +18,6 @@
 #include "base/values.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
 #include "chrome/browser/ash/login/ui/login_display_host_webui.h"
-#include "chrome/browser/ash/login/ui/login_display_webui.h"
 #include "chrome/browser/ash/login/ui/web_contents_forced_title.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/lifetime/termination_notification.h"
@@ -156,9 +155,8 @@ void WebUILoginView::InitializeWebView(views::WebView* web_view,
   CreateSessionServiceTabHelper(web_contents);
 
   // Create the password manager that is needed for the proxy.
-  ChromePasswordManagerClient::CreateForWebContentsWithAutofillClient(
-      web_contents,
-      autofill::ContentAutofillClient::FromWebContents(web_contents));
+  autofill::ChromeAutofillClient::CreateForWebContents(web_contents);
+  ChromePasswordManagerClient::CreateForWebContents(web_contents);
 
   // Create the password reuse detection manager.
   ChromePasswordReuseDetectionManagerClient::CreateForWebContents(web_contents);
@@ -266,7 +264,7 @@ void WebUILoginView::SetStatusAreaVisible(bool visible) {
   SystemTrayClientImpl::Get()->SetPrimaryTrayVisible(visible);
 }
 
-void WebUILoginView::SetUIEnabled(bool enabled) {
+void WebUILoginView::SetKeyboardEventsAndSystemTrayEnabled(bool enabled) {
   forward_keyboard_event_ = enabled;
 
   SystemTrayClientImpl::Get()->SetPrimaryTrayEnabled(enabled);

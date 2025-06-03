@@ -12,9 +12,11 @@
 #include <string>
 #include <tuple>
 
+#include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/viz_common_export.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
+#include "third_party/perfetto/include/perfetto/tracing/traced_proto.h"
 
 namespace viz {
 namespace mojom {
@@ -148,6 +150,9 @@ class VIZ_COMMON_EXPORT LocalSurfaceId {
   // Returns the smallest valid LocalSurfaceId with the same embed token as this
   // LocalSurfaceID.
   LocalSurfaceId ToSmallestId() const;
+
+  using TraceProto = perfetto::protos::pbzero::LocalSurfaceId;
+  void WriteIntoTrace(perfetto::TracedProto<TraceProto> proto) const;
 
  private:
   friend struct mojo::StructTraits<mojom::LocalSurfaceIdDataView,

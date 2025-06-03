@@ -19,6 +19,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.PowerBookmarkMetrics.PriceTrackingState;
+import org.chromium.chrome.browser.bookmarks.ShoppingAccessoryViewProperties.PriceInfo;
 import org.chromium.chrome.browser.commerce.PriceTrackingUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -36,8 +37,6 @@ import java.util.Locale;
 
 /** A row view that shows shopping info in the bookmarks UI. */
 public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
-    private static final long MICRO_CURRENCY_QUOTIENT = 1000000;
-
     // UI elements.
     // Allows subclasses to add special views below the description (e.g. the price for shopping).
     protected FrameLayout mCustomTextContainer;
@@ -64,6 +63,7 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
 
     /**
      * Factory constructor for building the view programmatically.
+     *
      * @param context The calling context, usually the parent view.
      * @param isVisualRefreshEnabled Whether to show the visual or compact bookmark row.
      */
@@ -78,8 +78,8 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
     public PowerBookmarkShoppingItemRow(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        mPreferredImageSize = getResources().getDimensionPixelSize(
-                R.dimen.bookmark_refresh_preferred_start_icon_size);
+        mPreferredImageSize =
+                getResources().getDimensionPixelSize(R.dimen.list_item_v2_start_icon_width_compact);
     }
 
     // FrameLayout implementation.
@@ -102,11 +102,15 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
 
     /**
      * Initialize properties for the item row.
+     *
      * @param imageFetcher {@link ImageFetcher} used to fetch shopping images.
      * @param bookmarkModel The {@link BookmarkModel} used to query power bookmark metadata.
      */
-    void init(ImageFetcher imageFetcher, BookmarkModel bookmarkModel,
-            SnackbarManager snackbarManager, Profile profile) {
+    void init(
+            ImageFetcher imageFetcher,
+            BookmarkModel bookmarkModel,
+            SnackbarManager snackbarManager,
+            Profile profile) {
         mImageFetcher = imageFetcher;
         mBookmarkModel = bookmarkModel;
         mSnackbarManager = snackbarManager;
@@ -130,13 +134,19 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
                 new CurrencyFormatter(currentPrice.getCurrencyCode(), Locale.getDefault());
 
         mIsPriceTrackingEnabled = false;
-        initPriceTrackingUI(meta.getLeadImage().getUrl(), mIsPriceTrackingEnabled,
-                previousPrice.getAmountMicros(), currentPrice.getAmountMicros());
+        initPriceTrackingUI(
+                meta.getLeadImage().getUrl(),
+                mIsPriceTrackingEnabled,
+                previousPrice.getAmountMicros(),
+                currentPrice.getAmountMicros());
 
-        PriceTrackingUtils.isBookmarkPriceTracked(mProfile, bookmarkId.getId(), (isTracked) -> {
-            mIsPriceTrackingEnabled = isTracked;
-            updatePriceTrackingImageForCurrentState();
-        });
+        PriceTrackingUtils.isBookmarkPriceTracked(
+                mProfile,
+                bookmarkId.getId(),
+                (isTracked) -> {
+                    mIsPriceTrackingEnabled = isTracked;
+                    updatePriceTrackingImageForCurrentState();
+                });
 
         return bookmarkItem;
     }
@@ -148,17 +158,26 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
     }
 
     @VisibleForTesting
-    void initPriceTrackingUI(String leadImageUrl, boolean priceTrackingEnabled, long originalPrice,
+    void initPriceTrackingUI(
+            String leadImageUrl,
+            boolean priceTrackingEnabled,
+            long originalPrice,
             long currentPrice) {
         assert mCurrencyFormatter != null;
 
-        getIconView().setOutlineProvider(
-                new RoundedCornerOutlineProvider(getResources().getDimensionPixelSize(
-                        R.dimen.list_item_v2_start_icon_corner_radius)));
+        getIconView()
+                .setOutlineProvider(
+                        new RoundedCornerOutlineProvider(
+                                getResources()
+                                        .getDimensionPixelSize(
+                                                R.dimen.list_item_v2_start_icon_corner_radius)));
         getIconView().setClipToOutline(true);
         mImageFetcher.fetchImage(
-                ImageFetcher.Params.create(leadImageUrl, ImageFetcher.POWER_BOOKMARKS_CLIENT_NAME,
-                        mPreferredImageSize, mPreferredImageSize),
+                ImageFetcher.Params.create(
+                        leadImageUrl,
+                        ImageFetcher.POWER_BOOKMARKS_CLIENT_NAME,
+                        mPreferredImageSize,
+                        mPreferredImageSize),
                 (image) -> {
                     if (image == null) return;
                     // We've successfully fetched an image. Cancel any pending requests for the
@@ -167,7 +186,7 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
                     setIconDrawable(new BitmapDrawable(getResources(), image));
                 });
 
-        setPriceInfoChip(originalPrice, currentPrice);
+        setPriceInfoChip(new PriceInfo(originalPrice, currentPrice, mCurrencyFormatter));
         setPriceTrackingButton(priceTrackingEnabled);
         mTitleView.setLabelFor(mPriceTrackingButton.getId());
         PowerBookmarkMetrics.reportBookmarkShoppingItemRowPriceTrackingState(
@@ -175,70 +194,73 @@ public class PowerBookmarkShoppingItemRow extends BookmarkItemRow {
     }
 
     /** Sets up the chip that displays product price information. */
-    private void setPriceInfoChip(long originalPrice, long currentPrice) {
-        String formattedCurrentPrice = getFormattedCurrencyStringForPrice(currentPrice);
+    private void setPriceInfoChip(PriceInfo info) {
         // Note: chips should only be shown for price drops
-        if (originalPrice <= currentPrice) {
-            mNormalPriceText.setText(formattedCurrentPrice);
-            mNormalPriceText.setVisibility(View.VISIBLE);
-            mPriceDropText.setVisibility(View.GONE);
-            mOriginalPriceText.setVisibility(View.GONE);
-        } else {
-            assignPriceDropProperties(mPriceDropText, mOriginalPriceText,
-                    getFormattedCurrencyStringForPrice(originalPrice), formattedCurrentPrice);
+        if (info.isPriceDrop()) {
+            // Primary text displays the current price.
+            mPriceDropText.setText(info.getCurrentPriceText());
+
+            // Secondary text displays the original price with a strikethrough.
+            mOriginalPriceText.setText(info.getOriginalPriceText());
+            mOriginalPriceText.setPaintFlags(
+                    mOriginalPriceText.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+
             mNormalPriceText.setVisibility(View.GONE);
             mPriceDropText.setVisibility(View.VISIBLE);
             mOriginalPriceText.setVisibility(View.VISIBLE);
+        } else {
+            mNormalPriceText.setText(info.getCurrentPriceText());
+            mNormalPriceText.setVisibility(View.VISIBLE);
+            mPriceDropText.setVisibility(View.GONE);
+            mOriginalPriceText.setVisibility(View.GONE);
         }
-    }
-
-    private void assignPriceDropProperties(TextView primaryText, TextView secondaryText,
-            String formattedOriginalPrice, String formattedCurrentPrice) {
-        // Primary text displays the current price.
-        primaryText.setText(formattedCurrentPrice);
-
-        // Secondary text displays the original price with a strikethrough.
-        secondaryText.setText(formattedOriginalPrice);
-        secondaryText.setPaintFlags(secondaryText.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
     }
 
     /** Sets up the button that allows you to un/subscribe to price-tracking updates. */
     private void setPriceTrackingButton(boolean priceTrackingEnabled) {
         mIsPriceTrackingEnabled = priceTrackingEnabled;
-        mPriceTrackingButton.setContentDescription(getContext().getResources().getString(
-                priceTrackingEnabled ? R.string.disable_price_tracking_menu_item
-                                     : R.string.enable_price_tracking_menu_item));
+        mPriceTrackingButton.setContentDescription(
+                getContext()
+                        .getResources()
+                        .getString(
+                                priceTrackingEnabled
+                                        ? R.string.disable_price_tracking_menu_item
+                                        : R.string.enable_price_tracking_menu_item));
         mPriceTrackingButton.setVisibility(View.VISIBLE);
         updatePriceTrackingImageForCurrentState();
-        Callback<Boolean> subscriptionCallback = (success) -> {
-            mSubscriptionChangeInProgress = false;
-            // TODO(crbug.com/1243383): Handle the failure edge case.
-            if (!success) return;
-            mIsPriceTrackingEnabled = !mIsPriceTrackingEnabled;
-            updatePriceTrackingImageForCurrentState();
-        };
-        mPriceTrackingButton.setOnClickListener((v) -> {
-            if (mSubscriptionChangeInProgress) return;
-            mSubscriptionChangeInProgress = true;
+        Callback<Boolean> subscriptionCallback =
+                (success) -> {
+                    mSubscriptionChangeInProgress = false;
+                    // TODO(crbug.com/1243383): Handle the failure edge case.
+                    if (!success) return;
+                    mIsPriceTrackingEnabled = !mIsPriceTrackingEnabled;
+                    updatePriceTrackingImageForCurrentState();
+                };
+        mPriceTrackingButton.setOnClickListener(
+                (v) -> {
+                    if (mSubscriptionChangeInProgress) return;
+                    mSubscriptionChangeInProgress = true;
 
-            PowerBookmarkMetrics.reportBookmarkShoppingItemRowPriceTrackingState(
-                    !mIsPriceTrackingEnabled ? PriceTrackingState.PRICE_TRACKING_ENABLED
-                                             : PriceTrackingState.PRICE_TRACKING_DISABLED);
-            PowerBookmarkUtils.setPriceTrackingEnabledWithSnackbars(mBookmarkModel, mBookmarkId,
-                    !mIsPriceTrackingEnabled, mSnackbarManager, getContext().getResources(),
-                    subscriptionCallback);
-        });
+                    PowerBookmarkMetrics.reportBookmarkShoppingItemRowPriceTrackingState(
+                            !mIsPriceTrackingEnabled
+                                    ? PriceTrackingState.PRICE_TRACKING_ENABLED
+                                    : PriceTrackingState.PRICE_TRACKING_DISABLED);
+                    PowerBookmarkUtils.setPriceTrackingEnabledWithSnackbars(
+                            mBookmarkModel,
+                            mBookmarkId,
+                            !mIsPriceTrackingEnabled,
+                            mSnackbarManager,
+                            getContext().getResources(),
+                            mProfile,
+                            subscriptionCallback);
+                });
     }
 
     private void updatePriceTrackingImageForCurrentState() {
-        mPriceTrackingButton.setImageResource(mIsPriceTrackingEnabled
+        mPriceTrackingButton.setImageResource(
+                mIsPriceTrackingEnabled
                         ? R.drawable.price_tracking_enabled_filled
                         : R.drawable.price_tracking_disabled);
-    }
-
-    private String getFormattedCurrencyStringForPrice(long price) {
-        // Note: We'll lose some precision here, but it's fine.
-        return mCurrencyFormatter.format("" + (price / MICRO_CURRENCY_QUOTIENT));
     }
 
     void setCurrencyFormatterForTesting(CurrencyFormatter currencyFormatter) {

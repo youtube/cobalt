@@ -18,7 +18,7 @@ void FillCommonFields(FormFieldData* data) {
   data->label = u"label";
   data->name = u"name";
   data->value = u"value";
-  data->form_control_type = "password";
+  data->form_control_type = FormControlType::kInputPassword;
   data->autocomplete_attribute = "off";
   data->max_length = 200;
   data->is_autofilled = true;
@@ -59,7 +59,7 @@ void WriteSection1(const FormFieldData& data, base::Pickle* pickle) {
   pickle->WriteString16(data.label);
   pickle->WriteString16(data.name);
   pickle->WriteString16(data.value);
-  pickle->WriteString(data.form_control_type);
+  pickle->WriteString(FormControlTypeToString(data.form_control_type));
   pickle->WriteString(data.autocomplete_attribute);
   pickle->WriteUInt64(data.max_length);
   pickle->WriteBool(data.is_autofilled);
@@ -426,20 +426,54 @@ TEST(FormFieldDataTest, DeserializeBadData) {
 
 TEST(FormFieldDataTest, IsTextInputElement) {
   struct TestData {
-    const char* form_control_type;
+    FormControlType form_control_type;
     bool expected;
   } test_data[] = {
-      {"text", true},      {"search", true},         {"tel", true},
-      {"url", true},       {"email", true},          {"password", true},
-      {"number", true},    {"select", false},        {"", false},
-      {"checkbox", false}, {"random_string", false}, {"textarea", false},
+      {FormControlType::kInputText, true},
+      {FormControlType::kInputSearch, true},
+      {FormControlType::kInputTelephone, true},
+      {FormControlType::kInputUrl, true},
+      {FormControlType::kInputEmail, true},
+      {FormControlType::kInputPassword, true},
+      {FormControlType::kInputNumber, true},
+      {FormControlType::kSelectOne, false},
+      {FormControlType::kInputCheckbox, false},
+      {FormControlType::kTextArea, false},
   };
 
   for (const auto& test_case : test_data) {
+    SCOPED_TRACE(testing::Message() << test_case.form_control_type);
     FormFieldData data;
     data.form_control_type = test_case.form_control_type;
     EXPECT_EQ(test_case.expected, data.IsTextInputElement());
   }
+}
+
+class FormFieldDataGetSelectionTest
+    : public ::testing::TestWithParam<
+          std::tuple<size_t, size_t, const char16_t*>> {
+ public:
+  size_t selection_start() const { return std::get<0>(GetParam()); }
+  size_t selection_end() const { return std::get<1>(GetParam()); }
+  std::u16string expectation() const { return std::get<2>(GetParam()); }
+};
+
+INSTANTIATE_TEST_SUITE_P(FormFieldDataTest,
+                         FormFieldDataGetSelectionTest,
+                         ::testing::Values(std::make_tuple(0u, 0u, u""),
+                                           std::make_tuple(0u, 3u, u"foo"),
+                                           std::make_tuple(3u, 6u, u"bar"),
+                                           std::make_tuple(6u, 6u, u""),
+                                           std::make_tuple(0u, 100, u"foobar"),
+                                           std::make_tuple(100u, 1000u, u"")));
+
+TEST_P(FormFieldDataGetSelectionTest, GetSelection) {
+  FormFieldData field;
+  field.value = u"foobar";
+  field.selection_start = selection_start();
+  field.selection_end = selection_end();
+  EXPECT_EQ(expectation(), field.GetSelection());
+  EXPECT_EQ(expectation(), field.GetSelectionAsStringView());
 }
 
 }  // namespace autofill

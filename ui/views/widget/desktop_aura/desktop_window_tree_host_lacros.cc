@@ -8,9 +8,13 @@
 #include <string>
 
 #include "chromeos/ui/base/window_properties.h"
+#include "ui/aura/client/aura_constants.h"
+#include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
 #include "ui/events/event.h"
+#include "ui/events/event_handler.h"
+#include "ui/events/event_target.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/platform_window/extensions/desk_extension.h"
 #include "ui/platform_window/extensions/pinned_mode_extension.h"
@@ -19,9 +23,7 @@
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 #include "ui/platform_window/wm/wm_move_resize_handler.h"
-#include "ui/views/corewm/tooltip_aura.h"
 #include "ui/views/corewm/tooltip_controller.h"
-#include "ui/views/corewm/tooltip_lacros.h"
 #include "ui/views/views_delegate.h"
 #include "ui/views/widget/desktop_aura/desktop_native_widget_aura.h"
 #include "ui/views/widget/desktop_aura/window_event_filter_lacros.h"
@@ -51,6 +53,27 @@ chromeos::WindowStateType ToChromeosWindowStateType(
   }
 }
 
+// Chrome do not expect the pointer (mouse/touch) events are dispatched to
+// chrome during move loop. The mouse events are already consumed by
+// ozone-wayland but touch events are sent to the `aura::WindowEventDispatcher`
+// to update the touch location. Consume touch events at system handler level so
+// that chrome will not see the touch events.
+class ScopedTouchEventDisabler : public ui::EventHandler {
+ public:
+  ScopedTouchEventDisabler() {
+    aura::Env::GetInstance()->AddPreTargetHandler(
+        this, ui::EventTarget::Priority::kSystem);
+  }
+  ScopedTouchEventDisabler(const ScopedTouchEventDisabler&) = delete;
+  ScopedTouchEventDisabler& operator=(const ScopedTouchEventDisabler&) = delete;
+  ~ScopedTouchEventDisabler() override {
+    aura::Env::GetInstance()->RemovePreTargetHandler(this);
+  }
+
+  // ui::EventHandler:
+  void OnTouchEvent(ui::TouchEvent* event) override { event->SetHandled(); }
+};
+
 }  // namespace
 namespace views {
 
@@ -58,7 +81,10 @@ DesktopWindowTreeHostLacros::DesktopWindowTreeHostLacros(
     internal::NativeWidgetDelegate* native_widget_delegate,
     DesktopNativeWidgetAura* desktop_native_widget_aura)
     : DesktopWindowTreeHostPlatform(native_widget_delegate,
-                                    desktop_native_widget_aura) {}
+                                    desktop_native_widget_aura) {
+  CHECK(GetContentWindow());
+  content_window_observation_.Observe(GetContentWindow());
+}
 
 DesktopWindowTreeHostLacros::~DesktopWindowTreeHostLacros() = default;
 
@@ -118,6 +144,11 @@ void DesktopWindowTreeHostLacros::OnImmersiveModeChanged(bool enabled) {
   GetContentWindow()->SetProperty(chromeos::kImmersiveIsActive, enabled);
 }
 
+void DesktopWindowTreeHostLacros::OnOverviewModeChanged(bool in_overview) {
+  GetContentWindow()->SetProperty(chromeos::kIsShowingInOverviewKey,
+                                  in_overview);
+}
+
 void DesktopWindowTreeHostLacros::OnTooltipShownOnServer(
     const std::u16string& text,
     const gfx::Rect& bounds) {
@@ -140,16 +171,30 @@ void DesktopWindowTreeHostLacros::AddAdditionalInitProperties(
   properties->wayland_app_id = params.wayland_app_id;
 }
 
-std::unique_ptr<corewm::Tooltip> DesktopWindowTreeHostLacros::CreateTooltip() {
-  // TODO(crbug.com/1338597): Remove TooltipAura from Lacros when Ash is new
-  // enough.
-  if (ui::OzonePlatform::GetInstance()
-          ->GetPlatformRuntimeProperties()
-          .supports_tooltip) {
-    return std::make_unique<views::corewm::TooltipLacros>();
+Widget::MoveLoopResult DesktopWindowTreeHostLacros::RunMoveLoop(
+    const gfx::Vector2d& drag_offset,
+    Widget::MoveLoopSource source,
+    Widget::MoveLoopEscapeBehavior escape_behavior) {
+  ScopedTouchEventDisabler touch_event_disabler;
+  return DesktopWindowTreeHostPlatform::RunMoveLoop(drag_offset, source,
+                                                    escape_behavior);
+}
+
+void DesktopWindowTreeHostLacros::OnWindowPropertyChanged(aura::Window* window,
+                                                          const void* key,
+                                                          intptr_t old) {
+  CHECK_EQ(GetContentWindow(), window);
+  if (key == aura::client::kTopViewInset) {
+    if (auto* wayland_extension = GetWaylandExtension()) {
+      wayland_extension->SetTopInset(
+          GetContentWindow()->GetProperty(aura::client::kTopViewInset));
+    }
   }
-  // Fallback to TooltipAura if wayland version is not new enough.
-  return std::make_unique<views::corewm::TooltipAura>();
+}
+
+void DesktopWindowTreeHostLacros::OnWindowDestroying(aura::Window* window) {
+  CHECK_EQ(GetContentWindow(), window);
+  content_window_observation_.Reset();
 }
 
 void DesktopWindowTreeHostLacros::CreateNonClientEventFilter() {

@@ -8,16 +8,21 @@
 
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
+#include "base/strings/string_piece_forward.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chrome/services/sharing/nearby/nearby_connections_conversions.h"
+#include "chrome/services/sharing/nearby/nearby_presence_conversions.h"
 #include "chrome/services/sharing/nearby/platform/input_file.h"
 #include "chromeos/ash/services/nearby/public/mojom/nearby_connections_types.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/webrtc.mojom.h"
 #include "services/network/public/mojom/p2p.mojom.h"
 #include "third_party/nearby/src/connections/core.h"
+#include "third_party/nearby/src/connections/v3/bandwidth_info.h"
+#include "third_party/nearby/src/connections/v3/connection_result.h"
+#include "third_party/nearby/src/connections/v3/listeners.h"
 
 namespace nearby::connections {
 
@@ -34,8 +39,9 @@ ConnectionRequestInfo CreateConnectionRequestInfo(
           .initiated_cb =
               [remote](const std::string& endpoint_id,
                        const ConnectionResponseInfo& info) {
-                if (!remote)
+                if (!remote) {
                   return;
+                }
 
                 remote->OnConnectionInitiated(
                     endpoint_id,
@@ -47,34 +53,90 @@ ConnectionRequestInfo CreateConnectionRequestInfo(
               },
           .accepted_cb =
               [remote](const std::string& endpoint_id) {
-                if (!remote)
+                if (!remote) {
                   return;
+                }
 
                 remote->OnConnectionAccepted(endpoint_id);
               },
           .rejected_cb =
               [remote](const std::string& endpoint_id, Status status) {
-                if (!remote)
+                if (!remote) {
                   return;
+                }
 
                 remote->OnConnectionRejected(endpoint_id,
                                              StatusToMojom(status.value));
               },
           .disconnected_cb =
               [remote](const std::string& endpoint_id) {
-                if (!remote)
+                if (!remote) {
                   return;
+                }
 
                 remote->OnDisconnected(endpoint_id);
               },
           .bandwidth_changed_cb =
               [remote](const std::string& endpoint_id, Medium medium) {
-                if (!remote)
+                if (!remote) {
                   return;
+                }
 
                 remote->OnBandwidthChanged(endpoint_id, MediumToMojom(medium));
               },
       },
+  };
+}
+
+// The callbacks are all casting NearbyDevice to PresenceDevice. Currently,
+// Presence will be the main consumer of this listener, so casting is safe.
+//
+// TODO(b/308178927): Change out the `NOTIMPLEMENTED()` macro calls to the
+// appropriate function calls when `mojom::ConnectionListenerV3` is fully
+// implemented.
+//
+// TODO(b/307319934): Extend to be used by non-Presence clients when the
+// migration to V3 APIs occurs.
+v3::ConnectionListener CreateConnectionListenerV3(
+    mojo::PendingRemote<mojom::ConnectionListenerV3> listener) {
+  mojo::SharedRemote<mojom::ConnectionListenerV3> remote(std::move(listener));
+
+  return v3::ConnectionListener{
+      .initiated_cb =
+          [remote](const NearbyDevice& remote_device,
+                   const v3::InitialConnectionInfo& info) {
+            if (!remote) {
+              return;
+            }
+
+            NOTIMPLEMENTED();
+          },
+      .result_cb =
+          [remote](const NearbyDevice& remote_device,
+                   v3::ConnectionResult result) {
+            if (!remote) {
+              return;
+            }
+
+            NOTIMPLEMENTED();
+          },
+      .disconnected_cb =
+          [remote](const NearbyDevice& remote_device) {
+            if (!remote) {
+              return;
+            }
+
+            NOTIMPLEMENTED();
+          },
+      .bandwidth_changed_cb =
+          [remote](const NearbyDevice& remote_device,
+                   v3::BandwidthInfo bandwidth_info) {
+            if (!remote) {
+              return;
+            }
+
+            NOTIMPLEMENTED();
+          },
   };
 }
 
@@ -289,8 +351,8 @@ void NearbyConnections::AcceptConnection(
   // Capturing Core* is safe as Core owns PayloadListener.
   PayloadListener payload_listener = {
       .payload_cb =
-          [&, remote, core = GetCore(service_id)](
-              const std::string& endpoint_id, Payload payload) {
+          [&, remote, core = GetCore(service_id)](base::StringPiece endpoint_id,
+                                                  Payload payload) {
             if (!remote)
               return;
 
@@ -299,7 +361,7 @@ void NearbyConnections::AcceptConnection(
                 mojom::BytesPayloadPtr bytes_payload = mojom::BytesPayload::New(
                     ByteArrayToMojom(payload.AsBytes()));
                 remote->OnPayloadReceived(
-                    endpoint_id,
+                    std::string(endpoint_id),
                     mojom::Payload::New(payload.GetId(),
                                         mojom::PayloadContent::NewBytes(
                                             std::move(bytes_payload))));
@@ -319,7 +381,7 @@ void NearbyConnections::AcceptConnection(
                 mojom::FilePayloadPtr file_payload =
                     mojom::FilePayload::New(std::move(file));
                 remote->OnPayloadReceived(
-                    endpoint_id,
+                    std::string(endpoint_id),
                     mojom::Payload::New(payload.GetId(),
                                         mojom::PayloadContent::NewFile(
                                             std::move(file_payload))));
@@ -334,7 +396,7 @@ void NearbyConnections::AcceptConnection(
             }
           },
       .payload_progress_cb =
-          [&, remote](const std::string& endpoint_id,
+          [&, remote](base::StringPiece endpoint_id,
                       const PayloadProgressInfo& info) {
             if (!remote)
               return;
@@ -343,7 +405,7 @@ void NearbyConnections::AcceptConnection(
             // should not be called if |info.total_bytes| is negative.
             DCHECK_GE(info.bytes_transferred, 0);
             remote->OnPayloadTransferUpdate(
-                endpoint_id,
+                std::string(endpoint_id),
                 mojom::PayloadTransferUpdate::New(
                     info.payload_id, PayloadStatusToMojom(info.status),
                     info.total_bytes, info.bytes_transferred));
@@ -372,7 +434,7 @@ void NearbyConnections::AcceptConnection(
                 // Since we have completed fetching the full payload, return the
                 // completed payload as a "bytes" payload.
                 remote->OnPayloadReceived(
-                    endpoint_id,
+                    std::string(endpoint_id),
                     mojom::Payload::New(
                         info.payload_id,
                         mojom::PayloadContent::NewBytes(
@@ -469,6 +531,40 @@ void NearbyConnections::RegisterPayloadFile(
   }
 
   std::move(callback).Run(mojom::Status::kSuccess);
+}
+
+void NearbyConnections::RequestConnectionV3(
+    const std::string& service_id,
+    ash::nearby::presence::mojom::PresenceDevicePtr remote_device,
+    mojom::ConnectionOptionsPtr options,
+    mojo::PendingRemote<mojom::ConnectionListenerV3> listener,
+    RequestConnectionCallback callback) {
+  int keep_alive_interval_millis =
+      options->keep_alive_interval
+          ? options->keep_alive_interval->InMilliseconds()
+          : 0;
+  int keep_alive_timeout_millis =
+      options->keep_alive_timeout
+          ? options->keep_alive_timeout->InMilliseconds()
+          : 0;
+
+  ConnectionOptions connection_options{
+      .keep_alive_interval_millis = std::max(keep_alive_interval_millis, 0),
+      .keep_alive_timeout_millis = std::max(keep_alive_timeout_millis, 0)};
+  connection_options.allowed =
+      MediumSelectorFromMojom(options->allowed_mediums.get());
+
+  if (options->remote_bluetooth_mac_address) {
+    connection_options.remote_bluetooth_mac_address =
+        ByteArrayFromMojom(*options->remote_bluetooth_mac_address);
+  }
+
+  GetCore(service_id)
+      ->RequestConnectionV3(
+          presence::PresenceDevice(ash::nearby::presence::MetadataFromMojom(
+              remote_device->metadata.get())),
+          connection_options, CreateConnectionListenerV3(std::move(listener)),
+          ResultCallbackFromMojom(std::move(callback)));
 }
 
 base::File NearbyConnections::ExtractInputFile(int64_t payload_id) {

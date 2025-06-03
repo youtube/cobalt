@@ -57,7 +57,7 @@ class SegmentationModelExecutorTest : public testing::Test {
 
   void SetUp() override {
     base::FilePath source_root_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root_dir);
     model_file_path_ = source_root_dir.AppendASCII("components")
                            .AppendASCII("test")
                            .AppendASCII("data")
@@ -145,11 +145,11 @@ TEST_F(SegmentationModelExecutorTest, ExecuteWithLoadedModel) {
       [](base::RunLoop* run_loop,
          proto::SegmentationModelMetadata original_metadata,
          proto::SegmentId segment_id,
-         proto::SegmentationModelMetadata actual_metadata,
+         absl::optional<proto::SegmentationModelMetadata> actual_metadata,
          int64_t model_version) {
         // Verify that the callback is invoked with the correct data.
         EXPECT_EQ(kSegmentId, segment_id);
-        EXPECT_TRUE(AreEqual(original_metadata, actual_metadata));
+        EXPECT_TRUE(AreEqual(original_metadata, actual_metadata.value()));
         EXPECT_EQ(kModelVersion, model_version);
         run_loop->Quit();
       },

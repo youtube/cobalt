@@ -6,15 +6,11 @@
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
 #import "components/sync_preferences/pref_service_syncable.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/prefs/browser_prefs.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 class UserApprovedAccountListManagerTest : public PlatformTest {
  protected:

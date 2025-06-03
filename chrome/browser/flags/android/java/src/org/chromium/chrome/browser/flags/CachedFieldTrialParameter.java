@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.flags;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.CheckDiscard;
@@ -17,7 +16,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A field trial parameter in the variations framework that is cached by {@link CachedFeatureFlags}.
+ * A field trial parameter in the variations framework that is cached to disk be used before native.
  */
 public abstract class CachedFieldTrialParameter {
     /**
@@ -117,10 +116,9 @@ public abstract class CachedFieldTrialParameter {
      * Forces a field trial parameter value for testing. This is only for the annotation processor
      * to use. Tests should use "PARAMETER.setForTesting()" instead.
      */
-    @VisibleForTesting
     public static void setForTesting(
             String featureName, String variationName, String stringVariationValue) {
-        CachedFeatureFlags.setOverrideTestValue(
-                generateSharedPreferenceKey(featureName, variationName), stringVariationValue);
+        String preferenceKey = generateSharedPreferenceKey(featureName, variationName);
+        ValuesOverridden.setOverrideForTesting(preferenceKey, stringVariationValue);
     }
 }

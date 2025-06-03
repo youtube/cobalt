@@ -57,7 +57,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
 
-  void InitializeHangWatcher();
+  void InitializeHangWatcher(InvokedIn invoked_in);
 };
 
 }  // namespace cobalt

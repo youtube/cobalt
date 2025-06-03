@@ -16,15 +16,19 @@
 #include "base/path_service.h"
 #include "base/ranges/algorithm.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/browsing_data_file_system_util.h"
+#include "chrome/browser/browsing_data/chrome_browsing_data_model_delegate.h"
 #include "chrome/browser/browsing_data/counters/site_data_counting_helper.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/chrome_paths.h"
+#include "components/browsing_data/content/browsing_data_model.h"
+#include "components/browsing_data/content/browsing_data_test_util.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/storage_partition.h"
@@ -40,6 +44,7 @@
 #include "ui/base/models/tree_model.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/download/download_browsertest_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #endif
@@ -100,21 +105,8 @@ class CookiesTreeObserver : public CookiesTreeModel::Observer {
       : quit_closure_(std::move(quit_closure)) {}
   ~CookiesTreeObserver() override = default;
 
-  void TreeModelBeginBatchDeprecated(CookiesTreeModel* model) override {}
-
   void TreeModelEndBatchDeprecated(CookiesTreeModel* model) override {
     std::move(quit_closure_).Run();
-  }
-
-  void TreeNodesAdded(ui::TreeModel* model,
-                      ui::TreeModelNode* parent,
-                      size_t start,
-                      size_t count) override {}
-  void TreeNodesRemoved(ui::TreeModel* model,
-                        ui::TreeModelNode* parent,
-                        size_t start,
-                        size_t count) override {}
-  void TreeNodeChanged(ui::TreeModel* model, ui::TreeModelNode* node) override {
   }
 
  private:
@@ -139,9 +131,10 @@ BrowsingDataRemoverBrowserTestBase::BrowsingDataRemoverBrowserTestBase() =
 BrowsingDataRemoverBrowserTestBase::~BrowsingDataRemoverBrowserTestBase() =
     default;
 
-void BrowsingDataRemoverBrowserTestBase::InitFeatureList(
-    std::vector<base::test::FeatureRef> enabled_features) {
-  feature_list_.InitWithFeatures(enabled_features, {});
+void BrowsingDataRemoverBrowserTestBase::InitFeatureLists(
+    std::vector<base::test::FeatureRef> enabled_features,
+    std::vector<base::test::FeatureRef> disabled_features) {
+  feature_list_.InitWithFeatures(enabled_features, disabled_features);
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -215,6 +208,7 @@ void BrowsingDataRemoverBrowserTestBase::DownloadAnItem() {
   GURL download_url =
       ui_test_utils::GetTestUrl(base::FilePath().AppendASCII("downloads"),
                                 base::FilePath().AppendASCII("a_zip_file.zip"));
+  SetPromptForDownload(GetBrowser(), false);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(GetBrowser(), download_url));
 #endif
   observer->WaitForFinished();
@@ -227,7 +221,7 @@ bool BrowsingDataRemoverBrowserTestBase::HasDataForType(
     content::WebContents* web_contents) {
   if (!web_contents)
     web_contents = GetActiveWebContents();
-  return RunScriptAndGetBool("has" + type + "()", web_contents);
+  return browsing_data_test_util::HasDataForType(type, web_contents);
 }
 
 void BrowsingDataRemoverBrowserTestBase::SetDataForType(
@@ -235,8 +229,7 @@ void BrowsingDataRemoverBrowserTestBase::SetDataForType(
     content::WebContents* web_contents) {
   if (!web_contents)
     web_contents = GetActiveWebContents();
-  ASSERT_TRUE(RunScriptAndGetBool("set" + type + "()", web_contents))
-      << "Couldn't create data for: " << type;
+  browsing_data_test_util::SetDataForType(type, web_contents);
 }
 
 int BrowsingDataRemoverBrowserTestBase::GetSiteDataCount(
@@ -391,10 +384,8 @@ std::string BrowsingDataRemoverBrowserTestBase::GetCookiesTreeModelInfo(
   for (const auto& node : root->children()) {
     info << node->GetTitle() << std::endl;
     for (const auto& child : node->children()) {
-      // Quota nodes are not included in the UI due to crbug.com/642955.
       const auto node_type = child->GetDetailedInfo().node_type;
-      if (node_type != CookieTreeNode::DetailedInfo::TYPE_QUOTA)
-        info << "  " << child->GetTitle() << " " << node_type << std::endl;
+      info << "  " << child->GetTitle() << " " << node_type << std::endl;
     }
   }
   return info.str();
@@ -413,6 +404,16 @@ BrowsingDataRemoverBrowserTestBase::GetCookiesTreeModel(Profile* profile) {
   run_loop.Run();
   model->RemoveCookiesTreeObserver(&observer);
   return model;
+}
+
+std::unique_ptr<BrowsingDataModel>
+BrowsingDataRemoverBrowserTestBase::GetBrowsingDataModel(Profile* profile) {
+  base::test::TestFuture<std::unique_ptr<BrowsingDataModel>>
+      browsing_data_model;
+  BrowsingDataModel::BuildFromDisk(
+      profile, ChromeBrowsingDataModelDelegate::CreateForProfile(profile),
+      browsing_data_model.GetCallback());
+  return browsing_data_model.Take();
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)

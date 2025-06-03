@@ -9,6 +9,7 @@
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
+#include "base/trace_event/trace_event.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -78,6 +79,8 @@ SizeBounds LayoutManagerBase::GetAvailableSize(const View* host,
 
 void LayoutManagerBase::Layout(View* host) {
   DCHECK_EQ(host_view_, host);
+  TRACE_EVENT1("ui", "LayoutManagerBase::Layout", "class",
+               host->GetClassName());
   // A handful of views will cause invalidations while they are being
   // positioned, which can result in loops or loss of layout data during layout
   // application. Therefore we protect the layout manager from spurious
@@ -402,6 +405,29 @@ void LayoutManagerBase::PropagateInvalidateLayout() {
     owned_layout->PropagateInvalidateLayout();
 
   OnLayoutChanged();
+}
+
+ManualLayoutUtil::ManualLayoutUtil(LayoutManagerBase* layout_manager)
+    : layout_manager_(layout_manager) {}
+
+ManualLayoutUtil::~ManualLayoutUtil() = default;
+
+void ManualLayoutUtil::SetViewHidden(View* child_view, bool hidden) {
+  // If the child view is visible but we are not allowing visibility, update its
+  // visibility. This doesn't necessarily invalidate anything.
+  if (child_view->GetVisible() && hidden) {
+    layout_manager_->SetViewVisibility(child_view, false);
+  }
+
+  // If the view cannot be visible, it should be ignored by the layout, and
+  // vice-versa. This may invalidate layout data.
+  const auto it = layout_manager_->child_infos_.find(child_view);
+  CHECK(it != layout_manager_->child_infos_.end());
+  const bool can_be_visible = !hidden;
+  if (can_be_visible != it->second.can_be_visible) {
+    layout_manager_->PropagateViewVisibilitySet(layout_manager_->host_view(),
+                                                child_view, can_be_visible);
+  }
 }
 
 }  // namespace views

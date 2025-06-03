@@ -15,21 +15,22 @@
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
+#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store_interface.h"
 #include "components/password_manager/core/browser/sync/password_sync_bridge.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
 #include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/engine/cycle/entity_change_metric_recording.h"
 #include "components/sync/nigori/cryptographer_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
+#include "net/base/features.h"
 #include "third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.h"
 
 namespace {
@@ -95,49 +96,14 @@ class SingleClientPasswordsSyncTestWithVerifier
   }
 };
 
-class SingleClientPasswordsSyncTestWithBaseSpecificsInMetadata
-    : public SyncTest {
+class SingleClientPasswordsSyncTestWithNotes : public SyncTest {
  public:
-  SingleClientPasswordsSyncTestWithBaseSpecificsInMetadata()
-      : SyncTest(SINGLE_CLIENT) {
+  SingleClientPasswordsSyncTestWithNotes() : SyncTest(SINGLE_CLIENT) {
     feature_list_.InitWithFeatures(
-        /*enabled_features=*/{syncer::kCacheBaseEntitySpecificsInMetadata},
+        /*enabled_features=*/{syncer::kPasswordNotesWithBackup},
         /*disabled_features=*/{});
   }
-  ~SingleClientPasswordsSyncTestWithBaseSpecificsInMetadata() override =
-      default;
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-class SingleClientPasswordsSyncTestWithBaseSpecificsInMetadataAndNotes
-    : public SyncTest {
- public:
-  SingleClientPasswordsSyncTestWithBaseSpecificsInMetadataAndNotes()
-      : SyncTest(SINGLE_CLIENT) {
-    feature_list_.InitWithFeatures(
-        /*enabled_features=*/{syncer::kCacheBaseEntitySpecificsInMetadata,
-                              syncer::kPasswordNotesWithBackup},
-        /*disabled_features=*/{});
-  }
-  ~SingleClientPasswordsSyncTestWithBaseSpecificsInMetadataAndNotes() override =
-      default;
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-class SingleClientPasswordsSyncTestWithCachingSpecificsEnabledAfterRestart
-    : public SyncTest {
- public:
-  SingleClientPasswordsSyncTestWithCachingSpecificsEnabledAfterRestart()
-      : SyncTest(SINGLE_CLIENT) {
-    feature_list_.InitWithFeatureState(
-        syncer::kCacheBaseEntitySpecificsInMetadata, GetTestPreCount() == 0);
-  }
-  ~SingleClientPasswordsSyncTestWithCachingSpecificsEnabledAfterRestart()
-      override = default;
+  ~SingleClientPasswordsSyncTestWithNotes() override = default;
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -162,6 +128,20 @@ class SingleClientPasswordsSyncTestWithNotesDisableAfterEnable
 
  private:
   PasswordForm password_form_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Some tests are flaky on Chromeos when run with IP Protection enabled.
+// TODO(crbug.com/1491411): Fix flakes.
+class SingleClientPasswordsSyncTestWithNotesDisableAfterEnableNoIpProt
+    : public SingleClientPasswordsSyncTestWithNotesDisableAfterEnable {
+ public:
+  SingleClientPasswordsSyncTestWithNotesDisableAfterEnableNoIpProt() {
+    feature_list_.InitAndDisableFeature(
+        net::features::kEnableIpProtectionProxy);
+  }
+
+ private:
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -313,7 +293,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTest,
   // Wait for data types to be ready for sync and trigger a sync cycle.
   // Otherwise, TriggerRefresh() would be no-op.
   ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
-  GetSyncService(0)->TriggerRefresh(syncer::PASSWORDS);
+  GetSyncService(0)->TriggerRefresh({syncer::PASSWORDS});
 
   // After restart, the last sync cycle snapshot should be empty. Once a sync
   // request happened (e.g. by a poll), that snapshot is populated. We use the
@@ -559,7 +539,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
   // Turn on Sync-the-feature.
   secondary_account_helper::GrantSyncConsent(GetProfile(0), "user@email.com");
   GetSyncService(0)->SetSyncFeatureRequested();
-  GetSyncService(0)->GetUserSettings()->SetFirstSetupComplete(
+  GetSyncService(0)->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
       kSetSourceFromTest);
   ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureEnabled());
@@ -610,7 +590,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
   // Turn on Sync-the-feature.
   secondary_account_helper::GrantSyncConsent(GetProfile(0), "user@email.com");
   GetSyncService(0)->SetSyncFeatureRequested();
-  GetSyncService(0)->GetUserSettings()->SetFirstSetupComplete(
+  GetSyncService(0)->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
       kSetSourceFromTest);
   ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureEnabled());
@@ -620,7 +600,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
 
-IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithBaseSpecificsInMetadata,
+IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTest,
                        PreservesUnsupportedFieldsDataOnCommits) {
   // Create an unsupported field with an unused tag.
   const std::string kUnsupportedField =
@@ -671,9 +651,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithBaseSpecificsInMetadata,
                   cryptographer.get(), "new_password", kUnsupportedField)));
 }
 
-IN_PROC_BROWSER_TEST_F(
-    SingleClientPasswordsSyncTestWithBaseSpecificsInMetadataAndNotes,
-    PreservesUnsupportedNotesFieldsDataOnCommits) {
+IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotes,
+                       PreservesUnsupportedNotesFieldsDataOnCommits) {
   // Create an unsupported field in the PasswordSpecificsData_Notes with an
   // unused tag.
   const std::string kUnsupportedNotesField =
@@ -751,57 +730,12 @@ IN_PROC_BROWSER_TEST_F(
   }
 }
 
-IN_PROC_BROWSER_TEST_F(
-    SingleClientPasswordsSyncTestWithCachingSpecificsEnabledAfterRestart,
-    PRE_PasswordBridgeIgnoresEntriesWithoutCachedBaseSpecificOnRestart) {
-  // Disabled by the test fixture.
-  ASSERT_FALSE(base::FeatureList::IsEnabled(
-      syncer::kCacheBaseEntitySpecificsInMetadata));
-
-  // Add password entity with caching entity specifics disabled in the PRE test.
-  ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
-  PasswordForm form = CreateTestPasswordForm(0);
-  GetProfilePasswordStoreInterface(0)->AddLogin(form);
-  ASSERT_EQ(1, GetPasswordCount(0));
-
-  // Setup sync, wait for its completion, and make sure changes were synced.
-  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
-  ASSERT_TRUE(UpdatedProgressMarkerChecker(GetSyncService(0)).Wait());
-}
-
-// Regression test for crrev.com/c/3755526. Checks that password bridge ignores
-// entries without a password field in entity specifics cache (added by the PRE
-// test with `syncer::kCacheBaseEntitySpecificsInMetadata` disabled).
-IN_PROC_BROWSER_TEST_F(
-    SingleClientPasswordsSyncTestWithCachingSpecificsEnabledAfterRestart,
-    PasswordBridgeIgnoresEntriesWithoutCachedBaseSpecificOnRestart) {
-  // Enabled by the test fixture.
-  ASSERT_TRUE(base::FeatureList::IsEnabled(
-      syncer::kCacheBaseEntitySpecificsInMetadata));
-
-  base::HistogramTester histogram_tester;
-  ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
-  ASSERT_EQ(1, GetPasswordCount(0));
-
-  // Wait for data types to be ready for sync (and hence model types are
-  // loaded).
-  ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
-
-  // The original metric is defined in password_sync_bridge.cc.
-  const int kNone = 0;
-  // Since the local base entity specifics cache doesn't contain supported
-  // fields, running into the initial sync flow is not expected. Since the
-  // bridge is initialized for both account and profile store, the metric is
-  // expected to be recorded twice.
-  histogram_tester.ExpectUniqueSample("PasswordManager.SyncMetadataReadError2",
-                                      kNone, /*expected_bucket_count=*/2);
-}
-
 // The follow 3 tests are testing the interaction between clients that support
 // and don't support notes. The test fixture enables the features for even
 // number of PREs.
-IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotesDisableAfterEnable,
-                       PRE_PRE_ServerPreservesNotesBackup) {
+IN_PROC_BROWSER_TEST_F(
+    SingleClientPasswordsSyncTestWithNotesDisableAfterEnableNoIpProt,
+    PRE_PRE_ServerPreservesNotesBackup) {
   // Enabled by the test fixture.
   ASSERT_TRUE(base::FeatureList::IsEnabled(syncer::kPasswordNotesWithBackup));
   ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
@@ -815,8 +749,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotesDisableAfterEnable,
   EXPECT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 1).Wait());
 }
 
-IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotesDisableAfterEnable,
-                       PRE_ServerPreservesNotesBackup) {
+IN_PROC_BROWSER_TEST_F(
+    SingleClientPasswordsSyncTestWithNotesDisableAfterEnableNoIpProt,
+    PRE_ServerPreservesNotesBackup) {
   // Disabled by the test fixture.
   ASSERT_FALSE(base::FeatureList::IsEnabled(syncer::kPasswordNotesWithBackup));
   // The server should still contains the entity with the note.
@@ -850,8 +785,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotesDisableAfterEnable,
   ASSERT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 2).Wait());
 }
 
-IN_PROC_BROWSER_TEST_F(SingleClientPasswordsSyncTestWithNotesDisableAfterEnable,
-                       ServerPreservesNotesBackup) {
+IN_PROC_BROWSER_TEST_F(
+    SingleClientPasswordsSyncTestWithNotesDisableAfterEnableNoIpProt,
+    ServerPreservesNotesBackup) {
   // Enabled by the test fixture.
   ASSERT_TRUE(base::FeatureList::IsEnabled(syncer::kPasswordNotesWithBackup));
   // The server now should have two entities.

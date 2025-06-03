@@ -4,9 +4,10 @@
 """Definitions of builders in the tryserver.chromium builder group."""
 
 load("//lib/branches.star", "branches")
-load("//lib/builders.star", "os", "reclient")
+load("//lib/builders.star", "cpu", "os", "reclient")
 load("//lib/try.star", "try_")
 load("//lib/consoles.star", "consoles")
+load("//lib/gn_args.star", "gn_args")
 
 try_.defaults.set(
     executable = try_.DEFAULT_EXECUTABLE,
@@ -36,6 +37,8 @@ try_.builder(
     mirrors = [
         "ci/android-official",
     ],
+    ssd = True,
+    contact_team_email = "clank-engprod@google.com",
 )
 
 try_.builder(
@@ -44,6 +47,7 @@ try_.builder(
     mirrors = [
         "ci/fuchsia-official",
     ],
+    ssd = True,
 )
 
 try_.builder(
@@ -52,6 +56,10 @@ try_.builder(
     mirrors = [
         "ci/linux-official",
     ],
+    ssd = True,
+    gn_args = gn_args.config(
+        configs = ["ci/linux-official", "try_builder"],
+    ),
 )
 
 try_.builder(
@@ -60,11 +68,13 @@ try_.builder(
     mirrors = [
         "ci/mac-official",
     ],
+    builderless = False,
     cores = None,
     os = os.MAC_ANY,
+    cpu = cpu.ARM64,
     # TODO(crbug.com/1279290) builds with PGO change take long time.
     # Keep in sync with mac-official in ci/chromium.star.
-    execution_timeout = 9 * time.hour,
+    execution_timeout = 15 * time.hour,
 )
 
 try_.builder(

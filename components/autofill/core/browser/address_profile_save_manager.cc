@@ -57,23 +57,9 @@ void AddressProfileSaveManager::ImportProfileFromForm(
   if (!personal_data_manager_)
     return;
 
-  // If the explicit save prompts are not enabled, revert back to the legacy
-  // behavior and directly import the observed profile without recording any
-  // additional metrics. However, if only silent updates are allowed, proceed
-  // with the profile import process.
-  if (personal_data_manager_->auto_accept_address_imports_for_testing() &&
-      !allow_only_silent_updates) {
-    personal_data_manager_->SaveImportedProfile(observed_profile);
-    AddMultiStepComplementCandidate(client_->GetFormDataImporter(),
-                                    observed_profile, import_metadata.origin);
-    return;
-  }
-
-  auto process_ptr = std::make_unique<ProfileImportProcess>(
+  MaybeOfferSavePrompt(std::make_unique<ProfileImportProcess>(
       observed_profile, app_locale, url, personal_data_manager_,
-      allow_only_silent_updates, import_metadata);
-
-  MaybeOfferSavePrompt(std::move(process_ptr));
+      allow_only_silent_updates, import_metadata));
 }
 
 void AddressProfileSaveManager::MaybeOfferSavePrompt(
@@ -101,6 +87,11 @@ void AddressProfileSaveManager::MaybeOfferSavePrompt(
     case AutofillProfileImportType::kConfirmableMergeAndSilentUpdate:
     case AutofillProfileImportType::kProfileMigration:
     case AutofillProfileImportType::kProfileMigrationAndSilentUpdate:
+      if (personal_data_manager_->auto_accept_address_imports_for_testing()) {
+        import_process->AcceptWithoutEdits();
+        FinalizeProfileImport(std::move(import_process));
+        return;
+      }
       OfferSavePrompt(std::move(import_process));
       return;
 
@@ -141,7 +132,7 @@ void AddressProfileSaveManager::OfferSavePrompt(
 void AddressProfileSaveManager::OnUserDecision(
     std::unique_ptr<ProfileImportProcess> import_process,
     UserDecision decision,
-    AutofillProfile edited_profile) {
+    base::optional_ref<const AutofillProfile> edited_profile) {
   DCHECK(import_process->prompt_shown());
 
   import_process->SetUserDecision(decision, edited_profile);
@@ -152,13 +143,7 @@ void AddressProfileSaveManager::FinalizeProfileImport(
     std::unique_ptr<ProfileImportProcess> import_process) {
   DCHECK(personal_data_manager_);
 
-  // If the profiles changed at all, reset the full list of AutofillProfiles in
-  // the personal data manager.
-  if (import_process->ProfilesChanged()) {
-    std::vector<AutofillProfile> resulting_profiles =
-        import_process->GetResultingProfiles();
-    personal_data_manager_->SetProfilesForAllSources(&resulting_profiles);
-  }
+  import_process->ApplyImport();
 
   AdjustNewProfileStrikes(*import_process);
   AdjustUpdateProfileStrikes(*import_process);

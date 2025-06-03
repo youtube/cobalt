@@ -16,6 +16,7 @@
 #include "base/observer_list.h"
 #include "base/rand_util.h"
 #include "base/ranges/algorithm.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
@@ -46,7 +47,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/google/core/common/google_util.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/password_manager/core/browser/form_parsing/form_parser.h"
+#include "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #include "components/password_manager/core/browser/insecure_credentials_helper.h"
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "components/password_manager/core/browser/ui/password_check_referrer.h"
@@ -76,8 +77,8 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/sync/driver/sync_service.h"
 #include "components/sync/protocol/user_event_specifics.pb.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync_user_events/user_event_service.h"
 #include "components/unified_consent/pref_names.h"
 #include "components/variations/service/variations_service.h"
@@ -102,13 +103,15 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/password_manager/android/password_checkup_launcher_helper.h"
+#include "chrome/browser/password_manager/android/password_checkup_launcher_helper_impl.h"
 #include "chrome/browser/safe_browsing/android/password_reuse_controller_android.h"
 #include "chrome/browser/safe_browsing/android/safe_browsing_referring_app_bridge_android.h"
 #include "components/password_manager/core/browser/password_check_referrer_android.h"
 #include "ui/android/window_android.h"
 #else
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/hats/trust_safety_sentiment_service.h"
+#include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
 #endif
 
 using base::RecordAction;
@@ -560,6 +563,26 @@ void ChromePasswordProtectionService::OnUserAction(
       NOTREACHED();
       break;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (safe_browsing::IsSafeBrowsingSurveysEnabled(*profile_->GetPrefs())) {
+    TrustSafetySentimentService* trust_safety_sentiment_service =
+        TrustSafetySentimentServiceFactory::GetForProfile(profile_);
+    if (trust_safety_sentiment_service) {
+      // Use trigger that delays survey when user changes password so we don't
+      // interrupt their password change.
+      if (action == WarningAction::CHANGE_PASSWORD) {
+        trust_safety_sentiment_service->ProtectResetOrCheckPasswordClicked(
+            ui_type);
+      } else if (action == WarningAction::IGNORE_WARNING ||
+                 action == WarningAction::CLOSE ||
+                 action == WarningAction::MARK_AS_LEGITIMATE) {
+        trust_safety_sentiment_service->PhishedPasswordUpdateNotClicked(ui_type,
+                                                                        action);
+      }
+    }
+  }
+#endif
 }
 
 void ChromePasswordProtectionService::AddObserver(Observer* observer) {
@@ -910,18 +933,13 @@ GURL ChromePasswordProtectionService::GetDefaultChangePasswordURL() const {
       "password?utm_source=Google&utm_campaign=PhishGuard";
   url::RawCanonOutputT<char> percent_encoded_email;
   url::RawCanonOutputT<char> percent_encoded_account_url;
-  url::EncodeURIComponent(account_email.c_str(), account_email.length(),
-                          &percent_encoded_email);
-  url::EncodeURIComponent(account_url.c_str(), account_url.length(),
-                          &percent_encoded_account_url);
-  GURL change_password_url = GURL(base::StringPrintf(
-      "https://accounts.google.com/"
-      "AccountChooser?Email=%s&continue=%s",
-      std::string(percent_encoded_email.data(), percent_encoded_email.length())
-          .c_str(),
-      std::string(percent_encoded_account_url.data(),
-                  percent_encoded_account_url.length())
-          .c_str()));
+  url::EncodeURIComponent(account_email, &percent_encoded_email);
+  url::EncodeURIComponent(account_url, &percent_encoded_account_url);
+  GURL change_password_url =
+      GURL(base::StrCat({"https://accounts.google.com/"
+                         "AccountChooser?Email=",
+                         percent_encoded_email.view(),
+                         "&continue=", percent_encoded_account_url.view()}));
   return google_util::AppendGoogleLocaleParam(
       change_password_url, g_browser_process->GetApplicationLocale());
 }
@@ -1030,13 +1048,14 @@ void ChromePasswordProtectionService::OpenChangePasswordUrl(
         "PasswordProtection.SavedPassword.ChangePasswordButtonClicked"));
 #if BUILDFLAG(IS_ANDROID)
     JNIEnv* env = base::android::AttachCurrentThread();
-    PasswordCheckupLauncherHelper::LaunchLocalCheckup(
-        env, web_contents->GetTopLevelNativeWindow()->GetJavaObject(),
+    PasswordCheckupLauncherHelperImpl checkup_launcher;
+    checkup_launcher.LaunchLocalCheckup(
+        env, web_contents->GetTopLevelNativeWindow(),
         password_manager::PasswordCheckReferrerAndroid::kPhishedWarningDialog);
 #endif
 #if BUILDFLAG(FULL_SAFE_BROWSING)
     // Opens chrome://settings/passwords/check in a new tab.
-    chrome::ShowPasswordCheck(chrome::FindBrowserWithWebContents(web_contents));
+    chrome::ShowPasswordCheck(chrome::FindBrowserWithTab(web_contents));
     password_manager::LogPasswordCheckReferrer(
         password_manager::PasswordCheckReferrer::kPhishGuardDialog);
 #endif
@@ -1510,9 +1529,11 @@ void ChromePasswordProtectionService::FillUserPopulation(
       &token);
 }
 
-bool ChromePasswordProtectionService::IsPrimaryAccountSyncing() const {
+bool ChromePasswordProtectionService::IsPrimaryAccountSyncingHistory() const {
   syncer::SyncService* sync = SyncServiceFactory::GetForProfile(profile_);
-  return sync && sync->IsSyncFeatureActive() && !sync->IsLocalSyncEnabled();
+  return sync &&
+         sync->GetActiveDataTypes().Has(syncer::HISTORY_DELETE_DIRECTIVES) &&
+         !sync->IsLocalSyncEnabled();
 }
 
 bool ChromePasswordProtectionService::IsPrimaryAccountSignedIn() const {
@@ -1620,7 +1641,7 @@ AccountInfo ChromePasswordProtectionService::GetAccountInfo() const {
     return AccountInfo();
 
   return identity_manager->FindExtendedAccountInfo(
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSync));
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
 }
 
 ChromeUserPopulation::UserPopulation
@@ -1756,8 +1777,8 @@ password_manager::PasswordStoreInterface*
 ChromePasswordProtectionService::GetProfilePasswordStore() const {
   // Always use EXPLICIT_ACCESS as the password manager checks IsIncognito
   // itself when it shouldn't access the PasswordStoreInterface.
-  return PasswordStoreFactory::GetForProfile(profile_,
-                                             ServiceAccessType::EXPLICIT_ACCESS)
+  return ProfilePasswordStoreFactory::GetForProfile(
+             profile_, ServiceAccessType::EXPLICIT_ACCESS)
       .get();
 }
 

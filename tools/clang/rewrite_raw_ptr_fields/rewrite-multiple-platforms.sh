@@ -13,11 +13,7 @@
 set -e  # makes the script quit on any command failure
 set -u  # unset variables are quit-worthy errors
 
-PLATFORMS="win,android"
-if [ "$1" != "" ]
-then
-  PLATFORMS="$1"
-fi
+PLATFORMS="${1:-win,android}"
 
 SCRIPT_PATH=$(realpath $0)
 REWRITER_SRC_DIR=$(dirname $SCRIPT_PATH)
@@ -36,7 +32,7 @@ mv third_party/llvm-build third_party/llvm-build-upstream
 # Build and test the rewriter.
 echo "*** Building the rewriter ***"
 time tools/clang/scripts/build.py \
-    --without-android \
+    --with-android \
     --without-fuchsia \
     --extra-tools rewrite_raw_ptr_fields
 tools/clang/rewrite_raw_ptr_fields/tests/run_all_tests.py

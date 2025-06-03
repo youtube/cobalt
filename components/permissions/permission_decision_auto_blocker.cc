@@ -22,6 +22,8 @@
 namespace permissions {
 namespace {
 
+using PermissionStatus = blink::mojom::PermissionStatus;
+
 constexpr int kDefaultDismissalsBeforeBlock = 3;
 constexpr int kDefaultIgnoresBeforeBlock = 4;
 constexpr int kDefaultDismissalsBeforeBlockWithQuietUi = 1;
@@ -81,14 +83,21 @@ std::string GetStringForContentType(ContentSettingsType content_type) {
     return "FederatedIdentityAutoReauthn";
   }
 
+  if (content_type == ContentSettingsType::FILE_SYSTEM_WRITE_GUARD) {
+    return "FileSystemWriteGuard";
+  }
+
+  if (content_type == ContentSettingsType::AUTO_PICTURE_IN_PICTURE) {
+    return "AutoPictureInPicture";
+  }
+
   return PermissionUtil::GetPermissionString(content_type);
 }
 
 base::Value::Dict GetOriginAutoBlockerData(HostContentSettingsMap* settings,
                                            const GURL& origin_url) {
   base::Value website_setting = settings->GetWebsiteSetting(
-      origin_url, GURL(), ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA,
-      nullptr);
+      origin_url, GURL(), ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA);
   if (!website_setting.is_dict()) {
     return base::Value::Dict();
   }
@@ -234,11 +243,13 @@ bool PermissionDecisionAutoBlocker::IsEnabledForContentSetting(
   return PermissionUtil::IsPermission(content_setting) ||
          content_setting == ContentSettingsType::FEDERATED_IDENTITY_API ||
          content_setting ==
-             ContentSettingsType::FEDERATED_IDENTITY_AUTO_REAUTHN_PERMISSION;
+             ContentSettingsType::FEDERATED_IDENTITY_AUTO_REAUTHN_PERMISSION ||
+         content_setting == ContentSettingsType::FILE_SYSTEM_WRITE_GUARD ||
+         content_setting == ContentSettingsType::AUTO_PICTURE_IN_PICTURE;
 }
 
 // static
-absl::optional<PermissionResult>
+absl::optional<content::PermissionResult>
 PermissionDecisionAutoBlocker::GetEmbargoResult(
     HostContentSettingsMap* settings_map,
     const GURL& request_origin,
@@ -258,15 +269,17 @@ PermissionDecisionAutoBlocker::GetEmbargoResult(
                      kPermissionDismissalEmbargoKey, current_time,
                      GetEmbargoDurationForContentSettingsType(permission,
                                                               dismiss_count))) {
-    return PermissionResult(CONTENT_SETTING_BLOCK,
-                            PermissionStatusSource::MULTIPLE_DISMISSALS);
+    return content::PermissionResult(
+        PermissionStatus::DENIED,
+        content::PermissionStatusSource::MULTIPLE_DISMISSALS);
   }
 
   if (IsUnderEmbargo(permission_dict, features::kBlockPromptsIfIgnoredOften,
                      kPermissionIgnoreEmbargoKey, current_time,
                      base::Days(g_ignore_embargo_days))) {
-    return PermissionResult(CONTENT_SETTING_BLOCK,
-                            PermissionStatusSource::MULTIPLE_IGNORES);
+    return content::PermissionResult(
+        PermissionStatus::DENIED,
+        content::PermissionStatusSource::MULTIPLE_IGNORES);
   }
 
   if (IsUnderEmbargo(permission_dict,
@@ -274,8 +287,9 @@ PermissionDecisionAutoBlocker::GetEmbargoResult(
                      kPermissionDisplayEmbargoKey, current_time,
                      GetEmbargoDurationForContentSettingsType(
                          permission, /*dismiss_count=*/0))) {
-    return PermissionResult(CONTENT_SETTING_BLOCK,
-                            PermissionStatusSource::RECENT_DISPLAY);
+    return content::PermissionResult(
+        PermissionStatus::DENIED,
+        content::PermissionStatusSource::RECENT_DISPLAY);
   }
 
   return absl::nullopt;
@@ -329,7 +343,7 @@ bool PermissionDecisionAutoBlocker::IsEmbargoed(
   return GetEmbargoResult(request_origin, permission).has_value();
 }
 
-absl::optional<PermissionResult>
+absl::optional<content::PermissionResult>
 PermissionDecisionAutoBlocker::GetEmbargoResult(
     const GURL& request_origin,
     ContentSettingsType permission) {
@@ -377,11 +391,9 @@ std::set<GURL> PermissionDecisionAutoBlocker::GetEmbargoedOrigins(
   if (filtered_content_types.empty())
     return std::set<GURL>();
 
-  ContentSettingsForOneType embargo_settings;
-  settings_map_->GetSettingsForOneType(
-      ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA, &embargo_settings);
   std::set<GURL> origins;
-  for (const auto& e : embargo_settings) {
+  for (const auto& e : settings_map_->GetSettingsForOneType(
+           ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA)) {
     for (auto content_type : filtered_content_types) {
       const GURL url(e.primary_pattern.ToString());
       if (IsEmbargoed(url, content_type)) {
@@ -506,12 +518,8 @@ void PermissionDecisionAutoBlocker::RemoveEmbargoAndResetCounts(
 
 void PermissionDecisionAutoBlocker::RemoveEmbargoAndResetCounts(
     base::RepeatingCallback<bool(const GURL& url)> filter) {
-  std::unique_ptr<ContentSettingsForOneType> settings(
-      new ContentSettingsForOneType);
-  settings_map_->GetSettingsForOneType(
-      ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA, settings.get());
-
-  for (const auto& site : *settings) {
+  for (const auto& site : settings_map_->GetSettingsForOneType(
+           ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA)) {
     GURL origin(site.primary_pattern.ToString());
 
     if (origin.is_valid() && filter.Run(origin)) {

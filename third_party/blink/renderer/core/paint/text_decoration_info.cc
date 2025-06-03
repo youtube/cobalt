@@ -7,7 +7,7 @@
 #include <math.h>
 
 #include "build/build_config.h"
-#include "third_party/blink/renderer/core/layout/text_decoration_offset_base.h"
+#include "third_party/blink/renderer/core/layout/ng/ng_text_decoration_offset.h"
 #include "third_party/blink/renderer/core/paint/ng/ng_inline_paint_context.h"
 #include "third_party/blink/renderer/core/paint/text_paint_style.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -99,9 +99,8 @@ static float ComputeDecorationThickness(
   DCHECK(!text_decoration_thickness.IsFromFont());
 
   const Length& thickness_length = text_decoration_thickness.Thickness();
-  float font_size = font_data->PlatformData().size();
   float text_decoration_thickness_pixels =
-      FloatValueForLength(thickness_length, font_size);
+      FloatValueForLength(thickness_length, computed_font_size);
 
   return std::max(minimum_thickness, roundf(text_decoration_thickness_pixels));
 }
@@ -265,7 +264,7 @@ cc::PaintRecord PrepareWavyTileRecord(const WavyParams& params,
 }  // anonymous namespace
 
 TextDecorationInfo::TextDecorationInfo(
-    PhysicalOffset local_origin,
+    LineRelativeOffset local_origin,
     LayoutUnit width,
     const ComputedStyle& target_style,
     const NGInlinePaintContext* inline_context,
@@ -455,11 +454,11 @@ LayoutUnit TextDecorationInfo::OffsetFromDecoratingBox() const {
   const LayoutUnit decorating_box_paint_offset =
       decorating_box_->ContentOffsetInContainer().top +
       inline_context_->PaintOffset().top;
-  return decorating_box_paint_offset - local_origin_.top;
+  return decorating_box_paint_offset - local_origin_.line_over;
 }
 
 void TextDecorationInfo::SetUnderlineLineData(
-    const TextDecorationOffsetBase& decoration_offset) {
+    const NGTextDecorationOffset& decoration_offset) {
   DCHECK(HasUnderline());
   // Don't apply text-underline-offset to overlines. |line_offset| is zero.
   const Length line_offset = UNLIKELY(flip_underline_and_overline_)
@@ -476,7 +475,7 @@ void TextDecorationInfo::SetUnderlineLineData(
 }
 
 void TextDecorationInfo::SetOverlineLineData(
-    const TextDecorationOffsetBase& decoration_offset) {
+    const NGTextDecorationOffset& decoration_offset) {
   DCHECK(HasOverline());
   // Don't apply text-underline-offset to overline.
   const Length line_offset = UNLIKELY(flip_underline_and_overline_)
@@ -503,7 +502,7 @@ void TextDecorationInfo::SetLineThroughLineData() {
 }
 
 void TextDecorationInfo::SetSpellingOrGrammarErrorLineData(
-    const TextDecorationOffsetBase& decoration_offset) {
+    const NGTextDecorationOffset& decoration_offset) {
   DCHECK(HasSpellingOrGrammerError());
   DCHECK(!HasUnderline());
   DCHECK(!HasOverline());
@@ -511,7 +510,7 @@ void TextDecorationInfo::SetSpellingOrGrammarErrorLineData(
   DCHECK(applied_text_decoration_);
   const int paint_underline_offset = decoration_offset.ComputeUnderlineOffset(
       FlippedUnderlinePosition(), TargetStyle().ComputedFontSize(), FontData(),
-      applied_text_decoration_->UnderlineOffset(), ResolvedThickness());
+      Length(), ResolvedThickness());
   SetLineData(HasSpellingError() ? TextDecorationLine::kSpellingError
                                  : TextDecorationLine::kGrammarError,
               paint_underline_offset);
@@ -541,6 +540,13 @@ ETextDecorationStyle TextDecorationInfo::DecorationStyle() const {
 }
 
 Color TextDecorationInfo::LineColor() const {
+  if (HasSpellingError()) {
+    return LayoutTheme::GetTheme().PlatformSpellingMarkerUnderlineColor();
+  }
+  if (HasGrammarError()) {
+    return LayoutTheme::GetTheme().PlatformGrammarMarkerUnderlineColor();
+  }
+
   if (highlight_override_)
     return *highlight_override_;
 

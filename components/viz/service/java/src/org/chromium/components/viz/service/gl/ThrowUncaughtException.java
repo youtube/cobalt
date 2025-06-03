@@ -4,11 +4,10 @@
 
 package org.chromium.components.viz.service.gl;
 
-import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
 
-@MainDex
+import org.chromium.base.ThreadUtils;
+
 abstract class ThrowUncaughtException {
     @CalledByNative
     private static void post() {

@@ -18,8 +18,6 @@
 #include "chrome/common/safe_browsing/archive_analyzer_results.h"
 #include "chrome/common/safe_browsing/binary_feature_extractor.h"
 #include "chrome/common/safe_browsing/mach_o_image_reader_mac.h"
-#include "chrome/common/safe_browsing/rar_analyzer.h"
-#include "chrome/common/safe_browsing/zip_analyzer.h"
 #include "chrome/utility/safe_browsing/mac/dmg_iterator.h"
 #include "chrome/utility/safe_browsing/mac/read_stream.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -213,7 +211,8 @@ bool DMGAnalyzer::ResumeExtraction() {
         return !UpdateResultsForEntry(
             temp_file_.Duplicate(), GetRootPath().Append(path),
             /*file_length=*/0,
-            /*is_encrypted=*/false, /*is_directory=*/false);
+            /*is_encrypted=*/false, /*is_directory=*/false,
+            /*contents_valid=*/true);
       }
     }
   }

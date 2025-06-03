@@ -2289,8 +2289,6 @@ void Detach(AXPlatformNodeAuraLinuxObject* atk_object) {
     return;
 
   atk_object->m_object = nullptr;
-  atk_object_notify_state_change(ATK_OBJECT(atk_object), ATK_STATE_DEFUNCT,
-                                 TRUE);
 }
 
 }  //  namespace atk_object
@@ -2510,8 +2508,9 @@ AtkObject* AXPlatformNodeAuraLinux::FindPrimaryWebContentDocument() {
   for (auto* object : web_content_candidates) {
     auto* child_node = AXPlatformNodeAuraLinux::FromAtkObject(object);
     // If it is a primary web contents, return it.
-    if (child_node->IsPrimaryWebContentsForWindow())
+    if (child_node->GetDelegate()->IsPrimaryWebContentsForWindow()) {
       return object;
+    }
   }
   return nullptr;
 }
@@ -2919,8 +2918,6 @@ AtkRole AXPlatformNodeAuraLinux::GetAtkRole() const {
       return ATK_ROLE_PUSH_BUTTON;
     case ax::mojom::Role::kPortal:
       return ATK_ROLE_PUSH_BUTTON;
-    case ax::mojom::Role::kPre:
-      return ATK_ROLE_SECTION;
     case ax::mojom::Role::kProgressIndicator:
       return ATK_ROLE_PROGRESS_BAR;
     case ax::mojom::Role::kRadioButton:
@@ -2982,8 +2979,6 @@ AtkRole AXPlatformNodeAuraLinux::GetAtkRole() const {
     case ax::mojom::Role::kTabPanel:
       return ATK_ROLE_SCROLL_PANE;
     case ax::mojom::Role::kTerm:
-      // TODO(accessibility) This mapping should also be applied to the dfn
-      // element. http://crbug.com/874411
       return ATK_ROLE_DESCRIPTION_TERM;
     case ax::mojom::Role::kTitleBar:
       return ATK_ROLE_TITLE_BAR;
@@ -3035,6 +3030,8 @@ AtkRole AXPlatformNodeAuraLinux::GetAtkRole() const {
     case ax::mojom::Role::kKeyboard:
     case ax::mojom::Role::kNone:
       return ATK_ROLE_REDUNDANT_OBJECT;
+    case ax::mojom::Role::kPreDeprecated:
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -3167,6 +3164,10 @@ void AXPlatformNodeAuraLinux::GetAtkState(AtkStateSet* atk_state_set) {
   }
 }
 
+// Some relations only exist in a high enough ATK version.
+// If a relation has a version requirement, it will be documented in
+// the link below.
+// https://docs.gtk.org/atk/enum.RelationType.html
 struct AtkIntRelation {
   ax::mojom::IntAttribute attribute;
   AtkRelationType relation;
@@ -3178,10 +3179,6 @@ static AtkIntRelation kIntRelations[] = {
      absl::nullopt},
     {ax::mojom::IntAttribute::kPopupForId, ATK_RELATION_POPUP_FOR,
      absl::nullopt},
-#if defined(ATK_226)
-    {ax::mojom::IntAttribute::kErrormessageId, ATK_RELATION_ERROR_MESSAGE,
-     ATK_RELATION_ERROR_FOR},
-#endif
 };
 
 struct AtkIntListRelation {
@@ -3199,6 +3196,10 @@ static AtkIntListRelation kIntListRelations[] = {
 #endif
     {ax::mojom::IntListAttribute::kDescribedbyIds, ATK_RELATION_DESCRIBED_BY,
      ATK_RELATION_DESCRIPTION_FOR},
+#if defined(ATK_226)
+    {ax::mojom::IntListAttribute::kErrormessageIds, ATK_RELATION_ERROR_MESSAGE,
+     ATK_RELATION_ERROR_FOR},
+#endif
     {ax::mojom::IntListAttribute::kFlowtoIds, ATK_RELATION_FLOWS_TO,
      ATK_RELATION_FLOWS_FROM},
     {ax::mojom::IntListAttribute::kLabelledbyIds, ATK_RELATION_LABELLED_BY,
@@ -3209,10 +3210,7 @@ void AXPlatformNodeAuraLinux::AddRelationToSet(AtkRelationSet* relation_set,
                                                AtkRelationType relation,
                                                AXPlatformNode* target) {
   DCHECK(target);
-
-  // Avoid adding self-referential relations.
-  if (target == this)
-    return;
+  DCHECK(GetDelegate()->IsValidRelationTarget(target));
 
   // If we were compiled with a newer version of ATK than the runtime version,
   // it's possible that we might try to add a relation that doesn't exist in
@@ -3256,11 +3254,8 @@ AtkRelationSet* AXPlatformNodeAuraLinux::GetAtkRelations() {
   }
 
   // For each possible relation defined by an IntAttribute, we test that
-  // attribute and then look for reverse relations. AddRelationToSet handles
-  // discarding self-referential relations.
-  for (unsigned i = 0; i < G_N_ELEMENTS(kIntRelations); i++) {
-    const AtkIntRelation& relation = kIntRelations[i];
-
+  // attribute and then look for reverse relations.
+  for (auto relation : kIntRelations) {
     if (AXPlatformNode* target =
             GetDelegate()->GetTargetNodeForRelation(relation.attribute))
       AddRelationToSet(relation_set, relation.relation, target);
@@ -3268,7 +3263,7 @@ AtkRelationSet* AXPlatformNodeAuraLinux::GetAtkRelations() {
     if (!relation.reverse_relation.has_value())
       continue;
 
-    std::set<AXPlatformNode*> target_ids =
+    std::vector<AXPlatformNode*> target_ids =
         GetDelegate()->GetSourceNodesForReverseRelations(relation.attribute);
     for (AXPlatformNode* target : target_ids) {
       AddRelationToSet(relation_set, relation.reverse_relation.value(), target);
@@ -3287,7 +3282,7 @@ AtkRelationSet* AXPlatformNodeAuraLinux::GetAtkRelations() {
     if (!relation.reverse_relation.has_value())
       continue;
 
-    std::set<AXPlatformNode*> reverse_target_ids =
+    std::vector<AXPlatformNode*> reverse_target_ids =
         GetDelegate()->GetSourceNodesForReverseRelations(relation.attribute);
     for (AXPlatformNode* target : reverse_target_ids) {
       AddRelationToSet(relation_set, relation.reverse_relation.value(), target);
@@ -3585,8 +3580,10 @@ void AXPlatformNodeAuraLinux::OnScrolledToAnchor() {
   AtkObject* atk_object = GetOrCreateAtkObject();
   if (!atk_object)
     return;
-  DCHECK(ATK_IS_TEXT(atk_object));
-  g_signal_emit_by_name(atk_object, "text-caret-moved", 0);
+  // The text-caret-moved event is used to signal a scroll to anchor event.
+  if (ATK_IS_TEXT(atk_object)) {
+    g_signal_emit_by_name(atk_object, "text-caret-moved", 0);
+  }
 }
 
 void AXPlatformNodeAuraLinux::SetActiveViewsDialog() {

@@ -214,6 +214,10 @@ bool ResourceError::WasBlockedByResponse() const {
   return error_code_ == net::ERR_BLOCKED_BY_RESPONSE;
 }
 
+bool ResourceError::WasBlockedByORB() const {
+  return error_code_ == net::ERR_BLOCKED_BY_ORB;
+}
+
 namespace {
 blink::ResourceRequestBlockedReason
 BlockedByResponseReasonToResourceRequestBlockedReason(
@@ -298,9 +302,6 @@ String DescriptionForBlockedByClientOrResponse(
     case ResourceRequestBlockedReason::kContentType:
       detail = "ContentType";
       break;
-    case ResourceRequestBlockedReason::kContentRelationshipVerification:
-      detail = "ContentRelationshipVerification";
-      break;
     case ResourceRequestBlockedReason::kCoepFrameResourceNeedsCoepHeader:
       detail = "ResponseNeedsCrossOriginEmbedderPolicy";
       break;
@@ -320,6 +321,9 @@ String DescriptionForBlockedByClientOrResponse(
       break;
     case ResourceRequestBlockedReason::kConversionRequest:
       detail = "ConversionRequest";
+      break;
+    case ResourceRequestBlockedReason::kSupervisedUserUrlBlocked:
+      detail = "SupervisedUserUrlBlocked";
       break;
   }
   return WebString::FromASCII(net::ErrorToString(error) + "." + detail);

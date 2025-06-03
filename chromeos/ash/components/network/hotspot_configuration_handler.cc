@@ -159,9 +159,13 @@ void HotspotConfigurationHandler::OnSetHotspotConfigFailure(
 
   NET_LOG(ERROR) << "Error setting hotspot config, error name:" << error_name
                  << ", message" << error_message;
+
   HotspotMetricsHelper::RecordSetHotspotConfigResult(
-      SetHotspotConfigResult::kFailedInvalidConfiguration);
-  std::move(callback).Run(SetHotspotConfigResult::kFailedInvalidConfiguration);
+      SetHotspotConfigResult::kFailedShillOperation, error_name);
+  std::move(callback).Run(
+      error_name == shill::kErrorResultInvalidArguments
+          ? SetHotspotConfigResult::kFailedInvalidConfiguration
+          : SetHotspotConfigResult::kFailedShillOperation);
 }
 
 void HotspotConfigurationHandler::LoggedInStateChanged() {
@@ -181,7 +185,7 @@ void HotspotConfigurationHandler::UpdateHotspotConfigAndRunCallback(
     SetHotspotConfigCallback callback,
     absl::optional<base::Value::Dict> properties) {
   if (!properties) {
-    NET_LOG(ERROR) << "Error getting Shill manager properties.";
+    NET_LOG(EVENT) << "Error getting Shill manager properties.";
     std::move(callback).Run(
         hotspot_config::mojom::SetHotspotConfigResult::kSuccess);
     return;
@@ -189,7 +193,7 @@ void HotspotConfigurationHandler::UpdateHotspotConfigAndRunCallback(
   const base::Value::Dict* shill_tethering_config =
       properties->FindDict(shill::kTetheringConfigProperty);
   if (!shill_tethering_config) {
-    NET_LOG(ERROR) << "Error getting " << shill::kTetheringConfigProperty
+    NET_LOG(EVENT) << "Error getting " << shill::kTetheringConfigProperty
                    << " in Shill manager properties";
     std::move(callback).Run(
         hotspot_config::mojom::SetHotspotConfigResult::kSuccess);

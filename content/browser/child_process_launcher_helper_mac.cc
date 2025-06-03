@@ -136,9 +136,12 @@ bool ChildProcessLauncherHelper::BeforeLaunchOnLauncherThread(
       sandbox::policy::IsUnsandboxedSandboxType(sandbox_type);
 
   if (!no_sandbox) {
-    // Disable os logging to com.apple.diagnosticd which is a performance
-    // problem.
-    options->environment.insert(std::make_pair("OS_ACTIVITY_MODE", "disable"));
+    if (!LOG_IS_ON(INFO)) {
+      // Disable os logging to com.apple.diagnosticd when logging is not
+      // enabled. The system logging has a measureable performance impact.
+      options->environment.insert(
+          std::make_pair("OS_ACTIVITY_MODE", "disable"));
+    }
 
     const auto* cached_policy = SandboxProfileCache::Get().Query(sandbox_type);
     if (cached_policy) {
@@ -240,12 +243,11 @@ void ChildProcessLauncherHelper::ForceNormalProcessTerminationSync(
   base::EnsureProcessTerminated(std::move(process.process));
 }
 
-void ChildProcessLauncherHelper::SetProcessBackgroundedOnLauncherThread(
+void ChildProcessLauncherHelper::SetProcessPriorityOnLauncherThread(
     base::Process process,
-    bool is_background) {
-  if (process.CanBackgroundProcesses()) {
-    process.SetProcessBackgrounded(ChildProcessTaskPortProvider::GetInstance(),
-                                   is_background);
+    base::Process::Priority priority) {
+  if (process.CanSetPriority()) {
+    process.SetPriority(ChildProcessTaskPortProvider::GetInstance(), priority);
   }
 }
 

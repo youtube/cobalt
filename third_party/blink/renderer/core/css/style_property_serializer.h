@@ -44,9 +44,6 @@ class CORE_EXPORT StylePropertySerializer {
   String AsText() const;
   String SerializeShorthand(CSSPropertyID) const;
 
-  static bool IsValidToggleShorthand(const CSSValue* toggle_root,
-                                     const CSSValue* toggle_trigger);
-
  private:
   String GetCommonValue(const StylePropertyShorthand&) const;
   String BorderPropertyValue(const StylePropertyShorthand&,
@@ -60,13 +57,21 @@ class CORE_EXPORT StylePropertySerializer {
   String PageBreakPropertyValue(const StylePropertyShorthand&) const;
   String GetShorthandValue(const StylePropertyShorthand&,
                            String separator = " ") const;
+  String GetShorthandValueForColumnRule(const StylePropertyShorthand&) const;
   String GetShorthandValueForColumns(const StylePropertyShorthand&) const;
+  // foo || bar || ... || baz
+  // https://drafts.csswg.org/css-values-4/#component-combinators
+  String GetShorthandValueForDoubleBarCombinator(
+      const StylePropertyShorthand&) const;
   String GetShorthandValueForGrid(const StylePropertyShorthand&) const;
+  String GetShorthandValueForGridArea(const StylePropertyShorthand&) const;
+  String GetShorthandValueForGridLine(const StylePropertyShorthand&) const;
   String GetShorthandValueForGridTemplate(const StylePropertyShorthand&) const;
   String ContainerValue() const;
   String TimelineValue(const StylePropertyShorthand&) const;
   String ScrollTimelineValue() const;
   String ViewTimelineValue() const;
+  String AlternativeViewTimelineWithInsetValue() const;
   String AnimationDelayShorthandValue() const;
   String AnimationRangeShorthandValue() const;
   String FontValue() const;
@@ -76,9 +81,11 @@ class CORE_EXPORT StylePropertySerializer {
                                           StringBuilder& result) const;
   String OffsetValue() const;
   String TextDecorationValue() const;
-  String BackgroundRepeatPropertyValue() const;
+  String TextSpacingValue() const;
   String ContainIntrinsicSizeValue() const;
   String WhiteSpaceValue() const;
+  String ScrollStartValue() const;
+  String ScrollStartTargetValue() const;
   String GetPropertyText(const CSSPropertyName&,
                          const String& value,
                          bool is_important,

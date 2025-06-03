@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Gumagalaw pakaliwa at pataas</translation>
 <translation id="3573890771273113519">Lumipat sa scan mode</translation>
 <translation id="3583444040776960729">Kaliwang sulok sa ibaba ng dokumento</translation>
+<translation id="3642192109456033823">Pinoproseso ang video...</translation>
 <translation id="3789724198583203151">I-rotate nang 90 degree counterclockwise</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Kopyahin ang text</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">I-pause ang pag-record</translation>
 <translation id="4121305183798804752">Na-detect ang dokumento</translation>
 <translation id="414641094616694804">Hindi puwedeng baguhin ng camera na ito ang resolution</translation>
+<translation id="4176463684765177261">Hindi pinapagana</translation>
 <translation id="4269820728363426813">Kopyahin ang address ng link</translation>
-<translation id="4281620174117014503">Katamtamang resolution</translation>
 <translation id="428234092390943511">Thumbnail ng page</translation>
+<translation id="4349714250734879769">I-scale ang mga frame gamit ang Chrome</translation>
 <translation id="4383571725254449280">Mag-print ng mga log ng pagganap</translation>
 <translation id="4445542136948522167">Ihinto ang pagkuha ng larawan</translation>
 <translation id="4570032796877367747">Camera sa harap</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Sina-scan ang page <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Parisukat</translation>
+<translation id="574392208103952083">Katamtaman</translation>
 <translation id="5746169159649715125">I-save bilang PDF</translation>
 <translation id="5753488212459587150">I-enable ang expert mode</translation>
 <translation id="5759254179196327752">I-scan ang dokumento</translation>
@@ -148,6 +151,7 @@ Kung tungkol ang iyong feedback sa kalidad ng larawan o video, mag-attach ng hal
 <translation id="8145038249676204903">Lumipat sa pagkuha ng larawan</translation>
 <translation id="8167081290930651932">I-save bilang Larawan</translation>
 <translation id="8239780215768881278">Kumuha ng video snapshot</translation>
+<translation id="8346544573713510785">I-scale ang mga frame gamit ang Camera HAL</translation>
 <translation id="8425673304802773841">I-tilt pababa</translation>
 <translation id="8428213095426709021">Mga Setting</translation>
 <translation id="8629662593426079630">360p</translation>

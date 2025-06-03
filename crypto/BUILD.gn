@@ -56,15 +56,14 @@ component("crypto") {
     "unexportable_key.h",
     "unexportable_key_metrics.cc",
     "unexportable_key_metrics.h",
+    "unexportable_key_software_unsecure.cc",
   ]
 
-  deps = [
-    "//base",
-    "//base/third_party/dynamic_annotations",
-  ]
+  deps = [ "//base/third_party/dynamic_annotations" ]
 
   public_deps = [
     ":buildflags",
+    "//base",
     "//third_party/boringssl",
   ]
 

@@ -17,6 +17,8 @@
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/widget.h"
 
 namespace ui::ime {
@@ -37,8 +39,9 @@ class VerticalCandidateLabel : public views::Label {
   // views::Label:
   // Returns the preferred size, but guarantees that the width has at
   // least kMinCandidateLabelWidth pixels.
-  gfx::Size CalculatePreferredSize() const override {
-    gfx::Size size = Label::CalculatePreferredSize();
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    gfx::Size size = Label::CalculatePreferredSize(available_size);
     size.SetToMax(gfx::Size(kMinCandidateLabelWidth, 0));
     size.SetToMin(gfx::Size(kMaxCandidateLabelWidth, size.height()));
     return size;
@@ -209,7 +212,8 @@ void CandidateView::StateChanged(ButtonState old_state) {
   int text_style = GetState() == STATE_DISABLED ? views::style::STYLE_DISABLED
                                                 : views::style::STYLE_PRIMARY;
   shortcut_label_->SetEnabledColorId(
-      views::style::GetColorId(views::style::CONTEXT_LABEL, text_style));
+      views::TypographyProvider::Get().GetColorId(views::style::CONTEXT_LABEL,
+                                                  text_style));
   if (GetState() == STATE_PRESSED)
     SetHighlighted(true);
 }

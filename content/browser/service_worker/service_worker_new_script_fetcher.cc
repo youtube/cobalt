@@ -89,15 +89,14 @@ void ServiceWorkerNewScriptFetcher::Start(StartCallback callback) {
 
 void ServiceWorkerNewScriptFetcher::StartScriptLoadingWithNewResourceID(
     int64_t resource_id) {
-  BrowserContext* browser_context =
-      context_->process_manager()->browser_context();
+  BrowserContext* browser_context = context_->wrapper()->browser_context();
   if (!browser_context) {
     std::move(callback_).Run(/*main_script_load_params=*/nullptr);
     return;
   }
   network::ResourceRequest request =
       service_worker_loader_helpers::CreateRequestForServiceWorkerScript(
-          version_->script_url(), version_->key().origin(),
+          version_->script_url(), version_->key(),
           /*is_main_script=*/true, version_->script_type(),
           *fetch_client_settings_object_, *browser_context);
   // Request SSLInfo. It will be persisted in service worker storage and may be

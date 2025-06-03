@@ -4,6 +4,7 @@
 
 #include "chrome/browser/web_applications/web_app_database.h"
 
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,10 +18,14 @@
 #include "base/functional/overloaded.h"
 #include "base/pickle.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/trace_event/trace_event.h"
+#include "chrome/browser/web_applications/generated_icon_fix_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_location.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_version.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_manager.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_url_pattern.pb.h"
 #include "chrome/browser/web_applications/user_display_mode.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_chromeos_data.h"
@@ -30,7 +35,6 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
-#include "chrome/browser/web_applications/web_app_sources.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
@@ -40,12 +44,15 @@
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/model_error.h"
+#include "components/webapps/browser/installable/installable_metrics.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
+#include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/mojom/manifest/capture_links.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
+#include "third_party/blink/public/mojom/safe_url_pattern.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -265,6 +272,8 @@ WebAppManagement::Type ProtoToWebAppManagement(WebAppManagementProto type) {
       return WebAppManagement::Type::kOem;
     case WebAppManagementProto::ONEDRIVEINTEGRATION:
       return WebAppManagement::Type::kOneDriveIntegration;
+    case WebAppManagementProto::APS_DEFAULT:
+      return WebAppManagement::Type::kApsDefault;
   }
 }
 
@@ -290,6 +299,8 @@ WebAppManagementProto WebAppManagementToProto(WebAppManagement::Type type) {
       return WebAppManagementProto::OEM;
     case WebAppManagement::Type::kOneDriveIntegration:
       return WebAppManagementProto::ONEDRIVEINTEGRATION;
+    case WebAppManagement::Type::kApsDefault:
+      return WebAppManagementProto::APS_DEFAULT;
   }
 }
 
@@ -300,16 +311,6 @@ proto::TabStrip::Visibility TabStripVisibilityToProto(
       return proto::TabStrip_Visibility_AUTO;
     case TabStrip::Visibility::kAbsent:
       return proto::TabStrip_Visibility_ABSENT;
-  }
-}
-
-TabStrip::Visibility ProtoToTabStripVisibility(
-    proto::TabStrip::Visibility visibility) {
-  switch (visibility) {
-    case proto::TabStrip_Visibility_AUTO:
-      return TabStrip::Visibility::kAuto;
-    case proto::TabStrip_Visibility_ABSENT:
-      return TabStrip::Visibility::kAbsent;
   }
 }
 
@@ -328,6 +329,68 @@ absl::optional<base::FilePath> ProtoToFilePath(const std::string& bytes) {
     return absl::nullopt;
   }
   return path;
+}
+
+template <typename T>
+void IsolatedWebAppLocationToProto(const IsolatedWebAppLocation& location,
+                                   T* proto) {
+  absl::visit(base::Overloaded{
+                  [&proto](const InstalledBundle& bundle) {
+                    proto->mutable_installed_bundle()->set_path(
+                        FilePathToProto(bundle.path));
+                  },
+                  [&proto](const DevModeBundle& bundle) {
+                    proto->mutable_dev_mode_bundle()->set_path(
+                        FilePathToProto(bundle.path));
+                  },
+                  [&proto](const DevModeProxy& proxy) {
+                    DCHECK(!proxy.proxy_url.opaque());
+                    proto->mutable_dev_mode_proxy()->set_proxy_url(
+                        proxy.proxy_url.Serialize());
+                  },
+              },
+              location);
+}
+
+template <typename T>
+base::expected<IsolatedWebAppLocation, std::string>
+ProtoToIsolatedWebAppLocation(const T& proto) {
+  switch (proto.location_case()) {
+    case T::LocationCase::kInstalledBundle: {
+      absl::optional<base::FilePath> path =
+          ProtoToFilePath(proto.installed_bundle().path());
+      if (!path.has_value()) {
+        return base::unexpected(
+            ".installed_bundle.path parse error: cannot deserialize file path");
+      }
+      return InstalledBundle{.path = *path};
+    }
+
+    case T::LocationCase::kDevModeBundle: {
+      absl::optional<base::FilePath> path =
+          ProtoToFilePath(proto.dev_mode_bundle().path());
+      if (!path.has_value()) {
+        return base::unexpected(
+            ".dev_mode_bundle.path parse error: cannot deserialize file path");
+      }
+      return DevModeBundle{.path = *path};
+    }
+
+    case T::LocationCase::kDevModeProxy: {
+      GURL gurl_proxy_url = GURL(proto.dev_mode_proxy().proxy_url());
+      url::Origin proxy_url = url::Origin::Create(gurl_proxy_url);
+      if (!gurl_proxy_url.is_valid() || proxy_url.opaque()) {
+        return base::unexpected(
+            ".dev_mode_proxy.proxy_url parse error: cannot deserialize proxy "
+            "url. Value: " +
+            proto.dev_mode_proxy().proxy_url());
+      }
+      return DevModeProxy{.proxy_url = proxy_url};
+    }
+
+    case T::LocationCase::LOCATION_NOT_SET:
+      return base::unexpected(" parse error: not set");
+  }
 }
 
 }  // anonymous namespace
@@ -380,8 +443,9 @@ void WebAppDatabase::Write(
     write_batch->WriteData(web_app->app_id(), proto->SerializeAsString());
   }
 
-  for (const AppId& app_id : update_data.apps_to_delete)
+  for (const webapps::AppId& app_id : update_data.apps_to_delete) {
     write_batch->DeleteData(app_id);
+  }
 
   store_->CommitWriteBatch(
       std::move(write_batch),
@@ -396,36 +460,39 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
 
   // Required fields:
   const GURL start_url = web_app.start_url();
-  DCHECK(!start_url.is_empty() && start_url.is_valid());
+  DCHECK(start_url.is_valid());
 
   DCHECK(!web_app.app_id().empty());
+  DCHECK(web_app.manifest_id().is_valid());
 
   // Set sync data to sync proto.
   *(local_data->mutable_sync_data()) = WebAppToSyncProto(web_app);
 
   local_data->set_name(web_app.untranslated_name());
 
-  DCHECK(web_app.sources_.any() || web_app.is_uninstalling());
+  DCHECK(!web_app.sources_.Empty() || web_app.is_uninstalling());
   local_data->mutable_sources()->set_system(
-      web_app.sources_[WebAppManagement::kSystem]);
+      web_app.sources_.Has(WebAppManagement::kSystem));
   local_data->mutable_sources()->set_policy(
-      web_app.sources_[WebAppManagement::kPolicy]);
+      web_app.sources_.Has(WebAppManagement::kPolicy));
   local_data->mutable_sources()->set_web_app_store(
-      web_app.sources_[WebAppManagement::kWebAppStore]);
+      web_app.sources_.Has(WebAppManagement::kWebAppStore));
   local_data->mutable_sources()->set_sync(
-      web_app.sources_[WebAppManagement::kSync]);
+      web_app.sources_.Has(WebAppManagement::kSync));
   local_data->mutable_sources()->set_default_(
-      web_app.sources_[WebAppManagement::kDefault]);
+      web_app.sources_.Has(WebAppManagement::kDefault));
   local_data->mutable_sources()->set_sub_app(
-      web_app.sources_[WebAppManagement::kSubApp]);
+      web_app.sources_.Has(WebAppManagement::kSubApp));
   local_data->mutable_sources()->set_kiosk(
-      web_app.sources_[WebAppManagement::kKiosk]);
+      web_app.sources_.Has(WebAppManagement::kKiosk));
   local_data->mutable_sources()->set_command_line(
-      web_app.sources_[WebAppManagement::kCommandLine]);
+      web_app.sources_.Has(WebAppManagement::kCommandLine));
   local_data->mutable_sources()->set_oem(
-      web_app.sources_[WebAppManagement::kOem]);
+      web_app.sources_.Has(WebAppManagement::kOem));
   local_data->mutable_sources()->set_one_drive_integration(
-      web_app.sources_[WebAppManagement::kOneDriveIntegration]);
+      web_app.sources_.Has(WebAppManagement::kOneDriveIntegration));
+  local_data->mutable_sources()->set_aps_default(
+      web_app.sources_.Has(WebAppManagement::kApsDefault));
 
   local_data->set_is_locally_installed(web_app.is_locally_installed());
 
@@ -465,9 +532,9 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
     local_data->set_last_launch_time(
         syncer::TimeToProtoTime(web_app.last_launch_time()));
   }
-  if (!web_app.install_time().is_null()) {
-    local_data->set_install_time(
-        syncer::TimeToProtoTime(web_app.install_time()));
+  if (!web_app.first_install_time().is_null()) {
+    local_data->set_first_install_time(
+        syncer::TimeToProtoTime(web_app.first_install_time()));
   }
   if (!web_app.manifest_update_time().is_null()) {
     local_data->set_manifest_update_time(
@@ -490,11 +557,6 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
     mutable_chromeos_data->set_oem_installed(chromeos_data.oem_installed);
     mutable_chromeos_data->set_handles_file_open_intents(
         chromeos_data.handles_file_open_intents);
-    if (chromeos_data.app_profile_path.has_value()) {
-      CHECK(!chromeos_data.app_profile_path.value().empty());
-      mutable_chromeos_data->set_app_profile_path(
-          FilePathToProto(chromeos_data.app_profile_path.value()));
-    }
   }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -619,10 +681,8 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
         shortcut_icon_info_proto->set_size_in_px(icon_info.square_size_px);
       }
     }
-  }
 
-  for (const IconSizes& icon_sizes :
-       web_app.downloaded_shortcuts_menu_icons_sizes()) {
+    const IconSizes& icon_sizes = shortcut_info.downloaded_icon_sizes;
     DownloadedShortcutsMenuIconSizesProto* icon_sizes_proto =
         local_data->add_downloaded_shortcuts_menu_icons_sizes();
     for (const SquareSizePx& icon_size :
@@ -771,27 +831,28 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
     } else {
       auto* mutable_home_tab_params =
           mutable_tab_strip->mutable_home_tab_params();
-      absl::optional<std::vector<blink::Manifest::ImageResource>> icons =
+
+      const absl::optional<std::vector<blink::Manifest::ImageResource>>& icons =
           absl::get<blink::Manifest::HomeTabParams>(tab_strip.home_tab).icons;
       for (const auto& image_resource : *icons) {
         *(mutable_home_tab_params->add_icons()) =
             AppImageResourceToProto(image_resource);
       }
+
+      const std::vector<blink::SafeUrlPattern>& scope_patterns =
+          absl::get<blink::Manifest::HomeTabParams>(tab_strip.home_tab)
+              .scope_patterns;
+      for (const auto& pattern : scope_patterns) {
+        *(mutable_home_tab_params->add_scope_patterns()) =
+            ToUrlPatternProto(pattern);
+      }
     }
 
-    if (absl::holds_alternative<TabStrip::Visibility>(
-            tab_strip.new_tab_button)) {
-      mutable_tab_strip->set_new_tab_button_visibility(
-          TabStripVisibilityToProto(absl::get<TabStrip::Visibility>(
-              web_app.tab_strip().value().new_tab_button)));
-    } else {
-      auto* mutable_new_tab_button_params =
-          mutable_tab_strip->mutable_new_tab_button_params();
-      absl::optional<GURL> url = absl::get<blink::Manifest::NewTabButtonParams>(
-                                     tab_strip.new_tab_button)
-                                     .url;
-      if (url)
-        mutable_new_tab_button_params->set_url(url.value().spec());
+    auto* mutable_new_tab_button_params =
+        mutable_tab_strip->mutable_new_tab_button_params();
+    absl::optional<GURL> url = tab_strip.new_tab_button.url;
+    if (url) {
+      mutable_new_tab_button_params->set_url(url.value().spec());
     }
   }
 
@@ -809,24 +870,45 @@ std::unique_ptr<WebAppProto> WebAppDatabase::CreateWebAppProto(
 
   if (web_app.isolation_data().has_value()) {
     auto* mutable_data = local_data->mutable_isolation_data();
-    absl::visit(
-        base::Overloaded{
-            [&mutable_data](const InstalledBundle& bundle) {
-              mutable_data->mutable_installed_bundle()->set_path(
-                  FilePathToProto(bundle.path));
-            },
-            [&mutable_data](const DevModeBundle& bundle) {
-              mutable_data->mutable_dev_mode_bundle()->set_path(
-                  FilePathToProto(bundle.path));
-            },
-            [&mutable_data](const DevModeProxy& proxy) {
-              DCHECK(!proxy.proxy_url.opaque());
-              mutable_data->mutable_dev_mode_proxy()->set_proxy_url(
-                  proxy.proxy_url.Serialize());
-            },
-        },
-        web_app.isolation_data().value().location);
+
+    IsolatedWebAppLocationToProto(web_app.isolation_data()->location,
+                                  mutable_data);
+    mutable_data->set_version(web_app.isolation_data()->version.GetString());
+    for (const std::string& partition :
+         web_app.isolation_data()->controlled_frame_partitions) {
+      mutable_data->add_controlled_frame_partitions(partition);
+    }
+
+    if (web_app.isolation_data()->pending_update_info().has_value()) {
+      const WebApp::IsolationData::PendingUpdateInfo& pending_update_info =
+          *web_app.isolation_data()->pending_update_info();
+      auto* mutable_pending_update_info =
+          mutable_data->mutable_pending_update_info();
+
+      IsolatedWebAppLocationToProto(pending_update_info.location,
+                                    mutable_pending_update_info);
+      mutable_pending_update_info->set_version(
+          pending_update_info.version.GetString());
+    }
   }
+
+  local_data->set_is_user_selected_app_for_capturing_links(
+      web_app.is_user_selected_app_for_capturing_links());
+
+  if (!web_app.latest_install_time().is_null()) {
+    local_data->set_latest_install_time(
+        syncer::TimeToProtoTime(web_app.latest_install_time()));
+  }
+
+  if (web_app.generated_icon_fix().has_value()) {
+    *local_data->mutable_generated_icon_fix() =
+        web_app.generated_icon_fix().value();
+  }
+
+  local_data->set_supported_links_offer_ignore_count(
+      web_app.supported_links_offer_ignore_count());
+  local_data->set_supported_links_offer_dismiss_count(
+      web_app.supported_links_offer_dismiss_count());
 
   return local_data;
 }
@@ -841,7 +923,7 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
 
   const sync_pb::WebAppSpecifics& sync_data = local_data.sync_data();
 
-  // AppId is a hash of start_url. Read start_url first:
+  // webapps::AppId is a hash of start_url. Read start_url first:
   GURL start_url(sync_data.start_url());
   if (start_url.is_empty() || !start_url.is_valid()) {
     DLOG(ERROR) << "WebApp proto start_url parse error: "
@@ -849,15 +931,18 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
     return nullptr;
   }
 
-  absl::optional<std::string> manifest_id = absl::nullopt;
-  if (sync_data.has_manifest_id())
-    manifest_id = absl::optional<std::string>(sync_data.manifest_id());
+  webapps::ManifestId manifest_id;
+  if (sync_data.has_relative_manifest_id()) {
+    manifest_id =
+        GenerateManifestId(sync_data.relative_manifest_id(), start_url);
+  } else {
+    manifest_id = GenerateManifestIdFromStartUrlOnly(start_url);
+  }
 
-  const AppId app_id = GenerateAppId(manifest_id, start_url);
+  webapps::AppId app_id = GenerateAppIdFromManifestId(manifest_id);
 
   auto web_app = std::make_unique<WebApp>(app_id);
   web_app->SetStartUrl(start_url);
-
   web_app->SetManifestId(manifest_id);
 
   // Required fields:
@@ -866,30 +951,27 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
     return nullptr;
   }
 
-  WebAppSources sources;
-  sources[WebAppManagement::kSystem] = local_data.sources().system();
-  sources[WebAppManagement::kPolicy] = local_data.sources().policy();
-  sources[WebAppManagement::kWebAppStore] =
-      local_data.sources().web_app_store();
-  sources[WebAppManagement::kSync] = local_data.sources().sync();
-  sources[WebAppManagement::kDefault] = local_data.sources().default_();
-  sources[WebAppManagement::kOem] = local_data.sources().oem();
-  if (local_data.sources().has_sub_app()) {
-    sources[WebAppManagement::kSubApp] = local_data.sources().sub_app();
-  }
-  if (local_data.sources().has_kiosk()) {
-    sources[WebAppManagement::kKiosk] = local_data.sources().kiosk();
-  }
-  if (local_data.sources().has_command_line()) {
-    sources[WebAppManagement::kCommandLine] =
-        local_data.sources().command_line();
-  }
-  if (local_data.sources().has_one_drive_integration()) {
-    sources[WebAppManagement::kOneDriveIntegration] =
-        local_data.sources().one_drive_integration();
-  }
-  if (!sources.any() && !local_data.is_uninstalling()) {
-    DLOG(ERROR) << "WebApp proto parse error: no any source in sources field, "
+  WebAppManagementTypes sources;
+  sources.PutOrRemove(WebAppManagement::kSystem, local_data.sources().system());
+  sources.PutOrRemove(WebAppManagement::kPolicy, local_data.sources().policy());
+  sources.PutOrRemove(WebAppManagement::kWebAppStore,
+                      local_data.sources().web_app_store());
+  sources.PutOrRemove(WebAppManagement::kSync, local_data.sources().sync());
+  sources.PutOrRemove(WebAppManagement::kDefault,
+                      local_data.sources().default_());
+  sources.PutOrRemove(WebAppManagement::kOem, local_data.sources().oem());
+  sources.PutOrRemove(WebAppManagement::kSubApp,
+                      local_data.sources().sub_app());
+  sources.PutOrRemove(WebAppManagement::kKiosk, local_data.sources().kiosk());
+  sources.PutOrRemove(WebAppManagement::kCommandLine,
+                      local_data.sources().command_line());
+  sources.PutOrRemove(WebAppManagement::kOneDriveIntegration,
+                      local_data.sources().one_drive_integration());
+  sources.PutOrRemove(WebAppManagement::kApsDefault,
+                      local_data.sources().aps_default());
+
+  if (sources.Empty() && !local_data.is_uninstalling()) {
+    DLOG(ERROR) << "WebApp proto parse error: no source in sources field, "
                    "and is_uninstalling isn't true.";
     return nullptr;
   }
@@ -952,13 +1034,6 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
     chromeos_data->oem_installed = chromeos_data_proto.oem_installed();
     chromeos_data->handles_file_open_intents =
         chromeos_data_proto.handles_file_open_intents();
-    if (chromeos_data_proto.has_app_profile_path()) {
-      auto parsed_path =
-          ProtoToFilePath(chromeos_data_proto.app_profile_path());
-      CHECK(parsed_path.has_value());
-      CHECK(!parsed_path.value().empty());
-      chromeos_data->app_profile_path = std::move(parsed_path);
-    }
     web_app->SetWebAppChromeOsData(std::move(chromeos_data));
   }
 
@@ -1045,8 +1120,9 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
         syncer::ProtoTimeToTime(local_data.manifest_update_time()));
   }
 
-  if (local_data.has_install_time()) {
-    web_app->SetInstallTime(syncer::ProtoTimeToTime(local_data.install_time()));
+  if (local_data.has_first_install_time()) {
+    web_app->SetFirstInstallTime(
+        syncer::ProtoTimeToTime(local_data.first_install_time()));
   }
 
   absl::optional<WebApp::SyncFallbackData> parsed_sync_fallback_data =
@@ -1213,7 +1289,6 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
     shortcuts_menu_item_infos.emplace_back(std::move(shortcut_info));
   }
   const size_t shortcut_menu_item_size = shortcuts_menu_item_infos.size();
-  web_app->SetShortcutsMenuItemInfos(std::move(shortcuts_menu_item_infos));
 
   std::vector<IconSizes> shortcuts_menu_icons_sizes;
   for (const auto& shortcuts_icon_sizes_proto :
@@ -1241,8 +1316,18 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
   while (shortcuts_menu_icons_sizes.size() < shortcut_menu_item_size) {
     shortcuts_menu_icons_sizes.emplace_back();
   }
-  web_app->SetDownloadedShortcutsMenuIconsSizes(
-      std::move(shortcuts_menu_icons_sizes));
+  if (shortcut_menu_item_size < shortcuts_menu_icons_sizes.size()) {
+    DLOG(ERROR) << "WebApp proto had more downloaded shortcut icons than infos";
+    return nullptr;
+  }
+  CHECK_EQ(shortcuts_menu_item_infos.size(), shortcuts_menu_icons_sizes.size());
+  for (size_t i = 0; i < shortcut_menu_item_size; ++i) {
+    shortcuts_menu_item_infos[i].downloaded_icon_sizes =
+        std::move(shortcuts_menu_icons_sizes[i]);
+  }
+  // All elements have been moved.
+  shortcuts_menu_icons_sizes.clear();
+  web_app->SetShortcutsMenuInfo(std::move(shortcuts_menu_item_infos));
 
   std::vector<std::string> additional_search_terms;
   for (const std::string& additional_search_term :
@@ -1474,33 +1559,7 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
   web_app->SetWebAppManagementExternalConfigMap(management_to_external_config);
 
   if (local_data.has_tab_strip()) {
-    TabStrip tab_strip;
-    if (local_data.tab_strip().has_home_tab_visibility()) {
-      tab_strip.home_tab = ProtoToTabStripVisibility(
-          local_data.tab_strip().home_tab_visibility());
-    } else {
-      absl::optional<std::vector<blink::Manifest::ImageResource>> icons =
-          ParseAppImageResource(
-              "WebApp", local_data.tab_strip().home_tab_params().icons());
-      blink::Manifest::HomeTabParams home_tab_params;
-      if (!icons->empty()) {
-        home_tab_params.icons = std::move(*icons);
-      }
-      tab_strip.home_tab = std::move(home_tab_params);
-    }
-
-    if (local_data.tab_strip().has_new_tab_button_visibility()) {
-      tab_strip.new_tab_button = ProtoToTabStripVisibility(
-          local_data.tab_strip().new_tab_button_visibility());
-    } else {
-      blink::Manifest::NewTabButtonParams new_tab_button_params;
-      if (local_data.tab_strip().new_tab_button_params().has_url()) {
-        new_tab_button_params.url =
-            GURL(local_data.tab_strip().new_tab_button_params().url());
-      }
-      tab_strip.new_tab_button = new_tab_button_params;
-    }
-    web_app->SetTabStrip(std::move(tab_strip));
+    web_app->SetTabStrip(ProtoToTabStrip(local_data.tab_strip()));
   }
 
   if (local_data.has_current_os_integration_states()) {
@@ -1522,54 +1581,97 @@ std::unique_ptr<WebApp> WebAppDatabase::CreateWebApp(
   }
 
   if (local_data.has_isolation_data()) {
-    switch (local_data.isolation_data().location_case()) {
-      case IsolationDataProto::LocationCase::kInstalledBundle: {
-        absl::optional<base::FilePath> path = ProtoToFilePath(
-            local_data.isolation_data().installed_bundle().path());
-        if (!path.has_value()) {
-          DLOG(ERROR) << "WebApp proto isolation_data.installed_bundle.path "
-                         "parse error: cannot deserialize file path";
-          return nullptr;
-        }
-        web_app->SetIsolationData(
-            WebApp::IsolationData(InstalledBundle{.path = *path}));
-        break;
-      }
-
-      case IsolationDataProto::LocationCase::kDevModeBundle: {
-        absl::optional<base::FilePath> path = ProtoToFilePath(
-            local_data.isolation_data().dev_mode_bundle().path());
-        if (!path.has_value()) {
-          DLOG(ERROR) << "WebApp proto isolation_data.dev_mode_bundle.path "
-                         "parse error: cannot deserialize file path";
-          return nullptr;
-        }
-        web_app->SetIsolationData(
-            WebApp::IsolationData(DevModeBundle{.path = *path}));
-        break;
-      }
-
-      case IsolationDataProto::LocationCase::kDevModeProxy: {
-        GURL gurl_proxy_url =
-            GURL(local_data.isolation_data().dev_mode_proxy().proxy_url());
-        url::Origin proxy_url = url::Origin::Create(gurl_proxy_url);
-        if (!gurl_proxy_url.is_valid() || proxy_url.opaque()) {
-          DLOG(ERROR)
-              << "WebApp proto isolation_data.dev_mode_proxy.proxy_url "
-                 "parse error: cannot deserialize proxy url. Value: " +
-                     local_data.isolation_data().dev_mode_proxy().proxy_url();
-          return nullptr;
-        }
-        web_app->SetIsolationData(
-            WebApp::IsolationData(DevModeProxy{.proxy_url = proxy_url}));
-        break;
-      }
-
-      case IsolationDataProto::LocationCase::LOCATION_NOT_SET:
-        DLOG(ERROR) << "WebApp proto isolation_data parse error: "
-                    << "location not set";
-        return nullptr;
+    const google::protobuf::RepeatedPtrField<std::string>& partitions =
+        local_data.isolation_data().controlled_frame_partitions();
+    std::set<std::string> controlled_frame_partitions(partitions.begin(),
+                                                      partitions.end());
+    auto version_components =
+        ParseIwaVersionIntoComponents(local_data.isolation_data().version());
+    if (!version_components.has_value()) {
+      DLOG(ERROR) << "WebApp proto isolation_data.version parse error: cannot "
+                     "deserialize version: "
+                  << IwaVersionParseErrorToString(version_components.error());
+      return nullptr;
     }
+    base::Version version(
+        std::vector(version_components->begin(), version_components->end()));
+
+    base::expected<IsolatedWebAppLocation, std::string> location =
+        ProtoToIsolatedWebAppLocation(local_data.isolation_data());
+    if (!location.has_value()) {
+      DLOG(ERROR) << "WebApp proto isolation_data.location" << location.error();
+      return nullptr;
+    }
+
+    absl::optional<WebApp::IsolationData::PendingUpdateInfo>
+        pending_update_info;
+    if (local_data.isolation_data().has_pending_update_info()) {
+      const auto& pending_update_info_proto =
+          local_data.isolation_data().pending_update_info();
+
+      base::expected<IsolatedWebAppLocation, std::string> pending_location =
+          ProtoToIsolatedWebAppLocation(pending_update_info_proto);
+      if (!pending_location.has_value()) {
+        DLOG(ERROR)
+            << "WebApp proto isolation_data.pending_update_info.location"
+            << pending_location.error();
+        return nullptr;
+      }
+      if (pending_location->index() != location->index()) {
+        DLOG(ERROR) << "WebApp proto isolation_data.pending_update_info "
+                       "deserialization "
+                       "error: isolation_data.pending_update_info.location "
+                       "must have the same type as isolation_data.location.";
+        return nullptr;
+      }
+
+      auto pending_version_components =
+          ParseIwaVersionIntoComponents(pending_update_info_proto.version());
+      if (!pending_version_components.has_value()) {
+        DLOG(ERROR)
+            << "WebApp proto isolation_data.pending_update_info.version parse "
+               "error: cannot deserialize version: "
+            << IwaVersionParseErrorToString(pending_version_components.error());
+        return nullptr;
+      }
+      base::Version pending_version(
+          std::vector(pending_version_components->begin(),
+                      pending_version_components->end()));
+
+      pending_update_info = WebApp::IsolationData::PendingUpdateInfo(
+          *pending_location, pending_version);
+    }
+
+    web_app->SetIsolationData(WebApp::IsolationData(
+        *location, version, controlled_frame_partitions, pending_update_info));
+  }
+
+  if (local_data.has_is_user_selected_app_for_capturing_links()) {
+    web_app->SetIsUserSelectedAppForSupportedLinks(
+        local_data.is_user_selected_app_for_capturing_links());
+  }
+
+  if (local_data.has_latest_install_time()) {
+    web_app->SetLatestInstallTime(
+        syncer::ProtoTimeToTime(local_data.latest_install_time()));
+  } else if (local_data.has_first_install_time()) {
+    web_app->SetLatestInstallTime(
+        syncer::ProtoTimeToTime(local_data.first_install_time()));
+  }
+
+  if (local_data.has_generated_icon_fix() &&
+      generated_icon_fix_util::IsValid(local_data.generated_icon_fix())) {
+    web_app->SetGeneratedIconFix(local_data.generated_icon_fix());
+  }
+
+  if (local_data.has_supported_links_offer_ignore_count()) {
+    web_app->SetSupportedLinksOfferIgnoreCount(
+        local_data.supported_links_offer_ignore_count());
+  }
+
+  if (local_data.has_supported_links_offer_dismiss_count()) {
+    web_app->SetSupportedLinksOfferDismissCount(
+        local_data.supported_links_offer_dismiss_count());
   }
 
   return web_app;
@@ -1613,6 +1715,7 @@ void WebAppDatabase::OnAllMetadataRead(
     RegistryOpenedCallback callback,
     const absl::optional<syncer::ModelError>& error,
     std::unique_ptr<syncer::MetadataBatch> metadata_batch) {
+  TRACE_EVENT0("ui", "WebAppDatabase::OnAllMetadataRead");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (error) {
     error_callback_.Run(*error);
@@ -1622,7 +1725,7 @@ void WebAppDatabase::OnAllMetadataRead(
 
   Registry registry;
   for (const syncer::ModelTypeStore::Record& record : *data_records) {
-    const AppId app_id = record.id;
+    const webapps::AppId app_id = record.id;
     std::unique_ptr<WebApp> web_app = ParseWebApp(app_id, record.value);
     if (web_app)
       registry.emplace(app_id, std::move(web_app));
@@ -1647,8 +1750,9 @@ void WebAppDatabase::OnDataWritten(
 }
 
 // static
-std::unique_ptr<WebApp> WebAppDatabase::ParseWebApp(const AppId& app_id,
-                                                    const std::string& value) {
+std::unique_ptr<WebApp> WebAppDatabase::ParseWebApp(
+    const webapps::AppId& app_id,
+    const std::string& value) {
   WebAppProto proto;
   const bool parsed = proto.ParseFromString(value);
   if (!parsed) {
@@ -1663,7 +1767,9 @@ std::unique_ptr<WebApp> WebAppDatabase::ParseWebApp(const AppId& app_id,
   }
 
   if (web_app->app_id() != app_id) {
-    DLOG(ERROR) << "WebApps LevelDB error: app_id doesn't match storage key";
+    DLOG(ERROR) << "WebApps LevelDB error: app_id doesn't match storage key "
+                << app_id << " vs " << web_app->app_id() << ", from "
+                << web_app->manifest_id();
     return nullptr;
   }
 

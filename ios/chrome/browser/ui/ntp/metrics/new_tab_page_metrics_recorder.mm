@@ -4,100 +4,67 @@
 
 #import "ios/chrome/browser/ui/ntp/metrics/new_tab_page_metrics_recorder.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
-#import "base/time/time.h"
-#import "ios/chrome/browser/ui/content_suggestions/content_suggestions_constants.h"
-#import "ios/chrome/browser/ui/content_suggestions/ntp_home_constant.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/ui/ntp/metrics/new_tab_page_metrics_constants.h"
 
 @implementation NewTabPageMetricsRecorder
 
 #pragma mark - Public
 
-- (void)recordTimeSpentInNTP:(base::TimeDelta)timeSpent {
-  UmaHistogramMediumTimes("NewTabPage.TimeSpent", timeSpent);
+- (void)recordTimeSpentInHome:(base::TimeDelta)timeSpent
+               isStartSurface:(BOOL)startSurface {
+  if (startSurface) {
+    UmaHistogramMediumTimes(kStartTimeSpentHistogram, timeSpent);
+  } else {
+    UmaHistogramMediumTimes(kNTPTimeSpentHistogram, timeSpent);
+  }
 }
 
-- (void)recordNTPImpression:(IOSNTPImpressionType)impressionType {
-  UMA_HISTOGRAM_ENUMERATION("IOS.NTP.Impression", impressionType,
-                            IOSNTPImpressionType::kMaxValue);
-  [self recordImpressionForTileAblation];
+- (void)recordHomeImpression:(IOSNTPImpressionType)impressionType
+              isStartSurface:(BOOL)startSurface {
+  if (startSurface) {
+    UMA_HISTOGRAM_ENUMERATION(kStartImpressionHistogram, impressionType,
+                              IOSNTPImpressionType::kMaxValue);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION(kNTPImpressionHistogram, impressionType,
+                              IOSNTPImpressionType::kMaxValue);
+  }
+
+  // TODO(crbug.com/1475674) Remove old deprecated Tile Ablation keys. To be
+  // removed after a few milestones.
+  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+  [defaults removeObjectForKey:@"DoneWithTileAblation"];
+  [defaults removeObjectForKey:@"kFirstImpressionRecordedTileAblationKey"];
+  [defaults removeObjectForKey:@"NumberOfNTPImpressionsRecorded"];
+  [defaults removeObjectForKey:@"LastNTPImpressionRecorded"];
 }
 
 - (void)recordOverscrollActionForType:(OverscrollActionType)type {
-  UMA_HISTOGRAM_ENUMERATION("IOS.NTP.OverscrollAction", type);
+  UMA_HISTOGRAM_ENUMERATION(kNTPOverscrollActionHistogram, type);
 }
 
 - (void)recordLensTapped {
-  base::RecordAction(
-      base::UserMetricsAction("Mobile.LensIOS.NewTabPageEntrypointTapped"));
+  base::RecordAction(base::UserMetricsAction(kNTPEntrypointTappedAction));
 }
 
 - (void)recordVoiceSearchTapped {
-  base::RecordAction(
-      base::UserMetricsAction("MobileNTPMostVisitedVoiceSearch"));
+  base::RecordAction(base::UserMetricsAction(kMostVisitedVoiceSearchAction));
 }
 
 - (void)recordFakeTapViewTapped {
-  base::RecordAction(base::UserMetricsAction("MobileFakeViewNTPTapped"));
+  base::RecordAction(base::UserMetricsAction(kFakeViewNTPTappedAction));
 }
 
 - (void)recordFakeOmniboxTapped {
-  base::RecordAction(base::UserMetricsAction("MobileFakeboxNTPTapped"));
+  base::RecordAction(base::UserMetricsAction(kFakeboxNTPTappedAction));
 }
 
 - (void)recordIdentityDiscTapped {
-  base::RecordAction(base::UserMetricsAction("MobileNTPIdentityDiscTapped"));
-}
-
-- (void)recordHomeActionType:(IOSHomeActionType)type
-              onStartSurface:(BOOL)isStartSurface {
-  if (isStartSurface) {
-    UMA_HISTOGRAM_ENUMERATION("IOS.Home.ActionOnStartSurface", type);
-  } else {
-    UMA_HISTOGRAM_ENUMERATION("IOS.Home.ActionOnNTP", type);
-  }
-}
-
-#pragma mark - Private
-
-// Records an NTP impression for the tile ablation retention feature.
-- (void)recordImpressionForTileAblation {
-  base::Time now = base::Time::Now();
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-  if ([defaults boolForKey:kDoneWithTileAblationKey]) {
-    return;
-  }
-  // Find/Set first NTP impression ever.
-  NSDate* firstImpressionRecordedTileAblationExperiment =
-      base::mac::ObjCCast<NSDate>(
-          [defaults objectForKey:kFirstImpressionRecordedTileAblationKey]);
-  int impressions = [defaults integerForKey:kNumberOfNTPImpressionsRecordedKey];
-  // Record first NTP impression.
-  if (firstImpressionRecordedTileAblationExperiment == nil) {
-    [defaults setObject:now.ToNSDate()
-                 forKey:kFirstImpressionRecordedTileAblationKey];
-    [defaults setObject:now.ToNSDate() forKey:kLastNTPImpressionRecordedKey];
-    [defaults setInteger:1 forKey:kNumberOfNTPImpressionsRecordedKey];
-    return;
-  }
-  NSDate* lastImpressionTileAblation = base::mac::ObjCCast<NSDate>(
-      [defaults objectForKey:kLastNTPImpressionRecordedKey]);
-  // Check when the last impression happened.
-  if (now - base::Time::FromNSDate(lastImpressionTileAblation) >=
-      base::Minutes(kTileAblationImpressionThresholdMinutes)) {
-    // Count impression for MVT/Shortcuts Experiment.
-    [defaults setObject:now.ToNSDate() forKey:kLastNTPImpressionRecordedKey];
-    [defaults setInteger:impressions + 1
-                  forKey:kNumberOfNTPImpressionsRecordedKey];
-  }
+  base::RecordAction(base::UserMetricsAction(kNTPIdentityDiscTappedAction));
 }
 
 @end

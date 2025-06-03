@@ -32,6 +32,7 @@ import org.chromium.components.offline_items_collection.UpdateDelta;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
+import org.chromium.net.test.ServerCertificate;
 import org.chromium.ui.base.PageTransition;
 
 import java.util.List;
@@ -42,8 +43,7 @@ import java.util.concurrent.TimeUnit;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class MHTMLPageTest implements CustomMainActivityStart {
-    @Rule
-    public DownloadTestRule mDownloadTestRule = new DownloadTestRule(this);
+    @Rule public DownloadTestRule mDownloadTestRule = new DownloadTestRule(this);
 
     private static final int TIMEOUT_MS = 5000;
     private static final String[] TEST_FILES = new String[] {"hello.mhtml", "test.mht"};
@@ -100,8 +100,9 @@ public class MHTMLPageTest implements CustomMainActivityStart {
     @Before
     public void setUp() {
         deleteTestFiles();
-        mTestServer = EmbeddedTestServer.createAndStartServer(
-                ApplicationProvider.getApplicationContext());
+        mTestServer =
+                EmbeddedTestServer.createAndStartHTTPSServer(
+                        ApplicationProvider.getApplicationContext(), ServerCertificate.CERT_OK);
     }
 
     @After
@@ -124,14 +125,16 @@ public class MHTMLPageTest implements CustomMainActivityStart {
         final Tab tab = mDownloadTestRule.getActivity().getActivityTab();
         final Semaphore semaphore = new Semaphore(0);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            DownloadController.setDownloadNotificationService(
-                    new TestDownloadNotificationService(semaphore));
-            OfflineContentAggregatorFactory.get().addObserver(
-                    new TestNewDownloadBackendObserver(semaphore));
-            tab.loadUrl(
-                    new LoadUrlParams(url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR));
-        });
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DownloadController.setDownloadNotificationService(
+                            new TestDownloadNotificationService(semaphore));
+                    OfflineContentAggregatorFactory.get()
+                            .addObserver(new TestNewDownloadBackendObserver(semaphore));
+                    tab.loadUrl(
+                            new LoadUrlParams(
+                                    url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR));
+                });
 
         Assert.assertTrue(semaphore.tryAcquire(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }
@@ -144,14 +147,16 @@ public class MHTMLPageTest implements CustomMainActivityStart {
         final Tab tab = mDownloadTestRule.getActivity().getActivityTab();
         final Semaphore semaphore = new Semaphore(0);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            DownloadController.setDownloadNotificationService(
-                    new TestDownloadNotificationService(semaphore));
-            OfflineContentAggregatorFactory.get().addObserver(
-                    new TestNewDownloadBackendObserver(semaphore));
-            tab.loadUrl(
-                    new LoadUrlParams(url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR));
-        });
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DownloadController.setDownloadNotificationService(
+                            new TestDownloadNotificationService(semaphore));
+                    OfflineContentAggregatorFactory.get()
+                            .addObserver(new TestNewDownloadBackendObserver(semaphore));
+                    tab.loadUrl(
+                            new LoadUrlParams(
+                                    url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR));
+                });
 
         Assert.assertTrue(semaphore.tryAcquire(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }

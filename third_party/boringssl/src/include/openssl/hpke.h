@@ -140,6 +140,10 @@ OPENSSL_EXPORT void EVP_HPKE_KEY_free(EVP_HPKE_KEY *key);
 OPENSSL_EXPORT int EVP_HPKE_KEY_copy(EVP_HPKE_KEY *dst,
                                      const EVP_HPKE_KEY *src);
 
+// EVP_HPKE_KEY_move sets |out|, which must be initialized or in the zero state,
+// to the key in |in|. |in| is mutated and left in the zero state.
+OPENSSL_EXPORT void EVP_HPKE_KEY_move(EVP_HPKE_KEY *out, EVP_HPKE_KEY *in);
+
 // EVP_HPKE_KEY_init decodes |priv_key| as a private key for |kem| and
 // initializes |key| with the result. It returns one on success and zero if
 // |priv_key| was invalid. On success, the caller must call
@@ -248,6 +252,34 @@ OPENSSL_EXPORT int EVP_HPKE_CTX_setup_recipient(
     EVP_HPKE_CTX *ctx, const EVP_HPKE_KEY *key, const EVP_HPKE_KDF *kdf,
     const EVP_HPKE_AEAD *aead, const uint8_t *enc, size_t enc_len,
     const uint8_t *info, size_t info_len);
+
+// EVP_HPKE_CTX_setup_auth_sender implements the SetupAuthS HPKE operation. It
+// behaves like |EVP_HPKE_CTX_setup_sender| but authenticates the resulting
+// context with |key|.
+OPENSSL_EXPORT int EVP_HPKE_CTX_setup_auth_sender(
+    EVP_HPKE_CTX *ctx, uint8_t *out_enc, size_t *out_enc_len, size_t max_enc,
+    const EVP_HPKE_KEY *key, const EVP_HPKE_KDF *kdf, const EVP_HPKE_AEAD *aead,
+    const uint8_t *peer_public_key, size_t peer_public_key_len,
+    const uint8_t *info, size_t info_len);
+
+// EVP_HPKE_CTX_setup_auth_sender_with_seed_for_testing behaves like
+// |EVP_HPKE_CTX_setup_auth_sender|, but takes a seed to behave
+// deterministically. The seed's format depends on |kem|. For X25519, it is the
+// sender's ephemeral private key.
+OPENSSL_EXPORT int EVP_HPKE_CTX_setup_auth_sender_with_seed_for_testing(
+    EVP_HPKE_CTX *ctx, uint8_t *out_enc, size_t *out_enc_len, size_t max_enc,
+    const EVP_HPKE_KEY *key, const EVP_HPKE_KDF *kdf, const EVP_HPKE_AEAD *aead,
+    const uint8_t *peer_public_key, size_t peer_public_key_len,
+    const uint8_t *info, size_t info_len, const uint8_t *seed, size_t seed_len);
+
+// EVP_HPKE_CTX_setup_auth_recipient implements the SetupAuthR HPKE operation.
+// It behaves like |EVP_HPKE_CTX_setup_recipient| but checks the resulting
+// context was authenticated with |peer_public_key|.
+OPENSSL_EXPORT int EVP_HPKE_CTX_setup_auth_recipient(
+    EVP_HPKE_CTX *ctx, const EVP_HPKE_KEY *key, const EVP_HPKE_KDF *kdf,
+    const EVP_HPKE_AEAD *aead, const uint8_t *enc, size_t enc_len,
+    const uint8_t *info, size_t info_len, const uint8_t *peer_public_key,
+    size_t peer_public_key_len);
 
 
 // Using an HPKE context.
@@ -361,8 +393,8 @@ using ScopedEVP_HPKE_CTX =
     internal::StackAllocated<EVP_HPKE_CTX, void, EVP_HPKE_CTX_zero,
                              EVP_HPKE_CTX_cleanup>;
 using ScopedEVP_HPKE_KEY =
-    internal::StackAllocated<EVP_HPKE_KEY, void, EVP_HPKE_KEY_zero,
-                             EVP_HPKE_KEY_cleanup>;
+    internal::StackAllocatedMovable<EVP_HPKE_KEY, void, EVP_HPKE_KEY_zero,
+                                    EVP_HPKE_KEY_cleanup, EVP_HPKE_KEY_move>;
 
 BORINGSSL_MAKE_DELETER(EVP_HPKE_CTX, EVP_HPKE_CTX_free)
 BORINGSSL_MAKE_DELETER(EVP_HPKE_KEY, EVP_HPKE_KEY_free)

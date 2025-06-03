@@ -7,8 +7,8 @@
 
 #include "third_party/blink/renderer/core/layout/background_bleed_avoidance.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_sides.h"
+#include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
-#include "third_party/blink/renderer/core/layout/ng/geometry/ng_box_strut.h"
 #include "third_party/blink/renderer/core/style/style_image.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
@@ -144,9 +144,10 @@ class BoxPainterBase {
   };
 
  protected:
-  virtual NGPhysicalBoxStrut ComputeBorders() const = 0;
-  virtual NGPhysicalBoxStrut ComputePadding() const = 0;
-  NGPhysicalBoxStrut AdjustedBorderOutsets(const FillLayerInfo&) const;
+  virtual PhysicalBoxStrut ComputeBorders() const = 0;
+  virtual PhysicalBoxStrut ComputePadding() const = 0;
+  virtual PhysicalBoxStrut ComputeMargins() const = 0;
+  PhysicalBoxStrut AdjustedBorderOutsets(const FillLayerInfo&) const;
   void PaintFillLayerTextFillBox(const PaintInfo&,
                                  const FillLayerInfo&,
                                  Image*,
@@ -175,7 +176,7 @@ class BoxPainterBase {
       PhysicalBoxSides sides_to_include = PhysicalBoxSides());
 
  private:
-  NGPhysicalBoxStrut ComputeSnappedBorders() const;
+  PhysicalBoxStrut ComputeSnappedBorders() const;
 
   const Document* document_;
   const ComputedStyle& style_;

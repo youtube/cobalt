@@ -33,19 +33,18 @@
 #include "media/capture/video/video_capture_device_client.h"
 #include "media/capture/video/video_frame_receiver.h"
 #include "media/capture/video/video_frame_receiver_on_task_runner.h"
+#include "services/video_capture/public/mojom/video_effects_manager.mojom.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 #include "content/browser/media/capture/desktop_capture_device_uma_types.h"
 #include "content/browser/media/capture/web_contents_video_capture_device.h"
-#if BUILDFLAG(IS_ANDROID)
-#include "content/browser/media/capture/screen_capture_device_android.h"
-#else
+#if !BUILDFLAG(IS_ANDROID)
 #if defined(USE_AURA)
 #include "content/browser/media/capture/aura_window_video_capture_device.h"
-#endif
+#endif  // defined(USE_AURA)
 #include "content/browser/media/capture/desktop_capture_device.h"
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_MAC)
 #include "content/browser/media/capture/desktop_capture_device_mac.h"
 #include "content/browser/media/capture/screen_capture_kit_device_mac.h"
@@ -61,7 +60,6 @@
 #include "media/capture/video/chromeos/scoped_video_capture_jpeg_decoder.h"
 #include "media/capture/video/chromeos/video_capture_jpeg_decoder_impl.h"
 #elif BUILDFLAG(IS_WIN)
-#include "media/capture/video/win/video_capture_buffer_tracker_factory_win.h"
 #include "media/capture/video/win/video_capture_device_factory_win.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
@@ -101,6 +99,13 @@ BASE_FEATURE(kScreenCaptureKitMac,
 // feature has no effect if kScreenCaptureKitMac is enabled.
 BASE_FEATURE(kScreenCaptureKitMacWindow,
              "ScreenCaptureKitMacWindow",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If this feature is enabled, ScreenCaptureKit will be used for screen
+// capturing even if kScreenCaptureKitMac is disabled. Please note that this
+// feature has no effect if kScreenCaptureKitMac is enabled.
+BASE_FEATURE(kScreenCaptureKitMacScreen,
+             "ScreenCaptureKitMacScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -126,13 +131,6 @@ void IncrementDesktopCaptureCounters(const DesktopMediaID& device_id) {
       break;
   }
 }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-bool ShouldUseDesktopCaptureLacrosV2() {
-  return base::FeatureList::IsEnabled(features::kDesktopCaptureLacrosV2) &&
-         VideoCaptureDeviceProxyLacros::IsAvailable();
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -190,27 +188,26 @@ DesktopCaptureImplementation CreatePlatformDependentVideoCaptureDevice(
     const DesktopMediaID& desktop_id,
     std::unique_ptr<media::VideoCaptureDevice>& device_out) {
   DCHECK_EQ(device_out.get(), nullptr);
-#if BUILDFLAG(IS_ANDROID)
-  if ((device_out = std::make_unique<ScreenCaptureDeviceAndroid>()))
-    return DesktopCaptureImplementation::kScreenCaptureDeviceAndroid;
-#else
 #if BUILDFLAG(IS_MAC)
   // Prefer using ScreenCaptureKit. After that try DesktopCaptureDeviceMac, and
   // if both fail, use the generic DesktopCaptureDevice.
   if (base::FeatureList::IsEnabled(kScreenCaptureKitMac) ||
       (desktop_id.type == DesktopMediaID::TYPE_WINDOW &&
-       base::FeatureList::IsEnabled(kScreenCaptureKitMacWindow))) {
+       base::FeatureList::IsEnabled(kScreenCaptureKitMacWindow)) ||
+      (desktop_id.type == DesktopMediaID::TYPE_SCREEN &&
+       base::FeatureList::IsEnabled(kScreenCaptureKitMacScreen))) {
     if ((device_out = CreateScreenCaptureKitDeviceMac(desktop_id)))
       return kScreenCaptureKitDeviceMac;
   }
   if ((device_out = CreateDesktopCaptureDeviceMac(desktop_id))) {
     return kDesktopCaptureDeviceMac;
   }
-#endif
+#endif  // BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_ANDROID)
   if ((device_out = DesktopCaptureDevice::Create(desktop_id))) {
     return kLegacyDesktopCaptureDevice;
   }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
   return kNoImplementation;
 }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
@@ -235,7 +232,9 @@ void InProcessVideoCaptureDeviceLauncher::LaunchDeviceAsync(
     base::WeakPtr<media::VideoFrameReceiver> receiver_on_io_thread,
     base::OnceClosure /* connection_lost_cb */,
     Callbacks* callbacks,
-    base::OnceClosure done_cb) {
+    base::OnceClosure done_cb,
+    mojo::PendingRemote<video_capture::mojom::VideoEffectsManager>
+        video_effects_manager) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(state_ == State::READY_TO_LAUNCH);
 
@@ -263,13 +262,10 @@ void InProcessVideoCaptureDeviceLauncher::LaunchDeviceAsync(
 
   switch (stream_type) {
     case blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE: {
-      if (!video_capture_system_) {
-        // Clients who create an instance of |this| without providing a
-        // VideoCaptureSystem instance are expected to know that
-        // MEDIA_DEVICE_VIDEO_CAPTURE is not supported in this case.
-        NOTREACHED();
-        return;
-      }
+      // Clients who create an instance of |this| without providing a
+      // VideoCaptureSystem instance are expected to know that
+      // MEDIA_DEVICE_VIDEO_CAPTURE is not supported in this case.
+      CHECK(video_capture_system_);
       start_capture_closure = base::BindOnce(
           &InProcessVideoCaptureDeviceLauncher::
               DoStartDeviceCaptureOnDeviceThread,
@@ -352,19 +348,16 @@ void InProcessVideoCaptureDeviceLauncher::LaunchDeviceAsync(
 #endif  // defined(USE_AURA) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-      if (ShouldUseDesktopCaptureLacrosV2()) {
-        TRACE_EVENT_INSTANT0(
-            TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
-            "UsingDesktopCaptureLacrosV2", TRACE_EVENT_SCOPE_THREAD);
-        start_capture_closure = base::BindOnce(
-            &InProcessVideoCaptureDeviceLauncher::
-                DoStartDesktopCaptureWithReceiverOnDeviceThread,
-            base::Unretained(this), desktop_id, params, std::move(receiver),
-            std::move(after_start_capture_callback));
-        break;
-      }
-#endif
-
+      TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
+                           "UsingDesktopCaptureLacrosV2",
+                           TRACE_EVENT_SCOPE_THREAD);
+      start_capture_closure = base::BindOnce(
+          &InProcessVideoCaptureDeviceLauncher::
+              DoStartDesktopCaptureWithReceiverOnDeviceThread,
+          base::Unretained(this), desktop_id, params, std::move(receiver),
+          std::move(after_start_capture_callback));
+      break;
+#else
       // All cases other than tab capture or Aura desktop/window capture.
       TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                            "UsingDesktopCapturer", TRACE_EVENT_SCOPE_THREAD);
@@ -377,6 +370,7 @@ void InProcessVideoCaptureDeviceLauncher::LaunchDeviceAsync(
                              std::move(receiver_on_io_thread)),
           std::move(after_start_capture_callback));
       break;
+#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
     }
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
@@ -413,7 +407,7 @@ InProcessVideoCaptureDeviceLauncher::CreateDeviceClient(
   scoped_refptr<media::VideoCaptureBufferPool> buffer_pool =
       base::MakeRefCounted<media::VideoCaptureBufferPoolImpl>(
           requested_buffer_type, buffer_pool_max_buffer_count,
-          std::make_unique<media::VideoCaptureBufferTrackerFactoryWin>(
+          std::make_unique<media::VideoCaptureBufferTrackerFactoryImpl>(
               std::move(dxgi_device_manager)));
 #else
   scoped_refptr<media::VideoCaptureBufferPool> buffer_pool =
@@ -432,7 +426,8 @@ InProcessVideoCaptureDeviceLauncher::CreateDeviceClient(
                               receiver_on_io_thread)));
 #else
   return std::make_unique<media::VideoCaptureDeviceClient>(
-      requested_buffer_type, std::move(receiver), std::move(buffer_pool));
+      requested_buffer_type, std::move(receiver), std::move(buffer_pool),
+      mojo::PendingRemote<video_capture::mojom::VideoEffectsManager>{});
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 
@@ -456,8 +451,7 @@ void InProcessVideoCaptureDeviceLauncher::OnDeviceStarted(
         std::move(done_cb).Run();
         return;
       case State::READY_TO_LAUNCH:
-        NOTREACHED();
-        return;
+        NOTREACHED_NORETURN();
     }
   }
 
@@ -475,8 +469,7 @@ void InProcessVideoCaptureDeviceLauncher::OnDeviceStarted(
       std::move(done_cb).Run();
       return;
     case State::READY_TO_LAUNCH:
-      NOTREACHED();
-      return;
+      NOTREACHED_NORETURN();
   }
 }
 

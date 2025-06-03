@@ -36,11 +36,14 @@ const InstallConstants kInstallModes[] = {
         .app_guid =
             L"",  // Empty app_guid since no integration with Google Update.
         .base_app_name =
-            L"Google Chrome for Testing",    // A distinct base_app_name.
-        .base_app_id = L"ChromeForTesting",  // A distinct base_app_id.
-        .prog_id_prefix = L"CfTHTML",        // ProgID prefix.
-        .prog_id_description =
-            L"Chrome for Testing HTML Document",  // ProgID description.
+            L"Google Chrome for Testing",      // A distinct base_app_name.
+        .base_app_id = L"ChromeForTesting",    // A distinct base_app_id.
+        .browser_prog_id_prefix = L"CfTHTML",  // Browser ProgID prefix.
+        .browser_prog_id_description =
+            L"Chrome for Testing HTML Document",  // Browser ProgID description.
+        .pdf_prog_id_prefix = L"CfTPDF",          // PDF ProgID prefix.
+        .pdf_prog_id_description =
+            L"Chrome for Testing PDF Document",  // PDF ProgID description.
         .active_setup_guid =
             L"{E25CFD4E-D9D4-4123-936A-286FBB19BA5B}",  // Active Setup GUID.
         .legacy_command_execute_clsid = L"",  // CommandExecuteImpl CLSID.
@@ -69,8 +72,6 @@ const InstallConstants kInstallModes[] = {
             false,  // Does not support system-level installs.
         .supports_set_as_default_browser =
             false,  // Does not support in-product set as default browser UX.
-        .supports_retention_experiments =
-            false,  // Does not support retention experiments.
         .app_icon_resource_index =
             icon_resources::kApplicationIndex,  // App icon resource index.
         .app_icon_resource_id = IDR_MAINFRAME,  // App icon resource id.

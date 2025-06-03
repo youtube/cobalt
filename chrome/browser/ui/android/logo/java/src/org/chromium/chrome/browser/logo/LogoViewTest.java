@@ -16,7 +16,6 @@ import android.view.ViewGroup.LayoutParams;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -29,7 +28,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.logo.LogoBridge.Logo;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.search_engines.TemplateUrlService;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -41,10 +39,8 @@ public class LogoViewTest {
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
 
-    @Mock
-    public TemplateUrlService mTemplateUrlService;
-    @Mock
-    public LogoView.ClickHandler mLogoClickHandler;
+    @Mock public TemplateUrlService mTemplateUrlService;
+    @Mock public LogoView.ClickHandler mLogoClickHandler;
 
     private static final String LOGO_URL = "https://www.google.com";
     private static final String ANIMATED_LOGO_URL =
@@ -62,21 +58,20 @@ public class LogoViewTest {
         mBitmap = Bitmap.createBitmap(1, 1, Config.ALPHA_8);
         TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
 
-        mActivityScenarioRule.getScenario().onActivity(activity -> {
-            mView = new LogoView(activity, null);
-            LayoutParams params =
-                    new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-            activity.setContentView(mView, params);
-            mModel = new PropertyModel(LogoProperties.ALL_KEYS);
-            mPropertyModelChangeProcessor =
-                    PropertyModelChangeProcessor.create(mModel, mView, new LogoViewBinder());
-        });
-    }
-
-    @After
-    public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { TemplateUrlServiceFactory.setInstanceForTesting(null); });
+        mActivityScenarioRule
+                .getScenario()
+                .onActivity(
+                        activity -> {
+                            mView = new LogoView(activity, null);
+                            LayoutParams params =
+                                    new LayoutParams(
+                                            LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+                            activity.setContentView(mView, params);
+                            mModel = new PropertyModel(LogoProperties.ALL_KEYS);
+                            mPropertyModelChangeProcessor =
+                                    PropertyModelChangeProcessor.create(
+                                            mModel, mView, new LogoViewBinder());
+                        });
     }
 
     @Test
@@ -90,7 +85,8 @@ public class LogoViewTest {
 
         Assert.assertFalse("Default logo should not be clickable.", mView.isClickable());
         Assert.assertFalse("Default logo should not be focusable.", mView.isFocusable());
-        Assert.assertTrue("Default logo should not have a content description.",
+        Assert.assertTrue(
+                "Default logo should not have a content description.",
                 TextUtils.isEmpty(mView.getContentDescription()));
     }
 
@@ -102,7 +98,8 @@ public class LogoViewTest {
 
         Assert.assertTrue("Logo with URL should be clickable.", mView.isClickable());
         Assert.assertTrue("Logo with URL should be focusable.", mView.isFocusable());
-        Assert.assertTrue("Logo should not have a content description.",
+        Assert.assertTrue(
+                "Logo should not have a content description.",
                 TextUtils.isEmpty(mView.getContentDescription()));
     }
 
@@ -114,7 +111,8 @@ public class LogoViewTest {
 
         Assert.assertTrue("Logo with animated URL should be clickable.", mView.isClickable());
         Assert.assertTrue("Logo with animated URL should be focusable.", mView.isFocusable());
-        Assert.assertTrue("Logo should not have a content description.",
+        Assert.assertTrue(
+                "Logo should not have a content description.",
                 TextUtils.isEmpty(mView.getContentDescription()));
     }
 
@@ -136,7 +134,8 @@ public class LogoViewTest {
 
         Assert.assertFalse("Logo without URL should not be clickable.", mView.isClickable());
         Assert.assertTrue("Logo with alt text should be focusable.", mView.isFocusable());
-        Assert.assertFalse("Logo should have a content description.",
+        Assert.assertFalse(
+                "Logo should have a content description.",
                 TextUtils.isEmpty(mView.getContentDescription()));
     }
 

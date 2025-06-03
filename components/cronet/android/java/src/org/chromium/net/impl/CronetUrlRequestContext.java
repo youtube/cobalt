@@ -10,12 +10,13 @@ import android.os.Process;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeClassQualifiedName;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeClassQualifiedName;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.build.annotations.UsedByReflection;
 import org.chromium.net.BidirectionalStream;
 import org.chromium.net.CronetEngine;
@@ -56,9 +57,6 @@ import javax.annotation.concurrent.GuardedBy;
 @UsedByReflection("CronetEngine.java")
 @VisibleForTesting
 public class CronetUrlRequestContext extends CronetEngineBase {
-    private static final int LOG_NONE = 3; // LOG(FATAL), no VLOG.
-    private static final int LOG_DEBUG = -1; // LOG(FATAL...INFO), VLOG(1)
-    private static final int LOG_VERBOSE = -2; // LOG(FATAL...INFO), VLOG(2)
     static final String LOG_TAG = CronetUrlRequestContext.class.getSimpleName();
 
     /**
@@ -66,6 +64,21 @@ public class CronetUrlRequestContext extends CronetEngineBase {
      */
     private final Object mLock = new Object();
     private final ConditionVariable mInitCompleted = new ConditionVariable(false);
+
+    /**
+     * The number of started requests where the terminal callback (i.e.
+     * onSucceeded/onCancelled/onFailed) has not yet been called.
+     */
+    private final AtomicInteger mRunningRequestCount = new AtomicInteger(0);
+    /*
+     * The number of started requests where the terminal callbacks (i.e.
+     * onSucceeded/onCancelled/onFailed, request finished listeners) have not
+     * all returned yet.
+     *
+     * By definition this is always greater than or equal to
+     * mRunningRequestCount. The difference between the two is the number of
+     * terminal callbacks that are currently running.
+     */
     private final AtomicInteger mActiveRequestCount = new AtomicInteger(0);
 
     @GuardedBy("mLock")
@@ -179,7 +192,6 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         return mLogger;
     }
 
-    @VisibleForTesting
     public boolean getEnableTelemetryForTesting() {
         return mEnableTelemetry;
     }
@@ -191,9 +203,6 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         mThroughputListenerList.disableThreadAsserts();
         mNetworkQualityEstimatorEnabled = builder.networkQualityEstimatorEnabled();
         CronetLibraryLoader.ensureInitialized(builder.getContext(), builder);
-        if (!IntegratedModeState.INTEGRATED_MODE_ENABLED) {
-            CronetUrlRequestContextJni.get().setMinLogLevel(getLoggingLevel());
-        }
         if (builder.httpCacheMode() == HttpCacheType.DISK) {
             mInUseStoragePath = builder.storagePath();
             synchronized (sInUseStoragePaths) {
@@ -245,8 +254,11 @@ public class CronetUrlRequestContext extends CronetEngineBase {
     }
 
     static CronetSource getCronetSource() {
-        ClassLoader apiClassLoader = CronetEngine.class.getClassLoader();
         ClassLoader implClassLoader = CronetUrlRequest.class.getClassLoader();
+        if (implClassLoader.toString().startsWith("java.lang.BootClassLoader")) {
+            return CronetSource.CRONET_SOURCE_PLATFORM;
+        }
+        ClassLoader apiClassLoader = CronetEngine.class.getClassLoader();
         return apiClassLoader.equals(implClassLoader) ? CronetSource.CRONET_SOURCE_STATICALLY_LINKED
                                                       : CronetSource.CRONET_SOURCE_PLAY_SERVICES;
     }
@@ -320,6 +332,7 @@ public class CronetUrlRequestContext extends CronetEngineBase {
             boolean trafficStatsTagSet, int trafficStatsTag, boolean trafficStatsUidSet,
             int trafficStatsUid, RequestFinishedInfo.Listener requestFinishedListener,
             int idempotency, long networkHandle) {
+        // if this request is not bound to network, use the network bound to the engine.
         if (networkHandle == DEFAULT_NETWORK_HANDLE) {
             networkHandle = mNetworkHandle;
         }
@@ -379,8 +392,8 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         }
         synchronized (mLock) {
             checkHaveAdapter();
-            if (mActiveRequestCount.get() != 0) {
-                throw new IllegalStateException("Cannot shutdown with active requests.");
+            if (mRunningRequestCount.get() != 0) {
+                throw new IllegalStateException("Cannot shutdown with running requests.");
             }
             // Destroying adapter stops the network thread, so it cannot be
             // called on network thread.
@@ -653,13 +666,29 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         return new CronetURLStreamHandlerFactory(this);
     }
 
-    /** Mark request as started to prevent shutdown when there are active requests. */
+    /**
+     * Mark request as started for the purposes of getActiveRequestCount(), and
+     * to prevent shutdown when there are running requests.
+     */
     void onRequestStarted() {
         mActiveRequestCount.incrementAndGet();
+        mRunningRequestCount.incrementAndGet();
     }
 
-    /** Mark request as finished to allow shutdown when there are no active requests. */
+    /**
+     * Mark request as destroyed to allow shutdown when there are no running
+     * requests. Should be called *before* the terminal callback is called, so
+     * that users can call shutdown() from the terminal callback.
+     */
     void onRequestDestroyed() {
+        mRunningRequestCount.decrementAndGet();
+    }
+
+    /**
+     * Mark request as finished for the purposes of getActiveRequestCount().
+     * Should be called *after* the terminal callback returns.
+     */
+    void onRequestFinished() {
         mActiveRequestCount.decrementAndGet();
     }
 
@@ -681,21 +710,6 @@ public class CronetUrlRequestContext extends CronetEngineBase {
     @GuardedBy("mLock")
     private boolean haveRequestContextAdapter() {
         return mUrlRequestContextAdapter != 0;
-    }
-
-    /**
-     * @return loggingLevel see {@link #LOG_NONE}, {@link #LOG_DEBUG} and {@link #LOG_VERBOSE}.
-     */
-    private int getLoggingLevel() {
-        int loggingLevel;
-        if (Log.isLoggable(LOG_TAG, Log.VERBOSE)) {
-            loggingLevel = LOG_VERBOSE;
-        } else if (Log.isLoggable(LOG_TAG, Log.DEBUG)) {
-            loggingLevel = LOG_DEBUG;
-        } else {
-            loggingLevel = LOG_NONE;
-        }
-        return loggingLevel;
     }
 
     private static int convertConnectionTypeToApiValue(@EffectiveConnectionType int type) {
@@ -723,11 +737,7 @@ public class CronetUrlRequestContext extends CronetEngineBase {
     private void initNetworkThread() {
         mNetworkThread = Thread.currentThread();
         mInitCompleted.open();
-        if (!IntegratedModeState.INTEGRATED_MODE_ENABLED) {
-            // In integrated mode, network thread is shared from the host.
-            // Cronet shouldn't change the property of the thread.
-            Thread.currentThread().setName("ChromiumNet");
-        }
+        Thread.currentThread().setName("ChromiumNet");
     }
 
     @SuppressWarnings("unused")
@@ -786,7 +796,8 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         }
     }
 
-    void reportRequestFinished(final RequestFinishedInfo requestInfo) {
+    void reportRequestFinished(
+            final RequestFinishedInfo requestInfo, RefCountDelegate inflightCallbackCount) {
         ArrayList<VersionSafeCallbacks.RequestFinishedInfoListener> currentListeners;
         synchronized (mFinishedListenerLock) {
             if (mFinishedListenerMap.isEmpty()) return;
@@ -800,17 +811,32 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                     listener.onRequestFinished(requestInfo);
                 }
             };
-            postObservationTaskToExecutor(listener.getExecutor(), task);
+            postObservationTaskToExecutor(listener.getExecutor(), task, inflightCallbackCount);
+        }
+    }
+
+    private static void postObservationTaskToExecutor(
+            Executor executor, Runnable task, RefCountDelegate inflightCallbackCount) {
+        if (inflightCallbackCount != null) inflightCallbackCount.increment();
+        try {
+            executor.execute(() -> {
+                try {
+                    task.run();
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Exception thrown from observation task", e);
+                } finally {
+                    if (inflightCallbackCount != null) inflightCallbackCount.decrement();
+                }
+            });
+        } catch (RejectedExecutionException failException) {
+            if (inflightCallbackCount != null) inflightCallbackCount.decrement();
+            Log.e(CronetUrlRequestContext.LOG_TAG, "Exception posting task to executor",
+                    failException);
         }
     }
 
     private static void postObservationTaskToExecutor(Executor executor, Runnable task) {
-        try {
-            executor.execute(task);
-        } catch (RejectedExecutionException failException) {
-            Log.e(CronetUrlRequestContext.LOG_TAG, "Exception posting task to executor",
-                    failException);
-        }
+        postObservationTaskToExecutor(executor, task, null);
     }
 
     public boolean isNetworkThread(Thread thread) {
@@ -826,7 +852,6 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         void addPkp(long urlRequestContextConfig, String host, byte[][] hashes,
                 boolean includeSubdomains, long expirationTime);
         long createRequestContextAdapter(long urlRequestContextConfig);
-        int setMinLogLevel(int loggingLevel);
         byte[] getHistogramDeltas();
         @NativeClassQualifiedName("CronetContextAdapter")
         void destroy(long nativePtr, CronetUrlRequestContext caller);

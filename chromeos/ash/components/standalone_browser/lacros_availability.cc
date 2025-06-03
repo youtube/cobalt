@@ -9,6 +9,8 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "components/policy/core/common/policy_map.h"
+#include "components/policy/policy_constants.h"
 #include "components/user_manager/user.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 
@@ -17,12 +19,14 @@ namespace {
 
 // The conversion map for LacrosAvailability policy data. The values must match
 // the ones from LacrosAvailability.yaml.
+// TODO(crbug.com/1448575): Remove the side_by_side and lacros_primary values
+// from the policy.
 constexpr auto kLacrosAvailabilityMap =
     base::MakeFixedFlatMap<base::StringPiece, LacrosAvailability>({
         {"user_choice", LacrosAvailability::kUserChoice},
         {"lacros_disallowed", LacrosAvailability::kLacrosDisallowed},
-        {"side_by_side", LacrosAvailability::kSideBySide},
-        {"lacros_primary", LacrosAvailability::kLacrosPrimary},
+        {"side_by_side", LacrosAvailability::kLacrosDisallowed},
+        {"lacros_primary", LacrosAvailability::kLacrosDisallowed},
         {"lacros_only", LacrosAvailability::kLacrosOnly},
     });
 
@@ -59,8 +63,10 @@ bool IsGoogleInternal(const user_manager::User* user) {
     return false;
   }
 
-  return gaia::IsGoogleInternalAccountEmail(
-      user->GetAccountId().GetUserEmail());
+  base::StringPiece email = user->GetAccountId().GetUserEmail();
+  return gaia::IsGoogleInternalAccountEmail(email) ||
+         gaia::ExtractDomainName(gaia::SanitizeEmail(email)) ==
+             "managedchrome.com";
 }
 
 LacrosAvailability DetermineLacrosAvailabilityFromPolicyValue(
@@ -91,6 +97,14 @@ LacrosAvailability DetermineLacrosAvailabilityFromPolicyValue(
   }
 
   return result.value();
+}
+
+LacrosAvailability GetLacrosAvailability(const user_manager::User* user,
+                                         const policy::PolicyMap& policy_map) {
+  const base::Value* value = policy_map.GetValue(
+      policy::key::kLacrosAvailability, base::Value::Type::STRING);
+  return DetermineLacrosAvailabilityFromPolicyValue(
+      user, value ? value->GetString() : base::StringPiece());
 }
 
 }  // namespace ash::standalone_browser

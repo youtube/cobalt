@@ -11,6 +11,7 @@
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_token_builder.h"
+#include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_insertable_streams.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_rtcp_parameters.h"
@@ -67,6 +68,8 @@ RTCRtpReceiver::RTCRtpReceiver(RTCPeerConnection* pc,
   DCHECK(pc_);
   DCHECK(receiver_);
   DCHECK(track_);
+  LogMessage(base::StringPrintf("%s({encoded_insertable_streams=%s})", __func__,
+                                encoded_insertable_streams ? "true" : "false"));
   if (encoded_audio_transformer_) {
     RegisterEncodedAudioStreamCallback();
   }
@@ -77,12 +80,12 @@ RTCRtpReceiver::RTCRtpReceiver(RTCPeerConnection* pc,
 
 MediaStreamTrack* RTCRtpReceiver::track() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return track_;
+  return track_.Get();
 }
 
 RTCDtlsTransport* RTCRtpReceiver::transport() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return transport_;
+  return transport_.Get();
 }
 
 RTCDtlsTransport* RTCRtpReceiver::rtcpTransport() {
@@ -127,13 +130,8 @@ ScriptPromise RTCRtpReceiver::getStats(ScriptState* script_state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
   ScriptPromise promise = resolver->Promise();
-  bool is_track_stats_deprecation_trial_enabled =
-      RuntimeEnabledFeatures::RTCLegacyTrackStatsEnabled(
-          ExecutionContext::From(script_state));
   receiver_->GetStats(WTF::BindOnce(WebRTCStatsReportCallbackResolver,
-                                    WrapPersistent(resolver)),
-                      GetExposedGroupIds(script_state),
-                      is_track_stats_deprecation_trial_enabled);
+                                    WrapPersistent(resolver)));
   return promise;
 }
 
@@ -141,6 +139,7 @@ RTCInsertableStreams* RTCRtpReceiver::createEncodedStreams(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LogMessage(__func__);
   if (kind() == MediaKind::kAudio)
     return createEncodedAudioStreams(script_state, exception_state);
   DCHECK_EQ(kind(), MediaKind::kVideo);
@@ -164,7 +163,7 @@ RTCInsertableStreams* RTCRtpReceiver::createEncodedAudioStreams(
   }
 
   InitializeEncodedAudioStreams(script_state);
-  return encoded_audio_streams_;
+  return encoded_audio_streams_.Get();
 }
 
 RTCInsertableStreams* RTCRtpReceiver::createEncodedVideoStreams(
@@ -184,7 +183,7 @@ RTCInsertableStreams* RTCRtpReceiver::createEncodedVideoStreams(
   }
 
   InitializeEncodedVideoStreams(script_state);
-  return encoded_video_streams_;
+  return encoded_video_streams_.Get();
 }
 
 RTCRtpReceiverPlatform* RTCRtpReceiver::platform_receiver() {
@@ -418,8 +417,7 @@ void RTCRtpReceiver::InitializeEncodedAudioStreams(ScriptState* script_state) {
             script_state,
             WTF::CrossThreadBindOnce(
                 &RTCRtpReceiver::UnregisterEncodedAudioStreamCallback,
-                WrapCrossThreadWeakPersistent(this)),
-            /*is_receiver=*/true);
+                WrapCrossThreadWeakPersistent(this)));
 
     auto set_underlying_source =
         WTF::CrossThreadBindRepeating(&RTCRtpReceiver::SetAudioUnderlyingSource,
@@ -447,8 +445,7 @@ void RTCRtpReceiver::InitializeEncodedAudioStreams(ScriptState* script_state) {
     // Set up writable.
     audio_to_decoder_underlying_sink_ =
         MakeGarbageCollected<RTCEncodedAudioUnderlyingSink>(
-            script_state, encoded_audio_transformer_,
-            webrtc::TransformableFrameInterface::Direction::kReceiver);
+            script_state, encoded_audio_transformer_);
 
     auto set_underlying_sink =
         WTF::CrossThreadBindOnce(&RTCRtpReceiver::SetAudioUnderlyingSink,
@@ -467,7 +464,8 @@ void RTCRtpReceiver::InitializeEncodedAudioStreams(ScriptState* script_state) {
 }
 
 void RTCRtpReceiver::OnAudioFrameFromDepacketizer(
-    std::unique_ptr<webrtc::TransformableFrameInterface> encoded_audio_frame) {
+    std::unique_ptr<webrtc::TransformableAudioFrameInterface>
+        encoded_audio_frame) {
   base::AutoLock locker(audio_underlying_source_lock_);
   if (audio_from_depacketizer_underlying_source_) {
     audio_from_depacketizer_underlying_source_->OnFrameFromSource(
@@ -564,8 +562,7 @@ void RTCRtpReceiver::InitializeEncodedVideoStreams(ScriptState* script_state) {
     // Set up writable.
     video_to_decoder_underlying_sink_ =
         MakeGarbageCollected<RTCEncodedVideoUnderlyingSink>(
-            script_state, encoded_video_transformer_,
-            webrtc::TransformableFrameInterface::Direction::kReceiver);
+            script_state, encoded_video_transformer_);
 
     auto set_underlying_sink =
         WTF::CrossThreadBindOnce(&RTCRtpReceiver::SetVideoUnderlyingSink,
@@ -591,6 +588,12 @@ void RTCRtpReceiver::OnVideoFrameFromDepacketizer(
     video_from_depacketizer_underlying_source_->OnFrameFromSource(
         std::move(encoded_video_frame));
   }
+}
+
+void RTCRtpReceiver::LogMessage(const std::string& message) {
+  blink::WebRtcLogMessage(
+      base::StringPrintf("RtpRcvr::%s [this=0x%" PRIXPTR "]", message.c_str(),
+                         reinterpret_cast<uintptr_t>(this)));
 }
 
 }  // namespace blink

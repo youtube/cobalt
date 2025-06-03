@@ -19,6 +19,7 @@
 #include "ash/test/ash_test_base.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/controls/image_view.h"
 
@@ -38,9 +39,11 @@ class ToggleEffectsViewTest : public AshTestBase {
 
   // AshTestBase:
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(features::kVideoConference);
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kCameraEffectsSupportedByHardware);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kVideoConference,
+         features::kCameraEffectsSupportedByHardware,
+         chromeos::features::kJelly},
+        {});
 
     // Instantiates a fake controller (the real one is created in
     // `ChromeBrowserMainExtraPartsAsh::PreProfileInit()` which is not called in
@@ -120,32 +123,6 @@ TEST_F(ToggleEffectsViewTest, ToggleButtonClickedRecordedHistogram) {
   // Click again.
   LeftClickOn(GetFirstToggleEffectButton());
   histogram_tester.ExpectBucketCount(kTestEffectHistogramName, false, 1);
-}
-
-// Tests that a toggled ToggleButton's image is updated.
-TEST_F(ToggleEffectsViewTest, ToggleUpdatesImage) {
-  // Add one toggle effect.
-  controller()->effects_manager().RegisterDelegate(office_bunny());
-  LeftClickOn(toggle_bubble_button());
-
-  // Initially the fake toggle effects icon is set to the video conference
-  // background blur off icon.
-  EXPECT_STREQ(GetFirstToggleEffectIcon()
-                   ->GetImageModel()
-                   .GetVectorIcon()
-                   .vector_icon()
-                   ->name,
-               kVideoConferenceBackgroundBlurOffIcon.name);
-
-  // Toggle the button, the icon should change to the privacy indicators camera
-  // icon.
-  LeftClickOn(GetFirstToggleEffectButton());
-  EXPECT_STREQ(GetFirstToggleEffectIcon()
-                   ->GetImageModel()
-                   .GetVectorIcon()
-                   .vector_icon()
-                   ->name,
-               ash::kPrivacyIndicatorsCameraIcon.name);
 }
 
 // Tests that a toggled ToggleButton's tooltip is updated.

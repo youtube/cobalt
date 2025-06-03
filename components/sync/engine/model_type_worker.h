@@ -197,7 +197,7 @@ class ModelTypeWorker : public UpdateHandler,
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
 
-  bool HasLocalChangesForTest() const;
+  bool HasLocalChanges() const;
 
   void SetMinGetUpdatesToIgnoreKeyForTest(int min_get_updates_to_ignore_key) {
     min_get_updates_to_ignore_key_ = min_get_updates_to_ignore_key;
@@ -302,6 +302,18 @@ class ModelTypeWorker : public UpdateHandler,
 
   // Copies |pending_invalidations_| vector to |model_type_state_|.
   void UpdateModelTypeStateInvalidations();
+
+  // Encrypts the specifics and hides the title if necessary.
+  void EncryptPasswordSpecificsData(CommitRequestDataList* request_data_list);
+
+  // Encrypts password sharing invitation using cross user sharing encryption.
+  void EncryptOutgoingPasswordSharingInvitations(
+      CommitRequestDataList* request_data_list);
+
+  // Encrypts the specifics, must be called only when encryption is enabled.
+  // Note that Passwords and OutgoingPasswordSharingInvitations have their own
+  // encryption scheme.
+  void EncryptSpecifics(CommitRequestDataList* request_data_list);
 
   // The (up to kMaxPayloads) most recent invalidations received since the last
   // successful sync cycle.
@@ -429,7 +441,7 @@ class GetLocalChangesRequest
   friend class base::RefCountedThreadSafe<GetLocalChangesRequest>;
   ~GetLocalChangesRequest() override;
 
-  raw_ptr<CancelationSignal, DanglingUntriaged> cancelation_signal_;
+  raw_ptr<CancelationSignal, AcrossTasksDanglingUntriaged> cancelation_signal_;
   base::WaitableEvent response_accepted_;
   CommitRequestDataList response_;
 };

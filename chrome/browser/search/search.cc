@@ -30,8 +30,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"  // nogncheck
 #endif
 
@@ -140,7 +140,7 @@ bool IsNTPOrRelatedURLHelper(const GURL& url, Profile* profile) {
 
 bool IsURLAllowedForSupervisedUser(const GURL& url, Profile* profile) {
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-  SupervisedUserService* supervised_user_service =
+  supervised_user::SupervisedUserService* supervised_user_service =
       SupervisedUserServiceFactory::GetForProfile(profile);
   if (!supervised_user_service ||
       !supervised_user_service->IsURLFilteringEnabled()) {
@@ -155,14 +155,6 @@ bool IsURLAllowedForSupervisedUser(const GURL& url, Profile* profile) {
   }
 #endif
   return true;
-}
-
-bool ShouldShowLocalNewTab(Profile* profile) {
-#if !BUILDFLAG(IS_ANDROID)
-  return DefaultSearchProviderIsGoogle(profile);
-#else
-  return false;
-#endif
 }
 
 // Used to look up the URL to use for the New Tab page. Also tracks how we
@@ -182,13 +174,14 @@ struct NewTabURLDetails {
 #if BUILDFLAG(IS_ANDROID)
     const GURL local_url;
 #else
-    const GURL local_url(DefaultSearchProviderIsGoogle(profile)
+    const bool default_is_google = DefaultSearchProviderIsGoogle(profile);
+    const GURL local_url(default_is_google
                              ? chrome::kChromeUINewTabPageURL
                              : chrome::kChromeUINewTabPageThirdPartyURL);
-#endif
-
-    if (ShouldShowLocalNewTab(profile))
+    if (default_is_google) {
       return NewTabURLDetails(local_url, NEW_TAB_URL_VALID);
+    }
+#endif
 
     const TemplateURL* template_url =
         GetDefaultSearchProviderTemplateURL(profile);

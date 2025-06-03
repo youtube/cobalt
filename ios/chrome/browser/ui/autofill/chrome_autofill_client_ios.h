@@ -13,6 +13,7 @@
 #include "components/autofill/core/browser/autocomplete_history_manager.h"
 #include "components/autofill/core/browser/autofill_client.h"
 #include "components/autofill/core/browser/autofill_download_manager.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/payments/card_unmask_delegate.h"
 #include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/personal_data_manager.h"
@@ -21,18 +22,23 @@
 #include "components/autofill/core/browser/ui/payments/card_name_fix_flow_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
+#include "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #import "components/autofill/ios/browser/autofill_client_ios_bridge.h"
 #include "components/infobars/core/infobar_manager.h"
-#include "components/password_manager/core/browser/password_manager.h"
+#include "components/plus_addresses/plus_address_types.h"
 #include "components/prefs/pref_service.h"
-#include "components/sync/driver/sync_service.h"
-#include "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#include "components/sync/service/sync_service.h"
+#include "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 
 @class UIViewController;
 
 namespace web {
 class WebState;
+}
+
+namespace plus_addresses {
+class PlusAddressService;
 }
 
 namespace autofill {
@@ -43,8 +49,7 @@ class ChromeAutofillClientIOS : public AutofillClient {
   ChromeAutofillClientIOS(ChromeBrowserState* browser_state,
                           web::WebState* web_state,
                           infobars::InfoBarManager* infobar_manager,
-                          id<AutofillClientIOSBridge> bridge,
-                          password_manager::PasswordManager* password_manager);
+                          id<AutofillClientIOSBridge> bridge);
 
   ChromeAutofillClientIOS(const ChromeAutofillClientIOS&) = delete;
   ChromeAutofillClientIOS& operator=(const ChromeAutofillClientIOS&) = delete;
@@ -78,7 +83,7 @@ class ChromeAutofillClientIOS : public AutofillClient {
   security_state::SecurityLevel GetSecurityLevelForUmaHistograms() override;
   const translate::LanguageState* GetLanguageState() override;
   translate::TranslateDriver* GetTranslateDriver() override;
-  std::string GetVariationConfigCountryCode() const override;
+  GeoIpCountryCode GetVariationConfigCountryCode() const override;
   void ShowAutofillSettings(PopupType popup_type) override;
   void ShowUnmaskPrompt(
       const CreditCard& card,
@@ -108,6 +113,12 @@ class ChromeAutofillClientIOS : public AutofillClient {
       const AutofillProfile* original_profile,
       SaveAddressProfilePromptOptions options,
       AddressProfileSavePromptCallback callback) override;
+  void ShowEditAddressProfileDialog(
+      const AutofillProfile& profile,
+      AddressProfileSavePromptCallback on_user_decision_callback) override;
+  void ShowDeleteAddressProfileDialog(
+      const AutofillProfile& profile,
+      AddressProfileDeleteDialogCallback delete_dialog_callback) override;
   bool HasCreditCardScanFeature() override;
   void ScanCreditCard(CreditCardScanCallback callback) override;
   bool IsTouchToFillCreditCardSupported() override;
@@ -119,38 +130,42 @@ class ChromeAutofillClientIOS : public AutofillClient {
       const PopupOpenArgs& open_args,
       base::WeakPtr<AutofillPopupDelegate> delegate) override;
   void UpdateAutofillPopupDataListValues(
-      const std::vector<std::u16string>& values,
-      const std::vector<std::u16string>& labels) override;
+      base::span<const autofill::SelectOption> datalist) override;
   std::vector<Suggestion> GetPopupSuggestions() const override;
   void PinPopupView() override;
-  PopupOpenArgs GetReopenPopupArgs() const override;
+  PopupOpenArgs GetReopenPopupArgs(
+      AutofillSuggestionTriggerSource trigger_source) const override;
   void UpdatePopup(const std::vector<Suggestion>& suggestions,
-                   PopupType popup_type) override;
+                   PopupType popup_type,
+                   AutofillSuggestionTriggerSource trigger_source) override;
   void HideAutofillPopup(PopupHidingReason reason) override;
   bool IsAutocompleteEnabled() const override;
   bool IsPasswordManagerEnabled() override;
-  void PropagateAutofillPredictions(
-      AutofillDriver* driver,
-      const std::vector<FormStructure*>& forms) override;
-  void DidFillOrPreviewForm(mojom::RendererFormDataAction action,
+  void DidFillOrPreviewForm(mojom::ActionPersistence action_persistence,
                             AutofillTriggerSource trigger_source,
                             bool is_refill) override;
   void DidFillOrPreviewField(const std::u16string& autofilled_value,
                              const std::u16string& profile_full_name) override;
   bool IsContextSecure() const override;
-  void ExecuteCommand(int id) override;
   void OpenPromoCodeOfferDetailsURL(const GURL& url) override;
   FormInteractionsFlowId GetCurrentFormInteractionsFlowId() override;
   LogManager* GetLogManager() const override;
   bool IsLastQueriedField(FieldGlobalId field_id) override;
+  plus_addresses::PlusAddressService* GetPlusAddressService() override;
+  void OfferPlusAddressCreation(
+      const url::Origin& main_frame_origin,
+      plus_addresses::PlusAddressCallback callback) override;
+  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator()
+      override;
 
   // RiskDataLoader:
   void LoadRiskData(
       base::OnceCallback<void(const std::string&)> callback) override;
 
  private:
-  // Returns the account email if the account is syncing.
-  absl::optional<std::u16string> SyncingUserEmail();
+  // Returns the account email of the signed-in user, or nullopt if there is no
+  // signed-in user.
+  absl::optional<std::u16string> GetUserEmail();
 
   PrefService* pref_service_;
   syncer::SyncService* sync_service_;
@@ -167,7 +182,6 @@ class ChromeAutofillClientIOS : public AutofillClient {
   std::unique_ptr<FormDataImporter> form_data_importer_;
   scoped_refptr<AutofillWebDataService> autofill_web_data_service_;
   infobars::InfoBarManager* infobar_manager_;
-  password_manager::PasswordManager* password_manager_;
   CardUnmaskPromptControllerImpl unmask_controller_;
   std::unique_ptr<LogManager> log_manager_;
   CardNameFixFlowControllerImpl card_name_fix_flow_controller_;

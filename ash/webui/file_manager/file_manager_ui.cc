@@ -4,28 +4,72 @@
 
 #include "ash/webui/file_manager/file_manager_ui.h"
 
+#include "ash/constants/ash_features.h"
+#include "ash/shell.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/file_manager/file_manager_page_handler.h"
 #include "ash/webui/file_manager/resource_loader.h"
 #include "ash/webui/file_manager/resources/grit/file_manager_swa_resources.h"
 #include "ash/webui/file_manager/resources/grit/file_manager_swa_resources_map.h"
 #include "ash/webui/file_manager/url_constants.h"
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
+#include "components/user_manager/user_type.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/file_manager/grit/file_manager_gen_resources.h"
 #include "ui/file_manager/grit/file_manager_gen_resources_map.h"
-#include "ui/file_manager/grit/file_manager_resources.h"
 #include "ui/file_manager/grit/file_manager_resources_map.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
 
-namespace ash {
-namespace file_manager {
+namespace ash::file_manager {
+namespace {
+
+bool IsKioskSession() {
+  auto* session_controller = Shell::Get()->session_controller();
+  auto account_id = session_controller->GetActiveAccountId();
+  const auto user_type =
+      session_controller->GetUserSessionByAccountId(account_id)->user_info.type;
+
+  switch (user_type) {
+    case user_manager::USER_TYPE_REGULAR:
+    case user_manager::USER_TYPE_CHILD:
+    case user_manager::USER_TYPE_GUEST:
+    case user_manager::USER_TYPE_PUBLIC_ACCOUNT:
+      return false;
+    case user_manager::USER_TYPE_KIOSK_APP:
+    case user_manager::USER_TYPE_ARC_KIOSK_APP:
+    case user_manager::USER_TYPE_WEB_KIOSK_APP:
+      return true;
+    case user_manager::NUM_USER_TYPES:
+      NOTREACHED_NORETURN();
+  }
+}
+
+}  // namespace
+
+FileManagerUIConfig::FileManagerUIConfig(
+    SystemWebAppUIConfig::CreateWebUIControllerFunc create_controller_func)
+    : SystemWebAppUIConfig(ash::file_manager::kChromeUIFileManagerHost,
+                           SystemWebAppType::FILE_MANAGER,
+                           create_controller_func) {}
+
+bool FileManagerUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  // Enable file manager WebUI if enable for SWA config or
+  // for the Kiosk session if SWAs are disabled there.
+  return SystemWebAppUIConfig::IsWebUIEnabled(browser_context) ||
+         (!base::FeatureList::IsEnabled(
+              ash::features::kKioskEnableSystemWebApps) &&
+          IsKioskSession());
+}
 
 FileManagerUI::FileManagerUI(content::WebUI* web_ui,
                              std::unique_ptr<FileManagerUIDelegate> delegate)
@@ -42,6 +86,8 @@ FileManagerUI::FileManagerUI(content::WebUI* web_ui,
   // unique ID to each window.
   ++window_counter_;
 
+  delegate_->ShouldPollDriveHostedPinStates(true);
+
   CreateAndAddTrustedAppDataSource(web_ui, window_counter_);
   // Add ability to request chrome-untrusted: URLs
   web_ui->AddRequestableScheme(content::kChromeUIUntrustedScheme);
@@ -53,8 +99,7 @@ void FileManagerUI::CreateAndAddTrustedAppDataSource(content::WebUI* web_ui,
       web_ui->GetWebContents()->GetBrowserContext(), kChromeUIFileManagerHost);
 
   // Setup chrome://file-manager main and default page.
-  source->AddResourcePath("", IDR_FILE_MANAGER_SWA_MAIN_HTML);
-
+  source->AddResourcePath("", IDR_FILE_MANAGER_MAIN_HTML);
   // Add chrome://file-manager content.
   source->AddResourcePaths(
       base::make_span(kFileManagerSwaResources, kFileManagerSwaResourcesSize));
@@ -88,8 +133,7 @@ void FileManagerUI::CreateAndAddTrustedAppDataSource(content::WebUI* web_ui,
       "frame-src chrome-untrusted://file-manager "
       "'self';");
 
-  // TODO(crbug.com/1098685): Trusted Type remaining WebUI.
-  source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(source);
 }
 
 int FileManagerUI::GetNumInstances() {
@@ -106,7 +150,11 @@ FileManagerUI::~FileManagerUI() {
   DLOG(WARNING) << "Stopping FileManagerUI. Open windows: " << instance_count_;
 
   if (!instance_count_) {
-    delegate()->ProgressPausedTasks();
+    delegate_->ProgressPausedTasks();
+    delegate_->ShouldPollDriveHostedPinStates(false);
+    // There might be some tasks blocked by policy that already completed, but
+    // still have a notification so notify FPNM to show them if necessary.
+    delegate_->ShowPolicyNotifications();
   }
 }
 
@@ -134,5 +182,4 @@ void FileManagerUI::CreatePageHandler(
 
 WEB_UI_CONTROLLER_TYPE_IMPL(FileManagerUI)
 
-}  // namespace file_manager
-}  // namespace ash
+}  // namespace ash::file_manager

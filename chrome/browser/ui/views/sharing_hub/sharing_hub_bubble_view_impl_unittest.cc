@@ -7,6 +7,7 @@
 #include "base/containers/adapters.h"
 #include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
+#include "base/test/to_vector.h"
 #include "chrome/browser/ui/sharing_hub/fake_sharing_hub_bubble_controller.h"
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_bubble_action_button.h"
 #include "chrome/test/base/testing_profile.h"
@@ -105,7 +106,7 @@ class SharingHubBubbleTest : public ChromeViewsTestBase {
         &controller_);
     bubble_ = bubble.get();
     views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
-    bubble_->Show(sharing_hub::SharingHubBubbleViewImpl::USER_GESTURE);
+    bubble_->ShowForReason(sharing_hub::SharingHubBubbleViewImpl::USER_GESTURE);
     bubble_widget_ = bubble_->GetWidget();
   }
 
@@ -117,24 +118,22 @@ class SharingHubBubbleTest : public ChromeViewsTestBase {
   }
 
   std::vector<sharing_hub::SharingHubBubbleActionButton*> GetActionButtons() {
-    std::vector<views::View*> actions = DescendantsMatchingPredicate(
-        bubble(),
-        base::BindRepeating(&ViewHasClassName, "SharingHubBubbleActionButton"));
-    std::vector<sharing_hub::SharingHubBubbleActionButton*> concrete_actions;
-    base::ranges::transform(
-        actions, std::back_inserter(concrete_actions), [](views::View* view) {
+    return base::test::ToVector(
+        DescendantsMatchingPredicate(
+            bubble(), base::BindRepeating(&ViewHasClassName,
+                                          "SharingHubBubbleActionButton")),
+        [](views::View* view) {
           return static_cast<sharing_hub::SharingHubBubbleActionButton*>(view);
         });
-    return concrete_actions;
   }
 
  private:
-  raw_ptr<sharing_hub::SharingHubBubbleViewImpl> bubble_;
+  raw_ptr<sharing_hub::SharingHubBubbleViewImpl, DanglingUntriaged> bubble_;
   testing::NiceMock<sharing_hub::FakeSharingHubBubbleController> controller_{
       kFirstPartyActions};
 
   std::unique_ptr<views::Widget> anchor_widget_;
-  raw_ptr<views::Widget> bubble_widget_;
+  raw_ptr<views::Widget, DanglingUntriaged> bubble_widget_;
 };
 
 TEST_F(SharingHubBubbleTest, AllFirstPartyActionsAppearInOrder) {

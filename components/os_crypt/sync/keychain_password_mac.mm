@@ -6,9 +6,9 @@
 
 #import <Security/Security.h>
 
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/base64.h"
-#include "base/mac/mac_logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "build/branding_buildflags.h"
@@ -50,7 +50,7 @@ std::string AddRandomPasswordToKeychain(const AppleKeychain& keychain,
 
   OSStatus error = keychain.AddGenericPassword(
       service_name.size(), service_name.data(), account_name.size(),
-      account_name.data(), password.size(), password_data, NULL);
+      account_name.data(), password.size(), password_data, /*item=*/nullptr);
 
   if (error != noErr) {
     OSSTATUS_DLOG(ERROR, error) << "Keychain add failed";
@@ -85,7 +85,7 @@ std::string KeychainPassword::GetPassword() const {
   OSStatus error = keychain_.FindGenericPassword(
       GetServiceName().size(), GetServiceName().c_str(),
       GetAccountName().size(), GetAccountName().c_str(), &password_length,
-      &password_data, nullptr);
+      &password_data, /*item=*/nullptr);
 
   if (error == noErr) {
     std::string password =

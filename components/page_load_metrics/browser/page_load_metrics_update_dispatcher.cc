@@ -9,6 +9,7 @@
 #include <ostream>
 #include <utility>
 
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
@@ -217,31 +218,6 @@ internal::PageLoadTimingStatus IsValidPageLoadTiming(
     return internal::INVALID_NULL_FIRST_SCROLL_DELAY;
   }
 
-  if (timing.interactive_timing->longest_input_delay.has_value() &&
-      !timing.interactive_timing->longest_input_timestamp.has_value()) {
-    return internal::INVALID_NULL_LONGEST_INPUT_TIMESTAMP;
-  }
-
-  if (!timing.interactive_timing->longest_input_delay.has_value() &&
-      timing.interactive_timing->longest_input_timestamp.has_value()) {
-    return internal::INVALID_NULL_LONGEST_INPUT_DELAY;
-  }
-
-  if (timing.interactive_timing->longest_input_delay.has_value() &&
-      timing.interactive_timing->first_input_delay.has_value() &&
-      timing.interactive_timing->longest_input_delay <
-          timing.interactive_timing->first_input_delay) {
-    return internal::INVALID_LONGEST_INPUT_DELAY_LESS_THAN_FIRST_INPUT_DELAY;
-  }
-
-  if (timing.interactive_timing->longest_input_timestamp.has_value() &&
-      timing.interactive_timing->first_input_timestamp.has_value() &&
-      timing.interactive_timing->longest_input_timestamp <
-          timing.interactive_timing->first_input_timestamp) {
-    return internal::
-        INVALID_LONGEST_INPUT_TIMESTAMP_LESS_THAN_FIRST_INPUT_TIMESTAMP;
-  }
-
   return internal::VALID;
 }
 
@@ -377,24 +353,6 @@ class PageLoadTimingMerger {
       // associated first input delay.
       target_interactive_timing->first_input_delay =
           new_interactive_timing.first_input_delay;
-      if (new_interactive_timing.first_input_processing_time.has_value()) {
-        target_interactive_timing->first_input_processing_time =
-            new_interactive_timing.first_input_processing_time;
-      }
-    }
-
-    if (new_interactive_timing.longest_input_delay.has_value()) {
-      base::TimeDelta new_longest_input_timestamp =
-          navigation_start_offset +
-          new_interactive_timing.longest_input_timestamp.value();
-      if (!target_interactive_timing->longest_input_delay.has_value() ||
-          new_interactive_timing.longest_input_delay.value() >
-              target_interactive_timing->longest_input_delay.value()) {
-        target_interactive_timing->longest_input_delay =
-            new_interactive_timing.longest_input_delay;
-        target_interactive_timing->longest_input_timestamp =
-            new_longest_input_timestamp;
-      }
     }
 
     // Update First Scroll Delay.
@@ -473,7 +431,7 @@ void PageLoadMetricsUpdateDispatcher::UpdateMetrics(
     mojom::InputTimingPtr input_timing_delta,
     const absl::optional<blink::SubresourceLoadMetrics>&
         subresource_load_metrics,
-    uint32_t soft_navigation_count,
+    mojom::SoftNavigationMetricsPtr soft_navigation_metrics,
     internal::PageLoadTrackerPageType page_type) {
   if (embedder_interface_->IsExtensionUrl(
           render_frame_host->GetLastCommittedURL())) {
@@ -498,8 +456,17 @@ void PageLoadMetricsUpdateDispatcher::UpdateMetrics(
     if (subresource_load_metrics) {
       UpdateMainFrameSubresourceLoadMetrics(*subresource_load_metrics);
     }
-    UpdateSoftNavigationCount(soft_navigation_count);
+    UpdateSoftNavigationIntervalResponsivenessMetrics(*input_timing_delta);
+    UpdateSoftNavigationIntervalLayoutShift(*render_data);
+    UpdateSoftNavigation(std::move(*soft_navigation_metrics));
   } else {
+    if (!render_frame_host->GetParentOrOuterDocument()) {
+      // TODO(crbug.com/1455048): `client_->IsPageMainFrame()` didn't return the
+      // correct status.
+      base::debug::DumpWithoutCrashing();
+      return;
+    }
+
     UpdateSubFrameMetadata(render_frame_host, std::move(new_metadata));
     UpdateSubFrameTiming(render_frame_host, std::move(new_timing));
     // This path is just for the AMP metrics.
@@ -642,10 +609,31 @@ void PageLoadMetricsUpdateDispatcher::UpdateMainFrameSubresourceLoadMetrics(
   subresource_load_metrics_ = subresource_load_metrics;
 }
 
-void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigationCount(
-    uint32_t soft_navigation_count) {
-  client_->OnSoftNavigationCountChanged(soft_navigation_count);
+void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigation(
+    const mojom::SoftNavigationMetrics& soft_navigation_metrics) {
+  client_->OnSoftNavigationChanged(soft_navigation_metrics);
 }
+
+void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigationIntervalLayoutShift(
+    const mojom::FrameRenderDataUpdate& render_data) {
+  soft_nav_interval_render_data_.layout_shift_score +=
+      render_data.layout_shift_delta;
+  soft_nav_interval_layout_shift_normalization_.AddNewLayoutShifts(
+      render_data.new_layout_shifts, base::TimeTicks::Now(),
+      soft_nav_interval_render_data_.layout_shift_score);
+}
+
+void PageLoadMetricsUpdateDispatcher::
+    UpdateSoftNavigationIntervalResponsivenessMetrics(
+        const mojom::InputTiming& input_timing_delta) {
+  if (input_timing_delta.num_interactions) {
+    soft_navigation_interval_responsiveness_metrics_normalization_
+        .AddNewUserInteractionLatencies(
+            input_timing_delta.num_interactions,
+            *(input_timing_delta.max_event_durations));
+  }
+}
+
 void PageLoadMetricsUpdateDispatcher::MaybeUpdateMainFrameIntersectionRect(
     content::RenderFrameHost* render_frame_host,
     const mojom::FrameMetadataPtr& frame_metadata) {
@@ -777,10 +765,6 @@ void PageLoadMetricsUpdateDispatcher::UpdateMainFrameMetadata(
 
 void PageLoadMetricsUpdateDispatcher::UpdatePageInputTiming(
     const mojom::InputTiming& input_timing_delta) {
-  page_input_timing_->num_input_events += input_timing_delta.num_input_events;
-  page_input_timing_->total_input_delay += input_timing_delta.total_input_delay;
-  page_input_timing_->total_adjusted_input_delay +=
-      input_timing_delta.total_adjusted_input_delay;
   // On the sending side, we ensure input_timing_delta.max_event_duration and
   // input_timing_delta.total_event_durations are not null pointers otherwise
   // VALIDATION_ERROR_UNEXPECTED_NULL_POINTER will be triggered on the receiving
@@ -792,10 +776,8 @@ void PageLoadMetricsUpdateDispatcher::UpdatePageInputTiming(
         input_timing_delta.num_interactions,
         *(input_timing_delta.max_event_durations));
   }
-  if (input_timing_delta.num_interactions ||
-      page_input_timing_->num_input_events) {
-    client_->OnPageInputTimingChanged(input_timing_delta.num_interactions,
-                                      page_input_timing_->num_input_events);
+  if (input_timing_delta.num_interactions) {
+    client_->OnPageInputTimingChanged(input_timing_delta.num_interactions);
   }
 }
 

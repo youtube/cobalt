@@ -20,7 +20,7 @@ The tables in this file are parsed as action templates for critical user journey
 
 TODO(dmurph): Possibly this table up into markdown-header section.
 
-| # Action base name | Argument Types | Output Actions | Unique Identifier (next: 166) | Status (WIP, Implemented, Not Implemented, Parameterized) | Description | Metadata, implementation bug, etc |
+| # Action base name | Argument Types | Output Actions | Unique Identifier (next: 174) | Status (WIP, Implemented, Not Implemented, Parameterized) | Description | Metadata, implementation bug, etc |
 | --- | --- | --- | --- | --- | --- | --- |
 | # Badging |
 | check_app_badge_empty | Site |  | 2 | Not Implemented | Check that the 'badge' on the app icon is empty |  |
@@ -36,7 +36,6 @@ TODO(dmurph): Possibly this table up into markdown-header section.
 | manifest_update_colors | Site |  | 80 | Not Implemented | The website updates it's manifest.json to change the 'theme' color | P3 |
 | manifest_update_display | Site, Display |  | 116 | Implemented |  |  |
 | await_manifest_update | Site |  | 117 | WIP | Does any actions necessary (like closing browser windows) and blocks the execution of the test until the manifest has been updated for the given site. |  |
-| check_update_dialog_not_shown |  |  | 92 | WIP |  | finnur@ |
 | |
 | # Run on OS Login |
 | apply_run_on_os_login_policy_allowed | Site |  | 100 | Implemented | Apply WebAppSettings policy for run_on_os_login to be allowed | phillis@ |
@@ -53,7 +52,7 @@ TODO(dmurph): Possibly this table up into markdown-header section.
 | |
 | # Install |
 | install_omnibox_icon | InstallableSite |  | 31 | Implemented |  |  |
-| install_policy_app | Site, ShortcutOptions, WindowOptions, InstallMode |  | 32 | Implemented | Add a force-installed enterprise policy site to the user profile (must be managed profile). |  |
+| install_policy_app | Site, ShortcutOptions, WindowOptions, InstallMode |  | 32 | Implemented | Add a force-installed enterprise policy site to the user profile (must be managed profile). This installation action also opens the target site in a tab to match the expectation of installs opening the app first for some CUJs.|  |
 | install_menu_option | InstallableSite |  | 47 | Implemented |  |  |
 | install_no_shortcut | Site | install_policy_app($1, NoShortcut, WindowOptions::All, WebApp) | 56 | Parameterized |  |  |
 | install_tabbed_no_shortcut | Site | install_policy_app($1, NoShortcut, Browser, WebApp) | 129 | Parameterized | All installation methods that result in a tabbed webapp without shortcut. |  |
@@ -126,12 +125,15 @@ TODO(dmurph): Possibly this table up into markdown-header section.
 | check_window_icon_correct | Site |  | 78 | Not Implemented |  | P3 |
 | delete_platform_shortcut | Site |  | 74 | Implemented | Delete the shortcut that lives on the operating system. Win/Mac/Linux only. | P2 |
 | delete_profile |  |  | 83 | Not Implemented | Delete the user profile. | P4 |
+| enter_full_screen_app |  |  | 168 | Implemented | Enter full screen mode for the app window. | P1 |
+| exit_full_screen_app |  |  | 169 | Implemented | Exit full screen mode for the app window. | P1 |
+| check_window_controls_overlay_toggle_icon | IsShown |  | 170 | Implemented | Checks if the Window Controls Overlay icon exists. | P1 |
 | # Launching |
 | launch_from_launch_icon | Site |  | 35 | Implemented | Launch the web app by navigating the browser to the web app, and selecting the launch icon in the omnibox (intent picker), |  |
 | launch_from_menu_option | Site |  | 69 | Implemented | Launch the web app by navigating the browser to the web app, and selecting the "Launch _" menu option in the 3-dot menu. | cliffordcheng@, P1 |
 | launch_from_platform_shortcut | Site |  | 1 | Implemented | Launch an app from a platform shortcut on the user's desktop or start menu. | cliffordcheng@, P0 |
 | launch | Site | launch_from_menu_option($1) & launch_from_launch_icon($1) & launch_from_chrome_apps($1) & launch_from_platform_shortcut($1) | 64 | Parameterized |  |  |
-| launch_not_from_platform_shortcut | Site | launch_from_menu_option($1) & launch_from_launch_icon($1) & launch_from_chrome_apps($1) | 135 | Parameterized |  |   |
+| launch_not_from_platform_shortcut | Site | launch_from_menu_option($1) & launch_from_launch_icon($1) & launch_from_chrome_apps($1) | 135 | Parameterized |  |  |
 | launch_from_browser | Site | launch_from_menu_option($1) & launch_from_launch_icon($1) & launch_from_chrome_apps($1) | 65 | Parameterized |  |  |
 | check_app_loaded_in_tab | Site |  | 163 | Implemented | Verify that the web app was launched in a tab after being clicked from chrome://apps. |  |
 | # Navigation |
@@ -165,9 +167,13 @@ TODO(dmurph): Possibly this table up into markdown-header section.
 | #Subapps |
 | install_sub_app | Site, Site, SubAppInstallDialogOptions |  | 138 | WIP | Navigate to the first site, call subApps.add() to install the second site. |  |
 | remove_sub_app | Site, Site |  | 139 | Implemented | Navigate to the first site, call subApps.remove() to uninstall the second site. |  |
-| check_has_sub_app | Site |  | 140 | Implemented | Assuming we have the active browser window on the (potential) parent site, call subApps.list() and check if the given site is listed. |  |
-| check_not_has_sub_app | Site |  | 141 | Implemented | Assuming we have the active browser window on the (potential) parent site, call subApps.list() and check if the given site is not listed. |  |
-| check_no_sub_apps |  |  | 142 | Implemented | Assuming we navigated to the (potential) parent site, call subApps.list() and check if the list is empty. |  |
+| check_has_sub_app | Site, Site |  | 140 | Implemented | Assuming we have some tab or browser window on the (potential) parent site, call subApps.list() and check if the given site is listed. |  |
+| check_not_has_sub_app | Site, Site |  | 141 | Implemented | Assuming we have some tab or browser window on the (potential) parent site, call subApps.list() and check if the given site is not listed. |  |
+| check_no_sub_apps | Site |  | 142 | Implemented | Assuming we have some tab or browser window on the (potential) parent site, call subApps.list() and check if the list is empty. |  |
+| # Tabbed |
+| new_app_tab | Site | | 171 | Implemented | Opens a new tab in the given app. | |
+| check_app_tab_is_site | Site, Number | | 172 | Implemented | Checks the tab at the given index of the web app is the given site. | |
+| check_app_tab_created | | | 173 | Implemented | Checks a tab was added to the web app window. | |
 
 ### App Home
 Actions that the user can take by going to chrome://apps and either left clicking an app or right clicking an app and then taking actions from the context menu that opens.
@@ -191,3 +197,5 @@ Actions that the user can take by going to chrome://apps and either left clickin
 | create_shortcuts_from_list | Site |  | 72 | Implemented | "create shortcuts" in chrome://apps. Win/Mac/Linux only. | P2 |
 | open_app_settings_from_chrome_apps | Site |  | 96 | Implemented |  | phillis@ |
 | launch_from_chrome_apps | Site |  | 34 | Implemented | Launch the web app by navigating to chrome://apps, and then clicking on the app icon. |  |
+| navigate_app_home |  |  | 166 | Implemented | Navigate to chrome://apps in the current browser. |  |
+| check_browser_not_at_app_home |  |  | 167 | Implemented | Check the current browser is not at chrome://apps. |  |

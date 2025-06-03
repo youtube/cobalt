@@ -263,7 +263,7 @@ void DisplayLockDocumentState::NotifyViewTransitionPseudoTreeChanged() {
 }
 
 void DisplayLockDocumentState::UpdateViewTransitionElementAncestorLocks() {
-  auto* transition = ViewTransitionUtils::GetActiveTransition(*document_);
+  auto* transition = ViewTransitionUtils::GetTransition(*document_);
   if (!transition)
     return;
 
@@ -449,8 +449,7 @@ void DisplayLockDocumentState::IssueForcedRenderWarning(Element* element) {
         mojom::blink::ConsoleMessageSource::kJavaScript, level,
         forced_render_warnings_ == kMaxConsoleMessages ? kForcedRenderingMax
                                                        : kForcedRendering);
-    console_message->SetNodes(document_->GetFrame(),
-                              {DOMNodeIds::IdForNode(element)});
+    console_message->SetNodes(document_->GetFrame(), {element->GetDomNodeId()});
     document_->AddConsoleMessage(console_message);
   }
 }

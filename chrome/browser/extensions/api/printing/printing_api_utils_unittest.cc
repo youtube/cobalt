@@ -16,6 +16,9 @@ namespace extensions {
 
 namespace idl = api::printing;
 
+using testing::Contains;
+using testing::Pair;
+
 namespace {
 
 constexpr char kId[] = "id";
@@ -29,7 +32,10 @@ constexpr int kHorizontalDpi = 300;
 constexpr int kVerticalDpi = 400;
 constexpr int kMediaSizeWidth = 210000;
 constexpr int kMediaSizeHeight = 297000;
+constexpr int kCustomMediaSizeMin = 2540;
 constexpr char kMediaSizeVendorId[] = "iso_a4_210x297mm";
+constexpr char kVendorItemId[] = "finishings";
+constexpr char kVendorItemValue[] = "trim";
 
 constexpr char kCjt[] = R"(
     {
@@ -56,6 +62,49 @@ constexpr char kCjt[] = R"(
           "height_microns": 297000,
           "vendor_id": "iso_a4_210x297mm"
         },
+        "vendor_ticket_item": [
+          {
+            "id": "finishings",
+            "value": "trim"
+          }
+        ],
+        "collate": {
+          "collate": false
+        }
+      }
+    })";
+
+constexpr char kInvalidVendorItemCjt[] = R"(
+    {
+      "version": "1.0",
+      "print": {
+        "color": {
+          "type": "STANDARD_MONOCHROME"
+        },
+        "duplex": {
+          "type": "NO_DUPLEX"
+        },
+        "page_orientation": {
+          "type": "LANDSCAPE"
+        },
+        "copies": {
+          "copies": 5
+        },
+        "dpi": {
+          "horizontal_dpi": 300,
+          "vertical_dpi": 400
+        },
+        "media_size": {
+          "width_microns": 210000,
+          "height_microns": 297000,
+          "vendor_id": "iso_a4_210x297mm"
+        },
+        "vendor_ticket_item": [
+          {
+            "id": "invalid-id",
+            "value": "invalid-value"
+          }
+        ],
         "collate": {
           "collate": false
         }
@@ -103,11 +152,26 @@ printing::PrinterSemanticCapsAndDefaults ConstructPrinterCapabilities() {
   capabilities.duplex_modes.push_back(printing::mojom::DuplexMode::kLongEdge);
   capabilities.copies_max = kCopies;
   capabilities.dpis.push_back(gfx::Size(kHorizontalDpi, kVerticalDpi));
-  printing::PrinterSemanticCapsAndDefaults::Paper paper;
-  paper.vendor_id = kMediaSizeVendorId;
-  paper.size_um = gfx::Size(kMediaSizeWidth, kMediaSizeHeight);
+  printing::PrinterSemanticCapsAndDefaults::Paper paper(
+      /*display_name=*/"", kMediaSizeVendorId,
+      gfx::Size(kMediaSizeWidth, kMediaSizeHeight));
   capabilities.papers.push_back(paper);
   capabilities.collate_capable = true;
+  return capabilities;
+}
+
+printing::PrinterSemanticCapsAndDefaults
+ConstructPrinterCapabilitiesWithCustomSize() {
+  printing::PrinterSemanticCapsAndDefaults capabilities =
+      ConstructPrinterCapabilities();
+  // Reset our papers and create a new paper with a custom size range.
+  capabilities.papers.clear();
+  printing::PrinterSemanticCapsAndDefaults::Paper paper(
+      /*display_name=*/"", kMediaSizeVendorId,
+      gfx::Size(kMediaSizeWidth, kCustomMediaSizeMin),
+      /*printable_area_um=*/gfx::Rect(), kMediaSizeHeight);
+  capabilities.papers.push_back(paper);
+
   return capabilities;
 }
 
@@ -169,6 +233,14 @@ TEST(PrintingApiUtilsTest, ParsePrintTicket) {
             settings->requested_media().size_microns);
   EXPECT_EQ(kMediaSizeVendorId, settings->requested_media().vendor_id);
   EXPECT_FALSE(settings->collate());
+  EXPECT_THAT(settings->advanced_settings(),
+              Contains(Pair(kVendorItemId, kVendorItemValue)));
+}
+
+TEST(PrintingApiUtilsTest, ParsePrintTicketInvalidVendorItem) {
+  base::Value::Dict cjt_ticket =
+      base::test::ParseJsonDict(kInvalidVendorItemCjt);
+  EXPECT_FALSE(ParsePrintTicket(std::move(cjt_ticket)));
 }
 
 TEST(PrintingApiUtilsTest, ParsePrintTicket_IncompleteCjt) {
@@ -227,6 +299,41 @@ TEST(PrintingApiUtilsTest,
   printing::PrinterSemanticCapsAndDefaults capabilities =
       ConstructPrinterCapabilities();
   capabilities.papers.clear();
+  EXPECT_FALSE(
+      CheckSettingsAndCapabilitiesCompatibility(*settings, capabilities));
+}
+
+TEST(PrintingApiUtilsTest,
+     CheckSettingsAndCapabilitiesCompatibilityCustomMediaSize) {
+  std::unique_ptr<printing::PrintSettings> settings = ConstructPrintSettings();
+  printing::PrinterSemanticCapsAndDefaults capabilities =
+      ConstructPrinterCapabilitiesWithCustomSize();
+  EXPECT_TRUE(
+      CheckSettingsAndCapabilitiesCompatibility(*settings, capabilities));
+}
+
+TEST(PrintingApiUtilsTest,
+     CheckSettingsAndCapabilitiesCompatibilityCustomMediaSizeLongWidth) {
+  std::unique_ptr<printing::PrintSettings> settings = ConstructPrintSettings();
+  // Update the requested media so the width is wider than our custom size.
+  printing::PrintSettings::RequestedMedia media = settings->requested_media();
+  media.size_microns.set_width(kMediaSizeWidth + 1);
+  settings->set_requested_media(media);
+  printing::PrinterSemanticCapsAndDefaults capabilities =
+      ConstructPrinterCapabilitiesWithCustomSize();
+  EXPECT_FALSE(
+      CheckSettingsAndCapabilitiesCompatibility(*settings, capabilities));
+}
+
+TEST(PrintingApiUtilsTest,
+     CheckSettingsAndCapabilitiesCompatibilityCustomMediaSizeShortHeight) {
+  std::unique_ptr<printing::PrintSettings> settings = ConstructPrintSettings();
+  // Update the requested media so the length is shorter than our custom size.
+  printing::PrintSettings::RequestedMedia media = settings->requested_media();
+  media.size_microns.set_height(kCustomMediaSizeMin - 1);
+  settings->set_requested_media(media);
+  printing::PrinterSemanticCapsAndDefaults capabilities =
+      ConstructPrinterCapabilitiesWithCustomSize();
   EXPECT_FALSE(
       CheckSettingsAndCapabilitiesCompatibility(*settings, capabilities));
 }

@@ -62,7 +62,7 @@ class AuctionV8DevToolsAgent : public blink::mojom::DevToolsAgent,
   // and handle a Mojo connection.
   AuctionV8DevToolsAgent(
       AuctionV8Helper* v8_helper,
-      DebugCommandQueue* debug_command_queue,
+      scoped_refptr<DebugCommandQueue> debug_command_queue,
       scoped_refptr<base::SequencedTaskRunner> io_session_receiver_sequence);
   AuctionV8DevToolsAgent(const AuctionV8DevToolsAgent&) = delete;
   AuctionV8DevToolsAgent& operator=(const AuctionV8DevToolsAgent&) = delete;
@@ -112,6 +112,8 @@ class AuctionV8DevToolsAgent : public blink::mojom::DevToolsAgent,
   void ReportChildTargets(bool report,
                           bool wait_for_debugger,
                           ReportChildTargetsCallback callback) override;
+  void GetUniqueFormControlId(int32_t nodeId,
+                              GetUniqueFormControlIdCallback callback) override;
 
   // V8InspectorClient implementation.
   // TODO(morlovich): Implement consoleAPIMessage and currentTimeMS and replace

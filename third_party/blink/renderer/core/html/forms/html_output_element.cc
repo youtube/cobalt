@@ -35,6 +35,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 HTMLOutputElement::HTMLOutputElement(Document& document)
     : HTMLFormControlElement(html_names::kOutputTag, document),
       is_default_value_mode_(true),
@@ -44,7 +46,11 @@ HTMLOutputElement::HTMLOutputElement(Document& document)
 
 HTMLOutputElement::~HTMLOutputElement() = default;
 
-const AtomicString& HTMLOutputElement::FormControlType() const {
+FormControlType HTMLOutputElement::FormControlType() const {
+  return FormControlType::kOutput;
+}
+
+const AtomicString& HTMLOutputElement::FormControlTypeAsString() const {
   DEFINE_STATIC_LOCAL(const AtomicString, output, ("output"));
   return output;
 }
@@ -58,6 +64,7 @@ bool HTMLOutputElement::MatchesEnabledPseudoClass() const {
 }
 
 bool HTMLOutputElement::SupportsFocus() const {
+  // Skip over HTMLFormControl element, which always supports focus.
   return HTMLElement::SupportsFocus();
 }
 

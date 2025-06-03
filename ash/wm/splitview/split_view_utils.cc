@@ -5,9 +5,7 @@
 #include "ash/wm/splitview/split_view_utils.h"
 
 #include "ash/accessibility/accessibility_controller_impl.h"
-#include "ash/constants/ash_features.h"
 #include "ash/constants/notifier_catalogs.h"
-#include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/screen_util.h"
@@ -21,15 +19,13 @@
 #include "ash/wm/splitview/split_view_constants.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_state.h"
-#include "base/command_line.h"
 #include "base/time/time.h"
+#include "ui/base/hit_test.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/layer.h"
-#include "ui/compositor/layer_animation_observer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
-#include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/transient_window_manager.h"
 
@@ -55,6 +51,13 @@ constexpr base::TimeDelta kLabelAnimationDelay = base::Milliseconds(167);
 
 // Toast data.
 constexpr char kAppCannotSnapToastId[] = "split_view_app_cannot_snap";
+
+constexpr char kHistogramPrefix[] = "Ash.SplitViewOverviewSession.";
+
+constexpr char kWindowLayoutCompleteOnSessionExitRootWord[] =
+    "WindowLayoutCompleteOnSessionExit";
+
+constexpr char kExitPointRootWord[] = "ExitPoint";
 
 // Gets the duration, tween type and delay before animation based on |type|.
 void GetAnimationValuesForType(
@@ -148,6 +151,53 @@ views::BubbleDialogDelegate* AsBubbleDialogDelegate(
   return widget->widget_delegate()->AsBubbleDialogDelegate();
 }
 
+// Returns the corresponding snap action source metric string component with
+// given `snap_action_source`.
+const char* GetSnapActionSourceMetricComponent(
+    WindowSnapActionSource snap_action_source) {
+  switch (snap_action_source) {
+    case WindowSnapActionSource::kNotSpecified:
+      return "NotSpecified";
+    case WindowSnapActionSource::kDragWindowToEdgeToSnap:
+      return "DragWindowToEdgeToSnap";
+    case WindowSnapActionSource::kLongPressCaptionButtonToSnap:
+      return "LongPressCaptionButtonToSnap";
+    case WindowSnapActionSource::kKeyboardShortcutToSnap:
+      return "KeyboardShortcutToSnap";
+    case WindowSnapActionSource::kDragOrSelectOverviewWindowToSnap:
+      return "DragOrSelectOverviewWindowToSnap";
+    case WindowSnapActionSource::kLongPressOverviewButtonToSnap:
+      return "LongPressOverviewButtonToSnap";
+    case WindowSnapActionSource::kDragUpFromShelfToSnap:
+      return "DragUpFromShelfToSnap";
+    case WindowSnapActionSource::kDragDownFromTopToSnap:
+      return "DragDownFromTopToSnap";
+    case WindowSnapActionSource::kDragTabToSnap:
+      return "DragTabToSnap";
+    case WindowSnapActionSource::kAutoSnapInSplitView:
+      return "AutoSnapInSplitView";
+    case WindowSnapActionSource::kSnapByWindowStateRestore:
+      return "SnapByWindowStateRestore";
+    case WindowSnapActionSource::kSnapByWindowLayoutMenu:
+      return "SnapByWindowLayoutMenu";
+    case WindowSnapActionSource::kSnapByFullRestoreOrDeskTemplateOrSavedDesk:
+      return "SnapByFullRestoreOrDeskTemplateOrSavedDesk";
+    case WindowSnapActionSource::kSnapByClamshellTabletTransition:
+      return "SnapByClamshellTabletTransition";
+    case WindowSnapActionSource::kSnapByDeskOrSessionChange:
+      return "SnapByDeskOrSessionChange";
+    case WindowSnapActionSource::kSnapGroupWindowUpdate:
+      return "SnapGroupWindowUpdate";
+    case WindowSnapActionSource::kTest:
+      return "Test";
+  }
+}
+
+void AppendUIModeToHistogram(std::string& histogram_name) {
+  histogram_name.append(Shell::Get()->IsInTabletMode() ? ".TabletMode"
+                                                       : ".ClamshellMode");
+}
+
 }  // namespace
 
 WindowTransformAnimationObserver::WindowTransformAnimationObserver(
@@ -171,13 +221,16 @@ void WindowTransformAnimationObserver::OnImplicitAnimationsCompleted() {
   }
 
   for (auto* transient_window :
-       ::wm::TransientWindowManager::GetOrCreate(window_)
-           ->transient_children()) {
+       wm::TransientWindowManager::GetOrCreate(window_)->transient_children()) {
     // For now we only care about bubble dialog type transient children.
     views::BubbleDialogDelegate* bubble_delegate_view =
         AsBubbleDialogDelegate(transient_window);
-    if (bubble_delegate_view)
-      bubble_delegate_view->OnAnchorBoundsChanged();
+    if (bubble_delegate_view) {
+      if (!bubble_delegate_view->GetAnchorRect().IsEmpty() ||
+          bubble_delegate_view->GetAnchorView()) {
+        bubble_delegate_view->OnAnchorBoundsChanged();
+      }
+    }
   }
 
   delete this;
@@ -347,14 +400,16 @@ void MaybeRestoreSplitView(bool refresh_snapped_windows) {
         case WindowStateType::kPrimarySnapped:
           if (!split_view_controller->primary_window()) {
             split_view_controller->SnapWindow(
-                window, SplitViewController::SnapPosition::kPrimary);
+                window, SplitViewController::SnapPosition::kPrimary,
+                WindowSnapActionSource::kSnapByDeskOrSessionChange);
           }
           break;
 
         case WindowStateType::kSecondarySnapped:
           if (!split_view_controller->secondary_window()) {
             split_view_controller->SnapWindow(
-                window, SplitViewController::SnapPosition::kSecondary);
+                window, SplitViewController::SnapPosition::kSecondary,
+                WindowSnapActionSource::kSnapByDeskOrSessionChange);
           }
           break;
 
@@ -363,8 +418,9 @@ void MaybeRestoreSplitView(bool refresh_snapped_windows) {
       }
 
       if (split_view_controller->state() ==
-          SplitViewController::State::kBothSnapped)
+          SplitViewController::State::kBothSnapped) {
         break;
+      }
     }
   }
 
@@ -508,12 +564,21 @@ SplitViewController::SnapPosition GetSnapPosition(
 }
 
 bool IsSnapGroupEnabledInClamshellMode() {
-  auto* snap_group_controller = Shell::Get()->snap_group_controller();
+  auto* snap_group_controller = SnapGroupController::Get();
   TabletModeController* tablet_mode_controller =
       Shell::Get()->tablet_mode_controller();
   const bool in_tablet_mode =
       tablet_mode_controller && tablet_mode_controller->InTabletMode();
   return snap_group_controller && !in_tablet_mode;
+}
+
+int GetWindowComponentForResize(aura::Window* window) {
+  chromeos::WindowStateType state_type =
+      WindowState::Get(window)->GetStateType();
+  CHECK(chromeos::IsSnappedWindowStateType(state_type));
+  // TODO(b/288356322): Update the component for vertical splitview.
+  return state_type == chromeos::WindowStateType::kPrimarySnapped ? HTRIGHT
+                                                                  : HTLEFT;
 }
 
 views::Widget::InitParams CreateWidgetInitParams(
@@ -526,6 +591,23 @@ views::Widget::InitParams CreateWidgetInitParams(
   params.init_properties_container.SetProperty(kHideInDeskMiniViewKey, true);
   params.name = widget_name;
   return params;
+}
+
+ASH_EXPORT std::string BuildWindowLayoutCompleteOnSessionExitHistogram() {
+  std::string histogram_name(kHistogramPrefix);
+  histogram_name.append(kWindowLayoutCompleteOnSessionExitRootWord);
+  AppendUIModeToHistogram(histogram_name);
+  return histogram_name;
+}
+
+ASH_EXPORT std::string BuildSplitViewOverviewExitPointHistogramName(
+    WindowSnapActionSource snap_action_source) {
+  std::string histogram_name(kHistogramPrefix);
+  histogram_name.append(GetSnapActionSourceMetricComponent(snap_action_source));
+  histogram_name.append(".");
+  histogram_name.append(kExitPointRootWord);
+  AppendUIModeToHistogram(histogram_name);
+  return histogram_name;
 }
 
 }  // namespace ash

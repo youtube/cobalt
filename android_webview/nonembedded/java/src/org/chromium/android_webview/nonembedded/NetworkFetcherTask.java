@@ -8,10 +8,11 @@ import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.url.GURL;
 
 import java.io.ByteArrayOutputStream;
@@ -61,7 +62,7 @@ public class NetworkFetcherTask {
      * Downloads from a given url to a file.
      */
     @VisibleForTesting
-    static void downloadToFile(HttpURLConnection connection, long nativeDownloadFileTask,
+    public static void downloadToFile(HttpURLConnection connection, long nativeDownloadFileTask,
             long mainTaskRunner, GURL gurl, String filePath) {
         long bytesDownloaded = 0;
         try {
@@ -141,7 +142,7 @@ public class NetworkFetcherTask {
      * Posts a request to a URL.
      */
     @VisibleForTesting
-    static void postRequest(HttpURLConnection connection, long nativeNetworkFetcherTask,
+    public static void postRequest(HttpURLConnection connection, long nativeNetworkFetcherTask,
             long mainTaskRunner, GURL gurl, byte[] postData, String contentType,
             String[] headerKeys, String[] headerValues) {
         String eTag = "";
@@ -222,7 +223,8 @@ public class NetworkFetcherTask {
     }
 
     @NativeMethods
-    interface Natives {
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public interface Natives {
         void callProgressCallback(long weakPtr, long taskRunner, long current);
         void callResponseStartedCallback(
                 long weakPtr, long taskRunner, int responseCode, long contentLength);

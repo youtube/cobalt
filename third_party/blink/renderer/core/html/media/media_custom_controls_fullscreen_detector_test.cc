@@ -21,12 +21,13 @@ class MediaCustomControlsFullscreenDetectorTest : public testing::Test {
   }
 
   HTMLVideoElement* VideoElement() const {
-    return To<HTMLVideoElement>(GetDocument().QuerySelector("video"));
+    return To<HTMLVideoElement>(
+        GetDocument().QuerySelector(AtomicString("video")));
   }
 
   static MediaCustomControlsFullscreenDetector* FullscreenDetectorFor(
       HTMLVideoElement* video_element) {
-    return video_element->custom_controls_fullscreen_detector_;
+    return video_element->custom_controls_fullscreen_detector_.Get();
   }
 
   MediaCustomControlsFullscreenDetector* FullscreenDetector() const {
@@ -44,8 +45,9 @@ class MediaCustomControlsFullscreenDetectorTest : public testing::Test {
       return false;
 
     for (const auto& registered_listener : *listeners) {
-      if (registered_listener.Callback() == listener)
+      if (registered_listener->Callback() == listener) {
         return true;
+      }
     }
     return false;
   }

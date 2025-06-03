@@ -20,7 +20,8 @@ NtpCustomBackgroundService* NtpCustomBackgroundServiceFactory::GetForProfile(
 // static
 NtpCustomBackgroundServiceFactory*
 NtpCustomBackgroundServiceFactory::GetInstance() {
-  return base::Singleton<NtpCustomBackgroundServiceFactory>::get();
+  static base::NoDestructor<NtpCustomBackgroundServiceFactory> instance;
+  return instance.get();
 }
 
 NtpCustomBackgroundServiceFactory::NtpCustomBackgroundServiceFactory()
@@ -36,7 +37,9 @@ NtpCustomBackgroundServiceFactory::NtpCustomBackgroundServiceFactory()
 NtpCustomBackgroundServiceFactory::~NtpCustomBackgroundServiceFactory() =
     default;
 
-KeyedService* NtpCustomBackgroundServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NtpCustomBackgroundServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new NtpCustomBackgroundService(Profile::FromBrowserContext(context));
+  return std::make_unique<NtpCustomBackgroundService>(
+      Profile::FromBrowserContext(context));
 }

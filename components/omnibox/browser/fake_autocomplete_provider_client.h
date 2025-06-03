@@ -17,6 +17,13 @@
 #include "components/omnibox/browser/mock_autocomplete_provider_client.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
 #include "components/omnibox/browser/test_scheme_classifier.h"
+#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#include "components/query_tiles/tile_service.h"
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+#include "components/omnibox/browser/autocomplete_scoring_model_service.h"
+#include "components/omnibox/browser/fake_on_device_tail_model_service.h"
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
 namespace bookmarks {
 class BookmarkModel;
@@ -64,6 +71,12 @@ class FakeAutocompleteProviderClient : public MockAutocompleteProviderClient {
   const TabMatcher& GetTabMatcher() const override;
   scoped_refptr<history::TopSites> GetTopSites() override;
 
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  OnDeviceTailModelService* GetOnDeviceTailModelService() const override;
+  AutocompleteScoringModelService* GetAutocompleteScoringModelService()
+      const override;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+
   // Test-only setters
   void set_bookmark_model(std::unique_ptr<bookmarks::BookmarkModel> model) {
     bookmark_model_ = std::move(model);
@@ -93,6 +106,17 @@ class FakeAutocompleteProviderClient : public MockAutocompleteProviderClient {
     shortcuts_backend_ = std::move(backend);
   }
 
+  void set_tile_service(std::unique_ptr<query_tiles::TileService> tile_svc) {
+    tile_service_ = std::move(tile_svc);
+  }
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  void set_scoring_model_service(
+      std::unique_ptr<AutocompleteScoringModelService> scoring_model_service) {
+    scoring_model_service_ = std::move(scoring_model_service);
+  }
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+
  private:
   base::ScopedTempDir history_dir_;
   std::unique_ptr<bookmarks::BookmarkModel> bookmark_model_;
@@ -106,7 +130,12 @@ class FakeAutocompleteProviderClient : public MockAutocompleteProviderClient {
   scoped_refptr<ShortcutsBackend> shortcuts_backend_;
   std::unique_ptr<query_tiles::TileService> tile_service_;
   FakeTabMatcher fake_tab_matcher_;
-  scoped_refptr<history::TopSites> top_sites_{};
+  scoped_refptr<history::TopSites> top_sites_;
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  std::unique_ptr<FakeOnDeviceTailModelService> on_device_tail_model_service_;
+  std::unique_ptr<AutocompleteScoringModelService> scoring_model_service_;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_FAKE_AUTOCOMPLETE_PROVIDER_CLIENT_H_

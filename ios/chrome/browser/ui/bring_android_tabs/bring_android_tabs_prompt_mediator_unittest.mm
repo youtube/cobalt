@@ -6,23 +6,16 @@
 
 #import "base/test/metrics/histogram_tester.h"
 #import "components/segmentation_platform/embedder/default_model/device_switcher_result_dispatcher.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service.h"
-#import "ios/chrome/browser/bring_android_tabs/fake_bring_android_tabs_to_ios_service.h"
-#import "ios/chrome/browser/bring_android_tabs/metrics.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/bring_android_tabs/model/fake_bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/bring_android_tabs/model/metrics.h"
 #import "ios/chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
-#import "ios/chrome/browser/sync/session_sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/synced_sessions/distant_tab.h"
-#import "ios/chrome/browser/url_loading/fake_url_loading_browser_agent.h"
-#import "ios/chrome/browser/url_loading/url_loading_notifier_browser_agent.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/sync/model/session_sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/synced_sessions/model/distant_tab.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Test fixture for BringAndroidTabsPromptMediator.
 class BringAndroidTabsPromptMediatorTest : public PlatformTest {
@@ -36,17 +29,11 @@ class BringAndroidTabsPromptMediatorTest : public PlatformTest {
         segmentation_platform::SegmentationPlatformServiceFactory::
             GetDefaultFactory());
     browser_state_ = builder.Build();
-    browser_ = std::make_unique<TestBrowser>(browser_state_.get());
-    UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
-    FakeUrlLoadingBrowserAgent::InjectForBrowser(browser_.get());
-    url_loader_ = FakeUrlLoadingBrowserAgent::FromUrlLoadingBrowserAgent(
-        UrlLoadingBrowserAgent::FromBrowser(browser_.get()));
 
     // Create a tab in the mock BringAndroidTabsToIOS service.
     std::vector<std::unique_ptr<synced_sessions::DistantTab>> tabs;
     std::unique_ptr<synced_sessions::DistantTab> tab =
         std::make_unique<synced_sessions::DistantTab>();
-    tab->virtual_url = kTestUrl;
     tabs.push_back(std::move(tab));
 
     // Create the BringAndroidTabsToIOSService.
@@ -64,7 +51,7 @@ class BringAndroidTabsPromptMediatorTest : public PlatformTest {
     // Create the mediator.
     mediator_ = [[BringAndroidTabsPromptMediator alloc]
         initWithBringAndroidTabsService:fake_bring_android_tabs_service_
-                              URLLoader:url_loader_];
+                              URLLoader:nullptr];
   }
   // Property accessors.
   id<BringAndroidTabsPromptViewControllerDelegate> delegate() {
@@ -73,20 +60,13 @@ class BringAndroidTabsPromptMediatorTest : public PlatformTest {
   FakeBringAndroidTabsToIOSService* bring_android_tabs_service() {
     return fake_bring_android_tabs_service_;
   }
-  web::NavigationManager::WebLoadParams last_loaded_url_params() {
-    return url_loader_->last_params.web_params;
-  }
-
-  const GURL kTestUrl = GURL("http://chromium.org");
 
  private:
   // Environment mocks.
   web::WebTaskEnvironment task_environment_;
-  FakeUrlLoadingBrowserAgent* url_loader_;
   FakeBringAndroidTabsToIOSService* fake_bring_android_tabs_service_;
   // Mediator dependencies.
   std::unique_ptr<TestChromeBrowserState> browser_state_;
-  std::unique_ptr<Browser> browser_;
   BringAndroidTabsPromptMediator* mediator_;
 };
 
@@ -113,11 +93,11 @@ TEST_F(BringAndroidTabsPromptMediatorTest, OpenTabs) {
   histogram_tester.ExpectUniqueSample(
       bring_android_tabs::kPromptActionHistogramName,
       bring_android_tabs::PromptActionType::kOpenTabs, 1);
-  EXPECT_EQ(kTestUrl, last_loaded_url_params().url);
-  EXPECT_TRUE(
-      ui::PageTransitionCoreTypeIs(ui::PAGE_TRANSITION_AUTO_BOOKMARK,
-                                   last_loaded_url_params().transition_type));
   EXPECT_TRUE(bring_android_tabs_service()->interacted());
+  std::vector<size_t> opened_tabs =
+      bring_android_tabs_service()->opened_tabs_at_indices();
+  ASSERT_EQ(opened_tabs.size(), 1u);
+  EXPECT_EQ(opened_tabs[0], 0u);
 }
 
 // Tests that mediator logs histogram when the user taps "reviews tabs", and the
@@ -130,6 +110,7 @@ TEST_F(BringAndroidTabsPromptMediatorTest, ReviewTabs) {
       bring_android_tabs::kPromptActionHistogramName,
       bring_android_tabs::PromptActionType::kReviewTabs, 1);
   EXPECT_TRUE(bring_android_tabs_service()->interacted());
+  EXPECT_EQ(bring_android_tabs_service()->opened_tabs_at_indices().size(), 0u);
 }
 
 // Tests that mediator logs histogram when the user closes the prompt, and the
@@ -142,6 +123,7 @@ TEST_F(BringAndroidTabsPromptMediatorTest, TapCloseButton) {
       bring_android_tabs::kPromptActionHistogramName,
       bring_android_tabs::PromptActionType::kCancel, 1);
   EXPECT_TRUE(bring_android_tabs_service()->interacted());
+  EXPECT_EQ(bring_android_tabs_service()->opened_tabs_at_indices().size(), 0u);
 }
 
 // Tests that mediator logs histogram when the user swipes the prompt down, and
@@ -154,4 +136,5 @@ TEST_F(BringAndroidTabsPromptMediatorTest, SwipeToDismiss) {
       bring_android_tabs::kPromptActionHistogramName,
       bring_android_tabs::PromptActionType::kSwipeToDismiss, 1);
   EXPECT_TRUE(bring_android_tabs_service()->interacted());
+  EXPECT_EQ(bring_android_tabs_service()->opened_tabs_at_indices().size(), 0u);
 }

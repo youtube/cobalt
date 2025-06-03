@@ -32,13 +32,14 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.FeatureList;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.UmaRecorderHolder;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.commerce.ShoppingFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManager;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManagerFactory;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManagerImpl;
@@ -55,34 +56,23 @@ import org.chromium.components.user_prefs.UserPrefsJni;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Unit tests for {@link CommerceSubscriptionsService}.
- */
+/** Unit tests for {@link CommerceSubscriptionsService}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CommerceSubscriptionsServiceUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Rule public JniMocker mJniMocker = new JniMocker();
 
-    @Mock
-    private ShoppingService mShoppingService;
-    @Mock
-    TabModelSelector mTabModelSelector;
-    @Mock
-    private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
-    @Mock
-    private ImplicitPriceDropSubscriptionsManager mImplicitSubscriptionsManager;
-    @Mock
-    private Profile mProfile;
-    @Mock
-    private PrefService mPrefService;
-    @Mock
-    private IdentityServicesProvider mIdentityServicesProvider;
-    @Mock
-    private UserPrefs.Natives mUserPrefsJni;
+    @Mock private ShoppingService mShoppingService;
+    @Mock TabModelSelector mTabModelSelector;
+    @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    @Mock private ImplicitPriceDropSubscriptionsManager mImplicitSubscriptionsManager;
+    @Mock private Profile mProfile;
+    @Mock private PrefService mPrefService;
+    @Mock private IdentityServicesProvider mIdentityServicesProvider;
+    @Mock private UserPrefs.Natives mUserPrefsJni;
+
     @Captor
     private ArgumentCaptor<PauseResumeWithNativeObserver> mPauseResumeWithNativeObserverCaptor;
 
@@ -98,7 +88,7 @@ public class CommerceSubscriptionsServiceUnitTest {
         UmaRecorderHolder.resetForTesting();
 
         doNothing().when(mActivityLifecycleDispatcher).register(any());
-        mSharedPreferencesManager = SharedPreferencesManager.getInstance();
+        mSharedPreferencesManager = ChromeSharedPreferences.getInstance();
         mSharedPreferencesManager.writeLong(
                 CommerceSubscriptionsService.CHROME_MANAGED_SUBSCRIPTIONS_TIMESTAMP,
                 System.currentTimeMillis()
@@ -157,12 +147,14 @@ public class CommerceSubscriptionsServiceUnitTest {
     @SmallTest
     public void testOnResume() {
         setupTestOnResume();
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
+        assertThat(
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
                 equalTo(1));
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           PriceDropNotificationManagerImpl
-                                   .NOTIFICATION_CHROME_MANAGED_COUNT_HISTOGRAM),
+        assertThat(
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        PriceDropNotificationManagerImpl
+                                .NOTIFICATION_CHROME_MANAGED_COUNT_HISTOGRAM),
                 equalTo(1));
         assertThat(
                 RecordHistogram.getHistogramTotalCountForTesting(
@@ -177,8 +169,9 @@ public class CommerceSubscriptionsServiceUnitTest {
         doReturn(false).when(mShoppingService).isShoppingListEligible();
 
         setupTestOnResume();
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
+        assertThat(
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
                 equalTo(0));
         verify(mImplicitSubscriptionsManager, times(0)).initializeSubscriptions();
     }
@@ -191,8 +184,9 @@ public class CommerceSubscriptionsServiceUnitTest {
                 System.currentTimeMillis());
 
         setupTestOnResume();
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
+        assertThat(
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        PriceDropNotificationManagerImpl.NOTIFICATION_ENABLED_HISTOGRAM),
                 equalTo(0));
         verify(mImplicitSubscriptionsManager, times(0)).initializeSubscriptions();
     }

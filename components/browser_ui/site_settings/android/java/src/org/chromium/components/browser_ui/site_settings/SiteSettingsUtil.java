@@ -10,8 +10,12 @@ import android.text.format.Formatter;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.content_settings.ContentSettingsType;
+import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
+import org.chromium.content_public.browser.HostZoomMap;
 
 /**
  * Util class for site settings UI.
@@ -20,35 +24,39 @@ public class SiteSettingsUtil {
     // Defining the order for content settings based on http://crbug.com/610358
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public static final int[] SETTINGS_ORDER = {
-            ContentSettingsType.COOKIES,
-            ContentSettingsType.GEOLOCATION,
-            ContentSettingsType.MEDIASTREAM_CAMERA,
-            ContentSettingsType.MEDIASTREAM_MIC,
-            ContentSettingsType.NOTIFICATIONS,
-            ContentSettingsType.JAVASCRIPT,
-            ContentSettingsType.POPUPS,
-            ContentSettingsType.ADS,
-            ContentSettingsType.BACKGROUND_SYNC,
-            ContentSettingsType.AUTOMATIC_DOWNLOADS,
-            ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER,
-            ContentSettingsType.SOUND,
-            ContentSettingsType.MIDI_SYSEX,
-            ContentSettingsType.CLIPBOARD_READ_WRITE,
-            ContentSettingsType.NFC,
-            ContentSettingsType.BLUETOOTH_SCANNING,
-            ContentSettingsType.VR,
-            ContentSettingsType.AR,
-            ContentSettingsType.IDLE_DETECTION,
-            ContentSettingsType.FEDERATED_IDENTITY_API,
-            ContentSettingsType.SENSORS,
-            ContentSettingsType.AUTO_DARK_WEB_CONTENT,
-            ContentSettingsType.REQUEST_DESKTOP_SITE,
+        ContentSettingsType.COOKIES,
+        ContentSettingsType.GEOLOCATION,
+        ContentSettingsType.MEDIASTREAM_CAMERA,
+        ContentSettingsType.MEDIASTREAM_MIC,
+        ContentSettingsType.NOTIFICATIONS,
+        ContentSettingsType.JAVASCRIPT,
+        ContentSettingsType.POPUPS,
+        ContentSettingsType.ADS,
+        ContentSettingsType.BACKGROUND_SYNC,
+        ContentSettingsType.AUTOMATIC_DOWNLOADS,
+        ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER,
+        ContentSettingsType.SOUND,
+        ContentSettingsType.MIDI_SYSEX,
+        ContentSettingsType.CLIPBOARD_READ_WRITE,
+        ContentSettingsType.NFC,
+        ContentSettingsType.BLUETOOTH_SCANNING,
+        ContentSettingsType.VR,
+        ContentSettingsType.AR,
+        ContentSettingsType.IDLE_DETECTION,
+        ContentSettingsType.FEDERATED_IDENTITY_API,
+        ContentSettingsType.SENSORS,
+        ContentSettingsType.AUTO_DARK_WEB_CONTENT,
+        ContentSettingsType.REQUEST_DESKTOP_SITE,
     };
 
     static final int[] CHOOSER_PERMISSIONS = {
             ContentSettingsType.USB_CHOOSER_DATA,
             // Bluetooth is only shown when WEB_BLUETOOTH_NEW_PERMISSIONS_BACKEND is enabled.
             ContentSettingsType.BLUETOOTH_CHOOSER_DATA,
+    };
+
+    static final int[] EMBEDDED_PERMISSIONS = {
+        ContentSettingsType.STORAGE_ACCESS,
     };
 
     /**
@@ -65,10 +73,11 @@ public class SiteSettingsUtil {
                 }
             }
         }
+
         for (@ContentSettingsType int setting : CHOOSER_PERMISSIONS) {
             for (@ContentSettingsType int type : types) {
                 if (type == ContentSettingsType.BLUETOOTH_CHOOSER_DATA
-                        && !ContentFeatureList.isEnabled(
+                        && !ContentFeatureMap.isEnabled(
                                 ContentFeatureList.WEB_BLUETOOTH_NEW_PERMISSIONS_BACKEND)) {
                     continue;
                 }
@@ -77,6 +86,15 @@ public class SiteSettingsUtil {
                 }
             }
         }
+
+        for (@ContentSettingsType int setting : EMBEDDED_PERMISSIONS) {
+            for (@ContentSettingsType int type : types) {
+                if (setting == type) {
+                    return type;
+                }
+            }
+        }
+
         return ContentSettingsType.DEFAULT;
     }
 
@@ -84,7 +102,7 @@ public class SiteSettingsUtil {
      * @return whether the flag for the improved UI for "All sites" and "Site settings" is enabled.
      */
     public static boolean isSiteDataImprovementEnabled() {
-        return SiteSettingsFeatureList.isEnabled(SiteSettingsFeatureList.SITE_DATA_IMPROVEMENTS);
+        return SiteSettingsFeatureMap.isEnabled(SiteSettingsFeatureList.SITE_DATA_IMPROVEMENTS);
     }
 
     /**
@@ -108,5 +126,19 @@ public class SiteSettingsUtil {
                             cookie_str);
         }
         return result;
+    }
+
+    /**
+     * Callback method for when the ImageView on a zoom setting (displayed as a WebsitePreference
+     * row) is clicked.
+     *
+     * @param site Website for which to reset zoom level.
+     */
+    public static void resetZoomLevel(Website site, BrowserContextHandle browserContextHandle) {
+        double defaultZoomFactor =
+                PageZoomUtils.getDefaultZoomLevelAsZoomFactor(browserContextHandle);
+        // Propagate the change through HostZoomMap.
+        HostZoomMap.setZoomLevelForHost(
+                browserContextHandle, site.getAddress().getHost(), defaultZoomFactor);
     }
 }

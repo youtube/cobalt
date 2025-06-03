@@ -61,8 +61,9 @@ ui::KeyEvent CreateKeyEventFromCode(const ui::DomCode& code) {
 ui::KeyEvent CreateRepeatKeyEventFromCode(const ui::DomCode& code,
                                           bool shifted) {
   int flags = ui::EF_IS_REPEAT;
-  if (shifted)
+  if (shifted) {
     flags |= ui::EF_SHIFT_DOWN;
+  }
   return ui::KeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_UNKNOWN, code, flags,
                       ui::DomKey::NONE, ui::EventTimeForNow());
 }
@@ -178,8 +179,7 @@ TEST_P(LongpressDiacriticsSuggesterTest, HighlightsFirstOnInitialNextKeyEvent) {
 }
 
 TEST_P(LongpressDiacriticsSuggesterTest,
-       HighlightsLastOnInitialPreviousKeyEvent) {
-  size_t expected_candidate_index = GetParam().candidates.size() - 1;
+       HighlightsSettingsOnInitialPreviousKeyEvent) {
   FakeSuggestionHandler suggestion_handler;
   LongpressDiacriticsSuggester suggester =
       LongpressDiacriticsSuggester(&suggestion_handler);
@@ -189,14 +189,17 @@ TEST_P(LongpressDiacriticsSuggesterTest,
   suggester.TrySuggestOnLongpress(GetParam().longpress_char);
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_LEFT));
 
+  AssistiveWindowButton learn_more_button = {
+      .id = ui::ime::ButtonId::kLearnMore,
+      .window_type =
+          ash::ime::AssistiveWindowType::kLongpressDiacriticsSuggestion,
+  };
+
   EXPECT_EQ(suggestion_handler.GetContextId(), kContextId);
   EXPECT_TRUE(suggestion_handler.GetShowingSuggestion());
   EXPECT_EQ(suggestion_handler.GetSuggestionText(),
             Join(GetParam().candidates));
-  EXPECT_EQ(suggestion_handler.GetHighlightedButton(),
-            CreateDiacriticsButtonFor(
-                expected_candidate_index,
-                GetParam().candidates[expected_candidate_index]));
+  EXPECT_EQ(suggestion_handler.GetHighlightedButton(), learn_more_button);
 }
 
 TEST_P(LongpressDiacriticsSuggesterTest, HighlightIncrementsOnNextKeyEvent) {
@@ -268,7 +271,7 @@ TEST_P(LongpressDiacriticsSuggesterTest,
 
 TEST_P(LongpressDiacriticsSuggesterTest,
        HighlightWrapsAroundAfterLastIndexOnNextKeyEvent) {
-  size_t expected_candidate_index = (9 % GetParam().candidates.size());
+  size_t expected_candidate_index = 9 % (GetParam().candidates.size() + 1);
   FakeSuggestionHandler suggestion_handler;
   LongpressDiacriticsSuggester suggester =
       LongpressDiacriticsSuggester(&suggestion_handler);
@@ -280,19 +283,27 @@ TEST_P(LongpressDiacriticsSuggesterTest,
     suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
   }
 
+  AssistiveWindowButton learn_more_button = {
+      .id = ui::ime::ButtonId::kLearnMore,
+      .window_type =
+          ash::ime::AssistiveWindowType::kLongpressDiacriticsSuggestion,
+  };
+  AssistiveWindowButton expectedButton =
+      expected_candidate_index == GetParam().candidates.size()
+          ? learn_more_button
+          : CreateDiacriticsButtonFor(
+                expected_candidate_index,
+                GetParam().candidates[expected_candidate_index]);
+
   EXPECT_EQ(suggestion_handler.GetContextId(), kContextId);
   EXPECT_TRUE(suggestion_handler.GetShowingSuggestion());
   EXPECT_EQ(suggestion_handler.GetSuggestionText(),
             Join(GetParam().candidates));
-  EXPECT_EQ(suggestion_handler.GetHighlightedButton(),
-            CreateDiacriticsButtonFor(
-                expected_candidate_index,
-                GetParam().candidates[expected_candidate_index]));
+  EXPECT_EQ(suggestion_handler.GetHighlightedButton(), expectedButton);
 }
 
 TEST_P(LongpressDiacriticsSuggesterTest,
        HighlightWrapsAroundAfterFirstIndexOnPreviousKeyEvent) {
-  size_t expected_candidate_index = GetParam().candidates.size() - 1;
   FakeSuggestionHandler suggestion_handler;
   LongpressDiacriticsSuggester suggester =
       LongpressDiacriticsSuggester(&suggestion_handler);
@@ -303,14 +314,17 @@ TEST_P(LongpressDiacriticsSuggesterTest,
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_LEFT));
 
+  AssistiveWindowButton learn_more_button = {
+      .id = ui::ime::ButtonId::kLearnMore,
+      .window_type =
+          ash::ime::AssistiveWindowType::kLongpressDiacriticsSuggestion,
+  };
+
   EXPECT_EQ(suggestion_handler.GetContextId(), kContextId);
   EXPECT_TRUE(suggestion_handler.GetShowingSuggestion());
   EXPECT_EQ(suggestion_handler.GetSuggestionText(),
             Join(GetParam().candidates));
-  EXPECT_EQ(suggestion_handler.GetHighlightedButton(),
-            CreateDiacriticsButtonFor(
-                expected_candidate_index,
-                GetParam().candidates[expected_candidate_index]));
+  EXPECT_EQ(suggestion_handler.GetHighlightedButton(), learn_more_button);
 }
 
 TEST_P(LongpressDiacriticsSuggesterTest,
@@ -348,8 +362,7 @@ TEST_P(LongpressDiacriticsSuggesterTest,
   suggester.TrySuggestOnLongpress(GetParam().longpress_char);
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
-  suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
-  suggester.AcceptSuggestion(2);
+  suggester.AcceptSuggestion(1);
 
   suggester.TrySuggestOnLongpress(GetParam().longpress_char);
   suggester.HandleKeyEvent(CreateKeyEventFromCode(ui::DomCode::ARROW_RIGHT));
@@ -811,9 +824,9 @@ TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnShowWindow) {
   suggester.TrySuggestOnLongpress(GetParam().longpress_char);
 
   ASSERT_EQ(suggestion_handler.GetAnnouncements().size(), 1u);
-  EXPECT_EQ(suggestion_handler.GetAnnouncements().back(),
-            u"Accent marks menu open. Press left or right to navigate and "
-            u"enter to insert.");
+  EXPECT_EQ(suggestion_handler.GetAnnouncements().front(),
+            u"Accent marks menu open. Press left, right, or number keys to "
+            u"navigate and enter to insert.");
 }
 
 TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnDismissWithEsc) {
@@ -829,8 +842,8 @@ TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnDismissWithEsc) {
 
   ASSERT_EQ(suggestion_handler.GetAnnouncements().size(), 2u);
   EXPECT_EQ(suggestion_handler.GetAnnouncements().front(),
-            u"Accent marks menu open. Press left or right to navigate and "
-            u"enter to insert.");
+            u"Accent marks menu open. Press left, right, or number keys to "
+            u"navigate and enter to insert.");
   EXPECT_EQ(suggestion_handler.GetAnnouncements().back(),
             u"Accent marks menu dismissed.");
 }
@@ -848,8 +861,8 @@ TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnDismissByTyping) {
 
   ASSERT_EQ(suggestion_handler.GetAnnouncements().size(), 2u);
   EXPECT_EQ(suggestion_handler.GetAnnouncements().front(),
-            u"Accent marks menu open. Press left or right to navigate and "
-            u"enter to insert.");
+            u"Accent marks menu open. Press left, right, or number keys to "
+            u"navigate and enter to insert.");
   EXPECT_EQ(suggestion_handler.GetAnnouncements().back(),
             u"Accent marks menu dismissed.");
 }
@@ -867,8 +880,8 @@ TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnAcceptViaDigit) {
 
   ASSERT_EQ(suggestion_handler.GetAnnouncements().size(), 2u);
   EXPECT_EQ(suggestion_handler.GetAnnouncements().front(),
-            u"Accent marks menu open. Press left or right to navigate and "
-            u"enter to insert.");
+            u"Accent marks menu open. Press left, right, or number keys to "
+            u"navigate and enter to insert.");
   EXPECT_EQ(suggestion_handler.GetAnnouncements().back(),
             u"Accent mark inserted.");
 }
@@ -887,8 +900,8 @@ TEST_P(LongpressDiacriticsSuggesterTest, A11yAnnounceOnAcceptViaEnter) {
 
   ASSERT_EQ(suggestion_handler.GetAnnouncements().size(), 2u);
   EXPECT_EQ(suggestion_handler.GetAnnouncements().front(),
-            u"Accent marks menu open. Press left or right to navigate and "
-            u"enter to insert.");
+            u"Accent marks menu open. Press left, right, or number keys to "
+            u"navigate and enter to insert.");
   EXPECT_EQ(suggestion_handler.GetAnnouncements().back(),
             u"Accent mark inserted.");
 }

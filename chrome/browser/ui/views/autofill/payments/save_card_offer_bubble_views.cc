@@ -13,7 +13,6 @@
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
@@ -34,7 +33,6 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -52,27 +50,7 @@
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/style/typography.h"
-
-namespace {
-
-ui::ImageModel GetProfileAvatar(AccountInfo account_info) {
-  // Get the user avatar icon.
-  gfx::Image account_avatar = account_info.account_image;
-
-  // Check if the avatar is empty, and if so, replace it with a placeholder.
-  if (account_avatar.IsEmpty()) {
-    account_avatar = ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-        profiles::GetPlaceholderAvatarIconResourceID());
-  }
-
-  int avatar_size = views::style::GetLineHeight(
-      views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY);
-
-  return ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
-      account_avatar, avatar_size, avatar_size, profiles::SHAPE_CIRCLE));
-}
-
-}  // namespace
+#include "ui/views/style/typography_provider.h"
 
 namespace autofill {
 
@@ -82,24 +60,16 @@ SaveCardOfferBubbleViews::SaveCardOfferBubbleViews(
     SaveCardBubbleController* controller)
     : SaveCardBubbleViews(anchor_view, web_contents, controller) {
   SetButtons(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL);
-  const LegalMessageLines message_lines = controller->GetLegalMessageLines();
 
-  if (!message_lines.empty()) {
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillEnableNewSaveCardBubbleUi)) {
-      legal_message_view_ = SetFootnoteView(std::make_unique<LegalMessageView>(
-          message_lines, base::UTF8ToUTF16(controller->GetAccountInfo().email),
-          GetProfileAvatar(controller->GetAccountInfo()),
-          base::BindRepeating(&SaveCardOfferBubbleViews::LinkClicked,
-                              base::Unretained(this))));
-    } else {
-      legal_message_view_ = SetFootnoteView(std::make_unique<LegalMessageView>(
-          message_lines, /*user_email=*/absl::nullopt,
-          /*user_avatar=*/absl::nullopt,
-          base::BindRepeating(&SaveCardOfferBubbleViews::LinkClicked,
-                              base::Unretained(this))));
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillMoveLegalTermsAndIconForNewCardEnrollment)) {
+    std::unique_ptr<LegalMessageView> legal_message_view =
+        CreateLegalMessageView();
+
+    if (legal_message_view != nullptr) {
+      legal_message_view_ = SetFootnoteView(std::move(legal_message_view));
+      InitFootnoteView(legal_message_view_);
     }
-    InitFootnoteView(legal_message_view_);
   }
 
   Profile* profile =
@@ -233,7 +203,7 @@ std::unique_ptr<views::View> SaveCardOfferBubbleViews::CreateMainContentView() {
             views::style::CONTEXT_DIALOG_BODY_TEXT,
             views::style::STYLE_SECONDARY);
     cardholder_name_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    cardholder_name_label_row->AddChildView(cardholder_name_label.release());
+    cardholder_name_label_row->AddChildView(std::move(cardholder_name_label));
 
     // Prepare the prefilled cardholder name.
     std::u16string prefilled_name =
@@ -244,19 +214,18 @@ std::unique_ptr<views::View> SaveCardOfferBubbleViews::CreateMainContentView() {
     // active. Otherwise, this tooltip's info will appear in CreateExtraView()'s
     // tooltip.
     if (!prefilled_name.empty() &&
-        controller()->GetSyncState() !=
-            AutofillSyncSigninState::kSignedInAndWalletSyncTransportEnabled) {
+        !controller()->IsPaymentsSyncTransportEnabledWithoutSyncFeature()) {
       constexpr int kTooltipIconSize = 12;
       std::unique_ptr<views::TooltipIcon> cardholder_name_tooltip =
           std::make_unique<views::TooltipIcon>(
               l10n_util::GetStringUTF16(
                   IDS_AUTOFILL_SAVE_CARD_PROMPT_CARDHOLDER_NAME_TOOLTIP),
               kTooltipIconSize);
-      cardholder_name_tooltip->set_anchor_point_arrow(
+      cardholder_name_tooltip->SetAnchorPointArrow(
           views::BubbleBorder::Arrow::TOP_LEFT);
       cardholder_name_tooltip->SetID(DialogViewId::CARDHOLDER_NAME_TOOLTIP);
       cardholder_name_label_row->AddChildView(
-          cardholder_name_tooltip.release());
+          std::move(cardholder_name_tooltip));
     }
 
     // Set up cardholder name textfield.
@@ -278,15 +247,51 @@ std::unique_ptr<views::View> SaveCardOfferBubbleViews::CreateMainContentView() {
     cardholder_name_view->SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical, gfx::Insets(),
         provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL)));
-    cardholder_name_view->AddChildView(cardholder_name_label_row.release());
+    cardholder_name_view->AddChildView(std::move(cardholder_name_label_row));
     cardholder_name_view->AddChildView(cardholder_name_textfield_.get());
-    view->AddChildView(cardholder_name_view.release());
+    view->AddChildView(std::move(cardholder_name_view));
   }
 
-  if (controller()->ShouldRequestExpirationDateFromUser())
-    view->AddChildView(CreateRequestExpirationDateView().release());
+  if (controller()->ShouldRequestExpirationDateFromUser()) {
+    view->AddChildView(CreateRequestExpirationDateView());
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillMoveLegalTermsAndIconForNewCardEnrollment)) {
+    std::unique_ptr<views::View> legal_message_view = CreateLegalMessageView();
+
+    if (legal_message_view != nullptr) {
+      legal_message_view->SetID(DialogViewId::LEGAL_MESSAGE_VIEW);
+      view->AddChildView(std::move(legal_message_view));
+    }
+  }
 
   return view;
+}
+
+std::unique_ptr<LegalMessageView>
+SaveCardOfferBubbleViews::CreateLegalMessageView() {
+  const LegalMessageLines message_lines = controller()->GetLegalMessageLines();
+
+  if (message_lines.empty()) {
+    return nullptr;
+  }
+
+  LegalMessageView::LinkClickedCallback LegalMessageCallBack =
+      base::BindRepeating(&SaveCardOfferBubbleViews::LinkClicked,
+                          base::Unretained(this));
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableNewSaveCardBubbleUi)) {
+    return (std::make_unique<LegalMessageView>(
+        message_lines, base::UTF8ToUTF16(controller()->GetAccountInfo().email),
+        GetProfileAvatar(controller()->GetAccountInfo()),
+        LegalMessageCallBack));
+  }
+
+  return (std::make_unique<LegalMessageView>(
+      message_lines, /*user_email=*/absl::nullopt,
+      /*user_avatar=*/absl::nullopt, LegalMessageCallBack));
 }
 
 std::unique_ptr<views::View>
@@ -342,8 +347,8 @@ SaveCardOfferBubbleViews::CreateRequestExpirationDateView() {
       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY);
   expiration_date_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
 
-  expiration_date_view->AddChildView(expiration_date_label.release());
-  expiration_date_view->AddChildView(input_row.release());
+  expiration_date_view->AddChildView(std::move(expiration_date_label));
+  expiration_date_view->AddChildView(std::move(input_row));
 
   return expiration_date_view;
 }
@@ -353,8 +358,7 @@ SaveCardOfferBubbleViews::CreateUploadExplanationView() {
   // Only show the (i) info icon for upload saves using implicit sync.
   // GetLegalMessageLines() being empty denotes a local save.
   if (controller()->GetLegalMessageLines().empty() ||
-      controller()->GetSyncState() !=
-          AutofillSyncSigninState::kSignedInAndWalletSyncTransportEnabled) {
+      !controller()->IsPaymentsSyncTransportEnabledWithoutSyncFeature()) {
     return nullptr;
   }
 
@@ -366,10 +370,10 @@ SaveCardOfferBubbleViews::CreateUploadExplanationView() {
        !cardholder_name_textfield_->GetText().empty())
           ? IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_EXPLANATION_AND_CARDHOLDER_NAME_TOOLTIP
           : IDS_AUTOFILL_SAVE_CARD_PROMPT_UPLOAD_EXPLANATION_TOOLTIP));
-  upload_explanation_tooltip->set_bubble_width(
+  upload_explanation_tooltip->SetBubbleWidth(
       ChromeLayoutProvider::Get()->GetDistanceMetric(
           views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
-  upload_explanation_tooltip->set_anchor_point_arrow(
+  upload_explanation_tooltip->SetAnchorPointArrow(
       views::BubbleBorder::Arrow::TOP_RIGHT);
   upload_explanation_tooltip->SetID(DialogViewId::UPLOAD_EXPLANATION_TOOLTIP);
   return upload_explanation_tooltip;

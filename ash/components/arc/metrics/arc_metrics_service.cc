@@ -13,6 +13,7 @@
 #include "ash/components/arc/arc_prefs.h"
 #include "ash/components/arc/arc_util.h"
 #include "ash/components/arc/metrics/arc_metrics_anr.h"
+#include "ash/components/arc/metrics/arc_wm_metrics.h"
 #include "ash/components/arc/metrics/stability_metrics_manager.h"
 #include "ash/components/arc/session/arc_bridge_service.h"
 #include "ash/public/cpp/app_types_util.h"
@@ -226,6 +227,8 @@ ArcMetricsService::ArcMetricsService(content::BrowserContext* context,
     psi_parser_ = std::make_unique<metrics::PSIMemoryParser>(
         kVmMemoryPSIReportsPeriod.Get());
   }
+
+  arc_wm_metrics_ = std::make_unique<ArcWmMetrics>();
 }
 
 ArcMetricsService::~ArcMetricsService() {
@@ -505,12 +508,9 @@ void ArcMetricsService::OnArcStartTimeRetrieved(
   for (const auto& event : events) {
     VLOG(2) << "Report boot progress event:" << event->event << "@"
             << event->uptimeMillis;
-    const std::string name = "Arc." + event->event + suffix;
     const base::TimeTicks uptime =
         base::Milliseconds(event->uptimeMillis) + base::TimeTicks();
     const base::TimeDelta elapsed_time = uptime - arc_start_time.value();
-    base::UmaHistogramCustomTimes(name, elapsed_time, kUmaMinTime, kUmaMaxTime,
-                                  kUmaNumBuckets);
     if (event->event.compare(kBootProgressEnableScreen) == 0) {
       base::UmaHistogramCustomTimes("Arc.AndroidBootTime" + suffix,
                                     elapsed_time, kUmaMinTime, kUmaMaxTime,
@@ -589,6 +589,14 @@ void ArcMetricsService::ReportAppKill(mojom::AppKillPtr app_kill) {
       break;
     case mojom::AppKillType::OOM_KILL:
       NotifyOOMKillCount(app_kill->count);
+      break;
+    case mojom::AppKillType::GMS_UPDATE_KILL:
+    case mojom::AppKillType::GMS_START_KILL:
+      for (uint32_t i = 0; i < app_kill->count; i++) {
+        UMA_HISTOGRAM_ENUMERATION(
+            "Arc.App.GmsCoreKill" + BootTypeToString(boot_type_),
+            app_kill->type);
+      }
       break;
   }
 }
@@ -919,6 +927,16 @@ void ArcMetricsService::ReportWebViewProcessStarted() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(prefs_);
   prefs_->SetBoolean(prefs::kWebViewProcessStarted, true);
+}
+
+void ArcMetricsService::ReportNewQosSocketCount(int count) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  base::UmaHistogramCounts100000("Arc.Qos.NewQosSocketCount", count);
+}
+
+void ArcMetricsService::ReportQosSocketPercentage(int perc) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  base::UmaHistogramCounts100("Arc.Qos.QosSocketPercentage", perc);
 }
 
 void ArcMetricsService::OnWindowActivated(

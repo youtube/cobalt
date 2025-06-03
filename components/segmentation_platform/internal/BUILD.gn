@@ -5,6 +5,7 @@
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 import("//components/optimization_guide/features.gni")
 
@@ -29,6 +30,14 @@ static_library("internal") {
     "data_collection/training_data_collector.h",
     "data_collection/training_data_collector_impl.cc",
     "data_collection/training_data_collector_impl.h",
+    "database/cached_result_provider.cc",
+    "database/cached_result_provider.h",
+    "database/cached_result_writer.cc",
+    "database/cached_result_writer.h",
+    "database/client_result_prefs.cc",
+    "database/client_result_prefs.h",
+    "database/config_holder.cc",
+    "database/config_holder.h",
     "database/database_maintenance.h",
     "database/database_maintenance_impl.cc",
     "database/database_maintenance_impl.h",
@@ -43,6 +52,8 @@ static_library("internal") {
     "database/signal_key.h",
     "database/signal_key_internal.cc",
     "database/signal_key_internal.h",
+    "database/signal_sample_view.cc",
+    "database/signal_sample_view.h",
     "database/signal_storage_config.cc",
     "database/signal_storage_config.h",
     "database/storage_service.cc",
@@ -63,17 +74,15 @@ static_library("internal") {
     "dummy_segmentation_platform_service.h",
     "dummy_ukm_data_manager.cc",
     "dummy_ukm_data_manager.h",
-    "execution/default_model_manager.cc",
-    "execution/default_model_manager.h",
     "execution/execution_request.cc",
     "execution/execution_request.h",
-    "execution/model_execution_manager.h",
-    "execution/model_execution_manager_impl.cc",
-    "execution/model_execution_manager_impl.h",
     "execution/model_execution_status.h",
     "execution/model_executor.h",
     "execution/model_executor_impl.cc",
     "execution/model_executor_impl.h",
+    "execution/model_manager.h",
+    "execution/model_manager_impl.cc",
+    "execution/model_manager_impl.h",
     "execution/processing/custom_input_processor.cc",
     "execution/processing/custom_input_processor.h",
     "execution/processing/feature_aggregator.h",
@@ -94,6 +103,8 @@ static_library("internal") {
     "execution/processing/uma_feature_processor.h",
     "local_state_helper_impl.cc",
     "local_state_helper_impl.h",
+    "logging.cc",
+    "logging.h",
     "metadata/metadata_utils.cc",
     "metadata/metadata_utils.h",
     "metadata/metadata_writer.cc",
@@ -125,12 +136,6 @@ static_library("internal") {
     "segmentation_platform_service_impl.h",
     "segmentation_ukm_helper.cc",
     "segmentation_ukm_helper.h",
-    "selection/cached_result_provider.cc",
-    "selection/cached_result_provider.h",
-    "selection/cached_result_writer.cc",
-    "selection/cached_result_writer.h",
-    "selection/client_result_prefs.cc",
-    "selection/client_result_prefs.h",
     "selection/experimental_group_recorder.cc",
     "selection/experimental_group_recorder.h",
     "selection/request_dispatcher.cc",
@@ -148,6 +153,8 @@ static_library("internal") {
     "selection/segment_selector_impl.h",
     "selection/segmentation_result_prefs.cc",
     "selection/segmentation_result_prefs.h",
+    "selection/selection_utils.cc",
+    "selection/selection_utils.h",
     "service_proxy_impl.cc",
     "service_proxy_impl.h",
     "signals/histogram_signal_handler.cc",
@@ -239,6 +246,9 @@ source_set("unit_tests") {
     "config_parser_unittest.cc",
     "data_collection/training_data_cache_unittest.cc",
     "data_collection/training_data_collector_impl_unittest.cc",
+    "database/cached_result_provider_unittest.cc",
+    "database/cached_result_writer_unittest.cc",
+    "database/client_result_prefs_unittest.cc",
     "database/database_maintenance_impl_unittest.cc",
     "database/mock_signal_database.cc",
     "database/mock_signal_database.h",
@@ -251,6 +261,7 @@ source_set("unit_tests") {
     "database/signal_database_impl_unittest.cc",
     "database/signal_key_internal_unittest.cc",
     "database/signal_key_unittest.cc",
+    "database/signal_sample_view_unittest.cc",
     "database/signal_storage_config_unittest.cc",
     "database/test_segment_info_database.cc",
     "database/test_segment_info_database.h",
@@ -260,9 +271,8 @@ source_set("unit_tests") {
     "database/ukm_metrics_table_unittest.cc",
     "database/ukm_url_table_unittest.cc",
     "dummy_segmentation_platform_service_unittest.cc",
-    "execution/default_model_manager_unittest.cc",
-    "execution/model_execution_manager_impl_unittest.cc",
     "execution/model_executor_impl_unittest.cc",
+    "execution/model_manager_impl_unittest.cc",
     "execution/processing/custom_input_processor_unittest.cc",
     "execution/processing/feature_aggregator_impl_unittest.cc",
     "execution/processing/feature_list_query_processor_unittest.cc",
@@ -273,6 +283,7 @@ source_set("unit_tests") {
     "execution/processing/query_processor.h",
     "execution/processing/sql_feature_processor_unittest.cc",
     "execution/processing/sync_device_info_observer_unittest.cc",
+    "execution/processing/uma_feature_processor_unittest.cc",
     "metadata/metadata_utils_unittest.cc",
     "metrics/field_trial_recorder_unittest.cc",
     "migration/prefs_migrator_unittest.cc",
@@ -287,9 +298,6 @@ source_set("unit_tests") {
     "segmentation_platform_service_test_base.cc",
     "segmentation_platform_service_test_base.h",
     "segmentation_ukm_helper_unittest.cc",
-    "selection/cached_result_provider_unittest.cc",
-    "selection/cached_result_writer_unittest.cc",
-    "selection/client_result_prefs_unittest.cc",
     "selection/request_dispatcher_unittest.cc",
     "selection/request_handler_unittest.cc",
     "selection/result_refresh_manager_unittest.cc",
@@ -297,6 +305,7 @@ source_set("unit_tests") {
     "selection/segment_score_provider_unittest.cc",
     "selection/segment_selector_unittest.cc",
     "selection/segmentation_result_prefs_unittest.cc",
+    "selection/selection_utils_unittest.cc",
     "service_proxy_impl_unittest.cc",
     "signals/histogram_signal_handler_unittest.cc",
     "signals/history_delegate_impl_unittest.cc",
@@ -377,7 +386,11 @@ bundle_data("unit_tests_bundle_data") {
 
 if (is_android) {
   android_library("internal_java") {
-    visibility = [ "//chrome/android:chrome_all_java" ]
+    visibility = [
+      ":javatests",
+      "//chrome/android:chrome_all_java",
+    ]
+    srcjar_deps = [ ":jni_headers" ]
     sources = [
       "android/java/src/org/chromium/components/segmentation_platform/SegmentationPlatformServiceImpl.java",
       "android/java/src/org/chromium/components/segmentation_platform/execution/processing/CustomDeviceUtils.java",
@@ -385,12 +398,11 @@ if (is_android) {
 
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//build/android:build_java",
       "//components/optimization_guide/proto:optimization_guide_proto_java",
       "//components/segmentation_platform/public:public_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   }
 
   generate_jni("jni_headers") {

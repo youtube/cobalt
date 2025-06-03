@@ -209,6 +209,16 @@ inline AtomicString ToCoreAtomicString(v8::Local<v8::String> value) {
   return ToBlinkString<AtomicString>(value, kExternalize);
 }
 
+inline AtomicString ToCoreAtomicString(v8::Local<v8::Name> value) {
+  DCHECK(!value.IsEmpty());
+  // TODO(crbug.com/1476064): Support converting `value` when it is a symbol
+  // instead of a string.
+  if (!value->IsString()) {
+    return AtomicString();
+  }
+  return ToBlinkString<AtomicString>(value.As<v8::String>(), kExternalize);
+}
+
 // This method will return a null String if the v8::Value does not contain a
 // v8::String.  It will not call ToString() on the v8::Value. If you want
 // ToString() to be called, please use the TONATIVE_FOR_V8STRINGRESOURCE_*()
@@ -264,12 +274,11 @@ inline v8::Local<v8::Value> V8StringOrNull(v8::Isolate* isolate,
 }
 
 inline v8::Local<v8::String> V8String(v8::Isolate* isolate,
-                                      const ParkableString& string,
-                                      Resource* resource = nullptr) {
+                                      const ParkableString& string) {
   if (string.IsNull())
     return v8::String::Empty(isolate);
   return V8PerIsolateData::From(isolate)->GetStringCache()->V8ExternalString(
-      isolate, string, resource);
+      isolate, string);
 }
 
 inline v8::Local<v8::String> V8AtomicString(v8::Isolate* isolate,

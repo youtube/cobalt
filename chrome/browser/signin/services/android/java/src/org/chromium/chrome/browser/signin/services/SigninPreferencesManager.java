@@ -8,8 +8,9 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -35,7 +36,7 @@ public class SigninPreferencesManager {
     }
 
     private SigninPreferencesManager() {
-        mManager = SharedPreferencesManager.getInstance();
+        mManager = ChromeSharedPreferences.getInstance();
     }
 
     /**
@@ -57,7 +58,6 @@ public class SigninPreferencesManager {
     /**
      * Clears the accounts state-related shared prefs.
      */
-    @VisibleForTesting
     public void clearSigninPromoLastShownPrefsForTesting() {
         mManager.removeKey(ChromePreferenceKeys.SIGNIN_PROMO_LAST_SHOWN_MAJOR_VERSION);
         mManager.removeKey(ChromePreferenceKeys.SIGNIN_PROMO_LAST_SHOWN_ACCOUNT_NAMES);
@@ -79,21 +79,21 @@ public class SigninPreferencesManager {
     }
 
     /**
-     * Returns a set of account names on the device when signin promo was last shown,
+     * Returns a set of account emails on the device when signin promo was last shown,
      * or null if promo hasn't been shown yet.
      */
     @Nullable
-    public Set<String> getSigninPromoLastAccountNames() {
+    public Set<String> getSigninPromoLastAccountEmails() {
         return mManager.readStringSet(
                 ChromePreferenceKeys.SIGNIN_PROMO_LAST_SHOWN_ACCOUNT_NAMES, null);
     }
 
     /**
-     * Stores a set of account names on the device when signin promo is shown.
+     * Stores a set of account emails on the device when signin promo is shown.
      */
-    public void setSigninPromoLastAccountNames(Set<String> accountNames) {
+    public void setSigninPromoLastAccountEmails(Set<String> accountEmails) {
         mManager.writeStringSet(
-                ChromePreferenceKeys.SIGNIN_PROMO_LAST_SHOWN_ACCOUNT_NAMES, accountNames);
+                ChromePreferenceKeys.SIGNIN_PROMO_LAST_SHOWN_ACCOUNT_NAMES, accountEmails);
     }
 
     /**

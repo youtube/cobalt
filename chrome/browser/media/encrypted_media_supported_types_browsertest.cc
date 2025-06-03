@@ -21,7 +21,6 @@
 #include "chrome/browser/media/clear_key_cdm_test_helper.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -37,6 +36,16 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/dbus/constants/dbus_switches.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
+#include "chromeos/ash/components/settings/cros_settings_names.h"
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_ANDROID)
 #error This file needs to be updated to run on Android.
@@ -139,9 +148,6 @@ class EncryptedMediaSupportedTypesTest : public InProcessBrowserTest {
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
     EnableFeature(media::kPlatformHEVCDecoderSupport);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
-
-    // TODO(crbug.com/1243903): WhatsNewUI might be causing timeouts.
-    DisableFeature(features::kChromeWhatsNewUI);
 
     audio_webm_codecs_.push_back("vorbis");
 
@@ -257,6 +263,9 @@ class EncryptedMediaSupportedTypesTest : public InProcessBrowserTest {
         default_command_line, switches::kDisableComponentUpdate, command_line);
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
+    // TODO(crbug.com/1243903): WhatsNewUI might be causing timeouts.
+    command_line->AppendSwitch(switches::kNoFirstRun);
+
     feature_list_.InitWithFeaturesAndParameters(enabled_features_,
                                                 disabled_features_);
   }
@@ -329,7 +338,7 @@ class EncryptedMediaSupportedTypesTest : public InProcessBrowserTest {
     content::TitleWatcher title_watcher(contents, kSuccessResult16);
     title_watcher.AlsoWaitForTitle(kUnsupportedResult16);
     title_watcher.AlsoWaitForTitle(kUnexpectedResult16);
-    EXPECT_TRUE(content::ExecuteScript(contents, command));
+    EXPECT_TRUE(content::ExecJs(contents, command));
     std::u16string result = title_watcher.WaitAndGetTitle();
     return base::UTF16ToASCII(result);
   }
@@ -347,8 +356,7 @@ class EncryptedMediaSupportedTypesTest : public InProcessBrowserTest {
         return "persistent-license";
     }
 
-    NOTREACHED();
-    return "";
+    NOTREACHED_NORETURN();
   }
 
   std::string IsSupportedByKeySystem(
@@ -568,6 +576,61 @@ class EncryptedMediaSupportedTypesWidevineTest
         switches::kUnsafelyAllowProtectedMediaIdentifierForDomain, "127.0.0.1");
   }
 };
+
+#if BUILDFLAG(IS_CHROMEOS)
+class EncryptedMediaSupportedTypesDevModeTest
+    : public EncryptedMediaSupportedTypesTest {
+ public:
+  EncryptedMediaSupportedTypesDevModeTest(
+      const EncryptedMediaSupportedTypesDevModeTest&) = delete;
+  EncryptedMediaSupportedTypesDevModeTest& operator=(
+      const EncryptedMediaSupportedTypesDevModeTest&) = delete;
+
+ protected:
+  EncryptedMediaSupportedTypesDevModeTest() = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    EncryptedMediaSupportedTypesTest::SetUpCommandLine(command_line);
+    // Expect Persistent licences to not be supported since switch for dev mode
+    // is turned on.
+    command_line->AppendSwitch(chromeos::switches::kSystemDevMode);
+  }
+};
+
+class EncryptedMediaSupportedTypesRAAllowedTest
+    : public EncryptedMediaSupportedTypesTest {
+ public:
+  EncryptedMediaSupportedTypesRAAllowedTest(
+      const EncryptedMediaSupportedTypesRAAllowedTest&) = delete;
+  EncryptedMediaSupportedTypesRAAllowedTest& operator=(
+      const EncryptedMediaSupportedTypesRAAllowedTest&) = delete;
+
+ protected:
+  EncryptedMediaSupportedTypesRAAllowedTest() = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    EncryptedMediaSupportedTypesTest::SetUpCommandLine(command_line);
+    // Expect Persistent licences to be supported since switch for dev mode
+    // is turned on alongside the AllowRAinDevMode
+    command_line->AppendSwitch(chromeos::switches::kSystemDevMode);
+    command_line->AppendSwitch(switches::kAllowRAInDevMode);
+  }
+};
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+class EncryptedMediaSupportedTypesRAForContentBlockedTest
+    : public EncryptedMediaSupportedTypesTest {
+ public:
+  EncryptedMediaSupportedTypesRAForContentBlockedTest(
+      const EncryptedMediaSupportedTypesRAForContentBlockedTest&) = delete;
+  EncryptedMediaSupportedTypesRAForContentBlockedTest& operator=(
+      const EncryptedMediaSupportedTypesRAForContentBlockedTest&) = delete;
+
+ protected:
+  EncryptedMediaSupportedTypesRAForContentBlockedTest() = default;
+};
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 class EncryptedMediaSupportedTypesWidevineHwSecureTest
     : public EncryptedMediaSupportedTypesWidevineTest {
@@ -792,7 +855,14 @@ IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesClearKeyTest, Audio_WebM) {
                                             video_mp4_hevc_codecs()));
 }
 
-IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesClearKeyTest, Video_MP4) {
+// TODO(crbug.com/1451037): Flaky on "Mac12 Tests" builder.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_Video_MP4 DISABLED_Video_MP4
+#else
+#define MAYBE_Video_MP4 Video_MP4
+#endif
+IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesClearKeyTest,
+                       MAYBE_Video_MP4) {
   // Valid video types.
   EXPECT_PROPRIETARY(
       IsSupportedByKeySystem(kClearKey, kVideoMP4MimeType, video_mp4_codecs()));
@@ -1021,8 +1091,14 @@ IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesExternalClearKeyTest,
       kExternalClearKey, kAudioWebMMimeType, video_mp4_hevc_codecs()));
 }
 
+// TODO(crbug.com/1451037): Flaky on "Mac12 Tests" builder.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_Video_MP4 DISABLED_Video_MP4
+#else
+#define MAYBE_Video_MP4 Video_MP4
+#endif
 IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesExternalClearKeyTest,
-                       Video_MP4) {
+                       MAYBE_Video_MP4) {
   // Valid video types.
   EXPECT_ECK_PROPRIETARY(IsSupportedByKeySystem(
       kExternalClearKey, kVideoMP4MimeType, video_mp4_codecs()));
@@ -1385,6 +1461,54 @@ IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesWidevineTest,
   EXPECT_UNSUPPORTED(IsAudioEncryptionSchemeSupported(kWidevine, ""));
   EXPECT_UNSUPPORTED(IsVideoEncryptionSchemeSupported(kWidevine, ""));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesDevModeTest, SessionType) {
+  // Temporary session always supported.
+  EXPECT_WV(IsSessionTypeSupported(kWidevine, SessionType::kTemporary));
+
+  // Persistent license session should not be supported while system is
+  // on dev mode.
+  EXPECT_UNSUPPORTED(
+      IsSessionTypeSupported(kWidevine, SessionType::kPersistentLicense));
+}
+
+IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesRAAllowedTest, SessionType) {
+  // Temporary session always supported.
+  EXPECT_WV(IsSessionTypeSupported(kWidevine, SessionType::kTemporary));
+
+  // Persistent license session should be supported if the flag
+  // `kAllowRAInDevMode` is attached while the system is on dev mode.
+  EXPECT_WV_SW_SECURE_PERSISTENT_SESSION(
+      IsSessionTypeSupported(kWidevine, SessionType::kPersistentLicense));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+IN_PROC_BROWSER_TEST_F(EncryptedMediaSupportedTypesRAForContentBlockedTest,
+                       SessionType) {
+  // Temporary session always supported.
+  EXPECT_WV(IsSessionTypeSupported(kWidevine, SessionType::kTemporary));
+
+  auto settings_helper =
+      std::make_unique<ash::ScopedCrosSettingsTestHelper>(false);
+  settings_helper->ReplaceDeviceSettingsProviderWithStub();
+
+  // Persistent license session should be supported as long as the policy
+  // 'kAttestationForContentProtectionEnabled' is set to true.
+  settings_helper->SetBoolean(ash::kAttestationForContentProtectionEnabled,
+                              true);
+  EXPECT_WV_SW_SECURE_PERSISTENT_SESSION(
+      IsSessionTypeSupported(kWidevine, SessionType::kPersistentLicense));
+
+  // Persistent license session should be not supported as long as the policy
+  // 'kAttestationForContentProtectionEnabled' is set to false.
+  settings_helper->SetBoolean(ash::kAttestationForContentProtectionEnabled,
+                              false);
+  EXPECT_UNSUPPORTED(
+      IsSessionTypeSupported(kWidevine, SessionType::kPersistentLicense));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 // EncryptedMediaSupportedTypesWidevineHwSecureTest tests Widevine with hardware
 // secure decryption support.

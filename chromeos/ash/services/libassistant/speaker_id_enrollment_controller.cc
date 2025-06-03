@@ -48,8 +48,8 @@ class SpeakerIdEnrollmentController::GetStatusWaiter : public AbortableTask {
     }
 
     ::assistant::api::GetSpeakerIdEnrollmentInfoRequest request;
-    auto* cloud_request = request.mutable_cloud_enrollment_status_request();
-    cloud_request->set_user_id(user_gaia_id);
+    auto* user_model_request = request.mutable_user_model_status_request();
+    user_model_request->set_user_id(user_gaia_id);
     assistant_client->GetSpeakerIdEnrollmentInfo(
         request, base::BindOnce(&GetStatusWaiter::SendResponse,
                                 weak_ptr_factory_.GetWeakPtr()));
@@ -58,6 +58,10 @@ class SpeakerIdEnrollmentController::GetStatusWaiter : public AbortableTask {
   // AbortableTask implementation:
   bool IsFinished() override { return callback_.is_null(); }
   void Abort() override { SendErrorResponse(); }
+
+  void SendResponseForTesting(bool user_model_exists) {
+    SendResponse(user_model_exists);
+  }
 
  private:
   void SendErrorResponse() { SendResponse(false); }
@@ -224,6 +228,19 @@ void SpeakerIdEnrollmentController::OnDestroyingAssistantClient(
   active_enrollment_session_ = nullptr;
   assistant_client_ = nullptr;
   pending_response_waiters_.AbortAll();
+}
+
+void SpeakerIdEnrollmentController::OnGrpcMessageForTesting(
+    const ::assistant::api::OnSpeakerIdEnrollmentEventRequest& request) {
+  active_enrollment_session_->OnGrpcMessage(std::move(request));
+}
+
+void SpeakerIdEnrollmentController::SendGetStatusResponseForTesting(
+    bool user_model_exists) {
+  auto* waiter =
+      reinterpret_cast<SpeakerIdEnrollmentController::GetStatusWaiter*>(
+          pending_response_waiters_.GetFirstTaskForTesting());
+  waiter->SendResponseForTesting(user_model_exists);
 }
 
 }  // namespace ash::libassistant

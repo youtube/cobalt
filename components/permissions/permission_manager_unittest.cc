@@ -16,12 +16,12 @@
 #include "components/permissions/features.h"
 #include "components/permissions/permission_context_base.h"
 #include "components/permissions/permission_request_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
 #include "components/permissions/test/permission_test_util.h"
 #include "components/permissions/test/test_permissions_client.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/permission_result.h"
 #include "content/public/common/content_client.h"
 #include "content/public/test/browser_task_environment.h"
@@ -37,7 +37,6 @@
 
 using blink::PermissionType;
 using blink::mojom::PermissionsPolicyFeature;
-using blink::mojom::PermissionStatus;
 
 namespace permissions {
 namespace {
@@ -98,7 +97,8 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
   void CheckPermissionStatus(PermissionType type, PermissionStatus expected) {
     EXPECT_EQ(expected, GetPermissionManager()
                             ->GetPermissionResultForOriginWithoutContext(
-                                type, url::Origin::Create(url_))
+                                type, url::Origin::Create(url_),
+                                url::Origin::Create(url_))
                             .status);
   }
 
@@ -108,7 +108,7 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
       content::PermissionStatusSource expected_status_source) {
     content::PermissionResult result =
         GetPermissionManager()->GetPermissionResultForOriginWithoutContext(
-            type, url::Origin::Create(url_));
+            type, url::Origin::Create(url_), url::Origin::Create(url_));
     EXPECT_EQ(expected_status, result.status);
     EXPECT_EQ(expected_status_source, result.source);
   }
@@ -138,11 +138,13 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
     base::RunLoop loop;
     quit_closure_ = loop.QuitClosure();
     GetPermissionManager()->RequestPermissionsFromCurrentDocument(
-        std::vector(1, type), rfh, true,
+        rfh,
+        std::move(content::PermissionRequestDescription(
+            std::vector(1, type),
+            /*user_gesture=*/true, rfh->GetLastCommittedOrigin().GetURL())),
         base::BindOnce(
-            [](base::OnceCallback<void(blink::mojom::PermissionStatus)>
-                   callback,
-               const std::vector<blink::mojom::PermissionStatus>& state) {
+            [](base::OnceCallback<void(PermissionStatus)> callback,
+               const std::vector<PermissionStatus>& state) {
               DCHECK_EQ(state.size(), 1U);
               std::move(callback).Run(state[0]);
             },
@@ -155,11 +157,13 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
       PermissionType type,
       content::RenderFrameHost* rfh) {
     GetPermissionManager()->RequestPermissionsFromCurrentDocument(
-        std::vector(1, type), rfh, true,
+        rfh,
+        content::PermissionRequestDescription(
+            type, /*user_gesture=*/true,
+            rfh->GetLastCommittedOrigin().GetURL()),
         base::BindOnce(
-            [](base::OnceCallback<void(blink::mojom::PermissionStatus)>
-                   callback,
-               const std::vector<blink::mojom::PermissionStatus>& state) {
+            [](base::OnceCallback<void(PermissionStatus)> callback,
+               const std::vector<PermissionStatus>& state) {
               DCHECK_EQ(state.size(), 1U);
               std::move(callback).Run(state[0]);
             },
@@ -252,8 +256,9 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
         current->GetLastCommittedURL(), current);
     std::vector<blink::OriginWithPossibleWildcards> parsed_origins;
     for (const std::string& origin : origins)
-      parsed_origins.emplace_back(url::Origin::Create(GURL(origin)),
-                                  /*has_subdomain_wildcard=*/false);
+      parsed_origins.emplace_back(
+          *blink::OriginWithPossibleWildcards::FromOrigin(
+              url::Origin::Create(GURL(origin))));
     navigation->SetPermissionsPolicyHeader(
         {{feature, parsed_origins, /*self_if_matches=*/absl::nullopt,
           /*matches_all_origins=*/false,
@@ -268,14 +273,13 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
       PermissionsPolicyFeature feature = PermissionsPolicyFeature::kNotFound) {
     blink::ParsedPermissionsPolicy frame_policy = {};
     if (feature != PermissionsPolicyFeature::kNotFound) {
-      frame_policy.push_back({feature,
-                              std::vector<blink::OriginWithPossibleWildcards>{
-                                  blink::OriginWithPossibleWildcards(
-                                      url::Origin::Create(origin),
-                                      /*has_subdomain_wildcard=*/false)},
-                              /*self_if_matches=*/absl::nullopt,
-                              /*matches_all_origins=*/false,
-                              /*matches_opaque_src=*/false});
+      frame_policy.emplace_back(
+          feature,
+          std::vector{*blink::OriginWithPossibleWildcards::FromOrigin(
+              url::Origin::Create(origin))},
+          /*self_if_matches=*/absl::nullopt,
+          /*matches_all_origins=*/false,
+          /*matches_opaque_src=*/false);
     }
     content::RenderFrameHost* result =
         content::RenderFrameHostTester::For(parent)->AppendChildWithPolicy(
@@ -285,6 +289,8 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
     SimulateNavigation(&result, origin);
     return result;
   }
+
+  TestPermissionsClient& permissions_client() { return client_; }
 
  private:
   void SetUp() override {
@@ -1071,6 +1077,175 @@ TEST_F(PermissionManagerTest, SubscribersAreNotifedOfEmbargoEvents) {
                                        ContentSettingsType::GEOLOCATION,
                                        false /* dismissed_prompt_was_quiet */);
   EXPECT_EQ(callback_count(), 1);
+
+  UnsubscribePermissionStatusChange(subscription_id);
+}
+
+TEST_F(PermissionManagerTest, UpdatePermissionStatusWithDeviceStatus) {
+  struct {
+    blink::mojom::PermissionStatus initial_status;
+    bool has_device_permission;
+    bool can_request_device_permission;
+    blink::mojom::PermissionStatus expected_status =
+        initial_status;  // For most of these test cases the expected status is
+                         // the same as the initial status
+  } kTests[] = {
+      {blink::mojom::PermissionStatus::GRANTED, false, false,
+       blink::mojom::PermissionStatus::DENIED},
+      {blink::mojom::PermissionStatus::GRANTED, false, true,
+       blink::mojom::PermissionStatus::ASK},
+      {blink::mojom::PermissionStatus::GRANTED, true, false},
+      {blink::mojom::PermissionStatus::GRANTED, true, true},
+
+      {blink::mojom::PermissionStatus::ASK, false, false},
+      {blink::mojom::PermissionStatus::ASK, false, true},
+      {blink::mojom::PermissionStatus::ASK, true, false},
+      {blink::mojom::PermissionStatus::ASK, true, true},
+
+      {blink::mojom::PermissionStatus::DENIED, false, false},
+      {blink::mojom::PermissionStatus::DENIED, false, true},
+      {blink::mojom::PermissionStatus::DENIED, true, false},
+      {blink::mojom::PermissionStatus::DENIED, true, true},
+  };
+
+  GURL url("http://google.com");
+
+  for (const auto& test : kTests) {
+    SCOPED_TRACE(::testing::Message()
+                 << "initial_status:" << test.initial_status
+                 << ", expected_status: " << test.expected_status
+                 << ", has_device_permission: " << test.has_device_permission
+                 << ", can_request_device_permission: "
+                 << test.can_request_device_permission);
+
+    SetPermission(blink::PermissionType::NOTIFICATIONS, test.initial_status);
+    permissions_client().SetHasDevicePermission(test.has_device_permission);
+    permissions_client().SetCanRequestDevicePermission(
+        test.can_request_device_permission);
+
+    CheckPermissionStatus(blink::PermissionType::NOTIFICATIONS,
+                          test.expected_status);
+  }
+}
+
+TEST_F(PermissionManagerTest,
+       RequestableDevicePermissionChangesLazilyNotifiesObservers) {
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::GRANTED);
+  permissions_client().SetHasDevicePermission(true);
+  permissions_client().SetCanRequestDevicePermission(true);
+
+  content::PermissionControllerDelegate::SubscriptionId subscription_id =
+      SubscribePermissionStatusChange(
+          PermissionType::GEOLOCATION, /*render_process_host=*/nullptr,
+          main_rfh(), url(),
+          base::BindRepeating(&PermissionManagerTest::OnPermissionChange,
+                              base::Unretained(this)));
+
+  permissions_client().SetHasDevicePermission(false);
+
+  // At this point we have not yet retrieved the permission status so the device
+  // permission change has not been detected.
+  EXPECT_FALSE(callback_called());
+
+  // This call will trigger an update of the device permission status and
+  // observers will be notified if needed.
+  GetPermissionResultForCurrentDocument(PermissionType::GEOLOCATION,
+                                        web_contents()->GetPrimaryMainFrame());
+
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::ASK, callback_result());
+  Reset();
+
+  // This does not change the overall permission status so no callback should be
+  // called.
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::ASK);
+  EXPECT_FALSE(callback_called());
+
+  // This does change the overall permission status from ask to blocked.
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::DENIED);
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::DENIED, callback_result());
+  Reset();
+
+  // We now reset to a granted state, which should move the overall permission
+  // status to ask (origin status "granted", but Chrome does not have the device
+  // permission).
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::GRANTED);
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::ASK, callback_result());
+  Reset();
+
+  // Now we reset the device permission status back to granted, which moves the
+  // overall permission status to granted.
+  permissions_client().SetHasDevicePermission(true);
+
+  // At this point we have not yet refreshed the permission status.
+  EXPECT_FALSE(callback_called());
+
+  // This call will make us retrieve the device permission status and observers
+  // will be notified if needed.
+  GetPermissionResultForCurrentDocument(PermissionType::GEOLOCATION,
+                                        web_contents()->GetPrimaryMainFrame());
+
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::GRANTED, callback_result());
+
+  UnsubscribePermissionStatusChange(subscription_id);
+}
+
+TEST_F(PermissionManagerTest,
+       NonrequestableDevicePermissionChangesLazilyNotifiesObservers) {
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::GRANTED);
+  permissions_client().SetHasDevicePermission(true);
+  permissions_client().SetCanRequestDevicePermission(false);
+
+  content::PermissionControllerDelegate::SubscriptionId subscription_id =
+      SubscribePermissionStatusChange(
+          PermissionType::GEOLOCATION, /*render_process_host=*/nullptr,
+          main_rfh(), url(),
+          base::BindRepeating(&PermissionManagerTest::OnPermissionChange,
+                              base::Unretained(this)));
+
+  EXPECT_EQ(
+      GetPermissionResultForCurrentDocument(
+          PermissionType::GEOLOCATION, web_contents()->GetPrimaryMainFrame())
+          .status,
+      blink::mojom::PermissionStatus::GRANTED);
+
+  permissions_client().SetHasDevicePermission(false);
+
+  // At this point the device permission has not been queried yet.
+  EXPECT_FALSE(callback_called());
+
+  // Get permission status to also trigger the device permission being queried
+  // which would result in observers being notified.
+  GetPermissionResultForCurrentDocument(PermissionType::GEOLOCATION,
+                                        web_contents()->GetPrimaryMainFrame());
+
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::DENIED, callback_result());
+  Reset();
+
+  // Overall these 2 changes don't change the permission status, since the
+  // status moves back to "denied". While there is a brief moment when both
+  // device and origin-level permissions are granted, the device permission
+  // status is not queried in the mean time so observers won't be notified.
+  permissions_client().SetHasDevicePermission(true);
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::DENIED);
+
+  EXPECT_FALSE(callback_called());
+
+  SetPermission(url(), url(), PermissionType::GEOLOCATION,
+                PermissionStatus::GRANTED);
+  EXPECT_TRUE(callback_called());
+  EXPECT_EQ(PermissionStatus::GRANTED, callback_result());
+  Reset();
 
   UnsubscribePermissionStatusChange(subscription_id);
 }

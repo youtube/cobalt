@@ -7,7 +7,7 @@
 
 #include "components/sync/base/model_type.h"
 #include "components/sync/engine/sync_manager.h"
-#include "components/sync/protocol/sync_protocol_error.h"
+#include "components/sync/engine/sync_protocol_error.h"
 
 namespace syncer {
 
@@ -55,6 +55,9 @@ class SyncEngineHost {
 
   // Called when invalidations are enabled or disabled.
   virtual void OnInvalidationStatusChanged() = 0;
+
+  // Called when there are new data types with pending invalidations.
+  virtual void OnNewInvalidatedDataTypes() = 0;
 };
 
 }  // namespace syncer

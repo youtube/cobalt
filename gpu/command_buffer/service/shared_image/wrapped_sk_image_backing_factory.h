@@ -53,6 +53,16 @@ class GPU_GLES2_EXPORT WrappedSkImageBackingFactory
       base::span<const uint8_t> pixel_data) override;
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      std::string debug_label,
+      gfx::GpuMemoryBufferHandle handle) override;
+  std::unique_ptr<SharedImageBacking> CreateSharedImage(
+      const Mailbox& mailbox,
       gfx::GpuMemoryBufferHandle handle,
       gfx::BufferFormat format,
       gfx::BufferPlane plane,
@@ -72,6 +82,7 @@ class GPU_GLES2_EXPORT WrappedSkImageBackingFactory
 
  private:
   scoped_refptr<SharedContextState> context_state_;
+  const bool use_graphite_;
   const bool is_drdc_enabled_;
 };
 

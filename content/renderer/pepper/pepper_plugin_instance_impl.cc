@@ -113,6 +113,7 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/range/range.h"
@@ -357,6 +358,39 @@ void PrintPDFOutput(PP_Resource print_output,
 #endif  // BUILDFLAG(ENABLE_PRINTING)
 }
 
+// Stolen from //printing/units.{cc,h}
+
+// Length of an inch in CSS's 1pt unit.
+// http://dev.w3.org/csswg/css3-values/#absolute-length-units-cm-mm.-in-pt-pc
+constexpr int kPointsPerInch = 72;
+
+// Length of an inch in CSS's 1px unit.
+// http://dev.w3.org/csswg/css3-values/#the-px-unit
+constexpr int kPixelsPerInch = 96;
+
+float ConvertUnitFloat(float value, float old_unit, float new_unit) {
+  CHECK_GT(new_unit, 0);
+  CHECK_GT(old_unit, 0);
+  return value * new_unit / old_unit;
+}
+
+PP_Rect CSSPixelsToPoints(const gfx::RectF& rect) {
+  const gfx::Rect points_rect = gfx::ToEnclosedRect(gfx::RectF(
+      ConvertUnitFloat(rect.x(), kPixelsPerInch, kPointsPerInch),
+      ConvertUnitFloat(rect.y(), kPixelsPerInch, kPointsPerInch),
+      ConvertUnitFloat(rect.width(), kPixelsPerInch, kPointsPerInch),
+      ConvertUnitFloat(rect.height(), kPixelsPerInch, kPointsPerInch)));
+  return PP_MakeRectFromXYWH(points_rect.x(), points_rect.y(),
+                             points_rect.width(), points_rect.height());
+}
+
+PP_Size CSSPixelsToPoints(const gfx::SizeF& size) {
+  const gfx::Size points_size = gfx::ToFlooredSize(gfx::SizeF(
+      ConvertUnitFloat(size.width(), kPixelsPerInch, kPointsPerInch),
+      ConvertUnitFloat(size.height(), kPixelsPerInch, kPointsPerInch)));
+  return PP_MakeSize(points_size.width(), points_size.height());
+}
+
 }  // namespace
 
 // static
@@ -364,7 +398,8 @@ PepperPluginInstanceImpl* PepperPluginInstanceImpl::Create(
     RenderFrameImpl* render_frame,
     PluginModule* module,
     WebPluginContainer* container,
-    const GURL& plugin_url) {
+    const GURL& plugin_url,
+    v8::Isolate* isolate) {
   base::RepeatingCallback<const void*(const char*)> get_plugin_interface_func =
       base::BindRepeating(&PluginModule::GetPluginInterface, module);
   PPP_Instance_Combined* ppp_instance_combined =
@@ -372,11 +407,9 @@ PepperPluginInstanceImpl* PepperPluginInstanceImpl::Create(
   if (!ppp_instance_combined)
     return nullptr;
 
-  return new PepperPluginInstanceImpl(render_frame,
-                                      module,
-                                      ppp_instance_combined,
-                                      container,
-                                      plugin_url);
+  return new PepperPluginInstanceImpl(render_frame, module,
+                                      ppp_instance_combined, container,
+                                      plugin_url, isolate);
 }
 
 // static
@@ -460,7 +493,8 @@ PepperPluginInstanceImpl::PepperPluginInstanceImpl(
     PluginModule* module,
     ppapi::PPP_Instance_Combined* instance_interface,
     WebPluginContainer* container,
-    const GURL& plugin_url)
+    const GURL& plugin_url,
+    v8::Isolate* isolate)
     : RenderFrameObserver(render_frame),
       render_frame_(render_frame),
       module_(module),
@@ -498,7 +532,7 @@ PepperPluginInstanceImpl::PepperPluginInstanceImpl(
       selection_anchor_(0),
       document_loader_(nullptr),
       external_document_load_(false),
-      isolate_(v8::Isolate::GetCurrent()),
+      isolate_(isolate),
       is_deleted_(false),
       initialized_(false),
       created_in_process_instance_(false),
@@ -1575,10 +1609,22 @@ int PepperPluginInstanceImpl::PrintBegin(const WebPrintParams& print_params) {
     return 0;
   }
 
+  const blink::WebPrintPageDescription& description =
+      print_params.default_page_description;
+  gfx::SizeF page_area_size = description.size;
+  page_area_size.set_width(std::max(0.0f, page_area_size.width() -
+                                              description.margin_left -
+                                              description.margin_right));
+  page_area_size.set_height(std::max(0.0f, page_area_size.height() -
+                                               description.margin_top -
+                                               description.margin_bottom));
+
   PP_PrintSettings_Dev print_settings;
-  print_settings.printable_area = PP_FromGfxRect(print_params.printable_area);
-  print_settings.content_area = PP_FromGfxRect(print_params.print_content_area);
-  print_settings.paper_size = PP_FromGfxSize(print_params.paper_size);
+  print_settings.printable_area =
+      CSSPixelsToPoints(print_params.printable_area_in_css_pixels);
+  print_settings.content_area.point = PP_Point();
+  print_settings.content_area.size = CSSPixelsToPoints(page_area_size);
+  print_settings.paper_size = CSSPixelsToPoints(description.size);
   print_settings.dpi = print_params.printer_dpi;
   print_settings.orientation = PP_PRINTORIENTATION_NORMAL;
   print_settings.grayscale = PP_FALSE;
@@ -1767,8 +1813,7 @@ void PepperPluginInstanceImpl::OnDestruct() {
 }
 
 void PepperPluginInstanceImpl::AddPluginObject(PluginObject* plugin_object) {
-  DCHECK(live_plugin_objects_.find(plugin_object) ==
-         live_plugin_objects_.end());
+  DCHECK(!base::Contains(live_plugin_objects_, plugin_object));
   live_plugin_objects_.insert(plugin_object);
 }
 

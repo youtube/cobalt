@@ -154,14 +154,12 @@ class FakeVideoCaptureStackReceiver final : public media::VideoFrameReceiver {
     auto video_frame = media::VideoFrame::WrapExternalData(
         frame.frame_info->pixel_format, frame.frame_info->coded_size,
         frame.frame_info->visible_rect, frame.frame_info->visible_rect.size(),
-        const_cast<uint8_t*>(static_cast<const uint8_t*>(mapping.memory())),
-        mapping.size(), frame.frame_info->timestamp);
+        mapping.GetMemoryAs<const uint8_t>(), mapping.size(),
+        frame.frame_info->timestamp);
     CHECK(video_frame);
 
     video_frame->set_metadata(frame.frame_info->metadata);
-    if (frame.frame_info->color_space.has_value()) {
-      video_frame->set_color_space(frame.frame_info->color_space.value());
-    }
+    video_frame->set_color_space(frame.frame_info->color_space);
 
     // This destruction observer will unmap the shared memory when the
     // VideoFrame goes out-of-scope.
@@ -204,9 +202,7 @@ class FakeVideoCaptureStackReceiver final : public media::VideoFrameReceiver {
     CHECK(video_frame);
 
     video_frame->set_metadata(frame.frame_info->metadata);
-    if (frame.frame_info->color_space.has_value()) {
-      video_frame->set_color_space(frame.frame_info->color_space.value());
-    }
+    video_frame->set_color_space(frame.frame_info->color_space);
 
     auto mapped_frame = media::ConvertToMemoryMappedFrame(video_frame);
     CHECK(mapped_frame);
@@ -220,9 +216,7 @@ class FakeVideoCaptureStackReceiver final : public media::VideoFrameReceiver {
     return mapped_frame;
   }
 
-  void OnFrameReadyInBuffer(
-      media::ReadyFrameInBuffer frame,
-      std::vector<media::ReadyFrameInBuffer> scaled_frames) override {
+  void OnFrameReadyInBuffer(media::ReadyFrameInBuffer frame) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(capture_stack_sequence_checker_);
 
     // Unretained is safe since we own the thread to which we're posting.
@@ -284,7 +278,8 @@ class FakeVideoCaptureStackReceiver final : public media::VideoFrameReceiver {
 
   void OnFrameDropped(media::VideoCaptureFrameDropReason) override {}
 
-  void OnNewCropVersion(uint32_t crop_version) override {}
+  void OnNewSubCaptureTargetVersion(
+      uint32_t sub_capture_target_version) override {}
 
   void OnFrameWithEmptyRegionCapture() override {}
 

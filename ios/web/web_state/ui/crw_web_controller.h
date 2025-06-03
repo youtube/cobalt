@@ -7,13 +7,9 @@
 
 #import <UIKit/UIKit.h>
 
-#include "ios/web/public/deprecated/url_verification_constants.h"
+#import "base/values.h"
 #import "ios/web/web_state/ui/crw_touch_tracking_recognizer.h"
 #import "ios/web/web_state/ui/crw_web_view_navigation_proxy.h"
-
-namespace base {
-class Value;
-}  // namespace base
 
 namespace web {
 
@@ -24,7 +20,6 @@ enum class WKNavigationState;
 
 }  // namespace web
 
-@class CRWContextMenuItem;
 @protocol CRWScrollableContent;
 @class CRWWebViewContentView;
 @protocol CRWFindInteraction;
@@ -119,11 +114,9 @@ class WebStateImpl;
 // Returns YES if the current live view is a web view with HTML.
 - (BOOL)contentIsHTML;
 
-// Returns the CRWWebController's view of the current URL. Moreover, this method
-// will set the trustLevel enum to the appropriate level from a security point
-// of view. The caller has to handle the case where `trustLevel` is not
-// appropriate, as this method won't display any error to the user.
-- (GURL)currentURLWithTrustLevel:(web::URLVerificationTrustLevel*)trustLevel;
+// Returns the CRWWebController's view of the current URL. During navigations,
+// this may not be the same as the navigation manager's view of the current URL.
+- (GURL)currentURL;
 
 // Reloads web view. `isRendererInitiated` is YES for renderer-initiated
 // navigation. `isRendererInitiated` is NO for browser-initiated navigation.
@@ -227,11 +220,6 @@ class WebStateImpl;
 - (NSDictionary<NSNumber*, NSNumber*>*)
     statesForAllPermissions API_AVAILABLE(ios(15.0));
 
-// Shows a custom iOS context menu with the given `items` for options targeted
-// to the data visible in given window `rect`.
-- (void)showMenuWithItems:(NSArray<CRWContextMenuItem*>*)items
-                     rect:(CGRect)rect;
-
 // Downloads the file from the `request` at `destination` path.
 // `completion_handler` is used to retrieve the created CRWWebViewDownload, so
 // the caller can manage the launched download.
@@ -259,6 +247,12 @@ class WebStateImpl;
 // UIActivityViewController to add additional share action for the current URL.
 - (id)activityItem;
 
+// Returns the page theme color.
+- (UIColor*)themeColor;
+
+// Returns the under page background color.
+- (UIColor*)underPageBackgroundColor;
+
 #pragma mark Navigation Message Handlers
 
 // Handles a navigation hash change message for the current webpage.
@@ -268,19 +262,16 @@ class WebStateImpl;
 - (void)handleNavigationWillChangeState;
 
 // Handles a navigation did push state message for the current webpage.
-- (void)handleNavigationDidPushStateMessage:(base::Value*)message;
+- (void)handleNavigationDidPushStateMessage:(base::Value::Dict*)dict;
 
 // Handles a navigation did replace state message for the current webpage.
-- (void)handleNavigationDidReplaceStateMessage:(base::Value*)message;
+- (void)handleNavigationDidReplaceStateMessage:(base::Value::Dict*)dict;
 
 // Retrieves the existing web frames in `contentWorld`.
 - (void)retrieveExistingFramesInContentWorld:(WKContentWorld*)contentWorld;
 
-// Do not use these executeJavaScript functions directly, prefer
-// WebFrame::CallJavaScriptFunction if possible, otherwise use
-// WebState::ExecuteJavaScript and WebState::ExecuteUserJavaScript.
-- (void)executeJavaScript:(NSString*)javascript
-        completionHandler:(void (^)(id result, NSError* error))completion;
+// Do not call this function directly, instead use
+// WebState::ExecuteUserJavaScript.
 - (void)executeUserJavaScript:(NSString*)javascript
             completionHandler:(void (^)(id result, NSError* error))completion;
 
@@ -306,6 +297,12 @@ class WebStateImpl;
 
 // Loads the HTML into the page at the given URL.
 - (void)loadHTML:(NSString*)HTML forURL:(const GURL&)URL;
+
+// Executes `javascript` in the current page.
+// Prefer `WebFrame::CallJavaScriptFunction` if possible, otherwise
+// use `WebState::ExecuteJavaScript`.
+- (void)executeJavaScript:(NSString*)javascript
+        completionHandler:(void (^)(id result, NSError* error))completion;
 
 @end
 

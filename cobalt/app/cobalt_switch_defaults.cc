@@ -46,11 +46,6 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
       // to enable it.
       switches::kIgnoreGpuBlocklist,
-#if BUILDFLAG(IS_ANDROID)
-      // This flag is added specifically for m114 and should be removed after
-      // rebasing to m120+
-      switches::kUserLevelMemoryPressureSignalParams,
-#endif  // BUILDFLAG(IS_ANDROID)
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,

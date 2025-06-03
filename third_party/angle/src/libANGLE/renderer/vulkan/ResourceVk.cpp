@@ -23,7 +23,7 @@ angle::Result Resource::waitForIdle(ContextVk *contextVk,
     // If there are pending commands for the resource, flush them.
     if (contextVk->hasUnsubmittedUse(mUse))
     {
-        ANGLE_TRY(contextVk->flushImpl(nullptr, reason));
+        ANGLE_TRY(contextVk->flushImpl(nullptr, nullptr, reason));
     }
 
     RendererVk *renderer = contextVk->getRenderer();
@@ -66,7 +66,7 @@ SharedGarbage::SharedGarbage(SharedGarbage &&other)
     *this = std::move(other);
 }
 
-SharedGarbage::SharedGarbage(const ResourceUse &use, GarbageList &&garbage)
+SharedGarbage::SharedGarbage(const ResourceUse &use, GarbageObjects &&garbage)
     : mLifetime(use), mGarbage(std::move(garbage))
 {}
 

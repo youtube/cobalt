@@ -6,8 +6,9 @@ package org.chromium.components.signin.identitymanager;
 
 import androidx.annotation.Nullable;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.components.signin.base.CoreAccountId;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutDelete;
@@ -18,8 +19,6 @@ import org.chromium.components.signin.metrics.SignoutReason;
  * information.
  */
 public class IdentityMutator {
-    private static final String TAG = "IdentityMutator";
-
     // Pointer to native IdentityMutator, not final because of destroy().
     private long mNativeIdentityMutator;
 

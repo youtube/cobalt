@@ -15,13 +15,9 @@
 #import "ios/chrome/app/startup/chrome_app_startup_parameters.h"
 #import "ios/chrome/browser/policy/policy_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/connection_information.h"
-#import "ios/chrome/browser/url/url_util.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
+#import "ios/chrome/browser/shared/model/url/url_util.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // Key of the UMA Startup.MobileSessionStartFromApps histogram.
@@ -77,7 +73,10 @@ const char* const kUMAShowDefaultPromoFromAppsHistogram =
       // As applicationDidBecomeActive: will not be called again,
       // _startupParameters will not include the command from openURL.
       // Pass the startup parameters from here.
-      DCHECK(!connectionInformation.startupParameters);
+
+      // TODO(crbug.com/1496951): Investigate why
+      // connectionInformation.startupParamters can be not nil and what to do in
+      // that case.
       [connectionInformation setStartupParameters:params];
       ProceduralBlock tabOpenedCompletion = ^{
         [connectionInformation setStartupParameters:nil];

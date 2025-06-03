@@ -6,12 +6,12 @@
 
 #import <WebKit/WebKit.h>
 
-#import "base/mac/bundle_locations.h"
+#import "base/apple/bundle_locations.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/tos_commands.h"
 #import "ios/chrome/browser/shared/ui/util/terms_util.h"
@@ -20,10 +20,6 @@
 #import "ios/web/common/web_view_creation_util.h"
 #import "net/base/mac/url_conversions.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface TOSCoordinator () <UIAdaptivePresentationControllerDelegate,
                               WKNavigationDelegate>

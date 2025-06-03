@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/data_model/form_group.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 
@@ -45,8 +45,9 @@ class PhoneNumber : public FormGroup {
     PhoneCombineHelper();
     ~PhoneCombineHelper();
 
-    // If |type| is a phone field type, saves the |value| accordingly and
-    // returns true.  For all other field types returns false.
+    // If |type| is a phone field type, processes the |value| accordingly and
+    // returns true. This function always returns true for all phone number
+    // field types. For all other field types false is returned.
     bool SetInfo(const AutofillType& type, const std::u16string& value);
 
     // Parses the number built up from pieces stored via SetInfo() according to
@@ -84,9 +85,7 @@ class PhoneNumber : public FormGroup {
   // The phone number.
   std::u16string number_;
   // Profile which stores the region used as hint when normalizing the number.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const AutofillProfile* profile_;  // WEAK
+  raw_ptr<const AutofillProfile> profile_;
 
   // Cached number.
   mutable i18n::PhoneObject cached_parsed_phone_;

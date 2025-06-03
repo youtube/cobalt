@@ -38,13 +38,11 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/platform/fonts/fallback_list_composite_key.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache_client.h"
 #include "third_party/blink/renderer/platform/fonts/font_data_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_face_creation_params.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_priority.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/ng_shape_cache.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_cache.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -60,11 +58,6 @@
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "ui/gfx/font_fallback_linux.h"
-#endif
-
-#if BUILDFLAG(IS_WIN)
-#include "third_party/blink/public/mojom/dwrite_font_proxy/dwrite_font_proxy.mojom-blink.h"
-#include "third_party/blink/renderer/platform/fonts/win/fallback_family_style_cache_win.h"
 #endif
 
 class SkString;
@@ -93,11 +86,6 @@ enum class AlternateFontName {
   kLocalUniqueFace,
   kLastResort
 };
-
-typedef HashMap<FallbackListCompositeKey,
-                std::unique_ptr<NGShapeCache>,
-                FallbackListCompositeKeyTraits>
-    FallbackListNGShaperCache;
 
 typedef HashMap<FallbackListCompositeKey,
                 std::unique_ptr<ShapeCache>,
@@ -160,13 +148,6 @@ class PLATFORM_EXPORT FontCache final {
       const AtomicString& unique_font_name);
 
   static String FirstAvailableOrFirst(const String&);
-
-  // Returns the NGShapeCache instance associated with the given cache key.
-  // Creates a new instance as needed and as such is guaranteed not to return
-  // a nullptr. Instances are managed by FontCache and are only guaranteed to
-  // be valid for the duration of the current session, as controlled by
-  // disable/enablePurging.
-  NGShapeCache* GetNGShapeCache(const FallbackListCompositeKey&);
 
   // Returns the ShapeCache instance associated with the given cache key.
   // Creates a new instance as needed and as such is guaranteed not to return
@@ -241,13 +222,6 @@ class PLATFORM_EXPORT FontCache final {
   static const AtomicString& StatusFontFamily() {
     return *status_font_family_name_;
   }
-  static void SetUseSkiaFontFallback(bool use_skia_font_fallback) {
-    use_skia_font_fallback_ = use_skia_font_fallback;
-  }
-
-  // On Windows pre 8.1 establish a connection to the DWriteFontProxy service in
-  // order to retrieve family names for fallback lookup.
-  void EnsureServiceConnected();
 
   scoped_refptr<SimpleFontData> GetFallbackFamilyNameFromHardcodedChoices(
       const FontDescription&,
@@ -287,7 +261,6 @@ class PLATFORM_EXPORT FontCache final {
       ShouldRetain = kRetain,
       bool subpixel_ascent_descent = false);
 
-  void InvalidateNGShapeCache();
   void InvalidateShapeCache();
 
   static void CrashWithFontInfo(const FontDescription*);
@@ -389,13 +362,10 @@ class PLATFORM_EXPORT FontCache final {
   static int32_t small_caption_font_height_;
   static AtomicString* status_font_family_name_;
   static int32_t status_font_height_;
-  static bool use_skia_font_fallback_;
 
   // Windows creates an SkFontMgr for unit testing automatically. This flag is
   // to ensure it's not happening in the production from the crash log.
   bool is_test_font_mgr_ = false;
-  mojo::Remote<mojom::blink::DWriteFontProxy> service_;
-  std::unique_ptr<FallbackFamilyStyleCache> fallback_params_cache_;
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -406,7 +376,6 @@ class PLATFORM_EXPORT FontCache final {
   bool platform_init_ = false;
   Persistent<HeapHashSet<WeakMember<FontCacheClient>>> font_cache_clients_;
   std::unique_ptr<FontPlatformDataCache> font_platform_data_cache_;
-  absl::optional<FallbackListNGShaperCache> fallback_list_ng_shaper_cache_;
   FallbackListShaperCache fallback_list_shaper_cache_;
 
   std::unique_ptr<FontDataCache> font_data_cache_;
@@ -414,7 +383,6 @@ class PLATFORM_EXPORT FontCache final {
   Persistent<FontFallbackMap> font_fallback_map_;
 
   void PurgePlatformFontDataCache();
-  void PurgeFallbackListNGShaperCache();
   void PurgeFallbackListShaperCache();
 
   friend class SimpleFontData;  // For fontDataFromFontPlatformData

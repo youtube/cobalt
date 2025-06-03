@@ -48,8 +48,6 @@ class ASH_EXPORT LockLayoutManager : public WmDefaultLayoutManager,
   void OnWindowAddedToLayout(aura::Window* child) override;
   void OnWillRemoveWindowFromLayout(aura::Window* child) override;
   void OnWindowRemovedFromLayout(aura::Window* child) override;
-  void OnChildWindowVisibilityChanged(aura::Window* child,
-                                      bool visible) override;
   void SetChildBounds(aura::Window* child,
                       const gfx::Rect& requested_bounds) override;
 
@@ -73,7 +71,6 @@ class ASH_EXPORT LockLayoutManager : public WmDefaultLayoutManager,
   void AdjustWindowsForWorkAreaChange(const WMEvent* event);
 
   aura::Window* window() { return window_; }
-  aura::Window* root_window() { return root_window_; }
 
  private:
   raw_ptr<aura::Window, ExperimentalAsh> window_;

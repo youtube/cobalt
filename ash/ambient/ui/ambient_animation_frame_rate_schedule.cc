@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,12 +35,11 @@ constexpr float kInfiniteTimestamp = std::numeric_limits<float>::max();
 // "_CrOS_Marker_Throttled_<FrameRate>fps".
 //
 // Fills |parsed_fps| with the "FrameRate" embedded in the name on success.
-bool IsFrameRateMarker(base::StringPiece marker_name, int& parsed_fps) {
+bool IsFrameRateMarker(const std::string& marker_name, int& parsed_fps) {
   static const base::NoDestructor<std::string> kMarkerPatternStr(base::StrCat(
       {kLottieCustomizableIdPrefix, R"(_Marker_Throttled_([[:digit:]]+)fps)"}));
-  static const base::NoDestructor<RE2> kMarkerPattern(
-      kMarkerPatternStr->c_str());
-  return RE2::FullMatch(marker_name.data(), *kMarkerPattern, &parsed_fps);
+  static const base::NoDestructor<RE2> kMarkerPattern(*kMarkerPatternStr);
+  return RE2::FullMatch(marker_name, *kMarkerPattern, &parsed_fps);
 }
 
 // Returns a new AmbientAnimationFrameRateSection, or nullopt if the |marker| or

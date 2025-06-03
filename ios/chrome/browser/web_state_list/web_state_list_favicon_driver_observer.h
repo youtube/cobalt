@@ -10,8 +10,8 @@
 #include "base/scoped_observation.h"
 
 #include "components/favicon/core/favicon_driver_observer.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_list_observer.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer.h"
 
 namespace web {
 class WebState;
@@ -42,17 +42,9 @@ class WebStateListFaviconDriverObserver
   ~WebStateListFaviconDriverObserver() override;
 
   // WebStateListObserver implementation:
-  void WebStateInsertedAt(WebStateList* web_state_list,
-                          web::WebState* web_state,
-                          int index,
-                          bool activating) override;
-  void WebStateReplacedAt(WebStateList* web_state_list,
-                          web::WebState* old_web_state,
-                          web::WebState* new_web_state,
-                          int index) override;
-  void WebStateDetachedAt(WebStateList* web_state_list,
-                          web::WebState* web_state,
-                          int index) override;
+  void WebStateListDidChange(WebStateList* web_state_list,
+                             const WebStateListChange& change,
+                             const WebStateListStatus& status) override;
 
   // favicon::FaviconDriverObserver implementation.
   void OnFaviconUpdated(favicon::FaviconDriver* driver,
@@ -65,6 +57,10 @@ class WebStateListFaviconDriverObserver
   // Observes the FaviconDriver for `web_state` and updates the
   // `driver_to_web_state_map_`.
   void AddNewWebState(web::WebState* web_state);
+
+  // Stops observing the FaviconDriver for `web_state` and updates the
+  // `driver_to_web_state_map_`.
+  void DetachWebState(web::WebState* web_state);
 
   // The WebStateFaviconDriverObserver to which the FaviconDriver notification
   // are forwarded. Should not be nil.

@@ -174,9 +174,6 @@ void RecordDownloadCompleted(
     UMA_HISTOGRAM_CUSTOM_COUNTS("Download.DownloadSize.Parallelizable",
                                 download_len, 1, max, 256);
   }
-
-  RecordConnectionType("Download.NetworkConnectionType.Complete",
-                       connection_type, download_source);
 }
 
 void RecordDownloadInterrupted(DownloadInterruptReason reason,
@@ -232,17 +229,6 @@ void RecordDangerousDownloadAccept(DownloadDangerType danger_type,
                                    const base::FilePath& file_path) {
   UMA_HISTOGRAM_ENUMERATION("Download.UserValidatedDangerousDownload",
                             danger_type, DOWNLOAD_DANGER_TYPE_MAX);
-#if (BUILDFLAG(FULL_SAFE_BROWSING) || BUILDFLAG(SAFE_BROWSING_DB_REMOTE)) && \
-    !BUILDFLAG(IS_FUCHSIA)
-  // This can only be recorded for certain platforms, since the enum used for
-  // file types is provided by safe_browsing::FileTypePolicies.
-  if (danger_type == DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE) {
-    base::UmaHistogramSparse(
-        "Download.DangerousFile.DownloadValidatedByType",
-        safe_browsing::FileTypePolicies::GetInstance()->UmaValueForFile(
-            file_path));
-  }
-#endif
 }
 
 namespace {
@@ -563,19 +549,20 @@ void RecordParallelizableDownloadCount(DownloadCountTypes type,
                                 DOWNLOAD_COUNT_TYPES_LAST_ENTRY);
 }
 
-void RecordParallelDownloadRequestCount(int request_count) {
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Download.ParallelDownloadRequestCount",
-                              request_count, 1, 10, 11);
+namespace {
+int g_parallel_download_creation_failure_count_ = 0;
 }
 
 void RecordParallelRequestCreationFailure(DownloadInterruptReason reason) {
-  base::UmaHistogramSparse("Download.ParallelDownload.CreationFailureReason",
-                           reason);
+  // This used to log a metric; however there is a test that checks how many
+  // times that metric (and thus this method) was called. Ultimately that should
+  // be refactored; but for now instead of logging the metric, just increment
+  // a counter.
+  g_parallel_download_creation_failure_count_++;
 }
 
-void RecordSavePackageEvent(SavePackageEvent event) {
-  UMA_HISTOGRAM_ENUMERATION("Download.SavePackage", event,
-                            SAVE_PACKAGE_LAST_ENTRY);
+int GetParallelRequestCreationFailureCountForTesting() {
+  return g_parallel_download_creation_failure_count_;
 }
 
 DownloadConnectionSecurity CheckDownloadConnectionSecurity(
@@ -633,14 +620,6 @@ void RecordDownloadHttpResponseCode(int response_code,
   }
 }
 
-void RecordInProgressDBCount(InProgressDBCountTypes type) {
-  UMA_HISTOGRAM_ENUMERATION("Download.InProgressDB.Counts", type);
-}
-
-void RecordDownloadLaterEvent(DownloadLaterEvent event) {
-  base::UmaHistogramEnumeration("Download.Later.Events", event);
-}
-
 void RecordInputStreamReadError(MojoResult mojo_result) {
   InputStreamReadError error = InputStreamReadError::kUnknown;
   switch (mojo_result) {
@@ -659,9 +638,4 @@ void RecordInputStreamReadError(MojoResult mojo_result) {
   base::UmaHistogramEnumeration("Download.InputStreamReadError", error);
 }
 
-#if BUILDFLAG(IS_WIN)
-void RecordWinFileMoveError(int os_error) {
-  base::UmaHistogramSparse("Download.WinFileMoveError", os_error);
-}
-#endif  // BUILDFLAG(IS_WIN)
 }  // namespace download

@@ -7,18 +7,18 @@
 #include <string>
 #include <vector>
 
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/time/time.h"
 #include "base/version.h"
@@ -33,8 +33,7 @@
 
 // Class to read the Keystone apps' client-regulated-counting data.
 @interface CountingMetricsStore : NSObject {
-  base::scoped_nsobject<NSDictionary<NSString*, NSDictionary<NSString*, id>*>>
-      _metrics;
+  NSDictionary<NSString*, NSDictionary<NSString*, id>*>* __strong _metrics;
 }
 
 + (instancetype)storeAtPath:(const base::FilePath&)path;
@@ -47,22 +46,19 @@
 @implementation CountingMetricsStore
 
 + (instancetype)storeAtPath:(const base::FilePath&)path {
-  return [[[CountingMetricsStore alloc]
-      initWithURL:[base::mac::FilePathToNSURL(path)
-                      URLByAppendingPathComponent:@"CountingMetrics.plist"]]
-      autorelease];
+  return [[CountingMetricsStore alloc]
+      initWithURL:[base::apple::FilePathToNSURL(path)
+                      URLByAppendingPathComponent:@"CountingMetrics.plist"]];
 }
 
 - (instancetype)initWithURL:(NSURL*)url {
   if ((self = [super init])) {
     NSError* error = nil;
-    _metrics.reset([[NSDictionary alloc] initWithContentsOfURL:url
-                                                         error:&error]);
+    _metrics = [[NSDictionary alloc] initWithContentsOfURL:url error:&error];
 
     if (error) {
       LOG(WARNING) << "Failed to read client-regulated-counting data.";
-      [self release];
-      return nil;
+      self = nil;
     }
   }
   return self;
@@ -114,7 +110,7 @@ bool CopyKeystoneBundle(UpdaterScope scope) {
   // The Keystone Bundle is in
   // GoogleUpdater.app/Contents/Helpers/GoogleSoftwareUpdate.bundle.
   base::FilePath keystone_bundle_path =
-      base::mac::OuterBundlePath()
+      base::apple::OuterBundlePath()
           .Append(FILE_PATH_LITERAL("Contents"))
           .Append(FILE_PATH_LITERAL("Helpers"))
           .Append(FILE_PATH_LITERAL(KEYSTONE_NAME ".bundle"));
@@ -134,7 +130,7 @@ bool CopyKeystoneBundle(UpdaterScope scope) {
   // CopyDir() does not remove files in destination.
   // Uninstalls the existing Keystone bundle to avoid possible left-over
   // files that breaks bundle signature. A manual delete follows
-  // in case uninstall is unsucessful.
+  // in case uninstall is unsuccessful.
   UninstallKeystone(scope);
   const base::FilePath dest_keystone_bundle_path =
       dest_path.Append(FILE_PATH_LITERAL(KEYSTONE_NAME ".bundle"));
@@ -200,6 +196,11 @@ bool CreateEmptyFileInDirectory(const base::FilePath& dir,
   }
 
   base::FilePath file_path = dir.AppendASCII(file_name);
+  int64_t file_size;
+  if (base::GetFileSize(file_path, &file_size) && file_size == 0) {
+    VLOG(1) << "Skipping creation of " << file_path << ": file already empty.";
+    return true;
+  }
   base::File file(file_path,
                   base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
   file.Close();
@@ -224,16 +225,18 @@ bool CreateKeystoneLaunchCtlPlistFiles(UpdaterScope scope) {
   if (IsSystemInstall(scope) &&
       !CreateEmptyFileInDirectory(
           GetLibraryFolderPath(scope)->Append("LaunchDaemons"),
-          "com.google.keystone.daemon.plist")) {
+          base::ToLowerASCII(LEGACY_GOOGLE_UPDATE_APPID ".daemon.plist"))) {
     return false;
   }
 
   base::FilePath launch_agent_dir =
       GetLibraryFolderPath(scope)->Append("LaunchAgents");
-  return CreateEmptyFileInDirectory(launch_agent_dir,
-                                    "com.google.keystone.agent.plist") &&
-         CreateEmptyFileInDirectory(launch_agent_dir,
-                                    "com.google.keystone.xpcservice.plist");
+  return CreateEmptyFileInDirectory(
+             launch_agent_dir,
+             base::ToLowerASCII(LEGACY_GOOGLE_UPDATE_APPID ".agent.plist")) &&
+         CreateEmptyFileInDirectory(
+             launch_agent_dir, base::ToLowerASCII(LEGACY_GOOGLE_UPDATE_APPID
+                                                  ".xpcservice.plist"));
 }
 
 }  // namespace
@@ -262,8 +265,6 @@ void UninstallKeystone(UpdaterScope scope) {
           .Append(FILE_PATH_LITERAL("ksinstall"));
   base::CommandLine command_line(ksinstall_path);
   command_line.AppendSwitch("uninstall");
-  if (IsSystemInstall(scope))
-    command_line = MakeElevated(command_line);
   base::Process process = base::LaunchProcess(command_line, {});
   if (!process.IsValid()) {
     LOG(ERROR) << "Failed to launch ksinstall.";
@@ -313,7 +314,7 @@ bool MigrateKeystoneApps(
       }
       if (ticket.existenceChecker) {
         registration.existence_checker_path =
-            base::mac::NSStringToFilePath(ticket.existenceChecker.path);
+            base::apple::NSStringToFilePath(ticket.existenceChecker.path);
       }
       registration.brand_code =
           base::SysNSStringToUTF8([ticket determineBrand]);
@@ -321,7 +322,7 @@ bool MigrateKeystoneApps(
         // New updater only supports hard-coded brandKey, only migrate brand
         // path if the key matches.
         registration.brand_path =
-            base::mac::NSStringToFilePath(ticket.brandPath);
+            base::apple::NSStringToFilePath(ticket.brandPath);
       }
       registration.ap = base::SysNSStringToUTF8([ticket determineTag]);
 
@@ -335,6 +336,10 @@ bool MigrateKeystoneApps(
       registration.dla = [metrics_store dateLastActiveForApp:ticket.productID];
       registration.dlrc =
           [metrics_store dateLastRollcallForApp:ticket.productID];
+
+      registration.cohort = base::SysNSStringToUTF8(ticket.cohort);
+      registration.cohort_name = base::SysNSStringToUTF8(ticket.cohortName);
+      registration.cohort_hint = base::SysNSStringToUTF8(ticket.cohortHint);
 
       register_callback.Run(registration);
     }

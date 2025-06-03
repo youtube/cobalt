@@ -67,6 +67,8 @@ class CORE_EXPORT ReadableByteStreamController
   void Trace(Visitor*) const override;
 
  private:
+  friend class BodyStreamBuffer;
+  friend class BodyStreamBufferUnderlyingByteSource;
   friend class ByteStreamTeeEngine;
   friend class ReadableStream;
   friend class ReadableStreamBYOBReader;
@@ -215,7 +217,8 @@ class CORE_EXPORT ReadableByteStreamController
 
   // https://streams.spec.whatwg.org/#readable-byte-stream-controller-fill-pull-into-descriptor-from-queue
   static bool FillPullIntoDescriptorFromQueue(ReadableByteStreamController*,
-                                              PullIntoDescriptor*);
+                                              PullIntoDescriptor*,
+                                              ExceptionState&);
 
   // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerfillreadrequestfromqueue
   static void FillReadRequestFromQueue(ScriptState*,

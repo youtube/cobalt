@@ -17,8 +17,8 @@
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_utils.h"
 #include "chrome/common/extensions/api/passwords_private.h"
-#include "components/password_manager/core/browser/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service_interface.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_delegate_interface.h"
 #include "components/password_manager/core/browser/ui/bulk_leak_check_service_adapter.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
@@ -76,18 +76,12 @@ class PasswordCheckDelegate
   bool UnmuteInsecureCredential(
       const api::passwords_private::PasswordUiEntry& credential);
 
-  // Records that a change password flow was started for `credential`.
-  void RecordChangePasswordFlowStarted(
-      const api::passwords_private::PasswordUiEntry& credential);
-
   // Checks that all preconditions for running a password check are fulfilled
   // and, once that is the case, launches the password check. Invokes `callback`
   // once a check is running or the request was stopped via
   // `StopPasswordCheck()`.
   void StartPasswordCheck(
       StartPasswordCheckCallback callback = base::DoNothing());
-  // Stops checking for insecure passwords.
-  void StopPasswordCheck();
 
   // Returns the current status of the password check.
   api::passwords_private::PasswordCheckStatus GetPasswordCheckStatus() const;
@@ -99,7 +93,8 @@ class PasswordCheckDelegate
 
  private:
   // password_manager::SavedPasswordsPresenter::Observer:
-  void OnSavedPasswordsChanged() override;
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override;
 
   // password_manager::InsecureCredentialsManager::Observer:
   // Invokes PasswordsPrivateEventRouter::OnInsecureCredentialsChanged if
@@ -111,14 +106,7 @@ class PasswordCheckDelegate
       password_manager::BulkLeakCheckService::State state) override;
   void OnCredentialDone(const password_manager::LeakCheckCredential& credential,
                         password_manager::IsLeaked is_leaked) override;
-
-  // Tries to find the matching CredentialUIEntry for |credential|. It
-  // performs a look-up in |id_generator_| using |credential.id|. If a matching
-  // value exists it also verifies that signon realm, username and when possible
-  // password match. Returns a pointer to the matching CredentialUIEntry on
-  // success or nullptr otherwise.
-  const password_manager::CredentialUIEntry* FindMatchingEntry(
-      const api::passwords_private::PasswordUiEntry& credential) const;
+  void OnBulkCheckServiceShutDown() override;
 
   // Starts the analyses of whether credentials are compromised and/or weak.
   // Assumes that `StartPasswordCheck()` was called prior.
@@ -167,7 +155,7 @@ class PasswordCheckDelegate
 
   // List of callbacks that were passed to `StartPasswordCheck()` prior to the
   // delegate being initialized. These will be run when either initialization
-  // finishes, or `StopPasswordCheck()` gets invoked before hand.
+  // finishes.
   std::vector<StartPasswordCheckCallback> start_check_callbacks_;
 
   // Remembers the progress of the ongoing check. Null if no check is currently

@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 #include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
@@ -122,6 +122,13 @@ struct Metric {
 };
 
 const Metric kAllocatorDumpNamesForMetrics[] = {
+    {"accessibility/ax_platform_node",
+     "AXPlatformNodeCount",
+     MetricSize::kCustom,
+     MemoryAllocatorDump::kNameObjectCount,
+     EmitTo::kSizeInUmaOnly,
+     /*ukm_setter=*/nullptr,
+     {1, 1000000}},
     {"blink_gc", "BlinkGC", MetricSize::kLarge, kEffectiveSize,
      EmitTo::kSizeInUkmAndUma, &Memory_Experimental::SetBlinkGC},
     {"blink_gc", "BlinkGC.AllocatedObjects", MetricSize::kLarge,
@@ -243,12 +250,18 @@ const Metric kAllocatorDumpNamesForMetrics[] = {
      EmitTo::kSizeInUmaOnly, nullptr},
     {"gpu/vulkan", "Vulkan.AllocatedObjects", MetricSize::kLarge, "used_size",
      EmitTo::kSizeInUmaOnly, nullptr},
+    {"gpu/vulkan", "Vulkan.Fragmentation", MetricSize::kLarge,
+     "fragmentation_size", EmitTo::kSizeInUmaOnly, nullptr},
     {"history", "History", MetricSize::kSmall, kEffectiveSize,
      EmitTo::kSizeInUkmAndUma, &Memory_Experimental::SetHistory},
 #if BUILDFLAG(IS_MAC)
     {"iosurface", "IOSurface", MetricSize::kLarge, kSize,
      EmitTo::kSizeInUmaOnly, nullptr},
     {"iosurface", "IOSurface.DirtyMemory", MetricSize::kLarge,
+     "resident_swapped", EmitTo::kSizeInUmaOnly, nullptr},
+    {"ioaccelerator", "IOAccelerator", MetricSize::kLarge, kSize,
+     EmitTo::kSizeInUmaOnly, nullptr},
+    {"ioaccelerator", "IOAccelerator.DirtyMemory", MetricSize::kLarge,
      "resident_swapped", EmitTo::kSizeInUmaOnly, nullptr},
 #endif
     {"java_heap", "JavaHeap", MetricSize::kLarge, kEffectiveSize,
@@ -273,12 +286,35 @@ const Metric kAllocatorDumpNamesForMetrics[] = {
      MetricSize::kTiny, MemoryAllocatorDump::kNameObjectCount,
      EmitTo::kSizeInUmaOnly, nullptr},
 #if BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-    // TODO(keishi): Add brp_quarantined metrics for the Blink partitions.
     {"malloc/partitions/allocator", "Malloc.BRPQuarantined", MetricSize::kSmall,
      "brp_quarantined_size", EmitTo::kSizeInUmaOnly, nullptr},
     {"malloc/partitions/allocator", "Malloc.BRPQuarantinedCount",
      MetricSize::kTiny, "brp_quarantined_count", EmitTo::kSizeInUmaOnly,
      nullptr},
+    {"partition_alloc/partitions", "PartitionAlloc.BRPQuarantined",
+     MetricSize::kSmall, "brp_quarantined_size", EmitTo::kSizeInUmaOnly,
+     nullptr},
+    {"partition_alloc/partitions", "PartitionAlloc.BRPQuarantinedCount",
+     MetricSize::kTiny, "brp_quarantined_count", EmitTo::kSizeInUmaOnly,
+     nullptr},
+    {"partition_alloc/partitions/fast_malloc",
+     "PartitionAlloc.BRPQuarantined.FastMalloc", MetricSize::kSmall,
+     "brp_quarantined_size", EmitTo::kSizeInUmaOnly, nullptr},
+    {"partition_alloc/partitions/fast_malloc",
+     "PartitionAlloc.BRPQuarantinedCount.FastMalloc", MetricSize::kTiny,
+     "brp_quarantined_count", EmitTo::kSizeInUmaOnly, nullptr},
+    {"partition_alloc/partitions/buffer",
+     "PartitionAlloc.BRPQuarantined.Buffer", MetricSize::kSmall,
+     "brp_quarantined_size", EmitTo::kSizeInUmaOnly, nullptr},
+    {"partition_alloc/partitions/buffer",
+     "PartitionAlloc.BRPQuarantinedCount.Buffer", MetricSize::kTiny,
+     "brp_quarantined_count", EmitTo::kSizeInUmaOnly, nullptr},
+    {"partition_alloc/partitions/array_buffer",
+     "PartitionAlloc.BRPQuarantined.ArrayBuffer", MetricSize::kSmall,
+     "brp_quarantined_size", EmitTo::kSizeInUmaOnly, nullptr},
+    {"partition_alloc/partitions/array_buffer",
+     "PartitionAlloc.BRPQuarantinedCount.ArrayBuffer", MetricSize::kTiny,
+     "brp_quarantined_count", EmitTo::kSizeInUmaOnly, nullptr},
 #endif  // BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
     {"malloc/partitions", "Malloc.BRPQuarantinedBytesPerMinute",
      MetricSize::kSmall, "brp_quarantined_bytes_per_minute",
@@ -517,6 +553,20 @@ const Metric kAllocatorDumpNamesForMetrics[] = {
      "V8.Main.Heap.ReadOnlySpace.AllocatedObjects", MetricSize::kLarge,
      kAllocatedObjectsSize, EmitTo::kSizeInUkmAndUma,
      &Memory_Experimental::SetV8_Main_Heap_ReadOnlySpace_AllocatedObjects},
+    {"v8/main/heap/large_object_space", "V8.Main.Heap.SharedLargeObjectSpace",
+     MetricSize::kLarge, kEffectiveSize, EmitTo::kSizeInUkmAndUma,
+     &Memory_Experimental::SetV8_Main_Heap_SharedLargeObjectSpace},
+    {"v8/main/heap/large_object_space",
+     "V8.Main.Heap.SharedLargeObjectSpace.AllocatedObjects", MetricSize::kLarge,
+     kAllocatedObjectsSize, EmitTo::kSizeInUkmAndUma,
+     &Memory_Experimental::
+         SetV8_Main_Heap_SharedLargeObjectSpace_AllocatedObjects},
+    {"v8/main/heap/shared_space", "V8.Main.Heap.SharedSpace",
+     MetricSize::kLarge, kEffectiveSize, EmitTo::kSizeInUkmAndUma,
+     &Memory_Experimental::SetV8_Main_Heap_SharedSpace},
+    {"v8/main/heap/shared_space", "V8.Main.Heap.SharedSpace.AllocatedObjects",
+     MetricSize::kLarge, kAllocatedObjectsSize, EmitTo::kSizeInUkmAndUma,
+     &Memory_Experimental::SetV8_Main_Heap_SharedSpace_AllocatedObjects},
     {"v8/main/malloc", "V8.Main.Malloc", MetricSize::kLarge, kEffectiveSize,
      EmitTo::kSizeInUkmAndUma, &Memory_Experimental::SetV8_Main_Malloc},
     {"v8/workers", "V8.Workers", MetricSize::kLarge, kEffectiveSize,
@@ -613,14 +663,14 @@ const Metric kPartitionAllocAddressSpaceMetrics[] = {
     },
     Metric{
         .uma_name = "PartitionAlloc.AddressSpace."
-                    "PkeyPoolLargestAvailableReservation",
+                    "ThreadIsolatedPoolLargestAvailableReservation",
         .metric_size = MetricSize::kLarge,
-        .metric = "pkey_pool_largest_reservation",
+        .metric = "thread_isolated_pool_largest_reservation",
     },
     Metric{
-        .uma_name = "PartitionAlloc.AddressSpace.PkeyPoolUsage",
+        .uma_name = "PartitionAlloc.AddressSpace.ThreadIsolatedPoolUsage",
         .metric_size = MetricSize::kLarge,
-        .metric = "pkey_pool_usage",
+        .metric = "thread_isolated_pool_usage",
     },
 };
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
@@ -1206,6 +1256,8 @@ void ProcessMemoryMetricsEmitter::CollateResults() {
 #endif  // BUILDFLAG(IS_ANDROID)
   uint32_t renderer_private_footprint_total_kb = 0;
   uint32_t renderer_malloc_total_kb = 0;
+  uint32_t renderer_blink_gc_total_kb = 0;
+  uint32_t renderer_blink_gc_fragmentation_total_kb = 0;
   uint32_t shared_footprint_total_kb = 0;
   uint32_t resident_set_total_kb = 0;
   uint64_t tiles_total_memory = 0;
@@ -1290,8 +1342,19 @@ void ProcessMemoryMetricsEmitter::CollateResults() {
             single_page_info = &process_info.page_infos[0];
           }
         }
+
+        // Sum malloc memory from all renderers.
         renderer_malloc_total_kb +=
             pmd.GetMetric("malloc", "effective_size").value_or(0) / kKiB;
+
+        // Sum Blink memory from all renderers.
+        const uint64_t blink_gc_bytes =
+            pmd.GetMetric("blink_gc", kEffectiveSize).value_or(0);
+        const uint64_t blink_gc_allocated_objects_bytes =
+            pmd.GetMetric("blink_gc", kAllocatedObjectsSize).value_or(0);
+        renderer_blink_gc_total_kb += blink_gc_bytes / kKiB;
+        renderer_blink_gc_fragmentation_total_kb +=
+            (blink_gc_bytes - blink_gc_allocated_objects_bytes) / kKiB;
 
         int number_of_extensions = GetNumberOfExtensions(pmd.pid());
         EmitRendererMemoryMetrics(
@@ -1396,6 +1459,11 @@ void ProcessMemoryMetricsEmitter::CollateResults() {
                                   renderer_private_footprint_total_kb / kKiB);
     UMA_HISTOGRAM_MEMORY_LARGE_MB("Memory.Total.RendererMalloc",
                                   renderer_malloc_total_kb / kKiB);
+    UMA_HISTOGRAM_MEMORY_LARGE_MB("Memory.Total.RendererBlinkGC",
+                                  renderer_blink_gc_total_kb / kKiB);
+    UMA_HISTOGRAM_MEMORY_LARGE_MB(
+        "Memory.Total.RendererBlinkGC.Fragmentation",
+        renderer_blink_gc_fragmentation_total_kb / kKiB);
     UMA_HISTOGRAM_MEMORY_LARGE_MB("Memory.Total.SharedMemoryFootprint",
                                   shared_footprint_total_kb / kKiB);
     UMA_HISTOGRAM_MEMORY_MEDIUM_MB("Memory.Total.TileMemory",

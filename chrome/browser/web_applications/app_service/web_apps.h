@@ -16,7 +16,7 @@
 #include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "chrome/browser/web_applications/app_service/web_app_publisher_helper.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -24,6 +24,7 @@
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/menu.h"
 #include "components/services/app_service/public/cpp/permission.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "url/gurl.h"
@@ -61,7 +62,7 @@ class WebApps : public apps::AppPublisher,
   virtual void Shutdown();
 
  protected:
-  const WebApp* GetWebApp(const AppId& app_id) const;
+  const WebApp* GetWebApp(const webapps::AppId& app_id) const;
 
   Profile* profile() const { return profile_; }
   WebAppProvider* provider() const { return provider_; }
@@ -119,6 +120,8 @@ class WebApps : public apps::AppPublisher,
       base::OnceCallback<void(apps::MenuItems)> callback) override;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
+  void UpdateAppSize(const std::string& app_id) override;
+
   void SetWindowMode(const std::string& app_id,
                      apps::WindowMode window_mode) override;
 
@@ -134,6 +137,8 @@ class WebApps : public apps::AppPublisher,
 
   std::vector<apps::AppPtr> CreateWebApps();
   void InitWebApps();
+  void OnGetAppSize(webapps::AppId app_id,
+                    absl::optional<ComputeAppSizeCommand::Size> size);
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // apps::AppPublisher overrides.
@@ -170,6 +175,7 @@ class WebApps : public apps::AppPublisher,
 #endif
 
   WebAppPublisherHelper publisher_helper_;
+  base::WeakPtrFactory<WebApps> weak_ptr_factory_{this};
 };
 
 }  // namespace web_app

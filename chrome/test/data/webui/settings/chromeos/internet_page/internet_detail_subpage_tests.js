@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://os-settings/chromeos/lazy_load.js';
+import 'chrome://os-settings/lazy_load.js';
 
-import {InternetPageBrowserProxyImpl, Router, routes} from 'chrome://os-settings/chromeos/os_settings.js';
+import {InternetPageBrowserProxyImpl, Router, routes, setUserActionRecorderForTesting, userActionRecorderMojom} from 'chrome://os-settings/os_settings.js';
+import {MojoConnectivityProvider} from 'chrome://resources/ash/common/connectivity/mojo_connectivity_provider.js';
 import {MojoInterfaceProviderImpl} from 'chrome://resources/ash/common/network/mojo_interface_provider.js';
 import {OncMojo} from 'chrome://resources/ash/common/network/onc_mojo.js';
 import {getDeepActiveElement} from 'chrome://resources/ash/common/util.js';
@@ -12,8 +13,11 @@ import {ActivationStateType, CrosNetworkConfigRemote, InhibitReason, ManagedProp
 import {ConnectionStateType, DeviceStateType, NetworkType, OncSource, PolicySource, PortalState} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {FakeNetworkConfig} from 'chrome://webui-test/chromeos/fake_network_config_mojom.js';
+import {FakePasspointService} from 'chrome://webui-test/chromeos/fake_passpoint_service_mojom.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
+
+import {FakeUserActionRecorder} from '../fake_user_action_recorder.js';
 
 import {TestInternetPageBrowserProxy} from './test_internet_page_browser_proxy.js';
 
@@ -24,8 +28,14 @@ suite('InternetDetailPage', function() {
   /** @type {?CrosNetworkConfigRemote} */
   let mojoApi_ = null;
 
+  /** @type {?PasspointServiceRemote} */
+  let passpointServiceApi_ = null;
+
   /** @type {?TestInternetPageBrowserProxy} */
   let browserProxy = null;
+
+  /** @type {?userActionRecorderMojom.UserActionRecorderInterface} */
+  let userActionRecorder = null;
 
   /** @type {Object} */
   const prefs_ = {
@@ -65,6 +75,9 @@ suite('InternetDetailPage', function() {
   suiteSetup(function() {
     mojoApi_ = new FakeNetworkConfig();
     MojoInterfaceProviderImpl.getInstance().remote_ = mojoApi_;
+    passpointServiceApi_ = new FakePasspointService();
+    MojoConnectivityProvider.getInstance().setPasspointServiceForTest(
+        passpointServiceApi_);
 
     // Disable animations so sub-pages open within one event loop.
     testing.Test.disableAnimationsAndTransitions();
@@ -79,6 +92,11 @@ suite('InternetDetailPage', function() {
   function setNetworksForTest(networks) {
     mojoApi_.resetForTest();
     mojoApi_.addNetworksForTest(networks);
+  }
+
+  function setSubscriptionForTest(subscription) {
+    passpointServiceApi_.resetForTest();
+    passpointServiceApi_.addSubscription(subscription);
   }
 
   function getAllowSharedProxy() {
@@ -112,10 +130,7 @@ suite('InternetDetailPage', function() {
   }
 
   function getHiddenToggle() {
-    if (loadTimeData.getBoolean('enableHiddenNetworkMigration')) {
-      return internetDetailPage.shadowRoot.querySelector('#hiddenToggle');
-    }
-    return internetDetailPage.shadowRoot.querySelector('#hiddenToggleLegacy');
+    return internetDetailPage.shadowRoot.querySelector('#hiddenToggle');
   }
 
   /**
@@ -155,6 +170,9 @@ suite('InternetDetailPage', function() {
   }
 
   setup(function() {
+    userActionRecorder = new FakeUserActionRecorder();
+    setUserActionRecorderForTesting(userActionRecorder);
+
     loadTimeData.overrideValues({
       internetAddConnection: 'internetAddConnection',
       internetAddConnectionExpandA11yLabel:
@@ -167,7 +185,7 @@ suite('InternetDetailPage', function() {
       internetKnownNetworksPageTitle: 'internetKnownNetworksPageTitle',
       showMeteredToggle: true,
       isApnRevampEnabled: false,
-      isPasspointEnabled: true,
+      isSuppressTextMessagesEnabled: false,
     });
 
     PolymerTest.clearBody();
@@ -186,6 +204,7 @@ suite('InternetDetailPage', function() {
       internetDetailPage = null;
       Router.getInstance().resetRouteForTesting();
     });
+    setUserActionRecorderForTesting(null);
   });
 
   /**
@@ -403,45 +422,26 @@ suite('InternetDetailPage', function() {
       });
     });
 
-    // Syntactic sugar for running test twice with different values for the
-    // apnRevamp feature flag.
-    [true, false].forEach(shouldEnableHiddenNetworkMigration => {
-      test(
-          'Hidden toggle is shown in a different location depending on feature flag',
-          async () => {
-            loadTimeData.overrideValues({
-              enableHiddenNetworkMigration: shouldEnableHiddenNetworkMigration,
-            });
+    test('Hidden toggle hidden for non-WiFi networks', function() {
+      init();
+      mojoApi_.resetForTest();
+      for (const networkType
+               of [NetworkType.kCellular, NetworkType.kEthernet,
+                   NetworkType.kTether, NetworkType.kVPN]) {
+        mojoApi_.setNetworkTypeEnabledState(networkType, true);
+        const networkTypeString = OncMojo.getNetworkTypeString(networkType);
+        const networkGuid = 'network_guid_' + networkTypeString;
+        const networkName = 'network_name_' + networkTypeString;
+        const network = getManagedProperties(networkType, networkName);
 
-            init();
-            mojoApi_.resetForTest();
-            mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
-            const wifiNetwork =
-                getManagedProperties(NetworkType.kWiFi, 'wifi_user');
-            wifiNetwork.source = OncSource.kUser;
-            wifiNetwork.connectable = true;
+        mojoApi_.setManagedPropertiesForTest(network);
 
-            mojoApi_.setManagedPropertiesForTest(wifiNetwork);
-
-            internetDetailPage.init('wifi_user_guid', 'WiFi', 'wifi_user');
-
-            return flushAsync().then(() => {
-              const enableHiddenNetworkMigration =
-                  loadTimeData.getBoolean('enableHiddenNetworkMigration');
-              const hiddenToggle =
-                  internetDetailPage.shadowRoot.querySelector('#hiddenToggle');
-              const hiddenToggleLegacy =
-                  internetDetailPage.shadowRoot.querySelector(
-                      '#hiddenToggleLegacy');
-              if (loadTimeData.getBoolean('enableHiddenNetworkMigration')) {
-                assertTrue(!!hiddenToggle);
-                assertFalse(!!hiddenToggleLegacy);
-              } else {
-                assertFalse(!!hiddenToggle);
-                assertTrue(!!hiddenToggleLegacy);
-              }
-            });
-          });
+        internetDetailPage.init(networkGuid, networkTypeString, networkName);
+        return flushAsync().then(() => {
+          const hiddenToggle = getHiddenToggle();
+          assertFalse(!!hiddenToggle);
+        });
+      }
     });
 
     test('Proxy Unshared', function() {
@@ -557,6 +557,14 @@ suite('InternetDetailPage', function() {
       assertEquals(
           deepLinkElement, getDeepActiveElement(),
           'Allow shared proxy toggle should be focused for settingId=11.');
+
+      // Close the page to ensure the test is fully cleaned up and wait for
+      // os_route's popstate listener to fire. If we don't add this wait, this
+      // event can fire during the other tests which may interfere with its
+      // routing.
+      const popStatePromise = eventToPromise('popstate', window);
+      internetDetailPage.close();
+      await popStatePromise;
     });
 
     test('WiFi page disabled when blocked by policy', async () => {
@@ -594,7 +602,10 @@ suite('InternetDetailPage', function() {
     });
 
     test('WiFi Passpoint removal shows a dialog', async () => {
-      loadTimeData.overrideValues({isPasspointEnabled: true});
+      loadTimeData.overrideValues({
+        isPasspointEnabled: true,
+        isPasspointSettingsEnabled: false,
+      });
       init();
       mojoApi_.resetForTest();
       mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
@@ -616,24 +627,72 @@ suite('InternetDetailPage', function() {
       // Click the button and check the dialog is displayed.
       forgetButton.click();
       await waitAfterNextRender(forgetButton);
-      const dialog = getDialog('passpointRemovalDialog');
-      assertTrue(dialog.open);
+      const removeDialog = getDialog('passpointRemovalDialog');
+      assertTrue(removeDialog.$.dialog.open);
 
       // Check "Cancel" dismiss the dialog.
-      const cancelButton = getButton('passpointRemovalCancelButton');
+      const cancelButton = removeDialog.$.cancelButton;
       assertTrue(!!cancelButton);
       cancelButton.click();
       await flushAsync();
-      assertFalse(dialog.open);
+      assertFalse(removeDialog.$.dialog.open);
 
       // Check "Confirm" triggers network removal
       forgetButton.click();
       await flushAsync();
-      const confirmButton = getButton('passpointRemovalConfirmButton');
+      const confirmButton = removeDialog.$.confirmButton;
       confirmButton.click();
       await flushAsync();
-      assertFalse(dialog.open);
+      assertFalse(removeDialog.$.dialog.open);
       await mojoApi_.whenCalled('forgetNetwork');
+    });
+
+    test('WiFi Passpoint removal leads to subscription page', async () => {
+      loadTimeData.overrideValues({
+        isPasspointEnabled: true,
+        isPasspointSettingsEnabled: true,
+      });
+      init();
+
+      const subId = 'a_passpoint_id';
+      setSubscriptionForTest({
+        id: subId,
+        friendlyName: 'My Passpoint provider',
+      });
+
+      mojoApi_.resetForTest();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
+      const wifiNetwork =
+          getManagedProperties(NetworkType.kWiFi, 'wifi_passpoint');
+      wifiNetwork.source = OncSource.kUser;
+      wifiNetwork.connectable = true;
+      wifiNetwork.typeProperties.wifi.passpointId = subId;
+      wifiNetwork.typeProperties.wifi.passpointMatchType = MatchType.kHome;
+      mojoApi_.setManagedPropertiesForTest(wifiNetwork);
+
+      internetDetailPage.init('wifi_passpoint_guid', 'WiFi', 'wifi_passpoint');
+      await flushAsync();
+
+      const forgetButton = getButton('forgetButton');
+      assertFalse(forgetButton.hidden);
+      assertFalse(forgetButton.disabled);
+
+      // Click the button and check the dialog is displayed.
+      forgetButton.click();
+      await waitAfterNextRender(forgetButton);
+      const removeDialog = getDialog('passpointRemovalDialog');
+      assertTrue(removeDialog.$.dialog.open);
+
+      // Check "Confirm" leads to Passpoint subscription page.
+      forgetButton.click();
+      await flushAsync();
+      assertTrue(removeDialog.$.dialog.open);
+      const confirmButton = removeDialog.$.confirmButton;
+      const showDetailPromise = eventToPromise('show-passpoint-detail', window);
+      confirmButton.click();
+      await flushAsync();
+      const showDetailEvent = await showDetailPromise;
+      assertEquals(subId, showDetailEvent.detail.id);
     });
 
     [true, false].forEach(isPasspointEnabled => {
@@ -642,6 +701,7 @@ suite('InternetDetailPage', function() {
           async () => {
             loadTimeData.overrideValues({
               isPasspointEnabled: isPasspointEnabled,
+              isPasspointSettingsEnabled: false,
             });
             init();
             mojoApi_.resetForTest();
@@ -664,6 +724,101 @@ suite('InternetDetailPage', function() {
             assertFalse(!!internetDetailPage.shadowRoot.querySelector(
                 '#passpointRemovalDialog'));
           });
+    });
+
+    [true, false].forEach(isPasspointSettingsEnabled => {
+      test('WiFi network with Passpoint shows provider row', async () => {
+        loadTimeData.overrideValues({
+          isPasspointEnabled: true,
+          isPasspointSettingsEnabled: isPasspointSettingsEnabled,
+        });
+        init();
+
+        const subId = 'a_passpoint_id';
+        setSubscriptionForTest({
+          id: subId,
+          friendlyName: 'My Passpoint provider',
+        });
+        mojoApi_.resetForTest();
+        mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
+        const wifiNetwork =
+            getManagedProperties(NetworkType.kWiFi, 'wifi_passpoint');
+        wifiNetwork.source = OncSource.kUser;
+        wifiNetwork.connectable = true;
+        wifiNetwork.typeProperties.wifi.passpointId = subId;
+        wifiNetwork.typeProperties.wifi.passpointMatchType = MatchType.kHome;
+        mojoApi_.setManagedPropertiesForTest(wifiNetwork);
+
+        internetDetailPage.init(
+            'wifi_passpoint_guid', 'WiFi', 'wifi_passpoint');
+        await flushAsync();
+
+        const row = internetDetailPage.shadowRoot.querySelector(
+            '#passpointProviderRow');
+        // The row is present only when Passpoint is enabled.
+        assertEquals(isPasspointSettingsEnabled, !!row);
+
+        if (isPasspointSettingsEnabled) {
+          const showDetailPromise =
+              eventToPromise('show-passpoint-detail', window);
+          row.click();
+          const showDetailEvent = await showDetailPromise;
+          assertEquals(subId, showDetailEvent.detail.id);
+        }
+      });
+    });
+
+    test(
+        'WiFi network without Passpoint does not show provider row',
+        async () => {
+          loadTimeData.overrideValues({
+            isPasspointEnabled: true,
+            isPasspointSettingsEnabled: true,
+          });
+          init();
+          mojoApi_.resetForTest();
+          mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
+          const wifiNetwork = getManagedProperties(NetworkType.kWiFi, 'wifi');
+          wifiNetwork.source = OncSource.kUser;
+          wifiNetwork.connectable = true;
+          mojoApi_.setManagedPropertiesForTest(wifiNetwork);
+
+          internetDetailPage.init('wifi_guid', 'WiFi', 'wifi');
+          await flushAsync();
+
+          assertEquals(
+              null,
+              internetDetailPage.shadowRoot.querySelector(
+                  '#passpointProviderRow'));
+        });
+
+    test('WiFi network with Passpoint has no configure button', async () => {
+      loadTimeData.overrideValues({
+        isPasspointEnabled: true,
+        isPasspointSettingsEnabled: true,
+      });
+      init();
+
+      const subId = 'a_passpoint_id';
+      setSubscriptionForTest({
+        id: subId,
+        friendlyName: 'My Passpoint provider',
+      });
+      mojoApi_.resetForTest();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kWiFi, true);
+      const wifiNetwork =
+          getManagedProperties(NetworkType.kWiFi, 'wifi_passpoint');
+      wifiNetwork.source = OncSource.kUser;
+      wifiNetwork.connectable = true;
+      wifiNetwork.typeProperties.wifi.passpointId = subId;
+      wifiNetwork.typeProperties.wifi.passpointMatchType = MatchType.kHome;
+      mojoApi_.setManagedPropertiesForTest(wifiNetwork);
+
+      internetDetailPage.init('wifi_passpoint_guid', 'WiFi', 'wifi_passpoint');
+      await flushAsync();
+
+      const configureButton = getButton('configureButton');
+      assertTrue(configureButton.hidden);
     });
   });
 
@@ -1505,17 +1660,215 @@ suite('InternetDetailPage', function() {
           }],
         });
         await flushAsync();
-        const crLink =
+        const getCrLink = () =>
             internetDetailPage.shadowRoot.querySelector('#apnSubpageButton');
-        const apn =
-            crLink ? crLink.shadowRoot.querySelector('#subLabel') : null;
+        const getApn = () => getCrLink() ?
+            getCrLink().shadowRoot.querySelector('#subLabel') :
+            null;
         if (isApnRevampEnabled) {
-          assertTrue(!!apn);
-          assertEquals(apn.textContent.trim(), apnName);
+          assertTrue(!!getApn());
+          assertEquals(apnName, getApn().textContent.trim());
+
+          const name = 'name';
+          cellularNetwork.typeProperties.cellular.connectedApn.name = name;
+          mojoApi_.setManagedPropertiesForTest(cellularNetwork);
+          internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+          await flushAsync();
+          assertTrue(!!getApn());
+          assertEquals(name, getApn().textContent.trim());
         } else {
-          assertFalse(!!apn);
+          assertFalse(!!getApn());
         }
       });
+    });
+
+    test('Cellular network not found while in detail subpage', async () => {
+      init();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+
+      // Simulate navigating to mobile data subpage.
+      let params = new URLSearchParams();
+      params.append(
+          'type', OncMojo.getNetworkTypeString(NetworkType.kCellular));
+      Router.getInstance().navigateTo(routes.INTERNET_NETWORKS, params);
+      assertEquals(routes.INTERNET_NETWORKS, Router.getInstance().currentRoute);
+      await flushAsync();
+
+      // Navigate to cellular detail page. Because the network is not found, the
+      // page should navigate backwards.
+      const popStatePromise = eventToPromise('popstate', window);
+      params = new URLSearchParams();
+      params.append('guid', 'cellular_guid');
+      params.append('type', 'Cellular');
+      params.append('name', 'cellular');
+      Router.getInstance().navigateTo(routes.NETWORK_DETAIL, params);
+
+      await popStatePromise;
+      assertEquals(routes.INTERNET_NETWORKS, Router.getInstance().currentRoute);
+    });
+
+    // Regression test for b/281728200.
+    test('Cellular network not found while not in detail subpage', async () => {
+      init();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+
+      // Simulate navigating to top-level internet page.
+      let params = new URLSearchParams();
+      Router.getInstance().navigateTo(routes.INTERNET, params);
+      assertEquals(routes.INTERNET, Router.getInstance().currentRoute);
+
+      // Simulate navigating to mobile data subpage.
+      params = new URLSearchParams();
+      params.append(
+          'type', OncMojo.getNetworkTypeString(NetworkType.kCellular));
+      Router.getInstance().navigateTo(routes.INTERNET_NETWORKS, params);
+      assertEquals(routes.INTERNET_NETWORKS, Router.getInstance().currentRoute);
+      await flushAsync();
+
+      // Trigger |internetDetailPage| attempting to fetch the network. Because
+      // the page is not the current route, it should not trigger a navigation
+      // backwards.
+      internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+      await flushAsync();
+
+      assertEquals(routes.INTERNET_NETWORKS, Router.getInstance().currentRoute);
+    });
+
+    // Syntactic sugar for running test twice with different values for the
+    // suppressTextMessages feature flag.
+    [true, false].forEach(isSuppressTextMessagesEnabled => {
+      test(
+          'Show/Hide toggle correspondingly to SuppressTextMessages flag',
+          async () => {
+            loadTimeData.overrideValues({isSuppressTextMessagesEnabled});
+            init();
+            mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+            const test_iccid = '11111111111111111';
+            const cellularNetwork =
+                getManagedProperties(NetworkType.kCellular, 'cellular');
+            cellularNetwork.typeProperties.cellular.iccid = test_iccid;
+            mojoApi_.setManagedPropertiesForTest(cellularNetwork);
+            internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+            mojoApi_.setDeviceStateForTest({
+              type: NetworkType.kCellular,
+              deviceState: DeviceStateType.kEnabled,
+              inhibitReason: InhibitReason.kNotInhibited,
+              simInfos: [{
+                iccid: test_iccid,
+                isPrimary: true,
+              }],
+            });
+            await flushAsync();
+            const getSuppressTextMessagesToggle = () =>
+                internetDetailPage.shadowRoot.querySelector(
+                    '#suppressTextMessagesToggle');
+            if (isSuppressTextMessagesEnabled) {
+              assertTrue(!!getSuppressTextMessagesToggle());
+            } else {
+              assertFalse(!!getSuppressTextMessagesToggle());
+            }
+          });
+    });
+
+    test('Suppress text messages manually', async () => {
+      loadTimeData.overrideValues({isSuppressTextMessagesEnabled: true});
+      init();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+
+      const test_iccid = '11111111111111111';
+      const cellularNetwork =
+          getManagedProperties(NetworkType.kCellular, 'cellular');
+      cellularNetwork.typeProperties.cellular.iccid = test_iccid;
+      cellularNetwork.typeProperties.cellular.allowTextMessages = {
+        activeValue: true,
+        policySource: PolicySource.kNone,
+      };
+      mojoApi_.setManagedPropertiesForTest(cellularNetwork);
+      internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+      mojoApi_.setDeviceStateForTest({
+        type: NetworkType.kCellular,
+        deviceState: DeviceStateType.kEnabled,
+        inhibitReason: InhibitReason.kNotInhibited,
+        simInfos: [{
+          iccid: test_iccid,
+          isPrimary: true,
+        }],
+      });
+      await flushAsync();
+
+      const networkToggle = internetDetailPage.shadowRoot.querySelector(
+          '#suppressTextMessagesToggle');
+      assertTrue(networkToggle.checked);
+      networkToggle.click();
+      await mojoApi_.whenCalled('setProperties');
+      const props = mojoApi_.getPropertiesToSetForTest();
+      assertFalse(
+          props.typeConfig.cellular.textMessageAllowState.allowTextMessages);
+    });
+
+    test(
+        'Suppress text messages toggle only shown for active SIM', async () => {
+          loadTimeData.overrideValues({isSuppressTextMessagesEnabled: true});
+          init();
+          mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+
+          const test_iccid = '11111111111111111';
+          const cellularNetwork =
+              getManagedProperties(NetworkType.kCellular, 'cellular');
+          cellularNetwork.typeProperties.cellular.iccid = test_iccid;
+          mojoApi_.setManagedPropertiesForTest(cellularNetwork);
+          internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+          await flushAsync();
+          const getSuppressTextMessagesToggle = () =>
+              internetDetailPage.shadowRoot.querySelector(
+                  '#suppressTextMessagesToggle');
+          assertFalse(!!getSuppressTextMessagesToggle());
+          mojoApi_.setDeviceStateForTest({
+            type: NetworkType.kCellular,
+            deviceState: DeviceStateType.kEnabled,
+            inhibitReason: InhibitReason.kNotInhibited,
+            simInfos: [{
+              iccid: test_iccid,
+              isPrimary: true,
+            }],
+          });
+          await flushAsync();
+          assertTrue(!!getSuppressTextMessagesToggle());
+        });
+
+    test('Suppress text messages via policy', async () => {
+      loadTimeData.overrideValues({isSuppressTextMessagesEnabled: true});
+      init();
+      mojoApi_.setNetworkTypeEnabledState(NetworkType.kCellular, true);
+
+      const test_iccid = '11111111111111111';
+      const cellularNetwork =
+          getManagedProperties(NetworkType.kCellular, 'cellular');
+      cellularNetwork.typeProperties.cellular.allowTextMessages = {
+        activeValue: true,
+        policySource: PolicySource.kDevicePolicyEnforced,
+      };
+      cellularNetwork.typeProperties.cellular.iccid = test_iccid;
+      mojoApi_.setManagedPropertiesForTest(cellularNetwork);
+      internetDetailPage.init('cellular_guid', 'Cellular', 'cellular');
+      mojoApi_.setDeviceStateForTest({
+        type: NetworkType.kCellular,
+        deviceState: DeviceStateType.kEnabled,
+        inhibitReason: InhibitReason.kNotInhibited,
+        simInfos: [{
+          iccid: test_iccid,
+          isPrimary: true,
+        }],
+      });
+      await flushAsync();
+
+      const networkToggle = internetDetailPage.shadowRoot.querySelector(
+          '#suppressTextMessagesToggle');
+      assertTrue(networkToggle.checked);
+      assertTrue(
+          !!networkToggle.shadowRoot.querySelector('cr-toggle').disabled);
+      assertTrue(!!networkToggle.shadowRoot.querySelector(
+          'cr-policy-network-indicator-mojo'));
     });
   });
 

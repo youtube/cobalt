@@ -12,7 +12,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/bind.h"
 #import "base/test/ios/wait_util.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/signin/gaia_auth_fetcher_ios_bridge.h"
 #import "ios/net/cookies/system_cookie_util.h"
 #import "ios/web/common/features.h"
@@ -29,10 +29,6 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 typedef void (^DataTaskWithRequestCompletionHandler)(
     NSData* _Nullable data,
@@ -178,7 +174,7 @@ class GaiaAuthFetcherIOSNSURLSessionBridgeTest : public PlatformTest {
   DataTaskWithRequestCompletionHandler completion_handler_;
 
  private:
-  __block base::OnceClosure quit_closure_;
+  base::OnceClosure quit_closure_;
 };
 
 #pragma mark - TestGaiaAuthFetcherIOSNSURLSessionBridge
@@ -376,7 +372,7 @@ GaiaAuthFetcherIOSNSURLSessionBridgeTest::GetHeaderFieldsWithCookies(
 
 bool GaiaAuthFetcherIOSNSURLSessionBridgeTest::FetchURL(const GURL& url) {
   DCHECK(url_session_data_task_);
-  __block base::RunLoop run_loop;
+  base::RunLoop run_loop;
   quit_closure_ = run_loop.QuitClosure();
   ns_url_session_bridge_->Fetch(url, "", "", false);
   run_loop.Run();

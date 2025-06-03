@@ -15,13 +15,6 @@
 
 namespace ui {
 
-namespace {
-// A function to call when focus changes, for testing only.
-base::LazyInstance<base::RepeatingClosure>::DestructorAtExit
-    g_focus_change_callback_for_testing = LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
 // static
 AXTreeManagerMap& AXTreeManager::GetMap() {
   static base::NoDestructor<AXTreeManagerMap> map;
@@ -55,9 +48,15 @@ AXTreeManager* AXTreeManager::ForChildTree(const AXNode& parent_node) {
 }
 
 // static
+base::RepeatingClosure& AXTreeManager::GetFocusChangeCallbackForTesting() {
+  static base::NoDestructor<base::RepeatingClosure>
+      g_focus_change_callback_for_testing;
+  return *g_focus_change_callback_for_testing;
+}
+
 void AXTreeManager::SetFocusChangeCallbackForTesting(
     base::RepeatingClosure callback) {
-  g_focus_change_callback_for_testing.Get() = std::move(callback);
+  GetFocusChangeCallbackForTesting() = std::move(callback);
 }
 
 AXTreeManager::AXTreeManager()
@@ -69,20 +68,23 @@ AXTreeManager::AXTreeManager(std::unique_ptr<AXTree> tree)
     : connected_to_parent_tree_node_(false),
       ax_tree_(std::move(tree)),
       event_generator_(ax_tree()) {
-  DCHECK(ax_tree_);
-
   // Do not register the tree in the map if it has no ID. It will be registered
   // later in OnTreeDataChanged().
   if (HasValidTreeID()) {
     GetMap().AddTreeManager(GetTreeID(), this);
   }
 
-  tree_observation_.Observe(ax_tree());
+  // This is temporary until the ViewAXTreeManager is not needed anymore. After
+  // that, we could instead have a DCHECK(ax_tree()). See crbug.com/1468416.
+  if (ax_tree()) {
+    tree_observation_.Observe(ax_tree());
+  }
 }
 
 void AXTreeManager::FireFocusEvent(AXNode* node) {
-  if (g_focus_change_callback_for_testing.Get())
-    g_focus_change_callback_for_testing.Get().Run();
+  if (GetFocusChangeCallbackForTesting()) {
+    GetFocusChangeCallbackForTesting().Run();
+  }
 }
 
 AXNode* AXTreeManager::RetargetForEvents(AXNode* node,
@@ -118,6 +120,10 @@ bool AXTreeManager::CanFireEvents() const {
   return true;
 }
 
+bool AXTreeManager::IsView() const {
+  return false;
+}
+
 AXNode* AXTreeManager::GetNodeFromTree(const AXTreeID& tree_id,
                                        const AXNodeID node_id) const {
   auto* manager = AXTreeManager::FromID(tree_id);
@@ -141,6 +147,10 @@ const AXTreeData& AXTreeManager::GetTreeData() const {
 
 AXTreeID AXTreeManager::GetParentTreeID() const {
   return ax_tree_ ? ax_tree_->data().parent_tree_id : AXTreeIDUnknown();
+}
+
+bool AXTreeManager::IsPlatformTreeManager() const {
+  return false;
 }
 
 AXNode* AXTreeManager::GetRoot() const {
@@ -227,8 +237,9 @@ AXNode* AXTreeManager::GetLastFocusedNode() {
 
 AXTreeManager::~AXTreeManager() {
   AXNode* parent = nullptr;
-  if (connected_to_parent_tree_node_)
+  if (connected_to_parent_tree_node_) {
     parent = GetParentNodeFromParentTree();
+  }
 
   // Fire any events that need to be fired when tree nodes get deleted. For
   // example, events that fire every time "OnSubtreeWillBeDeleted" is called.
@@ -248,6 +259,31 @@ AXTreeManager::~AXTreeManager() {
   }
 
   ParentConnectionChanged(parent);
+}
+
+std::unique_ptr<AXTree> AXTreeManager::SetTree(std::unique_ptr<AXTree> tree) {
+  if (!tree) {
+    NOTREACHED_NORETURN()
+        << "Attempting to set a new tree, but no tree has been provided.";
+  }
+
+  if (tree->GetAXTreeID().type() == ax::mojom::AXTreeIDType::kUnknown) {
+    NOTREACHED_NORETURN() << "Invalid tree ID.\n" << tree->ToString();
+  }
+
+  if (ax_tree_) {
+    ax_tree_->NotifyTreeManagerWillBeRemoved(GetTreeID());
+    GetMap().RemoveTreeManager(GetTreeID());
+  }
+
+  std::swap(ax_tree_, tree);
+  GetMap().AddTreeManager(GetTreeID(), this);
+  return tree;
+}
+
+std::unique_ptr<AXTree> AXTreeManager::SetTree(
+    const AXTreeUpdate& initial_state) {
+  return SetTree(std::make_unique<AXTree>(initial_state));
 }
 
 void AXTreeManager::OnTreeDataChanged(AXTree* tree,

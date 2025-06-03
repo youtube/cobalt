@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/lcp_critical_path_predictor/lcp_critical_path_predictor.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/loader/preload_helper.h"
 #include "third_party/blink/renderer/core/script/document_write_intervention.h"
@@ -61,7 +62,6 @@ KURL PreloadRequest::CompleteURL(Document* document) {
 // static
 std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     const String& initiator_name,
-    const TextPosition& initiator_position,
     const String& resource_url,
     const KURL& base_url,
     ResourceType resource_type,
@@ -84,16 +84,14 @@ std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     return nullptr;
 
   return base::WrapUnique(new PreloadRequest(
-      initiator_name, initiator_position, resource_url, base_url, resource_type,
-      resource_width, resource_height, request_type, referrer_policy,
-      is_image_set));
+      initiator_name, resource_url, base_url, resource_type, resource_width,
+      resource_height, request_type, referrer_policy, is_image_set));
 }
 
 Resource* PreloadRequest::Start(Document* document) {
   DCHECK(document->domWindow());
-  base::TimeTicks discovery_timestamp = base::TimeTicks::Now();
   base::UmaHistogramTimes("Blink.PreloadRequestWaitTime",
-                          discovery_timestamp - creation_time_);
+                          base::TimeTicks::Now() - creation_time_);
 
   FetchInitiatorInfo initiator_info;
   initiator_info.name = AtomicString(initiator_name_);
@@ -123,13 +121,20 @@ Resource* PreloadRequest::Start(Document* document) {
         network::mojom::AttributionReportingEligibility::kEventSourceOrTrigger);
   }
 
+  bool shared_storage_writable =
+      shared_storage_writable_ &&
+      RuntimeEnabledFeatures::SharedStorageAPIM118Enabled(
+          document->domWindow()) &&
+      document->domWindow()->IsSecureContext();
+  resource_request.SetSharedStorageWritableOptedIn(shared_storage_writable);
+  if (shared_storage_writable) {
+    CHECK_EQ(resource_type_, ResourceType::kImage);
+    UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
+  }
+
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;
   FetchParameters params(std::move(resource_request), options);
-
-  if (resource_type_ == ResourceType::kImage) {
-    params.SetDiscoveryTime(discovery_timestamp);
-  }
 
   auto* origin = document->domWindow()->GetSecurityOrigin();
   if (script_type_ == mojom::blink::ScriptType::kModule) {
@@ -171,8 +176,19 @@ Resource* PreloadRequest::Start(Document* document) {
     // We intentionally ignore the returned value, because we don't resend
     // the async request to the blocked script here.
     MaybeDisallowFetchForDocWrittenScript(params, *document);
+
+    if (base::FeatureList::IsEnabled(features::kLCPScriptObserver)) {
+      if (LCPCriticalPathPredictor* lcpp = document->GetFrame()->GetLCPP()) {
+        if (lcpp->lcp_influencer_scripts().Contains(url)) {
+          is_potentially_lcp_influencer_ = true;
+        }
+      }
+    }
   }
   params.SetRenderBlockingBehavior(render_blocking_behavior_);
+
+  params.SetIsPotentiallyLCPElement(is_potentially_lcp_element_);
+  params.SetIsPotentiallyLCPInfluencer(is_potentially_lcp_influencer_);
 
   return PreloadHelper::StartPreload(resource_type_, params, *document);
 }

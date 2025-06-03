@@ -29,17 +29,13 @@
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/xmlversion.h>
-
-#include "base/numerics/safe_conversions.h"
-#if defined(LIBXML_CATALOG_ENABLED)
-#include <libxml/catalog.h>
-#endif
 #include <libxslt/xslt.h>
 
+#include <algorithm>
 #include <memory>
 
 #include "base/auto_reset.h"
-#include "base/cxx17_backports.h"
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/cdata_section.h"
 #include "third_party/blink/renderer/core/dom/comment.h"
@@ -80,8 +76,8 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/utf8.h"
-#include "third_party/blink/renderer/platform/wtf/threading.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
 
@@ -496,14 +492,21 @@ bool XMLDocumentParser::ParseDocumentFragment(
 }
 
 static int g_global_descriptor = 0;
-static base::PlatformThreadId g_libxml_loader_thread = 0;
 
 static int MatchFunc(const char*) {
-  // Only match loads initiated due to uses of libxml2 from within
-  // XMLDocumentParser to avoid interfering with client applications that also
-  // use libxml2. http://bugs.webkit.org/show_bug.cgi?id=17353
-  return XMLDocumentParserScope::current_document_ &&
-         CurrentThread() == g_libxml_loader_thread;
+  // Any use of libxml in the renderer process must:
+  //
+  // - have a XMLDocumentParserScope on the stack so the various callbacks know
+  //   which blink::Document they are interacting with.
+  // - only occur on the main thread, since the current document is not stored
+  //   in a TLS variable.
+  //
+  // These conditionals are enforced by a CHECK() rather than being used to
+  // calculate the return value since this allows XML parsing to fail safe in
+  // case these preconditions are violated.
+  CHECK(XMLDocumentParserScope::current_document_ && IsMainThread());
+  // Tell libxml to always use Blink's set of input callbacks.
+  return 1;
 }
 
 static inline void SetAttributes(
@@ -610,7 +613,7 @@ static bool ShouldAllowExternalLoad(const KURL& url) {
 static void* OpenFunc(const char* uri) {
   Document* document = XMLDocumentParserScope::current_document_;
   DCHECK(document);
-  DCHECK_EQ(CurrentThread(), g_libxml_loader_thread);
+  CHECK(IsMainThread());
 
   KURL url(NullURL(), uri);
 
@@ -684,13 +687,9 @@ static void InitializeLibXMLIfNecessary() {
   if (did_init)
     return;
 
-#if defined(LIBXML_CATALOG_ENABLED)
-  xmlCatalogSetDefaults(XML_CATA_ALLOW_NONE);
-#endif
   xmlInitParser();
   xmlRegisterInputCallbacks(MatchFunc, OpenFunc, ReadFunc, CloseFunc);
   xmlRegisterOutputCallbacks(MatchFunc, OpenFunc, WriteFunc, CloseFunc);
-  g_libxml_loader_thread = CurrentThread();
   did_init = true;
 }
 
@@ -901,12 +900,12 @@ static inline void HandleNamespaceAttributes(
       namespace_q_name =
           WTF::g_xmlns_with_colon + ToAtomicString(namespaces[i].prefix);
 
-    QualifiedName parsed_name = g_any_name;
-    if (!Element::ParseAttributeName(parsed_name, xmlns_names::kNamespaceURI,
-                                     namespace_q_name, exception_state))
+    absl::optional<QualifiedName> parsed_name = Element::ParseAttributeName(
+        xmlns_names::kNamespaceURI, namespace_q_name, exception_state);
+    if (!parsed_name) {
       return;
-
-    prefixed_attributes.push_back(Attribute(parsed_name, namespace_uri));
+    }
+    prefixed_attributes.push_back(Attribute(*parsed_name, namespace_uri));
   }
 }
 
@@ -954,12 +953,12 @@ static inline void HandleElementAttributes(
             ? ToAtomicString(attributes[i].localname)
             : attr_prefix + ":" + ToString(attributes[i].localname);
 
-    QualifiedName parsed_name = g_any_name;
-    if (!Element::ParseAttributeName(parsed_name, attr_uri, attr_q_name,
-                                     exception_state))
+    absl::optional<QualifiedName> parsed_name =
+        Element::ParseAttributeName(attr_uri, attr_q_name, exception_state);
+    if (!parsed_name) {
       return;
-
-    prefixed_attributes.push_back(Attribute(parsed_name, attr_value));
+    }
+    prefixed_attributes.push_back(Attribute(*parsed_name, attr_value));
   }
 }
 
@@ -1241,10 +1240,20 @@ void XMLDocumentParser::CdataBlock(const String& text) {
   // If the most recent child is already a CDATA node *AND* this is the first
   // parse event emitted from the current input chunk, we append this text to
   // the existing node. Otherwise we append a new CDATA node.
+  // TODO(https://crbug.com/36431): Unfortunately, when a CDATA straddles
+  // multiple input chunks, libxml starts to emit CDATA nodes in 300 byte
+  // chunks. The MergeAdjacentCDataSections REF is an attempt to keep these
+  // within a single node. However, this will also merge actual adjacent CDATA
+  // sections into a single node, e.g.: `<![CDATA[foo]]><![CDATA[bar]]>` will
+  // now produce one node. The REF is added to easily reverse in case this
+  // isn't web compatible. Otherwise, we can remove `is_start_of_new_chunk_`
+  // and this REF.
   CDATASection* cdata_tail =
       current_node_ ? DynamicTo<CDATASection>(current_node_->lastChild())
                     : nullptr;
-  if (cdata_tail && is_start_of_new_chunk) {
+  if (cdata_tail &&
+      (RuntimeEnabledFeatures::XMLParserMergeAdjacentCDataSectionsEnabled() ||
+       is_start_of_new_chunk)) {
     cdata_tail->ParserAppendData(text);
   } else {
     current_node_->ParserAppendChild(

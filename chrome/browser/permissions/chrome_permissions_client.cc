@@ -26,8 +26,9 @@
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/permissions/permission_revocation_request.h"
 #include "chrome/browser/permissions/prediction_based_permission_ui_selector.h"
-#include "chrome/browser/permissions/pref_notification_permission_ui_selector.h"
+#include "chrome/browser/permissions/pref_based_quiet_permission_ui_selector.h"
 #include "chrome/browser/permissions/quiet_notification_permission_ui_config.h"
+#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/search_engines/ui_thread_search_terms_data.h"
@@ -48,6 +49,7 @@
 #include "components/permissions/permission_util.h"
 #include "components/permissions/request_type.h"
 #include "components/prefs/pref_service.h"
+#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/subresource_filter/content/browser/subresource_filter_content_settings_manager.h"
 #include "components/subresource_filter/content/browser/subresource_filter_profile_context.h"
@@ -61,6 +63,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/android/search_permissions/search_permissions_service.h"
+#include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/permissions/notification_blocked_message_delegate_android.h"
 #include "chrome/browser/permissions/permission_infobar_delegate_android.h"
 #include "chrome/browser/permissions/permission_update_infobar_delegate_android.h"
@@ -122,6 +125,13 @@ scoped_refptr<content_settings::CookieSettings>
 ChromePermissionsClient::GetCookieSettings(
     content::BrowserContext* browser_context) {
   return CookieSettingsFactory::GetForProfile(
+      Profile::FromBrowserContext(browser_context));
+}
+
+privacy_sandbox::TrackingProtectionSettings*
+ChromePermissionsClient::GetTrackingProtectionSettings(
+    content::BrowserContext* browser_context) {
+  return TrackingProtectionSettingsFactory::GetForProfile(
       Profile::FromBrowserContext(browser_context));
 }
 
@@ -275,7 +285,8 @@ void ChromePermissionsClient::TriggerPromptHatsSurveyIfEnabled(
   auto prompt_parameters =
       permissions::PermissionHatsTriggerHelper::PromptParametersForHaTS(
           request_type, action, prompt_disposition, prompt_disposition_reason,
-          gesture_type, version_info::GetChannelString(chrome::GetChannel()),
+          gesture_type,
+          std::string(version_info::GetChannelString(chrome::GetChannel())),
           is_post_prompt ? permissions::kOnPromptResolved
                          : permissions::kOnPromptAppearing,
           prompt_display_duration,
@@ -284,21 +295,27 @@ void ChromePermissionsClient::TriggerPromptHatsSurveyIfEnabled(
           recorded_gurl);
 
   if (!permissions::PermissionHatsTriggerHelper::
-          ArePromptTriggerCriteriaSatisfied(prompt_parameters)) {
+          ArePromptTriggerCriteriaSatisfied(
+              prompt_parameters, kHatsSurveyTriggerPermissionsPrompt)) {
     return;
   }
+
+  auto trigger_and_probability = permissions::PermissionHatsTriggerHelper::
+      GetPermissionPromptTriggerNameAndProbabilityForRequestType(
+          kHatsSurveyTriggerPermissionsPrompt,
+          permissions::PermissionUmaUtil::GetRequestTypeString(request_type));
 
   auto* hats_service =
       HatsServiceFactory::GetForProfile(profile,
                                         /*create_if_necessary=*/true);
-  if (!hats_service) {
+  if (!hats_service || !trigger_and_probability.has_value()) {
     return;
   }
 
   auto survey_data = permissions::PermissionHatsTriggerHelper::
       SurveyProductSpecificData::PopulateFrom(prompt_parameters);
 
-  hats_service->LaunchSurvey(kHatsSurveyTriggerPermissionsPrompt,
+  hats_service->LaunchSurvey(trigger_and_probability->first,
                              std::move(hats_shown_callback), base::DoNothing(),
                              survey_data.survey_bits_data,
                              survey_data.survey_string_data);
@@ -329,7 +346,7 @@ ChromePermissionsClient::CreatePermissionUiSelectors(
   std::vector<std::unique_ptr<permissions::PermissionUiSelector>> selectors;
   selectors.emplace_back(
       std::make_unique<ContextualNotificationPermissionUiSelector>());
-  selectors.emplace_back(std::make_unique<PrefNotificationPermissionUiSelector>(
+  selectors.emplace_back(std::make_unique<PrefBasedQuietPermissionUiSelector>(
       Profile::FromBrowserContext(browser_context)));
   selectors.emplace_back(std::make_unique<PredictionBasedPermissionUiSelector>(
       Profile::FromBrowserContext(browser_context)));
@@ -354,7 +371,6 @@ void ChromePermissionsClient::OnPromptResolved(
   if (request_type == permissions::RequestType::kNotifications) {
     AdaptiveQuietNotificationPermissionUiEnabler::GetForProfile(profile)
         ->PermissionPromptResolved();
-
     if (action == permissions::PermissionAction::GRANTED &&
         quiet_ui_reason.has_value() &&
         (quiet_ui_reason.value() ==
@@ -554,6 +570,14 @@ void ChromePermissionsClient::RepromptForAndroidPermissions(
 int ChromePermissionsClient::MapToJavaDrawableId(int resource_id) {
   return ResourceMapper::MapToJavaDrawableId(resource_id);
 }
+
+favicon::FaviconService* ChromePermissionsClient::GetFaviconService(
+    content::BrowserContext* browser_context) {
+  return FaviconServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(browser_context),
+      ServiceAccessType::EXPLICIT_ACCESS);
+}
+
 #else
 std::unique_ptr<permissions::PermissionPrompt>
 ChromePermissionsClient::CreatePrompt(

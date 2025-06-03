@@ -14,12 +14,25 @@
 
 namespace viz {
 
-// Note about sub targets: subtree-capture and region-capture are mutually
-// exclusive. This is trivially guaranteed by subtree-capture only being
-// supported on window-capture, and region-capture only being supported on
-// tab-capture.
+// The video capture sub-target can mean one of few things:
+// 1. aura::Window capture by use of SubtreeCaptureId.
+// 2. Element level capture by use of SubtreeCaptureId.
+// 3. Region level capture by use of a RegionCaptureCropId.
+// 4. Entire tab capture (e.g. tab capture) by use of absl::monostate.
 using VideoCaptureSubTarget =
     absl::variant<absl::monostate, SubtreeCaptureId, RegionCaptureCropId>;
+
+inline bool IsEntireTabCapture(const VideoCaptureSubTarget& sub_target) {
+  return absl::holds_alternative<absl::monostate>(sub_target);
+}
+
+inline bool IsSubtreeCapture(const VideoCaptureSubTarget& sub_target) {
+  return absl::holds_alternative<SubtreeCaptureId>(sub_target);
+}
+
+inline bool IsRegionCapture(const VideoCaptureSubTarget& sub_target) {
+  return absl::holds_alternative<RegionCaptureCropId>(sub_target);
+}
 
 // All of the information necessary to select a target for capture.
 // If constructed, the |frame_sink_id| must be valid and |sub_target|

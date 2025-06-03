@@ -18,6 +18,7 @@
 #include "build/build_config.h"
 #include "content/browser/browser_process_io_thread.h"
 #include "content/browser/browser_thread_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/common/content_features.h"
 
@@ -30,21 +31,6 @@
 using QueueType = content::BrowserTaskQueues::QueueType;
 
 namespace content {
-namespace features {
-// When the "BrowserPrioritizeInputQueue" feature is enabled, the browser will
-// schedule tasks related to input in kHigh priority queue. This puts it under
-// bootstrap, but above regular tasks.
-//
-// The goal is to reduce jank by ensuring chromium is handling input events as
-// soon as possible.
-//
-// TODO(nuskos): Remove this feature flag after we've done our retroactive study
-// of all chrometto performance improvements.
-BASE_FEATURE(kBrowserPrioritizeInputQueue,
-             "BrowserPrioritizeInputQueue",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-}  // namespace features
 
 namespace {
 
@@ -100,16 +86,11 @@ QueueType BaseBrowserTaskExecutor::GetQueueType(
     const BrowserTaskTraits& traits) {
   switch (traits.task_type()) {
     case BrowserTaskType::kUserInput:
-      if (base::FeatureList::IsEnabled(
-              features::kBrowserPrioritizeInputQueue)) {
-        return QueueType::kUserInput;
-      }
-      // Defer to traits.priority() below.
-      break;
+      return QueueType::kUserInput;
 
     case BrowserTaskType::kNavigationNetworkResponse:
       if (base::FeatureList::IsEnabled(
-              ::features::kNavigationNetworkResponseQueue)) {
+              features::kNavigationNetworkResponseQueue)) {
         return QueueType::kNavigationNetworkResponse;
       }
       // Defer to traits.priority() below.
@@ -117,6 +98,13 @@ QueueType BaseBrowserTaskExecutor::GetQueueType(
 
     case BrowserTaskType::kServiceWorkerStorageControlResponse:
       return QueueType::kServiceWorkerStorageControlResponse;
+
+    case BrowserTaskType::kBeforeUnloadBrowserResponse:
+      if (base::FeatureList::IsEnabled(
+              features::kBeforeUnloadBrowserResponseQueue)) {
+        return QueueType::kBeforeUnloadBrowserResponse;
+      }
+      break;
 
     case BrowserTaskType::kDefault:
       // Defer to traits.priority() below.

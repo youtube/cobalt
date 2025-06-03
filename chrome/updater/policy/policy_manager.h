@@ -10,6 +10,7 @@
 
 #include "base/values.h"
 #include "chrome/updater/policy/manager.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -24,6 +25,9 @@ class PolicyManager : public PolicyManagerInterface {
   PolicyManager(const PolicyManager&) = delete;
   PolicyManager& operator=(const PolicyManager&) = delete;
 
+  absl::optional<int> GetIntegerPolicy(const std::string& key) const;
+  absl::optional<std::string> GetStringPolicy(const std::string& key) const;
+
   // Overrides for PolicyManagerInterface.
   std::string source() const override;
 
@@ -32,7 +36,7 @@ class PolicyManager : public PolicyManagerInterface {
   absl::optional<base::TimeDelta> GetLastCheckPeriod() const override;
   absl::optional<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes()
       const override;
-  absl::optional<std::string> GetDownloadPreferenceGroupPolicy() const override;
+  absl::optional<std::string> GetDownloadPreference() const override;
   absl::optional<int> GetPackageCacheSizeLimitMBytes() const override;
   absl::optional<int> GetPackageCacheExpirationTimeDays() const override;
   absl::optional<int> GetEffectivePolicyForAppInstalls(
@@ -55,8 +59,6 @@ class PolicyManager : public PolicyManagerInterface {
   ~PolicyManager() override;
 
  private:
-  absl::optional<std::string> GetStringPolicy(const std::string& key) const;
-
   const base::Value::Dict policies_;
   std::vector<std::string> force_install_apps_;
 };

@@ -28,12 +28,15 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/p2p/socket_test_utils.h"
 #include "services/network/p2p/socket_throttler.h"
+#include "services/network/public/cpp/p2p_socket_type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
 using ::testing::DeleteArg;
 using ::testing::DoAll;
+using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::InSequence;
 using ::testing::Return;
 
@@ -145,6 +148,8 @@ class FakeDatagramServerSocket : public net::DatagramServerSocket {
   int SetSendBufferSize(int32_t size) override { return net::OK; }
 
   int SetDoNotFragment() override { return net::OK; }
+
+  int SetRecvEcn() override { return net::OK; }
 
   void SetMsgConfirm(bool confirm) override {}
 
@@ -311,7 +316,8 @@ class P2PSocketUdpTest : public testing::Test {
   P2PMessageThrottler throttler_;
   ScopedFakeClock fake_clock_;
   base::circular_deque<FakeDatagramServerSocket::UDPPacket> sent_packets_;
-  raw_ptr<FakeDatagramServerSocket> socket_;  // Owned by |socket_impl_|.
+  raw_ptr<FakeDatagramServerSocket, DanglingUntriaged>
+      socket_;  // Owned by |socket_impl_|.
   FakeP2PSocketDelegate socket_delegate_;
   std::unique_ptr<P2PSocketUdp> socket_impl_;
   std::unique_ptr<FakeSocketClient> fake_client_;
@@ -439,6 +445,31 @@ TEST_F(P2PSocketUdpTest, SendAfterStunResponseDifferentHost) {
   base::RunLoop().RunUntilIdle();
 
   EXPECT_TRUE(fake_client_->connection_error());
+}
+
+TEST_F(P2PSocketUdpTest, BatchesSendAfterSendingAllowed) {
+  // Open for sends to `dest1_`.
+  std::vector<uint8_t> request_packet;
+  CreateStunRequest(&request_packet);
+  socket_->ReceivePacket(dest1_, request_packet);
+
+  network::P2PPacketInfo info;
+  info.destination = dest1_;
+  std::vector<network::mojom::P2PSendPacketPtr> batch;
+  info.packet_id = 1;
+  std::vector<uint8_t> packet1;
+  CreateRandomPacket(&packet1);
+  batch.push_back(network::mojom::P2PSendPacket::New(packet1, info));
+  info.packet_id = 2;
+  std::vector<uint8_t> packet2;
+  CreateRandomPacket(&packet2);
+  batch.push_back(network::mojom::P2PSendPacket::New(packet2, info));
+  socket_impl_->SendBatch(std::move(batch));
+  ASSERT_EQ(sent_packets_.size(), 2u);
+  EXPECT_CALL(*fake_client_, SendBatchComplete(ElementsAre(
+                                 Field(&P2PSendPacketMetrics::packet_id, 1),
+                                 Field(&P2PSendPacketMetrics::packet_id, 2))));
+  base::RunLoop().RunUntilIdle();
 }
 
 // Verify throttler not allowing unlimited sending of ICE messages to

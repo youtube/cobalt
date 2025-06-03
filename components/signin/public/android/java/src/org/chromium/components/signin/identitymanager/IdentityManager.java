@@ -4,27 +4,25 @@
 
 package org.chromium.components.signin.identitymanager;
 
-import android.accounts.Account;
-
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountId;
 import org.chromium.components.signin.base.CoreAccountInfo;
 
 import java.util.List;
+
 /**
  * IdentityManager provides access to native IdentityManager's public API to java components.
  */
 public class IdentityManager {
-    private static final String TAG = "IdentityManager";
-
     /**
      * IdentityManager.Observer is notified when the available account information are updated. This
      * is a subset of native's IdentityManager::Observer.
@@ -187,18 +185,9 @@ public class IdentityManager {
         }
     }
 
-    /**
-     * Call this method to retrieve an OAuth2 access token for the given account and scope. Please
-     * note that this method expects a scope with 'oauth2:' prefix.
-     * @param account the account to get the access token for.
-     * @param scope The scope to get an auth token for (with Android-style 'oauth2:' prefix).
-     * @param callback called on successful and unsuccessful fetching of auth token.
-     */
-    @MainThread
-    public void getAccessToken(Account account, String scope, GetAccessTokenCallback callback) {
-        assert mProfileOAuth2TokenServiceDelegate != null;
-        // TODO(crbug.com/934688) The following should call a JNI method instead.
-        mProfileOAuth2TokenServiceDelegate.getAccessToken(account, scope, callback);
+    /** Returns true if the primary account can be cleared/removed from the browser. */
+    public boolean isClearPrimaryAccountAllowed() {
+        return IdentityManagerJni.get().isClearPrimaryAccountAllowed(mNativeIdentityManager);
     }
 
     /**
@@ -213,7 +202,6 @@ public class IdentityManager {
         mProfileOAuth2TokenServiceDelegate.invalidateAccessToken(accessToken);
     }
 
-    @VisibleForTesting
     public void setRefreshTokenUpdateObserverForTests(Callback<CoreAccountInfo> callback) {
         mRefreshTokenUpdateObserver = callback;
     }
@@ -226,5 +214,7 @@ public class IdentityManager {
         AccountInfo findExtendedAccountInfoByEmailAddress(long nativeIdentityManager, String email);
         CoreAccountInfo[] getAccountsWithRefreshTokens(long nativeIdentityManager);
         void refreshAccountInfoIfStale(long nativeIdentityManager, CoreAccountId coreAccountId);
+
+        boolean isClearPrimaryAccountAllowed(long nativeIdentityManager);
     }
 }

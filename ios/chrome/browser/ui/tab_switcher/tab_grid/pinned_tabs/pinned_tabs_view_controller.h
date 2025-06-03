@@ -9,10 +9,13 @@
 
 #import "ios/chrome/browser/ui/tab_switcher/tab_collection_consumer.h"
 
-@class GridTransitionLayout;
+@class LegacyGridTransitionLayout;
 @class PinnedTabsViewController;
 @protocol TabCollectionDragDropHandler;
 @protocol TabContextMenuProvider;
+namespace web {
+class WebStateID;
+}  // namespace web
 
 // Protocol used to relay relevant user interactions from the
 // PinnedTabsViewController.
@@ -22,7 +25,7 @@
 // was selected.
 - (void)pinnedTabsViewController:
             (PinnedTabsViewController*)pinnedTabsViewController
-             didSelectItemWithID:(NSString*)itemID;
+             didSelectItemWithID:(web::WebStateID)itemID;
 
 // Tells the delegate that the the number of items in `pinnedTabsViewController`
 // changed to `count`.
@@ -33,11 +36,11 @@
 // Tells the delegate that the item with `itemID` was moved.
 - (void)pinnedTabsViewController:
             (PinnedTabsViewController*)pinnedTabsViewController
-               didMoveItemWithID:(NSString*)itemID;
+               didMoveItemWithID:(web::WebStateID)itemID;
 
 // Tells the delegate that the item with `itemID` was removed.
 - (void)pinnedTabsViewController:(PinnedTabsViewController*)gridViewController
-             didRemoveItemWIthID:(NSString*)itemID;
+             didRemoveItemWIthID:(web::WebStateID)itemID;
 
 // Tells the delegate that the `pinnedTabsViewController` visibility has
 // changed.
@@ -95,7 +98,7 @@
 - (void)dropAnimationDidEnd;
 
 // Returns the layout of the pinned tabs to be used in an animated transition.
-- (GridTransitionLayout*)transitionLayout;
+- (LegacyGridTransitionLayout*)transitionLayout;
 
 // Returns whether there is a selected cell in the collection.
 - (BOOL)hasSelectedCell;

@@ -62,11 +62,6 @@ spdy::SettingsMap AddDefaultHttp2Settings(spdy::SettingsMap http2_settings) {
   if (it == http2_settings.end())
     http2_settings[spdy::SETTINGS_HEADER_TABLE_SIZE] = kSpdyMaxHeaderTableSize;
 
-  it = http2_settings.find(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  if (it == http2_settings.end())
-    http2_settings[spdy::SETTINGS_MAX_CONCURRENT_STREAMS] =
-        kSpdyMaxConcurrentPushedStreams;
-
   it = http2_settings.find(spdy::SETTINGS_INITIAL_WINDOW_SIZE);
   if (it == http2_settings.end())
     http2_settings[spdy::SETTINGS_INITIAL_WINDOW_SIZE] =
@@ -252,8 +247,8 @@ void HttpNetworkSession::RemoveResponseDrainer(
 
 ClientSocketPool* HttpNetworkSession::GetSocketPool(
     SocketPoolType pool_type,
-    const ProxyServer& proxy_server) {
-  return GetSocketPoolManager(pool_type)->GetSocketPool(proxy_server);
+    const ProxyChain& proxy_chain) {
+  return GetSocketPoolManager(pool_type)->GetSocketPool(proxy_chain);
 }
 
 base::Value HttpNetworkSession::SocketPoolInfoToValue() const {
@@ -324,10 +319,7 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
       "max_num_migrations_to_non_default_network_on_path_degrading",
       quic_params->max_migrations_to_non_default_network_on_path_degrading);
   dict.Set("allow_server_migration", quic_params->allow_server_migration);
-  dict.Set("race_stale_dns_on_connection",
-           quic_params->race_stale_dns_on_connection);
   dict.Set("estimate_initial_rtt", quic_params->estimate_initial_rtt);
-  dict.Set("server_push_cancellation", params_.enable_server_push_cancellation);
   dict.Set("initial_rtt_for_handshake_milliseconds",
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
@@ -349,17 +341,6 @@ void HttpNetworkSession::CloseIdleConnections(const char* net_log_reason_utf8) {
   normal_socket_pool_manager_->CloseIdleSockets(net_log_reason_utf8);
   websocket_socket_pool_manager_->CloseIdleSockets(net_log_reason_utf8);
   spdy_session_pool_.CloseCurrentIdleSessions(net_log_reason_utf8);
-}
-
-void HttpNetworkSession::SetServerPushDelegate(
-    std::unique_ptr<ServerPushDelegate> push_delegate) {
-  DCHECK(push_delegate);
-  if (!params_.enable_server_push_cancellation || push_delegate_)
-    return;
-
-  push_delegate_ = std::move(push_delegate);
-  spdy_session_pool_.set_server_push_delegate(push_delegate_.get());
-  quic_stream_factory_.set_server_push_delegate(push_delegate_.get());
 }
 
 bool HttpNetworkSession::IsQuicEnabled() const {

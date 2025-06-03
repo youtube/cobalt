@@ -380,15 +380,34 @@ TEST_F(PrivacySandboxNoticeRestrictedDialogHandlerTest, HandleOpenSettings) {
       *mock_privacy_sandbox_service(),
       PromptActionOccurred(
           PrivacySandboxService::PromptAction::kRestrictedNoticeOpenSettings));
-  EXPECT_CALL(
-      *mock_privacy_sandbox_service(),
-      PromptActionOccurred(
-          PrivacySandboxService::PromptAction::kNoticeClosedNoInteraction))
+  EXPECT_CALL(*mock_privacy_sandbox_service(),
+              PromptActionOccurred(PrivacySandboxService::PromptAction::
+                                       kRestrictedNoticeClosedNoInteraction))
       .Times(0);
 
   base::Value::List args;
   args.Append(static_cast<int>(
       PrivacySandboxService::PromptAction::kRestrictedNoticeOpenSettings));
+  IdempotentPromptActionOccurred(args);
+
+  ASSERT_EQ(0U, web_ui()->call_data().size());
+}
+
+TEST_F(PrivacySandboxNoticeRestrictedDialogHandlerTest, HandleAcknowledge) {
+  ShowDialog();
+  EXPECT_CALL(*dialog_mock(), Close());
+  EXPECT_CALL(
+      *mock_privacy_sandbox_service(),
+      PromptActionOccurred(
+          PrivacySandboxService::PromptAction::kRestrictedNoticeAcknowledge));
+  EXPECT_CALL(*mock_privacy_sandbox_service(),
+              PromptActionOccurred(PrivacySandboxService::PromptAction::
+                                       kRestrictedNoticeClosedNoInteraction))
+      .Times(0);
+
+  base::Value::List args;
+  args.Append(static_cast<int>(
+      PrivacySandboxService::PromptAction::kRestrictedNoticeAcknowledge));
   IdempotentPromptActionOccurred(args);
 
   ASSERT_EQ(0U, web_ui()->call_data().size());

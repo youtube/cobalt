@@ -23,12 +23,15 @@ enum class PopupType {
 // This reason is passed whenever a popup needs to be closed.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// When adding a value to this enum, please update
+// tools/metrics/histograms/enums.xml.
 enum class PopupHidingReason {
   // A suggestion was accepted.
   kAcceptSuggestion = 0,
   // An interstitial page displaces the popup.
   kAttachInterstitialPage = 1,
-  // A field isn't edited anymore but remains focused for now.
+  // The text field is no longer edited - sent directly before a focus change.
+  // TODO(crbug.com/1469610): Deprecate in favor of kFocusChanged.
   kEndEditing = 2,
   // Focus removed from field. Follows kEndEditing.
   kFocusChanged = 3,
@@ -71,7 +74,16 @@ enum class PopupHidingReason {
   kOverlappingWithFastCheckoutSurface = 20,
   // The picture-in-picture window overlaps with the autofill suggestions.
   kOverlappingWithPictureInPictureWindow = 21,
-  kMaxValue = kOverlappingWithPictureInPictureWindow
+  // The context menu was opened. We hide the autofill popup to make sure it
+  // does not overlap with it.
+  kContextMenuOpened = 22,
+  // No frame currently has focus. This case is caught for safety because it
+  // might be reachable due to race conditions.
+  kNoFrameHasFocus = 23,
+  // Sub-popup related reason, used when closing a sub-popup (e.g. by moving
+  // the mouse out of the suggestion control or by the keyboard navigation).
+  kExpandedSuggestionCollapsedSubPopup = 24,
+  kMaxValue = kExpandedSuggestionCollapsedSubPopup
 };
 
 }  // namespace autofill

@@ -6,7 +6,9 @@
 
 #include <utility>
 
+#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
@@ -37,6 +39,8 @@ std::string GetLogSourceValue(const PolicyLogger::Log::Source log_source) {
       return "Policy Fetching";
     case PolicyLogger::Log::Source::kAuthentication:
       return "Authentication";
+    case PolicyLogger::Log::Source::kRemoteCommands:
+      return "Remote Commands";
     default:
       NOTREACHED();
   }
@@ -60,7 +64,7 @@ std::string GetLogSeverity(const PolicyLogger::Log::Severity log_severity) {
 // Constructs the URL for Chromium Code Search that points to the line of code
 // that generated the log and the Chromium git revision hash.
 std::string GetLineURL(const base::Location location) {
-  std::string last_change = version_info::GetLastChange();
+  std::string last_change(version_info::GetLastChange());
 
   // The substring separates the last change commit hash from the branch name on
   // the '-'.
@@ -103,10 +107,8 @@ PolicyLogger::LogHelper::LogHelper(
       location_(location) {}
 
 PolicyLogger::LogHelper::~LogHelper() {
-  if (PolicyLogger::GetInstance()->IsPolicyLoggingEnabled()) {
     policy::PolicyLogger::GetInstance()->AddLog(PolicyLogger::Log(
         log_severity_, log_source_, message_buffer_.str(), location_));
-  }
   StreamLog();
 }
 
@@ -161,36 +163,40 @@ void PolicyLogger::LogHelper::StreamLog() const {
 base::Value::Dict PolicyLogger::Log::GetAsDict() const {
   base::Value::Dict log_dict;
   log_dict.Set("message", base::EscapeForHTML(message_));
-  log_dict.Set("log_severity", GetLogSeverity(log_severity_));
-  log_dict.Set("log_source", GetLogSourceValue(log_source_));
+  log_dict.Set("logSeverity", GetLogSeverity(log_severity_));
+  log_dict.Set("logSource", GetLogSourceValue(log_source_));
   log_dict.Set("location", GetLineURL(location_));
   log_dict.Set("timestamp", base::TimeFormatHTTP(timestamp_));
   return log_dict;
 }
 
 PolicyLogger::PolicyLogger() = default;
-
-PolicyLogger::~PolicyLogger() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
-}
+PolicyLogger::~PolicyLogger() = default;
 
 void PolicyLogger::AddLog(PolicyLogger::Log&& new_log) {
-  if (IsPolicyLoggingEnabled()) {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
-    logs_.emplace_back(std::move(new_log));
+    {
+      base::AutoLock lock(lock_);
+
+      // The logs deque size should not exceed `kMaxLogsSize`. Remove the first
+      // log if the size is reached before adding the new log.
+      if (logs_.size() == kMaxLogsSize) {
+        logs_.pop_front();
+      }
+
+      logs_.emplace_back(std::move(new_log));
+    }
 
     if (!is_log_deletion_scheduled_ && is_log_deletion_enabled_) {
       ScheduleOldLogsDeletion();
     }
-  }
 }
 
 void PolicyLogger::DeleteOldLogs() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
   // Delete older logs with lifetime `kTimeToLive` mins, set the flag and
   // reschedule the task.
-  logs_.erase(std::remove_if(logs_.begin(), logs_.end(), IsLogExpired),
-              logs_.end());
+  base::AutoLock lock(lock_);
+  base::EraseIf(logs_, IsLogExpired);
+
   if (logs_.size() > 0) {
     ScheduleOldLogsDeletion();
     return;
@@ -206,36 +212,26 @@ void PolicyLogger::ScheduleOldLogsDeletion() {
   is_log_deletion_scheduled_ = true;
 }
 
-base::Value::List PolicyLogger::GetAsList() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
+base::Value::List PolicyLogger::GetAsList() {
   base::Value::List all_logs_list;
+  base::AutoLock lock(lock_);
   for (const Log& log : logs_) {
     all_logs_list.Append(log.GetAsDict());
   }
   return all_logs_list;
 }
 
-bool PolicyLogger::IsPolicyLoggingEnabled() const {
-#if BUILDFLAG(IS_ANDROID)
-  return base::FeatureList::IsEnabled(policy::features::kPolicyLogsPageAndroid);
-#elif BUILDFLAG(IS_IOS)
-  return base::FeatureList::IsEnabled(policy::features::kPolicyLogsPageIOS);
-#else
-  return false;
-#endif  // BUILDFLAG(IS_ANDROID)
-}
-
 void PolicyLogger::EnableLogDeletion() {
   is_log_deletion_enabled_ = true;
 }
 
-size_t PolicyLogger::GetPolicyLogsSizeForTesting() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
+size_t PolicyLogger::GetPolicyLogsSizeForTesting() {
+  base::AutoLock lock(lock_);
   return logs_.size();
 }
 
 void PolicyLogger::ResetLoggerAfterTest() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(logs_list_sequence_checker_);
+  base::AutoLock lock(lock_);
   logs_.erase(logs_.begin(), logs_.end());
   is_log_deletion_scheduled_ = false;
   is_log_deletion_enabled_ = false;

@@ -69,7 +69,6 @@ void SystemMenuModelBuilder::BuildMenu(ui::SimpleMenuModel* model) {
     BuildSystemMenuForBrowserWindow(model);
   else
     BuildSystemMenuForAppOrPopupWindow(model);
-  AddFrameToggleItems(model);
 }
 
 void SystemMenuModelBuilder::BuildSystemMenuForBrowserWindow(
@@ -135,7 +134,11 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
     model->AddSeparator(ui::NORMAL_SEPARATOR);
     model->AddItemWithStringId(IDC_FIND, IDS_FIND);
     model->AddItemWithStringId(IDC_PRINT, IDS_PRINT);
-    zoom_menu_contents_ = std::make_unique<ZoomMenuModel>(&menu_delegate_);
+    zoom_menu_contents_ =
+        std::make_unique<ui::SimpleMenuModel>(&menu_delegate_);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_PLUS, IDS_ZOOM_PLUS);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_NORMAL, IDS_ZOOM_NORMAL);
+    zoom_menu_contents_->AddItemWithStringId(IDC_ZOOM_MINUS, IDS_ZOOM_MINUS);
     model->AddSubMenuWithStringId(IDC_ZOOM_MENU, IDS_ZOOM_MENU,
                                   zoom_menu_contents_.get());
   }
@@ -152,14 +155,6 @@ void SystemMenuModelBuilder::BuildSystemMenuForAppOrPopupWindow(
   AppendMoveToDesksMenu(model);
 #endif
   AppendTeleportMenu(model);
-}
-
-void SystemMenuModelBuilder::AddFrameToggleItems(ui::SimpleMenuModel* model) {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDebugEnableFrameToggle)) {
-    model->AddSeparator(ui::NORMAL_SEPARATOR);
-    model->AddItem(IDC_DEBUG_FRAME_TOGGLE, u"Toggle Frame Type");
-  }
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

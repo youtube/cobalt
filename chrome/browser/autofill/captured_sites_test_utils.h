@@ -193,7 +193,6 @@ class ProfileDataController {
   absl::optional<std::u16string> cvc_;
   autofill::AutofillProfile profile_;
   autofill::CreditCard card_;
-  std::map<std::string, autofill::ServerFieldType> string_to_field_type_map_;
 };
 
 // TestRecipeReplayChromeFeatureActionExecutor
@@ -261,10 +260,10 @@ class TestRecipeReplayChromeFeatureActionExecutor {
 //    under the src/chrome/test/data/autofill/captured_sites directory.
 class TestRecipeReplayer {
  public:
-  static const int kHostHttpPort = 8080;
-  static const int kHostHttpsPort = 8081;
-  static const int kHostHttpRecordPort = 8082;
-  static const int kHostHttpsRecordPort = 8083;
+  static constexpr int kHostHttpPort = 8080;
+  static constexpr int kHostHttpsPort = 8081;
+  static constexpr int kHostHttpRecordPort = 8082;
+  static constexpr int kHostHttpsRecordPort = 8083;
 
   enum DomElementReadyState {
     kReadyStatePresent = 0,
@@ -281,8 +280,7 @@ class TestRecipeReplayer {
   TestRecipeReplayer& operator=(const TestRecipeReplayer&) = delete;
 
   ~TestRecipeReplayer();
-  void Setup();
-  void Cleanup();
+
   // Replay a test by:
   // 1. Starting a WPR server using the specified capture file.
   // 2. Replaying the specified Test Recipe file.
@@ -428,7 +426,8 @@ class TestRecipeReplayer {
   raw_ptr<TestRecipeReplayChromeFeatureActionExecutor> feature_action_executor_;
   // The Web Page Replay server that serves the captured sites.
   std::unique_ptr<captured_sites_test_utils::WebPageReplayServerWrapper>
-      web_page_replay_server_wrapper_;
+      web_page_replay_server_wrapper_ =
+          std::make_unique<WebPageReplayServerWrapper>(true);
 
   std::vector<testing::AssertionResult> validation_failures_;
 

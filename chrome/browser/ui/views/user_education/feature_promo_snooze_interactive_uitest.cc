@@ -8,6 +8,8 @@
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
@@ -46,6 +48,22 @@ using ::testing::NiceMock;
 using ::testing::Ref;
 using ::testing::Return;
 
+// Copied from feature_promo_controller.cc to mock internal enum.
+enum class FeaturePromoCloseReasonInternal {
+  kDismiss = 0,
+  kSnooze = 1,
+  kAction = 2,
+  kCancel = 3,
+  kTimeout = 4,
+  kAbortPromo = 5,
+  kFeatureEngaged = 6,
+  kOverrideForUIRegionConflict = 7,
+  kOverrideForDemo = 8,
+  kOverrideForTesting = 9,
+  kOverrideForPrecedence = 10,
+  kMaxValue = kOverrideForPrecedence,
+};
+
 namespace {
 BASE_FEATURE(kSnoozeTestFeature,
              "SnoozeTestFeature",
@@ -79,7 +97,7 @@ class FeaturePromoSnoozeInteractiveTest : public InteractiveBrowserTest {
             kSnoozeTestFeature)) {
       promo_controller_->registry()->RegisterFeature(
           user_education::FeaturePromoSpecification::CreateForSnoozePromo(
-              kSnoozeTestFeature, kAppMenuButtonElementId,
+              kSnoozeTestFeature, kToolbarAppMenuButtonElementId,
               IDS_TAB_GROUPS_NEW_GROUP_PROMO));
     }
   }
@@ -114,6 +132,31 @@ class FeaturePromoSnoozeInteractiveTest : public InteractiveBrowserTest {
 
           return !testing::Test::HasNonfatalFailure();
         }));
+  }
+
+  auto CheckMetrics(int dismiss_count, int snooze_count) {
+    return Check(
+        base::BindLambdaForTesting([this, dismiss_count, snooze_count]() {
+          EXPECT_EQ(
+              dismiss_count,
+              user_action_tester_.GetActionCount(
+                  "UserEducation.MessageAction.Dismiss.SnoozeTestFeature"));
+          EXPECT_EQ(
+              snooze_count,
+              user_action_tester_.GetActionCount(
+                  "UserEducation.MessageAction.Snooze.SnoozeTestFeature"));
+          histogram_tester_.ExpectBucketCount(
+              "UserEducation.MessageAction.SnoozeTestFeature",
+              static_cast<int>(FeaturePromoCloseReasonInternal::kDismiss),
+              dismiss_count);
+          histogram_tester_.ExpectBucketCount(
+              "UserEducation.MessageAction.SnoozeTestFeature",
+              static_cast<int>(FeaturePromoCloseReasonInternal::kSnooze),
+              snooze_count);
+
+          return !testing::Test::HasNonfatalFailure();
+        }),
+        "Metrics");
   }
 
   auto SetSnoozePrefs(const SnoozeData& data) {
@@ -170,11 +213,16 @@ class FeaturePromoSnoozeInteractiveTest : public InteractiveBrowserTest {
             user_education::HelpBubbleView::kHelpBubbleElementIdForTesting));
   }
 
-  raw_ptr<NiceMock<feature_engagement::test::MockTracker>, DanglingUntriaged>
+  raw_ptr<NiceMock<feature_engagement::test::MockTracker>,
+          AcrossTasksDanglingUntriaged>
       mock_tracker_;
-  raw_ptr<BrowserFeaturePromoController, DanglingUntriaged> promo_controller_;
-  raw_ptr<user_education::FeaturePromoSnoozeService, DanglingUntriaged>
+  raw_ptr<BrowserFeaturePromoController, AcrossTasksDanglingUntriaged>
+      promo_controller_;
+  raw_ptr<user_education::FeaturePromoSnoozeService,
+          AcrossTasksDanglingUntriaged>
       snooze_service_;
+  base::HistogramTester histogram_tester_;
+  base::UserActionTester user_action_tester_;
 
  private:
   static void RegisterMockTracker(content::BrowserContext* context) {
@@ -207,7 +255,8 @@ IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest,
   RunTestSequence(AttemptIPH(true), DismissIPH(),
                   CheckSnoozePrefs(/* is_dismiss */ true,
                                    /* show_count */ 1,
-                                   /* snooze_count */ 0));
+                                   /* snooze_count */ 0),
+                  CheckMetrics(/*dismiss_count=*/1, /*snooze_count=*/0));
 }
 
 IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest,
@@ -215,7 +264,8 @@ IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest,
   RunTestSequence(AttemptIPH(true), SnoozeIPH(),
                   CheckSnoozePrefs(/* is_dismiss */ false,
                                    /* show_count */ 1,
-                                   /* snooze_count */ 1));
+                                   /* snooze_count */ 1),
+                  CheckMetrics(/*dismiss_count=*/0, /*snooze_count=*/1));
 }
 
 IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest, CanReSnooze) {
@@ -260,7 +310,9 @@ IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest,
 IN_PROC_BROWSER_TEST_F(FeaturePromoSnoozeInteractiveTest, EndPromoSetsPrefs) {
   RunTestSequence(
       AttemptIPH(true), Do(base::BindLambdaForTesting([this]() {
-        promo_controller_->EndPromo(kSnoozeTestFeature);
+        promo_controller_->EndPromo(
+            kSnoozeTestFeature,
+            user_education::FeaturePromoCloseReason::kAbortPromo);
       })),
       WaitForHide(
           user_education::HelpBubbleView::kHelpBubbleElementIdForTesting),

@@ -10,7 +10,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
+#include "content/public/test/test_renderer_host.h"
 #include "content/test/fenced_frame_test_utils.h"
+#include "net/base/schemeful_site.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -28,24 +30,26 @@ namespace {
 // Validates the mapping contained in `pending_ad_components`.
 //
 // If `add_to_new_map` is false, `pending_ad_components` will be added to
-// `fenced_frame_url_mapping` to mimic ShadowDOM behavior. Otherwise, they'll be
-// added to a new FencedFrameURLMapping to mimic MPArch behavior, and
+// `fenced_frame_url_mapping` to mimic ShadowDOM behavior. Otherwise, they'll
+// be added to a new FencedFrameURLMapping to mimic MPArch behavior, and
 // `fenced_frame_url_mapping` is ignored.
 //
 // `expected_mapped_ad_descriptors` contains the URLs the first URNs are
 // expected to map to, and will be padded with "about:blank" URLs until it's
 // blink::kMaxAdAuctionAdComponents in length.
+// TODO(crbug.com/1262022): the ShadowDOM implementation is deprecated, and
+// these tests should be cleaned up to only reflect MPArch behavior.
 void ValidatePendingAdComponentsMap(
     FencedFrameURLMapping* fenced_frame_url_mapping,
     bool add_to_new_map,
     const std::vector<std::pair<GURL, FencedFrameConfig>>&
         nested_urn_config_pairs,
     std::vector<blink::AdDescriptor> expected_mapped_ad_descriptors) {
-  // Get URN array from `nested_urn_config_pairs` and validate the returned URN
-  // array as much as possible prior to adding the URNs to
-  // `fenced_frame_url_mapping`, to the extent that's possible. This needs to be
-  // done before adding the URNs to `fenced_frame_url_mapping` so that this loop
-  // can make sure the URNs don't exist in the mapping yet.
+  // Get URN array from `nested_urn_config_pairs` and validate the returned
+  // URN array as much as possible prior to adding the URNs to
+  // `fenced_frame_url_mapping`, to the extent that's possible. This needs to
+  // be done before adding the URNs to `fenced_frame_url_mapping` so that this
+  // loop can make sure the URNs don't exist in the mapping yet.
   std::vector<GURL> ad_component_urns;
   for (auto& urn_config_pair : nested_urn_config_pairs) {
     ad_component_urns.push_back(urn_config_pair.first);
@@ -54,8 +58,9 @@ void ValidatePendingAdComponentsMap(
   for (size_t i = 0; i < ad_component_urns.size(); ++i) {
     // All entries in `ad_component_urns` should be distinct URNs.
     EXPECT_EQ(url::kUrnScheme, ad_component_urns[i].scheme_piece());
-    for (size_t j = 0; j < i; ++j)
+    for (size_t j = 0; j < i; ++j) {
       EXPECT_NE(ad_component_urns[j], ad_component_urns[i]);
+    }
 
     // The URNs should not yet be in `fenced_frame_url_mapping`, so they can
     // safely be added to it.
@@ -70,8 +75,9 @@ void ValidatePendingAdComponentsMap(
   // Add the `nested_urn_config_pairs` to a mapping. If `add_to_new_map` is
   // true, use a new URL mapping.
   FencedFrameURLMapping new_frame_url_mapping;
-  if (add_to_new_map)
+  if (add_to_new_map) {
     fenced_frame_url_mapping = &new_frame_url_mapping;
+  }
   fenced_frame_url_mapping->ImportPendingAdComponents(nested_urn_config_pairs);
 
   // Now validate the changes made to `fenced_frame_url_mapping`.
@@ -96,13 +102,13 @@ void ValidatePendingAdComponentsMap(
     // requirement.
     EXPECT_TRUE(observer.nested_urn_config_pairs());
 
-    // If this it not an about:blank URL, then when loaded in a fenced frame, it
-    // can recursively access its own nested ad components array, so recursively
-    // check those as well.
+    // If this it not an about:blank URL, then when loaded in a fenced frame,
+    // it can recursively access its own nested ad components array, so
+    // recursively check those as well.
     if (*observer.mapped_url() != GURL(url::kAboutBlankURL)) {
       // Nested URL maps map everything to "about:blank". They exist solely so
-      // that top-level and nested component ads can't tell which one they are,
-      // to prevent smuggling data based on whether an ad is loaded in a
+      // that top-level and nested component ads can't tell which one they
+      // are, to prevent smuggling data based on whether an ad is loaded in a
       // top-level ad URL or a component ad URL.
       ValidatePendingAdComponentsMap(fenced_frame_url_mapping, add_to_new_map,
                                      *observer.nested_urn_config_pairs(),
@@ -122,22 +128,29 @@ GURL GenerateAndVerifyPendingMappedURN(
   return pending_urn.value();
 }
 
-// Creates a dummy FencedFrameReporter that will never used to send any reports.
-// Tests only check for pointer equality, so the configuration of the
-// FencedFrameReporter does not matter.
-scoped_refptr<FencedFrameReporter> CreateReporter() {
-  return FencedFrameReporter::CreateForFledge(
-      base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(nullptr),
-      /*attribution_manager=*/nullptr,
-      /*direct_seller_is_seller=*/false,
-      /*private_aggregation_manager=*/nullptr,
-      /*main_frame_origin=*/url::Origin(),
-      /*winner_origin=*/url::Origin());
-}
+class FencedFrameURLMappingTest : public RenderViewHostTestHarness {
+ public:
+  FencedFrameURLMappingTest() = default;
+
+  // Creates a dummy FencedFrameReporter that will never used to send any
+  // reports. Tests only check for pointer equality, so the configuration of the
+  // FencedFrameReporter does not matter.
+  scoped_refptr<FencedFrameReporter> CreateReporter() {
+    return FencedFrameReporter::CreateForFledge(
+        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+            nullptr),
+        /*browser_context=*/browser_context(),
+        /*direct_seller_is_seller=*/false,
+        /*private_aggregation_manager=*/nullptr,
+        /*main_frame_origin=*/url::Origin(),
+        /*winner_origin=*/url::Origin(),
+        /*winner_aggregation_coordinator_origin=*/absl::nullopt);
+  }
+};
 
 }  // namespace
 
-TEST(FencedFrameURLMappingTest, AddAndConvert) {
+TEST_F(FencedFrameURLMappingTest, AddAndConvert) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL test_url("https://foo.test");
   absl::optional<GURL> urn_uuid =
@@ -152,7 +165,7 @@ TEST(FencedFrameURLMappingTest, AddAndConvert) {
   EXPECT_EQ(absl::nullopt, observer.nested_urn_config_pairs());
 }
 
-TEST(FencedFrameURLMappingTest, NonExistentUUID) {
+TEST_F(FencedFrameURLMappingTest, NonExistentUUID) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL urn_uuid("urn:uuid:c36973b5-e5d9-de59-e4c4-364f137b3c7a");
 
@@ -163,7 +176,7 @@ TEST(FencedFrameURLMappingTest, NonExistentUUID) {
   EXPECT_EQ(absl::nullopt, observer.nested_urn_config_pairs());
 }
 
-TEST(FencedFrameURLMappingTest, PendingMappedUUID) {
+TEST_F(FencedFrameURLMappingTest, PendingMappedUUID) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   const GURL urn_uuid1 =
       GenerateAndVerifyPendingMappedURN(&fenced_frame_url_mapping);
@@ -178,20 +191,19 @@ TEST(FencedFrameURLMappingTest, PendingMappedUUID) {
   fenced_frame_url_mapping.ConvertFencedFrameURNToURL(urn_uuid2, &observer2);
   EXPECT_FALSE(observer2.mapping_complete_observed());
 
-  url::Origin shared_storage_origin =
-      url::Origin::Create(GURL("https://bar.com"));
+  net::SchemefulSite shared_storage_site(GURL("https://bar.com"));
   GURL mapped_url = GURL("https://foo.com");
 
-  // Two SharedStorageBudgetMetadata for the same origin can happen if the same
+  // Two SharedStorageBudgetMetadata for the same site can happen if the same
   // blink::Document invokes window.sharedStorage.runURLSelectionOperation()
   // twice. Each call will generate a distinct URN. And if the input urls have
   // different size, the budget_to_charge (i.e. log(n)) will be also different.
   SimulateSharedStorageURNMappingComplete(fenced_frame_url_mapping, urn_uuid1,
-                                          mapped_url, shared_storage_origin,
+                                          mapped_url, shared_storage_site,
                                           /*budget_to_charge=*/2.0);
 
   SimulateSharedStorageURNMappingComplete(fenced_frame_url_mapping, urn_uuid2,
-                                          mapped_url, shared_storage_origin,
+                                          mapped_url, shared_storage_site,
                                           /*budget_to_charge=*/3.0);
 
   EXPECT_TRUE(observer1.mapping_complete_observed());
@@ -207,7 +219,7 @@ TEST(FencedFrameURLMappingTest, PendingMappedUUID) {
           urn_uuid1);
 
   EXPECT_TRUE(metadata1);
-  EXPECT_EQ(metadata1->origin, shared_storage_origin);
+  EXPECT_EQ(metadata1->site, shared_storage_site);
   EXPECT_DOUBLE_EQ(metadata1->budget_to_charge, 2.0);
 
   SharedStorageBudgetMetadata* metadata2 =
@@ -215,11 +227,11 @@ TEST(FencedFrameURLMappingTest, PendingMappedUUID) {
           urn_uuid2);
 
   EXPECT_TRUE(metadata2);
-  EXPECT_EQ(metadata2->origin, shared_storage_origin);
+  EXPECT_EQ(metadata2->site, shared_storage_site);
   EXPECT_DOUBLE_EQ(metadata2->budget_to_charge, 3.0);
 }
 
-TEST(FencedFrameURLMappingTest, RemoveObserverOnPendingMappedUUID) {
+TEST_F(FencedFrameURLMappingTest, RemoveObserverOnPendingMappedUUID) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   const GURL urn_uuid =
       GenerateAndVerifyPendingMappedURN(&fenced_frame_url_mapping);
@@ -233,13 +245,14 @@ TEST(FencedFrameURLMappingTest, RemoveObserverOnPendingMappedUUID) {
   SimulateSharedStorageURNMappingComplete(
       fenced_frame_url_mapping, urn_uuid,
       /*mapped_url=*/GURL("https://foo.com"),
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/2.0);
 
   EXPECT_FALSE(observer.mapping_complete_observed());
 }
 
-TEST(FencedFrameURLMappingTest, RegisterTwoObservers) {
+TEST_F(FencedFrameURLMappingTest, RegisterTwoObservers) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   const GURL urn_uuid =
       GenerateAndVerifyPendingMappedURN(&fenced_frame_url_mapping);
@@ -255,7 +268,8 @@ TEST(FencedFrameURLMappingTest, RegisterTwoObservers) {
   SimulateSharedStorageURNMappingComplete(
       fenced_frame_url_mapping, urn_uuid,
       /*mapped_url=*/GURL("https://foo.com"),
-      /*shared_storage_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      /*shared_storage_site=*/
+      net::SchemefulSite::Deserialize("https://bar.com"),
       /*budget_to_charge=*/2.0);
 
   EXPECT_TRUE(observer1.mapping_complete_observed());
@@ -268,8 +282,8 @@ TEST(FencedFrameURLMappingTest, RegisterTwoObservers) {
 
 // Test the case `ad_component_descriptors` is empty. In this case, it should
 // be filled with URNs that are mapped to about:blank.
-TEST(FencedFrameURLMappingTest,
-     AssignFencedFrameURLAndInterestGroupInfoNoAdComponentsUrls) {
+TEST_F(FencedFrameURLMappingTest,
+       AssignFencedFrameURLAndInterestGroupInfoNoAdComponentsUrls) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL top_level_url("https://foo.test");
   url::Origin interest_group_owner = url::Origin::Create(top_level_url);
@@ -317,8 +331,8 @@ TEST(FencedFrameURLMappingTest,
 }
 
 // Test the case `ad_component_descriptors` has a single URL.
-TEST(FencedFrameURLMappingTest,
-     AssignFencedFrameURLAndInterestGroupInfoOneAdComponentUrl) {
+TEST_F(FencedFrameURLMappingTest,
+       AssignFencedFrameURLAndInterestGroupInfoOneAdComponentUrl) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL top_level_url("https://foo.test");
   url::Origin interest_group_owner = url::Origin::Create(top_level_url);
@@ -360,8 +374,8 @@ TEST(FencedFrameURLMappingTest,
 
 // Test the case `ad_component_descriptors` has the maximum number of allowed
 // ad component URLs.
-TEST(FencedFrameURLMappingTest,
-     AssignFencedFrameURLAndInterestGroupInfoMaxAdComponentUrl) {
+TEST_F(FencedFrameURLMappingTest,
+       AssignFencedFrameURLAndInterestGroupInfoMaxAdComponentUrl) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL top_level_url("https://foo.test");
   url::Origin interest_group_owner = url::Origin::Create(top_level_url);
@@ -407,8 +421,8 @@ TEST(FencedFrameURLMappingTest,
 // Test the case `ad_component_descriptors` has the maximum number of allowed
 // ad component URLs, and they're all identical. The main purpose of this test
 // is to make sure they receive unique URNs, despite being identical URLs.
-TEST(FencedFrameURLMappingTest,
-     AssignFencedFrameURLAndInterestGroupInfoMaxIdenticalAdComponentUrl) {
+TEST_F(FencedFrameURLMappingTest,
+       AssignFencedFrameURLAndInterestGroupInfoMaxIdenticalAdComponentUrl) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL top_level_url("https://foo.test");
   url::Origin interest_group_owner = url::Origin::Create(top_level_url);
@@ -450,7 +464,7 @@ TEST(FencedFrameURLMappingTest,
 }
 
 // Test the case `ad_component_descriptors` has a single URL.
-TEST(FencedFrameURLMappingTest, SubstituteFencedFrameURLs) {
+TEST_F(FencedFrameURLMappingTest, SubstituteFencedFrameURLs) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL top_level_url(
       "https://foo.test/page?%%TT%%${oo%%}p%%${p%%${%%l}%%%%%%%%evl%%");
@@ -510,7 +524,7 @@ TEST(FencedFrameURLMappingTest, SubstituteFencedFrameURLs) {
 
 // Test the correctness of the URN format. The URN is expected to be in the
 // format "urn:uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" as per RFC-4122.
-TEST(FencedFrameURLMappingTest, HasCorrectFormat) {
+TEST_F(FencedFrameURLMappingTest, HasCorrectFormat) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   GURL test_url("https://foo.test");
   absl::optional<GURL> urn_uuid =
@@ -530,7 +544,7 @@ TEST(FencedFrameURLMappingTest, HasCorrectFormat) {
 }
 
 // Test that reporting metadata gets saved successfully.
-TEST(FencedFrameURLMappingTest, ReportingMetadataSuccess) {
+TEST_F(FencedFrameURLMappingTest, ReportingMetadataSuccess) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   scoped_refptr<FencedFrameReporter> fenced_frame_reporter = CreateReporter();
   GURL test_url("https://foo.test");
@@ -547,7 +561,7 @@ TEST(FencedFrameURLMappingTest, ReportingMetadataSuccess) {
 }
 
 // Test that reporting metadata gets saved successfully.
-TEST(FencedFrameURLMappingTest, ReporterSuccessWithInterestGroupInfo) {
+TEST_F(FencedFrameURLMappingTest, ReporterSuccessWithInterestGroupInfo) {
   FencedFrameURLMapping fenced_frame_url_mapping;
   scoped_refptr<FencedFrameReporter> fenced_frame_reporter = CreateReporter();
   GURL top_level_url("https://bar.test");
@@ -572,7 +586,7 @@ TEST(FencedFrameURLMappingTest, ReporterSuccessWithInterestGroupInfo) {
 
 // Test that number of urn mappings limit is enforced for pending mapped urn
 // generation.
-TEST(FencedFrameURLMappingTest, ExceedNumOfUrnMappingsLimitFailsAddURL) {
+TEST_F(FencedFrameURLMappingTest, ExceedNumOfUrnMappingsLimitFailsAddURL) {
   FencedFrameURLMapping fenced_frame_url_mapping;
 
   // Able to generate pending mapped URN when map is not full.

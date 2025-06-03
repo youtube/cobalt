@@ -11,8 +11,12 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/stack_allocated.h"
 #include "base/types/strong_alias.h"
+#include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/macros.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace apps {
 
@@ -27,12 +31,14 @@ ENUM_FOR_COMPONENT(SHORTCUT,
 )
 
 struct COMPONENT_EXPORT(SHORTCUT) Shortcut {
-  explicit Shortcut(const ShortcutId& shortcut_id);
+  Shortcut(const std::string& host_app_id, const std::string& local_id);
 
   Shortcut(const Shortcut&) = delete;
   Shortcut& operator=(const Shortcut&) = delete;
-  Shortcut(Shortcut&&);
-  Shortcut& operator=(Shortcut&&);
+  Shortcut(Shortcut&&) = delete;
+  Shortcut& operator=(Shortcut&&) = delete;
+
+  bool operator==(const Shortcut&) const;
 
   ~Shortcut();
 
@@ -46,19 +52,40 @@ struct COMPONENT_EXPORT(SHORTCUT) Shortcut {
   // - host_app_id: app_1
   // - local_id: shortcut_1
   std::string ToString() const;
+  // Name of the shortcut.
+  absl::optional<std::string> name;
+  // Shortcut creation source.
+  ShortcutSource shortcut_source = ShortcutSource::kUnknown;
+
+  // 'host_app_id' and 'local_id' should not be changeable after creation.
+  // The host app of the shortcut.
+  const std::string host_app_id;
+  // The locally unique identifier for the shortcut within an app. This id would
+  // be used to launch the shortcut or load shortcut icon from the app.
+  const std::string local_id;
 
   // Represents the unique identifier for a shortcut. This identifier should be
   // unique within a profile, and stable across different user sessions.
-  ShortcutId shortcut_id;
-  // Name of the shortcut.
-  std::string name;
-  // Shortcut creation source.
-  ShortcutSource shortcut_source;
-  // The host app of the shortcut.
-  std::string host_app_id;
-  // The locally unique identifier for the shortcut within an app. This id would
-  // be used to launch the shortcut or load shortcut icon from the app.
-  std::string local_id;
+  // 'shortcut_id' is generated from the hash of 'host_app_id' and 'local_id',
+  // these value should not be updated separately.
+  const ShortcutId shortcut_id;
+
+  // Represents what icon should be loaded for this shortcut, icon key will
+  // change if the icon has been updated from the publisher.
+  absl::optional<IconKey> icon_key;
+};
+
+// A view class to reduce the risk of lifetime issues by preventing
+// long-term storage on the heap.
+class COMPONENT_EXPORT(SHORTCUT) ShortcutView {
+ public:
+  explicit ShortcutView(const Shortcut* shortcut) : shortcut_(shortcut) {}
+  const Shortcut* operator->() const { return shortcut_.get(); }
+  explicit operator bool() const { return shortcut_; }
+
+ private:
+  const raw_ptr<const Shortcut> shortcut_;
+  STACK_ALLOCATED();
 };
 
 using ShortcutPtr = std::unique_ptr<Shortcut>;
@@ -67,6 +94,10 @@ using Shortcuts = std::vector<ShortcutPtr>;
 // Creates a deep copy of `source_shortcuts`.
 COMPONENT_EXPORT(SHORTCUT)
 Shortcuts CloneShortcuts(const Shortcuts& source_shortcuts);
+
+COMPONENT_EXPORT(SHORTCUT)
+ShortcutId GenerateShortcutId(const std::string& host_app_id,
+                              const std::string& local_id);
 
 }  // namespace apps
 

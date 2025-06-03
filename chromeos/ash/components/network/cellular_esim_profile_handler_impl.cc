@@ -7,6 +7,7 @@
 #include <sstream>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
@@ -243,7 +244,22 @@ void CellularESimProfileHandlerImpl::UpdateProfilesFromHermes() {
   DCHECK(device_prefs_);
 
   std::vector<CellularESimProfile> profiles_from_hermes =
-      GenerateProfilesFromHermes();
+      cellular_utils::GenerateProfilesFromHermes();
+
+  // Don't include pending profiles in the list to cache since we do not provide
+  // a mechanism for installing a pending profile except through the dedicated
+  // dialog which performs a fresh SM-DS scan each time it is opened.
+  if (ash::features::IsSmdsSupportEnabled()) {
+    base::EraseIf(profiles_from_hermes, [](const CellularESimProfile& profile) {
+      if (profile.state() == CellularESimProfile::State::kPending) {
+        NET_LOG(DEBUG) << "Removing eSIM profile {iccid: " << profile.iccid()
+                       << ", eid: " << profile.eid()
+                       << "} from list to cache since it is pending";
+        return true;
+      }
+      return false;
+    });
+  }
 
   // Skip updating if there are profiles that haven't received ICCID updates
   // yet. This is required because property updates to eSIM profile objects
@@ -266,8 +282,9 @@ void CellularESimProfileHandlerImpl::UpdateProfilesFromHermes() {
 
   // If nothing has changed since the last update, do not update prefs or notify
   // observers of a change.
-  if (profiles_from_hermes == profiles_before_fetch)
+  if (profiles_from_hermes == profiles_before_fetch) {
     return;
+  }
 
   std::stringstream ss;
   ss << "New set of eSIM profiles have been fetched from Hermes: ";

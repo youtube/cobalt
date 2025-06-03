@@ -13,7 +13,6 @@
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "base/ranges/algorithm.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/display.h"
@@ -333,7 +332,7 @@ void RearrangeVisibleWindowOnShow(aura::Window* added_window) {
       // Don't override pre auto managed bounds as the current bounds
       // may not be original.
       if (!other_window_state->pre_auto_manage_window_bounds())
-        other_window_state->SetPreAutoManageWindowBounds(other_bounds);
+        other_window_state->set_pre_auto_manage_window_bounds(other_bounds);
 
       // Push away the other window after remembering its current position.
       if (MoveRectToOneSide(work_area, move_other_right, &other_bounds))
@@ -346,7 +345,7 @@ void RearrangeVisibleWindowOnShow(aura::Window* added_window) {
   // being shown, we do not need to animate it.
   gfx::Rect added_bounds = added_window->bounds();
   if (!added_window_state->pre_auto_manage_window_bounds())
-    added_window_state->SetPreAutoManageWindowBounds(added_bounds);
+    added_window_state->set_pre_auto_manage_window_bounds(added_bounds);
   if (MoveRectToOneSide(work_area, !move_other_right, &added_bounds))
     added_window->SetBounds(added_bounds);
 }

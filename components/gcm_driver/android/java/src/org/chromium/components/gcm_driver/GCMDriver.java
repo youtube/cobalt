@@ -6,13 +6,12 @@ package org.chromium.components.gcm_driver;
 
 import android.os.SystemClock;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
@@ -158,7 +157,6 @@ public class GCMDriver {
                 message.getDataKeysAndValuesArray());
     }
 
-    @VisibleForTesting
     public static void overrideSubscriberForTesting(GoogleCloudMessagingSubscriber subscriber) {
         assert sInstance != null;
         assert subscriber != null;

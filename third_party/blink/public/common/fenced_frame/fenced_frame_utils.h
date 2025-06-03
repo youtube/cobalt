@@ -37,6 +37,12 @@ inline constexpr char kFencedFrameMandatoryUnsandboxedFlagsSandboxed[] =
 inline constexpr char kFencedFrameFailedSandboxLoadInTopLevelFrame[] =
     "Blink.FencedFrame.FailedSandboxLoadInTopLevelFrame";
 
+inline constexpr char kFencedFrameTopNavigationHistogram[] =
+    "Navigation.FencedFrameTopNavigation";
+
+inline constexpr char kAutomaticBeaconOutcomeHistogram[] =
+    "Navigation.AutomaticBeaconOutcome";
+
 // Corresponds to the "FencedFrameCreationOutcome" histogram enumeration type in
 // tools/metrics/histograms/enums.xml.
 //
@@ -52,6 +58,27 @@ enum class FencedFrameCreationOutcome {
   kResponseHeaderNotOptIn = 7,  // HTTP response header Supports-Loading-Mode
                                 // is not opted-in with 'fenced-frame'
   kMaxValue = kResponseHeaderNotOptIn
+};
+
+// Corresponds to the "AutomaticBeaconOutcome" histogram enumeration type in
+// tools/metrics/histograms/enums.xml.
+//
+// PLEASE DO NOT REORDER, REMOVE, OR CHANGE THE MEANING OF THESE VALUES.
+enum class AutomaticBeaconOutcome {
+  kSuccess = 0,
+  kNoUserActivation,
+  kNotSameOrigin,
+  kMaxValue = kNotSameOrigin,
+};
+
+// Corresponds to the "FencedFrameNavigationState" histogram enumeration type in
+// tools/metrics/histograms/enums.xml.
+//
+// PLEASE DO NOT REORDER, REMOVE, OR CHANGE THE MEANING OF THESE VALUES.
+enum class FencedFrameNavigationState {
+  kBegin = 0,
+  kCommit = 1,
+  kMaxValue = kCommit
 };
 
 // Whether or not a fenced frame is allowed to be navigated to `url`. For now
@@ -74,8 +101,12 @@ BLINK_COMMON_EXPORT void RecordFencedFrameFailedSandboxLoadInTopLevelFrame(
     bool is_main_frame);
 
 // Automatic beacon type definitions
-inline constexpr char kFencedFrameTopNavigationBeaconType[] =
+inline constexpr char kDeprecatedFencedFrameTopNavigationBeaconType[] =
     "reserved.top_navigation";
+inline constexpr char kFencedFrameTopNavigationStartBeaconType[] =
+    "reserved.top_navigation_start";
+inline constexpr char kFencedFrameTopNavigationCommitBeaconType[] =
+    "reserved.top_navigation_commit";
 
 // Prefix of reserved event types for private aggregation API
 inline constexpr char kFencedFrameReservedPAEventPrefix[] = "reserved.";

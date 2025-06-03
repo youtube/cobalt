@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/tabs/pinned_tab_service.h"
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,7 +18,6 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 
@@ -51,7 +49,7 @@ class BrowserRemovalWaiter : public BrowserListObserver {
       message_loop_runner_->Quit();
   }
 
-  const raw_ptr<const Browser, DanglingUntriaged> browser_;
+  const raw_ptr<const Browser, AcrossTasksDanglingUntriaged> browser_;
   scoped_refptr<content::MessageLoopRunner> message_loop_runner_;
 };
 
@@ -81,9 +79,9 @@ IN_PROC_BROWSER_TEST_F(PinnedTabServiceBrowserTest, TabStripEmpty) {
       profile, ProfileKeepAliveOrigin::kBrowserWindow);
   BrowserRemovalWaiter waiter(browser());
   tab_strip_model->SetTabPinned(0, false);
-  EXPECT_TRUE(
-      tab_strip_model->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE));
-  EXPECT_TRUE(tab_strip_model->empty());
+  int previous_tab_count = tab_strip_model->count();
+  tab_strip_model->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
+  EXPECT_EQ(previous_tab_count - 1, tab_strip_model->count());
   waiter.WaitForRemoval();
 
   // Let's see it's cleared out properly.

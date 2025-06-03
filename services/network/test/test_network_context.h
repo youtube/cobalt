@@ -97,10 +97,14 @@ class TestNetworkContext : public mojom::NetworkContext {
   void ComputeHttpCacheSize(base::Time start_time,
                             base::Time end_time,
                             ComputeHttpCacheSizeCallback callback) override {}
+  void ClearCorsPreflightCache(
+      mojom::ClearDataFilterPtr filter,
+      ClearCorsPreflightCacheCallback callback) override {}
   void ClearHostCache(mojom::ClearDataFilterPtr filter,
                       ClearHostCacheCallback callback) override {}
   void ClearHttpAuthCache(base::Time start_time,
                           base::Time end_time,
+                          mojom::ClearDataFilterPtr filter,
                           ClearHttpAuthCacheCallback callback) override {}
   void ClearReportingCacheReports(
       mojom::ClearDataFilterPtr filter,
@@ -190,6 +194,7 @@ class TestNetworkContext : public mojom::NetworkContext {
       const GURL& url,
       const std::vector<std::string>& requested_protocols,
       const net::SiteForCookies& site_for_cookies,
+      bool has_storage_access,
       const net::IsolationInfo& isolation_info,
       std::vector<mojom::HttpHeaderPtr> additional_headers,
       int32_t process_id,
@@ -315,6 +320,35 @@ class TestNetworkContext : public mojom::NetworkContext {
       const std::string& realm,
       LookupProxyAuthCredentialsCallback callback) override {}
 #endif
+  void SetSharedDictionaryCacheMaxSize(uint64_t cache_max_size) override {}
+  void ClearSharedDictionaryCache(
+      base::Time start_time,
+      base::Time end_time,
+      mojom::ClearDataFilterPtr filter,
+      ClearSharedDictionaryCacheCallback callback) override {}
+  void ClearSharedDictionaryCacheForIsolationKey(
+      const net::SharedDictionaryIsolationKey& isolation_key,
+      ClearSharedDictionaryCacheForIsolationKeyCallback callback) override {}
+  void GetSharedDictionaryUsageInfo(
+      GetSharedDictionaryUsageInfoCallback callback) override {}
+  void GetSharedDictionaryInfo(
+      const net::SharedDictionaryIsolationKey& isolation_key,
+      GetSharedDictionaryInfoCallback callback) override {}
+  void GetSharedDictionaryOriginsBetween(
+      base::Time start_time,
+      base::Time end_time,
+      GetSharedDictionaryOriginsBetweenCallback callback) override {}
+  void ResourceSchedulerClientVisibilityChanged(
+      const base::UnguessableToken& client_token,
+      bool visible) override {}
+  void FlushCachedClientCertIfNeeded(
+      const net::HostPortPair& host,
+      const scoped_refptr<net::X509Certificate>& certificate) override {}
+  void VerifyIpProtectionConfigGetterForTesting(
+      VerifyIpProtectionConfigGetterForTestingCallback callback) override {}
+  void InvalidateIpProtectionConfigCacheTryAgainAfterTime() override {}
+  void SetCookieDeprecationLabel(
+      const absl::optional<std::string>& label) override {}
 };
 
 }  // namespace network

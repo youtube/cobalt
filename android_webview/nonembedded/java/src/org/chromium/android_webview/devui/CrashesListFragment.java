@@ -36,16 +36,17 @@ import androidx.annotation.WorkerThread;
 
 import org.chromium.android_webview.common.DeveloperModeUtils;
 import org.chromium.android_webview.common.PlatformServiceBridge;
-import org.chromium.android_webview.common.crash.CrashInfo;
-import org.chromium.android_webview.common.crash.CrashInfo.UploadState;
-import org.chromium.android_webview.common.crash.CrashUploadUtil;
 import org.chromium.android_webview.devui.util.CrashBugUrlFactory;
 import org.chromium.android_webview.devui.util.SafeIntentUtils;
 import org.chromium.android_webview.devui.util.WebViewCrashInfoCollector;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo.UploadState;
+import org.chromium.android_webview.nonembedded.crash.CrashUploadUtil;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
 import org.chromium.base.PackageManagerUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.components.version_info.Channel;
@@ -419,6 +420,7 @@ public class CrashesListFragment extends DevUiBaseFragment {
 
     @VisibleForTesting
     public static String uploadStateString(UploadState uploadState) {
+        if (uploadState == null) return null;
         switch (uploadState) {
             case UPLOADED:
                 return "Uploaded";
@@ -535,9 +537,9 @@ public class CrashesListFragment extends DevUiBaseFragment {
      * Notifies the caller when all CrashInfo is reloaded in the ListView.
      */
     @MainThread
-    @VisibleForTesting
     public static void setCrashInfoLoadedListenerForTesting(@Nullable Runnable listener) {
         sCrashInfoLoadedListener = listener;
+        ResettersForTesting.register(() -> sCrashInfoLoadedListener = null);
     }
 
     @Override

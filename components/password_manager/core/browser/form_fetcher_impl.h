@@ -51,7 +51,7 @@ class FormFetcherImpl : public FormFetcher,
   std::vector<const PasswordForm*> GetNonFederatedMatches() const override;
   std::vector<const PasswordForm*> GetFederatedMatches() const override;
   bool IsBlocklisted() const override;
-  bool IsMovingBlocked(const autofill::GaiaIdHash& destination,
+  bool IsMovingBlocked(const signin::GaiaIdHash& destination,
                        const std::u16string& username) const override;
 
   const std::vector<const PasswordForm*>& GetAllRelevantMatches()
@@ -75,7 +75,7 @@ class FormFetcherImpl : public FormFetcher,
   const PasswordFormDigest form_digest_;
 
   // Client used to obtain a CredentialFilter.
-  const raw_ptr<PasswordManagerClient, DanglingUntriaged> client_;
+  const raw_ptr<PasswordManagerClient> client_;
 
   // State of the fetcher.
   State state_ = State::NOT_WAITING;
@@ -109,7 +109,7 @@ class FormFetcherImpl : public FormFetcher,
   void OnGetSiteStatistics(std::vector<InteractionsStats> stats) override;
   void OnGetPasswordStoreResultsOrErrorFrom(
       PasswordStoreInterface* store,
-      FormsOrError results_or_error) override;
+      LoginsResultOrError results_or_error) override;
 
   // HttpPasswordStoreMigrator::Consumer:
   void ProcessMigratedForms(
@@ -129,14 +129,6 @@ class FormFetcherImpl : public FormFetcher,
   // Set of nonblocklisted PasswordForms from the password store that best match
   // the form being managed by |this|.
   std::vector<const PasswordForm*> best_matches_;
-
-  // Convenience pointer to entry in |best_matches_| that is marked as
-  // preferred. This is only allowed to be null if there are no best matches at
-  // all, since there will always be one preferred login when there are multiple
-  // matches (when first saved, a login is marked preferred).
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION const PasswordForm* preferred_match_ = nullptr;
 
   // Whether there were any blocklisted credentials obtained from the profile
   // and account password stores respectively.

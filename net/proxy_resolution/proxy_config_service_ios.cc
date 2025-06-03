@@ -7,12 +7,12 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CFNetwork/CFProxySupport.h>
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
 #include "net/base/proxy_server.h"
-#include "net/base/proxy_string_util.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/proxy_resolution/proxy_server_util_mac.h"
 
 namespace net {
 
@@ -26,7 +26,7 @@ bool GetBoolFromDictionary(CFDictionaryRef dict,
                            CFStringRef key,
                            bool default_value) {
   CFNumberRef number =
-      base::mac::GetValueFromDictionary<CFNumberRef>(dict, key);
+      base::apple::GetValueFromDictionary<CFNumberRef>(dict, key);
   if (!number)
     return default_value;
 
@@ -39,7 +39,7 @@ bool GetBoolFromDictionary(CFDictionaryRef dict,
 
 void GetCurrentProxyConfig(const NetworkTrafficAnnotationTag traffic_annotation,
                            ProxyConfigWithAnnotation* config) {
-  base::ScopedCFTypeRef<CFDictionaryRef> config_dict(
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> config_dict(
       CFNetworkCopySystemProxySettings());
   DCHECK(config_dict);
   ProxyConfig proxy_config;
@@ -51,7 +51,7 @@ void GetCurrentProxyConfig(const NetworkTrafficAnnotationTag traffic_annotation,
   if (GetBoolFromDictionary(config_dict.get(),
                             kCFNetworkProxiesProxyAutoConfigEnable,
                             false)) {
-    CFStringRef pac_url_ref = base::mac::GetValueFromDictionary<CFStringRef>(
+    CFStringRef pac_url_ref = base::apple::GetValueFromDictionary<CFStringRef>(
         config_dict.get(), kCFNetworkProxiesProxyAutoConfigURLString);
     if (pac_url_ref)
       proxy_config.set_pac_url(GURL(base::SysCFStringRefToUTF8(pac_url_ref)));

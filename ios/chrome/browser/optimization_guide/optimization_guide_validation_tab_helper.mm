@@ -9,15 +9,11 @@
 #import "components/optimization_guide/core/optimization_guide_features.h"
 #import "components/optimization_guide/core/optimization_guide_util.h"
 #import "components/optimization_guide/proto/common_types.pb.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 OptimizationGuideValidationTabHelper::OptimizationGuideValidationTabHelper(
     web::WebState* web_state) {
@@ -60,11 +56,14 @@ void OptimizationGuideValidationTabHelper::DidFinishNavigation(
   if (!optimization_guide_service)
     return;
 
-  optimization_guide_service->CanApplyOptimizationAsync(
-      navigation_context, optimization_guide::proto::METADATA_FETCH_VALIDATION,
+  // Async.
+  optimization_guide_service->CanApplyOptimization(
+      navigation_context->GetUrl(),
+      optimization_guide::proto::METADATA_FETCH_VALIDATION,
       base::BindOnce(&OptimizationGuideValidationTabHelper::
                          OnMetadataFetchValidationDecisionReceived,
                      weak_factory_.GetWeakPtr(), navigation_context->GetUrl()));
+  // Sync.
   optimization_guide_service->CanApplyOptimization(
       navigation_context->GetUrl(),
       optimization_guide::proto::BLOOM_FILTER_VALIDATION,

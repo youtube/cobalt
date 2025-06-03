@@ -8,6 +8,7 @@
 #include "content/browser/attribution_reporting/attribution_input_event.h"
 #include "content/browser/attribution_reporting/attribution_reporting.mojom-forward.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/global_routing_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -16,14 +17,20 @@ namespace content {
 
 struct CONTENT_EXPORT OsRegistration {
   GURL registration_url;
+  bool debug_reporting;
   url::Origin top_level_origin;
   // If `absl::nullopt`, represents an OS trigger. Otherwise, represents an OS
   // source.
   absl::optional<AttributionInputEvent> input_event;
+  bool is_within_fenced_frame;
+  GlobalRenderFrameHostId render_frame_id;
 
   OsRegistration(GURL registration_url,
+                 bool debug_reporting,
                  url::Origin top_level_origin,
-                 absl::optional<AttributionInputEvent> input_event);
+                 absl::optional<AttributionInputEvent> input_event,
+                 bool is_within_fenced_frame,
+                 GlobalRenderFrameHostId render_frame_id);
 
   ~OsRegistration();
 
@@ -33,7 +40,7 @@ struct CONTENT_EXPORT OsRegistration {
   OsRegistration(OsRegistration&&);
   OsRegistration& operator=(OsRegistration&&);
 
-  attribution_reporting::mojom::OsRegistrationType GetType() const;
+  attribution_reporting::mojom::RegistrationType GetType() const;
 };
 
 }  // namespace content

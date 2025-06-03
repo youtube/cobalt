@@ -25,17 +25,24 @@
         "ExecuteScript",
       ]
     },
+    LCPScriptObserver: {
+      include_path: "third_party/blink/renderer/core/lcp_critical_path_predictor",
+      probes: [
+        "CallFunction",
+        "ExecuteScript",
+      ]
+    },
     AnimationFrameTimingMonitor: {
       include_path: "third_party/blink/renderer/core/frame",
       probes: [
         "DidFinishSyncXHR",
         "DidRunJavaScriptDialog",
+        "EvaluateScriptBlock",
         "ExecuteScript",
         "InvokeCallback",
         "InvokeEventHandler",
         "RecalculateStyle",
         "UpdateLayout",
-        "CompileAndRunScript",
         "WillHandlePromise",
       ]
     },
@@ -61,6 +68,7 @@
       probes: [
         "ActiveStyleSheetsUpdated",
         "DidMutateStyleSheet",
+        "GetTextPosition",
         "DocumentDetached",
         "FontsUpdated",
         "ForcePseudoState",
@@ -97,25 +105,32 @@
     },
     InspectorDOMDebuggerAgent: {
       probes: [
-        "BreakableLocation",
         "CharacterDataModified",
-        "DidCreateCanvasContext",
-        "DidFireWebGLError",
-        "DidFireWebGLErrorOrWarning",
-        "DidFireWebGLWarning",
         "DidInsertDOMNode",
         "DidInvalidateStyleAttr",
-        "ExecuteScript",
-        "ScriptExecutionBlockedByCSP",
         "UserCallback",
         "WillInsertDOMNode",
         "WillModifyDOMAttr",
         "WillSendXMLHttpOrFetchNetworkRequest",
+        "OnContentSecurityPolicyViolation",
+      ]
+    },
+    InspectorEventBreakpointsAgent: {
+      probes: [
+        "BreakableLocation",
+        "DidCreateOffscreenCanvasContext",
+        "DidCreateCanvasContext",
+        "DidCreateOffscreenCanvasContext",
+        "DidFireWebGLError",
+        "DidFireWebGLErrorOrWarning",
+        "DidFireWebGLWarning",
         "DidCreateAudioContext",
         "DidCloseAudioContext",
         "DidResumeAudioContext",
         "DidSuspendAudioContext",
-        "OnContentSecurityPolicyViolation",
+        "ExecuteScript",
+        "ScriptExecutionBlockedByCSP",
+        "UserCallback",
       ]
     },
     InspectorDOMSnapshotAgent: {
@@ -135,6 +150,11 @@
         "WillCommitLoad",
         "WillCreateDocumentParser",
         "ApplyAutomationOverride",
+      ]
+    },
+    InspectorOverlayAgent: {
+      probes: [
+        "DidInitializeFrameWidget",
       ]
     },
     InspectorLayerTreeAgent: {
@@ -216,7 +236,6 @@
         "FrameDetachedFromParent",
         "FrameRequestedNavigation",
         "FrameScheduledNavigation",
-        "FrameStartedLoading",
         "FrameStoppedLoading",
         "LifecycleEvent",
         "LoadEventFired",

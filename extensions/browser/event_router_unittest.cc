@@ -13,10 +13,13 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "extensions/browser/event_listener_map.h"
 #include "extensions/browser/extensions_test.h"
+#include "extensions/browser/process_map.h"
+#include "extensions/browser/process_map_factory.h"
 #include "extensions/browser/test_event_router_observer.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_api.h"
@@ -24,6 +27,7 @@
 #include "extensions/common/extension_messages.h"
 #include "extensions/common/features/feature_provider.h"
 #include "extensions/common/features/simple_feature.h"
+#include "extensions/common/mojom/event_dispatcher.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_database.mojom-blink-forward.h"
 
@@ -70,6 +74,26 @@ class MockEventRouterObserver : public EventRouter::Observer {
   int listener_added_count_;
   int listener_removed_count_;
   std::string last_event_name_;
+};
+
+class MockEventDispatcher : public mojom::EventDispatcher {
+ public:
+  MockEventDispatcher() = default;
+  ~MockEventDispatcher() override = default;
+
+  mojo::PendingAssociatedRemote<mojom::EventDispatcher> BindAndPassRemote() {
+    return receiver_.BindNewEndpointAndPassDedicatedRemote();
+  }
+
+  // mojom::EventDispatcher:
+  void DispatchEvent(mojom::DispatchEventParamsPtr params,
+                     base::Value::List event_args,
+                     DispatchEventCallback callback) override {
+    std::move(callback).Run();
+  }
+
+ private:
+  mojo::AssociatedReceiver<mojom::EventDispatcher> receiver_{this};
 };
 
 using EventListenerConstructor =
@@ -385,6 +409,99 @@ TEST_F(EventRouterTest, EventRouterObserverForServiceWorkers) {
       99, 199));
 }
 
+namespace {
+
+// Tracks event dispatches to a specific process.
+class EventRouterObserver : public EventRouter::TestObserver {
+ public:
+  // Only counts events that match |process_id|.
+  explicit EventRouterObserver(int process_id) : process_id_(process_id) {}
+
+  void OnWillDispatchEvent(const Event& event) override {
+    // Do nothing.
+  }
+
+  void OnDidDispatchEventToProcess(const Event& event,
+                                   int process_id) override {
+    if (process_id == process_id_) {
+      ++dispatch_count;
+    }
+  }
+
+  int dispatch_count = 0;
+  const int process_id_;
+};
+
+// A fake that pretends that all contexts are WebUI.
+class ProcessMapFake : public ProcessMap {
+ public:
+  Feature::Context GetMostLikelyContextType(const Extension* extension,
+                                            int process_id,
+                                            const GURL* url) const override {
+    return Feature::WEBUI_CONTEXT;
+  }
+};
+
+std::unique_ptr<KeyedService> BuildProcessMap(
+    content::BrowserContext* profile) {
+  return std::make_unique<ProcessMapFake>();
+}
+
+}  // namespace
+
+TEST_F(EventRouterTest, WebUIEventsDoNotCrossIncognitoBoundaries) {
+  // Override ProcessMap to allow routing to WebUI.
+  ProcessMapFactory::GetInstance()->SetTestingFactory(
+      browser_context(), base::BindRepeating(&BuildProcessMap));
+  ProcessMapFactory::GetInstance()->SetTestingFactory(
+      incognito_context(), base::BindRepeating(&BuildProcessMap));
+
+  // Create a SimpleFeature to allow this API call to be routed to our test URL.
+  std::string event_name = "testapi.onEvent";
+  FeatureProvider provider;
+  auto feature = std::make_unique<SimpleFeature>();
+  feature->set_name("test feature");
+  feature->set_matches({"chrome://settings/*"});
+  provider.AddFeature(event_name, std::move(feature));
+  ExtensionAPI::GetSharedInstance()->RegisterDependencyProvider("api",
+                                                                &provider);
+  EventRouter router(browser_context(), nullptr);
+  content::MockRenderProcessHost regular_rph(browser_context());
+  content::MockRenderProcessHost otr_rph(incognito_context());
+
+  // Add event listeners, as if we had created two real WebUIs, one in a regular
+  // profile and one in an otr profile. Note that the string chrome://settings
+  // is hardcoded into the api permissions of settingsPrivate.
+  GURL dummy_url("chrome://settings/test");
+  router.AddEventListenerForURL(event_name, &regular_rph, dummy_url);
+  router.AddEventListenerForURL(event_name, &otr_rph, dummy_url);
+
+  // Hook up some test observers
+  EventRouterObserver regular_counter(regular_rph.GetID());
+  router.AddObserverForTesting(&regular_counter);
+  EventRouterObserver otr_counter(otr_rph.GetID());
+  router.AddObserverForTesting(&otr_counter);
+
+  EXPECT_EQ(0, regular_counter.dispatch_count);
+  EXPECT_EQ(0, otr_counter.dispatch_count);
+
+  // Sending an otr event should not trigger the regular observer.
+  auto otr_event =
+      std::make_unique<Event>(extensions::events::FOR_TEST, event_name,
+                              base::Value::List(), incognito_context());
+  router.BroadcastEvent(std::move(otr_event));
+  EXPECT_EQ(0, regular_counter.dispatch_count);
+  EXPECT_EQ(1, otr_counter.dispatch_count);
+
+  // Setting a regular event should not trigger the otr observer.
+  std::unique_ptr<Event> regular_event =
+      std::make_unique<Event>(extensions::events::FOR_TEST, event_name,
+                              base::Value::List(), browser_context());
+  router.BroadcastEvent(std::move(regular_event));
+  EXPECT_EQ(1, regular_counter.dispatch_count);
+  EXPECT_EQ(1, otr_counter.dispatch_count);
+}
+
 TEST_F(EventRouterTest, MultipleEventRouterObserver) {
   EventRouter router(nullptr, nullptr);
   std::unique_ptr<EventListener> listener =
@@ -466,31 +583,30 @@ TEST_F(EventRouterTest, TestReportEvent) {
 }
 
 // Tests adding and removing events with filters.
-TEST_P(EventRouterFilterTest, Basic) {
+// TODO(crbug.com/1479954): test is flaky across platforms.
+TEST_P(EventRouterFilterTest, DISABLED_Basic) {
   // For the purpose of this test, "." is important in |event_name| as it
   // exercises the code path that uses |event_name| as a key in
   // base::Value::Dict.
   const std::string kEventName = "webNavigation.onBeforeNavigate";
 
   const std::string kExtensionId = "mbflcebpggnecokmikipoihdbecnjfoj";
-  auto param = mojom::EventListenerParam::NewExtensionId(kExtensionId);
+  auto param = mojom::EventListenerOwner::NewExtensionId(kExtensionId);
   const std::string kHostSuffixes[] = {"foo.com", "bar.com", "baz.com"};
 
-  absl::optional<ServiceWorkerIdentifier> worker_identifier = absl::nullopt;
+  std::unique_ptr<mojom::ServiceWorkerContext> worker_context;
   if (is_for_service_worker()) {
-    ServiceWorkerIdentifier identifier;
-    identifier.scope = Extension::GetBaseURLFromExtensionId(kExtensionId);
-    identifier.version_id = 99;  // Dummy version_id.
-    identifier.thread_id = 199;  // Dummy thread_id.
-    worker_identifier =
-        absl::make_optional<ServiceWorkerIdentifier>(std::move(identifier));
+    worker_context = std::make_unique<mojom::ServiceWorkerContext>(
+        Extension::GetBaseURLFromExtensionId(kExtensionId),
+        99,    // Dummy version_id.
+        199);  // Dummy thread_id.
   }
   std::vector<base::Value::Dict> filters;
   for (const auto& host_suffix : kHostSuffixes) {
     base::Value::Dict filter = CreateHostSuffixFilter(host_suffix);
-    event_router()->AddFilteredEventListener(kEventName, render_process_host(),
-                                             param.Clone(), worker_identifier,
-                                             filter, true);
+    event_router()->AddFilteredEventListener(
+        kEventName, render_process_host(), param.Clone(), worker_context.get(),
+        filter, true);
     filters.push_back(std::move(filter));
   }
 
@@ -508,46 +624,44 @@ TEST_P(EventRouterFilterTest, Basic) {
   ASSERT_TRUE(ContainsFilter(kExtensionId, kEventName, filters[2]));
 
   // Remove the second filter.
-  event_router()->RemoveFilteredEventListener(kEventName, render_process_host(),
-                                              param.Clone(), worker_identifier,
-                                              filters[1], true);
+  event_router()->RemoveFilteredEventListener(
+      kEventName, render_process_host(), param.Clone(), worker_context.get(),
+      filters[1], true);
   ASSERT_TRUE(ContainsFilter(kExtensionId, kEventName, filters[0]));
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[1]));
   ASSERT_TRUE(ContainsFilter(kExtensionId, kEventName, filters[2]));
 
   // Remove the first filter.
-  event_router()->RemoveFilteredEventListener(kEventName, render_process_host(),
-                                              param.Clone(), worker_identifier,
-                                              filters[0], true);
+  event_router()->RemoveFilteredEventListener(
+      kEventName, render_process_host(), param.Clone(), worker_context.get(),
+      filters[0], true);
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[0]));
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[1]));
   ASSERT_TRUE(ContainsFilter(kExtensionId, kEventName, filters[2]));
 
   // Remove the third filter.
-  event_router()->RemoveFilteredEventListener(kEventName, render_process_host(),
-                                              param.Clone(), worker_identifier,
-                                              filters[2], true);
+  event_router()->RemoveFilteredEventListener(
+      kEventName, render_process_host(), param.Clone(), worker_context.get(),
+      filters[2], true);
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[0]));
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[1]));
   ASSERT_FALSE(ContainsFilter(kExtensionId, kEventName, filters[2]));
 }
 
-TEST_P(EventRouterFilterTest, URLBasedFilteredEventListener) {
+// TODO(crbug.com/1479954): test is flaky across platforms.
+TEST_P(EventRouterFilterTest, DISABLED_URLBasedFilteredEventListener) {
   const std::string kEventName = "windows.onRemoved";
   const GURL kUrl("chrome-untrusted://terminal");
-  absl::optional<ServiceWorkerIdentifier> worker_identifier = absl::nullopt;
   base::Value::Dict filter;
   bool lazy = false;
   EXPECT_FALSE(event_router()->HasEventListener(kEventName));
   event_router()->AddFilteredEventListener(
       kEventName, render_process_host(),
-      mojom::EventListenerParam::NewListenerUrl(kUrl), worker_identifier,
-      filter, lazy);
+      mojom::EventListenerOwner::NewListenerUrl(kUrl), nullptr, filter, lazy);
   EXPECT_TRUE(event_router()->HasEventListener(kEventName));
   event_router()->RemoveFilteredEventListener(
       kEventName, render_process_host(),
-      mojom::EventListenerParam::NewListenerUrl(kUrl), worker_identifier,
-      filter, lazy);
+      mojom::EventListenerOwner::NewListenerUrl(kUrl), nullptr, filter, lazy);
   EXPECT_FALSE(event_router()->HasEventListener(kEventName));
 }
 
@@ -642,7 +756,8 @@ TEST_F(EventRouterDispatchTest, TestDispatch) {
   EXPECT_EQ(0u, observer.dispatched_events().size());
 }
 
-TEST_F(EventRouterDispatchTest, TestDispatchCallback) {
+// TODO(crbug.com/1479954): test is flaky across platforms.
+TEST_F(EventRouterDispatchTest, DISABLED_TestDispatchCallback) {
   std::string ext1 = "ext1";
   std::string ext2 = "ext2";
   std::string ext3 = "ext3";
@@ -700,8 +815,15 @@ TEST_F(EventRouterDispatchTest, TestDispatchCallback) {
   // 3) service worker listeners for ext3
   const int sw_version_id = 10;
   const int sw_thread_id = 100;
+  MockEventDispatcher sw_event_dispatcher;
   event_router()->AddServiceWorkerEventListener(
-      event_name, process4.get(), ext3, GURL(), sw_version_id, sw_thread_id);
+      mojom::EventListener::New(
+          mojom::EventListenerOwner::NewExtensionId(ext3), event_name,
+          mojom::ServiceWorkerContext::New(GURL(), sw_version_id, sw_thread_id),
+          /*event_filter=*/absl::nullopt),
+      process4.get());
+  event_router()->BindServiceWorkerEventDispatcher(
+      process4->GetID(), sw_thread_id, sw_event_dispatcher.BindAndPassRemote());
 
   // Dispatch without callback set.
   event_router()->DispatchEventToExtension(ext1, create_event(event_name));

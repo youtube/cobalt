@@ -21,6 +21,7 @@
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "media/base/decoder_buffer_side_data.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/demuxer_stream.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -28,6 +29,7 @@
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -120,14 +122,6 @@ class MEDIA_EXPORT DecoderBuffer
   static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
                                                size_t size);
 
-  // Create a DecoderBuffer whose |data_| is copied from |data| and |side_data_|
-  // is copied from |side_data|. Data pointers must not be NULL and sizes must
-  // be >= 0. The buffer's |is_key_frame_| will default to false.
-  static scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
-                                               size_t size,
-                                               const uint8_t* side_data,
-                                               size_t side_data_size);
-
   // Create a DecoderBuffer where data() of |size| bytes resides within the heap
   // as byte array. The buffer's |is_key_frame_| will default to false.
   //
@@ -170,7 +164,7 @@ class MEDIA_EXPORT DecoderBuffer
   static scoped_refptr<DecoderBuffer> CreateEOSBuffer();
 
   // Method to verify if subsamples of a DecoderBuffer match.
-  static bool DoSubsamplesMatch(const DecoderBuffer& encrypted);
+  static bool DoSubsamplesMatch(const DecoderBuffer& buffer);
 
   const TimeInfo& time_info() const {
     DCHECK(!end_of_stream());
@@ -232,16 +226,6 @@ class MEDIA_EXPORT DecoderBuffer
     return size_;
   }
 
-  const uint8_t* side_data() const {
-    DCHECK(!end_of_stream());
-    return side_data_.get();
-  }
-
-  size_t side_data_size() const {
-    DCHECK(!end_of_stream());
-    return side_data_size_;
-  }
-
   const DiscardPadding& discard_padding() const {
     DCHECK(!end_of_stream());
     return time_info_.discard_padding;
@@ -283,23 +267,35 @@ class MEDIA_EXPORT DecoderBuffer
     return is_key_frame_;
   }
 
+  bool is_encrypted() const {
+    DCHECK(!end_of_stream());
+    return decrypt_config() && decrypt_config()->encryption_scheme() !=
+                                   EncryptionScheme::kUnencrypted;
+  }
+
   void set_is_key_frame(bool is_key_frame) {
     DCHECK(!end_of_stream());
     is_key_frame_ = is_key_frame;
   }
 
-  // Returns true if all fields in |buffer| matches this buffer
-  // including |data_| and |side_data_|.
+  bool has_side_data() const { return side_data_.has_value(); }
+  const absl::optional<DecoderBufferSideData>& side_data() const {
+    return side_data_;
+  }
+  DecoderBufferSideData& WritableSideData();
+  void set_side_data(const absl::optional<DecoderBufferSideData>& side_data) {
+    side_data_ = side_data;
+  }
+
+  // Returns true if all fields in |buffer| matches this buffer including
+  // |data_|.
   bool MatchesForTesting(const DecoderBuffer& buffer) const;
 
-  // As above, except that |data_| and |side_data_| are not compared.
+  // As above, except that |data_| is not compared.
   bool MatchesMetadataForTesting(const DecoderBuffer& buffer) const;
 
   // Returns a human-readable string describing |*this|.
   std::string AsHumanReadableString(bool verbose = false) const;
-
-  // Replaces any existing side data with data copied from |side_data|.
-  void CopySideDataFrom(const uint8_t* side_data, size_t side_data_size);
 
   // Returns total memory usage for both bookkeeping and buffered data. The
   // function is added for more accurately memory management.
@@ -311,16 +307,9 @@ class MEDIA_EXPORT DecoderBuffer
   // Allocates a buffer of size |size| >= 0 and copies |data| into it. If |data|
   // is NULL then |data_| is set to NULL and |buffer_size_| to 0.
   // |is_key_frame_| will default to false.
-  DecoderBuffer(const uint8_t* data,
-                size_t size,
-                const uint8_t* side_data,
-                size_t side_data_size);
+  DecoderBuffer(const uint8_t* data, size_t size);
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DecoderBuffer(DemuxerStream::Type type,
-                const uint8_t* data,
-                size_t size,
-                const uint8_t* side_data,
-                size_t side_data_size);
+  DecoderBuffer(DemuxerStream::Type type, const uint8_t* data, size_t size);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size);
@@ -348,9 +337,8 @@ class MEDIA_EXPORT DecoderBuffer
   // Size of the encoded data.
   size_t size_;
 
-  // Side data. Used for alpha channel in VPx, and for text cues.
-  size_t side_data_size_ = 0;
-  std::unique_ptr<uint8_t[]> side_data_;
+  // Structured side data.
+  absl::optional<DecoderBufferSideData> side_data_;
 
   // Encoded data, if it is stored in a read-only shared memory mapping.
   base::ReadOnlySharedMemoryMapping read_only_mapping_;

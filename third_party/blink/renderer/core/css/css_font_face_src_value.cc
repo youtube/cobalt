@@ -50,6 +50,9 @@ namespace blink {
 namespace {
 
 String TechnologyToString(CSSFontFaceSrcValue::FontTechnology font_technology) {
+  // According to
+  // https://drafts.csswg.org/cssom/#serialize-a-css-component-value these all
+  // need to be serialized as lowercase.
   switch (font_technology) {
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyVariations:
       return "variations";
@@ -60,11 +63,11 @@ String TechnologyToString(CSSFontFaceSrcValue::FontTechnology font_technology) {
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyPalettes:
       return "palettes";
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyCOLRv0:
-      return "color-COLRv0";
+      return "color-colrv0";
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyCOLRv1:
-      return "color-COLRv1";
+      return "color-colrv1";
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyCDBT:
-      return "color-CBDT";
+      return "color-cbdt";
     case CSSFontFaceSrcValue::FontTechnology::kTechnologySBIX:
       return "color-sbix";
     case CSSFontFaceSrcValue::FontTechnology::kTechnologyUnknown:
@@ -86,8 +89,9 @@ bool CSSFontFaceSrcValue::IsSupportedFormat() const {
   // with the old WinIE style of font-face, we will also check to see if the URL
   // ends with .eot.  If so, we'll go ahead and assume that we shouldn't load
   // it.
-  return absolute_resource_.StartsWithIgnoringASCIICase("data:") ||
-         !absolute_resource_.EndsWithIgnoringASCIICase(".eot");
+  const String& resolved_url_string = url_data_.ResolvedUrl().GetString();
+  return ProtocolIs(resolved_url_string, "data") ||
+         !resolved_url_string.EndsWithIgnoringASCIICase(".eot");
 }
 
 void CSSFontFaceSrcValue::AppendTechnology(FontTechnology technology) {
@@ -100,10 +104,10 @@ String CSSFontFaceSrcValue::CustomCSSText() const {
   StringBuilder result;
   if (IsLocal()) {
     result.Append("local(");
-    result.Append(SerializeString(absolute_resource_));
+    result.Append(SerializeString(LocalResource()));
     result.Append(')');
   } else {
-    result.Append(SerializeURI(specified_resource_));
+    result.Append(SerializeURI(url_data_.UnresolvedUrl()));
   }
 
   if (!format_.empty()) {
@@ -114,8 +118,7 @@ String CSSFontFaceSrcValue::CustomCSSText() const {
     result.Append(')');
   }
 
-  if (RuntimeEnabledFeatures::CSSFontFaceSrcTechParsingEnabled() &&
-      !technologies_.empty()) {
+  if (!technologies_.empty()) {
     result.Append(" tech(");
     for (wtf_size_t i = 0; i < technologies_.size(); ++i) {
       result.Append(TechnologyToString(technologies_[i]));
@@ -136,7 +139,7 @@ bool CSSFontFaceSrcValue::HasFailedOrCanceledSubresources() const {
 FontResource& CSSFontFaceSrcValue::Fetch(ExecutionContext* context,
                                          FontResourceClient* client) const {
   if (!fetched_ || fetched_->Options().world_for_csp != world_) {
-    ResourceRequest resource_request(absolute_resource_);
+    ResourceRequest resource_request(url_data_.ResolvedUrl());
     resource_request.SetReferrerPolicy(
         ReferrerUtils::MojoReferrerPolicyResolveDefault(
             referrer_.referrer_policy));
@@ -182,18 +185,16 @@ void CSSFontFaceSrcValue::RestoreCachedResourceIfNeeded(
   DCHECK(fetched_);
   DCHECK(context);
   DCHECK(context->Fetcher());
-
-  const KURL url = context->CompleteURL(absolute_resource_);
   context->Fetcher()->EmulateLoadStartedForInspector(
-      fetched_, url, mojom::blink::RequestContextType::FONT,
+      fetched_, KURL(url_data_.ResolvedUrl()),
+      mojom::blink::RequestContextType::FONT,
       network::mojom::RequestDestination::kFont,
       fetch_initiator_type_names::kCSS);
 }
 
 bool CSSFontFaceSrcValue::Equals(const CSSFontFaceSrcValue& other) const {
   return is_local_ == other.is_local_ && format_ == other.format_ &&
-         specified_resource_ == other.specified_resource_ &&
-         absolute_resource_ == other.absolute_resource_;
+         url_data_ == other.url_data_;
 }
 
 }  // namespace blink

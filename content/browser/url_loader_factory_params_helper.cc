@@ -25,6 +25,7 @@
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom-shared.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
@@ -33,6 +34,22 @@
 namespace content {
 
 namespace {
+
+// Whether loading state updates to the
+// network::mojom::URLLoaderNetworkServiceObserver are inhibited for URLLoaders
+// created via URLLoaderFactoryParamsHelper.
+//
+// network::mojom::URLLoaderNetworkServiceObserver::OnLoadingStateUpdate is
+// among the most frequent Mojo messages in traces from the field
+// (go/mojos-in-field-traces-2022). We'll disable it via a Canary/Dev-only
+// experiment to measure impact on performance. The user observable impact is
+// that the status bubble will no longer be displayed. We'll determine the next
+// steps after running the experiment.
+//
+// crbug.com/1433341
+BASE_FEATURE(kInhibitLoadingStateUpdate,
+             "InhibitLoadingStateUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Helper used by the public URLLoaderFactoryParamsHelper::Create... methods.
 //
@@ -56,6 +73,8 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
     mojo::PendingRemote<network::mojom::CookieAccessObserver> cookie_observer,
     mojo::PendingRemote<network::mojom::TrustTokenAccessObserver>
         trust_token_observer,
+    mojo::PendingRemote<network::mojom::SharedDictionaryAccessObserver>
+        shared_dictionary_observer,
     mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
         url_loader_network_observer,
     mojo::PendingRemote<network::mojom::DevToolsObserver> devtools_observer,
@@ -102,7 +121,8 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
   params->trust_token_redemption_policy = trust_token_redemption_policy;
 
   // If we have a URLLoaderNetworkObserver, request loading state updates.
-  if (url_loader_network_observer) {
+  if (url_loader_network_observer &&
+      !base::FeatureList::IsEnabled(kInhibitLoadingStateUpdate)) {
     params->provide_loading_state_updates = true;
   }
 
@@ -112,6 +132,7 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
 
   params->cookie_observer = std::move(cookie_observer);
   params->trust_token_observer = std::move(trust_token_observer);
+  params->shared_dictionary_observer = std::move(shared_dictionary_observer);
   params->url_loader_network_observer = std::move(url_loader_network_observer);
   params->devtools_observer = std::move(devtools_observer);
 
@@ -151,6 +172,7 @@ URLLoaderFactoryParamsHelper::CreateForFrame(
       false,  // is_for_isolated_world
       frame->CreateCookieAccessObserver(),
       frame->CreateTrustTokenAccessObserver(),
+      frame->CreateSharedDictionaryAccessObserver(),
       frame->CreateURLLoaderNetworkObserver(),
       NetworkServiceDevToolsObserver::MakeSelfOwned(frame->frame_tree_node()),
       trust_token_issuance_policy, trust_token_redemption_policy,
@@ -182,6 +204,7 @@ URLLoaderFactoryParamsHelper::CreateForIsolatedWorld(
       true,  // is_for_isolated_world
       frame->CreateCookieAccessObserver(),
       frame->CreateTrustTokenAccessObserver(),
+      frame->CreateSharedDictionaryAccessObserver(),
       frame->CreateURLLoaderNetworkObserver(),
       NetworkServiceDevToolsObserver::MakeSelfOwned(frame->frame_tree_node()),
       trust_token_issuance_policy, trust_token_redemption_policy,
@@ -210,6 +233,7 @@ URLLoaderFactoryParamsHelper::CreateForPrefetch(
       false,  // is_for_isolated_world
       frame->CreateCookieAccessObserver(),
       frame->CreateTrustTokenAccessObserver(),
+      frame->CreateSharedDictionaryAccessObserver(),
       frame->CreateURLLoaderNetworkObserver(),
       NetworkServiceDevToolsObserver::MakeSelfOwned(frame->frame_tree_node()),
       network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
@@ -248,6 +272,8 @@ URLLoaderFactoryParamsHelper::CreateForWorker(
           ->CreateCookieAccessObserverForServiceWorker(),
       static_cast<StoragePartitionImpl*>(process->GetStoragePartition())
           ->CreateTrustTokenAccessObserverForServiceWorker(),
+      static_cast<StoragePartitionImpl*>(process->GetStoragePartition())
+          ->CreateSharedDictionaryAccessObserverForServiceWorker(),
       std::move(url_loader_network_observer), std::move(devtools_observer),
       // Trust Token redemption and signing operations require the Permissions
       // Policy. It seems Permissions Policy in worker contexts
@@ -269,7 +295,9 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
     const network::mojom::EarlyHints& early_hints,
     mojo::PendingRemote<network::mojom::CookieAccessObserver> cookie_observer,
     mojo::PendingRemote<network::mojom::TrustTokenAccessObserver>
-        trust_token_observer) {
+        trust_token_observer,
+    mojo::PendingRemote<network::mojom::SharedDictionaryAccessObserver>
+        shared_dictionary_observer) {
   // TODO(crbug.com/1225556): Consider not using the speculative
   // RenderFrameHostImpl to create URLLoaderNetworkServiceObserver.
   // In general we should avoid using speculative RenderFrameHostImpl
@@ -292,7 +320,7 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
           early_hints.headers->cross_origin_embedder_policy,
           network::IsOriginPotentiallyTrustworthy(tentative_origin),
           early_hints.ip_address_space,
-          network::mojom::LocalNetworkRequestPolicy::kBlock);
+          network::mojom::PrivateNetworkRequestPolicy::kBlock);
 
   return CreateParams(
       process, /*origin=*/tentative_origin,
@@ -302,7 +330,8 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
       /*coep_reporter=*/mojo::NullRemote(),
       /*allow_universal_access_from_file_urls=*/false,
       /*is_for_isolated_world=*/false, std::move(cookie_observer),
-      std::move(trust_token_observer), std::move(url_loader_network_observer),
+      std::move(trust_token_observer), std::move(shared_dictionary_observer),
+      std::move(url_loader_network_observer),
       /*devtools_observer=*/mojo::NullRemote(),
       network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
       network::mojom::TrustTokenOperationPolicyVerdict::kForbid,

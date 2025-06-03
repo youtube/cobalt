@@ -4,8 +4,9 @@
 
 package org.chromium.components.payments;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.List;
@@ -84,6 +85,13 @@ public class JourneyLogger {
      */
     public void setOptOutOffered() {
         JourneyLoggerJni.get().setOptOutOffered(mJourneyLoggerAndroid, JourneyLogger.this);
+    }
+
+    /**
+     * Records that a PaymentRequest.show() was allowed without a user activation.
+     */
+    public void setActivationlessShow() {
+        JourneyLoggerJni.get().setActivationlessShow(mJourneyLoggerAndroid, JourneyLogger.this);
     }
 
     /**
@@ -172,8 +180,8 @@ public class JourneyLogger {
     }
 
     /**
-     * Records that the Payment Request was aborted and for what reason. Also starts the logging of
-     * all the journey logger metrics.
+     * Records that the Payment Request was aborted. This counts as a completion, starting the
+     * logging of all the journey metrics.
      *
      * @param reason An int indicating why the payment request was aborted.
      */
@@ -240,6 +248,7 @@ public class JourneyLogger {
         void setHasEnrolledInstrumentValue(
                 long nativeJourneyLoggerAndroid, JourneyLogger caller, boolean value);
         void setOptOutOffered(long nativeJourneyLoggerAndroid, JourneyLogger caller);
+        void setActivationlessShow(long nativeJourneyLoggerAndroid, JourneyLogger caller);
         void setSkippedShow(long nativeJourneyLoggerAndroid, JourneyLogger caller);
         void setShown(long nativeJourneyLoggerAndroid, JourneyLogger caller);
         void setReceivedInstrumentDetails(long nativeJourneyLoggerAndroid, JourneyLogger caller);

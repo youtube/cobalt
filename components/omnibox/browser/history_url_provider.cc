@@ -753,7 +753,7 @@ void HistoryURLProvider::DoAutocomplete(history::HistoryBackend* backend,
 void HistoryURLProvider::PromoteMatchesIfNecessary(
     const HistoryURLProviderParams& params) {
   bool populate_scoring_signals =
-      OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled();
+      OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled();
   if (params.promote_type == HistoryURLProviderParams::NEITHER)
     return;
   if (params.promote_type == HistoryURLProviderParams::FRONT_HISTORY_MATCH) {
@@ -817,7 +817,7 @@ void HistoryURLProvider::QueryComplete(
                                    ? 1
                                    : 0;
     bool populate_scoring_signals =
-        OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled();
+        OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled();
     for (size_t i = first_match; i < params->matches.size(); ++i) {
       // All matches score one less than the previous match.
       --relevance;
@@ -1150,7 +1150,7 @@ AutocompleteMatch HistoryURLProvider::HistoryMatchToACMatch(
       ACMatchClassification::URL | ACMatchClassification::MATCH,
       ACMatchClassification::URL);
 
-  match.description = info.title();
+  match.description = AutocompleteMatch::SanitizeString(info.title());
   match.description_class =
       ClassifyDescription(params.input.text(), match.description);
 

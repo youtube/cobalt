@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/saml/in_session_password_sync_manager.h"
@@ -20,10 +21,13 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
 #include "chrome/browser/ui/webui/ash/login/check_passwords_against_cryptohome_helper.h"
+#include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
 #include "chromeos/ash/components/login/auth/challenge_response/cert_utils.h"
+#include "chromeos/ash/components/login/auth/public/auth_types.h"
+#include "chromeos/ash/components/login/auth/public/challenge_response_key.h"
 #include "chromeos/ash/components/login/auth/public/cryptohome_key_constants.h"
 #include "chromeos/version/version_loader.h"
 #include "components/account_id/account_id.h"
@@ -42,8 +46,9 @@ namespace ash {
 namespace {
 
 bool ShouldDoSamlRedirect(const std::string& email) {
-  if (email.empty())
+  if (email.empty()) {
     return false;
+  }
 
   // If there's a populated email, we must check first that this user is using
   // SAML in order to decide whether to show the interstitial page.
@@ -189,23 +194,23 @@ void LockScreenReauthHandler::OnSetCookieForLoadGaiaWithPartition(
   signin_partition_name_ = partition_name;
 
   params.Set("gaiaUrl", GaiaUrls::GetInstance()->gaia_url().spec());
+  params.Set(
+      "gaiaPath",
+      GaiaUrls::GetInstance()->embedded_setup_chromeos_url().path().substr(1));
   params.Set("clientId", GaiaUrls::GetInstance()->oauth2_chrome_client_id());
-  params.Set("dontResizeNonEmbeddedPages", false);
-  params.Set("enableGaiaActionButtons", false);
 
   std::string hosted_domain = GetHostedDomain(context.gaia_id);
-
-  if (hosted_domain.empty()) {
-    LOG(ERROR) << "Couldn't get hosted_domain from account info.";
-    params.Set("doSamlRedirect", force_saml_redirect_for_testing_);
+  bool do_saml_redirect =
+      force_saml_redirect_for_testing_ || ShouldDoSamlRedirect(context.email);
+  params.Set("doSamlRedirect", do_saml_redirect);
+  if (force_saml_redirect_for_testing_) {
+    params.Set("enterpriseEnrollmentDomain", kIdpTestingDomain);
+  } else if (!hosted_domain.empty()) {
+    params.Set("enterpriseEnrollmentDomain", hosted_domain);
   } else {
-    params.Set("enterpriseEnrollmentDomain", force_saml_redirect_for_testing_
-                                                 ? kIdpTestingDomain
-                                                 : hosted_domain);
-    params.Set("doSamlRedirect", force_saml_redirect_for_testing_ ||
-                                     ShouldDoSamlRedirect(context.email));
+    LOG(ERROR) << "Couldn't get hosted_domain from account info.";
   }
-
+  params.Set("enableGaiaActionButtons", !do_saml_redirect);
   const std::string sso_profile(GetSSOProfile());
   if (!sso_profile.empty()) {
     params.Set("ssoProfile", sso_profile);
@@ -272,44 +277,63 @@ void LockScreenReauthHandler::HandleCompleteAuthentication(
   DCHECK(!email.empty());
   DCHECK(!gaia_id.empty());
 
-  OnlineLoginHelper::CompleteLoginCallback complete_login_callback =
-      base::BindOnce(&LockScreenReauthHandler::CheckCredentials,
-                     weak_factory_.GetWeakPtr());
-
-  if (password.empty()) {
-    CHECK_NE(scraped_saml_passwords.size(), 1u);
-    complete_login_callback = base::BindOnce(
-        &LockScreenReauthHandler::SamlConfirmPassword,
-        weak_factory_.GetWeakPtr(), std::move(scraped_saml_passwords));
+  // Retrieve ChallengeResponseKey from client certificates.
+  absl::optional<ChallengeResponseKey> challenge_response_key;
+  if (using_saml && extension_provided_client_cert_usage_observer_ &&
+      extension_provided_client_cert_usage_observer_->ClientCertsWereUsed()) {
+    auto challenge_response_key_or_error = login::ExtractClientCertificates(
+        *extension_provided_client_cert_usage_observer_);
+    if (!challenge_response_key_or_error.has_value()) {
+      NOTREACHED();
+      return;
+    }
+    challenge_response_key = challenge_response_key_or_error.value();
   }
 
+  // Build UserContext
+  user_context_ = std::make_unique<UserContext>();
+  login::BuildUserContextForGaiaSignIn(
+      login::GetUsertypeFromServicesString(services),
+      AccountId::FromUserEmailGaiaId(gaia::CanonicalizeEmail(email), gaia_id),
+      using_saml, false /* using_saml_api */, password,
+      SamlPasswordAttributes::FromJs(password_attributes),
+      /*sync_trusted_vault_keys=*/absl::nullopt, challenge_response_key,
+      user_context_.get());
+
+  // Create GaiaCookiesRetriever
   login::SigninPartitionManager* signin_partition_manager =
       login::SigninPartitionManager::Factory::GetForBrowserContext(
           Profile::FromWebUI(web_ui()));
-
-  online_login_helper_ = std::make_unique<OnlineLoginHelper>(
+  gaia_cookie_retriever_ = std::make_unique<GaiaCookieRetriever>(
       signin_partition_name_, signin_partition_manager,
       base::BindOnce(&LockScreenReauthHandler::OnCookieWaitTimeout,
-                     weak_factory_.GetWeakPtr()),
-      std::move(complete_login_callback));
+                     weak_factory_.GetWeakPtr()));
 
-  user_context_ = std::make_unique<UserContext>();
-  if (!login::BuildUserContextForGaiaSignIn(
-          login::GetUsertypeFromServicesString(services),
-          AccountId::FromUserEmailGaiaId(gaia::CanonicalizeEmail(email),
-                                         gaia_id),
-          using_saml, false /* using_saml_api */, password,
-          SamlPasswordAttributes::FromJs(password_attributes),
-          /*sync_trusted_vault_keys=*/absl::nullopt,
-          *extension_provided_client_cert_usage_observer_, user_context_.get(),
-          nullptr)) {
-    user_context_.reset();
-    NOTREACHED();
-    return;
+  // Create the callback that will be invoked once cookies are received.
+  const bool needs_saml_confirm_password = password.empty();
+  GaiaCookieRetriever::OnCookieRetrievedCallback finish_auth_callback =
+      base::BindOnce(&LockScreenReauthHandler::FinishAuthentication,
+                     weak_factory_.GetWeakPtr(), needs_saml_confirm_password,
+                     std::move(scraped_saml_passwords),
+                     std::move(user_context_));
+
+  // Request cookies and proceed with authentication.
+  gaia_cookie_retriever_->RetrieveCookies(std::move(finish_auth_callback));
+}
+
+void LockScreenReauthHandler::FinishAuthentication(
+    bool needs_saml_confirm_password,
+    ::login::StringList scraped_saml_passwords,
+    std::unique_ptr<UserContext> user_context,
+    login::GaiaCookiesData gaia_cookies) {
+  gaia_cookies.TransferCookiesToUserContext(*user_context);
+
+  if (needs_saml_confirm_password) {
+    CHECK_NE(scraped_saml_passwords.size(), 1u);
+    SamlConfirmPassword(scraped_saml_passwords, std::move(user_context));
+  } else {
+    CheckCredentials(std::move(user_context));
   }
-
-  online_login_helper_->SetUserContext(std::move(user_context_));
-  online_login_helper_->RequestCookiesAndCompleteAuthentication();
 }
 
 void LockScreenReauthHandler::OnCookieWaitTimeout() {
@@ -375,6 +399,7 @@ void LockScreenReauthHandler::OnPasswordConfirmed(const std::string& password) {
   key.SetLabel(kCryptohomeGaiaKeyLabel);
   user_context_->SetKey(key);
   user_context_->SetPasswordKey(Key(password));
+  user_context_->SetSamlPassword(SamlPassword{password});
   CheckCredentials(std::move(user_context_));
   user_context_.reset();
   scraped_saml_passwords_.clear();
@@ -404,6 +429,11 @@ void LockScreenReauthHandler::SamlConfirmPassword(
 }
 
 void LockScreenReauthHandler::HandleWebviewLoadAborted(int error_code) {
+  if (error_code == net::ERR_BLOCKED_BY_ADMINISTRATOR) {
+    // Ignore this error to let the user see the error screen for blocked sites.
+    return;
+  }
+
   if (error_code == net::ERR_INVALID_AUTH_CREDENTIALS) {
     // Silently ignore this error - it is used as an intermediate state for
     // committed interstitials (see https://crbug.com/1049349 for details).
@@ -457,8 +487,9 @@ void LockScreenReauthHandler::RegisterMessages() {
 
 bool LockScreenReauthHandler::IsAuthenticatorLoaded(
     base::OnceClosure callback) {
-  if (authenticator_state_ == AuthenticatorState::LOADED)
+  if (authenticator_state_ == AuthenticatorState::LOADED) {
     return true;
+  }
 
   waiting_caller_ = std::move(callback);
   return false;

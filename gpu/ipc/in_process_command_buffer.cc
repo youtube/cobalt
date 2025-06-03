@@ -170,7 +170,7 @@ gpu::ContextResult InProcessCommandBuffer::Initialize(
     const ContextCreationAttribs& attribs,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     gpu::raster::GrShaderCache* gr_shader_cache,
-    GpuProcessActivityFlags* activity_flags) {
+    GpuProcessShmCount* use_shader_cache_shm_count) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(client_sequence_checker_);
   TRACE_EVENT0("gpu", "InProcessCommandBuffer::Initialize");
 
@@ -180,8 +180,10 @@ gpu::ContextResult InProcessCommandBuffer::Initialize(
   client_thread_weak_ptr_ = client_thread_weak_ptr_factory_.GetWeakPtr();
 
   Capabilities capabilities;
-  InitializeOnGpuThreadParams params(attribs, &capabilities, gr_shader_cache,
-                                     activity_flags);
+  GLCapabilities gl_capabilities;
+  InitializeOnGpuThreadParams params(attribs, &capabilities, &gl_capabilities,
+                                     gr_shader_cache,
+                                     use_shader_cache_shm_count);
 
   base::OnceCallback<gpu::ContextResult(void)> init_task =
       base::BindOnce(&InProcessCommandBuffer::InitializeOnGpuThread,
@@ -204,6 +206,7 @@ gpu::ContextResult InProcessCommandBuffer::Initialize(
 
   if (result == gpu::ContextResult::kSuccess) {
     capabilities_ = capabilities;
+    gl_capabilities_ = gl_capabilities;
     shared_image_interface_ = std::make_unique<SharedImageInterfaceInProcess>(
         task_sequence_, task_executor_->sync_point_manager(),
         task_executor_->gpu_preferences(),
@@ -453,6 +456,7 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
   }
 
   *params.capabilities = decoder_->GetCapabilities();
+  *params.gl_capabilities = decoder_->GetGLCapabilities();
 
   return gpu::ContextResult::kSuccess;
 }
@@ -747,8 +751,9 @@ void InProcessCommandBuffer::SetGetBufferOnGpuThread(
 scoped_refptr<Buffer> InProcessCommandBuffer::CreateTransferBuffer(
     uint32_t size,
     int32_t* id,
+    uint32_t alignment,
     TransferBufferAllocationOption option) {
-  scoped_refptr<Buffer> buffer = MakeMemoryBuffer(size);
+  scoped_refptr<Buffer> buffer = MakeMemoryBuffer(size, alignment);
   *id = GetNextBufferId();
   ScheduleGpuTask(
       base::BindOnce(&InProcessCommandBuffer::RegisterTransferBufferOnGpuThread,
@@ -798,6 +803,10 @@ const Capabilities& InProcessCommandBuffer::GetCapabilities() const {
   return capabilities_;
 }
 
+const GLCapabilities& InProcessCommandBuffer::GetGLCapabilities() const {
+  return gl_capabilities_;
+}
+
 const GpuFeatureInfo& InProcessCommandBuffer::GetGpuFeatureInfo() const {
   return task_executor_->gpu_feature_info();
 }
@@ -834,7 +843,7 @@ void InProcessCommandBuffer::OnSwapBuffers(uint64_t swap_id, uint32_t flags) {
 
 void InProcessCommandBuffer::ScheduleGrContextCleanup() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
-  context_state_->ScheduleGrContextCleanup();
+  context_state_->ScheduleSkiaCleanup();
 }
 
 void InProcessCommandBuffer::HandleReturnData(base::span<const uint8_t> data) {
@@ -891,10 +900,21 @@ void InProcessCommandBuffer::SignalQuery(unsigned query_id,
                      std::move(callback)));
 }
 
+void InProcessCommandBuffer::CancelAllQueries() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(client_sequence_checker_);
+  ScheduleGpuTask(
+      base::BindOnce(&InProcessCommandBuffer::CancelAllQueriesOnGpuThread,
+                     gpu_thread_weak_ptr_factory_.GetWeakPtr()));
+}
+
 void InProcessCommandBuffer::SignalQueryOnGpuThread(
     unsigned query_id,
     base::OnceClosure callback) {
   decoder_->SetQueryCallback(query_id, WrapClientCallback(std::move(callback)));
+}
+
+void InProcessCommandBuffer::CancelAllQueriesOnGpuThread() {
+  decoder_->CancelAllQueries();
 }
 
 void InProcessCommandBuffer::CreateGpuFence(uint32_t gpu_fence_id,

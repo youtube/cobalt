@@ -5,9 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_WORKER_NON_MAIN_THREAD_TASK_QUEUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_WORKER_NON_MAIN_THREAD_TASK_QUEUE_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/common/lazy_now.h"
-#include "base/task/sequence_manager/task_queue_impl.h"
+#include "base/task/sequence_manager/task_queue.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -129,11 +130,12 @@ class PLATFORM_EXPORT NonMainThreadTaskQueue
   scoped_refptr<BlinkSchedulerSingleThreadTaskRunner> WrapTaskRunner(
       scoped_refptr<base::SingleThreadTaskRunner>);
 
-  scoped_refptr<TaskQueue> task_queue_;
+  TaskQueue::Handle task_queue_;
   absl::optional<TaskQueueThrottler> throttler_;
 
   // Not owned.
-  NonMainThreadSchedulerBase* non_main_thread_scheduler_;
+  raw_ptr<NonMainThreadSchedulerBase, ExperimentalRenderer>
+      non_main_thread_scheduler_;
 
   // Set if this is queue is used for the web-exposed scheduling API. Used to
   // differentiate initial tasks from continuations for prioritization.

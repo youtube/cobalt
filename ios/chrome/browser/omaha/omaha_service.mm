@@ -27,11 +27,11 @@
 #import "components/prefs/pref_service.h"
 #import "components/version_info/version_info.h"
 #import "ios/chrome/app/tests_hook.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state_manager.h"
-#import "ios/chrome/browser/browser_state_metrics/browser_state_metrics.h"
-#import "ios/chrome/browser/upgrade/upgrade_constants.h"
-#import "ios/chrome/browser/upgrade/upgrade_recommended_details.h"
+#import "ios/chrome/browser/browser_state_metrics/model/browser_state_metrics.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state_manager.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_constants.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_recommended_details.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ios/public/provider/chrome/browser/omaha/omaha_api.h"
 #import "ios/web/public/thread/web_task_traits.h"
@@ -43,10 +43,6 @@
 #import "services/network/public/cpp/simple_url_loader.h"
 #import "third_party/libxml/chromium/xml_writer.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // Number of hours to wait between successful requests.
@@ -382,6 +378,11 @@ void OmahaService::CheckNow(OneOffCallback callback) {
 
   if (OmahaService::IsEnabled()) {
     OmahaService* service = GetInstance();
+    DUMP_WILL_BE_CHECK(service->started_);
+    // TODO(crbug.com/1476112): Remove when early callers are removed.
+    if (!service->started_) {
+      return;
+    }
     web::GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE,
         base::BindOnce(&OmahaService::CheckNowOnIOThread,
@@ -624,10 +625,10 @@ std::string OmahaService::GetCurrentPingContent() {
   // An install retry ping only makes sense if an install event must be send.
   DCHECK(sending_install_event_ || !IsNextPingInstallRetry());
   std::string request_id = GetNextPingRequestId(ping_content);
-  return GetPingContent(request_id, ios::device_util::GetRandomId(),
-                        version_info::GetVersionNumber(), GetChannelString(),
-                        base::Time::FromTimeT(application_install_date_),
-                        ping_content);
+  return GetPingContent(
+      request_id, ios::device_util::GetRandomId(),
+      std::string(version_info::GetVersionNumber()), GetChannelString(),
+      base::Time::FromTimeT(application_install_date_), ping_content);
 }
 
 void OmahaService::SendPing() {
@@ -654,9 +655,10 @@ void OmahaService::SendPing() {
     DCHECK(!url_loader_factory_);
     url_loader_factory_ = network::SharedURLLoaderFactory::Create(
         std::move(pending_url_loader_factory_));
+    DCHECK(url_loader_factory_);
+  } else {
+    CHECK(url_loader_factory_);
   }
-
-  DCHECK(url_loader_factory_);
 
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = url;

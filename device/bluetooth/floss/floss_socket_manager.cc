@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "device/bluetooth/floss/floss_socket_manager.h"
 
+#include "base/containers/contains.h"
 #include "base/types/expected.h"
 
 namespace floss {
@@ -80,7 +81,7 @@ bool FlossDBusClient::ReadDBusParam(
     std::string key;
     dict.PopString(&key);
 
-    if (required_keys.find(key) != required_keys.end()) {
+    if (base::Contains(required_keys, key)) {
       if (key == kListeningPropId) {
         required_keys[key] = ReadDBusParamFromVariant(&dict, &socket->id);
       } else if (key == kListeningPropSockType) {
@@ -159,7 +160,7 @@ bool FlossDBusClient::ReadDBusParam(dbus::MessageReader* reader,
     std::string key;
     dict.PopString(&key);
 
-    if (required_keys.find(key) != required_keys.end()) {
+    if (base::Contains(required_keys, key)) {
       if (key == kConnectingPropId) {
         required_keys[key] = ReadDBusParamFromVariant(&dict, &socket->id);
       } else if (key == kConnectingPropRemoteDevice) {
@@ -244,7 +245,7 @@ bool FlossDBusClient::ReadDBusParam(
     std::string key;
     dict.PopString(&key);
 
-    if (required_keys.find(key) != required_keys.end()) {
+    if (base::Contains(required_keys, key)) {
       if (key == kResultPropStatus) {
         required_keys[key] =
             ReadDBusParamFromVariant(&dict, &socket_result->status);
@@ -322,7 +323,11 @@ const char FlossSocketManager::kErrorInvalidCallback[] =
 
 // static
 const char FlossSocketManager::kExportedCallbacksPath[] =
-    "/org/chromium/bluetooth/socketmanager";
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/socket_manager/callback/lacros";
+#else
+    "/org/chromium/bluetooth/socket_manager/callback";
+#endif
 
 // static
 std::unique_ptr<FlossSocketManager> FlossSocketManager::Create() {
@@ -332,6 +337,12 @@ std::unique_ptr<FlossSocketManager> FlossSocketManager::Create() {
 FlossSocketManager::FlossSocketManager() = default;
 
 FlossSocketManager::~FlossSocketManager() {
+  if (callback_id_ != kInvalidCallbackId) {
+    CallSocketMethod(
+        base::BindOnce(&FlossSocketManager::CompleteUnregisterCallback,
+                       weak_ptr_factory_.GetWeakPtr()),
+        socket_manager::kUnregisterCallback, callback_id_);
+  }
   if (bus_) {
     bus_->UnregisterExportedObject(dbus::ObjectPath(kExportedCallbacksPath));
   }
@@ -508,10 +519,12 @@ void FlossSocketManager::Close(const SocketId id,
 void FlossSocketManager::Init(dbus::Bus* bus,
                               const std::string& service_name,
                               const int adapter_index,
+                              base::Version version,
                               base::OnceClosure on_ready) {
   bus_ = bus;
   service_name_ = service_name;
   adapter_path_ = GenerateAdapterPath(adapter_index);
+  version_ = version;
 
   dbus::ObjectProxy* object_proxy =
       bus_->GetObjectProxy(service_name_, adapter_path_);
@@ -589,6 +602,12 @@ void FlossSocketManager::CompleteRegisterCallback(
     if (on_ready_) {
       std::move(on_ready_).Run();
     }
+  }
+}
+
+void FlossSocketManager::CompleteUnregisterCallback(DBusResult<bool> result) {
+  if (!result.has_value() || *result == false) {
+    LOG(WARNING) << __func__ << "Failed to unregister callback";
   }
 }
 

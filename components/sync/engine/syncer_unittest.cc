@@ -181,15 +181,14 @@ class SyncerTest : public testing::Test,
     context_ = std::make_unique<SyncCycleContext>(
         mock_server_.get(), extensions_activity_.get(), listeners,
         debug_info_getter_.get(), model_type_registry_.get(),
-        "fake_invalidator_client_id", local_cache_guid(),
-        mock_server_->store_birthday(), "fake_bag_of_chips",
+        local_cache_guid(), mock_server_->store_birthday(), "fake_bag_of_chips",
         /*poll_interval=*/base::Minutes(30));
     auto syncer = std::make_unique<Syncer>(&cancelation_signal_);
     // The syncer is destroyed with the scheduler that owns it.
     syncer_ = syncer.get();
     scheduler_ = std::make_unique<SyncSchedulerImpl>(
         "TestSyncScheduler", BackoffDelayProvider::FromDefaults(),
-        context_.get(), std::move(syncer), false);
+        context_.get(), std::move(syncer), false, false);
 
     mock_server_->SetKeystoreKey("encryption_key");
   }
@@ -252,7 +251,7 @@ class SyncerTest : public testing::Test,
   CancelationSignal cancelation_signal_;
   std::map<ModelType, MockModelTypeProcessor> mock_model_type_processors_;
 
-  raw_ptr<Syncer> syncer_ = nullptr;
+  raw_ptr<Syncer, DanglingUntriaged> syncer_ = nullptr;
 
   std::unique_ptr<SyncCycle> cycle_;
   MockNudgeHandler mock_nudge_handler_;
@@ -270,7 +269,7 @@ class SyncerTest : public testing::Test,
 };
 
 TEST_F(SyncerTest, CommitFiltersThrottledEntries) {
-  const ModelTypeSet throttled_types(BOOKMARKS);
+  const ModelTypeSet throttled_types = {BOOKMARKS};
 
   GetProcessor(BOOKMARKS)->AppendCommitRequest(
       ClientTagHash::FromHashed("tag1"), MakeBookmarkSpecificsToCommit(),
@@ -315,7 +314,7 @@ TEST_F(SyncerTest, GetUpdatesPartialThrottled) {
 
   // Set BOOKMARKS throttled but PREFERENCES not,
   // then BOOKMARKS should not get synced but PREFERENCES should.
-  ModelTypeSet throttled_types(BOOKMARKS);
+  ModelTypeSet throttled_types = {BOOKMARKS};
   mock_server_->set_throttling(true);
   mock_server_->SetPartialFailureTypes(throttled_types);
 
@@ -370,7 +369,7 @@ TEST_F(SyncerTest, GetUpdatesPartialFailure) {
 
   // Set BOOKMARKS failure but PREFERENCES not,
   // then BOOKMARKS should not get synced but PREFERENCES should.
-  ModelTypeSet failed_types(BOOKMARKS);
+  ModelTypeSet failed_types = {BOOKMARKS};
   mock_server_->set_partial_failure(true);
   mock_server_->SetPartialFailureTypes(failed_types);
 
@@ -495,18 +494,18 @@ TEST_F(SyncerTest, CommitManyItemsInOneGo_PostBufferFail) {
   EXPECT_FALSE(SyncShareNudge());
 
   EXPECT_EQ(1U, mock_server_->commit_messages().size());
-  EXPECT_EQ(
-      SyncerError::SYNC_SERVER_ERROR,
-      cycle_->status_controller().model_neutral_state().commit_result.value());
+  ASSERT_EQ(
+      cycle_->status_controller().model_neutral_state().commit_result.type(),
+      SyncerError::Type::kHttpError);
 
   // Since the second batch fails, the third one should not even be gathered.
   EXPECT_EQ(2, GetProcessor(PREFERENCES)->GetLocalChangesCallCount());
 
   histogram_tester.ExpectBucketCount("Sync.CommitResponse.PREFERENCE",
-                                     SyncerError::SYNC_SERVER_ERROR,
+                                     SyncerErrorValueForUma::kSyncServerError,
                                      /*expected_count=*/1);
   histogram_tester.ExpectBucketCount("Sync.CommitResponse",
-                                     SyncerError::SYNC_SERVER_ERROR,
+                                     SyncerErrorValueForUma::kSyncServerError,
                                      /*expected_count=*/1);
 }
 
@@ -1131,7 +1130,7 @@ TEST_F(SyncerTest, ConfigureFailsDontApplyUpdates) {
 TEST_F(SyncerTest, ConfigureFailedUnregisteredType) {
   // Simulate type being unregistered before configuration by including type
   // that isn't registered with ModelTypeRegistry.
-  SyncShareConfigureTypes(ModelTypeSet(APPS));
+  SyncShareConfigureTypes({APPS});
 
   // No explicit verification, DCHECK shouldn't have been triggered.
 }
@@ -1143,8 +1142,7 @@ TEST_F(SyncerTest, GetKeySuccess) {
 
   SyncShareConfigure();
 
-  EXPECT_EQ(SyncerError::SYNCER_OK,
-            cycle_->status_controller().last_get_key_result().value());
+  EXPECT_FALSE(cycle_->status_controller().last_get_key_failed());
   EXPECT_FALSE(keystore_keys_handler->NeedKeystoreKey());
 }
 
@@ -1156,8 +1154,7 @@ TEST_F(SyncerTest, GetKeyEmpty) {
   mock_server_->SetKeystoreKey(std::string());
   SyncShareConfigure();
 
-  EXPECT_NE(SyncerError::SYNCER_OK,
-            cycle_->status_controller().last_get_key_result().value());
+  EXPECT_TRUE(cycle_->status_controller().last_get_key_failed());
   EXPECT_TRUE(keystore_keys_handler->NeedKeystoreKey());
 }
 
@@ -1166,7 +1163,7 @@ TEST_F(SyncerTest, GetKeyEmpty) {
 // are correctly removed before commit.
 TEST_F(SyncerTest, CommitOnlyTypes) {
   mock_server_->set_partial_failure(true);
-  mock_server_->SetPartialFailureTypes(ModelTypeSet(PREFERENCES));
+  mock_server_->SetPartialFailureTypes({PREFERENCES});
 
   EnableDatatype(USER_EVENTS);
 

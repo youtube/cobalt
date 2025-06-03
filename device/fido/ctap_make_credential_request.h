@@ -15,7 +15,9 @@
 #include "device/fido/authenticator_selection_criteria.h"
 #include "device/fido/device_public_key_extension.h"
 #include "device/fido/fido_constants.h"
+#include "device/fido/json_request.h"
 #include "device/fido/pin.h"
+#include "device/fido/prf_input.h"
 #include "device/fido/public_key_credential_descriptor.h"
 #include "device/fido/public_key_credential_params.h"
 #include "device/fido/public_key_credential_rp_entity.h"
@@ -80,6 +82,11 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) CtapMakeCredentialRequest {
   // prf indicates that the "prf" extension should be asserted to request that
   // the authenticator associate a PRF with the credential.
   bool prf = false;
+
+  // prf_input contains the hashed salts for doing a PRF evaluation at
+  // credential creation time. This is only possible when the authenticator
+  // supports the "prf" extension, i.e. over hybrid CTAP.
+  absl::optional<PRFInput> prf_input;
 
   // large_blob_support indicates whether support for largeBlobs should be
   // requested using the `largeBlob` extension. This should be mutually
@@ -156,6 +163,9 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) MakeCredentialOptions {
   MakeCredentialOptions(MakeCredentialOptions&&);
   MakeCredentialOptions& operator=(const MakeCredentialOptions&);
   MakeCredentialOptions& operator=(MakeCredentialOptions&&);
+
+  // The JSON form of the request. (May be nullptr.)
+  scoped_refptr<JSONRequest> json;
 
   // authenticator_attachment is a constraint on the type of authenticator
   // that a credential should be created on.

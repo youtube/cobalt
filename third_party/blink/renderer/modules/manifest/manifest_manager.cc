@@ -252,6 +252,11 @@ void ManifestManager::RecordMetrics(const mojom::blink::Manifest& manifest) {
                       WebFeature::kWebAppManifestProtocolHandlers);
   }
 
+  if (!manifest.scope_extensions.empty()) {
+    UseCounter::Count(GetSupplementable(),
+                      WebFeature::kWebAppManifestScopeExtensions);
+  }
+
   for (const mojom::blink::DisplayMode& display_override :
        manifest.display_override) {
     if (display_override == mojom::blink::DisplayMode::kWindowControlsOverlay) {
@@ -259,6 +264,8 @@ void ManifestManager::RecordMetrics(const mojom::blink::Manifest& manifest) {
                         WebFeature::kWebAppWindowControlsOverlay);
     } else if (display_override == mojom::blink::DisplayMode::kBorderless) {
       UseCounter::Count(GetSupplementable(), WebFeature::kWebAppBorderless);
+    } else if (display_override == mojom::blink::DisplayMode::kTabbed) {
+      UseCounter::Count(GetSupplementable(), WebFeature::kWebAppTabbed);
     }
   }
 

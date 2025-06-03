@@ -20,7 +20,6 @@ COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kDelayRequestsOnMultiplexedConnections);
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kPauseBrowserInitiatedHeavyTrafficForP2P);
-COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kCORBProtectionSniffing);
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kProactivelyThrottleLowPriorityRequests);
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kCrossOriginOpenerPolicy);
@@ -28,17 +27,22 @@ COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kCrossOriginOpenerPolicyByDefault);
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kCoopRestrictProperties);
 COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kCoopRestrictPropertiesOriginTrial);
+COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kSplitAuthCacheByNetworkIsolationKey);
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kDnsOverHttpsUpgrade);
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kMaskedDomainList);
 COMPONENT_EXPORT(NETWORK_CPP)
-BASE_DECLARE_FEATURE(kMdnsResponderGeneratedNameListing);
+extern const base::FeatureParam<std::string>
+    kMaskedDomainListExperimentalVersion;
 COMPONENT_EXPORT(NETWORK_CPP)
-BASE_DECLARE_FEATURE(kOpaqueResponseBlockingV01_LAUNCHED);
+BASE_DECLARE_FEATURE(kMdnsResponderGeneratedNameListing);
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kOpaqueResponseBlockingV02);
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kOpaqueResponseBlockingErrorsForAllFetches);
 
 COMPONENT_EXPORT(NETWORK_CPP)
-BASE_DECLARE_FEATURE(kAttributionReportingTriggerAttestation);
+BASE_DECLARE_FEATURE(kAttributionReportingReportVerification);
 
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kAttributionReportingCrossAppWeb);
@@ -78,12 +82,13 @@ extern uint32_t GetDataPipeDefaultAllocationSize(
     DataPipeAllocationSize = DataPipeAllocationSize::kDefaultSizeOnly);
 
 COMPONENT_EXPORT(NETWORK_CPP)
+extern uint32_t GetNetAdapterMaxBufSize();
+
+COMPONENT_EXPORT(NETWORK_CPP)
 extern uint32_t GetLoaderChunkSize();
 
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kCorsNonWildcardRequestHeadersSupport);
-
-COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kBatchSimpleURLLoader);
 
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kNetworkServiceMemoryCache);
 
@@ -105,8 +110,6 @@ extern const base::FeatureParam<base::TimeDelta>
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kReduceAcceptLanguageOriginTrial);
 
-COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kDisableResourceScheduler);
-
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kPrivateNetworkAccessPreflightShortTimeout);
 
@@ -114,10 +117,10 @@ COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kLocalNetworkAccessAllowPotentiallyTrustworthySameOrigin);
 
 COMPONENT_EXPORT(NETWORK_CPP)
-extern const base::FeatureParam<bool> kPrefetchDNSWithURLAllAnchorElements;
+BASE_DECLARE_FEATURE(kPrivateNetworkAccessPermissionPrompt);
 
 COMPONENT_EXPORT(NETWORK_CPP)
-BASE_DECLARE_FEATURE(kOutOfProcessSystemDnsResolution);
+extern const base::FeatureParam<bool> kPrefetchDNSWithURLAllAnchorElements;
 
 COMPONENT_EXPORT(NETWORK_CPP)
 BASE_DECLARE_FEATURE(kAccessControlAllowMethodsInCORSPreflightSpecConformant);
@@ -137,8 +140,33 @@ BASE_DECLARE_FEATURE(kPrefetchNoVarySearch);
 // interacts poorly with this metric that is recorded every 30s.
 COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kGetCookiesStringUma);
 
-// Decrease Mojo calls from network service to browser.
-COMPONENT_EXPORT(NETWORK_CPP) BASE_DECLARE_FEATURE(kLessChattyNetworkService);
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kCompressionDictionaryTransportBackend);
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kCompressionDictionaryTransport);
+
+// Enables visibility aware network service resource scheduler. When enabled,
+// request may be prioritized or de-prioritized based on the visibility of
+// requestors.
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kVisibilityAwareResourceScheduler);
+
+// Enables Compression Dictionary Transport with Zstandard (aka Shared Zstd).
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kSharedZstd);
+
+// Enables de-duping of cookie access details sent to observers.
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kCookieAccessDetailsNotificationDeDuping);
+
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kSkipTpcdMitigationsForAds);
+COMPONENT_EXPORT(NETWORK_CPP)
+extern const base::FeatureParam<bool> kSkipTpcdMitigationsForAdsHeuristics;
+COMPONENT_EXPORT(NETWORK_CPP)
+extern const base::FeatureParam<bool> kSkipTpcdMitigationsForAdsMetadata;
+COMPONENT_EXPORT(NETWORK_CPP)
+extern const base::FeatureParam<bool> kSkipTpcdMitigationsForAdsSupport;
 
 }  // namespace features
 }  // namespace network

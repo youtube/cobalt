@@ -14,6 +14,7 @@
 #include "base/observer_list.h"
 #include "chrome/browser/ui/media_router/cast_dialog_controller.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
+#include "chrome/browser/ui/views/controls/md_text_button_with_down_arrow.h"
 #include "chrome/browser/ui/views/media_router/cast_dialog_access_code_cast_button.h"
 #include "chrome/browser/ui/views/media_router/cast_dialog_metrics.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -23,10 +24,6 @@
 #include "ui/views/controls/menu/menu_runner.h"
 
 class Profile;
-
-namespace gfx {
-class Canvas;
-}  // namespace gfx
 
 namespace media_router {
 
@@ -68,9 +65,6 @@ class CastDialogView : public views::BubbleDialogDelegateView,
   void OnModelUpdated(const CastDialogModel& model) override;
   void OnControllerDestroying() override;
 
-  // views::BubbleDialogDelegateView:
-  void OnPaint(gfx::Canvas* canvas) override;
-
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int command_id) const override;
   bool IsCommandIdEnabled(int command_id) const override;
@@ -85,7 +79,8 @@ class CastDialogView : public views::BubbleDialogDelegateView,
   void KeepShownForTesting();
 
   // Called by tests.
-  const std::vector<raw_ptr<CastDialogSinkView>>& sink_views_for_test() const {
+  const std::vector<raw_ptr<CastDialogSinkView, DanglingUntriaged>>&
+  sink_views_for_test() const {
     return sink_views_;
   }
   views::ScrollView* scroll_view_for_test() { return scroll_view_; }
@@ -124,6 +119,8 @@ class CastDialogView : public views::BubbleDialogDelegateView,
 
   // Populates the scroll view containing sinks using the data in |model|.
   void PopulateScrollView(const std::vector<UIMediaSink>& sinks);
+
+  void InitializeSourcesButton();
 
   // Shows the sources menu that allows the user to choose a source to cast.
   void ShowSourcesMenu();
@@ -166,7 +163,7 @@ class CastDialogView : public views::BubbleDialogDelegateView,
   SourceType selected_source_ = SourceType::kTab;
 
   // Contains references to sink views in the order they appear.
-  std::vector<raw_ptr<CastDialogSinkView>> sink_views_;
+  std::vector<raw_ptr<CastDialogSinkView, DanglingUntriaged>> sink_views_;
 
   raw_ptr<CastDialogController> controller_;
 
@@ -188,7 +185,7 @@ class CastDialogView : public views::BubbleDialogDelegateView,
   raw_ptr<CastDialogAccessCodeCastButton> access_code_cast_button_ = nullptr;
 
   // The sources menu allows the user to choose a source to cast.
-  raw_ptr<views::Button> sources_button_ = nullptr;
+  raw_ptr<views::MdTextButtonWithDownArrow> sources_button_ = nullptr;
   std::unique_ptr<ui::SimpleMenuModel> sources_menu_model_;
   std::unique_ptr<views::MenuRunner> sources_menu_runner_;
 

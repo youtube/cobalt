@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "ash/components/arc/mojom/power.mojom.h"
 #include "ash/components/arc/mojom/process.mojom.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/public/cpp/assistant/assistant_state.h"
@@ -16,14 +17,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ash/bruschetta/bruschetta_installer.h"
 #include "chrome/browser/ash/crosapi/browser_manager.h"
 #include "chrome/browser/ash/printing/cups_printers_manager.h"
 #include "chrome/browser/platform_util.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/common/extensions/api/autotest_private.h"
 #include "chromeos/services/machine_learning/public/mojom/machine_learning_service.mojom-forward.h"
 #include "chromeos/services/machine_learning/public/mojom/model.mojom.h"
 #include "chromeos/ui/base/window_state_type.h"
+#include "components/webapps/common/web_app_id.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_histogram_value.h"
@@ -36,6 +38,10 @@
 #include "ui/snapshot/screenshot_grabber.h"
 
 class GoogleServiceAuthError;
+
+namespace ash {
+class UserContext;
+}
 
 namespace crostini {
 enum class CrostiniResult;
@@ -328,8 +334,7 @@ class AutotestPrivateGetLacrosInfoFunction : public ExtensionFunction {
   ResponseAction Run() override;
   static api::autotest_private::LacrosState ToLacrosState(
       crosapi::BrowserManager::State state);
-  static api::autotest_private::LacrosMode ToLacrosMode(
-      crosapi::browser_util::LacrosMode lacrosMode);
+  static api::autotest_private::LacrosMode ToLacrosMode(bool is_enabled);
 };
 
 class AutotestPrivateGetArcAppFunction : public ExtensionFunction {
@@ -360,16 +365,6 @@ class AutotestPrivateGetArcPackageFunction : public ExtensionFunction {
 
  private:
   ~AutotestPrivateGetArcPackageFunction() override;
-  ResponseAction Run() override;
-};
-
-class AutotestPrivateGetCryptohomeRecoveryDataFunction
-    : public ExtensionFunction {
- public:
-  DECLARE_EXTENSION_FUNCTION("autotestPrivate.getCryptohomeRecoveryData",
-                             AUTOTESTPRIVATE_GETCRYPTOHOMERECOVERYDATA)
- private:
-  ~AutotestPrivateGetCryptohomeRecoveryDataFunction() override;
   ResponseAction Run() override;
 };
 
@@ -707,24 +702,6 @@ class AutotestPrivateRefreshRemoteCommandsFunction : public ExtensionFunction {
  private:
   ~AutotestPrivateRefreshRemoteCommandsFunction() override;
   ResponseAction Run() override;
-};
-
-class AutotestPrivateBootstrapMachineLearningServiceFunction
-    : public ExtensionFunction {
- public:
-  AutotestPrivateBootstrapMachineLearningServiceFunction();
-  DECLARE_EXTENSION_FUNCTION("autotestPrivate.bootstrapMachineLearningService",
-                             AUTOTESTPRIVATE_BOOTSTRAPMACHINELEARNINGSERVICE)
-
- private:
-  ~AutotestPrivateBootstrapMachineLearningServiceFunction() override;
-  ResponseAction Run() override;
-
-  // Callbacks for a basic Mojo call to MachineLearningService.LoadModel.
-  void ModelLoaded(chromeos::machine_learning::mojom::LoadModelResult result);
-  void OnMojoDisconnect();
-
-  mojo::Remote<chromeos::machine_learning::mojom::Model> model_;
 };
 
 class AutotestPrivateLoadSmartDimComponentFunction : public ExtensionFunction {
@@ -1245,8 +1222,8 @@ class AutotestPrivateInstallPWAForCurrentURLFunction
   // Called when a PWA is loaded from a URL.
   void PWALoaded();
   // Called when a PWA is installed.
-  void PWAInstalled(const web_app::AppId& app_id);
-  // Called when intalling a PWA times out.
+  void PWAInstalled(const webapps::AppId& app_id);
+  // Called when installing a PWA times out.
   void PWATimeout();
 
   std::unique_ptr<PWABannerObserver> banner_observer_;
@@ -1545,6 +1522,20 @@ class AutotestPrivateWaitForAmbientPhotoAnimationFunction
   void Timeout();
 };
 
+class AutotestPrivateWaitForAmbientVideoFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateWaitForAmbientVideoFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.waitForAmbientVideo",
+                             AUTOTESTPRIVATE_WAITFORAMBIENTVIDEO)
+
+ private:
+  ~AutotestPrivateWaitForAmbientVideoFunction() override;
+  ResponseAction Run() override;
+
+  void RespondWithSuccess();
+  void RespondWithError(std::string error_message);
+};
+
 class AutotestPrivateDisableSwitchAccessDialogFunction
     : public ExtensionFunction {
  public:
@@ -1764,6 +1755,92 @@ class AutotestPrivateStopFrameCountingFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
   void OnDataReceived(viz::mojom::FrameCountingDataPtr data_ptr);
+};
+
+class AutotestPrivateInstallBruschettaFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateInstallBruschettaFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.installBruschetta",
+                             AUTOTESTPRIVATE_INSTALLBRUSCHETTA)
+
+ private:
+  ~AutotestPrivateInstallBruschettaFunction() override;
+  ResponseAction Run() override;
+
+  void ClickAccept();
+  void OnInstallerFinish(bruschetta::BruschettaInstallResult result);
+};
+
+class AutotestPrivateRemoveBruschettaFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateRemoveBruschettaFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.removeBruschetta",
+                             AUTOTESTPRIVATE_REMOVEBRUSCHETTA)
+
+ private:
+  ~AutotestPrivateRemoveBruschettaFunction() override;
+  ResponseAction Run() override;
+
+  void OnRemoveVm(bool success);
+};
+
+class AutotestPrivateIsFeatureEnabledFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateIsFeatureEnabledFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.isFeatureEnabled",
+                             AUTOTESTPRIVATE_ISFEATUREENABLED)
+
+ private:
+  ~AutotestPrivateIsFeatureEnabledFunction() override;
+  ResponseAction Run() override;
+};
+
+class AutotestPrivateGetCurrentInputMethodDescriptorFunction
+    : public ExtensionFunction {
+ public:
+  AutotestPrivateGetCurrentInputMethodDescriptorFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.getCurrentInputMethodDescriptor",
+                             AUTOTESTPRIVATE_GETCURRENTINPUTMETHODDESCRIPTOR)
+
+ private:
+  ~AutotestPrivateGetCurrentInputMethodDescriptorFunction() override;
+  ResponseAction Run() override;
+};
+
+class AutotestPrivateSetArcInteractiveStateFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateSetArcInteractiveStateFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.setArcInteractiveState",
+                             AUTOTESTPRIVATE_SETARCINTERACTIVESTATE)
+
+ private:
+  ~AutotestPrivateSetArcInteractiveStateFunction() override;
+  ResponseAction Run() override;
+};
+
+class AutotestPrivateIsFieldTrialActiveFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateIsFieldTrialActiveFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.isFieldTrialActive",
+                             AUTOTESTPRIVATE_ISFIELDTRIALACTIVE)
+
+ private:
+  ~AutotestPrivateIsFieldTrialActiveFunction() override;
+  ResponseAction Run() override;
+};
+
+class AutotestPrivateGetArcWakefulnessModeFunction : public ExtensionFunction {
+ public:
+  AutotestPrivateGetArcWakefulnessModeFunction();
+  DECLARE_EXTENSION_FUNCTION("autotestPrivate.getArcWakefulnessMode",
+                             AUTOTESTPRIVATE_GETARCWAKEFULNESSMODE)
+
+ private:
+  ~AutotestPrivateGetArcWakefulnessModeFunction() override;
+  ResponseAction Run() override;
+
+  // Get return value from mojo call.
+  void OnGetWakefulnessStateRespond(arc::mojom::WakefulnessMode mode);
 };
 
 template <>

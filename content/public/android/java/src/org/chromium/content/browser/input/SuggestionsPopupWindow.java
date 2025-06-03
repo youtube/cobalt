@@ -23,8 +23,6 @@ import android.widget.PopupWindow;
 import android.widget.PopupWindow.OnDismissListener;
 import android.widget.TextView;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.content.R;
 import org.chromium.ui.UiUtils;
@@ -223,7 +221,8 @@ public abstract class SuggestionsPopupWindow
 
     private void measureContent() {
         // Make the menu wide enough to fit its widest item.
-        int width = UiUtils.computeMaxWidthOfListAdapterItems(mSuggestionListView.getAdapter());
+        int width =
+                UiUtils.computeMaxWidthOfListAdapterItems(mSuggestionListView.getAdapter(), null);
         width += mContentView.getPaddingLeft() + mContentView.getPaddingRight();
 
         final int verticalMeasure = View.MeasureSpec.makeMeasureSpec(
@@ -380,7 +379,6 @@ public abstract class SuggestionsPopupWindow
     /**
      * @return The popup's content view.
      */
-    @VisibleForTesting
     public View getContentViewForTesting() {
         return mContentView;
     }

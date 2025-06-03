@@ -9,10 +9,6 @@
 #import "ios/web/public/ui/crw_web_view_scroll_view_proxy.h"
 #import "ios/web/web_state/ui/crw_web_controller.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Returns the first responder in the subviews of `view`, or nil if no view in
@@ -193,11 +189,6 @@ UIView* GetFirstResponderSubview(UIView* view) {
 
 - (void)surfaceSizeChanged {
   [_webController surfaceSizeChanged];
-}
-
-- (void)showMenuWithItems:(NSArray<CRWContextMenuItem*>*)items
-                     rect:(CGRect)rect {
-  [_webController showMenuWithItems:items rect:rect];
 }
 
 - (BOOL)isWebPageInFullscreenMode {

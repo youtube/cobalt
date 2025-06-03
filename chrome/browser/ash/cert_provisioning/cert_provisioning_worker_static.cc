@@ -267,8 +267,8 @@ CertProvisioningWorkerStatic::GetLastBackendServerError() const {
   return last_backend_server_error_;
 }
 
-const std::string& CertProvisioningWorkerStatic::GetFailureMessage() const {
-  return failure_message_;
+std::string CertProvisioningWorkerStatic::GetFailureMessage() const {
+  return failure_message_ui_.value_or(failure_message_);
 }
 
 void CertProvisioningWorkerStatic::Stop(CertProvisioningWorkerState state) {
@@ -405,7 +405,7 @@ void CertProvisioningWorkerStatic::GenerateKeyForVa() {
   tpm_challenge_key_subtle_impl_ =
       attestation::TpmChallengeKeySubtleFactory::Create();
   tpm_challenge_key_subtle_impl_->StartPrepareKeyStep(
-      GetVaKeyType(cert_scope_),
+      GetVaFlowType(cert_scope_),
       /*will_register_key=*/true, ::attestation::KEY_TYPE_RSA,
       GetKeyName(cert_profile_.profile_id), profile_,
       base::BindOnce(&CertProvisioningWorkerStatic::OnGenerateKeyForVaDone,
@@ -565,7 +565,7 @@ void CertProvisioningWorkerStatic::MarkKey() {
   MarkKeyAsCorporate(cert_scope_, profile_, public_key_);
 
   platform_keys_service_->SetAttributeForKey(
-      GetPlatformKeysTokenId(cert_scope_), BytesToStr(public_key_),
+      GetPlatformKeysTokenId(cert_scope_), public_key_,
       chromeos::platform_keys::KeyAttributeType::kCertificateProvisioningId,
       StrToBytes(cert_profile_.profile_id),
       base::BindOnce(&CertProvisioningWorkerStatic::OnMarkKeyDone,
@@ -606,7 +606,7 @@ void CertProvisioningWorkerStatic::SignCsr() {
                             base::TimeTicks::Now()));
     return;
   }
-  platform_keys_service_->SignRSAPKCS1Digest(
+  platform_keys_service_->SignRsaPkcs1(
       GetPlatformKeysTokenId(cert_scope_), StrToBytes(csr_), public_key_,
       hashing_algorithm_.value(),
       base::BindRepeating(&CertProvisioningWorkerStatic::OnSignCsrDone,
@@ -701,6 +701,11 @@ void CertProvisioningWorkerStatic::ImportCert(
   if (public_key_from_cert != public_key_) {
     failure_message_ =
         "Downloaded certificate does not match the expected key pair";
+    failure_message_ui_ = base::StrCat(
+        {"Downloaded certificate does not match the expected key pair. ",
+         "Expected: ", base::Base64Encode(public_key_), " ",
+         "Public key from cert: ", base::Base64Encode(public_key_from_cert),
+         "\n", "Cert: ", pem_encoded_certificate});
     UpdateState(FROM_HERE, CertProvisioningWorkerState::kFailed);
     return;
   }
@@ -975,7 +980,7 @@ void CertProvisioningWorkerStatic::InitAfterDeserialization() {
 
   tpm_challenge_key_subtle_impl_ =
       attestation::TpmChallengeKeySubtleFactory::CreateForPreparedKey(
-          GetVaKeyType(cert_scope_),
+          GetVaFlowType(cert_scope_),
           /*will_register_key=*/true, ::attestation::KEY_TYPE_RSA,
           GetKeyName(cert_profile_.profile_id), BytesToStr(public_key_),
           profile_);

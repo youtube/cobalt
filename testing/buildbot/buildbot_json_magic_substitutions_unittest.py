@@ -141,19 +141,19 @@ class GPUParallelJobs(unittest.TestCase):
   def testNoOsType(self):
     test_config = CreateConfigWithGpu('vendor:device1-driver')
     with self.assertRaises(AssertionError):
-      magic_substitutions.GPUParallelJobs(test_config, None, {})
+      magic_substitutions.GPUParallelJobs(test_config, 'name', {})
 
   def testParallelJobs(self):
     test_config = CreateConfigWithGpu('vendor:device1-driver')
     for os_type in ['lacros', 'linux', 'mac', 'win']:
-      retval = magic_substitutions.GPUParallelJobs(test_config, None,
+      retval = magic_substitutions.GPUParallelJobs(test_config, 'name',
                                                    {'os_type': os_type})
       self.assertEqual(retval, ['--jobs=4'])
 
   def testSerialJobs(self):
     test_config = CreateConfigWithGpu('vendor:device1-driver')
     for os_type in ['android', 'chromeos', 'fuchsia']:
-      retval = magic_substitutions.GPUParallelJobs(test_config, None,
+      retval = magic_substitutions.GPUParallelJobs(test_config, 'name',
                                                    {'os_type': os_type})
       self.assertEqual(retval, ['--jobs=1'])
 
@@ -171,7 +171,7 @@ class GPUParallelJobs(unittest.TestCase):
         if telemetry_test_name:
           c['telemetry_test_name'] = telemetry_test_name
         for os_type in ['lacros', 'linux', 'mac', 'win']:
-          retval = magic_substitutions.GPUParallelJobs(c, None,
+          retval = magic_substitutions.GPUParallelJobs(c, 'name',
                                                        {'os_type': os_type})
           if is_intel and os_type == 'win':
             self.assertEqual(retval, ['--jobs=1'])
@@ -194,7 +194,7 @@ class GPUParallelJobs(unittest.TestCase):
         if telemetry_test_name:
           c['telemetry_test_name'] = telemetry_test_name
         for os_type in ['lacros', 'linux', 'mac', 'win']:
-          retval = magic_substitutions.GPUParallelJobs(c, None,
+          retval = magic_substitutions.GPUParallelJobs(c, 'name',
                                                        {'os_type': os_type})
           if is_intel and os_type == 'win':
             self.assertEqual(retval, ['--jobs=2'])
@@ -206,8 +206,8 @@ class GPUParallelJobs(unittest.TestCase):
     nvidia_config = CreateConfigWithGpu('10de:device1-driver')
 
     for gpu_config in [nvidia_config, amd_config]:
-      for name, telemetry_test_name in [('webgl_conformance', None),
-                                        (None, 'webgl_conformance')]:
+      for name, telemetry_test_name in [('webgl1_conformance', None),
+                                        (None, 'webgl1_conformance')]:
         is_nvidia = gpu_config == nvidia_config
         c = gpu_config.copy()
         if name:
@@ -215,12 +215,51 @@ class GPUParallelJobs(unittest.TestCase):
         if telemetry_test_name:
           c['telemetry_test_name'] = telemetry_test_name
         for os_type in ['lacros', 'linux', 'mac', 'win']:
-          retval = magic_substitutions.GPUParallelJobs(c, None,
+          retval = magic_substitutions.GPUParallelJobs(c, 'name',
                                                        {'os_type': os_type})
           if is_nvidia and os_type == 'mac':
             self.assertEqual(retval, ['--jobs=3'])
           else:
             self.assertEqual(retval, ['--jobs=4'])
+
+  def testPixelMacDebugParallelJobs(self):
+    gpu_config = CreateConfigWithGpu('1002:device1-driver')
+    for name, telemetry_test_name in [('pixel_skia_gold_test', None),
+                                      (None, 'pixel')]:
+      c = gpu_config.copy()
+      if name:
+        c['name'] = name
+      if telemetry_test_name:
+        c['telemetry_test_name'] = telemetry_test_name
+      for os_type in ['lacros', 'linux', 'mac', 'win']:
+        for tester_name in ('Name Debug', 'Name Dbg', 'name debug', 'name dbg'):
+          retval = magic_substitutions.GPUParallelJobs(c, tester_name,
+                                                       {'os_type': os_type})
+          if os_type == 'mac':
+            self.assertEqual(retval, ['--jobs=1'])
+          else:
+            self.assertEqual(retval, ['--jobs=4'])
+      # Double check that non-debug Mac pixel tests still get parallelized.
+      retval = magic_substitutions.GPUParallelJobs(c, 'name release',
+                                                   {'os_type': 'mac'})
+      self.assertEqual(retval, ['--jobs=4'])
+
+  def testPixelMacNvidiaParallelJobs(self):
+    gpu_config = CreateConfigWithGpu('10de:device1-driver')
+    for name, telemetry_test_name in [('pixel_skia_gold_test', None),
+                                      (None, 'pixel')]:
+      c = gpu_config.copy()
+      if name:
+        c['name'] = name
+      if telemetry_test_name:
+        c['telemetry_test_name'] = telemetry_test_name
+      for os_type in ['lacros', 'linux', 'mac', 'win']:
+        retval = magic_substitutions.GPUParallelJobs(c, 'name',
+                                                     {'os_type': os_type})
+        if os_type == 'mac':
+          self.assertEqual(retval, ['--jobs=1'])
+        else:
+          self.assertEqual(retval, ['--jobs=4'])
 
 
 def CreateConfigWithDeviceType(device_type):
@@ -259,6 +298,43 @@ class GPUTelemetryNoRootForUnrootedDevices(unittest.TestCase):
     retval = magic_substitutions.GPUTelemetryNoRootForUnrootedDevices(
         test_config, None, {'os_type': 'android'})
     self.assertEqual(retval, [])
+
+
+class GPUWebGLRuntimeFile(unittest.TestCase):
+  def testNoOsType(self):
+    test_config = {'telemetry_test_name': 'webgl1_conformance'}
+    with self.assertRaises(AssertionError):
+      magic_substitutions.GPUWebGLRuntimeFile(test_config, None, {})
+
+  def testNoSuite(self):
+    tester_config = {'os_type': 'linux'}
+    with self.assertRaises(AssertionError):
+      magic_substitutions.GPUWebGLRuntimeFile({}, None, tester_config)
+
+  def testUnknownSuite(self):
+    test_config = {'telemetry_test_name': 'foo'}
+    tester_config = {'os_type': 'linux'}
+    with self.assertRaises(AssertionError):
+      magic_substitutions.GPUWebGLRuntimeFile(test_config, None, tester_config)
+
+  def testKnownOsTypes(self):
+    for os_type in ('android', 'linux', 'mac', 'win'):
+      for suite in ('webgl1_conformance', 'webgl2_conformance'):
+        retval = magic_substitutions.GPUWebGLRuntimeFile(
+            {'telemetry_test_name': suite}, None, {'os_type': os_type})
+        self.assertEqual(retval, [
+            '--read-abbreviated-json-results-from=../../content/test/data/gpu/'
+            f'{suite}_{os_type}_runtimes.json'
+        ])
+
+  def testUnknownOsType(self):
+    for suite in ('webgl1_conformance', 'webgl2_conformance'):
+      retval = magic_substitutions.GPUWebGLRuntimeFile(
+          {'telemetry_test_name': suite}, None, {'os_type': 'foo'})
+      self.assertEqual(retval, [
+          '--read-abbreviated-json-results-from=../../content/test/data/gpu/'
+          f'{suite}_linux_runtimes.json'
+      ])
 
 
 if __name__ == '__main__':

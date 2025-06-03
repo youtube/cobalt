@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/ash/smb_shares/smb_share_dialog.h"
 
+#include "ash/webui/common/trusted_types_util.h"
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/smb_client/smb_service.h"
@@ -11,6 +12,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/smb_shares/smb_handler.h"
 #include "chrome/browser/ui/webui/ash/smb_shares/smb_shares_localized_strings_provider.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
@@ -70,8 +72,7 @@ SmbShareDialogUI::SmbShareDialogUI(content::WebUI* web_ui)
     : ui::WebDialogUI(web_ui) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUISmbShareHost);
-
-  source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(source);
 
   AddSmbSharesStrings(source);
 
@@ -88,16 +89,28 @@ SmbShareDialogUI::SmbShareDialogUI(content::WebUI* web_ui)
       smb_service && smb_service->IsKerberosEnabledViaPolicy();
   source->AddBoolean("isKerberosEnabled", is_kerberos_enabled);
 
-  bool is_guest = user_manager::UserManager::Get()->IsLoggedInAsGuest() ||
-                  user_manager::UserManager::Get()->IsLoggedInAsPublicAccount();
+  bool is_guest =
+      user_manager::UserManager::Get()->IsLoggedInAsGuest() ||
+      user_manager::UserManager::Get()->IsLoggedInAsManagedGuestSession();
   source->AddBoolean("isGuest", is_guest);
 
   bool is_jelly_enabled = chromeos::features::IsJellyEnabled();
   source->AddBoolean("isJellyEnabled", is_jelly_enabled);
+  source->AddBoolean("isCrosComponentsEnabled",
+                     chromeos::features::IsCrosComponentsEnabled());
 
   source->UseStringsJs();
   source->SetDefaultResource(IDR_SMB_SHARES_DIALOG_CONTAINER_HTML);
   source->AddResourcePath("smb_share_dialog.js", IDR_SMB_SHARES_DIALOG_JS);
+
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::TrustedTypes,
+      "trusted-types parse-html-subset sanitize-inner-html static-types "
+      "ash-deprecated-parse-html-subset "
+      // Required by lit-html.
+      "lit-html "
+      // Required by polymer.
+      "polymer-html-literal polymer-template-event-attribute-policy;");
 
   web_ui->AddMessageHandler(std::make_unique<SmbHandler>(
       Profile::FromWebUI(web_ui), base::DoNothing()));

@@ -12,6 +12,10 @@ namespace content {
 class WebContents;
 }  // namespace content
 
+namespace views {
+class View;
+}  // namespace views
+
 class MockShoppingListUiTabHelper : public commerce::ShoppingListUiTabHelper {
  public:
   static void CreateForWebContents(content::WebContents* content);
@@ -22,15 +26,27 @@ class MockShoppingListUiTabHelper : public commerce::ShoppingListUiTabHelper {
 
   const gfx::Image& GetInvalidProductImage();
 
-  MOCK_METHOD0(GetProductImage, const gfx::Image&());
-  MOCK_METHOD0(ShouldShowPriceTrackingIconView, bool());
-  MOCK_METHOD0(IsPriceTracking, bool());
+  MOCK_METHOD(const gfx::Image&, GetProductImage, ());
+  MOCK_METHOD(bool, ShouldShowPriceTrackingIconView, ());
+  MOCK_METHOD(bool, ShouldShowPriceInsightsIconView, ());
+  MOCK_METHOD(bool, IsPriceTracking, ());
   MOCK_METHOD(void,
               SetPriceTrackingState,
               (bool enable,
                bool is_new_bookmark,
                base::OnceCallback<void(bool)> callback),
               (override));
+  MOCK_METHOD(std::unique_ptr<views::View>,
+              CreateShoppingInsightsWebView,
+              (),
+              (override));
+  MOCK_METHOD(const absl::optional<commerce::PriceInsightsInfo>&,
+              GetPriceInsightsInfo,
+              ());
+  MOCK_METHOD(bool, ShouldExpandPageActionIcon, (PageActionIconType type));
+  MOCK_METHOD(PriceInsightsIconView::PriceInsightsIconLabelType,
+              GetPriceInsightsIconLabelTypeForPage,
+              ());
 
  private:
   gfx::Image valid_product_image_;

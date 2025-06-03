@@ -36,7 +36,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_periodic_wave_constraints.h"
-#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -74,6 +73,7 @@
 #include "third_party/blink/renderer/modules/webaudio/stereo_panner_node.h"
 #include "third_party/blink/renderer/modules/webaudio/wave_shaper_node.h"
 #include "third_party/blink/renderer/platform/audio/fft_frame.h"
+#include "third_party/blink/renderer/platform/audio/hrtf_database_loader.h"
 #include "third_party/blink/renderer/platform/audio/iir_filter.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -86,16 +86,15 @@
 namespace blink {
 
 // Constructor for rendering to the audio hardware.
-BaseAudioContext::BaseAudioContext(Document* document,
+BaseAudioContext::BaseAudioContext(LocalDOMWindow* window,
                                    enum ContextType context_type)
     : ActiveScriptWrappable<BaseAudioContext>({}),
-      ExecutionContextLifecycleStateObserver(document->GetExecutionContext()),
-      InspectorHelperMixin(*AudioGraphTracer::FromDocument(*document),
-                           String()),
+      ExecutionContextLifecycleStateObserver(window),
+      InspectorHelperMixin(*AudioGraphTracer::FromWindow(*window), String()),
       destination_node_(nullptr),
-      task_runner_(document->GetTaskRunner(TaskType::kInternalMedia)),
+      task_runner_(window->GetTaskRunner(TaskType::kInternalMedia)),
       deferred_task_handler_(DeferredTaskHandler::Create(
-          document->GetTaskRunner(TaskType::kInternalMedia))),
+          window->GetTaskRunner(TaskType::kInternalMedia))),
       periodic_wave_sine_(nullptr),
       periodic_wave_square_(nullptr),
       periodic_wave_sawtooth_(nullptr),
@@ -171,7 +170,7 @@ void BaseAudioContext::Uninitialize() {
   RejectPendingResolvers();
 
   DCHECK(listener_);
-  listener_->WaitForHRTFDatabaseLoaderThreadCompletion();
+  listener_->Handler().WaitForHRTFDatabaseLoaderThreadCompletion();
 
   Clear();
 
@@ -220,24 +219,26 @@ AudioDestinationNode* BaseAudioContext::destination() const {
   // Cannot be called from the audio thread because this method touches objects
   // managed by Oilpan, and the audio thread is not managed by Oilpan.
   DCHECK(!IsAudioThread());
-  return destination_node_;
+  return destination_node_.Get();
 }
 
 void BaseAudioContext::WarnIfContextClosed(const AudioHandler* handler) const {
   DCHECK(handler);
 
-  if (IsContextCleared() && GetDocument()) {
-    GetDocument()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-        mojom::ConsoleMessageSource::kOther,
-        mojom::ConsoleMessageLevel::kWarning,
-        "Construction of " + handler->NodeTypeName() +
-            " is not useful when context is closed."));
+  if (IsContextCleared() && GetExecutionContext()) {
+    GetExecutionContext()->AddConsoleMessage(
+        MakeGarbageCollected<ConsoleMessage>(
+            mojom::ConsoleMessageSource::kOther,
+            mojom::ConsoleMessageLevel::kWarning,
+            "Construction of " + handler->NodeTypeName() +
+                " is not useful when context is closed."));
   }
 }
 
 void BaseAudioContext::WarnForConnectionIfContextClosed() const {
-  if (IsContextCleared() && GetDocument()) {
-    GetDocument()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+  if (IsContextCleared() && GetExecutionContext()) {
+    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                             ConsoleMessage>(
         mojom::ConsoleMessageSource::kOther,
         mojom::ConsoleMessageLevel::kWarning,
         "Connecting nodes after the context has been closed is not useful."));
@@ -624,25 +625,25 @@ PeriodicWave* BaseAudioContext::GetPeriodicWave(int type) {
       if (!periodic_wave_sine_) {
         periodic_wave_sine_ = PeriodicWave::CreateSine(sampleRate());
       }
-      return periodic_wave_sine_;
+      return periodic_wave_sine_.Get();
     case OscillatorHandler::SQUARE:
       // Initialize the table if necessary
       if (!periodic_wave_square_) {
         periodic_wave_square_ = PeriodicWave::CreateSquare(sampleRate());
       }
-      return periodic_wave_square_;
+      return periodic_wave_square_.Get();
     case OscillatorHandler::SAWTOOTH:
       // Initialize the table if necessary
       if (!periodic_wave_sawtooth_) {
         periodic_wave_sawtooth_ = PeriodicWave::CreateSawtooth(sampleRate());
       }
-      return periodic_wave_sawtooth_;
+      return periodic_wave_sawtooth_.Get();
     case OscillatorHandler::TRIANGLE:
       // Initialize the table if necessary
       if (!periodic_wave_triangle_) {
         periodic_wave_triangle_ = PeriodicWave::CreateTriangle(sampleRate());
       }
-      return periodic_wave_triangle_;
+      return periodic_wave_triangle_.Get();
     default:
       NOTREACHED();
       return nullptr;
@@ -716,9 +717,8 @@ void BaseAudioContext::NotifySourceNodeFinishedProcessing(
   GetDeferredTaskHandler().GetFinishedSourceHandlers()->push_back(handler);
 }
 
-Document* BaseAudioContext::GetDocument() const {
-  LocalDOMWindow* window = To<LocalDOMWindow>(GetExecutionContext());
-  return window ? window->document() : nullptr;
+LocalDOMWindow* BaseAudioContext::GetWindow() const {
+  return To<LocalDOMWindow>(GetExecutionContext());
 }
 
 void BaseAudioContext::NotifySourceNodeStartedProcessing(AudioNode* node) {
@@ -867,7 +867,7 @@ void BaseAudioContext::Trace(Visitor* visitor) const {
   visitor->Trace(periodic_wave_triangle_);
   visitor->Trace(audio_worklet_);
   InspectorHelperMixin::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
 }
 

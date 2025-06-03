@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,24 +11,23 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/value_provider/chrome_policies_value_provider.h"
 #include "chrome/browser/policy/value_provider/policy_value_provider.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 #include "components/policy/core/browser/webui/policy_webui_constants.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_logger.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/policy/active_directory/active_directory_policy_manager.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/policy/core/user_cloud_policy_manager_ash.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
-#include "chrome/browser/policy/status_provider/device_active_directory_policy_status_provider.h"
 #include "chrome/browser/policy/status_provider/device_cloud_policy_status_provider_chromeos.h"
 #include "chrome/browser/policy/status_provider/device_local_account_policy_status_provider.h"
-#include "chrome/browser/policy/status_provider/user_active_directory_policy_status_provider.h"
 #include "chrome/browser/policy/status_provider/user_cloud_policy_status_provider_chromeos.h"
 #include "components/user_manager/user_manager.h"
 #else
@@ -42,7 +41,6 @@
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/policy/management_utils.h"
 #include "chrome/browser/policy/status_provider/ash_lacros_policy_stack_bridge.h"
 #include "chrome/browser/policy/status_provider/user_policy_status_provider_lacros.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -85,13 +83,11 @@ std::unique_ptr<policy::PolicyStatusProvider> GetUserPolicyStatusProvider(
   const user_manager::UserManager* user_manager =
       user_manager::UserManager::Get();
   policy::DeviceLocalAccountPolicyService* local_account_service =
-      user_manager->IsLoggedInAsPublicAccount()
+      user_manager->IsLoggedInAsManagedGuestSession()
           ? connector->GetDeviceLocalAccountPolicyService()
           : nullptr;
   policy::UserCloudPolicyManagerAsh* user_cloud_policy =
       profile->GetUserCloudPolicyManagerAsh();
-  policy::ActiveDirectoryPolicyManager* active_directory_policy =
-      profile->GetActiveDirectoryPolicyManager();
   if (local_account_service) {
     return std::make_unique<DeviceLocalAccountPolicyStatusProvider>(
         user_manager->GetActiveUser()->GetAccountId().GetUserEmail(),
@@ -99,9 +95,6 @@ std::unique_ptr<policy::PolicyStatusProvider> GetUserPolicyStatusProvider(
   } else if (user_cloud_policy) {
     return std::make_unique<UserCloudPolicyStatusProviderChromeOS>(
         user_cloud_policy->core(), profile);
-  } else if (active_directory_policy) {
-    return std::make_unique<UserActiveDirectoryPolicyStatusProvider>(
-        active_directory_policy, profile);
   }
 #else  // BUILDFLAG(IS_CHROMEOS_ASH)
   policy::CloudPolicyManager* cloud_policy_manager =
@@ -134,11 +127,6 @@ std::unique_ptr<policy::PolicyStatusProvider>
 GetChromeOSDevicePolicyStatusProvider(
     Profile* profile,
     policy::BrowserPolicyConnectorAsh* connector) {
-  if (connector->GetDeviceActiveDirectoryPolicyManager()) {
-    return std::make_unique<DeviceActiveDirectoryPolicyStatusProvider>(
-        connector->GetDeviceActiveDirectoryPolicyManager(),
-        connector->GetEnterpriseDomainManager());
-  }
   return std::make_unique<DeviceCloudPolicyStatusProviderChromeOS>(connector);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -198,23 +186,18 @@ PolicyValueAndStatusAggregator::CreateDefaultPolicyValueAndStatusAggregator(
                                       GetUserPolicyStatusProvider(profile));
 
   // Device policies.
+  if (policy::ManagementServiceFactory::GetForPlatform()->IsManaged()) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Add status provider for ChromeOS device policies if the device is managed.
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  if (connector->IsDeviceEnterpriseManaged())
     aggregator->AddPolicyStatusProvider(
-        kDeviceStatusKey,
-        GetChromeOSDevicePolicyStatusProvider(profile, connector));
+        kDeviceStatusKey, GetChromeOSDevicePolicyStatusProvider(
+                              profile, g_browser_process->platform_part()
+                                           ->browser_policy_connector_ash()));
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // We will use AshLacrosPolicyStackBridge to retrieve device policies in
-  // Lacros.
-  if (policy::IsDeviceEnterpriseManaged()) {
     aggregator->AddPolicyStatusAndValueProvider(
         kDeviceStatusKey, std::make_unique<AshLacrosPolicyStackBridge>());
-  }
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+  }
 
   // Machine policies.
 #if !BUILDFLAG(IS_CHROMEOS_ASH)

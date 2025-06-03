@@ -30,7 +30,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "chrome/browser/extensions/api/enterprise_reporting_private/keychain_data_helper_mac.h"
 #include "crypto/apple_keychain.h"
 #endif
@@ -170,7 +170,7 @@ int32_t ReadEncryptedSecret(std::string* password, bool force_recreate) {
   crypto::AppleKeychain keychain;
   UInt32 password_length = 0;
   void* password_data = nullptr;
-  base::ScopedCFTypeRef<SecKeychainItemRef> item_ref;
+  base::apple::ScopedCFTypeRef<SecKeychainItemRef> item_ref;
   status = keychain.FindGenericPassword(
       strlen(kServiceName), kServiceName, strlen(kAccountName), kAccountName,
       &password_length, &password_data, item_ref.InitializeInto());

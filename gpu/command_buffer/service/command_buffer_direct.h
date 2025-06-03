@@ -38,6 +38,7 @@ class GPU_EXPORT CommandBufferDirect : public CommandBuffer,
   scoped_refptr<Buffer> CreateTransferBuffer(
       uint32_t size,
       int32_t* id,
+      uint32_t alignment = 0,
       TransferBufferAllocationOption option =
           TransferBufferAllocationOption::kLoseContextOnOOM) override;
   void DestroyTransferBuffer(int32_t id) override;
@@ -67,7 +68,7 @@ class GPU_EXPORT CommandBufferDirect : public CommandBuffer,
 
  private:
   CommandBufferService service_;
-  raw_ptr<AsyncAPIInterface> handler_ = nullptr;
+  raw_ptr<AsyncAPIInterface, DanglingUntriaged> handler_ = nullptr;
 };
 
 }  // namespace gpu

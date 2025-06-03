@@ -16,6 +16,10 @@
 #include "ui/gfx/geometry/size.h"
 
 struct RegisterOptions;
+struct ImpressionEvent;
+struct ClickEvent;
+struct ChangeEvent;
+struct KeyDownEvent;
 
 /**
  * Dispatcher for messages sent from the DevTools frontend running in an
@@ -91,12 +95,21 @@ class DevToolsEmbedderMessageDispatcher {
     virtual void GetSyncInformation(DispatchCallback callback) = 0;
     virtual void DispatchProtocolMessageFromDevToolsFrontend(
         const std::string& message) = 0;
+    virtual void RecordCountHistogram(const std::string& name,
+                                      int sample,
+                                      int min,
+                                      int exclusive_max,
+                                      int buckets) = 0;
     virtual void RecordEnumeratedHistogram(const std::string& name,
                                            int sample,
                                            int boundary_value) = 0;
     virtual void RecordPerformanceHistogram(const std::string& name,
                                             double duration) = 0;
     virtual void RecordUserMetricsAction(const std::string& name) = 0;
+    virtual void RecordImpression(const ImpressionEvent& event) = 0;
+    virtual void RecordClick(const ClickEvent& event) = 0;
+    virtual void RecordChange(const ChangeEvent& event) = 0;
+    virtual void RecordKeyDown(const KeyDownEvent& event) = 0;
     virtual void SendJsonRequest(DispatchCallback callback,
                                  const std::string& browser_id,
                                  const std::string& url) = 0;
@@ -110,6 +123,10 @@ class DevToolsEmbedderMessageDispatcher {
                             const std::string& trigger) = 0;
     virtual void CanShowSurvey(DispatchCallback callback,
                                const std::string& trigger) = 0;
+#if defined(AIDA_SCOPE)
+    virtual void DoAidaConversation(DispatchCallback callback,
+                                    const std::string& request) = 0;
+#endif
   };
 
   using DispatchCallback = Delegate::DispatchCallback;

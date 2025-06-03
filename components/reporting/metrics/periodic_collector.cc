@@ -88,10 +88,11 @@ void PeriodicCollector::OnMetricDataCollected(
   }
 
   if (is_event_driven) {
-    DCHECK(metric_data->has_telemetry_data());
+    CHECK(metric_data->has_telemetry_data());
     metric_data->mutable_telemetry_data()->set_is_event_driven(is_event_driven);
   }
-  metric_data->set_timestamp_ms(base::Time::Now().ToJavaTime());
+  metric_data->set_timestamp_ms(
+      base::Time::Now().InMillisecondsSinceUnixEpoch());
   metric_report_queue_->Enqueue(std::move(metric_data.value()));
 }
 

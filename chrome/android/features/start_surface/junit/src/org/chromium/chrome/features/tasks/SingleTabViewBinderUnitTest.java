@@ -16,11 +16,13 @@ import static org.mockito.Mockito.verify;
 import static org.chromium.chrome.features.tasks.SingleTabViewProperties.CLICK_LISTENER;
 import static org.chromium.chrome.features.tasks.SingleTabViewProperties.FAVICON;
 import static org.chromium.chrome.features.tasks.SingleTabViewProperties.IS_VISIBLE;
+import static org.chromium.chrome.features.tasks.SingleTabViewProperties.LATERAL_MARGIN;
 import static org.chromium.chrome.features.tasks.SingleTabViewProperties.TITLE;
 
 import android.app.Activity;
 import android.graphics.drawable.BitmapDrawable;
 import android.view.View;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -61,27 +63,27 @@ public class SingleTabViewBinderUnitTest {
             mPropertyModelChangeProcessor;
     private PropertyModel mPropertyModel;
 
-    @Mock
-    private View.OnClickListener mClickListener;
-    @Mock
-    private TabModelSelector mTabModelSelector;
-    @Mock
-    private TabSwitcher.OnTabSelectingListener mOnTabSelectingListener;
-    @Mock
-    private TabListFaviconProvider mTabListFaviconProvider;
+    @Mock private View.OnClickListener mClickListener;
+    @Mock private TabModelSelector mTabModelSelector;
+    @Mock private TabSwitcher.OnTabSelectingListener mOnTabSelectingListener;
+    @Mock private TabListFaviconProvider mTabListFaviconProvider;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
-        mSingleTabView = (SingleTabView) mActivity.getLayoutInflater().inflate(
-                R.layout.single_tab_view_layout, null);
+        mSingleTabView =
+                (SingleTabView)
+                        mActivity
+                                .getLayoutInflater()
+                                .inflate(R.layout.single_tab_view_layout, null);
         mActivity.setContentView(mSingleTabView);
 
         mPropertyModel = new PropertyModel(SingleTabViewProperties.ALL_KEYS);
-        mPropertyModelChangeProcessor = PropertyModelChangeProcessor.create(
-                mPropertyModel, mSingleTabView, SingleTabViewBinder::bind);
+        mPropertyModelChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mPropertyModel, mSingleTabView, SingleTabViewBinder::bind);
     }
 
     @After
@@ -146,15 +148,33 @@ public class SingleTabViewBinderUnitTest {
         doReturn(mTabId).when(mTabModelSelector).getCurrentTabId();
         doReturn(false).when(mTabModelSelector).isIncognitoSelected();
         SingleTabSwitcherMediator mediator =
-                new SingleTabSwitcherMediator(ContextUtils.getApplicationContext(), mPropertyModel,
-                        mTabModelSelector, mTabListFaviconProvider);
+                new SingleTabSwitcherMediator(
+                        ContextUtils.getApplicationContext(),
+                        mPropertyModel,
+                        mTabModelSelector,
+                        mTabListFaviconProvider,
+                        null,
+                        false);
         mediator.setOnTabSelectingListener(mOnTabSelectingListener);
         mSingleTabView.performClick();
-        assertEquals(HISTOGRAM_START_SURFACE_MODULE_CLICK
+        assertEquals(
+                HISTOGRAM_START_SURFACE_MODULE_CLICK
                         + " is not recorded correctly when clicking on the single tab card.",
                 1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         HISTOGRAM_START_SURFACE_MODULE_CLICK,
                         BrowserUiUtils.ModuleTypeOnStartAndNTP.SINGLE_TAB_CARD));
+    }
+
+    @Test
+    @SmallTest
+    public void testStartMargin() {
+        int lateralMargin = 100;
+        MarginLayoutParams marginLayoutParams =
+                (MarginLayoutParams) mSingleTabView.getLayoutParams();
+        assertEquals(0, marginLayoutParams.getMarginStart());
+
+        mPropertyModel.set(LATERAL_MARGIN, lateralMargin);
+        assertEquals(100, marginLayoutParams.getMarginStart());
     }
 }

@@ -12,17 +12,13 @@
 #import "components/omnibox/browser/omnibox_log.h"
 #import "components/search_engines/template_url.h"
 #import "components/search_engines/template_url_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/google/google_brand.h"
-#import "ios/chrome/browser/search_engines/template_url_service_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/public/provider/chrome/browser/app_distribution/app_distribution_api.h"
 #import "ios/web/public/thread/web_thread.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 RLZTrackerDelegateImpl::RLZTrackerDelegateImpl() {}
 

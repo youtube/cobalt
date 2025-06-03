@@ -7,6 +7,7 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
@@ -64,12 +65,11 @@ void MockPlatformNotificationService::CloseNotification(
     const std::string& notification_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  const auto non_persistent_iter =
-      non_persistent_notifications_.find(notification_id);
-  if (non_persistent_iter == non_persistent_notifications_.end())
+  if (!base::Contains(non_persistent_notifications_, notification_id)) {
     return;
+  }
 
-  non_persistent_notifications_.erase(non_persistent_iter);
+  non_persistent_notifications_.erase(notification_id);
 }
 
 void MockPlatformNotificationService::ClosePersistentNotification(
@@ -94,6 +94,12 @@ void MockPlatformNotificationService::GetDisplayedNotifications(
                  base::BindOnce(std::move(callback),
                                 std::move(displayed_notifications),
                                 true /* supports_synchronization */));
+}
+
+void MockPlatformNotificationService::GetDisplayedNotificationsForOrigin(
+    const GURL& origin,
+    DisplayedNotificationsCallback callback) {
+  GetDisplayedNotifications(std::move(callback));
 }
 
 void MockPlatformNotificationService::ScheduleTrigger(base::Time timestamp) {

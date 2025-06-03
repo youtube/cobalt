@@ -32,8 +32,9 @@ namespace {
 bool GetUintFromSwitch(const base::CommandLine* command_line,
                        const base::StringPiece& switch_string,
                        uint32_t* value) {
-  if (!command_line->HasSwitch(switch_string))
+  if (!command_line->HasSwitch(switch_string)) {
     return false;
+  }
   std::string switch_value(command_line->GetSwitchValueASCII(switch_string));
   return base::StringToUint(switch_value, value);
 }
@@ -159,9 +160,13 @@ GpuPreferences ParseGpuPreferences(const base::CommandLine* command_line) {
       base::FeatureList::IsEnabled(features::kWebGPUService);
   gpu_preferences.enable_unsafe_webgpu =
       command_line->HasSwitch(switches::kEnableUnsafeWebGPU);
+  gpu_preferences.enable_webgpu_developer_features =
+      command_line->HasSwitch(switches::kEnableWebGPUDeveloperFeatures);
   gpu_preferences.use_webgpu_adapter = ParseWebGPUAdapterName(command_line);
   gpu_preferences.use_webgpu_power_preference =
       ParseWebGPUPowerPreference(command_line);
+  gpu_preferences.force_webgpu_compat =
+      command_line->HasSwitch(switches::kForceWebGPUCompat);
   if (command_line->HasSwitch(switches::kEnableDawnBackendValidation)) {
     auto value = command_line->GetSwitchValueASCII(
         switches::kEnableDawnBackendValidation);
@@ -201,27 +206,30 @@ GpuPreferences ParseGpuPreferences(const base::CommandLine* command_line) {
 }
 
 GrContextType ParseGrContextType(const base::CommandLine* command_line) {
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
-  if (base::FeatureList::IsEnabled(features::kSkiaGraphite)) {
+  if (features::IsSkiaGraphiteEnabled(command_line)) {
     [[maybe_unused]] auto value =
         command_line->GetSwitchValueASCII(switches::kSkiaGraphiteBackend);
 #if BUILDFLAG(SKIA_USE_DAWN)
-    if (value.empty() || value == switches::kSkiaGraphiteBackendDawn) {
+    if (value.empty() ||
+        base::StartsWith(value, switches::kSkiaGraphiteBackendDawn)) {
       return GrContextType::kGraphiteDawn;
     }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
 #if BUILDFLAG(SKIA_USE_METAL)
-    if (value == switches::kSkiaGraphiteBackendMetal) {
+    if (
+#if BUILDFLAG(IS_IOS)
+        value.empty() ||
+#endif  // BUILDFLAG(IS_IOS)
+        value == switches::kSkiaGraphiteBackendMetal) {
       return GrContextType::kGraphiteMetal;
     }
 #endif  // BUILDFLAG(SKIA_USE_METAL)
+    LOG(ERROR) << "Skia Graphite backend = \"" << value
+               << "\" not found - falling back to Ganesh!";
   }
-#endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE)
-
   if (features::IsUsingVulkan()) {
     return GrContextType::kVulkan;
   }
-
   return GrContextType::kGL;
 }
 
@@ -234,13 +242,6 @@ VulkanImplementationName ParseVulkanImplementationName(
   }
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // LACROS doesn't support Vulkan right now, to avoid LACROS picking up Linux
-  // finch, kNone is returned for LACROS.
-  // TODO(https://crbug.com/1155622): When LACROS is separated from Linux finch
-  // config.
-  return VulkanImplementationName::kNone;
-#else
   if (command_line->HasSwitch(switches::kUseVulkan)) {
     auto value = command_line->GetSwitchValueASCII(switches::kUseVulkan);
     if (value.empty() || value == switches::kVulkanImplementationNameNative) {
@@ -262,25 +263,32 @@ VulkanImplementationName ParseVulkanImplementationName(
 
   // GrContext is not going to use Vulkan.
   return VulkanImplementationName::kNone;
-#endif
 }
 
 WebGPUAdapterName ParseWebGPUAdapterName(
     const base::CommandLine* command_line) {
   if (command_line->HasSwitch(switches::kUseWebGPUAdapter)) {
     auto value = command_line->GetSwitchValueASCII(switches::kUseWebGPUAdapter);
-    if (value.empty()) {
-      return WebGPUAdapterName::kDefault;
-    } else if (value == "compat") {
-      return WebGPUAdapterName::kCompat;
-    } else if (value == "swiftshader") {
-      return WebGPUAdapterName::kSwiftShader;
-    } else if (value == "default") {
-      return WebGPUAdapterName::kDefault;
-    } else {
-      DLOG(ERROR) << "Invalid switch " << switches::kUseWebGPUAdapter << "="
-                  << value << ".";
+
+    static const struct {
+      const char* name;
+      WebGPUAdapterName value;
+    } kAdapterNames[] = {
+        {"", WebGPUAdapterName::kDefault},
+        {"default", WebGPUAdapterName::kDefault},
+        {"d3d11", WebGPUAdapterName::kD3D11},
+        {"opengles", WebGPUAdapterName::kOpenGLES},
+        {"swiftshader", WebGPUAdapterName::kSwiftShader},
+    };
+
+    for (const auto& adapter_name : kAdapterNames) {
+      if (value == adapter_name.name) {
+        return adapter_name.value;
+      }
     }
+
+    DLOG(ERROR) << "Invalid switch " << switches::kUseWebGPUAdapter << "="
+                << value << ".";
   }
   return WebGPUAdapterName::kDefault;
 }
@@ -291,7 +299,9 @@ WebGPUPowerPreference ParseWebGPUPowerPreference(
     auto value =
         command_line->GetSwitchValueASCII(switches::kUseWebGPUPowerPreference);
     if (value.empty()) {
-      return WebGPUPowerPreference::kDefaultLowPower;
+      return WebGPUPowerPreference::kNone;
+    } else if (value == "none") {
+      return WebGPUPowerPreference::kNone;
     } else if (value == "default-low-power") {
       return WebGPUPowerPreference::kDefaultLowPower;
     } else if (value == "default-high-performance") {
@@ -305,7 +315,20 @@ WebGPUPowerPreference ParseWebGPUPowerPreference(
                   << "=" << value << ".";
     }
   }
-  return WebGPUPowerPreference::kDefaultLowPower;
+  return WebGPUPowerPreference::kNone;
+}
+
+bool MSAAIsSlow(const GpuDriverBugWorkarounds& workarounds) {
+  // Only query the kEnableMSAAOnNewIntelGPUs feature flag if the host device
+  // is affected by the experiment (i.e. is a new Intel GPU).
+  // This is to avoid activating the experiment on hosts that are irrelevant
+  // to the study in order to boost statistical power.
+  bool affected_by_experiment =
+      workarounds.msaa_is_slow && !workarounds.msaa_is_slow_2;
+
+  return affected_by_experiment ? !base::FeatureList::IsEnabled(
+                                      features::kEnableMSAAOnNewIntelGPUs)
+                                : workarounds.msaa_is_slow;
 }
 
 }  // namespace gles2

@@ -11,6 +11,7 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
@@ -82,7 +83,7 @@ void InspectorPerformanceAgent::InnerEnable() {
 
 protocol::Response InspectorPerformanceAgent::enable(
     Maybe<String> optional_time_domain) {
-  String time_domain = optional_time_domain.fromMaybe(TimeDomain::TimeTicks);
+  String time_domain = optional_time_domain.value_or(TimeDomain::TimeTicks);
   if (enabled_.Get()) {
     if (!HasTimeDomain(time_domain)) {
       return protocol::Response::ServerError(
@@ -242,16 +243,16 @@ protocol::Response InspectorPerformanceAgent::getMetrics(
   base::TimeDelta process_time = GetCurrentProcessTime();
   AppendMetric(result.get(), "ProcessTime", process_time.InSecondsF());
 
-  v8::HeapStatistics heap_statistics;
-  V8PerIsolateData::MainThreadIsolate()->GetHeapStatistics(&heap_statistics);
-  AppendMetric(result.get(), "JSHeapUsedSize",
-               heap_statistics.used_heap_size());
-  AppendMetric(result.get(), "JSHeapTotalSize",
-               heap_statistics.total_heap_size());
-
   // Performance timings.
   Document* document = inspected_frames_->Root()->GetDocument();
   if (document) {
+    v8::HeapStatistics heap_statistics;
+    document->GetAgent().isolate()->GetHeapStatistics(&heap_statistics);
+    AppendMetric(result.get(), "JSHeapUsedSize",
+                 heap_statistics.used_heap_size());
+    AppendMetric(result.get(), "JSHeapTotalSize",
+                 heap_statistics.total_heap_size());
+
     AppendMetric(result.get(), "FirstMeaningfulPaint",
                  PaintTiming::From(*document)
                      .FirstMeaningfulPaint()

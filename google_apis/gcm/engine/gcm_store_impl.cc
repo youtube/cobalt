@@ -198,7 +198,6 @@ class GCMStoreImpl::Backend
     : public base::RefCountedThreadSafe<GCMStoreImpl::Backend> {
  public:
   Backend(const base::FilePath& path,
-          bool remove_account_mappings_with_email_key,
           scoped_refptr<base::SequencedTaskRunner> foreground_runner,
           std::unique_ptr<Encryptor> encryptor);
 
@@ -272,7 +271,6 @@ class GCMStoreImpl::Backend
   bool LoadInstanceIDData(std::map<std::string, std::string>* instance_id_data);
 
   const base::FilePath path_;
-  bool remove_account_mappings_with_email_key_;
   scoped_refptr<base::SequencedTaskRunner> foreground_task_runner_;
   std::unique_ptr<Encryptor> encryptor_;
 
@@ -281,12 +279,9 @@ class GCMStoreImpl::Backend
 
 GCMStoreImpl::Backend::Backend(
     const base::FilePath& path,
-    bool remove_account_mappings_with_email_key,
     scoped_refptr<base::SequencedTaskRunner> foreground_task_runner,
     std::unique_ptr<Encryptor> encryptor)
     : path_(path),
-      remove_account_mappings_with_email_key_(
-          remove_account_mappings_with_email_key),
       foreground_task_runner_(foreground_task_runner),
       encryptor_(std::move(encryptor)) {}
 
@@ -311,6 +306,13 @@ LoadStatus GCMStoreImpl::Backend::OpenStoreAndLoadData(StoreOpenMode open_mode,
   leveldb_env::Options options;
   options.create_if_missing = open_mode == CREATE_IF_MISSING;
   options.paranoid_checks = true;
+
+  // GCMStore does not typically handle large amounts of data, nor a
+  // high rate of store operations, so limit the write log size to something
+  // more appropriate (impact both in-memory and on-disk size before
+  // LevelDB compaction will be triggered).
+  options.write_buffer_size = 128 * 1024;
+
   leveldb::Status status =
       leveldb_env::OpenDB(options, path_.AsUTF8Unsafe(), &db_);
   UMA_HISTOGRAM_ENUMERATION("GCM.Database.Open",
@@ -1146,13 +1148,7 @@ bool GCMStoreImpl::Backend::LoadAccountMappingInfo(
   }
 
   for (const auto& account_mapping : loaded_account_mappings) {
-    bool remove = remove_account_mappings_with_email_key_ &&
-                  account_mapping.account_id.IsEmail();
-    if (remove) {
-      RemoveAccountMapping(account_mapping.account_id, base::DoNothing());
-    } else {
-      account_mappings->push_back(account_mapping);
-    }
+    account_mappings->push_back(account_mapping);
   }
 
   return true;
@@ -1227,11 +1223,9 @@ bool GCMStoreImpl::Backend::LoadInstanceIDData(
 
 GCMStoreImpl::GCMStoreImpl(
     const base::FilePath& path,
-    bool remove_account_mappings_with_email_key,
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
     std::unique_ptr<Encryptor> encryptor)
     : backend_(new Backend(path,
-                           remove_account_mappings_with_email_key,
                            base::SingleThreadTaskRunner::GetCurrentDefault(),
                            std::move(encryptor))),
       blocking_task_runner_(blocking_task_runner) {}

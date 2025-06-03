@@ -6,6 +6,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/values_test_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
@@ -30,6 +31,10 @@
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/views/widget/any_widget_observer.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
+#include "ui/views/window/dialog_delegate.h"
 
 namespace extensions {
 
@@ -54,20 +59,6 @@ class DeveloperPrivateApiTest : public ExtensionApiTest {
     return info;
   }
 };
-
-IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, Basics) {
-  // Load up some extensions so that we can query their info and adjust their
-  // setings in the API test.
-  base::FilePath base_dir = test_data_dir_.AppendASCII("developer");
-  EXPECT_TRUE(LoadExtension(base_dir.AppendASCII("hosted_app")));
-  EXPECT_TRUE(InstallExtension(base_dir.AppendASCII("packaged_app"), 1,
-                               mojom::ManifestLocation::kInternal));
-  LoadExtension(base_dir.AppendASCII("simple_extension"));
-
-  ASSERT_TRUE(RunExtensionTest("developer/test",
-                               {.launch_as_platform_app = true},
-                               {.load_as_component = true}));
-}
 
 // Tests opening the developer tools for an app window.
 IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, InspectAppWindowView) {
@@ -144,16 +135,26 @@ IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, InspectEmbeddedOptionsPage) {
       profile());
 
   // Verify that dev tools opened.
-  content::RenderFrameHost* rfh = content::RenderFrameHost::FromID(
-      view.render_process_id, view.render_view_id);
-  ASSERT_TRUE(rfh);
-  content::WebContents* wc = content::WebContents::FromRenderFrameHost(rfh);
+  content::RenderFrameHost* render_frame_host =
+      content::RenderFrameHost::FromID(view.render_process_id,
+                                       view.render_view_id);
+  ASSERT_TRUE(render_frame_host);
+  content::WebContents* wc =
+      content::WebContents::FromRenderFrameHost(render_frame_host);
   ASSERT_TRUE(wc);
   EXPECT_TRUE(DevToolsWindow::GetInstanceForInspectedWebContents(wc));
 }
 
+// TODO(https://crbug.com/1457154): Test is flaky on MSan builders.
+#if defined(MEMORY_SANITIZER)
+#define MAYBE_InspectInactiveServiceWorkerBackground \
+  DISABLED_InspectInactiveServiceWorkerBackground
+#else
+#define MAYBE_InspectInactiveServiceWorkerBackground \
+  InspectInactiveServiceWorkerBackground
+#endif
 IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest,
-                       InspectInactiveServiceWorkerBackground) {
+                       MAYBE_InspectInactiveServiceWorkerBackground) {
   ResultCatcher result_catcher;
   // Load an extension that is service worker-based.
   const Extension* extension =
@@ -459,6 +460,61 @@ IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, InspectOffscreenDocument) {
 
   // Tidy up.
   DevToolsWindowTesting::CloseDevToolsWindowSync(dev_tools_window);
+}
+
+IN_PROC_BROWSER_TEST_F(DeveloperPrivateApiTest, UninstallMultipleExtensions) {
+  // Load first extension.
+  static constexpr char kManifest_0[] =
+      R"({
+           "name": "Multiple extensions uninstall test 0",
+           "manifest_version": 3,
+           "version": "0.1"
+         })";
+  TestExtensionDir test_dir_0;
+  test_dir_0.WriteManifest(kManifest_0);
+  const Extension* extension_0 = LoadExtension(test_dir_0.UnpackedPath());
+  ASSERT_TRUE(extension_0);
+  std::string extension_0_id = extension_0->id();
+
+  // Load second extension.
+  static constexpr char kManifest_1[] =
+      R"({
+           "name": "Multiple extensions uninstall test 1",
+           "manifest_version": 3,
+           "version": "0.1"
+         })";
+  TestExtensionDir test_dir_1;
+  test_dir_1.WriteManifest(kManifest_1);
+  const Extension* extension_1 = LoadExtension(test_dir_1.UnpackedPath());
+  ASSERT_TRUE(extension_1);
+  std::string extension_1_id = extension_1->id();
+
+  auto function = base::MakeRefCounted<
+      api::DeveloperPrivateRemoveMultipleExtensionsFunction>();
+  std::unique_ptr<ExtensionFunctionDispatcher> dispatcher(
+      new ExtensionFunctionDispatcher(profile()));
+  function->SetDispatcher(dispatcher->AsWeakPtr());
+
+  std::string args =
+      base::StrCat({"[[\"", extension_0_id, "\", \"", extension_1_id, "\"]]"});
+  function->SetArgs(base::test::ParseJsonList(args));
+
+  // Create a waiter to wait for the uninstall dialog to show up.
+  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
+                                       "ExtensionMultipleUninstallDialog");
+  api_test_utils::SendResponseHelper response_helper(function.get());
+
+  function->RunWithValidation().Execute();
+
+  auto* widget = waiter.WaitIfNeededAndGet();
+  widget->widget_delegate()->AsDialogDelegate()->AcceptDialog();
+  response_helper.WaitForResponse();
+
+  // Verify the extensions are uninstalled.
+  EXPECT_FALSE(extension_registry()->GetExtensionById(
+      extension_0_id, ExtensionRegistry::EVERYTHING));
+  EXPECT_FALSE(extension_registry()->GetExtensionById(
+      extension_1_id, ExtensionRegistry::EVERYTHING));
 }
 
 }  // namespace extensions

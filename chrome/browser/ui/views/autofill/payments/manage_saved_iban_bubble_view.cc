@@ -15,6 +15,8 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
+#include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/view_class_properties.h"
 
 namespace autofill {
@@ -98,7 +100,7 @@ void ManageSavedIbanBubbleView::Init() {
 
   SetID(DialogViewId::MAIN_CONTENT_VIEW_LOCAL);
   SetProperty(views::kMarginsKey, gfx::Insets());
-  const int row_height = views::style::GetLineHeight(
+  const int row_height = views::TypographyProvider::Get().GetLineHeight(
       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY);
   views::TableLayout* layout =
       SetLayoutManager(std::make_unique<views::TableLayout>());
@@ -126,16 +128,16 @@ void ManageSavedIbanBubbleView::Init() {
 
   iban_value_and_toggle_ =
       AddChildView(std::make_unique<ObscurableLabelWithToggleButton>(
-          controller_->GetIBAN().GetIdentifierStringForAutofillDisplay(
+          controller_->GetIban().GetIdentifierStringForAutofillDisplay(
               /*is_value_masked=*/true),
-          controller_->GetIBAN().GetIdentifierStringForAutofillDisplay(
+          controller_->GetIban().GetIdentifierStringForAutofillDisplay(
               /*is_value_masked=*/false),
           l10n_util::GetStringUTF16(IDS_MANAGE_IBAN_VALUE_SHOW_VALUE),
           l10n_util::GetStringUTF16(IDS_MANAGE_IBAN_VALUE_HIDE_VALUE)));
 
   // Nickname label row will be added if a nickname was saved in the IBAN save
   // bubble, which is displayed previously in the flow.
-  if (!controller_->GetIBAN().nickname().empty()) {
+  if (!controller_->GetIban().nickname().empty()) {
     layout
         ->AddPaddingRow(views::TableLayout::kFixedSize,
                         ChromeLayoutProvider::Get()->GetDistanceMetric(
@@ -148,7 +150,7 @@ void ManageSavedIbanBubbleView::Init() {
     // TODO(crbug.com/1349109): Revisit how the nickname will be shown if it's
     // too long.
     nickname_label_ = AddChildView(std::make_unique<views::Label>(
-        controller_->GetIBAN().nickname(),
+        controller_->GetIban().nickname(),
         views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_PRIMARY));
     nickname_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   }

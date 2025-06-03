@@ -8,9 +8,10 @@ import './search_page.js';
 import './share_data_page.js';
 import './strings.m.js';
 
+import {assert} from 'chrome://resources/ash/common/assert.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {stringToMojoString16} from 'chrome://resources/ash/common/mojo_utils.js';
-import {startColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {html, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {FeedbackAppExitPath, FeedbackAppHelpContentOutcome, FeedbackAppPreSubmitAction, FeedbackContext, FeedbackServiceProviderInterface, Report, SendReportStatus} from './feedback_types.js';
@@ -106,12 +107,12 @@ const cantConnectRegEx = new RegExp(
     'i');
 
 /**
- * Regular expression to check for "tether" or "tethering". Case insensitive
- * matching.
+ * Regular expression to check for "tether", "tethering" or "hotspot". Case
+ * insensitive matching.
  * @type {!RegExp}
  * @protected
  */
-const tetherRegEx = new RegExp('tether(ing)?', 'i');
+const tetherRegEx = new RegExp('tether(ing)?|hotspot', 'i');
 
 /**
  * Regular expression to check for "Smart (Un)lock" or "Easy (Un)lock" with
@@ -148,6 +149,15 @@ const btDeviceRegEx =
     buildWordMatcher(['apple', 'allegro', 'pixelbud', 'microsoft', 'sony']);
 
 /**
+ * Regular expression to check for Phone Hub / Eche device specific keywords
+ * like "app stream" or "camera roll".
+ * @type {!RegExp}
+ * @protected
+ */
+const phoneHubRegEx =
+    new RegExp('app[ ]?stream(ing)?|phone|camera[ ]?roll', 'i');
+
+/**
  * @fileoverview
  * 'feedback-flow' manages the navigation among the steps to be taken.
  */
@@ -166,7 +176,9 @@ export class FeedbackFlowElement extends PolymerElement {
       feedbackContext_: {type: FeedbackContext, readonly: false, notify: true},
     };
   }
-
+  /**
+   * @suppress {missingProperties}
+   */
   constructor() {
     super();
 
@@ -188,6 +200,13 @@ export class FeedbackFlowElement extends PolymerElement {
      * @type {boolean}
      */
     this.shouldShowBluetoothCheckbox_;
+
+    /**
+     * Whether to show the Link Cross Device Dogfood Feedback checkbox in share
+     * data page.
+     * @type {boolean}
+     */
+    this.shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox_;
 
     /**
      * Whether to show the autofill checkbox in share data page.
@@ -264,6 +283,22 @@ export class FeedbackFlowElement extends PolymerElement {
      * @private
      */
     this.noHelpContentDisplayed_;
+
+    /**
+     * When the feedback tool is opened as a dialog, feedback context is passed
+     * to front end via dialog args.
+     *
+     * @type {string}
+     * @private
+     */
+    this.dialogArgs_ = chrome.getVariableValue('dialogArguments');
+
+    /**
+     * Whether the user has logged in (not on oobe or on the login screen).
+     * @type {boolean}
+     * @private
+     */
+    this.isUserLoggedIn_;
   }
 
   connectedCallback() {
@@ -271,25 +306,28 @@ export class FeedbackFlowElement extends PolymerElement {
     if (loadTimeData.getBoolean('isJellyEnabledForOsFeedback')) {
       // TODO(b/276493287): After the Jelly experiment is launched, replace
       // `cros_styles.css` with `theme/colors.css` directly in `index.html`.
+      // Also add `theme/typography.css` to `index.html`.
       document.querySelector('link[href*=\'cros_styles.css\']')
           ?.setAttribute('href', 'chrome://theme/colors.css?sets=legacy,sys');
+      const typographyLink = document.createElement('link');
+      typographyLink.href = 'chrome://theme/typography.css';
+      typographyLink.rel = 'stylesheet';
+      document.head.appendChild(typographyLink);
       document.body.classList.add('jelly-enabled');
-      startColorChangeUpdater();
+      /** @suppress {checkTypes} */
+      (function() {
+        ColorChangeUpdater.forDocument().start();
+      })();
     }
   }
 
   ready() {
     super.ready();
-
-    this.feedbackServiceProvider_.getFeedbackContext().then((response) => {
-      this.feedbackContext_ = response.feedbackContext;
-      this.setAdditionalContextFromQueryParams_();
-      this.shouldShowAssistantCheckbox_ = !!this.feedbackContext_ &&
-          this.feedbackContext_.isInternalAccount &&
-          this.feedbackContext_.fromAssistant;
-      this.shouldShowAutofillCheckbox_ =
-          !!this.feedbackContext_ && this.feedbackContext_.fromAutofill;
-    });
+    if (this.dialogArgs_ && this.dialogArgs_.length > 0) {
+      this.initializeForDialogMode_();
+    } else {
+      this.initializeForNonDialogMode_();
+    }
 
     window.addEventListener('message', event => {
       if (event.data.id !== HELP_CONTENT_CLICKED) {
@@ -357,6 +395,68 @@ export class FeedbackFlowElement extends PolymerElement {
   }
 
   /**
+   * @suppress {checkTypes} suppress feedbackInfo type check in closure
+   * compiler.
+   * TODO(http://b/issues/233080620): Add a type definition for feedbackInfo.
+   *
+   * @private
+   */
+  initializeForDialogMode_() {
+    // This is on Dialog mode. The `dialogArgs_` contains feedback context
+    // info.
+    const feedbackInfo = JSON.parse(this.dialogArgs_);
+    assert(!!feedbackInfo);
+    this.feedbackContext_ = {
+      assistantDebugInfoAllowed: false,
+      fromSettingsSearch: feedbackInfo.fromSettingsSearch ?? false,
+      isInternalAccount: feedbackInfo.isInternalAccount ?? false,
+      traceId: feedbackInfo.traceId ?? 0,
+      pageUrl: {url: feedbackInfo.pageUrl ?? ''},
+      fromAssistant: feedbackInfo.fromAssistant ?? false,
+      fromAutofill: feedbackInfo.fromAutofill ?? false,
+      autofillMetadata: feedbackInfo.autofillMetadata ?
+          JSON.stringify(feedbackInfo.autofillMetadata) :
+          '{}',
+      hasLinkedCrossDevicePhone:
+          feedbackInfo.hasLinkedCrossDevicePhone ?? false,
+      categoryTag: feedbackInfo.categoryTag ?? '',
+    };
+    this.descriptionTemplate_ = feedbackInfo.description ?? '';
+    this.descriptionPlaceholderText_ =
+        feedbackInfo.descriptionPlaceholder ?? '';
+    this.feedbackContext_.extraDiagnostics = '';
+    if (feedbackInfo.systemInformation?.length == 1) {
+      // Currently, one extra diagnostics string may be passed to feedback
+      // app.
+      //
+      // Sample input:
+      //" systemInformation": [
+      //   {
+      //    "key": "EXTRA_DIAGNOSTICS",
+      //    "value": "extra log data"
+      //   }
+      // ].
+      assert('EXTRA_DIAGNOSTICS' === feedbackInfo.systemInformation[0].key);
+      this.feedbackContext_.extraDiagnostics =
+          feedbackInfo.systemInformation[0].value;
+    }
+    this.isUserLoggedIn_ = this.feedbackContext_.categoryTag !== 'Login';
+    this.onFeedbackContextReceived_();
+  }
+
+  /**
+   * @private
+   */
+  initializeForNonDialogMode_() {
+    this.feedbackServiceProvider_.getFeedbackContext().then((response) => {
+      this.feedbackContext_ = response.feedbackContext;
+      this.isUserLoggedIn_ = true;
+      this.setAdditionalContextFromQueryParams_();
+      this.onFeedbackContextReceived_();
+    });
+  }
+
+  /**
    * @private
    */
   fetchScreenshot_() {
@@ -374,6 +474,16 @@ export class FeedbackFlowElement extends PolymerElement {
     }
   }
 
+  /**
+   * @private
+   */
+  onFeedbackContextReceived_() {
+    assert(this.feedbackContext_);
+    this.shouldShowAssistantCheckbox_ =
+        this.feedbackContext_.isInternalAccount &&
+        this.feedbackContext_.fromAssistant;
+    this.shouldShowAutofillCheckbox_ = this.feedbackContext_.fromAutofill;
+  }
   /**
    * Sets additional context passed from RequestFeedbackFlow as part of the URL.
    * See `AdditionalContextQueryParam` for valid query parameters.
@@ -402,7 +512,7 @@ export class FeedbackFlowElement extends PolymerElement {
         categoryTag ? decodeURIComponent(categoryTag) : '';
     const pageUrl = params.get(AdditionalContextQueryParam.PAGE_URL);
     if (pageUrl) {
-      this.feedbackContext_.pageUrl = {url: pageUrl};
+      this.set('feedbackContext_.pageUrl', {url: pageUrl});
     }
     const fromAssistant =
         params.get(AdditionalContextQueryParam.FROM_ASSISTANT);
@@ -432,6 +542,13 @@ export class FeedbackFlowElement extends PolymerElement {
         this.shouldShowBluetoothCheckbox_ = this.feedbackContext_ !== null &&
             this.feedbackContext_.isInternalAccount &&
             this.isDescriptionRelatedToBluetooth(this.description_);
+        this.shouldShowLinkCrossDeviceDogfoodFeedbackCheckbox_ =
+            this.feedbackContext_ !== null &&
+            loadTimeData.getBoolean(
+                'enableLinkCrossDeviceDogfoodFeedbackFlag') &&
+            this.feedbackContext_.isInternalAccount &&
+            this.feedbackContext_.hasLinkedCrossDevicePhone &&
+            this.isDescriptionRelatedToCrossDevice(this.description_);
         this.fetchScreenshot_();
         const shareDataPage = this.shadowRoot.querySelector('share-data-page');
         shareDataPage.focusScreenshotCheckbox();
@@ -579,6 +696,27 @@ export class FeedbackFlowElement extends PolymerElement {
   }
 
   /**
+   * @returns {?string}
+   */
+  getDescriptionTemplateForTesting() {
+    return this.descriptionTemplate_;
+  }
+
+  /**
+   * @returns {?string}
+   */
+  getDescriptionPlaceholderTextForTesting() {
+    return this.descriptionPlaceholderText_;
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  getIsUserLoggedInForTesting() {
+    return this.isUserLoggedIn_;
+  }
+
+  /**
    * Checks if any keywords related to bluetooth have been typed. If they are,
    * we show the bluetooth logs option, otherwise hide it.
    * @return {boolean}
@@ -591,10 +729,27 @@ export class FeedbackFlowElement extends PolymerElement {
      * bluetooth checkbox should be hidden and skip the relative check.
      */
     const isRelatedToBluetooth = btRegEx.test(textInput) ||
-        cantConnectRegEx.test(textInput) || tetherRegEx.test(textInput) ||
-        smartLockRegEx.test(textInput) || nearbyShareRegEx.test(textInput) ||
+        cantConnectRegEx.test(textInput) ||
+        this.isDescriptionRelatedToCrossDevice(textInput) ||
         fastPairRegEx.test(textInput) || btDeviceRegEx.test(textInput);
     return isRelatedToBluetooth;
+  }
+
+  /**
+   * If the user is not signed in with a internal google account, the Cross
+   * Device checkbox should be hidden and skip the relative check.
+   *
+   * Checks if any keywords related to Cross Device have been typed. If they
+   * are, we show the cross device checkbox, otherwise hide it.
+   * @return {boolean}
+   * @param {!string} textInput The input text for the description textarea.
+   * @protected
+   */
+  isDescriptionRelatedToCrossDevice(textInput) {
+    const isRelatedToCrossDevice = phoneHubRegEx.test(textInput) ||
+        tetherRegEx.test(textInput) || smartLockRegEx.test(textInput) ||
+        nearbyShareRegEx.test(textInput);
+    return isRelatedToCrossDevice;
   }
 }
 

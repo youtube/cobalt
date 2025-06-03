@@ -4,7 +4,10 @@
 
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme_fluent.h"
 
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/public/platform/web_theme_engine.h"
+#include "third_party/blink/renderer/core/scroll/scrollable_area.h"
+#include "third_party/blink/renderer/core/scroll/scrollbar.h"
 #include "third_party/blink/renderer/platform/theme/web_theme_engine_helper.h"
 #include "third_party/blink/renderer/platform/web_test_support.h"
 #include "ui/gfx/geometry/rect.h"
@@ -30,6 +33,22 @@ ScrollbarThemeFluent::ScrollbarThemeFluent() {
           ? scrollbar_track_thickness_
           : theme_engine->GetSize(WebThemeEngine::kPartScrollbarUpArrow)
                 .height();
+
+  is_fluent_overlay_scrollbar_enabled_ =
+      theme_engine->IsFluentOverlayScrollbarEnabled();
+  if (!is_fluent_overlay_scrollbar_enabled_) {
+    return;
+  }
+  // Hit testable invisible border around the scrollbar's track.
+  scrollbar_track_inset_ = theme_engine->GetPaintedScrollbarTrackInset();
+  scrollbar_track_thickness_ -= 2 * scrollbar_track_inset_;
+
+  WebThemeEngineHelper::GetNativeThemeEngine()->GetOverlayScrollbarStyle(
+      &style_);
+  if (WebTestSupport::IsRunningWebTest()) {
+    style_.fade_out_delay = base::TimeDelta();
+    style_.fade_out_duration = base::TimeDelta();
+  }
 }
 
 int ScrollbarThemeFluent::ScrollbarThickness(float scale_from_dip,
@@ -37,8 +56,12 @@ int ScrollbarThemeFluent::ScrollbarThickness(float scale_from_dip,
   // The difference between track's and thumb's thicknesses should always be
   // even to have equal thumb offsets from both sides so the thumb can remain
   // in the middle of the track. Add one pixel if the difference is odd.
-  const int scrollbar_thickness =
-      static_cast<int>(scrollbar_track_thickness_ * scale_from_dip);
+  // TODO(https://crbug.com/1479169): Use ClampRound instead of ClampFloor.
+  int scrollbar_thickness =
+      base::ClampFloor(scrollbar_track_thickness_ * scale_from_dip);
+  if (UsesOverlayScrollbars()) {
+    scrollbar_thickness += 2 * ScrollbarTrackInsetPx(scale_from_dip);
+  }
   return (scrollbar_thickness - ThumbThickness(scale_from_dip)) % 2 != 0
              ? scrollbar_thickness + 1
              : scrollbar_thickness;
@@ -97,6 +120,101 @@ gfx::Size ScrollbarThemeFluent::ButtonSize(const Scrollbar& scrollbar) const {
                                  : button_width_unclamped;
     return gfx::Size(button_width, button_height);
   }
+}
+
+bool ScrollbarThemeFluent::UsesOverlayScrollbars() const {
+  return is_fluent_overlay_scrollbar_enabled_;
+}
+
+bool ScrollbarThemeFluent::UsesFluentOverlayScrollbars() const {
+  return UsesOverlayScrollbars();
+}
+
+base::TimeDelta ScrollbarThemeFluent::OverlayScrollbarFadeOutDelay() const {
+  return style_.fade_out_delay;
+}
+
+base::TimeDelta ScrollbarThemeFluent::OverlayScrollbarFadeOutDuration() const {
+  return style_.fade_out_duration;
+}
+
+void ScrollbarThemeFluent::PaintTrack(GraphicsContext& context,
+                                      const Scrollbar& scrollbar,
+                                      const gfx::Rect& rect) {
+  if (rect.IsEmpty()) {
+    return;
+  }
+  ScrollbarThemeAura::PaintTrack(
+      context, scrollbar,
+      UsesOverlayScrollbars() ? InsetTrackRect(scrollbar, rect) : rect);
+}
+
+void ScrollbarThemeFluent::PaintButton(GraphicsContext& context,
+                                       const Scrollbar& scrollbar,
+                                       const gfx::Rect& rect,
+                                       ScrollbarPart part) {
+  ScrollbarThemeAura::PaintButton(
+      context, scrollbar,
+      UsesOverlayScrollbars() ? InsetButtonRect(scrollbar, rect, part) : rect,
+      part);
+}
+
+gfx::Rect ScrollbarThemeFluent::InsetTrackRect(const Scrollbar& scrollbar,
+                                               gfx::Rect rect) {
+  int scaled_track_inset = ScrollbarTrackInsetPx(scrollbar.ScaleFromDIP());
+  if (scrollbar.Orientation() == kHorizontalScrollbar) {
+    rect.Inset(gfx::Insets::TLBR(scaled_track_inset, 0, scaled_track_inset, 0));
+  } else {
+    rect.Inset(gfx::Insets::TLBR(0, scaled_track_inset, 0, scaled_track_inset));
+  }
+  return rect;
+}
+
+gfx::Rect ScrollbarThemeFluent::InsetButtonRect(const Scrollbar& scrollbar,
+                                                gfx::Rect rect,
+                                                ScrollbarPart part) {
+  int scaled_track_inset = ScrollbarTrackInsetPx(scrollbar.ScaleFromDIP());
+  // Inset all sides of the button *except* the one that borders with the
+  // scrollbar track.
+  if (scrollbar.Orientation() == kHorizontalScrollbar) {
+    if (part == kBackButtonStartPart) {
+      rect.Inset(gfx::Insets::TLBR(scaled_track_inset, scaled_track_inset,
+                                   scaled_track_inset, 0));
+    } else {
+      rect.Inset(gfx::Insets::TLBR(scaled_track_inset, 0, scaled_track_inset,
+                                   scaled_track_inset));
+    }
+  } else {
+    if (part == kBackButtonStartPart) {
+      rect.Inset(gfx::Insets::TLBR(scaled_track_inset, scaled_track_inset, 0,
+                                   scaled_track_inset));
+    } else {
+      rect.Inset(gfx::Insets::TLBR(0, scaled_track_inset, scaled_track_inset,
+                                   scaled_track_inset));
+    }
+  }
+  return rect;
+}
+
+int ScrollbarThemeFluent::ScrollbarTrackInsetPx(float scale) {
+  return base::ClampRound(scale * scrollbar_track_inset_);
+}
+
+gfx::Rect ScrollbarThemeFluent::ShrinkMainThreadedMinimalModeThumbRect(
+    Scrollbar& scrollbar,
+    gfx::Rect& rect) const {
+  CHECK(UsesOverlayScrollbars());
+  const float idle_thickness_scale = style_.idle_thickness_scale;
+  if (scrollbar.Orientation() == kHorizontalScrollbar) {
+    rect.set_y(rect.y() + rect.height() * (1 - idle_thickness_scale));
+    rect.set_height(rect.height() * idle_thickness_scale);
+  } else {
+    if (!scrollbar.IsLeftSideVerticalScrollbar()) {
+      rect.set_x(rect.x() + rect.width() * (1 - idle_thickness_scale));
+    }
+    rect.set_width(rect.width() * idle_thickness_scale);
+  }
+  return rect;
 }
 
 }  // namespace blink

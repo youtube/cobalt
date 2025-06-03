@@ -59,13 +59,13 @@ class BrowserNonClientFrameViewChromeOS
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
-  int GetThemeBackgroundXInset() const override;
   void UpdateThrobber(bool running) override;
   bool CanUserExitFullscreen() const override;
   SkColor GetCaptionColor(BrowserFrameActiveState active_state) const override;
   SkColor GetFrameColor(BrowserFrameActiveState active_state) const override;
   TabSearchBubbleHost* GetTabSearchBubbleHost() override;
   void UpdateMinimumSize() override;
+  void OnBrowserViewInitViewsComplete() override;
 
   // views::NonClientFrameView:
   gfx::Rect GetBoundsForClientView() const override;
@@ -78,6 +78,7 @@ class BrowserNonClientFrameViewChromeOS
   void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
   void SizeConstraintsChanged() override;
+  void UpdateWindowRoundedCorners() override;
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
@@ -134,7 +135,10 @@ class BrowserNonClientFrameViewChromeOS
   FRIEND_TEST_ALL_PREFIXES(ImmersiveModeBrowserViewTestNoWebUiTabStrip,
                            ImmersiveFullscreen);
 
-  bool AppIsBorderlessPwa() const;
+  // App is a PWA and has borderless in its manifest. This doesn't yet mean
+  // that the `window-management` permission has been granted and borderless
+  // mode would be activated.
+  bool AppIsPwaWithBorderlessDisplayMode() const;
 
   // Returns true if `GetShowCaptionButtonsWhenNotInOverview()` returns true
   // and this browser window is not showing in overview.
@@ -199,8 +203,15 @@ class BrowserNonClientFrameViewChromeOS
   // Returns whether the associated window is currently floated or not.
   bool IsFloated() const;
 
-  // Helper to check whether we should enable immersive mode.
-  bool ShouldEnableImmersiveModeController() const;
+  // Helper to check whether we should enable immersive mode.`on_tablet_enabled`
+  // is set to true only when it is called when tablet mode is just toggled on
+  // notified from OnTabletModeToggled.
+  bool ShouldEnableImmersiveModeController(bool on_tablet_enabled) const;
+
+  // Helper to check whether we should enable fullscreen mode.
+  // `on_tablet_enabled` is set to true only when tablet mode is just toggled
+  // on notified from OnTabletModeToggled.
+  bool ShouldEnableFullscreenMode(bool on_tablet_enabled) const;
 
   // True if the the associated browser window should be using the WebUI tab
   // strip.
@@ -220,11 +231,10 @@ class BrowserNonClientFrameViewChromeOS
   raw_ptr<TabSearchBubbleHost> tab_search_bubble_host_ = nullptr;
 
   // For popups, the window icon.
-  TabIconView* window_icon_ = nullptr;
+  raw_ptr<TabIconView> window_icon_ = nullptr;
 
   // This is used for teleported windows (in multi-profile mode).
-  raw_ptr<ProfileIndicatorIcon, DanglingUntriaged> profile_indicator_icon_ =
-      nullptr;
+  raw_ptr<ProfileIndicatorIcon> profile_indicator_icon_ = nullptr;
 
   // Helper class for painting the header.
   std::unique_ptr<chromeos::FrameHeader> frame_header_;

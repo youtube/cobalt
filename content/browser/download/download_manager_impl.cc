@@ -62,8 +62,6 @@
 #include "content/public/browser/download_manager_delegate.h"
 #include "content/public/browser/download_request_utils.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/resource_context.h"
@@ -245,7 +243,8 @@ CreatePendingSharedURLLoaderFactory(StoragePartitionImpl* storage_partition,
         absl::nullopt /* navigation_id */, ukm::kInvalidSourceIdObj,
         &maybe_proxy_factory_receiver, nullptr /* header_client */,
         nullptr /* bypass_redirect_checks */, nullptr /* disable_secure_dns */,
-        nullptr /* factory_override */);
+        nullptr /* factory_override */,
+        nullptr /* navigation_response_task_runner */);
 
     // If anyone above indicated that they care about proxying, pass the
     // intermediate pipe along to the NetworkDownloadPendingURLLoaderFactory.
@@ -346,6 +345,9 @@ download::DownloadItemImpl* DownloadManagerImpl::CreateActiveItem(
   DownloadItemUtils::AttachInfo(
       download, GetBrowserContext(),
       WebContentsImpl::FromRenderFrameHostID(global_id), global_id);
+  if (delegate_) {
+    delegate_->AttachExtraInfo(download);
+  }
 
   return download;
 }
@@ -861,6 +863,9 @@ void DownloadManagerImpl::CreateSavePackageDownloadItemWithId(
   DownloadItemUtils::AttachInfo(
       download_item, GetBrowserContext(),
       WebContentsImpl::FromRenderFrameHostID(global_id), global_id);
+  if (delegate_) {
+    delegate_->AttachExtraInfo(download_item);
+  }
 
   OnDownloadCreated(base::WrapUnique(download_item));
   if (!item_created.is_null())
@@ -1047,15 +1052,12 @@ download::DownloadItem* DownloadManagerImpl::CreateDownloadItem(
     base::Time last_access_time,
     bool transient,
     const std::vector<download::DownloadItem::ReceivedSlice>& received_slices) {
-  SCOPED_UMA_HISTOGRAM_TIMER(
-      "Download.DownloadManagerImpl.CreateDownloadItemTime");
   // Retrieve the in-progress download if it exists. Notice that this also
   // removes it from |in_progress_downloads_|.
   auto in_progress_download = RetrieveInProgressDownload(id);
 
   // Return null to clear cancelled or non-resumable download.
-  if (cleared_download_guids_on_startup_.find(guid) !=
-      cleared_download_guids_on_startup_.end()) {
+  if (base::Contains(cleared_download_guids_on_startup_, guid)) {
     return nullptr;
   }
 
@@ -1108,6 +1110,9 @@ download::DownloadItem* DownloadManagerImpl::CreateDownloadItem(
   download::DownloadItemImpl* download = item.get();
   DownloadItemUtils::AttachInfo(download, GetBrowserContext(), nullptr,
                                 GlobalRenderFrameHostId());
+  if (delegate_) {
+    delegate_->AttachExtraInfo(download);
+  }
   OnDownloadCreated(std::move(item));
   return download;
 }
@@ -1131,8 +1136,6 @@ void DownloadManagerImpl::PostInitialization(
   if (initialized_)
     return;
 
-  SCOPED_UMA_HISTOGRAM_TIMER(
-      "Download.DownloadManagerImpl.PostInitializationTime");
   switch (dependency) {
     case DOWNLOAD_INITIALIZATION_DEPENDENCY_HISTORY_DB:
       history_db_initialized_ = true;
@@ -1183,6 +1186,9 @@ void DownloadManagerImpl::ImportInProgressDownloads(uint32_t id) {
     item->SetDelegate(this);
     DownloadItemUtils::AttachInfo(item.get(), GetBrowserContext(), nullptr,
                                   GlobalRenderFrameHostId());
+    if (delegate_) {
+      delegate_->AttachExtraInfo(item.get());
+    }
     download = in_progress_downloads_.erase(download);
     OnDownloadCreated(std::move(item));
   }
@@ -1210,7 +1216,7 @@ int DownloadManagerImpl::InProgressCount() {
   return count;
 }
 
-int DownloadManagerImpl::NonMaliciousInProgressCount() {
+int DownloadManagerImpl::BlockingShutdownCount() {
   int count = 0;
   for (const auto& it : downloads_by_guid_) {
     download::DownloadItemImpl* download = it.second;
@@ -1229,7 +1235,12 @@ int DownloadManagerImpl::NonMaliciousInProgressCount() {
           download->GetDangerType() !=
               download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_OPENED_DANGEROUS &&
           it.second->GetDangerType() !=
-              download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE) {
+              download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE &&
+          it.second->GetDangerType() !=
+              download::DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT &&
+          it.second->GetDangerType() !=
+              download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING &&
+          !download->IsInsecure()) {
         ++count;
       }
     }
@@ -1390,7 +1401,7 @@ void DownloadManagerImpl::BeginResourceDownloadOnChecksComplete(
                 rfh->GetProcess()->GetID(), rfh->GetFrameTreeNodeId(),
                 storage_partition->GetFileSystemContext(),
                 storage_partition->GetPartitionDomain(),
-                static_cast<RenderFrameHostImpl*>(rfh)->storage_key()));
+                static_cast<RenderFrameHostImpl*>(rfh)->GetStorageKey()));
   } else if (params->url().SchemeIs(url::kDataScheme)) {
     pending_url_loader_factory =
         std::make_unique<network::WrapperPendingSharedURLLoaderFactory>(

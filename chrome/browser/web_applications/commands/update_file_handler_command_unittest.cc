@@ -49,8 +49,7 @@ class UpdateFileHandlerCommandTest
     auto protocol_handler_manager =
         std::make_unique<WebAppProtocolHandlerManager>(profile());
     auto shortcut_manager = std::make_unique<WebAppShortcutManager>(
-        profile(), /*icon_manager=*/nullptr, file_handler_manager.get(),
-        protocol_handler_manager.get());
+        profile(), file_handler_manager.get(), protocol_handler_manager.get());
     auto os_integration_manager = std::make_unique<OsIntegrationManager>(
         profile(), std::move(shortcut_manager), std::move(file_handler_manager),
         std::move(protocol_handler_manager), /*url_handler_manager=*/nullptr);
@@ -63,12 +62,12 @@ class UpdateFileHandlerCommandTest
   WebAppProvider* provider() { return provider_; }
 
  private:
-  raw_ptr<FakeWebAppProvider> provider_;
+  raw_ptr<FakeWebAppProvider, DanglingUntriaged> provider_ = nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_P(UpdateFileHandlerCommandTest, UserChoiceAllowPersisted) {
-  const AppId app_id =
+  const webapps::AppId app_id =
       test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
   EXPECT_EQ(
       provider()->registrar_unsafe().GetAppFileHandlerApprovalState(app_id),
@@ -88,7 +87,7 @@ TEST_P(UpdateFileHandlerCommandTest, UserChoiceAllowPersisted) {
 }
 
 TEST_P(UpdateFileHandlerCommandTest, UserChoiceDisallowPersisted) {
-  const AppId app_id =
+  const webapps::AppId app_id =
       test::InstallDummyWebApp(profile(), kTestAppName, kTestAppUrl);
   EXPECT_EQ(
       provider()->registrar_unsafe().GetAppFileHandlerApprovalState(app_id),

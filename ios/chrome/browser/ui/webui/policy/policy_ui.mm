@@ -7,28 +7,53 @@
 #import <memory>
 #import <string>
 
+#import "base/json/json_string_value_serializer.h"
 #import "base/json/json_writer.h"
+#import "base/values.h"
 #import "components/grit/policy_resources.h"
+#import "components/grit/policy_resources_map.h"
+#import "components/policy/core/browser/policy_conversions.h"
+#import "components/policy/core/common/policy_loader_common.h"
 #import "components/policy/core/common/policy_logger.h"
-#import "components/strings/grit/components_chromium_strings.h"
-#import "components/strings/grit/components_google_chrome_strings.h"
+#import "components/policy/core/common/policy_utils.h"
+#import "components/policy/core/common/schema.h"
+#import "components/policy/policy_constants.h"
+#import "components/strings/grit/components_branded_strings.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/version_info/version_info.h"
 #import "components/version_ui/version_handler_helper.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/policy/browser_state_policy_connector.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/ui/webui/policy/policy_ui_handler.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/common/channel_info.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/web/public/webui/web_ui_ios.h"
 #import "ios/web/public/webui/web_ui_ios_data_source.h"
 #import "ios/web/public/webui/web_ui_ios_message_handler.h"
 #import "ui/base/webui/web_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
+
+base::Value::List GetChromePolicyNames(ChromeBrowserState* browser_state) {
+  policy::SchemaRegistry* registry =
+      browser_state->GetPolicyConnector()->GetSchemaRegistry();
+  scoped_refptr<policy::SchemaMap> schema_map = registry->schema_map();
+
+  // Add Chrome policy names.
+  base::Value::List chrome_policy_names;
+  policy::PolicyNamespace chrome_namespace(policy::POLICY_DOMAIN_CHROME, "");
+  const policy::Schema* chrome_schema = schema_map->GetSchema(chrome_namespace);
+  for (auto it = chrome_schema->GetPropertiesIterator(); !it.IsAtEnd();
+       it.Advance()) {
+    chrome_policy_names.Append(base::Value(it.key()));
+  }
+
+  chrome_policy_names.EraseIf([&](auto& policy) {
+    return policy::IsPolicyNameSensitive(policy.GetString());
+  });
+  return chrome_policy_names;
+}
 
 // Returns the version information to be displayed on the chrome://policy/logs
 // page.
@@ -43,7 +68,8 @@ base::Value::Dict GetVersionInfo() {
   return version_info;
 }
 
-web::WebUIIOSDataSource* CreatePolicyUIHtmlSource() {
+web::WebUIIOSDataSource* CreatePolicyUIHtmlSource(
+    ChromeBrowserState* chrome_browser_state) {
   web::WebUIIOSDataSource* source =
       web::WebUIIOSDataSource::Create(kChromeUIPolicyHost);
   PolicyUIHandler::AddCommonLocalizedStringsToSource(source);
@@ -86,6 +112,7 @@ web::WebUIIOSDataSource* CreatePolicyUIHtmlSource() {
       {"labelUsername", IDS_POLICY_LABEL_USERNAME},
       {"labelManagedBy", IDS_POLICY_LABEL_MANAGED_BY},
       {"labelVersion", IDS_POLICY_LABEL_VERSION},
+      {"moreActions", IDS_POLICY_MORE_ACTIONS},
       {"noPoliciesSet", IDS_POLICY_NO_POLICIES_SET},
       {"offHoursActive", IDS_POLICY_OFFHOURS_ACTIVE},
       {"offHoursNotActive", IDS_POLICY_OFFHOURS_NOT_ACTIVE},
@@ -106,9 +133,74 @@ web::WebUIIOSDataSource* CreatePolicyUIHtmlSource() {
       {"statusMachine", IDS_POLICY_STATUS_MACHINE},
       {"statusUser", IDS_POLICY_STATUS_USER},
       {"uploadReport", IDS_UPLOAD_REPORT},
-
+      {"viewLogs", IDS_VIEW_POLICY_LOGS},
   };
   source->AddLocalizedStrings(kStrings);
+  // Test page should only load if testing is enabled and the profile is not
+  // managed by cloud.
+  if (policy::utils::IsPolicyTestingEnabled(chrome_browser_state->GetPrefs(),
+                                            GetChannel())) {
+    // Localized strings for chrome://policy/test.
+    static constexpr webui::LocalizedString kPolicyTestStrings[] = {
+        {"testTitle", IDS_POLICY_TEST_TITLE},
+        {"testRestart", IDS_POLICY_TEST_RESTART_AND_APPLY},
+        {"testApply", IDS_POLICY_TEST_APPLY},
+        {"testImport", IDS_POLICY_TEST_IMPORT},
+        {"testDesc", IDS_POLICY_TEST_DESC},
+        {"testRevertAppliedPolicies", IDS_POLICY_TEST_REVERT},
+        {"testClearPolicies", IDS_CLEAR},
+        {"testTableName", IDS_POLICY_HEADER_NAME},
+        {"testTableSource", IDS_POLICY_HEADER_SOURCE},
+        {"testTableScope", IDS_POLICY_TEST_TABLE_SCOPE},
+        {"testTableLevel", IDS_POLICY_HEADER_LEVEL},
+        {"testTableValue", IDS_POLICY_LABEL_VALUE},
+        {"testTableRemove", IDS_REMOVE},
+        {"testAdd", IDS_POLICY_TEST_ADD},
+        {"testNameSelect", IDS_POLICY_SELECT_NAME},
+        {"testTablePreset", IDS_POLICY_TEST_TABLE_PRESET},
+        {"testTablePresetCustom", IDS_POLICY_TEST_PRESET_CUSTOM},
+        {"testTablePresetLocalMachine", IDS_POLICY_TEST_PRESET_LOCAL_MACHINE},
+        {"testTablePresetCloudAccount", IDS_POLICY_TEST_PRESET_CLOUD_ACCOUNT},
+        {"testUserAffiliated", IDS_POLICY_TEST_USER_AFFILIATED},
+    };
+
+    source->AddLocalizedStrings(kPolicyTestStrings);
+    source->AddResourcePath("test/policy_test.js",
+                            IDR_POLICY_TEST_POLICY_TEST_JS);
+    source->AddResourcePath("test/", IDR_POLICY_TEST_POLICY_TEST_HTML);
+    source->AddResourcePath("test", IDR_POLICY_TEST_POLICY_TEST_HTML);
+
+    // Create a string policy_names_to_types mapping policy names to their
+    // input types.
+    policy::Schema chrome_schema =
+        policy::Schema::Wrap(policy::GetChromeSchemaData());
+    base::Value::List policy_names = GetChromePolicyNames(chrome_browser_state);
+
+    std::string policy_names_to_types;
+    JSONStringValueSerializer serializer(&policy_names_to_types);
+    serializer.Serialize(
+        policy::utils::GetPolicyNameToTypeMapping(policy_names, chrome_schema));
+    source->AddString("policyNamesToTypes", policy_names_to_types);
+
+    // Strings for policy levels, scopes and sources.
+    static constexpr webui::LocalizedString kPolicyTestTypes[] = {
+        {"scopeUser", IDS_POLICY_SCOPE_USER},
+        {"scopeDevice", IDS_POLICY_SCOPE_DEVICE},
+        {"levelRecommended", IDS_POLICY_LEVEL_RECOMMENDED},
+        {"levelMandatory", IDS_POLICY_LEVEL_MANDATORY},
+        {"sourceEnterpriseDefault", IDS_POLICY_SOURCE_ENTERPRISE_DEFAULT},
+        {"sourceCommandLine", IDS_POLICY_SOURCE_COMMAND_LINE},
+        {"sourceCloud", IDS_POLICY_SOURCE_CLOUD},
+        {"sourceActiveDirectory", IDS_POLICY_SOURCE_ACTIVE_DIRECTORY},
+        {"sourcePlatform", IDS_POLICY_SOURCE_PLATFORM},
+        {"sourceMerged", IDS_POLICY_SOURCE_MERGED},
+        {"sourceCloudFromAsh", IDS_POLICY_SOURCE_CLOUD_FROM_ASH},
+        {"sourceRestrictedManagedGuestSessionOverride",
+         IDS_POLICY_SOURCE_RESTRICTED_MANAGED_GUEST_SESSION_OVERRIDE},
+    };
+
+    source->AddLocalizedStrings(kPolicyTestTypes);
+  }
 
   // Localized strings for chrome://policy/logs.
   static constexpr webui::LocalizedString kPolicyLogsStrings[] = {
@@ -127,33 +219,13 @@ web::WebUIIOSDataSource* CreatePolicyUIHtmlSource() {
 
   source->AddBoolean("hideExportButton", true);
 
-  source->AddResourcePath("policy.css", IDR_POLICY_POLICY_CSS);
-  source->AddResourcePath("policy_base.js", IDR_POLICY_POLICY_BASE_JS);
-  source->AddResourcePath("policy.js", IDR_POLICY_POLICY_JS);
-  source->AddResourcePath("policy_conflict.html.js",
-                          IDR_POLICY_POLICY_CONFLICT_HTML_JS);
-  source->AddResourcePath("policy_conflict.js", IDR_POLICY_POLICY_CONFLICT_JS);
-  source->AddResourcePath("policy_row.html.js", IDR_POLICY_POLICY_ROW_HTML_JS);
-  source->AddResourcePath("policy_row.js", IDR_POLICY_POLICY_ROW_JS);
-  source->AddResourcePath("policy_precedence_row.html.js",
-                          IDR_POLICY_POLICY_PRECEDENCE_ROW_HTML_JS);
-  source->AddResourcePath("policy_precedence_row.js",
-                          IDR_POLICY_POLICY_PRECEDENCE_ROW_JS);
-  source->AddResourcePath("policy_table.html.js",
-                          IDR_POLICY_POLICY_TABLE_HTML_JS);
-  source->AddResourcePath("policy_table.js", IDR_POLICY_POLICY_TABLE_JS);
-  source->AddResourcePath("status_box.html.js", IDR_POLICY_STATUS_BOX_HTML_JS);
-  source->AddResourcePath("status_box.js", IDR_POLICY_STATUS_BOX_JS);
+  source->AddResourcePaths(
+      base::make_span(kPolicyResources, kPolicyResourcesSize));
 
-  source->AddBoolean(
-      "loggingEnabled",
-      policy::PolicyLogger::GetInstance()->IsPolicyLoggingEnabled());
+  std::string variations_json_value;
+  base::JSONWriter::Write(GetVersionInfo(), &variations_json_value);
+  source->AddString("versionInfo", variations_json_value);
 
-  if (policy::PolicyLogger::GetInstance()->IsPolicyLoggingEnabled()) {
-    std::string variations_json_value;
-    base::JSONWriter::Write(GetVersionInfo(), &variations_json_value);
-    source->AddString("versionInfo", variations_json_value);
-  }
   source->AddResourcePath("logs/policy_logs.js",
                           IDR_POLICY_LOGS_POLICY_LOGS_JS);
   source->AddResourcePath("logs/", IDR_POLICY_LOGS_POLICY_LOGS_HTML);
@@ -169,8 +241,10 @@ web::WebUIIOSDataSource* CreatePolicyUIHtmlSource() {
 PolicyUI::PolicyUI(web::WebUIIOS* web_ui, const std::string& host)
     : web::WebUIIOSController(web_ui, host) {
   web_ui->AddMessageHandler(std::make_unique<PolicyUIHandler>());
-  web::WebUIIOSDataSource::Add(ChromeBrowserState::FromWebUIIOS(web_ui),
-                               CreatePolicyUIHtmlSource());
+  ChromeBrowserState* chrome_browser_state =
+      ChromeBrowserState::FromWebUIIOS(web_ui);
+  web::WebUIIOSDataSource::Add(chrome_browser_state,
+                               CreatePolicyUIHtmlSource(chrome_browser_state));
 }
 
 PolicyUI::~PolicyUI() {}

@@ -7,6 +7,7 @@
 #include "ash/root_window_controller.h"
 #include "ash/shell.h"
 #include "ash/system/message_center/ash_notification_view.h"
+#include "ash/system/message_center/message_center_utils.h"
 #include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/unified/unified_system_tray.h"
@@ -66,6 +67,12 @@ void AshNotificationDragController::WriteDragDataForView(
     const gfx::Point& press_pt,
     ui::OSExchangeData* data) {
   // Sets the image to show during drag.
+  // TODO(b/308814203): clean the static_cast checks by replacing
+  // `AshNotificationView*` with a base class.
+  if (!message_center_utils::IsAshNotificationView(sender)) {
+    return;
+  }
+
   AshNotificationView* notification_view =
       static_cast<AshNotificationView*>(sender);
   const absl::optional<gfx::ImageSkia> drag_image =
@@ -84,6 +91,12 @@ void AshNotificationDragController::WriteDragDataForView(
 int AshNotificationDragController::GetDragOperationsForView(
     views::View* sender,
     const gfx::Point& p) {
+  // TODO(b/308814203): clean the static_cast checks by replacing
+  // `AshNotificationView*` with a base class.
+  if (!message_center_utils::IsAshNotificationView(sender)) {
+    return ui::DragDropTypes::DRAG_NONE;
+  }
+
   const absl::optional<gfx::Rect> drag_area =
       static_cast<AshNotificationView*>(sender)->GetDragAreaBounds();
 
@@ -101,15 +114,25 @@ bool AshNotificationDragController::CanStartDragForView(
     views::View* sender,
     const gfx::Point& press_pt,
     const gfx::Point& p) {
-  AshNotificationView* notification_view =
+  // TODO(b/308814203): clean the static_cast checks by replacing
+  // `AshNotificationView*` with a base class.
+  if (!message_center_utils::IsAshNotificationView(sender)) {
+    return false;
+  }
+
+  const AshNotificationView* const notification_view =
       static_cast<AshNotificationView*>(sender);
   const absl::optional<gfx::Rect> drag_area =
       notification_view->GetDragAreaBounds();
 
   // Enable dragging `notification_view_` if:
-  // 1. `notification_view_` is draggable; and
-  // 2. `drag_area` contains the initial press point.
-  const bool can_start_drag = (drag_area && drag_area->Contains(press_pt));
+  // 1. `notification_view` is backed by a notification; and
+  // 2. `notification_view` is draggable; and
+  // 3. `drag_area` contains the initial press point.
+  const bool can_start_drag =
+      (!!message_center::MessageCenter::Get()->FindNotificationById(
+           notification_view->notification_id()) &&
+       drag_area && drag_area->Contains(press_pt));
 
   // Assume that the drag on `sender` will start when `can_start_drag` is true.
   // TODO(https://crbug.com/1410276): in some edge cases, the view drag does not
@@ -129,6 +152,11 @@ bool AshNotificationDragController::CanStartDragForView(
 
 void AshNotificationDragController::OnWillStartDragForView(
     views::View* dragged_view) {
+  // TODO(b/308814203): clean the static_cast checks by replacing
+  // `AshNotificationView*` with a base class.
+  if (!message_center_utils::IsAshNotificationView(dragged_view)) {
+    return;
+  }
   OnNotificationDragWillStart(static_cast<AshNotificationView*>(dragged_view));
 }
 

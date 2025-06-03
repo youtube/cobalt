@@ -88,6 +88,14 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
       const base::android::JavaParamRef<jstring>& jsearch_url,
       const base::android::JavaParamRef<jstring>& jsuggest_url,
       const base::android::JavaParamRef<jstring>& jfavicon_url,
+      const base::android::JavaParamRef<jstring>& jnew_tab_url,
+      const base::android::JavaParamRef<jstring>& jimage_url,
+      const base::android::JavaParamRef<jstring>& jimage_url_post_params,
+      const base::android::JavaParamRef<jstring>& jimage_translate_url,
+      const base::android::JavaParamRef<jstring>&
+          jimage_translate_source_language_param_key,
+      const base::android::JavaParamRef<jstring>&
+          jimage_translate_target_language_param_key,
       jboolean set_as_default);
 
   // Adds a custom search engine, sets |jkeyword| as its short_name and keyword,
@@ -116,6 +124,18 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
   base::android::ScopedJavaLocalRef<jobject> GetDefaultSearchEngine(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
+
+  // Get the image search url and the post content.
+  base::android::ScopedJavaLocalRef<jobjectArray> GetImageUrlAndPostContent(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
+
+  // Returns whether the device is from an EEA country. This is consistent with
+  // countries which are eligible for the EEA default search engine choice
+  // prompt. "Default country" or "country at install" are used for
+  // SearchEngineChoiceCountry. It might be different than what LocaleUtils
+  // returns.
+  jboolean IsEeaChoiceCountry(JNIEnv* env);
 
  private:
   bool IsDefaultSearchEngineGoogle();

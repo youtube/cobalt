@@ -6,8 +6,11 @@
 
 #include <functional>
 
+#include "base/feature_list.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/preloading_decider.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/common/features.h"
 
 namespace content {
@@ -56,10 +59,7 @@ SpeculationHostImpl::SpeculationHostImpl(
 
 SpeculationHostImpl::~SpeculationHostImpl() = default;
 
-// TODO(crbug/1384419): Add devtools_navigation_token to the preloading related
-// CDPs for Devtools.
 void SpeculationHostImpl::UpdateSpeculationCandidates(
-    const base::UnguessableToken& devtools_navigation_token,
     std::vector<blink::mojom::SpeculationCandidatePtr> candidates) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!CandidatesAreValid(candidates))
@@ -71,26 +71,30 @@ void SpeculationHostImpl::UpdateSpeculationCandidates(
   if (render_frame_host().GetParent())
     return;
 
-  if (!devtools_navigation_token_.has_value()) {
-    devtools_navigation_token_ = devtools_navigation_token;
-  } else if (devtools_navigation_token_.value() != devtools_navigation_token) {
-    // A renderer should send the same devtools navigation token every time.
-    mojo::ReportBadMessage("SH_INVALID_DEVTOOLS_TOKEN");
-    return;
-  }
-
   auto* preloading_decider =
       PreloadingDecider::GetOrCreateForCurrentDocument(&render_frame_host());
-  preloading_decider->UpdateSpeculationCandidates(devtools_navigation_token,
-                                                  candidates);
+  preloading_decider->UpdateSpeculationCandidates(candidates);
 }
 
 void SpeculationHostImpl::EnableNoVarySearchSupport() {
   auto* prefetch_document_manager =
       PrefetchDocumentManager::GetOrCreateForCurrentDocument(
           &render_frame_host());
-  DCHECK(prefetch_document_manager);
+  CHECK(prefetch_document_manager);
   prefetch_document_manager->EnableNoVarySearchSupport();
+}
+
+void SpeculationHostImpl::InitiatePreview(const GURL& url) {
+  if (!base::FeatureList::IsEnabled(blink::features::kLinkPreview)) {
+    mojo::ReportBadMessage("SH_PREVIEW");
+    return;
+  }
+  WebContents* web_contents =
+      WebContents::FromRenderFrameHost(&render_frame_host());
+  CHECK(web_contents);
+  WebContentsDelegate* delegate = web_contents->GetDelegate();
+  CHECK(delegate);
+  delegate->InitiatePreview(*web_contents, url);
 }
 
 }  // namespace content

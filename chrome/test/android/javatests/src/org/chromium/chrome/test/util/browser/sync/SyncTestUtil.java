@@ -15,12 +15,13 @@ import org.json.JSONObject;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -39,7 +40,7 @@ public final class SyncTestUtil {
      */
     public static boolean canSyncFeatureStart() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().canSyncFeatureStart());
+                () -> SyncServiceFactory.get().canSyncFeatureStart());
     }
 
     /**
@@ -47,7 +48,7 @@ public final class SyncTestUtil {
      */
     public static boolean isSyncFeatureEnabled() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().isSyncFeatureEnabled());
+                () -> SyncServiceFactory.get().isSyncFeatureEnabled());
     }
 
     /**
@@ -55,19 +56,19 @@ public final class SyncTestUtil {
      */
     public static boolean isSyncFeatureActive() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().isSyncFeatureActive());
+                () -> SyncServiceFactory.get().isSyncFeatureActive());
     }
 
     /**
      * Waits for sync-the-feature to become enabled.
      * WARNING: This is does not wait for the feature to be active, see the distinction in
-     * components/sync/driver/sync_service.h. If the FakeServer isn't running - e.g. because of
+     * components/sync/service/sync_service.h. If the FakeServer isn't running - e.g. because of
      * SyncTestRule - this is all you can hope for. For tests that don't rely on sync data this
      * might just be enough.
      */
     public static void waitForSyncFeatureEnabled() {
         CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isSyncFeatureEnabled(),
+                                            -> SyncServiceFactory.get().isSyncFeatureEnabled(),
                 "Timed out waiting for sync to become enabled.", TIMEOUT_MS, INTERVAL_MS);
     }
 
@@ -76,7 +77,7 @@ public final class SyncTestUtil {
      */
     public static void waitForSyncFeatureActive() {
         CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isSyncFeatureActive(),
+                                            -> SyncServiceFactory.get().isSyncFeatureActive(),
                 "Timed out waiting for sync to become active.", TIMEOUT_MS, INTERVAL_MS);
     }
 
@@ -85,7 +86,7 @@ public final class SyncTestUtil {
      */
     public static void waitForCanSyncFeatureStart() {
         CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().canSyncFeatureStart(),
+                                            -> SyncServiceFactory.get().canSyncFeatureStart(),
                 "Timed out waiting for sync being able to start.", TIMEOUT_MS, INTERVAL_MS);
     }
 
@@ -94,7 +95,7 @@ public final class SyncTestUtil {
      */
     public static void waitForSyncTransportActive() {
         CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isTransportStateActive(),
+                                            -> SyncServiceFactory.get().isTransportStateActive(),
                 "Timed out waiting for sync transport state to become active.", TIMEOUT_MS,
                 INTERVAL_MS);
     }
@@ -104,7 +105,7 @@ public final class SyncTestUtil {
      */
     public static void waitForEngineInitialized() {
         CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isEngineInitialized(),
+                                            -> SyncServiceFactory.get().isEngineInitialized(),
                 "Timed out waiting for sync's engine to initialize.", TIMEOUT_MS, INTERVAL_MS);
     }
 
@@ -113,8 +114,8 @@ public final class SyncTestUtil {
      */
     public static void waitForTrustedVaultKeyRequired(boolean desiredValue) {
         CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat(
-                    SyncService.get().isTrustedVaultKeyRequired(), Matchers.is(desiredValue));
+            Criteria.checkThat(SyncServiceFactory.get().isTrustedVaultKeyRequired(),
+                    Matchers.is(desiredValue));
         }, TIMEOUT_MS, INTERVAL_MS);
     }
 
@@ -123,7 +124,7 @@ public final class SyncTestUtil {
      */
     public static void waitForTrustedVaultRecoverabilityDegraded(boolean desiredValue) {
         CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat(SyncService.get().isTrustedVaultRecoverabilityDegraded(),
+            Criteria.checkThat(SyncServiceFactory.get().isTrustedVaultRecoverabilityDegraded(),
                     Matchers.is(desiredValue));
         }, TIMEOUT_MS, INTERVAL_MS);
     }
@@ -132,7 +133,7 @@ public final class SyncTestUtil {
      * Triggers a sync cycle.
      */
     public static void triggerSync() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { SyncService.get().triggerRefresh(); });
+        TestThreadUtils.runOnUiThreadBlocking(() -> { SyncServiceFactory.get().triggerRefresh(); });
     }
 
     /**
@@ -152,7 +153,7 @@ public final class SyncTestUtil {
 
     private static long getCurrentSyncTime() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().getLastSyncedTimeForDebugging());
+                () -> SyncServiceFactory.get().getLastSyncedTimeForDebugging());
     }
 
     /**
@@ -163,17 +164,17 @@ public final class SyncTestUtil {
     private static JSONArray getAllNodesAsJsonArray() {
         class NodesCallbackHelper extends CallbackHelper {
             public JSONArray nodes;
-        };
+        }
         NodesCallbackHelper callbackHelper = new NodesCallbackHelper();
         TestThreadUtils.runOnUiThreadBlocking(() -> {
-            SyncService.get().getAllNodes((nodes) -> {
+            SyncServiceFactory.get().getAllNodes((nodes) -> {
                 callbackHelper.nodes = nodes;
                 callbackHelper.notifyCalled();
             });
         });
 
         try {
-            callbackHelper.waitForNext();
+            callbackHelper.waitForNext(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             assert false : "Timed out waiting for SyncService.getAllNodes()";
         }
@@ -285,7 +286,7 @@ public final class SyncTestUtil {
      */
     public static void encryptWithPassphrase(final String passphrase) {
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> SyncService.get().setEncryptionPassphrase(passphrase));
+                () -> SyncServiceFactory.get().setEncryptionPassphrase(passphrase));
         // Make sure the new encryption settings make it to the server.
         SyncTestUtil.triggerSyncAndWaitForCompletion();
     }
@@ -295,6 +296,6 @@ public final class SyncTestUtil {
      */
     public static void decryptWithPassphrase(final String passphrase) {
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> { SyncService.get().setDecryptionPassphrase(passphrase); });
+                () -> { SyncServiceFactory.get().setDecryptionPassphrase(passphrase); });
     }
 }

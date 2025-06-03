@@ -233,7 +233,7 @@ def _CheckCodeGeneration(input_api, output_api):
     class Msg(output_api.PresubmitError):
         """Specialized error message"""
 
-        def __init__(self, message):
+        def __init__(self, message, **kwargs):
             super(output_api.PresubmitError, self).__init__(
                 message,
                 long_text='Please ensure your ANGLE repositiory is synced to tip-of-tree\n'
@@ -242,7 +242,8 @@ def _CheckCodeGeneration(input_api, output_api):
                 'If that fails, run scripts/run_code_generation.py to refresh generated hashes.\n'
                 '\n'
                 'If you are building ANGLE inside Chromium you must bootstrap ANGLE\n'
-                'before gclient sync. See the DevSetup documentation for more details.\n')
+                'before gclient sync. See the DevSetup documentation for more details.\n',
+                **kwargs)
 
     code_gen_path = input_api.os_path.join(input_api.PresubmitLocalPath(),
                                            'scripts/run_code_generation.py')
@@ -307,8 +308,8 @@ def _CheckExportValidity(input_api, output_api):
             subprocess.check_output(['gn', 'gen', outdir], shell=use_shell)
         except subprocess.CalledProcessError as e:
             return [
-                output_api.PresubmitError(
-                    'Unable to run gn gen for export_targets.py: %s' % e.output)
+                output_api.PresubmitError('Unable to run gn gen for export_targets.py: %s' %
+                                          e.output.decode())
             ]
         export_target_script = os.path.join(input_api.PresubmitLocalPath(), 'scripts',
                                             'export_targets.py')
@@ -319,11 +320,13 @@ def _CheckExportValidity(input_api, output_api):
                 shell=use_shell)
         except subprocess.CalledProcessError as e:
             if input_api.is_committing:
-                return [output_api.PresubmitError('export_targets.py failed: %s' % e.output)]
+                return [
+                    output_api.PresubmitError('export_targets.py failed: %s' % e.output.decode())
+                ]
             return [
                 output_api.PresubmitPromptWarning(
                     'export_targets.py failed, this may just be due to your local checkout: %s' %
-                    e.output)
+                    e.output.decode())
             ]
         return []
     finally:
@@ -484,9 +487,9 @@ def _CheckGClientExists(input_api, output_api, search_limit=None):
             '\n\nhttps://chromium.googlesource.com/angle/angle/+/refs/heads/main/doc/DevSetup.md')
     ]
 
-
 def CheckChangeOnUpload(input_api, output_api):
     results = []
+    results.extend(input_api.canned_checks.CheckForCommitObjects(input_api, output_api))
     results.extend(_CheckTabsInSourceFiles(input_api, output_api))
     results.extend(_CheckNonAsciiInSourceFiles(input_api, output_api))
     results.extend(_CheckCommentBeforeTestInTestFiles(input_api, output_api))

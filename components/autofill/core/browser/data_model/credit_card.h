@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/gtest_prod_util.h"
@@ -36,85 +37,91 @@ std::u16string GetObfuscatedStringForCardDigits(const std::u16string& digits,
 // A form group that stores card information.
 class CreditCard : public AutofillDataModel {
  public:
-  enum RecordType {
+  enum class RecordType {
     // A card with a complete number managed by Chrome (and not representing
     // something on the server).
-    LOCAL_CARD,
+    kLocalCard,
 
     // A card from Wallet with masked information. Such cards will only have
     // the last 4 digits of the card number, and require an extra download to
-    // convert to a FULL_SERVER_CARD.
-    MASKED_SERVER_CARD,
+    // convert to a kFullServerCard.
+    kMaskedServerCard,
 
     // A card from the Wallet server with full information store locally. This
     // card is not locally editable.
-    FULL_SERVER_CARD,
+    kFullServerCard,
 
     // A card generated from a server card by the card issuer. This card is not
     // persisted in Chrome.
-    VIRTUAL_CARD,
+    kVirtualCard,
   };
 
   // The Issuer for the card. This must stay in sync with the proto enum in
   // autofill_specifics.proto.
-  enum Issuer {
-    ISSUER_UNKNOWN = 0,
-    GOOGLE = 1,
-    EXTERNAL_ISSUER = 2,
+  enum class Issuer {
+    kIssuerUnknown = 0,
+    kGoogle = 1,
+    kExternalIssuer = 2,
   };
 
   // Whether the card has been enrolled in the virtual card feature. This must
   // stay in sync with the proto enum in autofill_specifics.proto. A java
   // IntDef@ is generated from this.
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.autofill
-  enum VirtualCardEnrollmentState {
+  enum class VirtualCardEnrollmentState {
     // State unspecified. This is the default value of this enum. Should not be
     // ever used with cards.
-    UNSPECIFIED = 0,
+    kUnspecified = 0,
     // Deprecated. Card is not enrolled and does not have related virtual card.
-    UNENROLLED = 1,
+    kUnenrolled = 1,
     // Card is enrolled and has related virtual cards.
-    ENROLLED = 2,
+    kEnrolled = 2,
     // Card is not enrolled and is not eligible for enrollment.
-    UNENROLLED_AND_NOT_ELIGIBLE = 3,
+    kUnenrolledAndNotEligible = 3,
     // Card is not enrolled but is eligible for enrollment.
-    UNENROLLED_AND_ELIGIBLE = 4,
+    kUnenrolledAndEligible = 4,
   };
 
   // The enrollment type of the virtual card attached to this card, if one is
   // present. This must stay in sync with the proto enum in
   // autofill_specifics.proto.
-  enum VirtualCardEnrollmentType {
+  enum class VirtualCardEnrollmentType {
     // Type unspecified. This is the default value of this enum. Should not be
     // used with cards that have a virtual card enrolled.
-    TYPE_UNSPECIFIED = 0,
+    kTypeUnspecified = 0,
     // Issuer-level enrollment.
-    ISSUER = 1,
+    kIssuer = 1,
     // Network-level enrollment.
-    NETWORK = 2,
+    kNetwork = 2,
   };
 
   // Creates a copy of the passed in credit card, and sets its `record_type` to
-  // `CreditCard::VIRTUAL_CARD`. This is used to differentiate virtual cards
-  // from their real counterpart on the UI layer.
+  // `CreditCard::RecordType::kVirtualCard`. This is used to differentiate
+  // virtual cards from their real counterpart on the UI layer.
   static CreditCard CreateVirtualCard(const CreditCard& card);
 
   // Creates a copy of the passed in credit card, and sets its `record_type` to
-  // `CreditCard::VIRTUAL_CARD`. This is used to differentiate virtual cards
-  // from their real counterpart on the UI layer. In addition, a suffix is added
-  // to the guid which also helps differentiate the virtual card from their real
-  // counterpart.
+  // `CreditCard::RecordType::kVirtualCard`. This is used to differentiate
+  // virtual cards from their real counterpart on the UI layer. In addition, a
+  // suffix is added to the guid which also helps differentiate the virtual card
+  // from their real counterpart.
   static std::unique_ptr<CreditCard> CreateVirtualCardWithGuidSuffix(
       const CreditCard& card);
 
+  // Generates a string of `obfuscation_length` bullets and appends `digits` to
+  // it.
+  static std::u16string GetObfuscatedStringForCardDigits(
+      int obfuscation_length,
+      const std::u16string& digits);
+
   CreditCard(const std::string& guid, const std::string& origin);
 
-  // Creates a server card. The type must be MASKED_SERVER_CARD or
-  // FULL_SERVER_CARD.
+  // Creates a server card. The type must be RecordType::kMaskedServerCard or
+  // RecordType::kFullServerCard.
   CreditCard(RecordType type, const std::string& server_id);
 
   // Creates a server card with non-legacy instrument id. The type must be
-  // MASKED_SERVER_CARD or FULL_SERVER_CARD.
+  // RecordType::kMaskedServerCard or RecordType::kFullServerCard.
   CreditCard(RecordType type, int64_t instrument_id);
 
   CreditCard();
@@ -123,6 +130,12 @@ class CreditCard : public AutofillDataModel {
   CreditCard& operator=(const CreditCard& credit_card);
   CreditCard& operator=(CreditCard&& credit_card);
   ~CreditCard() override;
+
+  std::string guid() const { return guid_; }
+  void set_guid(std::string_view guid) { guid_ = guid; }
+
+  std::string origin() const { return origin_; }
+  void set_origin(const std::string& origin) { origin_ = origin; }
 
   // Returns a version of |number| that has any separator characters removed.
   static const std::u16string StripSeparators(const std::u16string& number);
@@ -226,19 +239,34 @@ class CreditCard : public AutofillDataModel {
   // card.
   [[nodiscard]] int Compare(const CreditCard& credit_card) const;
 
-  // Determines if |this| is a local version of the server card |other|.
-  [[nodiscard]] bool IsLocalDuplicateOfServerCard(
-      const CreditCard& other) const;
+  // Determines if `this` and `other` are likely duplicates of each other (name,
+  // expiration date, cc number, billing address match each other if they are
+  // defined) but one card is a local card and the other is a server card.
+  [[nodiscard]] bool IsLocalOrServerDuplicateOf(const CreditCard& other) const;
 
   // Determines if `this` is the matching card as `other` (same card number and
   // expiration date). If either is a masked server card, compares their last
   // four digits and expiration dates.
   [[nodiscard]] bool MatchingCardDetails(const CreditCard& other) const;
 
+  // Returns true based on the following criteria:
+  // 1) If `this` or `other` is a masked server card, this function returns true
+  //    if `other` has the same last four digits as `this`.
+  // 2) Otherwise, this function returns true if `other` has the same full card
+  //    number as `this`.
+  [[nodiscard]] bool HasSameNumberAs(const CreditCard& other) const;
+
+  // Returns true if expiration date for `this` card is the same as `other`.
+  [[nodiscard]] bool HasSameExpirationDateAs(const CreditCard& other) const;
+
   // Equality operators compare GUIDs, origins, and the contents.
   // Usage metadata (use count, use date, modification date) are NOT compared.
   bool operator==(const CreditCard& credit_card) const;
   bool operator!=(const CreditCard& credit_card) const;
+
+  // Returns true if the data in this model was entered directly by the user,
+  // rather than automatically aggregated.
+  bool IsVerified() const;
 
   // How this card is stored.
   RecordType record_type() const { return record_type_; }
@@ -332,16 +360,14 @@ class CreditCard : public AutofillDataModel {
   // The string used to represent the icon to be used for the autofill
   // suggestion. For ex: visaCC, googleIssuedCC, americanExpressCC, etc.
   std::string CardIconStringForAutofillSuggestion() const;
-  // A label for this card formatted as 'IssuerNetwork - ****2345'. By default,
+  // A label for this card formatted as 'IssuerNetwork ****2345'. By default,
   // the `obfuscation_length` is set to 4 which would add **** to the last four
   // digits of the card.
   std::u16string NetworkAndLastFourDigits(int obfuscation_length = 4) const;
-  // A label for this card formatted as 'Nickname - ****2345' if nickname is
-  // available and valid;  otherwise, formatted as 'IssuerNetwork - ****2345'.
-  // Google-issued cards have their own specific identifier, instead of
-  // displaying the issuer network name. By default, the `obfuscation_length` is
-  // set to 4 which would add **** to the last four digits of the card.
-  std::u16string CardIdentifierStringForAutofillDisplay(
+  // A label for this card formatted as 'CardName ****2345', where the name is
+  // that returned by |CardNameForAutofillDisplay|. If the last four digits are
+  // unavailable returns just the card name, and vice-versa.
+  std::u16string CardNameAndLastFourDigits(
       std::u16string customized_nickname = std::u16string(),
       int obfuscation_length = 4) const;
   // A name to identify this card. It is the nickname if available, or the
@@ -409,10 +435,15 @@ class CreditCard : public AutofillDataModel {
     card_art_url_ = card_art_url;
   }
 
-  std::u16string product_description() const { return product_description_; }
+  const std::u16string& product_description() const {
+    return product_description_;
+  }
   void set_product_description(const std::u16string& product_description) {
     product_description_ = product_description;
   }
+
+  const std::u16string& cvc() const { return cvc_; }
+  void set_cvc(const std::u16string& cvc) { cvc_ = cvc; }
 
  private:
   friend class CreditCardTestApi;
@@ -442,6 +473,25 @@ class CreditCard : public AutofillDataModel {
 
   // Sets the name_on_card_ value based on the saved name parts.
   void SetNameOnCardFromSeparateParts();
+
+  // A unique identifier for cards of `record_type()` `kLocalCard`. For them,
+  // the `guid_` identifies the card across browser restarts and is used as the
+  // primary key in the database.
+  // For server cards, see `server_id_` and `instrument_id_`. Unfortunately,
+  // some dependencies around `guid_` for server cards exist. See the server_id
+  // constructor of `CreditCard()`. Notably, for server cards the `guid_` is
+  // not persisted and should not be used.
+  // TODO(crbug.com/1121806): Create a variant of the different ids, since
+  // only one of them should be populated based on the `record_type()`.
+  std::string guid_;
+
+  // The origin of this data.  This should be
+  //   (a) a web URL for the domain of the form from which the data was
+  //       automatically aggregated, e.g. https://www.example.com/register,
+  //   (b) some other non-empty string, which cannot be interpreted as a web
+  //       URL, identifying the origin for non-aggregated data, or
+  //   (c) an empty string, indicating that the origin for this data is unknown.
+  std::string origin_;
 
   // See enum definition above.
   RecordType record_type_;
@@ -484,7 +534,7 @@ class CreditCard : public AutofillDataModel {
   // TODO(crbug.com/1394514): Consider removing this field and all its usage
   // after `issuer_id_` is used.
   // The issuer for the card. This is populated from the sync response. It has a
-  // default value of CreditCard::ISSUER_UNKNOWN.
+  // default value of CreditCard::Issuer::kIssuerUnknown.
   Issuer card_issuer_;
 
   // The issuer id of the card. This is set for server cards only (both actual
@@ -496,16 +546,18 @@ class CreditCard : public AutofillDataModel {
   // TODO(crbug.com/1121806): remove server_id_ after full deprecation
   int64_t instrument_id_;
 
-  // The virtual card enrollment state of this card. If it is ENROLLED, then
+  // The virtual card enrollment state of this card. If it is kEnrolled, then
   // this card has virtual cards linked to it.
-  VirtualCardEnrollmentState virtual_card_enrollment_state_ = UNSPECIFIED;
+  VirtualCardEnrollmentState virtual_card_enrollment_state_ =
+      VirtualCardEnrollmentState::kUnspecified;
 
   // The virtual card enrollment type of this card. This will be used when the
   // enrollment type can make a difference in the functionality we offer for
   // virtual cards. An example of differing functionality is if this virtual
   // card enrollment type is a network-level enrollment, and we are on a URL
   // that is opted out of virtual cards with the network of this card.
-  VirtualCardEnrollmentType virtual_card_enrollment_type_ = TYPE_UNSPECIFIED;
+  VirtualCardEnrollmentType virtual_card_enrollment_type_ =
+      VirtualCardEnrollmentType::kTypeUnspecified;
 
   // The url to fetch the rich card art image.
   GURL card_art_url_;
@@ -513,23 +565,26 @@ class CreditCard : public AutofillDataModel {
   // The product description for the card to be used in the UI when card is
   // presented.
   std::u16string product_description_;
+
+  // The card verification code of the card. May be empty.
+  std::u16string cvc_;
 };
 
 // So we can compare CreditCards with EXPECT_EQ().
 std::ostream& operator<<(std::ostream& os, const CreditCard& credit_card);
 
 // The string identifiers for credit card icon resources.
-extern const char kAmericanExpressCard[];
-extern const char kDinersCard[];
-extern const char kDiscoverCard[];
-extern const char kEloCard[];
-extern const char kGenericCard[];
-extern const char kJCBCard[];
-extern const char kMasterCard[];
-extern const char kMirCard[];
-extern const char kTroyCard[];
-extern const char kUnionPay[];
-extern const char kVisaCard[];
+inline constexpr char kAmericanExpressCard[] = "americanExpressCC";
+inline constexpr char kDinersCard[] = "dinersCC";
+inline constexpr char kDiscoverCard[] = "discoverCC";
+inline constexpr char kEloCard[] = "eloCC";
+inline constexpr char kGenericCard[] = "genericCC";
+inline constexpr char kJCBCard[] = "jcbCC";
+inline constexpr char kMasterCard[] = "masterCardCC";
+inline constexpr char kMirCard[] = "mirCC";
+inline constexpr char kTroyCard[] = "troyCC";
+inline constexpr char kUnionPay[] = "unionPayCC";
+inline constexpr char kVisaCard[] = "visaCC";
 
 }  // namespace autofill
 

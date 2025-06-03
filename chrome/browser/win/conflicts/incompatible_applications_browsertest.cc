@@ -10,7 +10,6 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/scoped_native_library.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -143,12 +142,11 @@ class IncompatibleApplicationsBrowserTest : public InProcessBrowserTest {
     // should be a build-system dependency or a module that is present on any
     // Windows machine.
     static constexpr wchar_t kTestDllName[] = L"conflicts_dll.dll";
-    static constexpr wchar_t kRegistryKeyPathFormat[] =
-        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%ls";
 
     // Note: Using the application name for the product id.
     const std::wstring registry_key_path =
-        base::StringPrintf(kRegistryKeyPathFormat, kApplicationName);
+        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" +
+        std::wstring(kApplicationName);
     base::win::RegKey registry_key(HKEY_CURRENT_USER, registry_key_path.c_str(),
                                    KEY_WRITE);
 
@@ -211,9 +209,6 @@ IN_PROC_BROWSER_TEST_F(IncompatibleApplicationsBrowserTest,
       base::BindLambdaForTesting([module_list_path = GetModuleListPath(),
                                   quit_closure = run_loop.QuitClosure()]() {
         ModuleDatabase* module_database = ModuleDatabase::GetInstance();
-
-        // Speed up the test.
-        module_database->ForceStartInspection();
 
         // Simulate the download of the module list component.
         module_database->third_party_conflicts_manager()->LoadModuleList(

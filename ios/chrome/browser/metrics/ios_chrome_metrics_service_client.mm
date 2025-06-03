@@ -56,41 +56,39 @@
 #import "components/omnibox/browser/omnibox_metrics_provider.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/pref_service.h"
-#import "components/sync/driver/sync_service.h"
+#import "components/sync/service/sync_service.h"
 #import "components/sync_device_info/device_count_metrics_provider.h"
 #import "components/ukm/ukm_service.h"
 #import "components/variations/variations_associated_data.h"
 #import "components/version_info/version_info.h"
 #import "google_apis/google_api_keys.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state_manager.h"
 #import "ios/chrome/browser/history/history_service_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_list.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
 #import "ios/chrome/browser/metrics/chrome_browser_state_client.h"
 #import "ios/chrome/browser/metrics/ios_chrome_default_browser_metrics_provider.h"
 #import "ios/chrome/browser/metrics/ios_chrome_signin_and_sync_status_metrics_provider.h"
 #import "ios/chrome/browser/metrics/ios_chrome_stability_metrics_provider.h"
+#import "ios/chrome/browser/metrics/ios_family_link_user_metrics_provider.h"
+#import "ios/chrome/browser/metrics/ios_feed_activity_metrics_provider.h"
 #import "ios/chrome/browser/metrics/ios_feed_enabled_metrics_provider.h"
 #import "ios/chrome/browser/metrics/ios_profile_session_metrics_provider.h"
 #import "ios/chrome/browser/metrics/mobile_session_shutdown_metrics_provider.h"
-#import "ios/chrome/browser/paths/paths.h"
-#import "ios/chrome/browser/sync/device_info_sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/tabs/tab_parenting_global_observer.h"
-#import "ios/chrome/browser/translate/translate_ranker_metrics_provider.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state_manager.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/sync/model/device_info_sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/tabs/model/tab_parenting_global_observer.h"
+#import "ios/chrome/browser/translate/model/translate_ranker_metrics_provider.h"
 #import "ios/chrome/browser/ui/overscroll_actions/overscroll_actions_controller.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ios/public/provider/chrome/browser/app_distribution/app_distribution_api.h"
 #import "ios/web/public/thread/web_thread.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -335,6 +333,9 @@ void IOSChromeMetricsServiceClient::RegisterMetricsServiceProviders() {
       std::make_unique<IOSChromeSigninAndSyncStatusMetricsProvider>());
 
   metrics_service_->RegisterMetricsProvider(
+      std::make_unique<IOSFamilyLinkUserMetricsProvider>());
+
+  metrics_service_->RegisterMetricsProvider(
       std::make_unique<MobileSessionShutdownMetricsProvider>(
           metrics_service_.get()));
 
@@ -350,12 +351,18 @@ void IOSChromeMetricsServiceClient::RegisterMetricsServiceProviders() {
           std::make_unique<metrics::ChromeBrowserStateClient>(),
           metrics::MetricsLogUploader::MetricServiceType::UMA));
 
-  metrics_service_->RegisterMetricsProvider(
-      CreateIOSProfileSessionMetricsProvider());
-
+  // TODO(crbug.com/1491396): Avoid using GetLastUsedBrowserState().
   ChromeBrowserState* browser_state = GetApplicationContext()
                                           ->GetChromeBrowserStateManager()
                                           ->GetLastUsedBrowserState();
+
+  metrics_service_->RegisterMetricsProvider(
+      std::make_unique<IOSFeedActivityMetricsProvider>(
+          browser_state->GetPrefs()));
+
+  metrics_service_->RegisterMetricsProvider(
+      CreateIOSProfileSessionMetricsProvider());
+
   metrics_service_->RegisterMetricsProvider(
       std::make_unique<IOSFeedEnabledMetricsProvider>(
           browser_state->GetPrefs()));

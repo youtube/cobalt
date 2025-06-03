@@ -6,7 +6,6 @@
 
 #include <array>
 
-#include "base/metrics/field_trial_params.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/segmentation_platform/internal/metadata/metadata_writer.h"
 #include "components/segmentation_platform/public/config.h"
@@ -25,9 +24,7 @@ constexpr SegmentId kShoppingUserSegmentId =
     SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER;
 constexpr int64_t kShoppingUserSignalStorageLength = 28;
 constexpr int64_t kShoppingUserMinSignalCollectionLength = 1;
-constexpr int64_t kModelVersion = 1;
-constexpr int kShoppingUserDefaultSelectionTTLDays = 7;
-constexpr int kShoppingUserDefaultUnknownSelectionTTLDays = 7;
+constexpr int64_t kModelVersion = 2;
 
 // InputFeatures.
 
@@ -52,38 +49,40 @@ std::unique_ptr<Config> ShoppingUserModel::GetConfig() {
   auto config = std::make_unique<Config>();
   config->segmentation_key = kShoppingUserSegmentationKey;
   config->segmentation_uma_name = kShoppingUserUmaName;
+  config->auto_execute_and_cache = true;
   config->AddSegmentId(
       SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER,
       std::make_unique<ShoppingUserModel>());
-  config->segment_selection_ttl =
-      base::Days(kShoppingUserDefaultSelectionTTLDays);
-  config->unknown_selection_ttl =
-      base::Days(kShoppingUserDefaultUnknownSelectionTTLDays);
   config->is_boolean_segment = true;
   return config;
 }
 
 ShoppingUserModel::ShoppingUserModel()
-    : ModelProvider(kShoppingUserSegmentId) {}
+    : DefaultModelProvider(kShoppingUserSegmentId) {}
 
-void ShoppingUserModel::InitAndFetchModel(
-    const ModelUpdatedCallback& model_updated_callback) {
+std::unique_ptr<DefaultModelProvider::ModelConfig>
+ShoppingUserModel::GetModelConfig() {
   proto::SegmentationModelMetadata shopping_user_metadata;
   MetadataWriter writer(&shopping_user_metadata);
   writer.SetDefaultSegmentationMetadataConfig(
       kShoppingUserMinSignalCollectionLength, kShoppingUserSignalStorageLength);
 
-  // Set discrete mapping.
-  writer.AddBooleanSegmentDiscreteMapping(kShoppingUserSegmentationKey);
-
   // Set features.
   writer.AddUmaFeatures(kShoppingUserUMAFeatures.data(),
                         kShoppingUserUMAFeatures.size());
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindRepeating(model_updated_callback, kShoppingUserSegmentId,
-                          std::move(shopping_user_metadata), kModelVersion));
+  // Set OutputConfig.
+  writer.AddOutputConfigForBinaryClassifier(
+      /*threshold=*/0.5f,
+      /*positive_label=*/kShoppingUserUmaName,
+      /*negative_label=*/kLegacyNegativeLabel);
+
+  writer.AddPredictedResultTTLInOutputConfig(
+      /*top_label_to_ttl_list=*/{}, /*default_ttl=*/7,
+      /*time_unit=*/proto::TimeUnit::DAY);
+
+  return std::make_unique<ModelConfig>(std::move(shopping_user_metadata),
+                                       kModelVersion);
 }
 
 void ShoppingUserModel::ExecuteModelWithInput(
@@ -107,10 +106,6 @@ void ShoppingUserModel::ExecuteModelWithInput(
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback), ModelProvider::Response(1, result)));
-}
-
-bool ShoppingUserModel::ModelAvailable() {
-  return true;
 }
 
 }  // namespace segmentation_platform

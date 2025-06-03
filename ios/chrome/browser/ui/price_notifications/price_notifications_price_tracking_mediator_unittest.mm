@@ -4,7 +4,7 @@
 
 #import "ios/chrome/browser/ui/price_notifications/price_notifications_price_tracking_mediator.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/bookmarks/browser/bookmark_model.h"
@@ -15,23 +15,23 @@
 #import "components/image_fetcher/core/cached_image_fetcher.h"
 #import "components/image_fetcher/core/image_data_fetcher.h"
 #import "components/power_bookmarks/core/power_bookmark_utils.h"
-#import "ios/chrome/browser/bookmarks/local_or_syncable_bookmark_model_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state_manager.h"
-#import "ios/chrome/browser/commerce/shopping_service_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_list.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/bookmarks/model/local_or_syncable_bookmark_model_factory.h"
+#import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/push_notification/push_notification_service.h"
 #import "ios/chrome/browser/push_notification/push_notification_util.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state_manager.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/ui/price_notifications/cells/price_notifications_table_view_item.h"
 #import "ios/chrome/browser/ui/price_notifications/price_notifications_mutator.h"
 #import "ios/chrome/browser/ui/price_notifications/price_notifications_table_view_controller.h"
 #import "ios/chrome/browser/ui/price_notifications/test_price_notifications_consumer.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/public/provider/chrome/browser/push_notification/push_notification_api.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
@@ -39,10 +39,6 @@
 #import "ios/web/public/test/web_task_environment.h"
 #import "ios/web/public/web_state.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -189,6 +185,7 @@ TEST_F(
     TrackableItemExistsWhenUserUntracksProductFromWebpageIsCurrentlyViewing) {
   commerce::ProductInfo product_info;
   product_info.title = kBookmarkTitle;
+  product_info.product_cluster_id.emplace(12345L);
   absl::optional<commerce::ProductInfo> optional_product_info;
   optional_product_info.emplace(product_info);
   shopping_service_->SetResponseForGetProductInfoForUrl(optional_product_info);

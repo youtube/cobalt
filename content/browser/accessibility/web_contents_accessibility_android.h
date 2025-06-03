@@ -16,6 +16,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "content/public/common/content_features.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace ui {
@@ -39,7 +40,6 @@ constexpr gfx::Size kMaxImageSize = gfx::Size(2000, 2000);
 
 class BrowserAccessibilityAndroid;
 class BrowserAccessibilityManagerAndroid;
-class TouchPassthroughManager;
 class WebContents;
 class WebContentsImpl;
 
@@ -305,8 +305,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
       JNIEnv* env,
       std::u16string str) {
     // Check if this string has already been added to the cache.
-    if (common_string_cache_.find(str) != common_string_cache_.end()) {
-      return common_string_cache_[str];
+    auto it = common_string_cache_.find(str);
+    if (it != common_string_cache_.end()) {
+      return it->second;
     }
 
     // Otherwise, convert the string and add it to the cache, then return.
@@ -416,8 +417,6 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
   // This isn't associated with a real WebContents and is only populated when
   // this class is constructed with a ui::AXTreeUpdate.
   std::unique_ptr<BrowserAccessibilityManagerAndroid> snapshot_root_manager_;
-
-  std::unique_ptr<TouchPassthroughManager> touch_passthrough_manager_;
 
   base::WeakPtrFactory<WebContentsAccessibilityAndroid> weak_ptr_factory_{this};
 };

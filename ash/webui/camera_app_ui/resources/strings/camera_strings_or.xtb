@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">ଶୀର୍ଷ-ବାମ ପଟକୁ ମୁଭ ହେଉଛି</translation>
 <translation id="3573890771273113519">ସ୍କାନ୍ ମୋଡକୁ ସ୍ୱିଚ୍ କରନ୍ତୁ</translation>
 <translation id="3583444040776960729">ଡକ୍ୟୁମେଣ୍ଟର ନିମ୍ନ-ବାମ ପଟ କୋଣ</translation>
+<translation id="3642192109456033823">ଭିଡିଓ ପ୍ରକ୍ରିୟାକରଣ ହେଉଛି…</translation>
 <translation id="3789724198583203151">ଘଣ୍ଟାକଣ୍ଟାର ବିପରୀତ ଦିଗରେ 90 ଡିଗ୍ରୀ ଘୂରାନ୍ତୁ</translation>
 <translation id="3810838688059735925">ଭିଡିଓ</translation>
 <translation id="3892148308691398805">ଟେକ୍ସଟ୍ କପି କରନ୍ତୁ</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">ରେକର୍ଡିଂ ବିରତ କରନ୍ତୁ</translation>
 <translation id="4121305183798804752">ଡକ୍ୟୁମେଣ୍ଟ ଚିହ୍ନଟ କରାଯାଇଛି</translation>
 <translation id="414641094616694804">ଏହି କ୍ୟାମେରା ରିଜୋଲ୍ୟୁସନ ବଦଳାଇପାରିବ ନାହିଁ</translation>
+<translation id="4176463684765177261">ଅକ୍ଷମ କରାଯାଇଛି</translation>
 <translation id="4269820728363426813">ଲିଙ୍କ୍ ଠିକଣା କପି କରନ୍ତୁ</translation>
-<translation id="4281620174117014503">ମଧ୍ୟମ ରିଜୋଲ୍ୟୁସନ</translation>
 <translation id="428234092390943511">ପୃଷ୍ଠା ଥମ୍ବନେଲ</translation>
+<translation id="4349714250734879769">Chrome ଦ୍ୱାରା ଫ୍ରେମଗୁଡ଼ିକୁ ସ୍କେଲ କରନ୍ତୁ</translation>
 <translation id="4383571725254449280">କାର୍ଯ୍ୟଦକ୍ଷତା ଲଗଗୁଡ଼ିକ ପ୍ରିଣ୍ଟ କରନ୍ତୁ</translation>
 <translation id="4445542136948522167">ଫଟୋ ଉଠାଇବା ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="4570032796877367747">ସାମ୍ନା କ୍ୟାମେରା</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">ପୃଷ୍ଠା <ph name="COUNT" />କୁ ସ୍କାନ କରାଯାଉଛି</translation>
 <translation id="5671277269877808209">ବର୍ଗାକାର</translation>
+<translation id="574392208103952083">ମଧ୍ୟମ</translation>
 <translation id="5746169159649715125">PDF ଭାବରେ ସେଭ୍‍ କରନ୍ତୁ</translation>
 <translation id="5753488212459587150">ଏକ୍ସପର୍ଟ ମୋଡ୍ ସକ୍ଷମ କରନ୍ତୁ</translation>
 <translation id="5759254179196327752">ଡକ୍ୟୁମେଣ୍ଟକୁ ସ୍କାନ୍ କରନ୍ତୁ</translation>
@@ -101,7 +104,7 @@
 <translation id="5869546221129391014">ଗ୍ରିଡ୍</translation>
 <translation id="5916664084637901428">ଚାଲୁ</translation>
 <translation id="5975083100439434680">ଜୁମ୍ କମାନ୍ତୁ</translation>
-<translation id="5976160379964388480">ଅନ୍ୟାନ୍ୟ</translation>
+<translation id="5976160379964388480">ଅନ୍ଯ</translation>
 <translation id="6073451960410192870">ରେକର୍ଡିଂ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="6197807149213783179">ମେଟାଡାଟା ସେଭ୍ କରନ୍ତୁ</translation>
 <translation id="6233780560267770709">3 ଗୁଣନ 3</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">ଫଟୋ ଉଠାଇବା ପାଇଁ ସ୍ୱିଚ୍ କରନ୍ତୁ</translation>
 <translation id="8167081290930651932">ଫଟୋ ଭାବେ ସେଭ୍ କରନ୍ତୁ</translation>
 <translation id="8239780215768881278">ଭିଡିଓର ସ୍ନାପସଟ୍ ନିଅନ୍ତୁ</translation>
+<translation id="8346544573713510785">Camera HAL ଦ୍ୱାରା ଫ୍ରେମଗୁଡ଼ିକୁ ସ୍କେଲ କରନ୍ତୁ</translation>
 <translation id="8425673304802773841">ତଳକୁ ଟିଲ୍ଟ କରନ୍ତୁ</translation>
 <translation id="8428213095426709021">ସେଟିଂସ୍</translation>
 <translation id="8629662593426079630">360p</translation>

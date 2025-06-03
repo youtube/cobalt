@@ -8,6 +8,9 @@ import org.chromium.url.GURL;
 
 /**
  * Java side version of chrome/common/url_constants.cc
+ *
+ * Do not add any more NTP related constants.
+ * TODO(crbug.com/1481277) Move NTP related constants to ChromeUrlConstants.java
  */
 public class UrlConstants {
     public static final String APP_INTENT_SCHEME = "android-app";
@@ -89,6 +92,8 @@ public class UrlConstants {
     public static final String GOOGLE_ACCOUNT_DEVICE_ACTIVITY_URL =
             "https://myaccount.google.com/device-activity?utm_source=chrome";
 
+    public static final String MY_ACTIVITY_HOME_URL = "https://myactivity.google.com/";
+
     public static final String GOOGLE_SEARCH_HISTORY_URL_IN_CBD =
             "https://myactivity.google.com/product/search?utm_source=chrome_cbd";
 
@@ -106,6 +111,8 @@ public class UrlConstants {
 
     public static final String MY_ACTIVITY_URL_IN_QD =
             "https://myactivity.google.com/myactivity?utm_source=chrome_qd";
+
+    public static final String GOOGLE_URL = "https://www.google.com/";
 
     public static final String EXPLORE_HOST = "explore";
     public static final String EXPLORE_URL = "chrome-native://explore/";

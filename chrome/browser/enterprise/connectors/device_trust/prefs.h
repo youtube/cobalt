@@ -10,8 +10,11 @@
 
 namespace enterprise_connectors {
 
-// Pref that maps to the "ContextAwareAccessSignalsAllowlistPref" policy.
-extern const char kContextAwareAccessSignalsAllowlistPref[];
+// Pref that maps to the "UserContextAwareAccessSignalsAllowlist" policy.
+extern const char kUserContextAwareAccessSignalsAllowlistPref[];
+
+// Pref that maps to the "BrowserContextAwareAccessSignalsAllowlist" policy.
+extern const char kBrowserContextAwareAccessSignalsAllowlistPref[];
 
 // Registers the device trust connectors profile preferences.
 void RegisterDeviceTrustConnectorProfilePrefs(PrefRegistrySimple* registry);

@@ -10,12 +10,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/mock_password_form_manager_for_ui.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -49,7 +49,7 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (override));
   MOCK_METHOD(void, PromptUserToEnableAutosignin, (), (override));
   MOCK_METHOD(PrefService*, GetPrefs, (), (const, override));
-  MOCK_METHOD(bool, IsIncognito, (), (const, override));
+  MOCK_METHOD(bool, IsOffTheRecord, (), (const, override));
   MOCK_METHOD(signin::IdentityManager*, GetIdentityManager, (), (override));
 };
 
@@ -119,7 +119,7 @@ TEST_F(PasswordManagerClientHelperTest, PromptAutosigninAfterSuccessfulLogin) {
 
 TEST_F(PasswordManagerClientHelperTest,
        PromptAutosigninAndMoveDisabledInIncognito) {
-  EXPECT_CALL(*client(), IsIncognito)
+  EXPECT_CALL(*client(), IsOffTheRecord)
       .Times(AnyNumber())
       .WillRepeatedly(Return(true));
   // In Incognito, both the auto-signin and the "Move password to account?"

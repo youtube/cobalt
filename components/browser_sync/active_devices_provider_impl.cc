@@ -11,6 +11,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/ranges/algorithm.h"
+#include "base/trace_event/trace_event.h"
 #include "components/browser_sync/active_devices_provider_impl.h"
 #include "components/browser_sync/browser_sync_switches.h"
 #include "components/sync/base/model_type.h"
@@ -22,18 +23,18 @@ ActiveDevicesProviderImpl::ActiveDevicesProviderImpl(
     base::Clock* clock)
     : device_info_tracker_(device_info_tracker), clock_(clock) {
   DCHECK(device_info_tracker_);
-  device_info_tracker_->AddObserver(this);
+  device_info_tracker_observation_.Observe(device_info_tracker_);
 }
 
 ActiveDevicesProviderImpl::~ActiveDevicesProviderImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback_.is_null());
-  device_info_tracker_->RemoveObserver(this);
 }
 
 syncer::ActiveDevicesInvalidationInfo
 ActiveDevicesProviderImpl::CalculateInvalidationInfo(
     const std::string& local_cache_guid) const {
+  TRACE_EVENT0("ui", "ActiveDevicesProviderImpl::CalculateInvalidationInfo");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const std::vector<std::unique_ptr<syncer::DeviceInfo>> active_devices =
@@ -99,6 +100,9 @@ ActiveDevicesProviderImpl::CalculateInvalidationInfo(
           switches::kSyncFCMRegistrationTokensListMaxSize.Get())) {
     all_fcm_registration_tokens.clear();
   }
+  TRACE_EVENT0("ui",
+               "ActiveDevicesProviderImpl::CalculateInvalidationInfo() => "
+               "ActiveDevicesInvalidationInfo::Create");
 
   return syncer::ActiveDevicesInvalidationInfo::Create(
       std::move(all_fcm_registration_tokens), all_interested_data_types,

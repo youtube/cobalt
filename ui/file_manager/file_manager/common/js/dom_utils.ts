@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assertInstanceof} from 'chrome://resources/js/assert_ts.js';
-import type {CSSResult} from '../../widgets/xf_base.js';
+import {assert, assertInstanceof} from 'chrome://resources/js/assert.js';
+
+// Only import types from the DirectoryTree/DirectoryItem/XfTree/XfTreeItem to
+// prevent circular imports.
+import type {DirectoryItem, DirectoryTree} from '../../foreground/js/ui/directory_tree.js';
+import type {XfTree} from '../../widgets/xf_tree.js';
+import type {XfTreeItem} from '../../widgets/xf_tree_item.js';
+import {isTree, isTreeItem} from '../../widgets/xf_tree_util.js';
+
 import {decorate} from './ui.js';
 
 /**
@@ -96,7 +103,8 @@ export function createChild(
  *     context object for querySelector.
  */
 export function queryRequiredElement(
-    selectors: string, context?: Document|DocumentFragment|Element): Element {
+    selectors: string,
+    context?: Document|DocumentFragment|Element|HTMLElement): HTMLElement {
   const element = (context || document).querySelector(selectors);
   assertInstanceof(
       element, HTMLElement, 'Missing required element: ' + selectors);
@@ -114,6 +122,26 @@ export function queryDecoratedElement<T>(
   const element = queryRequiredElement(query);
   decorate(element, type);
   return element as any as T;
+}
+
+/**
+ * Returns an array of elements, based on the `selectors`. Exactly one of these
+ *  elements is required to exist. The rest will be null.
+ * @param selectors A list of CSS selectors to query for elements.
+ * @param {(!Document|!DocumentFragment|!Element)=} context An optional
+ *     context object for querySelector.
+ * @returns A list of query results, with the same indices as the provided
+ *     `selectors`. One element will exist, and the rest will be null padding.
+ */
+export function queryRequiredExactlyOne(
+    selectors: string[], context: Document|DocumentFragment|Element = document):
+    Array<HTMLElement|null> {
+  const elements = selectors.map(
+      selector => context.querySelector(selector) as HTMLElement | null);
+  assert(
+      elements.filter(el => !!el).length === 1,
+      'Exactly one of the elements should exist.');
+  return elements;
 }
 
 /**
@@ -161,36 +189,6 @@ class UserDomError extends DOMError {
 }
 
 /**
- * Add prefix selector for the CSS literal.
- * To support both Legacy and Refresh23 styles in the same component, we
- * have 2 style groups defined in each component, for all legacy/refresh23
- * specific styles, we need to prefix all rules to have
- * `[theme=legacy]` and `[theme=refresh23]` so they won't conflict
- * with each other.
- *
- * For example:
- * original style -> p { color: red; }
- * prefix with Legacy -> :host-context([theme="legacy"]) p { color: red }
- * prefix with Refresh23 -> :host-context([theme="refresh23"]) p { color: red }
- */
-export function addCSSPrefixSelector(
-    css: CSSResult, prefixSelector: string): CSSStyleSheet {
-  const prefixedCSS = new CSSStyleSheet();
-  const cssRules = css.styleSheet?.cssRules || [];
-  for (let i = 0; i < cssRules.length; i++) {
-    const cssText = cssRules[i]?.cssText;
-    if (cssText) {
-      // If the existing selector is `:host` or `:host-context`, there should
-      // be no space after the newly added `:host-context`.
-      const noSpace = cssText.startsWith(':host');
-      prefixedCSS.insertRule(
-          `:host-context(${prefixSelector})${noSpace ? '' : ' '}${cssText}`, i);
-    }
-  }
-  return prefixedCSS;
-}
-
-/**
  * A util function to get the correct "top" value when calling
  * <cr-action-menu>'s `showAt` method.
  *
@@ -210,4 +208,36 @@ export function getCrActionMenuTop(
   }
   top += marginTop;
   return top;
+}
+
+/**
+ * Util functions to check if an HTML element is a tree or tree item, these
+ * functions cater both the old tree (cr.ui.Tree/cr.ui.TreeItem) and the new
+ * tree (<xf-tree>/<xf-tree-item>).
+ *
+ * Note: for focused item, the old tree use `selectedItem`, but in the context
+ * of the new tree, `selectedItem` means the item being selected, `focusedItem`
+ * means the item being focused by keyboard.
+ *
+ * Use `element: any` here because `DirectoryTree` and `DirectoryItem` are not
+ * compatible with Element's type definition, which prevents the type guard. No
+ * `instanceof` here to prevent circular imports issue.
+ *
+ * TODO(b/285977941): Remove the old tree support.
+ */
+export function isDirectoryTree(element: any): element is DirectoryTree|XfTree {
+  return element.typeName === 'directory_tree' || isTree(element);
+}
+export function isDirectoryTreeItem(element: any): element is DirectoryItem|
+    XfTreeItem {
+  return element.typeName === 'directory_item' || isTreeItem(element);
+}
+export function getFocusedTreeItem(tree: any): DirectoryItem|XfTreeItem|null {
+  if (tree.typeName === 'directory_tree') {
+    return tree.selectedItem;
+  }
+  if (isTree(tree)) {
+    return tree.focusedItem;
+  }
+  return null;
 }

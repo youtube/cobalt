@@ -452,7 +452,7 @@ void LoadElimination::AbstractState::FieldsMerge(
     AbstractField const*& this_field = (*this_fields)[i];
     if (this_field) {
       if (that_fields[i]) {
-        this_field = this_field->Merge(that_fields[i], zone);
+        this_field = this_field->Merge(that_fields[i], zone, &fields_count_);
       } else {
         this_field = nullptr;
       }
@@ -470,8 +470,10 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
   }
 
   // Merge the information we have about the fields.
-  FieldsMerge(&this->fields_, that->fields_, zone);
+  fields_count_ = 0;
   FieldsMerge(&this->const_fields_, that->const_fields_, zone);
+  const_fields_count_ = fields_count_;
+  FieldsMerge(&this->fields_, that->fields_, zone);
 
   // Merge the information we have about the maps.
   if (this->maps_) {
@@ -557,14 +559,19 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, IndexRange index_range, LoadElimination::FieldInfo info,
     Zone* zone) const {
   AbstractState* that = zone->New<AbstractState>(*this);
-  AbstractFields& fields =
-      info.const_field_info.IsConst() ? that->const_fields_ : that->fields_;
+  bool is_const = info.const_field_info.IsConst();
+  AbstractFields& fields = is_const ? that->const_fields_ : that->fields_;
   for (int index : index_range) {
+    int count_before = fields[index] ? fields[index]->count() : 0;
     if (fields[index]) {
-      fields[index] = fields[index]->Extend(object, info, zone);
+      fields[index] =
+          fields[index]->Extend(object, info, zone, that->fields_count_);
     } else {
       fields[index] = zone->New<AbstractField>(object, info, zone);
     }
+    int added = fields[index]->count() - count_before;
+    if (is_const) that->const_fields_count_ += added;
+    that->fields_count_ += added;
   }
   return that;
 }
@@ -581,6 +588,10 @@ LoadElimination::AbstractState::KillConstField(Node* object,
       if (this->const_fields_[index] != this_field) {
         if (!that) that = zone->New<AbstractState>(*this);
         that->const_fields_[index] = this_field;
+        int removed = this->const_fields_[index]->count() -
+                      that->const_fields_[index]->count();
+        that->const_fields_count_ -= removed;
+        that->fields_count_ -= removed;
       }
     }
   }
@@ -604,6 +615,9 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
       if (this->fields_[index] != this_field) {
         if (!that) that = zone->New<AbstractState>(*this);
         that->fields_[index] = this_field;
+        int removed =
+            this->fields_[index]->count() - that->fields_[index]->count();
+        that->fields_count_ -= removed;
       }
     }
   }
@@ -615,7 +629,9 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
   AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
-    if (i == fields_.size()) return this;
+    if (i == fields_.size()) {
+      return this;
+    }
     if (AbstractField const* this_field = this->fields_[i]) {
       AbstractField const* that_field =
           this_field->Kill(alias_info, name, zone);
@@ -625,6 +641,8 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
         while (++i < fields_.size()) {
           if (this->fields_[i] != nullptr) {
             that->fields_[i] = this->fields_[i]->Kill(alias_info, name, zone);
+            int removed = this->fields_[i]->count() - that->fields_[i]->count();
+            that->fields_count_ -= removed;
           }
         }
         return that;
@@ -640,6 +658,8 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
     if (const_fields_[i]) {
       AbstractState* that = zone->New<AbstractState>();
       that->const_fields_ = const_fields_;
+      that->const_fields_count_ = const_fields_count_;
+      that->fields_count_ = const_fields_count_;
       return that;
     }
   }
@@ -920,7 +940,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     ZoneRefSet<Map> object_maps;
     if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
-      Node* value = jsgraph()->HeapConstant(object_maps[0].object());
+      Node* value = jsgraph()->HeapConstantNoHole(object_maps[0].object());
       NodeProperties::SetType(value, Type::OtherInternal());
       ReplaceWithValue(node, value, effect);
       return Replace(value);
@@ -1074,6 +1094,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kSandboxedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
@@ -1133,6 +1154,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kIndirectPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1439,11 +1461,17 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kSandboxedPointer:
       break;
   }
   int representation_size = ElementSizeInBytes(rep);
   // We currently only track fields that are at least tagged pointer sized.
+  // We assume that indirect pointers are tagged pointer sized if we see them
+  // here since they should only ever be used in pointer compression
+  // configurations.
+  DCHECK(rep != MachineRepresentation::kIndirectPointer ||
+         representation_size == kTaggedSize);
   if (representation_size < kTaggedSize) return IndexRange::Invalid();
   DCHECK_EQ(0, representation_size % kTaggedSize);
 

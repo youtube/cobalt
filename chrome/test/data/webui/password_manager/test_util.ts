@@ -21,16 +21,39 @@ export function makePasswordCheckStatus(params: PasswordCheckParams):
   };
 }
 
+export function makeFamilyFetchResults(
+    status?: chrome.passwordsPrivate.FamilyFetchStatus,
+    members?: chrome.passwordsPrivate.RecipientInfo[]):
+    chrome.passwordsPrivate.FamilyFetchResults {
+  return {
+    status: status || chrome.passwordsPrivate.FamilyFetchStatus.SUCCESS,
+    familyMembers: members || [],
+  };
+}
+
+export function makeRecipientInfo(isEligible: boolean = true):
+    chrome.passwordsPrivate.RecipientInfo {
+  return {
+    userId: 'user-id',
+    email: 'user@example.com',
+    displayName: 'New User',
+    profileImageUrl: 'data://image/url',
+    isEligible: isEligible,
+  };
+}
+
 export interface PasswordEntryParams {
+  isPasskey?: boolean;
   url?: string;
   username?: string;
+  displayName?: string;
   password?: string;
   federationText?: string;
   id?: number;
   inAccountStore?: boolean;
   inProfileStore?: boolean;
-  isAndroidCredential?: boolean;
   note?: string;
+  changePasswordUrl?: string;
   affiliatedDomains?: chrome.passwordsPrivate.DomainInfo[];
 }
 
@@ -45,7 +68,12 @@ export function createPasswordEntry(params?: PasswordEntryParams):
     chrome.passwordsPrivate.PasswordUiEntry {
   // Generate fake data if param is undefined.
   params = params || {};
-  const url = params.url !== undefined ? params.url : 'www.foo.com';
+  const url = params.url || 'www.foo.com';
+  const domain = {
+    name: url,
+    url: `https://${url}/login`,
+    signonRealm: `https://${url}/login`,
+  };
   const username = params.username !== undefined ? params.username : 'user';
   const id = params.id !== undefined ? params.id : 42;
   // Fallback to device store if no parameter provided.
@@ -62,19 +90,16 @@ export function createPasswordEntry(params?: PasswordEntryParams):
   const note = params.note || '';
 
   return {
-    urls: {
-      signonRealm: 'https://' + url + '/login',
-      shown: url,
-      link: 'https://' + url + '/login',
-    },
+    isPasskey: params.isPasskey || false,
     username: username,
+    displayName: params.displayName,
     federationText: params.federationText,
     id: id,
     storedIn: storeType,
-    isAndroidCredential: params.isAndroidCredential || false,
     note: note,
+    changePasswordUrl: params.changePasswordUrl,
     password: params.password || '',
-    affiliatedDomains: params.affiliatedDomains,
+    affiliatedDomains: params.affiliatedDomains || [domain],
   };
 }
 
@@ -132,15 +157,20 @@ export function makePasswordManagerPrefs() {
         value: true,
       },
     },
-    // <if expr="is_win or is_macosx">
     password_manager: {
+      // <if expr="is_win or is_macosx">
       biometric_authentication_filling: {
         key: 'password_manager.biometric_authentication_filling',
         type: chrome.settingsPrivate.PrefType.BOOLEAN,
         value: true,
       },
+      // </if>
+      password_sharing_enabled: {
+        key: 'password_manager.password_sharing_enabled',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: true,
+      },
     },
-    // </if>
   };
 }
 
@@ -173,18 +203,18 @@ export function makeInsecureCredential(params: InsecureCredentialsParams):
     isMuted: params.isMuted ?? false,
   };
   return {
+    affiliatedDomains: [{
+      name: url,
+      url: `https://${url}/login`,
+      signonRealm: `https://${url}/login`,
+    }],
+    isPasskey: false,
     id: id || 0,
     storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
     changePasswordUrl: `https://${url}/`,
-    urls: {
-      signonRealm: `https://${url}/`,
-      shown: url,
-      link: `https://${url}/`,
-    },
     username: username,
     password: params.password,
     note: '',
-    isAndroidCredential: false,
     compromisedInfo: types.length ? compromisedInfo : undefined,
   };
 }

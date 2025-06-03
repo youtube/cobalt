@@ -17,6 +17,7 @@
 #include "base/time/time.h"
 #include "base/version.h"
 #include "components/embedder_support/android/metrics/android_metrics_service_client.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/prefs/testing_pref_service.h"
 #include "content/public/test/browser_task_environment.h"
@@ -49,12 +50,17 @@ class AwMetricsServiceTestClient : public AwMetricsServiceClient {
   explicit AwMetricsServiceTestClient(std::unique_ptr<Delegate> delegate)
       : AwMetricsServiceClient(std::move(delegate)) {}
   void SetInSample(bool in_sample) { in_sample_ = in_sample; }
+  void SetSampleBucketValue(int sample_bucket_value) {
+    sample_bucket_value_ = sample_bucket_value;
+  }
 
  protected:
   bool IsInSample() const override { return in_sample_; }
+  int GetSampleBucketValue() const override { return sample_bucket_value_; }
 
  private:
   bool in_sample_ = false;
+  int sample_bucket_value_ = 0;
 };
 
 class AwMetricsServiceClientTest : public testing::Test {
@@ -71,6 +77,9 @@ class AwMetricsServiceClientTest : public testing::Test {
             std::make_unique<AwMetricsServiceClientTestDelegate>())) {
     base::SetRecordActionTaskRunner(task_runner_);
     AwMetricsServiceTestClient::RegisterMetricsPrefs(prefs_->registry());
+    // Needed because RegisterMetricsProvidersAndInitState() checks for this.
+    metrics::SubprocessMetricsProvider::CreateInstance();
+
     client_->Initialize(prefs_.get());
   }
 
@@ -98,6 +107,9 @@ class AwMetricsServiceClientTest : public testing::Test {
 
 TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_CacheNotSet) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
   EXPECT_FALSE(client->ShouldRecordPackageName());
@@ -116,6 +128,9 @@ TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_CacheNotSet) {
 
 TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_WithCache) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
   TestingPrefServiceSimple* prefs = GetPrefs();
@@ -123,8 +138,8 @@ TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_WithCache) {
   base::TimeDelta expiry_time = base::Days(1);
   AppPackageNameLoggingRule expected_record(
       base::Version(kTestAllowlistVersion), base::Time::Now() + expiry_time);
-  prefs->Set(prefs::kMetricsAppPackageNameLoggingRule,
-             expected_record.ToDictionary());
+  prefs->SetDict(prefs::kMetricsAppPackageNameLoggingRule,
+                 expected_record.ToDictionary());
 
   absl::optional<AppPackageNameLoggingRule> cached_record =
       client->GetCachedAppPackageNameLoggingRule();
@@ -150,6 +165,9 @@ TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_WithCache) {
 TEST_F(AwMetricsServiceClientTest,
        TestShouldRecordPackageName_TestShouldNotRecordPackageName) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
   AppPackageNameLoggingRule expected_record(
@@ -176,6 +194,9 @@ TEST_F(AwMetricsServiceClientTest,
 TEST_F(AwMetricsServiceClientTest,
        TestShouldRecordPackageName_TestShouldRecordPackageName) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
 
@@ -207,10 +228,6 @@ TEST_F(AwMetricsServiceClientTest,
 TEST_F(
     AwMetricsServiceClientTest,
     TestServerSideAllowlist_TestShouldRecordPackageNameWithServerSideAllowlistEnabled) {
-  base::test::ScopedFeatureList scoped_list;
-  scoped_list.InitAndEnableFeature(
-      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
-
   AwMetricsServiceClient* client = GetClient();
   EXPECT_TRUE(client->ShouldRecordPackageName());
   EXPECT_FALSE(client->GetCachedAppPackageNameLoggingRule().has_value());
@@ -219,6 +236,9 @@ TEST_F(
 TEST_F(AwMetricsServiceClientTest,
        TestShouldRecordPackageName_TestFailureAfterValidResult) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
 
@@ -251,6 +271,9 @@ TEST_F(AwMetricsServiceClientTest,
 
 TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_FailedResult) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
   client->SetAppPackageNameLoggingRule(
@@ -271,6 +294,9 @@ TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_FailedResult) {
 
 TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_SameAsCache) {
   base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_list;
+  scoped_list.InitAndDisableFeature(
+      android_webview::features::kWebViewAppsPackageNamesServerSideAllowlist);
 
   AwMetricsServiceClient* client = GetClient();
   TestingPrefServiceSimple* prefs = GetPrefs();
@@ -278,7 +304,8 @@ TEST_F(AwMetricsServiceClientTest, TestShouldRecordPackageName_SameAsCache) {
   base::TimeDelta expiry_time = base::Days(1);
   AppPackageNameLoggingRule record(base::Version(kTestAllowlistVersion),
                                    base::Time::Now() + expiry_time);
-  prefs->Set(prefs::kMetricsAppPackageNameLoggingRule, record.ToDictionary());
+  prefs->SetDict(prefs::kMetricsAppPackageNameLoggingRule,
+                 record.ToDictionary());
   client->SetAppPackageNameLoggingRule(record);
 
   EXPECT_TRUE(client->ShouldRecordPackageName());
@@ -418,26 +445,44 @@ TEST_F(AwMetricsServiceClientTest,
       "Android.WebView.AppDataDirectory.TimeToComputeSize", 0);
 }
 
-TEST_F(AwMetricsServiceClientTest, TestClientSideSamplingOn) {
+TEST_F(AwMetricsServiceClientTest, TestShouldApplyMetricsFilteringFeatureOff) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      android_webview::features::kWebViewServerSideSampling);
+      android_webview::features::kWebViewMetricsFiltering);
 
   // Both metrics consent and app consent true;
   GetClient()->SetHaveMetricsConsent(true, true);
 
   EXPECT_EQ(GetClient()->GetSampleRatePerMille(), 20);
+  EXPECT_EQ(GetClient()->ShouldApplyMetricsFiltering(), false);
 }
 
-TEST_F(AwMetricsServiceClientTest, TestClientSideSamplingOff) {
+TEST_F(AwMetricsServiceClientTest,
+       TestShouldApplyMetricsFilteringFeatureOn_AllMetrics) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
-      android_webview::features::kWebViewServerSideSampling);
+      android_webview::features::kWebViewMetricsFiltering);
 
   // Both metrics consent and app consent true;
   GetClient()->SetHaveMetricsConsent(true, true);
+  GetClient()->SetSampleBucketValue(19);
 
   EXPECT_EQ(GetClient()->GetSampleRatePerMille(), 1000);
+  EXPECT_FALSE(GetClient()->ShouldApplyMetricsFiltering());
+}
+
+TEST_F(AwMetricsServiceClientTest,
+       TestShouldApplyMetricsFilteringFeatureOn_OnlyCriticalMetrics) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      android_webview::features::kWebViewMetricsFiltering);
+
+  // Both metrics consent and app consent true;
+  GetClient()->SetHaveMetricsConsent(true, true);
+  GetClient()->SetSampleBucketValue(20);
+
+  EXPECT_EQ(GetClient()->GetSampleRatePerMille(), 1000);
+  EXPECT_TRUE(GetClient()->ShouldApplyMetricsFiltering());
 }
 
 }  // namespace android_webview

@@ -296,12 +296,7 @@ GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
 
 GpuFeatureStatus GetSkiaGraphiteFeatureStatus(
     const std::set<int>& blocklisted_features,
-    const GpuPreferences& gpu_preferences,
-    bool use_swift_shader) {
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
-  if (use_swift_shader) {
-    return kGpuFeatureStatusDisabled;
-  }
+    const GpuPreferences& gpu_preferences) {
   if (blocklisted_features.count(GPU_FEATURE_TYPE_SKIA_GRAPHITE)) {
     return kGpuFeatureStatusDisabled;
   }
@@ -315,7 +310,6 @@ GpuFeatureStatus GetSkiaGraphiteFeatureStatus(
     return kGpuFeatureStatusEnabled;
   }
 #endif  // BUILDFLAG(SKIA_USE_METAL)
-#endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE)
   return kGpuFeatureStatusDisabled;
 }
 
@@ -631,8 +625,7 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_VULKAN] =
       GetVulkanFeatureStatus(blocklisted_features, gpu_preferences);
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_SKIA_GRAPHITE] =
-      GetSkiaGraphiteFeatureStatus(blocklisted_features, gpu_preferences,
-                                   use_swift_shader);
+      GetSkiaGraphiteFeatureStatus(blocklisted_features, gpu_preferences);
 #if DCHECK_IS_ON()
   for (int ii = 0; ii < NUMBER_OF_GPU_FEATURE_TYPES; ++ii) {
     DCHECK_NE(kGpuFeatureStatusUndefined, gpu_feature_info.status_values[ii]);
@@ -718,8 +711,8 @@ void SetKeysForCrashLogging(const GPUInfo& gpu_info) {
   crash_keys::gpu_driver_version.Set(active_gpu.driver_version);
   crash_keys::gpu_pixel_shader_version.Set(gpu_info.pixel_shader_version);
   crash_keys::gpu_vertex_shader_version.Set(gpu_info.vertex_shader_version);
-  crash_keys::gpu_generation_intel.Set(
-      base::StringPrintf("%d", GetIntelGpuGeneration(gpu_info)));
+  crash_keys::gpu_generation_intel.Set(base::StringPrintf(
+      "%d", static_cast<int>(GetIntelGpuGeneration(gpu_info))));
 #if BUILDFLAG(IS_MAC)
   crash_keys::gpu_gl_version.Set(gpu_info.gl_version);
 #elif BUILDFLAG(IS_POSIX)
@@ -919,6 +912,8 @@ IntelGpuSeriesType GetIntelGpuSeriesType(uint32_t vendor_id,
         return IntelGpuSeriesType::kAlchemist;
       case 0xa700:
         return IntelGpuSeriesType::kRaptorlake;
+      case 0x7d00:
+        return IntelGpuSeriesType::kMeteorlake;
       default:
         break;
     }
@@ -965,6 +960,7 @@ std::string GetIntelGpuGeneration(uint32_t vendor_id, uint32_t device_id) {
       case IntelGpuSeriesType::kAlderlake:
       case IntelGpuSeriesType::kAlchemist:
       case IntelGpuSeriesType::kRaptorlake:
+      case IntelGpuSeriesType::kMeteorlake:
         return "12";
       default:
         break;

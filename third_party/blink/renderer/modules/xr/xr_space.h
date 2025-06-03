@@ -27,7 +27,7 @@ class XRInputSource;
 class XRPose;
 class XRSession;
 
-class XRSpace : public EventTargetWithInlineData {
+class XRSpace : public EventTarget {
   DEFINE_WRAPPERTYPEINFO();
 
  protected:
@@ -92,7 +92,7 @@ class XRSpace : public EventTargetWithInlineData {
   // other_from_this.
   virtual XRPose* getPose(const XRSpace* other_space) const;
 
-  XRSession* session() const { return session_; }
+  XRSession* session() const { return session_.Get(); }
 
   // ToString() helper, used for debugging.
   virtual std::string ToString() const = 0;

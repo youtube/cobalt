@@ -108,9 +108,9 @@ if (enable_resource_allowlist_generation) {
 #      all shared libraries and executables as they are built. The pre-stripped
 #      artifacts will be put in lib.unstripped/ and exe.unstripped/.
 #
-# Callers will normally want to invoke "gcc_toolchain" instead, which makes
-# a toolchain just like this but may additionally create an extra toolchain
-# without sanitizers for host-side tools.
+# Callers will normally want to invoke "gcc_toolchain" instead, which makes an
+# additional toolchain for Rust targets that are build-time artificts such as
+# proc macros.
 template("single_gcc_toolchain") {
   toolchain(target_name) {
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
@@ -148,10 +148,6 @@ template("single_gcc_toolchain") {
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
       host_toolchain = host_toolchain
-
-      # The same applies to the toolchain we use to build Rust procedural
-      # macros, which is probably the same but might have sanitizers disabled.
-      host_toolchain_no_sanitizers = host_toolchain_no_sanitizers
 
       if (!defined(invoker_toolchain_args.v8_current_cpu)) {
         v8_current_cpu = invoker_toolchain_args.current_cpu
@@ -205,9 +201,8 @@ template("single_gcc_toolchain") {
     # wrapper will have picked up gomacc via cmd-line arg. So need to prepend
     # gomacc in that case.
     goma_path = "$goma_dir/gomacc"
-    if (toolchain_uses_remoteexec &&
-        (!defined(invoker_toolchain_args.needs_gomacc_path_arg) ||
-         !invoker_toolchain_args.needs_gomacc_path_arg)) {
+    if (toolchain_uses_remoteexec && (!defined(invoker.needs_gomacc_path_arg) ||
+                                      !invoker.needs_gomacc_path_arg)) {
       if (defined(toolchain_args.rbe_cc_cfg_file)) {
         toolchain_rbe_cc_cfg_file = toolchain_args.rbe_cc_cfg_file
       } else {
@@ -217,14 +212,18 @@ template("single_gcc_toolchain") {
       # C/C++ (clang) rewrapper prefix to use when use_remoteexec is true.
       compiler_prefix = "${rbe_bin_dir}/rewrapper -cfg=${toolchain_rbe_cc_cfg_file} -exec_root=${rbe_exec_root} "
     } else if (toolchain_uses_goma &&
-               (!defined(invoker_toolchain_args.needs_gomacc_path_arg) ||
-                !invoker_toolchain_args.needs_gomacc_path_arg)) {
+               (!defined(invoker.needs_gomacc_path_arg) ||
+                !invoker.needs_gomacc_path_arg)) {
       compiler_prefix = "${goma_path} "
       if (use_goma_rust) {
         rust_compiler_prefix = compiler_prefix
       }
     } else {
       compiler_prefix = "${toolchain_cc_wrapper} "
+
+      # Prevent warning about unused variable since it is not read in the code
+      # paths when goma is not needed.
+      not_needed(invoker, [ "needs_gomacc_path_arg" ])
     }
 
     if (toolchain_uses_remoteexec_links) {
@@ -242,15 +241,11 @@ template("single_gcc_toolchain") {
       link_prefix =
           "\"$python_path\" " +
           rebase_path("//tools/clang/scripts/remote_ld.py", root_build_dir) +
-          " --wrapper ${goma_path} --jobs 200 -- "
+          " --wrapper ${goma_path} --jobs 200 --ar-path ${invoker.ar} -- "
     } else {
       link_prefix = ""
       not_needed([ "goma_path" ])
     }
-
-    # Create a distinct variable for "asm", since coverage runs pass a bunch of
-    # flags to clang/clang++ that are nonsensical on assembler runs.
-    asm_prefix = compiler_prefix
 
     # A specific toolchain may wish to avoid coverage instrumentation, so we
     # allow the global "use_clang_coverage" arg to be overridden.
@@ -297,7 +292,11 @@ template("single_gcc_toolchain") {
 
     cc = compiler_prefix + invoker.cc
     cxx = compiler_prefix + invoker.cxx
-    asm = asm_prefix + invoker.cc
+
+    # "asm" doesn't support any of toolchain_cc_wrapper, toolchain_uses_goma and
+    # toolchain_uses_remoteexec. The coverage flags are also nonsensical on
+    # assembler runs.
+    asm = invoker.cc
     ar = invoker.ar
     ld = link_prefix + invoker.ld
     if (defined(invoker.readelf)) {
@@ -707,10 +706,11 @@ template("single_gcc_toolchain") {
       if (!defined(rust_compiler_prefix)) {
         rust_compiler_prefix = ""
       }
-      rustc_bin = rebase_path("${rust_sysroot}/bin/rustc", root_build_dir)
+      rust_sysroot_relative = rebase_path(rust_sysroot, root_build_dir)
+      rustc_bin = "$rust_sysroot_relative/bin/rustc"
       rustc = "$rust_compiler_prefix${rustc_bin}"
-      rust_sysroot_relative_to_out = rebase_path(rust_sysroot, root_out_dir)
-      rustc_wrapper = rebase_path("//build/rust/rustc_wrapper.py")
+      rustc_wrapper =
+          rebase_path("//build/rust/rustc_wrapper.py", root_build_dir)
 
       # RSP manipulation due to https://bugs.chromium.org/p/gn/issues/detail?id=249
       tool("rust_staticlib") {
@@ -724,9 +724,9 @@ template("single_gcc_toolchain") {
         description = "RUST(STATICLIB) {{output}}"
         outputs = [ libname ]
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $libname LDFLAGS RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_rlib") {
@@ -735,11 +735,8 @@ template("single_gcc_toolchain") {
         # actually liblibc.rlib).
         rlibname =
             "{{output_dir}}/lib{{target_output_name}}{{output_extension}}"
+        rspfile = "$rlibname.rsp"
         depfile = "$rlibname.d"
-
-        # Do not use rsp files in this (common) case because they occupy the
-        # ninja main thread, and {{rlibs}} have shorter command lines than
-        # fully linked targets.
 
         default_output_extension = ".rlib"
 
@@ -749,8 +746,9 @@ template("single_gcc_toolchain") {
         description = "RUST {{output}}"
         outputs = [ rlibname ]
 
-        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args {{rustdeps}} {{externs}} --emit=dep-info=$depfile,link -o $rlibname LDFLAGS RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
+        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $rlibname LDFLAGS RUSTENV {{rustenv}}"
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_bin") {
@@ -764,9 +762,9 @@ template("single_gcc_toolchain") {
         description = "RUST(BIN) {{output}}"
         outputs = [ exename ]
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $exename LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_cdylib") {
@@ -781,9 +779,9 @@ template("single_gcc_toolchain") {
         description = "RUST(CDYLIB) {{output}}"
         outputs = [ dllname ]
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $dllname LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_macro") {
@@ -798,9 +796,9 @@ template("single_gcc_toolchain") {
         description = "RUST(MACRO) {{output}}"
         outputs = [ dllname ]
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${invoker.cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $dllname LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
     }
 
@@ -812,8 +810,9 @@ template("single_gcc_toolchain") {
   }
 }
 
-# Makes a single GCC toolchain, or possibly two if we need
-# an equivalent toolchain without sanitizers.
+# Makes a GCC toolchain for the target, and an equivalent toolchain with the
+# prebuilt Rust stdlib for building proc macros (and other for-build-use
+# artifacts).
 template("gcc_toolchain") {
   single_gcc_toolchain(target_name) {
     assert(defined(invoker.toolchain_args),
@@ -829,9 +828,16 @@ template("gcc_toolchain") {
     # toolchains, but presubmit checks require that we explicitly exclude them
   }
 
-  if (using_sanitizer) {
-    # Make an additional toolchain with no sanitizers.
-    single_gcc_toolchain("${target_name}_no_sanitizers") {
+  if (enable_rust && current_toolchain == default_toolchain) {
+    # Make an additional toolchain which is used for making tools that are run
+    # on the host machine as part of the build process (such as proc macros
+    # and Cargo build scripts). This toolchain uses the prebuilt stdlib that
+    # comes with the compiler, so it doesn't have to wait for the stdlib to be
+    # built before building other stuff. And this ensures its proc macro
+    # outputs have the right ABI to be loaded by the compiler, and it can be
+    # used to compile build scripts that are part of the stdlib that is built
+    # for the default toolchain.
+    single_gcc_toolchain("${target_name}_for_rust_host_build_tools") {
       assert(defined(invoker.toolchain_args),
              "Toolchains must declare toolchain_args")
       forward_variables_from(invoker,
@@ -844,8 +850,21 @@ template("gcc_toolchain") {
       toolchain_args = {
         # Populate toolchain args from the invoker.
         forward_variables_from(invoker.toolchain_args, "*")
-        toolchain_disables_sanitizers = true
+        toolchain_for_rust_host_build_tools = true
+
+        # The host build tools are static release builds to make the Chromium
+        # build faster.
+        is_debug = false
+        is_component_build = false
+        is_official_build = false
+        use_clang_coverage = false
+        use_sanitizer_coverage = false
+        generate_linker_map = false
       }
+
+      # When cross-compiling we don't want to use the target platform's file
+      # extensions.
+      shlib_extension = host_shlib_extension
     }
   }
 }
@@ -876,16 +895,7 @@ template("clang_toolchain") {
     ar = "${prefix}/llvm-ar"
     nm = "${prefix}/llvm-nm"
 
-    forward_variables_from(invoker,
-                           [
-                             "strip",
-                             "default_shlib_subdir",
-                             "dwp",
-                             "enable_linker_map",
-                             "loadable_module_extension",
-                             "propagates_configs",
-                             "use_unstripped_as_runtime_outputs",
-                           ])
+    forward_variables_from(invoker, "*", [ "toolchain_args" ])
 
     toolchain_args = {
       if (defined(invoker.toolchain_args)) {

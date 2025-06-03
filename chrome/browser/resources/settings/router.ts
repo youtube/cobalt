@@ -4,7 +4,7 @@
 
 import './i18n_setup.js';
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -21,7 +21,6 @@ export interface SettingsRoutes {
   BASIC: Route;
   CAPTIONS: Route;
   CERTIFICATES: Route;
-  CHECK_PASSWORDS: Route;
   CHROME_CLEANUP: Route;
   CLEAR_BROWSER_DATA: Route;
   COOKIES: Route;
@@ -37,10 +36,8 @@ export interface SettingsRoutes {
   LANGUAGES: Route;
   MANAGE_PROFILE: Route;
   ON_STARTUP: Route;
+  PAGE_CONTENT: Route;
   PASSKEYS: Route;
-  PASSWORDS: Route;
-  PASSWORD_VIEW: Route;
-  DEVICE_PASSWORDS: Route;
   PAYMENTS: Route;
   PEOPLE: Route;
   PERFORMANCE: Route;
@@ -54,6 +51,7 @@ export interface SettingsRoutes {
   RESET: Route;
   RESET_DIALOG: Route;
   SAFETY_CHECK: Route;
+  SAFETY_HUB: Route;
   SEARCH: Route;
   SEARCH_ENGINES: Route;
   SECURITY: Route;
@@ -65,6 +63,7 @@ export interface SettingsRoutes {
   SITE_SETTINGS_ALL: Route;
   SITE_SETTINGS_AR: Route;
   SITE_SETTINGS_AUTOMATIC_DOWNLOADS: Route;
+  SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE: Route;
   SITE_SETTINGS_AUTO_VERIFY: Route;
   SITE_SETTINGS_BACKGROUND_SYNC: Route;
   SITE_SETTINGS_BLUETOOTH_DEVICES: Route;
@@ -86,15 +85,17 @@ export interface SettingsRoutes {
   SITE_SETTINGS_MICROPHONE: Route;
   SITE_SETTINGS_MIDI_DEVICES: Route;
   SITE_SETTINGS_FILE_SYSTEM_WRITE: Route;
+  SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS: Route;
   SITE_SETTINGS_NOTIFICATIONS: Route;
   SITE_SETTINGS_PAYMENT_HANDLER: Route;
   SITE_SETTINGS_PDF_DOCUMENTS: Route;
   SITE_SETTINGS_POPUPS: Route;
   SITE_SETTINGS_PROTECTED_CONTENT: Route;
+  SITE_SETTINGS_SERIAL_PORTS: Route;
   SITE_SETTINGS_SITE_DATA: Route;
   SITE_SETTINGS_SITE_DETAILS: Route;
+  SITE_SETTINGS_STORAGE_ACCESS: Route;
   SITE_SETTINGS_USB_DEVICES: Route;
-  SITE_SETTINGS_SERIAL_PORTS: Route;
   SITE_SETTINGS_VR: Route;
   SITE_SETTINGS_WINDOW_MANAGEMENT: Route;
   SITE_SETTINGS_ZOOM_LEVELS: Route;
@@ -102,6 +103,7 @@ export interface SettingsRoutes {
   SYNC: Route;
   SYNC_ADVANCED: Route;
   SYSTEM: Route;
+  TRACKING_PROTECTION: Route;
   TRIGGERED_RESET_DIALOG: Route;
 }
 
@@ -262,8 +264,8 @@ export class Router {
   /**
    * Helper function to set the current route and notify all observers.
    */
-  setCurrentRoute(route: Route, queryParameters: URLSearchParams,
-                  isPopstate: boolean) {
+  setCurrentRoute(
+      route: Route, queryParameters: URLSearchParams, isPopstate: boolean) {
     this.recordMetrics(route.path);
 
     const oldRoute = this.currentRoute;
@@ -358,7 +360,8 @@ export class Router {
    * @param removeSearch Whether to strip the 'search' URL
    *     parameter during navigation. Defaults to false.
    */
-  navigateTo(route: Route, dynamicParameters?: URLSearchParams,
+  navigateTo(
+      route: Route, dynamicParameters?: URLSearchParams,
       removeSearch: boolean = false) {
     // The ADVANCED route only serves as a parent of subpages, and should not
     // be possible to navigate to it directly.
@@ -459,7 +462,6 @@ type Constructor<T> = new (...args: any[]) => T;
 export const RouteObserverMixin = dedupingMixin(
     <T extends Constructor<PolymerElement>>(superClass: T): T&
     Constructor<RouteObserverMixinInterface> => {
-
       class RouteObserverMixin extends superClass implements
           RouteObserverMixinInterface {
         override connectedCallback() {

@@ -47,7 +47,8 @@ class GraphTest : public TestWithNativeContextAndZone {
     return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* NumberConstant(double value);
-  Node* HeapConstant(const Handle<HeapObject>& value);
+  Node* HeapConstantNoHole(const Handle<HeapObject>& value);
+  Node* HeapConstantHole(const Handle<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
   Node* UndefinedConstant();
@@ -69,6 +70,11 @@ class GraphTest : public TestWithNativeContextAndZone {
   JSHeapBroker* broker() { return &broker_; }
   template <typename T>
   Handle<T> CanonicalHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalHandle(Tagged<T>(object));
+  }
+  template <typename T>
+  Handle<T> CanonicalHandle(Tagged<T> object) {
     return broker()->CanonicalPersistentHandle(object);
   }
   template <typename T>

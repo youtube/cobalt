@@ -21,12 +21,15 @@ namespace autofill {
 class AutofillContextMenuManagerFeedbackUILacrosBrowserTest
     : public InProcessBrowserTest {
  public:
-  AutofillContextMenuManagerFeedbackUILacrosBrowserTest() {
-    feature_.InitWithFeatures(
-        /*enabled_features=*/{features::
-                                  kAutofillShowManualFallbackInContextMenu,
-                              features::kAutofillFeedback},
-        /*disabled_features=*/{});
+  AutofillContextMenuManagerFeedbackUILacrosBrowserTest() = default;
+  void SetUp() override {
+    StartUniqueAshChrome(
+        /*enabled_features=*/{"AutofillFeedback"},
+        /*disabled_fetures=*/{}, /*additional_cmd_switches=*/{},
+        "crbug.com/1473402 The test enabled the feature "
+        "AutofillFeedback (disabled by default)");
+
+    InProcessBrowserTest::SetUp();
   }
 
   void SetUpOnMainThread() override {
@@ -35,8 +38,7 @@ class AutofillContextMenuManagerFeedbackUILacrosBrowserTest
     render_view_context_menu_->Init();
     autofill_context_menu_manager_ =
         std::make_unique<AutofillContextMenuManager>(
-            nullptr, render_view_context_menu_.get(), nullptr, nullptr,
-            std::make_unique<ScopedNewBadgeTracker>(browser()->profile()));
+            nullptr, render_view_context_menu_.get(), nullptr);
 
     browser()->profile()->GetPrefs()->SetBoolean(prefs::kUserFeedbackAllowed,
                                                  true);
@@ -44,6 +46,10 @@ class AutofillContextMenuManagerFeedbackUILacrosBrowserTest
 
   void TearDownOnMainThread() override {
     autofill_context_menu_manager_.reset();
+
+    if (IsCloseAndWaitAshBrowserWindowApisSupported()) {
+      CloseAllAshBrowserWindows();
+    }
 
     InProcessBrowserTest::TearDownOnMainThread();
   }
@@ -53,9 +59,21 @@ class AutofillContextMenuManagerFeedbackUILacrosBrowserTest
   }
 
  protected:
+  void ExecuteAutofillFeedbackCommand() {
+    // Executing autofill feedback command opens the Feedback UI.
+    autofill_context_menu_manager_->ExecuteCommand(
+        IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK);
+    // Verify the Feedback UI opens in Ash.
+    if (IsCloseAndWaitAshBrowserWindowApisSupported()) {
+      // There has not been a convenient way to verify a specific UI in Ash from
+      // Lacros yet. Therefore, we just verify there is an Ash window opened
+      // since Feedback UI is a SWA.
+      WaitUntilAtLeastOneAshBrowserWindowOpen();
+    }
+  }
+
   std::unique_ptr<TestRenderViewContextMenu> render_view_context_menu_;
   std::unique_ptr<AutofillContextMenuManager> autofill_context_menu_manager_;
-  base::test::ScopedFeatureList feature_;
 
  private:
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
@@ -65,20 +83,14 @@ IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUILacrosBrowserTest,
                        FeedbackUIIsRequested) {
   base::HistogramTester histogram_tester;
   // Executing autofill feedback command opens the Feedback UI.
-  autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
-
+  ExecuteAutofillFeedbackCommand();
   // Checks that feedback form was requested.
   histogram_tester.ExpectTotalCount("Feedback.RequestSource", 1);
 }
 
 IN_PROC_BROWSER_TEST_F(AutofillContextMenuManagerFeedbackUILacrosBrowserTest,
                        CloseTabWhileUIIsOpenShouldNotCrash) {
-  autofill_context_menu_manager_->ExecuteCommand(
-      AutofillContextMenuManager::CommandId(
-          IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK));
-
+  ExecuteAutofillFeedbackCommand();
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
   tab->Close();

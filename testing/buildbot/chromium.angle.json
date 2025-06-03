@@ -13,10 +13,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gles --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_android_runtimes.json",
           "--jobs=1"
         ],
-        "isolate_name": "telemetry_gpu_integration_test_android_chrome",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -25,12 +25,11 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
-            "device_os": "N2G48C",
+            "device_os": "OPR4.170623.020",
+            "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "bullhead",
             "os": "Android"
@@ -39,6 +38,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 6
         },
+        "test": "telemetry_gpu_integration_test_android_chrome",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test_android_chrome/"
       }
     ]
@@ -56,31 +56,30 @@
         "args": [
           "--release",
           "--platform",
-          "iPhone X",
+          "iPhone 14",
           "--version",
-          "16.2",
+          "16.4",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "14c18",
+          "15a507",
           "--xctest"
         ],
         "isolate_profile_data": true,
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "name": "angle_end2end_tests iPhone X 16.2",
+        "name": "angle_end2end_tests iPhone 14 16.4",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
         },
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "cipd_packages": [
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a598cd77abc01089647a79e3cfa3cc8e8ecb5118"
+              "revision": "git_revision:32d81d877ee07af07bf03b7f70ce597e323b80ce"
             }
           ],
           "containment_type": "AUTO",
@@ -88,16 +87,16 @@
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "named_caches": [
             {
-              "name": "xcode_ios_14c18",
+              "name": "xcode_ios_15a507",
               "path": "Xcode.app"
             },
             {
-              "name": "runtime_ios_16_2",
-              "path": "Runtime-ios-16.2"
+              "name": "runtime_ios_16_4",
+              "path": "Runtime-ios-16.4"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -105,37 +104,36 @@
         "test": "angle_end2end_tests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_end2end_tests/",
         "use_isolated_scripts_api": true,
-        "variant_id": "iPhone X 16.2"
+        "variant_id": "iPhone 14 16.4"
       },
       {
         "args": [
           "--release",
           "--platform",
-          "iPhone X",
+          "iPhone 14",
           "--version",
-          "16.2",
+          "17.0",
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "14c18",
+          "15a507",
           "--xctest"
         ],
         "isolate_profile_data": true,
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
-        "name": "angle_white_box_tests iPhone X 16.2",
+        "name": "angle_end2end_tests iPhone 14 17.0",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
         },
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "cipd_packages": [
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a598cd77abc01089647a79e3cfa3cc8e8ecb5118"
+              "revision": "git_revision:32d81d877ee07af07bf03b7f70ce597e323b80ce"
             }
           ],
           "containment_type": "AUTO",
@@ -143,16 +141,70 @@
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "named_caches": [
             {
-              "name": "xcode_ios_14c18",
+              "name": "xcode_ios_15a507",
               "path": "Xcode.app"
             },
             {
-              "name": "runtime_ios_16_2",
-              "path": "Runtime-ios-16.2"
+              "name": "runtime_ios_17_0",
+              "path": "Runtime-ios-17.0"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "angle_end2end_tests",
+        "test_id_prefix": "ninja://third_party/angle/src/tests:angle_end2end_tests/",
+        "use_isolated_scripts_api": true,
+        "variant_id": "iPhone 14 17.0"
+      },
+      {
+        "args": [
+          "--release",
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "16.4",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-build-version",
+          "15a507",
+          "--xctest"
+        ],
+        "isolate_profile_data": true,
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "angle_white_box_tests iPhone 14 16.4",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:32d81d877ee07af07bf03b7f70ce597e323b80ce"
+            }
+          ],
+          "containment_type": "AUTO",
+          "dimensions": {
+            "cpu": "x86-64",
+            "display_attached": "1",
+            "gpu": "8086:3e9b",
+            "os": "Mac-13.5"
+          },
+          "named_caches": [
+            {
+              "name": "xcode_ios_15a507",
+              "path": "Xcode.app"
+            },
+            {
+              "name": "runtime_ios_16_4",
+              "path": "Runtime-ios-16.4"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -160,7 +212,61 @@
         "test": "angle_white_box_tests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_white_box_tests/",
         "use_isolated_scripts_api": true,
-        "variant_id": "iPhone X 16.2"
+        "variant_id": "iPhone 14 16.4"
+      },
+      {
+        "args": [
+          "--release",
+          "--platform",
+          "iPhone 14",
+          "--version",
+          "17.0",
+          "--out-dir",
+          "${ISOLATED_OUTDIR}",
+          "--xcode-build-version",
+          "15a507",
+          "--xctest"
+        ],
+        "isolate_profile_data": true,
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "angle_white_box_tests iPhone 14 17.0",
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "cipd_packages": [
+            {
+              "cipd_package": "infra/tools/mac_toolchain/${platform}",
+              "location": ".",
+              "revision": "git_revision:32d81d877ee07af07bf03b7f70ce597e323b80ce"
+            }
+          ],
+          "containment_type": "AUTO",
+          "dimensions": {
+            "cpu": "x86-64",
+            "display_attached": "1",
+            "gpu": "8086:3e9b",
+            "os": "Mac-13.5"
+          },
+          "named_caches": [
+            {
+              "name": "xcode_ios_15a507",
+              "path": "Xcode.app"
+            },
+            {
+              "name": "runtime_ios_17_0",
+              "path": "Runtime-ios-17.0"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "angle_white_box_tests",
+        "test_id_prefix": "ninja://third_party/angle/src/tests:angle_white_box_tests/",
+        "use_isolated_scripts_api": true,
+        "variant_id": "iPhone 14 17.0"
       }
     ]
   },
@@ -179,7 +285,6 @@
         },
         "name": "gl_tests_passthrough",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -195,14 +300,19 @@
       {
         "args": [
           "--use-gpu-in-tests",
-          "--no-xvfb"
+          "--no-xvfb",
+          "--git-revision=${got_revision}"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "name": "gl_unittests",
+        "precommit_args": [
+          "--gerrit-issue=${patch_issue}",
+          "--gerrit-patchset=${patch_set}",
+          "--buildbucket-id=${buildbucket_build_id}"
+        ],
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -225,12 +335,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "8086",
           "--expected-device-id",
           "9bc5"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -239,9 +349,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -251,6 +359,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -261,9 +370,10 @@
           "--passthrough",
           "-v",
           "--stable-jobs",
-          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc"
+          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc",
+          "--enforce-browser-version",
+          "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -272,9 +382,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -284,6 +392,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -295,11 +404,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_linux_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -308,9 +417,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -321,6 +428,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -332,10 +440,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_linux_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -344,9 +452,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "8086:9bc5-20.0.8",
@@ -357,6 +463,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]
@@ -375,7 +482,6 @@
         },
         "name": "gl_tests_passthrough",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -391,14 +497,19 @@
       {
         "args": [
           "--use-gpu-in-tests",
-          "--no-xvfb"
+          "--no-xvfb",
+          "--git-revision=${got_revision}"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "name": "gl_unittests",
+        "precommit_args": [
+          "--gerrit-issue=${patch_issue}",
+          "--gerrit-patchset=${patch_set}",
+          "--buildbucket-id=${buildbucket_build_id}"
+        ],
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -421,12 +532,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "10de",
           "--expected-device-id",
           "2184"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -435,9 +546,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -447,6 +556,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -457,9 +567,10 @@
           "--passthrough",
           "-v",
           "--stable-jobs",
-          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc"
+          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc",
+          "--enforce-browser-version",
+          "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -468,9 +579,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -480,6 +589,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -491,11 +601,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_linux_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -504,9 +614,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -517,6 +625,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -528,10 +637,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_linux_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -540,9 +649,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "gpu": "10de:2184-440.100",
@@ -553,6 +660,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]
@@ -570,14 +678,13 @@
         },
         "name": "gl_tests_passthrough",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -588,21 +695,26 @@
       },
       {
         "args": [
-          "--use-gpu-in-tests"
+          "--use-gpu-in-tests",
+          "--git-revision=${got_revision}"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "name": "gl_unittests",
+        "precommit_args": [
+          "--gerrit-issue=${patch_issue}",
+          "--gerrit-patchset=${patch_set}",
+          "--buildbucket-id=${buildbucket_build_id}"
+        ],
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -621,12 +733,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "1002",
           "--expected-device-id",
           "67ef"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -635,21 +747,20 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -661,11 +772,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_mac_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -674,22 +785,21 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -701,12 +811,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=metal --use-cmd-decoder=passthrough --enable-features=EGLDualGPURendering,ForceHighPerformanceGPUForWebGL",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_mac_runtimes.json",
           "--jobs=4",
           "--enable-metal-debug-layers"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -715,22 +825,21 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -742,10 +851,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_mac_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -754,22 +863,21 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -781,11 +889,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=metal --use-cmd-decoder=passthrough --enable-features=EGLDualGPURendering,ForceHighPerformanceGPUForWebGL",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_mac_runtimes.json",
           "--jobs=4",
           "--enable-metal-debug-layers"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -794,22 +902,20 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 3
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -821,10 +927,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=swiftshader --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--test-filter=conformance/rendering/gl-drawelements.html",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -833,21 +939,20 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "1002:67ef",
             "hidpi": "1",
-            "os": "Mac-13.2.1",
+            "os": "Mac-13.5",
             "pool": "chromium.tests.gpu"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]
@@ -866,13 +971,12 @@
         },
         "name": "gl_tests_passthrough",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
@@ -882,20 +986,25 @@
       },
       {
         "args": [
-          "--use-gpu-in-tests"
+          "--use-gpu-in-tests",
+          "--git-revision=${got_revision}"
         ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
         "name": "gl_unittests",
+        "precommit_args": [
+          "--gerrit-issue=${patch_issue}",
+          "--gerrit-patchset=${patch_set}",
+          "--buildbucket-id=${buildbucket_build_id}"
+        ],
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -913,12 +1022,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "8086",
           "--expected-device-id",
           "3e9b"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -927,19 +1036,18 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -951,11 +1059,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_mac_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -964,20 +1072,19 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -989,12 +1096,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=metal --use-cmd-decoder=passthrough --enable-features=EGLDualGPURendering,ForceHighPerformanceGPUForWebGL",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_mac_runtimes.json",
           "--jobs=4",
           "--enable-metal-debug-layers"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1003,20 +1110,19 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1028,10 +1134,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=gl --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_mac_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1040,20 +1146,19 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1065,11 +1170,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=metal --use-cmd-decoder=passthrough --enable-features=EGLDualGPURendering,ForceHighPerformanceGPUForWebGL",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_mac_runtimes.json",
           "--jobs=4",
           "--enable-metal-debug-layers"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1078,20 +1183,18 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 3
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1103,10 +1206,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=swiftshader --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--test-filter=conformance/rendering/gl-drawelements.html",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1115,19 +1218,18 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "cpu": "x86-64",
             "display_attached": "1",
             "gpu": "8086:3e9b",
-            "os": "Mac-12.5"
+            "os": "Mac-13.5"
           },
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]
@@ -1149,12 +1251,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "8086",
           "--expected-device-id",
           "9bc5"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1163,9 +1265,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1176,6 +1276,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1187,11 +1288,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d11 --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_win_runtimes.json",
           "--jobs=1"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1200,9 +1301,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1214,6 +1313,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1225,10 +1325,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d11 --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_win_runtimes.json",
           "--jobs=1"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1237,9 +1337,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1251,6 +1349,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1262,10 +1361,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d9 --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_win_runtimes.json",
           "--jobs=1"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1274,9 +1373,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1288,6 +1385,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1299,9 +1397,9 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-angle=vulkan --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--jobs=1"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1310,9 +1408,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1324,6 +1420,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]
@@ -1339,12 +1436,12 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--expected-vendor-id",
           "10de",
           "--expected-device-id",
           "2184"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1353,9 +1450,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1366,6 +1461,7 @@
           "idempotent": false,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1377,11 +1473,11 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d11 --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--webgl-conformance-version=2.0.1",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_tests_output.json",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl2_conformance_win_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1390,9 +1486,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1404,6 +1498,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 20
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1415,10 +1510,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d11 --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_win_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1427,9 +1522,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1441,6 +1534,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1452,10 +1546,10 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-gl=angle --use-angle=d3d9 --use-cmd-decoder=passthrough --force_high_performance_gpu",
-          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl_conformance_tests_output.json",
+          "--enforce-browser-version",
+          "--read-abbreviated-json-results-from=../../content/test/data/gpu/webgl1_conformance_win_runtimes.json",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1464,9 +1558,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1478,6 +1570,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       },
       {
@@ -1489,9 +1582,9 @@
           "-v",
           "--stable-jobs",
           "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc --use-angle=vulkan --use-cmd-decoder=passthrough --force_high_performance_gpu",
+          "--enforce-browser-version",
           "--jobs=4"
         ],
-        "isolate_name": "telemetry_gpu_integration_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1500,9 +1593,7 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "should_retry_with_patch": false,
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "containment_type": "AUTO",
           "dimensions": {
             "display_attached": "1",
@@ -1514,6 +1605,7 @@
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 2
         },
+        "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
       }
     ]

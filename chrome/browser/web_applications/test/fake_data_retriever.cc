@@ -9,7 +9,8 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/browser/installable/installable_params.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -36,7 +37,6 @@ void FakeDataRetriever::GetWebAppInstallInfo(
 
 void FakeDataRetriever::CheckInstallabilityAndRetrieveManifest(
     content::WebContents* web_contents,
-    bool bypass_service_worker_check,
     CheckInstallabilityCallback callback,
     absl::optional<webapps::InstallableParams> params) {
   completion_callback_ =
@@ -46,14 +46,10 @@ void FakeDataRetriever::CheckInstallabilityAndRetrieveManifest(
 }
 
 void FakeDataRetriever::GetIcons(content::WebContents* web_contents,
-                                 base::flat_set<GURL> icon_urls,
+                                 const base::flat_set<GURL>& icon_urls,
                                  bool skip_page_favicons,
+                                 bool fail_all_if_any_fail,
                                  GetIconsCallback callback) {
-  if (get_icons_delegate_) {
-    icons_map_ =
-        get_icons_delegate_.Run(web_contents, icon_urls, skip_page_favicons);
-  }
-
   completion_callback_ =
       base::BindOnce(std::move(callback), icons_downloaded_result_,
                      std::move(icons_map_), std::move(icons_http_results_));
@@ -81,14 +77,7 @@ void FakeDataRetriever::SetManifest(blink::mojom::ManifestPtr manifest,
 }
 
 void FakeDataRetriever::SetIcons(IconsMap icons_map) {
-  DCHECK(!get_icons_delegate_);
   icons_map_ = std::move(icons_map);
-}
-
-void FakeDataRetriever::SetGetIconsDelegate(
-    GetIconsDelegate get_icons_delegate) {
-  DCHECK(icons_map_.empty());
-  get_icons_delegate_ = std::move(get_icons_delegate);
 }
 
 void FakeDataRetriever::SetIconsDownloadedResult(IconsDownloadedResult result) {
@@ -110,6 +99,7 @@ void FakeDataRetriever::BuildDefaultDataToRetrieve(const GURL& url,
 
   auto manifest = blink::mojom::Manifest::New();
   manifest->start_url = url;
+  manifest->id = GenerateManifestIdFromStartUrlOnly(manifest->start_url);
   manifest->scope = scope;
   manifest->display = DisplayMode::kStandalone;
   manifest->short_name = u"Manifest Name";
@@ -122,7 +112,7 @@ void FakeDataRetriever::BuildDefaultDataToRetrieve(const GURL& url,
 
 void FakeDataRetriever::ScheduleCompletionCallback() {
   // If |this| DataRetriever destroyed, the completion callback gets cancelled.
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&FakeDataRetriever::CallCompletionCallback,
                                 weak_ptr_factory_.GetWeakPtr()));
 }

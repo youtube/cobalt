@@ -44,7 +44,8 @@ class BackendDelegate : public HistoryBackend::Delegate {
   void NotifyFaviconsChanged(const std::set<GURL>& page_urls,
                              const GURL& icon_url) override {}
   void NotifyURLVisited(const URLRow& url_row,
-                        const VisitRow& visit_row) override {}
+                        const VisitRow& visit_row,
+                        absl::optional<int64_t> local_navigation_id) override {}
   void NotifyURLsModified(const URLRows& changed_urls) override {}
   void NotifyURLsDeleted(DeletionInfo deletion_info) override {}
   void NotifyKeywordSearchTermUpdated(const URLRow& row,
@@ -112,6 +113,7 @@ void HistoryBackendDBBaseTest::CreateDBVersion(int version) {
 void HistoryBackendDBBaseTest::DeleteBackend() {
   if (backend_) {
     backend_->Closing();
+    db_ = nullptr;
     backend_ = nullptr;
   }
 }
@@ -146,6 +148,7 @@ bool HistoryBackendDBBaseTest::AddDownload(uint32_t id,
   download.transient = true;
   download.by_ext_id = "by_ext_id";
   download.by_ext_name = "by_ext_name";
+  download.by_web_app_id = "by_web_app_id";
   return db_->CreateDownload(download);
 }
 

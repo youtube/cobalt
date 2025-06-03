@@ -31,6 +31,8 @@ class SerialTracker {
     OTHER_EVENT,
   };
 
+  static std::string ToString(EventType type);
+
   explicit SerialTracker(struct wl_display* display);
   SerialTracker(const SerialTracker&) = delete;
   SerialTracker& operator=(const SerialTracker&) = delete;
@@ -62,8 +64,10 @@ class SerialTracker {
   // never sent or is too old.
   absl::optional<EventType> GetEventType(uint32_t serial) const;
 
+  std::string ToString() const;
+
  private:
-  raw_ptr<struct wl_display, ExperimentalAsh> display_;
+  raw_ptr<struct wl_display, DanglingUntriaged | ExperimentalAsh> display_;
 
   // EventTypes are stored in a circular buffer, because serial numbers are
   // issued sequentially and we only want to store the most recent events.

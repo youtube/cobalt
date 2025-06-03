@@ -29,11 +29,11 @@ using testing::Return;
 
 namespace device_signals {
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 namespace {
-
 constexpr char kGaiaId[] = "gaia-id";
-
 }  // namespace
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 class SignalsAggregatorImplTest : public testing::Test {
  protected:
@@ -51,19 +51,12 @@ class SignalsAggregatorImplTest : public testing::Test {
         &mock_permission_service_, std::move(collectors));
   }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   void GrantUserPermission() {
-    EXPECT_CALL(mock_permission_service_,
-                CanUserCollectSignals(user_context_, _))
-        .WillOnce([](const UserContext&,
-                     UserPermissionService::CanCollectCallback callback) {
-          std::move(callback).Run(UserPermission::kGranted);
-        });
+    EXPECT_CALL(mock_permission_service_, CanUserCollectSignals(user_context_))
+        .WillOnce(Return(UserPermission::kGranted));
   }
-
-  SignalsAggregationRequest CreateRequest() {
-    SignalsAggregationRequest request;
-    return request;
-  }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   std::unique_ptr<MockSignalsCollector> GetFakeCollector(
       SignalName signal_name) {
@@ -88,19 +81,24 @@ class SignalsAggregatorImplTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  testing::StrictMock<MockUserPermissionService> mock_permission_service_;
+  std::unique_ptr<SignalsAggregatorImpl> aggregator_;
   raw_ptr<MockSignalsCollector> av_signal_collector_;
   raw_ptr<MockSignalsCollector> hotfix_signal_collector_;
-  testing::StrictMock<MockUserPermissionService> mock_permission_service_;
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   UserContext user_context_{kGaiaId};
-  std::unique_ptr<SignalsAggregatorImpl> aggregator_;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
   base::HistogramTester histogram_tester_;
 };
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Tests that the aggregator will return an empty value when given an empty
 // parameter dictionary.
 TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_NoSignal) {
   base::test::TestFuture<SignalsAggregationResponse> future;
-  aggregator_->GetSignalsForUser(user_context_, std::move(CreateRequest()),
+  aggregator_->GetSignalsForUser(user_context_, SignalsAggregationRequest(),
                                  future.GetCallback());
 
   SignalsAggregationResponse response = future.Get();
@@ -112,7 +110,7 @@ TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_NoSignal) {
 // Tests that the aggregator will return an empty value when given a request
 // with multiple signal names.
 TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_MultipleSignals) {
-  auto request = CreateRequest();
+  SignalsAggregationRequest request;
   request.signal_names.emplace(SignalName::kAntiVirus);
   request.signal_names.emplace(SignalName::kHotfixes);
 
@@ -131,7 +129,7 @@ TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_SingleSignal_Supported) {
   GrantUserPermission();
 
   auto expected_signal_name = SignalName::kAntiVirus;
-  auto request = CreateRequest();
+  SignalsAggregationRequest request;
   request.signal_names.emplace(expected_signal_name);
 
   EXPECT_CALL(*av_signal_collector_, IsSignalSupported(expected_signal_name))
@@ -161,7 +159,7 @@ TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_SingleSignal_Unsupported) {
   GrantUserPermission();
 
   auto expected_signal_name = SignalName::kFileSystemInfo;
-  auto request = CreateRequest();
+  SignalsAggregationRequest request;
   request.signal_names.emplace(expected_signal_name);
 
   EXPECT_CALL(*av_signal_collector_, IsSignalSupported(expected_signal_name))
@@ -201,17 +199,12 @@ TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_InvalidUserPermissions) {
 
   uint16_t item_index = 0;
   for (const auto& test_case : permission_to_error_map) {
-    EXPECT_CALL(mock_permission_service_,
-                CanUserCollectSignals(user_context_, _))
-        .WillOnce(
-            [&test_case](const UserContext&,
-                         UserPermissionService::CanCollectCallback callback) {
-              std::move(callback).Run(test_case.first);
-            });
+    EXPECT_CALL(mock_permission_service_, CanUserCollectSignals(user_context_))
+        .WillOnce(Return(test_case.first));
 
     // This value is not important for these test cases.
     auto expected_signal_name = SignalName::kAntiVirus;
-    auto request = CreateRequest();
+    SignalsAggregationRequest request;
     request.signal_names.emplace(expected_signal_name);
 
     base::test::TestFuture<SignalsAggregationResponse> future;
@@ -228,18 +221,17 @@ TEST_F(SignalsAggregatorImplTest, GetSignalsForUser_InvalidUserPermissions) {
         "Enterprise.DeviceSignals.UserPermission", test_case.first, 1);
   }
 }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 // Tests how the aggregator behaves when given a parameter with a single signal
 // which is supported by one of the collectors. Specifically tests the API that
 // does not accept a parameterized user context.
 TEST_F(SignalsAggregatorImplTest, GetSignals_SingleSignal_Supported) {
-  EXPECT_CALL(mock_permission_service_, CanCollectSignals(_))
-      .WillOnce([](UserPermissionService::CanCollectCallback callback) {
-        std::move(callback).Run(UserPermission::kGranted);
-      });
+  EXPECT_CALL(mock_permission_service_, CanCollectSignals())
+      .WillOnce(Return(UserPermission::kGranted));
 
   auto expected_signal_name = SignalName::kAntiVirus;
-  auto request = CreateRequest();
+  SignalsAggregationRequest request;
   request.signal_names.emplace(expected_signal_name);
 
   EXPECT_CALL(*av_signal_collector_, IsSignalSupported(expected_signal_name))
@@ -265,14 +257,12 @@ TEST_F(SignalsAggregatorImplTest, GetSignals_SingleSignal_Supported) {
 // Tests how the aggregator behaves when encountering user permission errors
 // when called via the API that does not accept a parameterized user context.
 TEST_F(SignalsAggregatorImplTest, GetSignals_SingleSignal_NoPermission) {
-  EXPECT_CALL(mock_permission_service_, CanCollectSignals(_))
-      .WillOnce([](UserPermissionService::CanCollectCallback callback) {
-        std::move(callback).Run(UserPermission::kMissingConsent);
-      });
+  EXPECT_CALL(mock_permission_service_, CanCollectSignals())
+      .WillOnce(Return(UserPermission::kMissingConsent));
 
   // This value is not important for these test cases.
   auto expected_signal_name = SignalName::kAntiVirus;
-  auto request = CreateRequest();
+  SignalsAggregationRequest request;
   request.signal_names.emplace(expected_signal_name);
 
   base::test::TestFuture<SignalsAggregationResponse> future;

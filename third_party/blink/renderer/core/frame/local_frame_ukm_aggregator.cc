@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "base/cpu_reduction_experiment.h"
 #include "base/format_macros.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
@@ -308,8 +307,10 @@ void LocalFrameUkmAggregator::RecordCountSample(size_t metric_index,
   if (is_pre_fcp)
     record.pre_fcp_aggregate += count;
 
-  if (!base::ShouldLogHistogramForCpuReductionExperiment())
+  // Subsampling these metrics reduced CPU utilization (crbug.com/1295441).
+  if (!metrics_subsampler_.ShouldSample(0.001)) {
     return;
+  }
 
   // Record the UMA
   // ForcedStyleAndLayout happen so frequently on some pages that we overflow
@@ -385,13 +386,17 @@ void LocalFrameUkmAggregator::RecordForcedLayoutSample(
 
     case DocumentUpdateReason::kAccessibility:
     case DocumentUpdateReason::kBaseColor:
+    case DocumentUpdateReason::kComputedStyle:
     case DocumentUpdateReason::kDisplayLock:
     case DocumentUpdateReason::kViewTransition:
     case DocumentUpdateReason::kIntersectionObservation:
     case DocumentUpdateReason::kOverlay:
     case DocumentUpdateReason::kPagePopup:
+    case DocumentUpdateReason::kPopover:
     case DocumentUpdateReason::kSizeChange:
     case DocumentUpdateReason::kSpellCheck:
+    case DocumentUpdateReason::kSMILAnimation:
+    case DocumentUpdateReason::kWebAnimation:
       sub_metric = kServiceDocumentUpdate;
       break;
 

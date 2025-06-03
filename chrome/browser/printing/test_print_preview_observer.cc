@@ -54,10 +54,6 @@ void TestPrintPreviewObserver::WaitUntilPreviewIsReady() {
   std::ignore = WaitUntilPreviewIsReadyAndReturnPreviewDialog();
 }
 
-void TestPrintPreviewObserver::ResetForAnotherPreview() {
-  rendered_page_count_ = 0;
-}
-
 void TestPrintPreviewObserver::EnsureWaitForLoaded() {
   if (queue_.has_value()) {
     // Have already added event listener.
@@ -75,6 +71,8 @@ void TestPrintPreviewObserver::EnsureWaitForLoaded() {
 }
 
 void TestPrintPreviewObserver::DidGetPreviewPageCount(uint32_t page_count) {
+  rendered_page_count_ = 0;
+
   // `page_count` is the number of pages to be generated but doesn't take
   // N-up into consideration.  Since `DidRenderPreviewPage()` is called after
   // any N-up processing is performed, determine the number of times that

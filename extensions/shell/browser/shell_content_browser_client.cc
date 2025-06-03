@@ -10,6 +10,8 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/guest_view/common/guest_view.mojom.h"
 #include "components/nacl/common/buildflags.h"
 #include "content/public/browser/browser_main_runner.h"
@@ -35,11 +37,13 @@
 #include "extensions/browser/extension_protocols.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_web_contents_observer.h"
+#include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/guest_view/extensions_guest_view.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/browser/renderer_startup_helper.h"
 #include "extensions/browser/url_loader_factory_manager.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/mojom/event_router.mojom.h"
@@ -108,12 +112,16 @@ ShellContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
 
 void ShellContentBrowserClient::RenderProcessWillLaunch(
     content::RenderProcessHost* host) {
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC) || BUILDFLAG(ENABLE_NACL)
   int render_process_id = host->GetID();
   BrowserContext* browser_context = browser_main_parts_->browser_context();
+#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   host->AddFilter(
       new ExtensionMessageFilter(render_process_id, browser_context));
   host->AddFilter(
       new MessagingAPIMessageFilter(render_process_id, browser_context));
+#endif
   // PluginInfoMessageFilter is not required because app_shell does not have
   // the concept of disabled plugins.
 #if BUILDFLAG(ENABLE_NACL)
@@ -163,26 +171,7 @@ void ShellContentBrowserClient::SiteInstanceGotProcess(
     return;
 
   ProcessMap::Get(browser_main_parts_->browser_context())
-      ->Insert(extension->id(),
-               site_instance->GetProcess()->GetID(),
-               site_instance->GetId());
-}
-
-void ShellContentBrowserClient::SiteInstanceDeleting(
-    content::SiteInstance* site_instance) {
-  // Don't do anything if we're shutting down.
-  if (content::BrowserMainRunner::ExitedMainMessageLoop())
-    return;
-
-  // If this isn't an extension renderer there's nothing to do.
-  const Extension* extension = GetExtension(site_instance);
-  if (!extension)
-    return;
-
-  ProcessMap::Get(browser_main_parts_->browser_context())
-      ->Remove(extension->id(),
-               site_instance->GetProcess()->GetID(),
-               site_instance->GetId());
+      ->Insert(extension->id(), site_instance->GetProcess()->GetID());
 }
 
 void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
@@ -264,8 +253,12 @@ std::vector<std::unique_ptr<content::NavigationThrottle>>
 ShellContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationHandle* navigation_handle) {
   std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
-  throttles.push_back(
-      std::make_unique<ExtensionNavigationThrottle>(navigation_handle));
+  if (!extensions::ExtensionsBrowserClient::Get()
+           ->AreExtensionsDisabledForContext(
+               navigation_handle->GetWebContents()->GetBrowserContext())) {
+    throttles.push_back(
+        std::make_unique<ExtensionNavigationThrottle>(navigation_handle));
+  }
   return throttles;
 }
 
@@ -341,13 +334,15 @@ bool ShellContentBrowserClient::WillCreateURLLoaderFactory(
         header_client,
     bool* bypass_redirect_checks,
     bool* disable_secure_dns,
-    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+    scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
   auto* web_request_api =
       extensions::BrowserContextKeyedAPIFactory<extensions::WebRequestAPI>::Get(
           browser_context);
   bool use_proxy = web_request_api->MaybeProxyURLLoaderFactory(
       browser_context, frame, render_process_id, type, std::move(navigation_id),
-      ukm_source_id, factory_receiver, header_client);
+      ukm_source_id, factory_receiver, header_client,
+      std::move(navigation_response_task_runner));
   if (bypass_redirect_checks)
     *bypass_redirect_checks = use_proxy;
   return use_proxy;
@@ -407,14 +402,14 @@ void ShellContentBrowserClient::AppendRendererSwitches(
       switches::kExtensionProcess,
   };
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kSwitchNames, std::size(kSwitchNames));
+                                 kSwitchNames);
 
 #if BUILDFLAG(ENABLE_NACL)
   static const char* const kNaclSwitchNames[] = {
       ::switches::kEnableNaClDebug,
   };
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                 kNaclSwitchNames, std::size(kNaclSwitchNames));
+                                 kNaclSwitchNames);
 #endif  // BUILDFLAG(ENABLE_NACL)
 }
 

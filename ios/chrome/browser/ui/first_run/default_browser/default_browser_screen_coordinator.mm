@@ -6,16 +6,12 @@
 
 #import "base/metrics/histogram_functions.h"
 #import "components/feature_engagement/public/tracker.h"
-#import "ios/chrome/browser/default_browser/utils.h"
-#import "ios/chrome/browser/feature_engagement/tracker_factory.h"
+#import "ios/chrome/browser/default_browser/model/utils.h"
+#import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/first_run/first_run_metrics.h"
-#import "ios/chrome/browser/main/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/ui/first_run/default_browser/default_browser_screen_view_controller.h"
 #import "ios/chrome/browser/ui/first_run/first_run_screen_delegate.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface DefaultBrowserScreenCoordinator () <PromoStyleViewControllerDelegate>
 
@@ -64,6 +60,7 @@
 - (void)stop {
   self.delegate = nil;
   self.viewController = nil;
+  [super stop];
 }
 
 #pragma mark - PromoStyleViewControllerDelegate

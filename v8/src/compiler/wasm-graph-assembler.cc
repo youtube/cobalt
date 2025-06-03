@@ -4,9 +4,11 @@
 
 #include "src/compiler/wasm-graph-assembler.h"
 
+#include "src/common/globals.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/objects/string.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -127,16 +129,13 @@ Node* WasmGraphAssembler::BuildChangeSmiToIntPtr(Node* value) {
 // at least two places, put a helper function here.
 
 Node* WasmGraphAssembler::Allocate(int size) {
-  AllowLargeObjects allow_large = size < kMaxRegularHeapObjectSize
-                                      ? AllowLargeObjects::kFalse
-                                      : AllowLargeObjects::kTrue;
-  return Allocate(Int32Constant(size), allow_large);
+  return Allocate(Int32Constant(size));
 }
 
-Node* WasmGraphAssembler::Allocate(Node* size, AllowLargeObjects allow_large) {
+Node* WasmGraphAssembler::Allocate(Node* size) {
   return AddNode(graph()->NewNode(
-      simplified_.AllocateRaw(Type::Any(), AllocationType::kYoung, allow_large),
-      size, effect(), control()));
+      simplified_.AllocateRaw(Type::Any(), AllocationType::kYoung), size,
+      effect(), control()));
 }
 
 Node* WasmGraphAssembler::LoadFromObject(MachineType type, Node* base,
@@ -173,34 +172,42 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
                        offset, value, effect(), control()));
 }
 
-Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
-    Node* object, int offset, ExternalPointerTag tag, Node* isolate_root) {
+Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
+    Node* handle, ExternalPointerTag tag, Node* isolate_root) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
-  Node* external_pointer = LoadFromObject(MachineType::Uint32(), object,
-                                          wasm::ObjectAccess::ToTagged(offset));
-  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-  Node* shift_amount =
-      Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
-  Node* scaled_index =
-      ChangeUint32ToUint64(Word32Shr(external_pointer, shift_amount));
+  Node* index = Word32Shr(handle, Int32Constant(kExternalPointerIndexShift));
+  Node* offset = ChangeUint32ToUint64(
+      Word32Shl(index, Int32Constant(kExternalPointerTableEntrySizeLog2)));
   Node* table;
   if (IsSharedExternalPointerType(tag)) {
     Node* table_address =
         Load(MachineType::Pointer(), isolate_root,
              IsolateData::shared_external_pointer_table_offset());
     table = Load(MachineType::Pointer(), table_address,
-                 Internals::kExternalPointerTableBufferOffset);
+                 Internals::kExternalPointerTableBasePointerOffset);
   } else {
     table = Load(MachineType::Pointer(), isolate_root,
                  IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBufferOffset);
+                     Internals::kExternalPointerTableBasePointerOffset);
   }
-  Node* decoded_ptr = Load(MachineType::Pointer(), table, scaled_index);
+  Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
   return WordAnd(decoded_ptr, IntPtrConstant(~tag));
 #else
+  UNREACHABLE();
+#endif
+}
+
+Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
+    Node* object, int field_offset, ExternalPointerTag tag,
+    Node* isolate_root) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  Node* handle = LoadFromObject(MachineType::Uint32(), object,
+                                wasm::ObjectAccess::ToTagged(field_offset));
+  return BuildDecodeSandboxedExternalPointer(handle, tag, isolate_root);
+#else
   return LoadFromObject(MachineType::Pointer(), object,
-                        wasm::ObjectAccess::ToTagged(offset));
+                        wasm::ObjectAccess::ToTagged(field_offset));
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -298,6 +305,21 @@ Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
   return LoadFromObject(type, byte_array, offset);
 }
 
+Node* WasmGraphAssembler::LoadExternalPointerArrayElement(
+    Node* array, Node* index_intptr, ExternalPointerTag tag,
+    Node* isolate_root) {
+  Node* offset = IntAdd(
+      IntMul(index_intptr, IntPtrConstant(kExternalPointerSlotSize)),
+      IntPtrConstant(
+          wasm::ObjectAccess::ToTagged(ExternalPointerArray::kHeaderSize)));
+#ifdef V8_ENABLE_SANDBOX
+  Node* handle = LoadFromObject(MachineType::Uint32(), array, offset);
+  return BuildDecodeSandboxedExternalPointer(handle, tag, isolate_root);
+#else
+  return LoadFromObject(MachineType::Pointer(), array, offset);
+#endif
+}
+
 Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
                                                  Node* value,
                                                  ObjectAccess access) {
@@ -381,10 +403,22 @@ Node* WasmGraphAssembler::WasmTypeCheck(Node* object, Node* rtt,
                                   rtt, effect(), control()));
 }
 
+Node* WasmGraphAssembler::WasmTypeCheckAbstract(Node* object,
+                                                WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCheckAbstract(config),
+                                  object, effect(), control()));
+}
+
 Node* WasmGraphAssembler::WasmTypeCast(Node* object, Node* rtt,
                                        WasmTypeCheckConfig config) {
   return AddNode(graph()->NewNode(simplified_.WasmTypeCast(config), object, rtt,
                                   effect(), control()));
+}
+
+Node* WasmGraphAssembler::WasmTypeCastAbstract(Node* object,
+                                               WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCastAbstract(config),
+                                  object, effect(), control()));
 }
 
 Node* WasmGraphAssembler::Null(wasm::ValueType type) {
@@ -406,13 +440,13 @@ Node* WasmGraphAssembler::AssertNotNull(Node* object, wasm::ValueType type,
                                   object, effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternInternalize(), object,
+Node* WasmGraphAssembler::WasmAnyConvertExtern(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmAnyConvertExtern(), object,
                                   effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternExternalize(), object,
+Node* WasmGraphAssembler::WasmExternConvertAny(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmExternConvertAny(), object,
                                   effect(), control()));
 }
 

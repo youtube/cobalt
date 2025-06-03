@@ -4,8 +4,8 @@
 
 #include "content/public/app/content_main.h"
 
-#include "base/allocator/buildflags.h"
 #include "base/allocator/partition_alloc_support.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -53,6 +53,7 @@
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "ui/base/win/atl_module.h"
+#include "ui/gfx/switches.h"
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
@@ -67,13 +68,13 @@
 #endif
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #include "content/app/mac_init.h"
 #endif
 
 #if BUILDFLAG(IS_APPLE)
 #if BUILDFLAG(USE_ALLOCATOR_SHIM)
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.h"
 #endif
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -186,7 +187,7 @@ RunContentProcess(ContentMainParams params,
 #endif
   int exit_code = -1;
 #if BUILDFLAG(IS_MAC)
-  std::unique_ptr<base::mac::ScopedNSAutoreleasePool> autorelease_pool;
+  base::apple::ScopedNSAutoreleasePool autorelease_pool;
 #endif
 
   // A flag to indicate whether Main() has been called before. On Android, we
@@ -276,9 +277,11 @@ RunContentProcess(ContentMainParams params,
     // We need this pool for all the objects created before we get to the event
     // loop, but we don't want to leave them hanging around until the app quits.
     // Each "main" needs to flush this pool right before it goes into its main
-    // event loop to get rid of the cruft.
-    autorelease_pool = std::make_unique<base::mac::ScopedNSAutoreleasePool>();
-    params.autorelease_pool = autorelease_pool.get();
+    // event loop to get rid of the cruft. TODO(https://crbug.com/1424190): This
+    // is not safe. Each main loop should create and destroy its own pool; it
+    // should not be flushing the pool at the base of the autorelease pool
+    // stack.
+    params.autorelease_pool = &autorelease_pool;
     InitializeMac();
 #endif
 
@@ -308,7 +311,12 @@ RunContentProcess(ContentMainParams params,
     // Route stdio to parent console (if any) or create one.
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
             switches::kEnableLogging)) {
-      base::RouteStdioToConsole(true);
+      base::RouteStdioToConsole(/*create_console_if_not_found*/ true);
+    } else if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                   switches::kHeadless)) {
+      // When running in headless mode we want stdio routed however if
+      // console does not exist we should not create one.
+      base::RouteStdioToConsole(/*create_console_if_not_found*/ false);
     }
 #endif
 
@@ -324,10 +332,6 @@ RunContentProcess(ContentMainParams params,
   if (IsSubprocess())
     CommonSubprocessInit();
   exit_code = content_main_runner->Run();
-
-#if BUILDFLAG(IS_MAC)
-  autorelease_pool.reset();
-#endif
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   content_main_runner->Shutdown();

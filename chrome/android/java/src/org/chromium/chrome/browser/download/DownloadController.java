@@ -6,8 +6,9 @@ package org.chromium.chrome.browser.download;
 
 import android.Manifest.permission;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.download.DownloadCollectionBridge;
 import org.chromium.ui.base.WindowAndroid;
@@ -64,7 +65,6 @@ public class DownloadController {
      */
     @CalledByNative
     private static void onDownloadCompleted(DownloadInfo downloadInfo) {
-        DownloadMetrics.recordDownloadDirectoryType(downloadInfo.getFilePath());
         MediaStoreHelper.addImageToGalleryOnSDCard(
                 downloadInfo.getFilePath(), downloadInfo.getMimeType());
 

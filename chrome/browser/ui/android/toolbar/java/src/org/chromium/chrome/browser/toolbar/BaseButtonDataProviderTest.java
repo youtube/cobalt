@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
+import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
@@ -33,33 +34,48 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
 import org.chromium.chrome.test.util.browser.Features;
+import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
-/**
- * Unit test for {@link BaseButtonDataProvider}.
- */
+/** Unit test for {@link BaseButtonDataProvider}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@Features.EnableFeatures({ChromeFeatureList.CONTEXTUAL_PAGE_ACTION_PRICE_TRACKING,
-        ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2})
+@EnableFeatures({
+    ChromeFeatureList.CONTEXTUAL_PAGE_ACTION_PRICE_TRACKING,
+    ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
+})
 public class BaseButtonDataProviderTest {
     private class TestButtonDataProvider extends BaseButtonDataProvider {
-        public TestButtonDataProvider(Supplier<Tab> activeTabSupplier,
-                @Nullable ModalDialogManager modalDialogManager, Drawable buttonDrawable,
-                String contentDescription, int actionChipLabelResId, boolean supportsTinting,
+        public TestButtonDataProvider(
+                Supplier<Tab> activeTabSupplier,
+                @Nullable ModalDialogManager modalDialogManager,
+                Drawable buttonDrawable,
+                String contentDescription,
+                int actionChipLabelResId,
+                boolean supportsTinting,
                 int adaptiveButtonVariant) {
-            super(activeTabSupplier, modalDialogManager, buttonDrawable, contentDescription,
-                    actionChipLabelResId, supportsTinting, null, adaptiveButtonVariant);
+            super(
+                    activeTabSupplier,
+                    modalDialogManager,
+                    buttonDrawable,
+                    contentDescription,
+                    actionChipLabelResId,
+                    supportsTinting,
+                    null,
+                    adaptiveButtonVariant,
+                    Resources.ID_NULL,
+                    false);
         }
 
         @Override
         protected IPHCommandBuilder getIphCommandBuilder(Tab tab) {
             IPHCommandBuilder iphCommandBuilder =
-                    new IPHCommandBuilder(tab.getContext().getResources(),
+                    new IPHCommandBuilder(
+                            tab.getContext().getResources(),
                             FeatureConstants.CONTEXTUAL_PAGE_ACTIONS_QUIET_VARIANT,
-                            /* stringId = */ R.string.iph_price_tracking_menu_item,
-                            /* accessibilityStringId = */ R.string.iph_price_tracking_menu_item);
+                            /* stringId= */ R.string.iph_price_tracking_menu_item,
+                            /* accessibilityStringId= */ R.string.iph_price_tracking_menu_item);
             return iphCommandBuilder;
         }
 
@@ -67,16 +83,12 @@ public class BaseButtonDataProviderTest {
         public void onClick(View view) {}
     }
 
-    @Rule
-    public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
 
     private Activity mActivity;
-    @Mock
-    private Tab mMockTab;
-    @Mock
-    private ObservableSupplier<Tab> mMockTabSupplier;
-    @Mock
-    private ModalDialogManager mMockModalDialogManager;
+    @Mock private Tab mMockTab;
+    @Mock private ObservableSupplier<Tab> mMockTabSupplier;
+    @Mock private ModalDialogManager mMockModalDialogManager;
 
     @Before
     public void setUp() {
@@ -99,11 +111,15 @@ public class BaseButtonDataProviderTest {
                 ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2, true);
         FeatureList.setTestValues(testValues);
 
-        TestButtonDataProvider testButtonDataProvider = new TestButtonDataProvider(mMockTabSupplier,
-                mMockModalDialogManager, mock(Drawable.class),
-                mActivity.getString(R.string.enable_price_tracking_menu_item),
-                /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
-                /* supportsTinting = */ true, AdaptiveToolbarButtonVariant.READER_MODE);
+        TestButtonDataProvider testButtonDataProvider =
+                new TestButtonDataProvider(
+                        mMockTabSupplier,
+                        mMockModalDialogManager,
+                        mock(Drawable.class),
+                        mActivity.getString(R.string.enable_price_tracking_menu_item),
+                        /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
+                        /* supportsTinting= */ true,
+                        AdaptiveToolbarButtonVariant.READER_MODE);
         ButtonData buttonData = testButtonDataProvider.get(mMockTab);
 
         // Quiet variation uses an IPHCommandBuilder to highlight the action.
@@ -120,11 +136,15 @@ public class BaseButtonDataProviderTest {
                 ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2, true);
         FeatureList.setTestValues(testValues);
 
-        TestButtonDataProvider testButtonDataProvider = new TestButtonDataProvider(mMockTabSupplier,
-                mMockModalDialogManager, mock(Drawable.class),
-                mActivity.getString(R.string.enable_price_tracking_menu_item),
-                /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
-                /* supportsTinting = */ true, AdaptiveToolbarButtonVariant.READER_MODE);
+        TestButtonDataProvider testButtonDataProvider =
+                new TestButtonDataProvider(
+                        mMockTabSupplier,
+                        mMockModalDialogManager,
+                        mock(Drawable.class),
+                        mActivity.getString(R.string.enable_price_tracking_menu_item),
+                        /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
+                        /* supportsTinting= */ true,
+                        AdaptiveToolbarButtonVariant.READER_MODE);
         ButtonData buttonData = testButtonDataProvider.get(mMockTab);
 
         // Action chip variation should not set an IPH command builder.
@@ -133,11 +153,15 @@ public class BaseButtonDataProviderTest {
 
     @Test
     public void testSetShouldShowOnIncognito_defaultBehavior() {
-        TestButtonDataProvider testButtonDataProvider = new TestButtonDataProvider(mMockTabSupplier,
-                mMockModalDialogManager, mock(Drawable.class),
-                mActivity.getString(R.string.enable_price_tracking_menu_item),
-                /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
-                /* supportsTinting = */ true, AdaptiveToolbarButtonVariant.READER_MODE);
+        TestButtonDataProvider testButtonDataProvider =
+                new TestButtonDataProvider(
+                        mMockTabSupplier,
+                        mMockModalDialogManager,
+                        mock(Drawable.class),
+                        mActivity.getString(R.string.enable_price_tracking_menu_item),
+                        /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
+                        /* supportsTinting= */ true,
+                        AdaptiveToolbarButtonVariant.READER_MODE);
 
         when(mMockTab.isIncognito()).thenReturn(true);
 
@@ -148,11 +172,15 @@ public class BaseButtonDataProviderTest {
 
     @Test
     public void testSetShouldShowOnIncognito_showOnIncognito() {
-        TestButtonDataProvider testButtonDataProvider = new TestButtonDataProvider(mMockTabSupplier,
-                mMockModalDialogManager, mock(Drawable.class),
-                mActivity.getString(R.string.enable_price_tracking_menu_item),
-                /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
-                /* supportsTinting = */ true, AdaptiveToolbarButtonVariant.READER_MODE);
+        TestButtonDataProvider testButtonDataProvider =
+                new TestButtonDataProvider(
+                        mMockTabSupplier,
+                        mMockModalDialogManager,
+                        mock(Drawable.class),
+                        mActivity.getString(R.string.enable_price_tracking_menu_item),
+                        /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
+                        /* supportsTinting= */ true,
+                        AdaptiveToolbarButtonVariant.READER_MODE);
 
         when(mMockTab.isIncognito()).thenReturn(true);
         testButtonDataProvider.setShouldShowOnIncognitoTabs(true);

@@ -47,7 +47,7 @@ class ExceptionState;
 class RTCPeerConnectionHandler;
 
 class MODULES_EXPORT RTCDataChannel final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ActiveScriptWrappable<RTCDataChannel>,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
@@ -131,6 +131,11 @@ class MODULES_EXPORT RTCDataChannel final
     // thread except for on observer registration, done in a synchronous call to
     // the signaling thread (safe because the call is synchronous).
     const rtc::scoped_refptr<webrtc::DataChannelInterface>& channel() const;
+
+    // Returns true if a valid `blink_channel_` is held and `Unregister()`
+    // hasn't been called. A return value of false indicates that the `Observer`
+    // can be safely discarded.
+    bool is_registered() const;
 
     // Clears the |blink_channel_| reference, disassociates this observer from
     // the |webrtc_channel_| and releases the |webrtc_channel_| pointer. Must be

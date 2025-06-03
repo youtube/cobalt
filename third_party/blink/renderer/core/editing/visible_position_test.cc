@@ -149,7 +149,7 @@ TEST_F(VisiblePositionTest, NullIsValid) {
 TEST_F(VisiblePositionTest, NonNullIsValidBeforeMutation) {
   SetBodyContent("<p>one</p>");
 
-  Element* paragraph = GetDocument().QuerySelector("p");
+  Element* paragraph = GetDocument().QuerySelector(AtomicString("p"));
   Position position(paragraph->firstChild(), 1);
   EXPECT_TRUE(CreateVisiblePosition(position).IsValid());
 }
@@ -157,7 +157,7 @@ TEST_F(VisiblePositionTest, NonNullIsValidBeforeMutation) {
 TEST_F(VisiblePositionTest, NonNullInvalidatedAfterDOMChange) {
   SetBodyContent("<p>one</p>");
 
-  Element* paragraph = GetDocument().QuerySelector("p");
+  Element* paragraph = GetDocument().QuerySelector(AtomicString("p"));
   Position position(paragraph->firstChild(), 1);
   VisiblePosition null_visible_position;
   VisiblePosition non_null_visible_position = CreateVisiblePosition(position);
@@ -177,8 +177,8 @@ TEST_F(VisiblePositionTest, NonNullInvalidatedAfterDOMChange) {
 TEST_F(VisiblePositionTest, NonNullInvalidatedAfterStyleChange) {
   SetBodyContent("<div>one</div><p>two</p>");
 
-  Element* paragraph = GetDocument().QuerySelector("p");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* paragraph = GetDocument().QuerySelector(AtomicString("p"));
+  Element* div = GetDocument().QuerySelector(AtomicString("div"));
   Position position(paragraph->firstChild(), 1);
 
   VisiblePosition visible_position1 = CreateVisiblePosition(position);
@@ -217,7 +217,8 @@ TEST_F(VisiblePositionTest, NormalizationAroundLineBreak) {
       "<div>line1<span></span>line2</div>"
       "<div>line1<span></span><span></span>line2</div>");
 
-  StaticElementList* tests = GetDocument().QuerySelectorAll("div");
+  StaticElementList* tests =
+      GetDocument().QuerySelectorAll(AtomicString("div"));
   for (unsigned i = 0; i < tests->length(); ++i) {
     Element* test = tests->item(i);
     Node* node1 = test->firstChild();
@@ -330,7 +331,7 @@ TEST_F(VisiblePositionTest, TextCombine) {
   EXPECT_EQ(Position(text_a, 1),
             CreateVisiblePosition(Position(text_a, 1)).DeepEquivalent());
 
-  if (text_01234.GetLayoutObject()->Parent()->IsLayoutNGTextCombine()) {
+  if (text_01234.GetLayoutObject()->Parent()->IsLayoutTextCombine()) {
     EXPECT_EQ(Position(text_01234, 0),
               CreateVisiblePosition(Position(text_01234, 0)).DeepEquivalent());
   } else {
@@ -348,7 +349,7 @@ TEST_F(VisiblePositionTest, TextCombine) {
   EXPECT_EQ(Position(text_01234, 5),
             CreateVisiblePosition(Position(text_01234, 5)).DeepEquivalent());
 
-  if (text_01234.GetLayoutObject()->Parent()->IsLayoutNGTextCombine()) {
+  if (text_01234.GetLayoutObject()->Parent()->IsLayoutTextCombine()) {
     EXPECT_EQ(Position(text_b, 0),
               CreateVisiblePosition(Position(text_b, 0)).DeepEquivalent());
   } else {

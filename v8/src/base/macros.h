@@ -174,14 +174,18 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_CFI_PERF V8_CLANG_NO_SANITIZE("cfi")
 
 // DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
-// useful because calls into JITed code can not be CFI verified.
+// useful because calls into JITed code can not be CFI verified. Same for
+// UBSan's function pointer type checks.
 #ifdef V8_OS_WIN
 // On Windows, also needs __declspec(guard(nocf)) for CFG.
 #define DISABLE_CFI_ICALL           \
   V8_CLANG_NO_SANITIZE("cfi-icall") \
+  V8_CLANG_NO_SANITIZE("function")  \
   __declspec(guard(nocf))
 #else
-#define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
+#define DISABLE_CFI_ICALL           \
+  V8_CLANG_NO_SANITIZE("cfi-icall") \
+  V8_CLANG_NO_SANITIZE("function")
 #endif
 
 namespace v8 {
@@ -234,7 +238,7 @@ struct is_trivially_copyable {
 // The arguments are guaranteed to be evaluated from left to right.
 struct Use {
   template <typename T>
-  Use(T&&) {}  // NOLINT(runtime/explicit)
+  constexpr Use(T&&) {}  // NOLINT(runtime/explicit)
 };
 #define USE(...)                                                   \
   do {                                                             \
@@ -383,6 +387,7 @@ bool is_inbounds(float_t v) {
 #ifdef V8_OS_WIN
 
 // Setup for Windows shared library export.
+#define V8_EXPORT_ENUM
 #ifdef BUILDING_V8_SHARED
 #define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED
@@ -397,11 +402,14 @@ bool is_inbounds(float_t v) {
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED
 #define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
+#define V8_EXPORT_ENUM
 #endif
 #else
 #define V8_EXPORT_PRIVATE
+#define V8_EXPORT_ENUM
 #endif
 
 #endif  // V8_OS_WIN
@@ -422,7 +430,16 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TSAN(V, ...)
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_IS_TSAN
+
+// Defines IF_INTL, to be used in macro lists for elements that should only be
+// there if INTL is enabled.
+#ifdef V8_INTL_SUPPORT
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_INTL(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_INTL(V, ...)
+#endif  // V8_INTL_SUPPORT
 
 // Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
 // should only be there if the target architecture is a 64-bit one.

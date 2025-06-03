@@ -301,7 +301,7 @@ class VIEWS_EXPORT DesktopNativeWidgetAura
 
   // This is the return value from GetNativeView().
   // WARNING: this may be NULL, in particular during shutdown it becomes NULL.
-  raw_ptr<aura::Window, DanglingUntriaged> content_window_;
+  raw_ptr<aura::Window, AcrossTasksDanglingUntriaged> content_window_;
 
   base::WeakPtr<internal::NativeWidgetDelegate> native_widget_delegate_;
 
@@ -361,6 +361,12 @@ class VIEWS_EXPORT DesktopNativeWidgetAura
 
   // See DesktopWindowTreeHost::ShouldUseDesktopNativeCursorManager().
   bool use_desktop_native_cursor_manager_ = false;
+
+#if BUILDFLAG(IS_WIN)
+  // Used to track and discard duplicate events; Windows appears to
+  // generate them in some circumstances after a key press.
+  gfx::Point last_mouse_loc_;
+#endif
 
   // The following factory is used to provide references to the
   // DesktopNativeWidgetAura instance and used for calls to close to run drop

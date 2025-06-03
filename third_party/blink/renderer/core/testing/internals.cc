@@ -51,6 +51,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/css/parser/css_property_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_unresolved_property.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -105,7 +106,7 @@
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
-#include "third_party/blink/renderer/core/html/forms/html_select_menu_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_select_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_inner_elements.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
@@ -131,8 +132,8 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/print_context.h"
 #include "third_party/blink/renderer/core/page/scrolling/root_scroller_controller.h"
-#include "third_party/blink/renderer/core/page/scrolling/scroll_state.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation_controller.h"
+#include "third_party/blink/renderer/core/page/touch_adjustment.h"
 #include "third_party/blink/renderer/core/page/validation_message_client.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -312,7 +313,7 @@ class TestReadableStreamSource : public UnderlyingSourceBase {
   TestReadableStreamSource(ScriptState* script_state, Type type)
       : UnderlyingSourceBase(script_state), type_(type) {}
 
-  ScriptPromise Start(ScriptState* script_state) override {
+  ScriptPromise Start(ScriptState* script_state, ExceptionState&) override {
     if (generator_) {
       return ScriptPromise::CastUndefined(script_state);
     }
@@ -320,7 +321,7 @@ class TestReadableStreamSource : public UnderlyingSourceBase {
     return resolver_->Promise();
   }
 
-  ScriptPromise pull(ScriptState* script_state) override {
+  ScriptPromise Pull(ScriptState* script_state, ExceptionState&) override {
     if (!generator_) {
       return ScriptPromise::CastUndefined(script_state);
     }
@@ -869,7 +870,7 @@ Element* Internals::innerEditorElement(Element* container,
 }
 
 bool Internals::isPreloaded(const String& url) {
-  return isPreloadedBy(url, document_);
+  return isPreloadedBy(url, document_.Get());
 }
 
 bool Internals::isPreloadedBy(const String& url, Document* document) {
@@ -904,19 +905,26 @@ bool Internals::isLoadingFromMemoryCache(const String& url) {
 
 ScriptPromise Internals::getInitialResourcePriority(ScriptState* script_state,
                                                     const String& url,
-                                                    Document* document) {
+                                                    Document* document,
+                                                    bool new_load_only) {
   ScriptPromiseResolver* resolver =
       MakeGarbageCollected<ScriptPromiseResolver>(script_state);
   ScriptPromise promise = resolver->Promise();
   KURL resource_url = url_test_helpers::ToKURL(url.Utf8());
-  DCHECK(document);
 
   auto callback = WTF::BindOnce(&Internals::ResolveResourcePriority,
                                 WrapPersistent(this), WrapPersistent(resolver));
-  ResourceFetcher::AddPriorityObserverForTesting(resource_url,
-                                                 std::move(callback));
+  document->Fetcher()->AddPriorityObserverForTesting(
+      resource_url, std::move(callback), new_load_only);
 
   return promise;
+}
+
+ScriptPromise Internals::getInitialResourcePriorityOfNewLoad(
+    ScriptState* script_state,
+    const String& url,
+    Document* document) {
+  return getInitialResourcePriority(script_state, url, document, true);
 }
 
 bool Internals::doesWindowHaveUrlFragment(DOMWindow* window) {
@@ -957,15 +965,13 @@ uint16_t Internals::compareTreeScopePosition(
     ExceptionState& exception_state) const {
   DCHECK(node1 && node2);
   const TreeScope* tree_scope1 =
-      IsA<Document>(node1)
-          ? static_cast<const TreeScope*>(To<Document>(node1))
-          : IsA<ShadowRoot>(node1)
-                ? static_cast<const TreeScope*>(To<ShadowRoot>(node1))
-                : nullptr;
+      IsA<Document>(node1) ? static_cast<const TreeScope*>(To<Document>(node1))
+      : IsA<ShadowRoot>(node1)
+          ? static_cast<const TreeScope*>(To<ShadowRoot>(node1))
+          : nullptr;
   const TreeScope* tree_scope2 =
-      IsA<Document>(node2)
-          ? static_cast<const TreeScope*>(To<Document>(node2))
-          : IsA<ShadowRoot>(node2)
+      IsA<Document>(node2) ? static_cast<const TreeScope*>(To<Document>(node2))
+      : IsA<ShadowRoot>(node2)
           ? static_cast<const TreeScope*>(To<ShadowRoot>(node2))
           : nullptr;
   if (!tree_scope1 || !tree_scope2) {
@@ -1422,7 +1428,7 @@ DocumentMarker* Internals::MarkerAt(Text* text,
       text->GetDocument().Markers().MarkersFor(*text, marker_types.value());
   if (markers.size() <= index)
     return nullptr;
-  return markers[index];
+  return markers[index].Get();
 }
 
 Range* Internals::markerRangeForNode(Text* text,
@@ -1921,9 +1927,6 @@ String Internals::rangeAsText(const Range* range) {
   return range->GetText();
 }
 
-// FIXME: The next four functions are very similar - combine them once
-// bestClickableNode/bestContextMenuNode have been combined..
-
 void Internals::HitTestRect(HitTestLocation& location,
                             HitTestResult& result,
                             int x,
@@ -1941,6 +1944,8 @@ void Internals::HitTestRect(HitTestLocation& location,
       location, HitTestRequest::kReadOnly | HitTestRequest::kActive |
                     HitTestRequest::kListBased);
 }
+
+// TODO(mustaq): The next 5 functions are very similar, can we combine them?
 
 DOMPoint* Internals::touchPositionAdjustedToBestClickableNode(
     int x,
@@ -1963,8 +1968,9 @@ DOMPoint* Internals::touchPositionAdjustedToBestClickableNode(
   gfx::Point adjusted_point;
 
   EventHandler& event_handler = document->GetFrame()->GetEventHandler();
-  bool found_node = event_handler.BestClickableNodeForHitTestResult(
-      location, result, adjusted_point, target_node);
+  bool found_node = event_handler.BestNodeForHitTestResult(
+      TouchAdjustmentCandidateType::kClickable, location, result,
+      adjusted_point, target_node);
   if (found_node)
     return DOMPoint::Create(adjusted_point.x(), adjusted_point.y());
 
@@ -1990,8 +1996,9 @@ Node* Internals::touchNodeAdjustedToBestClickableNode(
   HitTestRect(location, result, x, y, width, height, document);
   Node* target_node = nullptr;
   gfx::Point adjusted_point;
-  document->GetFrame()->GetEventHandler().BestClickableNodeForHitTestResult(
-      location, result, adjusted_point, target_node);
+  document->GetFrame()->GetEventHandler().BestNodeForHitTestResult(
+      TouchAdjustmentCandidateType::kClickable, location, result,
+      adjusted_point, target_node);
   return target_node;
 }
 
@@ -2016,8 +2023,9 @@ DOMPoint* Internals::touchPositionAdjustedToBestContextMenuNode(
   gfx::Point adjusted_point;
 
   EventHandler& event_handler = document->GetFrame()->GetEventHandler();
-  bool found_node = event_handler.BestContextMenuNodeForHitTestResult(
-      location, result, adjusted_point, target_node);
+  bool found_node = event_handler.BestNodeForHitTestResult(
+      TouchAdjustmentCandidateType::kContextMenu, location, result,
+      adjusted_point, target_node);
   if (found_node)
     return DOMPoint::Create(adjusted_point.x(), adjusted_point.y());
 
@@ -2043,8 +2051,9 @@ Node* Internals::touchNodeAdjustedToBestContextMenuNode(
   HitTestRect(location, result, x, y, width, height, document);
   Node* target_node = nullptr;
   gfx::Point adjusted_point;
-  document->GetFrame()->GetEventHandler().BestContextMenuNodeForHitTestResult(
-      location, result, adjusted_point, target_node);
+  document->GetFrame()->GetEventHandler().BestNodeForHitTestResult(
+      TouchAdjustmentCandidateType::kContextMenu, location, result,
+      adjusted_point, target_node);
   return target_node;
 }
 
@@ -2067,10 +2076,9 @@ Node* Internals::touchNodeAdjustedToBestStylusWritableNode(
   HitTestRect(location, result, x, y, width, height, document);
   Node* target_node = nullptr;
   gfx::Point adjusted_point;
-  document->GetFrame()
-      ->GetEventHandler()
-      .BestStylusWritableNodeForHitTestResult(location, result, adjusted_point,
-                                              target_node);
+  document->GetFrame()->GetEventHandler().BestNodeForHitTestResult(
+      TouchAdjustmentCandidateType::kStylusWritable, location, result,
+      adjusted_point, target_node);
   return target_node;
 }
 
@@ -2373,7 +2381,7 @@ AtomicString Internals::htmlNamespace() {
 
 Vector<AtomicString> Internals::htmlTags() {
   Vector<AtomicString> tags(html_names::kTagsCount);
-  std::unique_ptr<const HTMLQualifiedName* []> qualified_names =
+  std::unique_ptr<const HTMLQualifiedName*[]> qualified_names =
       html_names::GetTags();
   for (wtf_size_t i = 0; i < html_names::kTagsCount; ++i)
     tags[i] = qualified_names[i]->LocalName();
@@ -2386,7 +2394,7 @@ AtomicString Internals::svgNamespace() {
 
 Vector<AtomicString> Internals::svgTags() {
   Vector<AtomicString> tags(svg_names::kTagsCount);
-  std::unique_ptr<const SVGQualifiedName* []> qualified_names =
+  std::unique_ptr<const SVGQualifiedName*[]> qualified_names =
       svg_names::GetTags();
   for (wtf_size_t i = 0; i < svg_names::kTagsCount; ++i)
     tags[i] = qualified_names[i]->LocalName();
@@ -2533,11 +2541,6 @@ unsigned Internals::numberOfScrollableAreas(Document* document) {
   }
 
   return count;
-}
-
-bool Internals::isPageBoxVisible(Document* document, int page_number) {
-  DCHECK(document);
-  return document->IsPageBoxVisible(page_number);
 }
 
 String Internals::layerTreeAsText(Document* document,
@@ -2701,26 +2704,6 @@ String Internals::pageProperty(String property_name,
 
   return PrintContext::PageProperty(GetFrame(), property_name.Utf8().c_str(),
                                     page_number);
-}
-
-String Internals::pageSizeAndMarginsInPixels(
-    unsigned page_number,
-    int width,
-    int height,
-    int margin_top,
-    int margin_right,
-    int margin_bottom,
-    int margin_left,
-    ExceptionState& exception_state) const {
-  if (!GetFrame()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidAccessError,
-                                      "No frame is available.");
-    return String();
-  }
-
-  return PrintContext::PageSizeAndMarginsInPixels(
-      GetFrame(), page_number, width, height, margin_top, margin_right,
-      margin_bottom, margin_left);
 }
 
 float Internals::pageScaleFactor(ExceptionState& exception_state) {
@@ -2971,8 +2954,8 @@ void Internals::updateLayoutAndRunPostLayoutTasks(
   Document* document = nullptr;
   if (!node) {
     document = document_;
-  } else if (IsA<Document>(node)) {
-    document = To<Document>(node);
+  } else if (auto* node_document = DynamicTo<Document>(node)) {
+    document = node_document;
   } else if (auto* iframe = DynamicTo<HTMLIFrameElement>(*node)) {
     document = iframe->contentDocument();
   }
@@ -3379,10 +3362,10 @@ void Internals::resetTypeAheadSession(HTMLSelectElement* select) {
   select->ResetTypeAheadSessionForTesting();
 }
 
-void Internals::resetSelectMenuTypeAheadSession(
-    HTMLSelectMenuElement* selectmenu) {
-  DCHECK(selectmenu);
-  selectmenu->ResetTypeAheadSessionForTesting();
+void Internals::resetSelectListTypeAheadSession(
+    HTMLSelectListElement* selectlist) {
+  DCHECK(selectlist);
+  selectlist->ResetTypeAheadSessionForTesting();
 }
 
 void Internals::forceCompositingUpdate(Document* document,
@@ -3403,6 +3386,8 @@ void Internals::setForcedColorsAndDarkPreferredColorScheme(Document* document) {
   color_scheme_helper.SetPreferredColorScheme(
       mojom::blink::PreferredColorScheme::kDark);
   color_scheme_helper.SetForcedColors(*document, ForcedColors::kActive);
+  color_scheme_helper.SetEmulatedForcedColors(*document,
+                                              /*is_dark_theme=*/false);
   document->GetFrame()->View()->UpdateAllLifecyclePhasesForTest();
 }
 
@@ -3596,13 +3581,8 @@ void Internals::forceLoseCanvasContext(OffscreenCanvas* offscreencanvas,
   context->LoseContext(CanvasRenderingContext::kSyntheticLostContext);
 }
 
-void Internals::setScrollChain(ScrollState* scroll_state,
-                               const HeapVector<Member<Element>>& elements,
-                               ExceptionState&) {
-  Deque<DOMNodeId> scroll_chain;
-  for (wtf_size_t i = 0; i < elements.size(); ++i)
-    scroll_chain.push_back(DOMNodeIds::IdForNode(elements[i].Get()));
-  scroll_state->SetScrollChain(scroll_chain);
+void Internals::disableCanvasAcceleration(HTMLCanvasElement* canvas) {
+  canvas->DisableAcceleration();
 }
 
 String Internals::selectedHTMLForClipboard() {
@@ -3685,10 +3665,9 @@ Vector<String> Internals::getCSSPropertyAliases() const {
   Vector<String> result;
   for (CSSPropertyID alias : kCSSPropertyAliasList) {
     DCHECK(IsPropertyAlias(alias));
-    const CSSUnresolvedProperty* property_class =
-        CSSUnresolvedProperty::GetAliasProperty(alias);
-    if (property_class->IsWebExposed(document_->GetExecutionContext())) {
-      result.push_back(property_class->GetPropertyNameString());
+    const CSSUnresolvedProperty& property_class = *GetPropertyInternal(alias);
+    if (property_class.IsWebExposed(document_->GetExecutionContext())) {
+      result.push_back(property_class.GetPropertyNameString());
     }
   }
   return result;
@@ -4030,6 +4009,11 @@ void Internals::setBackForwardCacheRestorationBufferSize(unsigned int maxSize) {
   WindowPerformance& perf =
       *DOMWindowPerformance::performance(*document_->domWindow());
   perf.setBackForwardCacheRestorationBufferSizeForTest(maxSize);
+}
+
+Vector<String> Internals::getCreatorScripts(HTMLImageElement* img) {
+  DCHECK(img);
+  return Vector<String>(img->creator_scripts());
 }
 
 }  // namespace blink

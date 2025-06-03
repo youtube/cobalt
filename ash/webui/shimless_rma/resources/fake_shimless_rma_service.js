@@ -5,11 +5,11 @@
 import 'chrome://resources/mojo/mojo/public/js/mojo_bindings_lite.js';
 import './file_path.mojom-lite.js';
 
+import {assert} from 'chrome://resources/ash/common/assert.js';
 import {FakeMethodResolver} from 'chrome://resources/ash/common/fake_method_resolver.js';
 import {FakeObservables} from 'chrome://resources/ash/common/fake_observables.js';
-import {assert} from 'chrome://resources/ash/common/assert.js';
 
-import {CalibrationComponentStatus, CalibrationObserverRemote, CalibrationOverallStatus, CalibrationSetupInstruction, CalibrationStatus, Component, ComponentType, ErrorObserverRemote, ExternalDiskStateObserverRemote, FinalizationError, FinalizationObserverRemote, FinalizationStatus, HardwareVerificationStatusObserverRemote, HardwareWriteProtectionStateObserverRemote, OsUpdateObserverRemote, OsUpdateOperation, PowerCableStateObserverRemote, ProvisioningError, ProvisioningObserverRemote, ProvisioningStatus, QrCode, RmadErrorCode, ShimlessRmaServiceInterface, ShutdownMethod, State, StateResult, UpdateErrorCode, UpdateRoFirmwareObserverRemote, UpdateRoFirmwareStatus, WriteProtectDisableCompleteAction} from './shimless_rma_types.js';
+import {CalibrationComponentStatus, CalibrationObserverRemote, CalibrationOverallStatus, CalibrationSetupInstruction, CalibrationStatus, Component, ComponentType, ErrorObserverRemote, ExternalDiskStateObserverRemote, FeatureLevel, FinalizationError, FinalizationObserverRemote, FinalizationStatus, HardwareVerificationStatusObserverRemote, HardwareWriteProtectionStateObserverRemote, OsUpdateObserverRemote, OsUpdateOperation, PowerCableStateObserverRemote, ProvisioningError, ProvisioningObserverRemote, ProvisioningStatus, QrCode, RmadErrorCode, Shimless3pDiagnosticsAppInfo, ShimlessRmaServiceInterface, Show3pDiagnosticsAppResult, ShutdownMethod, State, StateResult, UpdateErrorCode, UpdateRoFirmwareObserverRemote, UpdateRoFirmwareStatus, WriteProtectDisableCompleteAction} from './shimless_rma_types.js';
 
 /** @implements {ShimlessRmaServiceInterface} */
 export class FakeShimlessRmaService {
@@ -96,6 +96,18 @@ export class FakeShimlessRmaService {
      * @private {boolean}
      */
     this.trackConfiguredNetworksCalled_ = false;
+
+    /**
+     * The approval of last call to completeLast3pDiagnosticsInstallation.
+     * @private {?boolean}
+     */
+    this.lastCompleteLast3pDiagnosticsInstallationApproval_ = null;
+
+    /**
+     * Has show3pDiagnosticsApp been called.
+     * @private {boolean}
+     */
+    this.wasShow3pDiagnosticsAppCalled_ = false;
 
     this.reset();
   }
@@ -348,7 +360,7 @@ export class FakeShimlessRmaService {
   /**
    * @return {!Promise<!{hwid: string}>}
    */
-   getRsuDisableWriteProtectHwid() {
+  getRsuDisableWriteProtectHwid() {
     return this.methods_.resolveMethod('getRsuDisableWriteProtectHwid');
   }
 
@@ -356,8 +368,7 @@ export class FakeShimlessRmaService {
    * @param {string} hwid
    */
   setGetRsuDisableWriteProtectHwidResult(hwid) {
-    this.methods_.setResult(
-        'getRsuDisableWriteProtectHwid', {hwid: hwid});
+    this.methods_.setResult('getRsuDisableWriteProtectHwid', {hwid: hwid});
   }
 
   /**
@@ -497,17 +508,32 @@ export class FakeShimlessRmaService {
   }
 
   /**
-   * @return {!Promise<!{whiteLabels: !Array<string>}>}
+   * @return {!Promise<!{customLabels: !Array<string>}>}
    */
-  getWhiteLabelList() {
-    return this.methods_.resolveMethod('getWhiteLabelList');
+  getCustomLabelList() {
+    return this.methods_.resolveMethod('getCustomLabelList');
   }
 
   /**
-   * @param {!Array<string>} whiteLabels
+   * @param {!Array<string>} customLabels
    */
-  setGetWhiteLabelListResult(whiteLabels) {
-    this.methods_.setResult('getWhiteLabelList', {whiteLabels: whiteLabels});
+  setGetCustomLabelListResult(customLabels) {
+    this.methods_.setResult('getCustomLabelList', {customLabels: customLabels});
+  }
+
+  /**
+   * @return {!Promise<!{skuDescriptions: !Array<string>}>}
+   */
+  getSkuDescriptionList() {
+    return this.methods_.resolveMethod('getSkuDescriptionList');
+  }
+
+  /**
+   * @param {!Array<string>} skuDescriptions
+   */
+  setGetSkuDescriptionListResult(skuDescriptions) {
+    this.methods_.setResult(
+        'getSkuDescriptionList', {skuDescriptions: skuDescriptions});
   }
 
   /**
@@ -554,18 +580,18 @@ export class FakeShimlessRmaService {
   }
 
   /**
-   * @return {!Promise<!{whiteLabelIndex: number}>}
+   * @return {!Promise<!{customLabelIndex: number}>}
    */
-  getOriginalWhiteLabel() {
-    return this.methods_.resolveMethod('getOriginalWhiteLabel');
+  getOriginalCustomLabel() {
+    return this.methods_.resolveMethod('getOriginalCustomLabel');
   }
 
   /**
-   * @param {number} whiteLabelIndex
+   * @param {number} customLabelIndex
    */
-  setGetOriginalWhiteLabelResult(whiteLabelIndex) {
+  setGetOriginalCustomLabelResult(customLabelIndex) {
     this.methods_.setResult(
-        'getOriginalWhiteLabel', {whiteLabelIndex: whiteLabelIndex});
+        'getOriginalCustomLabel', {customLabelIndex: customLabelIndex});
   }
 
   /**
@@ -584,15 +610,33 @@ export class FakeShimlessRmaService {
   }
 
   /**
+   * @return {!Promise<!{originalFeatureLevel: FeatureLevel}>}
+   */
+  getOriginalFeatureLevel() {
+    return this.methods_.resolveMethod('getOriginalFeatureLevel');
+  }
+
+  /**
+   * @param {FeatureLevel} featureLevel
+   */
+  setGetOriginalFeatureLevelResult(featureLevel) {
+    this.methods_.setResult(
+        'getOriginalFeatureLevel', {originalFeatureLevel: featureLevel});
+  }
+
+  /**
    * @param {string} serialNumber
    * @param {number} regionIndex
    * @param {number} skuIndex
-   * @param {number} whiteLabelIndex
+   * @param {number} customLabelIndex
    * @param {string} dramPartNumber
+   * @param {boolean} isChassisBranded
+   * @param {number} hwComplianceVersion
    * @return {!Promise<!{stateResult: !StateResult}>}
    */
   setDeviceInformation(
-      serialNumber, regionIndex, skuIndex, whiteLabelIndex, dramPartNumber) {
+      serialNumber, regionIndex, skuIndex, customLabelIndex, dramPartNumber,
+      isChassisBranded, hwComplianceVersion) {
     // TODO(gavindodd): Validate range of region and sku.
     return this.getNextStateForMethod_(
         'setDeviceInformation', State.kUpdateDeviceInformation);
@@ -769,6 +813,75 @@ export class FakeShimlessRmaService {
 
   shutDownAfterHardwareError() {
     console.log('(Fake) Shutting down...');
+  }
+
+  /**
+   * @return {!Promise<!{provider: ?string}>}
+   */
+  get3pDiagnosticsProvider() {
+    return this.methods_.resolveMethodWithDelay(
+        'get3pDiagnosticsProvider', this.resolveMethodDelayMs_);
+  }
+
+  /** @param {?string} provider */
+  setGet3pDiagnosticsProviderResult(provider) {
+    this.methods_.setResult('get3pDiagnosticsProvider', {provider});
+  }
+
+  /**
+   * @return {!Promise<{appPath: mojoBase.mojom.FilePath}>}
+   */
+  getInstallable3pDiagnosticsAppPath() {
+    return this.methods_.resolveMethod('getInstallable3pDiagnosticsAppPath');
+  }
+
+  /** @param {mojoBase.mojom.FilePath} appPath */
+  setInstallable3pDiagnosticsAppPath(appPath) {
+    this.methods_.setResult('getInstallable3pDiagnosticsAppPath', {appPath});
+  }
+
+  /**
+   * @return {!Promise<{appInfo: Shimless3pDiagnosticsAppInfo}>}
+   */
+  installLastFound3pDiagnosticsApp() {
+    return this.methods_.resolveMethod('installLastFound3pDiagnosticsApp');
+  }
+
+  /** @param {Shimless3pDiagnosticsAppInfo} appInfo */
+  setInstallLastFound3pDiagnosticsApp(appInfo) {
+    this.methods_.setResult('installLastFound3pDiagnosticsApp', {appInfo});
+  }
+
+  /**
+   * @param {boolean} isApproved
+   * @return {!Promise}
+   */
+  completeLast3pDiagnosticsInstallation(isApproved) {
+    this.lastCompleteLast3pDiagnosticsInstallationApproval_ = isApproved;
+    return Promise.resolve();
+  }
+
+  /** @return {?boolean} */
+  getLastCompleteLast3pDiagnosticsInstallationApproval() {
+    return this.lastCompleteLast3pDiagnosticsInstallationApproval_;
+  }
+
+  /**
+   * @return {!Promise<{result: !Show3pDiagnosticsAppResult}>}
+   */
+  show3pDiagnosticsApp() {
+    this.wasShow3pDiagnosticsAppCalled_ = true;
+    return this.methods_.resolveMethod('show3pDiagnosticsApp');
+  }
+
+  /** @param {!Show3pDiagnosticsAppResult} result */
+  setShow3pDiagnosticsAppResult(result) {
+    this.methods_.setResult('show3pDiagnosticsApp', {result});
+  }
+
+  /** @return {boolean} */
+  wasShow3pDiagnosticsAppCalled() {
+    return this.wasShow3pDiagnosticsAppCalled_;
   }
 
   /**
@@ -1246,6 +1359,9 @@ export class FakeShimlessRmaService {
     this.components_ = [];
     this.setGetLogResult('');
     this.setSaveLogResult({'path': ''});
+
+    this.lastCompleteLast3pDiagnosticsInstallationApproval_ = null;
+    this.setGet3pDiagnosticsProviderResult(null);
   }
 
   /**
@@ -1300,12 +1416,14 @@ export class FakeShimlessRmaService {
 
     this.methods_.register('getRegionList');
     this.methods_.register('getSkuList');
-    this.methods_.register('getWhiteLabelList');
+    this.methods_.register('getCustomLabelList');
+    this.methods_.register('getSkuDescriptionList');
     this.methods_.register('getOriginalSerialNumber');
     this.methods_.register('getOriginalRegion');
     this.methods_.register('getOriginalSku');
-    this.methods_.register('getOriginalWhiteLabel');
+    this.methods_.register('getOriginalCustomLabel');
     this.methods_.register('getOriginalDramPartNumber');
+    this.methods_.register('getOriginalFeatureLevel');
     this.methods_.register('setDeviceInformation');
 
     this.methods_.register('getCalibrationComponentList');
@@ -1333,6 +1451,11 @@ export class FakeShimlessRmaService {
     this.methods_.register('criticalErrorReboot');
 
     this.methods_.register('shutDownAfterHardwareError');
+
+    this.methods_.register('get3pDiagnosticsProvider');
+    this.methods_.register('getInstallable3pDiagnosticsAppPath');
+    this.methods_.register('installLastFound3pDiagnosticsApp');
+    this.methods_.register('show3pDiagnosticsApp');
   }
 
   /**

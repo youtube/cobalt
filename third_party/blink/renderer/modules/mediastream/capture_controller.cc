@@ -29,6 +29,19 @@ bool IsTabOrWindowCapture(const MediaStreamTrack* track) {
               media::mojom::DisplayCaptureSurfaceType::WINDOW);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+bool ShouldFocusCapturedSurface(V8CaptureStartFocusBehavior focus_behavior) {
+  switch (focus_behavior.AsEnum()) {
+    case V8CaptureStartFocusBehavior::Enum::kFocusCapturedSurface:
+      return true;
+    case V8CaptureStartFocusBehavior::Enum::kFocusCapturingApplication:
+    case V8CaptureStartFocusBehavior::Enum::kNoFocusChange:
+      return false;
+  }
+  NOTREACHED_NORETURN();
+}
+#endif
+
 }  // namespace
 
 CaptureController* CaptureController::Create(ExecutionContext* context) {
@@ -88,6 +101,14 @@ void CaptureController::SetVideoTrack(MediaStreamTrack* video_track,
   descriptor_id_ = std::move(descriptor_id);
 }
 
+const AtomicString& CaptureController::InterfaceName() const {
+  return event_target_names::kCaptureController;
+}
+
+ExecutionContext* CaptureController::GetExecutionContext() const {
+  return ExecutionContextClient::GetExecutionContext();
+}
+
 void CaptureController::FinalizeFocusDecision() {
   DCHECK(IsMainThread());
 
@@ -111,15 +132,15 @@ void CaptureController::FinalizeFocusDecision() {
   }
 
 #if !BUILDFLAG(IS_ANDROID)
-  const bool focus = focus_behavior_->AsEnum() ==
-                     V8CaptureStartFocusBehavior::Enum::kFocusCapturedSurface;
-  client->FocusCapturedSurface(String(descriptor_id_), focus);
+  client->FocusCapturedSurface(
+      String(descriptor_id_),
+      ShouldFocusCapturedSurface(focus_behavior_.value()));
 #endif
 }
 
 void CaptureController::Trace(Visitor* visitor) const {
   visitor->Trace(video_track_);
+  EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
-  ScriptWrappable::Trace(visitor);
 }
 }  // namespace blink

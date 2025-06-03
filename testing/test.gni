@@ -10,7 +10,6 @@ import("//build/config/chromeos/args.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/devtools.gni")
 import("//build/config/gclient_args.gni")
-import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_starboard) {
@@ -45,9 +44,9 @@ if (is_android) {
 } else if (is_fuchsia) {
   import("//build/config/chromecast_build.gni")
   import("//build/config/fuchsia/generate_runner_scripts.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/cmc.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/component.gni")
-  import("//third_party/fuchsia-sdk/sdk/build/package.gni")
+  import("//third_party/fuchsia-gn-sdk/src/cmc.gni")
+  import("//third_party/fuchsia-gn-sdk/src/component.gni")
+  import("//third_party/fuchsia-gn-sdk/src/package.gni")
 } else if (is_chromeos && is_chromeos_device) {
   import("//build/config/chromeos/rules.gni")
   import("//build/config/sanitizers/sanitizers.gni")
@@ -139,6 +138,12 @@ template("mixed_test") {
     not_needed(invoker, _rs_vars)
   }
 
+  if (invoker.target_type == "shared_library_with_jni") {
+    # Needed for shared_library_with_jni. Keeping this import guarded so
+    # that projects who import //testing but not //third_party/jni_zero
+    # don't have issues.
+    import("//third_party/jni_zero/jni_zero.gni")
+  }
   target(invoker.target_type, target_name) {
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY + _rs_vars)
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
@@ -192,31 +197,16 @@ template("mixed_test") {
 #      job_policy_ambient_mark_vmo_exec.
 #   fuchsia_package_deps: (Fuchsia, optional) List of fuchsia_component()
 #      targets that this test package contains.
-#   # TODO(crbug/1280705): remove when all tests are migrated to CFv2.
 #   is_xctest: (iOS, optional) whether to build the executable as XCTest.
 #      Similar to the GN arg 'enable_run_ios_unittests_with_xctest' but
 #      for build targets.
 #   allow_cleartext_traffic: (Android, optional) whether to allow cleartext
 #      network requests during the test.
+#   enable_fuzztest: whether to allow the use of the FUZZ_TEST macro to
+#      include fuzzing tests alongside unit tests. This introduces an
+#      extra dependency and also creates additional metadata so that our
+#      fuzzing infrastructure can find and run such tests.
 template("test") {
-  # Ensures the rts file exists and if not, creates a dummy file
-  if (use_rts) {
-    action("${target_name}__rts_filters") {
-      script = "//build/add_rts_filters.py"
-      rts_file = "${root_build_dir}/gen/rts/${invoker.target_name}.filter"
-      inverted_rts_file =
-          "${root_build_dir}/gen/rts/${invoker.target_name}_inverted.filter"
-      args = [
-        rebase_path(rts_file, root_build_dir),
-        rebase_path(inverted_rts_file, root_build_dir),
-      ]
-      outputs = [
-        rts_file,
-        inverted_rts_file,
-      ]
-    }
-  }
-
   testonly = true
   if (!is_ios) {
     assert(!defined(invoker.is_xctest) || !invoker.is_xctest,
@@ -225,6 +215,33 @@ template("test") {
   if (!is_android) {
     assert(!defined(invoker.allow_cleartext_traffic),
            "allow_cleartext_traffic can be set only for Android tests")
+  }
+
+  _fuzztest_deps = []
+  if (defined(invoker.enable_fuzztest) && invoker.enable_fuzztest) {
+    _output_name = invoker.target_name
+    _fuzzer_options_target = "${_output_name}__fuzzer_options"
+    _fuzztest_deps = [
+      ":${_fuzzer_options_target}",
+      "//third_party/fuzztest",
+    ]
+
+    # Generate minimal .options file so that ClusterFuzz knows to pass the
+    # -fuzz= argument. It's possible that in future we would want more
+    # fuzzing parameters to be configurable for FUZZ_TESTS, in which case
+    # perhaps we would want to abstract more of the logic from
+    # //testing/libfuzzer/fuzzer_test.gni.
+    config_file_name = _output_name + ".options"
+    action(_fuzzer_options_target) {
+      script = "//testing/libfuzzer/gen_fuzzer_config.py"
+      args = [
+        "--config",
+        rebase_path("$root_build_dir/" + config_file_name, root_build_dir),
+        "--libfuzzer_options",
+        "fuzz=",
+      ]
+      outputs = [ "$root_build_dir/$config_file_name" ]
+    }
   }
 
   if (is_android) {
@@ -269,9 +286,14 @@ template("test") {
       _dist_target = "${target_name}__dist"
       _exec_output =
           "$target_out_dir/${invoker.target_name}/${invoker.target_name}"
+      _crate_name = "${target_name}"
 
       mixed_test(_exec_target) {
         target_type = "executable"
+
+        # Use a crate name that avoids creating a warning due to double
+        # underscore (ie. `__`).
+        crate_name = _crate_name
 
         # Configs will always be defined since we set_defaults in
         # BUILDCONFIG.gn.
@@ -303,13 +325,13 @@ template("test") {
         if (tests_have_location_tags) {
           data += [ "//testing/location_tags.json" ]
         }
+        if (!defined(deps)) {
+          deps = []
+        }
+        deps += _fuzztest_deps
 
         # Don't output to the root or else conflict with the group() below.
         output_name = rebase_path(_exec_output, root_out_dir)
-
-        if (use_rts) {
-          data_deps += [ ":${invoker.target_name}__rts_filters" ]
-        }
       }
 
       create_native_executable_dist(_dist_target) {
@@ -318,13 +340,6 @@ template("test") {
         deps = [ ":$_exec_target" ]
         if (defined(invoker.extra_dist_files)) {
           extra_files = invoker.extra_dist_files
-        }
-
-        if (use_rts) {
-          if (!defined(data_deps)) {
-            data_deps = []
-          }
-          data_deps += [ ":${invoker.target_name}__rts_filters" ]
         }
       }
     } else {
@@ -337,8 +352,6 @@ template("test") {
         "android_manifest_dep",
         "android_manifest_template",
         "app_as_shared_lib",
-        "enable_multidex",
-        "generate_final_jni",
         "product_config_java_packages",
         "loadable_modules",
         "loadable_module_deps",
@@ -384,20 +397,20 @@ template("test") {
         }
       }
 
+      _generate_final_jni =
+          !defined(invoker.generate_final_jni) || invoker.generate_final_jni
       mixed_test(_library_target_name) {
-        target_type = "shared_library"
+        if (_generate_final_jni) {
+          target_type = "shared_library_with_jni"
+          java_targets = [ ":$_apk_target_name" ]
+        } else {
+          target_type = "shared_library"
+        }
 
         # Configs will always be defined since we set_defaults in
         # BUILDCONFIG.gn.
         configs = []  # Prevent list overwriting warning.
         configs = invoker.configs
-
-        if (_add_unwind_tables_in_apk) {
-          # Remove -gz if present, as dump_syms does not support it.
-          # Add and then remove because "-=" removes all, but errors if none are found.
-          configs += [ "//build/config:compress_debug_sections" ]
-          configs -= [ "//build/config:compress_debug_sections" ]
-        }
 
         forward_variables_from(
             invoker,
@@ -415,9 +428,9 @@ template("test") {
         # Native targets do not need to depend on java targets. Filter them out
         # so that the shared library can be built without needing to wait for
         # dependent java targets.
-        deps = []
+        deps = _fuzztest_deps
         if (defined(invoker.deps)) {
-          deps = filter_exclude(invoker.deps, java_target_patterns)
+          deps += filter_exclude(invoker.deps, java_target_patterns)
         }
 
         if (_use_default_launcher) {
@@ -427,10 +440,12 @@ template("test") {
       unittest_apk(_apk_target_name) {
         forward_variables_from(invoker, _apk_specific_vars)
         shared_library = ":$_library_target_name"
+        if (_generate_final_jni) {
+          srcjar_deps = [ "${shared_library}__jni_registration" ]
+        }
         apk_name = invoker.target_name
         if (defined(invoker.output_name)) {
           apk_name = invoker.output_name
-          install_script_name = "install_${invoker.output_name}"
         }
 
         if (defined(invoker.deps)) {
@@ -449,10 +464,6 @@ template("test") {
 
         if (defined(_unwind_table_asset_name)) {
           deps += [ ":${_unwind_table_asset_name}" ]
-        }
-
-        if (use_rts) {
-          data_deps = [ ":${invoker.target_name}__rts_filters" ]
         }
       }
     }
@@ -474,10 +485,6 @@ template("test") {
       test_name = _output_name
       test_suite = _output_name
       test_type = "gtest"
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
 
     # Create a wrapper script rather than using a group() in order to ensure
@@ -512,10 +519,6 @@ template("test") {
       if (tests_have_location_tags) {
         data = [ "//testing/location_tags.json" ]
       }
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
   } else if (is_fuchsia) {
     assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
@@ -524,6 +527,7 @@ template("test") {
     _pkg_target = "${_output_name}_pkg"
     _exec_target = "${_output_name}__exec"
     _program_name = get_label_info(":${_exec_target}", "name")
+    _crate_name = _output_name
 
     # Generate a CML fragment that provides the program name.
     _test_program_fragment_target = "${target_name}_program-fragment"
@@ -564,6 +568,12 @@ template("test") {
         "//build/config/fuchsia/test/chromium_test_facet.shard.test-cml",
         "//build/config/fuchsia/test/minimum.shard.test-cml",
       ]
+    }
+
+    if (is_asan) {
+      # TODO(crbug.com/1465997): Remove the extra cml segment for asan.
+      _manifest_fragments +=
+          [ "//build/config/fuchsia/test/asan_options.shard.test-cml" ]
     }
 
     _test_component_manifest = "${target_out_dir}/${target_name}.cml"
@@ -680,34 +690,33 @@ template("test") {
       }
 
       data_deps += [ "//testing:test_scripts_shared" ]
-
-      if (use_rts) {
-        data_deps += [ ":${target_name}__rts_filters" ]
-      }
     }
 
     mixed_test(_exec_target) {
       target_type = "executable"
       forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
       output_name = _exec_target
+
+      if (!defined(deps)) {
+        deps = []
+      }
+      deps += _fuzztest_deps
+
+      # Use a crate name that avoids creating a warning due to double
+      # underscore (ie. `__`).
+      crate_name = _crate_name
     }
   } else if (is_ios) {
     assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
     _runtime_deps_file = "$root_out_dir/${target_name}.runtime_deps"
 
     declare_args() {
-      # Keep the unittest-as-xctest functionality defaulted to off until the
-      # bots are updated to handle it properly.
-      # TODO(crbug.com/1001667): Remove this arg once the iOS test runner
-      # supports running unittests with xctest.
+      # Keep the unittest-as-xctest functionality defaulted to off for
+      # local builds and test executions.
       enable_run_ios_unittests_with_xctest = false
     }
 
     _test_target = target_name
-    _output_name = target_name
-    if (defined(invoker.output_name)) {
-      _output_name = invoker.output_name
-    }
 
     _wrapper_output_name = "run_${target_name}"
     ios_test_runner_wrapper(_wrapper_output_name) {
@@ -716,7 +725,6 @@ template("test") {
                                "data",
                                "deps",
                                "executable_args",
-                               "output_name",
                                "retries",
                                "shards",
                              ])
@@ -772,13 +780,7 @@ template("test") {
         info_plist = "//testing/gtest_ios/unittest-Info.plist"
       }
 
-      if (ios_use_shared_bundle_id_for_test_apps) {
-        bundle_identifier = shared_bundle_id_for_test_apps
-        not_needed([ "_output_name" ])
-      } else {
-        bundle_identifier = "$ios_app_bundle_id_prefix.chrome." +
-                            string_replace(_output_name, "_", "-")
-      }
+      bundle_identifier = shared_bundle_id_for_test_apps
 
       if (!defined(bundle_deps)) {
         bundle_deps = []
@@ -794,10 +796,10 @@ template("test") {
       # Include the generate_wrapper as part of data_deps
       data_deps += [ ":${_wrapper_output_name}" ]
       write_runtime_deps = _runtime_deps_file
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
+      if (!defined(deps)) {
+        deps = []
       }
+      deps += _fuzztest_deps
     }
   } else if ((is_chromeos_ash || (is_chromeos_lacros && is_chromeos_device)) &&
              cros_board != "") {
@@ -810,15 +812,13 @@ template("test") {
         "$root_out_dir/gen.runtime/" + get_label_info(target_name, "dir") +
         "/" + get_label_info(target_name, "name") + ".runtime_deps"
 
-    _generated_script = "$root_build_dir/bin/run_" + invoker.target_name
-    if (is_skylab) {
-      generate_skylab_deps(_gen_runner_target) {
-        generated_script = _generated_script
-        test_exe = invoker.target_name
+    if (is_skylab && (defined(tast_attr_expr) || defined(tast_tests) ||
+                      defined(tast_disabled_tests))) {
+      generate_skylab_tast_filter(_gen_runner_target) {
       }
     } else {
       generate_runner_script(_gen_runner_target) {
-        generated_script = _generated_script
+        generated_script = "$root_build_dir/bin/run_" + invoker.target_name
         test_exe = invoker.target_name
         runtime_deps_file = _runtime_deps_file
 
@@ -831,10 +831,6 @@ template("test") {
 
         if (tests_have_location_tags) {
           data = [ "//testing/location_tags.json" ]
-        }
-
-        if (use_rts) {
-          data_deps = [ ":${invoker.target_name}__rts_filters" ]
         }
       }
     }
@@ -856,16 +852,13 @@ template("test") {
       write_runtime_deps = _runtime_deps_file
       data += [ _runtime_deps_file ]
       deps += [ ":$_gen_runner_target" ]
+      deps += _fuzztest_deps
 
       if (!defined(data_deps)) {
         data_deps = []
       }
 
       data_deps += [ "//testing:test_scripts_shared" ]
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
   } else if (is_chromeos_lacros && !is_chromeos_device) {
     _runtime_deps_file = "$root_out_dir/${target_name}.runtime_deps"
@@ -928,12 +921,11 @@ template("test") {
       if (use_cfi_diag) {
         executable_args += [ "--cfi-diag=1" ]
       }
+      if (fail_on_san_warnings) {
+        executable_args += [ "--fail-san=1" ]
+      }
 
       data += [ "//build/lacros/test_runner.py" ]
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
 
     mixed_test(target_name) {
@@ -952,22 +944,10 @@ template("test") {
 
       write_runtime_deps = _runtime_deps_file
       deps += [ ":$_gen_runner_target" ]
+      deps += _fuzztest_deps
       if (_use_ash_chrome && also_build_ash_chrome) {
         data_deps += [ "//chrome/test:test_ash_chrome(//build/toolchain/linux:ash_clang_x64)" ]
       }
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
-    }
-    # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
-    # is_starboard as a toolchain arg.
-  } else if (is_starboard && use_custom_libc) {
-    modular_executable(target_name) {
-      forward_variables_from(invoker,
-                             "*",
-                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
-      testonly = true
     }
   } else if (!is_nacl) {
     if (is_mac || is_win) {
@@ -1015,9 +995,8 @@ template("test") {
       if (use_cfi_diag) {
         executable_args += [ "--cfi-diag=1" ]
       }
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
+      if (fail_on_san_warnings) {
+        executable_args += [ "--fail-san=1" ]
       }
     }
 
@@ -1038,16 +1017,13 @@ template("test") {
 
       write_runtime_deps = _runtime_deps_file
       deps += [ ":$_gen_runner_target" ]
+      deps += _fuzztest_deps
 
       if (!defined(data_deps)) {
         data_deps = []
       }
 
       data_deps += [ "//testing:test_scripts_shared" ]
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
   } else {
     # This is a catch-all clause for NaCl toolchains and other random
@@ -1062,16 +1038,13 @@ template("test") {
       if (!defined(deps)) {
         deps = []
       }
+      deps += _fuzztest_deps
 
       if (!defined(data_deps)) {
         data_deps = []
       }
 
       data_deps += [ "//testing:test_scripts_shared" ]
-
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
     }
   }
 }
@@ -1090,23 +1063,6 @@ template("test") {
 # $root_build_dir/${target_name}.runtime_deps, as per the conventions listed in
 # the [test wrapper API](//docs/testing/test_wrapper_api.md).
 template("script_test") {
-  if (use_rts) {
-    action("${target_name}__rts_filters") {
-      script = "//build/add_rts_filters.py"
-      rts_file = "${root_build_dir}/gen/rts/${invoker.target_name}.filter"
-      inverted_rts_file =
-          "${root_build_dir}/gen/rts/${invoker.target_name}_inverted.filter"
-      args = [
-        rebase_path(rts_file, root_build_dir),
-        rebase_path(inverted_rts_file, root_build_dir),
-      ]
-      outputs = [
-        rts_file,
-        inverted_rts_file,
-      ]
-    }
-  }
-
   generate_wrapper(target_name) {
     testonly = true
     wrapper_script = "${root_build_dir}/bin/run_${target_name}"
@@ -1144,10 +1100,6 @@ template("script_test") {
     forward_variables_from(invoker, [ "visibility" ])
 
     write_runtime_deps = "${root_build_dir}/${target_name}.runtime_deps"
-
-    if (use_rts) {
-      data_deps += [ ":${invoker.target_name}__rts_filters" ]
-    }
   }
 }
 

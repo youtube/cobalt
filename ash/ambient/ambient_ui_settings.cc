@@ -6,7 +6,10 @@
 
 #include <utility>
 
+#include "ash/ambient/util/ambient_util.h"
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ambient/ambient_prefs.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -15,6 +18,8 @@
 
 namespace ash {
 namespace {
+
+using ash::personalization_app::mojom::AmbientTheme;
 
 // Validity is always checked for both |AmbientTheme| and |AmbientVideo| in case
 // pref storage is corrupted. Both use the integer representation of their enum
@@ -64,6 +69,8 @@ AmbientUiSettings AmbientUiSettings::ReadFromPrefService(
       LOG(ERROR)
           << "Loaded invalid AmbientUiSettings from pref. Using default.";
       pref_service.ClearPref(ambient::prefs::kAmbientUiSettings);
+    } else if (features::IsTimeOfDayScreenSaverEnabled()) {
+      return AmbientUiSettings(AmbientTheme::kVideo, kDefaultAmbientVideo);
     }
     return AmbientUiSettings();
   }
@@ -104,8 +111,9 @@ void AmbientUiSettings::WriteToPrefService(PrefService& pref_service) const {
 }
 
 std::string AmbientUiSettings::ToString() const {
-  std::string output(ash::ToString(theme_).data());
-  if (video_) {
+  std::string output(ambient::util::AmbientThemeToString(theme_));
+  if (theme_ == AmbientTheme::kVideo) {
+    CHECK(video_);
     base::StrAppend(&output, {".", ash::ToString(*video_)});
   }
   return output;

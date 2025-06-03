@@ -33,6 +33,8 @@ namespace invalidation {
 
 namespace {
 
+constexpr char kDeprecatedSyncInvalidationGCMSenderId[] = "8181035976";
+
 const char kTypeSubscribedForInvalidations[] =
     "invalidation.per_sender_registered_for_invalidation";
 
@@ -111,6 +113,18 @@ void PerUserTopicSubscriptionManager::RegisterPrefs(
     PrefRegistrySimple* registry) {
   // Same as RegisterProfilePrefs; see comment in the header.
   RegisterProfilePrefs(registry);
+}
+
+// static
+void PerUserTopicSubscriptionManager::ClearDeprecatedPrefs(PrefService* prefs) {
+  if (prefs->HasPrefPath(kTypeSubscribedForInvalidations)) {
+    ScopedDictPrefUpdate update(prefs, kTypeSubscribedForInvalidations);
+    update->Remove(kDeprecatedSyncInvalidationGCMSenderId);
+  }
+  if (prefs->HasPrefPath(kActiveRegistrationTokens)) {
+    ScopedDictPrefUpdate update(prefs, kActiveRegistrationTokens);
+    update->Remove(kDeprecatedSyncInvalidationGCMSenderId);
+  }
 }
 
 // State of the instance ID token when subscription is requested.
@@ -225,7 +239,7 @@ void PerUserTopicSubscriptionManager::Init() {
 }
 
 void PerUserTopicSubscriptionManager::UpdateSubscribedTopics(
-    const Topics& topics,
+    const TopicMap& topics,
     const std::string& instance_id_token) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   instance_id_token_ = instance_id_token;
@@ -348,6 +362,7 @@ void PerUserTopicSubscriptionManager::StartPendingSubscriptionRequest(
                          SubscriptionFinished,
                      base::Unretained(it->second.get())),
       url_loader_factory_);
+  NotifySubscriptionRequestStarted(topic);
 }
 
 void PerUserTopicSubscriptionManager::ActOnSuccessfulSubscription(
@@ -403,6 +418,7 @@ void PerUserTopicSubscriptionManager::SubscriptionFinishedForTopic(
     Status code,
     std::string private_topic_name,
     PerUserTopicSubscriptionRequest::RequestType type) {
+  NotifySubscriptionRequestFinished(topic, code);
   if (code.IsSuccess()) {
     ActOnSuccessfulSubscription(topic, private_topic_name, type);
     return;
@@ -575,13 +591,19 @@ void PerUserTopicSubscriptionManager::NotifySubscriptionChannelStateChange(
   }
 }
 
-base::Value::Dict PerUserTopicSubscriptionManager::CollectDebugData() const {
-  base::Value::Dict status;
-  for (const auto& topic_to_private_topic : topic_to_private_topic_) {
-    status.Set(topic_to_private_topic.first, topic_to_private_topic.second);
+void PerUserTopicSubscriptionManager::NotifySubscriptionRequestStarted(
+    Topic topic) {
+  for (auto& observer : observers_) {
+    observer.OnSubscriptionRequestStarted(topic);
   }
-  status.Set("Instance id token", instance_id_token_);
-  return status;
+}
+
+void PerUserTopicSubscriptionManager::NotifySubscriptionRequestFinished(
+    Topic topic,
+    Status code) {
+  for (auto& observer : observers_) {
+    observer.OnSubscriptionRequestFinished(topic, code);
+  }
 }
 
 absl::optional<Topic>

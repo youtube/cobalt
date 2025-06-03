@@ -6,14 +6,18 @@
 #include <string>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/window_properties.h"
 #include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "chrome/browser/ash/input_method/assistive_suggester_client_filter.h"
-#include "chrome/browser/ash/input_method/ime_rules_config.h"
+#include "chrome/browser/ash/input_method/field_trial.h"
+#include "chrome/browser/ash/input_method/url_utils.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "components/exo/wm_helper.h"
+#include "ui/base/ime/ash/text_input_method.h"
+#include "ui/base/ime/text_input_type.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -35,33 +39,6 @@ const char* kAllowedDomainAndPathsForEmojiSuggester[][2] = {
     {"messages.google.com", ""}, {"web.telegram.org", ""},
     {"voice.google.com", ""},    {"mail.google.com", "/chat"},
 };
-
-// The default denylist of domains and paths that will turn off multi word
-// suggestion.
-const char* kDeniedDomainsForMultiwordSuggester[] = {
-    "amazon",
-    "b.corp.google",
-    "buganizer.corp.google",
-    "cider.corp.google",
-    "classroom.google",
-    "desmos",
-    "docs.google",
-    "facebook",
-    "instagram",
-    "mail.google",
-    "outlook.live",
-    "outlook.office",
-    "quizlet",
-    // TODO(b/209696920): remove web.skype.com from the list after compatibility
-    // issues are solved.
-    "web.skype",
-    "whatsapp",
-    "youtube",
-};
-
-// exceptions where multi word suggestion is enabled.
-const char* kAllowedDomainsAndPathsForMultiwordSuggester[][2] = {
-    {"mail.google", "/chat"}};
 
 const char* kTestUrls[] = {
     "e14s-test",
@@ -152,6 +129,7 @@ const char* kDeniedUrlsForDiacritics[] = {
     "chrome-untrusted://crosh/",     // Crosh app
     "chrome-untrusted://terminal/",  // Terminal app
 };
+
 const char* kDeniedDomainsForDiacritics[] = {
     "localhost",            // Lots of dev apps on localhost (e.g. code-server)
     "cider.corp.google",    // Cider
@@ -267,15 +245,46 @@ bool IsMatchedSubDomainWithPathPrefix(
   return false;
 }
 
-void ReturnEnabledSuggestions(
+}  // namespace
+
+AssistiveSuggesterClientFilter::AssistiveSuggesterClientFilter(
+    GetUrlCallback get_url,
+    GetFocusedWindowPropertiesCallback get_window_properties)
+    : get_url_(std::move(get_url)),
+      get_window_properties_(std::move(get_window_properties)),
+      denylist_(DenylistAdditions{
+          .autocorrect_denylist_json =
+              GetFieldTrialParam(features::kAutocorrectByDefault,
+                                 ParamName::kDenylist),
+          .multi_word_denylist_json =
+              GetFieldTrialParam(features::kAssistMultiWord,
+                                 ParamName::kDenylist)}) {}
+
+AssistiveSuggesterClientFilter::~AssistiveSuggesterClientFilter() = default;
+
+void AssistiveSuggesterClientFilter::FetchEnabledSuggestionsThen(
+    FetchEnabledSuggestionsCallback callback,
+    const TextInputMethod::InputContext& context) {
+  WindowProperties window_properties = get_window_properties_.Run();
+  get_url_.Run(
+      base::BindOnce(&AssistiveSuggesterClientFilter::ReturnEnabledSuggestions,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     window_properties, context));
+}
+
+void AssistiveSuggesterClientFilter::ReturnEnabledSuggestions(
     AssistiveSuggesterSwitch::FetchEnabledSuggestionsCallback callback,
     WindowProperties window_properties,
+    const TextInputMethod::InputContext& context,
     const absl::optional<GURL>& current_url) {
   // Deny-list (will block if matched, otherwise allow)
   bool diacritic_suggestions_allowed =
       !IsMatchedSubDomain(kDeniedDomainsForDiacritics, current_url) &&
       !IsMatchedApp(kDeniedAppsForDiacritics, window_properties) &&
-      !IsMatchedExactUrl(kDeniedUrlsForDiacritics, current_url);
+      !IsMatchedExactUrl(kDeniedUrlsForDiacritics, current_url) &&
+      // Disable in P/W and number fields
+      !(context.type == ui::TEXT_INPUT_TYPE_PASSWORD ||
+        context.type == ui::TEXT_INPUT_TYPE_NUMBER);
 
   // TODO(b/245469813): Investigate if denied is intentional for suggesters
   // below is intentional.
@@ -294,9 +303,7 @@ void ReturnEnabledSuggestions(
 
   // Deny-list (will block if matched, otherwise allow)
   bool multi_word_suggestions_allowed =
-      (!IsMatchedSubDomain(kDeniedDomainsForMultiwordSuggester, current_url) ||
-       IsMatchedSubDomainWithPathPrefix(
-           kAllowedDomainsAndPathsForMultiwordSuggester, current_url)) &&
+      !denylist_.Contains(*current_url) &&
       !IsMatchedApp(kDeniedAppsForMultiwordSuggester, window_properties) &&
       !IsMatchedExactUrl(kDeniedUrlsForMultiwordSuggester, current_url);
 
@@ -313,23 +320,6 @@ void ReturnEnabledSuggestions(
       .personal_info_suggestions = personal_info_suggestions_allowed,
       .diacritic_suggestions = diacritic_suggestions_allowed,
   });
-}
-
-}  // namespace
-
-AssistiveSuggesterClientFilter::AssistiveSuggesterClientFilter(
-    GetUrlCallback get_url,
-    GetFocusedWindowPropertiesCallback get_window_properties)
-    : get_url_(std::move(get_url)),
-      get_window_properties_(std::move(get_window_properties)) {}
-
-AssistiveSuggesterClientFilter::~AssistiveSuggesterClientFilter() = default;
-
-void AssistiveSuggesterClientFilter::FetchEnabledSuggestionsThen(
-    FetchEnabledSuggestionsCallback callback) {
-  WindowProperties window_properties = get_window_properties_.Run();
-  get_url_.Run(base::BindOnce(ReturnEnabledSuggestions, std::move(callback),
-                              window_properties));
 }
 
 }  // namespace input_method

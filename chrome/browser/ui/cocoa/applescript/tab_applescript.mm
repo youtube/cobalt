@@ -4,11 +4,10 @@
 
 #import "chrome/browser/ui/cocoa/applescript/tab_applescript.h"
 
+#include "base/apple/foundation_util.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/mac/foundation_util.h"
-#import "base/mac/scoped_nsobject.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/sys_string_conversions.h"
@@ -97,14 +96,8 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
   return self;
 }
 
-- (void)dealloc {
-  [_tempURL release];
-  [super dealloc];
-}
-
 - (instancetype)initWithWebContents:(content::WebContents*)webContents {
   if (!webContents) {
-    [self release];
     return nil;
   }
 
@@ -317,7 +310,7 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
     return;
   }
 
-  base::FilePath mainFile = base::mac::NSURLToFilePath(fileURL);
+  base::FilePath mainFile = base::apple::NSURLToFilePath(fileURL);
   // We create a directory path at the folder within which the file exists.
   // Eg.    if main_file = '/Users/Foo/Documents/Google.html'
   // then directory_path = '/Users/Foo/Documents/Google_files/'.

@@ -16,6 +16,7 @@
 #include "components/safe_browsing/core/browser/db/allowlist_checker_client.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h"
+#include "components/safe_browsing/core/browser/user_population.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safebrowsing_constants.h"
 #include "components/safe_browsing/core/common/utils.h"
@@ -224,6 +225,14 @@ void PasswordProtectionRequest::FillRequestProto(bool is_sampled_ping) {
 
   password_protection_service_->FillUserPopulation(main_frame_url_,
                                                    request_proto_.get());
+  // TODO(crbug.com/1457312): [Also TODO(thefrog)] Remove the
+  // finch_active_groups modification below once kHashPrefixRealTimeLookups is
+  // launched.
+  const std::vector<const base::Feature*> kHashRealTimeLookupsFeature = {
+      &kHashPrefixRealTimeLookups};
+  GetExperimentStatus(kHashRealTimeLookupsFeature,
+                      request_proto_->mutable_population());
+
   request_proto_->set_stored_verdict_cnt(
       password_protection_service_->GetStoredVerdictCount(trigger_type_));
 
@@ -393,10 +402,12 @@ void PasswordProtectionRequest::SendRequestWithToken(
   url_loader_->AttachStringForUpload(serialized_request,
                                      "application/octet-stream");
   request_start_time_ = base::TimeTicks::Now();
-  url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-      password_protection_service_->url_loader_factory().get(),
-      base::BindOnce(&PasswordProtectionRequest::OnURLLoaderComplete,
-                     AsWeakPtr()));
+  if (!prevent_initiating_url_loader_for_testing_) {
+    url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
+        password_protection_service_->url_loader_factory().get(),
+        base::BindOnce(&PasswordProtectionRequest::OnURLLoaderComplete,
+                       AsWeakPtr()));
+  }
 }
 
 void PasswordProtectionRequest::StartTimeout() {

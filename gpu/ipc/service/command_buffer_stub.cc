@@ -43,7 +43,6 @@
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/gl/gl_workarounds.h"
 #include "ui/gl/init/gl_factory.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -158,16 +157,6 @@ void CommandBufferStub::ExecuteDeferredRequest(
     case mojom::DeferredCommandBufferRequestParams::Tag::kDestroyTransferBuffer:
       OnDestroyTransferBuffer(params.get_destroy_transfer_buffer());
       break;
-
-    case mojom::DeferredCommandBufferRequestParams::Tag::kTakeFrontBuffer:
-      OnTakeFrontBuffer(params.get_take_front_buffer());
-      break;
-
-    case mojom::DeferredCommandBufferRequestParams::Tag::kReturnFrontBuffer: {
-      OnReturnFrontBuffer(params.get_return_front_buffer()->mailbox,
-                          params.get_return_front_buffer()->is_lost);
-      break;
-    }
 
     case mojom::DeferredCommandBufferRequestParams::Tag::
         kSetDefaultFramebufferSharedImage: {
@@ -605,15 +594,6 @@ void CommandBufferStub::SignalQuery(uint32_t query_id, uint32_t id) {
   }
 }
 
-void CommandBufferStub::BindMediaReceiver(
-    mojo::GenericPendingAssociatedReceiver receiver,
-    BindMediaReceiverCallback callback) {
-  const auto& binder = channel_->command_buffer_media_binder();
-  if (binder)
-    binder.Run(this, std::move(receiver));
-  std::move(callback).Run();
-}
-
 void CommandBufferStub::OnFenceSyncRelease(uint64_t release) {
   SyncToken sync_token(CommandBufferNamespace::GPU_IO, command_buffer_id_,
                        release);
@@ -720,7 +700,8 @@ void CommandBufferStub::CheckContextLost() {
         decoder_context_ &&
         decoder_context_->WasContextLostByRobustnessExtension();
     channel_->gpu_channel_manager()->OnContextLost(/*context_lost_count=*/-1,
-                                                   !was_lost_by_robustness);
+                                                   !was_lost_by_robustness,
+                                                   state.context_lost_reason);
   }
 
   CheckCompleteWaits();

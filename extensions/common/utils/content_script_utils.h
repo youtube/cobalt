@@ -10,8 +10,10 @@
 #include "base/auto_reset.h"
 #include "base/functional/callback.h"
 #include "extensions/common/api/content_scripts.h"
+#include "extensions/common/api/scripts_internal.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_resource.h"
+#include "extensions/common/script_constants.h"
 #include "extensions/common/user_script.h"
 
 // Contains helper methods for parsing content script fields.
@@ -49,27 +51,45 @@ api::content_scripts::RunAt ConvertRunLocationToManifestType(
 // Parses and validates `matches` and `exclude_matches`, and updates these
 // fields for `result`. If `wants_file_access` is not null, then it will be set
 // to signal to the caller that the extension is requesting file access based
-// the match patterns specified.
+// the match patterns specified. `definition_index` must be only provided for
+// static scripts.
 bool ParseMatchPatterns(const std::vector<std::string>& matches,
                         const std::vector<std::string>* exclude_matches,
-                        int definition_index,
                         int creation_flags,
                         bool can_execute_script_everywhere,
                         int valid_schemes,
                         bool all_urls_includes_chrome_urls,
+                        absl::optional<int> definition_index,
                         UserScript* result,
                         std::u16string* error,
                         bool* wants_file_access);
 
 // Parses the `js` and `css` fields, and updates `result` with the specified
 // file paths. Returns false and populates `error` if both `js` and `css` are
-// empty.
+// empty. `definition_index` must be only provided for static scripts.
 bool ParseFileSources(const Extension* extension,
                       const std::vector<std::string>* js,
                       const std::vector<std::string>* css,
-                      int definition_index,
+                      absl::optional<int> definition_index,
                       UserScript* result,
                       std::u16string* error);
+
+// As above, but takes in api::scripts_internal::SerializedUserScript sources.
+// TODO(https://crbug.com/1494155): Remove the above when all callers use this
+// instead.
+bool ParseFileSources(
+    const Extension* extension,
+    const std::vector<api::scripts_internal::ScriptSource>* js,
+    const std::vector<api::scripts_internal::ScriptSource>* css,
+    absl::optional<int> definition_index,
+    UserScript* result,
+    std::u16string* error);
+
+// Parses `include_globs` and `exclude_globs` and updates these fields for
+// `result`. Done for Greasemonkey compatibility.
+void ParseGlobs(const std::vector<std::string>* include_globs,
+                const std::vector<std::string>* exclude_globs,
+                UserScript* result);
 
 // Validates that the claimed file sources in `scripts` actually exist and are
 // UTF-8 encoded. This function must be called on a sequence which allows file
@@ -78,6 +98,14 @@ bool ValidateFileSources(const UserScriptList& scripts,
                          ExtensionResource::SymlinkPolicy symlink_policy,
                          std::string* error,
                          std::vector<InstallWarning>* warnings);
+
+// Validates that `match_origin_as_fallback` is legal in relation to the match
+// patterns specified in `url_patterns`. I.e. patterns in `url_patterns` must
+// specify a wildcard path or no path if `match_origin_as_fallback` is enabled.
+bool ValidateMatchOriginAsFallback(
+    MatchOriginAsFallbackBehavior match_origin_as_fallback,
+    const URLPatternSet& url_patterns,
+    std::u16string* error_out);
 
 ExtensionResource::SymlinkPolicy GetSymlinkPolicy(const Extension* extension);
 

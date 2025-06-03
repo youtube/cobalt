@@ -7,12 +7,14 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/time/time.h"
+#import "build/branding_buildflags.h"
 #import "components/policy/core/common/policy_loader_ios_constants.h"
 #import "components/policy/policy_constants.h"
 #import "components/signin/ios/browser/features.h"
+#import "components/sync/base/features.h"
 #import "ios/chrome/browser/policy/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/policy/policy_util.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/fake_system_identity.h"
 #import "ios/chrome/browser/signin/test_constants.h"
@@ -27,7 +29,7 @@
 #import "ios/chrome/browser/ui/settings/google_services/manage_sync_settings_constants.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/promo_style/constants.h"
-#import "ios/chrome/grit/ios_chromium_strings.h"
+#import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
@@ -44,18 +46,14 @@
 #import "net/test/embedded_test_server/http_response.h"
 #import "ui/base/l10n/l10n_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForPageLoadTimeout;
+using chrome_test_util::ButtonWithAccessibilityLabelId;
+using chrome_test_util::GoogleSyncSettingsButton;
 using chrome_test_util::IdentityCellMatcherForEmail;
 using chrome_test_util::SettingsAccountButton;
 using chrome_test_util::SettingsLink;
+using chrome_test_util::SettingsSignInRowMatcher;
 using chrome_test_util::SignOutAccountsButton;
-using chrome_test_util::GoogleSyncSettingsButton;
-using chrome_test_util::PrimarySignInButton;
-using chrome_test_util::ButtonWithAccessibilityLabelId;
 
 namespace {
 
@@ -67,19 +65,9 @@ id<GREYMatcher> GetContinueButtonWithIdentityMatcher(
   NSString* buttonTitle = l10n_util::GetNSStringF(
       IDS_IOS_FIRST_RUN_SIGNIN_CONTINUE_AS,
       base::SysNSStringToUTF16(fakeIdentity.userGivenName));
+  id<GREYMatcher> matcher = grey_allOf(grey_accessibilityLabel(buttonTitle),
+                                       grey_sufficientlyVisible(), nil);
 
-  // TODO(crbug.com/1418068): Simplify after minimum version required is >=
-  // iOS 15.
-  id<GREYMatcher> matcher = nil;
-  if (base::ios::IsRunningOnIOS15OrLater() &&
-      [ChromeEarlGrey isUIButtonConfigurationEnabled]) {
-    matcher = grey_allOf(grey_kindOfClassName(@"UILabel"),
-                         grey_accessibilityLabel(buttonTitle),
-                         grey_sufficientlyVisible(), nil);
-  } else {
-    matcher = grey_allOf(grey_accessibilityLabel(buttonTitle),
-                         grey_sufficientlyVisible(), nil);
-  }
   return matcher;
 }
 
@@ -160,8 +148,32 @@ void SignOutFromActionSheets(BOOL syncEnabled) {
 
 // Opens account settings and signs out from them.
 void OpenAccountSettingsAndSignOut(BOOL syncEnabled) {
-  OpenAccountSignOutActionsSheets();
-  SignOutFromActionSheets(syncEnabled);
+  if ([ChromeEarlGrey isReplaceSyncWithSigninEnabled]) {
+    [ChromeEarlGreyUI openSettingsMenu];
+    [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+    // With ReplaceSyncWithSignin, we're now in the "manage sync" view, and
+    // the signout button is at the very bottom. Scroll there.
+    id<GREYMatcher> scrollViewMatcher =
+        grey_accessibilityID(kManageSyncTableViewAccessibilityIdentifier);
+    [[EarlGrey selectElementWithMatcher:scrollViewMatcher]
+        performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
+
+    // Tap the "Sign out" button.
+    [[EarlGrey selectElementWithMatcher:
+                   grey_text(l10n_util::GetNSString(
+                       IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_ITEM))]
+        performAction:grey_tap()];
+
+    // Check that the sign-out snackbar does not show for BrowserSignin forced.
+    [[EarlGrey
+        selectElementWithMatcher:
+            grey_accessibilityLabel(l10n_util::GetNSString(
+                IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_SNACKBAR_MESSAGE))]
+        assertWithMatcher:grey_notVisible()];
+  } else {
+    OpenAccountSignOutActionsSheets();
+    SignOutFromActionSheets(syncEnabled);
+  }
 }
 
 // Sets up the sign-in policy value dynamically at runtime.
@@ -232,6 +244,20 @@ void OpenGoogleServicesSettings() {
                                    kGoogleServicesSettingsViewIdentifier)]
       assertWithMatcher:grey_notNil()];
 }
+
+void CompleteSigninFlow() {
+  if ([ChromeEarlGrey isReplaceSyncWithSigninEnabled]) {
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                            WebSigninPrimaryButtonMatcher()]
+        performAction:grey_tap()];
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::SigninScreenPromoPrimaryButtonMatcher()]
+        performAction:grey_tap()];
+  } else {
+    [SigninEarlGreyUI tapSigninConfirmationDialog];
+  }
+}
+
 }  // namespace
 
 // Test the forced sign-in screens.
@@ -241,16 +267,53 @@ void OpenGoogleServicesSettings() {
 
 @implementation ForcedSigninTestCase
 
-- (AppLaunchConfiguration)appConfigurationForTestCase {
+- (AppLaunchConfiguration)appConfigurationWithoutEnterprisePolicy {
   AppLaunchConfiguration config;
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+
+  // Tests that turn sync (the feature) on or exercise the sign-in action sheet
+  // become obsolete with feature syncer::kReplaceSyncPromosWithSignInPromos.
+  // Meanwhile, force-disable the feature to keep the test around.
+  if ([self isRunningTest:@selector
+            (testHandlingIntentWhenSigninAfterSyncSettingOnRegularPrompt)] ||
+      [self isRunningTest:@selector
+            (testSignInWithOneAccountStartSyncWithAnotherAccount)] ||
+      [self isRunningTest:@selector(testSignOutActionSheetUI)] ||
+      [self isRunningTest:@selector
+            (testSignOutFooterForSignInAndSyncUserWithForcedSigninEnabled)] ||
+      [self isRunningTest:@selector(testSignOutFromAccountSettingCancel)] ||
+      [self isRunningTest:@selector(testSignOutFromAccountSettingSyncEnable)] ||
+      [self isRunningTest:@selector(testSignOutFromSyncSettings)] ||
+      [self isRunningTest:@selector
+            (testSignOutFromSyncSettingsWithMultiWindows)]) {
+    config.features_disabled.push_back(
+        syncer::kReplaceSyncPromosWithSignInPromos);
+  }
+
+  return config;
+}
+
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config =
+      [self appConfigurationWithoutEnterprisePolicy];
   // Configure the policy to force sign-in.
   config.additional_args.push_back(
       "-" + base::SysNSStringToUTF8(kPolicyLoaderIOSConfigurationKey));
   config.additional_args.push_back(
       "<dict><key>BrowserSignin</key><integer>2</integer></dict>");
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-
+  if ([self isRunningTest:@selector
+            (testSignOutFromAccountsOnThisDeviceSyncDisabled)]) {
+    config.features_enabled.push_back(
+        syncer::kReplaceSyncPromosWithSignInPromos);
+  }
   return config;
+}
+
+// Restarts the app without enterprise policies.
+- (void)restartAppWithoutEnterprisePolicy {
+  [[AppLaunchManager sharedManager]
+      ensureAppLaunchedWithConfiguration:
+          [self appConfigurationWithoutEnterprisePolicy]];
 }
 
 - (void)setUp {
@@ -266,7 +329,7 @@ void OpenGoogleServicesSettings() {
   // triggered again when tearing down because the browser is signed out. Making
   // sure that sign-out is done and that the sign-in screen animation is done
   // before tearing down avoids the conflict.
-  [ChromeEarlGreyAppInterface signOutAndClearIdentities];
+  [ChromeEarlGreyAppInterface signOutAndClearIdentitiesWithCompletion:nil];
   [ChromeEarlGrey waitForMatcher:GetForcedSigninScreenMatcher()];
 
   [super tearDown];
@@ -435,6 +498,53 @@ void OpenGoogleServicesSettings() {
   [ChromeEarlGrey waitForMatcher:GetForcedSigninScreenMatcher()];
 }
 
+// Tests signing out account from accounts on this device with sync disabled.
+- (void)testSignOutFromAccountsOnThisDeviceSyncDisabled {
+  // Add account.
+  FakeSystemIdentity* fakeIdentity1 = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey addFakeIdentity:fakeIdentity1];
+
+  // Sign in account without enabling sync.
+  WaitForForcedSigninScreenAndSignin(fakeIdentity1);
+
+  // Make sure the forced sign-in screen isn't shown.
+  [[EarlGrey selectElementWithMatcher:GetForcedSigninScreenMatcher()]
+      assertWithMatcher:grey_nil()];
+
+  // Sign out account from accounts on this device settings.
+  [ChromeEarlGreyUI openSettingsMenu];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+  // With ReplaceSyncWithSignin, we're now in the "manage sync" view, and
+  // the "manage accounts on this device" button is at the very bottom. Scroll
+  // there.
+  id<GREYMatcher> scrollViewMatcher =
+      grey_accessibilityID(kManageSyncTableViewAccessibilityIdentifier);
+  [[EarlGrey selectElementWithMatcher:scrollViewMatcher]
+      performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
+
+  // Tap the "manage accounts on this device" button.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_text(l10n_util::GetNSString(
+                     IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_MANAGE_ACCOUNTS_ITEM))]
+      performAction:grey_tap()];
+
+  // Tap the "Sign out" button.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_text(l10n_util::GetNSString(
+                     IDS_IOS_DISCONNECT_DIALOG_CONTINUE_BUTTON_MOBILE))]
+      performAction:grey_tap()];
+
+  // Check that the sign-out snackbar does not show for BrowserSignin forced.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityLabel(l10n_util::GetNSString(
+              IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_SNACKBAR_MESSAGE))]
+      assertWithMatcher:grey_notVisible()];
+
+  // Wait and verify that the forced sign-in screen is shown.
+  [ChromeEarlGrey waitForMatcher:GetForcedSigninScreenMatcher()];
+}
+
 // Tests signing out account from settings with sync enabled.
 - (void)testSignOutFromAccountSettingSyncEnable {
   // Add account.
@@ -533,7 +643,7 @@ void OpenGoogleServicesSettings() {
 
   // Open turn on sync dialog.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:GoogleSyncSettingsButton()];
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
                                           kIdentityButtonControlIdentifier)]
       performAction:grey_tap()];
@@ -612,9 +722,7 @@ void OpenGoogleServicesSettings() {
 // when a browser modal is displayed on top of the browser view.
 - (void)testSignInScreenOnModal {
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -639,9 +747,7 @@ void OpenGoogleServicesSettings() {
 // when on the tab switcher.
 - (void)testSignInScreenOnTabSwitcher {
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -665,9 +771,7 @@ void OpenGoogleServicesSettings() {
 // when on an incognito browser tab.
 - (void)testSignInScreenOnIncognito {
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -691,9 +795,7 @@ void OpenGoogleServicesSettings() {
 // sign-in is skipped.
 - (void)testSignInScreenDuringRegularSigninPrompt {
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -707,15 +809,14 @@ void OpenGoogleServicesSettings() {
 
   // Open the regular sign-in prompt from settings.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsSignInRowMatcher()];
 
   // Enable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kForced);
 
   // Dismiss the regular sign-in prompt by skipping it.
-  [[EarlGrey selectElementWithMatcher:
-                 ButtonWithAccessibilityLabelId(
-                     IDS_IOS_ACCOUNT_CONSISTENCY_SETUP_SKIP_BUTTON)]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::WebSigninSkipButtonMatcher()]
       performAction:grey_tap()];
 
   // Wait and verify that the forced sign-in screen is shown when the policy is
@@ -727,9 +828,7 @@ void OpenGoogleServicesSettings() {
 // the regular sign-in prompt.
 - (void)testNoSignInScreenWhenSigninFromRegularSigninPrompt {
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -743,13 +842,13 @@ void OpenGoogleServicesSettings() {
 
   // Open the regular sign-in prompt from settings.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsSignInRowMatcher()];
 
   // Enable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kForced);
 
   // Sign-in from the regular prompt.
-  [SigninEarlGreyUI tapSigninConfirmationDialog];
+  CompleteSigninFlow();
 
   // Sync utilities require sync to be initialized in order to perform
   // operations on the Sync server.
@@ -805,9 +904,7 @@ void OpenGoogleServicesSettings() {
   NSURL* URLToOpen = net::NSURLWithGURL(self.testServer->GetURL(kPageURL));
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -821,7 +918,7 @@ void OpenGoogleServicesSettings() {
 
   // Open the regular sign-in prompt from settings.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsSignInRowMatcher()];
 
   // Enable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kForced);
@@ -830,9 +927,8 @@ void OpenGoogleServicesSettings() {
   SimulateExternalAppURLOpeningWithURL(URLToOpen);
 
   // Dismiss the regular sign-in prompt by skipping it.
-  [[EarlGrey selectElementWithMatcher:
-                 ButtonWithAccessibilityLabelId(
-                     IDS_IOS_ACCOUNT_CONSISTENCY_SETUP_SKIP_BUTTON)]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::WebSigninSkipButtonMatcher()]
       performAction:grey_tap()];
 
   // Wait and verify that the forced sign-in screen is shown when the policy is
@@ -861,9 +957,7 @@ void OpenGoogleServicesSettings() {
   NSURL* URLToOpen = net::NSURLWithGURL(self.testServer->GetURL(kPageURL));
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -877,7 +971,7 @@ void OpenGoogleServicesSettings() {
 
   // Open the regular sign-in prompt from settings.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsSignInRowMatcher()];
 
   // Enable the forced sign-in policy while the regular sign-in prompt is
   // opened.
@@ -887,7 +981,7 @@ void OpenGoogleServicesSettings() {
   SimulateExternalAppURLOpeningWithURL(URLToOpen);
 
   // Sign-in from the regular prompt.
-  [SigninEarlGreyUI tapSigninConfirmationDialog];
+  CompleteSigninFlow();
 
   // Sync utilities require sync to be initialized in order to perform
   // operations on the Sync server.
@@ -918,9 +1012,7 @@ void OpenGoogleServicesSettings() {
   NSURL* URLToOpen = net::NSURLWithGURL(self.testServer->GetURL(kPageURL));
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
@@ -934,7 +1026,7 @@ void OpenGoogleServicesSettings() {
 
   // Open the regular sign-in prompt from settings.
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsSignInRowMatcher()];
 
   // Open advanced sync settings.
   [[EarlGrey selectElementWithMatcher:SettingsLink()] performAction:grey_tap()];
@@ -1057,9 +1149,7 @@ void OpenGoogleServicesSettings() {
   }
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -1101,9 +1191,7 @@ void OpenGoogleServicesSettings() {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -1152,9 +1240,7 @@ void OpenGoogleServicesSettings() {
   }
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -1171,7 +1257,7 @@ void OpenGoogleServicesSettings() {
   // Show the regular sign-in prompt on the second window which will raise a UI
   // blocker on the second window.
   [ChromeEarlGreyUI openSettingsMenuInWindowWithNumber:1];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PrimarySignInButton()];
+  [ChromeEarlGreyUI tapSettingsMenuButton:GoogleSyncSettingsButton()];
 
   // Enable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kForced);
@@ -1205,9 +1291,7 @@ void OpenGoogleServicesSettings() {
   }
 
   // Restart the app to reset the policies.
-  AppLaunchConfiguration config;
-  config.relaunch_policy = ForceRelaunchByCleanShutdown;
-  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+  [self restartAppWithoutEnterprisePolicy];
 
   // Disable the forced sign-in policy.
   SetSigninEnterprisePolicyValue(BrowserSigninMode::kEnabled);
@@ -1266,6 +1350,20 @@ void OpenGoogleServicesSettings() {
   [[EarlGrey selectElementWithMatcher:grey_text(l10n_util::GetNSString(
                                           IDS_IOS_SETTING_ON))]
       assertWithMatcher:grey_sufficientlyVisible()];
+}
+
+// Tests that the Forced SignIn screen cannot be dismissed by the user swiping
+// down on the view, as some other signin screens can be dismissed.
+- (void)testSignInScreenCannotBeDismissedBySwipe {
+  // Verify the signin screen appears.
+  [[EarlGrey selectElementWithMatcher:GetForcedSigninScreenMatcher()]
+      assertWithMatcher:grey_notNil()];
+  // Swipe to dismiss the signin screen.
+  [[EarlGrey selectElementWithMatcher:GetForcedSigninScreenMatcher()]
+      performAction:grey_swipeFastInDirection(kGREYDirectionDown)];
+  // Verify that the signin screen is still there.
+  [[EarlGrey selectElementWithMatcher:GetForcedSigninScreenMatcher()]
+      assertWithMatcher:grey_notNil()];
 }
 
 @end

@@ -80,7 +80,7 @@ func isCommentLine(line []byte) bool {
 	return false
 }
 
-func jsonFromFile(out interface{}, filename string) error {
+func jsonFromFile(out any, filename string) error {
 	in, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func TOTP(secret []byte) string {
 type Middle interface {
 	Close()
 	Config() ([]byte, error)
-	Process(algorithm string, vectorSet []byte) (interface{}, error)
+	Process(algorithm string, vectorSet []byte) (any, error)
 }
 
 func loadCachedSessionTokens(server *acvp.Server, cachePath string) error {
@@ -198,7 +198,7 @@ func looksLikeVectorSetHeader(element json.RawMessage) bool {
 
 // processFile reads a file containing vector sets, at least in the format
 // preferred by our lab, and writes the results to stdout.
-func processFile(filename string, supportedAlgos []map[string]interface{}, middle Middle) error {
+func processFile(filename string, supportedAlgos []map[string]any, middle Middle) error {
 	jsonBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -267,7 +267,7 @@ func processFile(filename string, supportedAlgos []map[string]interface{}, middl
 			return fmt.Errorf("while processing vector set #%d: %s", i+1, err)
 		}
 
-		group := map[string]interface{}{
+		group := map[string]any{
 			"vsId":       commonFields.ID,
 			"testGroups": replyGroups,
 			"algorithm":  algo,
@@ -529,28 +529,6 @@ func uploadFromFile(file string, config *Config, sessionTokensCacheDir string) {
 func main() {
 	flag.Parse()
 
-	var config Config
-	if err := jsonFromFile(&config, *configFilename); err != nil {
-		log.Fatalf("Failed to load config file: %s", err)
-	}
-
-	var sessionTokensCacheDir string
-	if len(config.SessionTokensCache) > 0 {
-		sessionTokensCacheDir = config.SessionTokensCache
-		if strings.HasPrefix(sessionTokensCacheDir, "~/") {
-			home := os.Getenv("HOME")
-			if len(home) == 0 {
-				log.Fatal("~ used in config file but $HOME not set")
-			}
-			sessionTokensCacheDir = filepath.Join(home, sessionTokensCacheDir[2:])
-		}
-	}
-
-	if len(*uploadInputFile) > 0 {
-		uploadFromFile(*uploadInputFile, &config, sessionTokensCacheDir)
-		return
-	}
-
 	middle, err := subprocess.New(*wrapperPath)
 	if err != nil {
 		log.Fatalf("failed to initialise middle: %s", err)
@@ -562,13 +540,13 @@ func main() {
 		log.Fatalf("failed to get config from middle: %s", err)
 	}
 
-	var supportedAlgos []map[string]interface{}
+	var supportedAlgos []map[string]any
 	if err := json.Unmarshal(configBytes, &supportedAlgos); err != nil {
 		log.Fatalf("failed to parse configuration from Middle: %s", err)
 	}
 
 	if *dumpRegcap {
-		nonTestAlgos := make([]map[string]interface{}, 0, len(supportedAlgos))
+		nonTestAlgos := make([]map[string]any, 0, len(supportedAlgos))
 		for _, algo := range supportedAlgos {
 			if value, ok := algo["acvptoolTestOnly"]; ok {
 				testOnly, ok := value.(bool)
@@ -579,12 +557,18 @@ func main() {
 					continue
 				}
 			}
+			if value, ok := algo["algorithm"]; ok {
+				algorithm, ok := value.(string)
+				if ok && algorithm == "acvptool" {
+					continue
+				}
+			}
 			nonTestAlgos = append(nonTestAlgos, algo)
 		}
 
-		regcap := []map[string]interface{}{
-			map[string]interface{}{"acvVersion": "1.0"},
-			map[string]interface{}{"algorithms": nonTestAlgos},
+		regcap := []map[string]any{
+			{"acvVersion": "1.0"},
+			{"algorithms": nonTestAlgos},
 		}
 		regcapBytes, err := json.MarshalIndent(regcap, "", "    ")
 		if err != nil {
@@ -592,14 +576,14 @@ func main() {
 		}
 		os.Stdout.Write(regcapBytes)
 		os.Stdout.WriteString("\n")
-		os.Exit(0)
+		return
 	}
 
 	if len(*jsonInputFile) > 0 {
 		if err := processFile(*jsonInputFile, supportedAlgos, middle); err != nil {
 			log.Fatalf("failed to process input file: %s", err)
 		}
-		os.Exit(0)
+		return
 	}
 
 	var requestedAlgosFlag string
@@ -637,7 +621,7 @@ func main() {
 		}
 	}
 
-	var algorithms []map[string]interface{}
+	var algorithms []map[string]any
 	for _, supportedAlgo := range supportedAlgos {
 		algoInterface, ok := supportedAlgo["algorithm"]
 		if !ok {
@@ -659,6 +643,28 @@ func main() {
 		if !recognised {
 			log.Fatalf("requested algorithm %q was not recognised", algo)
 		}
+	}
+
+	var config Config
+	if err := jsonFromFile(&config, *configFilename); err != nil {
+		log.Fatalf("Failed to load config file: %s", err)
+	}
+
+	var sessionTokensCacheDir string
+	if len(config.SessionTokensCache) > 0 {
+		sessionTokensCacheDir = config.SessionTokensCache
+		if strings.HasPrefix(sessionTokensCacheDir, "~/") {
+			home := os.Getenv("HOME")
+			if len(home) == 0 {
+				log.Fatal("~ used in config file but $HOME not set")
+			}
+			sessionTokensCacheDir = filepath.Join(home, sessionTokensCacheDir[2:])
+		}
+	}
+
+	if len(*uploadInputFile) > 0 {
+		uploadFromFile(*uploadInputFile, &config, sessionTokensCacheDir)
+		return
 	}
 
 	server, err := connect(&config, sessionTokensCacheDir)
@@ -783,7 +789,7 @@ func main() {
 
 	if len(*fetchFlag) > 0 {
 		io.WriteString(fetchOutputTee, "]\n")
-		os.Exit(0)
+		return
 	}
 
 	if ok, err := getResultsWithRetry(server, url); err != nil {

@@ -21,12 +21,10 @@
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/focused_node_details.h"
-#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/focus_changed_observer.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/accessibility/accessibility_features.h"
-#include "ui/compositor/compositor_switches.h"
 #include "ui/compositor/layer.h"
 #include "ui/snapshot/snapshot.h"
 #include "ui/views/widget/widget.h"
@@ -59,11 +57,6 @@ class AccessibilityFocusHighlightBrowserTest : public InProcessBrowserTest {
     scoped_feature_list_.InitAndEnableFeature(
         features::kAccessibilityFocusHighlight);
     InProcessBrowserTest::SetUp();
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    // Force the CPU backend to use AAA. (https://crbug.com/1421297)
-    command_line->AppendSwitch(switches::kForceSkiaAnalyticAntialiasing);
   }
 
   bool ColorsApproximatelyEqual(SkColor color1, SkColor color2) {
@@ -148,7 +141,7 @@ class AccessibilityFocusHighlightBrowserTest : public InProcessBrowserTest {
 // Smoke test that ensures that when a node gets focus, the layer with the
 // focus highlight actually gets drawn.
 //
-// Flaky on all platforms. TODO(crbug.com/1083806): Enable this test.
+// Flaky on all platforms. TODO(https://crbug.com/1083806): Enable this test.
 IN_PROC_BROWSER_TEST_F(AccessibilityFocusHighlightBrowserTest,
                        DISABLED_DrawsHighlight) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -184,7 +177,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFocusHighlightBrowserTest,
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   std::string script("document.getElementById('div').focus();");
-  EXPECT_TRUE(content::ExecuteScript(web_contents, script));
+  EXPECT_TRUE(content::ExecJs(web_contents, script));
 
   // Now wait until at least 0.1% of the image has the focus ring's highlight
   // color. If it never does, the test will time out.
@@ -207,7 +200,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFocusHighlightBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   content::FocusChangedObserver observer(web_contents);
   std::string script("document.getElementById('link').focus();");
-  ASSERT_TRUE(content::ExecuteScript(web_contents, script));
+  ASSERT_TRUE(content::ExecJs(web_contents, script));
   auto details = observer.Wait();
 
   gfx::Rect bounds = details.node_bounds_in_screen;
@@ -248,10 +241,9 @@ class ReadbackHolder : public base::RefCountedThreadSafe<ReadbackHolder> {
 
 const cc::ExactPixelComparator pixel_comparator;
 
-// Flaky on Lacros: https://crbug.com/1289366
-#if (BUILDFLAG(IS_MAC) &&                                     \
-     MAC_OS_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_15) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
+// TODO(crbug/1289366): Fix flaky test on Lacros.
+// TODO(crbug/1467250): Fix flaky test on Mac.
+#if BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_MAC)
 #define MAYBE_FocusAppearance DISABLED_FocusAppearance
 #else
 #define MAYBE_FocusAppearance FocusAppearance
@@ -277,7 +269,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityFocusHighlightBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   content::FocusChangedObserver observer(web_contents);
   std::string script("document.getElementById('link').focus();");
-  ASSERT_TRUE(content::ExecuteScript(web_contents, script));
+  ASSERT_TRUE(content::ExecJs(web_contents, script));
   observer.Wait();
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   AccessibilityFocusHighlight* highlight =

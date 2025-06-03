@@ -8,7 +8,6 @@
 
 #include "ash/components/arc/bluetooth/bluetooth_type_converters.h"
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/ash/arc/bluetooth/arc_floss_bridge.h"
@@ -285,6 +284,7 @@ void ArcFlossBridge::StartLEScanImpl() {
   if (ble_scan_session_) {
     LOG(ERROR) << "LE scan already running.";
     StartLEScanOffTimer();
+    scanned_devices_.clear();
     discovery_queue_.Pop();
     return;
   }
@@ -297,6 +297,10 @@ void ArcFlossBridge::ResetLEScanSession() {
   if (ble_scan_session_) {
     ble_scan_session_.reset();
   }
+}
+
+bool ArcFlossBridge::IsDiscoveringOrScanning() {
+  return discovery_session_ || ble_scan_session_;
 }
 
 void ArcFlossBridge::CreateBluetoothListenSocket(

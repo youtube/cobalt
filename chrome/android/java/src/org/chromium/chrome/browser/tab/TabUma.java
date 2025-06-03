@@ -10,7 +10,6 @@ import androidx.annotation.Nullable;
 
 import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.net.NetError;
 import org.chromium.ui.base.WindowAndroid;
@@ -38,9 +37,7 @@ public class TabUma extends EmptyTabObserver implements UserData {
     private static final int TAB_STATE_INITIAL = 0;
     private static final int TAB_STATE_ACTIVE = 1;
     private static final int TAB_STATE_INACTIVE = 2;
-    private static final int TAB_STATE_DETACHED = 3;
     private static final int TAB_STATE_CLOSED = 4;
-    private static final int TAB_STATE_MAX = TAB_STATE_CLOSED;
 
     // Counter of tab shows (as per onShow()) for all tabs.
     private static long sAllTabsShowCount;
@@ -117,7 +114,6 @@ public class TabUma extends EmptyTabObserver implements UserData {
 
     @Override
     public void onShown(Tab tab, @TabSelectionType int selectionType) {
-        long previousTimestampMillis = CriticalPersistedTabData.from(tab).getTimestampMillis();
         long now = SystemClock.elapsedRealtime();
 
         // Do not collect the tab switching data for the first switch to a tab after the cold start

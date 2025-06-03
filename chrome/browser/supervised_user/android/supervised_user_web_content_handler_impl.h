@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/supervised_user/chrome_supervised_user_web_content_handler_base.h"
 #include "components/supervised_user/core/browser/web_content_handler.h"
@@ -31,7 +32,6 @@ class SupervisedUserWebContentHandlerImpl
   void RequestLocalApproval(const GURL& url,
                             const std::u16string& child_display_name,
                             ApprovalRequestInitiatedCallback callback) override;
-  void ShowFeedback(GURL url, std::u16string reason) override;
 
  private:
   void OnLocalApprovalRequestCompleted(

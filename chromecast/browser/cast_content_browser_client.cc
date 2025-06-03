@@ -111,10 +111,11 @@
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
 #include "chromecast/media/audio/cast_audio_manager_android.h"  // nogncheck
-#include "components/cdm/browser/cdm_message_filter_android.h"
 #include "components/crash/core/app/crashpad.h"
 #include "media/audio/android/audio_manager_android.h"
+#include "media/audio/audio_features.h"
 #else
 #include "chromecast/browser/memory_pressure_controller_impl.h"
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -149,16 +150,36 @@ CastContentBrowserClient::CastContentBrowserClient(
       cast_network_contexts_(
           std::make_unique<CastNetworkContexts>(GetCorsExemptHeadersList())),
       cast_feature_list_creator_(cast_feature_list_creator) {
-  cast_feature_list_creator_->SetExtraEnableFeatures({
-    &::media::kInternalMediaSession, &features::kNetworkServiceInProcess,
+  std::vector<const base::Feature*> extra_enable_features = {
+    &::media::kInternalMediaSession,
+    &features::kNetworkServiceInProcess,
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VIDEO_CAPTURE_SERVICE)
-        &features::kMojoVideoCapture,
+    &features::kMojoVideoCapture,
 #endif
 #if BUILDFLAG(USE_V4L2_CODEC)
-        // Enable accelerated video decode if v4l2 codec is supported.
-        &::media::kVaapiVideoDecodeLinux,
+    // Enable accelerated video decode if v4l2 codec is supported.
+    &::media::kVaapiVideoDecodeLinux,
 #endif  // BUILDFLAG(USE_V4L2_CODEC)
-  });
+  };
+
+  std::vector<const base::Feature*> extra_disable_features;
+
+#if BUILDFLAG(IS_ANDROID)
+  extra_enable_features.push_back(
+      &::media::kUseTaskRunnerForMojoAudioDecoderService);
+
+  if (base::android::BuildInfo::GetInstance()->is_tv()) {
+    // Use the software decoder provided by MediaCodec instead of the built in
+    // software decoder. This can improve av sync quality.
+    extra_enable_features.push_back(&::media::kAllowMediaCodecSoftwareDecoder);
+    // Disable AAudio on ATV for a better av sync quality, before we root cause
+    // the issue.
+    extra_disable_features.push_back(&::features::kUseAAudioDriver);
+  }
+#endif
+
+  cast_feature_list_creator_->SetExtraEnableFeatures(extra_enable_features);
+  cast_feature_list_creator_->SetExtraDisableFeatures(extra_disable_features);
 }
 
 CastContentBrowserClient::~CastContentBrowserClient() {
@@ -292,8 +313,9 @@ bool CastContentBrowserClient::OverridesAudioManager() {
 std::unique_ptr<::media::CdmFactory> CastContentBrowserClient::CreateCdmFactory(
     ::media::mojom::FrameInterfaceFactory* frame_interfaces) {
   url::Origin cdm_origin;
-  if (!CastCdmOriginProvider::GetCdmOrigin(frame_interfaces, &cdm_origin))
+  if (!CastCdmOriginProvider::GetCdmOrigin(frame_interfaces, &cdm_origin)) {
     return nullptr;
+  }
 
   return std::make_unique<media::CastCdmFactory>(
       GetMediaTaskRunner(), cdm_origin, media_resource_tracker());
@@ -343,24 +365,10 @@ CastContentBrowserClient::CreateBrowserMainParts(
   return main_parts;
 }
 
-void CastContentBrowserClient::RenderProcessWillLaunch(
-    content::RenderProcessHost* host) {
-#if BUILDFLAG(IS_ANDROID)
-  // Cast on Android always allows persisting data.
-  //
-  // Cast on Android build always uses kForceVideoOverlays command line switch
-  // such that secure codecs can always be rendered.
-  //
-  // TODO(yucliu): On Clank, secure codecs support is tied to AndroidOverlay.
-  // Remove kForceVideoOverlays and swtich to the Clank model for secure codecs
-  // support.
-  host->AddFilter(new cdm::CdmMessageFilterAndroid(true, true));
-#endif  // BUILDFLAG(IS_ANDROID)
-}
-
 bool CastContentBrowserClient::IsHandledURL(const GURL& url) {
-  if (!url.is_valid())
+  if (!url.is_valid()) {
     return false;
+  }
 
   static const char* const kProtocolList[] = {
       content::kChromeUIScheme, content::kChromeDevToolsScheme,
@@ -370,8 +378,9 @@ bool CastContentBrowserClient::IsHandledURL(const GURL& url) {
 
   const std::string& scheme = url.scheme();
   for (size_t i = 0; i < std::size(kProtocolList); ++i) {
-    if (scheme == kProtocolList[i])
+    if (scheme == kProtocolList[i]) {
       return true;
+    }
   }
 
   if (scheme == url::kFileScheme) {
@@ -418,8 +427,7 @@ void CastContentBrowserClient::AppendExtraCommandLineSwitches(
         switches::kForceMediaResolutionHeight,
         switches::kForceMediaResolutionWidth,
         network::switches::kUnsafelyTreatInsecureOriginAsSecure};
-    command_line->CopySwitchesFrom(*browser_command_line, kForwardSwitches,
-                                   std::size(kForwardSwitches));
+    command_line->CopySwitchesFrom(*browser_command_line, kForwardSwitches);
   } else if (process_type == switches::kUtilityProcess) {
     if (browser_command_line->HasSwitch(switches::kAudioOutputChannels)) {
       command_line->AppendSwitchASCII(switches::kAudioOutputChannels,
@@ -440,8 +448,7 @@ void CastContentBrowserClient::AppendExtraCommandLineSwitches(
         switches::kCastInitialScreenWidth,
         switches::kVSyncInterval,
     };
-    command_line->CopySwitchesFrom(*browser_command_line, kForwardSwitches,
-                                   std::size(kForwardSwitches));
+    command_line->CopySwitchesFrom(*browser_command_line, kForwardSwitches);
 
     auto display = display::Screen::GetScreen()->GetPrimaryDisplay();
     gfx::Size res = display.GetSizeInPixel();
@@ -522,8 +529,9 @@ void CastContentBrowserClient::OverrideWebkitPrefs(
   CastWebPreferences* web_preferences =
       static_cast<CastWebPreferences*>(web_contents->GetUserData(
           CastWebPreferences::kCastWebPreferencesDataKey));
-  if (web_preferences)
+  if (web_preferences) {
     web_preferences->Update(prefs);
+  }
 }
 
 std::string CastContentBrowserClient::GetApplicationLocale() {
@@ -548,11 +556,18 @@ void CastContentBrowserClient::AllowCertificateError(
 }
 
 base::OnceClosure CastContentBrowserClient::SelectClientCertificate(
+    content::BrowserContext* browser_context,
     content::WebContents* web_contents,
     net::SSLCertRequestInfo* cert_request_info,
     net::ClientCertIdentityList client_certs,
     std::unique_ptr<content::ClientCertificateDelegate> delegate) {
   GURL requesting_url("https://" + cert_request_info->host_and_port.ToString());
+
+  if (!web_contents) {
+    LOG(ERROR) << "Invalid requestor.";
+    delegate->ContinueWithCertificate(nullptr, nullptr);
+    return base::OnceClosure();
+  }
 
   if (!requesting_url.is_valid()) {
     LOG(ERROR) << "Invalid URL string: "
@@ -680,8 +695,9 @@ bool CastContentBrowserClient::IsBufferingEnabled() {
 absl::optional<service_manager::Manifest>
 CastContentBrowserClient::GetServiceManifestOverlay(
     base::StringPiece service_name) {
-  if (service_name == ServiceManagerContext::kBrowserServiceName)
+  if (service_name == ServiceManagerContext::kBrowserServiceName) {
     return GetCastContentBrowserOverlayManifest();
+  }
 
   return absl::nullopt;
 }
@@ -781,7 +797,7 @@ CastContentBrowserClient::CreateCrashHandlerHost(
   base::FilePath dumps_path;
   base::PathService::Get(base::DIR_TEMP, &dumps_path);
 
-  // Alway set "upload" to false to use our own uploader.
+  // Always set "upload" to false to use our own uploader.
   breakpad::CrashHandlerHostLinux* crash_handler =
       new breakpad::CrashHandlerHostLinux(process_type, dumps_path,
                                           false /* upload */);
@@ -859,12 +875,14 @@ bool CastContentBrowserClient::IsWebUIAllowedToMakeNetworkRequests(
   return false;
 }
 
-bool CastContentBrowserClient::ShouldAllowInsecureLocalNetworkRequests(
+content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride
+CastContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
-  // Some Cast apps hosted over HTTP needs to access the local network so that
+  // Some Cast apps hosted over HTTP needs to access the private network so that
   // media can be streamed from a local media server.
-  return true;
+  return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+      kForceAllow;
 }
 
 std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
@@ -884,7 +902,7 @@ CastContentBrowserClient::CreateURLLoaderThrottles(
 
   // |cast_web_contents| may be nullptr in browser tests.
   if (cast_web_contents) {
-    const auto& rules =
+    auto rules =
         cast_web_contents->url_rewrite_rules_manager()->GetCachedRules();
     if (rules) {
       throttles.emplace_back(std::make_unique<url_rewrite::URLLoaderThrottle>(

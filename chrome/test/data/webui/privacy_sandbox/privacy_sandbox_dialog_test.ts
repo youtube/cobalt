@@ -95,7 +95,7 @@ function testClickButton(buttonSelector: string, element: HTMLElement|null) {
   actionButton.click();
 }
 
-suite('PrivacySandboxDialogConsent', function() {
+suite('Consent', function() {
   let page: PrivacySandboxDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -191,7 +191,7 @@ suite('PrivacySandboxDialogConsent', function() {
   });
 });
 
-suite('PrivacySandboxDialogNotice', function() {
+suite('Notice', function() {
   let page: PrivacySandboxDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -248,7 +248,7 @@ suite('PrivacySandboxDialogNotice', function() {
   });
 });
 
-suite('PrivacySandboxDialogCombined', function() {
+suite('Combined', function() {
   let page: PrivacySandboxCombinedDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -468,7 +468,7 @@ suite('PrivacySandboxDialogCombined', function() {
   });
 });
 
-suite('PrivacySandboxDialogNoticeEEA', function() {
+suite('NoticeEEA', function() {
   let page: PrivacySandboxCombinedDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -606,7 +606,7 @@ suite('PrivacySandboxDialogNoticeEEA', function() {
   });
 });
 
-suite('PrivacySandboxDialogNoticeROW', function() {
+suite('NoticeROW', function() {
   let page: PrivacySandboxNoticeDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -622,7 +622,9 @@ suite('PrivacySandboxDialogNoticeROW', function() {
     await browserProxy.whenCalled('showDialog');
   });
 
-  test('moreButton', async function() {
+  // TODO(crbug.com/1432915, crbug.com/1432915): various more button test
+  // issues. Re-enable once resolved.
+  test.skip('moreButton', async function() {
     await verifyActionOccured(
         browserProxy, PrivacySandboxPromptAction.NOTICE_SHOWN);
     await flushTasks();
@@ -725,7 +727,7 @@ suite('PrivacySandboxDialogNoticeROW', function() {
   });
 });
 
-suite('PrivacySandboxDialogNoticeRestricted', function() {
+suite('NoticeRestricted', function() {
   let page: PrivacySandboxNoticeRestrictedDialogAppElement;
   let browserProxy: TestPrivacySandboxDialogBrowserProxy;
 
@@ -742,16 +744,14 @@ suite('PrivacySandboxDialogNoticeRestricted', function() {
   });
 
   test('validDialog', async function() {
-    // Asserting very basic functionality for now.
-    // TODO(b/277180677): add more tests as functionality is implemented.
     await verifyActionOccured(
-        browserProxy, PrivacySandboxPromptAction.NOTICE_SHOWN);
+        browserProxy, PrivacySandboxPromptAction.RESTRICTED_NOTICE_SHOWN);
     assertTrue(!!page.shadowRoot!.querySelector('div'));
   });
 
   test('settingsClicked', async function() {
     await verifyActionOccured(
-        browserProxy, PrivacySandboxPromptAction.NOTICE_SHOWN);
+        browserProxy, PrivacySandboxPromptAction.RESTRICTED_NOTICE_SHOWN);
     testClickButton('#settingsButton', page);
     await verifyActionOccured(
         browserProxy,
@@ -760,7 +760,7 @@ suite('PrivacySandboxDialogNoticeRestricted', function() {
 
   test('acknowledgeClicked', async function() {
     await verifyActionOccured(
-        browserProxy, PrivacySandboxPromptAction.NOTICE_SHOWN);
+        browserProxy, PrivacySandboxPromptAction.RESTRICTED_NOTICE_SHOWN);
     testClickButton('#ackButton', page);
     await verifyActionOccured(
         browserProxy, PrivacySandboxPromptAction.RESTRICTED_NOTICE_ACKNOWLEDGE);
@@ -768,9 +768,11 @@ suite('PrivacySandboxDialogNoticeRestricted', function() {
 
   // TODO(b/277180533): determine whether some of the more button test logic can
   // be shared.
-  test('moreButton', async function() {
+  // TODO(crbug.com/1432915): various more button test issues. Re-enable once
+  // resolved.
+  test.skip('moreButton', async function() {
     await verifyActionOccured(
-        browserProxy, PrivacySandboxPromptAction.NOTICE_SHOWN);
+        browserProxy, PrivacySandboxPromptAction.RESTRICTED_NOTICE_SHOWN);
     await flushTasks();
 
     const scrollable: HTMLElement =
@@ -815,7 +817,8 @@ suite('PrivacySandboxDialogNoticeRestricted', function() {
     }
 
     await verifyActionOccured(
-        browserProxy, PrivacySandboxPromptAction.NOTICE_MORE_BUTTON_CLICKED);
+        browserProxy,
+        PrivacySandboxPromptAction.RESTRICTED_NOTICE_MORE_BUTTON_CLICKED);
     await page.whenWasScrolledToBottomForTest();
 
     // After scrolling down, the "More" button is hidden and dialog button are
@@ -832,7 +835,7 @@ suite('PrivacySandboxDialogNoticeRestricted', function() {
   });
 });
 
-suite('PrivacySandboxDialogMixin', function() {
+suite('Mixin', function() {
   const TestElementBase = PrivacySandboxDialogMixin(PolymerElement);
 
   // Create a test element to have more control over size of the element and
@@ -953,9 +956,12 @@ suite('PrivacySandboxDialogMixin', function() {
         testElement.wasScrolledToBottom, 'last text element should be visible');
   });
 
-  test('1px of the last text element not shown', async function() {
+  // The 2 pixels vs 1 pixel choice here is due to intersectionRatio being
+  // sometimes reported as 0.99 instead of 1.
+  // See more at crbug.com/1020466 and b/299120185.
+  test('2px of the last text element not shown', async function() {
     container.style.height =
-        `${fullContainerHeight - LAST_BOTTOM_MARGIN - 1}px`;
+        `${fullContainerHeight - LAST_BOTTOM_MARGIN - 2}px`;
     assertTrue(
         doesElemenHaveScrollbar(scrollable), 'content should have a scrollbar');
 

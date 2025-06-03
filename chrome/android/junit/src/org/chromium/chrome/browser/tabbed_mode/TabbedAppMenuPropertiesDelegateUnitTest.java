@@ -16,6 +16,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+import android.view.ContextThemeWrapper;
 import android.view.Menu;
 import android.view.View;
 import android.widget.PopupMenu;
@@ -45,6 +47,7 @@ import org.chromium.chrome.browser.bookmarks.PowerBookmarkUtils;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtils;
 import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtilsJni;
+import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedSnackbarController;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
@@ -54,9 +57,10 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.profiles.ProfileJni;
+import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.tab.Tab;
@@ -68,13 +72,17 @@ import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.util.browser.Features;
+import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
+import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.power_bookmarks.PowerBookmarkMeta;
+import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.webapps.AppBannerManager;
+import org.chromium.components.webapps.AppBannerManagerJni;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -83,14 +91,12 @@ import org.chromium.url.JUnitTestGURLs;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Unit tests for {@link TabbedAppMenuPropertiesDelegate}.
- */
+/** Unit tests for {@link TabbedAppMenuPropertiesDelegate}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Features.EnableFeatures({ChromeFeatureList.WEB_FEED, ChromeFeatureList.BOOKMARKS_REFRESH})
-@Features.DisableFeatures({ChromeFeatureList.SHOPPING_LIST, ChromeFeatureList.WEB_APK_UNIQUE_ID})
+@EnableFeatures({ChromeFeatureList.WEB_FEED, ChromeFeatureList.BOOKMARKS_REFRESH})
+@DisableFeatures({ChromeFeatureList.SHOPPING_LIST})
 public class TabbedAppMenuPropertiesDelegateUnitTest {
-    // Costants defining flags that determines multi-window menu items visibility.
+    // Constants defining flags that determines multi-window menu items visibility.
     private static final boolean TAB_M = true; // multiple tabs
     private static final boolean TAB_S = false;
     private static final boolean WIN_M = true; // in multi-window mode
@@ -109,70 +115,44 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     private static final boolean MOVE_NO = false;
     private static final Boolean X____ = null; // do not care
 
-    @Rule
-    public JniMocker jniMocker = new JniMocker();
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
-    @Mock
-    private ActivityTabProvider mActivityTabProvider;
-    @Mock
-    private Tab mTab;
-    @Mock
-    private WebContents mWebContents;
-    @Mock
-    private NavigationController mNavigationController;
-    @Mock
-    private MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
-    @Mock
-    private TabModelSelector mTabModelSelector;
-    @Mock
-    private TabModel mTabModel;
-    @Mock
-    private ToolbarManager mToolbarManager;
-    @Mock
-    private View mDecorView;
-    @Mock
-    private LayoutStateProvider mLayoutStateProvider;
-    @Mock
-    private ManagedBrowserUtils.Natives mManagedBrowserUtilsJniMock;
-    @Mock
-    private Profile mProfile;
-    @Mock
-    private AppMenuDelegate mAppMenuDelegate;
-    @Mock
-    Profile.Natives mProfileJniMock;
-    @Mock
-    Profile mProfileMock;
-    @Mock
-    private WebFeedSnackbarController.FeedLauncher mFeedLauncher;
-    @Mock
-    private ModalDialogManager mDialogManager;
-    @Mock
-    private SnackbarManager mSnackbarManager;
-    @Mock
-    private OfflinePageUtils.Internal mOfflinePageUtils;
-    @Mock
-    private SigninManager mSigninManager;
-    @Mock
-    private IdentityManager mIdentityManager;
-    @Mock
-    private IdentityServicesProvider mIdentityService;
-    @Mock
-    private TabModelFilterProvider mTabModelFilterProvider;
-    @Mock
-    private TabModelFilter mTabModelFilter;
-    @Mock
-    public WebsitePreferenceBridge.Natives mWebsitePreferenceBridgeJniMock;
-    @Mock
-    private IncognitoReauthController mIncognitoReauthControllerMock;
-    @Mock
-    private ShoppingService mShoppingService;
+    @Rule public JniMocker jniMocker = new JniMocker();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
+    @Mock private ActivityTabProvider mActivityTabProvider;
+    @Mock private Tab mTab;
+    @Mock private WebContents mWebContents;
+    @Mock private NavigationController mNavigationController;
+    @Mock private MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
+    @Mock private TabModelSelector mTabModelSelector;
+    @Mock private TabModel mTabModel;
+    @Mock private ToolbarManager mToolbarManager;
+    @Mock private View mDecorView;
+    @Mock private LayoutStateProvider mLayoutStateProvider;
+    @Mock private ManagedBrowserUtils.Natives mManagedBrowserUtilsJniMock;
+    @Mock private Profile mProfile;
+    @Mock private AppMenuDelegate mAppMenuDelegate;
+    @Mock private WebFeedSnackbarController.FeedLauncher mFeedLauncher;
+    @Mock private ModalDialogManager mDialogManager;
+    @Mock private SnackbarManager mSnackbarManager;
+    @Mock private OfflinePageUtils.Internal mOfflinePageUtils;
+    @Mock private SigninManager mSigninManager;
+    @Mock private IdentityManager mIdentityManager;
+    @Mock private IdentityServicesProvider mIdentityService;
+    @Mock private TabModelFilterProvider mTabModelFilterProvider;
+    @Mock private TabModelFilter mTabModelFilter;
+    @Mock public WebsitePreferenceBridge.Natives mWebsitePreferenceBridgeJniMock;
+    @Mock private IncognitoReauthController mIncognitoReauthControllerMock;
+    @Mock private ShoppingService mShoppingService;
+    @Mock private AppBannerManager.Natives mAppBannerManagerJniMock;
+    @Mock private ReadAloudController mReadAloudController;
+    @Mock private PrefService mPrefService;
 
     private OneshotSupplierImpl<LayoutStateProvider> mLayoutStateProviderSupplier =
             new OneshotSupplierImpl<>();
     private OneshotSupplierImpl<IncognitoReauthController> mIncognitoReauthControllerSupplier =
             new OneshotSupplierImpl<>();
     private ObservableSupplierImpl<BookmarkModel> mBookmarkModelSupplier =
+            new ObservableSupplierImpl<>();
+    private ObservableSupplierImpl<ReadAloudController> mReadAloudControllerSupplier =
             new ObservableSupplierImpl<>();
 
     private TabbedAppMenuPropertiesDelegate mTabbedAppMenuPropertiesDelegate;
@@ -194,7 +174,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
         mLayoutStateProviderSupplier.set(mLayoutStateProvider);
         mIncognitoReauthControllerSupplier.set(mIncognitoReauthControllerMock);
+        mReadAloudControllerSupplier.set(mReadAloudController);
         when(mTab.getWebContents()).thenReturn(mWebContents);
+        when(mTab.getProfile()).thenReturn(mProfile);
         when(mWebContents.getNavigationController()).thenReturn(mNavigationController);
         when(mNavigationController.getUseDesktopUserAgent()).thenReturn(false);
         when(mTabModelSelector.getCurrentModel()).thenReturn(mTabModel);
@@ -203,8 +185,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         when(mTabModelSelector.getTabModelFilterProvider()).thenReturn(mTabModelFilterProvider);
         when(mTabModelFilterProvider.getCurrentTabModelFilter()).thenReturn(mTabModelFilter);
         when(mTabModelFilter.getTabModel()).thenReturn(mTabModel);
-        jniMocker.mock(ProfileJni.TEST_HOOKS, mProfileJniMock);
-        when(mProfileJniMock.fromWebContents(any(WebContents.class))).thenReturn(mProfileMock);
         jniMocker.mock(ManagedBrowserUtilsJni.TEST_HOOKS, mManagedBrowserUtilsJniMock);
         Profile.setLastUsedProfileForTesting(mProfile);
         jniMocker.mock(WebsitePreferenceBridgeJni.TEST_HOOKS, mWebsitePreferenceBridgeJniMock);
@@ -214,19 +194,38 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         IdentityServicesProvider.setInstanceForTests(mIdentityService);
         FeatureList.setTestCanUseDefaultsForTesting();
         PageZoomCoordinator.setShouldShowMenuItemForTesting(false);
+        FeedFeatures.setFakePrefsForTest(mPrefService);
+        jniMocker.mock(AppBannerManagerJni.TEST_HOOKS, mAppBannerManagerJniMock);
+        Mockito.when(mAppBannerManagerJniMock.getInstallableWebAppManifestId(any()))
+                .thenReturn(null);
 
+        Context context =
+                new ContextThemeWrapper(
+                        ContextUtils.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
         PowerBookmarkUtils.setPriceTrackingEligibleForTesting(false);
         PowerBookmarkUtils.setPowerBookmarkMetaForTesting(PowerBookmarkMeta.newBuilder().build());
-        mTabbedAppMenuPropertiesDelegate = Mockito.spy(
-                new TabbedAppMenuPropertiesDelegate(ContextUtils.getApplicationContext(),
-                        mActivityTabProvider, mMultiWindowModeStateDispatcher, mTabModelSelector,
-                        mToolbarManager, mDecorView, mAppMenuDelegate, mLayoutStateProviderSupplier,
-                        null, mBookmarkModelSupplier, mFeedLauncher, mDialogManager,
-                        mSnackbarManager, mIncognitoReauthControllerSupplier));
-        SharedPreferencesManager.getInstance().removeKeysWithPrefix(
-                ChromePreferenceKeys.MULTI_INSTANCE_URL);
-        SharedPreferencesManager.getInstance().removeKeysWithPrefix(
-                ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT);
+        mTabbedAppMenuPropertiesDelegate =
+                Mockito.spy(
+                        new TabbedAppMenuPropertiesDelegate(
+                                context,
+                                mActivityTabProvider,
+                                mMultiWindowModeStateDispatcher,
+                                mTabModelSelector,
+                                mToolbarManager,
+                                mDecorView,
+                                mAppMenuDelegate,
+                                mLayoutStateProviderSupplier,
+                                null,
+                                mBookmarkModelSupplier,
+                                mFeedLauncher,
+                                mDialogManager,
+                                mSnackbarManager,
+                                mIncognitoReauthControllerSupplier,
+                                mReadAloudControllerSupplier));
+        ChromeSharedPreferences.getInstance()
+                .removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_URL);
+        ChromeSharedPreferences.getInstance()
+                .removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT);
 
         ShoppingServiceFactory.setShoppingServiceForTesting(mShoppingService);
     }
@@ -239,14 +238,28 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         Menu menu = createTestMenu();
         mTabbedAppMenuPropertiesDelegate.prepareMenu(menu, null);
 
-        Integer[] expectedItems = {R.id.icon_row_menu_id, R.id.new_tab_menu_id,
-                R.id.new_incognito_tab_menu_id, R.id.divider_line_id, R.id.open_history_menu_id,
-                R.id.downloads_menu_id, R.id.all_bookmarks_menu_id, R.id.recent_tabs_menu_id,
-                R.id.divider_line_id, R.id.translate_id, R.id.share_row_menu_id,
-                R.id.find_in_page_id, R.id.add_to_homescreen_id,
-                R.id.request_desktop_site_row_menu_id, R.id.auto_dark_web_contents_row_menu_id,
-                R.id.divider_line_id, R.id.preferences_id, R.id.help_id,
-                R.id.managed_by_divider_line_id, R.id.managed_by_menu_id};
+        Integer[] expectedItems = {
+            R.id.icon_row_menu_id,
+            R.id.new_tab_menu_id,
+            R.id.new_incognito_tab_menu_id,
+            R.id.divider_line_id,
+            R.id.open_history_menu_id,
+            R.id.downloads_menu_id,
+            R.id.all_bookmarks_menu_id,
+            R.id.recent_tabs_menu_id,
+            R.id.divider_line_id,
+            R.id.translate_id,
+            R.id.share_row_menu_id,
+            R.id.find_in_page_id,
+            R.id.add_to_homescreen_id,
+            R.id.request_desktop_site_row_menu_id,
+            R.id.auto_dark_web_contents_row_menu_id,
+            R.id.divider_line_id,
+            R.id.preferences_id,
+            R.id.help_id,
+            R.id.managed_by_divider_line_id,
+            R.id.managed_by_menu_id
+        };
         assertMenuItemsAreEqual(menu, expectedItems);
     }
 
@@ -356,7 +369,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForWebFeedFooter();
         when(mTab.isIncognito()).thenReturn(true);
 
-        assertNotEquals("Footer Resource ID should not be web_feed_main_menu_item.",
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
                 R.layout.web_feed_main_menu_item,
                 mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
     }
@@ -366,7 +380,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForWebFeedFooter();
         when(mOfflinePageUtils.isOfflinePage(mTab)).thenReturn(true);
 
-        assertNotEquals("Footer Resource ID should not be web_feed_main_menu_item.",
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
                 R.layout.web_feed_main_menu_item,
                 mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
     }
@@ -374,9 +389,10 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Test
     public void getFooterResourceId_nonHttpUrl_doesNotReturnWebFeedMenuItem() {
         setUpMocksForWebFeedFooter();
-        when(mTab.getOriginalUrl()).thenReturn(JUnitTestGURLs.getGURL(JUnitTestGURLs.NTP_URL));
+        when(mTab.getOriginalUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
 
-        assertNotEquals("Footer Resource ID should not be web_feed_main_menu_item.",
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
                 R.layout.web_feed_main_menu_item,
                 mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
     }
@@ -386,7 +402,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         setUpMocksForWebFeedFooter();
         when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(false);
 
-        assertNotEquals("Footer Resource ID should not be web_feed_main_menu_item.",
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
                 R.layout.web_feed_main_menu_item,
                 mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
     }
@@ -395,7 +412,47 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     public void getFooterResourceId_httpsUrl_returnsWebFeedMenuItem() {
         setUpMocksForWebFeedFooter();
 
-        assertEquals("Footer Resource ID should be web_feed_main_menu_item.",
+        assertEquals(
+                "Footer Resource ID should be web_feed_main_menu_item.",
+                R.layout.web_feed_main_menu_item,
+                mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_SEARCH_ENGINE_URL_ANDROID)
+    public void getFooterResourceId_dseOff_doesNotReturnWebFeedMenuItem() {
+        setUpMocksForWebFeedFooter();
+        when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(true);
+        when(mPrefService.getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE)).thenReturn(false);
+
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
+                R.layout.web_feed_main_menu_item,
+                mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_SEARCH_ENGINE_URL_ANDROID)
+    public void getFooterResourceId_dseOn_returnsWebFeedMenuItem() {
+        setUpMocksForWebFeedFooter();
+        when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(true);
+        when(mPrefService.getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE)).thenReturn(true);
+
+        assertEquals(
+                "Footer Resource ID should be web_feed_main_menu_item.",
+                R.layout.web_feed_main_menu_item,
+                mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_SEARCH_ENGINE_URL_ANDROID)
+    public void getFooterResourceId_signedOutUser_dseOn_doesNotReturnWebFeedMenuItem() {
+        setUpMocksForWebFeedFooter();
+        when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(false);
+        when(mPrefService.getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE)).thenReturn(true);
+
+        assertNotEquals(
+                "Footer Resource ID should not be web_feed_main_menu_item.",
                 R.layout.web_feed_main_menu_item,
                 mTabbedAppMenuPropertiesDelegate.getFooterResourceId());
     }
@@ -403,7 +460,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     private void setUpMocksForWebFeedFooter() {
         when(mActivityTabProvider.get()).thenReturn(mTab);
         when(mTab.isIncognito()).thenReturn(false);
-        when(mTab.getOriginalUrl()).thenReturn(JUnitTestGURLs.getGURL(JUnitTestGURLs.EXAMPLE_URL));
+        when(mTab.getOriginalUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         when(mOfflinePageUtils.isOfflinePage(mTab)).thenReturn(false);
         when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(true);
     }
@@ -425,7 +482,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         doReturn(true).when(mTabbedAppMenuPropertiesDelegate).isAutoDarkWebContentsEnabled();
 
         setUpIncognitoMocks();
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.getGURL(JUnitTestGURLs.SEARCH_URL));
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
         when(mTab.isNativePage()).thenReturn(false);
         doReturn(false)
                 .when(mTabbedAppMenuPropertiesDelegate)
@@ -433,8 +490,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         doReturn(true)
                 .when(mTabbedAppMenuPropertiesDelegate)
                 .shouldShowTranslateMenuItem(any(Tab.class));
-        doReturn(new AppBannerManager.InstallStringPair(
-                         R.string.menu_add_to_homescreen, R.string.add))
+        doReturn(
+                        new AppBannerManager.InstallStringPair(
+                                R.string.menu_add_to_homescreen, R.string.add))
                 .when(mTabbedAppMenuPropertiesDelegate)
                 .getAddToHomeScreenTitle(mTab);
         when(mManagedBrowserUtilsJniMock.isBrowserManaged(any())).thenReturn(true);
@@ -448,8 +506,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     private Menu createTestMenu() {
         // mMultiWindowModeStateDispatcher.isOpenInOtherWindowSupported() is determined by
         // isInMultiWindowMode() and isInMultiDisplayMode(). Set that condition here.
-        boolean openInOtherWindow = mMultiWindowModeStateDispatcher.isInMultiWindowMode()
-                || mMultiWindowModeStateDispatcher.isInMultiDisplayMode();
+        boolean openInOtherWindow =
+                mMultiWindowModeStateDispatcher.isInMultiWindowMode()
+                        || mMultiWindowModeStateDispatcher.isInMultiDisplayMode();
         doReturn(openInOtherWindow)
                 .when(mMultiWindowModeStateDispatcher)
                 .isOpenInOtherWindowSupported();
@@ -487,8 +546,14 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         return menu;
     }
 
-    private void testWindowMenu(Boolean multiTab, Boolean multiWindow, Boolean multiInstance,
-            Boolean tablet, Boolean apiSupported, Boolean partnerEnabled, Boolean showNewWindow,
+    private void testWindowMenu(
+            Boolean multiTab,
+            Boolean multiWindow,
+            Boolean multiInstance,
+            Boolean tablet,
+            Boolean apiSupported,
+            Boolean partnerEnabled,
+            Boolean showNewWindow,
             Boolean showMoveWindow) {
         for (int i = 0; i < (1 << 6); ++i) {
             boolean bitMultiTab = (i & 1) == 1;
@@ -548,24 +613,49 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             // Ignore invalid combination.
             if (!bitMultiWindow && bitMultiInstance) continue;
 
-            assertTrue("Not tested: "
-                            + getFlags(bitMultiTab, bitMultiWindow, bitMultiInstance,
-                                    bitTabletScreen, bitApiSupported, bitPartnerEnabled),
+            assertTrue(
+                    "Not tested: "
+                            + getFlags(
+                                    bitMultiTab,
+                                    bitMultiWindow,
+                                    bitMultiInstance,
+                                    bitTabletScreen,
+                                    bitApiSupported,
+                                    bitPartnerEnabled),
                     mFlagCombinations[i]);
         }
     }
 
-    private String getFlags(boolean multiTab, boolean multiWindow, boolean multiInstance,
-            boolean tablet, boolean apiSupported, boolean partnerEnabled) {
-        return "(" + (multiTab ? "TAB_M" : "TAB_S") + ", " + (multiWindow ? "WIN_M" : "WIN_S")
-                + ", " + (multiInstance ? "INST_M" : "INST_S") + ", "
-                + (tablet ? "TABLET" : "PHONE") + ", " + (apiSupported ? "API_YES" : "API_NO")
-                + ", " + (partnerEnabled ? "PARTNER_YES" : "PARTNER_NO") + ")";
+    private String getFlags(
+            boolean multiTab,
+            boolean multiWindow,
+            boolean multiInstance,
+            boolean tablet,
+            boolean apiSupported,
+            boolean partnerEnabled) {
+        return "("
+                + (multiTab ? "TAB_M" : "TAB_S")
+                + ", "
+                + (multiWindow ? "WIN_M" : "WIN_S")
+                + ", "
+                + (multiInstance ? "INST_M" : "INST_S")
+                + ", "
+                + (tablet ? "TABLET" : "PHONE")
+                + ", "
+                + (apiSupported ? "API_YES" : "API_NO")
+                + ", "
+                + (partnerEnabled ? "PARTNER_YES" : "PARTNER_NO")
+                + ")";
     }
 
     private String getFlags() {
-        return getFlags(mIsMultiTab, mIsMultiWindow, mIsMultiInstance, mIsTabletScreen,
-                mIsMultiWindowApiSupported, mIsPartnerHomepageEnabled);
+        return getFlags(
+                mIsMultiTab,
+                mIsMultiWindow,
+                mIsMultiInstance,
+                mIsTabletScreen,
+                mIsMultiWindowApiSupported,
+                mIsPartnerHomepageEnabled);
     }
 
     private void assertMenuItemsAreEqual(Menu menu, Integer... expectedItems) {
@@ -576,7 +666,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             }
         }
 
-        assertThat("Populated menu items were:" + getMenuTitles(menu), actualItems,
+        assertThat(
+                "Populated menu items were:" + getMenuTitles(menu),
+                actualItems,
                 Matchers.containsInAnyOrder(expectedItems));
     }
 
@@ -592,12 +684,14 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     private void assertMenuContains(Menu menu, int itemId) {
-        Assert.assertTrue("Item should must be contained in the menu: " + itemId,
+        Assert.assertTrue(
+                "Item should must be contained in the menu: " + itemId,
                 isMenuVisible(menu, itemId));
     }
 
     private void assertMenuDoesNotContain(Menu menu, int itemId) {
-        Assert.assertFalse("Item should must not be contained in the menu: " + itemId,
+        Assert.assertFalse(
+                "Item should must not be contained in the menu: " + itemId,
                 isMenuVisible(menu, itemId));
     }
 
@@ -613,12 +707,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     private static void createInstance(int index, String url) {
         String urlKey = ChromePreferenceKeys.MULTI_INSTANCE_URL.createKey(String.valueOf(index));
-        SharedPreferencesManager.getInstance().writeString(urlKey, url);
+        ChromeSharedPreferences.getInstance().writeString(urlKey, url);
         String tabCountKey =
                 ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT.createKey(String.valueOf(index));
-        SharedPreferencesManager.getInstance().writeInt(tabCountKey, 1);
-        String accessTimeKey = ChromePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME.createKey(
-                String.valueOf(index));
-        SharedPreferencesManager.getInstance().writeLong(accessTimeKey, System.currentTimeMillis());
+        ChromeSharedPreferences.getInstance().writeInt(tabCountKey, 1);
+        String accessTimeKey =
+                ChromePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME.createKey(
+                        String.valueOf(index));
+        ChromeSharedPreferences.getInstance().writeLong(accessTimeKey, System.currentTimeMillis());
     }
 }

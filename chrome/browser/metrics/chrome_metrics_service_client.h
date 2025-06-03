@@ -90,6 +90,8 @@ class ChromeMetricsServiceClient
   variations::SyntheticTrialRegistry* GetSyntheticTrialRegistry() override;
   metrics::MetricsService* GetMetricsService() override;
   ukm::UkmService* GetUkmService() override;
+  metrics::structured::StructuredMetricsService* GetStructuredMetricsService()
+      override;
   void SetMetricsClientId(const std::string& client_id) override;
   int32_t GetProduct() override;
   std::string GetApplicationLocale() override;
@@ -99,6 +101,7 @@ class ChromeMetricsServiceClient
   bool IsExtendedStableChannel() override;
   std::string GetVersionString() override;
   void OnEnvironmentUpdate(std::string* serialized_environment) override;
+  void MergeSubprocessHistograms() override;
   void CollectFinalMetricsForLog(base::OnceClosure done_callback) override;
   std::unique_ptr<metrics::MetricsLogUploader> CreateUploader(
       const GURL& server_url,
@@ -211,8 +214,7 @@ class ChromeMetricsServiceClient
   static bool IsWebstoreExtension(base::StringPiece id);
 
   // Resets client state (i.e. client id) if MSBB or App-sync consent
-  // is changed from on to off. NOOP when kAppMetricsOnlyRelyOnAppSync is
-  // disabled.
+  // is changed from on to off. For non-ChromeOS platforms, this will no-op.
   void ResetClientStateWhenMsbbOrAppConsentIsRevoked(
       ukm::UkmConsentState previous_consent_state);
 
@@ -238,6 +240,12 @@ class ChromeMetricsServiceClient
   // and it must be destroyed after they are. Manages SystemProfile information
   // needed by other metrics providers.
   std::unique_ptr<metrics::MetricsProvider> cros_system_profile_provider_;
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // The StructuredMetricsService that |this| is a client of.
+  std::unique_ptr<metrics::structured::StructuredMetricsService>
+      structured_metrics_service_;
+#endif
 
   // The MetricsService that |this| is a client of.
   std::unique_ptr<metrics::MetricsService> metrics_service_;

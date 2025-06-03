@@ -36,16 +36,12 @@ namespace {
 class AppRecover : public App {
  public:
   AppRecover(const base::Version& browser_version,
-             const std::string& session_id,
              const std::string& browser_app_id)
-      : browser_version_(browser_version),
-        session_id_(session_id),
-        browser_app_id_(browser_app_id) {}
+      : browser_version_(browser_version), browser_app_id_(browser_app_id) {}
 
  private:
   ~AppRecover() override = default;
-  void Initialize() override;
-  void Uninitialize() override;
+  [[nodiscard]] int Initialize() override;
   void FirstTaskRun() override;
 
   std::vector<RegistrationRequest> RecordRegisteredApps() const;
@@ -55,23 +51,33 @@ class AppRecover : public App {
                     int reinstall_result);
 
   const base::Version browser_version_;
-  const std::string session_id_;  // TODO(crbug.com/1281971): Unused.
   const std::string browser_app_id_;
   scoped_refptr<GlobalPrefs> global_prefs_;
 };
 
-void AppRecover::Initialize() {
+int AppRecover::Initialize() {
   global_prefs_ = CreateGlobalPrefs(updater_scope());
-}
-
-void AppRecover::Uninitialize() {
-  global_prefs_ = nullptr;
+  return kErrorOk;
 }
 
 void AppRecover::FirstTaskRun() {
   if (!global_prefs_) {
     VLOG(0) << "Recovery task could not acquire global prefs.";
-    Shutdown(kErrorFailedToLockPrefsMutex);
+
+    // If global prefs cannot be acquired, it's possible that an active updater
+    // is running but is stuck. Issuing a GetVersion RPC to the updater may
+    // unstick it, and won't do harm if it is actively working.
+    scoped_refptr<UpdateService> update_service =
+        CreateUpdateServiceProxy(updater_scope());
+    update_service->GetVersion(
+        base::BindOnce(
+            [](scoped_refptr<UpdateService> /*update_service*/,
+               const base::Version& version) {
+              VLOG(0) << "GetVersion returned " << version;
+            },
+            update_service)
+            .Then(base::BindOnce(&AppRecover::Shutdown, this,
+                                 kErrorFailedToLockPrefsMutex)));
     return;
   }
 
@@ -116,7 +122,6 @@ std::vector<RegistrationRequest> AppRecover::RecordRegisteredApps() const {
     RegistrationRequest registration;
     registration.app_id = browser_app_id_;
     registration.version = browser_version_;
-    // TODO(crbug.com/1281971): registration.existence_checker_path must be set.
     apps.emplace_back(registration);
   }
   return apps;
@@ -147,13 +152,13 @@ int AppRecover::ReinstallUpdater() const {
   }
   base::CommandLine install_command(setup_path);
   install_command.AppendSwitch(kInstallSwitch);
+  install_command.AppendSwitch(kSilentSwitch);
   install_command.AppendSwitch(kEnableLoggingSwitch);
   install_command.AppendSwitchASCII(kLoggingModuleSwitch,
                                     kLoggingModuleSwitchValue);
   if (IsSystemInstall(updater_scope())) {
     install_command.AppendSwitch(kSystemSwitch);
   }
-  // TODO(crbug.com/1281971): suppress the installer's UI.
   if (!base::LaunchProcess(install_command, {}).WaitForExit(&exit_code)) {
     VLOG(0) << "Failed to wait for the installer to exit.";
     return kErrorWaitFailedInstall;
@@ -173,11 +178,7 @@ void AppRecover::RegisterApps(
       CreateUpdateServiceProxy(updater_scope());
   base::RepeatingClosure barrier = base::BarrierClosure(
       registrations.size(),
-      // The service is bound to keep it alive through all callbacks.
-      base::BindOnce(
-          [](scoped_refptr<UpdateService> /*service*/,
-             base::OnceClosure shutdown) { std::move(shutdown).Run(); },
-          service, base::BindOnce(&AppRecover::Shutdown, this, kErrorOk)));
+      base::BindOnce(&AppRecover::Shutdown, this, kErrorOk));
   for (const RegistrationRequest& registration : registrations) {
     service->RegisterApp(registration,
                          base::BindOnce(
@@ -198,7 +199,6 @@ scoped_refptr<App> MakeAppRecover() {
       base::CommandLine::ForCurrentProcess();
   return base::MakeRefCounted<AppRecover>(
       base::Version(command_line->GetSwitchValueASCII(kBrowserVersionSwitch)),
-      command_line->GetSwitchValueASCII(kSessionIdSwitch),
       command_line->GetSwitchValueASCII(kAppGuidSwitch));
 }
 

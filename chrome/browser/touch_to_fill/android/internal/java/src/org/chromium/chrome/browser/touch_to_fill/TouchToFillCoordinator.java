@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.touch_to_fill;
 
-import static org.chromium.chrome.browser.password_manager.PasswordManagerHelper.usesUnifiedPasswordManagerBranding;
-
 import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
@@ -34,21 +32,36 @@ public class TouchToFillCoordinator implements TouchToFillComponent {
     @Override
     public void initialize(Context context, BottomSheetController sheetController,
             TouchToFillComponent.Delegate delegate, BottomSheetFocusHelper bottomSheetFocusHelper) {
+        // TODO(crbug.com/1472327): The touch_to_fill_list_item layout only supports
+        // favicons of size touch_to_fill_favicon_size, which is smaller than
+        // touch_to_fill_favicon_size_modern. Figure out which size the layout should use.
         mMediator.initialize(context, delegate, mModel,
                 new LargeIconBridge(Profile.getLastUsedRegularProfile()),
-                context.getResources().getDimensionPixelSize(usesUnifiedPasswordManagerBranding()
-                                ? R.dimen.touch_to_fill_favicon_size_modern
-                                : R.dimen.touch_to_fill_favicon_size),
+                context.getResources().getDimensionPixelSize(
+                        R.dimen.touch_to_fill_favicon_size_modern),
                 bottomSheetFocusHelper);
         setUpModelChangeProcessors(mModel, new TouchToFillView(context, sheetController));
     }
 
     @Override
-    public void showCredentials(GURL url, boolean isOriginSecure,
-            List<WebAuthnCredential> webAuthnCredentials, List<Credential> credentials,
-            boolean triggerSubmission, boolean managePasskeysHidesPasswords) {
-        mMediator.showCredentials(url, isOriginSecure, webAuthnCredentials, credentials,
-                triggerSubmission, managePasskeysHidesPasswords);
+    public void showCredentials(
+            GURL url,
+            boolean isOriginSecure,
+            List<WebAuthnCredential> webAuthnCredentials,
+            List<Credential> credentials,
+            boolean triggerSubmission,
+            boolean managePasskeysHidesPasswords,
+            boolean showHybridPasskeyOption,
+            boolean showCredManEntry) {
+        mMediator.showCredentials(
+                url,
+                isOriginSecure,
+                webAuthnCredentials,
+                credentials,
+                showCredManEntry,
+                triggerSubmission,
+                managePasskeysHidesPasswords,
+                showHybridPasskeyOption);
     }
 
     /**

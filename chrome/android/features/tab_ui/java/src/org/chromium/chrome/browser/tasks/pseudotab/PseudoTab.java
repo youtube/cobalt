@@ -9,13 +9,11 @@ import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelFilterProvider;
@@ -23,7 +21,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
 import org.chromium.chrome.browser.tabpersistence.TabStateDirectory;
-import org.chromium.chrome.browser.tasks.tab_management.TabUiFeatureUtilities;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.url.GURL;
 
@@ -200,7 +197,7 @@ public class PseudoTab {
      */
     public int getRootId() {
         if (mTab != null && mTab.get() != null && mTab.get().isInitialized()) {
-            return CriticalPersistedTabData.from(mTab.get()).getRootId();
+            return mTab.get().getRootId();
         }
         assert mTabId != null;
         return TabAttributeCache.getRootId(mTabId);
@@ -211,7 +208,7 @@ public class PseudoTab {
      */
     public long getTimestampMillis() {
         if (mTab != null && mTab.get() != null && mTab.get().isInitialized()) {
-            return CriticalPersistedTabData.from(mTab.get()).getTimestampMillis();
+            return mTab.get().getTimestampMillis();
         }
         assert mTabId != null;
         return TabAttributeCache.getTimestampMillis(mTabId);
@@ -248,7 +245,6 @@ public class PseudoTab {
      * This should/can be called when emulating restarting in instrumented tests, or between
      * Robolectric tests.
      */
-    @VisibleForTesting
     public static void clearForTesting() {
         synchronized (sLock) {
             sAllTabs.clear();
@@ -277,8 +273,7 @@ public class PseudoTab {
 
             List<PseudoTab> related = new ArrayList<>();
             int rootId = member.getRootId();
-            if (rootId == Tab.INVALID_TAB_ID
-                    || !TabUiFeatureUtilities.isTabGroupsAndroidEnabled(context)) {
+            if (rootId == Tab.INVALID_TAB_ID) {
                 related.add(member);
                 return related;
             }
@@ -297,7 +292,7 @@ public class PseudoTab {
     private static @Nullable List<Tab> getRelatedTabList(
             @NonNull TabModelSelector tabModelSelector, int tabId) {
         if (!tabModelSelector.isTabStateInitialized()) {
-            assert ChromeFeatureList.sInstantStart.isEnabled();
+            if (!ChromeFeatureList.sInstantStart.isEnabled()) throw new IllegalStateException();
             return null;
         }
         TabModelFilterProvider provider = tabModelSelector.getTabModelFilterProvider();
@@ -308,7 +303,6 @@ public class PseudoTab {
         return related;
     }
 
-    @VisibleForTesting
     static int getAllTabsCountForTests() {
         synchronized (sLock) {
             return sAllTabs.size();
@@ -324,8 +318,7 @@ public class PseudoTab {
         return sAllTabsFromStateFile;
     }
 
-    @Nullable
-    public static PseudoTab getActiveTabFromStateFile(Context context) {
+    public static @Nullable PseudoTab getActiveTabFromStateFile(Context context) {
         readAllPseudoTabsFromStateFile(context);
         return sActiveTabFromStateFile;
     }
@@ -374,8 +367,7 @@ public class PseudoTab {
                             sActiveTabFromStateFile = tab;
                         }
                         int rootId = tab.getRootId();
-                        if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(context)
-                                && seenRootId.contains(rootId)) {
+                        if (seenRootId.contains(rootId)) {
                             return;
                         }
                         sAllTabsFromStateFile.add(tab);

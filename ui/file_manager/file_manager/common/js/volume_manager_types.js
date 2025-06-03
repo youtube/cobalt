@@ -272,6 +272,8 @@ Object.freeze(VolumeManagerCommon.VolumeType);
 /**
  * Obtains volume type from root type.
  * @param {VolumeManagerCommon.RootType} rootType RootType
+// @ts-ignore: error TS2366: Function lacks ending return statement and return
+type does not include 'undefined'.
  * @return {VolumeManagerCommon.VolumeType}
  */
 VolumeManagerCommon.getVolumeTypeFromRootType = rootType => {
@@ -316,11 +318,14 @@ VolumeManagerCommon.getVolumeTypeFromRootType = rootType => {
   }
 
   assertNotReached('Unknown root type: ' + rootType);
+  return VolumeManagerCommon.VolumeType.DOWNLOADS;
 };
 
 /**
  * Obtains root type from volume type.
  * @param {VolumeManagerCommon.VolumeType} volumeType .
+// @ts-ignore: error TS2366: Function lacks ending return statement and return
+type does not include 'undefined'.
  * @return {VolumeManagerCommon.RootType}
  */
 VolumeManagerCommon.getRootTypeFromVolumeType = volumeType => {
@@ -356,6 +361,7 @@ VolumeManagerCommon.getRootTypeFromVolumeType = volumeType => {
   }
 
   assertNotReached('Unknown volume type: ' + volumeType);
+  return VolumeManagerCommon.VolumeType.DOWNLOADS;
 };
 
 /**
@@ -410,7 +416,7 @@ VolumeManagerCommon.getMediaViewRootTypeFromVolumeId = volumeId => {
 /**
  * An event name trigerred when a user tries to mount the volume which is
  * already mounted. The event object must have a volumeId property.
- * @const {string}
+ * @const @type {string}
  */
 VolumeManagerCommon.VOLUME_ALREADY_MOUNTED = 'volume_already_mounted';
 
@@ -421,7 +427,7 @@ VolumeManagerCommon.SHARED_DRIVES_DIRECTORY_PATH =
 /**
  * This is the top level directory name for Computers in drive that are using
  * the backup and sync feature.
- * @const {string}
+ * @const @type {string}
  */
 VolumeManagerCommon.COMPUTERS_DIRECTORY_NAME = 'Computers';
 VolumeManagerCommon.COMPUTERS_DIRECTORY_PATH =
@@ -434,7 +440,7 @@ VolumeManagerCommon.ARCHIVE_OPENED_EVENT_TYPE = 'archive_opened';
 
 /**
  * ID of the Google Photos DocumentsProvider volume.
- * @const {string}
+ * @const @type {string}
  */
 VolumeManagerCommon.PHOTOS_DOCUMENTS_PROVIDER_VOLUME_ID =
     'documents_provider:com.google.android.apps.photos.photoprovider/com.google.android.apps.photos';
@@ -442,7 +448,7 @@ VolumeManagerCommon.PHOTOS_DOCUMENTS_PROVIDER_VOLUME_ID =
 /**
  * ID of the MediaDocumentsProvider. All the files returned by ARC source in
  * Recents have this ID prefix in their filesystem.
- * @const {string}
+ * @const @type {string}
  */
 VolumeManagerCommon.MEDIA_DOCUMENTS_PROVIDER_ID =
     'com.android.providers.media.documents';
@@ -456,6 +462,9 @@ VolumeManagerCommon.MEDIA_DOCUMENTS_PROVIDER_ID =
  * @return {!CustomEvent<!DirectoryEntry>}
  */
 VolumeManagerCommon.createArchiveOpenedEvent = mountPoint => {
+  // @ts-ignore: error TS2322: Type 'CustomEvent<{ mountPoint:
+  // FileSystemDirectoryEntry; }>' is not assignable to type
+  // 'CustomEvent<FileSystemDirectoryEntry>'.
   return new CustomEvent(
       VolumeManagerCommon.ARCHIVE_OPENED_EVENT_TYPE,
       {detail: {mountPoint: mountPoint}});

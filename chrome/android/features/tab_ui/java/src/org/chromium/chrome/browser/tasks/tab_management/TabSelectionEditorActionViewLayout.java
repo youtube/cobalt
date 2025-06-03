@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.collection.ArraySet;
 
 import org.chromium.base.MathUtils;
@@ -73,7 +72,6 @@ public class TabSelectionEditorActionViewLayout extends LinearLayout {
         mMenuButton.tryToFitLargestItem(true);
     }
 
-    @VisibleForTesting
     ListMenuButton getListMenuButtonForTesting() {
         return mMenuButton;
     }

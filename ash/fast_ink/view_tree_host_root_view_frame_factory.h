@@ -74,7 +74,7 @@ class ASH_EXPORT ViewTreeHostRootViewFrameFactory {
  private:
   void Paint(const gfx::Rect& invalidation_rect,
              const gfx::Transform& rotate_transform,
-             gfx::GpuMemoryBuffer* gpu_buffer);
+             ViewTreeHostUiResource* resource);
 
   // Configures and adds a `TextureDrawQuad` to the `render_pass`.
   void AppendQuad(viz::CompositorRenderPass& render_pass,
@@ -90,7 +90,7 @@ class ASH_EXPORT ViewTreeHostRootViewFrameFactory {
       bool is_overlay_candidate,
       UiResourceManager& resource_manager) const;
 
-  base::raw_ptr<views::Widget> widget_;
+  raw_ptr<views::Widget, DanglingUntriaged> widget_;
 };
 
 }  // namespace ash

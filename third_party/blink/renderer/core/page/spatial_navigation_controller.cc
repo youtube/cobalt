@@ -219,7 +219,8 @@ bool SpatialNavigationController::HandleEnterKeyboardEvent(
         enter_key_down_seen_ && enter_key_press_seen_) {
       interest_element->Focus(
           FocusParams(SelectionBehaviorOnFocus::kReset,
-                      mojom::blink::FocusType::kSpatialNavigation, nullptr));
+                      mojom::blink::FocusType::kSpatialNavigation, nullptr,
+                      FocusOptions::Create(), FocusTrigger::kUserGesture));
       // We need enter to activate links, etc. The click should be after the
       // focus in case the site transfers focus upon clicking.
       interest_element->DispatchSimulatedClick(
@@ -267,7 +268,7 @@ bool SpatialNavigationController::HandleEscapeKeyboardEvent(
 
 Element* SpatialNavigationController::GetInterestedElement() const {
   if (RuntimeEnabledFeatures::FocuslessSpatialNavigationEnabled())
-    return interest_element_;
+    return interest_element_.Get();
 
   Frame* frame = page_->GetFocusController().FocusedOrMainFrame();
   auto* local_frame = DynamicTo<LocalFrame>(frame);
@@ -421,7 +422,7 @@ Node* SpatialNavigationController::StartingNode() {
               DynamicTo<HTMLFrameOwnerElement>(interest_element_.Get()))
         return frame_owner->contentDocument();
 
-      return interest_element_;
+      return interest_element_.Get();
     }
 
     if (auto* main_local_frame = DynamicTo<LocalFrame>(page_->MainFrame()))
@@ -500,7 +501,8 @@ void SpatialNavigationController::MoveInterestTo(Node* next_node) {
 
   element->Focus(FocusParams(SelectionBehaviorOnFocus::kReset,
                              mojom::blink::FocusType::kSpatialNavigation,
-                             nullptr));
+                             nullptr, FocusOptions::Create(),
+                             FocusTrigger::kUserGesture));
   // The focused element could be changed due to elm.focus() on focus handlers.
   // So we need to update the current focused element before DispatchMouseMove.
   // This is tested in snav-applies-hover-with-focused.html.
@@ -599,7 +601,8 @@ void SpatialNavigationController::FullscreenStateChanged(Element* element) {
   if (IsA<HTMLMediaElement>(element)) {
     element->Focus(FocusParams(SelectionBehaviorOnFocus::kReset,
                                mojom::blink::FocusType::kSpatialNavigation,
-                               nullptr));
+                               nullptr, FocusOptions::Create(),
+                               FocusTrigger::kUserGesture));
   }
 }
 

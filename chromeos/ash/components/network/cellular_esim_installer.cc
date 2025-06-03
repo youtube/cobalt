@@ -4,23 +4,31 @@
 
 #include "chromeos/ash/components/network/cellular_esim_installer.h"
 
+#include "ash/constants/ash_features.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_euicc_client.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_profile_client.h"
+#include "chromeos/ash/components/dbus/hermes/hermes_response_status.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
 #include "chromeos/ash/components/network/cellular_connection_handler.h"
 #include "chromeos/ash/components/network/cellular_utils.h"
 #include "chromeos/ash/components/network/hermes_metrics_util.h"
+#include "chromeos/ash/components/network/metrics/cellular_network_metrics_logger.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_profile_handler.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_ui_data.h"
 #include "chromeos/ash/components/network/shill_property_util.h"
+#include "chromeos/ash/services/cellular_setup/public/mojom/esim_manager.mojom.h"
 #include "components/onc/onc_constants.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
+
+using ash::cellular_setup::mojom::ProfileInstallMethod;
 
 namespace ash {
 namespace {
@@ -77,10 +85,51 @@ bool IsManagedNetwork(const base::Value::Dict& new_shill_properties) {
                      ui_data->onc_source() == ::onc::ONC_SOURCE_USER_POLICY);
 }
 
+CellularNetworkMetricsLogger::ESimUserInstallMethod ComputeUserInstallMethod(
+    ProfileInstallMethod install_method) {
+  switch (install_method) {
+    case ProfileInstallMethod::kViaSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::kViaSmds;
+    case ProfileInstallMethod::kViaQrCodeAfterSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaQrCodeAfterSmds;
+    case ProfileInstallMethod::kViaQrCodeSkippedSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaQrCodeSkippedSmds;
+    case ProfileInstallMethod::kViaActivationCodeAfterSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaActivationCodeAfterSmds;
+    case ProfileInstallMethod::kViaActivationCodeSkippedSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaActivationCodeSkippedSmds;
+  }
+  NOTREACHED_NORETURN();
+}
+
+CellularNetworkMetricsLogger::ESimPolicyInstallMethod
+ComputePolicyInstallMethod(ProfileInstallMethod install_method) {
+  switch (install_method) {
+    case ProfileInstallMethod::kViaSmds:
+      return CellularNetworkMetricsLogger::ESimPolicyInstallMethod::kViaSmds;
+    // When installing an eSIM profile via policy we do not have the different
+    // methods that are possible via the consumer flow. Default all SM-DP+
+    // installation methods to |kViaSmdp|.
+    case ProfileInstallMethod::kViaQrCodeAfterSmds:
+      [[fallthrough]];
+    case ProfileInstallMethod::kViaQrCodeSkippedSmds:
+      [[fallthrough]];
+    case ProfileInstallMethod::kViaActivationCodeAfterSmds:
+      [[fallthrough]];
+    case ProfileInstallMethod::kViaActivationCodeSkippedSmds:
+      return CellularNetworkMetricsLogger::ESimPolicyInstallMethod::kViaSmdp;
+  }
+  NOTREACHED_NORETURN();
+}
+
 }  // namespace
 
 // static
-void CellularESimInstaller::RecordInstallESimProfileResult(
+void CellularESimInstaller::RecordInstallESimProfileResultLegacy(
     InstallESimProfileResult result,
     bool is_managed,
     bool is_initial_install,
@@ -119,6 +168,30 @@ void CellularESimInstaller::RecordInstallESimProfileResult(
   }
 }
 
+// static
+void CellularESimInstaller::RecordInstallESimProfileResult(
+    absl::optional<HermesResponseStatus> status,
+    bool is_managed,
+    bool is_initial_install,
+    ProfileInstallMethod install_method) {
+  DCHECK(ash::features::IsSmdsSupportEnabled());
+
+  const bool is_user_error =
+      status.has_value() &&
+      CellularNetworkMetricsLogger::HermesResponseStatusIsUserError(*status);
+  const CellularNetworkMetricsLogger::ESimOperationResult result =
+      CellularNetworkMetricsLogger::ComputeESimOperationResult(status);
+
+  if (is_managed) {
+    CellularNetworkMetricsLogger::LogESimPolicyInstallResult(
+        ComputePolicyInstallMethod(install_method), result, is_initial_install,
+        is_user_error);
+    return;
+  }
+  CellularNetworkMetricsLogger::LogESimUserInstallResult(
+      ComputeUserInstallMethod(install_method), result, is_user_error);
+}
+
 CellularESimInstaller::CellularESimInstaller() = default;
 
 CellularESimInstaller::~CellularESimInstaller() = default;
@@ -143,19 +216,14 @@ void CellularESimInstaller::InstallProfileFromActivationCode(
     base::Value::Dict new_shill_properties,
     InstallProfileFromActivationCodeCallback callback,
     bool is_initial_install,
-    bool is_install_via_qr_code) {
-  // Try installing directly with activation code.
-  // TODO(crbug.com/1186682) Add a check for activation codes that are
-  // currently being installed to prevent multiple attempts for the same
-  // activation code.
-  NET_LOG(USER) << "Attempting installation with code " << activation_code;
+    ProfileInstallMethod install_method) {
   cellular_inhibitor_->InhibitCellularScanning(
       CellularInhibitor::InhibitReason::kInstallingProfile,
       base::BindOnce(
           &CellularESimInstaller::PerformInstallProfileFromActivationCode,
           weak_ptr_factory_.GetWeakPtr(), activation_code, confirmation_code,
           euicc_path, std::move(new_shill_properties), is_initial_install,
-          is_install_via_qr_code,
+          install_method,
           CreateTimedInstallProfileCallback(std::move(callback))));
 }
 
@@ -165,19 +233,35 @@ void CellularESimInstaller::PerformInstallProfileFromActivationCode(
     const dbus::ObjectPath& euicc_path,
     base::Value::Dict new_shill_properties,
     bool is_initial_install,
-    bool is_install_via_qr_code,
+    ProfileInstallMethod install_method,
     InstallProfileFromActivationCodeCallback callback,
     std::unique_ptr<CellularInhibitor::InhibitLock> inhibit_lock) {
   if (!inhibit_lock) {
     NET_LOG(ERROR) << "Error inhibiting cellular device";
-    RecordInstallESimProfileResult(InstallESimProfileResult::kInhibitFailed,
-                                   IsManagedNetwork(new_shill_properties),
-                                   is_initial_install, is_install_via_qr_code);
+
+    const bool is_managed = IsManagedNetwork(new_shill_properties);
+    const bool is_install_via_qr_code =
+        install_method == ProfileInstallMethod::kViaQrCodeAfterSmds ||
+        install_method == ProfileInstallMethod::kViaQrCodeSkippedSmds;
+
+    RecordInstallESimProfileResultLegacy(
+        InstallESimProfileResult::kInhibitFailed, is_managed,
+        is_initial_install, is_install_via_qr_code);
+    if (ash::features::IsSmdsSupportEnabled()) {
+      RecordInstallESimProfileResult(
+          /*status=*/absl::nullopt, is_managed, is_initial_install,
+          install_method);
+    }
+
     std::move(callback).Run(HermesResponseStatus::kErrorWrongState,
                             /*profile_path=*/absl::nullopt,
                             /*service_path=*/absl::nullopt);
     return;
   }
+
+  // TODO(crbug.com/1186682) Add a check for activation codes that are currently
+  // being installed to prevent multiple attempts for the same activation code.
+  NET_LOG(USER) << "Attempting installation with code " << activation_code;
 
   HermesEuiccClient::Get()->InstallProfileFromActivationCode(
       euicc_path, activation_code, confirmation_code,
@@ -185,7 +269,7 @@ void CellularESimInstaller::PerformInstallProfileFromActivationCode(
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                      std::move(inhibit_lock), euicc_path,
                      std::move(new_shill_properties), is_initial_install,
-                     is_install_via_qr_code));
+                     install_method));
 }
 
 void CellularESimInstaller::OnProfileInstallResult(
@@ -194,24 +278,42 @@ void CellularESimInstaller::OnProfileInstallResult(
     const dbus::ObjectPath& euicc_path,
     const base::Value::Dict& new_shill_properties,
     bool is_initial_install,
-    bool is_install_via_qr_code,
+    ProfileInstallMethod install_method,
     HermesResponseStatus status,
+    dbus::DBusResult dbusResult,
     const dbus::ObjectPath* profile_path) {
-  hermes_metrics::LogInstallViaQrCodeResult(status);
+  hermes_metrics::LogInstallViaQrCodeResult(status, dbusResult,
+                                            is_initial_install);
 
   bool is_managed = IsManagedNetwork(new_shill_properties);
+  const bool is_install_via_qr_code =
+      install_method == ProfileInstallMethod::kViaQrCodeAfterSmds ||
+      install_method == ProfileInstallMethod::kViaQrCodeSkippedSmds;
+
   if (status != HermesResponseStatus::kSuccess) {
     NET_LOG(ERROR) << "Error Installing profile status=" << status;
-    RecordInstallESimProfileResult(
+
+    RecordInstallESimProfileResultLegacy(
         InstallESimProfileResult::kHermesInstallFailed, is_managed,
         is_initial_install, is_install_via_qr_code);
+    if (ash::features::IsSmdsSupportEnabled()) {
+      RecordInstallESimProfileResult(status, is_managed, is_initial_install,
+                                     install_method);
+    }
+
     std::move(callback).Run(status, /*profile_path=*/absl::nullopt,
                             /*service_path=*/absl::nullopt);
     return;
   }
 
-  RecordInstallESimProfileResult(InstallESimProfileResult::kSuccess, is_managed,
-                                 is_initial_install, is_install_via_qr_code);
+  RecordInstallESimProfileResultLegacy(InstallESimProfileResult::kSuccess,
+                                       is_managed, is_initial_install,
+                                       is_install_via_qr_code);
+  if (ash::features::IsSmdsSupportEnabled()) {
+    RecordInstallESimProfileResult(status, is_managed, is_initial_install,
+                                   install_method);
+  }
+
   pending_inhibit_locks_.emplace(*profile_path, std::move(inhibit_lock));
   ConfigureESimService(
       new_shill_properties, euicc_path, *profile_path,
@@ -226,8 +328,8 @@ void CellularESimInstaller::ConfigureESimService(
     const dbus::ObjectPath& profile_path,
     ConfigureESimServiceCallback callback) {
   const NetworkProfile* profile =
-      network_profile_handler_->GetProfileForUserhash(
-          /*userhash=*/std::string());
+      cellular_utils::GetCellularProfile(network_profile_handler_);
+
   if (!profile) {
     NET_LOG(ERROR)
         << "Error configuring eSIM profile. Default profile not initialized.";
@@ -342,10 +444,19 @@ void CellularESimInstaller::HandleNewProfileEnableFailure(
   NET_LOG(ERROR) << "Error enabling newly created profile path="
                  << profile_path.value() << ", service path=" << service_path
                  << ", error_name=" << error_name;
-
-  std::move(callback).Run(HermesResponseStatus::kErrorWrongState,
-                          /*profile_path=*/absl::nullopt,
-                          /*service_path=*/absl::nullopt);
+  if (ash::features::IsSmdsSupportEuiccUploadEnabled()) {
+    // Propagate |profile_path| and |service_path| so that the code that
+    // initiated the installation can handle the case where the profile was
+    // successfully installed, but the installation process failed for some
+    // other reason e.g. failed to enable the profile.
+    std::move(callback).Run(HermesResponseStatus::kErrorWrongState,
+                            /*profile_path=*/profile_path,
+                            /*service_path=*/service_path);
+  } else {
+    std::move(callback).Run(HermesResponseStatus::kErrorWrongState,
+                            /*profile_path=*/absl::nullopt,
+                            /*service_path=*/absl::nullopt);
+  }
 }
 
 }  // namespace ash

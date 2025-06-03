@@ -45,6 +45,7 @@ class COMPONENT_EXPORT(EVDEV) InputControllerEvdev : public InputController {
   void set_has_pointing_stick(bool has_pointing_stick);
   void set_has_touchpad(bool has_touchpad);
   void set_has_haptic_touchpad(bool has_haptic_touchpad);
+  void set_any_keys_pressed(bool any);
 
   void SetInputDevicesEnabled(bool enabled);
 
@@ -109,6 +110,7 @@ class COMPONENT_EXPORT(EVDEV) InputControllerEvdev : public InputController {
   void GetTouchDeviceStatus(GetTouchDeviceStatusReply reply) override;
   void GetTouchEventLog(const base::FilePath& out_dir,
                         GetTouchEventLogReply reply) override;
+  void DescribeForLog(DescribeForLogReply reply) const override;
   void GetStylusSwitchState(GetStylusSwitchStateReply reply) override;
   void SetInternalTouchpadEnabled(bool enabled) override;
   bool IsInternalTouchpadEnabled() const override;
@@ -127,6 +129,9 @@ class COMPONENT_EXPORT(EVDEV) InputControllerEvdev : public InputController {
   void SetHapticTouchpadEffectForNextButtonRelease(
       HapticTouchpadEffect effect,
       HapticTouchpadEffectStrength strength) override;
+  bool AreAnyKeysPressed() override;
+
+  void DisableKeyboardImposterCheck() override;
 
   // Notifies the controller to delete any data for the given `device_id`.
   void OnInputDeviceRemoved(int device_id);
@@ -173,6 +178,8 @@ class COMPONENT_EXPORT(EVDEV) InputControllerEvdev : public InputController {
   bool has_touchpad_ = false;
   // if has_haptic_touchpad_ is true, then has_touchpad_ is also true.
   bool has_haptic_touchpad_ = false;
+
+  bool any_keys_are_pressed_ = false;
 
   // LED state.
   bool caps_lock_led_state_ = false;

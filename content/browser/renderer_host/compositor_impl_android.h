@@ -51,7 +51,6 @@ class LayerTree;
 namespace viz {
 class FrameSinkId;
 class HostDisplayClient;
-class OutputSurface;
 }  // namespace viz
 
 namespace content {
@@ -89,6 +88,7 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
       base::RepeatingCallback<void(const gfx::Size&)> cb) {
     swap_completed_with_size_for_testing_ = std::move(cb);
   }
+  cc::slim::LayerTree* GetLayerTreeForTesting() const { return host_.get(); }
 
   class SimpleBeginFrameObserver {
    public:
@@ -136,7 +136,8 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
   void DidLoseLayerTreeFrameSink() override;
 
   // WindowAndroidCompositor implementation.
-  std::unique_ptr<ReadbackRef> TakeReadbackRef() override;
+  std::unique_ptr<ReadbackRef> TakeReadbackRef(
+      const viz::SurfaceId& surface_id) override;
   void RequestCopyOfOutputOnRootLayer(
       std::unique_ptr<viz::CopyOutputRequest> request) override;
   void SetNeedsAnimate() override;
@@ -170,9 +171,6 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
 
   void OnGpuChannelEstablished(
       scoped_refptr<gpu::GpuChannelHost> gpu_channel_host);
-  void InitializeDisplay(
-      std::unique_ptr<viz::OutputSurface> display_output_surface,
-      scoped_refptr<viz::ContextProvider> context_provider);
   void DidSwapBuffers(const gfx::Size& swap_size);
 
   void DetachRootWindow();
@@ -226,7 +224,7 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
 
   raw_ptr<CompositorClient> client_;
 
-  gfx::NativeWindow root_window_ = nullptr;
+  gfx::NativeWindow root_window_ = gfx::NativeWindow();
 
   // Whether we need to update animations on the next composite.
   bool needs_animate_;

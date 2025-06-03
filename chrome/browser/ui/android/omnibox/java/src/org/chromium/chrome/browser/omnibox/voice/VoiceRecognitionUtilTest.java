@@ -9,7 +9,7 @@ import android.content.pm.ResolveInfo;
 import android.speech.RecognizerIntent;
 import android.test.mock.MockPackageManager;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
@@ -25,9 +25,7 @@ import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Unit Test for {@link VoiceRecognitionUtil}.
- */
+/** Unit Test for {@link VoiceRecognitionUtil}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 public class VoiceRecognitionUtilTest {
     private IntentTestMockContext mContextWithSpeech;
@@ -66,7 +64,7 @@ public class VoiceRecognitionUtilTest {
         private final String mAction;
 
         public IntentTestMockContext(String recognizesAction) {
-            super(InstrumentationRegistry.getTargetContext());
+            super(ApplicationProvider.getApplicationContext());
             mAction = recognizesAction;
         }
 

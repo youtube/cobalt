@@ -40,8 +40,9 @@ namespace extensions {
 // static
 const char ExtensionOptionsGuest::Type[] = "extensionoptions";
 
-ExtensionOptionsGuest::ExtensionOptionsGuest(WebContents* owner_web_contents)
-    : GuestView<ExtensionOptionsGuest>(owner_web_contents),
+ExtensionOptionsGuest::ExtensionOptionsGuest(
+    content::RenderFrameHost* owner_rfh)
+    : GuestView<ExtensionOptionsGuest>(owner_rfh),
       extension_options_guest_delegate_(
           extensions::ExtensionsAPIClient::Get()
               ->CreateExtensionOptionsGuestDelegate(this)) {}
@@ -50,8 +51,8 @@ ExtensionOptionsGuest::~ExtensionOptionsGuest() = default;
 
 // static
 std::unique_ptr<GuestViewBase> ExtensionOptionsGuest::Create(
-    WebContents* owner_web_contents) {
-  return base::WrapUnique(new ExtensionOptionsGuest(owner_web_contents));
+    content::RenderFrameHost* owner_rfh) {
+  return base::WrapUnique(new ExtensionOptionsGuest(owner_rfh));
 }
 
 void ExtensionOptionsGuest::CreateWebContents(
@@ -110,7 +111,7 @@ void ExtensionOptionsGuest::DidInitialize(
 }
 
 void ExtensionOptionsGuest::MaybeRecreateGuestContents(
-    content::WebContents* embedder_web_contents) {
+    content::RenderFrameHost* outer_contents_frame) {
   if (AreWebviewMPArchBehaviorsEnabled(browser_context())) {
     // This situation is not possible for ExtensionOptions.
     NOTREACHED();
@@ -200,6 +201,12 @@ bool ExtensionOptionsGuest::HandleContextMenu(
 
   return extension_options_guest_delegate_->HandleContextMenu(render_frame_host,
                                                               params);
+}
+
+bool ExtensionOptionsGuest::ShouldResumeRequestsForCreatedWindow() {
+  // Not reached due to the use of `CreateCustomWebContents`.
+  NOTREACHED();
+  return true;
 }
 
 bool ExtensionOptionsGuest::IsWebContentsCreationOverridden(

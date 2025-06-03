@@ -18,7 +18,7 @@ class BrowserContext;
 namespace extensions {
 class PasswordsPrivateDelegate;
 
-// Wrapper class around PasswordsPrivateDelegate to control it's lifespan. If
+// Wrapper class around PasswordsPrivateDelegate to control its lifespan. If
 // the new PasswordManagerUI is enabled callers have to hold scoped_refptr of
 // PasswordsPrivateDelegate so the object can be released when no longer needed.
 // If the feature is disabled this class always holds a
@@ -44,9 +44,6 @@ class PasswordsPrivateDelegateProxy : public KeyedService {
 
   raw_ptr<content::BrowserContext> browser_context_ = nullptr;
   base::WeakPtr<PasswordsPrivateDelegate> weak_instance_;
-  // TODO(crbug.com/1412348): Remove this after the feature is enabled by
-  // default.
-  scoped_refptr<PasswordsPrivateDelegate> scoped_instance_;
 };
 
 // Factory for creating PasswordPrivateDelegates.
@@ -65,7 +62,7 @@ class PasswordsPrivateDelegateFactory : public ProfileKeyedServiceFactory {
   ~PasswordsPrivateDelegateFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation.
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

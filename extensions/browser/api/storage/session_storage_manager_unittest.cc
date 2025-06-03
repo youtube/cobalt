@@ -52,6 +52,7 @@ class SessionStorageManagerUnittest : public ExtensionsTest {
  protected:
   // ExtensionsTest:
   void SetUp() override;
+  void TearDown() override;
 
   // Values with different types.
   base::Value value_int_;
@@ -69,6 +70,11 @@ void SessionStorageManagerUnittest::SetUp() {
       SessionStorageManager::GetFactory()->SetTestingFactoryAndUse(
           browser_context(),
           base::BindRepeating(&SetTestingSessionStorageManager)));
+}
+
+void SessionStorageManagerUnittest::TearDown() {
+  manager_ = nullptr;
+  ExtensionsTest::TearDown();
 }
 
 TEST_F(SessionStorageManagerUnittest, SetGetAndRemoveOneExtensionSuccessful) {

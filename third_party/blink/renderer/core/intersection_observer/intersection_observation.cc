@@ -34,18 +34,22 @@ IntersectionObservation::IntersectionObservation(IntersectionObserver& observer,
       target_(&target),
       last_run_time_(-observer.GetEffectiveDelay()),
       last_is_visible_(false),
+      needs_update_(true),
       // Note that the spec says the initial value of last_threshold_index_
       // should be -1, but since last_threshold_index_ is unsigned, we use a
       // different sentinel value.
       last_threshold_index_(kMaxThresholdIndex - 1) {
-  if (!observer.RootIsImplicit())
+  if (!observer.RootIsImplicit() ||
+      RuntimeEnabledFeatures::IntersectionOptimizationEnabled()) {
+    // TODO(crbug.com/1400495): Avoid unique_ptr for IntersectionOptimization.
     cached_rects_ = std::make_unique<IntersectionGeometry::CachedRects>();
+  }
 }
 
 int64_t IntersectionObservation::ComputeIntersection(
-    const IntersectionGeometry::RootGeometry& root_geometry,
     unsigned compute_flags,
-    absl::optional<base::TimeTicks>& monotonic_time) {
+    absl::optional<base::TimeTicks>& monotonic_time,
+    absl::optional<IntersectionGeometry::RootGeometry>& root_geometry) {
   DCHECK(Observer());
   if (compute_flags &
       (observer_->RootIsImplicit() ? kImplicitRootObserversNeedUpdate
@@ -59,41 +63,24 @@ int64_t IntersectionObservation::ComputeIntersection(
   DOMHighResTimeStamp timestamp = observer_->GetTimeStamp(*monotonic_time);
   if (MaybeDelayAndReschedule(compute_flags, timestamp))
     return 0;
-  DCHECK(observer_->root());
-  unsigned geometry_flags = GetIntersectionGeometryFlags(compute_flags);
-  IntersectionGeometry geometry(
-      root_geometry, *observer_->root(), *Target(), observer_->thresholds(),
-      observer_->TargetMargin(), geometry_flags, cached_rects_.get());
-  ProcessIntersectionGeometry(geometry, timestamp);
-  last_run_time_ = timestamp;
-  needs_update_ = false;
-  return geometry.DidComputeGeometry() ? 1 : 0;
-}
 
-int64_t IntersectionObservation::ComputeIntersection(
-    unsigned compute_flags,
-    absl::optional<base::TimeTicks>& monotonic_time) {
-  DCHECK(Observer());
-  if (compute_flags &
-      (observer_->RootIsImplicit() ? kImplicitRootObserversNeedUpdate
-                                   : kExplicitRootObserversNeedUpdate)) {
-    needs_update_ = true;
-  }
-  if (!ShouldCompute(compute_flags))
-    return 0;
-  if (!monotonic_time.has_value())
-    monotonic_time = base::DefaultTickClock::GetInstance()->NowTicks();
-  DOMHighResTimeStamp timestamp = observer_->GetTimeStamp(*monotonic_time);
-  if (MaybeDelayAndReschedule(compute_flags, timestamp))
-    return 0;
   unsigned geometry_flags = GetIntersectionGeometryFlags(compute_flags);
   IntersectionGeometry geometry(
       observer_->root(), *Target(), observer_->RootMargin(),
-      observer_->thresholds(), observer_->TargetMargin(), geometry_flags);
+      observer_->thresholds(), observer_->TargetMargin(),
+      observer_->ScrollMargin(), geometry_flags, root_geometry,
+      cached_rects_.get());
   ProcessIntersectionGeometry(geometry, timestamp);
   last_run_time_ = timestamp;
   needs_update_ = false;
   return geometry.DidComputeGeometry() ? 1 : 0;
+}
+
+gfx::Vector2dF IntersectionObservation::MinScrollDeltaToUpdate() const {
+  if (cached_rects_ && cached_rects_->valid) {
+    return cached_rects_->min_scroll_delta_to_update;
+  }
+  return gfx::Vector2dF();
 }
 
 void IntersectionObservation::TakeRecords(
@@ -129,6 +116,25 @@ void IntersectionObservation::Trace(Visitor* visitor) const {
   visitor->Trace(observer_);
   visitor->Trace(entries_);
   visitor->Trace(target_);
+}
+
+bool IntersectionObservation::CanUseCachedRectsForTesting() const {
+  // This is to avoid the side effects of IntersectionGeometry.
+  IntersectionGeometry::CachedRects cached_rects_copy;
+  if (cached_rects_) {
+    cached_rects_copy = *cached_rects_;
+  }
+
+  absl::optional<IntersectionGeometry::RootGeometry> root_geometry;
+  IntersectionGeometry geometry(observer_->root(), *target_,
+                                /* root_margin */ {},
+                                /* thresholds */ {0},
+                                /* target_margin */ {},
+                                /* scroll_margin */ {},
+                                /* flags */ 0, root_geometry,
+                                cached_rects_ ? &cached_rects_copy : nullptr);
+
+  return geometry.CanUseCachedRectsForTesting();
 }
 
 bool IntersectionObservation::ShouldCompute(unsigned flags) const {
@@ -174,28 +180,6 @@ bool IntersectionObservation::MaybeDelayAndReschedule(
   return false;
 }
 
-bool IntersectionObservation::CanUseCachedRects() const {
-  if (!cached_rects_ || !cached_rects_->valid ||
-      !observer_->CanUseCachedRects()) {
-    return false;
-  }
-  // Cached rects can only be used if there are no scrollable objects in the
-  // hierarchy between target and root (a scrollable root is ok). The reason is
-  // that a scroll change in an intermediate scroller would change the
-  // intersection geometry, but it would not properly trigger an invalidation of
-  // the cached rects.
-  if (LayoutObject* target = target_->GetLayoutObject()) {
-    PaintLayer* root_layer = target->GetDocument().GetLayoutView()->Layer();
-    if (!root_layer)
-      return false;
-    if (LayoutBox* scroller = target->EnclosingScrollableBox()) {
-      if (scroller->GetNode() == observer_->root())
-        return true;
-    }
-  }
-  return false;
-}
-
 unsigned IntersectionObservation::GetIntersectionGeometryFlags(
     unsigned compute_flags) const {
   bool report_root_bounds = observer_->AlwaysReportRootBounds() ||
@@ -208,8 +192,6 @@ unsigned IntersectionObservation::GetIntersectionGeometryFlags(
     geometry_flags |= IntersectionGeometry::kShouldComputeVisibility;
   if (Observer()->trackFractionOfRoot())
     geometry_flags |= IntersectionGeometry::kShouldTrackFractionOfRoot;
-  if (CanUseCachedRects())
-    geometry_flags |= IntersectionGeometry::kShouldUseCachedRects;
   if (Observer()->UseOverflowClipEdge())
     geometry_flags |= IntersectionGeometry::kUseOverflowClipEdge;
   return geometry_flags;

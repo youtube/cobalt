@@ -83,7 +83,8 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
   }
 
   base::Time expires = options->hasExpiresNonNull()
-                           ? base::Time::FromJavaTime(options->expiresNonNull())
+                           ? base::Time::FromMillisecondsSinceUnixEpoch(
+                                 options->expiresNonNull())
                            : base::Time();
 
   String cookie_url_host = cookie_url.Host();
@@ -238,7 +239,7 @@ net::SiteForCookies DefaultSiteForCookies(ExecutionContext* execution_context) {
   return net::SiteForCookies();
 }
 
-scoped_refptr<SecurityOrigin> DefaultTopFrameOrigin(
+const scoped_refptr<const SecurityOrigin> DefaultTopFrameOrigin(
     ExecutionContext* execution_context) {
   DCHECK(execution_context);
 
@@ -248,9 +249,13 @@ scoped_refptr<SecurityOrigin> DefaultTopFrameOrigin(
     return window->document()->TopFrameOrigin()->IsolatedCopy();
   }
 
-  auto* scope = To<ServiceWorkerGlobalScope>(execution_context);
-  return SecurityOrigin::CreateFromUrlOrigin(url::Origin::Create(
-      net::SchemefulSite(scope->storage_key().GetTopLevelSite()).GetURL()));
+  const BlinkStorageKey& key =
+      To<ServiceWorkerGlobalScope>(execution_context)->storage_key();
+  if (key.IsFirstPartyContext()) {
+    return key.GetSecurityOrigin();
+  }
+  return SecurityOrigin::CreateFromUrlOrigin(
+      url::Origin::Create(net::SchemefulSite(key.GetTopLevelSite()).GetURL()));
 }
 
 }  // namespace
@@ -359,7 +364,7 @@ ScriptPromise CookieStore::Delete(ScriptState* script_state,
 void CookieStore::Trace(Visitor* visitor) const {
   visitor->Trace(change_listener_receiver_);
   visitor->Trace(backend_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
 }
 
@@ -372,7 +377,7 @@ ExecutionContext* CookieStore::GetExecutionContext() const {
 }
 
 void CookieStore::RemoveAllEventListeners() {
-  EventTargetWithInlineData::RemoveAllEventListeners();
+  EventTarget::RemoveAllEventListeners();
   DCHECK(!HasEventListeners());
   StopObserving();
 }
@@ -392,16 +397,14 @@ void CookieStore::OnCookieChange(
 void CookieStore::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::AddedEventListener(event_type,
-                                                registered_listener);
+  EventTarget::AddedEventListener(event_type, registered_listener);
   StartObserving();
 }
 
 void CookieStore::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::RemovedEventListener(event_type,
-                                                  registered_listener);
+  EventTarget::RemovedEventListener(event_type, registered_listener);
   if (!HasEventListeners())
     StopObserving();
 }
@@ -433,11 +436,18 @@ ScriptPromise CookieStore::DoRead(
     return ScriptPromise();
   }
 
+  bool is_ad_tagged = false;
+  if (auto* window = DynamicTo<LocalDOMWindow>(context)) {
+    if (auto* local_frame = window->GetFrame()) {
+      is_ad_tagged = local_frame->IsAdFrame();
+    }
+  }
+
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   backend_->GetAllForUrl(
       cookie_url, default_site_for_cookies_, default_top_frame_origin_,
-      context->HasStorageAccess(), std::move(backend_options),
+      context->HasStorageAccess(), std::move(backend_options), is_ad_tagged,
       WTF::BindOnce(backend_result_converter, WrapPersistent(resolver)));
   return resolver->Promise();
 }

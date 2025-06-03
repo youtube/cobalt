@@ -20,6 +20,7 @@
 #include "ash/system/accessibility/floating_menu_button.h"
 #include "ash/system/accessibility/select_to_speak/select_to_speak_tray.h"
 #include "ash/system/ime_menu/ime_menu_tray.h"
+#include "ash/system/tray/system_tray_notifier.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/virtual_keyboard/virtual_keyboard_tray.h"
 #include "base/functional/bind.h"
@@ -178,6 +179,7 @@ FloatingAccessibilityView::FloatingAccessibilityView(Delegate* delegate)
     ime_button_ = ime_button_container->AddChildView(
         std::make_unique<ImeMenuTray>(shelf));
     ime_button_container->SetVisible(true);
+    ime_button_->SetVisiblePreferred(true);
 
     AddChildView(std::move(ime_button_container));
     AddChildView(CreateSeparator());
@@ -201,9 +203,11 @@ FloatingAccessibilityView::FloatingAccessibilityView(Delegate* delegate)
 
 FloatingAccessibilityView::~FloatingAccessibilityView() {
   KeyboardController::Get()->RemoveObserver(this);
+  Shell::Get()->system_tray_notifier()->RemoveSystemTrayObserver(this);
 }
 
 void FloatingAccessibilityView::Initialize() {
+  Shell::Get()->system_tray_notifier()->AddSystemTrayObserver(this);
   KeyboardController::Get()->AddObserver(this);
   for (TrayBackgroundView* feature_view : {
            dictation_button_,
@@ -213,13 +217,13 @@ void FloatingAccessibilityView::Initialize() {
     feature_view->Initialize();
     feature_view->CalculateTargetBounds();
     feature_view->UpdateLayout();
-    feature_view->views::View::AddObserver(this);
+    feature_view->AddObserver(this);
   }
   if (IsKioskImeButtonEnabled()) {
     ime_button_->Initialize();
     ime_button_->CalculateTargetBounds();
     ime_button_->UpdateLayout();
-    ime_button_->views::View::AddObserver(this);
+    ime_button_->AddObserver(this);
     ime_button_->SetVisible(true);
   }
 }
@@ -293,6 +297,12 @@ void FloatingAccessibilityView::OnViewVisibilityChanged(
   if (observed_view != starting_view)
     return;
   delegate_->OnLayoutChanged();
+}
+
+void FloatingAccessibilityView::OnFocusLeavingSystemTray(bool reverse) {}
+
+void FloatingAccessibilityView::OnImeMenuTrayBubbleShown() {
+  delegate_->OnDetailedMenuEnabled(false);
 }
 
 void FloatingAccessibilityView::OnKeyboardVisibilityChanged(bool visible) {

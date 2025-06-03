@@ -17,6 +17,7 @@
 #include "ash/shell.h"
 #include "ash/style/ash_color_id.h"
 #include "ash/style/system_shadow.h"
+#include "ash/system/tray/system_tray_notifier.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/unified/unified_system_tray_view.h"
 #include "base/memory/raw_ptr.h"
@@ -155,8 +156,6 @@ std::u16string TrayBubbleView::Delegate::GetAccessibleNameForBubble() {
 bool TrayBubbleView::Delegate::ShouldEnableExtraKeyboardAccessibility() {
   return false;
 }
-
-void TrayBubbleView::Delegate::HideBubble(const TrayBubbleView* bubble_view) {}
 
 base::WeakPtr<TrayBubbleView::Delegate> TrayBubbleView::Delegate::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
@@ -310,10 +309,16 @@ TrayBubbleView::TrayBubbleView(const InitParams& init_params)
     set_color(SK_ColorTRANSPARENT);
   }
 
-  if (params_.has_shadow && features::IsSystemTrayShadowEnabled()) {
-    shadow_ = SystemShadow::CreateShadowOnNinePatchLayerForView(
-        this, params_.shadow_type);
-    shadow_->SetRoundedCornerRadius(params_.corner_radius);
+  if (params_.has_shadow) {
+    // Draws shadow on texture layer for large corner radius bubbles.
+    if (params_.has_large_corner_radius) {
+      shadow_ = SystemShadow::CreateShadowOnTextureLayer(params_.shadow_type);
+      shadow_->SetRoundedCornerRadius(params_.corner_radius);
+    } else if (features::IsSystemTrayShadowEnabled()) {
+      shadow_ = SystemShadow::CreateShadowOnNinePatchLayerForView(
+          this, params_.shadow_type);
+      shadow_->SetRoundedCornerRadius(params_.corner_radius);
+    }
   }
 
   auto layout = std::make_unique<BottomAlignedBoxLayout>(this);
@@ -343,15 +348,21 @@ void TrayBubbleView::InitializeAndShowBubble() {
   GetWidget()->Show();
   UpdateBubble();
 
-  if (IsAnchoredToStatusArea()) {
-    tray_bubble_counter_.emplace(
-        StatusAreaWidget::ForWindow(GetWidget()->GetNativeView()));
+  // Manually sets the shadow position since `CreateShadowOnTextureLayer` only
+  // constructs the shadow but doesn't deal with shadow positioning.
+  if (params_.has_shadow && params_.has_large_corner_radius) {
+    AddLayerToRegion(shadow_->GetLayer(), views::LayerRegion::kBelow);
+    shadow_->SetContentBounds(layer()->bounds());
   }
 
   // Register pre target event handler to reroute key
   // events to the widget for activating the view or closing it.
   if (!CanActivate() && params_.reroute_event_handler) {
     reroute_event_handler_ = std::make_unique<RerouteEventHandler>(this);
+  }
+
+  if (IsAnchoredToStatusArea()) {
+    NotifyTrayBubbleOpen();
   }
 }
 
@@ -416,8 +427,16 @@ bool TrayBubbleView::IsAnchoredToStatusArea() const {
   return params_.is_anchored_to_status_area;
 }
 
+bool TrayBubbleView::IsAnchoredToShelfCorner() const {
+  return params_.anchor_to_shelf_corner;
+}
+
 void TrayBubbleView::StopReroutingEvents() {
   reroute_event_handler_.reset();
+}
+
+TrayBubbleView::TrayBubbleType TrayBubbleView::GetBubbleType() const {
+  return params_.type;
 }
 
 void TrayBubbleView::OnWidgetClosing(Widget* widget) {
@@ -425,11 +444,11 @@ void TrayBubbleView::OnWidgetClosing(Widget* widget) {
   // closing.
   reroute_event_handler_.reset();
 
-  BubbleDialogDelegateView::OnWidgetClosing(widget);
-
   if (IsAnchoredToStatusArea()) {
-    tray_bubble_counter_.reset();
+    NotifyTrayBubbleClosed();
   }
+
+  BubbleDialogDelegateView::OnWidgetClosing(widget);
 }
 
 void TrayBubbleView::OnWidgetActivationChanged(Widget* widget, bool active) {
@@ -438,6 +457,11 @@ void TrayBubbleView::OnWidgetActivationChanged(Widget* widget, bool active) {
   reroute_event_handler_.reset();
 
   BubbleDialogDelegateView::OnWidgetActivationChanged(widget, active);
+}
+
+void TrayBubbleView::OnWidgetBoundsChanged(views::Widget* widget,
+                                           const gfx::Rect& bounds) {
+  Shell::Get()->system_tray_notifier()->NotifyTrayBubbleBoundsChanged(this);
 }
 
 ui::LayerType TrayBubbleView::GetLayerType() const {
@@ -480,6 +504,15 @@ std::u16string TrayBubbleView::GetAccessibleWindowTitle() const {
     return delegate_->GetAccessibleNameForBubble();
   } else {
     return std::u16string();
+  }
+}
+
+void TrayBubbleView::AddedToWidget() {
+  // If the view has a shadow on texture layer, should make it observe widget
+  // theme change to update its colors. The function is called here since we
+  // should guarantee that `GetWidget()` returns non-nullptr.
+  if (params_.has_shadow && params_.has_large_corner_radius) {
+    shadow_->ObserveColorProviderSource(GetWidget());
   }
 }
 
@@ -578,14 +611,34 @@ void TrayBubbleView::OnNotificationDisplayed(
   }
 }
 
-void TrayBubbleView::ChildPreferredSizeChanged(View* child) {
-  SizeToContents();
+void TrayBubbleView::NotifyTrayBubbleOpen() {
+  DCHECK(IsAnchoredToStatusArea());
+
+  if (GetBubbleType() == TrayBubbleType::kShelfPodBubble) {
+    StatusAreaWidget::ForWindow(GetWidget()->GetNativeView())
+        ->SetOpenShelfPodBubble(this);
+  }
+
+  Shell::Get()
+      ->system_tray_notifier()
+      ->NotifyStatusAreaAnchoredBubbleVisibilityChanged(/*tray_bubble=*/this,
+                                                        /*visible=*/true);
 }
 
-void TrayBubbleView::SetBubbleBorderInsets(gfx::Insets insets) {
-  if (GetBubbleFrameView()->bubble_border()) {
-    GetBubbleFrameView()->bubble_border()->set_insets(insets);
+void TrayBubbleView::NotifyTrayBubbleClosed() {
+  DCHECK(IsAnchoredToStatusArea());
+
+  auto* status_area = StatusAreaWidget::ForWindow(GetWidget()->GetNativeView());
+
+  // `TrayBubbleView` may live longer than `StatusAreaWidget`.
+  if (status_area && GetBubbleType() == TrayBubbleType::kShelfPodBubble) {
+    status_area->SetOpenShelfPodBubble(nullptr);
   }
+
+  Shell::Get()
+      ->system_tray_notifier()
+      ->NotifyStatusAreaAnchoredBubbleVisibilityChanged(/*tray_bubble=*/this,
+                                                        /*visible=*/false);
 }
 
 void TrayBubbleView::CloseBubbleView() {
@@ -594,6 +647,16 @@ void TrayBubbleView::CloseBubbleView() {
   }
 
   delegate_->HideBubble(this);
+}
+
+void TrayBubbleView::ChildPreferredSizeChanged(View* child) {
+  SizeToContents();
+}
+
+void TrayBubbleView::SetBubbleBorderInsets(gfx::Insets insets) {
+  if (GetBubbleFrameView()->bubble_border()) {
+    GetBubbleFrameView()->bubble_border()->set_insets(insets);
+  }
 }
 
 BEGIN_METADATA(TrayBubbleView, views::BubbleDialogDelegateView)

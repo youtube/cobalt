@@ -19,7 +19,9 @@ class PrefService;
 
 namespace user_manager {
 
-class ScopedUserManager;
+namespace internal {
+class ScopedUserManagerImpl;
+}  // namespace internal
 
 // A list pref of the the regular users known on this device, arranged in LRU
 // order, stored in local state.
@@ -51,6 +53,15 @@ class USER_MANAGER_EXPORT UserManager {
     // Called when the local state preferences is changed.
     virtual void LocalStateChanged(UserManager* user_manager);
 
+    // Called when the user list is loaded.
+    virtual void OnUserListLoaded();
+
+    // Called when the device local user list is updated.
+    virtual void OnDeviceLocalUserListUpdated();
+
+    // Called when the user is logged in.
+    virtual void OnUserLoggedIn(const User& user);
+
     // Called when the image of the given user is changed.
     virtual void OnUserImageChanged(const User& user);
 
@@ -58,6 +69,9 @@ class USER_MANAGER_EXPORT UserManager {
     virtual void OnUserImageIsEnterpriseManagedChanged(
         const User& user,
         bool is_enterprise_managed);
+
+    // Called when the Profile instance for the user is created.
+    virtual void OnUserProfileCreated(const User& user);
 
     // Called when the profile image download for the given user fails or
     // user has the default profile image or no porfile image at all.
@@ -82,6 +96,10 @@ class USER_MANAGER_EXPORT UserManager {
     virtual void OnUserRemoved(const AccountId& account_id,
                                UserRemovalReason reason);
 
+    // Called when the first user that is not allowed in the session is
+    // detected.
+    virtual void OnUserNotAllowed(const std::string& user_email);
+
    protected:
     virtual ~Observer();
   };
@@ -93,6 +111,12 @@ class USER_MANAGER_EXPORT UserManager {
    public:
     // Called when active user has changed.
     virtual void ActiveUserChanged(User* active_user);
+
+    // Called when login state is updated.
+    // This looks very similar to ActiveUserChanged, so consider to merge
+    // in the future.
+    virtual void OnLoginStateUpdated(const User* active_user,
+                                     bool is_current_user_owner);
 
     // Called when another user got added to the existing session.
     virtual void UserAddedToSession(const User* added_user);
@@ -180,6 +204,12 @@ class USER_MANAGER_EXPORT UserManager {
   // Returns account Id of the owner user. Returns an empty Id if there is
   // no owner for the device.
   virtual const AccountId& GetOwnerAccountId() const = 0;
+
+  // Provides the caller with account Id of the Owner user once it is loaded.
+  // Would provide empty account id if there is no owner on the device (e.g.
+  // if device is enterprise-owned).
+  virtual void GetOwnerAccountIdAsync(
+      base::OnceCallback<void(const AccountId&)> callback) const = 0;
 
   // Returns account Id of the user that was active in the previous session.
   virtual const AccountId& GetLastSessionActiveAccountId() const = 0;
@@ -336,8 +366,8 @@ class USER_MANAGER_EXPORT UserManager {
   // Returns true if we're logged in as a child user.
   virtual bool IsLoggedInAsChildUser() const = 0;
 
-  // Returns true if we're logged in as a public account.
-  virtual bool IsLoggedInAsPublicAccount() const = 0;
+  // Returns true if we're logged in as a managed guest session.
+  virtual bool IsLoggedInAsManagedGuestSession() const = 0;
 
   // Returns true if we're logged in as a Guest.
   virtual bool IsLoggedInAsGuest() const = 0;
@@ -387,6 +417,7 @@ class USER_MANAGER_EXPORT UserManager {
   virtual void NotifyUserToBeRemoved(const AccountId& account_id) = 0;
   virtual void NotifyUserRemoved(const AccountId& account_id,
                                  UserRemovalReason reason) = 0;
+  virtual void NotifyUserNotAllowed(const std::string& user_email) = 0;
 
   // Returns true if guest user is allowed.
   virtual bool IsGuestSessionAllowed() const = 0;
@@ -400,39 +431,23 @@ class USER_MANAGER_EXPORT UserManager {
   // Accepted user types: USER_TYPE_REGULAR, USER_TYPE_GUEST, USER_TYPE_CHILD.
   virtual bool IsUserAllowed(const User& user) const = 0;
 
-  // Returns true if trusted device policies have successfully been retrieved
-  // and `account_id` is ephemeral by policies.
+  // Explicitly non-ephemeral accounts are Owner account (on consumer-owned
+  // devices) and Stub accounts (used in tests).
   //
-  // NOTE: this function does not handle neither device owner account nor
-  // explicitly-ephemeral accounts like MGS separately. This function gives an
-  // answer whether `account_id` is ephemeral by policies.
+  // Explicitly ephemeral accounts are Guest and Managed Guest sessions.
   //
-  // TODO(b:275059758): Add logic to handle owner ID separately.
+  // In all other cases the ephemeral status of account depends on set of
+  // policies.
   virtual bool IsEphemeralAccountId(const AccountId& account_id) const = 0;
 
   // Returns "Local State" PrefService instance.
   virtual PrefService* GetLocalState() const = 0;
-
-  // Checks for platform-specific known users matching given |user_email|. If
-  // data matches a known account, fills |out_account_id| with account id and
-  // returns true.
-  virtual bool GetPlatformKnownUserId(const std::string& user_email,
-                                      AccountId* out_account_id) const = 0;
-
-  // Returns account id of the Guest user.
-  virtual const AccountId& GetGuestAccountId() const = 0;
 
   // Returns true if this is first exec after boot.
   virtual bool IsFirstExecAfterBoot() const = 0;
 
   // Actually removes cryptohome.
   virtual void AsyncRemoveCryptohome(const AccountId& account_id) const = 0;
-
-  // Returns true if |account_id| is Guest user.
-  virtual bool IsGuestAccountId(const AccountId& account_id) const = 0;
-
-  // Returns true if |account_id| is Stub user.
-  virtual bool IsStubAccountId(const AccountId& account_id) const = 0;
 
   // Returns true if |account_id| is deprecated supervised.
   // TODO(crbug/1155729): Check it is not used anymore and remove it.
@@ -447,7 +462,7 @@ class USER_MANAGER_EXPORT UserManager {
   virtual bool HasBrowserRestarted() const = 0;
 
   // Returns image from resources bundle.
-  virtual const gfx::ImageSkia& GetResourceImagekiaNamed(int id) const = 0;
+  virtual const gfx::ImageSkia& GetResourceImageSkiaNamed(int id) const = 0;
 
   // Returns string from resources bundle.
   virtual std::u16string GetResourceStringUTF16(int string_id) const = 0;
@@ -479,7 +494,7 @@ class USER_MANAGER_EXPORT UserManager {
   static UserManager* instance;
 
  private:
-  friend class ScopedUserManager;
+  friend class internal::ScopedUserManagerImpl;
 
   // Same as Get() but doesn't won't crash is current instance is NULL.
   static UserManager* GetForTesting();

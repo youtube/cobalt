@@ -19,6 +19,7 @@
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/ui/bookmarks/bookmark_editor.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
+#include "chrome/browser/ui/bookmarks/bookmark_stats_tab_helper.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -27,7 +28,7 @@
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
@@ -141,9 +142,12 @@ using OpenedWebContentsSet = base::flat_set<const content::WebContents*>;
 // Opens all of the URLs in `bookmark_urls` using `navigator` and
 // `initial_disposition` as a starting point. Returns a reference set of the
 // WebContents created; see OpenedWebContentsSet.
-OpenedWebContentsSet OpenAllHelper(Browser* browser,
-                                   std::vector<UrlAndId> bookmark_urls,
-                                   WindowOpenDisposition initial_disposition) {
+OpenedWebContentsSet OpenAllHelper(
+    Browser* browser,
+    std::vector<UrlAndId> bookmark_urls,
+    WindowOpenDisposition initial_disposition,
+    BookmarkNavigationHandleUserData::InitiatorLocation navigation_type,
+    absl::optional<BookmarkLaunchAction> launch_action) {
   OpenedWebContentsSet::container_type opened_tabs;
   WindowOpenDisposition disposition = initial_disposition;
   // We keep track of (potentially) two browsers in addition to the original
@@ -191,10 +195,20 @@ OpenedWebContentsSet OpenAllHelper(Browser* browser,
     params.browser = browser_to_use;
     base::WeakPtr<content::NavigationHandle> handle =
         nav_wrapper.NavigateTo(&params);
+    if (handle) {
+      BookmarkNavigationHandleUserData::CreateForNavigationHandle(
+          *handle, navigation_type);
+    }
     content::WebContents* opened_tab =
         handle ? handle->GetWebContents() : nullptr;
     if (!opened_tab)
       continue;
+
+    if (launch_action.has_value()) {
+      BookmarkStatsTabHelper::CreateForWebContents(opened_tab);
+      BookmarkStatsTabHelper::FromWebContents(opened_tab)
+          ->SetLaunchAction(launch_action.value(), disposition);
+    }
 
     if (url_and_id_it->id.is_valid()) {
       ChromeNavigationUIData* ui_data =
@@ -226,11 +240,11 @@ OpenedWebContentsSet OpenAllHelper(Browser* browser,
         Profile::FromBrowserContext(opened_tab->GetBrowserContext());
     if (new_tab_profile->IsIncognitoProfile()) {
       if (!incognito_browser) {
-        incognito_browser = chrome::FindBrowserWithWebContents(opened_tab);
+        incognito_browser = chrome::FindBrowserWithTab(opened_tab);
       }
     } else {
       if (!regular_browser) {
-        regular_browser = chrome::FindBrowserWithWebContents(opened_tab);
+        regular_browser = chrome::FindBrowserWithTab(opened_tab);
       }
     }
 
@@ -243,21 +257,28 @@ OpenedWebContentsSet OpenAllHelper(Browser* browser,
 
 }  // namespace
 
-void OpenAllIfAllowed(Browser* browser,
-                      const std::vector<const bookmarks::BookmarkNode*>& nodes,
-                      WindowOpenDisposition initial_disposition,
-                      bool add_to_group) {
+void OpenAllIfAllowed(
+    Browser* browser,
+    const std::vector<const bookmarks::BookmarkNode*>& nodes,
+    WindowOpenDisposition initial_disposition,
+    bool add_to_group,
+    BookmarkNavigationHandleUserData::InitiatorLocation navigation_type,
+    absl::optional<BookmarkLaunchAction> launch_action) {
   std::vector<UrlAndId> url_and_ids = GetURLsToOpen(
       nodes, browser->profile(),
       initial_disposition == WindowOpenDisposition::OFF_THE_RECORD);
   auto do_open = [](Browser* browser, std::vector<UrlAndId> url_and_ids_to_open,
                     WindowOpenDisposition initial_disposition,
                     absl::optional<std::u16string> folder_title,
+                    BookmarkNavigationHandleUserData::InitiatorLocation
+                        navigation_type,
+                    absl::optional<BookmarkLaunchAction> launch_action,
                     chrome::MessageBoxResult result) {
     if (result != chrome::MESSAGE_BOX_RESULT_YES)
       return;
     const auto opened_web_contents = OpenAllHelper(
-        browser, std::move(url_and_ids_to_open), initial_disposition);
+        browser, std::move(url_and_ids_to_open), initial_disposition,
+        navigation_type, std::move(launch_action));
     if (folder_title.has_value()) {
       TabStripModel* model = browser->tab_strip_model();
 
@@ -299,6 +320,7 @@ void OpenAllIfAllowed(Browser* browser,
             add_to_group ? absl::optional<std::u16string>(
                                nodes[0]->GetTitledUrlNodeTitle())
                          : absl::nullopt,
+            navigation_type, std::move(launch_action),
             chrome::MESSAGE_BOX_RESULT_YES);
     return;
   }
@@ -316,23 +338,8 @@ void OpenAllIfAllowed(Browser* browser,
                      initial_disposition,
                      add_to_group ? absl::optional<std::u16string>(
                                         nodes[0]->GetTitledUrlNodeTitle())
-                                  : absl::nullopt));
-}
-
-void OpenAllNow(Browser* browser,
-                const std::vector<const BookmarkNode*>& nodes,
-                WindowOpenDisposition initial_disposition,
-                content::BrowserContext* browser_context) {
-  // Opens all |nodes| of type URL and any children of |nodes| that are of type
-  // URL. |navigator| is the PageNavigator used to open URLs. After the first
-  // url is opened |navigator| is set to the PageNavigator of the last active
-  // tab. This is done to handle a window disposition of new window, in which
-  // case we want subsequent tabs to open in that window.
-  OpenAllHelper(browser,
-                GetURLsToOpen(nodes, browser_context,
-                              initial_disposition ==
-                                  WindowOpenDisposition::OFF_THE_RECORD),
-                initial_disposition);
+                                  : absl::nullopt,
+                     navigation_type, absl::nullopt));
 }
 
 int OpenCount(gfx::NativeWindow parent,

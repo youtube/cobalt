@@ -6,6 +6,7 @@
 #define ASH_APP_LIST_VIEWS_APP_LIST_BUBBLE_VIEW_H_
 
 #include <memory>
+#include <set>
 
 #include "ash/app_list/app_list_view_provider.h"
 #include "ash/app_list/views/app_list_folder_controller.h"
@@ -15,6 +16,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -40,6 +42,8 @@ class ViewShadow;
 class ASH_EXPORT AppListBubbleView : public views::View,
                                      public SearchBoxViewDelegate,
                                      public AppListFolderController {
+  METADATA_HEADER(AppListBubbleView, views::View)
+
  public:
   AppListBubbleView(AppListViewDelegate* view_delegate,
                     ApplicationDragAndDropHost* drag_and_drop_host);
@@ -95,9 +99,15 @@ class ASH_EXPORT AppListBubbleView : public views::View,
       base::OnceClosure update_position_closure);
 
   // views::View:
-  const char* GetClassName() const override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
   void Layout() override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  bool CanDrop(const OSExchangeData& data) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
+  DropCallback GetDropCallback(const ui::DropTargetEvent& event) override;
 
   // SearchBoxViewDelegate:
   void QueryChanged(const std::u16string& trimmed_query,
@@ -107,6 +117,8 @@ class ASH_EXPORT AppListBubbleView : public views::View,
   void ActiveChanged(SearchBoxViewBase* sender) override {}
   void OnSearchBoxKeyEvent(ui::KeyEvent* event) override;
   bool CanSelectSearchResults() override;
+  bool HandleFocusMoveAboveSearchResults(
+      const ui::KeyEvent& key_event) override;
 
   // AppListFolderController:
   void ShowFolderForItemView(AppListItemView* folder_item_view,

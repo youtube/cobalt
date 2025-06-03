@@ -145,8 +145,9 @@ void ResizeAreaTest::SetUp() {
 }
 
 void ResizeAreaTest::TearDown() {
-  if (widget_ && !widget_->IsClosed())
-    widget_->Close();
+  if (widget_ && !widget_->IsClosed()) {
+    widget_.ExtractAsDangling()->Close();
+  }
 
   views::ViewsTestBase::TearDown();
 }

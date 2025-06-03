@@ -18,6 +18,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/time_formatting.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -29,7 +30,6 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/time/time_to_iso8601.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/common/extensions/api/downloads.h"
+#include "components/download/public/common/download_danger_type.h"
 #include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/download/public/common/download_item.h"
 #include "components/download/public/common/download_url_parameters.h"
@@ -202,11 +203,16 @@ extensions::api::downloads::DangerType ConvertDangerType(
     case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_OPENED_DANGEROUS:
       return extensions::api::downloads::DANGER_TYPE_DEEPSCANNEDOPENEDDANGEROUS;
     case download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING:
-      return extensions::api::downloads::DANGER_TYPE_PROMPTFORSCANING;
+      return extensions::api::downloads::DANGER_TYPE_PROMPTFORSCANNING;
     case download::DOWNLOAD_DANGER_TYPE_BLOCKED_UNSUPPORTED_FILETYPE:
       return extensions::api::downloads::DANGER_TYPE_UNSUPPORTEDFILETYPE;
     case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE:
       return extensions::api::downloads::DANGER_TYPE_ACCOUNTCOMPROMISE;
+    case download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED:
+      return extensions::api::downloads::DANGER_TYPE_DEEPSCANNEDFAILED;
+    case download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
+      return extensions::api::downloads::
+          DANGER_TYPE_PROMPTFORLOCALPASSWORDSCANNING;
     case download::DOWNLOAD_DANGER_TYPE_MAX:
       NOTREACHED();
       return extensions::api::downloads::DANGER_TYPE_LAST;
@@ -343,7 +349,7 @@ base::Value::Dict DownloadItemToJSON(DownloadItem* download_item,
   item.can_resume = download_item->CanResume();
   item.paused = download_item->IsPaused();
   item.mime = download_item->GetMimeType();
-  item.start_time = base::TimeToISO8601(download_item->GetStartTime());
+  item.start_time = base::TimeFormatAsIso8601(download_item->GetStartTime());
   item.bytes_received = static_cast<double>(download_item->GetReceivedBytes());
   item.total_bytes = static_cast<double>(download_item->GetTotalBytes());
   item.incognito = browser_context->IsOffTheRecord();
@@ -353,12 +359,13 @@ base::Value::Dict DownloadItemToJSON(DownloadItem* download_item,
     item.error = ConvertInterruptReason(
         download::DOWNLOAD_INTERRUPT_REASON_USER_CANCELED);
   }
-  if (!download_item->GetEndTime().is_null())
-    item.end_time = base::TimeToISO8601(download_item->GetEndTime());
+  if (!download_item->GetEndTime().is_null()) {
+    item.end_time = base::TimeFormatAsIso8601(download_item->GetEndTime());
+  }
   base::TimeDelta time_remaining;
   if (download_item->TimeRemaining(&time_remaining)) {
     base::Time now = base::Time::Now();
-    item.estimated_end_time = base::TimeToISO8601(now + time_remaining);
+    item.estimated_end_time = base::TimeFormatAsIso8601(now + time_remaining);
   }
   DownloadedByExtension* by_ext = DownloadedByExtension::Get(download_item);
   if (by_ext) {

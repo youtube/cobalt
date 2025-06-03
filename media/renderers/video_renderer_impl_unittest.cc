@@ -366,7 +366,8 @@ class VideoRendererImplTest : public testing::Test {
   // Fixture members.
   std::unique_ptr<VideoRendererImpl> renderer_;
   base::SimpleTestTickClock tick_clock_;
-  raw_ptr<NiceMock<MockVideoDecoder>> decoder_;  // Owned by |renderer_|.
+  raw_ptr<NiceMock<MockVideoDecoder>, DanglingUntriaged>
+      decoder_;  // Owned by |renderer_|.
   NiceMock<MockDemuxerStream> demuxer_stream_;
   bool simulate_decode_delay_;
 
@@ -483,6 +484,34 @@ TEST_F(VideoRendererImplTest, InitializeAndStartPlayingFromWithDuration) {
 TEST_F(VideoRendererImplTest, InitializeAndEndOfStream) {
   Initialize();
   StartPlayingFrom(0);
+  WaitForPendingDecode();
+  {
+    SCOPED_TRACE("Waiting for BUFFERING_HAVE_ENOUGH");
+    WaitableMessageLoopEvent event;
+    {
+      // Buffering state changes must happen before end of stream.
+      testing::InSequence in_sequence;
+      EXPECT_CALL(mock_cb_, OnBufferingStateChange(BUFFERING_HAVE_ENOUGH, _))
+          .WillOnce(RunOnceClosure(event.GetClosure()));
+      EXPECT_CALL(mock_cb_, OnEnded());
+    }
+    SatisfyPendingDecodeWithEndOfStream();
+    event.RunAndWait();
+  }
+  // Firing a time state changed to true should be ignored...
+  renderer_->OnTimeProgressing();
+  EXPECT_FALSE(null_video_sink_->is_started());
+  Destroy();
+}
+
+TEST_F(VideoRendererImplTest, StartPlayingAfterEndOfStream) {
+  Initialize();
+  QueueFrames("0d10 10d10 20d10 30d10 40d10");
+  EXPECT_CALL(mock_cb_, OnVideoNaturalSizeChange(_)).Times(1);
+  EXPECT_CALL(mock_cb_, FrameReceived(HasTimestampMatcher(40)));
+  EXPECT_CALL(mock_cb_, OnStatisticsUpdate(_)).Times(AnyNumber());
+  EXPECT_CALL(mock_cb_, OnVideoOpacityChange(_)).Times(1);
+  StartPlayingFrom(40);
   WaitForPendingDecode();
   {
     SCOPED_TRACE("Waiting for BUFFERING_HAVE_ENOUGH");
@@ -755,6 +784,33 @@ TEST_F(VideoRendererImplTest, RenderingStopsAfterFirstFrame) {
 
     EXPECT_TRUE(IsDecodePending());
     SatisfyPendingDecodeWithEndOfStream();
+
+    event.RunAndWait();
+  }
+
+  Destroy();
+}
+// Verifies that the first frame is eventually painted even if its not the best.
+TEST_F(VideoRendererImplTest, PaintFirstFrameOnStall) {
+  Initialize();
+  QueueFrames("0d10");
+  ON_CALL(*decoder_, CanReadWithoutStalling()).WillByDefault(Return(false));
+
+  EXPECT_CALL(mock_cb_, OnBufferingStateChange(BUFFERING_HAVE_ENOUGH, _));
+  EXPECT_CALL(mock_cb_, OnStatisticsUpdate(_)).Times(AnyNumber());
+  EXPECT_CALL(mock_cb_, OnVideoNaturalSizeChange(_)).Times(1);
+  EXPECT_CALL(mock_cb_, OnVideoOpacityChange(_)).Times(1);
+  EXPECT_CALL(mock_cb_, OnEnded()).Times(0);
+
+  {
+    SCOPED_TRACE("Waiting for first frame to be painted.");
+    WaitableMessageLoopEvent event;
+
+    EXPECT_CALL(mock_cb_, FrameReceived(HasTimestampMatcher(0)))
+        .WillOnce(RunOnceClosure(event.GetClosure()));
+    StartPlayingFrom(10);
+
+    EXPECT_TRUE(IsDecodePending());
 
     event.RunAndWait();
   }
@@ -1373,6 +1429,7 @@ TEST_P(UnderflowTest, UnderflowAndEosTest) {
   {
     SCOPED_TRACE("Waiting for BUFFERING_HAVE_ENOUGH");
     WaitableMessageLoopEvent event;
+    EXPECT_CALL(mock_cb_, OnVideoNaturalSizeChange(_)).Times(AnyNumber());
     EXPECT_CALL(mock_cb_, OnStatisticsUpdate(_)).Times(AnyNumber());
     EXPECT_CALL(mock_cb_,
                 OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,

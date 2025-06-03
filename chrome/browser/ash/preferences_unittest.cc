@@ -15,6 +15,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/to_vector.h"
 #include "chrome/browser/ash/input_method/input_method_configuration.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
@@ -40,6 +41,7 @@
 #include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest-param-test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/ime/ash/mock_component_extension_ime_manager_delegate.h"
 #include "ui/base/ime/ash/mock_input_method_manager_impl.h"
@@ -48,13 +50,13 @@
 namespace ash {
 namespace {
 
-const char kIdentityIMEID[] =
+constexpr char kIdentityIMEID[] =
     "_ext_ime_iafoklpfplgfnoimmaejoeondnjnlcfpIdentityIME";
-const char kToUpperIMEID[] =
+constexpr char kToUpperIMEID[] =
     "_ext_ime_iafoklpfplgfnoimmaejoeondnjnlcfpToUpperIME";
-const char kAPIArgumentIMEID[] =
+constexpr char kAPIArgumentIMEID[] =
     "_ext_ime_iafoklpfplgfnoimmaejoeondnjnlcfpAPIArgumentIME";
-const char kUnknownIMEID[] =
+constexpr char kUnknownIMEID[] =
     "_ext_ime_iafoklpfplgfnoimmaejoeondnjnlcfpUnknownIME";
 
 syncer::SyncData
@@ -105,7 +107,8 @@ class MyMockInputMethodManager : public MockInputMethodManagerImpl {
                                  TextInputMethod* instance) override {
       InputMethodDescriptor descriptor(
           id, std::string(), std::string(), std::string(),
-          std::vector<std::string>(), false, GURL(), GURL());
+          std::vector<std::string>(), false, GURL(), GURL(),
+          /*handwriting_language=*/absl::nullopt);
       input_method_extensions_->push_back(descriptor);
     }
 
@@ -216,9 +219,11 @@ class PreferencesTest : public testing::Test {
   raw_ptr<TestingProfile, ExperimentalAsh> test_profile_;
   raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh>
       pref_service_;
-  raw_ptr<input_method::MyMockInputMethodManager, ExperimentalAsh>
+  raw_ptr<input_method::MyMockInputMethodManager,
+          DanglingUntriaged | ExperimentalAsh>
       mock_manager_;
-  raw_ptr<FakeUpdateEngineClient, ExperimentalAsh> fake_update_engine_client_;
+  raw_ptr<FakeUpdateEngineClient, DanglingUntriaged | ExperimentalAsh>
+      fake_update_engine_client_;
 };
 
 TEST_F(PreferencesTest, TestUpdatePrefOnBrowserScreenDetails) {
@@ -421,11 +426,12 @@ class InputMethodPreferencesTest : public PreferencesTest {
 
   // Translates engine IDs in a CSV string to input method IDs.
   std::string ToInputMethodIds(const std::string& value) {
-    std::vector<std::string> tokens = base::SplitString(
-        value, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-    base::ranges::transform(tokens, tokens.begin(),
-                            &extension_ime_util::GetInputMethodIDByEngineID);
-    return base::JoinString(tokens, ",");
+    return base::JoinString(
+        base::test::ToVector(
+            base::SplitString(value, ",", base::TRIM_WHITESPACE,
+                              base::SPLIT_WANT_ALL),
+            &extension_ime_util::GetInputMethodIDByEngineID),
+        ",");
   }
 
   // Simulates the initial sync of preferences.

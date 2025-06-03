@@ -9,7 +9,7 @@
 #import "base/test/task_environment.h"
 #import "components/crash/core/app/crashpad.h"
 #import "components/crash/core/common/reporter_running_ios.h"
-#import "ios/chrome/browser/crash_report/crash_helper.h"
+#import "ios/chrome/browser/crash_report/model/crash_helper.h"
 #import "ios/chrome/common/crash_report/crash_helper.h"
 #import "ios/testing/scoped_block_swizzler.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -17,10 +17,6 @@
 #import "third_party/crashpad/crashpad/client/crash_report_database.h"
 #import "third_party/crashpad/crashpad/client/crashpad_client.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 

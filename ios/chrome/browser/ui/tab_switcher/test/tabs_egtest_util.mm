@@ -4,32 +4,24 @@
 
 #import "ios/chrome/browser/ui/tab_switcher/test/tabs_egtest_util.h"
 
+#import "base/ios/block_types.h"
+#import "base/test/ios/wait_util.h"
+#import "base/time/time.h"
 #import "ios/chrome/browser/ui/popup_menu/popup_menu_constants.h"
 #import "ios/chrome/browser/ui/tab_switcher/test/query_title_server_util.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
+#import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
 NSString* const kRegularTabTitlePrefix = @"RegularTab";
 NSString* const kPinnedTabTitlePrefix = @"PinnedTab";
 
-// Matcher for the overflow pin action.
-id<GREYMatcher> GetMatcherForPinOverflowAction() {
-  return grey_accessibilityID(kToolsMenuPinTabId);
-}
-
-// Pins a regular tab using overflow menu.
-void PinTabUsingOverflowMenu() {
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI tapToolsMenuAction:GetMatcherForPinOverflowAction()];
-}
+constexpr base::TimeDelta kSnackbarAppearanceTimeout = base::Seconds(5);
+constexpr base::TimeDelta kSnackbarDisappearanceTimeout = base::Seconds(11);
 
 }  // namespace
 
@@ -59,6 +51,54 @@ void CreatePinnedTabs(int tabs_count,
         [kPinnedTabTitlePrefix stringByAppendingFormat:@"%d", index];
 
     CreateRegularTab(test_server, title);
-    PinTabUsingOverflowMenu();
+    [ChromeEarlGrey pinCurrentTab];
   }
+}
+
+id<GREYMatcher> TabGridCell() {
+  return grey_allOf(grey_kindOfClassName(@"GridCell"),
+                    grey_sufficientlyVisible(), nil);
+}
+
+id<GREYMatcher> TabWithTitle(NSString* title) {
+  return grey_allOf(TabGridCell(), grey_accessibilityLabel(title),
+                    grey_sufficientlyVisible(), nil);
+}
+
+id<GREYMatcher> TabWithTitleAndIndex(NSString* title, unsigned int index) {
+  return grey_allOf(TabWithTitle(title),
+                    chrome_test_util::TabGridCellAtIndex(index), nil);
+}
+
+void WaitForSnackbarTriggeredByTappingItem(NSString* snackbarLabel,
+                                           id<GREYMatcher> matcher) {
+  [[EarlGrey selectElementWithMatcher:matcher] performAction:grey_tap()];
+
+  // Wait for the snackbar to appear.
+  id<GREYMatcher> snackbar_matcher =
+      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier");
+  ConditionBlock wait_for_appearance = ^{
+    NSError* error = nil;
+    [[EarlGrey selectElementWithMatcher:snackbar_matcher]
+        assertWithMatcher:grey_notNil()
+                    error:&error];
+    return error == nil;
+  };
+  if (!wait_for_appearance()) {
+    GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
+                   kSnackbarAppearanceTimeout, wait_for_appearance),
+               @"Snackbar did not appear.");
+  }
+
+  // Wait for the snackbar to disappear.
+  ConditionBlock wait_for_disappearance = ^{
+    NSError* error = nil;
+    [[EarlGrey selectElementWithMatcher:snackbar_matcher]
+        assertWithMatcher:grey_nil()
+                    error:&error];
+    return error == nil;
+  };
+  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
+                 kSnackbarDisappearanceTimeout, wait_for_disappearance),
+             @"Snackbar did not disappear.");
 }

@@ -5,7 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SIDE_PANEL_CUSTOMIZE_CHROME_CUSTOMIZE_CHROME_PAGE_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_SIDE_PANEL_CUSTOMIZE_CHROME_CUSTOMIZE_CHROME_PAGE_HANDLER_H_
 
+#include <vector>
+
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/search/background/ntp_background_service.h"
 #include "chrome/browser/search/background/ntp_background_service_observer.h"
@@ -29,6 +34,18 @@ class WebContents;
 }  // namespace content
 
 class Profile;
+
+/**
+ * Places where the chrome web store can be opened from in Customize Chrome.
+ * This enum must match the numbering for NTPChromeWebStoreOpen in enums.xml.
+ * These values are persisted to logs. Entries should not be renumbered, removed
+ * or reused.
+ */
+enum class NtpChromeWebStoreOpen {
+  kAppearance = 0,
+  kCollections = 1,
+  kMaxValue = kCollections,
+};
 
 class CustomizeChromePageHandler
     : public side_panel::mojom::CustomizeChromePageHandler,
@@ -56,10 +73,7 @@ class CustomizeChromePageHandler
 
   // side_panel::mojom::CustomizeChromePageHandler:
   void SetDefaultColor() override;
-  void SetSeedColor(SkColor seed_color) override;
-  void GetOverviewChromeColors(
-      GetOverviewChromeColorsCallback callback) override;
-  void GetChromeColors(GetChromeColorsCallback callback) override;
+  void SetFollowDeviceTheme(bool follow) override;
   void SetBackgroundImage(const std::string& attribution_1,
                           const std::string& attribution_2,
                           const GURL& attribution_url,
@@ -125,6 +139,7 @@ class CustomizeChromePageHandler
   base::TimeTicks background_images_request_start_time_;
   raw_ptr<ThemeService> theme_service_;
   const std::vector<std::pair<const std::string, int>> module_id_names_;
+
   // Caches a request to scroll to a section in case the front-end queries the
   // last requested section, e.g. during load.
   CustomizeChromeSection last_requested_section_ =
@@ -141,6 +156,8 @@ class CustomizeChromePageHandler
 
   mojo::Remote<side_panel::mojom::CustomizeChromePage> page_;
   mojo::Receiver<side_panel::mojom::CustomizeChromePageHandler> receiver_;
+
+  base::WeakPtrFactory<CustomizeChromePageHandler> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_SIDE_PANEL_CUSTOMIZE_CHROME_CUSTOMIZE_CHROME_PAGE_HANDLER_H_

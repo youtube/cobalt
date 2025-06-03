@@ -67,6 +67,7 @@ class PredictionModelStoreTest : public testing::Test {
     prediction_model_store_ =
         PredictionModelStore::CreatePredictionModelStoreForTesting(
             local_state_prefs_.get(), temp_models_dir_.GetPath());
+    RunUntilIdle();
   }
 
   void OnPredictionModelLoaded(
@@ -167,6 +168,12 @@ TEST_F(PredictionModelStoreTest, ModelUpdateAndLoad) {
   EXPECT_EQ(StringToFilePath(loaded_model->model().download_url()).value(),
             model_detail.base_model_dir.Append(GetBaseFileNameForModels()));
   EXPECT_EQ(0, loaded_model->model_info().additional_files_size());
+
+  auto metadata_entry = ModelStoreMetadataEntry::GetModelMetadataEntryIfExists(
+      local_state_prefs_.get(), kTestOptimizationTargetFoo, model_cache_key);
+  EXPECT_EQ(
+      model_detail.base_model_dir,
+      temp_models_dir_.GetPath().Append(*metadata_entry->GetModelBaseDir()));
 
   WaitForModeLoad(kTestOptimizationTargetBar, model_cache_key);
   EXPECT_FALSE(last_loaded_prediction_model());
@@ -279,6 +286,9 @@ TEST_F(PredictionModelStoreTest, UpdateMetadataForExistingModel) {
       local_state_prefs_.get(), kTestOptimizationTargetFoo, model_cache_key);
   EXPECT_LE(base::Minutes(99),
             metadata_entry->GetExpiryTime() - base::Time::Now());
+  EXPECT_EQ(
+      model_detail.base_model_dir,
+      temp_models_dir_.GetPath().Append(*metadata_entry->GetModelBaseDir()));
   EXPECT_TRUE(metadata_entry->GetKeepBeyondValidDuration());
 }
 
@@ -342,6 +352,9 @@ TEST_F(PredictionModelStoreTest, ExpiredModelRemoved) {
       kTestOptimizationTargetFoo, model_cache_key, model_detail.model_info,
       model_detail.base_model_dir, base::DoNothing());
   RunUntilIdle();
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_TRUE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
 
   // Fast forward so that the model has expired.
   task_environment_.FastForwardBy(features::StoredModelsValidDuration() +
@@ -357,6 +370,12 @@ TEST_F(PredictionModelStoreTest, ExpiredModelRemoved) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
       PredictionModelStoreModelRemovalReason::kModelExpired, 1);
+  EXPECT_FALSE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_FALSE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+  EXPECT_TRUE(
+      local_state_prefs_->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+          .empty());
 }
 
 TEST_F(PredictionModelStoreTest, ExpiredModelRemovedOnLoadModel) {
@@ -381,6 +400,81 @@ TEST_F(PredictionModelStoreTest, ExpiredModelRemovedOnLoadModel) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
       PredictionModelStoreModelRemovalReason::kModelExpiredOnLoadModel, 1);
+  // The model dirs will still not be removed, but will be queued to be deleted
+  // at next startup.
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_TRUE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+  EXPECT_EQ(1U, local_state_prefs_
+                    ->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+                    .size());
+  EXPECT_TRUE(
+      local_state_prefs_->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+          .FindBool(FilePathToString(ConvertToRelativePath(
+              temp_models_dir_.GetPath(), model_detail.base_model_dir))));
+
+  // Recreate the store and it will remove the model slated for deletion
+  // earlier.
+  prediction_model_store_ =
+      PredictionModelStore::CreatePredictionModelStoreForTesting(
+          local_state_prefs_.get(), temp_models_dir_.GetPath());
+  RunUntilIdle();
+  EXPECT_FALSE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_FALSE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+  EXPECT_TRUE(
+      local_state_prefs_->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+          .empty());
+}
+
+TEST_F(PredictionModelStoreTest, OldModelRemovedOnNewModelUpdate) {
+  base::HistogramTester histogram_tester;
+
+  auto model_cache_key = CreateModelCacheKey(kTestLocaleFoo);
+  auto model_detail =
+      CreateTestModelFiles(kTestOptimizationTargetFoo, model_cache_key, {});
+  prediction_model_store_->UpdateModel(
+      kTestOptimizationTargetFoo, model_cache_key, model_detail.model_info,
+      model_detail.base_model_dir, base::DoNothing());
+  RunUntilIdle();
+  EXPECT_TRUE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+
+  // Update the model.
+  auto new_model_detail =
+      CreateTestModelFiles(kTestOptimizationTargetFoo, model_cache_key, {});
+  prediction_model_store_->UpdateModel(
+      kTestOptimizationTargetFoo, model_cache_key, new_model_detail.model_info,
+      new_model_detail.base_model_dir, base::DoNothing());
+  RunUntilIdle();
+  EXPECT_TRUE(base::PathExists(
+      new_model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+
+  // The old model dirs will still not be removed, but will be queued to be
+  // deleted at next startup.
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
+      PredictionModelStoreModelRemovalReason::kNewModelUpdate, 1);
+  EXPECT_TRUE(base::PathExists(
+      model_detail.base_model_dir.Append(GetBaseFileNameForModels())));
+  EXPECT_EQ(1U, local_state_prefs_
+                    ->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+                    .size());
+  EXPECT_TRUE(
+      local_state_prefs_->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+          .FindBool(FilePathToString(ConvertToRelativePath(
+              temp_models_dir_.GetPath(), model_detail.base_model_dir))));
+
+  // Recreate the store and it will remove the old model slated for deletion.
+  prediction_model_store_ =
+      PredictionModelStore::CreatePredictionModelStoreForTesting(
+          local_state_prefs_.get(), temp_models_dir_.GetPath());
+  RunUntilIdle();
+  EXPECT_TRUE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                model_cache_key));
+  EXPECT_TRUE(
+      local_state_prefs_->GetDict(prefs::localstate::kStoreFilePathsToDelete)
+          .empty());
 }
 
 TEST_F(PredictionModelStoreTest, InvalidModelDirModelRemoved) {
@@ -427,6 +521,103 @@ TEST_F(PredictionModelStoreTest, InvalidModelDirModelUpdate) {
       "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
       PredictionModelStoreModelRemovalReason::kModelUpdateFilePathVerifyFailed,
       1);
+}
+
+TEST_F(PredictionModelStoreTest, InconsistentModelDirsRemoved) {
+  base::HistogramTester histogram_tester;
+  auto model_cache_key = CreateModelCacheKey(kTestLocaleFoo);
+
+  EXPECT_FALSE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                 model_cache_key));
+  auto model_detail =
+      CreateTestModelFiles(kTestOptimizationTargetFoo, model_cache_key, {});
+  prediction_model_store_->UpdateModel(
+      kTestOptimizationTargetFoo, model_cache_key, model_detail.model_info,
+      model_detail.base_model_dir, base::DoNothing());
+  RunUntilIdle();
+  EXPECT_TRUE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                model_cache_key));
+
+  // Create some inconsistent model dirs that exist in the store, but not in the
+  // local state.
+  auto model_detail_inconsistent_foo =
+      CreateTestModelFiles(kTestOptimizationTargetFoo, model_cache_key, {});
+  auto model_detail_inconsistent_bar =
+      CreateTestModelFiles(kTestOptimizationTargetBar, model_cache_key, {});
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_TRUE(
+      base::DirectoryExists(model_detail_inconsistent_foo.base_model_dir));
+  EXPECT_TRUE(
+      base::DirectoryExists(model_detail_inconsistent_bar.base_model_dir));
+
+  // Recreate the store and it will remove the inconsistent model dirs.
+  prediction_model_store_ =
+      PredictionModelStore::CreatePredictionModelStoreForTesting(
+          local_state_prefs_.get(), temp_models_dir_.GetPath());
+  RunUntilIdle();
+  EXPECT_TRUE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                model_cache_key));
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
+      PredictionModelStoreModelRemovalReason::kInconsistentModelDir, 2);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason." +
+          GetStringNameForOptimizationTarget(kTestOptimizationTargetFoo),
+      PredictionModelStoreModelRemovalReason::kInconsistentModelDir, 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason." +
+          GetStringNameForOptimizationTarget(kTestOptimizationTargetBar),
+      PredictionModelStoreModelRemovalReason::kInconsistentModelDir, 1);
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_FALSE(
+      base::DirectoryExists(model_detail_inconsistent_foo.base_model_dir));
+  EXPECT_FALSE(
+      base::DirectoryExists(model_detail_inconsistent_bar.base_model_dir));
+}
+
+TEST_F(PredictionModelStoreTest, InconsistentOptTargetDirsRemoved) {
+  base::HistogramTester histogram_tester;
+  auto model_cache_key = CreateModelCacheKey(kTestLocaleFoo);
+
+  EXPECT_FALSE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                 model_cache_key));
+  auto model_detail =
+      CreateTestModelFiles(kTestOptimizationTargetFoo, model_cache_key, {});
+  prediction_model_store_->UpdateModel(
+      kTestOptimizationTargetFoo, model_cache_key, model_detail.model_info,
+      model_detail.base_model_dir, base::DoNothing());
+  RunUntilIdle();
+  EXPECT_TRUE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                model_cache_key));
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+
+  // Create some invalid models and dirs within the model store dir.
+  auto model_detail_unknown = CreateTestModelFiles(
+      proto::OPTIMIZATION_TARGET_UNKNOWN, model_cache_key, {});
+  EXPECT_TRUE(base::DirectoryExists(model_detail_unknown.base_model_dir));
+  auto invalid_dir = temp_models_dir_.GetPath().AppendASCII("baz");
+  base::CreateDirectory(invalid_dir);
+  base::WriteFile(invalid_dir.Append(GetBaseFileNameForModels()), "");
+  EXPECT_TRUE(base::DirectoryExists(invalid_dir));
+
+  // Recreate the store and it will remove the inconsistent model dirs.
+  prediction_model_store_ =
+      PredictionModelStore::CreatePredictionModelStoreForTesting(
+          local_state_prefs_.get(), temp_models_dir_.GetPath());
+  RunUntilIdle();
+  EXPECT_TRUE(prediction_model_store_->HasModel(kTestOptimizationTargetFoo,
+                                                model_cache_key));
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
+      PredictionModelStoreModelRemovalReason::kInconsistentModelDir, 2);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelStore.ModelRemovalReason." +
+          GetStringNameForOptimizationTarget(
+              proto::OPTIMIZATION_TARGET_UNKNOWN),
+      PredictionModelStoreModelRemovalReason::kInconsistentModelDir, 2);
+  EXPECT_TRUE(base::DirectoryExists(model_detail.base_model_dir));
+  EXPECT_FALSE(base::DirectoryExists(model_detail_unknown.base_model_dir));
+  EXPECT_FALSE(base::DirectoryExists(invalid_dir));
 }
 
 }  // namespace optimization_guide

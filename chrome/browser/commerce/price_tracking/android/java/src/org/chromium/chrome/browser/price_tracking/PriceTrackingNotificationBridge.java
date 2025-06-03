@@ -15,9 +15,10 @@ import com.google.common.primitives.UnsignedLongs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.commerce.PriceUtils;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotifier.ActionData;
@@ -40,7 +41,6 @@ import java.util.List;
  */
 public class PriceTrackingNotificationBridge {
     private static final String TAG = "PriceTrackNotif";
-    private static final long UNITS_TO_MICROS = 1000000L;
     private final long mNativePriceTrackingNotificationBridge;
     private final PriceDropNotifier mNotifier;
     private final PriceDropNotificationManager mPriceDropNotificationManager;

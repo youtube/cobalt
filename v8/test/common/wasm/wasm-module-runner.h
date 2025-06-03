@@ -13,13 +13,6 @@
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Handle;
-
-template <typename T>
-class MaybeHandle;
-
 namespace wasm {
 namespace testing {
 
@@ -39,8 +32,8 @@ int32_t CallWasmFunctionForTesting(
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end);
+int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
+                                const uint8_t* module_end);
 
 // Decode and compile the given module with no imports.
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,

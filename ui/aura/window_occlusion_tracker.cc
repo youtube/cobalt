@@ -305,6 +305,11 @@ void WindowOcclusionTracker::MaybeComputeOcclusion() {
               Window::OcclusionState::OCCLUDED) {
             SetWindowAndDescendantsAreOccluded(
                 root_window, /* is_occluded */ true, root_window->IsVisible());
+          } else if (root_window_pair.second.occlusion_state ==
+                     Window::OcclusionState::HIDDEN) {
+            SetWindowAndDescendantsAreOccluded(root_window,
+                                               /* is_occluded */ false,
+                                               /* is_parent_visible */ false);
           } else {
             SkRegion occluded_region = root_window_pair.second.occluded_region;
             RecomputeOcclusionImpl(root_window, gfx::Transform(), nullptr,

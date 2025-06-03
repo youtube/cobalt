@@ -79,6 +79,7 @@ void FloatingAccessibilityDetailedController::Show(
       0, kBubbleMenuPadding, kBubbleMenuPadding, kBubbleMenuPadding);
   init_params.close_on_deactivate = false;
   init_params.translucent = true;
+  init_params.type = TrayBubbleView::TrayBubbleType::kAccessibilityBubble;
 
   bubble_view_ = new DetailedBubbleView(init_params);
   bubble_view_->SetArrowWithoutResizing(alignment);
@@ -87,7 +88,7 @@ void FloatingAccessibilityDetailedController::Show(
       std::make_unique<AccessibilityDetailedView>(this));
   bubble_view_->SetPreferredSize(
       gfx::Size(kTrayMenuWidth, kDetailedViewHeightDip));
-  bubble_view_->SetFocusBehavior(ActionableView::FocusBehavior::ALWAYS);
+  bubble_view_->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
 
   bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble_view_);
   bubble_view_->SetCanActivate(true);
@@ -157,6 +158,9 @@ void FloatingAccessibilityDetailedController::BubbleViewDestroyed() {
   delegate_->OnDetailedMenuClosed();
   // Hammer time, |this| is destroyed in the previous call.
 }
+
+void FloatingAccessibilityDetailedController::HideBubble(
+    const TrayBubbleView* bubble_view) {}
 
 void FloatingAccessibilityDetailedController::OnAccessibilityStatusChanged() {
   if (detailed_view_)

@@ -32,7 +32,6 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_mode.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
-#include "third_party/blink/renderer/core/style/toggle_root.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
@@ -130,9 +129,16 @@ class CORE_EXPORT CSSSelector {
   static constexpr unsigned kClassLikeSpecificity = 0x000100;
   static constexpr unsigned kTagSpecificity = 0x000001;
 
+  static constexpr unsigned kMaxValueMask = 0xffffff;
+  static constexpr unsigned kIdMask = 0xff0000;
+  static constexpr unsigned kClassMask = 0x00ff00;
+  static constexpr unsigned kElementMask = 0x0000ff;
+
   // http://www.w3.org/TR/css3-selectors/#specificity
   // We use 256 as the base of the specificity number system.
   unsigned Specificity() const;
+  // Returns specificity components in decreasing order of significance.
+  std::array<uint8_t, 3> SpecificityTuple() const;
 
   /* how the attribute value has to match.... Default is Exact */
   enum MatchType {
@@ -220,6 +226,9 @@ class CORE_EXPORT CSSSelector {
     kPseudoCornerPresent,
     kPseudoDecrement,
     kPseudoDefault,
+    kPseudoDetailsContent,
+    kPseudoDetailsSummary,
+    kPseudoDialogInTopLayer,
     kPseudoDisabled,
     kPseudoDoubleButton,
     kPseudoDrag,
@@ -260,6 +269,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoOptional,
     kPseudoParent,  // Written as & (in nested rules).
     kPseudoPart,
+    kPseudoPermissionGranted,
     kPseudoPlaceholder,
     kPseudoPlaceholderShown,
     kPseudoReadOnly,
@@ -286,6 +296,8 @@ class CORE_EXPORT CSSSelector {
     // selector (&), or a :scope pseudo-class, and must therefore be kept
     // for serialization purposes.
     kPseudoUnparsed,
+    kPseudoUserInvalid,
+    kPseudoUserValid,
     kPseudoValid,
     kPseudoVertical,
     kPseudoVisited,
@@ -304,7 +316,6 @@ class CORE_EXPORT CSSSelector {
     kPseudoPaused,
     kPseudoPictureInPicture,
     kPseudoPlaying,
-    kPseudoToggle,
     kPseudoXrOverlay,
     // Pseudo elements in UA ShadowRoots. Available in any stylesheets.
     kPseudoWebKitCustomElement,
@@ -327,6 +338,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoMultiSelectFocus,
     kPseudoOpen,
     kPseudoPastCue,
+    kPseudoPopoverInTopLayer,
     kPseudoPopoverOpen,
     kPseudoRelativeAnchor,
     kPseudoSlotted,
@@ -432,11 +444,9 @@ class CORE_EXPORT CSSSelector {
   // pseudo selector at all), or if we are a & rule that's in a non-nesting
   // context (which is valid, but won't match anything).
   const CSSSelector* SelectorListOrParent() const;
-  const Vector<AtomicString>* PartNames() const {
-    return has_rare_data_ ? data_.rare_data_->part_names_.get() : nullptr;
-  }
-  const ToggleRoot::State* ToggleValue() const {
-    return has_rare_data_ ? data_.rare_data_->toggle_value_.get() : nullptr;
+  const Vector<AtomicString>& IdentList() const {
+    CHECK(has_rare_data_ && data_.rare_data_->ident_list_);
+    return *data_.rare_data_->ident_list_;
   }
   bool ContainsPseudoInsideHasPseudoClass() const {
     return has_rare_data_ ? data_.rare_data_->bits_.has_.contains_pseudo_
@@ -458,9 +468,7 @@ class CORE_EXPORT CSSSelector {
   void SetAttribute(const QualifiedName&, AttributeMatchType);
   void SetArgument(const AtomicString&);
   void SetSelectorList(CSSSelectorList*);
-  void SetPartNames(std::unique_ptr<Vector<AtomicString>>);
-  void SetToggle(const AtomicString& name,
-                 std::unique_ptr<ToggleRoot::State>&& value);
+  void SetIdentList(std::unique_ptr<Vector<AtomicString>>);
   void SetContainsPseudoInsideHasPseudoClass();
   void SetContainsComplexLogicalCombinationsInsideHasPseudoClass();
 
@@ -533,6 +541,10 @@ class CORE_EXPORT CSSSelector {
   // True if the selector was added implicitly. This can happen for e.g.
   // nested rules that would otherwise lack the nesting selector (&).
   bool IsImplicit() const { return is_implicitly_added_; }
+
+  // Returns true for simple selectors whose evaluation depends on DOM tree
+  // position like :first-of-type and :nth-child().
+  bool IsChildIndexedSelector() const;
 
   void Trace(Visitor* visitor) const;
 
@@ -613,12 +625,11 @@ class CORE_EXPORT CSSSelector {
       CSSNestingType unparsed_nesting_type_;
     } bits_;
     QualifiedName attribute_;  // Used for attribute selector
-    AtomicString argument_;    // Used for :contains, :lang, :dir, :toggle, etc.
+    AtomicString argument_;    // Used for :contains, :lang, :dir, etc.
     Member<CSSSelectorList>
         selector_list_;  // Used :is, :not, :-webkit-any, etc.
     std::unique_ptr<Vector<AtomicString>>
-        part_names_;  // Used for ::part() selectors.
-    std::unique_ptr<ToggleRoot::State> toggle_value_;  // used for :toggle()
+        ident_list_;  // Used for ::part(), :active-view-transition().
 
     void Trace(Visitor* visitor) const;
   };
@@ -824,7 +835,7 @@ inline const QualifiedName& CSSSelector::TagQName() const {
 inline const StyleRule* CSSSelector::ParentRule() const {
   DCHECK_EQ(match_, static_cast<unsigned>(kPseudoClass));
   DCHECK_EQ(pseudo_type_, static_cast<unsigned>(kPseudoParent));
-  return data_.parent_rule_;
+  return data_.parent_rule_.Get();
 }
 
 inline const AtomicString& CSSSelector::Value() const {

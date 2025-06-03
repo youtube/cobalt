@@ -226,7 +226,7 @@ void PaintedOverlayScrollbarLayerImpl::SetAperture(const gfx::Rect& aperture) {
 }
 
 float PaintedOverlayScrollbarLayerImpl::TrackLength() const {
-  return track_length_ + (orientation() == ScrollbarOrientation::VERTICAL
+  return track_length_ + (orientation() == ScrollbarOrientation::kVertical
                               ? vertical_adjust()
                               : 0);
 }
@@ -237,10 +237,6 @@ bool PaintedOverlayScrollbarLayerImpl::IsThumbResizable() const {
 
 const char* PaintedOverlayScrollbarLayerImpl::LayerTypeAsString() const {
   return "cc::PaintedOverlayScrollbarLayerImpl";
-}
-
-bool PaintedOverlayScrollbarLayerImpl::HasFindInPageTickmarks() const {
-  return track_ui_resource_id_ != 0;
 }
 
 }  // namespace cc

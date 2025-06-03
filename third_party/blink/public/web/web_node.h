@@ -54,6 +54,8 @@ class WebPluginContainer;
 // reason, subclasses must not add any additional data members.
 class BLINK_EXPORT WebNode {
  public:
+  static WebNode FromDomNodeId(int dom_node_id);
+
   virtual ~WebNode();
 
   WebNode();
@@ -69,6 +71,8 @@ class BLINK_EXPORT WebNode {
   bool LessThan(const WebNode&) const;
 
   bool IsNull() const;
+
+  bool IsConnected() const;
 
   WebNode ParentNode() const;
   WebString NodeValue() const;
@@ -109,7 +113,7 @@ class BLINK_EXPORT WebNode {
   v8::Local<v8::Value> ToV8Value(v8::Local<v8::Object> creation_context,
                                  v8::Isolate*);
 
-  int GetDevToolsNodeId() const;
+  int GetDomNodeId() const;
 
   // Helper to downcast to `T`. Will fail with a CHECK() if converting to `T` is
   // not legal. The returned `T` will always be non-null if `this` is non-null.
@@ -138,7 +142,7 @@ class BLINK_EXPORT WebNode {
 #endif
 
  protected:
-  WebPrivatePtr<Node> private_;
+  WebPrivatePtrForGC<Node> private_;
 };
 
 #define DECLARE_WEB_NODE_TYPE_CASTS(type)      \

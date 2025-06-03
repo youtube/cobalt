@@ -32,14 +32,12 @@ class CopyToClipboardShareAction : public ::sharesheet::ShareAction {
                     views::View* root_view,
                     apps::IntentPtr intent) override;
   void OnClosing(::sharesheet::SharesheetController* controller) override;
-  bool ShouldShowAction(const apps::IntentPtr& intent,
-                        bool contains_hosted_document) override;
 
  private:
   // Virtual so that it can be overridden in testing.
   virtual void ShowToast(ash::ToastData toast_data);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_;
 };
 
 }  // namespace sharesheet

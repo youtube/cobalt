@@ -23,7 +23,7 @@ constexpr int kEmbeddingDim = 64;
 
 base::FilePath GetTestFilePath(const std::string& filename) {
   base::FilePath file_path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file_path);
   std::string fullname = "components/test/data/omnibox/" + filename;
   file_path = file_path.AppendASCII(fullname);
   return file_path;
@@ -348,28 +348,23 @@ TEST_F(OnDeviceTailModelExecutorTest, TestGenerateSuggestionsForPrefix) {
   std::vector<OnDeviceTailModelExecutor::Prediction> predictions;
 
   {
-    predictions = executor_->GenerateSuggestionsForPrefix(
-        /*prefix =*/"faceb", /*previous_query=*/"",
-        /*max_num_suggestions =*/5, /*max_rnn_steps =*/20,
-        /*probability_threshold =*/0.05);
+    OnDeviceTailModelExecutor::ModelInput input("faceb", "", 5, 20, 0.05);
+    predictions = executor_->GenerateSuggestionsForPrefix(input);
     EXPECT_FALSE(predictions.empty());
     EXPECT_TRUE(base::StartsWith(predictions[0].suggestion, "facebook",
                                  base::CompareCase::SENSITIVE));
   }
 
   {
-    predictions = executor_->GenerateSuggestionsForPrefix(
-        /*prefix =*/"", /*previous_query=*/"snapchat",
-        /*max_num_suggestions =*/5, /*max_rnn_steps =*/20,
-        /*probability_threshold =*/0.05);
+    OnDeviceTailModelExecutor::ModelInput input("", "snapchat", 5, 20, 0.05);
+    predictions = executor_->GenerateSuggestionsForPrefix(input);
     EXPECT_TRUE(predictions.empty());
   }
 
   {
-    predictions = executor_->GenerateSuggestionsForPrefix(
-        /*prefix =*/"faceb", /*previous_query=*/"snapchat",
-        /*max_num_suggestions =*/5, /*max_rnn_steps =*/20,
-        /*probability_threshold =*/0.05);
+    OnDeviceTailModelExecutor::ModelInput input("faceb", "snapchat", 5, 20,
+                                                0.05);
+    predictions = executor_->GenerateSuggestionsForPrefix(input);
     EXPECT_FALSE(predictions.empty());
     EXPECT_TRUE(base::StartsWith(predictions[0].suggestion, "facebook",
                                  base::CompareCase::SENSITIVE));

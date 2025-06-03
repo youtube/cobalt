@@ -72,10 +72,6 @@ class ASH_EXPORT ScreenRotationAnimator {
   // orientation if |IsRotating()| is false.
   display::Display::Rotation GetTargetRotation() const;
 
-  static void SetScreenRotationAnimatorForTest(
-      aura::Window* root_window,
-      std::unique_ptr<ScreenRotationAnimator> animator);
-
  protected:
   using CopyCallback =
       base::OnceCallback<void(std::unique_ptr<viz::CopyOutputResult> result)>;
@@ -172,7 +168,7 @@ class ASH_EXPORT ScreenRotationAnimator {
 
   void StopAnimating();
 
-  raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh> root_window_;
+  raw_ptr<aura::Window> root_window_;
 
   // For current slow rotation animation, there are two states |ROTATING| and
   // |IDLE|. For the smooth rotation animation, we need to send copy request

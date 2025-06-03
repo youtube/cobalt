@@ -30,9 +30,9 @@ class WebAppAshInteractiveUITest : public web_app::WebAppControllerBrowserTest {
 
   // web_app::WebAppControllerBrowserTest override:
   void SetUpOnMainThread() override {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     web_app_info->start_url = GURL("https://test.org");
-    web_app::AppId app_id = InstallWebApp(std::move(web_app_info));
+    webapps::AppId app_id = InstallWebApp(std::move(web_app_info));
 
     Browser* browser = LaunchWebAppBrowser(app_id);
     browser_view_ = BrowserView::GetBrowserViewForBrowser(browser);
@@ -42,7 +42,7 @@ class WebAppAshInteractiveUITest : public web_app::WebAppControllerBrowserTest {
         static_cast<ImmersiveModeControllerChromeos*>(controller_)
             ->controller())
         .SetupForTest();
-    WebAppToolbarButtonContainer::DisableAnimationForTesting();
+    WebAppToolbarButtonContainer::DisableAnimationForTesting(true);
   }
 
   void CheckWebAppMenuClickable() {
@@ -66,8 +66,10 @@ class WebAppAshInteractiveUITest : public web_app::WebAppControllerBrowserTest {
     EXPECT_FALSE(menu_button->IsMenuShowing());
   }
 
-  raw_ptr<BrowserView, ExperimentalAsh> browser_view_ = nullptr;
-  raw_ptr<ImmersiveModeController, ExperimentalAsh> controller_ = nullptr;
+  raw_ptr<BrowserView, DanglingUntriaged | ExperimentalAsh> browser_view_ =
+      nullptr;
+  raw_ptr<ImmersiveModeController, DanglingUntriaged | ExperimentalAsh>
+      controller_ = nullptr;
 };
 
 // Test that the web app menu button opens a menu on click.

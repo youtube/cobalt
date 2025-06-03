@@ -12,12 +12,16 @@
 // This coordinator presents settings related to the Password Manager.
 @interface PasswordSettingsCoordinator : ChromeCoordinator
 
-- (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser
-    NS_DESIGNATED_INITIALIZER;
-
 // Delegate.
 @property(nonatomic, weak) id<PasswordSettingsCoordinatorDelegate> delegate;
+
+// Whether Local Authentication should be skipped when the coordinator is
+// started. Defaults to NO. Authentication should be required when starting the
+// coordinator unless it was already required by the starting coordinator or
+// another ancestor higher in the ancestor chain. This property is most likely
+// used only by coordinators for other password manager subpages as the password
+// manager requires authentication upon entry.
+@property(nonatomic) BOOL skipAuthenticationOnStart;
 
 @end
 

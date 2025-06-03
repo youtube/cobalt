@@ -4,27 +4,28 @@
 
 #import "ios/chrome/browser/ui/settings/clear_browsing_data/clear_browsing_data_manager.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/functional/bind.h"
-#import "base/mac/foundation_util.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/browsing_data/core/pref_names.h"
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/search_engines/template_url_data_util.h"
 #import "components/search_engines/template_url_prepopulate_data.h"
 #import "components/search_engines/template_url_service.h"
-#import "components/sync/driver/sync_service.h"
+#import "components/signin/public/base/signin_metrics.h"
+#import "components/sync/service/sync_service.h"
 #import "components/sync/test/test_sync_service.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
 #import "components/sync_preferences/pref_service_syncable.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/browsing_data/browsing_data_features.h"
-#import "ios/chrome/browser/browsing_data/cache_counter.h"
-#import "ios/chrome/browser/browsing_data/fake_browsing_data_remover.h"
+#import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
+#import "ios/chrome/browser/browsing_data/model/cache_counter.h"
+#import "ios/chrome/browser/browsing_data/model/fake_browsing_data_remover.h"
 #import "ios/chrome/browser/net/crurl.h"
-#import "ios/chrome/browser/prefs/browser_prefs.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
-#import "ios/chrome/browser/search_engines/template_url_service_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
@@ -35,9 +36,9 @@
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_mock.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_mock.h"
 #import "ios/chrome/browser/ui/settings/clear_browsing_data/fake_browsing_data_counter_wrapper_producer.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -46,10 +47,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "ui/base/l10n/l10n_util_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using TemplateURLPrepopulateData::GetAllPrepopulatedEngines;
 using TemplateURLPrepopulateData::PrepopulatedEngine;
@@ -198,11 +195,11 @@ TEST_F(ClearBrowsingDataManagerTest, TestModel) {
 // but sync is off.
 TEST_F(ClearBrowsingDataManagerTest, TestModelSignedInSyncOff) {
   // Ensure that sync is not running.
-  test_sync_service_->SetDisableReasons(
-      syncer::SyncService::DISABLE_REASON_USER_CHOICE);
+  test_sync_service_->SetHasSyncConsent(false);
 
   AuthenticationServiceFactory::GetForBrowserState(browser_state_.get())
-      ->SignIn(fake_identity());
+      ->SignIn(fake_identity(),
+               signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
 
   [manager_ loadModel:model_];
 
@@ -312,7 +309,8 @@ TEST_F(ClearBrowsingDataManagerTest, TestOnPreferenceChanged) {
 
 TEST_F(ClearBrowsingDataManagerTest, TestGoogleDSETextSignedIn) {
   AuthenticationServiceFactory::GetForBrowserState(browser_state_.get())
-      ->SignIn(fake_identity());
+      ->SignIn(fake_identity(),
+               signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
 
   [manager_ loadModel:model_];
 
@@ -323,7 +321,7 @@ TEST_F(ClearBrowsingDataManagerTest, TestGoogleDSETextSignedIn) {
   ListItem* googleAccount =
       [model_ footerForSectionWithIdentifier:SectionIdentifierGoogleAccount];
   TableViewLinkHeaderFooterItem* accountFooterTextItem =
-      base::mac::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
+      base::apple::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
   ASSERT_TRUE(([accountFooterTextItem.text rangeOfString:@"Google"].location !=
                NSNotFound));
   ASSERT_EQ(2u, [accountFooterTextItem.urls count]);
@@ -342,7 +340,8 @@ TEST_F(ClearBrowsingDataManagerTest, TestGoogleDSETextSignedOut) {
 
 TEST_F(ClearBrowsingDataManagerTest, TestPrepopulatedTextSignedIn) {
   AuthenticationServiceFactory::GetForBrowserState(browser_state_.get())
-      ->SignIn(fake_identity());
+      ->SignIn(fake_identity(),
+               signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
 
   // Set DSE to one from "prepoulated list".
   const std::string kEngineP1Name = "prepopulated-1";
@@ -361,7 +360,7 @@ TEST_F(ClearBrowsingDataManagerTest, TestPrepopulatedTextSignedIn) {
   ListItem* googleAccount =
       [model_ footerForSectionWithIdentifier:SectionIdentifierGoogleAccount];
   TableViewLinkHeaderFooterItem* accountFooterTextItem =
-      base::mac::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
+      base::apple::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
   ASSERT_TRUE(
       ([accountFooterTextItem.text
            rangeOfString:[NSString
@@ -395,7 +394,7 @@ TEST_F(ClearBrowsingDataManagerTest, TestPrepopulatedTextSignedOut) {
   ListItem* googleAccount =
       [model_ footerForSectionWithIdentifier:SectionIdentifierGoogleAccount];
   TableViewLinkHeaderFooterItem* accountFooterTextItem =
-      base::mac::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
+      base::apple::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
   ASSERT_TRUE(
       ([accountFooterTextItem.text
            rangeOfString:[NSString
@@ -408,7 +407,8 @@ TEST_F(ClearBrowsingDataManagerTest, TestPrepopulatedTextSignedOut) {
 
 TEST_F(ClearBrowsingDataManagerTest, TestCustomTextSignedIn) {
   AuthenticationServiceFactory::GetForBrowserState(browser_state_.get())
-      ->SignIn(fake_identity());
+      ->SignIn(fake_identity(),
+               signin_metrics::AccessPoint::ACCESS_POINT_SETTINGS);
 
   // Set DSE to a be fully custom.
   const std::string kEngineC1Name = "custom-1";
@@ -429,7 +429,7 @@ TEST_F(ClearBrowsingDataManagerTest, TestCustomTextSignedIn) {
   ListItem* googleAccount =
       [model_ footerForSectionWithIdentifier:SectionIdentifierGoogleAccount];
   TableViewLinkHeaderFooterItem* accountFooterTextItem =
-      base::mac::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
+      base::apple::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
   ASSERT_FALSE(
       ([accountFooterTextItem.text
            rangeOfString:[NSString
@@ -464,7 +464,7 @@ TEST_F(ClearBrowsingDataManagerTest, TestCustomeTextSignedOut) {
   ListItem* googleAccount =
       [model_ footerForSectionWithIdentifier:SectionIdentifierGoogleAccount];
   TableViewLinkHeaderFooterItem* accountFooterTextItem =
-      base::mac::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
+      base::apple::ObjCCastStrict<TableViewLinkHeaderFooterItem>(googleAccount);
   ASSERT_FALSE(
       ([accountFooterTextItem.text
            rangeOfString:[NSString

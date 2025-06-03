@@ -17,12 +17,14 @@
 #include "net/cert/pki/trust_store.h"
 #include "net/cert/pki/verify_signed_data.h"
 #include "net/der/input.h"
+#include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace net {
 
 namespace {
 
-bool IsHandledCriticalExtension(const ParsedExtension& extension) {
+bool IsHandledCriticalExtension(const ParsedExtension& extension,
+                                const ParsedCertificate& cert) {
   if (extension.oid == der::Input(kBasicConstraintsOid))
     return true;
   // Key Usage is NOT processed for end-entity certificates (this is the
@@ -60,6 +62,13 @@ bool IsHandledCriticalExtension(const ParsedExtension& extension) {
     return true;
   if (extension.oid == der::Input(kInhibitAnyPolicyOid))
     return true;
+  if (extension.oid == der::Input(kMSApplicationPoliciesOid)) {
+    // Per https://crbug.com/1439638 and
+    // https://learn.microsoft.com/en-us/windows/win32/seccertenroll/supported-extensions#msapplicationpolicies
+    // The MSApplicationPolicies extension may be ignored if the
+    // extendedKeyUsage extension is also present.
+    return cert.has_extended_key_usage();
+  }
 
   return false;
 }
@@ -70,7 +79,7 @@ void VerifyNoUnconsumedCriticalExtensions(const ParsedCertificate& cert,
                                           CertErrors* errors) {
   for (const auto& it : cert.extensions()) {
     const ParsedExtension& extension = it.second;
-    if (extension.critical && !IsHandledCriticalExtension(extension)) {
+    if (extension.critical && !IsHandledCriticalExtension(extension, cert)) {
       errors->AddError(cert_errors::kUnconsumedCriticalExtension,
                        CreateCertErrorParams2Der("oid", extension.oid, "value",
                                                  extension.value));
@@ -500,6 +509,9 @@ class ValidPolicyGraph {
     // parent. However, we must limit to those which are reachable from the
     // end-entity certificate because we defer some pruning steps.
     for (auto& [policy, node] : levels_.back()) {
+      // GCC before 8.1 tracks individual unused bindings and does not support
+      // marking them [[maybe_unused]].
+      (void)policy;
       node.reachable = true;
     }
     std::set<der::Input> policy_set;
@@ -602,6 +614,9 @@ class ValidPolicyGraph {
     assert(policy != der::Input(kAnyPolicyOid));
     auto [iter, inserted] = levels_.back().insert(
         std::pair{policy, Node{std::move(parent_policies)}});
+    // GCC before 8.1 tracks individual unused bindings and does not support
+    // marking them [[maybe_unused]].
+    (void)inserted;
     assert(inserted);
     return iter;
   }
@@ -983,9 +998,9 @@ void PathVerifier::ApplyPolicyConstraints(const ParsedCertificate& cert) {
   //      (j)  If the inhibitAnyPolicy extension is included in the
   //           certificate and is less than inhibit_anyPolicy, set
   //           inhibit_anyPolicy to the value of inhibitAnyPolicy.
-  if (cert.has_inhibit_any_policy() &&
-      cert.inhibit_any_policy() < inhibit_any_policy_) {
-    inhibit_any_policy_ = cert.inhibit_any_policy();
+  if (cert.inhibit_any_policy() &&
+      cert.inhibit_any_policy().value() < inhibit_any_policy_) {
+    inhibit_any_policy_ = cert.inhibit_any_policy().value();
   }
 }
 
@@ -1002,7 +1017,7 @@ void PathVerifier::BasicCertificateProcessing(
   // match. This isn't part of RFC 5280 section 6.1.3, but is mandated by
   // sections 4.1.1.2 and 4.1.2.3.
   if (!VerifySignatureAlgorithmsMatch(cert, errors)) {
-    CHECK(errors->ContainsAnyErrorWithSeverity(CertError::SEVERITY_HIGH));
+    BSSL_CHECK(errors->ContainsAnyErrorWithSeverity(CertError::SEVERITY_HIGH));
     *shortcircuit_chain_validation = true;
   }
 
@@ -1458,8 +1473,8 @@ void PathVerifier::Run(
     CertPathErrors* errors) {
   // This implementation is structured to mimic the description of certificate
   // path verification given by RFC 5280 section 6.1.
-  DCHECK(delegate);
-  DCHECK(errors);
+  BSSL_CHECK(delegate);
+  BSSL_CHECK(errors);
 
   delegate_ = delegate;
 
@@ -1543,7 +1558,7 @@ void PathVerifier::Run(
         // Chains that don't start from a trusted root should short-circuit the
         // rest of the verification, as accumulating more errors from untrusted
         // certificates would not be meaningful.
-        CHECK(cert_errors->ContainsAnyErrorWithSeverity(
+        BSSL_CHECK(cert_errors->ContainsAnyErrorWithSeverity(
             CertError::SEVERITY_HIGH));
         return;
       }
@@ -1565,7 +1580,7 @@ void PathVerifier::Run(
       // Signature errors should short-circuit the rest of the verification, as
       // accumulating more errors from untrusted certificates would not be
       // meaningful.
-      CHECK(
+      BSSL_CHECK(
           cert_errors->ContainsAnyErrorWithSeverity(CertError::SEVERITY_HIGH));
       return;
     }

@@ -274,6 +274,16 @@ HTMLFrameOwnerElement::HTMLFrameOwnerElement(const QualifiedName& tag_name,
   document.IncrementImmediateChildFrameCreationCount();
 }
 
+const QualifiedName& HTMLFrameOwnerElement::SubResourceAttributeName() const {
+  // This doesn't really make sense, but it preserves existing behavior
+  // that may or may not matter for the one caller of this method.
+
+  // It might make more sense for this to be pure virtual and the
+  // remaining subclasses that don't override this (frame, iframe,
+  // portal, fenced frame) to do so.
+  return QualifiedName::Null();
+}
+
 LayoutEmbeddedContent* HTMLFrameOwnerElement::GetLayoutEmbeddedContent() const {
   // HTMLObjectElement and HTMLEmbedElement may return arbitrary layoutObjects
   // when using fallback content.
@@ -360,6 +370,10 @@ void HTMLFrameOwnerElement::DisconnectContentFrame() {
   // Check if removing the subframe caused |parent_doc| to finish loading.
   if (have_to_check_if_parent_is_completed)
     parent_doc.CheckCompleted();
+
+  // Reset the collapsed state. The frame element will be collapsed again if it
+  // is blocked again in the future.
+  SetCollapsed(false);
 }
 
 HTMLFrameOwnerElement::~HTMLFrameOwnerElement() {
@@ -695,8 +709,7 @@ bool HTMLFrameOwnerElement::LoadOrRedirectSubframe(
 
   // If the subframe navigation is aborted or TAO fails, we report a "fallback"
   // entry that starts at navigation and ends at load/error event.
-  if (url.ProtocolIsInHTTPFamily() ||
-      url.ProtocolIs(url::kUuidInPackageScheme)) {
+  if (url.ProtocolIsInHTTPFamily()) {
     fallback_timing_info_ =
         CreateResourceTimingInfo(base::TimeTicks::Now(), url,
                                  /*response=*/nullptr);

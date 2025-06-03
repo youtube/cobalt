@@ -5,9 +5,11 @@
 #import "ios/chrome/browser/ui/overlays/infobar_modal/permissions/permissions_infobar_modal_overlay_mediator.h"
 
 #import "ios/chrome/browser/infobars/infobar_ios.h"
-#import "ios/chrome/browser/overlays/public/infobar_modal/permissions/permissions_modal_overlay_request_config.h"
+#import "ios/chrome/browser/infobars/infobar_type.h"
+#import "ios/chrome/browser/infobars/overlays/default_infobar_overlay_request_factory.h"
+#import "ios/chrome/browser/overlays/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/public/overlay_request.h"
-#import "ios/chrome/browser/permissions/permissions_infobar_delegate.h"
+#import "ios/chrome/browser/permissions/model/permissions_infobar_delegate.h"
 #import "ios/chrome/browser/ui/permissions/permission_info.h"
 #import "ios/chrome/browser/ui/permissions/permissions_consumer.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -18,10 +20,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // FakePermissionsConsumer used for testing purpose.
 @interface FakePermissionsConsumer : NSObject <PermissionsConsumer>
@@ -62,19 +60,20 @@ class PermissionsInfobarModalOverlayMediatorTest : public PlatformTest {
   PermissionsInfobarModalOverlayMediatorTest() {
     if (@available(iOS 15, *)) {
       auto navigation_manager = std::make_unique<web::FakeNavigationManager>();
-      auto item = web::NavigationItem::Create();
+      item_ = web::NavigationItem::Create();
       GURL url("http://test.com/");
-      item->SetURL(url);
-      navigation_manager->SetVisibleItem(item.get());
+      item_->SetURL(url);
+      navigation_manager->SetVisibleItem(item_.get());
       web_state_.SetNavigationManager(std::move(navigation_manager));
       // First parameter is used for banner; not needed for this test.
       std::unique_ptr<PermissionsInfobarDelegate> delegate =
           std::make_unique<PermissionsInfobarDelegate>([NSArray array],
                                                        &web_state_);
-      InfoBarIOS infobar(InfobarType::kInfobarTypePermissions,
-                         std::move(delegate));
-      request_ = OverlayRequest::CreateWithConfig<
-          PermissionsInfobarModalOverlayRequestConfig>(&infobar);
+      infobar_ = std::make_unique<InfoBarIOS>(
+          InfobarType::kInfobarTypePermissions, std::move(delegate));
+      request_ =
+          OverlayRequest::CreateWithConfig<DefaultInfobarOverlayRequestConfig>(
+              infobar_.get(), InfobarOverlayType::kModal);
       mediator_ = [[PermissionsInfobarModalOverlayMediator alloc]
           initWithRequest:request_.get()];
     }
@@ -88,9 +87,10 @@ class PermissionsInfobarModalOverlayMediatorTest : public PlatformTest {
 
  protected:
   PermissionsInfobarModalOverlayMediator* mediator_ API_AVAILABLE(ios(15.0));
-  id<OverlayRequestMediatorDelegate> mediator_delegate_;
   std::unique_ptr<OverlayRequest> request_;
   web::FakeWebState web_state_;
+  std::unique_ptr<InfoBarIOS> infobar_;
+  std::unique_ptr<web::NavigationItem> item_;
 };
 
 // Tests that a PermissionsInfobarModalOverlayMediator correctly sets up its

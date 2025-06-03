@@ -53,13 +53,16 @@ class CORE_EXPORT SVGAElement final : public SVGGraphicsElement,
 
   bool SupportsFocus() const override;
   bool ShouldHaveFocusAppearance() const final;
-  bool IsMouseFocusable() const override;
   bool IsKeyboardFocusable() const override;
   bool IsURLAttribute(const Attribute&) const override;
   bool CanStartSelection() const override;
   int DefaultTabIndex() const override;
 
   bool WillRespondToMouseClickEvents() override;
+
+  SVGAnimatedPropertyBase* PropertyFromAttribute(
+      const QualifiedName& attribute_name) const override;
+  void SynchronizeAllSVGAttributes() const override;
 
   Member<SVGAnimatedString> svg_target_;
 };

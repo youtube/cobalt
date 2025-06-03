@@ -18,6 +18,8 @@ source_set("browser") {
   if (!is_ios && !is_android) {
     sources += [
       "passkey_model.h",
+      "passkey_model_utils.cc",
+      "passkey_model_utils.h",
       "passkey_sync_bridge.cc",
       "passkey_sync_bridge.h",
     ]
@@ -37,8 +39,15 @@ static_library("test_support") {
   deps = [
     ":browser",
     "//base/test:test_support",
+    "//components/sync",
     "//content/public/browser",
     "//testing/gmock",
     "//testing/gtest",
   ]
+  if (!is_ios && !is_android) {
+    sources += [
+      "test_passkey_model.cc",
+      "test_passkey_model.h",
+    ]
+  }
 }

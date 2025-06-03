@@ -11,6 +11,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SPECULATION_RULES_STUB_SPECULATION_HOST_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SPECULATION_RULES_STUB_SPECULATION_HOST_H_
 
+class KURL;
+
 namespace blink {
 
 class StubSpeculationHost : public mojom::blink::SpeculationHost {
@@ -34,14 +36,6 @@ class StubSpeculationHost : public mojom::blink::SpeculationHost {
   void BindUnsafe(mojo::ScopedMessagePipeHandle handle);
   void Bind(mojo::PendingReceiver<SpeculationHost> receiver);
 
-  // mojom::blink::SpeculationHost.
-  void UpdateSpeculationCandidates(
-      const base::UnguessableToken& devtools_navigation_token,
-      Candidates candidates) override;
-
-  // mojom::blink::SpeculationHost.
-  void EnableNoVarySearchSupport() override;
-
   void OnConnectionLost();
 
   bool is_bound() const { return receiver_.is_bound(); }
@@ -50,9 +44,10 @@ class StubSpeculationHost : public mojom::blink::SpeculationHost {
     return sent_no_vary_search_support_to_browser_;
   }
 
-  absl::optional<base::UnguessableToken> devtools_navigation_token() const {
-    return devtools_navigation_token_;
-  }
+  // mojom::blink::SpeculationHost.
+  void UpdateSpeculationCandidates(Candidates candidates) override;
+  void EnableNoVarySearchSupport() override;
+  void InitiatePreview(const KURL& url) override;
 
  private:
   mojo::Receiver<SpeculationHost> receiver_{this};
@@ -60,8 +55,6 @@ class StubSpeculationHost : public mojom::blink::SpeculationHost {
   bool sent_no_vary_search_support_to_browser_ = false;
   base::OnceClosure done_closure_;
   base::RepeatingCallback<void(const Candidates&)> candidates_updated_callback_;
-  // A non-nul devtools_navigation_token_ is expected to be always consistent.
-  absl::optional<base::UnguessableToken> devtools_navigation_token_;
 };
 
 }  // namespace blink

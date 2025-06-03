@@ -113,7 +113,7 @@ class TestDelegate : public UsersPrivateDelegate {
   }
 
  private:
-  raw_ptr<Profile, ExperimentalAsh> profile_;  // weak
+  raw_ptr<Profile, LeakedDanglingUntriaged | ExperimentalAsh> profile_;  // weak
   std::unique_ptr<TestPrefsUtil> prefs_util_;
 };
 
@@ -125,7 +125,7 @@ class UsersPrivateApiTest : public ExtensionApiTest {
     scoped_refptr<ownership::MockOwnerKeyUtil> owner_key_util =
         new ownership::MockOwnerKeyUtil();
     owner_key_util->ImportPrivateKeyAndSetPublicKey(
-        crypto::RSAPrivateKey::Create(512));
+        crypto::RSAPrivateKey::Create(2048));
 
     ash::OwnerSettingsServiceAshFactory::GetInstance()
         ->SetOwnerKeyUtilForTesting(owner_key_util);

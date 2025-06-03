@@ -17,6 +17,7 @@
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "ui/gfx/image/canvas_image_source.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_operations.h"
 
 namespace ash {
 namespace image_util {
@@ -58,6 +59,20 @@ void ToFrames(DecodeAnimationCallback callback,
   std::move(callback).Run(std::move(frames));
 }
 
+void ScheduleFileRead(
+    const base::FilePath& file_path,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner,
+    base::OnceCallback<void(const std::string&)> completion_cb) {
+  if (!file_task_runner) {
+    file_task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+  }
+  file_task_runner->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(&ReadFileToString, file_path),
+      std::move(completion_cb));
+}
+
 // EmptyImageSkiaSource --------------------------------------------------------
 
 // An `gfx::ImageSkiaSource` which draws nothing to its `canvas`.
@@ -83,25 +98,47 @@ gfx::ImageSkia CreateEmptyImage(const gfx::Size& size) {
   return gfx::ImageSkia(std::make_unique<EmptyImageSkiaSource>(size), size);
 }
 
-void DecodeImageFile(DecodeImageCallback callback,
-                     const base::FilePath& file_path,
-                     data_decoder::mojom::ImageCodec codec) {
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE,
-      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&ReadFileToString, file_path),
+gfx::ImageSkia ResizeAndCropImage(const gfx::ImageSkia& image_skia,
+                                  const gfx::Size& new_size) {
+  // Calculate the scale factors necessary to make each axis match its
+  // respective part of `new_size`.
+  const float scale_x =
+      new_size.width() / static_cast<float>(image_skia.width());
+  const float scale_y =
+      new_size.height() / static_cast<float>(image_skia.height());
+
+  // Whichever scale factor is larger is what we want to use, so that we are
+  // cropping excess instead of leaving empty space.
+  const float scale = std::max(scale_x, scale_y);
+
+  // Scale the image to the size that this scale factor indicates.
+  auto resized_image_skia = gfx::ImageSkiaOperations::CreateResizedImage(
+      image_skia, skia::ImageOperations::ResizeMethod::RESIZE_BEST,
+      gfx::ScaleToCeiledSize(image_skia.size(), scale));
+
+  // Crop any excess outside the bounds.
+  gfx::Rect cropped_bounds(resized_image_skia.size());
+  cropped_bounds.ClampToCenteredSize(new_size);
+  return gfx::ImageSkiaOperations::ExtractSubset(resized_image_skia,
+                                                 cropped_bounds);
+}
+
+void DecodeImageFile(
+    DecodeImageCallback callback,
+    const base::FilePath& file_path,
+    data_decoder::mojom::ImageCodec codec,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
+  ScheduleFileRead(
+      file_path, std::move(file_task_runner),
       base::BindOnce(&DecodeImageData, std::move(callback), codec));
 }
 
-void DecodeAnimationFile(DecodeAnimationCallback callback,
-                         const base::FilePath& file_path) {
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE,
-      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
-      base::BindOnce(&ReadFileToString, file_path),
-      base::BindOnce(&DecodeAnimationData, std::move(callback)));
+void DecodeAnimationFile(
+    DecodeAnimationCallback callback,
+    const base::FilePath& file_path,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
+  ScheduleFileRead(file_path, std::move(file_task_runner),
+                   base::BindOnce(&DecodeAnimationData, std::move(callback)));
 }
 
 void DecodeImageData(DecodeImageCallback callback,

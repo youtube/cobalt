@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <iterator>
 
+#include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
@@ -20,6 +21,7 @@
 #include "content/public/common/content_client.h"
 #include "third_party/blink/public/strings/grit/blink_accessibility_strings.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_selection.h"
 #include "ui/accessibility/ax_tree_id.h"
@@ -141,7 +143,18 @@ ui::AXPlatformNode* BrowserAccessibility::GetAXPlatformNode() const {
 size_t BrowserAccessibility::PlatformChildCount() const {
   // We need to explicitly check for leafiness here instead of relying on
   // `AXNode::IsLeaf()` because Android has a different notion of this concept.
-  return IsLeaf() ? 0 : node()->GetUnignoredChildCountCrossingTreeBoundary();
+  if (IsLeaf()) {
+    return 0u;
+  }
+  if (ui::AXTreeManager::ForChildTree(*node())) {
+    // A child tree might not be connected yet, or might not be hosting platform
+    // objects.
+    return manager()->GetFromAXNode(
+               node()->GetFirstUnignoredChildCrossingTreeBoundary())
+               ? 1u
+               : 0u;
+  }
+  return node()->GetUnignoredChildCountCrossingTreeBoundary();
 }
 
 BrowserAccessibility* BrowserAccessibility::PlatformGetParent() const {
@@ -824,67 +837,21 @@ bool BrowserAccessibility::HasVisibleCaretOrSelection() const {
   return node()->HasVisibleCaretOrSelection();
 }
 
-std::set<ui::AXPlatformNode*> BrowserAccessibility::GetNodesForNodeIdSet(
-    const std::set<int32_t>& ids) {
-  std::set<ui::AXPlatformNode*> nodes;
-  for (int32_t node_id : ids) {
-    if (ui::AXPlatformNode* node = GetFromNodeID(node_id)) {
-      nodes.insert(node);
-    }
-  }
-  return nodes;
-}
-
-ui::AXPlatformNode* BrowserAccessibility::GetTargetNodeForRelation(
-    ax::mojom::IntAttribute attr) {
-  DCHECK(ui::IsNodeIdIntAttribute(attr));
-
-  int target_id;
-  if (!node()->GetIntAttribute(attr, &target_id))
-    return nullptr;
-
-  return GetFromNodeID(target_id);
-}
-
 std::vector<ui::AXPlatformNode*>
-BrowserAccessibility::GetTargetNodesForRelation(
-    ax::mojom::IntListAttribute attr) {
-  DCHECK(ui::IsNodeIdIntListAttribute(attr));
-
-  std::vector<int32_t> target_ids;
-  if (!GetIntListAttribute(attr, &target_ids))
-    return std::vector<ui::AXPlatformNode*>();
-
-  // If we use std::set to eliminate duplicates, the resulting set will be
-  // sorted by the id and we will lose the original order provided by the
-  // author which may be of interest to ATs. The number of ids should be small.
-
-  std::vector<ui::AXPlatformNode*> nodes;
-  for (int32_t target_id : target_ids) {
-    if (ui::AXPlatformNode* node = GetFromNodeID(target_id)) {
-      if (!base::Contains(nodes, node))
-        nodes.push_back(node);
-    }
-  }
-
-  return nodes;
-}
-
-std::set<ui::AXPlatformNode*>
 BrowserAccessibility::GetSourceNodesForReverseRelations(
     ax::mojom::IntAttribute attr) {
   DCHECK(manager_);
   DCHECK(ui::IsNodeIdIntAttribute(attr));
-  return GetNodesForNodeIdSet(
+  return GetNodesFromRelationIdSet(
       manager_->ax_tree()->GetReverseRelations(attr, GetData().id));
 }
 
-std::set<ui::AXPlatformNode*>
+std::vector<ui::AXPlatformNode*>
 BrowserAccessibility::GetSourceNodesForReverseRelations(
     ax::mojom::IntListAttribute attr) {
   DCHECK(manager_);
   DCHECK(ui::IsNodeIdIntListAttribute(attr));
-  return GetNodesForNodeIdSet(
+  return GetNodesFromRelationIdSet(
       manager_->ax_tree()->GetReverseRelations(attr, GetData().id));
 }
 
@@ -1294,6 +1261,17 @@ bool BrowserAccessibility::AccessibilityPerformAction(
     case ax::mojom::Action::kShowContextMenu:
       manager_->ShowContextMenu(*this);
       return true;
+    case ax::mojom::Action::kStitchChildTree:
+      CHECK_NE(data.target_tree_id, ui::AXTreeIDUnknown());
+      CHECK_EQ(data.target_tree_id, manager()->GetTreeID());
+      CHECK_NE(data.target_node_id, ui::kInvalidAXNodeID);
+      CHECK_EQ(data.target_node_id, node()->id());
+      CHECK_NE(data.child_tree_id, ui::AXTreeIDUnknown());
+      CHECK_NE(data.child_tree_id, manager()->GetTreeID())
+          << "Circular tree stitching at node:\n"
+          << *this;
+      manager()->StitchChildTree(*this, data.child_tree_id);
+      return true;
     case ax::mojom::Action::kIncrement:
       manager_->Increment(*this);
       return true;
@@ -1441,7 +1419,6 @@ std::u16string BrowserAccessibility::GetLocalizedStringForRoleDescription()
     case ax::mojom::Role::kPane:
     case ax::mojom::Role::kParagraph:
     case ax::mojom::Role::kPdfRoot:
-    case ax::mojom::Role::kPre:
     case ax::mojom::Role::kRow:
     case ax::mojom::Role::kScrollView:
     case ax::mojom::Role::kTableHeaderContainer:
@@ -1800,6 +1777,8 @@ std::u16string BrowserAccessibility::GetLocalizedStringForRoleDescription()
     case ax::mojom::Role::kVideo:
       // Android returns IDS_AX_MEDIA_VIDEO_ELEMENT.
       return {};
+    case ax::mojom::Role::kPreDeprecated:
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -1861,7 +1840,8 @@ BrowserAccessibility* BrowserAccessibility::PlatformGetRootOfChildTree() const {
     return nullptr;
   }
   DCHECK_EQ(node()->children().size(), 0u)
-      << "A node should not have both children and a child tree.";
+      << "A node should not have both children and a child tree.\n"
+      << *node();
 
   BrowserAccessibilityManager* child_manager =
       BrowserAccessibilityManager::FromID(
@@ -1936,12 +1916,15 @@ ui::TextAttributeMap BrowserAccessibility::GetSpellingAndGrammarAttributes()
   // and exposed on the text field itself. Otherwise, assistive software (AT)
   // won't be able to see them because the native field's descendants are an
   // implementation detail that is hidden from AT.
-  if (IsAtomicTextField()) {
+  if (IsAtomicTextField() && !node()->GetValueForControl().empty()) {
     int start_offset = 0;
+    // Note that in PDFs, static_text will always be null. This is because text
+    // fields are not given descendants by `PdfAccessibilityTreeBuilder`.
     for (BrowserAccessibility* static_text =
              BrowserAccessibilityManager::NextTextOnlyObject(
                  InternalGetFirstChild());
          static_text; static_text = static_text->InternalGetNextSibling()) {
+      DCHECK(static_text->IsDescendantOf(this));
       ui::TextAttributeMap text_spelling_attributes =
           static_text->GetSpellingAndGrammarAttributes();
       for (auto& attribute : text_spelling_attributes) {

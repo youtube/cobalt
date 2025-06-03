@@ -38,6 +38,7 @@ class CORE_EXPORT InterpolableValue {
   virtual bool IsNumber() const { return false; }
   virtual bool IsBool() const { return false; }
   virtual bool IsColor() const { return false; }
+  virtual bool IsScrollbarColor() const { return false; }
   virtual bool IsList() const { return false; }
   virtual bool IsLength() const { return false; }
   virtual bool IsAspectRatio() const { return false; }
@@ -48,6 +49,7 @@ class CORE_EXPORT InterpolableValue {
   virtual bool IsGridTrackList() const { return false; }
   virtual bool IsGridTrackRepeater() const { return false; }
   virtual bool IsGridTrackSize() const { return false; }
+  virtual bool IsFontPalette() const { return false; }
 
   // TODO(alancutter): Remove Equals().
   virtual bool Equals(const InterpolableValue&) const = 0;

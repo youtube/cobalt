@@ -4,15 +4,13 @@
 
 package org.chromium.base;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
 
 import java.util.Map;
 
 /**
  * This class provides JNI-related methods to the native library.
  */
-@MainDex
 public class JNIUtils {
     private static final String TAG = "JNIUtils";
     private static ClassLoader sJniClassLoader;

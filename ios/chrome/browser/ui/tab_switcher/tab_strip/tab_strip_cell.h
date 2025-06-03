@@ -19,20 +19,13 @@
 // and a close tab button.
 @interface TabStripCell : UICollectionViewCell
 
-// The close button associated with this cell.
-@property(nonatomic, strong) UIButton* closeButton;
-// Title is displayed by this label.
-@property(nonatomic, strong) UILabel* titleLabel;
-// View for displaying the favicon.
-@property(nonatomic, strong) UIImageView* faviconView;
-// Unique identifier for the cell's contents. This is used to ensure that
-// updates in an asynchronous callback are only made if the item is the same.
-@property(nonatomic, copy) NSString* itemIdentifier;
 // Delegate to inform the TabStrip on the cell.
 @property(nonatomic, weak) id<TabStripCellDelegate> delegate;
 
-// Checks if cell has a specific identifier.
-- (BOOL)hasIdentifier:(NSString*)identifier;
+// Sets the title of the cell.
+- (void)setTitle:(NSString*)title;
+// Sets the favicon for the page. Passing nil sets the default image.
+- (void)setFaviconImage:(UIImage*)image;
 
 @end
 

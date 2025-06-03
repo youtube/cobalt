@@ -69,6 +69,12 @@ ASH_EXPORT bool CanLock();
 
 ASH_EXPORT bool CanMoveActiveWindowBetweenDisplays();
 
+ASH_EXPORT bool CanGroupOrUngroupWindows();
+
+ASH_EXPORT void GroupOrUngroupWindowsInSnapGroup();
+
+ASH_EXPORT bool CanMinimizeSnapGroupWindows();
+
 ASH_EXPORT bool CanMinimizeTopWindowOnBack();
 
 ASH_EXPORT bool CanPerformMagnifierZoom();
@@ -77,13 +83,13 @@ ASH_EXPORT bool CanScreenshot(bool take_screenshot);
 
 ASH_EXPORT bool CanShowStylusTools();
 
-ASH_EXPORT bool CanStartAmbientMode();
+ASH_EXPORT bool CanStopScreenRecording();
 
 ASH_EXPORT bool CanSwapPrimaryDisplay();
 
 ASH_EXPORT bool CanToggleCalendar();
 
-ASH_EXPORT bool CanToggleDictation();
+ASH_EXPORT bool CanEnableOrToggleDictation();
 
 ASH_EXPORT bool CanToggleFloatingWindow();
 
@@ -133,6 +139,11 @@ ASH_EXPORT void CycleUser(CycleUserDirection direction);
 
 // Disables caps-lock.
 ASH_EXPORT void DisableCapsLock();
+
+// Fingerprint sensor touched with finger finger_id finger_id can be 1,2 or 3.
+// 3 different id is enough to cover all testing scenarios and it's better to
+// minimize the number of used dev keyboard shortcuts.
+ASH_EXPORT void TouchFingerprintSensor(int finger_id);
 
 // Focuses the camera preview if it is present.
 ASH_EXPORT void FocusCameraPreview();
@@ -267,11 +278,11 @@ ASH_EXPORT void ShowKeyboardShortcutViewer();
 // Opens Shortcut Customization.
 ASH_EXPORT void ShowShortcutCustomizationApp();
 
-// Shows stylus tools.
-ASH_EXPORT void ShowStylusTools();
-
 // Brings up task manager.
 ASH_EXPORT void ShowTaskManager();
+
+// Stops the capture mode recording.
+ASH_EXPORT void StopScreenRecording();
 
 // Puts device in sleep mode(suspend).
 ASH_EXPORT void Suspend();
@@ -281,9 +292,6 @@ ASH_EXPORT void SwitchToNextIme();
 
 // Takes screenshot.
 ASH_EXPORT void TakeScreenshot(bool from_snapshot_key);
-
-// Turns the ambient mode on or off.
-ASH_EXPORT void ToggleAmbientMode();
 
 // Toggles app list.
 ASH_EXPORT void ToggleAppList(AppListShowSource show_source,
@@ -304,8 +312,9 @@ ASH_EXPORT void ToggleCapsLock();
 // Toggles the clipboard history.
 ASH_EXPORT void ToggleClipboardHistory(bool is_plain_text_paste);
 
-// Turns the dictation on or off.
-ASH_EXPORT void ToggleDictation();
+// Enables Dictation if the feature is currently disabled. Toggles (either
+// starts or stops) Dictation if the feature is currently enabled.
+ASH_EXPORT void EnableOrToggleDictation();
 
 // Turns the docked magnifier on or off.
 ASH_EXPORT void ToggleDockedMagnifier();
@@ -344,6 +353,10 @@ ASH_EXPORT void ToggleMessageCenterBubble();
 // restored.
 ASH_EXPORT bool ToggleMinimized();
 
+// Minimizes the topmost unminimized snap groups. If there is no such snap
+// group, restores the most recently used minimized snap group.
+ASH_EXPORT void ToggleSnapGroupsMinimize();
+
 // Turns the mirror mode on or off.
 ASH_EXPORT void ToggleMirrorMode();
 
@@ -365,6 +378,9 @@ ASH_EXPORT void ToggleResizeLockMenu();
 
 // Turns ChromeVox (spoken feedback) on or off.
 ASH_EXPORT void ToggleSpokenFeedback();
+
+// Toggles the stylus tools bubble on or off.
+ASH_EXPORT void ToggleStylusTools();
 
 // Turns the system tray on or off.
 ASH_EXPORT void ToggleSystemTrayBubble();
@@ -393,6 +409,9 @@ ASH_EXPORT void VolumeDown();
 
 // Volume mute.
 ASH_EXPORT void VolumeMute();
+
+// Volume mute toggle.
+ASH_EXPORT void VolumeMuteToggle();
 
 // Volume up.
 ASH_EXPORT void VolumeUp();

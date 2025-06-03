@@ -17,16 +17,18 @@
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
-#include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/threading/thread.h"
@@ -35,7 +37,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "content/browser/browser_main_loop.h"
-#include "content/browser/buildflags.h"
 #include "content/browser/first_party_sets/first_party_sets_handler_impl.h"
 #include "content/browser/network/http_cache_backend_file_operations_factory.h"
 #include "content/browser/network/socket_broker_impl.h"
@@ -45,16 +46,17 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
-#include "content/public/common/network_service_util.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/features.h"
 #include "net/base/network_change_notifier.h"
 #include "net/first_party_sets/global_first_party_sets.h"
+#include "net/log/file_net_log_observer.h"
 #include "net/log/net_log_util.h"
 #include "sandbox/policy/features.h"
 #include "services/cert_verifier/cert_verifier_service_factory.h"
@@ -94,18 +96,19 @@ namespace content {
 namespace {
 
 #if BUILDFLAG(IS_POSIX)
-// Environment variable pointing to credential cache file.
+// Environment variable pointing to Kerberos credential cache file.
 constexpr char kKrb5CCEnvName[] = "KRB5CCNAME";
 // Environment variable pointing to Kerberos config file.
 constexpr char kKrb5ConfEnvName[] = "KRB5_CONFIG";
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-constexpr char kKrb5CCFilePrefix[] = "FILE:";
-constexpr char kKrb5Directory[] = "kerberos";
-constexpr char kKrb5CCFile[] = "krb5cc";
-constexpr char kKrb5ConfFile[] = "krb5.conf";
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
+// File paths to the Kerberos credentials cache and configuration. The `FILE:`
+// prefix describes the type of credentials cache used. The `/home/chronos/user`
+// subpath corresponds to a bind mount of the active user.
+constexpr char kKrb5CCFilePath[] = "FILE:/home/chronos/user/kerberos/krb5cc";
+constexpr char kKrb5ConfFilePath[] = "/home/chronos/user/kerberos/krb5.conf";
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool g_force_create_network_service_directly = false;
 mojo::Remote<network::mojom::NetworkService>* g_network_service_remote =
@@ -299,17 +302,20 @@ void CreateNetworkContextInternal(
 
   if (network::TransferableDirectory::IsOpenForTransferRequired()) {
     if (params->file_paths) {
+      if (params->file_paths->http_cache_directory) {
+        params->file_paths->http_cache_directory->OpenForTransfer();
+      }
+      if (params->file_paths->shared_dictionary_directory) {
+        params->file_paths->shared_dictionary_directory->OpenForTransfer();
+      }
       params->file_paths->data_directory.OpenForTransfer();
-    }
-    if (params->http_cache_directory) {
-      params->http_cache_directory->OpenForTransfer();
     }
   }
 
   // This might recreate g_client if the network service needed to be restarted.
   auto* network_service = GetNetworkService();
 
-#if BUILDFLAG(USE_SOCKET_BROKER)
+#if BUILDFLAG(IS_WIN)
   // If the browser has started shutting down, it is possible that either a)
   // `g_client` was never created if shutdown started before the network service
   // was created, or b) the network service might have crashed meaning
@@ -322,7 +328,7 @@ void CreateNetworkContextInternal(
       !params->socket_broker) {
     params->socket_broker = g_client->BindSocketBroker();
   }
-#endif  // BUILDFLAG(USE_SOCKET_BROKER)
+#endif  // BUILDFLAG(IS_WIN)
 
   network_service->CreateNetworkContext(std::move(context), std::move(params));
 }
@@ -331,22 +337,6 @@ scoped_refptr<base::SequencedTaskRunner>& GetNetworkTaskRunnerStorage() {
   static base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>> storage;
   return *storage;
 }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-base::FilePath GetKerberosDir() {
-  base::FilePath dir;
-  base::PathService::Get(base::DIR_HOME, &dir);
-  return dir.Append(kKrb5Directory);
-}
-
-std::string GetKrb5CCEnvValue() {
-  return kKrb5CCFilePrefix + GetKerberosDir().Append(kKrb5CCFile).value();
-}
-
-std::string GetKrb5ConfEnvValue() {
-  return GetKerberosDir().Append(kKrb5ConfFile).value();
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 void CreateInProcessNetworkService(
     mojo::PendingReceiver<network::mojom::NetworkService> receiver) {
@@ -366,6 +356,18 @@ void CreateInProcessNetworkService(
       FROM_HERE, base::BindOnce(&CreateInProcessNetworkServiceOnThread,
                                 std::move(receiver)));
 }
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+// Runs a self-owned SystemDnsResolverMojoImpl. This is meant to run on a
+// high-priority thread pool.
+void RunSystemDnsResolverOnThreadPool(
+    mojo::PendingReceiver<network::mojom::SystemDnsResolver> dns_receiver) {
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<content::SystemDnsResolverMojoImpl>(),
+      std::move(dns_receiver));
+}
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network::mojom::NetworkServiceParamsPtr network_service_params =
@@ -395,17 +397,20 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   }
 #endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 
-#if BUILDFLAG(IS_POSIX)
-  // Send Kerberos environment variables to the network service.
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, the network service is always out of process (unless
+  // --single-process is set on the command-line). In any case, we set Kerberos
+  // environment variables during the service initialization.
+  network_service_params->environment.push_back(
+      network::mojom::EnvironmentVariable::New(kKrb5CCEnvName,
+                                               kKrb5CCFilePath));
+  network_service_params->environment.push_back(
+      network::mojom::EnvironmentVariable::New(kKrb5ConfEnvName,
+                                               kKrb5ConfFilePath));
+#elif BUILDFLAG(IS_POSIX)
+  // Send Kerberos environment variables to the network service, if it's running
+  // in another process.
   if (IsOutOfProcessNetworkService()) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    network_service_params->environment.push_back(
-        network::mojom::EnvironmentVariable::New(kKrb5CCEnvName,
-                                                 GetKrb5CCEnvValue()));
-    network_service_params->environment.push_back(
-        network::mojom::EnvironmentVariable::New(kKrb5ConfEnvName,
-                                                 GetKrb5ConfEnvValue()));
-#else
     std::unique_ptr<base::Environment> env(base::Environment::Create());
     std::string value;
     if (env->HasVar(kKrb5CCEnvName)) {
@@ -418,7 +423,6 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
       network_service_params->environment.push_back(
           network::mojom::EnvironmentVariable::New(kKrb5ConfEnvName, value));
     }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   }
 #endif  // BUILDFLAG(IS_POSIX)
 
@@ -428,12 +432,15 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
           ->ShouldRunOutOfProcessSystemDnsResolution() &&
       IsOutOfProcessNetworkService()) {
     mojo::PendingRemote<network::mojom::SystemDnsResolver> dns_remote;
-    mojo::MakeSelfOwnedReceiver(
-        std::make_unique<content::SystemDnsResolverMojoImpl>(),
-        dns_remote.InitWithNewPipeAndPassReceiver());
+    scoped_refptr<base::SequencedTaskRunner> thread_pool_task_runner =
+        base::ThreadPool::CreateSequencedTaskRunner(
+            {base::TaskPriority::USER_BLOCKING});
+    thread_pool_task_runner->PostTask(
+        FROM_HERE, base::BindOnce(RunSystemDnsResolverOnThreadPool,
+                                  dns_remote.InitWithNewPipeAndPassReceiver()));
     network_service_params->system_dns_resolver = std::move(dns_remote);
   }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 
   return network_service_params;
 }
@@ -507,6 +514,42 @@ net::NetLogCaptureMode GetNetCaptureModeFromCommandLine(
   }
 
   return net::NetLogCaptureMode::kDefault;
+}
+
+// Parse the maximum file size for the NetLog, if one was specified.
+// kNoLimit indicates no, valid, maximum size was specified.
+int64_t GetNetMaximumFileSizeFromCommandLine(
+    const base::CommandLine& command_line) {
+  base::StringPiece switch_name = network::switches::kNetLogMaxSizeMb;
+
+  if (!command_line.HasSwitch(switch_name)) {
+    return net::FileNetLogObserver::kNoLimit;
+  }
+
+  std::string value = command_line.GetSwitchValueASCII(switch_name);
+
+  if (value.empty()) {
+    return net::FileNetLogObserver::kNoLimit;
+  }
+
+  // 32 bits for the input is fine, a max size of ~2 PB ought to be enough for
+  // anybody.
+  uint32_t max_size_megabytes;
+  bool valid = base::StringToUint(value, &max_size_megabytes);
+
+  if (!valid) {
+    return net::FileNetLogObserver::kNoLimit;
+  }
+
+  // Value is currently in megabytes, convert to bytes. 1024*1024 == 2^20 ==
+  // left shift by 20 bits
+  uint64_t max_size_bytes = max_size_megabytes << 20;
+  return max_size_bytes;
+}
+
+base::RepeatingClosure& OnNetworkServiceRestartedCbStorage() {
+  static base::SequenceLocalStorageSlot<base::RepeatingClosure> restarted_cb;
+  return restarted_cb.GetOrCreateValue();
 }
 
 }  // namespace
@@ -608,9 +651,12 @@ network::mojom::NetworkService* GetNetworkService() {
         if (!file.IsValid()) {
           LOG(ERROR) << "Failed opening NetLog: " << log_path.value();
         } else {
+          uint64_t max_file_size =
+              GetNetMaximumFileSizeFromCommandLine(*command_line);
+
           (*g_network_service_remote)
               ->StartNetLog(
-                  std::move(file),
+                  std::move(file), max_file_size,
                   GetNetCaptureModeFromCommandLine(*command_line),
                   GetContentClient()->browser()->GetNetLogConstants());
         }
@@ -733,7 +779,7 @@ const scoped_refptr<base::SequencedTaskRunner>& GetNetworkTaskRunner() {
 }
 
 void ForceCreateNetworkServiceDirectlyForTesting() {
-  ForceInProcessNetworkService(true);
+  ForceInProcessNetworkService();
   g_force_create_network_service_directly = true;
 }
 
@@ -751,6 +797,19 @@ void ShutDownNetworkService() {
     g_in_process_instance = nullptr;
   }
   GetNetworkTaskRunnerStorage().reset();
+}
+
+void RestartNetworkService() {
+  ShutDownNetworkService();
+  GetNetworkService();
+  if (OnNetworkServiceRestartedCbStorage()) {
+    OnNetworkServiceRestartedCbStorage().Run();
+  }
+}
+
+void OnRestartNetworkServiceForTesting(base::RepeatingClosure on_restart) {
+  DCHECK(!OnNetworkServiceRestartedCbStorage() || !on_restart);
+  OnNetworkServiceRestartedCbStorage() = std::move(on_restart);
 }
 
 namespace {
@@ -854,17 +913,19 @@ void SetCertVerifierServiceFactoryForTesting(
 }
 
 void MaybeCleanCacheDirectory(network::mojom::NetworkContextParams* params) {
-  if (params->http_cache_enabled && params->http_cache_directory) {
+  if (params->http_cache_enabled && params->file_paths &&
+      params->file_paths->http_cache_directory) {
     // Delete any old data except for the "Cache_Data" directory.
     base::ThreadPool::PostTask(
         FROM_HERE,
         {base::TaskPriority::BEST_EFFORT, base::MayBlock(),
          base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
         base::BindOnce(MaybeDeleteOldCache,
-                       params->http_cache_directory->path()));
+                       params->file_paths->http_cache_directory->path()));
 
-    params->http_cache_directory =
-        params->http_cache_directory->path().Append(kCacheDataDirectoryName);
+    params->file_paths->http_cache_directory =
+        params->file_paths->http_cache_directory->path().Append(
+            kCacheDataDirectoryName);
   }
 }
 
@@ -872,13 +933,15 @@ void CreateNetworkContextInNetworkService(
     mojo::PendingReceiver<network::mojom::NetworkContext> context,
     network::mojom::NetworkContextParamsPtr params) {
   TRACE_EVENT0("loading", "CreateNetworkContextInNetworkService");
-  DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
+  DCHECK(!BrowserThread::IsThreadInitialized(BrowserThread::UI) ||
+         BrowserThread::CurrentlyOn(BrowserThread::UI));
 
   MaybeCleanCacheDirectory(params.get());
 
   const bool has_valid_http_cache_path =
-      params->http_cache_enabled && params->http_cache_directory &&
-      !params->http_cache_directory->path().empty();
+      params->http_cache_enabled && params->file_paths &&
+      params->file_paths->http_cache_directory &&
+      !params->file_paths->http_cache_directory->path().empty();
   const bool brokering_is_enabled =
       IsOutOfProcessNetworkService() &&
       base::FeatureList::IsEnabled(
@@ -886,7 +949,7 @@ void CreateNetworkContextInNetworkService(
   if (has_valid_http_cache_path && brokering_is_enabled) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<HttpCacheBackendFileOperationsFactory>(
-            params->http_cache_directory->path()),
+            params->file_paths->http_cache_directory->path()),
         params->http_cache_file_operations_factory
             .InitWithNewPipeAndPassReceiver());
   }

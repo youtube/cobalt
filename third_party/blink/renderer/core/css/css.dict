@@ -627,6 +627,8 @@
 "fullscreen"
 "standalone"
 "minimal-ui"
+"borderless"
+"window-controls-overlay"
 "browser"
 "sticky"
 "coarse"
@@ -935,6 +937,14 @@
 "spelling-error"
 "grammar-error"
 "color-contrast"
+"accentcolor"
+"accentcolortext"
+
+# display-state
+# normal
+# fullscreen
+"minimized"
+"maximized"
 
 # at-rules
 "@charset"

@@ -56,6 +56,7 @@ blink_platform_sources("heap") {
     "thread_state_storage.h",
     "trace_traits.h",
     "visitor.h",
+    "weak_cell.h",
     "write_barrier.h",
   ]
 
@@ -127,12 +128,11 @@ test("blink_heap_unittests") {
   if (is_fuchsia) {
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/test_fonts.shard.test-cml",
+
+      # Oilpan reuses V8's v8::PageAllocator which generally requires JIT
+      # permissions.
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     ]
-
-    # Oilpan reuses V8's v8::PageAllocator which generally requires JIT
-    # permissions.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   }
 }
 
@@ -150,6 +150,7 @@ source_set("blink_heap_unittests_sources") {
     "test/heap_traits_test.cc",
     "test/incremental_marking_test.cc",
     "test/persistent_test.cc",
+    "test/weak_cell_test.cc",
     "test/weakness_marking_test.cc",
   ]
 
@@ -195,7 +196,6 @@ test("blink_heap_perftests") {
     # permissions.
     additional_manifest_fragments =
         [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   }
 }
 

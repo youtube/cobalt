@@ -28,41 +28,15 @@
 #import "ios/web/text_fragments/text_fragments_java_script_feature.h"
 #import "ios/web/webui/web_ui_messaging_java_script_feature.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 namespace {
 
 const char kBaseScriptName[] = "gcrweb";
 const char kCommonScriptName[] = "common";
 const char kMessageScriptName[] = "message";
-const char kPluginPlaceholderScriptName[] = "plugin_placeholder";
-const char kShareWorkaroundScriptName[] = "share_workaround";
 
 const char kMainFrameDescription[] = "Main frame";
 const char kIframeDescription[] = "Iframe";
-
-// Returns the dictionary for placeholder replacements.
-NSDictionary<NSString*, NSString*>* PlaceholderReplacements() {
-  // The replacement value is computed dynamically each time this function is
-  // evaluated as the WebClient may change (in case of tests) or the returned
-  // value may change over time (nothing prevent a WebClient from doing that).
-  NSString* replacement =
-      base::SysUTF16ToNSString(GetWebClient()->GetPluginNotSupportedText());
-
-  // Escape the \ and ' characters in replacement. This is not done using the
-  // GetQuotedJSONString() function as it converts UTF-16 to UTF-8 which can
-  // cause problems when injecting script depending on the page enconding.
-  // See https://crbug.com/302741/.
-  replacement = [replacement stringByReplacingOccurrencesOfString:@"\\"
-                                                       withString:@"\\\\"];
-  replacement = [replacement stringByReplacingOccurrencesOfString:@"'"
-                                                       withString:@"\'"];
-
-  return @{@"$(PLUGIN_NOT_SUPPORTED_TEXT)" : replacement};
-}
 
 FaviconJavaScriptFeature* GetFaviconJavaScriptFeature() {
   // Static storage is ok for `favicon_feature` as it holds no state.
@@ -92,35 +66,6 @@ WindowErrorJavaScriptFeature* GetWindowErrorJavaScriptFeature() {
   return window_error_feature.get();
 }
 
-JavaScriptFeature* GetPluginPlaceholderJavaScriptFeature() {
-  // Static storage is ok for `plugin_placeholder_feature` as it holds no state.
-  static base::NoDestructor<JavaScriptFeature> plugin_placeholder_feature(
-      ContentWorld::kIsolatedWorld,
-      std::vector<const JavaScriptFeature::FeatureScript>(
-          {JavaScriptFeature::FeatureScript::CreateWithFilename(
-              kPluginPlaceholderScriptName,
-              JavaScriptFeature::FeatureScript::InjectionTime::kDocumentEnd,
-              JavaScriptFeature::FeatureScript::TargetFrames::kAllFrames,
-              JavaScriptFeature::FeatureScript::ReinjectionBehavior::
-                  kReinjectOnDocumentRecreation,
-              base::BindRepeating(&PlaceholderReplacements))}));
-  return plugin_placeholder_feature.get();
-}
-
-JavaScriptFeature* GetShareWorkaroundJavaScriptFeature() {
-  // Static storage is ok for `share_workaround_feature` as it holds no state.
-  static base::NoDestructor<JavaScriptFeature> share_workaround_feature(
-      ContentWorld::kPageContentWorld,
-      std::vector<const JavaScriptFeature::FeatureScript>(
-          {JavaScriptFeature::FeatureScript::CreateWithFilename(
-              kShareWorkaroundScriptName,
-              JavaScriptFeature::FeatureScript::InjectionTime::kDocumentStart,
-              JavaScriptFeature::FeatureScript::TargetFrames::kAllFrames,
-              JavaScriptFeature::FeatureScript::ReinjectionBehavior::
-                  kInjectOncePerWindow)}));
-  return share_workaround_feature.get();
-}
-
 }  // namespace
 
 namespace java_script_features {
@@ -136,28 +81,17 @@ std::vector<JavaScriptFeature*> GetBuiltInJavaScriptFeatures(
       FindInPageJavaScriptFeature::GetInstance(),
       GetFaviconJavaScriptFeature(),
       GetScrollHelperJavaScriptFeature(),
-      GetShareWorkaroundJavaScriptFeature(),
       GetWindowErrorJavaScriptFeature(),
       NavigationJavaScriptFeature::GetInstance(),
       SessionRestoreJavaScriptFeature::FromBrowserState(browser_state),
       TextFragmentsJavaScriptFeature::GetInstance(),
-      WebUIMessagingJavaScriptFeature::GetInstance()};
+      WebUIMessagingJavaScriptFeature::GetInstance(),
+      AnnotationsJavaScriptFeature::GetInstance()};
 
   auto frames_manager_features = WebFramesManagerJavaScriptFeature::
       AllContentWorldFeaturesFromBrowserState(browser_state);
   features.insert(features.end(), frames_manager_features.begin(),
                   frames_manager_features.end());
-
-  // Plugin Placeholder is no longer used as of iOS 14.5 as <applet> support is
-  // completely removed.
-  // TODO(crbug.com/1218221): Remove feature once app is iOS 14.5+.
-  if (!base::ios::IsRunningOnOrLater(14, 5, 0)) {
-    features.push_back(GetPluginPlaceholderJavaScriptFeature());
-  }
-
-  if (web::WebPageAnnotationsEnabled()) {
-    features.push_back(AnnotationsJavaScriptFeature::GetInstance());
-  }
 
   return features;
 }

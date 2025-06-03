@@ -283,6 +283,31 @@ void FakePowerManagerClient::GetBacklightsForcedOff(
       FROM_HERE, base::BindOnce(std::move(callback), backlights_forced_off_));
 }
 
+void FakePowerManagerClient::GetBatterySaverModeState(
+    DBusMethodCallback<power_manager::BatterySaverModeState> callback) {
+  power_manager::BatterySaverModeState state;
+  state.set_enabled(battery_saver_mode_enabled_);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), state));
+}
+
+void FakePowerManagerClient::SetBatterySaverModeState(
+    const power_manager::SetBatterySaverModeStateRequest& request) {
+  bool changed = battery_saver_mode_enabled_ != request.enabled();
+  if (!changed) {
+    return;
+  }
+
+  battery_saver_mode_enabled_ = request.enabled();
+
+  power_manager::BatterySaverModeState proto;
+  proto.set_enabled(battery_saver_mode_enabled_);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&FakePowerManagerClient::SendBatterySaverModeStateChanged,
+                     weak_ptr_factory_.GetWeakPtr(), proto));
+}
+
 void FakePowerManagerClient::GetSwitchStates(
     DBusMethodCallback<SwitchStates> callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -438,6 +463,13 @@ bool FakePowerManagerClient::PopVideoActivityReport() {
   bool fullscreen = video_activity_reports_.front();
   video_activity_reports_.pop_front();
   return fullscreen;
+}
+
+void FakePowerManagerClient::SendBatterySaverModeStateChanged(
+    const power_manager::BatterySaverModeState& proto) {
+  for (auto& observer : observers_) {
+    observer.BatterySaverModeStateChanged(proto);
+  }
 }
 
 void FakePowerManagerClient::SendSuspendImminent(

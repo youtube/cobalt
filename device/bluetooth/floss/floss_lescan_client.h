@@ -27,7 +27,12 @@ class ObjectPath;
 
 namespace floss {
 
-const char kScannerCallbackPath[] = "/org/chromium/bluetooth/scanner/callback";
+const char kScannerCallbackPath[] =
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/scanner/callback/lacros";
+#else
+    "/org/chromium/bluetooth/scanner/callback";
+#endif
 const char kScannerCallbackInterfaceName[] =
     "org.chromium.bluetooth.ScannerCallback";
 
@@ -153,6 +158,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossLEScanClient : public FlossDBusClient,
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
   virtual void RegisterScanner(

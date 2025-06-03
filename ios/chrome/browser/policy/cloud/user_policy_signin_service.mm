@@ -16,13 +16,9 @@
 #import "components/signin/public/identity_manager/primary_account_change_event.h"
 #import "google_apis/gaia/core_account_id.h"
 #import "google_apis/gaia/gaia_auth_util.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/policy/cloud/user_policy_switch.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -73,7 +69,7 @@ void UserPolicySigninService::Shutdown() {
 
 void UserPolicySigninService::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event) {
-  if (IsTurnOffSyncEvent(event)) {
+  if (IsSignoutEvent(event)) {
     ShutdownCloudPolicyManager();
   }
 }
@@ -87,7 +83,7 @@ void UserPolicySigninService::TryInitialize() {
     return;
   }
 
-  if (!IsUserPolicyEnabled() ||
+  if (!IsAnyUserPolicyFeatureEnabled() ||
       !CanApplyPolicies(/*check_for_refresh_token=*/false)) {
     // Clear existing user policies if the feature is disabled or if policies
     // can no longer be applied.
@@ -103,10 +99,14 @@ void UserPolicySigninService::TryInitialize() {
 }
 
 bool UserPolicySigninService::CanApplyPolicies(bool check_for_refresh_token) {
-  if (!browser_state_prefs_->GetBoolean(
-          policy::policy_prefs::kUserPolicyNotificationWasShown)) {
-    // Return false if the user hasn't yet seen the notification about User
-    // Policy.
+  // Can't apply policies for an account that is using Sync if the feature isn't
+  // explicitly enabled.
+  bool sync_on =
+      check_for_refresh_token
+          ? identity_manager()->HasPrimaryAccountWithRefreshToken(
+                signin::ConsentLevel::kSync)
+          : identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync);
+  if (!IsUserPolicyEnabledForSigninOrSyncConsentLevel() && sync_on) {
     return false;
   }
 
@@ -126,7 +126,7 @@ void UserPolicySigninService::UpdateLastPolicyCheckTime() {
 }
 
 signin::ConsentLevel UserPolicySigninService::GetConsentLevelForRegistration() {
-  return signin::ConsentLevel::kSync;
+  return signin::ConsentLevel::kSignin;
 }
 
 void UserPolicySigninService::OnUserPolicyNotificationSeen() {

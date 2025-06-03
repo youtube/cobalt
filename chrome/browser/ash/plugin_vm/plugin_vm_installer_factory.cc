@@ -18,13 +18,19 @@ PluginVmInstaller* PluginVmInstallerFactory::GetForProfile(Profile* profile) {
 
 // static
 PluginVmInstallerFactory* PluginVmInstallerFactory::GetInstance() {
-  return base::Singleton<PluginVmInstallerFactory>::get();
+  static base::NoDestructor<PluginVmInstallerFactory> instance;
+  return instance.get();
 }
 
 PluginVmInstallerFactory::PluginVmInstallerFactory()
     : ProfileKeyedServiceFactory(
           "PluginVmInstaller",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              .WithGuest(ProfileSelection::kNone)
+              .WithAshInternals(ProfileSelection::kNone)
+              .WithSystem(ProfileSelection::kNone)
+              .Build()) {
   DependsOn(BackgroundDownloadServiceFactory::GetInstance());
 }
 

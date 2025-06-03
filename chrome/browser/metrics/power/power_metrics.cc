@@ -9,6 +9,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/metrics/power/process_metrics_recorder_util.h"
+#include "chrome/browser/performance_manager/public/user_tuning/battery_saver_mode_manager.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
@@ -18,16 +19,20 @@ namespace {
 
 constexpr const char* kBatteryDischargeRateMilliwattsHistogramName =
     "Power.BatteryDischargeRateMilliwatts6";
+constexpr const char* kBatteryDischargeRateRelativeHistogramName =
+    "Power.BatteryDischargeRateRelative5";
+constexpr const char* kBatteryDischargeModeHistogramName =
+    "Power.BatteryDischargeMode5";
 #if BUILDFLAG(IS_WIN)
 constexpr const char* kHasPreciseBatteryDischargeGranularity =
     "Power.HasPreciseBatteryDischargeGranularity";
 constexpr const char* kBatteryDischargeRatePreciseMilliwattsHistogramName =
     "Power.BatteryDischargeRatePreciseMilliwatts";
+constexpr const char* kBatteryDischargeRateMilliwattsTenMinutesHistogramName =
+    "Power.BatteryDischargeRateMilliwatts6.TenMinutes";
+constexpr const char* kBatteryDischargeModeTenMinutesHistogramName =
+    "Power.BatteryDischargeMode5.TenMinutes";
 #endif  // BUILDFLAG(IS_WIN)
-constexpr const char* kBatteryDischargeRateRelativeHistogramName =
-    "Power.BatteryDischargeRateRelative5";
-constexpr const char* kBatteryDischargeModeHistogramName =
-    "Power.BatteryDischargeMode5";
 
 #if BUILDFLAG(IS_MAC)
 // Reports `proportion` of a time used to a histogram in permyriad (1/100 %).
@@ -230,37 +235,67 @@ void ReportBatteryHistograms(
       battery_discharge.rate_milliwatts_with_precise_granularity.has_value());
 #endif  // BUILDFLAG(IS_WIN)
 
+  bool battery_saver_enabled =
+      performance_manager::user_tuning::BatterySaverModeManager::
+          GetInstance() &&
+      performance_manager::user_tuning::BatterySaverModeManager::GetInstance()
+          ->IsBatterySaverActive();
+
   const char* interval_type_suffixes[] = {
       "", is_initial_interval ? ".Initial" : ".Periodic"};
+  const char* battery_saver_suffixes[] = {"", battery_saver_enabled
+                                                  ? ".BatterySaverEnabled"
+                                                  : ".BatterySaverDisabled"};
   for (const char* scenario_suffix : scenario_suffixes) {
     for (const char* interval_type_suffix : interval_type_suffixes) {
       base::UmaHistogramEnumeration(
           base::StrCat({kBatteryDischargeModeHistogramName, scenario_suffix,
                         interval_type_suffix}),
           battery_discharge.mode);
-      if (battery_discharge.mode == BatteryDischargeMode::kDischarging) {
-        DCHECK(battery_discharge.rate_milliwatts.has_value());
-        base::UmaHistogramCounts100000(
-            base::StrCat({kBatteryDischargeRateMilliwattsHistogramName,
-                          scenario_suffix, interval_type_suffix}),
-            *battery_discharge.rate_milliwatts);
-#if BUILDFLAG(IS_WIN)
-        if (battery_discharge.rate_milliwatts_with_precise_granularity) {
+      for (const char* battery_saver_suffix : battery_saver_suffixes) {
+        if (battery_discharge.mode == BatteryDischargeMode::kDischarging) {
+          DCHECK(battery_discharge.rate_milliwatts.has_value());
           base::UmaHistogramCounts100000(
-              base::StrCat({kBatteryDischargeRatePreciseMilliwattsHistogramName,
-                            scenario_suffix, interval_type_suffix}),
-              *battery_discharge.rate_milliwatts_with_precise_granularity);
-        }
+              base::StrCat({kBatteryDischargeRateMilliwattsHistogramName,
+                            scenario_suffix, interval_type_suffix,
+                            battery_saver_suffix}),
+              *battery_discharge.rate_milliwatts);
+#if BUILDFLAG(IS_WIN)
+          if (battery_discharge.rate_milliwatts_with_precise_granularity) {
+            base::UmaHistogramCounts100000(
+                base::StrCat(
+                    {kBatteryDischargeRatePreciseMilliwattsHistogramName,
+                     scenario_suffix, interval_type_suffix,
+                     battery_saver_suffix}),
+                *battery_discharge.rate_milliwatts_with_precise_granularity);
+          }
 #endif  // BUILDFLAG(IS_WIN)
-        DCHECK(battery_discharge.rate_relative.has_value());
-        base::UmaHistogramCounts1000(
-            base::StrCat({kBatteryDischargeRateRelativeHistogramName,
-                          scenario_suffix, interval_type_suffix}),
-            *battery_discharge.rate_relative);
+          DCHECK(battery_discharge.rate_relative.has_value());
+          base::UmaHistogramCounts1000(
+              base::StrCat({kBatteryDischargeRateRelativeHistogramName,
+                            scenario_suffix, interval_type_suffix,
+                            battery_saver_suffix}),
+              *battery_discharge.rate_relative);
+        }
       }
     }
   }
 }
+
+#if BUILDFLAG(IS_WIN)
+void ReportBatteryHistogramsTenMinutesInterval(
+    base::TimeDelta interval_duration,
+    BatteryDischarge battery_discharge) {
+  base::UmaHistogramEnumeration(kBatteryDischargeModeTenMinutesHistogramName,
+                                battery_discharge.mode);
+  if (battery_discharge.mode == BatteryDischargeMode::kDischarging) {
+    DCHECK(battery_discharge.rate_milliwatts.has_value());
+    base::UmaHistogramCounts100000(
+        kBatteryDischargeRateMilliwattsTenMinutesHistogramName,
+        *battery_discharge.rate_milliwatts);
+  }
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
 void ReportShortIntervalHistograms(

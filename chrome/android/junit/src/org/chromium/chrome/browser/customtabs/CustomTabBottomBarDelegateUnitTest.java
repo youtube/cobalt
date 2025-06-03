@@ -34,6 +34,7 @@ import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -46,38 +47,26 @@ import org.chromium.ui.base.WindowAndroid;
 
 /** Unit test for {@link CustomTabBottomBarDelegate}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
 public class CustomTabBottomBarDelegateUnitTest {
     @Rule
     public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
 
-    @Mock
-    private WindowAndroid mWindowAndroid;
-    @Mock
-    private BrowserControlsSizer mBrowserControlsSizer;
-    @Mock
-    private CustomTabNightModeStateController mNightModeStateController;
-    @Mock
-    private SystemNightModeMonitor mSystemNightModeMonitor;
-    @Mock
-    private CustomTabActivityTabProvider mTabProvider;
-    @Mock
-    private CustomTabCompositorContentInitializer mCompositorContentInitializer;
-    @Mock
-    private CustomTabBottomBarView mBottomBarView;
-    @Mock
-    private View mShadowView;
-    @Mock
-    private RemoteViews mRemoteViews;
-    @Mock
-    private Intent mIntent;
-    @Mock
-    private PendingIntent mRemoteViewsPendingIntent;
-    @Mock
-    private ApplicationViewportInsetSupplier mViewportInsetSupplier;
-    @Mock
-    private PendingIntent mSwipeUpPendingIntent;
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private BrowserControlsSizer mBrowserControlsSizer;
+    @Mock private CustomTabNightModeStateController mNightModeStateController;
+    @Mock private SystemNightModeMonitor mSystemNightModeMonitor;
+    @Mock private CustomTabActivityTabProvider mTabProvider;
+    @Mock private CustomTabCompositorContentInitializer mCompositorContentInitializer;
+    @Mock private CustomTabBottomBarView mBottomBarView;
+    @Mock private View mShadowView;
+    @Mock private RemoteViews mRemoteViews;
+    @Mock private Intent mIntent;
+    @Mock private PendingIntent mRemoteViewsPendingIntent;
+    @Mock private ApplicationViewportInsetSupplier mViewportInsetSupplier;
+    @Mock private PendingIntent mSwipeUpPendingIntent;
 
     private Activity mActivity;
     private BrowserServicesIntentDataProvider mIntentDataProvider;
@@ -94,14 +83,22 @@ public class CustomTabBottomBarDelegateUnitTest {
         when(mIntent.getParcelableExtra(CustomTabsIntent.EXTRA_REMOTEVIEWS_PENDINGINTENT))
                 .thenReturn(mRemoteViewsPendingIntent);
         when(mIntent.getParcelableExtra(
-                     CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION))
+                        CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION))
                 .thenReturn(mSwipeUpPendingIntent);
         when(mWindowAndroid.getApplicationBottomInsetSupplier()).thenReturn(mViewportInsetSupplier);
-        mIntentDataProvider = new CustomTabIntentDataProvider(
-                mIntent, mActivity, CustomTabsIntent.COLOR_SCHEME_LIGHT);
-        mBottomBarDelegate = new CustomTabBottomBarDelegate(mActivity, mWindowAndroid,
-                mIntentDataProvider, mBrowserControlsSizer, mNightModeStateController,
-                mSystemNightModeMonitor, mTabProvider, mCompositorContentInitializer);
+        mIntentDataProvider =
+                new CustomTabIntentDataProvider(
+                        mIntent, mActivity, CustomTabsIntent.COLOR_SCHEME_LIGHT);
+        mBottomBarDelegate =
+                new CustomTabBottomBarDelegate(
+                        mActivity,
+                        mWindowAndroid,
+                        mIntentDataProvider,
+                        mBrowserControlsSizer,
+                        mNightModeStateController,
+                        mSystemNightModeMonitor,
+                        mTabProvider,
+                        mCompositorContentInitializer);
         when(mBottomBarView.findViewById(eq(R.id.bottombar_shadow))).thenReturn(mShadowView);
         mBottomBarDelegate.setBottomBarViewForTesting(mBottomBarView);
     }
@@ -120,7 +117,8 @@ public class CustomTabBottomBarDelegateUnitTest {
     @Test
     public void testSendsSwipeIntent() throws CanceledException {
         mBottomBarDelegate.showBottomBarIfNecessary();
-        assertEquals(mSwipeUpPendingIntent,
+        assertEquals(
+                mSwipeUpPendingIntent,
                 mIntentDataProvider.getSecondaryToolbarSwipeUpPendingIntent());
         // Simulate a swipe up gesture.
         mBottomBarDelegate.onSwipeStarted(

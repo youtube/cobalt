@@ -22,14 +22,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.InterceptionType;
 import org.chromium.android_webview.test.TestAwContentsClient.OnReceivedErrorHelper;
 import org.chromium.android_webview.test.util.AwTestTouchUtils;
 import org.chromium.android_webview.test.util.CommonResources;
 import org.chromium.android_webview.test.util.JSUtils;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.TestFileUtil;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.net.test.util.TestWebServer;
@@ -46,13 +45,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for the WebViewClient.shouldInterceptRequest() method.
- */
+/** Tests for the WebViewClient.shouldInterceptRequest() method. */
 @RunWith(AwJUnit4ClassRunner.class)
 public class AwContentsClientShouldInterceptRequestTest {
-    @Rule
-    public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
+    @Rule public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
 
     private static final int TEAPOT_STATUS_CODE = 418;
     private static final String TEAPOT_RESPONSE_PHRASE = "I'm a teapot";
@@ -65,8 +61,8 @@ public class AwContentsClientShouldInterceptRequestTest {
     }
 
     private String addAboutPageToTestServer(TestWebServer webServer) {
-        return addPageToTestServer(webServer, "/" + CommonResources.ABOUT_FILENAME,
-                CommonResources.ABOUT_HTML);
+        return addPageToTestServer(
+                webServer, "/" + CommonResources.ABOUT_FILENAME, CommonResources.ABOUT_HTML);
     }
 
     private WebResourceResponseInfo stringWithHeadersToWebResourceResponseInfo(
@@ -75,13 +71,17 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String encoding = "UTF-8";
         final int statusCode = 200;
         final String reasonPhrase = "OK";
-        return new WebResourceResponseInfo(mimeType, encoding,
-                new ByteArrayInputStream(input.getBytes(encoding)), statusCode, reasonPhrase,
+        return new WebResourceResponseInfo(
+                mimeType,
+                encoding,
+                new ByteArrayInputStream(input.getBytes(encoding)),
+                statusCode,
+                reasonPhrase,
                 responseHeaders);
     }
 
     private WebResourceResponseInfo stringToWebResourceResponseInfo(String input) throws Throwable {
-        return stringWithHeadersToWebResourceResponseInfo(input, null /* responseHeaders */);
+        return stringWithHeadersToWebResourceResponseInfo(input, /* responseHeaders= */ null);
     }
 
     private TestWebServer mWebServer;
@@ -109,6 +109,9 @@ public class AwContentsClientShouldInterceptRequestTest {
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testCalledWithCorrectUrlParam() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", false);
         final String aboutPageUrl = addAboutPageToTestServer(mWebServer);
 
         int onPageFinishedCallCount = mContentsClient.getOnPageFinishedHelper().getCallCount();
@@ -122,10 +125,7 @@ public class AwContentsClientShouldInterceptRequestTest {
         mContentsClient.getOnPageFinishedHelper().waitForCallback(onPageFinishedCallCount);
         Assert.assertEquals(
                 CommonResources.ABOUT_TITLE, mActivityTestRule.getTitleOnUiThread(mAwContents));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.NO_INTERCEPT));
+        histogramExpectation.assertExpected();
     }
 
     @Test
@@ -133,17 +133,22 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledWithCorrectIsMainFrameParam() throws Throwable {
         final String subframeUrl = addAboutPageToTestServer(mWebServer);
-        final String pageWithIframeUrl = addPageToTestServer(mWebServer, "/page_with_iframe.html",
-                CommonResources.makeHtmlPageFrom("",
-                    "<iframe src=\"" + subframeUrl + "\"/>"));
+        final String pageWithIframeUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_iframe.html",
+                        CommonResources.makeHtmlPageFrom(
+                                "", "<iframe src=\"" + subframeUrl + "\"/>"));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, pageWithIframeUrl);
         mShouldInterceptRequestHelper.waitForCallback(callCount, 2);
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertEquals(false,
+        Assert.assertEquals(
+                false,
                 mShouldInterceptRequestHelper.getRequestsForUrl(subframeUrl).isOutermostMainFrame);
-        Assert.assertEquals(true,
+        Assert.assertEquals(
+                true,
                 mShouldInterceptRequestHelper.getRequestsForUrl(pageWithIframeUrl)
                         .isOutermostMainFrame);
     }
@@ -153,8 +158,11 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledWithCorrectMethodParam() throws Throwable {
         final String pageToPostToUrl = addAboutPageToTestServer(mWebServer);
-        final String pageWithFormUrl = addPageToTestServer(mWebServer, "/page_with_form.html",
-                CommonResources.makeHtmlPageWithSimplePostFormTo(pageToPostToUrl));
+        final String pageWithFormUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_form.html",
+                        CommonResources.makeHtmlPageWithSimplePostFormTo(pageToPostToUrl));
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
@@ -164,8 +172,11 @@ public class AwContentsClientShouldInterceptRequestTest {
                 "GET", mShouldInterceptRequestHelper.getRequestsForUrl(pageWithFormUrl).method);
 
         callCount = mShouldInterceptRequestHelper.getCallCount();
-        JSUtils.clickOnLinkUsingJs(InstrumentationRegistry.getInstrumentation(), mAwContents,
-                mContentsClient.getOnEvaluateJavaScriptResultHelper(), "link");
+        JSUtils.clickOnLinkUsingJs(
+                InstrumentationRegistry.getInstrumentation(),
+                mAwContents,
+                mContentsClient.getOnEvaluateJavaScriptResultHelper(),
+                "link");
         mShouldInterceptRequestHelper.waitForCallback(callCount);
         Assert.assertEquals(
                 "POST", mShouldInterceptRequestHelper.getRequestsForUrl(pageToPostToUrl).method);
@@ -176,14 +187,18 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledWithCorrectHasUserGestureParam() throws Throwable {
         final String aboutPageUrl = addAboutPageToTestServer(mWebServer);
-        final String pageWithLinkUrl = addPageToTestServer(mWebServer, "/page_with_link.html",
-                CommonResources.makeHtmlPageWithSimpleLinkTo(aboutPageUrl));
+        final String pageWithLinkUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_link.html",
+                        CommonResources.makeHtmlPageWithSimpleLinkTo(aboutPageUrl));
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, pageWithLinkUrl);
         mShouldInterceptRequestHelper.waitForCallback(callCount);
-        Assert.assertEquals(false,
+        Assert.assertEquals(
+                false,
                 mShouldInterceptRequestHelper.getRequestsForUrl(pageWithLinkUrl).hasUserGesture);
 
         mActivityTestRule.waitForPixelColorAtCenterOfView(
@@ -200,13 +215,17 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledWithCorrectRefererHeader() throws Throwable {
         final String refererHeaderName = "Referer";
-        final String imageUrl = mWebServer.setResponseBase64(
-                "/" + CommonResources.TEST_IMAGE_FILENAME,
-                CommonResources.FAVICON_DATA_BASE64,
-                CommonResources.getImagePngHeaders(true));
-        final String pageUrl = addPageToTestServer(mWebServer, "/main.html",
-                CommonResources.makeHtmlPageFrom(
-                        "", "<img src=\'" + CommonResources.TEST_IMAGE_FILENAME + "\'>"));
+        final String imageUrl =
+                mWebServer.setResponseBase64(
+                        "/" + CommonResources.TEST_IMAGE_FILENAME,
+                        CommonResources.FAVICON_DATA_BASE64,
+                        CommonResources.getImagePngHeaders(true));
+        final String pageUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/main.html",
+                        CommonResources.makeHtmlPageFrom(
+                                "", "<img src=\'" + CommonResources.TEST_IMAGE_FILENAME + "\'>"));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, pageUrl);
@@ -228,16 +247,26 @@ public class AwContentsClientShouldInterceptRequestTest {
     public void testCalledWithCorrectHeadersParam() throws Throwable {
         final String headerName = "X-Test-Header-Name";
         final String headerValue = "TestHeaderValue";
-        final String syncGetUrl = addPageToTestServer(mWebServer, "/intercept_me",
-                CommonResources.ABOUT_HTML);
-        final String mainPageUrl = addPageToTestServer(mWebServer, "/main",
-                CommonResources.makeHtmlPageFrom("",
-                "<script>"
-                + "  var xhr = new XMLHttpRequest();"
-                + "  xhr.open('GET', '" + syncGetUrl + "', false);"
-                + "  xhr.setRequestHeader('" + headerName + "', '" + headerValue + "'); "
-                + "  xhr.send(null);"
-                + "</script>"));
+        final String syncGetUrl =
+                addPageToTestServer(mWebServer, "/intercept_me", CommonResources.ABOUT_HTML);
+        final String mainPageUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/main",
+                        CommonResources.makeHtmlPageFrom(
+                                "",
+                                "<script>"
+                                        + "  var xhr = new XMLHttpRequest();"
+                                        + "  xhr.open('GET', '"
+                                        + syncGetUrl
+                                        + "', false);"
+                                        + "  xhr.setRequestHeader('"
+                                        + headerName
+                                        + "', '"
+                                        + headerValue
+                                        + "'); "
+                                        + "  xhr.send(null);"
+                                        + "</script>"));
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
@@ -311,9 +340,14 @@ public class AwContentsClientShouldInterceptRequestTest {
     public void testDoesNotCrashOnInvalidData_ResponseWithAllNullValues() throws Throwable {
         final String aboutPageUrl = addAboutPageToTestServer(mWebServer);
 
-        mShouldInterceptRequestHelper.setReturnValue(new WebResourceResponseInfo(
-                null /* mime type */, null /* encoding */, null /* input stream */,
-                0 /* status code */, null /* reason phrase */, null /* response headers */));
+        mShouldInterceptRequestHelper.setReturnValue(
+                new WebResourceResponseInfo(
+                        /* mimeType= */ null,
+                        /* encoding= */ null,
+                        /* data= */ null,
+                        /* statusCode= */ 0,
+                        /* reasonPhrase= */ null,
+                        /* responseHeaders= */ null));
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, aboutPageUrl);
         mShouldInterceptRequestHelper.waitForCallback(callCount);
@@ -446,7 +480,9 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String aboutPageData = makePageWithTitle("some title");
         final String encoding = "UTF-8";
         final SlowWebResourceResponseInfo slowWebResourceResponseInfo =
-                new SlowWebResourceResponseInfo("text/html", encoding,
+                new SlowWebResourceResponseInfo(
+                        "text/html",
+                        encoding,
                         new ByteArrayInputStream(aboutPageData.getBytes(encoding)));
 
         mShouldInterceptRequestHelper.setReturnValue(slowWebResourceResponseInfo);
@@ -458,8 +494,8 @@ public class AwContentsClientShouldInterceptRequestTest {
         // delete it to make sure that the dangling 'read' task doesn't cause a crash. Unfortunately
         // this will not always lead to a crash but it should happen often enough for us to notice.
 
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(
-                () -> mActivityTestRule.getActivity().removeAllViews());
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(() -> mActivityTestRule.getActivity().removeAllViews());
         mActivityTestRule.destroyAwContentsOnMainSync(mAwContents);
         mActivityTestRule.pollUiThread(() -> AwContents.getNativeInstanceCount() == 0);
 
@@ -473,13 +509,15 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String syncGetUrl = mWebServer.getResponseUrl("/intercept_me");
         final String syncGetJs =
                 "(function() {"
-                + "  var xhr = new XMLHttpRequest();"
-                + "  xhr.open('GET', '" + syncGetUrl + "', false);"
-                + "  xhr.send(null);"
-                + "  console.info('xhr.status = ' + xhr.status);"
-                + "  console.info('xhr.statusText = ' + xhr.statusText);"
-                + "  return '[' + xhr.status + '][' + xhr.statusText + ']';"
-                + "})();";
+                        + "  var xhr = new XMLHttpRequest();"
+                        + "  xhr.open('GET', '"
+                        + syncGetUrl
+                        + "', false);"
+                        + "  xhr.send(null);"
+                        + "  console.info('xhr.status = ' + xhr.status);"
+                        + "  console.info('xhr.statusText = ' + xhr.statusText);"
+                        + "  return '[' + xhr.status + '][' + xhr.statusText + ']';"
+                        + "})();";
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         final String aboutPageUrl = addAboutPageToTestServer(mWebServer);
@@ -488,36 +526,53 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         mShouldInterceptRequestHelper.setReturnValue(
                 new WebResourceResponseInfo("text/html", "UTF-8", null));
-        Assert.assertEquals("\"[404][Not Found]\"",
+        Assert.assertEquals(
+                "\"[404][Not Found]\"",
                 mActivityTestRule.executeJavaScriptAndWaitForResult(
                         mAwContents, mContentsClient, syncGetJs));
 
         mShouldInterceptRequestHelper.setReturnValue(
                 new WebResourceResponseInfo("text/html", "UTF-8", new EmptyInputStream()));
-        Assert.assertEquals("\"[200][OK]\"",
+        Assert.assertEquals(
+                "\"[200][OK]\"",
                 mActivityTestRule.executeJavaScriptAndWaitForResult(
                         mAwContents, mContentsClient, syncGetJs));
 
         mShouldInterceptRequestHelper.setReturnValue(
-                new WebResourceResponseInfo("text/html", "UTF-8", new EmptyInputStream(),
-                        TEAPOT_STATUS_CODE, TEAPOT_RESPONSE_PHRASE, new HashMap<String, String>()));
-        Assert.assertEquals("\"[" + TEAPOT_STATUS_CODE + "][" + TEAPOT_RESPONSE_PHRASE + "]\"",
+                new WebResourceResponseInfo(
+                        "text/html",
+                        "UTF-8",
+                        new EmptyInputStream(),
+                        TEAPOT_STATUS_CODE,
+                        TEAPOT_RESPONSE_PHRASE,
+                        new HashMap<String, String>()));
+        Assert.assertEquals(
+                "\"[" + TEAPOT_STATUS_CODE + "][" + TEAPOT_RESPONSE_PHRASE + "]\"",
                 mActivityTestRule.executeJavaScriptAndWaitForResult(
                         mAwContents, mContentsClient, syncGetJs));
     }
 
-    private String getHeaderValue(AwContents awContents, TestAwContentsClient contentsClient,
-            String url, String headerName) throws Exception {
+    private String getHeaderValue(
+            AwContents awContents,
+            TestAwContentsClient contentsClient,
+            String url,
+            String headerName)
+            throws Exception {
         final String syncGetJs =
                 "(function() {"
-                + "  var xhr = new XMLHttpRequest();"
-                + "  xhr.open('GET', '" + url + "', false);"
-                + "  xhr.send(null);"
-                + "  console.info(xhr.getAllResponseHeaders());"
-                + "  return xhr.getResponseHeader('" + headerName + "');"
-                + "})();";
-        String header = mActivityTestRule.executeJavaScriptAndWaitForResult(
-                awContents, contentsClient, syncGetJs);
+                        + "  var xhr = new XMLHttpRequest();"
+                        + "  xhr.open('GET', '"
+                        + url
+                        + "', false);"
+                        + "  xhr.send(null);"
+                        + "  console.info(xhr.getAllResponseHeaders());"
+                        + "  return xhr.getResponseHeader('"
+                        + headerName
+                        + "');"
+                        + "})();";
+        String header =
+                mActivityTestRule.executeJavaScriptAndWaitForResult(
+                        awContents, contentsClient, syncGetJs);
 
         if (header.equals("null")) return null;
         // JSON stringification applied by executeJavaScriptAndWaitForResult adds quotes
@@ -545,11 +600,13 @@ public class AwContentsClientShouldInterceptRequestTest {
         // valid resource stream.
         mShouldInterceptRequestHelper.setReturnValue(
                 new WebResourceResponseInfo("text/html", "UTF-8", null));
-        Assert.assertEquals(clientResponseHeaderValue,
+        Assert.assertEquals(
+                clientResponseHeaderValue,
                 getHeaderValue(mAwContents, mContentsClient, syncGetUrl, clientResponseHeaderName));
         mShouldInterceptRequestHelper.setReturnValue(
                 new WebResourceResponseInfo("text/html", "UTF-8", new EmptyInputStream()));
-        Assert.assertEquals(clientResponseHeaderValue,
+        Assert.assertEquals(
+                clientResponseHeaderValue,
                 getHeaderValue(mAwContents, mContentsClient, syncGetUrl, clientResponseHeaderName));
     }
 
@@ -570,7 +627,8 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         mShouldInterceptRequestHelper.setReturnValue(
                 new WebResourceResponseInfo("text/html", "UTF-8", null, 0, null, headers));
-        Assert.assertEquals(clientResponseHeaderValue,
+        Assert.assertEquals(
+                clientResponseHeaderValue,
                 getHeaderValue(mAwContents, mContentsClient, syncGetUrl, clientResponseHeaderName));
     }
 
@@ -592,14 +650,17 @@ public class AwContentsClientShouldInterceptRequestTest {
     }
 
     private String makePageWithTitle(String title) {
-        return CommonResources.makeHtmlPageFrom("<title>" + title + "</title>",
-                "<div> The title is: " + title + " </div>");
+        return CommonResources.makeHtmlPageFrom(
+                "<title>" + title + "</title>", "<div> The title is: " + title + " </div>");
     }
 
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testCanInterceptMainFrame() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", true);
         final String expectedTitle = "testShouldInterceptRequestCanInterceptMainFrame";
         final String expectedPage = makePageWithTitle(expectedTitle);
 
@@ -612,10 +673,7 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         Assert.assertEquals(expectedTitle, mActivityTestRule.getTitleOnUiThread(mAwContents));
         Assert.assertEquals(0, mWebServer.getRequestCount("/" + CommonResources.ABOUT_FILENAME));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.HTTP));
+        histogramExpectation.assertExpected();
     }
 
     @Test
@@ -656,10 +714,14 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledForImage() throws Throwable {
         final String imagePath = "/" + CommonResources.FAVICON_FILENAME;
-        mWebServer.setResponseBase64(imagePath,
-                CommonResources.FAVICON_DATA_BASE64, CommonResources.getImagePngHeaders(true));
+        mWebServer.setResponseBase64(
+                imagePath,
+                CommonResources.FAVICON_DATA_BASE64,
+                CommonResources.getImagePngHeaders(true));
         final String pageWithImage =
-                addPageToTestServer(mWebServer, "/page_with_image.html",
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_image.html",
                         CommonResources.getOnImageLoadedHtml(CommonResources.FAVICON_FILENAME));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
@@ -668,8 +730,11 @@ public class AwContentsClientShouldInterceptRequestTest {
         mShouldInterceptRequestHelper.waitForCallback(callCount, 2);
 
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertTrue(mShouldInterceptRequestHelper.getUrls().get(1).endsWith(
-                CommonResources.FAVICON_FILENAME));
+        Assert.assertTrue(
+                mShouldInterceptRequestHelper
+                        .getUrls()
+                        .get(1)
+                        .endsWith(CommonResources.FAVICON_FILENAME));
     }
 
     @Test
@@ -689,10 +754,15 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testSubresourceError_NullMimeEncodingAndInputStream() throws Throwable {
         final String imagePath = "/" + CommonResources.FAVICON_FILENAME;
-        final String imageUrl = mWebServer.setResponseBase64(imagePath,
-                CommonResources.FAVICON_DATA_BASE64, CommonResources.getImagePngHeaders(true));
+        final String imageUrl =
+                mWebServer.setResponseBase64(
+                        imagePath,
+                        CommonResources.FAVICON_DATA_BASE64,
+                        CommonResources.getImagePngHeaders(true));
         final String pageWithImage =
-                addPageToTestServer(mWebServer, "/page_with_image.html",
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_image.html",
                         CommonResources.getOnImageLoadedHtml(CommonResources.FAVICON_FILENAME));
         mShouldInterceptRequestHelper.setReturnValueForUrl(
                 imageUrl, new WebResourceResponseInfo(null, null, null));
@@ -709,12 +779,21 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testNoOnReceivedErrorCallback() throws Throwable {
         final String imagePath = "/" + CommonResources.FAVICON_FILENAME;
-        final String imageUrl = mWebServer.setResponseBase64(imagePath,
-                CommonResources.FAVICON_DATA_BASE64, CommonResources.getImagePngHeaders(true));
-        final String pageWithImage = addPageToTestServer(mWebServer, "/page_with_image.html",
-                CommonResources.getOnImageLoadedHtml(CommonResources.FAVICON_FILENAME));
-        mShouldInterceptRequestHelper.setReturnValueForUrl(imageUrl,
-                new WebResourceResponseInfo(/* mimeType= */ null, /* encoding= */ null,
+        final String imageUrl =
+                mWebServer.setResponseBase64(
+                        imagePath,
+                        CommonResources.FAVICON_DATA_BASE64,
+                        CommonResources.getImagePngHeaders(true));
+        final String pageWithImage =
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_image.html",
+                        CommonResources.getOnImageLoadedHtml(CommonResources.FAVICON_FILENAME));
+        mShouldInterceptRequestHelper.setReturnValueForUrl(
+                imageUrl,
+                new WebResourceResponseInfo(
+                        /* mimeType= */ null,
+                        /* encoding= */ null,
                         /* data= */ new EmptyInputStream()));
         OnReceivedErrorHelper onReceivedErrorHelper = mContentsClient.getOnReceivedErrorHelper();
         int onReceivedErrorHelperCallCount = onReceivedErrorHelper.getCallCount();
@@ -728,9 +807,12 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testCalledForIframe() throws Throwable {
         final String aboutPageUrl = addAboutPageToTestServer(mWebServer);
-        final String pageWithIframeUrl = addPageToTestServer(mWebServer, "/page_with_iframe.html",
-                CommonResources.makeHtmlPageFrom("",
-                    "<iframe src=\"" + aboutPageUrl + "\"/>"));
+        final String pageWithIframeUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/page_with_iframe.html",
+                        CommonResources.makeHtmlPageFrom(
+                                "", "<iframe src=\"" + aboutPageUrl + "\"/>"));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlSync(
@@ -748,20 +830,24 @@ public class AwContentsClientShouldInterceptRequestTest {
         Assert.assertEquals(url, mShouldInterceptRequestHelper.getUrls().get(0));
 
         mContentsClient.getOnPageStartedHelper().waitForCallback(onPageStartedCallCount);
-        Assert.assertEquals(onPageStartedCallCount + 1,
+        Assert.assertEquals(
+                onPageStartedCallCount + 1,
                 mContentsClient.getOnPageStartedHelper().getCallCount());
     }
 
     private void notCalledForUrlTemplate(final String url) throws Exception {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords(
+                                "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted")
+                        .build();
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlSync(mAwContents, mContentsClient.getOnPageFinishedHelper(), url);
         // The intercepting must happen before onPageFinished. Since the IPC messages from the
         // renderer should be delivered in order waiting for onPageFinished is sufficient to
         // 'flush' any pending interception messages.
         Assert.assertEquals(callCount, mShouldInterceptRequestHelper.getCallCount());
-        Assert.assertEquals(0,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2"));
+        histogramExpectation.assertExpected();
     }
 
     @Test
@@ -775,37 +861,38 @@ public class AwContentsClientShouldInterceptRequestTest {
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testFileUrls_notIntercepted() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", false);
         calledForUrlTemplate("file:///somewhere/something");
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.NO_INTERCEPT));
+        histogramExpectation.assertExpected();
     }
 
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testFileUrls_intercepted() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", true);
         mShouldInterceptRequestHelper.setReturnValue(
                 stringToWebResourceResponseInfo("<html>Hello world</html>"));
         calledForUrlTemplate("file:///somewhere/something");
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.FILE));
+        histogramExpectation.assertExpected();
     }
 
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testCalledForExistingFiles() throws Throwable {
-        final String tmpDir = InstrumentationRegistry.getInstrumentation()
-                                      .getTargetContext()
-                                      .getCacheDir()
-                                      .getPath();
+        final String tmpDir =
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getCacheDir()
+                        .getPath();
         final String fileName = tmpDir + "/testfile.html";
         final String title = "existing file title";
-        TestFileUtil.deleteFile(fileName);  // Remove leftover file if any.
+        TestFileUtil.deleteFile(fileName); // Remove leftover file if any.
         TestFileUtil.createNewHtmlFile(fileName, title, "");
         final String existingFileUrl = "file://" + fileName;
 
@@ -817,7 +904,8 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         mContentsClient.getOnPageFinishedHelper().waitForCallback(onPageFinishedCallCount);
         Assert.assertEquals(title, mActivityTestRule.getTitleOnUiThread(mAwContents));
-        Assert.assertEquals(onPageFinishedCallCount + 1,
+        Assert.assertEquals(
+                onPageFinishedCallCount + 1,
                 mContentsClient.getOnPageFinishedHelper().getCallCount());
     }
 
@@ -858,9 +946,10 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         notCalledForUrlTemplate(existingContentUrl);
 
-        int contentRequestCount = TestContentProvider.getResourceRequestCount(
-                InstrumentationRegistry.getInstrumentation().getTargetContext(),
-                contentResourceName);
+        int contentRequestCount =
+                TestContentProvider.getResourceRequestCount(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
+                        contentResourceName);
         Assert.assertEquals(1, contentRequestCount);
     }
 
@@ -931,8 +1020,9 @@ public class AwContentsClientShouldInterceptRequestTest {
         // is executed on the IO thread, this will cause a deadlock.
         CountDownLatch waitForShouldInterceptRequest = new CountDownLatch(1);
         CountDownLatch signalAfterSendingIpc = new CountDownLatch(1);
-        DeadlockingAwContentsClient client = new DeadlockingAwContentsClient(
-                waitForShouldInterceptRequest, signalAfterSendingIpc);
+        DeadlockingAwContentsClient client =
+                new DeadlockingAwContentsClient(
+                        waitForShouldInterceptRequest, signalAfterSendingIpc);
         mTestContainerView = mActivityTestRule.createAwTestContainerViewOnMainSync(client);
         mAwContents = mTestContainerView.getAwContents();
         mActivityTestRule.loadUrlAsync(mAwContents, "http://www.example.com");
@@ -952,8 +1042,12 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testContentIdImage() throws Throwable {
         final String imageContentIdUrl = "cid://intercept-me";
-        final String pageUrl = addPageToTestServer(mWebServer, "/main.html",
-                CommonResources.makeHtmlPageFrom("", "<img src=\'" + imageContentIdUrl + "\'>"));
+        final String pageUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/main.html",
+                        CommonResources.makeHtmlPageFrom(
+                                "", "<img src=\'" + imageContentIdUrl + "\'>"));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, pageUrl);
@@ -969,9 +1063,12 @@ public class AwContentsClientShouldInterceptRequestTest {
     @Feature({"AndroidWebView"})
     public void testContentIdIframe() throws Throwable {
         final String iframeContentIdUrl = "cid://intercept-me";
-        final String pageUrl = addPageToTestServer(mWebServer, "/main.html",
-                CommonResources.makeHtmlPageFrom(
-                        "", "<iframe src=\'" + iframeContentIdUrl + "\'></iframe>"));
+        final String pageUrl =
+                addPageToTestServer(
+                        mWebServer,
+                        "/main.html",
+                        CommonResources.makeHtmlPageFrom(
+                                "", "<iframe src=\'" + iframeContentIdUrl + "\'></iframe>"));
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlAsync(mAwContents, pageUrl);
@@ -991,8 +1088,13 @@ public class AwContentsClientShouldInterceptRequestTest {
         String historyUrl = "http://foo.bar";
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
-        mActivityTestRule.loadDataWithBaseUrlSync(mAwContents,
-                mContentsClient.getOnPageFinishedHelper(), data, mimeType, isBase64Encoded, baseUrl,
+        mActivityTestRule.loadDataWithBaseUrlSync(
+                mAwContents,
+                mContentsClient.getOnPageFinishedHelper(),
+                data,
+                mimeType,
+                isBase64Encoded,
+                baseUrl,
                 historyUrl);
         Assert.assertEquals(callCount + 1, mShouldInterceptRequestHelper.getCallCount());
         // TODO(boliu): Not checking the URL yet. It's the empty data URL which should be fixed in
@@ -1008,8 +1110,12 @@ public class AwContentsClientShouldInterceptRequestTest {
         boolean isBase64Encoded = false;
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
-        mActivityTestRule.loadDataSync(mAwContents, mContentsClient.getOnPageFinishedHelper(), data,
-                mimeType, isBase64Encoded);
+        mActivityTestRule.loadDataSync(
+                mAwContents,
+                mContentsClient.getOnPageFinishedHelper(),
+                data,
+                mimeType,
+                isBase64Encoded);
         Assert.assertEquals(callCount + 1, mShouldInterceptRequestHelper.getCallCount());
         Assert.assertTrue(mShouldInterceptRequestHelper.getUrls().get(0).contains(data));
     }
@@ -1018,22 +1124,25 @@ public class AwContentsClientShouldInterceptRequestTest {
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testLoadDataUrl_notIntercepted() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", false);
         String url = "data:text/plain,foo";
 
         int callCount = mShouldInterceptRequestHelper.getCallCount();
         mActivityTestRule.loadUrlSync(mAwContents, mContentsClient.getOnPageFinishedHelper(), url);
         Assert.assertEquals(callCount + 1, mShouldInterceptRequestHelper.getCallCount());
         Assert.assertEquals(url, mShouldInterceptRequestHelper.getUrls().get(0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.NO_INTERCEPT));
+        histogramExpectation.assertExpected();
     }
 
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testLoadDataUrl_intercepted() throws Throwable {
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "Android.WebView.ShouldInterceptRequest.IsRequestIntercepted", true);
         String url = "data:text/plain,foo";
 
         mShouldInterceptRequestHelper.setReturnValue(
@@ -1042,10 +1151,7 @@ public class AwContentsClientShouldInterceptRequestTest {
         mActivityTestRule.loadUrlSync(mAwContents, mContentsClient.getOnPageFinishedHelper(), url);
         Assert.assertEquals(callCount + 1, mShouldInterceptRequestHelper.getCallCount());
         Assert.assertEquals(url, mShouldInterceptRequestHelper.getUrls().get(0));
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "Android.WebView.ShouldInterceptRequest.InterceptionType2",
-                        InterceptionType.DATA));
+        histogramExpectation.assertExpected();
     }
 
     @Test
@@ -1072,44 +1178,56 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         final SettableFuture<String> future = SettableFuture.create();
         String name = "fetchFuture";
-        Object injectedObject = new Object() {
-            @JavascriptInterface
-            public void success(String type) {
-                future.set(type);
-            }
-            @JavascriptInterface
-            public void error() {
-                future.set("error");
-            }
-        };
+        Object injectedObject =
+                new Object() {
+                    @JavascriptInterface
+                    public void success(String type) {
+                        future.set(type);
+                    }
+
+                    @JavascriptInterface
+                    public void error() {
+                        future.set("error");
+                    }
+                };
         AwActivityTestRule.addJavascriptInterfaceOnUiThread(mAwContents, injectedObject, name);
 
         if (url != null) {
             mActivityTestRule.loadUrlSync(
                     mAwContents, mContentsClient.getOnPageFinishedHelper(), url);
         } else {
-            mActivityTestRule.loadDataWithBaseUrlSync(mAwContents,
-                    mContentsClient.getOnPageFinishedHelper(), UNINTERESTING_HTML, "text/html",
-                    false, BASE_URL, null);
+            mActivityTestRule.loadDataWithBaseUrlSync(
+                    mAwContents,
+                    mContentsClient.getOnPageFinishedHelper(),
+                    UNINTERESTING_HTML,
+                    "text/html",
+                    false,
+                    BASE_URL,
+                    null);
         }
 
-        String template = "Promise.resolve().then(() => fetch(%s))"
-                + ".then((res) => %s.success(res.type), () => %s.error())";
+        String template =
+                "Promise.resolve().then(() => fetch(%s))"
+                        + ".then((res) => %s.success(res.type), () => %s.error())";
         mActivityTestRule.executeJavaScriptAndWaitForResult(
                 mAwContents, mContentsClient, String.format(template, stringArgs, name, name));
         return future;
     }
+
     private Future<String> loadDataAndFetch(String url, String method) throws Throwable {
         return loadPageAndFetchInternal(null, String.format("'%s', {method: '%s'}", url, method));
     }
+
     private Future<String> loadDataAndFetch(String url) throws Throwable {
         return loadDataAndFetch(url, "GET");
     }
+
     private Future<String> loadUrlAndFetch(String pageUrl, String fetchUrl, String method)
             throws Throwable {
         return loadPageAndFetchInternal(
                 pageUrl, String.format("'%s', {method: '%s'}", fetchUrl, method));
     }
+
     private Future<String> loadUrlAndFetch(String pageUrl, String fetchUrl) throws Throwable {
         return loadUrlAndFetch(pageUrl, fetchUrl, "GET");
     }
@@ -1123,7 +1241,9 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String destinationUrl = mWebServer.setResponse("/hello.txt", "", headers);
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
-        Assert.assertEquals("fetch should succeed", "cors",
+        Assert.assertEquals(
+                "fetch should succeed",
+                "cors",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
         Assert.assertEquals(destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
@@ -1141,7 +1261,9 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
         // The request fails due to origin mismatch.
-        Assert.assertEquals("fetch should fail", "error",
+        Assert.assertEquals(
+                "fetch should fail",
+                "error",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
         Assert.assertEquals(destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
@@ -1160,13 +1282,19 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         // PUT is not a safelisted method and triggers a preflight.
         final Future<String> future = loadDataAndFetch(destinationUrl, "PUT");
-        Assert.assertEquals("fetch should succeed", "cors",
+        Assert.assertEquals(
+                "fetch should succeed",
+                "cors",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(3, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertEquals("preflight request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
-        Assert.assertEquals("actual request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(2));
+        Assert.assertEquals(
+                "preflight request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(1));
+        Assert.assertEquals(
+                "actual request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(2));
     }
 
     @Test
@@ -1182,11 +1310,15 @@ public class AwContentsClientShouldInterceptRequestTest {
         // PUT is not a safelisted method and triggers a preflight.
         final Future<String> future = loadDataAndFetch(destinationUrl, "PUT");
         // The request fails due to the lack of access-control-allow-methods.
-        Assert.assertEquals("fetch should fail", "error",
+        Assert.assertEquals(
+                "fetch should fail",
+                "error",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertEquals("preflight request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
+        Assert.assertEquals(
+                "preflight request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(1));
     }
 
     @Test
@@ -1204,12 +1336,20 @@ public class AwContentsClientShouldInterceptRequestTest {
         Map<String, String> headersForInjectedResponse = new HashMap<String, String>();
         headersForInjectedResponse.put("access-control-allow-origin", "http://some.origin.test");
 
-        WebResourceResponseInfo response = new WebResourceResponseInfo(
-                "text/plain", "utf-8", null /* data */, 200, "OK", headersForInjectedResponse);
+        WebResourceResponseInfo response =
+                new WebResourceResponseInfo(
+                        "text/plain",
+                        "utf-8",
+                        /* data= */ null,
+                        200,
+                        "OK",
+                        headersForInjectedResponse);
         mShouldInterceptRequestHelper.setReturnValueForUrl(destinationUrl, response);
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
-        Assert.assertEquals("fetch should succeed", "cors",
+        Assert.assertEquals(
+                "fetch should succeed",
+                "cors",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
         Assert.assertEquals(destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
@@ -1231,12 +1371,20 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         // Injecting a response which doesn't have a matching access-control-allow-origin
         Map<String, String> headersForInjectedResponse = new HashMap<String, String>();
-        WebResourceResponseInfo response = new WebResourceResponseInfo(
-                "text/plain", "utf-8", null /* data */, 200, "OK", headersForInjectedResponse);
+        WebResourceResponseInfo response =
+                new WebResourceResponseInfo(
+                        "text/plain",
+                        "utf-8",
+                        /* data= */ null,
+                        200,
+                        "OK",
+                        headersForInjectedResponse);
         mShouldInterceptRequestHelper.setReturnValueForUrl(destinationUrl, response);
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
-        Assert.assertEquals("fetch should fail", "error",
+        Assert.assertEquals(
+                "fetch should fail",
+                "error",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
         Assert.assertEquals(destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
@@ -1260,19 +1408,31 @@ public class AwContentsClientShouldInterceptRequestTest {
         Map<String, String> headersForInjectedResponse = new HashMap<String, String>();
         headersForInjectedResponse.put("access-control-allow-origin", "http://some.origin.test");
         headersForInjectedResponse.put("access-control-allow-methods", "PUT");
-        WebResourceResponseInfo response = new WebResourceResponseInfo(
-                "text/plain", "utf-8", null /* data */, 200, "OK", headersForInjectedResponse);
+        WebResourceResponseInfo response =
+                new WebResourceResponseInfo(
+                        "text/plain",
+                        "utf-8",
+                        /* data= */ null,
+                        200,
+                        "OK",
+                        headersForInjectedResponse);
         mShouldInterceptRequestHelper.setReturnValueForUrl(destinationUrl, response);
 
         // PUT is not a safelisted method and triggers a preflight.
         final Future<String> future = loadDataAndFetch(destinationUrl, "PUT");
-        Assert.assertEquals("fetch should succeed", "cors",
+        Assert.assertEquals(
+                "fetch should succeed",
+                "cors",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(3, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertEquals("preflight request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
-        Assert.assertEquals("actual request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(2));
+        Assert.assertEquals(
+                "preflight request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(1));
+        Assert.assertEquals(
+                "actual request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(2));
 
         Assert.assertEquals(0, mWebServer.getRequestCount("/hello.txt"));
     }
@@ -1292,17 +1452,27 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         // Injecting a response which doesn't have a matching access-control-allow-origin
         Map<String, String> headersForInjectedResponse = new HashMap<String, String>();
-        WebResourceResponseInfo response = new WebResourceResponseInfo(
-                "text/plain", "utf-8", null /* data */, 200, "OK", headersForInjectedResponse);
+        WebResourceResponseInfo response =
+                new WebResourceResponseInfo(
+                        "text/plain",
+                        "utf-8",
+                        /* data= */ null,
+                        200,
+                        "OK",
+                        headersForInjectedResponse);
         mShouldInterceptRequestHelper.setReturnValueForUrl(destinationUrl, response);
 
         // PUT is not a safelisted method and triggers a preflight.
         final Future<String> future = loadDataAndFetch(destinationUrl, "PUT");
-        Assert.assertEquals("fetch should fail", "error",
+        Assert.assertEquals(
+                "fetch should fail",
+                "error",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
-        Assert.assertEquals("preflight request should be visible to shouldInterceptRequest",
-                destinationUrl, mShouldInterceptRequestHelper.getUrls().get(1));
+        Assert.assertEquals(
+                "preflight request should be visible to shouldInterceptRequest",
+                destinationUrl,
+                mShouldInterceptRequestHelper.getUrls().get(1));
 
         Assert.assertEquals(0, mWebServer.getRequestCount("/hello.txt"));
     }
@@ -1317,10 +1487,12 @@ public class AwContentsClientShouldInterceptRequestTest {
         }
         final String fetchUrl = mWebServer.setResponse(fetchPath, "", responseHeaders);
         mShouldInterceptRequestHelper.setReturnValueForUrl(
-                pageUrl, stringToWebResourceResponseInfo("" /* input*/));
+                pageUrl, stringToWebResourceResponseInfo(/* input= */ ""));
 
         final Future<String> future = loadUrlAndFetch(pageUrl, fetchUrl);
-        Assert.assertEquals("fetch result check", fetchResult,
+        Assert.assertEquals(
+                "fetch result check",
+                fetchResult,
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
 
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
@@ -1360,7 +1532,7 @@ public class AwContentsClientShouldInterceptRequestTest {
     @SmallTest
     @Feature({"AndroidWebView"})
     public void testCorsFetchFromCustomSchemeWithoutAllowOrigin() throws Throwable {
-        respondCorsFetchFromCustomSchemeWithAllowOrigin("foo://", null /* allowOrigin */, "error");
+        respondCorsFetchFromCustomSchemeWithAllowOrigin("foo://", /* allowOrigin= */ null, "error");
     }
 
     @Test
@@ -1370,18 +1542,20 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String pageUrl = "foo://main";
         final String fetchUrl = "bar://test";
         mShouldInterceptRequestHelper.setReturnValueForUrl(
-                pageUrl, stringToWebResourceResponseInfo("" /* input */));
+                pageUrl, stringToWebResourceResponseInfo(/* input= */ ""));
 
         // Prepare a response to allow CORS accesses just in case, but should not be reached as
         // Blink rejects such non-http(s) requests before making actual request.
         final Map<String, String> responseHeaders = new HashMap<String, String>();
         responseHeaders.put("Access-Control-Allow-Origin", "*");
         final WebResourceResponseInfo response =
-                stringWithHeadersToWebResourceResponseInfo("" /* input */, responseHeaders);
+                stringWithHeadersToWebResourceResponseInfo(/* input= */ "", responseHeaders);
         mShouldInterceptRequestHelper.setReturnValueForUrl(fetchUrl, response);
 
         final Future<String> future = loadUrlAndFetch(pageUrl, fetchUrl);
-        Assert.assertEquals("fetch result check", "error",
+        Assert.assertEquals(
+                "fetch result check",
+                "error",
                 future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
 
         // Only the main resource request reaches to the network stack.
@@ -1396,7 +1570,7 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String customScheme = "foo://";
         final String pageUrl = customScheme + "main";
         mShouldInterceptRequestHelper.setReturnValueForUrl(
-                pageUrl, stringToWebResourceResponseInfo("" /* input */));
+                pageUrl, stringToWebResourceResponseInfo(/* input= */ ""));
         final String fetchPathToFail = "/fail";
         final String fetchUrlToFail = mWebServer.setEmptyResponse(fetchPathToFail);
         final String preflightTriggeringMethod = "PUT";
@@ -1404,7 +1578,9 @@ public class AwContentsClientShouldInterceptRequestTest {
         // This CORS preflight triggering request should fail on the CORS preflight.
         final Future<String> futureToFail =
                 loadUrlAndFetch(pageUrl, fetchUrlToFail, preflightTriggeringMethod);
-        Assert.assertEquals("fetch result check", "error",
+        Assert.assertEquals(
+                "fetch result check",
+                "error",
                 futureToFail.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
 
         Assert.assertEquals(2, mShouldInterceptRequestHelper.getUrls().size());
@@ -1415,7 +1591,8 @@ public class AwContentsClientShouldInterceptRequestTest {
         final WebServer.HTTPRequest fetchRequestToFail = mWebServer.getLastRequest(fetchPathToFail);
         Assert.assertEquals("OPTIONS", fetchRequestToFail.getMethod());
         Assert.assertEquals(customScheme, fetchRequestToFail.headerValue("Origin"));
-        Assert.assertEquals(preflightTriggeringMethod,
+        Assert.assertEquals(
+                preflightTriggeringMethod,
                 fetchRequestToFail.headerValue("Access-Control-Request-Method"));
     }
 
@@ -1426,7 +1603,7 @@ public class AwContentsClientShouldInterceptRequestTest {
         final String customScheme = "foo://";
         final String pageUrl = customScheme + "main";
         mShouldInterceptRequestHelper.setReturnValueForUrl(
-                pageUrl, stringToWebResourceResponseInfo("" /* input */));
+                pageUrl, stringToWebResourceResponseInfo(/* input= */ ""));
 
         // Craft the expected CORS responses to pass.
         final String fetchPathToPass = "/pass";
@@ -1438,7 +1615,9 @@ public class AwContentsClientShouldInterceptRequestTest {
 
         final Future<String> futureToPass =
                 loadUrlAndFetch(pageUrl, fetchUrlToPass, preflightTriggeringMethod);
-        Assert.assertEquals("fetch result check", "cors",
+        Assert.assertEquals(
+                "fetch result check",
+                "cors",
                 futureToPass.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
 
         Assert.assertEquals(3, mShouldInterceptRequestHelper.getUrls().size());

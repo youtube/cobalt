@@ -21,7 +21,7 @@ import org.chromium.base.Log;
  * the service is created, the browser main loop will start. This allows
  * launching the browser module separately from the base module, so that the
  * memory overhead of the browser is only incurred when needed.
- * 
+ *
  * The owner must use Context.startService\stopService APIs to start the browser
  * process. This bindService should not be used as it binds the browser service
  * lifetime to the cast service one, hence resulting in more memory usage in

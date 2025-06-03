@@ -51,6 +51,24 @@ struct CONTENT_EXPORT InterestGroupUpdate {
   absl::optional<base::flat_map<std::string, blink::AdSize>> ad_sizes;
   absl::optional<base::flat_map<std::string, std::vector<std::string>>>
       size_groups;
+  absl::optional<blink::AuctionServerRequestFlags> auction_server_request_flags;
+  absl::optional<url::Origin> aggregation_coordinator_origin;
+};
+
+// InitialInterestGroupUpdateInfo contains required fields when the update
+// process is initialized, which includes interest_group_key for
+// KAnonymity update, update_url for generating update request and
+// joining_origin for grouped isolation info.
+struct CONTENT_EXPORT InterestGroupUpdateParameter {
+  InterestGroupUpdateParameter();
+  InterestGroupUpdateParameter(blink::InterestGroupKey k,
+                               GURL u,
+                               url::Origin o);
+  ~InterestGroupUpdateParameter();
+
+  blink::InterestGroupKey interest_group_key;
+  GURL update_url;
+  url::Origin joining_origin;
 };
 
 }  // namespace content

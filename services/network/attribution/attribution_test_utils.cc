@@ -4,18 +4,22 @@
 
 #include "services/network/attribution/attribution_test_utils.h"
 
+#include <stddef.h>
+
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util.h"
+#include "net/http/structured_headers.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
-#include "services/network/attribution/attribution_attestation_mediator.h"
-#include "services/network/attribution/attribution_attestation_mediator_metrics_recorder.h"
 #include "services/network/attribution/attribution_request_helper.h"
+#include "services/network/attribution/attribution_verification_mediator.h"
+#include "services/network/attribution/attribution_verification_mediator_metrics_recorder.h"
 #include "services/network/public/cpp/trust_token_http_headers.h"
 #include "services/network/public/mojom/attribution.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom-shared.h"
@@ -80,18 +84,21 @@ bool FakeCryptographer::IsToken(const std::string& potential_token,
   return potential_token == base::StrCat({kUnblindKey, blind_token});
 }
 
-std::unique_ptr<net::test_server::HttpResponse> HandleAttestationRequest(
+std::unique_ptr<net::test_server::HttpResponse> HandleVerificationRequest(
     const net::test_server::HttpRequest& request) {
-  if (!base::StartsWith(request.relative_url, kAttestationHandlerPathPrefix)) {
+  if (!base::StartsWith(request.relative_url, kVerificationHandlerPathPrefix)) {
     return nullptr;
   }
 
-  auto attestation_header = base::ranges::find_if(request.headers, [](auto& s) {
-    return s.first == AttributionAttestationMediator::kTriggerAttestationHeader;
-  });
-  bool attestation_header_set = attestation_header != std::end(request.headers);
-  EXPECT_TRUE(attestation_header_set);
-  if (!attestation_header_set) {
+  auto verification_header =
+      base::ranges::find_if(request.headers, [](auto& s) {
+        return s.first ==
+               AttributionVerificationMediator::kReportVerificationHeader;
+      });
+  bool verification_header_set =
+      verification_header != std::end(request.headers);
+  EXPECT_TRUE(verification_header_set);
+  if (!verification_header_set) {
     return nullptr;
   }
 
@@ -106,17 +113,22 @@ std::unique_ptr<net::test_server::HttpResponse> HandleAttestationRequest(
     return nullptr;
   }
 
+  size_t received_blind_messages_count =
+      DeserializeStructuredHeaderListOfStrings(verification_header->second)
+          .size();
+
   auto http_response = std::make_unique<net::test_server::BasicHttpResponse>();
   http_response->AddCustomHeader(
-      AttributionAttestationMediator::kTriggerAttestationHeader,
-      kTestBlindToken);
+      AttributionVerificationMediator::kReportVerificationHeader,
+      SerializeStructureHeaderListOfStrings(std::vector<std::string>(
+          received_blind_messages_count, kTestBlindToken)));
 
-  if (request.relative_url == kRedirectAttestationRequestPath) {
+  if (request.relative_url == kRedirectVerificationRequestPath) {
     http_response->set_code(net::HTTP_FOUND);
     http_response->AddCustomHeader(
         "Location",
-        base::JoinString({kAttestationHandlerPathPrefix, "some-different-path"},
-                         "/"));
+        base::JoinString(
+            {kVerificationHandlerPathPrefix, "some-different-path"}, "/"));
   } else {
     http_response->set_code(net::HTTP_OK);
   }
@@ -150,15 +162,60 @@ std::unique_ptr<AttributionRequestHelper> CreateTestAttributionRequestHelper(
   DCHECK(trust_token_key_commitments);
   return AttributionRequestHelper::CreateForTesting(
       mojom::AttributionReportingEligibility::kTrigger,
-      /*create_mediator=*/base::BindRepeating(&CreateTestAttestationMediator,
+      /*create_mediator=*/base::BindRepeating(&CreateTestVerificationMediator,
                                               trust_token_key_commitments));
 }
 
-AttributionAttestationMediator CreateTestAttestationMediator(
+AttributionVerificationMediator CreateTestVerificationMediator(
     TrustTokenKeyCommitments* trust_token_key_commitments) {
-  return AttributionAttestationMediator(
-      trust_token_key_commitments, std::make_unique<FakeCryptographer>(),
-      std::make_unique<AttributionAttestationMediatorMetricsRecorder>());
+  std::vector<std::unique_ptr<AttributionVerificationMediator::Cryptographer>>
+      cryptographers;
+  cryptographers.reserve(
+      AttributionRequestHelper::kVerificationTokensPerTrigger);
+  for (size_t i = 0;
+       i < AttributionRequestHelper::kVerificationTokensPerTrigger; ++i) {
+    cryptographers.push_back(std::make_unique<FakeCryptographer>());
+  }
+  return AttributionVerificationMediator(
+      trust_token_key_commitments, std::move(cryptographers),
+      std::make_unique<AttributionVerificationMediatorMetricsRecorder>());
+}
+
+std::vector<const std::string> DeserializeStructuredHeaderListOfStrings(
+    base::StringPiece header) {
+  absl::optional<net::structured_headers::List> parsed_list =
+      net::structured_headers::ParseList(header);
+  if (!parsed_list.has_value()) {
+    return {};
+  }
+
+  std::vector<const std::string> strings;
+  strings.reserve(parsed_list->size());
+  for (const auto& item : parsed_list.value()) {
+    if (item.member_is_inner_list || item.member.size() != 1u ||
+        !item.member.at(0).item.is_string()) {
+      return {};
+    }
+    strings.emplace_back(item.member.at(0).item.GetString());
+  }
+
+  return strings;
+}
+
+std::string SerializeStructureHeaderListOfStrings(
+    const std::vector<std::string>& strings) {
+  net::structured_headers::List headers;
+
+  for (const std::string& string : strings) {
+    net::structured_headers::Item item(
+        string, net::structured_headers::Item::ItemType::kStringType);
+    headers.emplace_back(
+        net::structured_headers::ParameterizedMember(item, {}));
+  }
+  absl::optional<std::string> serialized =
+      net::structured_headers::SerializeList(headers);
+  CHECK(serialized.has_value());
+  return serialized.value();
 }
 
 }  // namespace network

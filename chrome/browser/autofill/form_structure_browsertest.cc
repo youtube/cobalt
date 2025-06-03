@@ -35,6 +35,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "net/http/http_status_code.h"
@@ -42,10 +43,11 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/data_driven_testing/data_driven_test.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #endif
 
 namespace autofill {
@@ -59,7 +61,7 @@ const base::FilePath::CharType kFeatureName[] = FILE_PATH_LITERAL("autofill");
 const base::FilePath::CharType kTestName[] = FILE_PATH_LITERAL("heuristics");
 
 // To disable a data driven test, please add the name of the test file
-// (i.e., "NNN_some_site.html") as a literal to the initializer_list given
+// (i.e., FILE_PATH_LITERAL("NNN_some_site.html")) to the initializer_list given
 // to the failing_test_names constructor.
 const auto& GetFailingTestNames() {
   static std::set<base::FilePath::StringType> failing_test_names{};
@@ -69,7 +71,7 @@ const auto& GetFailingTestNames() {
 const base::FilePath& GetTestDataDir() {
   static base::NoDestructor<base::FilePath> dir([]() {
     base::FilePath dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir);
     dir = dir.AppendASCII("components").AppendASCII("test").AppendASCII("data");
     return dir;
   }());
@@ -95,7 +97,7 @@ std::vector<base::FilePath> GetTestFiles() {
   std::sort(files.begin(), files.end());
 
 #if BUILDFLAG(IS_MAC)
-  base::mac::ClearAmIBundledCache();
+  base::apple::ClearAmIBundledCache();
 #endif  // BUILDFLAG(IS_MAC)
 
   return files;
@@ -106,10 +108,9 @@ std::string FormStructuresToString(
   std::string forms_string;
   // The forms are sorted by their global ID, which should make the order
   // deterministic.
-  for (const auto& kv : forms) {
-    const auto* form = kv.second.get();
+  for (const auto& [form_id, form_structure] : forms) {
     std::map<std::string, int> section_to_index;
-    for (const auto& field : *form) {
+    for (const auto& field : *form_structure) {
       std::string section = field->section.ToString();
 
       if (field->section.is_from_fieldidentifier()) {
@@ -202,26 +203,28 @@ FormStructureBrowserTest::FormStructureBrowserTest()
     : ::testing::DataDrivenTest(GetTestDataDir(), kFeatureName, kTestName) {
   feature_list_.InitWithFeatures(
       // Enabled
-      {// TODO(crbug.com/1187842): Remove once experiment is over.
-       features::kAutofillAcrossIframes,
-       // TODO(crbug.com/1076175) Remove once launched.
-       features::kAutofillUseNewSectioningMethod,
-       // TODO(crbug.com/1157405) Remove once launched.
-       features::kAutofillEnableDependentLocalityParsing,
-       // TODO(crbug.com/1150895) Remove once launched.
-       features::kAutofillParsingPatternProvider,
-       features::kAutofillPageLanguageDetection,
-       // TODO(crbug.com/1165780): Remove once shared labels are launched.
-       features::kAutofillEnableSupportForParsingWithSharedLabels,
-       // TODO(crbug.com/1335549): Remove once launched.
-       features::kAutofillParseIBANFields,
-       // TODO(crbug.com/1341387): Remove once launched.
-       features::kAutofillParseVcnCardOnFileStandaloneCvcFields,
-       // TODO(crbug.com/1311937): Remove once launched.
-       features::kAutofillEnableSupportForPhoneNumberTrunkTypes,
-       features::kAutofillInferCountryCallingCode,
-       // TODO(crbug.com/1355264): Remove once launched.
-       features::kAutofillLabelAffixRemoval},
+      {
+          // TODO(crbug.com/1076175) Remove once launched.
+          features::kAutofillUseNewSectioningMethod,
+          // TODO(crbug.com/1157405) Remove once launched.
+          features::kAutofillEnableDependentLocalityParsing,
+          // TODO(crbug.com/1150895) Remove once launched.
+          features::kAutofillParsingPatternProvider,
+          features::kAutofillPageLanguageDetection,
+          // TODO(crbug.com/1165780): Remove once shared labels are launched.
+          features::kAutofillEnableSupportForParsingWithSharedLabels,
+          // TODO(crbug.com/1341387): Remove once launched.
+          features::kAutofillParseVcnCardOnFileStandaloneCvcFields,
+          // TODO(crbug.com/1311937): Remove once launched.
+          features::kAutofillEnableSupportForPhoneNumberTrunkTypes,
+          features::kAutofillInferCountryCallingCode,
+          // TODO(crbug.com/1355264): Remove once launched.
+          features::kAutofillLabelAffixRemoval,
+          // TODO(crbug.com/1441057): Remove once launched.
+          features::kAutofillEnableExpirationDateImprovements,
+          // TODO(crbug.com/1474308): Clean up when launched.
+          features::kAutofillDefaultToCityAndNumber,
+      },
       // Disabled
       {// TODO(crbug.com/1311937): Remove once launched.
        // This feature is part of the AutofillRefinedPhoneNumberTypes rollout.
@@ -229,7 +232,13 @@ FormStructureBrowserTest::FormStructureBrowserTest()
        features::kAutofillConsiderPhoneNumberSeparatorsValidLabels,
        // TODO(crbug.com/1317961): Remove once launched. This feature is
        // disabled since it is not supported on iOS.
-       features::kAutofillAlwaysParsePlaceholders});
+       features::kAutofillAlwaysParsePlaceholders,
+       // TODO(crbug.com/1493145): Remove when/if launched. This feature changes
+       // default parsing behavior, so must be disabled to avoid
+       // fieldtrial_testing_config interference.
+       features::kAutofillEnableEmailHeuristicOnlyAddressForms,
+       // TODO(crbug.com/1427131): Remove once launched.
+       blink::features::kAutofillUseDomNodeIdForRendererId});
 }
 
 FormStructureBrowserTest::~FormStructureBrowserTest() = default;
@@ -239,6 +248,8 @@ void FormStructureBrowserTest::SetUpCommandLine(
   // Suppress most output logs because we can't really control the output for
   // arbitrary test sites.
   command_line->AppendSwitchASCII(switches::kLoggingLevel, "2");
+  command_line->AppendSwitchASCII(
+      variations::switches::kVariationsOverrideCountry, "us");
 }
 
 void FormStructureBrowserTest::SetUpOnMainThread() {
@@ -282,7 +293,13 @@ std::unique_ptr<HttpResponse> FormStructureBrowserTest::HandleRequest(
   return std::move(response);
 }
 
-IN_PROC_BROWSER_TEST_P(FormStructureBrowserTest, DataDrivenHeuristics) {
+// TODO(crbug.com/1459409): Re-enable this test
+#if BUILDFLAG(IS_CHROMEOS) && defined(MEMORY_SANITIZER)
+#define MAYBE_DataDrivenHeuristics DISABLED_DataDrivenHeuristics
+#else
+#define MAYBE_DataDrivenHeuristics DataDrivenHeuristics
+#endif
+IN_PROC_BROWSER_TEST_P(FormStructureBrowserTest, MAYBE_DataDrivenHeuristics) {
   // Prints the path of the test to be executed.
   LOG(INFO) << GetParam().MaybeAsASCII();
   bool is_expected_to_pass =

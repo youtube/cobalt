@@ -21,6 +21,7 @@
 #include "chromeos/ash/components/phonehub/mutable_phone_model.h"
 #include "chromeos/ash/components/phonehub/phone_model_test_util.h"
 #include "chromeos/ash/components/standalone_browser/lacros_availability.h"
+#include "chromeos/ash/components/standalone_browser/standalone_browser_features.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/fake_multidevice_setup_client.h"
 #include "chromeos/crosapi/mojom/synced_session_client.mojom.h"
 #include "components/account_id/account_id.h"
@@ -61,8 +62,6 @@ class SessionSyncServiceMock : public sync_sessions::SessionSyncService {
   MOCK_METHOD0(ScheduleGarbageCollection, void());
   MOCK_METHOD0(GetControllerDelegate,
                base::WeakPtr<syncer::ModelTypeControllerDelegate>());
-  MOCK_METHOD1(ProxyTabsStateChanged,
-               void(syncer::DataTypeController::State state));
 };
 
 class OpenTabsUIDelegateMock : public sync_sessions::OpenTabsUIDelegate {
@@ -127,8 +126,8 @@ class ScopedLacrosOnlyHandle {
     crosapi::browser_util::ClearLacrosAvailabilityCacheForTest();
   }
 
-  raw_ptr<ash::FakeChromeUserManager, ExperimentalAsh> fake_user_manager_ =
-      nullptr;
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged | ExperimentalAsh>
+      fake_user_manager_ = nullptr;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
 };
 
@@ -140,7 +139,7 @@ multidevice::RemoteDeviceRef CreatePhoneDevice(const std::string& pii_name) {
 
 std::unique_ptr<sync_sessions::SyncedSession> CreateNewSession(
     const std::string& session_name,
-    const base::Time& session_time = base::Time::FromDoubleT(0)) {
+    const base::Time& session_time = base::Time::FromSecondsSinceUnixEpoch(0)) {
   auto session = std::make_unique<sync_sessions::SyncedSession>();
   session->SetSessionName(session_name);
   session->SetModifiedTime(session_time);
@@ -372,7 +371,7 @@ TEST_F(BrowserTabsModelProviderImplTest, OnForeignSyncedPhoneSessionsUpdated) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/{syncer::kChromeOSSyncedSessionSharing,
-                            ash::features::kLacrosOnly},
+                            ash::standalone_browser::features::kLacrosOnly},
       /*disabled_features=*/{});
   ScopedLacrosOnlyHandle lacros_only_handle;
 
@@ -422,7 +421,7 @@ TEST_F(BrowserTabsModelProviderImplTest, OnSessionSyncEnabledChanged) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/{syncer::kChromeOSSyncedSessionSharing,
-                            ash::features::kLacrosOnly},
+                            ash::standalone_browser::features::kLacrosOnly},
       /*disabled_features=*/{});
   ScopedLacrosOnlyHandle lacros_only_handle;
 
@@ -497,13 +496,13 @@ TEST_F(BrowserTabsModelProviderImplTest, SessionCorrectlySelected) {
   CreateProvider();
   SetPiiFreeName(kPhoneNameOne);
   std::unique_ptr<sync_sessions::SyncedSession> session_a =
-      CreateNewSession(kPhoneNameOne, base::Time::FromDoubleT(1));
+      CreateNewSession(kPhoneNameOne, base::Time::FromSecondsSinceUnixEpoch(1));
   std::unique_ptr<sync_sessions::SyncedSession> session_b =
-      CreateNewSession(kPhoneNameOne, base::Time::FromDoubleT(3));
+      CreateNewSession(kPhoneNameOne, base::Time::FromSecondsSinceUnixEpoch(3));
   std::unique_ptr<sync_sessions::SyncedSession> session_c =
-      CreateNewSession(kPhoneNameOne, base::Time::FromDoubleT(2));
-  std::unique_ptr<sync_sessions::SyncedSession> session_d =
-      CreateNewSession(kPhoneNameTwo, base::Time::FromDoubleT(10));
+      CreateNewSession(kPhoneNameOne, base::Time::FromSecondsSinceUnixEpoch(2));
+  std::unique_ptr<sync_sessions::SyncedSession> session_d = CreateNewSession(
+      kPhoneNameTwo, base::Time::FromSecondsSinceUnixEpoch(10));
 
   std::vector<const sync_sessions::SyncedSession*> sessions(
       {session_a.get(), session_b.get(), session_c.get(), session_d.get()});

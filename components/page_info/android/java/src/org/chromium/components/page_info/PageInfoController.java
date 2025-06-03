@@ -24,8 +24,9 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.ViewCompat;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.content_settings.ContentSettingValues;
@@ -213,10 +214,6 @@ public class PageInfoController implements PageInfoMainController, ModalDialogPr
 
         // Setup View.
         PageInfoView.Params viewParams = new PageInfoView.Params();
-        viewParams.onUiClosingCallback = () -> {
-            // |this| may have already been destroyed by the time this is called.
-            if (mCookiesController != null) mCookiesController.onUiClosing();
-        };
         mDelegate.initOfflinePageUiParams(viewParams, this::runAfterDismiss);
         viewParams.httpsImageCompressionMessageShown = mDelegate.isHttpsImageCompressionApplied();
         mView = new PageInfoView(mContext, viewParams);
@@ -457,12 +454,10 @@ public class PageInfoController implements PageInfoMainController, ModalDialogPr
         return !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
     }
 
-    @VisibleForTesting
     public View getPageInfoViewForTesting() {
         return mContainer;
     }
 
-    @VisibleForTesting
     public boolean isDialogShowingForTesting() {
         return mDialog != null;
     }
@@ -505,7 +500,6 @@ public class PageInfoController implements PageInfoMainController, ModalDialogPr
                 delegate, pageInfoHighlight));
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public static PageInfoController getLastPageInfoControllerForTesting() {
         return sLastPageInfoControllerForTesting != null ? sLastPageInfoControllerForTesting.get()
                                                          : null;

@@ -11,7 +11,7 @@
 
 #include "base/notreached.h"
 #include "components/signin/public/base/consent_level.h"
-#include "components/sync/base/command_line_switches.h"
+#include "components/trusted_vault/command_line_switches.h"
 #include "components/trusted_vault/download_keys_response_handler.h"
 #include "components/trusted_vault/securebox.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher_impl.h"
@@ -80,12 +80,11 @@ void TrustedVaultRegistrationVerifier::VerifyMembership(
   }
 
   const GURL trusted_vault_service_url =
-      syncer::ExtractTrustedVaultServiceURLFromCommandLine();
+      ExtractTrustedVaultServiceURLFromCommandLine();
 
   auto request = std::make_unique<TrustedVaultRequest>(
       primary_account.account_id, TrustedVaultRequest::HttpMethod::kGet,
-      GURL(trusted_vault_service_url.spec() +
-           GetGetSecurityDomainMemberURLPathAndQuery(public_key)),
+      GetGetSecurityDomainMemberURL(trusted_vault_service_url, public_key),
       /*serialized_request_proto=*/absl::nullopt,
       /*max_retry_duration=*/base::Seconds(0), url_loader_factory_,
       access_token_fetcher_.Clone(),
@@ -100,7 +99,7 @@ void TrustedVaultRegistrationVerifier::VerifyMembership(
         // also uses kKeyProofsVerificationFailed semi-arbitrarily to represent
         // that verification wasn't possible (since the private key wasn't
         // known).
-        trusted_vault::RecordVerifyRegistrationStatus(
+        RecordVerifyRegistrationStatus(
             GetDownloadKeysStatusForUMAFromResponse(status.value_or(
                 TrustedVaultDownloadKeysStatus::kKeyProofsVerificationFailed)),
             /*also_log_with_v1_suffix=*/true);

@@ -112,7 +112,6 @@ component("wtf") {
     "text/ascii_fast_path.h",
     "text/atomic_string.cc",
     "text/atomic_string.h",
-    "text/atomic_string_cf.cc",
     "text/atomic_string_encoding.h",
     "text/atomic_string_hash.h",
     "text/atomic_string_table.cc",
@@ -242,6 +241,7 @@ component("wtf") {
 
   if (is_apple) {
     sources += [
+      "text/atomic_string_cf.cc",
       "text/string_apple.mm",
       "text/string_impl_apple.mm",
     ]
@@ -270,8 +270,6 @@ component("wtf") {
       "CoreFoundation.framework",
       "Foundation.framework",
     ]
-  } else {
-    sources -= [ "text/atomic_string_cf.cc" ]
   }
 
   if (using_mismatched_sample_profile) {
@@ -294,13 +292,11 @@ source_set("wtf_unittests_sources") {
   sources = [
     "allocator/allocator_test.cc",
     "allocator/partitions_test.cc",
-    "ascii_ctype_test.cc",
     "assertions_test.cc",
     "atomic_operations_test.cc",
     "bit_field_test.cc",
     "bloom_filter_test.cc",
     "cross_thread_functional_test.cc",
-    "date_math_test.cc",
     "decimal_test.cc",
     "deque_test.cc",
     "doubly_linked_list_test.cc",
@@ -320,6 +316,7 @@ source_set("wtf_unittests_sources") {
     "sequence_bound_test.cc",
     "shared_buffer_test.cc",
     "testing/run_all_tests.cc",
+    "text/ascii_ctype_test.cc",
     "text/atomic_string_table_test.cc",
     "text/atomic_string_test.cc",
     "text/base64_test.cc",

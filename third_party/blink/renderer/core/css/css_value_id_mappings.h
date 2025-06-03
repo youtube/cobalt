@@ -403,13 +403,6 @@ inline CSSValueID PlatformEnumToCSSValueID(EWhiteSpace v) {
     case EWhiteSpace::kBreakSpaces:
       return CSSValueID::kBreakSpaces;
   }
-  if (ToTextWrap(v) == TextWrap::kBalance &&
-      !RuntimeEnabledFeatures::CSSWhiteSpaceShorthandEnabled()) {
-    // If `text-wrap: balance` but the shorthandifying `white-space` is off,
-    // pretend as if `text-wrap: wrap`.
-    return PlatformEnumToCSSValueID(
-        ToWhiteSpace(ToWhiteSpaceCollapse(v), TextWrap::kWrap));
-  }
   NOTREACHED();
   return CSSValueID::kNone;
 }
@@ -448,15 +441,42 @@ inline CSSValueID PlatformEnumToCSSValueID(WhiteSpaceCollapse v) {
 }
 
 template <>
+inline TextSpacingTrim CssValueIDToPlatformEnum(CSSValueID v) {
+  switch (v) {
+    case CSSValueID::kSpaceFirst:
+      return TextSpacingTrim::kSpaceFirst;
+    case CSSValueID::kSpaceAll:
+      return TextSpacingTrim::kSpaceAll;
+    default:
+      NOTREACHED();
+      return TextSpacingTrim::kSpaceFirst;
+  }
+}
+
+template <>
+inline CSSValueID PlatformEnumToCSSValueID(TextSpacingTrim v) {
+  switch (v) {
+    case TextSpacingTrim::kSpaceFirst:
+      return CSSValueID::kSpaceFirst;
+    case TextSpacingTrim::kSpaceAll:
+      return CSSValueID::kSpaceAll;
+  }
+  NOTREACHED();
+  return CSSValueID::kNone;
+}
+
+template <>
 inline TextWrap CssValueIDToPlatformEnum(CSSValueID v) {
   switch (v) {
     case CSSValueID::kWrap:
       return TextWrap::kWrap;
     case CSSValueID::kNowrap:
-      DCHECK(RuntimeEnabledFeatures::CSSWhiteSpaceShorthandEnabled());
       return TextWrap::kNoWrap;
     case CSSValueID::kBalance:
       return TextWrap::kBalance;
+    case CSSValueID::kPretty:
+      DCHECK(RuntimeEnabledFeatures::CSSTextWrapPrettyEnabled());
+      return TextWrap::kPretty;
     default:
       NOTREACHED();
       return TextWrap::kWrap;
@@ -469,46 +489,15 @@ inline CSSValueID PlatformEnumToCSSValueID(TextWrap v) {
     case TextWrap::kWrap:
       return CSSValueID::kWrap;
     case TextWrap::kNoWrap:
-      if (!RuntimeEnabledFeatures::CSSWhiteSpaceShorthandEnabled()) {
-        // Note this is not right, but a compromise until `white-space` becomes
-        // a shorthand. Simulate the behavior when it's off.
-        return CSSValueID::kWrap;
-      }
       return CSSValueID::kNowrap;
     case TextWrap::kBalance:
       return CSSValueID::kBalance;
+    case TextWrap::kPretty:
+      DCHECK(RuntimeEnabledFeatures::CSSTextWrapPrettyEnabled());
+      return CSSValueID::kPretty;
   }
   NOTREACHED();
   return CSSValueID::kNone;
-}
-
-template <>
-inline TimelineAttachment CssValueIDToPlatformEnum(CSSValueID v) {
-  switch (v) {
-    case CSSValueID::kLocal:
-      return TimelineAttachment::kLocal;
-    case CSSValueID::kDefer:
-      return TimelineAttachment::kDefer;
-    case CSSValueID::kAncestor:
-      return TimelineAttachment::kAncestor;
-    default:
-      NOTREACHED();
-      return TimelineAttachment::kAncestor;
-  }
-}
-
-template <>
-inline CSSValueID PlatformEnumToCSSValueID(TimelineAttachment v) {
-  switch (v) {
-    case TimelineAttachment::kLocal:
-      return CSSValueID::kLocal;
-    case TimelineAttachment::kDefer:
-      return CSSValueID::kDefer;
-    case TimelineAttachment::kAncestor:
-      return CSSValueID::kAncestor;
-  }
-  NOTREACHED();
-  return CSSValueID::kLocal;
 }
 
 }  // namespace blink

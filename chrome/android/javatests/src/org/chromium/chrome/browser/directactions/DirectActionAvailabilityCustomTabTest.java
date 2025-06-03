@@ -3,11 +3,12 @@
 // found in the LICENSE file.
 
 package org.chromium.chrome.browser.directactions;
+
 import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
 
 import android.content.Intent;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 
 import org.hamcrest.Matchers;
@@ -35,20 +36,25 @@ public class DirectActionAvailabilityCustomTabTest {
     @Rule
     public CustomTabActivityTestRule mCustomTabActivityTestRule = new CustomTabActivityTestRule();
 
-    @Rule
-    public DirectActionTestRule mDirectActionRule = new DirectActionTestRule();
+    @Rule public DirectActionTestRule mDirectActionRule = new DirectActionTestRule();
 
     @Test
     @MediumTest
     @Feature({"DirectActions"})
     public void testCoreDirectActionInCustomTabActivity() throws Exception {
-        Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(
-                InstrumentationRegistry.getTargetContext(), "about:blank");
+        Intent intent =
+                CustomTabsIntentTestUtils.createMinimalCustomTabIntent(
+                        ApplicationProvider.getApplicationContext(), "about:blank");
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
 
         assertThat(
                 DirectActionTestUtils.setupActivityAndGetDirectAction(mCustomTabActivityTestRule),
-                Matchers.containsInAnyOrder("go_back", "reload", "go_forward", "bookmark_this_page",
-                        "preferences", "find_in_page"));
+                Matchers.containsInAnyOrder(
+                        "go_back",
+                        "reload",
+                        "go_forward",
+                        "bookmark_this_page",
+                        "preferences",
+                        "find_in_page"));
     }
 }

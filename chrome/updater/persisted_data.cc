@@ -32,18 +32,27 @@
 
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/updater/util/win_util.h"
+#include "chrome/updater/win/win_constants.h"
 #endif
 
 namespace {
 
-constexpr char kPV[] = "pv";      // Key for storing product version.
-constexpr char kFP[] = "fp";      // Key for storing fingerprint.
-constexpr char kECP[] = "ecp";    // Key for storing existence checker path.
-constexpr char kBC[] = "bc";      // Key for storing brand code.
-constexpr char kBP[] = "bp";      // Key for storing brand path.
-constexpr char kAP[] = "ap";      // Key for storing ap.
-constexpr char kDLA[] = "dla";    // Key for storing date-last-active.
-constexpr char kDLRC[] = "dlrc";  // Key for storing date-last-rollcall.
+// PersistedData keys.
+constexpr char kPV[] = "pv";
+constexpr char kVersionPath[] = "pv_path";
+constexpr char kVersionKey[] = "pv_key";
+constexpr char kFP[] = "fp";
+constexpr char kECP[] = "ecp";
+constexpr char kBC[] = "bc";
+constexpr char kBP[] = "bp";
+constexpr char kAP[] = "ap";
+constexpr char kAPPath[] = "ap_path";
+constexpr char kAPKey[] = "ap_key";
+constexpr char kDLA[] = "dla";
+constexpr char kDLRC[] = "dlrc";
+constexpr char kCohort[] = "cohort";
+constexpr char kCohortName[] = "cohortname";
+constexpr char kCohortHint[] = "cohorthint";
 
 constexpr char kHadApps[] = "had_apps";
 constexpr char kUsageStatsEnabledKey[] = "usage_stats_enabled";
@@ -76,6 +85,29 @@ void PersistedData::SetProductVersion(const std::string& id,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(pv.IsValid());
   SetString(id, kPV, pv.GetString());
+}
+
+base::FilePath PersistedData::GetProductVersionPath(
+    const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return base::FilePath::FromUTF8Unsafe(GetString(id, kVersionPath));
+}
+
+void PersistedData::SetProductVersionPath(const std::string& id,
+                                          const base::FilePath& path) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kVersionPath, path.AsUTF8Unsafe());
+}
+
+std::string PersistedData::GetProductVersionKey(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetString(id, kVersionKey);
+}
+
+void PersistedData::SetProductVersionKey(const std::string& id,
+                                         const std::string& key) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kVersionKey, key);
 }
 
 std::string PersistedData::GetFingerprint(const std::string& id) const {
@@ -122,8 +154,18 @@ void PersistedData::SetBrandPath(const std::string& id,
   SetString(id, kBP, bp.AsUTF8Unsafe());
 }
 
-std::string PersistedData::GetAP(const std::string& id) const {
+std::string PersistedData::GetAP(const std::string& id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+#if BUILDFLAG(IS_WIN)
+  // For backwards compatibility, we read AP from ClientState first, since some
+  // applications write to it there.
+  if (const std::string ap(GetAppAPValue(scope_, id)); !ap.empty()) {
+    SetAP(id, ap);
+    return ap;
+  }
+#endif
+
   return GetString(id, kAP);
 }
 
@@ -148,6 +190,27 @@ void PersistedData::SetAP(const std::string& id, const std::string& ap) {
 #endif
 }
 
+base::FilePath PersistedData::GetAPPath(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return base::FilePath::FromUTF8Unsafe(GetString(id, kAPPath));
+}
+
+void PersistedData::SetAPPath(const std::string& id,
+                              const base::FilePath& path) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kAPPath, path.AsUTF8Unsafe());
+}
+
+std::string PersistedData::GetAPKey(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetString(id, kAPKey);
+}
+
+void PersistedData::SetAPKey(const std::string& id, const std::string& key) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kAPKey, key);
+}
+
 absl::optional<int> PersistedData::GetDateLastActive(
     const std::string& id) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -170,11 +233,66 @@ void PersistedData::SetDateLastRollcall(const std::string& id, int dlrc) {
   SetInteger(id, kDLRC, dlrc);
 }
 
+std::string PersistedData::GetCohort(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetString(id, kCohort);
+}
+
+void PersistedData::SetCohort(const std::string& id,
+                              const std::string& cohort) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kCohort, cohort);
+
+#if BUILDFLAG(IS_WIN)
+  // For backwards compatibility, we record the Cohort in ClientState as well.
+  // (Some applications read it from there.)
+  SetRegistryKey(UpdaterScopeToHKeyRoot(scope_),
+                 GetAppCohortKey(base::SysUTF8ToWide(id)), L"",
+                 base::SysUTF8ToWide(cohort));
+#endif
+}
+
+std::string PersistedData::GetCohortName(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetString(id, kCohortName);
+}
+
+void PersistedData::SetCohortName(const std::string& id,
+                                  const std::string& cohort_name) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kCohortName, cohort_name);
+
+#if BUILDFLAG(IS_WIN)
+  // For backwards compatibility, we record the Cohort in ClientState as well.
+  // (Some applications read it from there.)
+  SetRegistryKey(UpdaterScopeToHKeyRoot(scope_),
+                 GetAppCohortKey(base::SysUTF8ToWide(id)), kRegValueCohortName,
+                 base::SysUTF8ToWide(cohort_name));
+#endif
+}
+
+std::string PersistedData::GetCohortHint(const std::string& id) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetString(id, kCohortHint);
+}
+
+void PersistedData::SetCohortHint(const std::string& id,
+                                  const std::string& cohort_hint) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetString(id, kCohortHint, cohort_hint);
+}
+
 void PersistedData::RegisterApp(const RegistrationRequest& rq) {
   VLOG(2) << __func__ << ": Registering " << rq.app_id << " at version "
           << rq.version;
   if (rq.version.IsValid()) {
     SetProductVersion(rq.app_id, rq.version);
+  }
+  if (!rq.version_path.empty()) {
+    SetProductVersionPath(rq.app_id, rq.version_path);
+  }
+  if (!rq.version_key.empty()) {
+    SetProductVersionKey(rq.app_id, rq.version_key);
   }
   if (!rq.existence_checker_path.empty()) {
     SetExistenceCheckerPath(rq.app_id, rq.existence_checker_path);
@@ -188,11 +306,26 @@ void PersistedData::RegisterApp(const RegistrationRequest& rq) {
   if (!rq.ap.empty()) {
     SetAP(rq.app_id, rq.ap);
   }
+  if (!rq.ap_path.empty()) {
+    SetAPPath(rq.app_id, rq.ap_path);
+  }
+  if (!rq.ap_key.empty()) {
+    SetAPKey(rq.app_id, rq.ap_key);
+  }
   if (rq.dla) {
     SetDateLastActive(rq.app_id, rq.dla.value());
   }
   if (rq.dlrc) {
     SetDateLastRollcall(rq.app_id, rq.dlrc.value());
+  }
+  if (!rq.cohort.empty()) {
+    SetCohort(rq.app_id, rq.cohort);
+  }
+  if (!rq.cohort_name.empty()) {
+    SetCohortName(rq.app_id, rq.cohort_name);
+  }
+  if (!rq.cohort_hint.empty()) {
+    SetCohortHint(rq.app_id, rq.cohort_hint);
   }
 }
 

@@ -21,6 +21,7 @@ import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomS
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerDelegate;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.base.GoogleServiceAuthError;
 import org.chromium.components.signin.identitymanager.AccountInfoServiceProvider;
@@ -32,23 +33,29 @@ import org.chromium.ui.widget.Toast;
 public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
     private final Profile mProfile;
     private final WindowAndroid mWindowAndroid;
+    private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
     private final BottomSheetController mController;
     private final SigninManager mSigninManager;
     private boolean mSetTestToast;
     private final @SigninAccessPoint int mSigninAccessPoint;
     private AccountPickerBottomSheetCoordinator mAccountPickerBottomSheetCoordinator;
     private final Runnable mOnSigninSuccessCallback;
+    private final AccountPickerBottomSheetStrings mBottomSheetStrings;
 
     public SigninBottomSheetCoordinator(WindowAndroid windowAndroid,
-            BottomSheetController controller, Profile profile,
+            DeviceLockActivityLauncher deviceLockActivityLauncher, BottomSheetController controller,
+            Profile profile, @Nullable AccountPickerBottomSheetStrings bottomSheetStrings,
             @Nullable Runnable onSigninSuccessCallback, @SigninAccessPoint int signinAccessPoint) {
         mWindowAndroid = windowAndroid;
+        mDeviceLockActivityLauncher = deviceLockActivityLauncher;
         mController = controller;
         mProfile = profile;
         mSigninManager = IdentityServicesProvider.get().getSigninManager(mProfile);
         mSetTestToast = false;
         mOnSigninSuccessCallback = onSigninSuccessCallback;
         mSigninAccessPoint = signinAccessPoint;
+        mBottomSheetStrings =
+                bottomSheetStrings != null ? bottomSheetStrings : new BottomSheetStrings();
     }
 
     @Override
@@ -100,8 +107,9 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
     }
 
     public void show() {
-        mAccountPickerBottomSheetCoordinator = new AccountPickerBottomSheetCoordinator(
-                mWindowAndroid, mController, this, new BottomSheetStrings());
+        mAccountPickerBottomSheetCoordinator =
+                new AccountPickerBottomSheetCoordinator(mWindowAndroid, mController, this,
+                        mBottomSheetStrings, mDeviceLockActivityLauncher);
     }
 
     private void makeSigninNotAllowedToast() {
@@ -113,7 +121,6 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
                 .show();
     }
 
-    @VisibleForTesting
     public View getBottomSheetViewForTesting() {
         return mAccountPickerBottomSheetCoordinator.getBottomSheetViewForTesting();
     }
@@ -124,7 +131,6 @@ public class SigninBottomSheetCoordinator implements AccountPickerDelegate {
         this.mAccountPickerBottomSheetCoordinator = accountPickerBottomSheetCoordinator;
     }
 
-    @VisibleForTesting
     public void setToastOverrideForTesting() {
         this.mSetTestToast = true;
     }

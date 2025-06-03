@@ -64,6 +64,18 @@ class TestSharedImageBackingFactory : public SharedImageBackingFactory {
   }
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      std::string debug_label,
+      gfx::GpuMemoryBufferHandle handle) override {
+    return nullptr;
+  }
+  std::unique_ptr<SharedImageBacking> CreateSharedImage(
+      const Mailbox& mailbox,
       gfx::GpuMemoryBufferHandle handle,
       gfx::BufferFormat format,
       gfx::BufferPlane plane,
@@ -143,7 +155,7 @@ class CompoundImageBackingTest : public testing::Test {
     return CompoundImageBacking::CreateSharedMemory(
         &test_factory_, allow_shm_overlays, Mailbox::GenerateForSharedImage(),
         std::move(handle), buffer_format, gfx::BufferPlane::DEFAULT, size,
-        gfx::ColorSpace(), kBottomLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+        gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
         SHARED_IMAGE_USAGE_DISPLAY_READ, "TestLabel");
   }
 
@@ -163,7 +175,7 @@ class CompoundImageBackingTest : public testing::Test {
     return CompoundImageBacking::CreateSharedMemory(
         &test_factory_, allow_shm_overlays, Mailbox::GenerateForSharedImage(),
         std::move(handle), viz::MultiPlaneFormat::kNV12, size,
-        gfx::ColorSpace(), kBottomLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+        gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
         SHARED_IMAGE_USAGE_DISPLAY_READ, "TestLabel");
   }
 

@@ -30,9 +30,9 @@
 #include "ui/display/display_observer.h"
 #include "ui/display/manager/display_configurator.h"
 #include "ui/display/manager/display_manager_export.h"
-#include "ui/display/manager/display_manager_utilities.h"
 #include "ui/display/manager/managed_display_info.h"
 #include "ui/display/manager/touch_device_manager.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/tablet_state.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/unified_desktop_utils.h"
@@ -220,7 +220,7 @@ class DISPLAY_MANAGER_EXPORT DisplayManager
       float refresh_rate,
       bool is_interlaced,
       VariableRefreshRateState variable_refresh_rate_state,
-      const absl::optional<uint16_t>& vsync_rate_min);
+      const absl::optional<float>& vsync_rate_min);
 
   // Register stored rotation properties for the internal display.
   void RegisterDisplayRotationProperties(bool rotation_lock,
@@ -432,8 +432,7 @@ class DISPLAY_MANAGER_EXPORT DisplayManager
 
   // Used to emulate display change when run in a desktop environment instead
   // of on a device.
-  void AddRemoveDisplay(
-      ManagedDisplayInfo::ManagedDisplayModeList display_modes = {});
+  void AddRemoveDisplay();
   void ToggleDisplayScaleFactor();
 
   void InitConfigurator(std::unique_ptr<NativeDisplayDelegate> delegate);

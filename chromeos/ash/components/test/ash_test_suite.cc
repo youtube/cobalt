@@ -10,12 +10,10 @@
 #include "base/i18n/rtl.h"
 #include "base/path_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/skia/include/core/SkGraphics.h"
 #include "ui/aura/env.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/base/ui_base_paths.h"
-#include "ui/display/display_switches.h"
 #include "ui/gl/gl_switches.h"
 #include "ui/gl/test/gl_surface_test_support.h"
 #include "ui/lottie/resource.h"
@@ -34,7 +32,6 @@ void AshTestSuite::Initialize() {
   // in its own process
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
   cmd_line->AppendSwitch(switches::kOverrideUseSoftwareGLForTests);
-  cmd_line->AppendSwitch(switches::kRejectSquareDisplay);
 
   gl::GLSurfaceTestSupport::InitializeOneOff();
 
@@ -51,8 +48,6 @@ void AshTestSuite::Initialize() {
 
   base::DiscardableMemoryAllocator::SetInstance(&discardable_memory_allocator_);
   env_ = aura::Env::CreateInstance();
-
-  SkGraphics::SetPathAnalyticAADecider([](const SkPath&) { return true; });
 }
 
 void AshTestSuite::LoadTestResources() {
@@ -67,13 +62,13 @@ void AshTestSuite::LoadTestResources() {
       path.AppendASCII("ash_test_resources_unscaled.pak"),
       ui::kScaleFactorNone);
 
-  if (ui::ResourceBundle::IsScaleFactorSupported(ui::k100Percent)) {
+  if (ui::IsScaleFactorSupported(ui::k100Percent)) {
     base::FilePath ash_test_resources_100 =
         path.AppendASCII("ash_test_resources_100_percent.pak");
     ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(
         ash_test_resources_100, ui::k100Percent);
   }
-  if (ui::ResourceBundle::IsScaleFactorSupported(ui::k200Percent)) {
+  if (ui::IsScaleFactorSupported(ui::k200Percent)) {
     base::FilePath ash_test_resources_200 =
         path.Append(FILE_PATH_LITERAL("ash_test_resources_200_percent.pak"));
     ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(

@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial.h"
+#include "base/strings/strcat.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
@@ -29,10 +30,6 @@
 namespace safe_browsing {
 
 namespace {
-
-BASE_FEATURE(kTestCookieTheftFeature,
-             "TestCookieTheftFeature",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 std::unique_ptr<KeyedService> CreateTestSyncService(
     content::BrowserContext* context) {
@@ -186,8 +183,8 @@ TEST(GetUserPopulationForProfileTest, PopulatesUserAgent) {
   content::BrowserTaskEnvironment task_environment;
   TestingProfile profile;
   std::string user_agent =
-      version_info::GetProductNameAndVersionForUserAgent() + "/" +
-      version_info::GetOSType();
+      base::StrCat({version_info::GetProductNameAndVersionForUserAgent(), "/",
+                    version_info::GetOSType()});
   ChromeUserPopulation population = GetUserPopulationForProfile(&profile);
   EXPECT_EQ(population.user_agent(), user_agent);
 }
@@ -216,46 +213,6 @@ TEST(GetPageLoadTokenForURLTest, PopulatesExistingTokenValueForURL) {
   ChromeUserPopulation::PageLoadToken token =
       GetPageLoadTokenForURL(&profile, profile.GetHomePage());
   EXPECT_TRUE(token.has_token_value());
-}
-
-TEST(GetExperimentStatusTest, HasEnabled) {
-  base::FieldTrialList::CreateFieldTrial("TestCookieTheftFeature", "Enabled");
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitFromCommandLine(
-      "TestCookieTheftFeature<TestCookieTheftFeature.Enabled", "");
-
-  ChromeUserPopulation population;
-  GetExperimentStatus({&kTestCookieTheftFeature}, &population);
-
-  ASSERT_EQ(population.finch_active_groups_size(), 1);
-  EXPECT_EQ(population.finch_active_groups(0),
-            "TestCookieTheftFeature.Enabled");
-}
-
-TEST(GetExperimentStatusTest, HasControl) {
-  base::FieldTrialList::CreateFieldTrial("TestCookieTheftFeature", "Control");
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitFromCommandLine(
-      "TestCookieTheftFeature<TestCookieTheftFeature.Control", "");
-
-  ChromeUserPopulation population;
-  GetExperimentStatus({&kTestCookieTheftFeature}, &population);
-
-  ASSERT_EQ(population.finch_active_groups_size(), 1);
-  EXPECT_EQ(population.finch_active_groups(0),
-            "TestCookieTheftFeature.Control");
-}
-
-TEST(GetExperimentStatusTest, OmitsDefault) {
-  base::FieldTrialList::CreateFieldTrial("TestCookieTheftFeature", "Default");
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitFromCommandLine(
-      "TestCookieTheftFeature<TestCookieTheftFeature.Default", "");
-
-  ChromeUserPopulation population;
-  GetExperimentStatus({&kTestCookieTheftFeature}, &population);
-
-  ASSERT_EQ(population.finch_active_groups_size(), 0);
 }
 
 #if BUILDFLAG(IS_WIN)

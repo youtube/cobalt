@@ -17,7 +17,7 @@
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
 
-#include "ash/quick_pair/common/logging.h"
+#include "components/cross_device/logging/logging.h"
 
 using message_center::MessageCenter;
 using message_center::Notification;
@@ -131,8 +131,8 @@ class NotificationDelegate : public message_center::NotificationDelegate {
     // dismisses the notification to prevent the timer firing and removing
     // notifications that might come up later.
     if (expire_notification_timer_) {
-      QP_LOG(VERBOSE) << __func__
-                      << ": stopping expiration timer on notification close";
+      CD_LOG(VERBOSE, Feature::FP)
+          << __func__ << ": stopping expiration timer on notification close";
       expire_notification_timer_->Stop();
     }
 
@@ -155,7 +155,8 @@ class NotificationDelegate : public message_center::NotificationDelegate {
   base::RepeatingClosure on_primary_click_;
   base::RepeatingClosure on_secondary_click_;
   base::OnceCallback<void(FastPairNotificationDismissReason)> on_close_;
-  raw_ptr<base::OneShotTimer, ExperimentalAsh> expire_notification_timer_;
+  raw_ptr<base::OneShotTimer, DanglingUntriaged | ExperimentalAsh>
+      expire_notification_timer_;
 };
 
 FastPairNotificationController::FastPairNotificationController(
@@ -206,8 +207,8 @@ void FastPairNotificationController::ExtendNotification() {
   // point if the notification is for the same device, which means we reset the
   // timeout.
   if (expire_notification_timer_.IsRunning()) {
-    QP_LOG(INFO) << __func__
-                 << " extending notification for re-discovered device";
+    CD_LOG(INFO, Feature::FP)
+        << __func__ << " extending notification for re-discovered device";
     expire_notification_timer_.Reset();
   }
 }
@@ -357,6 +358,8 @@ void FastPairNotificationController::ShowApplicationAvailableNotification(
           message_center_);
   application_available_notification->set_title(l10n_util::GetStringFUTF16(
       IDS_FAST_PAIR_DOWNLOAD_NOTIFICATION_APP_TITLE, device_name));
+  application_available_notification->set_message(l10n_util::GetStringUTF16(
+      IDS_FAST_PAIR_DOWNLOAD_NOTIFICATION_APP_MESSAGE));
 
   message_center::ButtonInfo download_button(
       l10n_util::GetStringUTF16(IDS_FAST_PAIR_DOWNLOAD_APP_BUTTON));
@@ -366,10 +369,6 @@ void FastPairNotificationController::ShowApplicationAvailableNotification(
       base::MakeRefCounted<NotificationDelegate>(
           /*on_primary_click=*/download_app_callback,
           /*on_close=*/std::move(on_close)));
-  application_available_notification->set_type(
-      message_center::NOTIFICATION_TYPE_PROGRESS);
-  application_available_notification->set_progress(
-      kInfiniteLoadingProgressValue);
   application_available_notification->set_image(device_image);
 
   message_center_->AddNotification(
@@ -388,7 +387,9 @@ void FastPairNotificationController::ShowApplicationInstalledNotification(
           message_center::SystemNotificationWarningLevel::NORMAL,
           message_center_);
   application_installed_notification->set_title(l10n_util::GetStringFUTF16(
-      IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_TITLE, app_name));
+      IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_TITLE, device_name));
+  application_installed_notification->set_message(
+      l10n_util::GetStringUTF16(IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_MESSAGE));
 
   message_center::ButtonInfo setup_button(
       l10n_util::GetStringUTF16(IDS_FAST_PAIR_SETUP_APP_BUTTON));
@@ -398,10 +399,6 @@ void FastPairNotificationController::ShowApplicationInstalledNotification(
       base::MakeRefCounted<NotificationDelegate>(
           /*on_primary_click=*/launch_app_callback,
           /*on_close=*/std::move(on_close)));
-  application_installed_notification->set_type(
-      message_center::NOTIFICATION_TYPE_PROGRESS);
-  application_installed_notification->set_progress(
-      kInfiniteLoadingProgressValue);
   application_installed_notification->set_image(device_image);
 
   message_center_->AddNotification(

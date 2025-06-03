@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
@@ -21,12 +22,14 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_process_platform_part_test_api_chromeos.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
+#include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/user_manager.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/test/browser_test.h"
 
 namespace ash {
@@ -241,7 +244,6 @@ class DemoSessionLoginTest : public LoginManagerTest,
  public:
   DemoSessionLoginTest() {
     login_manager_mixin_.set_should_launch_browser(true);
-    scoped_feature_list_.InitAndEnableFeature(chromeos::features::kDemoModeSWA);
     BrowserList::AddObserver(this);
   }
 
@@ -310,7 +312,6 @@ class DemoSessionLoginTest : public LoginManagerTest,
   DeviceStateMixin device_state_mixin_{
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_DEMO_MODE};
   LocalStateMixin local_state_mixin_{&mixin_host_, this};
-  base::test::ScopedFeatureList scoped_feature_list_;
   base::OnceClosure on_browser_added_callback_;
   static constexpr double kInitialBrightness = 20.0;
   base::WeakPtrFactory<DemoSessionLoginTest> weak_ptr_factory_{this};
@@ -327,12 +328,19 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginTest, DemoSWALaunchesOnSessionStartup) {
   login_manager_mixin_.WaitForActiveSession();
   auto* profile = ProfileManager::GetActiveUserProfile();
   SystemWebAppManager::GetForTest(profile)->InstallSystemAppsForTesting();
-  WaitForBrowserAdded();
+  ui_test_utils::BrowserChangeObserver browser_opened(
+      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  browser_opened.Wait();
 
-  // Verify that the Demo SWA has been opened
-  Browser* demo_app_browser =
+  // Verify that Demo Mode App is opened.
+  Browser* app_browser =
       FindSystemWebAppBrowser(profile, SystemWebAppType::DEMO_MODE);
-  ASSERT_TRUE(demo_app_browser);
+  ASSERT_TRUE(app_browser);
+  content::WebContents* tab =
+      app_browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(tab);
+  EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
+            content::PAGE_TYPE_NORMAL);
 }
 
 IN_PROC_BROWSER_TEST_F(

@@ -7,7 +7,6 @@
 #include <cmath>
 
 #include "base/auto_reset.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/profiles/profile.h"
@@ -45,7 +44,7 @@
   int32_t _widgetRoutingId;
 
   // Responsible for 2-finger swipes history navigation.
-  base::scoped_nsobject<HistorySwiper> _historySwiper;
+  HistorySwiper* __strong _historySwiper;
 
   // A boolean set to true while resigning first responder status, to avoid
   // infinite recursion in the case of reentrance.
@@ -58,14 +57,13 @@
   if (self) {
     _widgetProcessId = renderWidgetHost->GetProcess()->GetID();
     _widgetRoutingId = renderWidgetHost->GetRoutingID();
-    _historySwiper.reset([[HistorySwiper alloc] initWithDelegate:self]);
+    _historySwiper = [[HistorySwiper alloc] initWithDelegate:self];
   }
   return self;
 }
 
 - (void)dealloc {
   [_historySwiper setDelegate:nil];
-  [super dealloc];
 }
 
 - (content::WebContents*)webContents {

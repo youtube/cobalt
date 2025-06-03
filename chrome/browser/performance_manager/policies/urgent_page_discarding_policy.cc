@@ -16,21 +16,28 @@
 #include "chrome/browser/lacros/lacros_memory_pressure_evaluator.h"
 #endif
 
-namespace performance_manager {
-namespace policies {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chromeos/ash/components/memory/pressure/system_memory_pressure_evaluator.h"
+#endif
+
+namespace performance_manager::policies {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
 absl::optional<uint64_t> GetReclaimTargetKB() {
   absl::optional<uint64_t> reclaim_target_kb = absl::nullopt;
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
   auto* evaluator = LacrosMemoryPressureEvaluator::Get();
+#elif BUILDFLAG(IS_CHROMEOS_ASH)
+  auto* evaluator = ash::memory::SystemMemoryPressureEvaluator::Get();
+#endif
   if (evaluator) {
     reclaim_target_kb = evaluator->GetCachedReclaimTargetKB();
   }
   return reclaim_target_kb;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -53,7 +60,7 @@ void UrgentPageDiscardingPolicy::OnTakenFromGraph(Graph* graph) {
   graph_ = nullptr;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
 void UrgentPageDiscardingPolicy::OnReclaimTarget(
     absl::optional<uint64_t> reclaim_target_kb) {
   PageDiscardingHelper::GetFromGraph(graph_)->DiscardMultiplePages(
@@ -66,7 +73,7 @@ void UrgentPageDiscardingPolicy::OnReclaimTarget(
           base::Unretained(this)),
       PageDiscardingHelper::DiscardReason::URGENT);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 void UrgentPageDiscardingPolicy::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel new_level) {
@@ -81,14 +88,20 @@ void UrgentPageDiscardingPolicy::OnMemoryPressure(
     return;
   }
 
+  // Don't discard a page if urgent discarding is disabled. The feature state is
+  // checked here instead of at policy creation time so that only clients that
+  // experience memory pressure are enrolled in the experiment.
+  if (!base::FeatureList::IsEnabled(
+          performance_manager::features::kUrgentPageDiscarding)) {
+    return;
+  }
+
   handling_memory_pressure_notification_ = true;
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
   // Chrome OS memory pressure evaluator provides the memory reclaim target to
   // leave critical memory pressure. When Chrome OS is under heavy memory
   // pressure, discards multiple tabs to meet the memory reclaim target.
-  // TODO(vovoy): Support Ash Chrome. Ash Chrome tab discarding is supported by
-  // TabManagerDelegate to discard tabs and kill ARC++ apps.
   content::GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
       FROM_HERE, base::BindOnce(GetReclaimTargetKB),
       base::BindOnce(&UrgentPageDiscardingPolicy::OnReclaimTarget,
@@ -108,8 +121,7 @@ void UrgentPageDiscardingPolicy::OnMemoryPressure(
           // to use Unretained.
           base::Unretained(this)),
       PageDiscardingHelper::DiscardReason::URGENT);
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
-}  // namespace policies
-}  // namespace performance_manager
+}  // namespace performance_manager::policies

@@ -40,8 +40,7 @@ class AutofillProvider : public content::WebContentsUserData<AutofillProvider> {
       const FormData& form,
       const FormFieldData& field,
       const gfx::RectF& bounding_box,
-      AutoselectFirstSuggestion autoselect_first_suggestion,
-      FormElementWasClicked form_element_was_clicked) = 0;
+      AutofillSuggestionTriggerSource trigger_source) = 0;
 
   virtual void OnTextFieldDidChange(AndroidAutofillManager* manager,
                                     const FormData& form,
@@ -78,13 +77,15 @@ class AutofillProvider : public content::WebContentsUserData<AutofillProvider> {
 
   virtual void OnHidePopup(AndroidAutofillManager* manager) = 0;
 
-  virtual void OnServerPredictionsAvailable(
-      AndroidAutofillManager* manager) = 0;
+  virtual void OnServerPredictionsAvailable(AndroidAutofillManager* manager,
+                                            FormGlobalId form) = 0;
 
   virtual void OnServerQueryRequestError(AndroidAutofillManager* manager,
                                          FormSignature form_signature) = 0;
 
-  virtual void Reset(AndroidAutofillManager* manager) = 0;
+  // Reacts to a reset or destruction of `manager`, e.g., by submitting forms
+  // for suspected navigations.
+  virtual void OnManagerResetOrDestroyed(AndroidAutofillManager* manager) = 0;
 
   // Returns autofilled state from AutofillProvider's cache.
   virtual bool GetCachedIsAutofilled(const FormFieldData& field) const = 0;
@@ -104,8 +105,6 @@ class AutofillProvider : public content::WebContentsUserData<AutofillProvider> {
   // WebContents takes the ownership of AutofillProvider.
   explicit AutofillProvider(content::WebContents* web_contents);
   friend class content::WebContentsUserData<AutofillProvider>;
-
-  content::WebContents* web_contents() { return &GetWebContents(); }
 
  private:
   WEB_CONTENTS_USER_DATA_KEY_DECL();

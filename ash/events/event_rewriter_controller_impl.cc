@@ -7,17 +7,20 @@
 #include <utility>
 
 #include "ash/accessibility/sticky_keys/sticky_keys_controller.h"
+#include "ash/constants/ash_features.h"
 #include "ash/display/mirror_window_controller.h"
 #include "ash/display/privacy_screen_controller.h"
 #include "ash/display/window_tree_host_manager.h"
 #include "ash/events/accessibility_event_rewriter.h"
 #include "ash/events/keyboard_driven_event_rewriter.h"
+#include "ash/events/peripheral_customization_event_rewriter.h"
 #include "ash/public/cpp/accessibility_event_rewriter_delegate.h"
 #include "ash/shell.h"
+#include "ash/system/input_device_settings/input_device_settings_controller_impl.h"
 #include "base/command_line.h"
-#include "ui/accessibility/accessibility_switches.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/events/ash/keyboard_device_id_event_rewriter.h"
 #include "ui/events/event_sink.h"
 #include "ui/events/event_source.h"
 
@@ -36,12 +39,13 @@ EventRewriterControllerImpl::EventRewriterControllerImpl() {
 
 EventRewriterControllerImpl::~EventRewriterControllerImpl() {
   aura::Env::GetInstance()->RemoveObserver(this);
-  // Remove the rewriters from every root window EventSource and destroy them.
-  for (const auto& rewriter : rewriters_) {
-    for (auto* window : Shell::GetAllRootWindows())
-      window->GetHost()->GetEventSource()->RemoveEventRewriter(rewriter.get());
+  // Remove the rewriters from every root window EventSource.
+  for (auto* window : Shell::GetAllRootWindows()) {
+    auto* event_source = window->GetHost()->GetEventSource();
+    for (const auto& rewriter : rewriters_) {
+      event_source->RemoveEventRewriter(rewriter.get());
+    }
   }
-  rewriters_.clear();
 }
 
 void EventRewriterControllerImpl::Initialize(
@@ -57,12 +61,26 @@ void EventRewriterControllerImpl::Initialize(
     privacy_screen_supported = true;
   }
 
+  auto keyboard_device_id_event_rewriter =
+      std::make_unique<ui::KeyboardDeviceIdEventRewriter>(
+          Shell::Get()->keyboard_capability());
+
   event_rewriter_ash_delegate_ = event_rewriter_delegate;
   std::unique_ptr<ui::EventRewriterAsh> event_rewriter_ash =
       std::make_unique<ui::EventRewriterAsh>(
           event_rewriter_delegate, Shell::Get()->keyboard_capability(),
           Shell::Get()->sticky_keys_controller(), privacy_screen_supported);
   event_rewriter_ash_ = event_rewriter_ash.get();
+
+  std::unique_ptr<PeripheralCustomizationEventRewriter>
+      peripheral_customization_event_rewriter;
+  if (features::IsPeripheralCustomizationEnabled()) {
+    peripheral_customization_event_rewriter =
+        std::make_unique<PeripheralCustomizationEventRewriter>(
+            Shell::Get()->input_device_settings_controller());
+    peripheral_customization_event_rewriter_ =
+        peripheral_customization_event_rewriter.get();
+  }
 
   std::unique_ptr<AccessibilityEventRewriter> accessibility_event_rewriter =
       std::make_unique<AccessibilityEventRewriter>(
@@ -71,7 +89,11 @@ void EventRewriterControllerImpl::Initialize(
 
   // EventRewriters are notified in the order they are added.
   AddEventRewriter(std::move(accessibility_event_rewriter));
+  if (features::IsPeripheralCustomizationEnabled()) {
+    AddEventRewriter(std::move(peripheral_customization_event_rewriter));
+  }
   AddEventRewriter(std::move(keyboard_driven_event_rewriter));
+  AddEventRewriter(std::move(keyboard_device_id_event_rewriter));
   AddEventRewriter(std::move(event_rewriter_ash));
 }
 

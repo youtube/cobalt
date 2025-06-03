@@ -12,19 +12,20 @@ import {constants} from '../../../common/constants.js';
 import {WrappingCursor} from '../../../common/cursors/cursor.js';
 import {CursorRange} from '../../../common/cursors/range.js';
 import {LocalStorage} from '../../../common/local_storage.js';
-import {Command} from '../../common/command_store.js';
+import {Command} from '../../common/command.js';
 import {ChromeVoxEvent, CustomAutomationEvent} from '../../common/custom_automation_event.js';
 import {EventSourceType} from '../../common/event_source_type.js';
 import {Msgs} from '../../common/msgs.js';
-import {QueueMode, TtsCategory} from '../../common/tts_types.js';
+import {Personality, QueueMode, TtsCategory} from '../../common/tts_types.js';
 import {AutoScrollHandler} from '../auto_scroll_handler.js';
 import {AutomationObjectConstructorInstaller} from '../automation_object_constructor_installer.js';
 import {ChromeVox} from '../chromevox.js';
 import {ChromeVoxRange} from '../chromevox_range.js';
 import {ChromeVoxState} from '../chromevox_state.js';
-import {CommandHandlerInterface} from '../command_handler_interface.js';
-import {TextEditHandler} from '../editing/editing.js';
+import {TextEditHandler} from '../editing/text_edit_handler.js';
 import {EventSource} from '../event_source.js';
+import {CommandHandlerInterface} from '../input/command_handler_interface.js';
+import {LiveRegions} from '../live_regions.js';
 import {Output} from '../output/output.js';
 import {OutputCustomEvent} from '../output/output_types.js';
 
@@ -72,16 +73,6 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     /** @private {string} */
     this.lastAlertText_ = '';
 
-    /**
-     * The last time we handled a live region changed event.
-     * @type {!Date}
-     * @private
-     */
-    this.liveRegionChange_ = new Date();
-
-    /** @private {string}*/
-    this.lastLiveRegionChangeText_ = '';
-
     /** @private {string} */
     this.lastRootUrl_ = '';
 
@@ -113,7 +104,9 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     // Note that live region changes from views are really announcement
     // events. Their target nodes contain no live region semantics and have no
     // relation to live regions which are supported in |LiveRegions|.
-    this.addListener_(EventType.LIVE_REGION_CHANGED, this.onLiveRegionChanged);
+    this.addListener_(
+        EventType.LIVE_REGION_CHANGED,
+        event => this.onLiveRegionChanged_(event));
 
     this.addListener_(EventType.LOAD_COMPLETE, this.onLoadComplete);
     this.addListener_(EventType.FOCUS_AFTER_MENU_CLOSE, this.onMenuEnd);
@@ -141,6 +134,7 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     this.addListener_(
         EventType.AUTOFILL_AVAILABILITY_CHANGED,
         this.onAutofillAvailabilityChanged);
+    this.addListener_(EventType.ORIENTATION_CHANGED, this.onOrientationChanged);
 
     await AutomationObjectConstructorInstaller.init(node);
     const focus = await AsyncUtil.getFocus();
@@ -229,9 +223,15 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
     }
 
     const range = CursorRange.fromNode(node);
-    const output = new Output()
-                       .withSpeechCategory(TtsCategory.LIVE)
-                       .withSpeechAndBraille(range, null, evt.type);
+    const output = new Output();
+    // Whenever chromevox is running together with dictation, we want to
+    // announce the hints provided by the Dictation feature in a different voice
+    // to differentiate them from regular UI text.
+    if (node.className === 'DictationHintView') {
+      output.withInitialSpeechProperties(Personality.DICTATION_HINT);
+    }
+    output.withSpeechCategory(TtsCategory.LIVE)
+        .withSpeechAndBraille(range, null, evt.type);
 
     const alertDelayMet = new Date() - this.lastAlertTime_ >
         DesktopAutomationHandler.MIN_ALERT_DELAY_MS;
@@ -361,37 +361,10 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
 
   /**
    * @param {!ChromeVoxEvent} evt
+   * @private
    */
-  onLiveRegionChanged(evt) {
-    if (evt.target.root.role === RoleType.DESKTOP ||
-        evt.target.root.role === RoleType.APPLICATION) {
-      if (evt.target.containerLiveStatus !== 'assertive' &&
-          evt.target.containerLiveStatus !== 'polite') {
-        return;
-      }
-
-      const output = new Output();
-      if (evt.target.containerLiveStatus === 'assertive') {
-        output.withQueueMode(QueueMode.CATEGORY_FLUSH);
-      } else {
-        output.withQueueMode(QueueMode.QUEUE);
-      }
-      const liveRegionChange = (new Date() - this.liveRegionChange_) <
-          DesktopAutomationHandler.LIVE_REGION_DELAY_MS;
-
-      output
-          .withRichSpeechAndBraille(
-              CursorRange.fromNode(evt.target), null, evt.type)
-          .withSpeechCategory(TtsCategory.LIVE);
-      if (liveRegionChange &&
-          output.toString() === this.lastLiveRegionChangeText_) {
-        return;
-      }
-
-      this.liveRegionChange_ = new Date();
-      this.lastLiveRegionChangeText_ = output.toString();
-      output.go();
-    }
+  onLiveRegionChanged_(evt) {
+    LiveRegions.announceDesktopLiveRegionChanged(evt.target);
   }
 
   /**
@@ -399,15 +372,6 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
    * @param {!ChromeVoxEvent} evt
    */
   onLoadComplete(evt) {
-    // A load complete gets fired on the desktop node when display metrics
-    // change.
-    if (evt.target.role === RoleType.DESKTOP) {
-      const msg = evt.target.state[StateType.HORIZONTAL] ? 'device_landscape' :
-                                                           'device_portrait';
-      new Output().format('@' + msg).go();
-      return;
-    }
-
     // We are only interested in load completes on valid top level roots.
     const top = AutomationUtil.getTopLevelRoot(evt.target);
     if (!top || top !== evt.target.root || !top.docUrl) {
@@ -745,7 +709,8 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
           target.className === 'PopupBaseView' ||
           target.className === 'PopupCellView' ||
           target.className ===
-              'PasswordGenerationPopupViewViews::GeneratedPasswordBox') {
+              'PasswordGenerationPopupViewViews::GeneratedPasswordBox' ||
+          target.className === 'PopupCellWithButtonView') {
         override = true;
       }
 
@@ -823,6 +788,20 @@ export class DesktopAutomationHandler extends DesktopAutomationInterface {
           .withLocation(currentRange, null, evt.type)
           .withQueueMode(QueueMode.QUEUE)
           .go();
+    }
+  }
+
+  /**
+   * Handles orientation changes on the desktop node.
+   * @param {!ChromeVoxEvent} evt
+   */
+  onOrientationChanged(evt) {
+    // Changes on display metrics result in the desktop node's
+    // vertical/horizontal states changing.
+    if (evt.target.role === RoleType.DESKTOP) {
+      const msg = evt.target.state[StateType.HORIZONTAL] ? 'device_landscape' :
+                                                           'device_portrait';
+      new Output().format('@' + msg).go();
     }
   }
 
@@ -955,13 +934,6 @@ DesktopAutomationHandler.MIN_VALUE_CHANGE_DELAY_MS = 50;
  * @const {number}
  */
 DesktopAutomationHandler.MIN_ALERT_DELAY_MS = 50;
-
-/**
- * Time to wait until processing more live region change events on the same
- * text content.
- * @const {number}
- */
-DesktopAutomationHandler.LIVE_REGION_DELAY_MS = 100;
 
 /**
  * Time to wait before announcing attribute changes that are otherwise too

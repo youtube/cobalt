@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/services/screen_ai/proto/main_content_extractor_proto_convertor.h"
+#include "build/build_config.h"
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -10,7 +11,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
-#include "components/services/screen_ai/proto/test_proto_loader.h"
+#include "base/test/test_proto_loader.h"
 #include "components/services/screen_ai/proto/view_hierarchy.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -25,12 +26,13 @@ namespace {
 // Set to 'true' to get debug protos.
 #define WRITE_DEBUG_PROTO false
 
-// TODO(crbug.com/1278249): Name test files with more context. E.g. what is it
+// TODO(crbug.com/1341655): Name test files with more context. E.g. what is it
 // testing? Which site is it? etc.
 // Test definitions for ProtoConvertorViewHierarchyTest.
 constexpr int kProtoConversionTestCasesCount = 5;
-const char* kProtoConversionSampleInputFileNameFormat = "sample%i_ax_tree.json";
-const char* kProtoConversionSampleExpectedFileNameFormat =
+constexpr char kProtoConversionSampleInputFileNameFormat[] =
+    "sample%i_ax_tree.json";
+constexpr char kProtoConversionSampleExpectedFileNameFormat[] =
     "sample%i_expected_proto.pbtxt";
 
 // A dummy tree node definition for PreOrderTreeGeneration.
@@ -99,7 +101,7 @@ void ExpectBoundingBoxes(const T& box1,
   EXPECT_NEAR(box1.right(), box2.right(), max_diff.x());
 }
 
-// TODO(https://crbug.com/1278249): Consider making the comparison not sensitive
+// TODO(https://crbug.com/1341655): Consider making the comparison not sensitive
 // to order.
 template <class T>
 void ExpectLists(const T& list1, const T& list2) {
@@ -213,7 +215,7 @@ void ExpectViewHierarchyProtos(screenai::ViewHierarchy& generated,
         attribute_indices_map.erase(expected_attrib_index);
         continue;
       }
-      // TODO(https://crbug.com/1278249): Follow up why visibility is
+      // TODO(https://crbug.com/1341655): Follow up why visibility is
       // sometimes not passed.
       if (generated_attrib.name() != "/extras/styles/visibility")
         EXPECT_TRUE(attribute_found_in_expected) << generated_attrib.name();
@@ -223,6 +225,30 @@ void ExpectViewHierarchyProtos(screenai::ViewHierarchy& generated,
 
     EXPECT_EQ(expected_attributes_count, generated_uie.attributes_size());
   }
+}
+
+bool LoadTextProto(const base::FilePath& proto_file_path,
+                   const char* proto_descriptor_relative_file_path,
+                   google::protobuf::MessageLite& proto) {
+  std::string file_content;
+  if (!base::ReadFileToString(proto_file_path, &file_content)) {
+    LOG(ERROR) << "Failed to read expected proto from: " << proto_file_path;
+    return false;
+  }
+
+  base::FilePath descriptor_full_path;
+  if (!base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT,
+                              &descriptor_full_path)) {
+    LOG(ERROR) << "Generated test data root not found!";
+    return false;
+  }
+  descriptor_full_path =
+      descriptor_full_path.AppendASCII(proto_descriptor_relative_file_path);
+
+  base::TestProtoLoader loader(descriptor_full_path, proto.GetTypeName());
+  std::string serialized_message;
+  loader.ParseFromText(file_content, serialized_message);
+  return proto.ParseFromString(serialized_message);
 }
 
 }  // namespace
@@ -297,7 +323,12 @@ INSTANTIATE_TEST_SUITE_P(MainContentExtractorProtoConvertorTest,
                          ProtoConvertorViewHierarchyTest,
                          testing::Range(0, kProtoConversionTestCasesCount));
 
-TEST_P(ProtoConvertorViewHierarchyTest, AxTreeJsonToProtoTest) {
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_AxTreeJsonToProtoTest DISABLED_AxTreeJsonToProtoTest
+#else
+#define MAYBE_AxTreeJsonToProtoTest AxTreeJsonToProtoTest
+#endif
+TEST_P(ProtoConvertorViewHierarchyTest, MAYBE_AxTreeJsonToProtoTest) {
   const base::FilePath kInputJsonPath = GetInputFilePath();
   const base::FilePath kExpectedProtoPath = GetExpectedFilePath();
 
@@ -309,9 +340,11 @@ TEST_P(ProtoConvertorViewHierarchyTest, AxTreeJsonToProtoTest) {
   ASSERT_TRUE(json.has_value());
 
   // Convert JSON file to AX tree update.
+  const std::map<std::string, ax::mojom::Role>
+      content_extraction_to_chrome_roles =
+          GetMainContentExtractorToChromeRoleConversionMapForTesting();
   ui::AXTreeUpdate tree_update = ui::AXTreeUpdateFromJSON(
-      json.value(),
-      &GetMainContentExtractorToChromeRoleConversionMapForTesting());
+      json.value(), &content_extraction_to_chrome_roles);
   ASSERT_GT(tree_update.nodes.size(), 0u);
 
   // Convert AX Tree to Screen2x proto.
@@ -326,9 +359,9 @@ TEST_P(ProtoConvertorViewHierarchyTest, AxTreeJsonToProtoTest) {
 
   // Load expected Proto.
   screenai::ViewHierarchy expected_view_hierarchy;
-  ASSERT_TRUE(test_proto_loader::TestProtoLoader::LoadTextProto(
+  ASSERT_TRUE(LoadTextProto(
       kExpectedProtoPath,
-      "gen/components/services/screen_ai/proto/view_hierarchy.descriptor",
+      "components/services/screen_ai/proto/view_hierarchy.descriptor",
       expected_view_hierarchy));
 
   // Compare protos.

@@ -5,7 +5,7 @@
 #include "chrome/browser/ui/webui/settings/privacy_sandbox_handler.h"
 
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
+#include "chrome/browser/privacy_sandbox/mock_privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/test/base/testing_profile.h"
@@ -26,39 +26,7 @@ using Topic = browsing_topics::Topic;
 constexpr char kCallbackId1[] = "test-callback-id";
 constexpr char kCallbackId2[] = "test-callback-id-2";
 
-class MockPrivacySandboxService : public PrivacySandboxService {
- public:
-  MOCK_METHOD(void,
-              GetFledgeJoiningEtldPlusOneForDisplay,
-              (base::OnceCallback<void(std::vector<std::string>)>),
-              (override));
-  MOCK_METHOD(std::vector<std::string>,
-              GetBlockedFledgeJoiningTopFramesForDisplay,
-              (),
-              (const override));
-  MOCK_METHOD(void,
-              SetFledgeJoiningAllowed,
-              ((const std::string&), bool),
-              (const override));
-  MOCK_METHOD(std::vector<privacy_sandbox::CanonicalTopic>,
-              GetCurrentTopTopics,
-              (),
-              (const override));
-  MOCK_METHOD(std::vector<privacy_sandbox::CanonicalTopic>,
-              GetBlockedTopics,
-              (),
-              (const override));
-  MOCK_METHOD(void,
-              SetTopicAllowed,
-              (privacy_sandbox::CanonicalTopic, bool),
-              (override));
-  MOCK_METHOD(void, TopicsToggleChanged, (bool), (const override));
-};
-
-std::unique_ptr<KeyedService> BuildMockPrivacySandboxService(
-    content::BrowserContext* context) {
-  return std::make_unique<::testing::StrictMock<MockPrivacySandboxService>>();
-}
+constexpr int kTestTaxonomyVersion = 1;
 
 void ValidateFledgeInfo(content::TestWebUI* web_ui,
                         std::string expected_callback_id,
@@ -220,8 +188,8 @@ TEST_F(PrivacySandboxHandlerTestMockService, GetFledgeState) {
 TEST_F(PrivacySandboxHandlerTestMockService, SetTopicAllowed) {
   // Confirm that the handler correctly constructs the CanonicalTopic and
   // passes it to the PrivacySandboxService.
-  const privacy_sandbox::CanonicalTopic kTestTopic(
-      Topic(1), privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY);
+  const privacy_sandbox::CanonicalTopic kTestTopic(Topic(1),
+                                                   kTestTaxonomyVersion);
   EXPECT_CALL(*mock_privacy_sandbox_service(),
               SetTopicAllowed(kTestTopic, false))
       .Times(1);
@@ -234,15 +202,11 @@ TEST_F(PrivacySandboxHandlerTestMockService, SetTopicAllowed) {
 
 TEST_F(PrivacySandboxHandlerTestMockService, GetTopicsState) {
   const std::vector<privacy_sandbox::CanonicalTopic> kBlockedTopics = {
-      privacy_sandbox::CanonicalTopic(
-          Topic(1), privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY),
-      privacy_sandbox::CanonicalTopic(
-          Topic(2), privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY)};
+      privacy_sandbox::CanonicalTopic(Topic(1), kTestTaxonomyVersion),
+      privacy_sandbox::CanonicalTopic(Topic(2), kTestTaxonomyVersion)};
   const std::vector<privacy_sandbox::CanonicalTopic> kTopTopics = {
-      privacy_sandbox::CanonicalTopic(
-          Topic(3), privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY),
-      privacy_sandbox::CanonicalTopic(
-          Topic(4), privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY)};
+      privacy_sandbox::CanonicalTopic(Topic(3), kTestTaxonomyVersion),
+      privacy_sandbox::CanonicalTopic(Topic(4), kTestTaxonomyVersion)};
 
   EXPECT_CALL(*mock_privacy_sandbox_service(), GetCurrentTopTopics())
       .Times(1)

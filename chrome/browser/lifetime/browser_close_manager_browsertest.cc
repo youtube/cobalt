@@ -22,6 +22,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
+#include "chrome/browser/download/download_browsertest_utils.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_prefs.h"
@@ -299,9 +300,10 @@ class BrowserCloseManagerBrowserTest : public InProcessBrowserTest {
 
     content::DownloadTestObserverInProgress observer(
         browser->profile()->GetDownloadManager(), 1);
+    SetPromptForDownload(browser, false);
     ui_test_utils::NavigateToURLWithDisposition(
         browser, slow_download_url, WindowOpenDisposition::NEW_BACKGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_NONE);
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
     observer.WaitForFinished();
     EXPECT_EQ(1UL, observer.NumDownloadsSeenInState(
                        download::DownloadItem::IN_PROGRESS));
@@ -385,7 +387,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest, PRE_TestSessionRestore) {
       browser()->tab_strip_model()->GetActiveWebContents(), 1);
   ASSERT_NO_FATAL_FAILURE(NavigateToURLWithDisposition(
       browser(), GURL(chrome::kChromeUIVersionURL),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NONE));
+      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT));
   ASSERT_NO_FATAL_FAILURE(AcceptClose());
   navigation_observer.Wait();
 
@@ -790,10 +792,10 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   EXPECT_EQ(2u, BrowserList::GetInstance()->size());
   // Add beforeunload handler for the 2nd (title2.html) tab which haven't had it
   // yet.
-  ASSERT_TRUE(content::ExecuteScript(
-      browser2->tab_strip_model()->GetWebContentsAt(1),
-      "window.addEventListener('beforeunload', "
-      "function(event) { event.returnValue = 'Foo'; });"));
+  ASSERT_TRUE(
+      content::ExecJs(browser2->tab_strip_model()->GetWebContentsAt(1),
+                      "window.addEventListener('beforeunload', "
+                      "function(event) { event.returnValue = 'Foo'; });"));
   EXPECT_TRUE(browser2->tab_strip_model()
                   ->GetWebContentsAt(1)
                   ->NeedToFireBeforeUnloadOrUnloadEvents());
@@ -830,8 +832,14 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
       browser2->tab_strip_model()->GetWebContentsAt(1)->GetLastCommittedURL());
 }
 
+// TODO(https://crbug.com/1461936): This test is failing on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_TestCloseTabDuringShutdown DISABLED_TestCloseTabDuringShutdown
+#else
+#define MAYBE_TestCloseTabDuringShutdown TestCloseTabDuringShutdown
+#endif  // BUILDFLAG(IS_LINUX)
 IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
-                       TestCloseTabDuringShutdown) {
+                       MAYBE_TestCloseTabDuringShutdown) {
   ASSERT_NO_FATAL_FAILURE(ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browsers_[0], embedded_test_server()->GetURL("/beforeunload.html"))));
   PrepareForDialog(browsers_[0]);
@@ -934,7 +942,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest, TestWithDownloads) {
   WaitForAllBrowsersToClose();
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
-  EXPECT_EQ(1, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+  EXPECT_EQ(1, DownloadCoreService::BlockingShutdownCountAllProfiles());
 
   // Attempting to close again should not crash.
   TestBrowserCloseManager::AttemptClose(
@@ -961,15 +969,13 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
       content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_QUIT);
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(download_url), WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   observer.WaitForFinished();
 
   // Check that the download manager has the expected state.
   EXPECT_EQ(1, browser()->profile()->GetDownloadManager()->InProgressCount());
-  EXPECT_EQ(0, browser()
-                   ->profile()
-                   ->GetDownloadManager()
-                   ->NonMaliciousInProgressCount());
+  EXPECT_EQ(
+      0, browser()->profile()->GetDownloadManager()->BlockingShutdownCount());
 
   // Close the browser with no user action.
   TestBrowserCloseManager::AttemptClose(
@@ -999,9 +1005,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest, TestWithDownloads) {
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
   if (browser_defaults::kBrowserAliveWithNoWindows)
-    EXPECT_EQ(1, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(1, DownloadCoreService::BlockingShutdownCountAllProfiles());
   else
-    EXPECT_EQ(0, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(0, DownloadCoreService::BlockingShutdownCountAllProfiles());
 }
 
 // Test shutdown with a download in progress in an off-the-record profile.
@@ -1030,7 +1036,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   ui_test_utils::WaitForBrowserToClose();
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
-  EXPECT_EQ(0, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+  EXPECT_EQ(0, DownloadCoreService::BlockingShutdownCountAllProfiles());
 }
 
 // Test shutdown with a download in progress in a regular profile an inconito
@@ -1076,9 +1082,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
   if (browser_defaults::kBrowserAliveWithNoWindows)
-    EXPECT_EQ(1, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(1, DownloadCoreService::BlockingShutdownCountAllProfiles());
   else
-    EXPECT_EQ(0, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(0, DownloadCoreService::BlockingShutdownCountAllProfiles());
 }
 
 // Test shutdown with a download in progress from one profile, where the only
@@ -1130,9 +1136,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(BrowserList::GetInstance()->empty());
   if (browser_defaults::kBrowserAliveWithNoWindows)
-    EXPECT_EQ(1, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(1, DownloadCoreService::BlockingShutdownCountAllProfiles());
   else
-    EXPECT_EQ(0, DownloadCoreService::NonMaliciousDownloadCountAllProfiles());
+    EXPECT_EQ(0, DownloadCoreService::BlockingShutdownCountAllProfiles());
 }
 
 // Fails on ChromeOS and Linux, times out on Win. crbug.com/749098

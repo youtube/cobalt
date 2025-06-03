@@ -12,7 +12,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.permissions.PermissionTestRule.PermissionUpdateWaiter;
@@ -26,15 +25,13 @@ import org.chromium.device.geolocation.MockLocationProvider;
 /**
  * Test suite for Geo-Location functionality.
  *
- * These tests rely on the device being specially setup (which the bots do automatically):
- * - Global location is enabled.
- * - Google location is enabled.
+ * <p>These tests rely on the device being specially setup (which the bots do automatically): -
+ * Global location is enabled. - Google location is enabled.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class GeolocationTest {
-    @Rule
-    public PermissionTestRule mPermissionRule = new PermissionTestRule();
+    @Rule public PermissionTestRule mPermissionRule = new PermissionTestRule();
 
     private static final String TEST_FILE = "/content/test/data/android/geolocation.html";
 
@@ -60,6 +57,7 @@ public class GeolocationTest {
 
     /**
      * Verify Geolocation creates a dialog and receives a mock location.
+     *
      * @throws Exception
      */
     @Test
@@ -70,13 +68,13 @@ public class GeolocationTest {
     }
 
     /**
-     * Verify Geolocation creates a dialog and receives a mock location when dialogs are
-     * enabled and there is no user gesture.
+     * Verify Geolocation creates a dialog and receives a mock location when dialogs are enabled and
+     * there is no user gesture.
+     *
      * @throws Exception
      */
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/1441822")
     @Feature({"Location", "Main"})
     public void testGeolocationPlumbingAllowedDialogNoGesture() throws Exception {
         runTest("initiate_getCurrentPosition()", 1, false, true);
@@ -84,6 +82,7 @@ public class GeolocationTest {
 
     /**
      * Verify Geolocation creates a dialog and receives multiple locations.
+     *
      * @throws Exception
      */
     @Test

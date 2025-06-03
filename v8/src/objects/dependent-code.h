@@ -9,6 +9,7 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -77,10 +78,16 @@ class DependentCode : public WeakArrayList {
                                          DependencyGroups groups);
 
   template <typename ObjectT>
-  static bool MarkCodeForDeoptimization(Isolate* isolate, ObjectT object,
+  static void DeoptimizeDependencyGroups(Isolate* isolate,
+                                         Tagged<ObjectT> object,
+                                         DependencyGroups groups);
+
+  template <typename ObjectT>
+  static bool MarkCodeForDeoptimization(Isolate* isolate,
+                                        Tagged<ObjectT> object,
                                         DependencyGroups groups);
 
-  V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(
+  V8_EXPORT_PRIVATE static Tagged<DependentCode> empty_dependent_code(
       const ReadOnlyRoots& roots);
   static constexpr RootIndex kEmptyDependentCode =
       RootIndex::kEmptyWeakArrayList;
@@ -93,7 +100,7 @@ class DependentCode : public WeakArrayList {
 
  private:
   // Get/Set {object}'s {DependentCode}.
-  static DependentCode GetDependentCode(HeapObject object);
+  static Tagged<DependentCode> GetDependentCode(Tagged<HeapObject> object);
   static void SetDependentCode(Handle<HeapObject> object,
                                Handle<DependentCode> dep);
 
@@ -109,7 +116,8 @@ class DependentCode : public WeakArrayList {
 
   // The callback is called for all non-cleared entries, and should return true
   // iff the current entry should be cleared.
-  using IterateAndCompactFn = std::function<bool(Code, DependencyGroups)>;
+  using IterateAndCompactFn =
+      std::function<bool(Tagged<Code>, DependencyGroups)>;
   void IterateAndCompact(const IterateAndCompactFn& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and

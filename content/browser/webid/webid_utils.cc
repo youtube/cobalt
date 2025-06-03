@@ -5,12 +5,20 @@
 #include "content/browser/webid/webid_utils.h"
 
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
+#include "components/url_formatter/elide_url.h"
+#include "components/url_formatter/url_formatter.h"
+#include "content/browser/renderer_host/frame_tree_node.h"
+#include "content/browser/runtime_feature_state/runtime_feature_state_document_data.h"
 #include "content/browser/webid/fedcm_metrics.h"
 #include "content/browser/webid/flags.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/federated_identity_permission_context_delegate.h"
 #include "content/public/common/web_identity.h"
 #include "net/base/net_errors.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/base/url_util.h"
+
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "url/origin.h"
@@ -19,9 +27,49 @@ using blink::mojom::FederatedAuthRequestResult;
 
 namespace content::webid {
 
+bool IsSameOriginWithAncestors(const url::Origin& origin,
+                               RenderFrameHost* render_frame_host) {
+  while (render_frame_host) {
+    if (!origin.IsSameOriginWith(render_frame_host->GetLastCommittedOrigin())) {
+      return false;
+    }
+    render_frame_host = render_frame_host->GetParent();
+  }
+  return true;
+}
+
 void SetIdpSigninStatus(content::BrowserContext* context,
+                        int frame_tree_node_id,
                         const url::Origin& origin,
                         blink::mojom::IdpSigninStatus status) {
+  FrameTreeNode* frame_tree_node = nullptr;
+  // frame_tree_node_id may be invalid if we are loading the first frame
+  // of the tab.
+  if (frame_tree_node_id != FrameTreeNode::kFrameTreeNodeInvalidId) {
+    frame_tree_node = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
+    // If the id was not kFrameTreeNodeInvalidId, but the lookup failed, we
+    // ignore the load because we cannot do same-origin checks.
+    if (!frame_tree_node) {
+      RecordSetLoginStatusIgnoredReason(
+          FedCmSetLoginStatusIgnoredReason::kFrameTreeLookupFailed);
+      return;
+    }
+  }
+  // Make sure we're same-origin with our ancestors.
+  if (frame_tree_node) {
+    if (frame_tree_node->IsInFencedFrameTree()) {
+      RecordSetLoginStatusIgnoredReason(
+          FedCmSetLoginStatusIgnoredReason::kInFencedFrame);
+      return;
+    }
+
+    if (!IsSameOriginWithAncestors(origin, frame_tree_node->parent())) {
+      RecordSetLoginStatusIgnoredReason(
+          FedCmSetLoginStatusIgnoredReason::kCrossOrigin);
+      return;
+    }
+  }
+
   auto* delegate = context->GetFederatedIdentityPermissionContext();
   if (!delegate) {
     // The embedder may not have a delegate (e.g. webview)
@@ -52,37 +100,40 @@ absl::optional<std::string> ComputeConsoleMessageForHttpResponseCode(
       endpoint_name, http_response_code);
 }
 
-bool IsEndpointUrlValid(const GURL& identity_provider_config_url,
-                        const GURL& endpoint_url) {
+bool IsEndpointSameOrigin(const GURL& identity_provider_config_url,
+                          const GURL& endpoint_url) {
   return url::Origin::Create(identity_provider_config_url)
       .IsSameOriginWith(endpoint_url);
 }
 
 bool ShouldFailAccountsEndpointRequestBecauseNotSignedInWithIdp(
+    RenderFrameHost& host,
     const GURL& identity_provider_config_url,
     FederatedIdentityPermissionContextDelegate* permission_delegate) {
-  if (GetFedCmIdpSigninStatusMode() == FedCmIdpSigninStatusMode::DISABLED) {
+  const url::Origin idp_origin =
+      url::Origin::Create(identity_provider_config_url);
+  if (webid::GetIdpSigninStatusMode(host, idp_origin) ==
+      FedCmIdpSigninStatusMode::DISABLED) {
     return false;
   }
 
-  const url::Origin idp_origin =
-      url::Origin::Create(identity_provider_config_url);
   const absl::optional<bool> idp_signin_status =
       permission_delegate->GetIdpSigninStatus(idp_origin);
   return !idp_signin_status.value_or(true);
 }
 
 void UpdateIdpSigninStatusForAccountsEndpointResponse(
+    RenderFrameHost& host,
     const GURL& identity_provider_config_url,
     IdpNetworkRequestManager::FetchStatus fetch_status,
     bool does_idp_have_failing_signin_status,
     FederatedIdentityPermissionContextDelegate* permission_delegate,
     FedCmMetrics* metrics) {
-  if (GetFedCmIdpSigninStatusMode() == FedCmIdpSigninStatusMode::DISABLED) {
+  url::Origin idp_origin = url::Origin::Create(identity_provider_config_url);
+  if (webid::GetIdpSigninStatusMode(host, idp_origin) ==
+      FedCmIdpSigninStatusMode::DISABLED) {
     return;
   }
-
-  url::Origin idp_origin = url::Origin::Create(identity_provider_config_url);
 
   // Record metrics on effect of IDP sign-in status API.
   const absl::optional<bool> idp_signin_status =
@@ -205,6 +256,16 @@ std::string GetConsoleErrorMessageFromResult(
     case FederatedAuthRequestResult::kErrorFetchingIdTokenInvalidResponse: {
       return "Provider's token is invalid.";
     }
+    case FederatedAuthRequestResult::kErrorFetchingIdTokenIdpErrorResponse: {
+      return "Provider is unable to issue a token, but provided details on the "
+             "error that occurred.";
+    }
+    case FederatedAuthRequestResult::
+        kErrorFetchingIdTokenCrossSiteIdpErrorResponse: {
+      return "Provider is unable to issue a token, but provided details on the "
+             "error that occurred. The error URL must be same-site with the "
+             "config URL.";
+    }
     case FederatedAuthRequestResult::kErrorFetchingIdTokenInvalidContentType: {
       return "Provider's token endpoint content type must be a JSON content "
              "type.";
@@ -214,6 +275,20 @@ std::string GetConsoleErrorMessageFromResult(
     }
     case FederatedAuthRequestResult::kErrorRpPageNotVisible: {
       return "RP page is not visible.";
+    }
+    case FederatedAuthRequestResult::kErrorSilentMediationFailure: {
+      return "Silent mediation was requested, but the conditions to achieve it "
+             "were not met.";
+    }
+    case FederatedAuthRequestResult::kErrorThirdPartyCookiesBlocked: {
+      return "Third party cookies are blocked. Right now the Chromium "
+             "implementation of FedCM API requires third party cookies and "
+             "this restriction will be removed soon. In the interim, to test "
+             "FedCM without third-party cookies, enable the "
+             "#fedcm-without-third-party-cookies flag.";
+    }
+    case FederatedAuthRequestResult::kErrorNotSignedInWithIdp: {
+      return "Not signed in with the identity provider.";
     }
     case FederatedAuthRequestResult::kError: {
       return "Error retrieving a token.";
@@ -225,6 +300,40 @@ std::string GetConsoleErrorMessageFromResult(
       return "";
     }
   }
+}
+
+FedCmIdpSigninStatusMode GetIdpSigninStatusMode(RenderFrameHost& host,
+                                                const url::Origin& idp_origin) {
+  // TODO(crbug.com/1487668): Remove this function in favor of
+  // GetFedCmIdpSigninStatusFlag.
+  return GetFedCmIdpSigninStatusFlag();
+}
+
+std::string FormatUrlWithDomain(const GURL& url, bool for_display) {
+  // We do not use url_formatter::FormatUrlForSecurityDisplay() directly because
+  // our UI intentionally shows only the eTLD+1, as it makes for a shorter text
+  // that is also clearer to users. The identity provider's well-known file is
+  // in the root of the eTLD+1, and sign-in status within identity provider and
+  // relying party can be domain-wide because it relies on cookies.
+  std::string formatted_url_str =
+      net::IsLocalhost(url)
+          ? url.host()
+          : net::registry_controlled_domains::GetDomainAndRegistry(
+                url,
+                net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  if (for_display) {
+    return base::UTF16ToUTF8(url_formatter::FormatUrlForSecurityDisplay(
+        GURL(url.scheme() + "://" + formatted_url_str),
+        url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS));
+  }
+  // We want defaults but we need to keep the scheme.
+  url_formatter::FormatUrlTypes types =
+      url_formatter::kFormatUrlOmitDefaults &
+      ~(url_formatter::kFormatUrlOmitHTTP | url_formatter::kFormatUrlOmitHTTPS |
+        url_formatter::kFormatUrlOmitFileScheme);
+  return base::UTF16ToUTF8(url_formatter::FormatUrl(
+      GURL(url.scheme() + "://" + formatted_url_str), types,
+      base::UnescapeRule::SPACES, nullptr, nullptr, nullptr));
 }
 
 }  // namespace content::webid

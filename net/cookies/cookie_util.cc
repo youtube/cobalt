@@ -32,7 +32,7 @@
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_options.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
-#include "net/first_party_sets/same_party_context.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "net/http/http_util.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
@@ -283,6 +283,22 @@ void FireStorageAccessHistogram(StorageAccessResult result) {
   UMA_HISTOGRAM_ENUMERATION("API.StorageAccess.AllowedRequests2", result);
 }
 
+void FireStorageAccessInputHistogram(bool has_opt_in, bool has_grant) {
+  StorageAccessInputState input_state;
+  if (has_opt_in && has_grant) {
+    input_state = StorageAccessInputState::kOptInWithGrant;
+  } else if (has_opt_in && !has_grant) {
+    input_state = StorageAccessInputState::kOptInWithoutGrant;
+  } else if (!has_opt_in && has_grant) {
+    input_state = StorageAccessInputState::kGrantWithoutOptIn;
+  } else if (!has_opt_in && !has_grant) {
+    input_state = StorageAccessInputState::kNoOptInNoGrant;
+  } else {
+    NOTREACHED_NORETURN();
+  }
+  base::UmaHistogramEnumeration("API.StorageAccess.InputState", input_state);
+}
+
 bool DomainIsHostOnly(const std::string& domain_string) {
   return (domain_string.empty() || domain_string[0] != '.');
 }
@@ -326,7 +342,7 @@ bool GetCookieDomainWithString(const GURL& url,
   // a sequence of individual domain name labels"; a label can only be empty if
   // it is the last label in the name, but a name ending in `..` would have an
   // empty label in the penultimate position and is thus invalid.
-  if (url_host.ends_with("..")) {
+  if (base::EndsWith(url_host, "..")) {
     return false;
   }
   // If no domain was specified in the domain string, default to a host cookie.
@@ -338,6 +354,9 @@ bool GetCookieDomainWithString(const GURL& url,
        (base::EqualsCaseInsensitiveASCII(url_host, domain_string) ||
         base::EqualsCaseInsensitiveASCII("." + url_host, domain_string)))) {
     *result = url_host;
+    // TODO(crbug.com/1453416): Once empty label support is implemented we can
+    // CHECK our assumptions here. For now, we DCHECK as DUMP_WILL_BE_CHECK is
+    // generating too many crash reports and already know why this is failing.
     DCHECK(DomainIsHostOnly(*result));
     return true;
   }
@@ -863,28 +882,36 @@ CookieOptions::SameSiteCookieContext ComputeSameSiteContextForSubresource(
   return CookieOptions::SameSiteCookieContext::MakeInclusive();
 }
 
+bool IsPortBoundCookiesEnabled() {
+  return base::FeatureList::IsEnabled(features::kEnablePortBoundCookies);
+}
+
+bool IsSchemeBoundCookiesEnabled() {
+  return base::FeatureList::IsEnabled(features::kEnableSchemeBoundCookies);
+}
+
 bool IsSchemefulSameSiteEnabled() {
   return base::FeatureList::IsEnabled(features::kSchemefulSameSite);
 }
 
-absl::optional<FirstPartySetMetadata> ComputeFirstPartySetMetadataMaybeAsync(
+absl::optional<
+    std::pair<FirstPartySetMetadata, FirstPartySetsCacheFilter::MatchInfo>>
+ComputeFirstPartySetMetadataMaybeAsync(
     const SchemefulSite& request_site,
     const IsolationInfo& isolation_info,
     const CookieAccessDelegate* cookie_access_delegate,
-    bool force_ignore_top_frame_party,
-    base::OnceCallback<void(FirstPartySetMetadata)> callback) {
-  if (!isolation_info.IsEmpty() && isolation_info.party_context().has_value() &&
-      cookie_access_delegate) {
+    base::OnceCallback<void(FirstPartySetMetadata,
+                            FirstPartySetsCacheFilter::MatchInfo)> callback) {
+  if (cookie_access_delegate) {
     return cookie_access_delegate->ComputeFirstPartySetMetadataMaybeAsync(
         request_site,
-        force_ignore_top_frame_party
-            ? nullptr
-            : base::OptionalToPtr(
-                  isolation_info.network_isolation_key().GetTopFrameSite()),
-        isolation_info.party_context().value(), std::move(callback));
+        base::OptionalToPtr(
+            isolation_info.network_isolation_key().GetTopFrameSite()),
+        std::move(callback));
   }
 
-  return FirstPartySetMetadata();
+  return std::make_pair(FirstPartySetMetadata(),
+                        FirstPartySetsCacheFilter::MatchInfo());
 }
 
 CookieOptions::SameSiteCookieContext::ContextMetadata::HttpMethod
@@ -911,23 +938,6 @@ HttpMethodStringToEnum(const std::string& in) {
     return HttpMethod::kPatch;
 
   return HttpMethod::kUnknown;
-}
-
-CookieSamePartyStatus GetSamePartyStatus(
-    const CanonicalCookie& cookie,
-    const CookieOptions& options,
-    const bool same_party_attribute_enabled) {
-  if (!same_party_attribute_enabled || !cookie.IsSameParty() ||
-      !options.is_in_nontrivial_first_party_set()) {
-    return CookieSamePartyStatus::kNoSamePartyEnforcement;
-  }
-
-  switch (options.same_party_context().context_type()) {
-    case SamePartyContext::Type::kCrossParty:
-      return CookieSamePartyStatus::kEnforceSamePartyExclude;
-    case SamePartyContext::Type::kSameParty:
-      return CookieSamePartyStatus::kEnforceSamePartyInclude;
-  };
 }
 
 bool IsCookieAccessResultInclude(CookieAccessResult cookie_access_result) {
@@ -976,6 +986,12 @@ NET_EXPORT void DCheckIncludedAndExcludedCookieLists(
   // Check that the included cookies are still in the correct order.
   DCHECK(
       base::ranges::is_sorted(included_cookies, CookieWithAccessResultSorter));
+}
+
+NET_EXPORT bool IsForceThirdPartyCookieBlockingEnabled() {
+  return base::FeatureList::IsEnabled(
+             features::kForceThirdPartyCookieBlocking) &&
+         base::FeatureList::IsEnabled(features::kThirdPartyStoragePartitioning);
 }
 
 }  // namespace net::cookie_util

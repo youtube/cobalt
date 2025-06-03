@@ -18,6 +18,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extensions_browser_client.h"
+#include "extensions/browser/renderer_startup_helper.h"
 #include "extensions/browser/ui_util.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/feature.h"
@@ -39,6 +40,10 @@ namespace extensions {
 namespace util {
 
 namespace {
+
+const char kDefaultUserScriptWorldKey[] = "_default";
+const char kUserScriptWorldMessagingKey[] = "messaging";
+const char kUserScriptWorldCspKey[] = "csp";
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 bool IsSigninProfileTestExtensionOnTestImage(const Extension* extension) {
@@ -136,6 +141,58 @@ content::ServiceWorkerContext* GetServiceWorkerContextForExtensionId(
       ->GetServiceWorkerContext();
 }
 
+void SetUserScriptWorldInfo(const Extension& extension,
+                            content::BrowserContext* browser_context,
+                            absl::optional<std::string> csp,
+                            bool messaging) {
+  // Persist world configuratation in state store.
+  auto* extension_prefs = ExtensionPrefs::Get(browser_context);
+  ExtensionPrefs::ScopedDictionaryUpdate update(
+      extension_prefs, extension.id(), kUserScriptsWorldsConfiguration.name);
+  std::unique_ptr<prefs::DictionaryValueUpdate> update_dict = update.Get();
+  if (!update_dict) {
+    update_dict = update.Create();
+  }
+
+  base::Value::Dict world_info;
+  world_info.Set(kUserScriptWorldMessagingKey, messaging);
+  if (csp.has_value()) {
+    world_info.Set(kUserScriptWorldCspKey, *csp);
+  }
+  update_dict->SetKey(kDefaultUserScriptWorldKey,
+                      base::Value(std::move(world_info)));
+
+  // Notify the renderer.
+  RendererStartupHelperFactory::GetForBrowserContext(browser_context)
+      ->SetUserScriptWorldProperties(extension, csp, messaging);
+}
+
+mojom::UserScriptWorldInfoPtr GetUserScriptWorldInfo(
+    const ExtensionId& extension_id,
+    content::BrowserContext* browser_context) {
+  bool enable_messaging = false;
+  absl::optional<std::string> csp = absl::nullopt;
+
+  const base::Value::Dict* worlds_configuration =
+      ExtensionPrefs::Get(browser_context)
+          ->ReadPrefAsDictionary(extension_id, kUserScriptsWorldsConfiguration);
+  if (worlds_configuration) {
+    const base::Value::Dict* world_info =
+        worlds_configuration->FindDict(kDefaultUserScriptWorldKey);
+
+    if (world_info) {
+      enable_messaging =
+          world_info->FindBool(kUserScriptWorldMessagingKey).value_or(false);
+
+      const std::string* csp_pref =
+          world_info->FindString(kUserScriptWorldCspKey);
+      csp = csp_pref ? absl::make_optional(*csp_pref) : absl::nullopt;
+    }
+  }
+
+  return mojom::UserScriptWorldInfo::New(extension_id, csp, enable_messaging);
+}
+
 // This function is security sensitive. Bugs could cause problems that break
 // restrictions on local file access or NaCl's validation caching. If you modify
 // this function, please get a security review from a NaCl person.
@@ -214,10 +271,8 @@ bool CanWithholdPermissionsFromExtension(const ExtensionId& extension_id,
          !PermissionsData::CanExecuteScriptEverywhere(extension_id, location);
 }
 
-// The below functionality maps a context to a unique id by increasing a static
-// counter.
 int GetBrowserContextId(content::BrowserContext* context) {
-  using ContextIdMap = std::map<content::BrowserContext*, int>;
+  using ContextIdMap = std::map<std::string, int>;
 
   static int next_id = 0;
   static base::NoDestructor<ContextIdMap> context_map;
@@ -225,17 +280,15 @@ int GetBrowserContextId(content::BrowserContext* context) {
   // we need to get the original context to make sure we take the right context.
   content::BrowserContext* original_context =
       ExtensionsBrowserClient::Get()->GetOriginalContext(context);
-  auto iter = context_map->find(original_context);
+  const std::string& context_id = original_context->UniqueId();
+  auto iter = context_map->find(context_id);
   if (iter == context_map->end()) {
-    iter =
-        context_map->insert(std::make_pair(original_context, next_id++)).first;
+    iter = context_map->insert(std::make_pair(context_id, next_id++)).first;
   }
   DCHECK(iter->second != kUnspecifiedContextId);
   return iter->second;
 }
 
-// Returns whether the |extension| should be loaded in the given
-// |browser_context|.
 bool IsExtensionVisibleToContext(const Extension& extension,
                                  content::BrowserContext* browser_context) {
   // Renderers don't need to know about themes.
@@ -251,7 +304,6 @@ bool IsExtensionVisibleToContext(const Extension& extension,
          IsIncognitoEnabled(extension.id(), browser_context);
 }
 
-// Initializes file scheme access if the extension has such permission.
 void InitializeFileSchemeAccessForExtension(
     int render_process_id,
     const std::string& extension_id,

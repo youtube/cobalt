@@ -11,6 +11,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/history_clusters/core/config.h"
+#include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/history_clusters/core/history_clusters_service.h"
 #include "components/page_image_service/features.h"
@@ -29,20 +30,24 @@ void HistoryClustersUtil::PopulateSource(content::WebUIDataSource* source,
   source->AddBoolean("inSidePanel", in_side_panel);
   auto* history_clusters_service =
       HistoryClustersServiceFactory::GetForBrowserContext(profile);
-  source->AddBoolean("isHistoryClustersEnabled",
-                     history_clusters_service &&
-                         history_clusters_service->IsJourneysEnabled());
-  source->AddBoolean(kIsHistoryClustersVisibleKey,
-                     prefs->GetBoolean(history_clusters::prefs::kVisible));
   source->AddBoolean(
-      kIsHistoryClustersVisibleManagedByPolicyKey,
-      prefs->IsManagedPreference(history_clusters::prefs::kVisible));
+      "isHistoryClustersEnabled",
+      history_clusters_service &&
+          history_clusters_service->is_journeys_feature_flag_enabled());
+  const bool rename_journeys =
+      base::FeatureList::IsEnabled(history_clusters::kRenameJourneys);
+  source->AddBoolean(kRenameJourneysKey, rename_journeys);
+  const bool journeys_is_managed =
+      prefs->IsManagedPreference(history_clusters::prefs::kVisible);
+  // When history_clusters::kRenameJourneys is enabled, history clusters are
+  // always visible unless the visibility prefs is set to false by policy.
+  source->AddBoolean(kIsHistoryClustersVisibleKey,
+                     prefs->GetBoolean(history_clusters::prefs::kVisible) ||
+                         (rename_journeys && !journeys_is_managed));
+  source->AddBoolean(kIsHistoryClustersVisibleManagedByPolicyKey,
+                     journeys_is_managed);
   source->AddBoolean("isHistoryClustersDebug",
                      history_clusters::GetConfig().user_visible_debug);
-  source->AddBoolean("isHideVisitsEnabled",
-                     history_clusters::GetConfig().hide_visits);
-  source->AddBoolean("isHideVisitsIconEnabled",
-                     history_clusters::GetConfig().hide_visits_icon);
   source->AddBoolean(
       "isHistoryClustersImagesEnabled",
       history_clusters::GetConfig().images &&
@@ -63,6 +68,7 @@ void HistoryClustersUtil::PopulateSource(content::WebUIDataSource* source,
       {"disableHistoryClusters", IDS_HISTORY_CLUSTERS_DISABLE_MENU_ITEM_LABEL},
       {"enableHistoryClusters", IDS_HISTORY_CLUSTERS_ENABLE_MENU_ITEM_LABEL},
       {"hideFromCluster", IDS_HISTORY_CLUSTERS_HIDE_PAGE},
+      {"hideAllVisits", IDS_HISTORY_CLUSTERS_HIDE_VISITS},
       {"historyClustersTabLabel", IDS_HISTORY_CLUSTERS_JOURNEYS_TAB_LABEL},
       {"historyListTabLabel", IDS_HISTORY_CLUSTERS_LIST_TAB_LABEL},
       {"loadMoreButtonLabel", IDS_HISTORY_CLUSTERS_LOAD_MORE_BUTTON_LABEL},
@@ -80,5 +86,15 @@ void HistoryClustersUtil::PopulateSource(content::WebUIDataSource* source,
       {"toggleButtonLabelMore", IDS_HISTORY_CLUSTERS_SHOW_MORE_BUTTON_LABEL},
   };
   source->AddLocalizedStrings(kHistoryClustersStrings);
+
+  if (rename_journeys) {
+    source->AddLocalizedString("historyClustersSearchPrompt",
+                               IDS_HISTORY_SEARCH_PROMPT);
+    source->AddLocalizedString("historyClustersTabLabel",
+                               IDS_HISTORY_CLUSTERS_BY_GROUP_TAB_LABEL);
+    source->AddLocalizedString("historyListTabLabel",
+                               IDS_HISTORY_CLUSTERS_BY_DATE_TAB_LABEL);
+  }
+
   return;
 }

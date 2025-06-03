@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,7 +26,7 @@
 #include "chrome/updater/net/network.h"
 #include "chrome/updater/policy/service.h"
 #include "chrome/updater/protos/omaha_settings.pb.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/util/unit_test_util.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/update_client/network.h"
 #include "net/base/url_util.h"
@@ -35,6 +36,7 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using base::test::RunClosure;
 
@@ -57,6 +59,8 @@ class TestTokenService : public TokenServiceInterface {
     enrollment_token_ = enrollment_token;
     return true;
   }
+
+  bool DeleteEnrollmentToken() override { return StoreEnrollmentToken(""); }
 
   std::string GetEnrollmentToken() const override { return enrollment_token_; }
 
@@ -82,7 +86,7 @@ class TestConfigurator : public DMClient::Configurator {
   explicit TestConfigurator(const GURL& url);
   ~TestConfigurator() override = default;
 
-  std::string GetDMServerUrl() const override { return server_url_; }
+  GURL GetDMServerUrl() const override { return server_url_; }
 
   std::string GetAgentParameter() const override {
     return "Updater-Test-Agent";
@@ -97,14 +101,14 @@ class TestConfigurator : public DMClient::Configurator {
 
  private:
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
-  const std::string server_url_;
+  const GURL server_url_;
 };
 
 TestConfigurator::TestConfigurator(const GURL& url)
     : network_fetcher_factory_(base::MakeRefCounted<NetworkFetcherFactory>(
           PolicyServiceProxyConfiguration::Get(
               test::CreateTestPolicyService()))),
-      server_url_(url.spec()) {}
+      server_url_(url) {}
 
 class DMRequestCallbackHandler
     : public base::RefCountedThreadSafe<DMRequestCallbackHandler> {
@@ -801,6 +805,69 @@ TEST_F(DMPolicyValidationReportClientTest, NoPayload) {
       .WillOnce(RunClosure(quit_closure));
   PostRequest(PolicyValidationResult());
   run_loop.Run();
+}
+
+TEST(DMClient, StreamRequestResultEnumValue) {
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kSuccess;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kSuccess");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoDeviceID;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoDeviceID");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kAlreadyRegistered;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kAlreadyRegistered");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNotManaged;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNotManaged");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kDeregistered;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kDeregistered");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoDMToken;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoDMToken");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kFetcherError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kFetcherError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNetworkError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNetworkError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kHttpError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kHttpError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kSerializationError;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kSerializationError");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kUnexpectedResponse;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kUnexpectedResponse");
+  }
+  {
+    std::stringstream output;
+    output << DMClient::RequestResult::kNoPayload;
+    EXPECT_EQ(output.str(), "DMClient::RequestResult::kNoPayload");
+  }
 }
 
 }  // namespace updater

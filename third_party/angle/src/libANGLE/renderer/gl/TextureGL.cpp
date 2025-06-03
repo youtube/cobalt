@@ -29,7 +29,7 @@
 #include "libANGLE/renderer/gl/SurfaceGL.h"
 #include "libANGLE/renderer/gl/formatutilsgl.h"
 #include "libANGLE/renderer/gl/renderergl_utils.h"
-#include "platform/FeaturesGL_autogen.h"
+#include "platform/autogen/FeaturesGL_autogen.h"
 
 using angle::CheckedNumeric;
 
@@ -113,6 +113,18 @@ size_t GetMaxLevelInfoCountForTextureType(gl::TextureType type)
 
         default:
             return gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS + 1;
+    }
+}
+
+bool FormatHasBorderColorWorkarounds(GLenum format)
+{
+    switch (format)
+    {
+        case GL_ALPHA:
+        case GL_LUMINANCE_ALPHA:
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -1024,13 +1036,14 @@ angle::Result TextureGL::copySubTextureHelper(const gl::Context *context,
     bool sourceFormatContainSupersetOfDestFormat =
         (sourceFormat == destFormat.format && sourceFormat != GL_BGRA_EXT) ||
         (sourceFormat == GL_RGBA && destFormat.format == GL_RGB);
+    bool sourceSRGB = sourceFormatInfo.colorEncoding == GL_SRGB;
 
     GLenum sourceComponentType = sourceFormatInfo.componentType;
     GLenum destComponentType   = destFormat.componentType;
     bool destSRGB              = destFormat.colorEncoding == GL_SRGB;
     if (!unpackFlipY && unpackPremultiplyAlpha == unpackUnmultiplyAlpha && !needsLumaWorkaround &&
         sourceFormatContainSupersetOfDestFormat && sourceComponentType == destComponentType &&
-        !destSRGB && sourceGL->getType() == gl::TextureType::_2D)
+        !destSRGB && !sourceSRGB && sourceGL->getType() == gl::TextureType::_2D)
     {
         bool copySucceeded = false;
         ANGLE_TRY(blitter->copyTexSubImage(context, sourceGL, sourceLevel, this, target, level,
@@ -1056,7 +1069,7 @@ angle::Result TextureGL::copySubTextureHelper(const gl::Context *context,
             context, sourceGL, sourceLevel, sourceComponentType, mTextureID, target, level,
             destComponentType, sourceImageDesc.size, sourceArea, destOffset, needsLumaWorkaround,
             sourceLevelInfo.sourceFormat, unpackFlipY, unpackPremultiplyAlpha,
-            unpackUnmultiplyAlpha, &copySucceeded));
+            unpackUnmultiplyAlpha, sourceSRGB, &copySucceeded));
         if (copySucceeded)
         {
             contextGL->markWorkSubmitted();
@@ -1525,6 +1538,20 @@ angle::Result TextureGL::syncState(const gl::Context *context,
         // Don't know if the previous base level was using any workarounds, always re-sync the
         // workaround dirty bits
         syncDirtyBits |= GetLevelWorkaroundDirtyBits();
+
+        // If the base level format has changed, depth stencil texture mode may need to be updated
+        if (!mState.getImmutableFormat() && (context->getClientVersion() >= gl::ES_3_1 ||
+                                             context->getExtensions().stencilTexturingANGLE))
+        {
+            syncDirtyBits.set(gl::Texture::DIRTY_BIT_DEPTH_STENCIL_TEXTURE_MODE);
+        }
+
+        // If the base level format has changed, border color may need to be updated
+        if (!mState.getImmutableFormat() && (context->getClientVersion() >= gl::ES_3_2 ||
+                                             context->getExtensions().textureBorderClampAny()))
+        {
+            syncDirtyBits.set(gl::Texture::DIRTY_BIT_BORDER_COLOR);
+        }
     }
     for (auto dirtyBit : syncDirtyBits)
     {
@@ -1605,6 +1632,7 @@ angle::Result TextureGL::syncState(const gl::Context *context,
             {
                 const LevelInfoGL &levelInfo    = getBaseLevelInfo();
                 angle::ColorGeneric borderColor = mState.getSamplerState().getBorderColor();
+                // Formats that have workarounds must be present in FormatHasBorderColorWorkarounds.
                 if (levelInfo.sourceFormat == GL_ALPHA)
                 {
                     if (levelInfo.lumaWorkaround.enabled)
@@ -1694,13 +1722,23 @@ angle::Result TextureGL::syncState(const gl::Context *context,
                 break;
             case gl::Texture::DIRTY_BIT_DEPTH_STENCIL_TEXTURE_MODE:
             {
-                GLenum mDepthStencilTextureMode = mState.getDepthStencilTextureMode();
-                ANGLE_GL_TRY(context, functions->texParameteri(
-                                          nativegl::GetTextureBindingTarget(getType()),
-                                          GL_DEPTH_STENCIL_TEXTURE_MODE, mDepthStencilTextureMode));
+                ASSERT(context->getClientVersion() >= gl::ES_3_1 ||
+                       context->getExtensions().stencilTexturingANGLE);
+
+                // The DEPTH_STENCIL_TEXTURE_MODE state must affect only
+                // DEPTH_STENCIL textures (OpenGL ES 3.2, Section 8.16).
+                // Some drivers do not follow this rule and exhibit various side effects
+                // when this mode is set to STENCIL_INDEX for textures of other formats.
+                const GLenum mode = (getBaseLevelInfo().sourceFormat != GL_DEPTH_STENCIL)
+                                        ? GL_DEPTH_COMPONENT
+                                        : mState.getDepthStencilTextureMode();
+                ANGLE_GL_TRY(context,
+                             functions->texParameteri(nativegl::GetTextureBindingTarget(getType()),
+                                                      GL_DEPTH_STENCIL_TEXTURE_MODE, mode));
                 break;
             }
             case gl::Texture::DIRTY_BIT_USAGE:
+            case gl::Texture::DIRTY_BIT_RENDERABILITY_VALIDATION_ANGLE:
                 break;
 
             case gl::Texture::DIRTY_BIT_IMPLEMENTATION:
@@ -2040,6 +2078,13 @@ void TextureGL::setLevelInfo(const gl::Context *context,
     bool updateWorkarounds = levelInfo.depthStencilWorkaround || levelInfo.lumaWorkaround.enabled ||
                              levelInfo.emulatedAlphaChannel;
 
+    bool updateDepthStencilTextureMode = false;
+    const bool setToDepthStencil       = levelInfo.sourceFormat == GL_DEPTH_STENCIL;
+
+    bool updateBorderColor = false;
+    const bool targetFormatHasBorderColorWorkarounds =
+        FormatHasBorderColorWorkarounds(levelInfo.sourceFormat);
+
     for (size_t i = level; i < level + levelCount; i++)
     {
         size_t index = GetLevelInfoIndex(target, i);
@@ -2050,12 +2095,48 @@ void TextureGL::setLevelInfo(const gl::Context *context,
         updateWorkarounds |= curLevelInfo.lumaWorkaround.enabled;
         updateWorkarounds |= curLevelInfo.emulatedAlphaChannel;
 
+        // When redefining a level to or from DEPTH_STENCIL
+        // format, ensure that the texture mode is synced.
+        const bool setFromDepthStencil = curLevelInfo.sourceFormat == GL_DEPTH_STENCIL;
+        if (setFromDepthStencil != setToDepthStencil)
+        {
+            updateDepthStencilTextureMode = true;
+        }
+
+        // When redefining a level to or from a format that has border color workarounds,
+        // ensure that the texture border color is synced.
+        if (FormatHasBorderColorWorkarounds(curLevelInfo.sourceFormat) ||
+            targetFormatHasBorderColorWorkarounds)
+        {
+            updateBorderColor = true;
+        }
+
         curLevelInfo = levelInfo;
     }
 
-    if (updateWorkarounds)
+    // Skip this step when unsupported
+    updateDepthStencilTextureMode =
+        updateDepthStencilTextureMode && (context->getClientVersion() >= gl::ES_3_1 ||
+                                          context->getExtensions().stencilTexturingANGLE);
+
+    // Skip this step when unsupported
+    updateBorderColor = updateBorderColor && (context->getClientVersion() >= gl::ES_3_2 ||
+                                              context->getExtensions().textureBorderClampAny());
+
+    if (updateWorkarounds || updateDepthStencilTextureMode || updateBorderColor)
     {
-        mLocalDirtyBits |= GetLevelWorkaroundDirtyBits();
+        if (updateWorkarounds)
+        {
+            mLocalDirtyBits |= GetLevelWorkaroundDirtyBits();
+        }
+        if (updateDepthStencilTextureMode)
+        {
+            mLocalDirtyBits.set(gl::Texture::DIRTY_BIT_DEPTH_STENCIL_TEXTURE_MODE);
+        }
+        if (updateBorderColor)
+        {
+            mLocalDirtyBits.set(gl::Texture::DIRTY_BIT_BORDER_COLOR);
+        }
         onStateChange(angle::SubjectMessage::DirtyBitsFlagged);
     }
 }

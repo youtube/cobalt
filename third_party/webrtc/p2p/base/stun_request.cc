@@ -35,7 +35,7 @@ const int STUN_INITIAL_RTO = 250;  // milliseconds
 // The timeout doubles each retransmission, up to this many times
 // RFC 5389 says SHOULD retransmit 7 times.
 // This has been 8 for years (not sure why).
-const int STUN_MAX_RETRANSMISSIONS = 8;           // Total sends: 9
+const int STUN_MAX_RETRANSMISSIONS = 8;  // Total sends: 9
 
 // We also cap the doubling, even though the standard doesn't say to.
 // This has been 1.6 seconds for years, but for networks that
@@ -133,31 +133,39 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
     }
   }
 
-  bool success = true;
-
   if (!msg->GetNonComprehendedAttributes().empty()) {
     // If a response contains unknown comprehension-required attributes, it's
     // simply discarded and the transaction is considered failed. See RFC5389
     // sections 7.3.3 and 7.3.4.
     RTC_LOG(LS_ERROR) << ": Discarding response due to unknown "
                          "comprehension-required attribute.";
-    success = false;
+    requests_.erase(iter);
+    return false;
   } else if (msg->type() == GetStunSuccessResponseType(request->type())) {
     if (!msg->IntegrityOk() && !skip_integrity_checking) {
       return false;
     }
-    request->OnResponse(msg);
+    // Erase element from hash before calling callback. This ensures
+    // that the callback can modify the StunRequestManager any way it
+    // sees fit.
+    std::unique_ptr<StunRequest> owned_request = std::move(iter->second);
+    requests_.erase(iter);
+    owned_request->OnResponse(msg);
+    return true;
   } else if (msg->type() == GetStunErrorResponseType(request->type())) {
-    request->OnErrorResponse(msg);
+    // Erase element from hash before calling callback. This ensures
+    // that the callback can modify the StunRequestManager any way it
+    // sees fit.
+    std::unique_ptr<StunRequest> owned_request = std::move(iter->second);
+    requests_.erase(iter);
+    owned_request->OnErrorResponse(msg);
+    return true;
   } else {
     RTC_LOG(LS_ERROR) << "Received response with wrong type: " << msg->type()
                       << " (expecting "
                       << GetStunSuccessResponseType(request->type()) << ")";
     return false;
   }
-
-  requests_.erase(iter);
-  return success;
 }
 
 bool StunRequestManager::empty() const {

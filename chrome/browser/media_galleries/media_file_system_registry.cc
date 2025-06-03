@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -342,7 +343,7 @@ class ExtensionGalleriesHost {
   const base::FilePath profile_path_;
 
   // Id of the extension this host belongs to.
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
 
   // A callback to call when the last WebContents reference goes away.
   base::OnceClosure no_references_callback_;

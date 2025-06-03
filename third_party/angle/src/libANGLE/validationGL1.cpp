@@ -949,7 +949,11 @@ bool ValidatePixelZoom(const Context *,
     return true;
 }
 
-bool ValidatePolygonMode(const Context *, angle::EntryPoint entryPoint, GLenum face, GLenum mode)
+bool ValidatePolygonMode(const PrivateState &state,
+                         ErrorSet *errors,
+                         angle::EntryPoint entryPoint,
+                         GLenum face,
+                         PolygonMode modePacked)
 {
     return true;
 }

@@ -52,10 +52,10 @@
 #include "chrome/browser/background/background_contents.h"
 #include "chrome/browser/supervised_user/supervised_user_extensions_delegate_impl.h"
 #include "chrome/browser/supervised_user/supervised_user_extensions_metrics_recorder.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "content/public/browser/gpu_data_manager.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -865,9 +865,6 @@ class TestManagementAPIDelegate : public ManagementAPIDelegate {
                            const Extension* extension) const override {
     return LaunchType::LAUNCH_TYPE_DEFAULT;
   }
-  void GetPermissionWarningsByManifestFunctionDelegate(
-      ManagementGetPermissionWarningsByManifestFunction* function,
-      const std::string& manifest_str) const override {}
   std::unique_ptr<InstallPromptDelegate> SetEnabledFunctionDelegate(
       content::WebContents* web_contents,
       content::BrowserContext* browser_context,
@@ -905,6 +902,7 @@ class TestManagementAPIDelegate : public ManagementAPIDelegate {
   void SetLaunchType(content::BrowserContext* context,
                      const std::string& extension_id,
                      LaunchType launch_type) const override {}
+
   std::unique_ptr<AppForLinkDelegate> GenerateAppForLinkFunctionDelegate(
       ManagementGenerateAppForLinkFunction* function,
       content::BrowserContext* context,
@@ -920,16 +918,6 @@ class TestManagementAPIDelegate : public ManagementAPIDelegate {
       content::BrowserContext* context,
       const GURL& web_app_url,
       InstallOrLaunchWebAppCallback callback) const override {}
-  bool CanContextInstallAndroidApps(
-      content::BrowserContext* context) const override {
-    return true;
-  }
-  void CheckAndroidAppInstallStatus(
-      const std::string& package_name,
-      AndroidAppInstallStatusCallback callback) const override {}
-  void InstallReplacementAndroidApp(
-      const std::string& package_name,
-      InstallAndroidAppCallback callback) const override {}
   GURL GetIconURL(const Extension* extension,
                   int icon_size,
                   ExtensionIconSet::MatchType match,
@@ -1031,9 +1019,6 @@ class TestSupervisedUserExtensionsDelegate
       ExtensionInstalledBlockedByParentDialogAction blocked_action,
       base::OnceClosure done_callback) {
     show_block_dialog_count_++;
-    SupervisedUserExtensionsMetricsRecorder::RecordEnablementUmaMetrics(
-        SupervisedUserExtensionsMetricsRecorder::EnablementState::
-            kFailedToEnable);
     std::move(done_callback).Run();
   }
 
@@ -1056,7 +1041,7 @@ class ManagementApiSupervisedUserTest : public ManagementApiUnitTest {
     return params;
   }
 
-  SupervisedUserService* GetSupervisedUserService() {
+  supervised_user::SupervisedUserService* GetSupervisedUserService() {
     return SupervisedUserServiceFactory::GetForProfile(profile());
   }
 
@@ -1135,16 +1120,10 @@ TEST_F(ManagementApiSupervisedUserTest, SetEnabled_BlockedByParent) {
     EXPECT_EQ(supervised_user_delegate_->show_block_dialog_count(), 1);
   }
 
-  histogram_tester.ExpectUniqueSample(
-      SupervisedUserExtensionsMetricsRecorder::kEnablementHistogramName,
-      SupervisedUserExtensionsMetricsRecorder::EnablementState::kFailedToEnable,
-      1);
-  histogram_tester.ExpectTotalCount(
-      SupervisedUserExtensionsMetricsRecorder::kEnablementHistogramName, 1);
-  EXPECT_EQ(
-      1,
-      user_action_tester.GetActionCount(
-          SupervisedUserExtensionsMetricsRecorder::kFailedToEnableActionName));
+  // Metrics reporting cannot be tested here, because the current implementation
+  // of `TestSupervisedUserExtensionsDelegate` overrides the
+  // `ShowInstallBlockedByParentDialogForExtension` method that records the
+  // metric in the production code.
 }
 
 // Tests enabling an extension via management API after it was disabled due to

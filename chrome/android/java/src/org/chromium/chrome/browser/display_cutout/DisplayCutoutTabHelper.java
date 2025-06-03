@@ -14,13 +14,14 @@ import org.chromium.base.UserData;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.components.browser_ui.display_cutout.DisplayCutoutController;
-import org.chromium.components.browser_ui.widget.InsetObserverView;
-import org.chromium.components.browser_ui.widget.InsetObserverViewSupplier;
+import org.chromium.components.browser_ui.widget.InsetObserver;
+import org.chromium.components.browser_ui.widget.InsetObserverSupplier;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.WindowAndroid;
@@ -86,9 +87,10 @@ public class DisplayCutoutTabHelper implements UserData {
         public WebContents getWebContents() {
             return mTab.getWebContents();
         }
+
         @Override
-        public InsetObserverView getInsetObserverView() {
-            return InsetObserverViewSupplier.getValueOrNullFrom(mTab.getWindowAndroid());
+        public InsetObserver getInsetObserverView() {
+            return InsetObserverSupplier.getValueOrNullFrom(mTab.getWindowAndroid());
         }
         @Override
         public ObservableSupplier<Integer> getBrowserDisplayCutoutModeSupplier() {
@@ -110,6 +112,11 @@ public class DisplayCutoutTabHelper implements UserData {
             return (baseCustomTabActivity.getIntentDataProvider().getTwaDisplayMode()
                             instanceof TrustedWebActivityDisplayMode.ImmersiveMode);
         }
+
+        @Override
+        public boolean isDrawEdgeToEdgeEnabled() {
+            return ChromeFeatureList.sDrawEdgeToEdge.isEnabled();
+        }
     }
 
     /**
@@ -120,7 +127,8 @@ public class DisplayCutoutTabHelper implements UserData {
     DisplayCutoutTabHelper(Tab tab) {
         mTab = tab;
         tab.addObserver(mTabObserver);
-        mCutoutController = new DisplayCutoutController(new ChromeDisplayCutoutDelegate(mTab));
+        mCutoutController =
+                DisplayCutoutController.createForTab(mTab, new ChromeDisplayCutoutDelegate(mTab));
     }
 
     /**
@@ -137,10 +145,14 @@ public class DisplayCutoutTabHelper implements UserData {
         mCutoutController.destroy();
     }
 
-    @VisibleForTesting
     static void initForTesting(Tab tab, DisplayCutoutController controller) {
         DisplayCutoutTabHelper tabHelper = new DisplayCutoutTabHelper(tab);
         tabHelper.mCutoutController = controller;
         tab.getUserDataHost().setUserData(USER_DATA_KEY, tabHelper);
+    }
+
+    @VisibleForTesting
+    DisplayCutoutController getDisplayCutoutController() {
+        return mCutoutController;
     }
 }

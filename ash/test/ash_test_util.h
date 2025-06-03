@@ -12,16 +12,20 @@
 
 namespace aura {
 class Window;
-}
+}  // namespace aura
 
 namespace base {
 class FilePath;
 class TimeDelta;
-}
+}  // namespace base
 
 namespace gfx {
 class Size;
-}
+}  // namespace gfx
+
+namespace views {
+class MenuItemView;
+}  // namespace views
 
 namespace ash {
 
@@ -47,13 +51,14 @@ bool IsSystemTrayForRootWindowVisible(size_t root_window_index);
 gfx::ImageSkia CreateSolidColorTestImage(const gfx::Size& image_size,
                                          SkColor color);
 
-// Returns true if `win1` is stacked (not directly) below `win2`.
-bool IsStackedBelow(aura::Window* win1, aura::Window* win2);
-
 // Configures `window` with the specified title and color.
 void DecorateWindow(aura::Window* window,
                     const std::u16string& title,
                     SkColor color);
+
+// Waits until there is any visible menu item view with the specified `label`.
+// Returns the pointer to the first found target menu item view.
+views::MenuItemView* WaitForMenuItemWithLabel(const std::u16string& label);
 
 }  // namespace ash
 

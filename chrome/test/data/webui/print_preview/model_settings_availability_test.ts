@@ -3,10 +3,7 @@
 // found in the LICENSE file.
 
 import {Destination, DestinationOrigin, DuplexOption, DuplexType, Margins, MarginsType, MediaSizeOption, PrintPreviewModelElement, Size} from 'chrome://print/print_preview.js';
-// <if expr="is_chromeos">
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-// </if>
-
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {getCddTemplate, getSaveAsPdfDestination} from './print_preview_test_utils.js';
@@ -20,7 +17,8 @@ suite('ModelSettingsAvailabilityTest', function() {
     document.body.appendChild(model);
 
     model.documentSettings = {
-      hasCssMediaStyles: false,
+      allPagesHaveCustomSize: false,
+      allPagesHaveCustomOrientation: false,
       hasSelection: false,
       isFromArc: false,
       isModifiable: true,
@@ -126,8 +124,8 @@ suite('ModelSettingsAvailabilityTest', function() {
     model.set('documentSettings.isFromArc', false);
     assertTrue(model.settings.layout.available);
 
-    // Unavailable if document has CSS media styles.
-    model.set('documentSettings.hasCssMediaStyles', true);
+    // Unavailable if all pages have specified an orientation.
+    model.set('documentSettings.allPagesHaveCustomOrientation', true);
     assertFalse(model.settings.layout.available);
     assertFalse(model.settings.layout.setFromUi);
   });
@@ -250,12 +248,65 @@ suite('ModelSettingsAvailabilityTest', function() {
     // PDF to PDF -> media size is unavailable.
     model.set('documentSettings.isModifiable', false);
     assertFalse(model.settings.mediaSize.available);
+    model.set('documentSettings.isModifiable', true);
 
-    // CSS styles to PDF -> media size is unavailable.
-    model.set('documentSettings.isModfiable', true);
-    model.set('documentSettings.hasCssMediaStyles', true);
+    // Even if all pages have specified their orientation, the size option
+    // should still be available.
+    model.set('documentSettings.allPagesHaveCustomOrientation', true);
+    assertTrue(model.settings.mediaSize.available);
+    model.set('documentSettings.allPagesHaveCustomOrientation', false);
+
+    // If all pages have specified a size, the size option shouldn't be
+    // available.
+    model.set('documentSettings.allPagesHaveCustomSize', true);
     assertFalse(model.settings.mediaSize.available);
     assertFalse(model.settings.color.setFromUi);
+  });
+
+  test('borderless', function() {
+    // Check that borderless setting is unavailable without the feature flag.
+    loadTimeData.overrideValues({isBorderlessPrintingEnabled: false});
+    model.set(
+        'destination.capabilities',
+        getCddTemplate(model.destination.id).capabilities);
+    assertFalse(model.settings.borderless.available);
+
+    // Enable the feature flag and set capabilities again to update borderless
+    // availability.
+    loadTimeData.overrideValues({isBorderlessPrintingEnabled: true});
+    model.set(
+        'destination.capabilities',
+        getCddTemplate(model.destination.id).capabilities);
+    assertTrue(model.settings.borderless.available);
+
+    // Remove the only media size with a borderless variant.
+    const capabilities = getCddTemplate(model.destination.id).capabilities!;
+    capabilities.printer!.media_size!.option.splice(1, 1);
+    model.set('destination.capabilities', capabilities);
+    assertFalse(model.settings.borderless.available);
+  });
+
+  test('mediaType', function() {
+    // Check that media type setting is unavailable without the feature flag.
+    loadTimeData.overrideValues({isBorderlessPrintingEnabled: false});
+    model.set(
+        'destination.capabilities',
+        getCddTemplate(model.destination.id).capabilities);
+    assertFalse(model.settings.mediaType.available);
+
+    // Enable the feature flag and set capabilities again to update media type
+    // availability.
+    loadTimeData.overrideValues({isBorderlessPrintingEnabled: true});
+    model.set(
+        'destination.capabilities',
+        getCddTemplate(model.destination.id).capabilities);
+    assertTrue(model.settings.mediaType.available);
+
+    // Remove media type capability.
+    const capabilities = getCddTemplate(model.destination.id).capabilities!;
+    delete capabilities.printer!.media_type;
+    model.set('destination.capabilities', capabilities);
+    assertFalse(model.settings.mediaType.available);
   });
 
   test('margins', function() {

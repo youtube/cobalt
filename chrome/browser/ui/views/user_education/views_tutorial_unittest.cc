@@ -110,8 +110,8 @@ class ViewsTutorialTest : public views::ViewsTestBase {
                                         &help_bubble_registry_};
 
   std::unique_ptr<views::Widget> widget_;
-  raw_ptr<views::LabelButton> button_ = nullptr;
-  raw_ptr<views::Label> indicator_ = nullptr;
+  raw_ptr<views::LabelButton, DanglingUntriaged> button_ = nullptr;
+  raw_ptr<views::Label, DanglingUntriaged> indicator_ = nullptr;
   bool hide_button_on_press_ = false;
 
  private:
@@ -139,14 +139,17 @@ TEST_F(ViewsTutorialTest, BubbleDismissOnViewHiddenDoesNotEndTutorial) {
   constexpr user_education::HelpBubbleArrow kArrow =
       user_education::HelpBubbleArrow::kTopLeft;
   user_education::TutorialDescription desc;
-  desc.steps.emplace_back(0, IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP,
-                          ui::InteractionSequence::StepType::kShown,
-                          kButtonElementId, "", kArrow);
-  desc.steps.emplace_back(0, 0, ui::InteractionSequence::StepType::kActivated,
-                          kButtonElementId, "", kArrow);
-  desc.steps.emplace_back(0, IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP,
-                          ui::InteractionSequence::StepType::kShown,
-                          kIndicatorElementId, "", kArrow);
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::BubbleStep(kButtonElementId)
+          .SetBubbleBodyText(IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP)
+          .SetBubbleArrow(kArrow));
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::HiddenStep::WaitForActivated(
+          kButtonElementId));
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::BubbleStep(kIndicatorElementId)
+          .SetBubbleBodyText(IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP)
+          .SetBubbleArrow(kArrow));
   tutorial_registry_.AddTutorial(kTutorialId, std::move(desc));
 
   tutorial_service_.StartTutorial(
@@ -189,14 +192,17 @@ TEST_F(ViewsTutorialTest, FinalBubbleDismissOnViewHiddenDoesEndTutorial) {
   constexpr user_education::HelpBubbleArrow kArrow =
       user_education::HelpBubbleArrow::kTopLeft;
   user_education::TutorialDescription desc;
-  desc.steps.emplace_back(0, IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP,
-                          ui::InteractionSequence::StepType::kShown,
-                          kButtonElementId, "", kArrow);
-  desc.steps.emplace_back(0, 0, ui::InteractionSequence::StepType::kActivated,
-                          kButtonElementId, "", kArrow);
-  desc.steps.emplace_back(0, IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP,
-                          ui::InteractionSequence::StepType::kShown,
-                          kIndicatorElementId, "", kArrow);
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::BubbleStep(kButtonElementId)
+          .SetBubbleBodyText(IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP)
+          .SetBubbleArrow(kArrow));
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::HiddenStep::WaitForActivated(
+          kButtonElementId));
+  desc.steps.emplace_back(
+      user_education::TutorialDescription::BubbleStep(kIndicatorElementId)
+          .SetBubbleBodyText(IDS_TUTORIAL_TAB_GROUP_ADD_TAB_TO_GROUP)
+          .SetBubbleArrow(kArrow));
   tutorial_registry_.AddTutorial(kTutorialId, std::move(desc));
 
   tutorial_service_.StartTutorial(

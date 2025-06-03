@@ -45,6 +45,7 @@ class CSSTryRule;
 class CSSKeyframeRule;
 class CSSMediaRule;
 class CSSContainerRule;
+class CSSPropertyRule;
 class CSSStyleDeclaration;
 class CSSStyleRule;
 class CSSStyleSheet;
@@ -160,6 +161,11 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
                                   SourceRange* new_range,
                                   String* old_text,
                                   ExceptionState&);
+  CSSPropertyRule* SetPropertyName(const SourceRange&,
+                                   const String& text,
+                                   SourceRange* new_range,
+                                   String* old_text,
+                                   ExceptionState&);
   CSSRule* SetStyleText(const SourceRange&,
                         const String& text,
                         SourceRange* new_range,
@@ -200,6 +206,8 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
   std::unique_ptr<protocol::CSS::RuleUsage> BuildObjectForRuleUsage(CSSRule*,
                                                                     bool);
   std::unique_ptr<protocol::CSS::CSSTryRule> BuildObjectForTryRule(CSSTryRule*);
+  std::unique_ptr<protocol::CSS::CSSPropertyRule> BuildObjectForPropertyRule(
+      CSSPropertyRule*);
   std::unique_ptr<protocol::CSS::CSSKeyframeRule> BuildObjectForKeyframeRule(
       CSSKeyframeRule*);
   std::unique_ptr<protocol::CSS::SelectorList> BuildObjectForSelectorList(
@@ -242,9 +250,9 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
   bool InspectorStyleSheetText(String* result);
   String CollectStyleSheetRules();
   bool CSSOMStyleSheetText(String* result);
-  std::unique_ptr<protocol::Array<protocol::CSS::Value>> SelectorsFromSource(
-      CSSRuleSourceData*,
-      const String&);
+  std::unique_ptr<protocol::Array<protocol::CSS::Value>>
+  SelectorsFromSource(CSSRuleSourceData*, const String&, CSSStyleRule*);
+  Vector<const CSSSelector*> SelectorsFromRule(CSSStyleRule* rule);
   String Url();
   bool HasSourceURL();
   bool StartsAtZero();

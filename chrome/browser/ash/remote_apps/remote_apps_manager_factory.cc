@@ -26,17 +26,17 @@ RemoteAppsManager* RemoteAppsManagerFactory::GetForProfile(Profile* profile) {
 RemoteAppsManagerFactory* RemoteAppsManagerFactory::GetInstance() {
   // TODO(crbug.com/1269752): Restore use of base::NoDestructor when
   // it no longer causes unit_test failures.
-  return base::Singleton<RemoteAppsManagerFactory>::get();
+  static base::NoDestructor<RemoteAppsManagerFactory> instance;
+  return instance.get();
 }
 
 RemoteAppsManagerFactory::RemoteAppsManagerFactory()
-    : ProfileKeyedServiceFactory(
-          "RemoteAppsManager",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithSystem(ProfileSelection::kNone)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {
+    : ProfileKeyedServiceFactory("RemoteAppsManager",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithSystem(ProfileSelection::kNone)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {
   DependsOn(app_list::AppListSyncableServiceFactory::GetInstance());
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
   DependsOn(extensions::EventRouterFactory::GetInstance());
@@ -44,7 +44,8 @@ RemoteAppsManagerFactory::RemoteAppsManagerFactory()
 
 RemoteAppsManagerFactory::~RemoteAppsManagerFactory() = default;
 
-KeyedService* RemoteAppsManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+RemoteAppsManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   ProfileHelper* profile_helper = ProfileHelper::Get();
   if (!profile_helper)
@@ -57,7 +58,7 @@ KeyedService* RemoteAppsManagerFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new RemoteAppsManager(profile);
+  return std::make_unique<RemoteAppsManager>(profile);
 }
 
 bool RemoteAppsManagerFactory::ServiceIsCreatedWithBrowserContext() const {

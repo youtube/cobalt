@@ -6,6 +6,7 @@
 
 #include "chrome/browser/cart/cart_service.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "content/public/browser/storage_partition.h"
 
 namespace {
@@ -21,7 +22,8 @@ std::unique_ptr<KeyedService> BuildCartService(
 
 // static
 CartServiceFactory* CartServiceFactory::GetInstance() {
-  return base::Singleton<CartServiceFactory>::get();
+  static base::NoDestructor<CartServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -50,11 +52,13 @@ CartServiceFactory::CartServiceFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
+  DependsOn(OptimizationGuideKeyedServiceFactory::GetInstance());
 }
 
 CartServiceFactory::~CartServiceFactory() = default;
 
-KeyedService* CartServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+CartServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return BuildCartService(context).release();
+  return BuildCartService(context);
 }

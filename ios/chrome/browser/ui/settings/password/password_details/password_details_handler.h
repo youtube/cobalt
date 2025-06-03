@@ -7,21 +7,20 @@
 
 @class PasswordDetails;
 
-typedef NS_ENUM(NSInteger, PasscodeDialogReason) {
-  // User wants to reveal a password value.
-  PasscodeDialogReasonShowPassword,
-  // User wants to move a local-only password to their account.
-  PasscodeDialogReasonMovePasswordToAccount,
-};
-
 // Presenter which handles commands from `PasswordDetailsViewController`.
 @protocol PasswordDetailsHandler
 
-// Called when the view controller was dismissed.
+// Called when the view controller was dismissed by tapping on the Back button
+// of the view controller. This is called by the  -viewDidDisappear method of
+// the Password Details View Controller.
 - (void)passwordDetailsTableViewControllerWasDismissed;
 
-// Shows a dialog offering the user to set a passcode for `reason`.
-- (void)showPasscodeDialogForReason:(PasscodeDialogReason)reason;
+// Called to dismiss the view controller. Only call this method when the view
+// controller is displayed outside the Settings context and the user taps on the
+// cancel button. In the case of the Settings context, it is handled by the
+// -passwordDetailsTableViewControllerWasDismissed method above that is called
+// in -viewDidDisappear.
+- (void)dismissPasswordDetailsTableViewController;
 
 // Called when the user wants to delete a password. `anchorView` should be
 // the button that triggered this deletion flow, to position the confirmation
@@ -52,6 +51,9 @@ typedef NS_ENUM(NSInteger, PasscodeDialogReason) {
 
 // Called when all passwords were deleted, in order to close the view.
 - (void)onAllPasswordsDeleted;
+
+// Called when share button is pressed by the user.
+- (void)onShareButtonPressed;
 
 @end
 

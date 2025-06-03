@@ -1,6 +1,11 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import {TestRunner} from 'test_runner';
+import {AxeCoreTestRunner} from 'axe_core_test_runner';
+import {SourcesTestRunner} from 'sources_test_runner';
+import * as UI from 'devtools/ui/legacy/legacy.js';
 
 (async function() {
     // axe-core issue #1444 -- role="tree" requires children with role="treeitem",
@@ -15,11 +20,9 @@
     TestRunner.addResult(
         'Tests accessibility in DOM eventlistener pane using axe-core linter.');
 
-    await TestRunner.loadTestModule('axe_core_test_runner');
-    await TestRunner.loadTestModule('sources_test_runner');
     const view = 'elements.eventListeners';
-    const widget = await UI.viewManager.view(view).widget();
-    await UI.viewManager.showView(view);
+    const widget = await UI.ViewManager.ViewManager.instance().view(view).widget();
+    await UI.ViewManager.ViewManager.instance().showView(view);
 
     const treeElement = widget.element;
     TestRunner.addResult('Running the axe-core linter on tree element.');

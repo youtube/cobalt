@@ -23,6 +23,10 @@
 #include "printing/buildflags/buildflags.h"
 #include "printing/print_job_constants.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace printing {
 
 namespace mojom {
@@ -33,8 +37,10 @@ class PrinterHandler;
 class PrintPreviewHandler;
 
 // The handler for Javascript messages related to the print preview dialog.
-class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
-                                    public crosapi::mojom::PrintServerObserver {
+class PrintPreviewHandlerChromeOS
+    : public content::WebUIMessageHandler,
+      public crosapi::mojom::PrintServerObserver,
+      public crosapi::mojom::LocalPrintersObserver {
  public:
   PrintPreviewHandlerChromeOS();
   PrintPreviewHandlerChromeOS(const PrintPreviewHandlerChromeOS&) = delete;
@@ -108,14 +114,44 @@ class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
   // Records the `PrintPreview.PrintAttemptOutcome` histogram.
   void HandleRecordPrintAttemptOutcome(const base::Value::List& args);
 
+  // Gets the WebContents that initiated print preview request using
+  // `PrintPreviewDialogController`.
+  content::WebContents* GetInitiator();
+
+  // Gets whether the UI should show the button to open printer settings. Button
+  // should be hidden if preview launched from the settings SWA.
+  void HandleGetShowManagePrinters(const base::Value::List& args);
+
+  void HandleObserveLocalPrinters(const base::Value::List& args);
+
+  // Callback for `HandleGetShowManagePrinters()`.
+  void OnHandleObserveLocalPrinters(
+      const std::string& callback_id,
+      std::vector<crosapi::mojom::LocalDestinationInfoPtr> printers);
+
+  // crosapi::mojom::LocalPrintersObserver Implementation:
+  void OnLocalPrintersUpdated(
+      std::vector<crosapi::mojom::LocalDestinationInfoPtr> printers) override;
+
+  void SetInitiatorForTesting(content::WebContents* test_initiator);
+
   mojo::Receiver<crosapi::mojom::PrintServerObserver> receiver_{this};
+
+  mojo::Receiver<crosapi::mojom::LocalPrintersObserver>
+      local_printers_receiver_{this};
+
+  // Used for testing, when `GetInitiator` called and `test_initiator` is set
+  // then it will be returned instead of calling `PrintPreviewDialogController`
+  // to find the initiator.
+  raw_ptr<content::WebContents> test_initiator_ = nullptr;
 
   // Used to transmit mojo interface method calls to ash chrome.
   // Null if the interface is unavailable.
   // Note that this is not propagated to LocalPrinterHandlerLacros.
   // The pointer is constant - if ash crashes and the mojo connection is lost,
   // lacros will automatically be restarted.
-  raw_ptr<crosapi::mojom::LocalPrinter> local_printer_ = nullptr;
+  raw_ptr<crosapi::mojom::LocalPrinter, DanglingUntriaged> local_printer_ =
+      nullptr;
 
   base::WeakPtrFactory<PrintPreviewHandlerChromeOS> weak_factory_{this};
 };

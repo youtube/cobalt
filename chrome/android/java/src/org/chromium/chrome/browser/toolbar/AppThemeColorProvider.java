@@ -36,9 +36,6 @@ public class AppThemeColorProvider extends ThemeColorProvider implements Incogni
     /** Whether app is in incognito mode. */
     private boolean mIsIncognito;
 
-    /** Whether app is in overview mode. */
-    private boolean mIsOverviewVisible;
-
     /** The activity {@link Context}. */
     private final Context mActivityContext;
 
@@ -51,18 +48,15 @@ public class AppThemeColorProvider extends ThemeColorProvider implements Incogni
 
         mLayoutStateObserver = new LayoutStateProvider.LayoutStateObserver() {
             @Override
-            public void onStartedShowing(@LayoutType int layoutType, boolean showToolbar) {
+            public void onStartedShowing(@LayoutType int layoutType) {
                 if (layoutType == LayoutType.TAB_SWITCHER) {
-                    mIsOverviewVisible = true;
                     updateTheme();
                 }
             }
 
             @Override
-            public void onStartedHiding(
-                    @LayoutType int layoutType, boolean showToolbar, boolean delayAnimation) {
+            public void onStartedHiding(@LayoutType int layoutType) {
                 if (layoutType == LayoutType.TAB_SWITCHER) {
-                    mIsOverviewVisible = false;
                     updateTheme();
                 }
             }
@@ -86,17 +80,9 @@ public class AppThemeColorProvider extends ThemeColorProvider implements Incogni
     }
 
     private void updateTheme() {
-        final boolean shouldUseIncognitoBackground = mIsIncognito
-                && (!mIsOverviewVisible
-                        || ToolbarColors.canUseIncognitoToolbarThemeColorInOverview(
-                                mActivityContext));
-
-        updatePrimaryColor(
-                shouldUseIncognitoBackground ? mIncognitoPrimaryColor : mStandardPrimaryColor,
-                false);
-        final @BrandedColorScheme int brandedColorScheme = shouldUseIncognitoBackground
-                ? BrandedColorScheme.INCOGNITO
-                : BrandedColorScheme.APP_DEFAULT;
+        updatePrimaryColor(mIsIncognito ? mIncognitoPrimaryColor : mStandardPrimaryColor, false);
+        final @BrandedColorScheme int brandedColorScheme =
+                mIsIncognito ? BrandedColorScheme.INCOGNITO : BrandedColorScheme.APP_DEFAULT;
         final ColorStateList iconTint =
                 ThemeUtils.getThemedToolbarIconTint(mActivityContext, brandedColorScheme);
         updateTint(iconTint, brandedColorScheme);

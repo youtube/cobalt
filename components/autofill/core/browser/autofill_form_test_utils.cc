@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/autofill_form_test_utils.h"
 
 #include "components/autofill/core/browser/autofill_test_utils.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/common/autocomplete_parsing_util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -17,8 +18,8 @@ testing::Message DescribeFormData(const FormData& form_data) {
   testing::Message result;
   result << "Form contains " << form_data.fields.size() << " fields:\n";
   for (const FormFieldData& field : form_data.fields) {
-    result << "type=" << field.form_control_type << ", name=" << field.name
-           << ", label=" << field.label << "\n";
+    result << "type=" << FormControlTypeToString(field.form_control_type)
+           << ", name=" << field.name << ", label=" << field.label << "\n";
   }
   return result;
 }
@@ -98,17 +99,20 @@ FormData GetFormData(const FormDescription& d) {
   for (const FieldDescription& dd : d.fields) {
     FormFieldData ff = CreateFieldByRole(dd.role);
     ff.form_control_type = dd.form_control_type;
-    if (ff.form_control_type == "select-one" && !dd.select_options.empty())
+    if (ff.form_control_type == FormControlType::kSelectOne &&
+        !dd.select_options.empty()) {
       ff.options = dd.select_options;
+    }
     ff.host_frame = dd.host_frame.value_or(f.host_frame);
     ff.unique_renderer_id =
         dd.unique_renderer_id.value_or(MakeFieldRendererId());
+    ff.host_form_id = f.unique_renderer_id;
     ff.is_focusable = dd.is_focusable;
     ff.is_visible = dd.is_visible;
     if (!dd.autocomplete_attribute.empty()) {
       ff.autocomplete_attribute = dd.autocomplete_attribute;
       ff.parsed_autocomplete =
-          ParseAutocompleteAttribute(dd.autocomplete_attribute, ff.max_length);
+          ParseAutocompleteAttribute(dd.autocomplete_attribute);
     }
     if (dd.label)
       ff.label = *dd.label;
@@ -162,7 +166,8 @@ void FormStructureTest::CheckFormStructureTestData(
     auto form_structure = std::make_unique<FormStructure>(form);
 
     if (test_case.form_flags.determine_heuristic_type)
-      form_structure->DetermineHeuristicTypes(nullptr, nullptr);
+      form_structure->DetermineHeuristicTypes(GeoIpCountryCode(""), nullptr,
+                                              nullptr);
 
     if (test_case.form_flags.is_autofillable)
       EXPECT_TRUE(form_structure->IsAutofillable());

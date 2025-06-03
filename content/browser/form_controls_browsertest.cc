@@ -7,7 +7,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "cc/test/pixel_comparator.h"
-#include "content/browser/form_controls_browsertest_mac.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/common/content_paths.h"
 #include "content/public/common/content_switches.h"
@@ -53,9 +52,6 @@ class FormControlsBrowserTest : public ContentBrowserTest {
 
     // This is required to allow dark mode to be used on some platforms.
     command_line->AppendSwitch(switches::kForceDarkMode);
-
-    // Force the CPU backend to use AAA. (https://crbug.com/1421297)
-    command_line->AppendSwitch(switches::kForceSkiaAnalyticAntialiasing);
   }
 
   void RunTest(const std::string& screenshot_filename,
@@ -82,6 +78,8 @@ class FormControlsBrowserTest : public ContentBrowserTest {
     }
 #elif BUILDFLAG(IS_FUCHSIA)
     platform_suffix = "_fuchsia";
+#elif BUILDFLAG(IS_IOS)
+    platform_suffix = "_ios";
 #endif
 
     base::FilePath dir_test_data;
@@ -100,7 +98,7 @@ class FormControlsBrowserTest : public ContentBrowserTest {
         NavigateToURL(shell()->web_contents(),
                       GURL("data:text/html,<!DOCTYPE html>" + body_html)));
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
     // This fuzzy pixel comparator handles several mac behaviors:
     // - Different font rendering after 10.14
     // - Slight differences in radio and checkbox rendering in 10.15
@@ -186,12 +184,12 @@ IN_PROC_BROWSER_TEST_F(FormControlsBrowserTest, Radio) {
           /* screenshot_height */ 40);
 }
 
-IN_PROC_BROWSER_TEST_F(FormControlsBrowserTest, DarkModeTextSelection) {
 #if BUILDFLAG(IS_MAC)
-  if (!MacOSVersionSupportsDarkMode())
-    return;
+#define MAYBE_DarkModeTextSelection DISABLED_DarkModeTextSelection
+#else
+#define MAYBE_DarkModeTextSelection DarkModeTextSelection
 #endif
-
+IN_PROC_BROWSER_TEST_F(FormControlsBrowserTest, MAYBE_DarkModeTextSelection) {
   if (SkipTestForOldAndroidVersions())
     return;
 

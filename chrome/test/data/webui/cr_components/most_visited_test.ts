@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {MostVisitedBrowserProxy} from 'chrome://resources/cr_components/most_visited/browser_proxy.js';
 import {MostVisitedElement} from 'chrome://resources/cr_components/most_visited/most_visited.js';
 import {MostVisitedPageCallbackRouter, MostVisitedPageHandlerRemote, MostVisitedPageRemote, MostVisitedTile} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
@@ -19,7 +17,7 @@ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
-import {$$, assertNotStyle, assertStyle, keydown} from './most_visited_test_support.js';
+import {$$, assertStyle, keydown} from './most_visited_test_support.js';
 
 let mostVisited: MostVisitedElement;
 let windowProxy: TestMock<MostVisitedWindowProxy>&MostVisitedWindowProxy;
@@ -137,11 +135,19 @@ function wide() {
   updateScreenWidth(true, true);
 }
 
+function medium() {
+  updateScreenWidth(false, true);
+}
+
+function narrow() {
+  updateScreenWidth(false, false);
+}
+
 function leaveUrlInput() {
   $$(mostVisited, '#dialogInputUrl').dispatchEvent(new Event('blur'));
 }
 
-function setUpTest(singleRow: boolean) {
+function setUpTest(singleRow: boolean, reflowOnOverflow: boolean) {
   document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
   createBrowserProxy();
@@ -149,6 +155,7 @@ function setUpTest(singleRow: boolean) {
 
   mostVisited = new MostVisitedElement();
   mostVisited.singleRow = singleRow;
+  mostVisited.reflowOnOverflow = reflowOnOverflow;
   document.body.appendChild(mostVisited);
   assertEquals(1, handler.getCallCount('updateMostVisitedInfo'));
   wide();
@@ -156,7 +163,7 @@ function setUpTest(singleRow: boolean) {
 
 suite('General', () => {
   setup(() => {
-    setUpTest(/*singleRow=*/ false);
+    setUpTest(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
   });
 
   test('empty shows add shortcut only', async () => {
@@ -190,16 +197,16 @@ suite('General', () => {
   });
 });
 
-function createLayoutsSuite(singleRow: boolean) {
+function createLayoutsSuite(singleRow: boolean, reflowOnOverflow: boolean) {
   setup(() => {
-    setUpTest(singleRow);
+    setUpTest(singleRow, reflowOnOverflow);
   });
 
   test('four tiles fit on one line with addShortcut', async () => {
     await addTiles(4);
     assertEquals(4, queryTiles().length);
     assertAddShortcutShown();
-    const tops = queryAll<HTMLElement>('a, #addShortcut')
+    const tops = queryAll<HTMLElement>('.tile, #addShortcut')
                      .map(({offsetTop}) => offsetTop);
     assertEquals(5, tops.length);
     tops.forEach(top => {
@@ -211,7 +218,7 @@ function createLayoutsSuite(singleRow: boolean) {
     await addTiles(5);
     assertEquals(5, queryTiles().length);
     assertAddShortcutShown();
-    const tops = queryAll<HTMLElement>('a, #addShortcut')
+    const tops = queryAll<HTMLElement>('.tile, #addShortcut')
                      .map(({offsetTop}) => offsetTop);
     assertEquals(6, tops.length);
     const firstRowTop = tops[0];
@@ -233,7 +240,7 @@ function createLayoutsSuite(singleRow: boolean) {
     await addTiles(9);
     assertEquals(9, queryTiles().length);
     assertAddShortcutShown();
-    const tops = queryAll<HTMLElement>('a, #addShortcut')
+    const tops = queryAll<HTMLElement>('.tile, #addShortcut')
                      .map(({offsetTop}) => offsetTop);
     assertEquals(10, tops.length);
     const firstRowTop = tops[0];
@@ -255,7 +262,8 @@ function createLayoutsSuite(singleRow: boolean) {
     await addTiles(10);
     assertEquals(10, queryTiles().length);
     assertAddShortcutHidden();
-    const tops = queryAll<HTMLElement>('a:not([hidden])').map(a => a.offsetTop);
+    const tops =
+        queryAll<HTMLElement>('.tile:not([hidden])').map(a => a.offsetTop);
     assertEquals(10, tops.length);
     const firstRowTop = tops[0];
     const secondRowTop = tops[5];
@@ -318,15 +326,13 @@ function createLayoutsSuite(singleRow: boolean) {
     assertTrue(mostVisited.hasAttribute('visible_'));
     assertFalse(mostVisited.$.container.hidden);
   });
+}
 
+function createLayoutsWidthsSuite(singleRow: boolean) {
   suite('test various widths', () => {
-    function medium() {
-      updateScreenWidth(false, true);
-    }
-
-    function narrow() {
-      updateScreenWidth(false, false);
-    }
+    setup(() => {
+      setUpTest(singleRow, false);
+    });
 
     test('six / three is max for narrow', async () => {
       await addTiles(7);
@@ -420,18 +426,90 @@ function createLayoutsSuite(singleRow: boolean) {
   });
 }
 
+function rowCount(): number {
+  return Number(getComputedStyle(mostVisited.$.container)
+                    .getPropertyValue('--row-count'));
+}
+
+function columnCount(): number {
+  return Number(getComputedStyle(mostVisited.$.container)
+                    .getPropertyValue('--column-count'));
+}
+
+function createLayoutsWidthsReflowSuite(singleRow: boolean) {
+  suite('test reflow on various widths', () => {
+    setup(() => {
+      setUpTest(singleRow, /*reflowOnOverflow=*/ true);
+    });
+
+    test('No hidden tiles', async () => {
+      await addTiles(7);
+      updateScreenWidth(false, true);
+      assertTileLength(7);
+      assertHiddenTileLength(0);
+      updateScreenWidth(false, false);
+      assertTileLength(7);
+      assertHiddenTileLength(0);
+      assertAddShortcutShown();
+    });
+
+    test(
+        'Eight tiles + shortcut reflow to 3c x 3r in narrow layout',
+        async () => {
+          narrow();
+          await addTiles(8);
+          assertAddShortcutShown();
+          assertEquals(columnCount(), 3);
+          assertEquals(rowCount(), 3);
+        });
+
+    test(
+        'Eight tiles + shortcut reflow to 4c x 3r in medium layout',
+        async () => {
+          medium();
+          await addTiles(8);
+          assertAddShortcutShown();
+          assertEquals(columnCount(), 4);
+          assertEquals(rowCount(), 3);
+        });
+
+    test('Eight tiles + shortcut reflow in wide layout', async () => {
+      wide();
+      await addTiles(8);
+      assertAddShortcutShown();
+      assertEquals(columnCount(), singleRow ? 9 : 5);
+      assertEquals(rowCount(), singleRow ? 1 : 2);
+    });
+  });
+}
+
 suite('Layouts', () => {
   suite('double row', () => {
-    createLayoutsSuite(false);
+    createLayoutsSuite(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
+    createLayoutsWidthsSuite(/*singleRow=*/ false);
   });
+
   suite('single row', () => {
-    createLayoutsSuite(true);
+    createLayoutsSuite(/*singleRow=*/ true, /*reflowOnOverflow=*/ false);
+    createLayoutsWidthsSuite(/*singleRow=*/ true);
+  });
+});
+
+suite('Reflow Layouts', () => {
+  suite('double row', () => {
+    createLayoutsSuite(/*singleRow=*/ false, /*reflowOnOverflow=*/ true);
+    createLayoutsWidthsReflowSuite(/*singleRow=*/ false);
+  });
+
+  suite('single row', () => {
+    createLayoutsSuite(/*singleRow=*/ false, /*reflowOnOverflow=*/ true);
+    createLayoutsWidthsReflowSuite(/*singleRow=*/ true);
   });
 });
 
 suite('LoggingAndUpdates', () => {
   setup(() => {
-    setUpTest(/*singleRow=*/ false);
+    setUpTest(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
   });
 
   test('rendering tiles logs event', async () => {
@@ -469,7 +547,7 @@ suite('LoggingAndUpdates', () => {
     await addTiles(1);
 
     // Act.
-    const tileLink = queryTiles()[0]!;
+    const tileLink = queryTiles()[0]!.querySelector('a')!;
     // Prevent triggering a navigation, which would break the test.
     tileLink.href = '#';
     tileLink.click();
@@ -513,7 +591,7 @@ suite('Modification', () => {
   });
 
   setup(() => {
-    setUpTest(/*singleRow=*/ false);
+    setUpTest(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
   });
 
   suite('add dialog', () => {
@@ -869,7 +947,7 @@ suite('Modification', () => {
   test('tile url is set to href of <a>', async () => {
     await addTiles(1);
     const tile = queryTiles()[0]!;
-    assertEquals('https://a/', tile.href);
+    assertEquals('https://a/', tile!.querySelector('a')!.href);
   });
 
   test('delete first tile', async () => {
@@ -967,9 +1045,9 @@ suite('Modification', () => {
 });
 
 
-function createDragAndDropSuite(singleRow: boolean) {
+function createDragAndDropSuite(singleRow: boolean, reflowOnOverflow: boolean) {
   setup(() => {
-    setUpTest(singleRow);
+    setUpTest(singleRow, reflowOnOverflow);
   });
 
   test('drag first tile to second position', async () => {
@@ -977,9 +1055,9 @@ function createDragAndDropSuite(singleRow: boolean) {
     const tiles = queryTiles();
     const first = tiles[0]!;
     const second = tiles[1]!;
-    assertEquals('https://a/', first.href);
+    assertEquals('https://a/', first.querySelector('a')!.href);
     assertTrue(first.draggable);
-    assertEquals('https://b/', second.href);
+    assertEquals('https://b/', second.querySelector('a')!.href);
     assertTrue(second.draggable);
     const firstRect = first.getBoundingClientRect();
     const secondRect = second.getBoundingClientRect();
@@ -997,8 +1075,8 @@ function createDragAndDropSuite(singleRow: boolean) {
     assertEquals('https://a/', url.url);
     assertEquals(1, newPos);
     const [newFirst, newSecond] = queryTiles();
-    assertEquals('https://b/', newFirst!.href);
-    assertEquals('https://a/', newSecond!.href);
+    assertEquals('https://b/', newFirst!.querySelector('a')!.href);
+    assertEquals('https://a/', newSecond!.querySelector('a')!.href);
   });
 
   test('drag second tile to first position', async () => {
@@ -1006,9 +1084,9 @@ function createDragAndDropSuite(singleRow: boolean) {
     const tiles = queryTiles();
     const first = tiles[0]!;
     const second = tiles[1]!;
-    assertEquals('https://a/', first.href);
+    assertEquals('https://a/', first.querySelector('a')!.href);
     assertTrue(first.draggable);
-    assertEquals('https://b/', second.href);
+    assertEquals('https://b/', second.querySelector('a')!.href);
     assertTrue(second.draggable);
     const firstRect = first.getBoundingClientRect();
     const secondRect = second.getBoundingClientRect();
@@ -1026,8 +1104,8 @@ function createDragAndDropSuite(singleRow: boolean) {
     assertEquals('https://b/', url.url);
     assertEquals(0, newPos);
     const [newFirst, newSecond] = queryTiles();
-    assertEquals('https://b/', newFirst!.href);
-    assertEquals('https://a/', newSecond!.href);
+    assertEquals('https://b/', newFirst!.querySelector('a')!.href);
+    assertEquals('https://a/', newSecond!.querySelector('a')!.href);
   });
 
   test('most visited tiles cannot be reordered', async () => {
@@ -1035,9 +1113,9 @@ function createDragAndDropSuite(singleRow: boolean) {
     const tiles = queryTiles();
     const first = tiles[0]!;
     const second = tiles[1]!;
-    assertEquals('https://a/', first.href);
+    assertEquals('https://a/', first.querySelector('a')!.href);
     assertTrue(first.draggable);
-    assertEquals('https://b/', second.href);
+    assertEquals('https://b/', second.querySelector('a')!.href);
     assertTrue(second.draggable);
     const firstRect = first.getBoundingClientRect();
     const secondRect = second.getBoundingClientRect();
@@ -1052,23 +1130,25 @@ function createDragAndDropSuite(singleRow: boolean) {
     await flushTasks();
     assertEquals(0, handler.getCallCount('reorderMostVisitedTile'));
     const [newFirst, newSecond] = queryTiles();
-    assertEquals('https://a/', newFirst!.href);
-    assertEquals('https://b/', newSecond!.href);
+    assertEquals('https://a/', newFirst!.querySelector('a')!.href);
+    assertEquals('https://b/', newSecond!.querySelector('a')!.href);
   });
 }
 
 suite('DragAndDrop', () => {
   suite('double row', () => {
-    createDragAndDropSuite(false);
+    createDragAndDropSuite(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
+    createDragAndDropSuite(/*singleRow=*/ false, /*reflowOnOverflow=*/ true);
   });
   suite('single row', () => {
-    createDragAndDropSuite(true);
+    createDragAndDropSuite(/*singleRow=*/ true, /*reflowOnOverflow=*/ false);
+    createDragAndDropSuite(/*singleRow=*/ true, /*reflowOnOverflow=*/ true);
   });
 });
 
 suite('Theming', () => {
   setup(() => {
-    setUpTest(/*singleRow=*/ false);
+    setUpTest(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
   });
 
   test('RIGHT_TO_LEFT tile title text direction', async () => {
@@ -1123,22 +1203,75 @@ suite('Theming', () => {
         $$(mostVisited, '#addShortcutIcon'), 'background-color',
         'rgb(255, 255, 255)');
   });
+});
 
-  test('add title pill', () => {
-    mostVisited.style.setProperty('--most-visited-text-shadow', '1px 2px');
-    queryAll('.tile-title').forEach(tile => {
-      assertStyle(tile, 'background-color', 'rgba(0, 0, 0, 0)');
+suite('Prerendering', () => {
+  suiteSetup(() => {
+    loadTimeData.overrideValues({
+      prerenderEnabled: true,
+      prerenderStartTimeThreshold: 0,
     });
-    queryAll('.tile-title span').forEach(tile => {
-      assertNotStyle(tile, 'text-shadow', 'none');
-    });
-    mostVisited.toggleAttribute('use-title-pill_', true);
-    queryAll('.tile-title').forEach(tile => {
-      assertStyle(tile, 'background-color', 'rgb(255, 255, 255)');
-    });
-    queryAll('.tile-title span').forEach(tile => {
-      assertStyle(tile, 'text-shadow', 'none');
-      assertStyle(tile, 'color', 'rgb(60, 64, 67)');
-    });
+  });
+
+  setup(() => {
+    setUpTest(/*singleRow=*/ false, /*reflowOnOverflow=*/ false);
+  });
+
+  test('onMouseHover Trigger', async () => {
+    // Arrange.
+    await addTiles(1);
+
+    // // Act.
+    const tileLink = queryTiles()[0]!.querySelector('a')!;
+    // Prevent triggering a navigation, which would break the test.
+    tileLink.href = '#';
+    // simulate a mousedown event.
+    const mouseEvent = document.createEvent('MouseEvents');
+    mouseEvent.initEvent('mouseenter', true, true);
+    tileLink.dispatchEvent(mouseEvent);
+
+    // Make sure Prerendering has been triggered
+    await handler.whenCalled('prerenderMostVisitedTile');
+  });
+
+  test('onMouseDown Trigger', async () => {
+    // Arrange.
+    await addTiles(1);
+
+    // // Act.
+    const tileLink = queryTiles()[0]!.querySelector('a')!;
+    // Prevent triggering a navigation, which would break the test.
+    tileLink.href = '#';
+    // simulate a mousedown event.
+    const mouseEvent = document.createEvent('MouseEvents');
+    mouseEvent.initEvent('mousedown', true, true);
+    tileLink.dispatchEvent(mouseEvent);
+
+    // Make sure Prerendering has been triggered
+    await handler.whenCalled('prerenderMostVisitedTile');
+  });
+
+  test('prerender cancelation', async () => {
+    // Arrange.
+    await addTiles(1);
+
+    // // Act.
+    const tileLink = queryTiles()[0]!.querySelector('a')!;
+    // Prevent triggering a navigation, which would break the test.
+    tileLink.href = '#';
+    // simulate a mousedown event.
+    const mouseEnterEvent = document.createEvent('MouseEvents');
+    mouseEnterEvent.initEvent('mouseenter', true, true);
+    tileLink.dispatchEvent(mouseEnterEvent);
+
+    // Make sure Prerendering has been triggered
+    await handler.whenCalled('prerenderMostVisitedTile');
+
+    const mouseExitEvent = document.createEvent('MouseEvents');
+    mouseExitEvent.initEvent('mouseleave', true, true);
+    tileLink.dispatchEvent(mouseExitEvent);
+
+    // Make sure Prerendering has been canceled.
+    await handler.whenCalled('cancelPrerender');
   });
 });

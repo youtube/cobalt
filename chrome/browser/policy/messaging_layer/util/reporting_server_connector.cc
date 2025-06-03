@@ -18,10 +18,12 @@
 #include "base/rand_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/messaging_layer/upload/encrypted_reporting_client.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -52,8 +54,10 @@ using ::policy::CloudPolicyCore;
 
 namespace reporting {
 
-BASE_FEATURE(kEnableEncryptedReportingClientForUpload,
-             "EnableEncryptedReportingClientForUpload",
+// TODO(b/281905099): remove after rolling out reporting managed user events
+// from unmanaged devices
+BASE_FEATURE(kEnableReportingFromUnmanagedDevices,
+             "EnableReportingFromUnmanagedDevices",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Gets the size of payload as a JSON string.
@@ -124,7 +128,7 @@ class PayloadSizeUmaReporter {
   // Reports to UMA.
   void Report() {
     DCHECK_CURRENTLY_ON(::content::BrowserThread::UI);
-    DCHECK_GE(response_payload_size_, 0);
+    CHECK_GE(response_payload_size_, 0);
 
     last_reported_time_ = base::Time::Now();
     base::UmaHistogramCounts1M("Browser.ERP.ResponsePayloadSize",
@@ -196,18 +200,25 @@ void ReportingServerConnector::OnCoreDestruction(CloudPolicyCore* core) {
   core_ = nullptr;
 }
 
+// static
+// Returns true if device info should be including in the upload. Returns false
+// otherwise.
+bool DeviceInfoRequiredForUpload() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  return !base::FeatureList::IsEnabled(kEnableReportingFromUnmanagedDevices) ||
+         // Check if this is a managed device.
+         policy::ManagementServiceFactory::GetForPlatform()
+             ->HasManagementAuthority(
+                 policy::EnterpriseManagementAuthority::CLOUD_DOMAIN);
+}
+
 void ReportingServerConnector::UploadEncryptedReportInternal(
     base::Value::Dict merging_payload,
     absl::optional<base::Value::Dict> context,
-    ResponseCallbackInternal callback) {
-  if (base::FeatureList::IsEnabled(kEnableEncryptedReportingClientForUpload)) {
-    encrypted_reporting_client_->UploadReport(
-        std::move(merging_payload), std::move(context), client_->dm_token(),
-        client_->client_id(), std::move(callback));
-    return;
-  }
-  client_->UploadEncryptedReport(std::move(merging_payload), std::move(context),
-                                 std::move(callback));
+    ResponseCallback callback) {
+  encrypted_reporting_client_->UploadReport(std::move(merging_payload),
+                                            std::move(context), client_,
+                                            std::move(callback));
 }
 
 // static
@@ -226,25 +237,28 @@ void ReportingServerConnector::UploadEncryptedReport(
 
   // Now we are on UI task runner.
   ReportingServerConnector* const connector = GetInstance();
-  auto client_status = connector->EnsureUsableClient();
-  if (!client_status.ok()) {
-    std::move(callback).Run(client_status);
-    return;
-  }
-  if (connector->client_->dm_token().empty()) {
-    std::move(callback).Run(
-        Status(error::UNAVAILABLE, "Device DM token not set"));
-    return;
-  }
 
-  // Client is usable. Prepare context for the upload.
-  // Compose the only context elements needed by reporting server.
+  // Add context elements needed by reporting server.
   base::Value::Dict context;
   context.SetByDottedPath("browser.userAgent",
                           embedder_support::GetUserAgent());
-  context.SetByDottedPath("device.dmToken", connector->client_->dm_token());
 
-  // Forward the `UploadEncryptedReport` to the cloud policy client.
+  if (DeviceInfoRequiredForUpload()) {
+    // Initialize the cloud policy client
+    auto client_status = connector->EnsureUsableClient();
+    if (!client_status.ok()) {
+      std::move(callback).Run(base::unexpected(std::move(client_status)));
+      return;
+    }
+    if (connector->client_->dm_token().empty()) {
+      std::move(callback).Run(base::unexpected(
+          Status(error::UNAVAILABLE, "Device DM token not set")));
+      return;
+    }
+    context.SetByDottedPath("device.dmToken", connector->client_->dm_token());
+  }
+
+  // Forward the `UploadEncryptedReport` to `encrypted_reporting_client_`.
   absl::optional<int> request_payload_size;
   if (PayloadSizeComputationRateLimiterForUma::Get().ShouldDo()) {
     request_payload_size = GetPayloadSize(merging_payload);
@@ -256,11 +270,10 @@ void ReportingServerConnector::UploadEncryptedReport(
              absl::optional<int> request_payload_size,
              base::WeakPtr<PayloadSizePerHourUmaReporter>
                  payload_size_per_hour_uma_reporter,
-             absl::optional<base::Value::Dict> result) {
+             StatusOr<base::Value::Dict> result) {
             DCHECK_CURRENTLY_ON(::content::BrowserThread::UI);
             if (!result.has_value()) {
-              std::move(callback).Run(
-                  Status(error::DATA_LOSS, "Failed to upload"));
+              std::move(callback).Run(std::move(result));
               return;
             }
 
@@ -303,8 +316,9 @@ ReportingServerConnector::GetUserCloudPolicyManager() {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   if (!g_browser_process || !g_browser_process->platform_part() ||
       !g_browser_process->platform_part()->browser_policy_connector_ash()) {
-    return Status(error::UNAVAILABLE,
-                  "Browser process not fit to retrieve CloudPolicyManager");
+    return base::unexpected(
+        Status(error::UNAVAILABLE,
+               "Browser process not fit to retrieve CloudPolicyManager"));
   }
   return g_browser_process->platform_part()
       ->browser_policy_connector_ash()
@@ -313,14 +327,16 @@ ReportingServerConnector::GetUserCloudPolicyManager() {
   // Android doesn't have access to a device level CloudPolicyClient, so get
   // the PrimaryUserProfile CloudPolicyClient.
   if (!ProfileManager::GetPrimaryUserProfile()) {
-    return Status(error::UNAVAILABLE,
-                  "PrimaryUserProfile not fit to retrieve CloudPolicyManager");
+    return base::unexpected(Status(error::UNAVAILABLE,
+                                   "PrimaryUserProfile not fit to retrieve "
+                                   "CloudPolicyManager"));
   }
   return ProfileManager::GetPrimaryUserProfile()->GetUserCloudPolicyManager();
 #else
   if (!g_browser_process || !g_browser_process->browser_policy_connector()) {
-    return Status(error::UNAVAILABLE,
-                  "Browser process not fit to retrieve CloudPolicyManager");
+    return base::unexpected(Status(error::UNAVAILABLE,
+                                   "Browser process not fit to retrieve "
+                                   "CloudPolicyManager"));
   }
   return g_browser_process->browser_policy_connector()
       ->machine_level_user_cloud_policy_manager();
@@ -355,7 +371,7 @@ Status ReportingServerConnector::EnsureUsableClient() {
   // The `policy::CloudPolicyClient` object is retrieved in two different ways
   // for ChromeOS and non-ChromeOS browsers.
   if (!client_) {
-    RETURN_IF_ERROR(EnsureUsableCore());
+    RETURN_IF_ERROR_STATUS(EnsureUsableCore());
 
     if (core_->client() == nullptr) {
       return Status(error::NOT_FOUND, "No usable CloudPolicyClient found");

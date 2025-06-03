@@ -19,8 +19,6 @@
 #include "chrome/updater/util/util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-// TODO(1382547): There is a overlap between the Mac and Linux setup functions.
-// We should find a way to merge these.
 namespace updater {
 
 int Setup(UpdaterScope scope) {
@@ -32,6 +30,14 @@ int Setup(UpdaterScope scope) {
   if (!dest_path) {
     return kErrorFailedToGetVersionedInstallDirectory;
   }
+
+  if (base::PathExists(*dest_path)) {
+    if (!DeleteExcept(dest_path->Append("Crashpad"))) {
+      LOG(ERROR) << "Could not remove existing copy of this updater.";
+      return kErrorFailedToDeleteFolder;
+    }
+  }
+
   dest_path = dest_path->Append(GetExecutableRelativePath());
 
   base::FilePath exe_path;
@@ -92,11 +98,11 @@ int PromoteCandidate(UpdaterScope scope) {
       launcher_path->DirName().AppendASCII("launcher_new");
   if (link(updater_executable.value().c_str(),
            tmp_launcher_name.value().c_str())) {
-    return kErrorFailedToLinkLauncher;
+    return kErrorFailedToLinkCurrent;
   }
   if (rename(tmp_launcher_name.value().c_str(),
              launcher_path->value().c_str())) {
-    return kErrorFailedToRenameLauncher;
+    return kErrorFailedToRenameCurrent;
   }
 
   if (!InstallSystemdUnits(scope)) {

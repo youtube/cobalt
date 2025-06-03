@@ -4,8 +4,8 @@
 
 #import <XCTest/XCTest.h>
 
+#import "base/apple/foundation_util.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_egtest_util.h"
 #import "ios/chrome/browser/shared/ui/elements/elements_constants.h"
 #import "ios/chrome/browser/signin/fake_system_identity.h"
@@ -21,10 +21,6 @@
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -287,11 +283,12 @@ using chrome_test_util::WindowWithNumber;
                   @"Did not navigate to the search activity url.");
 }
 
-// Sign-in without sync. Clear browsing data.
+// Sign-in and clear browsing data.
 - (void)signInOpenCBDAndClearDataWithFakeIdentity:
-    (FakeSystemIdentity*)fakeIdentity {
+            (FakeSystemIdentity*)fakeIdentity
+                                       enableSync:(BOOL)enableSync {
   [SigninEarlGrey addFakeIdentity:fakeIdentity];
-  [SigninEarlGreyUI signinWithFakeIdentity:fakeIdentity enableSync:NO];
+  [SigninEarlGreyUI signinWithFakeIdentity:fakeIdentity enableSync:enableSync];
 
   [ChromeEarlGreyUI openSettingsMenu];
   [ChromeEarlGreyUI tapSettingsMenuButton:SettingsMenuPrivacyButton()];
@@ -306,11 +303,33 @@ using chrome_test_util::WindowWithNumber;
   WaitForActivityOverlayToDisappear();
 }
 
-// Tests that a user in the `ConsentLevel::kSignin` state will be signed out
+// Tests that a user in the `ConsentLevel::kSignin` state will remain signed in
 // after clearing their browsing history.
 - (void)testUserSignedInWhenClearingBrowsingData {
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
-  [self signInOpenCBDAndClearDataWithFakeIdentity:fakeIdentity];
+  [self signInOpenCBDAndClearDataWithFakeIdentity:fakeIdentity enableSync:NO];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
+}
+
+// Tests that a supervised user in the `ConsentLevel::kSync` state will remain
+// signed-in after clearing their browsing history.
+- (void)testSupervisedUserSyncingWhenClearingBrowsingData {
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey addFakeIdentity:fakeIdentity];
+  [SigninEarlGrey setIsSubjectToParentalControls:YES forIdentity:fakeIdentity];
+
+  [self signInOpenCBDAndClearDataWithFakeIdentity:fakeIdentity enableSync:YES];
+  [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
+}
+
+// Tests that a supervised user in the `ConsentLevel::kSignin` state will remain
+// signed-in after clearing their browsing history.
+- (void)testSupervisedUserSignedInWhenClearingBrowsingData {
+  FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
+  [SigninEarlGrey addFakeIdentity:fakeIdentity];
+  [SigninEarlGrey setIsSubjectToParentalControls:YES forIdentity:fakeIdentity];
+
+  [self signInOpenCBDAndClearDataWithFakeIdentity:fakeIdentity enableSync:NO];
   [SigninEarlGrey verifySignedInWithFakeIdentity:fakeIdentity];
 }
 

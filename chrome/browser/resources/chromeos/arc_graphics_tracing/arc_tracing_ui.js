@@ -36,12 +36,15 @@ const zooms = [
 let zoomLevel = 5;
 
 /**
- * Keep in sync with ArcTracingGraphicsModel::BufferEventType
+ * Keep in sync with ArcTracingGraphicsModel::EventType
  * See chrome/browser/ash/arc/tracing/arc_tracing_graphics_model.h.
  * Describes how events should be rendered. |color| specifies color of the
  * event, |name| is used in tooltips. |width| defines the width in case it is
  * rendered as a line and |radius| defines the radius in case it is rendered as
  * a circle.
+ *
+ * TODO(matvore): Only kIdleIn and kIdleOut are used in bands. Verify and clean
+ * up.
  */
 const eventAttributes = {
   // kIdleIn
@@ -64,28 +67,11 @@ const eventAttributes = {
   // kBufferFillJank
   106: {color: '#ff0000', name: 'buffer filling jank', width: 1.0, radius: 4.0},
 
-  // kExoSurfaceAttach.
-  200: {color: '#99ccff', name: 'surface attach'},
-  // kExoProduceResource
-  201: {color: '#cc66ff', name: 'produce resource'},
-  // kExoBound
-  202: {color: '#66ffff', name: 'buffer bound'},
-  // kExoPendingQuery
-  203: {color: '#00ff99', name: 'pending query'},
-  // kExoReleased
-  204: {color: unusedColor, name: 'released'},
-  // kExoJank
-  205: {color: '#ff0000', name: 'surface attach jank', width: 1.0, radius: 4.0},
-  // kExoCommit
-  206: {color: '#3d5afe', name: 'buffer committed'},
-
   // kChromeBarrierOrder.
   300: {color: '#ff9933', name: 'barrier order'},
   // kChromeBarrierFlush
   301: {color: unusedColor, name: 'barrier flush'},
 
-  // kSurfaceFlingerVsyncHandler
-  400: {color: '#993300', name: 'vsync handler', width: 1.0},
   // kSurfaceFlingerInvalidationStart
   401: {color: '#ff9933', name: 'invalidation start'},
   // kSurfaceFlingerInvalidationDone
@@ -94,15 +80,6 @@ const eventAttributes = {
   403: {color: '#3399ff', name: 'composition start'},
   // kSurfaceFlingerCompositionDone
   404: {color: unusedColor, name: 'composition done'},
-  // kSurfaceFlingerCompositionJank
-  405: {
-    color: '#ff0000',
-    name: 'Android composition jank',
-    width: 1.0,
-    radius: 4.0,
-  },
-  // kVsyncTimestamp
-  406: {color: '#ff3300', name: 'vsync', width: 0.5},
 
   // kChromeOSDraw
   500: {color: '#3399ff', name: 'draw'},
@@ -125,15 +102,6 @@ const eventAttributes = {
   // kCustomEvent
   600: {color: '#7cb342', name: 'Custom event', width: 1.0, radius: 4.0},
 
-  // kInputEventCreated
-  700: {color: '#ff6f00', name: 'create'},
-  // kInputEventWaylandDispatched
-  701: {color: '#f4ff81', name: 'dispatch'},
-  // kInputEventDeliverStart
-  702: {color: '#388e3c', name: 'deliver start'},
-  // kInputEventDeliverEnd
-  703: {color: unusedColor, name: 'deliver end'},
-
   // Service events.
   // kTimeMark
   10000: {color: '#888', name: 'Time mark', width: 0.75},
@@ -145,7 +113,7 @@ const eventAttributes = {
  * Defines the map of events that can be treated as the end of event sequence.
  * Time after such events is considered as idle time until the next event
  * starts. Key of |endSequenceEvents| is event type as defined in
- * ArcTracingGraphicsModel::BufferEventType and value is the list of event
+ * ArcTracingGraphicsModel::EventType and value is the list of event
  * types that should follow after the tested event to consider it as end of
  * sequence. Empty list means that tested event is certainly end of the
  * sequence.
@@ -157,8 +125,6 @@ const endSequenceEvents = {
   103: [],
   // kBufferQueueReleased
   105: [],
-  // kExoReleased
-  204: [],
   // kChromeBarrierFlush
   301: [],
   // kSurfaceFlingerInvalidationDone
@@ -173,8 +139,6 @@ const endSequenceEvents = {
   503: [500 /* kChromeOSDraw */],
   // kChromeOSSwapDone
   504: [500 /* kChromeOSDraw */],
-  // kInputEventDeliverEnd
-  703: [],
 };
 
 /**
@@ -461,8 +425,9 @@ class SVG {
   // Creates text element in the |svg| with provided attributes.
   static addText(svg, x, y, fontSize, textContent, anchor, transform) {
     const lines = textContent.split('\n');
+    let text;
     for (let i = 0; i < lines.length; ++i) {
-      const text = document.createElementNS(svgNS, 'text');
+      text = document.createElementNS(svgNS, 'text');
       text.setAttributeNS(null, 'x', x);
       text.setAttributeNS(null, 'y', y);
       text.setAttributeNS(null, 'fill', 'black');
@@ -545,7 +510,6 @@ class EventBands {
     this.charts = [];
     this.globalEvents = [];
     this.tooltips = [];
-    this.vsyncEvents = null;
     this.resolution = resolution;
     this.minTimestamp = minTimestamp;
     this.maxTimestamp = maxTimestamp;
@@ -974,16 +938,6 @@ class EventBands {
     this.globalEvents.push(events);
   }
 
-  /**
-   * Sets VSYNC events and adds them as a global events.
-   *
-   * @param {Events} VSYNC events to set.
-   */
-  setVSync(events) {
-    this.addGlobal(events);
-    this.vsyncEvents = events;
-  }
-
   /** Initializes tooltip support by observing mouse events */
   setTooltip_() {
     this.tooltip = $('arc-event-band-tooltip');
@@ -1120,23 +1074,6 @@ class EventBands {
     }
   }
 
-  /**
-   * Returns timestamp of the last VSYNC event happened before or on given
-   * |eventTimestamp|.
-   *
-   * @param {number} eventTimestamp.
-   */
-  getVSyncTimestamp_(eventTimestamp) {
-    if (!this.vsyncEvents) {
-      return null;
-    }
-    const vsyncEventIndex = this.vsyncEvents.getLastBefore(eventTimestamp);
-    if (vsyncEventIndex < 0) {
-      return null;
-    }
-    return this.vsyncEvents.events[vsyncEventIndex][1];
-  }
-
 
   /**
    * Adds time information for |eventTimestamp| to the tooltip. Global time is
@@ -1149,13 +1086,7 @@ class EventBands {
    * @returns {number} vertical position of the next element.
    */
   addTimeInfoToTooltip_(svg, yOffset, eventTimestamp) {
-    const vsyncTimestamp = this.getVSyncTimestamp_(eventTimestamp);
-
-    let text = timestampToMsText(eventTimestamp) + ' ms';
-    if (vsyncTimestamp) {
-      text += ', +' + timestampToMsText(eventTimestamp - vsyncTimestamp) +
-          ' since last vsync';
-    }
+    const text = timestampToMsText(eventTimestamp) + ' ms';
 
     yOffset += this.lineHeight;
     SVG.addText(svg, this.horizontalGap, yOffset, this.fontSize, text);
@@ -1187,12 +1118,7 @@ class EventBands {
     for (let i = 0; i < globalEventCnt; ++i) {
       const globalEvent = globalEvents[i];
       const globalEventType = globalEvent[0];
-      let globalEventTimestamp = globalEvent[1];
-      if (globalEventType == 406 /* kVsyncTimestamp */) {
-        // -1 to prevent VSYNC detects itself. In last case, previous VSYNC
-        // would be chosen.
-        globalEventTimestamp -= 1;
-      }
+      const globalEventTimestamp = globalEvent[1];
 
       yOffset = this.addTimeInfoToTooltip_(svg, yOffset, globalEventTimestamp);
 
@@ -1533,7 +1459,7 @@ class CpuDetailedInfoView extends DetailedInfoView {
         ' active processes/threads. Total cpu usage: ' + totalUsage.toFixed(2) +
         '%.';
     const title = new EventBandTitle(
-        this.overlay, undefined, cpuInfo, 'arc-cpu-view-title');
+        this.overlay, undefined /* anchor */, cpuInfo, 'arc-cpu-view-title');
     const bands = new EventBands(
         title, 'arc-events-cpu-detailed-band',
         overviewBand.resolution / zoomFactor, minTimestamp, maxTimestamp);
@@ -1593,11 +1519,6 @@ class CpuDetailedInfoView extends DetailedInfoView {
       }
       bands.addBandSeparator(2 /* padding */);
     }
-
-    const vsyncEvents = new Events(
-        overviewBand.model.android.global_events, 406 /* kVsyncTimestamp */,
-        406 /* kVsyncTimestamp */);
-    bands.setVSync(vsyncEvents);
 
     // Add center and boundary lines.
     const kTimeMark = 10000;

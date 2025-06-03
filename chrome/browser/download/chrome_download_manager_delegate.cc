@@ -17,6 +17,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
@@ -91,6 +92,7 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
 #include "base/android/content_uri_utils.h"
 #include "base/android/path_utils.h"
 #include "chrome/browser/download/android/chrome_duplicate_download_infobar_delegate.h"
@@ -106,10 +108,13 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "net/http/http_content_disposition.h"
+#include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "ui/android/window_android.h"
 #else
+#include "chrome/browser/download/download_item_web_app_data.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -375,6 +380,10 @@ void MaybeReportDangerousDownloadBlocked(
     return;
   }
 
+  if (!download) {
+    return;
+  }
+
   content::BrowserContext* browser_context =
       content::DownloadItemUtils::GetBrowserContext(download);
   Profile* profile = Profile::FromBrowserContext(browser_context);
@@ -400,7 +409,7 @@ void MaybeReportDangerousDownloadBlocked(
       raw_digest_sha256 = download->GetHash();
     }
     router->OnDangerousDownloadEvent(
-        download->GetURL(), download_path,
+        download->GetURL(), download->GetTabUrl(), download_path,
         base::HexEncode(raw_digest_sha256.data(), raw_digest_sha256.size()),
         danger_type, download->GetMimeType(), /*scan_id*/ "",
         download->GetTotalBytes(), safe_browsing::EventResult::BLOCKED);
@@ -495,6 +504,11 @@ void ChromeDownloadManagerDelegate::ShowDownloadDialog(
 void ChromeDownloadManagerDelegate::SetDownloadDialogBridgeForTesting(
     DownloadDialogBridge* bridge) {
   download_dialog_bridge_.reset(bridge);
+}
+
+void ChromeDownloadManagerDelegate::SetDownloadMessageBridgeForTesting(
+    DownloadMessageBridge* bridge) {
+  download_message_bridge_.reset(bridge);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -595,7 +609,19 @@ bool ChromeDownloadManagerDelegate::ShouldAutomaticallyOpenFile(
   if (path.MatchesExtension(extensions::kExtensionFileExtension))
     return false;
 #endif
-  return download_prefs_->IsAutoOpenEnabled(url, path);
+
+  bool should_open = download_prefs_->IsAutoOpenEnabled(url, path);
+  int64_t file_type_uma_value =
+      safe_browsing::FileTypePolicies::GetInstance()->UmaValueForFile(path);
+  if (should_open) {
+    base::UmaHistogramSparse("SBClientDownload.AutoOpenEnabledFileType",
+                             file_type_uma_value);
+  } else {
+    base::UmaHistogramSparse("SBClientDownload.AutoOpenDisabledFileType",
+                             file_type_uma_value);
+  }
+
+  return should_open;
 }
 
 bool ChromeDownloadManagerDelegate::ShouldAutomaticallyOpenFileByPolicy(
@@ -808,6 +834,20 @@ bool ChromeDownloadManagerDelegate::InterceptDownloadIfApplicable(
     return true;
   }
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    if (!blink::IsSupportedMimeType(mime_type)) {
+      download_message_bridge_->ShowUnsupportedDownloadMessage(web_contents);
+      base::UmaHistogramEnumeration(
+          "Download.Blocked.ContentType.Automotive",
+          download::DownloadContentFromMimeType(mime_type, false),
+          download::DownloadContent::MAX);
+      return true;
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   return false;
 }
 
@@ -893,7 +933,7 @@ void ChromeDownloadManagerDelegate::OpenDownload(DownloadItem* download) {
   content::WebContents* web_contents =
       content::DownloadItemUtils::GetWebContents(download);
   Browser* browser =
-      web_contents ? chrome::FindBrowserWithWebContents(web_contents) : nullptr;
+      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
   std::unique_ptr<chrome::ScopedTabbedBrowserDisplayer> browser_displayer;
   if (!browser ||
       !browser->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP)) {
@@ -1095,14 +1135,13 @@ void ChromeDownloadManagerDelegate::RequestConfirmation(
         return;
       }
 
-      gfx::NativeWindow native_window = web_contents->GetTopLevelNativeWindow();
       DownloadPathReservationTracker::GetReservedPath(
           download, suggested_path, download_dir,
           base::FilePath() /* fallback_directory */, true,
           DownloadPathReservationTracker::UNIQUIFY,
           base::BindOnce(
               &ChromeDownloadManagerDelegate::GenerateUniqueFileNameDone,
-              weak_ptr_factory_.GetWeakPtr(), native_window,
+              weak_ptr_factory_.GetWeakPtr(), download->GetGuid(),
               std::move(callback)));
       return;
     }
@@ -1192,7 +1231,7 @@ void ChromeDownloadManagerDelegate::ShowFilePickerForDownload(
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromeDownloadManagerDelegate::GenerateUniqueFileNameDone(
-    gfx::NativeWindow native_window,
+    const std::string& download_guid,
     DownloadTargetDeterminerDelegate::ConfirmationCallback callback,
     PathValidationResult result,
     const base::FilePath& target_path) {
@@ -1201,11 +1240,19 @@ void ChromeDownloadManagerDelegate::GenerateUniqueFileNameDone(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (download::IsPathValidationSuccessful(result)) {
     if (download_prefs_->PromptForDownload()) {
-      ShowDownloadDialog(
-          native_window, 0 /* total_bytes */,
-          DownloadLocationDialogType::NAME_CONFLICT, target_path,
-          base::BindOnce(&OnDownloadDialogClosed, std::move(callback)));
-      return;
+        download::DownloadItem* download =
+            download_manager_->GetDownloadByGuid(download_guid);
+        content::WebContents* web_contents =
+            download ? content::DownloadItemUtils::GetWebContents(download)
+                     : nullptr;
+        gfx::NativeWindow native_window =
+            web_contents ? web_contents->GetTopLevelNativeWindow() : nullptr;
+        // Null native window will be handled by ShowDownloadDialog().
+        ShowDownloadDialog(
+            native_window, 0 /* total_bytes */,
+            DownloadLocationDialogType::NAME_CONFLICT, target_path,
+            base::BindOnce(&OnDownloadDialogClosed, std::move(callback)));
+        return;
     }
 
     // If user chose not to show download location dialog, uses current unique
@@ -1297,7 +1344,9 @@ void ChromeDownloadManagerDelegate::CheckClientDownloadDone(
           download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT ||
       item->GetDangerType() == download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING ||
       item->GetDangerType() ==
-          download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING) {
+          download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING ||
+      item->GetDangerType() ==
+          download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING) {
     download::DownloadDangerType danger_type =
         download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS;
     switch (result) {
@@ -1355,6 +1404,15 @@ void ChromeDownloadManagerDelegate::CheckClientDownloadDone(
       case safe_browsing::DownloadCheckResult::DANGEROUS_ACCOUNT_COMPROMISE:
         danger_type =
             download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE;
+        break;
+      case safe_browsing::DownloadCheckResult::DEEP_SCANNED_FAILED:
+        danger_type = download::DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED;
+        break;
+      case safe_browsing::DownloadCheckResult::
+          PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
+        is_pending_scanning = true;
+        danger_type =
+            download::DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING;
         break;
     }
     DCHECK_NE(danger_type,
@@ -1772,6 +1830,22 @@ void ChromeDownloadManagerDelegate::OnCheckDownloadAllowedComplete(
 
   std::move(check_download_allowed_cb).Run(allow);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+void ChromeDownloadManagerDelegate::AttachExtraInfo(
+    download::DownloadItem* item) {
+  content::WebContents* web_contents =
+      content::DownloadItemUtils::GetWebContents(item);
+  Browser* browser =
+      web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
+  // Attach the info for whether the download came from a web app.
+  if (browser && web_app::AppBrowserController::IsWebApp(browser) &&
+      browser->app_controller()) {
+    DownloadItemWebAppData::CreateAndAttachToItem(
+        item, browser->app_controller()->app_id());
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 ChromeDownloadManagerDelegate::SafeBrowsingState::~SafeBrowsingState() {}

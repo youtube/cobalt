@@ -28,7 +28,6 @@ class FakeLoginDisplayHost : public LoginDisplayHost {
   ~FakeLoginDisplayHost() override;
 
   // LoginDisplayHost:
-  LoginDisplay* GetLoginDisplay() override;
   ExistingUserController* GetExistingUserController() override;
   gfx::NativeWindow GetNativeWindow() const override;
   views::Widget* GetLoginWindowWidget() const override;
@@ -37,13 +36,11 @@ class FakeLoginDisplayHost : public LoginDisplayHost {
   WebUILoginView* GetWebUILoginView() const override;
   void BeforeSessionStart() override;
   bool IsFinalizing() override;
-  void Finalize(base::OnceClosure) override;
   void FinalizeImmediately() override;
   void SetStatusAreaVisible(bool visible) override;
   void StartWizard(OobeScreenId first_screen) override;
   WizardController* GetWizardController() override;
   KioskLaunchController* GetKioskLaunchController() override;
-  void StartUserAdding(base::OnceClosure completion_callback) override;
   void CancelUserAdding() override;
   void StartSignInScreen() override;
   void StartKiosk(const KioskAppId& kiosk_app_id, bool is_auto_launch) override;
@@ -51,10 +48,7 @@ class FakeLoginDisplayHost : public LoginDisplayHost {
   void CompleteLogin(const UserContext& user_context) override;
   void OnGaiaScreenReady() override;
   void SetDisplayEmail(const std::string& email) override;
-  void SetDisplayAndGivenName(const std::string& display_name,
-                              const std::string& given_name) override;
-  void LoadWallpaper(const AccountId& account_id) override;
-  void LoadSigninWallpaper() override;
+  void UpdateWallpaper(const AccountId& prefilled_account) override;
   bool IsUserAllowlisted(
       const AccountId& account_id,
       const absl::optional<user_manager::UserType>& user_type) override;
@@ -88,14 +82,21 @@ class FakeLoginDisplayHost : public LoginDisplayHost {
   base::WeakPtr<ash::quick_start::TargetDeviceBootstrapController>
   GetQuickStartBootstrapController() final;
 
+  void SetOobeUI(OobeUI* oobe_ui);
+  void SetWizardController(std::unique_ptr<WizardController> wizard_controller);
+  OobeMetricsHelper* GetOobeMetricsHelper() override;
+
  private:
   class FakeBaseScreen;
+
+  raw_ptr<OobeUI> oobe_ui_ = nullptr;
 
   // SessionManager is required by the constructor of WizardController.
   std::unique_ptr<session_manager::SessionManager> session_manager_;
   std::unique_ptr<FakeBaseScreen> fake_screen_;
   std::unique_ptr<WizardContext> wizard_context_;
   std::unique_ptr<WizardController> wizard_controller_;
+  std::unique_ptr<OobeMetricsHelper> oobe_metrics_helper_;
 };
 
 }  // namespace ash

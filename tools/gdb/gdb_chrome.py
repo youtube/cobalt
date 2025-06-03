@@ -290,7 +290,7 @@ class TimePrinter(object):
     timet_offset = gdb.parse_and_eval('base::Time::kTimeTToMicrosecondsOffset')
     self._datetime = (
         datetime.datetime.fromtimestamp(0) + datetime.timedelta(
-            microseconds=int(val['us_']['value']) - int(timet_offset)))
+            microseconds=int(val['us_']['value_']) - int(timet_offset)))
 
   def datetime(self):
     return self._datetime
@@ -481,7 +481,7 @@ class AtomicPrinter(Printer):
     return self.val['__a_']['__a_value']
 
 
-pp_set.add_printer('std::Cr::__atomic', '^std::Cr::(__)?atomic<.*>$',
+pp_set.add_printer('std::__Cr::__atomic', '^std::__Cr::(__)?atomic<.*>$',
                    AtomicPrinter)
 
 gdb.printing.register_pretty_printer(gdb, pp_set, replace=_DEBUGGING)

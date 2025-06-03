@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CLOSEWATCHER_CLOSE_WATCHER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CLOSEWATCHER_CLOSE_WATCHER_H_
 
-#include "base/time/time.h"
 #include "third_party/blink/public/mojom/close_watcher/close_listener.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
@@ -19,10 +18,8 @@ namespace blink {
 class CloseWatcherOptions;
 class LocalDOMWindow;
 class KeyboardEvent;
-class HTMLDialogElement;
 
-class CloseWatcher final : public EventTargetWithInlineData,
-                           public ExecutionContextClient {
+class CloseWatcher final : public EventTarget, public ExecutionContextClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -30,37 +27,30 @@ class CloseWatcher final : public EventTargetWithInlineData,
                               CloseWatcherOptions*,
                               ExceptionState&);
 
-  // We have a few use counters which we trigger only for the <dialog> case,
-  // where we're trying to determine whether it's web-compatible or not to use
-  // CloseWatcher rules for <dialog>s. (Namely, sometimes closing multiple
-  // <dialog>s with a single close signal, and sometimes skipping cancel
-  // events.) This argument should be removed after web-compatibility is
-  // determined; ultimately the CloseWatcher code should not be aware of the
-  // existence of <dialog>, for good layering.
-  static CloseWatcher* Create(LocalDOMWindow*,
-                              HTMLDialogElement* dialog_for_use_counters);
+  static CloseWatcher* Create(LocalDOMWindow*);
 
-  explicit CloseWatcher(LocalDOMWindow*,
-                        HTMLDialogElement* dialog_for_use_counters);
+  explicit CloseWatcher(LocalDOMWindow*);
+
   void Trace(Visitor*) const override;
 
   bool IsClosed() const { return state_ == State::kClosed; }
   bool IsGroupedWithPrevious() const { return grouped_with_previous_; }
 
-  void close(bool* cancel_skipped = nullptr);
+  void requestClose();
+  void close();
   void destroy();
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(cancel, kCancel)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(close, kClose)
 
-  // EventTargetWithInlineData overrides:
+  // EventTarget overrides:
   const AtomicString& InterfaceName() const final;
   ExecutionContext* GetExecutionContext() const final {
     return ExecutionContextClient::GetExecutionContext();
   }
 
   // If multiple CloseWatchers are active in a given window, they form a
-  // stack, and a close signal will pop the top watcher. If the stack is empty,
+  // stack, and a close request will pop the top watcher. If the stack is empty,
   // the first CloseWatcher is "free", but creating a new
   // CloseWatcher when the stack is non-empty requires a user activation.
   class WatcherStack final : public GarbageCollected<WatcherStack>,
@@ -75,12 +65,11 @@ class CloseWatcher final : public EventTargetWithInlineData,
 
     void Trace(Visitor*) const;
 
-    void EscapeKeyHandler(KeyboardEvent*, bool* cancel_skipped);
+    void EscapeKeyHandler(KeyboardEvent*);
 
    private:
     // mojom::blink::CloseListener override:
     void Signal() final;
-    void SignalInternal(bool* cancel_skipped);
 
     HeapLinkedHashSet<Member<CloseWatcher>> watchers_;
 
@@ -91,11 +80,9 @@ class CloseWatcher final : public EventTargetWithInlineData,
   };
 
  private:
-  static CloseWatcher* CreateInternal(
-      LocalDOMWindow*,
-      WatcherStack&,
-      CloseWatcherOptions*,
-      HTMLDialogElement* dialog_for_use_counters);
+  static CloseWatcher* CreateInternal(LocalDOMWindow*,
+                                      WatcherStack&,
+                                      CloseWatcherOptions*);
 
   enum class State { kActive, kClosed };
   State state_ = State::kActive;
@@ -103,7 +90,6 @@ class CloseWatcher final : public EventTargetWithInlineData,
   bool grouped_with_previous_ = false;
   bool created_with_user_activation_ = false;
   Member<AbortSignal::AlgorithmHandle> abort_handle_;
-  Member<HTMLDialogElement> dialog_for_use_counters_;
 };
 
 }  // namespace blink

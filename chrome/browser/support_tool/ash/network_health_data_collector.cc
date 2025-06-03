@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
@@ -19,7 +20,6 @@
 #include "components/feedback/redaction_tool/pii_types.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
-#include "third_party/re2/src/re2/stringpiece.h"
 
 namespace {
 
@@ -37,11 +37,11 @@ void FindNetworkNamesAndAddToPIIMap(const std::string& network_health_data,
   // are stored in "Name: <name>\n" format in `network_health_data`. The GUID is
   // put on the line after network name and is in format "GUID: <guid>\n".
   re2::RE2 regex_pattern(kRegexPattern);
-  re2::StringPiece input(network_health_data);
+  std::string_view input(network_health_data);
 
-  re2::StringPiece skipped_part;
-  re2::StringPiece matched_network_name;
-  re2::StringPiece matched_guid;
+  std::string_view skipped_part;
+  std::string_view matched_network_name;
+  std::string_view matched_guid;
 
   while (re2::RE2::Consume(&input, regex_pattern, &skipped_part,
                            &matched_network_name, &matched_guid)) {
@@ -60,28 +60,28 @@ std::string RedactNetworkNames(const std::string& network_health_data) {
   // are stored in "Name: <name>\n" format in `network_health_data`. The GUID is
   // put on the line after network name and is in format "GUID: <guid>\n".
   re2::RE2 regex_pattern(kRegexPattern);
-  re2::StringPiece input(network_health_data);
+  std::string_view input(network_health_data);
 
-  re2::StringPiece skipped_part;
-  re2::StringPiece matched_network_name;
-  re2::StringPiece matched_guid;
+  std::string_view skipped_part;
+  std::string_view matched_network_name;
+  std::string_view matched_guid;
   std::string redacted;
 
   while (re2::RE2::Consume(&input, regex_pattern, &skipped_part,
                            &matched_network_name, &matched_guid)) {
-    skipped_part.AppendToString(&redacted);
+    redacted.append(skipped_part);
     if (matched_network_name == "N/A" || matched_network_name.empty() ||
         matched_guid == "N/A" || matched_guid.empty()) {
       redacted += "Name: N/A\nGUID: N/A\n";
       continue;
     }
-    std::string replacement = ash::NetworkGuidId(matched_guid.ToString());
+    std::string replacement = ash::NetworkGuidId(std::string(matched_guid));
     redacted += base::StringPrintf("Name: %s\nGUID: %s\n", replacement.c_str(),
                                    replacement.c_str());
   }
   // Append the rest of the input to `redacted`. Only the unmatched last part
   // will be present in the `input` as we're using Consume() function.
-  input.AppendToString(&redacted);
+  redacted.append(input);
   return redacted;
 }
 

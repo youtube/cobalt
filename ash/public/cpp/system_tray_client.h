@@ -24,6 +24,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Shows general settings UI.
   virtual void ShowSettings(int64_t display_id) = 0;
 
+  // Shows settings related to the user account.
+  virtual void ShowAccountSettings() = 0;
+
   // Shows settings related to Bluetooth devices (e.g. to add a device).
   virtual void ShowBluetoothSettings() = 0;
 
@@ -61,6 +64,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Shows OS settings page for Privacy Hub.
   virtual void ShowPrivacyHubSettings() = 0;
 
+  // Shows OS settings page for speak-on-mute detection setting in Privacy Hub.
+  virtual void ShowSpeakOnMuteDetectionSettings() = 0;
+
   // Show OS smart privacy settings.
   virtual void ShowSmartPrivacySettings() = 0;
 
@@ -92,6 +98,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Shows the settings related to accessibility.
   virtual void ShowAccessibilitySettings() = 0;
 
+  // Shows the settings related to color correction.
+  virtual void ShowColorCorrectionSettings() = 0;
+
   // Shows gesture education help.
   virtual void ShowGestureEducationHelp() = 0;
 
@@ -120,6 +129,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Opens SIM unlock dialog in OS Settings.
   virtual void ShowSettingsSimUnlock() = 0;
 
+  // Opens the APN subpage for network with guid |network_id|.
+  virtual void ShowApnSubpage(const std::string& network_id) = 0;
+
   // Shows the "add network" UI to create a third-party extension-backed VPN
   // connection (e.g. Cisco AnyConnect).
   virtual void ShowThirdPartyVpnCreate(const std::string& extension_id) = 0;
@@ -132,6 +144,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // On devices |network_id| is a GUID, but on Linux desktop and in tests it can
   // be any string.
   virtual void ShowNetworkSettings(const std::string& network_id) = 0;
+
+  // Shows the Hotspot subpage.
+  virtual void ShowHotspotSubpage() = 0;
 
   // Shows the MultiDevice setup flow dialog.
   virtual void ShowMultiDeviceSetup() = 0;
@@ -188,6 +203,13 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Returns 'true' if the user preference is set to allow users to submit
   // feedback, 'false' otherwise.
   virtual bool IsUserFeedbackEnabled() = 0;
+
+  // Shows settings related to touchpads.
+  virtual void ShowTouchpadSettings() = 0;
+
+  // Shows the remap keyboard keys settings subpage for the keyboard with
+  // `device_id`.
+  virtual void ShowRemapKeysSubpage(int device_id) = 0;
 
  protected:
   SystemTrayClient() {}

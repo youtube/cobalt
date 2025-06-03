@@ -35,7 +35,7 @@ class AmbientBackendControllerImpl : public AmbientBackendController {
       OnScreenUpdateInfoFetchedCallback callback) override;
   void FetchPreviewImages(const gfx::Size& preview_size,
                           OnPreviewImagesFetchedCallback callback) override;
-  void UpdateSettings(const AmbientSettings& settings,
+  void UpdateSettings(const AmbientSettings settings,
                       UpdateSettingsCallback callback) override;
   void FetchSettingsAndAlbums(
       int banner_width,
@@ -47,6 +47,7 @@ class AmbientBackendControllerImpl : public AmbientBackendController {
   std::array<const char*, 2> GetTimeOfDayVideoPreviewImageUrls(
       AmbientVideo video) const override;
   const char* GetPromoBannerUrl() const override;
+  const char* GetTimeOfDayProductName() const override;
 
  private:
   using BackdropClientConfig = chromeos::ambient::BackdropClientConfig;

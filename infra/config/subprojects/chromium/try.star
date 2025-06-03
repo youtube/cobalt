@@ -38,6 +38,7 @@ luci.bucket(
                 "service-account-cq",
             ],
             users = [
+                "dawn-automated-expectations@chops-service-accounts.iam.gserviceaccount.com",
                 "findit-for-me@appspot.gserviceaccount.com",
                 "tricium-prod@appspot.gserviceaccount.com",
             ],
@@ -166,6 +167,7 @@ exec("./try/tryserver.chromium.chromiumos.star")
 exec("./try/tryserver.chromium.cft.star")
 exec("./try/tryserver.chromium.dawn.star")
 exec("./try/tryserver.chromium.fuchsia.star")
+exec("./try/tryserver.chromium.fuzz.star")
 exec("./try/tryserver.chromium.infra.star")
 exec("./try/tryserver.chromium.linux.star")
 exec("./try/tryserver.chromium.mac.star")

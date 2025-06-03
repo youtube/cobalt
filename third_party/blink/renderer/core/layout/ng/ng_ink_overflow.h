@@ -10,14 +10,20 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/editing/markers/document_marker.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 
 namespace blink {
 
 class AffineTransform;
+class AppliedTextDecoration;
 class ComputedStyle;
 class Font;
+class FragmentItem;
+class InlineCursor;
 class NGInlinePaintContext;
+class Text;
+struct LogicalRect;
 struct NGTextFragmentPaintInfo;
 
 // Represents an ink-overflow rectangle. Used for:
@@ -69,7 +75,7 @@ class CORE_EXPORT NGInkOverflow {
     kSmallContents,
     kContents,
     kSelfAndContents
-    // When adding values, make sure |NGFragmentItem| has enough storage.
+    // When adding values, make sure |FragmentItem| has enough storage.
   };
   constexpr static int kTypeBits = 3;
 
@@ -115,6 +121,7 @@ class CORE_EXPORT NGInkOverflow {
 
   // Compute and set ink overflow for text.
   Type SetTextInkOverflow(Type type,
+                          const InlineCursor& cursor,
                           const NGTextFragmentPaintInfo& text_info,
                           const ComputedStyle& style,
                           const PhysicalRect& rect_in_container,
@@ -125,6 +132,7 @@ class CORE_EXPORT NGInkOverflow {
   // |rect| represents scaled rectangle, and |*ink_overflow_out| will store
   // unscaled rectangle.
   Type SetSvgTextInkOverflow(Type type,
+                             const InlineCursor& cursor,
                              const NGTextFragmentPaintInfo& text_info,
                              const ComputedStyle& style,
                              const Font& scaled_font,
@@ -135,6 +143,7 @@ class CORE_EXPORT NGInkOverflow {
                              PhysicalRect* ink_overflow_out);
 
   static absl::optional<PhysicalRect> ComputeTextInkOverflow(
+      const InlineCursor& cursor,
       const NGTextFragmentPaintInfo& text_info,
       const ComputedStyle& style,
       const Font& scaled_font,
@@ -142,21 +151,25 @@ class CORE_EXPORT NGInkOverflow {
       const NGInlinePaintContext* inline_context);
 
   // Returns ink-overflow with emphasis mark overflow in logical direction.
-  // |size| is a size of text item, e.g. |NGFragmentItem::Size()|.
+  // |size| is a size of text item, e.g. |FragmentItem::Size()|.
   // Note: |style| should have emphasis mark and |ink_overflow| should be in
   // logical direction.
-  static LayoutRect ComputeEmphasisMarkOverflow(const ComputedStyle& style,
-                                                const PhysicalSize& size,
-                                                const LayoutRect& ink_overflow);
+  static LogicalRect ComputeEmphasisMarkOverflow(
+      const ComputedStyle& style,
+      const PhysicalSize& size,
+      const LogicalRect& ink_overflow);
 
   // Returns ink-overflow with text decoration overflow in logical direction.
-  // Note: |style| should have applied text decorations and |ink_overflow|
-  // should be in logical direction.
-  static LayoutRect ComputeTextDecorationOverflow(
+  // |inline_context| may be null.
+  // Note: |ink_overflow| should be in logical direction.
+  // Returns ink-overflow with text decoration, markers and highlights
+  // overflow in the logical direction.
+  static LogicalRect ComputeDecorationOverflow(
+      const InlineCursor& cursor,
       const ComputedStyle& style,
       const Font& scaled_font,
-      const PhysicalOffset& offset_in_container,
-      const LayoutRect& ink_overflow,
+      const PhysicalOffset& container_offset,
+      const LogicalRect& ink_overflow,
       const NGInlinePaintContext* inline_context);
 
 #if DCHECK_IS_ON()
@@ -172,6 +185,37 @@ class CORE_EXPORT NGInkOverflow {
 #endif
 
  private:
+  static LogicalRect ComputeAppliedDecorationOverflow(
+      const ComputedStyle& style,
+      const Font& scaled_font,
+      const PhysicalOffset& offset_in_container,
+      const LogicalRect& ink_overflow,
+      const NGInlinePaintContext* inline_context,
+      const AppliedTextDecoration* decoration_override = nullptr);
+
+  // For all markers but custom highlights. i.e. those with only one
+  // potential style for the type, regardless of which marker it is.
+  static LogicalRect ComputeMarkerOverflow(
+      const DocumentMarkerVector& markers,
+      const DocumentMarker::MarkerType type,
+      const FragmentItem* fragment_item,
+      Text* node,
+      const ComputedStyle& style,
+      const Font& scaled_font,
+      const PhysicalOffset& offset_in_container,
+      const LogicalRect& ink_overflow,
+      const NGInlinePaintContext* inline_context);
+
+  static LogicalRect ComputeCustomHighlightOverflow(
+      const DocumentMarkerVector& markers,
+      const FragmentItem* fragment_item,
+      Text* text_node,
+      const ComputedStyle& style,
+      const Font& scaled_font,
+      const PhysicalOffset& offset_in_container,
+      const LogicalRect& ink_overflow,
+      const NGInlinePaintContext* inline_context);
+
   PhysicalRect FromOutsets(const PhysicalSize& size) const;
 
   void CheckType(Type type) const;

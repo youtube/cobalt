@@ -13,7 +13,6 @@ Example Output:
     gn gen: 6.7s
     chrome_java_nosig: 36.1s avg (35.9s, 36.3s)
     chrome_java_sig: 38.9s avg (38.8s, 39.1s)
-    chrome_java_res: 22.5s avg (22.5s, 22.4s)
     base_java_nosig: 41.0s avg (41.1s, 40.9s)
     base_java_sig: 93.1s avg (93.1s, 93.2s)
 
@@ -40,16 +39,17 @@ from typing import Dict, Callable, Iterator, List, Tuple, Optional
 USE_PYTHON_3 = f'{__file__} will only run under python3.'
 
 _SRC_ROOT = pathlib.Path(__file__).resolve().parents[3]
-sys.path.append(str(_SRC_ROOT / 'build/android'))
+sys.path.insert(1, str(_SRC_ROOT / 'build'))
+import gn_helpers
+
+sys.path.insert(1, str(_SRC_ROOT / 'build/android'))
 from pylib import constants
 import devil_chromium
 
-sys.path.append(str(_SRC_ROOT / 'third_party/catapult/devil'))
+sys.path.insert(1, str(_SRC_ROOT / 'third_party/catapult/devil'))
 from devil.android.sdk import adb_wrapper
 from devil.android import device_utils
 
-_AUTONINJA_PATH = _SRC_ROOT / 'third_party/depot_tools/autoninja'
-_NINJA_PATH = _SRC_ROOT / 'third_party/ninja/ninja'
 _GN_PATH = _SRC_ROOT / 'third_party/depot_tools/gn'
 
 _EMULATOR_AVD_DIR = _SRC_ROOT / 'tools/android/avd'
@@ -68,6 +68,7 @@ _SUPPORTED_EMULATORS = {
     'generic_android31.textpb': 'x64',
     'generic_android32_foldable.textpb': 'x64',
     'generic_android33': 'x64',
+    'generic_android34': 'x64',
 }
 
 _GN_ARGS = [
@@ -87,7 +88,6 @@ _SUITES = {
     'all_incremental': [
         'chrome_java_nosig',
         'chrome_java_sig',
-        'chrome_java_res',
         'module_java_public_sig',
         'module_java_internal_nosig',
         'base_java_nosig',
@@ -96,7 +96,6 @@ _SUITES = {
     'all_chrome_java': [
         'chrome_java_nosig',
         'chrome_java_sig',
-        'chrome_java_res',
     ],
     'all_module_java': [
         'module_java_public_sig',
@@ -140,12 +139,6 @@ _BENCHMARKS = [
         'AppHooksImpl sInstanceForTesting;public void NewInterfaceMethod(){}',
         change_file=
         'chrome/android/java/src/org/chromium/chrome/browser/AppHooks.java',
-    ),
-    Benchmark(
-        name='chrome_java_res',
-        from_string='14181C',
-        to_string='14181D',
-        change_file='chrome/android/java/res/values/colors.xml',
     ),
     Benchmark(
         name='module_java_public_sig',
@@ -322,16 +315,11 @@ def _run_gn_gen(out_dir: pathlib.Path) -> float:
     return _run_and_time_cmd([str(_GN_PATH), 'gen', '-C', str(out_dir)])
 
 
-def _run_autoninja(out_dir: pathlib.Path, target: str) -> float:
-    return _run_and_time_cmd(
-        [str(_AUTONINJA_PATH), '-C',
-         str(out_dir), target])
-
-
-def _run_ninja(out_dir: pathlib.Path, target: str, j: str) -> float:
-    return _run_and_time_cmd(
-        [str(_NINJA_PATH), '-j', j, '-C',
-         str(out_dir), target])
+def _compile(out_dir: pathlib.Path, target: str, j: Optional[str]) -> float:
+    cmd = gn_helpers.CreateBuildCommand(str(out_dir))
+    if j is not None:
+        cmd += ['-j', j]
+    return _run_and_time_cmd(cmd + [target])
 
 
 def _run_install(out_dir: pathlib.Path, target: str,
@@ -352,10 +340,7 @@ def _run_install(out_dir: pathlib.Path, target: str,
 def _run_and_maybe_install(out_dir: pathlib.Path, target: str,
                            emulator: Optional[device_utils.DeviceUtils],
                            j: Optional[str]) -> float:
-    if j is None:
-        total_time = _run_autoninja(out_dir, target)
-    else:
-        total_time = _run_ninja(out_dir, target, j)
+    total_time = _compile(out_dir, target, j)
     if emulator:
         total_time += _run_install(out_dir, target, emulator.serial)
     return total_time

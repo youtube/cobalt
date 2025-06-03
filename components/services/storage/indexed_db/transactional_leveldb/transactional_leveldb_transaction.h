@@ -64,9 +64,7 @@ class TransactionalLevelDBTransaction
                                             bool* found);
   [[nodiscard]] virtual leveldb::Status Commit(bool sync_on_commit);
 
-  // If the underlying scopes system is in single-sequence mode, then this
-  // method will return the result of the rollback task.
-  [[nodiscard]] leveldb::Status Rollback();
+  void Rollback();
 
   // The returned iterator must be destroyed before the destruction of this
   // transaction.  This may return null, if it does, status will explain why.
@@ -108,7 +106,7 @@ class TransactionalLevelDBTransaction
 
   void EvictLoadedIterators();
 
-  const raw_ptr<TransactionalLevelDBDatabase> db_;
+  const raw_ptr<TransactionalLevelDBDatabase, DanglingUntriaged> db_;
   // Non-null until the transaction is committed or rolled back.
   std::unique_ptr<LevelDBScope> scope_;
   bool finished_ = false;

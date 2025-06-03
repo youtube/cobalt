@@ -42,7 +42,6 @@
 #include "third_party/blink/renderer/core/animation/sampled_effect.h"
 #include "third_party/blink/renderer/core/animation/timing_calculations.h"
 #include "third_party/blink/renderer/core/animation/timing_input.h"
-#include "third_party/blink/renderer/core/animation/view_timeline.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_property_ref.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
@@ -172,7 +171,8 @@ KeyframeEffect* KeyframeEffect::Create(
   if (!pseudo.empty()) {
     effect->target_pseudo_ = pseudo;
     if (element) {
-      element->GetDocument().UpdateStyleAndLayoutTreeForNode(element);
+      element->GetDocument().UpdateStyleAndLayoutTreeForNode(
+          element, DocumentUpdateReason::kWebAnimation);
       PseudoId pseudo_id =
           CSSSelectorParser::ParsePseudoElement(pseudo, element);
       AtomicString pseudo_argument =
@@ -230,7 +230,7 @@ KeyframeEffect::KeyframeEffect(Element* target,
     // pseudo element originates from.
     target_element_ = DynamicTo<PseudoElement>(target)->OriginatingElement();
     DCHECK(!target_element_->IsPseudoElement());
-    target_pseudo_ = target->tagName();
+    target_pseudo_ = PseudoElement::PseudoElementNameForEvents(target);
   }
 
   CountAnimatedProperties();
@@ -269,7 +269,7 @@ void KeyframeEffect::RefreshTarget() {
     new_target = target_element_;
   } else {
     target_element_->GetDocument().UpdateStyleAndLayoutTreeForNode(
-        target_element_);
+        target_element_, DocumentUpdateReason::kWebAnimation);
     PseudoId pseudoId =
         CSSSelectorParser::ParsePseudoElement(target_pseudo_, target_element_);
     new_target = target_element_->GetPseudoElement(pseudoId);
@@ -303,9 +303,8 @@ HeapVector<ScriptValue> KeyframeEffect::getKeyframes(
     ScriptState* script_state) {
   if (Animation* animation = GetAnimation()) {
     animation->FlushPendingUpdates();
-    if (ViewTimeline* view_timeline =
-            DynamicTo<ViewTimeline>(animation->timeline())) {
-      view_timeline->ResolveTimelineOffsets(/* invalidate_effect */ false);
+    if (AnimationTimeline* timeline = animation->TimelineInternal()) {
+      animation->ResolveTimelineOffsets(timeline->GetTimelineRange());
     }
   }
 
@@ -425,7 +424,9 @@ void KeyframeEffect::StartAnimationOnCompositor(
     absl::optional<double> start_time,
     base::TimeDelta time_offset,
     double animation_playback_rate,
-    CompositorAnimation* compositor_animation) {
+    CompositorAnimation* compositor_animation,
+    bool is_monotonic_timeline,
+    bool is_boundary_aligned) {
   DCHECK(!HasActiveAnimationsOnCompositor());
   // TODO(petermayo): Maybe we should recheck that we can start on the
   // compositor if we have the compositable IDs somewhere.
@@ -440,7 +441,8 @@ void KeyframeEffect::StartAnimationOnCompositor(
   CompositorAnimations::StartAnimationOnCompositor(
       *effect_target_, group, start_time, time_offset, SpecifiedTiming(),
       NormalizedTiming(), GetAnimation(), *compositor_animation, *Model(),
-      compositor_keyframe_model_ids_, animation_playback_rate);
+      compositor_keyframe_model_ids_, animation_playback_rate,
+      is_monotonic_timeline, is_boundary_aligned);
   DCHECK(!compositor_keyframe_model_ids_.empty());
 }
 
@@ -760,8 +762,8 @@ AnimationTimeDelta KeyframeEffect::CalculateTimeToEffectChange(
       }
       return {};
     case Timing::kPhaseAfter:
-      DCHECK(GreaterThanOrEqualToWithinTimeTolerance(local_time.value(),
-                                                     after_time));
+      DCHECK(TimingCalculations::GreaterThanOrEqualToWithinTimeTolerance(
+          local_time.value(), after_time));
       if (forwards) {
         // If an animation has a positive-valued end delay, we need an
         // additional tick at the end time to ensure that the finished event is
@@ -777,8 +779,8 @@ AnimationTimeDelta KeyframeEffect::CalculateTimeToEffectChange(
 }
 
 absl::optional<AnimationTimeDelta> KeyframeEffect::TimelineDuration() const {
-  if (GetAnimation() && GetAnimation()->timeline()) {
-    return GetAnimation()->timeline()->GetDuration();
+  if (GetAnimation() && GetAnimation()->TimelineInternal()) {
+    return GetAnimation()->TimelineInternal()->GetDuration();
   }
   return absl::nullopt;
 }
@@ -839,8 +841,9 @@ ActiveInterpolationsMap KeyframeEffect::InterpolationsForCommitStyles() {
       /*suppressed_animations=*/nullptr, kDefaultPriority, property_pass_filter,
       this);
 
-  if (removed)
+  if (removed) {
     ClearEffects();
+  }
 
   return results;
 }

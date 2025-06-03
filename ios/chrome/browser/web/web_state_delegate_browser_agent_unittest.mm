@@ -4,19 +4,19 @@
 
 #import "ios/chrome/browser/web/web_state_delegate_browser_agent.h"
 
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/test_browser.h"
 #import "ios/chrome/browser/overlays/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/public/overlay_request_queue.h"
 #import "ios/chrome/browser/overlays/public/web_content_area/http_auth_overlay.h"
 #import "ios/chrome/browser/overlays/public/web_content_area/java_script_alert_dialog_overlay.h"
-#import "ios/chrome/browser/snapshots/snapshot_tab_helper.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
+#import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
 #import "ios/chrome/browser/web/blocked_popup_tab_helper.h"
-#import "ios/chrome/browser/web_state_list/tab_insertion_browser_agent.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "ios/web/public/ui/java_script_dialog_presenter.h"
@@ -24,10 +24,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 const char kURL1[] = "https://www.some.url.com";
 const char kURL2[] = "https://www.some.url2.com";

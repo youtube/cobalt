@@ -11,6 +11,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "chrome/browser/ash/printing/print_servers_manager.h"
+#include "chrome/browser/ash/printing/printer_configurer.h"
 #include "chrome/browser/ash/printing/printer_installation_manager.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "chromeos/printing/uri.h"
@@ -31,7 +32,6 @@ class PrefRegistrySyncable;
 namespace ash {
 
 class EnterprisePrintersProvider;
-class PrinterConfigurer;
 class PrinterDetector;
 class PrinterEventTracker;
 class SyncedPrintersManager;
@@ -60,6 +60,16 @@ class CupsPrintersManager : public PrinterInstallationManager,
     virtual ~Observer() = default;
   };
 
+  class LocalPrintersObserver {
+   public:
+    // This endpoint is only triggered for the following scenarios:
+    //   1. A new local printer is either plugged in or detected on the network.
+    //   2. A local printer receives an updated printer status.
+    virtual void OnLocalPrintersUpdated() {}
+
+    virtual ~LocalPrintersObserver() = default;
+  };
+
   using PrinterStatusCallback =
       base::OnceCallback<void(const chromeos::CupsPrinterStatus&)>;
 
@@ -73,7 +83,6 @@ class CupsPrintersManager : public PrinterInstallationManager,
       std::unique_ptr<PrinterDetector> usb_printer_detector,
       std::unique_ptr<PrinterDetector> zeroconf_printer_detector,
       scoped_refptr<chromeos::PpdProvider> ppd_provider,
-      std::unique_ptr<PrinterConfigurer> printer_configurer,
       std::unique_ptr<UsbPrinterNotificationController>
           usb_notification_controller,
       std::unique_ptr<PrintServersManager> print_servers_manager,
@@ -106,13 +115,15 @@ class CupsPrintersManager : public PrinterInstallationManager,
   // will be on the same sequence as the CupsPrintersManager.
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;
+  virtual void AddLocalPrintersObserver(LocalPrintersObserver* observer) = 0;
+  virtual void RemoveLocalPrintersObserver(LocalPrintersObserver* observer) = 0;
 
   // Implementation of PrinterInstallationManager interface.
-  void PrinterInstalled(const chromeos::Printer& printer,
-                        bool is_automatic) override = 0;
   bool IsPrinterInstalled(const chromeos::Printer& printer) const override = 0;
-  void PrinterIsNotAutoconfigurable(const chromeos::Printer& printer) override =
-      0;
+  void SetUpPrinter(const chromeos::Printer& printer,
+                    bool is_automatic_installation,
+                    PrinterSetupCallback callback) override = 0;
+  void UninstallPrinter(const std::string& printer_id) override = 0;
 
   // Look for a printer with the given id in any class.  Returns a copy of the
   // printer if found, absl::nullopt if not found.
@@ -133,6 +144,11 @@ class CupsPrintersManager : public PrinterInstallationManager,
   virtual void RecordNearbyNetworkPrinterCounts() const = 0;
 
   virtual PrintServersManager* GetPrintServersManager() const = 0;
+
+  // Performs an IPP query on `printer` for autoconf compatibility.
+  virtual void QueryPrinterForAutoConf(
+      const chromeos::Printer& printer,
+      base::OnceCallback<void(bool)> callback) = 0;
 };
 
 }  // namespace ash

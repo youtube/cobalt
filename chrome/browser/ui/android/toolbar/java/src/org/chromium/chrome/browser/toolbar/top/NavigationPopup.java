@@ -22,7 +22,6 @@ import android.widget.TextView;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.widget.ImageViewCompat;
 
@@ -165,7 +164,6 @@ public class NavigationPopup implements AdapterView.OnItemClickListener {
         mFaviconSize = resources.getDimensionPixelSize(R.dimen.default_favicon_size);
     }
 
-    @VisibleForTesting
     ListPopupWindow getPopupForTesting() {
         return mPopup;
     }
@@ -252,12 +250,11 @@ public class NavigationPopup implements AdapterView.OnItemClickListener {
     private void onFaviconAvailable(GURL pageUrl, Bitmap favicon) {
         if (favicon == null) {
             if (mDefaultFaviconHelper == null) mDefaultFaviconHelper = new DefaultFaviconHelper();
-            favicon = mDefaultFaviconHelper.getDefaultFaviconBitmap(
-                    mContext.getResources(), pageUrl, true);
+            favicon = mDefaultFaviconHelper.getDefaultFaviconBitmap(mContext, pageUrl, true);
         }
         if (UrlUtilities.isNTPUrl(pageUrl) && shouldUseIncognitoResources()) {
             favicon = mDefaultFaviconHelper.getThemifiedBitmap(
-                    mContext.getResources(), R.drawable.incognito_small, true);
+                    mContext, R.drawable.incognito_small, true);
         }
         for (int i = 0; i < mHistory.getEntryCount(); i++) {
             NavigationEntry entry = mHistory.getEntryAtIndex(i);

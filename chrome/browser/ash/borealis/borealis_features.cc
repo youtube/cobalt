@@ -23,7 +23,6 @@
 #include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
@@ -81,7 +80,7 @@ class AsyncAllowChecker : public guest_os::CachedCallback<AllowStatus, bool> {
             std::move(callback)));
   }
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_;
 };
 
 BorealisFeatures::BorealisFeatures(Profile* profile)
@@ -96,28 +95,29 @@ BorealisFeatures::~BorealisFeatures() = default;
 
 void BorealisFeatures::IsAllowed(
     base::OnceCallback<void(AllowStatus)> callback) {
-  AllowStatus partial_status = MightBeAllowed();
+  AllowStatus partial_status = PreTokenHardwareChecks();
   if (partial_status != AllowStatus::kAllowed) {
     std::move(callback).Run(partial_status);
     return;
   }
-  async_checker_->Get(base::BindOnce(
-      [](base::OnceCallback<void(AllowStatus)> callback,
-         AsyncAllowChecker::Result result) {
-        if (result) {
-          std::move(callback).Run(*result.Value());
-          return;
-        }
-        std::move(callback).Run(AllowStatus::kFailedToDetermine);
-      },
-      std::move(callback)));
+  async_checker_->Get(base::BindOnce(&BorealisFeatures::OnTokenHardwareChecked,
+                                     weak_factory_.GetWeakPtr(),
+                                     std::move(callback)));
 }
 
-AllowStatus BorealisFeatures::MightBeAllowed() {
+AllowStatus BorealisFeatures::PreTokenHardwareChecks() {
+  // Only put failures here if the user has no means of changing them.  I.e.
+  // failures here should be as set-in-stone as hardware.
   if (!base::FeatureList::IsEnabled(features::kBorealis)) {
     return AllowStatus::kFeatureDisabled;
   }
 
+  return AllowStatus::kAllowed;
+}
+
+AllowStatus BorealisFeatures::PostTokenHardwareChecks() {
+  // Failures here should be avoidable (in some sense) without users going and
+  // replacing their hardware.
   if (!virtual_machines::AreVirtualMachinesAllowedByPolicy()) {
     return AllowStatus::kVmPolicyBlocked;
   }
@@ -151,11 +151,6 @@ AllowStatus BorealisFeatures::MightBeAllowed() {
     return AllowStatus::kUserPrefBlocked;
   }
 
-  version_info::Channel c = chrome::GetChannel();
-  if (c == version_info::Channel::STABLE) {
-    return AllowStatus::kBlockedOnStable;
-  }
-
   if (!base::FeatureList::IsEnabled(ash::features::kBorealisPermitted)) {
     return AllowStatus::kBlockedByFlag;
   }
@@ -163,10 +158,21 @@ AllowStatus BorealisFeatures::MightBeAllowed() {
   return AllowStatus::kAllowed;
 }
 
-bool BorealisFeatures::IsEnabled() {
-  if (MightBeAllowed() != AllowStatus::kAllowed) {
-    return false;
+void BorealisFeatures::OnTokenHardwareChecked(
+    base::OnceCallback<void(AllowStatus)> callback,
+    AsyncAllowChecker::Result token_hardware_status) {
+  if (!token_hardware_status.has_value()) {
+    std::move(callback).Run(AllowStatus::kFailedToDetermine);
+    return;
   }
+  if (*token_hardware_status.value() != AllowStatus::kAllowed) {
+    std::move(callback).Run(*token_hardware_status.value());
+    return;
+  }
+  std::move(callback).Run(PostTokenHardwareChecks());
+}
+
+bool BorealisFeatures::IsEnabled() {
   return profile_->GetPrefs()->GetBoolean(prefs::kBorealisInstalledOnDevice);
 }
 
@@ -218,9 +224,6 @@ std::ostream& operator<<(std::ostream& os, const AllowStatus& reason) {
                    "disabled)";
     case AllowStatus::kUserPrefBlocked:
       return os << "Your admin has blocked borealis (for your account)";
-    case AllowStatus::kBlockedOnStable:
-      return os << "Your ChromeOS channel must be set to Beta or Dev to run "
-                   "Borealis";
     case AllowStatus::kBlockedByFlag:
       return os << "Borealis is still being worked on. You must set the "
                    "#borealis-enabled feature flag.";

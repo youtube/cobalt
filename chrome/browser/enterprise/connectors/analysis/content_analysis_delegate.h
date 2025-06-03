@@ -111,8 +111,23 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
     // Page to be printed to scan.
     base::ReadOnlySharedMemoryRegion page;
 
+    // Printer name of the page being sent to, empty for non-print actions.
+    std::string printer_name;
+
+    // TODO(b/283108167): Delete or send printer type information to local
+    // service partner.
+    //  Printer type of the page being sent to, the default value is UNKNOWN.
+    ContentMetaData::PrintMetadata::PrinterType printer_type =
+        ContentMetaData::PrintMetadata::UNKNOWN;
+
+    // The reason the scanning should happen. This should be populated at the
+    // same time as fields like `text`, `paths`, `page`, etc. so that caller
+    // code can let enterprise code know the user action triggering content
+    // analysis.
+    ContentAnalysisRequest::Reason reason = ContentAnalysisRequest::UNKNOWN;
+
     // The settings to use for the analysis of the data in this struct.
-    enterprise_connectors::AnalysisSettings settings;
+    AnalysisSettings settings;
   };
 
   // Result of deep scanning.  Each Result contains the verdicts of deep scans
@@ -195,7 +210,7 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   static bool IsEnabled(Profile* profile,
                         GURL url,
                         Data* data,
-                        enterprise_connectors::AnalysisConnector connector);
+                        AnalysisConnector connector);
 
   // Entry point for starting a deep scan, with the callback being called once
   // all results are available.  When the UI is enabled, a tab-modal dialog
@@ -219,6 +234,9 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // Showing the UI is not possible in unit tests, call this to disable it.
   static void DisableUIForTesting();
 
+  // Undoes the effects of DisableUIForTesting() after testing is finished.
+  static void EnableUIAfterTesting();
+
   // Add a callback to allow tests to validate `AckAllRequests` will send the
   // appropriate actions.
   using OnAckAllRequestsCallback = base::OnceCallback<void(
@@ -226,6 +244,8 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
                      ContentAnalysisAcknowledgement::FinalAction>&)>;
   static void SetOnAckAllRequestsCallbackForTesting(
       OnAckAllRequestsCallback callback);
+
+  void SetPageWarningForTesting(ContentAnalysisResponse page_response);
 
  protected:
   ContentAnalysisDelegate(content::WebContents* web_contents,
@@ -237,15 +257,12 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // testing derived classes.
   // TODO(crbug.com/1324892): Adapt once TextRequestHandler and
   // PageRequestHandler are created and move reporting to the RequestHandlers.
-  void StringRequestCallback(
-      safe_browsing::BinaryUploadService::Result result,
-      enterprise_connectors::ContentAnalysisResponse response);
-  void ImageRequestCallback(
-      safe_browsing::BinaryUploadService::Result result,
-      enterprise_connectors::ContentAnalysisResponse response);
-  void PageRequestCallback(
-      safe_browsing::BinaryUploadService::Result result,
-      enterprise_connectors::ContentAnalysisResponse response);
+  void StringRequestCallback(safe_browsing::BinaryUploadService::Result result,
+                             ContentAnalysisResponse response);
+  void ImageRequestCallback(safe_browsing::BinaryUploadService::Result result,
+                            ContentAnalysisResponse response);
+  void PageRequestCallback(safe_browsing::BinaryUploadService::Result result,
+                           ContentAnalysisResponse response);
 
   // Callback called after all files are scanned by the FilesRequestHandler.
   void FilesRequestCallback(std::vector<RequestHandlerResult> results);
@@ -293,7 +310,7 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // service.
   // TODO(crbug.com/1324892): Remove once TextRequestHandler and
   // PageRequestHandler are created.
-  void PrepareRequest(enterprise_connectors::AnalysisConnector connector,
+  void PrepareRequest(AnalysisConnector connector,
                       safe_browsing::BinaryUploadService::Request* request);
 
   // Fills the arrays in `result_` with the given boolean status.
@@ -357,18 +374,18 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
 
   // Set to true if the full text got a DLP warning verdict.
   bool text_warning_ = false;
-  enterprise_connectors::ContentAnalysisResponse text_response_;
+  ContentAnalysisResponse text_response_;
 
   // Set to true if the full image got a DLP warning verdict.
   bool image_warning_ = false;
-  enterprise_connectors::ContentAnalysisResponse image_response_;
+  ContentAnalysisResponse image_response_;
 
   // Indices of warned files.
   std::vector<size_t> warned_file_indices_;
 
   // Set to true if the printed page got a DLP warning verdict.
   bool page_warning_ = false;
-  enterprise_connectors::ContentAnalysisResponse page_response_;
+  ContentAnalysisResponse page_response_;
 
   // Stores the scanned page's size since it moves from `data_` to be uploaded.
   // TODO(crbug.com/1324892): Move to PageRequestHandler.
@@ -441,6 +458,9 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase {
   // `callback_running_` to handle race conditions where non-blocking scans
   // should wait before deleting `this`.
   bool all_work_done_ = false;
+
+  // Content type of the page that triggered the action.
+  std::string page_content_type_;
 
   base::TimeTicks upload_start_time_;
 

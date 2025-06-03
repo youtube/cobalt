@@ -29,8 +29,16 @@ class HelpAppUIDelegate {
   // Opens OS Settings at the parental controls section.
   virtual void ShowParentalControls() = 0;
 
+  // Triggers the call-to-action associated with the given action type id.
+  virtual void TriggerWelcomeTipCallToAction(
+      help_app::mojom::ActionTypeId action_type_id) = 0;
+
   // Gets locally stored users preferences and state.
   virtual PrefService* GetLocalState() = 0;
+
+  // Launches the MS365 setup flow (or shows the final screen of the flow if it
+  // was already completed).
+  virtual void LaunchMicrosoft365Setup() = 0;
 
   // Asks the help app notification controller to show the discover notification
   // if the required heuristics are present and if a notification for the help
@@ -47,9 +55,12 @@ class HelpAppUIDelegate {
       ash::help_app::mojom::PageHandler::GetDeviceInfoCallback callback) = 0;
 
   // Opens a valid https:// URL in a new browser tab without getting intercepted
-  // by URL capturing logic. Failure to provide a valid https:// URL will cause
-  // the Help app renderer process to crash.
-  virtual absl::optional<std::string> OpenUrlInBrowser(const GURL& url) = 0;
+  // by URL capturing logic. If the "HelpAppAutoTriggerInstallDialog" feature
+  // flag is enabled, this will automatically trigger the install dialog.
+  // Failure to provide a valid https:// URL will cause the Help app renderer
+  // process to crash.
+  virtual absl::optional<std::string> OpenUrlInBrowserAndTriggerInstallDialog(
+      const GURL& url) = 0;
 };
 
 }  // namespace ash

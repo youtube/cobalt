@@ -10,9 +10,7 @@
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
 #include "components/autofill/core/common/password_generation_util.h"
 #include "components/password_manager/core/browser/credential_cache.h"
-#include "content/public/browser/web_contents_user_data.h"
-#include "ui/gfx/image/image.h"
-#include "url/gurl.h"
+#include "content/public/browser/web_contents.h"
 
 // Interface for password-specific keyboard accessory controller between the
 // ManualFillingController and PasswordManagerClient.
@@ -60,6 +58,11 @@ class PasswordAccessoryController
   // the automatically provided button.
   virtual void OnGenerationRequested(
       autofill::password_generation::PasswordGenerationType type) = 0;
+
+  // Asks the controller to update the UI allowing users to continue with the
+  // CredMan conditional UI.
+  virtual void UpdateCredManReentryUi(
+      autofill::mojom::FocusedFieldType focused_field_type) = 0;
 };
 
 #endif  // CHROME_BROWSER_PASSWORD_MANAGER_ANDROID_PASSWORD_ACCESSORY_CONTROLLER_H_

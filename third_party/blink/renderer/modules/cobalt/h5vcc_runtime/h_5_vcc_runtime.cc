@@ -81,7 +81,7 @@ void H5vccRuntime::RemovedEventListener(
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
   visitor->Trace(deep_link_receiver_);
 }

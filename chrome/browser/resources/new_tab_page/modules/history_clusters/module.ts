@@ -4,15 +4,16 @@
 
 import '../module_header.js';
 import './suggest_tile.js';
+import '../../discount.mojom-webui.js';
 
 import {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {listenOnce} from 'chrome://resources/js/util.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {Cart} from '../../cart.mojom-webui.js';
 import {Cluster, URLVisit} from '../../history_cluster_types.mojom-webui.js';
-import {LayoutType} from '../../history_clusters.mojom-webui.js';
+import {LayoutType} from '../../history_clusters_layout_type.mojom-webui.js';
 import {I18nMixin, loadTimeData} from '../../i18n_setup.js';
 import {NewTabPageProxy} from '../../new_tab_page_proxy.js';
 import {InfoDialogElement} from '../info_dialog';
@@ -39,6 +40,7 @@ export enum HistoryClusterElementType {
   SUGGEST = 1,
   SHOW_ALL = 2,
   CART = 3,
+  OPEN_ALL = 4,
 }
 
 /**
@@ -82,12 +84,28 @@ export class HistoryClustersModuleElement extends I18nMixin
         value: null,
       },
 
+      /**
+         The discounts displayed on the visit tiles of this element, could be
+         empty.
+       */
+      discounts: {
+        type: Array,
+        value: [],
+      },
+
       searchResultPage: Object,
+
+      overflowScroll_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('modulesOverflowScrollbarEnabled'),
+        reflectToAttribute: true,
+      },
     };
   }
 
   cluster: Cluster;
   cart: Cart|null;
+  discounts: string[];
   layoutType: LayoutType;
   searchResultPage: URLVisit;
   private setDisabledModulesListenerId_: number|null = null;
@@ -98,7 +116,10 @@ export class HistoryClustersModuleElement extends I18nMixin
     HistoryClustersProxyImpl.getInstance().handler.recordLayoutTypeShown(
         this.layoutType, this.cluster.id);
 
-    listenOnce(window, 'unload', () => {
+    // Use `pagehide` rather than `unload` because unload is being deprecated.
+    // `pagehide` fires with the same timing and is safe to use since NTP never
+    // enters back/forward-cache.
+    listenOnce(window, 'pagehide', () => {
       const visitTiles: TileModuleElement[] = Array.from(
           this.shadowRoot!.querySelectorAll('ntp-history-clusters-tile'));
       const count = visitTiles.reduce(
@@ -151,6 +172,7 @@ export class HistoryClustersModuleElement extends I18nMixin
   private onVisitTileClick_(e: Event) {
     this.recordTileClickIndex_(e.target as HTMLElement, 'Visit');
     this.recordClick_(HistoryClusterElementType.VISIT);
+    this.maybeRecordDiscountClick_(e.target as TileModuleElement);
   }
 
   private onSuggestTileClick_(e: Event) {
@@ -167,6 +189,8 @@ export class HistoryClustersModuleElement extends I18nMixin
         `NewTabPage.HistoryClusters.Layout${this.layoutType}.Click`, type,
         Object.keys(HistoryClusterElementType).length);
     HistoryClustersProxyImpl.getInstance().handler.recordClick(this.cluster.id);
+
+    this.dispatchEvent(new Event('usage', {bubbles: true, composed: true}));
   }
 
   private recordTileClickIndex_(tile: HTMLElement, tileType: string) {
@@ -182,17 +206,24 @@ export class HistoryClustersModuleElement extends I18nMixin
           buckets: 10,
         },
         index);
+  }
 
-    this.dispatchEvent(new Event('usage', {bubbles: true, composed: true}));
+  private maybeRecordDiscountClick_(tile: TileModuleElement) {
+    if (tile.hasDiscount) {
+      chrome.metricsPrivate.recordUserAction(
+          `NewTabPage.HistoryClusters.DiscountClicked`);
+    }
   }
 
   private onDisableButtonClick_() {
+    HistoryClustersProxyImpl.getInstance().handler.recordDisabled(
+        this.cluster.id);
     const disableEvent = new CustomEvent('disable-module', {
       composed: true,
       detail: {
         message: loadTimeData.getStringF(
-            'disableModuleToastMessage',
-            loadTimeData.getString('modulesJourneysSentence2')),
+            'modulesDisableToastMessage',
+            loadTimeData.getString('modulesThisTypeOfCardText')),
       },
     });
     this.dispatchEvent(disableEvent);
@@ -200,7 +231,7 @@ export class HistoryClustersModuleElement extends I18nMixin
 
   private onDismissButtonClick_() {
     HistoryClustersProxyImpl.getInstance().handler.dismissCluster(
-        [this.searchResultPage, ...this.cluster.visits]);
+        [this.searchResultPage, ...this.cluster.visits], this.cluster.id);
     this.dispatchEvent(new CustomEvent('dismiss-module', {
       bubbles: true,
       composed: true,
@@ -225,13 +256,22 @@ export class HistoryClustersModuleElement extends I18nMixin
   private onOpenAllInTabGroupClick_() {
     const urls = [this.searchResultPage, ...this.cluster.visits].map(
         visit => visit.normalizedUrl);
-    HistoryClustersProxyImpl.getInstance().handler.openUrlsInTabGroup(urls);
+    HistoryClustersProxyImpl.getInstance().handler.openUrlsInTabGroup(
+        urls, this.cluster.tabGroupName ?? null);
+    this.recordClick_(HistoryClusterElementType.OPEN_ALL);
   }
 
   private shouldShowCartTile_(cart: Object): boolean {
     return loadTimeData.getBoolean(
                'modulesChromeCartInHistoryClustersModuleEnabled') &&
         !!cart;
+  }
+
+  private getInfo_(discounts: string[]): TrustedHTML {
+    const hasDiscount = discounts.some((discount) => !!discount);
+    return this.i18nAdvanced(
+        hasDiscount ? 'modulesHistoryWithDiscountInfo' :
+                      'modulesJourneysInfo');
   }
 }
 
@@ -244,23 +284,28 @@ function recordSelectedLayout(option: LayoutType) {
       Object.keys(LayoutType).length);
 }
 
+// Sort the first "n" visits with images to the front of the list and splice the
+// `visits` array so that "Open All" and "Dismiss" cluster operations are
+// limited to the visible URL visits for the given card layout.
 function processLayoutVisits(
-    visits: URLVisit[], numVisits: number, numImageVisits: number): URLVisit[] {
-  const result: URLVisit[] = Array<URLVisit>(numVisits);
-  let currentImageIdx = 0;
-  let currentVisitIdx = numImageVisits;
-  for (let i = 0; i < visits.length; i++) {
-    if (currentImageIdx < numImageVisits && visits[i].hasUrlKeyedImage) {
-      result[currentImageIdx] = visits[i];
-      currentImageIdx++;
-    } else if (currentVisitIdx < numVisits) {
-      result[currentVisitIdx] = visits[i];
-      currentVisitIdx++;
-    } else {
-      break;
-    }
-  }
-  return result;
+    visits: URLVisit[], numVisits: number, numImageVisits: number) {
+  // Indexes are stored in reverse order and spliced in that order from the
+  // visits array to avoid affecting subsequent splice index order.
+  const nVisitsWithImagesIndices: number[] =
+      visits.reduce((acc: number[], visit: URLVisit, index: number) => {
+        if (acc.length < numImageVisits && visit.hasUrlKeyedImage) {
+          acc.unshift(index);
+        }
+        return acc;
+      }, []);
+
+  const nVisitsWithImages: URLVisit[] = [];
+  nVisitsWithImagesIndices.forEach(visitWithImageIndex => {
+    nVisitsWithImages.unshift(visits.splice(visitWithImageIndex, 1)[0]);
+  });
+
+  visits.unshift(...nVisitsWithImages);
+  visits.splice(numVisits, visits.length - numVisits);
 }
 
 async function createElement(): Promise<HistoryClustersModuleElement|null> {
@@ -284,18 +329,40 @@ async function createElement(): Promise<HistoryClustersModuleElement|null> {
   }
   // Pull out the SRP to be used in the header and to open the cluster
   // in tab group.
-  element.searchResultPage = clusters[0]!.visits[0];
+  element.searchResultPage = clusters[0]!.visits.shift()!;
 
-  // History cluster visits minus the SRP that is included, since the SRP
-  // isn't used in the layout.
-  const visits = element.cluster.visits.slice(1);
   // Count number of visits with images.
-  const imageCount = visits
+  const imageCount = element.cluster.visits
                          .filter(
                              (visit: URLVisit) =>
                                  visit.hasUrlKeyedImage && visit.isKnownToSync)
                          .length;
-  const visitCount = visits.length;
+  const visitCount = element.cluster.visits.length;
+  element.discounts = [];
+  if (loadTimeData.getBoolean('historyClustersModuleDiscountsEnabled')) {
+    const {discounts} = await HistoryClustersProxyImpl.getInstance()
+                            .handler.getDiscountsForCluster(clusters[0]);
+    for (const visit of clusters[0].visits) {
+      let discountInValue = '';
+      for (const [url, urlDiscounts] of discounts) {
+        if (url.url === visit.normalizedUrl.url && urlDiscounts.length > 0) {
+          // API is designed to support multiple discounts, but for now we only
+          // have one.
+          discountInValue = urlDiscounts[0].valueInText;
+          visit.normalizedUrl.url = urlDiscounts[0].annotatedVisitUrl.url;
+        }
+      }
+      element.discounts.push(discountInValue);
+    }
+    // For visits without discounts, discount string in corresponding index in
+    // `discounts` array is empty.
+    const hasDiscount =
+        element.discounts.some((discount) => discount.length > 0);
+    chrome.metricsPrivate.recordBoolean(
+        `NewTabPage.HistoryClusters.HasDiscount`, hasDiscount);
+  } else {
+    element.discounts = Array(visitCount).fill('');
+  }
 
   // Calculate which layout to use.
   if (imageCount >= LAYOUT_3_MIN_IMAGE_VISITS) {
@@ -304,21 +371,23 @@ async function createElement(): Promise<HistoryClustersModuleElement|null> {
     // visits for layout 3.
     if (visitCount >= LAYOUT_3_MIN_VISITS) {
       element.layoutType = LayoutType.kLayout3;
-      element.cluster.visits = processLayoutVisits(
-          visits, LAYOUT_3_MIN_VISITS, LAYOUT_3_MIN_IMAGE_VISITS);
+      processLayoutVisits(
+          element.cluster.visits, LAYOUT_3_MIN_VISITS,
+          LAYOUT_3_MIN_IMAGE_VISITS);
     } else {
       // If we have enough image visits, we have enough total visits
       // for layout 1, since all visits shown are image visits.
       element.layoutType = LayoutType.kLayout1;
-      element.cluster.visits = processLayoutVisits(
-          visits, LAYOUT_1_MIN_VISITS, LAYOUT_1_MIN_IMAGE_VISITS);
+      processLayoutVisits(
+          element.cluster.visits, LAYOUT_1_MIN_VISITS,
+          LAYOUT_1_MIN_IMAGE_VISITS);
     }
   } else if (
       imageCount === LAYOUT_2_MIN_IMAGE_VISITS &&
       visitCount >= LAYOUT_2_MIN_VISITS) {
     element.layoutType = LayoutType.kLayout2;
-    element.cluster.visits = processLayoutVisits(
-        visits, LAYOUT_2_MIN_VISITS, LAYOUT_2_MIN_IMAGE_VISITS);
+    processLayoutVisits(
+        element.cluster.visits, LAYOUT_2_MIN_VISITS, LAYOUT_2_MIN_IMAGE_VISITS);
   } else {
     // If the data doesn't fit any layout, don't show the module.
     recordSelectedLayout(LayoutType.kNone);

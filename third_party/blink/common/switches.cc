@@ -12,6 +12,18 @@ namespace switches {
 // involving a command line switch.
 const char kAllowPreCommitInput[] = "allow-pre-commit-input";
 
+// Used to communicate managed policy for the
+// BeforeunloadEventCancelByPreventDefault feature. This feature is typically
+// controlled by base::Feature (see blink/common/features.*) but requires an
+// enterprise policy override. This is implicitly a tri-state, and can be either
+// unset, or set to "1" for force enable, or "0" for force disable.
+extern const char kBeforeunloadEventCancelByPreventDefaultPolicy[] =
+    "beforeunload-event-cancel-by-prevent-default-policy";
+extern const char
+    kBeforeunloadEventCancelByPreventDefaultPolicy_ForceDisable[] = "0";
+extern const char kBeforeunloadEventCancelByPreventDefaultPolicy_ForceEnable[] =
+    "1";
+
 // Set blink settings. Format is <name>[=<value],<name>[=<value>],...
 // The names are declared in Settings.json5. For boolean type, use "true",
 // "false", or omit '=<value>' part to set to true. For enum type, use the int
@@ -29,9 +41,16 @@ const char kBlinkSettings[] = "blink-settings";
 // the contrast.
 const char kDarkModeSettings[] = "dark-mode-settings";
 
+// Overrides data: URLs in SVGUseElement deprecation through enterprise policy.
+const char kDataUrlInSvgUseEnabled[] = "data-url-in-svg-use-enabled";
+
 // Sets the tile size used by composited layers.
 const char kDefaultTileWidth[] = "default-tile-width";
 const char kDefaultTileHeight[] = "default-tile-height";
+
+// If set, the unload event cannot be disabled by default by Permissions-Policy.
+const char kForcePermissionPolicyUnloadDefaultEnabled[] =
+    "force-permission-policy-unload-default-enabled";
 
 // Disallow image animations to be reset to the beginning to avoid skipping
 // many frames. Only effective if compositor image animations are enabled.
@@ -56,9 +75,6 @@ const char kDisablePreferCompositingToLCDText[] =
 
 // Disables RGBA_4444 textures.
 const char kDisableRGBA4444Textures[] = "disable-rgba-4444-textures";
-
-// Disable multithreaded, compositor scrolling of web content.
-const char kDisableThreadedScrolling[] = "disable-threaded-scrolling";
 
 // Disable rasterizer that writes directly to GPU memory associated with tiles.
 const char kDisableZeroCopy[] = "disable-zero-copy";
@@ -103,6 +119,11 @@ extern const char kIntensiveWakeUpThrottlingPolicy[] =
     "intensive-wake-up-throttling-policy";
 extern const char kIntensiveWakeUpThrottlingPolicy_ForceDisable[] = "0";
 extern const char kIntensiveWakeUpThrottlingPolicy_ForceEnable[] = "1";
+
+// A command line to indicate if there ia any legacy tech report urls being set.
+// If so, we will send report from blink to browser process.
+extern const char kLegacyTechReportPolicyEnabled[] =
+    "legacy-tech-report-policy-enabled";
 
 // Sets the width and height above which a composited layer will get tiled.
 const char kMaxUntiledLayerHeight[] = "max-untiled-layer-height";
@@ -151,23 +172,6 @@ const char kJavaScriptFlags[] = "js-flags";
 
 // Controls whether WebSQL is force enabled.
 const char kWebSQLAccess[] = "web-sql-access";
-
-// Used to communicate managed policy for the EventPath feature. This feature is
-// typically controlled by base::Feature (see blink/common/features.*) but
-// requires an enterprise policy override. This is implicitly a tri-state, and
-// can be either unset, or set to "1" for force enable, or "0" for force
-// disable.
-extern const char kEventPathPolicy[] = "event-path-policy";
-extern const char kEventPathPolicy_ForceDisable[] = "0";
-extern const char kEventPathPolicy_ForceEnable[] = "1";
-
-// The EventPath feature is disabled by default on almost all platforms and
-// channels, with a few exceptions that require a more gradual removal. Those
-// platforms/channels should pass this flag to renderer to enable the feature.
-// The flag has higher precedence than Blink runtime enabled feature, but lower
-// precedence than base::Feature overrides and enterprise policy.
-extern const char kEventPathEnabledByDefault[] =
-    "event-path-enabled-by-default";
 
 // Used to communicate managed policy for the OffsetParentNewSpecBehavior
 // feature. This feature is typically controlled by base::Feature (see

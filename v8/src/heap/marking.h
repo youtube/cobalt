@@ -19,11 +19,16 @@ class Page;
 
 class MarkBit final {
  public:
-  using CellType = uint32_t;
-  static_assert(sizeof(CellType) == sizeof(base::Atomic32));
+  using CellType = uintptr_t;
+  static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
   V8_ALLOW_UNUSED static inline MarkBit From(Address);
-  V8_ALLOW_UNUSED static inline MarkBit From(HeapObject);
+  V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
+
+  // These methods are meant to be used from the debugger and therefore
+  // intentionally not inlined such that they are always available.
+  V8_ALLOW_UNUSED static MarkBit FromForTesting(Address);
+  V8_ALLOW_UNUSED static MarkBit FromForTesting(Tagged<HeapObject>);
 
   // The function returns true if it succeeded to
   // transition the bit from 0 to 1.
@@ -62,7 +67,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomic32::SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::SetBits(cell_, mask_, mask_);
 }
 
 template <>
@@ -72,7 +77,7 @@ inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Get<AccessMode::ATOMIC>() {
-  return (base::AsAtomic32::Acquire_Load(cell_) & mask_) != 0;
+  return (base::AsAtomicWord::Acquire_Load(cell_) & mask_) != 0;
 }
 
 inline bool MarkBit::Clear() {
@@ -88,9 +93,9 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   using CellIndex = uint32_t;
   using MarkBitIndex = uint32_t;
 
-  static constexpr uint32_t kBitsPerCell = 32;
-  static_assert(kBitsPerCell == (sizeof(CellType) * kBitsPerByte));
-  static constexpr uint32_t kBitsPerCellLog2 = 5;
+  static constexpr uint32_t kBitsPerCell = sizeof(CellType) * kBitsPerByte;
+  static constexpr uint32_t kBitsPerCellLog2 =
+      base::bits::CountTrailingZeros(kBitsPerCell);
   static constexpr uint32_t kBitIndexMask = kBitsPerCell - 1;
   static constexpr uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
   static constexpr uint32_t kBytesPerCellLog2 =
@@ -127,8 +132,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return index & kBitIndexMask;
   }
 
-  V8_INLINE static constexpr uint32_t IndexInCellMask(MarkBitIndex index) {
-    return 1u << IndexInCell(index);
+  V8_INLINE static constexpr CellType IndexInCellMask(MarkBitIndex index) {
+    return static_cast<CellType>(1u) << IndexInCell(index);
   }
 
   // Retrieves the cell containing the provided markbit index.
@@ -186,18 +191,28 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
     return MarkBit(cell, mask);
   }
 
+  // This method provides a basis for inner-pointer resolution. It expects a
+  // page and a maybe_inner_ptr that is contained in that page. It returns the
+  // highest address in the page that is not larger than maybe_inner_ptr, has
+  // its markbit set, and whose previous address (if it exists) does not have
+  // its markbit set. If no such address exists, it returns the page area start.
+  // If the page is iterable, the returned address is guaranteed to be the start
+  // of a valid object in the page.
+  static inline Address FindPreviousValidObject(const Page* page,
+                                                Address maybe_inner_ptr);
+
  private:
   V8_INLINE static MarkingBitmap* FromAddress(Address address);
 
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.
   template <AccessMode mode>
-  inline void SetBitsInCell(uint32_t cell_index, uint32_t mask);
+  inline void SetBitsInCell(uint32_t cell_index, MarkBit::CellType mask);
 
   // Clears bits in the given cell. The mask specifies bits to clear: if a
   // bit is set in the mask then the corresponding bit is cleared in the cell.
   template <AccessMode mode>
-  inline void ClearBitsInCell(uint32_t cell_index, uint32_t mask);
+  inline void ClearBitsInCell(uint32_t cell_index, MarkBit::CellType mask);
 
   // Set all bits in the cell range [start_cell_index, end_cell_index). If the
   // access is atomic then *still* use a relaxed memory ordering.
@@ -217,7 +232,7 @@ class LiveObjectRange final {
  public:
   class iterator final {
    public:
-    using value_type = std::pair<HeapObject, int /* size */>;
+    using value_type = std::pair<Tagged<HeapObject>, int /* size */>;
     using pointer = const value_type*;
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;
@@ -246,8 +261,8 @@ class LiveObjectRange final {
     const PtrComprCageBase cage_base_;
     MarkingBitmap::CellIndex current_cell_index_ = 0;
     MarkingBitmap::CellType current_cell_ = 0;
-    HeapObject current_object_;
-    Map current_map_;
+    Tagged<HeapObject> current_object_;
+    Tagged<Map> current_map_;
     int current_size_ = 0;
   };
 

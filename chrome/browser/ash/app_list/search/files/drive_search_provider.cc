@@ -16,6 +16,8 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "chrome/browser/ash/app_list/search/common/string_util.h"
 #include "chrome/browser/ash/app_list/search/files/file_result.h"
+#include "chrome/browser/ash/app_list/search/search_features.h"
+#include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -32,6 +34,7 @@ using ::ash::string_matching::TokenizedString;
 constexpr char kDriveSearchSchema[] = "drive_search://";
 constexpr int kMaxResults = 50;
 constexpr size_t kMinQuerySizeForSharedFiles = 5u;
+constexpr double kRelevanceThreshold = 0.79;
 
 // Outcome of a call to DriveSearchProvider::Start. These values persist
 // to logs. Entries should not be renumbered and numeric values should never be
@@ -92,7 +95,8 @@ DriveSearchProvider::FileInfo::FileInfo(
 DriveSearchProvider::FileInfo::~FileInfo() = default;
 
 DriveSearchProvider::DriveSearchProvider(Profile* profile)
-    : profile_(profile),
+    : SearchProvider(ControlCategory::kFiles),
+      profile_(profile),
       drive_service_(
           drive::DriveIntegrationServiceFactory::GetForProfile(profile)) {
   DCHECK(profile_);
@@ -178,6 +182,10 @@ void DriveSearchProvider::SetSearchResults(
   for (const auto& info : item_info) {
     double relevance = FileResult::CalculateRelevance(
         last_tokenized_query_, info->reparented_path, info->last_accessed);
+    if (search_features::IsLauncherFuzzyMatchAcrossProvidersEnabled() &&
+        relevance < kRelevanceThreshold) {
+      continue;
+    }
 
     std::unique_ptr<FileResult> result;
     GURL url(info->metadata->alternate_url);

@@ -10,7 +10,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/sync/test/integration/passwords_helper.h"
 #include "chrome/browser/ui/browser.h"
@@ -35,7 +35,7 @@ class PasswordsCounterTest : public InProcessBrowserTest {
     finished_ = false;
     time_ = base::Time::Now();
     times_used_in_html_form_ = 0;
-    store_ = PasswordStoreFactory::GetForProfile(
+    store_ = ProfilePasswordStoreFactory::GetForProfile(
                  browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS)
                  .get();
     SetPasswordsDeletionPref(true);
@@ -167,8 +167,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, SameDomain) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -190,8 +190,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, blocklisted) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -215,8 +215,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, PrefChanged) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -237,8 +237,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, StoreChanged) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -273,8 +273,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, PeriodChanged) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -322,8 +322,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, MostCommonDomains) {
 
   Profile* profile = browser()->profile();
   browsing_data::PasswordsCounter counter(
-      PasswordStoreFactory::GetForProfile(profile,
-                                          ServiceAccessType::EXPLICIT_ACCESS),
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
       AccountPasswordStoreFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS),
       SyncServiceFactory::GetForProfile(profile));
@@ -336,6 +336,29 @@ IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, MostCommonDomains) {
   WaitForCounting();
   std::vector<std::string> domain_examples = {"google.com", "chrome.com"};
   EXPECT_EQ(domain_examples, GetDomainExamples());
+}
+
+// Tests that the counter doesn't crash if restarted in a quick succession.
+// TODO(crbug.com/1458605): Upgrade this test to use SigninDataCounter.
+IN_PROC_BROWSER_TEST_F(PasswordsCounterTest, MultipleRestarts) {
+  Profile* profile = browser()->profile();
+  browsing_data::PasswordsCounter counter(
+      ProfilePasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
+      AccountPasswordStoreFactory::GetForProfile(
+          profile, ServiceAccessType::EXPLICIT_ACCESS),
+      SyncServiceFactory::GetForProfile(profile));
+  counter.Init(profile->GetPrefs(),
+               browsing_data::ClearBrowsingDataTab::ADVANCED,
+               base::BindRepeating(&PasswordsCounterTest::Callback,
+                                   base::Unretained(this)));
+  counter.Restart();
+  counter.Restart();
+  counter.Restart();
+
+  // Previous restarts should be invalidated, so we only need to wait for
+  // counting once.
+  WaitForCounting();
 }
 
 }  // namespace

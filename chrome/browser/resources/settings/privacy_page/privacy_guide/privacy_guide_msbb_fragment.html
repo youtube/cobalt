@@ -16,9 +16,9 @@
         on-change="onMsbbToggleClick_">
     </settings-toggle-button>
   </div>
-  <div class="description-wrapper two-column">
-    <div class="description-column description-column-first">
-      <div class=description-header>
+  <div class="settings-columned-section">
+    <div class="column">
+      <div class="description-header">
         $i18n{privacyGuideFeatureDescriptionHeader}
       </div>
       <div role="list">
@@ -32,10 +32,15 @@
             icon="settings20:lightbulb"
             label="$i18n{privacyGuideMsbbFeatureDescription2}">
         </privacy-guide-description-item>
+        <privacy-guide-description-item
+            role="listitem"
+            icon="settings20:notification-add"
+            label="$i18n{privacyGuideMsbbFeatureDescription3}">
+        </privacy-guide-description-item>
       </div>
     </div>
-    <div class="description-column">
-      <div class=description-header>
+    <div class="column">
+      <div class="description-header">
         $i18n{privacyGuideThingsToConsider}
       </div>
       <div role="list">

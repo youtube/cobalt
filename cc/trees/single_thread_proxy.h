@@ -57,9 +57,11 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void SetNeedsRedraw(const gfx::Rect& damage_rect) override;
   void SetTargetLocalSurfaceId(
       const viz::LocalSurfaceId& target_local_surface_id) override;
+  void DetachInputDelegateAndRenderFrameObserver() override;
   bool RequestedAnimatePending() override;
   void SetDeferMainFrameUpdate(bool defer_main_frame_update) override;
   void SetPauseRendering(bool pause_rendering) override;
+  void SetInputResponsePending() override;
   bool StartDeferringCommits(base::TimeDelta timeout,
                              PaintHoldingReason reason) override;
   void StopDeferringCommits(PaintHoldingCommitTrigger) override;
@@ -108,7 +110,6 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void ScheduledActionBeginMainFrameNotExpectedUntil(
       base::TimeTicks time) override;
   void FrameIntervalUpdated(base::TimeDelta interval) override;
-  bool HasInvalidationAnimation() const override;
 
   // LayerTreeHostImplClient implementation
   void DidLoseLayerTreeFrameSinkOnImplThread() override;
@@ -162,6 +163,8 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   LayerTreeHostImpl* LayerTreeHostImplForTesting() const {
     return host_impl_.get();
   }
+
+  viz::BeginFrameArgs BeginImplFrameForTest(base::TimeTicks frame_begin_time);
 
  protected:
   SingleThreadProxy(LayerTreeHost* layer_tree_host,

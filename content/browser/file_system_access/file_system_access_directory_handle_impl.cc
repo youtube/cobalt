@@ -4,6 +4,7 @@
 
 #include "content/browser/file_system_access/file_system_access_directory_handle_impl.h"
 
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/memory/ref_counted_delete_on_sequence.h"
@@ -16,14 +17,15 @@
 #include "content/browser/file_system_access/file_system_access_error.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
 #include "content/browser/file_system_access/file_system_access_transfer_token_impl.h"
-#include "content/browser/file_system_access/file_system_access_write_lock_manager.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/filename_util.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
 #include "storage/browser/file_system/file_system_url.h"
+#include "storage/common/file_system/file_system_types.h"
 #include "storage/common/file_system/file_system_util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/mojom/file_system_access/file_system_access_cloud_identifier.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_error.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_file_handle.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_transfer_token.mojom.h"
@@ -46,7 +48,6 @@ using storage::FileSystemOperationRunner;
 namespace content {
 
 using HandleType = FileSystemAccessPermissionContext::HandleType;
-using WriteLockType = FileSystemAccessWriteLockManager::WriteLockType;
 #if BUILDFLAG(IS_POSIX)
 using PathType = FileSystemAccessPermissionContext::PathType;
 using SensitiveEntryResult =
@@ -75,8 +76,9 @@ bool IsShellIntegratedExtension(const base::FilePath::StringType& extension) {
   // some Windows versions (see https://nvd.nist.gov/vuln/detail/CVE-2004-0420).
   if (!extension_lower.empty() &&
       (extension_lower.front() == FILE_PATH_LITERAL('{')) &&
-      (extension_lower.back() == FILE_PATH_LITERAL('}')))
+      (extension_lower.back() == FILE_PATH_LITERAL('}'))) {
     return true;
+  }
   return false;
 }
 
@@ -367,8 +369,7 @@ void FileSystemAccessDirectoryHandleImpl::Remove(bool recurse,
 
   RunWithWritePermission(
       base::BindOnce(&FileSystemAccessHandleBase::DoRemove,
-                     weak_factory_.GetWeakPtr(), url(), recurse,
-                     WriteLockType::kExclusive),
+                     weak_factory_.GetWeakPtr(), url(), recurse),
       base::BindOnce([](blink::mojom::FileSystemAccessErrorPtr result,
                         RemoveEntryCallback callback) {
         std::move(callback).Run(std::move(result));
@@ -390,13 +391,9 @@ void FileSystemAccessDirectoryHandleImpl::RemoveEntry(
     return;
   }
 
-  auto lock_type = base::FeatureList::IsEnabled(
-                       features::kFileSystemAccessRemoveEntryExclusiveLock)
-                       ? WriteLockType::kExclusive
-                       : WriteLockType::kShared;
   RunWithWritePermission(
       base::BindOnce(&FileSystemAccessHandleBase::DoRemove,
-                     weak_factory_.GetWeakPtr(), child_url, recurse, lock_type),
+                     weak_factory_.GetWeakPtr(), child_url, recurse),
       base::BindOnce([](blink::mojom::FileSystemAccessErrorPtr result,
                         RemoveEntryCallback callback) {
         std::move(callback).Run(std::move(result));
@@ -572,8 +569,9 @@ void FileSystemAccessDirectoryHandleImpl::DidReadDirectory(
     bool has_more_entries) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!listener_holder->listener)
+  if (!listener_holder->listener) {
     return;
+  }
 
   if (result != base::File::FILE_OK) {
     DCHECK(!has_more_entries);
@@ -650,8 +648,9 @@ void FileSystemAccessDirectoryHandleImpl::DidReadDirectory(
 
     // Skip any entries with names that aren't allowed to be accessed by
     // this API, such as files with disallowed characters in their names.
-    if (get_child_url_result->status != FileSystemAccessStatus::kOk)
+    if (get_child_url_result->status != FileSystemAccessStatus::kOk) {
       continue;
+    }
 
     entries.push_back(
         CreateEntry(basename, child_url,
@@ -705,8 +704,9 @@ void FileSystemAccessDirectoryHandleImpl::AllEntriesReady(
     std::vector<FileSystemAccessEntryPtr> entries) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!listener_holder->listener)
+  if (!listener_holder->listener) {
     return;
+  }
 
   listener_holder->listener->DidReadDirectory(
       file_system_access_error::Ok(), std::move(entries), has_more_entries);
@@ -714,10 +714,13 @@ void FileSystemAccessDirectoryHandleImpl::AllEntriesReady(
 
 // static
 bool FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
+    storage::FileSystemType type,
     const std::string& name) {
   // This method is similar to net::IsSafePortablePathComponent, with a few
   // notable differences where the net version does not consider names safe
   // while here we do want to allow them. These cases are:
+  //  - Files in sandboxed file systems are subject to far fewer restrictions,
+  //    i.e. base::i18n::IsFilenameLegal is not called.
   //  - Names starting with a '.'. These would be hidden files in most file
   //    managers, but are something we explicitly want to support for the
   //    File System Access API, for names like .git.
@@ -734,7 +737,8 @@ bool FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
 
   const base::FilePath component = storage::StringToFilePath(name);
   // Empty names, or names that contain path separators are invalid.
-  if (component.empty() || component != component.BaseName() ||
+  if (component.empty() ||
+      component != storage::VirtualPath::BaseName(component) ||
       component != component.StripTrailingSeparators()) {
     return false;
   }
@@ -744,31 +748,51 @@ bool FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
   component16.assign(component.value().begin(), component.value().end());
 #else
   std::string component8 = component.AsUTF8Unsafe();
-  if (!base::UTF8ToUTF16(component8.c_str(), component8.size(), &component16))
+  if (!base::UTF8ToUTF16(component8.c_str(), component8.size(), &component16)) {
     return false;
+  }
 #endif
+
+  // The names of files in sandboxed file systems are obfuscated before they end
+  // up on disk (if they ever end up on disk). We don't need to worry about
+  // platform-specific restrictions. More restrictions would need to be added if
+  // we ever revisit allowing file moves across the local/sandboxed file system
+  // boundary. See https://crbug.com/1408211.
+  if (type == storage::kFileSystemTypeTemporary) {
+    // Check for both '/' and '\' as path separators, regardless of what OS
+    // we're running on.
+    return component16 != u"." && component16 != u".." &&
+           !base::Contains(component16, '/') &&
+           !base::Contains(component16, '\\');
+  }
+
   // base::i18n::IsFilenameLegal blocks names that start with '.', so strip out
   // a leading '.' before passing it to that method.
   // TODO(mek): Consider making IsFilenameLegal more flexible to support this
   // use case.
-  if (component16[0] == '.')
+  if (component16[0] == '.') {
     component16 = component16.substr(1);
-  if (!base::i18n::IsFilenameLegal(component16))
+  }
+  if (!base::i18n::IsFilenameLegal(component16)) {
     return false;
+  }
 
   base::FilePath::StringType extension = component.Extension();
-  if (!extension.empty())
+  if (!extension.empty()) {
     extension.erase(extension.begin());  // Erase preceding '.'.
-  if (IsShellIntegratedExtension(extension))
+  }
+  if (IsShellIntegratedExtension(extension)) {
     return false;
+  }
 
   if (base::TrimString(component.value(), FILE_PATH_LITERAL("."),
                        base::TRIM_TRAILING) != component.value()) {
     return false;
   }
 
-  if (net::IsReservedNameOnWindows(component.value()))
+  if (net::IsReservedNameOnWindows(component.value())) {
     return false;
+  }
 
   return true;
 }
@@ -779,12 +803,12 @@ FileSystemAccessDirectoryHandleImpl::GetChildURL(
     storage::FileSystemURL* result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!IsSafePathComponent(basename)) {
+  const storage::FileSystemURL& parent = url();
+  if (!IsSafePathComponent(parent.type(), basename)) {
     return file_system_access_error::FromStatus(
         FileSystemAccessStatus::kInvalidArgument, "Name is not allowed.");
   }
 
-  const storage::FileSystemURL parent = url();
   *result = file_system_context()->CreateCrackedFileSystemURL(
       parent.storage_key(), parent.mount_type(),
       parent.virtual_path().Append(base::FilePath::FromUTF8Unsafe(basename)));
@@ -819,7 +843,16 @@ void FileSystemAccessDirectoryHandleImpl::GetUniqueId(
 
   base::Uuid id = manager()->GetUniqueId(*this);
   DCHECK(id.is_valid());
-  std::move(callback).Run(id.AsLowercaseString());
+  std::move(callback).Run(file_system_access_error::Ok(),
+                          id.AsLowercaseString());
+}
+
+void FileSystemAccessDirectoryHandleImpl::GetCloudIdentifiers(
+    GetCloudIdentifiersCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DoGetCloudIdentifiers(
+      FileSystemAccessPermissionContext::HandleType::kDirectory,
+      std::move(callback));
 }
 
 base::WeakPtr<FileSystemAccessHandleBase>

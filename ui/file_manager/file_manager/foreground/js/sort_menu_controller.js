@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import {queryRequiredElement} from '../../common/js/dom_utils.js';
-import {util} from '../../common/js/util.js';
 
 import {FileListModel} from './file_list_model.js';
 import {MultiMenuButton} from './ui/multi_menu_button.js';
@@ -14,20 +13,28 @@ export class SortMenuController {
    * @param {!FileListModel} fileListModel
    */
   constructor(sortButton, fileListModel) {
-    /** @private @const {!FileListModel} */
+    /** @private @const @type {!FileListModel} */
     this.fileListModel_ = fileListModel;
 
-    /** @private @const {!HTMLElement} */
+    /** @private @const @type {!HTMLElement} */
     this.sortByNameButton_ =
+        // @ts-ignore: error TS2339: Property 'menu' does not exist on type
+        // 'MultiMenuButton'.
         queryRequiredElement('#sort-menu-sort-by-name', sortButton.menu);
-    /** @private @const {!HTMLElement} */
+    /** @private @const @type {!HTMLElement} */
     this.sortBySizeButton_ =
+        // @ts-ignore: error TS2339: Property 'menu' does not exist on type
+        // 'MultiMenuButton'.
         queryRequiredElement('#sort-menu-sort-by-size', sortButton.menu);
-    /** @private @const {!HTMLElement} */
+    /** @private @const @type {!HTMLElement} */
     this.sortByTypeButton_ =
+        // @ts-ignore: error TS2339: Property 'menu' does not exist on type
+        // 'MultiMenuButton'.
         queryRequiredElement('#sort-menu-sort-by-type', sortButton.menu);
-    /** @private @const {!HTMLElement} */
+    /** @private @const @type {!HTMLElement} */
     this.sortByDateButton_ =
+        // @ts-ignore: error TS2339: Property 'menu' does not exist on type
+        // 'MultiMenuButton'.
         queryRequiredElement('#sort-menu-sort-by-date', sortButton.menu);
 
     sortButton.addEventListener('menushow', this.updateCheckmark_.bind(this));
@@ -38,6 +45,8 @@ export class SortMenuController {
    * @private
    */
   updateCheckmark_() {
+    // @ts-ignore: error TS2339: Property 'field' does not exist on type
+    // 'Object'.
     const sortField = this.fileListModel_.sortStatus.field;
 
     this.setCheckStatus_(this.sortByNameButton_, sortField === 'name');

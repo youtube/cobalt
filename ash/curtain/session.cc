@@ -11,12 +11,23 @@
 #include "ash/shell.h"
 #include "ash/shell_observer.h"
 #include "ash/system/power/power_button_controller.h"
+#include "ash/system/privacy_hub/camera_privacy_switch_controller.h"
+#include "base/check_deref.h"
 #include "base/logging.h"
 #include "base/scoped_observation.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 
 namespace ash::curtain {
 
+namespace {
+
+// We can only disable the camera if the controller exists, which might
+// not be the case if the privacy hub feature is disabled.
+bool CanDisableCamera() {
+  return CameraPrivacySwitchController::Get() != nullptr;
+}
+
+}  // namespace
 ////////////////////////////////////////////////////////////////////////////////
 //  RootWindowsObserver
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,16 +63,51 @@ void Session::RootWindowsObserver::OnRootWindowAdded(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  ScopedAudioMuter
+//  ScopedAudioOutputMuter
 ////////////////////////////////////////////////////////////////////////////////
-class Session::ScopedAudioMuter {
+class Session::ScopedAudioOutputMuter {
  public:
-  ScopedAudioMuter() {
+  ScopedAudioOutputMuter() {
     CrasAudioHandler::Get()->SetOutputMuteLockedBySecurityCurtain(true);
   }
 
-  ~ScopedAudioMuter() {
+  ~ScopedAudioOutputMuter() {
     CrasAudioHandler::Get()->SetOutputMuteLockedBySecurityCurtain(false);
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//  ScopedAudioInputMuter
+////////////////////////////////////////////////////////////////////////////////
+class Session::ScopedAudioInputMuter {
+ public:
+  ScopedAudioInputMuter() {
+    CrasAudioHandler::Get()->SetInputMuteLockedBySecurityCurtain(true);
+  }
+
+  ~ScopedAudioInputMuter() {
+    CrasAudioHandler::Get()->SetInputMuteLockedBySecurityCurtain(false);
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//  ScopedCameraDisabler
+////////////////////////////////////////////////////////////////////////////////
+class Session::ScopedCameraDisabler {
+ public:
+  ScopedCameraDisabler() {
+    CHECK_DEREF(CameraPrivacySwitchController::Get())
+        .SetForceDisableCameraAccess(true);
+  }
+
+  ~ScopedCameraDisabler() {
+    // Skip cleanup if the shell has been destroyed (so when Chrome is
+    // shutting down). This prevents us from using a half-destroyed `shell_`
+    // object.
+    if (ash::Shell::HasInstance()) {
+      CHECK_DEREF(CameraPrivacySwitchController::Get())
+          .SetForceDisableCameraAccess(false);
+    }
   }
 };
 
@@ -74,8 +120,17 @@ Session::Session(Shell* shell,
     : shell_(*shell),
       init_params_(init_params),
       root_windows_observer_(
-          std::make_unique<RootWindowsObserver>(this, shell)),
-      scoped_audio_muter_(std::make_unique<ScopedAudioMuter>()) {
+          std::make_unique<RootWindowsObserver>(this, shell)) {
+  if (init_params.mute_audio_output) {
+    scoped_audio_output_muter_ = std::make_unique<ScopedAudioOutputMuter>();
+  }
+  if (init_params.mute_audio_input) {
+    scoped_audio_input_muter_ = std::make_unique<ScopedAudioInputMuter>();
+  }
+  if (init_params.disable_camera_access && CanDisableCamera()) {
+    scoped_camera_disabler_ = std::make_unique<ScopedCameraDisabler>();
+  }
+
   CurtainOffAllRootWindows();
   shell_->power_button_controller()->OnSecurityCurtainEnabled();
 }

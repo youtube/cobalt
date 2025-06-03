@@ -10,9 +10,11 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "content/browser/webid/fedcm_metrics.h"
 #include "content/browser/webid/test/mock_api_permission_delegate.h"
@@ -47,8 +49,8 @@ constexpr char kPersonalizedButtonFrameUrl[] = "https://idp.example/button";
 constexpr char kProviderUrl[] = "https://idp.example/fedcm.json";
 constexpr char kAccountsEndpoint[] = "https://idp.example/accounts";
 constexpr char kTokenEndpoint[] = "https://idp.example/token";
+constexpr char kLoginUrl[] = "https://idp.example/login";
 constexpr char kClientId[] = "client_id_123";
-constexpr char kNonce[] = "nonce123";
 
 constexpr char kAccountEmailFormat[] = "%s@foo.com";
 constexpr char kAccountName[] = "The Liliputian";
@@ -130,11 +132,14 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
 
   void FetchWellKnown(const GURL& provider,
                       FetchWellKnownCallback callback) override {
+    has_fetched_well_known_ = true;
     FetchStatus fetch_status = {ParseStatus::kSuccess, net::HTTP_OK};
+    IdpNetworkRequestManager::WellKnown well_known;
     std::set<GURL> well_known_urls = {GURL(kProviderUrl)};
+    well_known.provider_urls = std::move(well_known_urls);
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::BindOnce(std::move(callback), fetch_status, well_known_urls));
+        base::BindOnce(std::move(callback), fetch_status, well_known));
   }
 
   void FetchConfig(const GURL& provider,
@@ -149,6 +154,7 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
 
     IdentityProviderMetadata idp_metadata;
     idp_metadata.config_url = GURL(kProviderUrl);
+    idp_metadata.idp_login_url = GURL(kLoginUrl);
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback), config_.config_fetch_status,
@@ -165,7 +171,9 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
       accounts.emplace_back(
           account_config.id, GenerateEmailForUserId(account_config.id),
           kAccountName, kAccountGivenName, GURL(kAccountPicture),
-          std::vector<std::string>(), account_config.login_state);
+          /*login_hints=*/std::vector<std::string>(),
+          /*domain_hints=*/std::vector<std::string>(),
+          account_config.login_state);
     }
 
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -174,12 +182,23 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
                        std::move(accounts)));
   }
 
+  bool DidFetchAnyEndpoint() {
+    return has_fetched_well_known_ || has_fetched_config_ ||
+           has_fetched_accounts_endpoint_;
+  }
+
+  base::WeakPtr<TestIdpNetworkRequestManager> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  protected:
+  bool has_fetched_well_known_{false};
   bool has_fetched_config_{false};
   bool has_fetched_accounts_endpoint_{false};
 
  private:
   const Config config_;
+  base::WeakPtrFactory<TestIdpNetworkRequestManager> weak_ptr_factory_{this};
 };
 
 class TestApiPermissionDelegate : public MockApiPermissionDelegate {
@@ -192,17 +211,21 @@ class TestApiPermissionDelegate : public MockApiPermissionDelegate {
 
 class TestPermissionDelegate : public MockPermissionDelegate {
  public:
-  bool HasSharingPermission(const url::Origin& relying_party_requester,
-                            const url::Origin& relying_party_embedder,
-                            const url::Origin& identity_provider,
-                            const std::string& account_id) override {
+  bool HasSharingPermission(
+      const url::Origin& relying_party_requester,
+      const url::Origin& relying_party_embedder,
+      const url::Origin& identity_provider,
+      const absl::optional<std::string>& account_id) override {
     url::Origin rp_origin_with_data = url::Origin::Create(GURL(kRpUrl));
     url::Origin idp_origin_with_data =
         url::Origin::Create(GURL(kPersonalizedButtonFrameUrl));
-    return (relying_party_requester == rp_origin_with_data &&
-            relying_party_embedder == rp_origin_with_data &&
-            identity_provider == idp_origin_with_data &&
-            accounts_with_sharing_permission_.count(account_id));
+    bool has_granted_permission_per_profile =
+        relying_party_requester == rp_origin_with_data &&
+        relying_party_embedder == rp_origin_with_data &&
+        identity_provider == idp_origin_with_data;
+    return has_granted_permission_per_profile && account_id
+               ? accounts_with_sharing_permission_.count(account_id.value())
+               : !accounts_with_sharing_permission_.empty();
   }
 
   absl::optional<bool> GetIdpSigninStatus(
@@ -244,13 +267,9 @@ class FederatedAuthUserInfoRequestTest : public RenderViewHostImplTestHarness {
         ->NavigateAndCommit(GURL(kRpUrl), ui::PAGE_TRANSITION_LINK);
 
     // Add a subframe that navigates to kPersonalizedButtonFrameUrl.
-    content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
-    iframe_render_frame_host_ =
-        static_cast<TestRenderFrameHost*>(contents()
-                                              ->GetPrimaryFrameTree()
-                                              .root()
-                                              ->child_at(0)
-                                              ->current_frame_host());
+    iframe_render_frame_host_ = static_cast<TestRenderFrameHost*>(
+        content::RenderFrameHostTester::For(main_rfh())
+            ->AppendChild("subframe"));
     iframe_render_frame_host_ = static_cast<TestRenderFrameHost*>(
         NavigationSimulator::NavigateAndCommitFromDocument(
             GURL(kPersonalizedButtonFrameUrl), iframe_render_frame_host_));
@@ -264,19 +283,19 @@ class FederatedAuthUserInfoRequestTest : public RenderViewHostImplTestHarness {
 
     auto network_manager =
         std::make_unique<TestIdpNetworkRequestManager>(config);
+    network_manager_ = network_manager->AsWeakPtr();
 
     blink::mojom::IdentityProviderConfigPtr idp_ptr =
         blink::mojom::IdentityProviderConfig::New();
     idp_ptr->config_url = GURL(kProviderUrl);
     idp_ptr->client_id = kClientId;
-    idp_ptr->nonce = kNonce;
 
     UserInfoCallbackHelper callback_helper;
-    std::unique_ptr<FederatedAuthUserInfoRequest> request =
-        FederatedAuthUserInfoRequest::CreateAndStart(
-            std::move(network_manager), api_permission_delegate_.get(),
-            permission_delegate_.get(), iframe_render_frame_host_,
-            metrics_.get(), std::move(idp_ptr), callback_helper.callback());
+    request_ = FederatedAuthUserInfoRequest::Create(
+        std::move(network_manager), permission_delegate_.get(),
+        iframe_render_frame_host_, metrics_.get(), std::move(idp_ptr));
+    request_->SetCallbackAndStart(callback_helper.callback(),
+                                  api_permission_delegate_.get());
     callback_helper.WaitForCallback();
 
     EXPECT_EQ(expected_user_info_status, callback_helper.user_info_status_);
@@ -299,12 +318,35 @@ class FederatedAuthUserInfoRequestTest : public RenderViewHostImplTestHarness {
     }
   }
 
+  bool DidFetchAnyEndpoint() { return network_manager_->DidFetchAnyEndpoint(); }
+
+  void ExpectConsoleMessage(const std::string& message) {
+    std::vector<std::string> messages =
+        RenderFrameHostTester::For(iframe_render_frame_host_)
+            ->GetConsoleMessages();
+    ASSERT_EQ(messages.size(), 1u);
+    EXPECT_EQ(messages[0], message);
+  }
+
+  void ExpectUniqueIssue(FederatedAuthUserInfoRequestResult result) {
+    EXPECT_EQ(
+        iframe_render_frame_host_->GetFederatedAuthUserInfoRequestIssueCount(
+            result),
+        1);
+    EXPECT_EQ(
+        iframe_render_frame_host_->GetFederatedAuthUserInfoRequestIssueCount(
+            absl::nullopt),
+        1);
+  }
+
  protected:
-  base::raw_ptr<RenderFrameHost> iframe_render_frame_host_;
-  std::unique_ptr<TestIdpNetworkRequestManager> network_manager_;
+  raw_ptr<TestRenderFrameHost, DanglingUntriaged> iframe_render_frame_host_;
+  base::WeakPtr<TestIdpNetworkRequestManager> network_manager_;
   std::unique_ptr<TestApiPermissionDelegate> api_permission_delegate_;
   std::unique_ptr<TestPermissionDelegate> permission_delegate_;
   std::unique_ptr<NiceMock<FedCmMetrics>> metrics_;
+  std::unique_ptr<FederatedAuthUserInfoRequest> request_;
+  base::HistogramTester histogram_tester_;
 };
 
 TEST_F(FederatedAuthUserInfoRequestTest, PreviouslySignedIn) {
@@ -318,6 +360,14 @@ TEST_F(FederatedAuthUserInfoRequestTest, PreviouslySignedIn) {
                       /*was_granted_sharing_permission=*/false}};
   RunUserInfoTest(config, RequestUserInfoStatus::kSuccess,
                   {kAccount1Id, kAccount2Id});
+
+  histogram_tester_.ExpectUniqueSample(
+      "Blink.FedCm.UserInfo.Status",
+      FederatedAuthUserInfoRequestResult::kSuccess, 1);
+  histogram_tester_.ExpectUniqueSample("Blink.FedCm.UserInfo.NumAccounts",
+                                       FedCmMetrics::NumAccounts::kMultiple, 1);
+  histogram_tester_.ExpectTotalCount(
+      "Blink.FedCm.UserInfo.TimeToRequestCompleted", 1);
 }
 
 TEST_F(FederatedAuthUserInfoRequestTest, NoSignedInAccount) {
@@ -330,6 +380,19 @@ TEST_F(FederatedAuthUserInfoRequestTest, NoSignedInAccount) {
                      {kAccount2Id, /*login_state=*/absl::nullopt,
                       /*was_granted_sharing_permission=*/false}};
   RunUserInfoTest(config, RequestUserInfoStatus::kError, {});
+  EXPECT_FALSE(DidFetchAnyEndpoint());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Blink.FedCm.UserInfo.Status",
+      FederatedAuthUserInfoRequestResult::kNoAccountSharingPermission, 1);
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.UserInfo.NumAccounts", 0);
+  histogram_tester_.ExpectTotalCount(
+      "Blink.FedCm.UserInfo.TimeToRequestCompleted", 0);
+  ExpectConsoleMessage(
+      "getUserInfo() failed because the user has not yet used FedCM on this "
+      "site with the provided IDP.");
+  ExpectUniqueIssue(
+      FederatedAuthUserInfoRequestResult::kNoAccountSharingPermission);
 }
 
 TEST_F(FederatedAuthUserInfoRequestTest, NotInApprovedClientsList) {
@@ -342,6 +405,20 @@ TEST_F(FederatedAuthUserInfoRequestTest, NotInApprovedClientsList) {
                      {kAccount2Id, /*login_state=*/LoginState::kSignUp,
                       /*was_granted_sharing_permission=*/true}};
   RunUserInfoTest(config, RequestUserInfoStatus::kError, {});
+
+  histogram_tester_.ExpectUniqueSample(
+      "Blink.FedCm.UserInfo.Status",
+      FederatedAuthUserInfoRequestResult::kNoReturningUserFromFetchedAccounts,
+      1);
+  histogram_tester_.ExpectUniqueSample("Blink.FedCm.UserInfo.NumAccounts",
+                                       FedCmMetrics::NumAccounts::kZero, 1);
+  histogram_tester_.ExpectTotalCount(
+      "Blink.FedCm.UserInfo.TimeToRequestCompleted", 1);
+  ExpectConsoleMessage(
+      "getUserInfo() failed because no account received was a returning "
+      "account.");
+  ExpectUniqueIssue(
+      FederatedAuthUserInfoRequestResult::kNoReturningUserFromFetchedAccounts);
 }
 
 TEST_F(FederatedAuthUserInfoRequestTest, InApprovedClientsList) {
@@ -362,6 +439,19 @@ TEST_F(FederatedAuthUserInfoRequestTest, ConfigFetchFailed) {
   config.config_fetch_status = {ParseStatus::kHttpNotFoundError, 404};
 
   RunUserInfoTest(config, RequestUserInfoStatus::kError, {});
+
+  histogram_tester_.ExpectUniqueSample(
+      "Blink.FedCm.UserInfo.Status",
+      FederatedAuthUserInfoRequestResult::kInvalidConfigOrWellKnown, 1);
+  histogram_tester_.ExpectTotalCount("Blink.FedCm.UserInfo.NumAccounts", 0);
+  histogram_tester_.ExpectTotalCount(
+      "Blink.FedCm.UserInfo.TimeToRequestCompleted", 0);
+
+  ExpectConsoleMessage(
+      "getUserInfo() failed because the config and well-known files were "
+      "invalid.");
+  ExpectUniqueIssue(
+      FederatedAuthUserInfoRequestResult::kInvalidConfigOrWellKnown);
 }
 
 TEST_F(FederatedAuthUserInfoRequestTest,
@@ -379,6 +469,26 @@ TEST_F(FederatedAuthUserInfoRequestTest,
 
     testing::Mock::VerifyAndClearExpectations(permission_delegate_.get());
   }
+}
+
+// Tests that returning accounts are returned first in the user info response.
+TEST_F(FederatedAuthUserInfoRequestTest, ReturningAccountsFirst) {
+  const char kAccount1Id[] = "account1";
+  const char kAccount2Id[] = "account2";
+  const char kAccount3Id[] = "account3";
+  const char kAccount4Id[] = "account4";
+
+  Config config = kValidConfig;
+  config.accounts = {{kAccount1Id, /*login_state=*/LoginState::kSignUp,
+                      /*was_granted_sharing_permission=*/false},
+                     {kAccount2Id, /*login_state=*/LoginState::kSignIn,
+                      /*was_granted_sharing_permission=*/true},
+                     {kAccount3Id, /*login_state=*/LoginState::kSignUp,
+                      /*was_granted_sharing_permission=*/false},
+                     {kAccount4Id, /*login_state=*/LoginState::kSignIn,
+                      /*was_granted_sharing_permission=*/true}};
+  RunUserInfoTest(config, RequestUserInfoStatus::kSuccess,
+                  {kAccount2Id, kAccount4Id, kAccount1Id, kAccount3Id});
 }
 
 }  // namespace content

@@ -8,10 +8,12 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_offset_string_conversions.h"
@@ -27,12 +29,12 @@
 #include "chrome/browser/ash/input_method/ui/input_method_menu_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/ash/search/search_tag_registry.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
+#include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/services/ime/public/cpp/autocorrect.h"
 #include "chromeos/ash/services/ime/public/mojom/input_method.mojom.h"
 #include "chromeos/ash/services/ime/public/mojom/japanese_settings.mojom.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/ime/ash/ime_bridge.h"
@@ -51,15 +53,6 @@ namespace mojom = ::ash::ime::mojom;
 struct InputFieldContext {
   bool multiword_enabled = false;
   bool multiword_allowed = false;
-};
-
-// These are persisted to logs. Entries should not be renumbered. Numeric values
-// should not be reused. Must stay in sync with IMENonAutocorrectDiacriticStatus
-// enum in: tools/metrics/histograms/enums.xml
-enum class NonAutocorrectDiacriticStatus {
-  kWithoutDiacritics = 0,
-  kWithDiacritics = 1,
-  kMaxValue = kWithDiacritics,
 };
 
 bool ShouldRouteToFirstPartyVietnameseInput(const std::string& engine_id) {
@@ -188,20 +181,6 @@ mojom::AutocorrectMode GetAutocorrectMode(
                  spellcheck_mode == SpellcheckMode::kDisabled
              ? mojom::AutocorrectMode::kDisabled
              : mojom::AutocorrectMode::kEnabled;
-}
-
-enum class ImeServiceEvent {
-  kUnknown = 0,
-  kInitSuccess = 1,
-  kInitFailed = 2,
-  kActivateImeSuccess = 3,
-  kActivateImeFailed = 4,
-  kServiceDisconnected = 5,
-  kMaxValue = kServiceDisconnected
-};
-
-void LogEvent(ImeServiceEvent event) {
-  UMA_HISTOGRAM_ENUMERATION("InputMethod.Mojo.Extension.Event", event);
 }
 
 enum class JapaneseStartupAction {
@@ -545,28 +524,15 @@ MultiWordSuggestionType ToUmaSuggestionType(
   }
 }
 
-void OnConnected(bool bound) {
-  LogEvent(bound ? ImeServiceEvent::kActivateImeSuccess
-                 : ImeServiceEvent::kActivateImeFailed);
-}
-
-void OnError(base::Time start) {
+void OnError() {
   LOG(ERROR) << "IME Service connection error";
-
-  // If the Mojo pipe disconnection happens in 1000 ms after the service
-  // is initialized, we consider it as a failure. Normally it's caused
-  // by the Mojo service itself or misconfigured on Chrome OS.
-  if (base::Time::Now() - start < base::Milliseconds(1000)) {
-    LogEvent(ImeServiceEvent::kInitFailed);
-  } else {
-    LogEvent(ImeServiceEvent::kServiceDisconnected);
-  }
 }
 
 InputFieldContext CreateInputFieldContext(
     const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions) {
   return InputFieldContext{
-      .multiword_enabled = features::IsAssistiveMultiWordEnabled(),
+      .multiword_enabled =
+          base::FeatureList::IsEnabled(features::kAssistMultiWord),
       .multiword_allowed = enabled_suggestions.multi_word_suggestions};
 }
 
@@ -702,6 +668,7 @@ bool CanRouteToNativeMojoEngine(const std::string& engine_id) {
 
 NativeInputMethodEngineObserver::NativeInputMethodEngineObserver(
     PrefService* prefs,
+    EditorEventSink* editor_event_sink,
     std::unique_ptr<InputMethodEngineObserver> ime_base_observer,
     std::unique_ptr<AssistiveSuggester> assistive_suggester,
     std::unique_ptr<AutocorrectManager> autocorrect_manager,
@@ -709,6 +676,7 @@ NativeInputMethodEngineObserver::NativeInputMethodEngineObserver(
     std::unique_ptr<GrammarManager> grammar_manager,
     bool use_ime_service)
     : prefs_(prefs),
+      editor_event_sink_(editor_event_sink),
       ime_base_observer_(std::move(ime_base_observer)),
       assistive_suggester_(std::move(assistive_suggester)),
       autocorrect_manager_(std::move(autocorrect_manager)),
@@ -765,9 +733,7 @@ void NativeInputMethodEngineObserver::ConnectToImeService(
     auto* ime_manager = InputMethodManager::Get();
     ime_manager->ConnectInputEngineManager(
         remote_manager_.BindNewPipeAndPassReceiver());
-    remote_manager_.set_disconnect_handler(
-        base::BindOnce(&OnError, base::Time::Now()));
-    LogEvent(ImeServiceEvent::kInitSuccess);
+    remote_manager_.set_disconnect_handler(base::BindOnce(&OnError));
   }
 
   // Deactivate any existing engine.
@@ -812,7 +778,7 @@ void NativeInputMethodEngineObserver::ConnectToImeService(
   connection_factory_->ConnectToInputMethod(
       engine_id, input_method_.BindNewEndpointAndPassReceiver(),
       std::move(input_method_host), std::move(settings),
-      base::BindOnce(&OnConnected));
+      base::BindOnce([](bool) {}));
 }
 
 void NativeInputMethodEngineObserver::OnFocusAck(
@@ -846,6 +812,9 @@ void NativeInputMethodEngineObserver::OnActivate(const std::string& engine_id) {
       ->SetCurrentInputMethodMenuItemList({});
   autocorrect_manager_->OnActivate(engine_id);
   assistive_suggester_->OnActivate(engine_id);
+  if (editor_event_sink_) {
+    editor_event_sink_->OnActivateIme(engine_id);
+  }
 
   // TODO(b/181077907): Always launch the IME service and let IME service decide
   // whether it should shutdown or not.
@@ -853,7 +822,7 @@ void NativeInputMethodEngineObserver::OnActivate(const std::string& engine_id) {
       // The FST Mojo engine is only needed if autocorrect is enabled ...
       !IsPhysicalKeyboardAutocorrectEnabled(prefs_, engine_id) &&
       // ... or if predictive writing is enabled.
-      !(features::IsAssistiveMultiWordEnabled() &&
+      !(base::FeatureList::IsEnabled(features::kAssistMultiWord) &&
         IsPredictiveWritingEnabled(prefs_, engine_id))) {
     connection_factory_.reset();
     remote_manager_.reset();
@@ -866,6 +835,8 @@ void NativeInputMethodEngineObserver::OnActivate(const std::string& engine_id) {
     // TODO(b/251679480): Make this part of ShouldRouteToNativeMojoEngine logic
     // once flag is baked in.
     ConnectToImeService(engine_id);
+    // Notify the virtual keyboard extension that the IME has changed.
+    ime_base_observer_->OnActivate(engine_id);
   } else if (ShouldRouteToRuleBasedEngine(engine_id)) {
     const auto new_engine_id = NormalizeRuleBasedEngineId(engine_id);
     ConnectToImeService(new_engine_id);
@@ -896,9 +867,11 @@ void NativeInputMethodEngineObserver::OnFocus(
     const TextInputMethod::InputContext& context) {
   text_client_ =
       TextClient{.context_id = context_id, .state = TextClientState::kPending};
-
+  if (chromeos::features::IsOrcaEnabled() && editor_event_sink_) {
+    editor_event_sink_->OnFocus(context_id);
+  }
   if (assistive_suggester_->IsAssistiveFeatureEnabled()) {
-    assistive_suggester_->OnFocus(context_id);
+    assistive_suggester_->OnFocus(context_id, context);
   }
   autocorrect_manager_->OnFocus(context_id);
   if (grammar_manager_->IsOnDeviceGrammarEnabled()) {
@@ -958,7 +931,7 @@ void NativeInputMethodEngineObserver::HandleOnFocusAsyncForNativeMojoEngine(
                             settings);
 
   InputFieldContext input_field_context =
-      features::IsAssistiveMultiWordEnabled()
+      base::FeatureList::IsEnabled(features::kAssistMultiWord)
           ? CreateInputFieldContext(enabled_suggestions)
           : InputFieldContext{};
   const bool is_normal_screen =
@@ -992,6 +965,9 @@ void NativeInputMethodEngineObserver::OnBlur(const std::string& engine_id,
 
   text_client_ = absl::nullopt;
 
+  if (chromeos::features::IsOrcaEnabled() && editor_event_sink_) {
+    editor_event_sink_->OnBlur();
+  }
   if (assistive_suggester_->IsAssistiveFeatureEnabled())
     assistive_suggester_->OnBlur();
   autocorrect_manager_->OnBlur();
@@ -1010,12 +986,25 @@ void NativeInputMethodEngineObserver::OnKeyEvent(
     const ui::KeyEvent& event,
     TextInputMethod::KeyEventDoneCallback callback) {
   if (assistive_suggester_->IsAssistiveFeatureEnabled()) {
-    if (assistive_suggester_->OnKeyEvent(event)) {
-      std::move(callback).Run(
-          ui::ime::KeyEventHandledState::kHandledByAssistiveSuggester);
-      return;
+    switch (assistive_suggester_->OnKeyEvent(event)) {
+      case AssistiveSuggesterKeyResult::kHandled:
+        std::move(callback).Run(
+            ui::ime::KeyEventHandledState::kHandledByAssistiveSuggester);
+        return;
+      case AssistiveSuggesterKeyResult::kNotHandledSuppressAutoRepeat:
+        callback = base::BindOnce([](ui::ime::KeyEventHandledState state) {
+                     if (state == ui::ime::KeyEventHandledState::kNotHandled) {
+                       return ui::ime::KeyEventHandledState::
+                           kNotHandledSuppressAutoRepeat;
+                     }
+                     return state;
+                   }).Then(std::move(callback));
+        break;
+      case AssistiveSuggesterKeyResult::kNotHandled:
+        break;
     }
   }
+
   if (autocorrect_manager_->OnKeyEvent(event)) {
     std::move(callback).Run(ui::ime::KeyEventHandledState::kHandledByIME);
     return;
@@ -1059,17 +1048,12 @@ void NativeInputMethodEngineObserver::OnKeyEvent(
         key_event->key = mojom::DomKey::NewCodepoint(
             Utf16ToCodepoint(character_composer_.composed_character()));
       }
-
-      auto process_key_event_callback = base::BindOnce(
-          [](TextInputMethod::KeyEventDoneCallback original_callback,
-             mojom::KeyEventResult result) {
-            std::move(original_callback)
-                .Run((result == mojom::KeyEventResult::kConsumedByIme)
-                         ? ui::ime::KeyEventHandledState::kHandledByIME
-                         : ui::ime::KeyEventHandledState::kNotHandled);
-          },
-          std::move(callback));
-
+      auto process_key_event_callback =
+          base::BindOnce([](mojom::KeyEventResult result) {
+            return result == mojom::KeyEventResult::kConsumedByIme
+                       ? ui::ime::KeyEventHandledState::kHandledByIME
+                       : ui::ime::KeyEventHandledState::kNotHandled;
+          }).Then(std::move(callback));
       input_method_->ProcessKeyEvent(std::move(key_event),
                                      std::move(process_key_event_callback));
     } else {
@@ -1125,6 +1109,9 @@ void NativeInputMethodEngineObserver::OnSurroundingTextChanged(
     ime_base_observer_->OnSurroundingTextChanged(engine_id, text,
                                                  selection_range, offset_pos);
   }
+  if (editor_event_sink_) {
+    editor_event_sink_->OnSurroundingTextChanged(text, selection_range);
+  }
 }
 
 void NativeInputMethodEngineObserver::OnCandidateClicked(
@@ -1147,7 +1134,7 @@ void NativeInputMethodEngineObserver::OnAssistiveWindowButtonClicked(
           "ChromeOS.Settings.SmartInputs.PersonalInfoSuggestions.Open"));
       chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
           ProfileManager::GetActiveUserProfile(),
-          chromeos::settings::mojom::kSmartInputsSubpagePath);
+          chromeos::settings::mojom::kInputSubpagePath);
       break;
     case ui::ime::ButtonId::kLearnMore:
       if (button.window_type ==
@@ -1158,16 +1145,24 @@ void NativeInputMethodEngineObserver::OnAssistiveWindowButtonClicked(
         chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
             ProfileManager::GetActiveUserProfile(),
             SettingToQueryString(
-                chromeos::settings::mojom::kSmartInputsSubpagePath,
+                chromeos::settings::mojom::kInputSubpagePath,
                 chromeos::settings::mojom::Setting::kShowEmojiSuggestions));
       }
       if (button.window_type ==
           ash::ime::AssistiveWindowType::kLongpressDiacriticsSuggestion) {
-        chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-            ProfileManager::GetActiveUserProfile(),
-            SettingToQueryString(
-                chromeos::settings::mojom::kKeyboardSubpagePath,
-                chromeos::settings::mojom::Setting::kShowDiacritic));
+        if (features::IsInputDeviceSettingsSplitEnabled()) {
+          chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+              ProfileManager::GetActiveUserProfile(),
+              SettingToQueryString(
+                  chromeos::settings::mojom::kPerDeviceKeyboardSubpagePath,
+                  chromeos::settings::mojom::Setting::kShowDiacritic));
+        } else {
+          chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+              ProfileManager::GetActiveUserProfile(),
+              SettingToQueryString(
+                  chromeos::settings::mojom::kKeyboardSubpagePath,
+                  chromeos::settings::mojom::Setting::kShowDiacritic));
+        }
       }
       if (button.window_type == ash::ime::AssistiveWindowType::kLearnMore) {
         autocorrect_manager_->HideUndoWindow();
@@ -1334,15 +1329,6 @@ void NativeInputMethodEngineObserver::FinishComposition() {
           manager->GetActiveIMEState()->GetCurrentInputMethod().id())) {
     return;
   }
-
-  std::u16string composition_text = input_context->GetCompositionText();
-  base::TrimWhitespace(composition_text, base::TRIM_ALL, &composition_text);
-  bool has_diacritics = HasDiacritics(composition_text);
-
-  base::UmaHistogramEnumeration(
-      "InputMethod.MultilingualExperiment.NonAutocorrect",
-      has_diacritics ? NonAutocorrectDiacriticStatus::kWithDiacritics
-                     : NonAutocorrectDiacriticStatus::kWithoutDiacritics);
 }
 
 void NativeInputMethodEngineObserver::DeleteSurroundingText(
@@ -1352,6 +1338,17 @@ void NativeInputMethodEngineObserver::DeleteSurroundingText(
     return;
   IMEBridge::Get()->GetInputContextHandler()->DeleteSurroundingText(
       num_before_cursor, num_after_cursor);
+}
+
+void NativeInputMethodEngineObserver::ReplaceSurroundingText(
+    uint32_t num_before_cursor,
+    uint32_t num_after_cursor,
+    const std::u16string& text) {
+  if (!IsTextClientActive()) {
+    return;
+  }
+  IMEBridge::Get()->GetInputContextHandler()->ReplaceSurroundingText(
+      num_before_cursor, num_after_cursor, text);
 }
 
 void NativeInputMethodEngineObserver::HandleAutocorrect(
@@ -1373,10 +1370,11 @@ void NativeInputMethodEngineObserver::RequestSuggestions(
 }
 
 void NativeInputMethodEngineObserver::DisplaySuggestions(
-    const std::vector<ime::AssistiveSuggestion>& suggestions) {
+    const std::vector<ime::AssistiveSuggestion>& suggestions,
+    const absl::optional<ime::SuggestionsTextContext>& context) {
   if (!IsTextClientActive())
     return;
-  assistive_suggester_->OnExternalSuggestionsUpdated(suggestions);
+  assistive_suggester_->OnExternalSuggestionsUpdated(suggestions, context);
 }
 
 void NativeInputMethodEngineObserver::UpdateCandidatesWindow(
@@ -1394,25 +1392,29 @@ void NativeInputMethodEngineObserver::RecordUkm(mojom::UkmEntryPtr entry) {
   }
 }
 
-void NativeInputMethodEngineObserver::ReportKoreanAction(
+void NativeInputMethodEngineObserver::DEPRECATED_ReportKoreanAction(
     mojom::KoreanAction action) {
   UMA_HISTOGRAM_ENUMERATION("InputMethod.PhysicalKeyboard.Korean.Action",
                             action);
 }
 
-void NativeInputMethodEngineObserver::ReportKoreanSettings(
+void NativeInputMethodEngineObserver::DEPRECATED_ReportKoreanSettings(
     mojom::KoreanSettingsPtr settings) {
   UMA_HISTOGRAM_BOOLEAN("InputMethod.PhysicalKeyboard.Korean.MultipleSyllables",
                         settings->input_multiple_syllables);
-  UMA_HISTOGRAM_ENUMERATION("InputMethod.PhysicalKeyboard.Korean.Layout",
-                            settings->layout);
 }
 
-void NativeInputMethodEngineObserver::ReportSuggestionOpportunity(
+void NativeInputMethodEngineObserver::DEPRECATED_ReportSuggestionOpportunity(
     ime::AssistiveSuggestionMode mode) {
   base::UmaHistogramEnumeration(
       "InputMethod.Assistive.MultiWord.SuggestionOpportunity",
       ToUmaSuggestionType(mode));
+}
+
+void NativeInputMethodEngineObserver::ReportHistogramSample(
+    base::Histogram* histogram,
+    uint16_t value) {
+  histogram->Add(base::strict_cast<base::Histogram::Sample>(value));
 }
 
 void NativeInputMethodEngineObserver::UpdateQuickSettings(

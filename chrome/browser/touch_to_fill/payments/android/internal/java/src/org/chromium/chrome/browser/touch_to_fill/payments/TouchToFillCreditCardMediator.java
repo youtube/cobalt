@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.touch_to_fill.payments;
 
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.CreditCardProperties.ON_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.FooterProperties.SCAN_CREDIT_CARD_CALLBACK;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.FooterProperties.SHOULD_SHOW_SCAN_CREDIT_CARD;
@@ -20,8 +21,10 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
+import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.FooterProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillCreditCardProperties.HeaderProperties;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -29,6 +32,7 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.Stat
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -94,8 +98,10 @@ class TouchToFillCreditCardMediator {
         ModelList sheetItems = mModel.get(SHEET_ITEMS);
         sheetItems.clear();
 
-        for (CreditCard card : cards) {
-            final PropertyModel model = createCardModel(card);
+        for (int i = 0; i < cards.length; ++i) {
+            CreditCard card = cards[i];
+            final PropertyModel model =
+                    createCardModel(card, new FillableItemCollectionInfo(i + 1, cards.length));
             sheetItems.add(new ListItem(CREDIT_CARD, model));
         }
 
@@ -156,20 +162,25 @@ class TouchToFillCreditCardMediator {
         RecordHistogram.recordCount100Histogram(TOUCH_TO_FILL_INDEX_SELECTED, mCards.indexOf(card));
     }
 
-    private PropertyModel createCardModel(CreditCard card) {
+    private PropertyModel createCardModel(
+            CreditCard card, FillableItemCollectionInfo itemCollectionInfo) {
         PropertyModel.Builder creditCardModelBuilder =
                 new PropertyModel
                         .Builder(TouchToFillCreditCardProperties.CreditCardProperties.ALL_KEYS)
                         .with(TouchToFillCreditCardProperties.CreditCardProperties.CARD_ICON_ID,
                                 card.getIssuerIconDrawableId())
                         .with(TouchToFillCreditCardProperties.CreditCardProperties.CARD_ART_URL,
-                                card.getCardArtUrl())
+                                AutofillUiUtils.shouldShowCustomIcon(
+                                        card.getCardArtUrl(), card.getIsVirtual())
+                                        ? card.getCardArtUrl()
+                                        : new GURL(""))
                         .with(TouchToFillCreditCardProperties.CreditCardProperties.NETWORK_NAME, "")
                         .with(TouchToFillCreditCardProperties.CreditCardProperties.CARD_NAME,
                                 card.getCardNameForAutofillDisplay())
                         .with(TouchToFillCreditCardProperties.CreditCardProperties.CARD_NUMBER,
                                 card.getObfuscatedLastFourDigits())
-                        .with(ON_CLICK_ACTION, () -> this.onSelectedCreditCard(card));
+                        .with(ON_CLICK_ACTION, () -> this.onSelectedCreditCard(card))
+                        .with(ITEM_COLLECTION_INFO, itemCollectionInfo);
 
         // If a card has a nickname, the network name should also be announced, otherwise the name
         // of the card will be the network name and it will be announced.
@@ -189,7 +200,7 @@ class TouchToFillCreditCardMediator {
         } else {
             creditCardModelBuilder.with(
                     TouchToFillCreditCardProperties.CreditCardProperties.CARD_EXPIRATION,
-                    card.getFormattedExpirationDateWithTwoDigitYear(mContext));
+                    card.getFormattedExpirationDate(mContext));
         }
         return creditCardModelBuilder.build();
     }

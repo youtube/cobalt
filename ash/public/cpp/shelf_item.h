@@ -20,6 +20,9 @@ struct ASH_PUBLIC_EXPORT ShelfItem {
   ShelfItem(const ShelfItem& shelf_item);
   ~ShelfItem();
 
+  // Returns true if the pin state of the item is forced and can not be changed.
+  bool IsPinStateForced() const;
+
   ShelfItemType type = TYPE_UNDEFINED;
 
   // Image to display in the shelf.
@@ -34,10 +37,21 @@ struct ASH_PUBLIC_EXPORT ShelfItem {
   // The title to display for tooltips, etc.
   std::u16string title;
 
+  // Text to be announced by the screenreader. If this is not explicitly set,
+  // the default value will be `title`.
+  std::u16string accessible_name;
+
+  // The package ID of the application from which the item is associated with.
+  std::string package_id;
+
   SkColor notification_badge_color = SK_ColorWHITE;
 
   // App status.
   AppStatus app_status = AppStatus::kReady;
+
+  // Applicable only for promise app items. Indicates the percentage progress of
+  // an app installation.
+  float progress = -1;
 
   // Whether the item is associated with a window in the currently active desk.
   // This value is valid only when |features::kPerDeskShelf| is enabled.
@@ -51,8 +65,16 @@ struct ASH_PUBLIC_EXPORT ShelfItem {
   // not be modifiable by user.
   bool pinned_by_policy = false;
 
+  // Whether the item pin state is forced according to its app type. The pin
+  // state can not be modified by user if this is set to true.
+  bool pin_state_forced_by_type = false;
+
   // Whether the item has a notification.
   bool has_notification = false;
+
+  // Whether the item represents a promise app (an app that is pending or
+  // currently undergoing installation).
+  bool is_promise_app = false;
 };
 
 typedef std::vector<ShelfItem> ShelfItems;

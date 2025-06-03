@@ -109,8 +109,7 @@ std::tuple<int, net::CertVerifyResult> Verify(
                                        /*flags=*/0,
                                        /*ocsp_response=*/std::string(),
                                        /*sct_list=*/std::string()),
-      static_cast<uint32_t>(net_log.source().type), net_log.source().id,
-      net_log.source().start_time,
+      net_log.source(),
       dummy_cv_service_req_receiver.BindNewPipeAndPassRemote());
 
   request_completed_run_loop.Run();
@@ -497,7 +496,7 @@ TEST(CertVerifierServiceFactoryTest, RootStoreInfoWithUpdatedRootStore) {
   EXPECT_EQ(info_ptr->version, root_store_proto.version_major());
   ASSERT_EQ(info_ptr->root_cert_info.size(), static_cast<std::size_t>(1));
 
-  net::der::Input subject_tlv(&root->GetSubject());
+  net::der::Input subject_tlv(root->GetSubject());
   net::RDNSequence subject_rdn;
   ASSERT_TRUE(net::ParseName(subject_tlv, &subject_rdn));
   std::string subject_string;
@@ -542,8 +541,7 @@ class CertVerifierServiceFactoryCRLSetTest : public ::testing::Test {
 
  private:
   bool SystemSupportsCRLSets() {
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(CHROME_ROOT_STORE_ONLY)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(CHROME_ROOT_STORE_ONLY)
     return true;
 #elif BUILDFLAG(CHROME_ROOT_STORE_OPTIONAL)
     // On CHROME_ROOT_STORE_OPTIONAL platforms, the tests set
@@ -568,7 +566,7 @@ TEST_F(CertVerifierServiceFactoryCRLSetTest,
   scoped_refptr<net::X509Certificate> test_root(net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "root_ca_cert.pem"));
   ASSERT_TRUE(test_root);
-  net::ScopedTestRoot scoped_test_root(test_root.get());
+  net::ScopedTestRoot scoped_test_root(test_root);
   scoped_refptr<net::X509Certificate> ok_cert(
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(ok_cert);
@@ -610,7 +608,7 @@ TEST_F(CertVerifierServiceFactoryCRLSetTest,
   scoped_refptr<net::X509Certificate> test_root(net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "root_ca_cert.pem"));
   ASSERT_TRUE(test_root);
-  net::ScopedTestRoot scoped_test_root(test_root.get());
+  net::ScopedTestRoot scoped_test_root(test_root);
   scoped_refptr<net::X509Certificate> ok_cert(
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(ok_cert);
@@ -658,7 +656,7 @@ TEST_F(CertVerifierServiceFactoryCRLSetTest, CRLSetIsUpdatedIfNewer) {
   scoped_refptr<net::X509Certificate> test_root(net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "root_ca_cert.pem"));
   ASSERT_TRUE(test_root);
-  net::ScopedTestRoot scoped_test_root(test_root.get());
+  net::ScopedTestRoot scoped_test_root(test_root);
   scoped_refptr<net::X509Certificate> ok_cert(
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(ok_cert);
@@ -722,7 +720,7 @@ TEST_F(CertVerifierServiceFactoryCRLSetTest, CRLSetDoesNotDowngrade) {
   scoped_refptr<net::X509Certificate> test_root(net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "root_ca_cert.pem"));
   ASSERT_TRUE(test_root);
-  net::ScopedTestRoot scoped_test_root(test_root.get());
+  net::ScopedTestRoot scoped_test_root(test_root);
   scoped_refptr<net::X509Certificate> ok_cert(
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(ok_cert);
@@ -804,7 +802,7 @@ TEST_F(CertVerifierServiceFactoryCRLSetTest, BadCRLSetIgnored) {
   scoped_refptr<net::X509Certificate> test_root(net::ImportCertFromFile(
       net::GetTestCertsDirectory(), "root_ca_cert.pem"));
   ASSERT_TRUE(test_root);
-  net::ScopedTestRoot scoped_test_root(test_root.get());
+  net::ScopedTestRoot scoped_test_root(test_root);
   scoped_refptr<net::X509Certificate> ok_cert(
       net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem"));
   ASSERT_TRUE(ok_cert);

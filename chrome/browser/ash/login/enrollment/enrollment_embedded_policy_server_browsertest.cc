@@ -21,7 +21,6 @@
 #include "chrome/browser/ash/login/enrollment/enrollment_screen_view.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/enrollment_ui_mixin.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/login_or_lock_screen_visible_waiter.h"
@@ -29,7 +28,6 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
-#include "chrome/browser/ash/login/test/policy_test_server_constants.h"
 #include "chrome/browser/ash/login/test/test_condition_waiter.h"
 #include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
@@ -39,6 +37,8 @@
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/policy/enrollment/psm/rlwe_test_support.h"
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_state_keys_broker.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
+#include "chrome/browser/ash/policy/test_support/policy_test_server_constants.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/ui/webui/ash/login/device_disabled_screen_handler.h"
@@ -359,7 +359,7 @@ class InitialEnrollmentTest : public EnrollmentEmbeddedPolicyServerBase {
     // we already checked the existence of the pref with non-default value.
     EXPECT_FALSE(psm_determination_timestamp.is_null());
 
-    return psm_determination_timestamp.ToJavaTime();
+    return psm_determination_timestamp.InMillisecondsSinceUnixEpoch();
   }
 
  private:
@@ -881,6 +881,7 @@ IN_PROC_BROWSER_TEST_F(AutoEnrollmentEmbeddedPolicyServer, DeviceDisabled) {
 
 // Attestation enrollment.
 IN_PROC_BROWSER_TEST_F(AutoEnrollmentEmbeddedPolicyServer, Attestation) {
+  WaitForOobeUI();
   policy_server_.SetUpdateDeviceAttributesPermission(true);
 
   AllowlistSimpleChallengeSigningKey();
@@ -891,7 +892,8 @@ IN_PROC_BROWSER_TEST_F(AutoEnrollmentEmbeddedPolicyServer, Attestation) {
           RESTORE_MODE_REENROLLMENT_ZERO_TOUCH,
       test::kTestDomain));
 
-  host()->StartWizard(AutoEnrollmentCheckScreenView::kScreenId);
+  WizardController::default_controller()->AdvanceToScreen(
+      AutoEnrollmentCheckScreenView::kScreenId);
 
   enrollment_ui_.WaitForStep(test::ui::kEnrollmentStepSuccess);
   EXPECT_TRUE(StartupUtils::IsDeviceRegistered());
@@ -914,7 +916,7 @@ IN_PROC_BROWSER_TEST_F(AutoEnrollmentEmbeddedPolicyServer, TestCaptivePortal) {
 IN_PROC_BROWSER_TEST_F(AutoEnrollmentNoStateKeys, FREExplicitlyRequired) {
   SetFRERequiredKey("1");
   host()->StartWizard(AutoEnrollmentCheckScreenView::kScreenId);
-  OobeScreenWaiter(AutoEnrollmentCheckScreenView::kScreenId).Wait();
+  WaitForOobeUI();
 
   OobeScreenWaiter(ErrorScreenView::kScreenId).Wait();
   test::OobeJS().ExpectHiddenPath({"error-message", "error-guest-signin"});
@@ -927,7 +929,7 @@ IN_PROC_BROWSER_TEST_F(AutoEnrollmentNoStateKeys,
                        FREExplicitlyRequiredInvalid) {
   SetFRERequiredKey("anything");
   host()->StartWizard(AutoEnrollmentCheckScreenView::kScreenId);
-  OobeScreenWaiter(AutoEnrollmentCheckScreenView::kScreenId).Wait();
+  WaitForOobeUI();
 
   OobeScreenWaiter(ErrorScreenView::kScreenId).Wait();
   test::OobeJS().ExpectHiddenPath({"error-message", "error-guest-signin"});
@@ -1070,7 +1072,13 @@ IN_PROC_BROWSER_TEST_F(EnrollmentRecoveryTest, DifferentDomain) {
   enrollment_ui_.RetryAndWaitForSigninStep();
 }
 
-IN_PROC_BROWSER_TEST_F(InitialEnrollmentTest, EnrollmentForced) {
+// TODO(crbug.com/1454755): Flaky on ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_EnrollmentForced DISABLED_EnrollmentForced
+#else
+#define MAYBE_EnrollmentForced EnrollmentForced
+#endif
+IN_PROC_BROWSER_TEST_F(InitialEnrollmentTest, MAYBE_EnrollmentForced) {
   auto initial_enrollment =
       enterprise_management::DeviceInitialEnrollmentStateResponse::
           INITIAL_ENROLLMENT_MODE_ENROLLMENT_ENFORCED;

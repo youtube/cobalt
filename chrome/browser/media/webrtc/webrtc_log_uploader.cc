@@ -52,20 +52,22 @@ const char kWebrtcLogMultipartBoundary[] =
 // Adds the header section for a gzip file to the multipart |post_data|.
 void AddMultipartFileContentHeader(std::string* post_data,
                                    const std::string& content_name) {
-  post_data->append("--");
-  post_data->append(kWebrtcLogMultipartBoundary);
-  post_data->append("\r\nContent-Disposition: form-data; name=\"");
-  post_data->append(content_name);
-  post_data->append("\"; filename=\"");
-  post_data->append(content_name + ".gz");
-  post_data->append("\"\r\nContent-Type: application/gzip\r\n\r\n");
+  base::StrAppend(post_data, {
+                                 "--",
+                                 kWebrtcLogMultipartBoundary,
+                                 "\r\nContent-Disposition: form-data; name=\"",
+                                 content_name,
+                                 "\"; filename=\"",
+                                 content_name,
+                                 ".gz",
+                                 "\"\r\nContent-Type: application/gzip\r\n\r\n",
+                             });
 }
 
 // Adds |compressed_log| to |post_data|.
 void AddLogData(std::string* post_data, const std::string& compressed_log) {
   AddMultipartFileContentHeader(post_data, "webrtc_log");
-  post_data->append(compressed_log);
-  post_data->append("\r\n");
+  base::StrAppend(post_data, {compressed_log, "\r\n"});
 }
 
 // Adds the RTP dump data to |post_data|.
@@ -73,8 +75,7 @@ void AddRtpDumpData(std::string* post_data,
                     const std::string& name,
                     const std::string& dump_data) {
   AddMultipartFileContentHeader(post_data, name);
-  post_data->append(dump_data.data(), dump_data.size());
-  post_data->append("\r\n");
+  base::StrAppend(post_data, {dump_data, "\r\n"});
 }
 
 // Helper for WebRtcLogUploader::CompressLog().
@@ -134,7 +135,8 @@ void WebRtcLogUploader::OnLoggingStopped(
   if (base::PathExists(upload_done_data.paths.directory)) {
     webrtc_logging::DeleteOldWebRtcLogFiles(upload_done_data.paths.directory);
 
-    local_log_id = base::NumberToString(base::Time::Now().ToDoubleT());
+    local_log_id =
+        base::NumberToString(base::Time::Now().InSecondsFSinceUnixEpoch());
     base::FilePath log_file_path =
         upload_done_data.paths.directory.AppendASCII(local_log_id)
             .AddExtension(FILE_PATH_LITERAL(".gz"));
@@ -377,9 +379,9 @@ void WebRtcLogUploader::SetupMultipart(
 #endif
   net::AddMultipartValueForUpload("prod", product, kWebrtcLogMultipartBoundary,
                                   "", post_data);
-  net::AddMultipartValueForUpload("ver",
-                                  version_info::GetVersionNumber() + "-webrtc",
-                                  kWebrtcLogMultipartBoundary, "", post_data);
+  net::AddMultipartValueForUpload(
+      "ver", base::StrCat({version_info::GetVersionNumber(), "-webrtc"}),
+      kWebrtcLogMultipartBoundary, "", post_data);
   net::AddMultipartValueForUpload("guid", "0", kWebrtcLogMultipartBoundary, "",
                                   post_data);
   net::AddMultipartValueForUpload("type", "webrtc_log",
@@ -565,8 +567,9 @@ void WebRtcLogUploader::AddLocallyStoredLogInfoToUploadListFile(
 
   // Write the log ID and capture time to the log list file. Leave the upload
   // time and report ID empty.
-  contents += ",," + local_log_id + "," +
-              base::NumberToString(base::Time::Now().ToDoubleT()) + '\n';
+  contents +=
+      ",," + local_log_id + "," +
+      base::NumberToString(base::Time::Now().InSecondsFSinceUnixEpoch()) + '\n';
 
   if (!base::WriteFile(upload_list_path, contents)) {
     DPLOG(WARNING) << "Could not write data to WebRTC log list file.";
@@ -595,7 +598,8 @@ void WebRtcLogUploader::AddUploadedLogInfoToUploadListFile(
   // to find the local log ID, in that case insert the data into the existing
   // line. Otherwise add it in the end.
   base::Time time_now = base::Time::Now();
-  std::string time_now_str = base::NumberToString(time_now.ToDoubleT());
+  std::string time_now_str =
+      base::NumberToString(time_now.InSecondsFSinceUnixEpoch());
   size_t pos = contents.find(",," + local_log_id);
   if (pos != std::string::npos) {
     contents.insert(pos, time_now_str);

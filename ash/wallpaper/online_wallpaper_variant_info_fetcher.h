@@ -26,7 +26,8 @@ namespace ash {
 
 class WallpaperControllerClient;
 
-// Resolves wallpaper variants from WallpaperInfo for WallpaperController.
+// Resolves wallpaper variants for WallpaperController. These variants can exist
+// from WallpaperInfo or can be fetched from the backdrop server.
 class ASH_EXPORT OnlineWallpaperVariantInfoFetcher {
  public:
   OnlineWallpaperVariantInfoFetcher();
@@ -60,6 +61,13 @@ class ASH_EXPORT OnlineWallpaperVariantInfoFetcher {
                            ScheduleCheckpoint checkpoint,
                            FetchParamsCallback callback);
 
+  // Fetches the time of day wallpaper that has `unit_id` for the user with
+  // `account_id`. Callback is run after the operation completes.
+  void FetchTimeOfDayWallpaper(const AccountId& account_id,
+                               uint64_t unit_id,
+                               ScheduleCheckpoint checkpoint,
+                               FetchParamsCallback callback);
+
  private:
   // An internal representation of the partial information required to construct
   // a complete OnlineWallpaperParams object as provided by the caller of
@@ -91,10 +99,18 @@ class ASH_EXPORT OnlineWallpaperVariantInfoFetcher {
 
   // Finishes variants fetch by populating the remaining fields for
   // OnlineWallpaperParams in |callback|. Combines data from |request| with
-  // |images| and the matching variant in |images| for |asset_id|.
+  // |images| and the matching variant in |images| for |location|.
   void FindAndSetOnlineWallpaperVariants(
       std::unique_ptr<OnlineWallpaperRequest> request,
-      uint64_t asset_id,
+      const std::string& location,
+      FetchParamsCallback callback,
+      bool success,
+      const std::vector<backdrop::Image>& images);
+
+  // Used as callback when the time of day wallpapers are fetched.
+  void OnTimeOfDayWallpapersFetched(
+      std::unique_ptr<OnlineWallpaperRequest> request,
+      uint64_t unit_id,
       FetchParamsCallback callback,
       bool success,
       const std::vector<backdrop::Image>& images);

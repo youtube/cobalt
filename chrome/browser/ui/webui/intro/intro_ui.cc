@@ -15,16 +15,15 @@
 #include "chrome/browser/ui/webui/intro/intro_handler.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/intro_resources.h"
 #include "chrome/grit/intro_resources_map.h"
 #include "chrome/grit/signin_resources.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
-#include "components/strings/grit/components_chromium_strings.h"
-#include "components/strings/grit/components_google_chrome_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
@@ -62,6 +61,21 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
     default:
       NOTREACHED();
   }
+
+  int default_browser_title_id;
+  int default_browser_subtitle_id;
+  switch (kForYouFreDefaultBrowserVariant.Get()) {
+    case DefaultBrowserVariant::kCurrent: {
+      default_browser_title_id = IDS_FRE_DEFAULT_BROWSER_TITLE;
+      default_browser_subtitle_id = IDS_FRE_DEFAULT_BROWSER_SUBTITLE;
+      break;
+    }
+    case DefaultBrowserVariant::kNew: {
+      default_browser_title_id = IDS_FRE_DEFAULT_BROWSER_TITLE_NEW;
+      default_browser_subtitle_id = IDS_FRE_DEFAULT_BROWSER_SUBTITLE_NEW;
+      break;
+    }
+  }
 #elif BUILDFLAG(IS_CHROMEOS_LACROS)
   int title_id = IDS_PRIMARY_PROFILE_FIRST_RUN_NO_NAME_TITLE;
 #endif
@@ -85,6 +99,13 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
     {"declineSignInButtonTitle", IDS_FRE_DECLINE_SIGN_IN_BUTTON_TITLE},
     {"acceptSignInButtonTitle", IDS_FRE_ACCEPT_SIGN_IN_BUTTON_TITLE},
     {"productLogoAltText", IDS_SHORT_PRODUCT_LOGO_ALT_TEXT},
+    // Strings for default browser promo subpage.
+    {"defaultBrowserTitle", default_browser_title_id},
+    {"defaultBrowserSubtitle", default_browser_subtitle_id},
+    {"defaultBrowserIllustrationAltText",
+     IDS_FRE_DEFAULT_BROWSER_ILLUSTRATION_ALT_TEXT},
+    {"defaultBrowserSetAsDefault", IDS_FRE_DEFAULT_BROWSER_SET_AS_DEFAULT},
+    {"defaultBrowserSkip", IDS_FRE_DEFAULT_BROWSER_SKIP},
 #endif
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
     {"proceedLabel", IDS_PRIMARY_PROFILE_FIRST_RUN_NEXT_BUTTON_LABEL},
@@ -110,6 +131,10 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   source->AddBoolean("isDeviceManaged", is_device_managed);
 
+  // Setup chrome://intro/default-browser UI.
+  source->AddResourcePath(chrome::kChromeUIIntroDefaultBrowserSubPage,
+                          IDR_INTRO_DEFAULT_BROWSER_DEFAULT_BROWSER_HTML);
+
   source->AddResourcePath("images/product-logo.svg", IDR_PRODUCT_LOGO_SVG);
   source->AddResourcePath("images/product-logo-animation.svg",
                           IDR_PRODUCT_LOGO_ANIMATION_SVG);
@@ -118,16 +143,13 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
 #endif
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  source->AddBoolean("isTangibleSyncEnabled",
-                     base::FeatureList::IsEnabled(switches::kTangibleSync));
-#endif
-
   webui::SetupChromeRefresh2023(source);
 
   // Unretained ok: `this` owns the handler.
   auto intro_handler = std::make_unique<IntroHandler>(
       base::BindRepeating(&IntroUI::HandleSigninChoice, base::Unretained(this)),
+      base::BindOnce(&IntroUI::HandleDefaultBrowserChoice,
+                     base::Unretained(this)),
       is_device_managed);
   intro_handler_ = intro_handler.get();
   web_ui->AddMessageHandler(std::move(intro_handler));
@@ -148,11 +170,29 @@ void IntroUI::SetSigninChoiceCallback(IntroSigninChoiceCallback callback) {
 #endif
 }
 
+void IntroUI::SetDefaultBrowserCallback(DefaultBrowserCallback callback) {
+  DCHECK(!callback->is_null());
+  default_browser_callback_ = std::move(callback);
+  intro_handler_->ResetDefaultBrowserButtons();
+}
+
 void IntroUI::HandleSigninChoice(IntroChoice choice) {
   if (signin_choice_callback_->is_null()) {
     LOG(WARNING) << "Unexpected signin choice event";
   } else {
     std::move(signin_choice_callback_.value()).Run(choice);
+  }
+}
+
+// For a given `IntroUI` instance, this will be called only once, even if
+// `SetDefaultBrowserCallback()` is called again. This is because after the
+// first call, the handler will drop the link, since it took a OnceCallback.
+// This is fine because the step should not be shown more than once.
+void IntroUI::HandleDefaultBrowserChoice(DefaultBrowserChoice choice) {
+  if (default_browser_callback_->is_null()) {
+    LOG(WARNING) << "Unexpected default browser choice event";
+  } else {
+    std::move(default_browser_callback_.value()).Run(choice);
   }
 }
 

@@ -18,12 +18,11 @@ const char kDumpDom[] = "dump-dom";
 // Save a PDF file of the loaded page.
 const char kPrintToPDF[] = "print-to-pdf";
 
-// Do not display header and footer in the PDF file. This switch is deprecated,
-// use --no-pdf-header-footer instead.
-const char kPrintToPDFNoHeaderDeprecated[] = "print-to-pdf-no-header";
-
 // Do not display header and footer in the printed PDF file.
 const char kNoPDFHeaderFooter[] = "no-pdf-header-footer";
+
+// Do not emit tags when printing PDFs.
+const char kDisablePDFTagging[] = "disable-pdf-tagging";
 
 // Save a screenshot of the loaded page.
 const char kScreenshot[] = "screenshot";

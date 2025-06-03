@@ -11,6 +11,7 @@
 #include "chromeos/ash/components/network/metrics/connection_results.h"
 #include "chromeos/ash/components/network/network_metadata_store.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
+#include "chromeos/ash/components/network/text_message_suppression_state.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/onc/onc_constants.h"
 
@@ -39,6 +40,110 @@ absl::optional<CellularNetworkMetricsLogger::ApnTypes> GetApnTypes(
     return CellularNetworkMetricsLogger::ApnTypes::kAttach;
 
   return CellularNetworkMetricsLogger::ApnTypes::kDefault;
+}
+
+const char* GetESimUserInstallationResultHistogram(
+    CellularNetworkMetricsLogger::ESimUserInstallMethod method,
+    bool user_errors_included) {
+  using ESimUserInstallMethod =
+      CellularNetworkMetricsLogger::ESimUserInstallMethod;
+  switch (method) {
+    case ESimUserInstallMethod::kViaSmds:
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsIncludedViaSmds
+                 : CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsFilteredViaSmds;
+    case ESimUserInstallMethod::kViaActivationCodeAfterSmds:
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsIncludedViaActivationCodeAfterSmds
+                 : CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsFilteredViaActivationCodeAfterSmds;
+    case ESimUserInstallMethod::kViaActivationCodeSkippedSmds:
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsIncludedViaActivationCodeSkippedSmds
+                 : CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsFilteredViaActivationCodeSkippedSmds;
+    case ESimUserInstallMethod::kViaQrCodeAfterSmds:
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsIncludedViaQrCodeAfterSmds
+                 : CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsFilteredViaQrCodeAfterSmds;
+    case ESimUserInstallMethod::kViaQrCodeSkippedSmds:
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsIncludedViaQrCodeSkippedSmds
+                 : CellularNetworkMetricsLogger::
+                       kESimUserInstallUserErrorsFilteredViaQrCodeSkippedSmds;
+  }
+}
+
+const char* GetESimPolicyInstallationResultHistogram(
+    CellularNetworkMetricsLogger::ESimPolicyInstallMethod method,
+    bool is_initial,
+    bool user_errors_included) {
+  using ESimPolicyInstallMethod =
+      CellularNetworkMetricsLogger::ESimPolicyInstallMethod;
+  switch (method) {
+    case ESimPolicyInstallMethod::kViaSmdp:
+      if (is_initial) {
+        return user_errors_included
+                   ? CellularNetworkMetricsLogger::
+                         kESimPolicyInstallUserErrorsIncludedViaSmdpInitial
+                   : CellularNetworkMetricsLogger::
+                         kESimPolicyInstallUserErrorsFilteredViaSmdpInitial;
+      }
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimPolicyInstallUserErrorsIncludedViaSmdpRetry
+                 : CellularNetworkMetricsLogger::
+                       kESimPolicyInstallUserErrorsFilteredViaSmdpRetry;
+    case ESimPolicyInstallMethod::kViaSmds:
+      if (is_initial) {
+        return user_errors_included
+                   ? CellularNetworkMetricsLogger::
+                         kESimPolicyInstallUserErrorsIncludedViaSmdsInitial
+                   : CellularNetworkMetricsLogger::
+                         kESimPolicyInstallUserErrorsFilteredViaSmdsInitial;
+      }
+      return user_errors_included
+                 ? CellularNetworkMetricsLogger::
+                       kESimPolicyInstallUserErrorsIncludedViaSmdsRetry
+                 : CellularNetworkMetricsLogger::
+                       kESimPolicyInstallUserErrorsFilteredViaSmdsRetry;
+  }
+}
+
+bool IsAndroidActivationCode(const std::string& smds_activation_code) {
+  return smds_activation_code == cellular_utils::kSmdsAndroidProduction ||
+         smds_activation_code == cellular_utils::kSmdsAndroidStaging;
+}
+
+bool IsGmsaActivationCode(const std::string& smds_activation_code) {
+  return smds_activation_code == cellular_utils::kSmdsGsma;
+}
+
+const char* GetSmdsScanResultHistogram(const std::string& smds_activation_code,
+                                       bool user_errors_included) {
+  if (IsAndroidActivationCode(smds_activation_code)) {
+    return user_errors_included ? CellularNetworkMetricsLogger::
+                                      kESimSmdsScanAndroidUserErrorsIncluded
+                                : CellularNetworkMetricsLogger::
+                                      kESimSmdsScanAndroidUserErrorsFiltered;
+  }
+  if (smds_activation_code == cellular_utils::kSmdsGsma) {
+    return user_errors_included ? CellularNetworkMetricsLogger::
+                                      kESimSmdsScanGsmaUserErrorsIncluded
+                                : CellularNetworkMetricsLogger::
+                                      kESimSmdsScanGsmaUserErrorsFiltered;
+  }
+  return user_errors_included ? CellularNetworkMetricsLogger::
+                                    kESimSmdsScanOtherUserErrorsIncluded
+                              : CellularNetworkMetricsLogger::
+                                    kESimSmdsScanOtherUserErrorsFiltered;
 }
 
 }  // namespace
@@ -147,6 +252,231 @@ void CellularNetworkMetricsLogger::LogModifyCustomApnResult(
     base::UmaHistogramEnumeration(kDisableCustomApnApnTypesHistogram,
                                   apn_types_enum.value());
   }
+}
+
+// static
+void CellularNetworkMetricsLogger::LogUnmanagedCustomApnMigrationType(
+    UnmanagedApnMigrationType type) {
+  base::UmaHistogramEnumeration(kCustomApnsUnmanagedMigrationTypeHistogram,
+                                type);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogManagedCustomApnMigrationType(
+    ManagedApnMigrationType type) {
+  base::UmaHistogramEnumeration(kCustomApnsManagedMigrationTypeHistogram, type);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogSmdsScanProfileCount(size_t count) {
+  base::UmaHistogramCounts100(kSmdsScanProfileCount, count);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogSmdsScanDuration(
+    const base::TimeDelta& duration,
+    bool success,
+    const std::string& smds_activation_code) {
+  std::string histogram;
+  if (IsAndroidActivationCode(smds_activation_code)) {
+    histogram = success ? kSmdsScanAndroidDurationSuccess
+                        : kSmdsScanAndroidDurationFailure;
+  } else if (IsGmsaActivationCode(smds_activation_code)) {
+    histogram =
+        success ? kSmdsScanGsmaDurationSuccess : kSmdsScanGsmaDurationFailure;
+  } else {
+    histogram =
+        success ? kSmdsScanOtherDurationSuccess : kSmdsScanOtherDurationFailure;
+  }
+  base::UmaHistogramTimes(histogram, duration);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogESimUserInstallMethod(
+    ESimUserInstallMethod method) {
+  base::UmaHistogramEnumeration(kESimUserInstallMethod, method);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogESimPolicyInstallMethod(
+    ESimPolicyInstallMethod method) {
+  base::UmaHistogramEnumeration(kESimPolicyInstallMethod, method);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogESimUserInstallResult(
+    ESimUserInstallMethod method,
+    ESimOperationResult result,
+    bool is_user_error) {
+  if (!is_user_error) {
+    base::UmaHistogramEnumeration(kESimUserInstallUserErrorsFilteredAll,
+                                  result);
+    base::UmaHistogramEnumeration(GetESimUserInstallationResultHistogram(
+                                      method, /*user_errors_included=*/false),
+                                  result);
+  }
+  base::UmaHistogramEnumeration(kESimUserInstallUserErrorsIncludedAll, result);
+  base::UmaHistogramEnumeration(GetESimUserInstallationResultHistogram(
+                                    method, /*user_errors_included=*/true),
+                                result);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogESimPolicyInstallResult(
+    ESimPolicyInstallMethod method,
+    ESimOperationResult result,
+    bool is_initial,
+    bool is_user_error) {
+  if (!is_user_error) {
+    base::UmaHistogramEnumeration(kESimPolicyInstallUserErrorsFilteredAll,
+                                  result);
+    base::UmaHistogramEnumeration(GetESimPolicyInstallationResultHistogram(
+                                      method, /*is_initial=*/is_initial,
+                                      /*user_errors_included=*/false),
+                                  result);
+  }
+  base::UmaHistogramEnumeration(kESimPolicyInstallUserErrorsIncludedAll,
+                                result);
+  base::UmaHistogramEnumeration(
+      GetESimPolicyInstallationResultHistogram(
+          method, /*is_initial=*/is_initial, /*user_errors_included=*/true),
+      result);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogSmdsScanResult(
+    const std::string& smds_activation_code,
+    absl::optional<HermesResponseStatus> status) {
+  const bool is_user_error =
+      status.has_value() &&
+      CellularNetworkMetricsLogger::HermesResponseStatusIsUserError(*status);
+  const ESimOperationResult result =
+      CellularNetworkMetricsLogger::ComputeESimOperationResult(status);
+
+  if (!is_user_error) {
+    base::UmaHistogramEnumeration(
+        GetSmdsScanResultHistogram(smds_activation_code,
+                                   /*user_errors_included=*/false),
+        result);
+  }
+  base::UmaHistogramEnumeration(
+      GetSmdsScanResultHistogram(smds_activation_code,
+                                 /*user_errors_included=*/true),
+      result);
+}
+
+// static
+CellularNetworkMetricsLogger::ESimOperationResult
+CellularNetworkMetricsLogger::ComputeESimOperationResult(
+    absl::optional<HermesResponseStatus> status) {
+  if (status.has_value()) {
+    return *status == HermesResponseStatus::kSuccess
+               ? ESimOperationResult::kSuccess
+               : ESimOperationResult::kHermesFailed;
+  }
+  return ESimOperationResult::kInhibitFailed;
+}
+
+// static
+bool CellularNetworkMetricsLogger::HermesResponseStatusIsUserError(
+    HermesResponseStatus status) {
+  switch (status) {
+    case HermesResponseStatus::kSuccess:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorUnknown:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorInternalLpaFailure:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorSendNotificationFailure:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorTestProfileInProd:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorUnsupported:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorWrongState:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorBadRequest:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorBadNotification:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorPendingProfile:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorSendApduFailure:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorUnexpectedModemManagerState:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorModemMessageProcessing:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorUnknownResponse:
+      return false;
+    case HermesResponseStatus::kErrorAlreadyDisabled:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorAlreadyEnabled:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorInvalidActivationCode:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorInvalidIccid:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorInvalidParameter:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorNeedConfirmationCode:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorInvalidResponse:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorNoResponse:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorMalformedResponse:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorSendHttpsFailure:
+      [[fallthrough]];
+    case HermesResponseStatus::kErrorEmptyResponse:
+      return true;
+  }
+  // Do not provide a default return here; all cases should be handled inside
+  // the switch statement above.
+}
+
+// static
+void CellularNetworkMetricsLogger::LogUserTextMessageSuppressionState(
+    ash::UserTextMessageSuppressionState state) {
+  UserTextMessageSuppressionState histogram_type;
+  switch (state) {
+    case ash::UserTextMessageSuppressionState::kAllow:
+      histogram_type = UserTextMessageSuppressionState::kTextMessagesAllow;
+      break;
+    case ash::UserTextMessageSuppressionState::kSuppress:
+      histogram_type = UserTextMessageSuppressionState::kTextMessagesSuppress;
+      break;
+  }
+  base::UmaHistogramEnumeration(kUserAllowTextMessagesSuppressionStateHistogram,
+                                histogram_type);
+}
+
+// static
+void CellularNetworkMetricsLogger::LogPolicyTextMessageSuppressionState(
+    ash::PolicyTextMessageSuppressionState state) {
+  PolicyTextMessageSuppressionState histogram_type;
+  switch (state) {
+    case ash::PolicyTextMessageSuppressionState::kAllow:
+      histogram_type = PolicyTextMessageSuppressionState::kTextMessagesAllow;
+      break;
+    case ash::PolicyTextMessageSuppressionState::kSuppress:
+      histogram_type = PolicyTextMessageSuppressionState::kTextMessagesSuppress;
+      break;
+    case ash::PolicyTextMessageSuppressionState::kUnset:
+      histogram_type = PolicyTextMessageSuppressionState::kUnset;
+      break;
+  }
+  base::UmaHistogramEnumeration(
+      kPolicyAllowTextMessagesSuppressionStateHistogram, histogram_type);
+}
+
+// static
+void CellularNetworkMetricsLogger::CellularNetworkMetricsLogger::
+    LogTextMessageNotificationSuppressionState(
+        NotificationSuppressionState state) {
+  base::UmaHistogramEnumeration(kAllowTextMessagesNotificationSuppressionState,
+                                state);
 }
 
 void CellularNetworkMetricsLogger::OnConnectionResult(

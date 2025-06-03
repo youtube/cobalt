@@ -13,7 +13,6 @@
 #include "base/memory/raw_ptr.h"
 #include "components/user_education/common/help_bubble_params.h"
 #include "components/user_education/common/tutorial_identifier.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -30,10 +29,18 @@ class FeaturePromoHandle;
 // Specifies the parameters for a feature promo and its associated bubble.
 class FeaturePromoSpecification {
  public:
-  // The body text (specified by |bubble_body_string_id|) can have parameters
-  // that can be specified situationally. When specifying these parameters,
-  // use a |StringReplacements| object.
-  using StringReplacements = std::vector<std::u16string>;
+  // Provide different ways to specify parameters for title or body text.
+  struct NoSubstitution {};
+  using StringSubstitutions = std::vector<std::u16string>;
+  using FormatParameters = absl::variant<
+      // No substitutions; use the string as-is (default).
+      NoSubstitution,
+      // Use the following substitutions for the various substitution fields.
+      StringSubstitutions,
+      // Use a single string substitution. Included for convenience.
+      std::u16string,
+      // Specify a number of items in a singular/plural string.
+      int>;
 
   // Optional method that filters a set of potential `elements` to choose and
   // return the anchor element, or null if none of the inputs is appropriate.
@@ -56,22 +63,43 @@ class FeaturePromoSpecification {
       base::RepeatingCallback<void(ui::ElementContext context,
                                    FeaturePromoHandle promo_handle)>;
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
   // Describes the type of promo. Used to configure defaults for the promo's
   // bubble.
   enum class PromoType {
     // Uninitialized/invalid specification.
-    kUnspecified,
+    kUnspecified = 0,
     // A toast-style promo.
-    kToast,
+    kToast = 1,
     // A snooze-style promo.
-    kSnooze,
+    kSnooze = 2,
     // A tutorial promo.
-    kTutorial,
+    kTutorial = 3,
     // A promo where one button is replaced by a custom action.
-    kCustomAction,
+    kCustomAction = 4,
     // A simple promo that acts like a toast but without the required
     // accessibility data.
-    kLegacy,
+    kLegacy = 5,
+    kMaxValue = kLegacy
+  };
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // Specifies the subtype of promo. Almost all promos will be `kNormal`; using
+  // some of the other special types requires being on an allowlist.
+  enum class PromoSubtype {
+    // A normal promo. Follows the default rules for when it can show.
+    kNormal = 0,
+    // A promo designed to be shown in multiple apps (or webapps). Can show once
+    // per app.
+    kPerApp = 1,
+    // A promo that must be able to be shown until explicitly acknowledged and
+    // dismissed by the user. This type requires being on an allowlist.
+    kLegalNotice = 2,
+    kMaxValue = kLegalNotice
   };
 
   // Represents a command or command accelerator. Can be valueless (falsy) if
@@ -119,6 +147,11 @@ class FeaturePromoSpecification {
   FeaturePromoSpecification(FeaturePromoSpecification&& other);
   ~FeaturePromoSpecification();
   FeaturePromoSpecification& operator=(FeaturePromoSpecification&& other);
+
+  // Format a localized string with ID `string_id` based on the given
+  // `format_params`.
+  static std::u16string FormatString(int string_id,
+                                     const FormatParameters& format_params);
 
   // Specifies a standard toast promo.
   //
@@ -196,6 +229,10 @@ class FeaturePromoSpecification {
   // Set the bubble arrow. Default is top-left.
   FeaturePromoSpecification& SetBubbleArrow(HelpBubbleArrow bubble_arrow);
 
+  // Set the promo subtype. Setting the subtype to LegalNotice requires being on
+  // an allowlist.
+  FeaturePromoSpecification& SetPromoSubtype(PromoSubtype promo_subtype);
+
   // Set the anchor element filter.
   FeaturePromoSpecification& SetAnchorElementFilter(
       AnchorElementFilter anchor_element_filter);
@@ -214,13 +251,14 @@ class FeaturePromoSpecification {
 
   const base::Feature* feature() const { return feature_; }
   PromoType promo_type() const { return promo_type_; }
+  PromoSubtype promo_subtype() const { return promo_subtype_; }
   ui::ElementIdentifier anchor_element_id() const { return anchor_element_id_; }
   const AnchorElementFilter& anchor_element_filter() const {
     return anchor_element_filter_;
   }
   bool in_any_context() const { return in_any_context_; }
   int bubble_body_string_id() const { return bubble_body_string_id_; }
-  const std::u16string& bubble_title_text() const { return bubble_title_text_; }
+  int bubble_title_string_id() const { return bubble_title_string_id_; }
   const gfx::VectorIcon* bubble_icon() const { return bubble_icon_; }
   HelpBubbleArrow bubble_arrow() const { return bubble_arrow_; }
   int screen_reader_string_id() const { return screen_reader_string_id_; }
@@ -251,6 +289,19 @@ class FeaturePromoSpecification {
     return custom_action_dismiss_string_id_;
   }
 
+  // Set menu item element identifiers that should be highlighted while
+  // this FeaturePromo is active.
+  FeaturePromoSpecification& SetHighlightedMenuItem(
+      const ui::ElementIdentifier highlighted_menu_identifier);
+  const ui::ElementIdentifier highlighted_menu_identifier() const {
+    return highlighted_menu_identifier_;
+  }
+
+  // Force the subtype to a particular value, bypassing permission checks.
+  void set_promo_subtype_for_testing(PromoSubtype promo_subtype) {
+    promo_subtype_ = promo_subtype;
+  }
+
  private:
   static constexpr HelpBubbleArrow kDefaultBubbleArrow =
       HelpBubbleArrow::kTopRight;
@@ -264,6 +315,9 @@ class FeaturePromoSpecification {
 
   // The type of promo. A promo with type kUnspecified is not valid.
   PromoType promo_type_ = PromoType::kUnspecified;
+
+  // The subtype of the promo.
+  PromoSubtype promo_subtype_ = PromoSubtype::kNormal;
 
   // The element identifier of the element to attach the promo to.
   ui::ElementIdentifier anchor_element_id_;
@@ -283,7 +337,7 @@ class FeaturePromoSpecification {
 
   // Optional text that is displayed at the top of the bubble, in a slightly
   // more prominent font.
-  std::u16string bubble_title_text_;
+  int bubble_title_string_id_ = 0;
 
   // Optional icon that is displayed next to bubble text.
   raw_ptr<const gfx::VectorIcon> bubble_icon_ = nullptr;
@@ -316,7 +370,16 @@ class FeaturePromoSpecification {
 
   // Dismiss string ID for the custom action promo.
   int custom_action_dismiss_string_id_;
+
+  // Identifier of the menu item that should be highlighted while
+  // FeaturePromo is active.
+  ui::ElementIdentifier highlighted_menu_identifier_;
 };
+
+std::ostream& operator<<(std::ostream& oss,
+                         FeaturePromoSpecification::PromoType promo_type);
+std::ostream& operator<<(std::ostream& oss,
+                         FeaturePromoSpecification::PromoSubtype promo_subtype);
 
 }  // namespace user_education
 

@@ -72,6 +72,8 @@ config("icu_code") {
     # Only build encoding coverters and detectors necessary for HTML5.
     "UCONFIG_ONLY_HTML_CONVERSION=1",
 
+    "UCONFIG_USE_ML_PHRASE_BREAKING=1",
+
     # TODO(jshin): do we still need this?
     "UCONFIG_USE_WINDOWS_LCID_MAPPING_API=0",
 
@@ -149,7 +151,7 @@ config("icu_code") {
       # Used for conditional changes to the compilation process that
       # are only needed for the Fuchsia toolchain.
       "-DICU_IS_IN_FUCHSIA",
-    ]
+    ] + icu_fuchsia_extra_compile_flags
   }
   if (current_cpu == "wasm") {
     # Tell ICU that we are a 32 bit platform, otherwise,
@@ -447,6 +449,9 @@ if (icu_use_data_file) {
     copy("icudata_hash") {
       sources = [ "chromeos/icudtl.dat.hash" ]
       outputs = [ "$root_out_dir/icudtl.dat.hash" ]
+      if (icu_copy_icudata_to_root_build_dir) {
+        data = [ "$root_out_dir/icudtl.dat.hash" ]
+      }
     }
   }
 } else {

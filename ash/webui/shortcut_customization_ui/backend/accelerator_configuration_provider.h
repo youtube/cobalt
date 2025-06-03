@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "ash/accelerators/accelerator_alias_converter.h"
+#include "ash/accelerators/accelerator_prefs.h"
 #include "ash/accelerators/ash_accelerator_configuration.h"
 #include "ash/public/cpp/accelerator_configuration.h"
 #include "ash/public/cpp/input_device_settings_controller.h"
@@ -20,6 +21,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "chromeos/crosapi/cpp/lacros_startup_state.h"
+#include "components/prefs/pref_member.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -30,15 +33,39 @@
 #include "ui/events/ash/keyboard_capability.h"
 #include "ui/events/devices/input_device.h"
 #include "ui/events/devices/input_device_event_observer.h"
+#include "ui/events/devices/keyboard_device.h"
+
+class PrefService;
 
 namespace ash::shortcut_ui {
+
+// Enum for histograms, must be kept in sync with the equivalent enum in
+// enums.xml.
+enum class ShortcutCustomizationAction {
+  kAddAccelerator,
+  kRemoveAccelerator,
+  kReplaceAccelerator,
+  kResetAction,
+  kResetAll,
+  kMaxValue = kResetAll,
+};
+
+// Enum for histograms, must be kept in sync with the equivalent enum in
+// enums.xml - `ShortcutCustomizationModificationType`.
+enum class ModificationType {
+  kAdd,
+  kEdit,
+  kRemove,
+  kReset,
+  kMaxValue = kReset,
+};
 
 class AcceleratorConfigurationProvider
     : public shortcut_customization::mojom::AcceleratorConfigurationProvider,
       public ui::InputDeviceEventObserver,
       public input_method::InputMethodManager::Observer,
-      public ui::KeyboardCapability::Observer,
-      public InputDeviceSettingsController::Observer {
+      public InputDeviceSettingsController::Observer,
+      public AcceleratorPrefs::Observer {
  public:
   using ActionIdToAcceleratorsInfoMap =
       base::flat_map<AcceleratorActionId,
@@ -56,7 +83,7 @@ class AcceleratorConfigurationProvider
     virtual void OnAcceleratorsUpdated(AcceleratorConfigurationMap config) = 0;
   };
 
-  AcceleratorConfigurationProvider();
+  explicit AcceleratorConfigurationProvider(PrefService* pref_service);
   AcceleratorConfigurationProvider(const AcceleratorConfigurationProvider&) =
       delete;
   AcceleratorConfigurationProvider& operator=(
@@ -70,11 +97,23 @@ class AcceleratorConfigurationProvider
   // shortcut_customization::mojom::AcceleratorConfigurationProvider:
   void IsMutable(ash::mojom::AcceleratorSource source,
                  IsMutableCallback callback) override;
+  void IsCustomizationAllowedByPolicy(
+      IsCustomizationAllowedByPolicyCallback callback) override;
   void HasLauncherButton(HasLauncherButtonCallback callback) override;
+  void GetConflictAccelerator(mojom::AcceleratorSource source,
+                              uint32_t action_id,
+                              const ui::Accelerator& accelerator,
+                              GetConflictAcceleratorCallback callback) override;
+  void GetDefaultAcceleratorsForId(
+      uint32_t action_id,
+      GetDefaultAcceleratorsForIdCallback callback) override;
   void GetAccelerators(GetAcceleratorsCallback callback) override;
   void AddObserver(mojo::PendingRemote<
                    shortcut_customization::mojom::AcceleratorsUpdatedObserver>
                        observer) override;
+  void AddPolicyObserver(
+      mojo::PendingRemote<shortcut_customization::mojom::PolicyUpdatedObserver>
+          observer) override;
   void GetAcceleratorLayoutInfos(
       GetAcceleratorLayoutInfosCallback callback) override;
   void PreventProcessingAccelerators(
@@ -97,6 +136,17 @@ class AcceleratorConfigurationProvider
                       uint32_t action_id,
                       RestoreDefaultCallback callback) override;
   void RestoreAllDefaults(RestoreAllDefaultsCallback callback) override;
+  void RecordUserAction(
+      shortcut_customization::mojom::UserAction user_action) override;
+  void RecordMainCategoryNavigation(
+      mojom::AcceleratorCategory category) override;
+  void RecordAddOrEditSubactions(
+      bool is_add,
+      shortcut_customization::mojom::Subactions subactions) override;
+
+  void RecordEditDialogCompletedActions(
+      shortcut_customization::mojom::EditDialogCompletedActions
+          completed_actions) override;
 
   // ui::InputDeviceEventObserver:
   void OnInputDeviceConfigurationChanged(uint8_t input_device_types) override;
@@ -106,13 +156,13 @@ class AcceleratorConfigurationProvider
                           Profile* profile,
                           bool show_message) override;
 
-  // ui::KeyboardCapability::Observer:
-  void OnTopRowKeysAreFKeysChanged() override;
-
   // InputDeviceSettingsController::Observer:
   void OnKeyboardConnected(const mojom::Keyboard& keyboard) override;
   void OnKeyboardDisconnected(const mojom::Keyboard& keyboard) override;
   void OnKeyboardSettingsUpdated(const mojom::Keyboard& keyboard) override;
+
+  // AcceleratorPrefs::Observer:
+  void OnShortcutPolicyUpdated() override;
 
   AcceleratorConfigurationMap GetAcceleratorConfig();
   std::vector<mojom::AcceleratorLayoutInfoPtr> GetAcceleratorLayoutInfos()
@@ -140,6 +190,19 @@ class AcceleratorConfigurationProvider
                            SetLayoutDetailsMapForTesting);
   friend class AcceleratorConfigurationProviderTest;
   using NonConfigAcceleratorActionMap = ui::AcceleratorMap<AcceleratorActionId>;
+
+  // Represents the different states the current pending accelerator can be
+  // in.
+  enum class AcceleratorConflictErrorState {
+    // No error.
+    kStandby,
+    // Awaiting user to re-input the same accelerator.
+    kAwaitingConflictResolution,
+    // Accelerator with conflict has been resolved and can be used.
+    kConflictResolved,
+    // Awaiting user to re-input the same non-search modifier accelerator.
+    kAwaitingNonSearchConfirmation,
+  };
 
   // Accelerator that is queued to be added. This should only be set if the user
   // has attempted to add an accelerator that conflicts with a overridable
@@ -184,6 +247,14 @@ class AcceleratorConfigurationProvider
                            AcceleratorActionId action_id,
                            const ui::Accelerator& accelerator);
 
+  // Handle the case in which the user inputs an accelerator without Search as
+  // a modifier. Returns the `AcceleratorConflictErrorState` that reflects
+  // the current state of handling the non-search accelerator.
+  AcceleratorConflictErrorState MaybeHandleNonSearchAccelerator(
+      const ui::Accelerator& accelerator,
+      mojom::AcceleratorSource source,
+      AcceleratorActionId action_id);
+
   void SetLayoutDetailsMapForTesting(
       const std::vector<AcceleratorLayoutDetails>& layouts);
 
@@ -196,13 +267,14 @@ class AcceleratorConfigurationProvider
   base::flat_map<std::string, AcceleratorLayoutDetails>
       accelerator_layout_lookup_;
 
-  std::map<AcceleratorActionId, std::vector<mojom::AcceleratorInfoPtr>>
-      id_to_accelerator_info_;
+  std::unique_ptr<BooleanPrefMember> send_function_keys_pref_;
+
+  AcceleratorConfigurationMap cached_configuration_;
 
   AcceleratorSourceMap accelerators_mapping_;
 
   // Stores all connected keyboards.
-  std::vector<ui::InputDevice> connected_keyboards_;
+  std::vector<ui::KeyboardDevice> connected_keyboards_;
 
   NonConfigurableActionsMap non_configurable_actions_mapping_;
 
@@ -212,7 +284,7 @@ class AcceleratorConfigurationProvider
       shortcut_customization::mojom::AcceleratorConfigurationProvider>
       receiver_{this};
 
-  raw_ptr<AshAcceleratorConfiguration, ExperimentalAsh>
+  raw_ptr<AshAcceleratorConfiguration, DanglingUntriaged | ExperimentalAsh>
       ash_accelerator_configuration_;
 
   // One accelerator action ID can potentially have multiple accelerators
@@ -225,10 +297,17 @@ class AcceleratorConfigurationProvider
 
   std::unique_ptr<PendingAccelerator> pending_accelerator_;
 
+  AcceleratorConflictErrorState conflict_error_state_ =
+      AcceleratorConflictErrorState::kStandby;
+
   mojo::Remote<shortcut_customization::mojom::AcceleratorsUpdatedObserver>
       accelerators_updated_mojo_observer_;
   base::ObserverList<AcceleratorsUpdatedObserver>
       accelerators_updated_observers_;
+
+  // Policy update mojo observer:
+  mojo::Remote<shortcut_customization::mojom::PolicyUpdatedObserver>
+      policy_updated_mojo_observer;
 
   base::WeakPtrFactory<AcceleratorConfigurationProvider> weak_ptr_factory_{
       this};

@@ -12,8 +12,6 @@
 // still in working draft stage.
 // https://wicg.github.io/file-system-access/
 
-type FileSystemWriteChunkType = Blob|BufferSource|string;
-
 interface FileSystemWritableFileStream extends WritableStream {
   seek(position: number): Promise<void>;
   truncate(size: number): Promise<void>;
@@ -40,17 +38,6 @@ interface FileSystemDirectoryHandle {
 
 interface StorageManager {
   getDirectory(): Promise<FileSystemDirectoryHandle>;
-}
-
-// Chrome WebUI specific helper.
-// https://source.chromium.org/chromium/chromium/src/+/main:ui/webui/resources/js/load_time_data.js
-
-interface Window {
-  loadTimeData: {
-    getBoolean(id: string): boolean,
-    getString(id: string): string,
-    getStringF(id: string, ...args: Array<number|string>): string,
-  };
 }
 
 // v8 specific stack information.
@@ -175,4 +162,37 @@ type BarcodeFormat =
 // tsconfig.json, see https://github.com/microsoft/TypeScript/issues/20595
 interface SharedWorkerGlobalScope {
   onconnect?: ((this: SharedWorkerGlobalScope, ev: MessageEvent) => any)|null;
+}
+
+// Measure Memory API interface. This is currently only supported in
+// Chromium-based browsers. https://wicg.github.io/performance-measure-memory/
+interface MemoryAttributionContainer {
+  id: string;
+  src: string;
+}
+
+interface MemoryAttribution {
+  // Container is absent if the memory attribution is for the same-origin
+  // top-level realm.
+  container?: MemoryAttributionContainer;
+  scope: string;
+  url: string;
+}
+
+interface MemoryBreakdownEntry {
+  attribution: MemoryAttribution[];
+  bytes: number;
+  types: string[];
+}
+
+interface MemoryMeasurement {
+  breakdown: MemoryBreakdownEntry[];
+  bytes: number;
+}
+
+// This interface is only exposed to cross-origin-isolated Window,
+// ServiceWorker, and SharedWorker.
+// https://wicg.github.io/performance-measure-memory/#processing-model
+interface Performance {
+  measureUserAgentSpecificMemory(): Promise<MemoryMeasurement>;
 }

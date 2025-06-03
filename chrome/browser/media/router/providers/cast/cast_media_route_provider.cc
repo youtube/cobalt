@@ -173,7 +173,6 @@ void CastMediaRouteProvider::CreateRoute(const std::string& source_id,
                                          const url::Origin& origin,
                                          int32_t frame_tree_node_id,
                                          base::TimeDelta timeout,
-                                         bool incognito,
                                          CreateRouteCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -202,8 +201,7 @@ void CastMediaRouteProvider::CreateRoute(const std::string& source_id,
     return;
   }
   activity_manager_->LaunchSession(*cast_source, *sink, presentation_id, origin,
-                                   frame_tree_node_id, incognito,
-                                   std::move(callback));
+                                   frame_tree_node_id, std::move(callback));
 }
 
 void CastMediaRouteProvider::JoinRoute(const std::string& media_source,
@@ -211,7 +209,6 @@ void CastMediaRouteProvider::JoinRoute(const std::string& media_source,
                                        const url::Origin& origin,
                                        int32_t frame_tree_node_id,
                                        base::TimeDelta timeout,
-                                       bool incognito,
                                        JoinRouteCallback callback) {
   std::unique_ptr<CastMediaSource> cast_source =
       CastMediaSource::FromMediaSourceId(media_source);
@@ -241,8 +238,7 @@ void CastMediaRouteProvider::JoinRoute(const std::string& media_source,
     return;
   }
   activity_manager_->JoinSession(*cast_source, presentation_id, origin,
-                                 frame_tree_node_id, incognito,
-                                 std::move(callback));
+                                 frame_tree_node_id, std::move(callback));
 }
 
 void CastMediaRouteProvider::TerminateRoute(const std::string& route_id,
@@ -273,15 +269,6 @@ void CastMediaRouteProvider::StartObservingMediaSinks(
   if (!cast_source)
     return;
 
-  // A broadcast request is not an actual sink query; it is used to send a
-  // app precache message to receivers.
-  if (cast_source->broadcast_request()) {
-    // TODO(imcheng): Add metric to record broadcast usage.
-    BroadcastMessageToSinks(cast_source->GetAppIds(),
-                            *cast_source->broadcast_request());
-    return;
-  }
-
   sink_queries_[media_source] =
       app_discovery_service_->StartObservingMediaSinks(
           *cast_source,
@@ -298,16 +285,6 @@ void CastMediaRouteProvider::StopObservingMediaSinks(
 void CastMediaRouteProvider::StartObservingMediaRoutes() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   activity_manager_->NotifyAllOnRoutesUpdated();
-}
-
-void CastMediaRouteProvider::StartListeningForRouteMessages(
-    const std::string& route_id) {
-  NOTIMPLEMENTED();
-}
-
-void CastMediaRouteProvider::StopListeningForRouteMessages(
-    const std::string& route_id) {
-  NOTIMPLEMENTED();
 }
 
 void CastMediaRouteProvider::DetachRoute(const std::string& route_id) {
@@ -374,16 +351,6 @@ void CastMediaRouteProvider::OnSinkQueryUpdated(
       mojom::MediaRouteProviderId::CAST, source_id,
       GetRemotePlaybackMediaSourceCompatibleSinks(media_source, sinks),
       GetOrigins(source_id));
-}
-
-void CastMediaRouteProvider::BroadcastMessageToSinks(
-    const std::vector<std::string>& app_ids,
-    const cast_channel::BroadcastRequest& request) {
-  for (const auto& id_and_sink : media_sink_service_->GetSinks()) {
-    const MediaSinkInternal& sink = id_and_sink.second;
-    message_handler_->SendBroadcastMessage(sink.cast_data().cast_channel_id,
-                                           app_ids, request);
-  }
 }
 
 }  // namespace media_router

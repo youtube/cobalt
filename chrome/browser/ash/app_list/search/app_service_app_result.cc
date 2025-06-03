@@ -66,7 +66,6 @@ AppServiceAppResult::AppServiceAppResult(Profile* profile,
       // TODO(crbug.com/826982): Is this SetResultType call necessary?? Does
       // anyone care about the kInternalApp vs kInstalledApp distinction?
       SetResultType(ResultType::kInternalApp);
-      apps::RecordBuiltInAppSearchResult(app_id);
       break;
     case apps::AppType::kChromeApp:
       // TODO(crbug.com/826982): why do we pass the URL and not the app_id??
@@ -194,7 +193,8 @@ void AppServiceAppResult::OnLoadIcon(bool chip, apps::IconValuePtr icon_value) {
   if (chip) {
     SetChipIcon(icon_value->uncompressed);
   } else {
-    SetIcon(IconInfo(icon_value->uncompressed, kAppIconDimension));
+    SetIcon(IconInfo(ui::ImageModel::FromImageSkia(icon_value->uncompressed),
+                     kAppIconDimension));
   }
 
   if (icon_value->is_placeholder_icon) {

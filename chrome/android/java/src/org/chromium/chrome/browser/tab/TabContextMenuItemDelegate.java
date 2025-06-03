@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.provider.Browser;
 import android.provider.ContactsContract;
 
+import androidx.annotation.Nullable;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.ContextUtils;
@@ -33,12 +34,12 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.offlinepages.RequestCoordinatorBridge;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
+import org.chromium.content_public.browser.AdditionalNavigationParams;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.Referrer;
@@ -190,21 +191,26 @@ public class TabContextMenuItemDelegate implements ContextMenuItemDelegate {
 
     @Override
     public void onOpenInOtherWindow(GURL url, Referrer referrer) {
-        TabDelegate tabDelegate = new TabDelegate(mTab.isIncognito());
+        ChromeAsyncTabLauncher chromeAsyncTabLauncher =
+                new ChromeAsyncTabLauncher(mTab.isIncognito());
         LoadUrlParams loadUrlParams = new LoadUrlParams(url.getSpec());
         loadUrlParams.setReferrer(referrer);
         Activity activity = TabUtils.getActivity(mTab);
-        tabDelegate.createTabInOtherWindow(loadUrlParams, activity,
-                CriticalPersistedTabData.from(mTab).getParentId(),
+        chromeAsyncTabLauncher.launchTabInOtherWindow(
+                loadUrlParams,
+                activity,
+                mTab.getParentId(),
                 MultiWindowUtils.getAdjacentWindowActivity(activity));
     }
 
     @Override
-    public void onOpenInNewTab(GURL url, Referrer referrer, boolean navigateToTab) {
+    public void onOpenInNewTab(GURL url, Referrer referrer, boolean navigateToTab,
+            @Nullable AdditionalNavigationParams additionalNavigationParams) {
         RecordUserAction.record("MobileNewTabOpened");
         RecordUserAction.record("LinkOpenedInNewTab");
         LoadUrlParams loadUrlParams = new LoadUrlParams(url.getSpec());
         loadUrlParams.setReferrer(referrer);
+        loadUrlParams.setAdditionalNavigationParams(additionalNavigationParams);
         mTabModelSelector.openNewTab(loadUrlParams,
                 navigateToTab ? TabLaunchType.FROM_LONGPRESS_FOREGROUND
                               : TabLaunchType.FROM_LONGPRESS_BACKGROUND,

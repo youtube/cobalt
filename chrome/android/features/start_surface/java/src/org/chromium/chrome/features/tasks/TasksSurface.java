@@ -18,6 +18,7 @@ import org.chromium.chrome.browser.compositor.layouts.Layout;
 import org.chromium.chrome.browser.feed.FeedReliabilityLogger;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.suggestions.tile.TileGroupDelegateImpl;
+import org.chromium.chrome.browser.tasks.tab_management.RecyclerViewPosition;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcher;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherCustomViewManager;
 
@@ -99,18 +100,6 @@ public interface TasksSurface {
             AppBarLayout.OnOffsetChangedListener onOffsetChangedListener);
 
     /**
-     * Update the fake search box layout.
-     * @param height Current height of the fake search box layout.
-     * @param topMargin Current top margin of the fake search box layout.
-     * @param endPadding Current end padding of the fake search box layout.
-     * @param translationX Current translationX of text view in fake search box layout.
-     * @param buttonSize Current height and width of the buttons in fake search box layout.
-     * @param lensButtonLeftMargin Current left margin of the lens button in fake search box layout.
-     */
-    void updateFakeSearchBox(int height, int topMargin, int endPadding, float translationX,
-            int buttonSize, int lensButtonLeftMargin);
-
-    /**
      * Called when the Tasks surface is hidden.
      */
     void onHide();
@@ -135,4 +124,14 @@ public interface TasksSurface {
      */
     @Nullable
     TabSwitcherCustomViewManager getTabSwitcherCustomViewManager();
+
+    /**
+     * @return The number of elements in the tab switcher's tab list model.
+     */
+    int getTabSwitcherTabListModelSize();
+
+    /**
+     * Set the tab switcher's current RecyclerViewPosition.
+     */
+    void setTabSwitcherRecyclerViewPosition(RecyclerViewPosition recyclerViewPosition);
 }

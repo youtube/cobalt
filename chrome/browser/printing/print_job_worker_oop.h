@@ -50,6 +50,10 @@ class PrintJobWorkerOop : public PrintJobWorker {
 
   // `PrintJobWorker` overrides.
   void StartPrinting(PrintedDocument* new_document) override;
+  void Cancel() override;
+#if BUILDFLAG(ENABLE_PRINT_CONTENT_ANALYSIS)
+  void CleanupAfterContentAnalysisDenial() override;
+#endif
 
  protected:
   // For testing.
@@ -71,7 +75,8 @@ class PrintJobWorkerOop : public PrintJobWorker {
 #endif
   virtual void OnDidRenderPrintedDocument(mojom::ResultCode result);
   virtual void OnDidDocumentDone(int job_id, mojom::ResultCode result);
-  virtual void OnDidCancel(scoped_refptr<PrintJob> job);
+  virtual void OnDidCancel(scoped_refptr<PrintJob> job,
+                           mojom::ResultCode cancel_reason);
 
   // `PrintJobWorker` overrides.
 #if BUILDFLAG(IS_WIN)
@@ -93,6 +98,9 @@ class PrintJobWorkerOop : public PrintJobWorker {
   // Initiate failure handling, including notification to the user.
   void NotifyFailure(mojom::ResultCode result);
 
+  // Helper function for document done processing, to get onto worker thread.
+  void FinishDocumentDone(int job_id);
+
   // Mojo support to send messages from UI thread.
   void SendEstablishPrintingContext();
   void SendStartPrinting(const std::string& device_name,
@@ -107,7 +115,7 @@ class PrintJobWorkerOop : public PrintJobWorker {
       mojom::MetafileDataType data_type,
       base::ReadOnlySharedMemoryRegion serialized_data);
   void SendDocumentDone();
-  void SendCancel(scoped_refptr<PrintJob> job);
+  void SendCancel(base::OnceClosure on_did_cancel_callback);
 
   // Used to test spooling memory error handling.
   const bool simulate_spooling_memory_errors_;
@@ -135,6 +143,11 @@ class PrintJobWorkerOop : public PrintJobWorker {
   // the `PrintJob` should drop its reference as part of failure/cancel
   // processing.  Named differently than base (even though both are private)
   // to avoid any potential confusion between them.
+  // Once set at the start of printing on the worker thread, it is only
+  // referenced thereafter from the UI thread.  UI thread accesses only occur
+  // once the interactions with the Print Backend service occur as a result of
+  // starting to print the job.  Any document access from worker thread happens
+  // by methods in base class, which use the base `document_` field.
   scoped_refptr<PrintedDocument> document_oop_;
 
   // Indicates if the print job was initiated from the print system dialog.

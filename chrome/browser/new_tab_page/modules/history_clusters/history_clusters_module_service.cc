@@ -4,6 +4,8 @@
 
 #include "chrome/browser/new_tab_page/modules/history_clusters/history_clusters_module_service.h"
 
+#include <array>
+
 #include "base/barrier_callback.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
@@ -14,6 +16,7 @@
 #include "chrome/browser/new_tab_page/modules/history_clusters/ranking/history_clusters_module_ranking_signals.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/history_clusters/core/history_clusters_service.h"
 #include "components/history_clusters/core/history_clusters_service_task.h"
 #include "components/history_clusters/core/history_clusters_types.h"
@@ -23,12 +26,6 @@
 #include "components/search_engines/template_url_service.h"
 
 namespace {
-
-constexpr int kMinRequiredRelatedSearches = 3;
-
-// The minimum number of visits to render a layout is 2 URL visits plus a SRP
-// visit.
-constexpr int kMinRequiredVisits = 3;
 
 // This enum must match the numbering for NTPHistoryClustersIneligibleReason in
 // enums.xml. Do not reorder or remove items, and update kMaxValue when new
@@ -44,66 +41,17 @@ enum NTPHistoryClustersIneligibleReason {
   kMaxValue = kInsufficientRelatedSearches,
 };
 
-base::flat_set<std::string> GetCategories(const char* feature_param) {
-  std::string categories_string = base::GetFieldTrialParamValueByFeature(
-      ntp_features::kNtpHistoryClustersModuleCategories, feature_param);
-  if (categories_string.empty()) {
-    return {};
-  }
-
-  auto categories = base::SplitString(categories_string, ",",
-                                      base::WhitespaceHandling::TRIM_WHITESPACE,
-                                      base::SplitResult::SPLIT_WANT_NONEMPTY);
-
-  return categories.empty() ? base::flat_set<std::string>()
-                            : base::flat_set<std::string>(categories.begin(),
-                                                          categories.end());
-}
-
-int GetMinVisitsToShow() {
-  static int min_visits = base::GetFieldTrialParamByFeatureAsInt(
-      ntp_features::kNtpHistoryClustersModuleMinimumVisitsRequired,
-      ntp_features::kNtpHistoryClustersModuleMinimumVisitsRequiredParam,
-      kMinRequiredVisits);
-  if (min_visits < 0) {
-    return kMinRequiredVisits;
-  }
-  return min_visits;
-}
-
-int GetMinImagesToShow() {
-  static int min_images_to_show = base::GetFieldTrialParamByFeatureAsInt(
-      ntp_features::kNtpHistoryClustersModuleMinimumImagesRequired,
-      ntp_features::kNtpHistoryClustersModuleMinimumImagesRequiredParam, 1);
-  return min_images_to_show;
-}
-
-size_t GetMaxClusters() {
-  // Even though only one cluster will be shown on the NTP at a time for now,
-  // set this to greater than that in case the filtering logic does not match
-  // up.
-  static int max_clusters = base::GetFieldTrialParamByFeatureAsInt(
-      ntp_features::kNtpHistoryClustersModuleMaxClusters,
-      ntp_features::kNtpHistoryClustersModuleMaxClustersParam, 5);
-  if (max_clusters < 0) {
-    return 5;
-  }
-  return static_cast<size_t>(max_clusters);
-}
-
-history_clusters::QueryClustersFilterParams GetFilterParamsFromFeatureFlags() {
-  history_clusters::QueryClustersFilterParams filter_params;
-  filter_params.min_visits = GetMinVisitsToShow();
-  filter_params.min_visits_with_images = GetMinImagesToShow();
-  filter_params.categories_allowlist = GetCategories(
-      ntp_features::kNtpHistoryClustersModuleCategoriesAllowlistParam);
-  filter_params.categories_blocklist = GetCategories(
-      ntp_features::kNtpHistoryClustersModuleCategoriesBlocklistParam);
-  filter_params.is_search_initiated = true;
-  filter_params.has_related_searches = true;
-  filter_params.is_shown_on_prominent_ui_surfaces = true;
-  return filter_params;
-}
+const size_t kCategoryBoostListSize = 32;
+constexpr std::array<std::string_view, kCategoryBoostListSize>
+    kCategoryBoostList{
+        "/m/04n1sn", "/m/025t3bg",    "/g/11h1zghcjr", "/m/01hbs0",
+        "/m/01lj9",  "/m/022hpx",     "/m/01mf_",      "/m/01mkq",
+        "/m/019qw9", "/g/11h16094f_", "/m/02h32",      "/m/017rcq",
+        "/m/02csf",  "/m/027hpj",     "/m/0dcz2",      "/m/02jfc",
+        "/m/05xlzx", "/m/03nlf2w",    "/m/01pmdg",     "/m/03r55",
+        "/m/03n2_q", "/g/1q677w6hv",  "/m/02rfdq",     "/m/01rk91",
+        "/m/04rjg",  "/m/0g55yf",     "/m/06k1r",      "/m/012mq4",
+        "/m/06mnr",  "/m/014dsx",     "/g/11fhwwq0bp", "/m/033wsp"};
 
 base::Time GetBeginTime() {
   static int hours_to_look_back = base::GetFieldTrialParamByFeatureAsInt(
@@ -123,10 +71,12 @@ HistoryClustersModuleService::HistoryClustersModuleService(
     CartService* cart_service,
     TemplateURLService* template_url_service,
     OptimizationGuideKeyedService* optimization_guide_keyed_service)
-    : filter_params_(GetFilterParamsFromFeatureFlags()),
-      max_clusters_to_return_(GetMaxClusters()),
+    : max_clusters_to_return_(GetMaxClusters()),
       category_boostlist_(GetCategories(
-          ntp_features::kNtpHistoryClustersModuleCategoriesBoostlistParam)),
+          ntp_features::kNtpHistoryClustersModuleCategoriesBoostlistParam,
+          {kCategoryBoostList.begin(), kCategoryBoostListSize})),
+      should_fetch_clusters_until_exhausted_(base::FeatureList::IsEnabled(
+          ntp_features::kNtpHistoryClustersModuleFetchClustersUntilExhausted)),
       history_clusters_service_(history_clusters_service),
       cart_service_(cart_service),
       template_url_service_(template_url_service) {
@@ -139,38 +89,102 @@ HistoryClustersModuleService::HistoryClustersModuleService(
 }
 HistoryClustersModuleService::~HistoryClustersModuleService() = default;
 
-std::unique_ptr<history_clusters::HistoryClustersServiceTask>
-HistoryClustersModuleService::GetClusters(GetClustersCallback callback) {
+void HistoryClustersModuleService::GetClusters(
+    const history_clusters::QueryClustersFilterParams filter_params,
+    size_t min_required_related_searches,
+    GetClustersCallback callback) {
+  if (!history_clusters_service_->IsJourneysEnabledAndVisible()) {
+    std::move(callback).Run({}, {});
+    return;
+  }
+
   if (!template_url_service_) {
     std::move(callback).Run({}, {});
-    return nullptr;
+    return;
   }
-  history_clusters::QueryClustersContinuationParams continuation_params;
 
-  return history_clusters_service_->QueryClusters(
-      history_clusters::ClusteringRequestSource::kNewTabPage, filter_params_,
-      GetBeginTime(), continuation_params,
-      /*recluster=*/false,
-      base::BindOnce(&HistoryClustersModuleService::OnGetFilteredClusters,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  GetClusters(GetBeginTime(), std::move(filter_params),
+              min_required_related_searches,
+              history_clusters::QueryClustersContinuationParams(), {},
+              std::move(callback));
+}
+
+void HistoryClustersModuleService::GetClusters(
+    base::Time begin_time,
+    const history_clusters::QueryClustersFilterParams filter_params,
+    size_t min_required_related_searches,
+    history_clusters::QueryClustersContinuationParams continuation_params,
+    std::vector<history::Cluster> continuation_clusters,
+    GetClustersCallback callback) {
+  // TODO(crbug/1442619): Encapsulate work done by this method in a task that
+  // gets returned to the caller.
+
+  size_t task_id = task_id_++;
+  std::unique_ptr<history_clusters::HistoryClustersServiceTask>
+      query_clusters_task = history_clusters_service_->QueryClusters(
+          history_clusters::ClusteringRequestSource::kNewTabPage, filter_params,
+          begin_time, continuation_params,
+          /*recluster=*/false,
+          base::BindOnce(&HistoryClustersModuleService::OnGetFilteredClusters,
+                         weak_ptr_factory_.GetWeakPtr(), task_id, begin_time,
+                         filter_params, min_required_related_searches,
+                         std::move(continuation_clusters),
+                         std::move(callback)));
+  in_progress_query_clusters_tasks_.insert_or_assign(
+      task_id, std::move(query_clusters_task));
 }
 
 void HistoryClustersModuleService::OnGetFilteredClusters(
+    size_t pending_task_id,
+    base::Time begin_time,
+    history_clusters::QueryClustersFilterParams filter_params,
+    size_t min_required_related_searches,
+    std::vector<history::Cluster> continuation_clusters,
     GetClustersCallback callback,
     std::vector<history::Cluster> clusters,
     history_clusters::QueryClustersContinuationParams continuation_params) {
+  in_progress_query_clusters_tasks_.erase(pending_task_id);
+
+  if (!continuation_clusters.empty()) {
+    clusters.insert(clusters.begin(), continuation_clusters.begin(),
+                    continuation_clusters.end());
+  }
+
+  bool should_fetch_more_clusters = should_fetch_clusters_until_exhausted_ &&
+                                    !continuation_params.exhausted_all_visits;
+  if (should_fetch_more_clusters) {
+    GetClusters(begin_time, std::move(filter_params),
+                min_required_related_searches, continuation_params,
+                std::move(clusters), std::move(callback));
+
+    return;
+  }
+
   // Within each cluster, sort visits.
   for (auto& cluster : clusters) {
     history_clusters::StableSortVisits(cluster.visits);
   }
 
+  // Do additional filtering on clusters.
   history_clusters::CoalesceRelatedSearches(clusters);
 
-  // Cull clusters that do not have the minimum number of visits with and
-  // without images to be eligible for display.
+  // Maintain a list of observed cluster labels and discard any clusters
+  // associated with a duplicate label.
+  std::set<std::u16string> seen_cluster_labels = {};
   NTPHistoryClustersIneligibleReason ineligible_reason =
       clusters.empty() ? kNoClusters : kNone;
   base::EraseIf(clusters, [&](auto& cluster) {
+    // Cull clusters that do not have a label.
+    if (!cluster.label.has_value()) {
+      return true;
+    }
+
+    // Cull clusters with a label that has already been observed.
+    if (base::Contains(seen_cluster_labels, cluster.label.value())) {
+      return true;
+    }
+    seen_cluster_labels.insert(cluster.label.value());
+
     // Cull non prominent clusters.
     if (!cluster.should_show_on_prominent_ui_surfaces) {
       ineligible_reason = kNonProminent;
@@ -199,9 +213,19 @@ void HistoryClustersModuleService::OnGetFilteredClusters(
     });
     cluster.visits.insert(cluster.visits.begin(), first_srp_visit);
 
-    // Cull visits that have a zero relevance score.
-    base::EraseIf(cluster.visits,
-                  [&](auto& visit) { return visit.score == 0.0; });
+    // Cull visits that have a zero relevance score, are Hidden, or Done.
+    base::EraseIf(cluster.visits, [&](auto& visit) {
+      return visit.score == 0.0 ||
+             visit.interaction_state ==
+                 history::ClusterVisit::InteractionState::kHidden ||
+             visit.interaction_state ==
+                 history::ClusterVisit::InteractionState::kDone;
+    });
+
+    if (cluster.visits.size() < static_cast<size_t>(filter_params.min_visits)) {
+      ineligible_reason = kInsufficientVisits;
+      return true;
+    }
 
     int visits_with_images = std::accumulate(
         cluster.visits.begin(), cluster.visits.end(), 0,
@@ -210,20 +234,16 @@ void HistoryClustersModuleService::OnGetFilteredClusters(
                              .has_url_keyed_image &&
                          v.annotated_visit.visit_row.is_known_to_sync);
         });
-
-    if (cluster.visits.size() < kMinRequiredVisits) {
-      ineligible_reason = kInsufficientVisits;
-      return true;
-    }
-
-    if (visits_with_images < GetMinImagesToShow()) {
+    // Cull clusters that do not have the minimum number of visits with images
+    // to be eligible for display.
+    if (visits_with_images < filter_params.min_visits_with_images) {
       ineligible_reason = kInsufficientImages;
       return true;
     }
 
     // Cull clusters that do not have the minimum required number of related
     // searches to be eligible for display.
-    if (cluster.related_searches.size() < kMinRequiredRelatedSearches) {
+    if (cluster.related_searches.size() < min_required_related_searches) {
       ineligible_reason = kInsufficientRelatedSearches;
       return true;
     }
@@ -231,6 +251,7 @@ void HistoryClustersModuleService::OnGetFilteredClusters(
     return false;
   });
 
+  // Only record metrics if we are ready to rank clusters.
   base::UmaHistogramEnumeration("NewTabPage.HistoryClusters.IneligibleReason",
                                 ineligible_reason);
   base::UmaHistogramBoolean("NewTabPage.HistoryClusters.HasClusterToShow",
@@ -240,7 +261,6 @@ void HistoryClustersModuleService::OnGetFilteredClusters(
 
   if (clusters.empty()) {
     std::move(callback).Run(/*clusters=*/{}, /*ranking_signals=*/{});
-
     return;
   }
 

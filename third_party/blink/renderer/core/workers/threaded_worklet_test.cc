@@ -4,6 +4,7 @@
 
 #include <bitset>
 
+#include "base/gtest_prod_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
@@ -171,8 +172,7 @@ class ThreadedWorkletThreadForTest : public WorkerThread {
   WorkerOrWorkletGlobalScope* CreateWorkerGlobalScope(
       std::unique_ptr<GlobalScopeCreationParams> creation_params) final {
     auto* global_scope = MakeGarbageCollected<FakeWorkletGlobalScope>(
-        std::move(creation_params), GetWorkerReportingProxy(), this,
-        /*create_microtask_queue=*/true);
+        std::move(creation_params), GetWorkerReportingProxy(), this);
     EXPECT_FALSE(global_scope->IsMainThreadWorkletGlobalScope());
     EXPECT_TRUE(global_scope->IsThreadedWorkletGlobalScope());
     return global_scope;

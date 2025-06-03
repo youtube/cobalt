@@ -27,19 +27,20 @@
 // https://html.spec.whatwg.org/C/#the-window-object
 
 // FIXME: explain all uses of [CrossOrigin]
+// NOTE: In the spec, Window inherits from EventTarget. We inject an additional
+// layer to implement window's named properties object.
 [
-    CheckSecurity=Receiver,
     ImplementedAs=DOMWindow,
     Global=Window,
     Exposed=Window
-] interface Window : EventTarget {
+] interface Window : WindowProperties {
     // the current browsing context
     // FIXME: The spec uses the WindowProxy type for this and many other attributes.
     [LegacyUnforgeable, CrossOrigin, CachedAccessor=kWindowProxy] readonly attribute Window window;
     [Replaceable, CrossOrigin, CachedAccessor=kWindowProxy] readonly attribute Window self;
     [LegacyUnforgeable, CachedAccessor=kWindowDocument] readonly attribute Document document;
     attribute DOMString name;
-    [PutForwards=href, LegacyUnforgeable, CrossOrigin=(Getter,Setter), Custom=Getter] readonly attribute Location location;
+    [PutForwards=href, LegacyUnforgeable, CrossOrigin=(Getter,Setter)] readonly attribute Location location;
     [CallWith=ScriptState] readonly attribute CustomElementRegistry customElements;
     readonly attribute History history;
     [Replaceable] readonly attribute Navigation navigation;
@@ -56,23 +57,32 @@
     [CrossOrigin, CallWith=Isolate] void focus();
     [CrossOrigin] void blur();
 
+    // Additional Windowing Controls (AWC)
+    [RuntimeEnabled=DesktopPWAsAdditionalWindowingControls, RaisesException] void maximize();
+    [RuntimeEnabled=DesktopPWAsAdditionalWindowingControls, RaisesException] void minimize();
+    [RuntimeEnabled=DesktopPWAsAdditionalWindowingControls, RaisesException] void restore();
+    [RuntimeEnabled=DesktopPWAsAdditionalWindowingControls, RaisesException] void setResizable(boolean resizable);
+
     // other browsing contexts
     [Replaceable, CrossOrigin, CachedAccessor=kWindowProxy] readonly attribute Window frames;
     [Replaceable, CrossOrigin] readonly attribute unsigned long length;
     [LegacyUnforgeable, CrossOrigin] readonly attribute Window? top;
     // FIXME: opener should be of type any.
-    [CrossOrigin, Custom=Setter, ImplementedAs=OpenerWithMetrics] attribute Window opener;
+    [CrossOrigin, ImplementedAs=openerForBindings, CallWith=Isolate, RaisesException=Setter] attribute any opener;
     [Replaceable, CrossOrigin] readonly attribute Window? parent;
-    [CheckSecurity=ReturnValue, Custom=Getter] readonly attribute Element? frameElement;
+    [CheckSecurity=ReturnValue] readonly attribute Element? frameElement;
 
-    [CallWith=Isolate, RaisesException] Window? open(optional USVString url="", optional DOMString target = "_blank", optional [TreatNullAs=EmptyString] DOMString features = "");
+    [CallWith=Isolate, RaisesException] Window? open(optional USVString url="", optional DOMString target = "_blank", optional [LegacyNullToEmptyString] DOMString features = "");
 
     // indexed properties
     // https://html.spec.whatwg.org/C/browsers.html#windowproxy-getownproperty
     [NotEnumerable, CrossOrigin] getter Window (unsigned long index);
 
     // named properties
-    [Custom, NotEnumerable, CrossOrigin] getter object (DOMString name);
+    // The spec defines the named getter on the Window interface, but we inject
+    // the named properties object as its own interface that Window inherits
+    // from.
+    // getter object (DOMString name);
 
     // the user agent
     [LogActivity=GetterOnly] readonly attribute Navigator navigator;
@@ -167,6 +177,10 @@
     //  0 is straight up; -90 is when the device is rotated 90 clockwise;
     //  90 is when rotated counter clockwise.
     [HighEntropy=Direct, MeasureAs=WindowOrientation, RuntimeEnabled=OrientationEvent] readonly attribute long orientation;
+
+    // Event handler attribute for the pagereveal event.
+    // https://drafts.csswg.org/css-view-transitions-2/#reveal-event
+    [RuntimeEnabled=PageRevealEvent] attribute EventHandler onpagereveal;
 
     // Accessibility Object Model
     // https://github.com/WICG/aom/blob/HEAD/explainer.md

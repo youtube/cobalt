@@ -7,17 +7,16 @@ import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeo
 
 import {createCrostiniForTest} from '../../background/js/mock_crostini.js';
 import {MockProgressCenter} from '../../background/js/mock_progress_center.js';
-import {metrics} from '../../common/js/metrics.js';
-import {installMockChrome} from '../../common/js/mock_chrome.js';
+import {installMockChrome, MockMetrics} from '../../common/js/mock_chrome.js';
 import {MockFileEntry, MockFileSystem} from '../../common/js/mock_entry.js';
 import {ProgressItemState} from '../../common/js/progress_center_common.js';
 import {LEGACY_FILES_EXTENSION_ID} from '../../common/js/url_constants.js';
-import {util} from '../../common/js/util.js';
+import {descriptorEqual} from '../../common/js/util.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
 import {EntryLocation} from '../../externs/entry_location.js';
-import {VolumeInfo} from '../../externs/volume_info.js';
+import type {VolumeInfo} from '../../externs/volume_info.js';
 import {VolumeManager} from '../../externs/volume_manager.js';
-import {FilesPasswordDialog} from '../elements/files_password_dialog.js';
+import {USER_CANCELLED, XfPasswordDialog} from '../../widgets/xf_password_dialog.js';
 
 import {DirectoryChangeTracker, DirectoryModel} from './directory_model.js';
 import {FileManager} from './file_manager.js';
@@ -31,64 +30,13 @@ import {DefaultTaskDialog} from './ui/default_task_dialog.js';
 import {ImportCrostiniImageDialog} from './ui/import_crostini_image_dialog.js';
 import {InstallLinuxPackageDialog} from './ui/install_linux_package_dialog.js';
 
-/** Utility function that appends value under a given name in the store.  */
-function record<T>(store: Map<string, T[]>, name: string, value: T) {
-  let recorded = store.get(name);
-  if (!recorded) {
-    recorded = [];
-    store.set(name, recorded);
-  }
-  recorded.push(value);
-}
+let passwordDialog: XfPasswordDialog;
 
-/**
- * A map from histogram name to all enums recorded for it.
- */
-const enumMap = new Map();
+/** Mock chrome APIs. */
+let mockChrome: any;
 
-/**
- * A map from histogram name to all counts recorded for it.
- */
-const countMap = new Map();
-
-/**
- * A map from histogram name to all times recorded for it.
- */
-const timeMap = new Map();
-
-let passwordDialog: FilesPasswordDialog;
-
-/** Mock metrics.recordEnum.  */
-// @ts-ignore: Remove ignore once metrics_base.recordEnum() is in TS and the
-// signature is compatible.
-metrics.recordEnum = function<T>(name: string, value: T, valid: T[]): void {
-  assertTrue(valid.includes(value));
-  record(enumMap, name, value);
-};
-
-/**
- * Mock metrics.recordSmallCount.
- * @param {string} name Short metric name.
- * @param {number} value Value to be recorded.
- */
-metrics.recordSmallCount = function(name: string, value: number) {
-  record(countMap, name, value);
-};
-
-/**
- * Mock metrics.recordTime.
- * @param {string} name Short metric name.
- * @param {number} time Time to be recorded in milliseconds.
- */
-metrics.recordTime = function(name: string, time: number) {
-  record(timeMap, name, time);
-};
-
-/**
- * Mock chrome APIs.
- * @type {!Object}
- */
-let mockChrome;
+/** Mock to keep track of the calls to metricsPrivate. */
+let mockMetrics: MockMetrics;
 
 /** Mock task history. */
 const mockTaskHistory = {
@@ -137,8 +85,11 @@ export function setUp() {
     isGenericFileHandler: true,
   } as unknown as chrome.fileManagerPrivate.FileTask;
 
+  mockMetrics = new MockMetrics();
+
   // Mock chome APIs.
   mockChrome = {
+    metricsPrivate: mockMetrics,
     fileManagerPrivate: {
       getFileTasks: function(
           _entries: Entry[], _sourceUrls: string[],
@@ -159,9 +110,6 @@ export function setUp() {
   };
 
   installMockChrome(mockChrome);
-  enumMap.clear();
-  countMap.clear();
-  timeMap.clear();
 }
 
 /**
@@ -180,7 +128,7 @@ function failWithMessage(message: string, details?: string) {
 function getMockFileManager(): FileManager {
   const crostini = createCrostiniForTest();
 
-  passwordDialog = {} as unknown as FilesPasswordDialog;
+  passwordDialog = {} as unknown as XfPasswordDialog;
   const fileManager = {
     volumeManager: /** @type {!VolumeManager} */ ({
       getLocationInfo: function(_entry: Entry) {
@@ -451,10 +399,10 @@ export async function testOpenWithMostRecentlyExecuted(done: () => void) {
   const taskHistory = /** @type {!TaskHistory} */ ({
     getLastExecutedTime: function(
         descriptor: chrome.fileManagerPrivate.FileTaskDescriptor) {
-      if (util.descriptorEqual(descriptor, oldTaskDescriptor)) {
+      if (descriptorEqual(descriptor, oldTaskDescriptor)) {
         return 10000;
       }
-      if (util.descriptorEqual(descriptor, latestTaskDescriptor)) {
+      if (descriptorEqual(descriptor, latestTaskDescriptor)) {
         return 20000;
       }
       return 0;
@@ -489,7 +437,7 @@ export async function testOpenWithMostRecentlyExecuted(done: () => void) {
       [mockEntry], taskHistory as TaskHistory, fileManager.crostini,
       fileManager.progressCenter, fileManager.taskController);
   await tasks.executeDefault();
-  assertTrue(util.descriptorEqual(latestTaskDescriptor, executedTask!));
+  assertTrue(descriptorEqual(latestTaskDescriptor, executedTask!));
 
   done();
 }
@@ -636,7 +584,7 @@ export async function testMountArchiveAndChangeDirectoryNotificationSuccess(
       undefined, fileManager.progressCenter.getItemById(errorZipMountPanelId));
 
   // Check: a zip mount time UMA has been recorded.
-  assertTrue(timeMap.has('ZipMountTime.Other'));
+  assertTrue('FileBrowser.ZipMountTime.Other' in mockMetrics.metricCalls);
 
   done();
 }
@@ -675,7 +623,7 @@ testMountArchiveAndChangeDirectoryNotificationInvalidArchive(done: () => void) {
 
   // Check: no zip mount time UMA has been recorded since mounting the archive
   // failed.
-  assertFalse(timeMap.has('ZipMountTime.Other'));
+  assertFalse('FileBrowser.ZipMountTime.Other' in mockMetrics.metricCalls);
 
   done();
 }
@@ -702,7 +650,7 @@ testMountArchiveAndChangeDirectoryNotificationCancelPassword(done: () => void) {
 
   passwordDialog.askForPassword =
       async function(_filename: string, _password: string|null = null) {
-    return Promise.reject(FilesPasswordDialog.USER_CANCELLED);
+    return Promise.reject(USER_CANCELLED);
   };
 
   // Mount archive.
@@ -719,7 +667,7 @@ testMountArchiveAndChangeDirectoryNotificationCancelPassword(done: () => void) {
 
   // Check: no zip mount time UMA has been recorded since the mount has been
   // cancelled.
-  assertFalse(timeMap.has('ZipMountTime.Other'));
+  assertFalse('FileBrowser.ZipMountTime.Other' in mockMetrics.metricCalls);
 
   done();
 }

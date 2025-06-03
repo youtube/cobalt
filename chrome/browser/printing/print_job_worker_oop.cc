@@ -10,6 +10,7 @@
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "chrome/browser/printing/prefs_util.h"
 #include "chrome/browser/printing/print_backend_service_manager.h"
 #include "chrome/browser/printing/print_job.h"
 #include "chrome/services/printing/public/mojom/print_backend_service.mojom.h"
@@ -20,7 +21,6 @@
 #include "printing/buildflags/buildflags.h"
 #include "printing/metafile.h"
 #include "printing/printed_document.h"
-#include "printing/printing_features.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -111,6 +111,18 @@ void PrintJobWorkerOop::StartPrinting(PrintedDocument* new_document) {
                                 document_name));
 }
 
+void PrintJobWorkerOop::Cancel() {
+  PrintJobWorker::Cancel();
+  PrintJobWorkerOop::OnCancel();
+}
+
+#if BUILDFLAG(ENABLE_PRINT_CONTENT_ANALYSIS)
+void PrintJobWorkerOop::CleanupAfterContentAnalysisDenial() {
+  PrintJobWorker::CleanupAfterContentAnalysisDenial();
+  UnregisterServiceManagerClient();
+}
+#endif
+
 void PrintJobWorkerOop::OnDidStartPrinting(mojom::ResultCode result) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (result != mojom::ResultCode::kSuccess) {
@@ -145,9 +157,7 @@ void PrintJobWorkerOop::OnDidRenderPrintedPage(uint32_t page_index,
     PRINTER_LOG(ERROR) << "Unable to get page " << page_index
                        << " via service for document "
                        << document_oop_->cookie();
-    task_runner()->PostTask(FROM_HERE,
-                            base::BindOnce(&PrintJobWorkerOop::OnFailure,
-                                           worker_weak_factory_.GetWeakPtr()));
+    NotifyFailure(mojom::ResultCode::kFailed);
     return;
   }
   VLOG(1) << "Rendered printed page via service for document "
@@ -198,13 +208,16 @@ void PrintJobWorkerOop::OnDidDocumentDone(int job_id,
   UnregisterServiceManagerClient();
   base::UmaHistogramEnumeration(kPrintOopPrintResultHistogramName,
                                 PrintOopResult::kSuccessful);
-  FinishDocumentDone(job_id);
+  task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&PrintJobWorkerOop::FinishDocumentDone,
+                                worker_weak_factory_.GetWeakPtr(), job_id));
 
   // Also done with private document reference.
   document_oop_ = nullptr;
 }
 
-void PrintJobWorkerOop::OnDidCancel(scoped_refptr<PrintJob> job) {
+void PrintJobWorkerOop::OnDidCancel(scoped_refptr<PrintJob> job,
+                                    mojom::ResultCode cancel_reason) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DVLOG(1) << "Cancel completed for printing via service for document "
            << document_oop_->cookie();
@@ -212,6 +225,17 @@ void PrintJobWorkerOop::OnDidCancel(scoped_refptr<PrintJob> job) {
   UnregisterServiceManagerClient();
   printing_context_id_.reset();
 
+  if (cancel_reason == mojom::ResultCode::kCanceled) {
+    print_job()->PostTask(FROM_HERE,
+                          base::BindOnce(&PrintJob::Cancel, std::move(job)));
+  } else {
+    PostTask(FROM_HERE, base::BindOnce(
+                            [](base::WeakPtr<PrintJobWorkerOop> self,
+                               scoped_refptr<PrintJob> job) {
+                              self->PrintJobWorker::OnFailure();
+                            },
+                            worker_weak_factory_.GetWeakPtr(), std::move(job)));
+  }
   // Done with private document reference.
   document_oop_ = nullptr;
 }
@@ -222,7 +246,7 @@ bool PrintJobWorkerOop::SpoolPage(PrintedPage* page) {
   DCHECK_NE(page_number(), PageNumber::npos());
 
 #if !defined(NDEBUG)
-  DCHECK(document_oop_->IsPageInList(*page));
+  DCHECK(document()->IsPageInList(*page));
 #endif
 
   const MetafilePlayer* metafile = page->metafile();
@@ -253,7 +277,7 @@ bool PrintJobWorkerOop::SpoolPage(PrintedPage* page) {
 bool PrintJobWorkerOop::SpoolDocument() {
   DCHECK(task_runner()->RunsTasksInCurrentSequence());
 
-  const MetafilePlayer* metafile = document_oop_->GetMetafile();
+  const MetafilePlayer* metafile = document()->GetMetafile();
   DCHECK(metafile);
   base::MappedReadOnlyRegion region_mapping =
       metafile->GetDataAsSharedMemoryRegion();
@@ -287,23 +311,17 @@ void PrintJobWorkerOop::OnDocumentDone() {
 }
 
 void PrintJobWorkerOop::OnCancel() {
-  // Retain a reference to the PrintJob to ensure it doesn't get deleted before
-  // the `OnDidCancel()` callback occurs.
   content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&PrintJobWorkerOop::SendCancel,
+      FROM_HERE, base::BindOnce(&PrintJobWorkerOop::NotifyFailure,
                                 ui_weak_factory_.GetWeakPtr(),
-                                base::WrapRefCounted(print_job())));
-  PrintJobWorker::OnCancel();
+                                mojom::ResultCode::kCanceled));
 }
 
 void PrintJobWorkerOop::OnFailure() {
-  // Retain a reference to the PrintJob to ensure it doesn't get deleted before
-  // the `OnDidCancel()` callback occurs.
   content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&PrintJobWorkerOop::SendCancel,
+      FROM_HERE, base::BindOnce(&PrintJobWorkerOop::NotifyFailure,
                                 ui_weak_factory_.GetWeakPtr(),
-                                base::WrapRefCounted(print_job())));
-  PrintJobWorker::OnFailure();
+                                mojom::ResultCode::kFailed));
 }
 
 void PrintJobWorkerOop::UnregisterServiceManagerClient() {
@@ -349,6 +367,17 @@ bool PrintJobWorkerOop::TryRestartPrinting() {
 void PrintJobWorkerOop::NotifyFailure(mojom::ResultCode result) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
+  // If an error has occurred during rendering in middle of a multi-page job,
+  // it could be possible for the `OnDidRenderPrintedPage()` callback of latter
+  // pages to still go through error processing.  In such a case the document
+  // might already have been canceled, so we should ensure to only send a
+  // cancel request to the service if we haven't already done so.
+  if (print_cancel_requested_) {
+    return;
+  }
+
+  print_cancel_requested_ = true;
+
   PrintOopResult uma_result = PrintOopResult::kFailed;
   if (result == mojom::ResultCode::kAccessDenied) {
     // An attempt to restart could be undesirable if some pages were able to
@@ -369,21 +398,24 @@ void PrintJobWorkerOop::NotifyFailure(mojom::ResultCode result) {
   }
   base::UmaHistogramEnumeration(kPrintOopPrintResultHistogramName, uma_result);
 
-  // Initiate rest of regular failure handling.
-  if (result == mojom::ResultCode::kCanceled) {
-    task_runner()->PostTask(FROM_HERE,
-                            base::BindOnce(&PrintJobWorkerOop::OnCancel,
-                                           worker_weak_factory_.GetWeakPtr()));
-  } else {
-    task_runner()->PostTask(FROM_HERE,
-                            base::BindOnce(&PrintJobWorkerOop::OnFailure,
-                                           worker_weak_factory_.GetWeakPtr()));
+  if (!document_oop_) {
+    // If no document has been started for printing then don't send cancel.
+    return;
   }
+
+  // Initiate rest of regular failure handling.
+  SendCancel(base::BindOnce(&PrintJobWorkerOop::OnDidCancel,
+                            ui_weak_factory_.GetWeakPtr(),
+                            base::WrapRefCounted(print_job()), result));
+}
+
+void PrintJobWorkerOop::FinishDocumentDone(int job_id) {
+  PrintJobWorker::FinishDocumentDone(job_id);
 }
 
 void PrintJobWorkerOop::SendEstablishPrintingContext() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(features::kEnableOopPrintDriversJobPrint.Get());
+  DCHECK(ShouldPrintJobOop());
 
   PrintBackendServiceManager& service_mgr =
       PrintBackendServiceManager::GetInstance();
@@ -407,7 +439,7 @@ void PrintJobWorkerOop::SendEstablishPrintingContext() {
 void PrintJobWorkerOop::SendStartPrinting(const std::string& device_name,
                                           const std::u16string& document_name) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(features::kEnableOopPrintDriversJobPrint.Get());
+  DCHECK(ShouldPrintJobOop());
 
   // The device name is needed repeatedly for each call to the service, cache
   // that for this print job.
@@ -455,6 +487,13 @@ void PrintJobWorkerOop::SendRenderPrintedPage(
   // Page numbers are 0-based for the printing context.
   const uint32_t page_index = page->page_number() - 1;
   const int32_t document_cookie = document_oop_->cookie();
+  if (print_cancel_requested_) {
+    VLOG(1) << "Dropping page " << page_index << " of document "
+            << document_cookie << " to `" << device_name_
+            << "` because job was canceled";
+    return;
+  }
+
   VLOG(1) << "Sending page " << page_index << " of document " << document_cookie
           << " to `" << device_name_ << "` for printing";
   PrintBackendServiceManager& service_mgr =
@@ -500,18 +539,8 @@ void PrintJobWorkerOop::SendDocumentDone() {
                                           printing_context()->job_id()));
 }
 
-void PrintJobWorkerOop::SendCancel(scoped_refptr<PrintJob> job) {
+void PrintJobWorkerOop::SendCancel(base::OnceClosure on_did_cancel_callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  // If an error has occurred during rendering in middle of a multi-page job,
-  // it could be possible for the `OnDidRenderPrintedPage()` callback of latter
-  // pages to still go through error processing.  In such a case the document
-  // might already have been canceled, so we should ensure to only send a
-  // cancel request to the service if we haven't already done so.
-  if (print_cancel_requested_)
-    return;
-
-  print_cancel_requested_ = true;
   VLOG(1) << "Sending cancel for document " << document_oop_->cookie();
 
   PrintBackendServiceManager& service_mgr =
@@ -519,10 +548,9 @@ void PrintJobWorkerOop::SendCancel(scoped_refptr<PrintJob> job) {
 
   // Retain a reference to the PrintJob to ensure it doesn't get deleted before
   // the `OnDidCancel()` callback occurs.
-  service_mgr.Cancel(
-      *service_manager_client_id_, device_name_, document_oop_->cookie(),
-      base::BindOnce(&PrintJobWorkerOop::OnDidCancel,
-                     ui_weak_factory_.GetWeakPtr(), std::move(job)));
+  service_mgr.Cancel(*service_manager_client_id_, device_name_,
+                     document_oop_->cookie(),
+                     std::move(on_did_cancel_callback));
 }
 
 }  // namespace printing

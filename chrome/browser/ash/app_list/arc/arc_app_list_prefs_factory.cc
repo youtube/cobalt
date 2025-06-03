@@ -23,7 +23,8 @@ ArcAppListPrefs* ArcAppListPrefsFactory::GetForBrowserContext(
 
 // static
 ArcAppListPrefsFactory* ArcAppListPrefsFactory::GetInstance() {
-  return base::Singleton<ArcAppListPrefsFactory>::get();
+  static base::NoDestructor<ArcAppListPrefsFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -47,7 +48,12 @@ ArcAppListPrefsFactory::ArcAppListPrefsFactory()
           "ArcAppListPrefs",
           // This matches the logic in ExtensionSyncServiceFactory, which uses
           // the original browser context.
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(NotificationDisplayServiceFactory::GetInstance());
 }
 

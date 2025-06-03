@@ -255,25 +255,29 @@ class COMPONENT_EXPORT(DEBUG_DAEMON) DebugDaemonClient
   using CupsAddPrinterCallback = base::OnceCallback<void(int32_t)>;
 
   // Calls CupsAddManuallyConfiguredPrinter.  |name| is the printer
-  // name. |uri| is the device.  |ppd_contents| is the contents of the
-  // PPD file used to drive the device.  |callback| is called with
-  // true if adding the printer to CUPS was successful and false if
-  // there was an error.  |error_callback| will be called if there was
-  // an error in communicating with debugd.
+  // name. |uri| is the device.  |language| is the locale code for the
+  // user's language, e.g., "en-us" or "jp".  |ppd_contents| is the
+  // contents of the PPD file used to drive the device.  |callback| is
+  // called with true if adding the printer to CUPS was successful and
+  // false if there was an error.  |error_callback| will be called if
+  // there was an error in communicating with debugd.
   virtual void CupsAddManuallyConfiguredPrinter(
       const std::string& name,
       const std::string& uri,
+      const std::string& language,
       const std::string& ppd_contents,
       CupsAddPrinterCallback callback) = 0;
 
   // Calls CupsAddAutoConfiguredPrinter.  |name| is the printer
-  // name. |uri| is the device.  |callback| is called with true if
-  // adding the printer to CUPS was successful and false if there was
-  // an error.  |error_callback| will be called if there was an error
+  // name. |uri| is the device.  |language| is the locale code for the
+  // user's language, e.g., "en-us" or "jp".  |callback| is called with
+  // true if adding the printer to CUPS was successful and false if there
+  // was an error.  |error_callback| will be called if there was an error
   // in communicating with debugd.
   virtual void CupsAddAutoConfiguredPrinter(
       const std::string& name,
       const std::string& uri,
+      const std::string& language,
       CupsAddPrinterCallback callback) = 0;
 
   // A callback to handle the result of CupsRemovePrinter.
@@ -337,29 +341,6 @@ class COMPONENT_EXPORT(DEBUG_DAEMON) DebugDaemonClient
   // Get U2F flags.
   virtual void GetU2fFlags(
       chromeos::DBusMethodCallback<std::set<std::string>> callback) = 0;
-
-  // Set Swap Parameter
-  virtual void SetSwapParameter(
-      const std::string& parameter,
-      int32_t value,
-      chromeos::DBusMethodCallback<std::string> callback) = 0;
-
-  // Zram Writeback Dbus Messages
-  virtual void SwapZramEnableWriteback(
-      uint32_t size_mb,
-      chromeos::DBusMethodCallback<std::string> callback) = 0;
-
-  virtual void SwapZramSetWritebackLimit(
-      uint32_t limit_pages,
-      chromeos::DBusMethodCallback<std::string> callback) = 0;
-
-  virtual void SwapZramMarkIdle(
-      uint32_t age_seconds,
-      chromeos::DBusMethodCallback<std::string> callback) = 0;
-
-  virtual void InitiateSwapZramWriteback(
-      debugd::ZramWritebackMode mode,
-      chromeos::DBusMethodCallback<std::string> callback) = 0;
 
   // Stops the packet capture process identified with |handle|. |handle| is a
   // unique process identifier that is returned from debugd's PacketCaptureStart

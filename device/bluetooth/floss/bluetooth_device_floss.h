@@ -43,6 +43,12 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
     kGattConnecting,
     kGattConnected,
   };
+  enum PropertiesState : uint32_t {
+    kNotRead = 0,
+    kTriggeredByScan = 1 << 1,
+    kTriggeredByInquiry = 1 << 2,
+    kTriggeredbyBoth = (kTriggeredByScan | kTriggeredByInquiry)
+  };
 
   BluetoothDeviceFloss(const BluetoothDeviceFloss&) = delete;
   BluetoothDeviceFloss& operator=(const BluetoothDeviceFloss&) = delete;
@@ -137,9 +143,17 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
 
   BluetoothPairingFloss* pairing() const { return pairing_.get(); }
 
-  void InitializeDeviceProperties(base::OnceClosure callback);
-  bool IsReadingProperties() const { return property_reads_triggered_; }
-  bool HasReadProperties() const { return property_reads_completed_; }
+  void InitializeDeviceProperties(PropertiesState state,
+                                  base::OnceClosure callback);
+  bool IsReadingProperties() const {
+    return property_reads_triggered_ != PropertiesState::kNotRead;
+  }
+  bool HasReadProperties() const {
+    return property_reads_completed_ != PropertiesState::kNotRead;
+  }
+  PropertiesState GetPropertiesState() const {
+    return property_reads_completed_;
+  }
 
   // FlossGattClientObserver overrides
   void GattClientConnectionState(GattStatus status,
@@ -158,6 +172,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
                         int32_t mtu,
                         GattStatus status) override;
 #if BUILDFLAG(IS_CHROMEOS)
+  void GattServiceChanged(std::string address) override;
   void GattExecuteWrite(std::string address, GattStatus status) override;
 #endif
 
@@ -191,6 +206,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
   void OnGetRemoteType(DBusResult<FlossAdapterClient::BluetoothDeviceType> ret);
   void OnGetRemoteClass(DBusResult<uint32_t> ret);
   void OnGetRemoteAppearance(DBusResult<uint16_t> ret);
+  void OnGetRemoteVendorProductInfo(
+      DBusResult<FlossAdapterClient::VendorProductInfo> ret);
   void OnGetRemoteUuids(DBusResult<UUIDList> ret);
   void OnConnectAllEnabledProfiles(DBusResult<Void> ret);
   void OnDisconnectAllEnabledProfiles(base::OnceClosure callback,
@@ -261,6 +278,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
   // TODO(b/204708206): Update with property framework when available
   uint16_t appearance_ = 0;
 
+  // Vendor and product info of device.
+  // TODO(b/204708206): Update with property framework when available
+  FlossAdapterClient::VendorProductInfo vpi_;
+
   // Whether the device is bonded/paired.
   FlossAdapterClient::BondState bond_state_ =
       FlossAdapterClient::BondState::kNotBonded;
@@ -274,10 +295,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceFloss
   bool svc_resolved_ = false;
 
   // Have we triggered initial property reads?
-  bool property_reads_triggered_ = false;
+  PropertiesState property_reads_triggered_ = PropertiesState::kNotRead;
 
   // Have we completed reading properties?
-  bool property_reads_completed_ = false;
+  PropertiesState property_reads_completed_ = PropertiesState::kNotRead;
 
   // Specific uuid to search for after gatt connection is established. If this
   // is not set, then we do full discovery.

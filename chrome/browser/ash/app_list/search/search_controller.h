@@ -88,6 +88,12 @@ class SearchController {
   // the TestSearchController mock.
   void Initialize();
 
+  // Returns the search categories that are available for users to choose if
+  // they want to have the results in the categories displayed in launcher
+  // search.
+  std::vector<ash::AppListSearchControlCategory> GetToggleableCategories()
+      const;
+
   // Takes ownership of |provider|.
   virtual void AddProvider(std::unique_ptr<SearchProvider> provider);
 
@@ -122,6 +128,8 @@ class SearchController {
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
+
+  void OnDefaultSearchIsGoogleSet(bool is_google);
 
   std::u16string get_query();
 

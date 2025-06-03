@@ -104,7 +104,6 @@ copy("copies") {
     "dirdiffer.sh",
     "dirpatcher.sh",
     "dmgdiffer.sh",
-    "notarize_thing.py",
     "pkg-dmg",
     "pkg_postinstall.in",
     "sign_chrome.py",
@@ -155,6 +154,7 @@ script_test("mac_signing_tests") {
 
   data = mac_signing_sources + [
            "signing/commands_test.py",
+           "signing/driver_test.py",
            "signing/model_test.py",
            "signing/modification_test.py",
            "signing/notarize_test.py",
@@ -165,4 +165,8 @@ script_test("mac_signing_tests") {
            "signing/test_config.py",
            "//third_party/catapult/third_party/typ/",
          ]
+
+  if (is_chrome_branded) {
+    data += [ "internal/internal_invoker_test.py" ]
+  }
 }

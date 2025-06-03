@@ -35,6 +35,10 @@ constexpr const char* const kRawPtrManualPathsToIgnore[] = {
     // win:pe_image target that uses this file does not depend on base/.
     "base/no_destructor.h",
 
+    // Can't depend on //base, pointers/references under this directory can't be
+    // rewritten.
+    "testing/rust_gtest_interop/",
+
     // Exclude - deprecated and contains legacy C++ and pre-C++11 code.
     "ppapi/",
 
@@ -46,10 +50,12 @@ constexpr const char* const kRawPtrManualPathsToIgnore[] = {
     "net/tools/",
     "chrome/chrome_elf/",
     "chrome/installer/mini_installer/",
+    "testing/platform_test.h",
 
     // DEPS prohibits includes from base/
     "chrome/install_static",
     "net/cert/pki",
+    "sandbox/mac/",
 
     // Exclude pocdll.dll as it doesn't depend on //base and only used for
     // testing.
@@ -97,6 +103,9 @@ constexpr const char* const kRawPtrManualPathsToIgnore[] = {
                                       // to",
                                       // public/renderer?",
 
+    // Moved from //third_party/blink/renderer/platform/image-decoders/
+    "components/image_decoders/",
+
     // Contains sysroot dirs like debian_bullseye_amd64-sysroot/ that are not
     // part of the repository.
     "build/linux/",
@@ -106,91 +115,6 @@ constexpr const char* const kRawPtrManualPathsToIgnore[] = {
     // cannot
     // catch it even though glslang_tab.cpp.h is in third_party/
     "MachineIndependent/",
-
-    // Exclude paths in separate repositories - i.e. in directories that
-    // 1. Contain a ".git" subdirectory
-    // 2. And hasn't been excluded via "third_party/" substring in their path
-    //    (see the isInThirdPartyLocation AST matcher in
-    //    RewriteRawPtrFields.cpp).
-    //
-    // The list below has been generated with:
-    //
-    //  $ find . -type d -name .git | \
-//      sed -e 's/\.git$//g' | \
-//      sed -e 's/\.\///g' | \
-//      grep -v third_party | \
-//      grep -v '^$' | \
-//      sort | uniq > ~/scratch/git-paths
-    "buildtools/clang_format/script/",
-    "chrome/app/theme/default_100_percent/google_chrome/",
-    "chrome/app/theme/default_200_percent/google_chrome/",
-    "chrome/app/theme/google_chrome/",
-    "chrome/app/vector_icons/google_chrome/",
-    "chrome/browser/enterprise/connectors/internal/",
-    "chrome/browser/google/linkdoctor_internal/",
-    "chrome/browser/internal/",
-    "chrome/browser/media/engagement_internal/",
-    "chrome/browser/resources/chromeos/quickoffice/",
-    "chrome/browser/resources/media_router_internal/",
-    "chrome/browser/resources/preinstalled_web_apps/internal/",
-    "chrome/browser/resources/settings_internal/",
-    "chrome/browser/spellchecker/internal/",
-    "chrome/browser/ui/media_router/internal/",
-    "chrome/installer/mac/internal/",
-    "chrome/test/data/firefox3_profile/searchplugins/",
-    "chrome/test/data/firefox3_searchplugins/",
-    "chrome/test/data/gpu/vt/",
-    "chrome/test/data/pdf_private/",
-    "chrome/test/data/perf/canvas_bench/",
-    "chrome/test/data/perf/frame_rate/content/",
-    "chrome/test/data/perf/frame_rate/private/",
-    "chrome/test/data/perf/private/",
-    "chrome/test/data/xr/webvr_info/",
-    "chrome/test/media_router/internal/",
-    "chrome/test/python_tests/",
-    "chrome/tools/memory/",
-    "clank/",
-    "components/history_clusters/internal/",
-    "components/ntp_tiles/resources/internal/",
-    "components/optimization_guide/internal/",
-    "components/resources/default_100_percent/google_chrome/",
-    "components/resources/default_200_percent/google_chrome/",
-    "components/resources/default_300_percent/google_chrome/",
-    "components/site_isolation/internal/",
-    "content/test/data/plugin/",
-    "docs/website/",
-    "google_apis/internal/",
-    "media/cdm/api/",
-    "native_client/",
-    "remoting/android/internal/",
-    "remoting/host/installer/linux/internal/",
-    "remoting/internal/",
-    "remoting/test/internal/",
-    "remoting/tools/internal/",
-    "remoting/webapp/app_remoting/internal/",
-    "tools/page_cycler/acid3/",
-    "tools/perf/data/",
-    "ui/file_manager/internal/",
-    "v8/",
-    "webkit/data/bmp_decoder/",
-    "webkit/data/ico_decoder/",
-    "webkit/data/test_shell/plugins/",
-
-    // ChromeOS ash rewrite:
-    //
-    // Temporary exclusion. Rewriting those files are causing compile errors.
-    // They will be added back later with manual fixes.
-    "ash/capture_mode/capture_mode_source_view.h",
-    "ash/public/cpp/network_icon_image_source.h",
-    "ash/quick_pair/fast_pair_handshake/"
-    "fast_pair_gatt_service_client_impl_unittest.cc",
-    "chrome/browser/ash/file_suggest/item_suggest_cache_unittest.cc",
-    "chrome/browser/ash/game_mode/game_mode_controller.cc",
-    "chrome/browser/extensions/dynamic_origin_browsertest.cc",
-    "chromeos/ash/components/drivefs/drivefs_pin_manager.cc",
-    "chromeos/ash/components/memory/userspace_swap/userfaultfd_unittest.cc",
-    "chromeos/ash/components/phonehub/icon_decoder.h",
-    "ui/ozone/platform/drm/gpu/crtc_commit_request.h",
 };
 
 #endif  // TOOLS_CLANG_PLUGINS_RAWPTRMANUALPATHSTOIGNORE_H_

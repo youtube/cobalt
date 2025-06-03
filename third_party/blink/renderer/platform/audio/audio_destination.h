@@ -31,8 +31,10 @@
 
 #include <memory>
 
+#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "media/base/audio_renderer_sink.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -149,6 +151,10 @@ class PLATFORM_EXPORT AudioDestination final
   // The actual render request to the WebAudio destination node. This method
   // can be invoked on both AudioDeviceThread (single-thread rendering) and
   // AudioWorkletThread (dual-thread rendering).
+  void RequestRenderWait(size_t frames_requested,
+                         size_t frames_to_render,
+                         double delay,
+                         double delay_timestamp);
   void RequestRender(size_t frames_requested,
                      size_t frames_to_render,
                      double delay,
@@ -184,7 +190,7 @@ class PLATFORM_EXPORT AudioDestination final
 
   // Accessed by rendering thread: the render callback function of WebAudio
   // engine. (i.e. DestinationNode)
-  AudioIOCallback& callback_;
+  const raw_ref<AudioIOCallback, ExperimentalRenderer> callback_;
 
   // Accessed by rendering thread.
   size_t frames_elapsed_ = 0;
@@ -212,6 +218,12 @@ class PLATFORM_EXPORT AudioDestination final
 
   // Collect the device latency matric only from the initial callback.
   bool is_latency_metric_collected_ = false;
+
+  // This WaitableEvent is only for use with the kWebAudioBypassOutputBuffering
+  // flag enabled. No other WaitableEvents may be used in this class.
+  base::WaitableEvent output_buffer_bypass_wait_event_;
+
+  const bool is_output_buffer_bypassed_ = false;
 };
 
 }  // namespace blink

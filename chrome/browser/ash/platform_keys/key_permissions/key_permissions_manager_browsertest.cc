@@ -16,7 +16,6 @@
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/user_policy_mixin.h"
-#include "chrome/browser/ash/platform_keys/key_permissions/key_permissions.pb.h"
 #include "chrome/browser/ash/platform_keys/key_permissions/key_permissions_util.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service_factory.h"
@@ -29,6 +28,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "chromeos/components/kcer/key_permissions.pb.h"
 #include "components/prefs/pref_test_utils.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -138,11 +138,9 @@ class KeyPermissionsManagerBrowserTestBase
         break;
     }
 
-    std::string public_key_str(public_key.begin(), public_key.end());
-
     base::test::TestFuture<Status> set_attr_waiter;
     GetPlatformKeysService()->SetAttributeForKey(
-        GetToken(), public_key_str, KeyAttributeType::kKeyPermissions,
+        GetToken(), public_key, KeyAttributeType::kKeyPermissions,
         internal::KeyPermissionsProtoToBytes(key_permissions),
         set_attr_waiter.GetCallback());
     ASSERT_TRUE(set_attr_waiter.Wait());
@@ -156,12 +154,10 @@ class KeyPermissionsManagerBrowserTestBase
   // fake chaps.
   bool IsKeyAllowedForUsageInChaps(KeyUsage usage,
                                    const std::vector<uint8_t>& public_key) {
-    std::string public_key_str(public_key.begin(), public_key.end());
-
     base::test::TestFuture<absl::optional<std::vector<uint8_t>>, Status>
         get_attr_waiter;
     GetPlatformKeysService()->GetAttributeForKey(
-        GetToken(), public_key_str, KeyAttributeType::kKeyPermissions,
+        GetToken(), public_key, KeyAttributeType::kKeyPermissions,
         get_attr_waiter.GetCallback());
     EXPECT_TRUE(get_attr_waiter.Wait());
 

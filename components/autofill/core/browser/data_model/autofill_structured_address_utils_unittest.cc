@@ -228,8 +228,21 @@ TEST(AutofillStructuredAddressUtils, NormalizeValue) {
 }
 
 TEST(AutofillStructuredAddressUtils, TestGetRewriter) {
-  EXPECT_EQ(RewriterCache::Rewrite(u"us", u"unit #3"), u"u 3");
-  EXPECT_EQ(RewriterCache::Rewrite(u"us", u"california"), u"ca");
+  EXPECT_EQ(NormalizeAndRewrite(u"us", u"unit #3",
+                                /*keep_white_space=*/true),
+            u"u 3");
+  EXPECT_EQ(NormalizeAndRewrite(u"us", u"california",
+                                /*keep_white_space=*/true),
+            u"ca");
+}
+
+TEST(AutofillStructuredAddressUtils, AreStringTokenCompatible) {
+  EXPECT_TRUE(AreStringTokenCompatible(u"moto hello", u"hello, moto"));
+  EXPECT_TRUE(AreStringTokenCompatible(u"moto hello", u"hello, moto cross"));
+  EXPECT_FALSE(
+      AreStringTokenCompatible(u"moto hello, extra", u"hello, moto cross"));
+  EXPECT_TRUE(AreStringTokenCompatible(u"us foo", u"used, foo,us"));
+  EXPECT_FALSE(AreStringTokenCompatible(u"us foo", u"used, foo"));
 }
 
 }  // namespace autofill

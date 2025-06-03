@@ -27,8 +27,10 @@
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/system/sys_info.h"
+#include "base/task/task_features.h"
 #include "base/task/thread_pool/initialization_util.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
+#include "content/common/features.h"
 #include "content/common/thread_pool_util.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/common/content_client.h"
@@ -47,10 +49,6 @@
 #endif
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(ARCH_CPU_X86_64)
 #include "v8/include/v8-wasm-trap-handler-posix.h"
-#endif
-
-#if BUILDFLAG(IS_MAC)
-#include "base/system/sys_info.h"
 #endif
 
 namespace {
@@ -84,9 +82,20 @@ void SetV8FlagIfHasSwitch(const char* switch_name, const char* v8_flag) {
 std::unique_ptr<base::ThreadPoolInstance::InitParams>
 GetThreadPoolInitParams() {
   constexpr size_t kMaxNumThreadsInForegroundPoolLowerBound = 3;
-  return std::make_unique<base::ThreadPoolInstance::InitParams>(
+  size_t desired_num_threads =
       std::max(kMaxNumThreadsInForegroundPoolLowerBound,
-               content::GetMinForegroundThreadsInRendererThreadPool()));
+               content::GetMinForegroundThreadsInRendererThreadPool());
+  if (base::FeatureList::IsEnabled(base::kThreadPoolCap2)) {
+    // Cap the threadpool to an initial fixed size.
+    // Note: The size can still grow beyond the value set here
+    // when tasks are blocked for a certain period of time.
+    const int max_allowed_workers_per_pool =
+        base::kThreadPoolCapRestrictedCount.Get();
+    desired_num_threads = std::min(
+        desired_num_threads, static_cast<size_t>(max_allowed_workers_per_pool));
+  }
+  return std::make_unique<base::ThreadPoolInstance::InitParams>(
+      desired_num_threads);
 }
 
 #if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
@@ -104,12 +113,6 @@ namespace content {
 
 RenderProcessImpl::RenderProcessImpl()
     : RenderProcess(GetThreadPoolInitParams()) {
-#if BUILDFLAG(IS_MAC)
-  // Specified when launching the process in
-  // RendererSandboxedProcessLauncherDelegate::EnableCpuSecurityMitigations
-  base::SysInfo::SetIsCpuSecurityMitigationsEnabled(true);
-#endif
-
 #if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
   // Some official builds ship with DCHECKs compiled in. Failing DCHECKs then
   // are either fatal or simply log the error, based on a feature flag.

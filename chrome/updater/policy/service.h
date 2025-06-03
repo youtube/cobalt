@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
@@ -77,8 +78,6 @@ class PolicyStatus {
 // The PolicyService returns policies for enterprise managed machines from the
 // source with the highest priority where the policy available.
 // This class is sequence affine and its instance is bound to the main sequence.
-// TODO(crbug.com/1358718) - modernize the public interface to return by value
-// instead of two out-params.
 class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
  public:
   using PolicyManagerVector =
@@ -106,9 +105,10 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
 
   std::string source() const;
 
+  // These methods call and aggregate the results from the policy managers.
   PolicyStatus<base::TimeDelta> GetLastCheckPeriod() const;
   PolicyStatus<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes() const;
-  PolicyStatus<std::string> GetDownloadPreferenceGroupPolicy() const;
+  PolicyStatus<std::string> GetDownloadPreference() const;
   PolicyStatus<int> GetPackageCacheSizeLimitMBytes() const;
   PolicyStatus<int> GetPackageCacheExpirationTimeDays() const;
   PolicyStatus<int> GetPolicyForAppInstalls(const std::string& app_id) const;
@@ -127,7 +127,9 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
   // in legacy interfaces where a PolicyStatus<int> is required.
   PolicyStatus<int> DeprecatedGetLastCheckPeriodMinutes() const;
 
+  // Helper methods.
   std::string GetAllPoliciesAsString() const;
+  bool AreUpdatesSuppressedNow(const base::Time& now = base::Time::Now()) const;
 
  protected:
   virtual ~PolicyService();
@@ -142,6 +144,7 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
   // provided DM policy manager. The DM policy manager is preloaded separately
   // in a blocking sequence since it needs to do I/O to load policies.
   void FetchPoliciesDone(
+      scoped_refptr<PolicyFetcher> fetcher,
       base::OnceCallback<void(int)> callback,
       int result,
       scoped_refptr<PolicyManagerInterface> dm_policy_manager);
@@ -153,14 +156,15 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
   PolicyManagers policy_managers_;
 
   const scoped_refptr<ExternalConstants> external_constants_;
-  const scoped_refptr<PolicyFetcher> policy_fetcher_;
 
   // Helper function to query the policy from the managed policy providers and
   // determines the policy status.
   template <typename T>
   PolicyStatus<T> QueryPolicy(
       const base::RepeatingCallback<absl::optional<T>(
-          const PolicyManagerInterface*)>& policy_query_callback) const;
+          const PolicyManagerInterface*)>& policy_query_callback,
+      const base::RepeatingCallback<bool(const T&)>& validator =
+          base::NullCallback()) const;
 
   // Helper function to query app policy from the managed policy providers and
   // determines the policy status.
@@ -189,6 +193,11 @@ struct PolicyServiceProxyConfiguration {
   absl::optional<std::string> proxy_pac_url;
   absl::optional<std::string> proxy_url;
 };
+
+PolicyService::PolicyManagerVector CreatePolicyManagerVector(
+    bool should_take_policy_critical_section,
+    scoped_refptr<ExternalConstants> external_constants,
+    scoped_refptr<PolicyManagerInterface> dm_policy_manager);
 
 }  // namespace updater
 

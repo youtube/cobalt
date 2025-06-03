@@ -19,7 +19,6 @@
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
@@ -104,9 +103,10 @@ class SplitViewDragIndicatorsTest : public AshTestBase {
   }
 
  protected:
-  raw_ptr<SplitViewDragIndicators, ExperimentalAsh>
+  raw_ptr<SplitViewDragIndicators, DanglingUntriaged | ExperimentalAsh>
       split_view_drag_indicators_ = nullptr;
-  raw_ptr<OverviewSession, ExperimentalAsh> overview_session_ = nullptr;
+  raw_ptr<OverviewSession, DanglingUntriaged | ExperimentalAsh>
+      overview_session_ = nullptr;
 };
 
 TEST_F(SplitViewDragIndicatorsTest, Dragging) {
@@ -120,8 +120,8 @@ TEST_F(SplitViewDragIndicatorsTest, Dragging) {
   ui::test::EventGenerator* generator = GetEventGenerator();
 
   ToggleOverview();
-  OverviewItem* left_item = GetOverviewItemForWindow(left_window.get());
-  OverviewItem* right_item = GetOverviewItemForWindow(right_window.get());
+  auto* left_item = GetOverviewItemForWindow(left_window.get());
+  auto* right_item = GetOverviewItemForWindow(right_window.get());
 
   // The inset on each side of the screen which is a snap region. Items dragged
   // to and released under this region will get snapped.
@@ -228,7 +228,7 @@ TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibility) {
 
   // Verify the preview area is visible when |item|'s x is in the
   // range [0, edge_inset] or [screen_width - edge_inset - 1, screen_width].
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   ASSERT_TRUE(item);
   const gfx::PointF start_location(item->target_bounds().CenterPoint());
   // Drag horizontally to avoid activating drag to close.
@@ -262,7 +262,7 @@ TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibilityUnsnappableWindow) {
   std::unique_ptr<aura::Window> window(CreateUnsnappableWindow());
   ToggleOverview();
 
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   const gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
                                   /*is_touch_dragging=*/false);
@@ -289,7 +289,7 @@ TEST_F(SplitViewDragIndicatorsTest,
   ToggleOverview();
 
   // Start dragging from overview.
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
+  auto* item = GetOverviewItemForWindow(window1.get());
   gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
                                   /*is_touch_dragging=*/false);
@@ -340,7 +340,7 @@ TEST_F(SplitViewDragIndicatorsTest,
   std::unique_ptr<aura::Window> unsnappable_window(CreateUnsnappableWindow());
   ToggleOverview();
 
-  OverviewItem* item = GetOverviewItemForWindow(unsnappable_window.get());
+  auto* item = GetOverviewItemForWindow(unsnappable_window.get());
   gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
                                   /*is_touch_dragging=*/false);
@@ -502,7 +502,7 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest,
       IndicatorType::kRightText));
 
   // Start dragging from overview in the landscape display.
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
+  auto* item = GetOverviewItemForWindow(window1.get());
   gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
                                   /*is_touch_dragging=*/false);

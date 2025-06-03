@@ -9,33 +9,15 @@
 #include "base/containers/contains.h"
 #include "base/observer_list.h"
 #include "build/chromeos_buildflags.h"
+#include "components/services/app_service/public/cpp/app_registry_cache_wrapper.h"
+#include "components/services/app_service/public/cpp/types_util.h"
 
 namespace apps {
-
-AppRegistryCache::Observer::Observer(AppRegistryCache* cache) {
-  Observe(cache);
-}
 
 AppRegistryCache::Observer::Observer() = default;
 
 AppRegistryCache::Observer::~Observer() {
-  if (cache_) {
-    cache_->RemoveObserver(this);
-  }
-}
-
-void AppRegistryCache::Observer::Observe(AppRegistryCache* cache) {
-  if (cache == cache_) {
-    // Early exit to avoid infinite loops if we're in the middle of a callback.
-    return;
-  }
-  if (cache_) {
-    cache_->RemoveObserver(this);
-  }
-  cache_ = cache;
-  if (cache_) {
-    cache_->AddObserver(this);
-  }
+  CHECK(!IsInObserverList());
 }
 
 AppRegistryCache::AppRegistryCache() : account_id_(EmptyAccountId()) {}
@@ -45,6 +27,7 @@ AppRegistryCache::~AppRegistryCache() {
     obs.OnAppRegistryCacheWillBeDestroyed(this);
   }
   DCHECK(observers_.empty());
+  AppRegistryCacheWrapper::Get().RemoveAppRegistryCache(this);
 }
 
 void AppRegistryCache::AddObserver(Observer* observer) {
@@ -54,6 +37,78 @@ void AppRegistryCache::AddObserver(Observer* observer) {
 
 void AppRegistryCache::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
+}
+
+AppType AppRegistryCache::GetAppType(const std::string& app_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
+
+  auto d_iter = deltas_in_progress_.find(app_id);
+  if (d_iter != deltas_in_progress_.end()) {
+    return d_iter->second->app_type;
+  }
+  auto s_iter = states_.find(app_id);
+  return (s_iter != states_.end()) ? s_iter->second->app_type
+                                   : AppType::kUnknown;
+}
+
+std::vector<AppPtr> AppRegistryCache::GetAllApps() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
+
+  std::vector<AppPtr> apps;
+  for (const auto& s_iter : states_) {
+    const App* state = s_iter.second.get();
+    apps.push_back(state->Clone());
+
+    auto d_iter = deltas_in_progress_.find(s_iter.first);
+    const App* delta =
+        (d_iter != deltas_in_progress_.end()) ? d_iter->second : nullptr;
+    AppUpdate::Merge(apps[apps.size() - 1].get(), delta);
+  }
+  for (const auto& d_iter : deltas_in_progress_) {
+    if (!base::Contains(states_, d_iter.first)) {
+      apps.push_back(d_iter.second->Clone());
+    }
+  }
+  return apps;
+}
+
+void AppRegistryCache::SetAccountId(const AccountId& account_id) {
+  account_id_ = account_id;
+}
+
+const std::set<AppType>& AppRegistryCache::InitializedAppTypes() const {
+  return initialized_app_types_;
+}
+
+bool AppRegistryCache::IsAppTypeInitialized(apps::AppType app_type) const {
+  return base::Contains(initialized_app_types_, app_type);
+}
+
+bool AppRegistryCache::IsAppInstalled(const std::string& app_id) const {
+  bool installed = false;
+  ForOneApp(app_id, [&installed](const AppUpdate& update) {
+    installed = apps_util::IsInstalled(update.Readiness());
+  });
+  return installed;
+}
+
+void AppRegistryCache::ReinitializeForTesting() {
+  states_.clear();
+  deltas_in_progress_.clear();
+  deltas_pending_.clear();
+  in_progress_initialized_app_types_.clear();
+
+  // On most platforms, we can't clear initialized_app_types_ here as observers
+  // expect each type to be initialized only once.
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  initialized_app_types_.clear();
+#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+}
+
+void AppRegistryCache::OnAppsForTesting(std::vector<AppPtr> deltas,
+                                        apps::AppType app_type,
+                                        bool should_notify_initialized) {
+  OnApps(std::move(deltas), app_type, should_notify_initialized);
 }
 
 void AppRegistryCache::OnApps(std::vector<AppPtr> deltas,
@@ -141,6 +196,11 @@ void AppRegistryCache::DoOnApps(std::vector<AppPtr> deltas) {
     App* state = (s_iter != states_.end()) ? s_iter->second.get() : nullptr;
     App* delta = d_iter.second;
 
+    // Skip OnAppUpdate if there is no change.
+    if (!AppUpdate::IsChanged(state, delta)) {
+      continue;
+    }
+
     for (auto& obs : observers_) {
       obs.OnAppUpdate(AppUpdate(state, delta, account_id_));
     }
@@ -165,64 +225,6 @@ void AppRegistryCache::DoOnApps(std::vector<AppPtr> deltas) {
     }
   }
   deltas_in_progress_.clear();
-}
-
-AppType AppRegistryCache::GetAppType(const std::string& app_id) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
-
-  auto d_iter = deltas_in_progress_.find(app_id);
-  if (d_iter != deltas_in_progress_.end()) {
-    return d_iter->second->app_type;
-  }
-  auto s_iter = states_.find(app_id);
-  return (s_iter != states_.end()) ? s_iter->second->app_type
-                                   : AppType::kUnknown;
-}
-
-std::vector<AppPtr> AppRegistryCache::GetAllApps() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
-
-  std::vector<AppPtr> apps;
-  for (const auto& s_iter : states_) {
-    const App* state = s_iter.second.get();
-    apps.push_back(state->Clone());
-
-    auto d_iter = deltas_in_progress_.find(s_iter.first);
-    const App* delta =
-        (d_iter != deltas_in_progress_.end()) ? d_iter->second : nullptr;
-    AppUpdate::Merge(apps[apps.size() - 1].get(), delta);
-  }
-  for (const auto& d_iter : deltas_in_progress_) {
-    if (!base::Contains(states_, d_iter.first)) {
-      apps.push_back(d_iter.second->Clone());
-    }
-  }
-  return apps;
-}
-
-void AppRegistryCache::SetAccountId(const AccountId& account_id) {
-  account_id_ = account_id;
-}
-
-const std::set<AppType>& AppRegistryCache::InitializedAppTypes() const {
-  return initialized_app_types_;
-}
-
-bool AppRegistryCache::IsAppTypeInitialized(apps::AppType app_type) const {
-  return base::Contains(initialized_app_types_, app_type);
-}
-
-void AppRegistryCache::ReinitializeForTesting() {
-  states_.clear();
-  deltas_in_progress_.clear();
-  deltas_pending_.clear();
-  in_progress_initialized_app_types_.clear();
-
-  // On most platforms, we can't clear initialized_app_types_ here as observers
-  // expect each type to be initialized only once.
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  initialized_app_types_.clear();
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 }
 
 void AppRegistryCache::OnAppTypeInitialized() {

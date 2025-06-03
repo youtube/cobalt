@@ -3,18 +3,18 @@
 # found in the LICENSE file.
 
 source_set("feed_promos") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "feed_sign_in_promo_coordinator.h",
     "feed_sign_in_promo_coordinator.mm",
+    "feed_sign_in_promo_coordinator_delegate.h",
   ]
   deps = [
     ":feed_promos_ui",
     "//ios/chrome/browser/discover_feed",
     "//ios/chrome/browser/discover_feed:discover_feed_factory",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/ntp:features",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/ui/ntp/metrics",
@@ -23,7 +23,6 @@ source_set("feed_promos") {
 }
 
 source_set("feed_promos_ui") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "feed_sign_in_promo_view_controller.h",
     "feed_sign_in_promo_view_controller.mm",

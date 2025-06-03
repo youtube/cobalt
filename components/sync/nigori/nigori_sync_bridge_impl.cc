@@ -8,16 +8,16 @@
 
 #include "base/base64.h"
 #include "base/feature_list.h"
-#include "base/functional/bind.h"
-#include "base/json/json_string_value_serializer.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
-#include "components/os_crypt/sync/os_crypt.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/passphrase_enums.h"
 #include "components/sync/base/time.h"
+#include "components/sync/engine/nigori/cross_user_sharing_public_key.h"
 #include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/keystore_keys_cryptographer.h"
 #include "components/sync/nigori/nigori_storage.h"
@@ -227,6 +227,13 @@ bool IsValidEncryptedTypesTransition(bool old_encrypt_everything,
   return specifics.encrypt_everything() || !old_encrypt_everything;
 }
 
+absl::optional<CrossUserSharingPublicKey> PublicKeyFromProto(
+    const sync_pb::CrossUserSharingPublicKey& public_key) {
+  std::vector<uint8_t> key(public_key.x25519_public_key().begin(),
+                           public_key.x25519_public_key().end());
+  return CrossUserSharingPublicKey::CreateByImport(key);
+}
+
 }  // namespace
 
 class NigoriSyncBridgeImpl::BroadcastingObserver
@@ -320,6 +327,10 @@ NigoriSyncBridgeImpl::NigoriSyncBridgeImpl(
   state_ = syncer::NigoriState::CreateFromLocalProto(
       deserialized_data->nigori_model());
 
+  base::UmaHistogramBoolean(
+      "Sync.CrossUserSharingPublicPrivateKeyInitializedOnStartup",
+      state_.cross_user_sharing_public_key.has_value());
+
   // Restore metadata.
   NigoriMetadataBatch metadata_batch;
   metadata_batch.model_type_state = deserialized_data->model_type_state();
@@ -332,6 +343,13 @@ NigoriSyncBridgeImpl::NigoriSyncBridgeImpl(
     DCHECK(!state_.keystore_keys_cryptographer->IsEmpty());
     QueuePendingLocalCommit(
         PendingLocalNigoriCommit::ForKeystoreInitialization());
+  }
+
+  if (base::FeatureList::IsEnabled(kSharingOfferKeyPairBootstrap) &&
+      !state_.cross_user_sharing_public_key.has_value()) {
+    QueuePendingLocalCommit(
+        PendingLocalNigoriCommit::
+            ForCrossUserSharingPublicPrivateKeyInitializer());
   }
 
   // Keystore key rotation might be not performed, but required.
@@ -701,6 +719,15 @@ absl::optional<ModelError> NigoriSyncBridgeImpl::UpdateLocalState(
   state_.pending_keys = specifics.encryption_keybag();
   state_.cryptographer->ClearDefaultEncryptionKey();
 
+  if (base::FeatureList::IsEnabled(kSharingOfferKeyPairRead) &&
+      specifics.has_cross_user_sharing_public_key()) {
+    // Remote update wins over local state.
+    state_.cross_user_sharing_public_key =
+        PublicKeyFromProto(specifics.cross_user_sharing_public_key());
+    state_.cross_user_sharing_key_pair_version =
+        specifics.cross_user_sharing_public_key().version();
+  }
+
   absl::optional<ModelError> error =
       TryDecryptPendingKeysWith(decryption_key_bag_for_remote_update);
   if (error.has_value()) {
@@ -780,7 +807,7 @@ absl::optional<ModelError> NigoriSyncBridgeImpl::TryDecryptPendingKeysWith(
     return absl::nullopt;
   }
 
-  sync_pb::NigoriKeyBag decrypted_pending_keys;
+  sync_pb::EncryptionKeys decrypted_pending_keys;
   if (!decrypted_pending_keys.ParseFromString(decrypted_pending_keys_str)) {
     return absl::nullopt;
   }
@@ -788,8 +815,10 @@ absl::optional<ModelError> NigoriSyncBridgeImpl::TryDecryptPendingKeysWith(
   const std::string new_default_key_name = state_.pending_keys->key_name();
   DCHECK(key_bag.HasKey(new_default_key_name));
 
-  NigoriKeyBag new_key_bag =
-      NigoriKeyBag::CreateFromProto(decrypted_pending_keys);
+  NigoriKeyBag new_key_bag = NigoriKeyBag::CreateEmpty();
+  for (auto key : decrypted_pending_keys.key()) {
+    new_key_bag.AddKeyFromProto(key);
+  }
 
   if (!new_key_bag.HasKey(new_default_key_name)) {
     // Protocol violation.
@@ -802,6 +831,33 @@ absl::optional<ModelError> NigoriSyncBridgeImpl::TryDecryptPendingKeysWith(
     // Protocol violation.
     return ModelError(FROM_HERE,
                       "Received keybag is missing the last trusted vault key.");
+  }
+
+  if (base::FeatureList::IsEnabled(kSharingOfferKeyPairRead)) {
+    CrossUserSharingKeys new_cross_user_sharing_keys =
+        CrossUserSharingKeys::CreateEmpty();
+    for (auto key_pair :
+         decrypted_pending_keys.cross_user_sharing_private_key()) {
+      new_cross_user_sharing_keys.AddKeyPairFromProto(key_pair);
+    }
+
+    if (state_.cross_user_sharing_key_pair_version.has_value() &&
+        !new_cross_user_sharing_keys.HasKeyPair(
+            state_.cross_user_sharing_key_pair_version.value())) {
+      // TODO(crbug/1474918): Record metric to capture this state.
+      DLOG(ERROR) << "Received keybag is missing the last "
+                  << "cross-user-sharing private key.";
+      // Reset keys so that on next startup they would be recreated and
+      // committed to the server.
+      // TODO(crbug/1474918): Clear obsolete key-pairs from cryptographer.
+      state_.cross_user_sharing_key_pair_version = absl::nullopt;
+      state_.cross_user_sharing_public_key = absl::nullopt;
+    } else if (state_.cross_user_sharing_key_pair_version.has_value()) {
+      state_.cryptographer->EmplaceCrossUserSharingKeysFrom(
+          new_cross_user_sharing_keys);
+      state_.cryptographer->SelectDefaultCrossUserSharingKey(
+          state_.cross_user_sharing_key_pair_version.value());
+    }
   }
 
   // Reset |last_default_trusted_vault_key_name| as |state_| might go out of
@@ -862,6 +918,8 @@ void NigoriSyncBridgeImpl::ApplyDisableSyncChanges() {
   state_.last_default_trusted_vault_key_name = absl::nullopt;
   state_.trusted_vault_debug_info =
       sync_pb::NigoriSpecifics::TrustedVaultDebugInfo();
+  state_.cross_user_sharing_public_key = absl::nullopt;
+  state_.cross_user_sharing_key_pair_version = absl::nullopt;
 
   broadcasting_observer_->OnCryptographerStateChanged(
       state_.cryptographer.get(),

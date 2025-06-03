@@ -97,9 +97,9 @@ bool IsDraggedTab(const ui::OSExchangeData& drop_data) {
     if (!iter.ReadStringPiece16(&type) || !iter.ReadStringPiece16(&data))
       return false;
 
-    if (type == base::ASCIIToUTF16(kWebUITabIdDataType) ||
-        type == base::ASCIIToUTF16(kWebUITabGroupIdDataType))
+    if (type == kWebUITabIdDataType || type == kWebUITabGroupIdDataType) {
       return true;
+    }
   }
 
   return false;
@@ -184,16 +184,21 @@ bool ExtractTabData(const ui::OSExchangeData& drop_data,
   drop_data.GetPickledData(ui::ClipboardFormatType::WebCustomDataType(),
                            &pickle);
 
-  ui::ReadCustomDataForType(pickle.data(), pickle.size(),
-                            base::ASCIIToUTF16(kWebUITabIdDataType),
-                            tab_id_str);
-  if (tab_id_str->empty()) {
-    ui::ReadCustomDataForType(pickle.data(), pickle.size(),
-                              base::ASCIIToUTF16(kWebUITabGroupIdDataType),
-                              group_id_str);
+  if (absl::optional<std::u16string> maybe_tab_id =
+          ui::ReadCustomDataForType(pickle, kWebUITabIdDataType);
+      maybe_tab_id && !maybe_tab_id->empty()) {
+    *tab_id_str = std::move(*maybe_tab_id);
+    return true;
   }
 
-  return !tab_id_str->empty() || !group_id_str->empty();
+  if (absl::optional<std::u16string> maybe_group_id =
+          ui::ReadCustomDataForType(pickle, kWebUITabGroupIdDataType);
+      maybe_group_id && !maybe_group_id->empty()) {
+    *group_id_str = std::move(*maybe_group_id);
+    return true;
+  }
+
+  return false;
 }
 
 }  // namespace tab_strip_ui

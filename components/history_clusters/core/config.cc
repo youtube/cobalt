@@ -13,10 +13,7 @@
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
 #include "components/history_clusters/core/features.h"
-#include "components/history_clusters/core/history_clusters_prefs.h"
-#include "components/history_clusters/core/history_clusters_service.h"
 #include "components/history_clusters/core/on_device_clustering_features.h"
-#include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -170,30 +167,6 @@ Config::Config() {
             internal::kOmniboxHistoryClusterProvider,
             "omnibox_history_cluster_provider_score",
             omnibox_history_cluster_provider_score);
-
-    omnibox_history_cluster_provider_inherit_search_match_score =
-        base::GetFieldTrialParamByFeatureAsBool(
-            internal::kOmniboxHistoryClusterProvider,
-            "omnibox_history_cluster_provider_inherit_search_match_score",
-            omnibox_history_cluster_provider_inherit_search_match_score);
-
-    omnibox_history_cluster_provider_rank_above_searches =
-        base::GetFieldTrialParamByFeatureAsBool(
-            internal::kOmniboxHistoryClusterProvider,
-            "omnibox_history_cluster_provider_rank_above_searches",
-            omnibox_history_cluster_provider_rank_above_searches);
-
-    omnibox_history_cluster_provider_shortcuts =
-        base::GetFieldTrialParamByFeatureAsBool(
-            internal::kOmniboxHistoryClusterProvider,
-            "omnibox_history_cluster_provider_shortcuts",
-            omnibox_history_cluster_provider_shortcuts);
-
-    omnibox_history_cluster_provider_allow_default =
-        base::GetFieldTrialParamByFeatureAsBool(
-            internal::kOmniboxHistoryClusterProvider,
-            "omnibox_history_cluster_provider_allow_default",
-            omnibox_history_cluster_provider_allow_default);
 
     omnibox_history_cluster_provider_navigation_intent_score_threshold =
         base::GetFieldTrialParamByFeatureAsInt(
@@ -375,20 +348,8 @@ Config::Config() {
 
   // WebUI features and params.
   {
-    hide_visits = base::FeatureList::IsEnabled(internal::kHideVisits);
-
-    hide_visits_icon = GetFieldTrialParamByFeatureAsBool(
-        internal::kHideVisits, "hide_visits_icon", hide_visits_icon);
-  }
-
-  // The `kUseUrlForDisplayCache` feature and child params.
-  {
-    use_url_for_display_cache =
-        base::FeatureList::IsEnabled(internal::kUseUrlForDisplayCache);
-
-    url_for_display_cache_size = GetFieldTrialParamByFeatureAsInt(
-        internal::kUseUrlForDisplayCache, "url_for_display_cache_size",
-        url_for_display_cache_size);
+    named_new_tab_groups =
+        base::FeatureList::IsEnabled(internal::kJourneysNamedNewTabGroups);
   }
 
   // The `kJourneysZeroStateFiltering` feature and child params.
@@ -512,20 +473,6 @@ bool IsApplicationLocaleSupportedByJourneys(
   // the list.
   return allowlist.empty() || base::Contains(allowlist, application_locale) ||
          base::Contains(allowlist, l10n_util::GetLanguage(application_locale));
-}
-
-bool IsJourneysEnabledInOmnibox(HistoryClustersService* service,
-                                PrefService* prefs) {
-  if (!service)
-    return false;
-
-  if (!service->IsJourneysEnabled())
-    return false;
-
-  if (!prefs->GetBoolean(history_clusters::prefs::kVisible))
-    return false;
-
-  return true;
 }
 
 const Config& GetConfig() {

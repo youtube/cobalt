@@ -4,11 +4,9 @@
 
 package org.chromium.chrome.browser.tab;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
-import org.chromium.chrome.browser.tab.state.SerializedCriticalPersistedTabData;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
@@ -33,7 +31,6 @@ public class TabBuilder {
     private boolean mInitiallyHidden;
     private boolean mInitializeRenderer;
     private TabState mTabState;
-    private SerializedCriticalPersistedTabData mSerializedCriticalPersistedTabData;
     private Callback<Tab> mPreInitializeAction;
 
     /**
@@ -68,9 +65,11 @@ public class TabBuilder {
 
     /**
      * Sets incognito mode.
+     *
      * @param incognito {@code true} if the tab will be in incognito mode.
      * @return {@link TabBuilder} creating the Tab.
      */
+    // TODO(crbug/1494442): Update to take a Profile reference instead.
     public TabBuilder setIncognito(boolean incognito) {
         mIncognito = incognito;
         return this;
@@ -160,18 +159,6 @@ public class TabBuilder {
         return this;
     }
 
-    /**
-     * Sets a serialized {@link CriticalPersistedTabData} object containing information about the
-     * tab, if it was persisted
-     * @param serializedCriticalPersistedTabData serialized {@link CriticalPersistedTabData}
-     * @return {@link TabBuilder} creating the Tab
-     */
-    public TabBuilder setSerializedCriticalPersistedTabData(
-            @Nullable SerializedCriticalPersistedTabData serializedCriticalPersistedTabData) {
-        mSerializedCriticalPersistedTabData = serializedCriticalPersistedTabData;
-        return this;
-    }
-
     public Tab build() {
         // Pre-condition check
         if (mCreationType != null) {
@@ -185,16 +172,19 @@ public class TabBuilder {
             if (mFromFrozenState) assert mLaunchType == TabLaunchType.FROM_RESTORE;
         }
 
-        TabImpl tab =
-                new TabImpl(mId, mIncognito, mLaunchType, mSerializedCriticalPersistedTabData);
+        Profile profile = IncognitoUtils.getProfileFromWindowAndroid(mWindow, mIncognito);
+        assert profile != null;
+        if (profile.isOffTheRecord() != mIncognito) {
+            throw new IllegalStateException(
+                    "Attempting to create a tab with an incognito mismatch");
+        }
+
+        TabImpl tab = new TabImpl(mId, profile, mLaunchType);
         Tab parent = null;
         if (mParent != null) {
             parent = mParent;
         } else if (mTabResolver != null) {
-            if (!CriticalPersistedTabData.isEmptySerialization(
-                        mSerializedCriticalPersistedTabData)) {
-                parent = mTabResolver.resolve(CriticalPersistedTabData.from(tab).getParentId());
-            } else if (mTabState != null) {
+            if (mTabState != null) {
                 parent = mTabResolver.resolve(mTabState.parentId);
             }
         }
@@ -250,6 +240,14 @@ public class TabBuilder {
         return new TabBuilder()
                 .setLoadUrlParams(loadUrlParams)
                 .setCreationType(TabCreationState.FROZEN_FOR_LAZY_LOAD);
+    }
+
+    /**
+     * Creates a TabBuilder for a tab from a web contents with no renderer. initialize()
+     * needs to be called afterwards to complete the second level initialization.
+     */
+    public static TabBuilder createLazyTabWithWebContents() {
+        return new TabBuilder().setCreationType(TabCreationState.FROZEN_FOR_LAZY_LOAD);
     }
 
     /**

@@ -20,7 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/session_manager_types.h"
 #include "components/user_manager/known_user.h"
@@ -34,23 +34,21 @@ namespace {
 class LoginScreenControllerTest : public AshTestBase {
  public:
   LoginScreenControllerTest() {
-    user_manager::KnownUser::RegisterPrefs(local_state()->registry());
-    auth_metrics_recorder_ = ash::AuthMetricsRecorder::CreateForTesting();
+    auth_events_recorder_ = ash::AuthEventsRecorder::CreateForTesting();
   }
 
  private:
-  std::unique_ptr<ash::AuthMetricsRecorder> auth_metrics_recorder_;
+  std::unique_ptr<ash::AuthEventsRecorder> auth_events_recorder_;
 };
 
 class LoginScreenControllerNoSessionTest : public NoSessionAshTestBase {
  public:
   LoginScreenControllerNoSessionTest() {
-    user_manager::KnownUser::RegisterPrefs(local_state()->registry());
-    auth_metrics_recorder_ = ash::AuthMetricsRecorder::CreateForTesting();
+    auth_events_recorder_ = ash::AuthEventsRecorder::CreateForTesting();
   }
 
  private:
-  std::unique_ptr<ash::AuthMetricsRecorder> auth_metrics_recorder_;
+  std::unique_ptr<ash::AuthEventsRecorder> auth_events_recorder_;
 };
 
 // Enum instead of enum class, because it is used for indexing.
@@ -122,11 +120,6 @@ TEST_F(LoginScreenControllerTest, RequestUserPodFocus) {
   // Verify FocusPod mojo call is run with the same account id.
   EXPECT_CALL(*client, OnFocusPod(id));
   controller->OnFocusPod(id);
-  base::RunLoop().RunUntilIdle();
-
-  // Verify NoPodFocused mojo call is run.
-  EXPECT_CALL(*client, OnNoPodFocused());
-  controller->OnNoPodFocused();
   base::RunLoop().RunUntilIdle();
 }
 

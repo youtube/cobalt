@@ -28,6 +28,7 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/search/ntp_features.h"
 #include "content/public/browser/devtools_agent_host_client.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -189,17 +190,14 @@ class NewTabPageTest : public InProcessBrowserTest,
                 const std::string& screenshot_name) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
-    if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-            "browser-ui-tests-verify-pixels")) {
-      return true;
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kVerifyPixels)) {
+      views::ViewSkiaGoldPixelDiff pixel_diff(screenshot_prefix);
+      return pixel_diff.CompareViewScreenshot(
+          screenshot_name, browser_view_->contents_web_view());
     }
-    views::ViewSkiaGoldPixelDiff pixel_diff;
-    pixel_diff.Init(screenshot_prefix);
-    return pixel_diff.CompareViewScreenshot(screenshot_name,
-                                            browser_view_->contents_web_view());
-#else
-    return true;
 #endif
+    return true;
   }
 
  protected:
@@ -219,12 +217,9 @@ class NewTabPageTest : public InProcessBrowserTest,
 // ubsan.
 // TODO(crbug.com/1377330): NewTabPageTest.LandingPagePixelTest is failing on
 // Win11 Tests x64.
-#if (defined(UNDEFINED_SANITIZER) && BUILDFLAG(IS_LINUX)) || BUILDFLAG(IS_WIN)
-#define MAYBE_LandingPagePixelTest DISABLED_LandingPagePixelTest
-#else
-#define MAYBE_LandingPagePixelTest LandingPagePixelTest
-#endif
-IN_PROC_BROWSER_TEST_F(NewTabPageTest, MAYBE_LandingPagePixelTest) {
+// TODO(crbug.com/1416880): It's also found flaky on Linux Tests, Linux Tests
+// (Wayland), linux-lacros-tester-rel, Mac12 Tests. Disabling on all platforms.
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, DISABLED_LandingPagePixelTest) {
   WaitForLazyLoad();
   // By default WaitForNetworkLoad waits for all resources that have started
   // loading at this point. However, sometimes not all required resources have

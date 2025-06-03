@@ -28,6 +28,7 @@ namespace ash {
 
 class KioskLaunchController;
 class LoginFeedback;
+class OobeMetricsHelper;
 
 // LoginDisplayHostCommon contains code which is not specific to a particular UI
 // implementation - the goal is to reduce code duplication between
@@ -56,11 +57,8 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
   void CompleteLogin(const UserContext& user_context) final;
   void OnGaiaScreenReady() final;
   void SetDisplayEmail(const std::string& email) final;
-  void SetDisplayAndGivenName(const std::string& display_name,
-                              const std::string& given_name) final;
   void ShowAllowlistCheckFailedError() final;
-  void LoadWallpaper(const AccountId& account_id) final;
-  void LoadSigninWallpaper() final;
+  void UpdateWallpaper(const AccountId& prefilled_account) final;
   bool IsUserAllowlisted(
       const AccountId& account_id,
       const absl::optional<user_manager::UserType>& user_type) final;
@@ -97,6 +95,8 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
   void OnBrowserAdded(Browser* browser) override;
 
   WizardContext* GetWizardContext() override;
+
+  OobeMetricsHelper* GetOobeMetricsHelper() override;
 
  protected:
   virtual void OnStartSignInScreen() = 0;
@@ -151,9 +151,6 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
   // Make sure chrome won't exit while we are at login/oobe screen.
   ScopedKeepAlive keep_alive_;
 
-  // Called after host deletion.
-  std::vector<base::OnceClosure> completion_callbacks_;
-
   KioskAppMenuController kiosk_app_menu_controller_;
 
   std::unique_ptr<LoginFeedback> login_feedback_;
@@ -169,6 +166,8 @@ class LoginDisplayHostCommon : public LoginDisplayHost,
       bootstrap_controller_;
 
   base::CallbackListSubscription app_terminating_subscription_;
+
+  std::unique_ptr<OobeMetricsHelper> oobe_metrics_helper_;
 
   base::WeakPtrFactory<LoginDisplayHostCommon> weak_factory_{this};
 };

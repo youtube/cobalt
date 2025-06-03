@@ -200,9 +200,9 @@ class ViewAXPlatformNodeDelegateTest : public ViewsTestBase {
   const int DEFAULT_VIEW_ID = 0;
   const int NON_DEFAULT_VIEW_ID = 1;
 
-  raw_ptr<Widget> widget_ = nullptr;
-  raw_ptr<Button> button_ = nullptr;
-  raw_ptr<Label> label_ = nullptr;
+  raw_ptr<Widget, AcrossTasksDanglingUntriaged> widget_ = nullptr;
+  raw_ptr<Button, AcrossTasksDanglingUntriaged> button_ = nullptr;
+  raw_ptr<Label, AcrossTasksDanglingUntriaged> label_ = nullptr;
   ScopedAXModeSetter ax_mode_setter_;
 };
 
@@ -240,7 +240,8 @@ class ViewAXPlatformNodeDelegateTableTest
 
  private:
   std::unique_ptr<TestTableModel> model_;
-  raw_ptr<TableView> table_ = nullptr;  // Owned by parent.
+  raw_ptr<TableView, AcrossTasksDanglingUntriaged> table_ =
+      nullptr;  // Owned by parent.
 };
 
 class ViewAXPlatformNodeDelegateMenuTest
@@ -297,9 +298,10 @@ class ViewAXPlatformNodeDelegateMenuTest
 
  private:
   // Owned by runner_.
-  raw_ptr<views::TestMenuItemView> menu_ = nullptr;
+  raw_ptr<views::TestMenuItemView, AcrossTasksDanglingUntriaged> menu_ =
+      nullptr;
 
-  raw_ptr<SubmenuView> submenu_ = nullptr;
+  raw_ptr<SubmenuView, AcrossTasksDanglingUntriaged> submenu_ = nullptr;
   std::unique_ptr<TestMenuDelegate> menu_delegate_;
   std::unique_ptr<MenuRunner> runner_;
   UniqueWidgetPtr owner_;
@@ -657,6 +659,25 @@ TEST_F(ViewAXPlatformNodeDelegateTest, TreeNavigation) {
   EXPECT_EQ(nullptr, child_view_4->GetNextSibling());
   EXPECT_EQ(child_view_3->GetNativeObject(),
             child_view_4->GetPreviousSibling());
+}
+
+TEST_F(ViewAXPlatformNodeDelegateTest, ComputeViewListItemName) {
+  View::Views extra_views = SetUpExtraViews();
+  ViewAXPlatformNodeDelegate* parent_view = view_accessibility(extra_views[0]);
+  ViewAXPlatformNodeDelegate* child_view_1 = view_accessibility(extra_views[1]);
+  ViewAXPlatformNodeDelegate* child_view_2 = view_accessibility(extra_views[2]);
+  ViewAXPlatformNodeDelegate* child_view_3 = view_accessibility(extra_views[3]);
+
+  parent_view->OverrideRole(ax::mojom::Role::kListItem);
+  child_view_1->OverrideRole(ax::mojom::Role::kStaticText);
+  child_view_2->OverrideRole(ax::mojom::Role::kLink);
+  child_view_3->OverrideRole(ax::mojom::Role::kStaticText);
+
+  child_view_1->OverrideName("1");
+  child_view_2->OverrideName("2");
+  child_view_3->OverrideName("3");
+
+  EXPECT_EQ(parent_view->ComputeListItemNameFromContent(), L"123");
 }
 
 TEST_F(ViewAXPlatformNodeDelegateTest, TreeNavigationWithLeafViews) {

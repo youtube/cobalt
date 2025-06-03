@@ -19,59 +19,54 @@ namespace rx
 namespace mtl
 {
 
-class LibraryCache
+class LibraryCache : angle::NonCopyable
 {
   public:
-    LibraryCache()  = default;
-    ~LibraryCache() = default;
+    LibraryCache();
 
-    AutoObjCPtr<id<MTLLibrary>> get(const std::string &source,
+    AutoObjCPtr<id<MTLLibrary>> get(const std::shared_ptr<const std::string> &source,
                                     const std::map<std::string, std::string> &macros,
-                                    bool enableFastMath);
+                                    bool disableFastMath,
+                                    bool usesInvariance);
     AutoObjCPtr<id<MTLLibrary>> getOrCompileShaderLibrary(
         ContextMtl *context,
-        const std::string &source,
+        const std::shared_ptr<const std::string> &source,
         const std::map<std::string, std::string> &macros,
-        bool enableFastMath,
+        bool disableFastMath,
+        bool usesInvariance,
         AutoObjCPtr<NSError *> *errorOut);
 
   private:
     struct LibraryKey
     {
-        std::string source;
-        std::map<std::string, std::string> macros;
-        bool enableFastMath;
-
-        using LValueTuple = decltype(std::tie(std::as_const(source),
-                                              std::as_const(macros),
-                                              std::as_const(enableFastMath)));
-
         LibraryKey() = default;
-        explicit LibraryKey(const LValueTuple &fromTuple);
+        LibraryKey(const std::shared_ptr<const std::string> &source,
+                   const std::map<std::string, std::string> &macros,
+                   bool disableFastMath,
+                   bool usesInvariance);
 
-        LValueTuple tie() const;
+        std::shared_ptr<const std::string> source;
+        std::map<std::string, std::string> macros;
+        bool disableFastMath;
+        bool usesInvariance;
+
+        bool operator==(const LibraryKey &other) const;
     };
 
-    struct LibraryKeyCompare
+    struct LibraryKeyHasher
     {
-        // Mark this comparator as transparent. This allows types that are not LibraryKey to be used
-        // as a key for unordered_map::find. We can avoid the construction of a LibraryKey (which
-        // copies std::strings) when searching the cache.
-        using is_transparent = void;
-
-        // Hash functions for keys and lvalue tuples of keys
-        size_t operator()(const LibraryKey::LValueTuple &k) const;
+        // Hash function
         size_t operator()(const LibraryKey &k) const;
 
-        // Comparison operators for all key/lvalue combinations need by a map
+        // Comparison
         bool operator()(const LibraryKey &a, const LibraryKey &b) const;
-        bool operator()(const LibraryKey &a, const LibraryKey::LValueTuple &b) const;
-        bool operator()(const LibraryKey::LValueTuple &a, const LibraryKey &b) const;
     };
 
-    struct LibraryCacheEntry
+    struct LibraryCacheEntry : angle::NonCopyable
     {
         LibraryCacheEntry() = default;
+        ~LibraryCacheEntry();
+        LibraryCacheEntry(LibraryCacheEntry &&moveFrom);
 
         // library can only go from the null -> not null state. It is safe to check if the library
         // already exists without locking.
@@ -82,13 +77,17 @@ class LibraryCache
         std::mutex lock;
     };
 
-    LibraryCacheEntry &getCacheEntry(const LibraryKey::LValueTuple &lValueKey);
+    LibraryCacheEntry &getCacheEntry(LibraryKey &&key);
+
+    static constexpr unsigned int kMaxCachedLibraries = 128;
+
+    // The cache tries to clean up this many states at once.
+    static constexpr unsigned int kGCLimit = 32;
 
     // Lock for searching and adding new entries to the cache
     std::mutex mCacheLock;
 
-    using CacheMap =
-        std::unordered_map<LibraryKey, LibraryCacheEntry, LibraryKeyCompare, LibraryKeyCompare>;
+    using CacheMap = angle::base::HashingMRUCache<LibraryKey, LibraryCacheEntry, LibraryKeyHasher>;
     CacheMap mCache;
 };
 

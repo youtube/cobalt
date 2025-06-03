@@ -331,13 +331,14 @@ ui::MenuModel* ExtensionActionViewController::GetContextMenu(
   if (!ExtensionIsValid())
     return nullptr;
 
-  extensions::ExtensionContextMenuModel::ButtonVisibility visibility =
-      extensions_container_->GetActionVisibility(GetId());
+  bool is_pinned =
+      ToolbarActionsModel::Get(browser_->profile())->IsActionPinned(GetId());
 
   // Reconstruct the menu every time because the menu's contents are dynamic.
   context_menu_model_ = std::make_unique<extensions::ExtensionContextMenuModel>(
-      extension(), browser_, visibility, this,
-      extensions_container_->CanShowActionsInToolbar(), context_menu_source);
+      extension(), browser_, is_pinned, this,
+      ToolbarActionsModel::CanShowActionsInToolbar(*browser_),
+      context_menu_source);
   return context_menu_model_.get();
 }
 
@@ -554,9 +555,9 @@ void ExtensionActionViewController::TriggerPopup(PopupShowAction show_action,
   extensions_container_->SetPopupOwner(this);
 
   extensions_container_->PopOutAction(
-      this, base::BindOnce(&ExtensionActionViewController::ShowPopup,
-                           weak_factory_.GetWeakPtr(), std::move(host), by_user,
-                           show_action, std::move(callback)));
+      GetId(), base::BindOnce(&ExtensionActionViewController::ShowPopup,
+                              weak_factory_.GetWeakPtr(), std::move(host),
+                              by_user, show_action, std::move(callback)));
 }
 
 void ExtensionActionViewController::ShowPopup(
@@ -588,8 +589,9 @@ void ExtensionActionViewController::OnPopupClosed() {
   popup_host_ = nullptr;
   has_opened_popup_ = false;
   extensions_container_->SetPopupOwner(nullptr);
-  if (extensions_container_->GetPoppedOutAction() == this)
+  if (extensions_container_->GetPoppedOutActionId() == GetId()) {
     extensions_container_->UndoPopOut();
+  }
   view_delegate_->OnPopupClosed();
 }
 

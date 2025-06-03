@@ -27,7 +27,6 @@
 #include "components/services/storage/public/mojom/quota_client.mojom.h"
 #include "components/services/storage/public/mojom/storage_policy_update.mojom.h"
 #include "content/browser/indexed_db/indexed_db_backing_store.h"
-#include "content/browser/indexed_db/indexed_db_dispatcher_host.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -64,7 +63,6 @@ class CONTENT_EXPORT IndexedDBContextImpl
       scoped_refptr<IndexedDBContextImpl>&& context);
 
   // If `base_data_path` is empty, nothing will be saved to disk.
-  // `task_runner` is optional, and only set during testing.
   // This is *not* called on the IDBTaskRunner, unlike most other functions.
   IndexedDBContextImpl(
       const base::FilePath& base_data_path,
@@ -84,13 +82,8 @@ class CONTENT_EXPORT IndexedDBContextImpl
 
   // mojom::IndexedDBControl implementation:
   void BindIndexedDB(
-      const blink::StorageKey& storage_key,
-      mojo::PendingAssociatedRemote<storage::mojom::IndexedDBClientStateChecker>
-          client_state_checker_remote,
-      mojo::PendingReceiver<blink::mojom::IDBFactory> receiver) override;
-  void BindIndexedDBForBucket(
       const storage::BucketLocator& bucket_locator,
-      mojo::PendingAssociatedRemote<storage::mojom::IndexedDBClientStateChecker>
+      mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
           client_state_checker_remote,
       mojo::PendingReceiver<blink::mojom::IDBFactory> receiver) override;
   void GetUsage(GetUsageCallback usage_callback) override;
@@ -162,15 +155,22 @@ class CONTENT_EXPORT IndexedDBContextImpl
 
   int64_t GetBucketDiskUsage(const storage::BucketLocator& bucket_locator);
 
-  // This getter is thread-safe.
-  base::SequencedTaskRunner* IDBTaskRunner() { return idb_task_runner_.get(); }
+  const scoped_refptr<base::SequencedTaskRunner>& IDBTaskRunner() const {
+    return idb_task_runner_;
+  }
+
+  const scoped_refptr<base::TaskRunner>& IOTaskRunner() const {
+    return io_task_runner_;
+  }
 
   // Methods called by IndexedDBFactory or IndexedDBDispatcherHost for
   // quota support.
   void FactoryOpened(const storage::BucketLocator& bucket_locator);
-  void ConnectionOpened(const storage::BucketLocator& bucket_locator);
-  void ConnectionClosed(const storage::BucketLocator& bucket_locator);
-  void TransactionComplete(const storage::BucketLocator& bucket_locator);
+  // Called when a transaction has completed for the given bucket. `flushed` is
+  // set to true if the transaction had strict durability (i.e. changes are
+  // flushed/synced to disk).
+  void WritingTransactionComplete(const storage::BucketLocator& bucket_locator,
+                                  bool flushed);
   void DatabaseDeleted(const storage::BucketLocator& bucket_locator);
 
   // Called when blob files have been cleaned (an aggregated delayed task).
@@ -191,7 +191,7 @@ class CONTENT_EXPORT IndexedDBContextImpl
   std::vector<base::FilePath> GetStoragePaths(
       const storage::BucketLocator& bucket_locator) const;
 
-  const base::FilePath GetDataPath(
+  base::FilePath GetDataPath(
       const storage::BucketLocator& bucket_locator) const;
   const base::FilePath GetFirstPartyDataPathForTesting() const;
 
@@ -222,6 +222,8 @@ class CONTENT_EXPORT IndexedDBContextImpl
 
  private:
   friend class base::RefCountedThreadSafe<IndexedDBContextImpl>;
+  friend class IndexedDBTest;
+  friend class IndexedDBFactoryTest;
 
   class IndexedDBGetUsageAndQuotaCallback;
 
@@ -237,7 +239,7 @@ class CONTENT_EXPORT IndexedDBContextImpl
 
   // mojom::IndexedDBControl internal implementation:
   void BindIndexedDBImpl(
-      mojo::PendingAssociatedRemote<storage::mojom::IndexedDBClientStateChecker>
+      mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
           client_state_checker_remote,
       mojo::PendingReceiver<blink::mojom::IDBFactory> receiver,
       storage::QuotaErrorOr<storage::BucketInfo> bucket_info);
@@ -263,14 +265,9 @@ class CONTENT_EXPORT IndexedDBContextImpl
   base::FilePath GetLevelDBPath(
       const storage::BucketLocator& bucket_locator) const;
 
-  int64_t ReadUsageFromDisk(const storage::BucketLocator& bucket_locator) const;
-  void EnsureDiskUsageCacheInitialized(
-      const storage::BucketLocator& bucket_locator);
-  // Compares the disk usage stored in `bucket_size_map_` with disk. If
-  // there is a difference, it updates `bucket_size_map_` and notifies the
-  // quota system.
-  void QueryDiskAndUpdateQuotaUsage(
-      const storage::BucketLocator& bucket_locator);
+  int64_t ReadUsageFromDisk(const storage::BucketLocator& bucket_locator,
+                            bool write_in_progress) const;
+  void NotifyOfBucketModification(const storage::BucketLocator& bucket_locator);
   base::Time GetBucketLastModified(
       const storage::BucketLocator& bucket_locator);
 
@@ -290,18 +287,18 @@ class CONTENT_EXPORT IndexedDBContextImpl
   // default buckets in first party contexts. Non-default buckets and default
   // buckets in third party contexts, when partitioning is enabled, are returned
   // by `FindIndexedDBFiles`.
-  const std::map<blink::StorageKey, base::FilePath> FindLegacyIndexedDBFiles();
+  std::map<blink::StorageKey, base::FilePath> FindLegacyIndexedDBFiles() const;
 
   // Reads IDB files from disk, looking in the directories where
   // third-party-context IDB files are stored.
-  const std::map<storage::BucketId, base::FilePath> FindIndexedDBFiles();
+  std::map<storage::BucketId, base::FilePath> FindIndexedDBFiles() const;
 
   void OnBucketInfoReady(
       GetAllBucketsDetailsCallback callback,
       std::vector<storage::QuotaErrorOr<storage::BucketInfo>> bucket_infos);
 
   const scoped_refptr<base::SequencedTaskRunner> idb_task_runner_;
-  IndexedDBDispatcherHost dispatcher_host_;
+  const scoped_refptr<base::TaskRunner> io_task_runner_;
 
   // Bound and accessed on the `idb_task_runner_`.
   mojo::Remote<storage::mojom::BlobStorageContext> blob_storage_context_;
@@ -317,7 +314,40 @@ class CONTENT_EXPORT IndexedDBContextImpl
   bool force_keep_session_state_;
   const scoped_refptr<storage::QuotaManagerProxy> quota_manager_proxy_;
   std::set<storage::BucketLocator> bucket_set_;
+
+  // This map is a cache of the size used by a given bucket. It's calculated by
+  // summing the system-reported sizes of all blob and LevelDB files. This cache
+  // is cleared after transactions that can change the size of the database
+  // (i.e. those that are not readonly), and re-populated lazily. There are
+  // three possible states for each bucket in this map:
+  //
+  // 1) Not present. This indicates that the `ReadUsageFromDisk()` should be
+  //    called to calculate usage (and be stored in the map).
+  // 2) Present, with a non-negative value. This indicates that the cache is, as
+  //    far as we know, valid and up to date for the given bucket. This state
+  //    persists until the next writing transaction occurs.
+  // 3) Present, with a negative value. This indicates that the usage is not
+  //    cached AND the last readwrite transaction did NOT flush changes to disk
+  //    (i.e. durability was 'relaxed').
+  //
+  // On POSIX, the first and third states are treated equivalently. However, on
+  // Windows, `base::FileEnumerator` (and therefore
+  // `base::ComputeDirectorySize()`) will not report up-to-date sizes when a
+  // file is currently being written. When transactions are not set to
+  // "flush"/"sync" (terminology varies based on context), LevelDB will keep
+  // open its file handles. Therefore, on Windows, `ReadUsageFromDisk()` may
+  // not take into account recent writes, leading to situations where
+  // `navigator.storage.estimate()` will not report updates when interleaved
+  // with relaxed durability IDB transactions. The workaround for this is to
+  // open and close new file handles for all the files in the LevelDB data
+  // directory before calculating usage, as this updates the file system
+  // directory entry's metadata. See crbug.com/1489517 and
+  // https://devblogs.microsoft.com/oldnewthing/20111226-00/?p=8813
+  //
+  // TODO(crbug.com/1493696): use an abstract model for quota instead of real
+  // world bytes.
   std::map<storage::BucketLocator, int64_t> bucket_size_map_;
+
   // The set of sites whose storage should be cleared on shutdown. These are
   // matched against the origin and top level site in each bucket's StorageKey.
   std::set<url::Origin> origins_to_purge_on_shutdown_;
@@ -333,7 +363,6 @@ class CONTENT_EXPORT IndexedDBContextImpl
       mock_failure_injector_;
   mojo::RemoteSet<storage::mojom::IndexedDBObserver> observers_;
   mojo::Receiver<storage::mojom::QuotaClient> quota_client_receiver_;
-  const std::unique_ptr<storage::FilesystemProxy> filesystem_proxy_;
 
   // weak_factory_->GetWeakPtr() may be used on any thread, but the resulting
   // pointer must only be checked/used on idb_task_runner_.

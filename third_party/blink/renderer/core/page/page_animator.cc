@@ -8,6 +8,7 @@
 #include "base/time/time.h"
 #include "cc/animation/animation_host.h"
 #include "third_party/blink/renderer/core/animation/document_animations.h"
+#include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/css/css_value.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
@@ -22,6 +23,8 @@
 #include "third_party/blink/renderer/core/page/validation_message_client.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/svg/svg_document_extensions.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 
@@ -97,14 +100,15 @@ void PageAnimator::ServiceScriptedAnimations(
         controller->GetExecutionContext()->IsContextFrozenOrPaused()) {
       continue;
     }
-    auto* loader = controller->GetWindow()->document()->Loader();
+
+    LocalDOMWindow* window = controller->GetWindow();
+    auto* loader = window->document()->Loader();
     if (!loader) {
       continue;
     }
+
     controller->SetCurrentFrameTimeMs(
-        loader->GetTiming()
-            .MonotonicTimeToZeroBasedDocumentTime(monotonic_time_now)
-            .InMillisecondsF());
+        window->document()->Timeline().CurrentTimeMilliseconds().value());
     controller->SetCurrentFrameLegacyTimeMs(
         loader->GetTiming()
             .MonotonicTimeToPseudoWallTime(monotonic_time_now)
@@ -139,12 +143,27 @@ void PageAnimator::ServiceScriptedAnimations(
         }
       };
 
-  // https://gpuweb.github.io/gpuweb/#abstract-opdef-expire-stale-external-textures
-  run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
-    active_controllers[i]->WebGPUCheckStateToExpireVideoFrame();
-  });
-
   // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
+
+  // TODO(bokan): Requires an update to "update the rendering" steps in HTML.
+  run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
+    if (RuntimeEnabledFeatures::PageRevealEventEnabled()) {
+      active_controllers[i]->DispatchEvents([](const Event* event) {
+        return event->type() == event_type_names::kPagereveal;
+      });
+    }
+
+    if (RuntimeEnabledFeatures::ViewTransitionOnNavigationEnabled()) {
+      CHECK(RuntimeEnabledFeatures::PageRevealEventEnabled());
+      if (const LocalDOMWindow* window = active_controllers[i]->GetWindow()) {
+        CHECK(window->document());
+        if (ViewTransition* transition =
+                ViewTransitionUtils::GetTransition(*window->document())) {
+          transition->ActivateFromSnapshot();
+        }
+      }
+    }
+  });
 
   // 6. For each fully active Document in docs, flush autofocus
   // candidates for that Document if its browsing context is a top-level

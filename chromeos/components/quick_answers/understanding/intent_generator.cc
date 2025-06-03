@@ -4,7 +4,6 @@
 
 #include "chromeos/components/quick_answers/understanding/intent_generator.h"
 
-#include <cctype>
 #include <map>
 
 #include "base/i18n/break_iterator.h"
@@ -22,6 +21,7 @@
 #include "chromeos/services/machine_learning/public/cpp/service_connection.h"
 #include "chromeos/services/machine_learning/public/mojom/machine_learning_service.mojom.h"
 #include "components/translate/core/browser/translate_download_manager.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace quick_answers {
@@ -36,6 +36,7 @@ using ::chromeos::machine_learning::mojom::TextClassifier;
 // TODO(llin): Finalize on the threshold based on user feedback.
 constexpr int kUnitConversionIntentAndSelectionLengthDiffThreshold = 5;
 constexpr int kTranslationTextLengthThreshold = 100;
+constexpr int kRichAnswersTranslationTextLengthThreshold = 250;
 constexpr int kDefinitionIntentAndSelectionLengthDiffThreshold = 2;
 
 // TODO(b/169370175): Remove the temporary invalid set after we ramp up to v2
@@ -149,9 +150,10 @@ bool AreTranslationLanguagesSupported(const std::string& source_language,
 }
 
 bool HasDigits(const std::string& word) {
-  for (const auto& character : word) {
-    if (std::isdigit(character))
+  for (char c : word) {
+    if (absl::ascii_isdigit(static_cast<unsigned char>(c))) {
       return true;
+    }
   }
   return false;
 }
@@ -331,11 +333,15 @@ void IntentGenerator::MaybeGenerateTranslationIntent(
     return;
   }
 
+  size_t translation_text_length_threshold =
+      chromeos::features::IsQuickAnswersRichCardEnabled()
+          ? kRichAnswersTranslationTextLengthThreshold
+          : kTranslationTextLengthThreshold;
   // Don't generate translation intent if no device language is provided or the
   // length of selected text is above the threshold. Returns unknown intent
   // type.
   if (QuickAnswersState::Get()->application_locale().empty() ||
-      request.selected_text.length() > kTranslationTextLengthThreshold) {
+      request.selected_text.length() > translation_text_length_threshold) {
     std::move(complete_callback_)
         .Run(IntentInfo(request.selected_text, IntentType::kUnknown));
     return;

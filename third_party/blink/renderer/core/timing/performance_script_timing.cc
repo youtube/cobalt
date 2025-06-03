@@ -29,9 +29,9 @@ AtomicString GetScriptName(ScriptTimingInfo* info,
 
   switch (info->GetType()) {
     case ScriptTimingInfo::Type::kClassicScript:
-    case ScriptTimingInfo::Type::kModuleScript:
-    case ScriptTimingInfo::Type::kExecuteScript:
+    case ScriptTimingInfo::Type::kModuleScript: {
       return AtomicString(url);
+    }
     case ScriptTimingInfo::Type::kEventHandler:
     case ScriptTimingInfo::Type::kUserCallback: {
       WTF::StringBuilder builder;
@@ -48,9 +48,10 @@ AtomicString GetScriptName(ScriptTimingInfo* info,
     case ScriptTimingInfo::Type::kPromiseReject: {
       WTF::StringBuilder builder;
       if (info->ClassLikeName().empty() && info->PropertyLikeName().empty()) {
-        return info->GetType() == ScriptTimingInfo::Type::kPromiseResolve
-                   ? "Promise.resolve"
-                   : "Promise.reject";
+        return AtomicString(info->GetType() ==
+                                    ScriptTimingInfo::Type::kPromiseResolve
+                                ? "Promise.resolve"
+                                : "Promise.reject");
       }
 
       if (!info->ClassLikeName().empty()) {
@@ -82,22 +83,23 @@ PerformanceScriptTiming::PerformanceScriptTiming(
   info_ = info;
   time_origin_ = time_origin;
   cross_origin_isolated_capability_ = cross_origin_isolated_capability;
-  DCHECK(info_->Window() && source);
-  if (info_->Window() == source) {
-    window_attribution_ = "self";
+  if (!info_->Window() || !source) {
+    window_attribution_ = AtomicString("other");
+  } else if (info_->Window() == source) {
+    window_attribution_ = AtomicString("self");
   } else if (!info_->Window()->GetFrame()) {
-    window_attribution_ = "other";
+    window_attribution_ = AtomicString("other");
   } else if (info_->Window()->GetFrame()->Tree().IsDescendantOf(
                  source->GetFrame())) {
-    window_attribution_ = "descendant";
+    window_attribution_ = AtomicString("descendant");
   } else if (source->GetFrame()->Tree().IsDescendantOf(
                  info_->Window()->GetFrame())) {
-    window_attribution_ = "ancestor";
+    window_attribution_ = AtomicString("ancestor");
   } else if (source->GetFrame()->Tree().Top() ==
              info_->Window()->GetFrame()->Top()) {
-    window_attribution_ = "same-page";
+    window_attribution_ = AtomicString("same-page");
   } else {
-    window_attribution_ = "other";
+    window_attribution_ = AtomicString("other");
   }
 }
 
@@ -138,22 +140,21 @@ LocalDOMWindow* PerformanceScriptTiming::window() const {
 const AtomicString& PerformanceScriptTiming::windowAttribution() const {
   return window_attribution_;
 }
+
 AtomicString PerformanceScriptTiming::type() const {
   switch (info_->GetType()) {
     case ScriptTimingInfo::Type::kClassicScript:
-      return "classic-script";
+      return AtomicString("classic-script");
     case ScriptTimingInfo::Type::kModuleScript:
-      return "module-script";
-    case ScriptTimingInfo::Type::kExecuteScript:
-      return "execute-script";
+      return AtomicString("module-script");
     case ScriptTimingInfo::Type::kEventHandler:
-      return "event-listener";
+      return AtomicString("event-listener");
     case ScriptTimingInfo::Type::kUserCallback:
-      return "user-callback";
+      return AtomicString("user-callback");
     case ScriptTimingInfo::Type::kPromiseResolve:
-      return "resolve-promise";
+      return AtomicString("resolve-promise");
     case ScriptTimingInfo::Type::kPromiseReject:
-      return "reject-promise";
+      return AtomicString("reject-promise");
   }
 }
 
@@ -171,10 +172,11 @@ WTF::String PerformanceScriptTiming::sourceLocation() const {
   }
 
   builder.Append(source_location.url);
-  builder.Append(":");
-  builder.AppendNumber(source_location.line_number);
-  builder.Append(":");
-  builder.AppendNumber(source_location.column_number);
+  if (source_location.start_position >= 0) {
+    builder.Append(":");
+    builder.AppendNumber(source_location.start_position);
+  }
+
   return builder.ToString();
 }
 

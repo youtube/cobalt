@@ -23,7 +23,6 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_request.h"
-#include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/quic/quic_stream_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
@@ -32,7 +31,6 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_session_key.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/ssl/ssl_config_service.h"
 #include "url/scheme_host_port.h"
 
 namespace net {
@@ -60,6 +58,10 @@ class HttpStreamFactory::Job
   // applied to avoid unnecessary socket connection establishments.
   // https://crbug.com/718576
   static const int kHTTP2ThrottleMs = 300;
+
+  // Returns true when QUIC is forcibly used for `destination`.
+  static bool OriginToForceQuicOn(const QuicParams& quic_params,
+                                  const url::SchemeHostPort& destination);
 
   // Delegate to report Job's status to HttpStreamRequest and HttpStreamFactory.
   class NET_EXPORT_PRIVATE Delegate {
@@ -340,6 +342,7 @@ class HttpStreamFactory::Job
                               bool is_websocket);
 
   // Called in Job constructor. Use |spdy_session_key_| after construction.
+  // TODO(crbug.com/1491092): Update to take a proxy_chain.
   static SpdySessionKey GetSpdySessionKey(
       const ProxyServer& proxy_server,
       const GURL& origin_url,
@@ -464,12 +467,6 @@ class HttpStreamFactory::Job
 
   // Initialized when we have an existing SpdySession.
   base::WeakPtr<SpdySession> existing_spdy_session_;
-
-  // Once Job claims a pushed stream on a SpdySession, |pushed_stream_id_| is
-  // the ID of the claimed stream, and |existing_spdy_session_| points to that
-  // SpdySession.  Otherwise |pushed_stream_id_| is set to kNoPushedStreamFound
-  // (but |existing_spdy_session_| can still be non-null).
-  spdy::SpdyStreamId pushed_stream_id_;
 
   // Which SpdySessions in the pool to use. Note that, if requesting an HTTP URL
   // through an HTTPS proxy, this key matches the proxy, not the origin server.

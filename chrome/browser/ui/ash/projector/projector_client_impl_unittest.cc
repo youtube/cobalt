@@ -59,13 +59,25 @@ class MockSodaInstaller : public speech::SodaInstaller {
   MockSodaInstaller& operator=(const MockSodaInstaller&) = delete;
   ~MockSodaInstaller() override = default;
 
-  MOCK_CONST_METHOD0(GetSodaBinaryPath, base::FilePath());
-  MOCK_CONST_METHOD1(GetLanguagePath, base::FilePath(const std::string&));
-  MOCK_METHOD2(InstallLanguage, void(const std::string&, PrefService*));
-  MOCK_METHOD2(UninstallLanguage, void(const std::string&, PrefService*));
-  MOCK_CONST_METHOD0(GetAvailableLanguages, std::vector<std::string>());
-  MOCK_METHOD1(InstallSoda, void(PrefService*));
-  MOCK_METHOD1(UninstallSoda, void(PrefService*));
+  MOCK_METHOD(base::FilePath, GetSodaBinaryPath, (), (const, override));
+  MOCK_METHOD(base::FilePath,
+              GetLanguagePath,
+              (const std::string&),
+              (const, override));
+  MOCK_METHOD(void,
+              InstallLanguage,
+              (const std::string&, PrefService*),
+              (override));
+  MOCK_METHOD(void,
+              UninstallLanguage,
+              (const std::string&, PrefService*),
+              (override));
+  MOCK_METHOD(std::vector<std::string>,
+              GetAvailableLanguages,
+              (),
+              (const, override));
+  MOCK_METHOD(void, InstallSoda, (PrefService*), (override));
+  MOCK_METHOD(void, UninstallSoda, (PrefService*), (override));
 };
 
 class MockLocaleUpdateController : public ash::LocaleUpdateController {
@@ -76,14 +88,16 @@ class MockLocaleUpdateController : public ash::LocaleUpdateController {
       delete;
   ~MockLocaleUpdateController() override = default;
 
-  MOCK_METHOD0(OnLocaleChanged, void());
-  MOCK_METHOD4(ConfirmLocaleChange,
-               void(const std::string&,
-                    const std::string&,
-                    const std::string&,
-                    LocaleChangeConfirmationCallback));
-  MOCK_METHOD1(AddObserver, void(ash::LocaleChangeObserver*));
-  MOCK_METHOD1(RemoveObserver, void(ash::LocaleChangeObserver*));
+  MOCK_METHOD(void, OnLocaleChanged, (), (override));
+  MOCK_METHOD(void,
+              ConfirmLocaleChange,
+              (const std::string&,
+               const std::string&,
+               const std::string&,
+               LocaleChangeConfirmationCallback),
+              (override));
+  MOCK_METHOD(void, AddObserver, (ash::LocaleChangeObserver*), (override));
+  MOCK_METHOD(void, RemoveObserver, (ash::LocaleChangeObserver*), (override));
 };
 
 struct ProjectorClientTestScenario {
@@ -199,7 +213,8 @@ class ProjectorClientImplUnitTest
   base::HistogramTester histogram_tester_;
 
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<Profile, ExperimentalAsh> testing_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> testing_profile_ =
+      nullptr;
 
   TestingProfileManager testing_profile_manager_{
       TestingBrowserProcess::GetGlobal()};
@@ -236,13 +251,11 @@ TEST_P(ProjectorClientImplUnitTest, SpeechRecognitionResults) {
 
 namespace {
 
-const char kArabic[] = "ar";
 const char kFrench[] = "fr";
-const char kChinese[] = "zh-TW";
 const char kUnsupportedLanguage[] = "am";
 const char kSpanishLatam[] = "es-419";
-const char kSpanishMexican[] = "es-mx";
-const char kEnglishNewZealand[] = "en-nz";
+const char kSpanishMexican[] = "es-MX";
+const char kEnglishNewZealand[] = "en-NZ";
 
 bool IsEqualAvailability(const SpeechRecognitionAvailability& first,
                          const SpeechRecognitionAvailability& second) {
@@ -270,14 +283,6 @@ TEST_P(ProjectorClientImplUnitTest, SpeechRecognitionAvailability) {
   availability.server_based_availability =
       ash::ServerBasedRecognitionAvailability::kAvailable;
   if (server_based_available) {
-    EXPECT_TRUE(IsEqualAvailability(
-        projector_client_->GetSpeechRecognitionAvailability(), availability));
-
-    SetLocale(kArabic);
-    EXPECT_TRUE(IsEqualAvailability(
-        projector_client_->GetSpeechRecognitionAvailability(), availability));
-
-    SetLocale(kChinese);
     EXPECT_TRUE(IsEqualAvailability(
         projector_client_->GetSpeechRecognitionAvailability(), availability));
 
@@ -397,16 +402,13 @@ INSTANTIATE_TEST_SUITE_P(
     ProjectorClientTestScenarios,
     ProjectorClientImplUnitTest,
     ::testing::Values(
-        ProjectorClientTestScenario({features::kProjector,
-                                     features::kOnDeviceSpeechRecognition},
-                                    {}),
+        ProjectorClientTestScenario({features::kOnDeviceSpeechRecognition}, {}),
         ProjectorClientTestScenario(
-            {features::kProjector, features::kOnDeviceSpeechRecognition,
+            {features::kOnDeviceSpeechRecognition,
              features::kForceEnableServerSideSpeechRecognitionForDev},
             {}),
         ProjectorClientTestScenario(
-            {features::kProjector,
-             features::kInternalServerSideSpeechRecognition,
+            {features::kInternalServerSideSpeechRecognition,
              features::kOnDeviceSpeechRecognition},
             {features::kForceEnableServerSideSpeechRecognitionForDev})));
 

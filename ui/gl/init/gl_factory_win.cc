@@ -53,6 +53,8 @@ scoped_refptr<GLContext> CreateGLContext(GLShareGroup* share_group,
       stub_context->SetUseStubApi(true);
       return stub_context;
     }
+    case kGLImplementationDisabled:
+      return nullptr;
     default:
       NOTREACHED();
       return nullptr;
@@ -71,7 +73,7 @@ scoped_refptr<GLSurface> CreateViewGLSurface(GLDisplay* display,
     }
     case kGLImplementationMockGL:
     case kGLImplementationStubGL:
-      return new GLSurfaceStub;
+      return InitializeGLSurface(new GLSurfaceStub());
     default:
       NOTREACHED();
       return nullptr;
@@ -97,7 +99,7 @@ scoped_refptr<GLSurface> CreateOffscreenGLSurfaceWithFormat(
     }
     case kGLImplementationMockGL:
     case kGLImplementationStubGL:
-      return new GLSurfaceStub;
+      return InitializeGLSurface(new GLSurfaceStub());
     default:
       NOTREACHED();
       return nullptr;

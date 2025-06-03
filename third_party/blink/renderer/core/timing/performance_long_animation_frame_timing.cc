@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/timing/performance_long_animation_frame_timing.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -22,25 +24,13 @@ PerformanceLongAnimationFrameTiming::PerformanceLongAnimationFrameTiming(
     DOMWindow* source)
     : PerformanceEntry(
           info->Duration().InMilliseconds(),
-          "long-animation-frame",
+          AtomicString("long-animation-frame"),
           DOMWindowPerformance::performance(*source->ToLocalDOMWindow())
               ->MonotonicTimeToDOMHighResTimeStamp(info->FrameStartTime()),
           source) {
   info_ = info;
   time_origin_ = time_origin;
   cross_origin_isolated_capability_ = cross_origin_isolated_capability;
-  DCHECK(source->ToLocalDOMWindow());
-  const SecurityOrigin* security_origin =
-      source->ToLocalDOMWindow()->GetSecurityOrigin();
-  DCHECK(security_origin);
-
-  for (ScriptTimingInfo* script : info->Scripts()) {
-    if (script->Window() &&
-        security_origin->CanAccess(script->Window()->GetSecurityOrigin())) {
-      scripts_.push_back(MakeGarbageCollected<PerformanceScriptTiming>(
-          script, time_origin, cross_origin_isolated_capability, source));
-    }
-  }
 }
 
 PerformanceLongAnimationFrameTiming::~PerformanceLongAnimationFrameTiming() =
@@ -83,6 +73,25 @@ PerformanceEntryType PerformanceLongAnimationFrameTiming::EntryTypeEnum()
 
 const PerformanceScriptVector& PerformanceLongAnimationFrameTiming::scripts()
     const {
+  if (!scripts_.empty() || info_->Scripts().empty()) {
+    return scripts_;
+  }
+
+  if (!source()) {
+    return scripts_;
+  }
+
+  CHECK(source()->ToLocalDOMWindow());
+  const SecurityOrigin* security_origin =
+      source()->ToLocalDOMWindow()->GetSecurityOrigin();
+  CHECK(security_origin);
+
+  for (ScriptTimingInfo* script : info_->Scripts()) {
+    if (security_origin->CanAccess(script->GetSecurityOrigin())) {
+      scripts_.push_back(MakeGarbageCollected<PerformanceScriptTiming>(
+          script, time_origin_, cross_origin_isolated_capability_, source()));
+    }
+  }
   return scripts_;
 }
 
@@ -99,9 +108,9 @@ void PerformanceLongAnimationFrameTiming::BuildJSONValue(
   builder.AddNumber("desiredRenderStart", desiredRenderStart());
   builder.AddNumber("firstUIEventTimestamp", firstUIEventTimestamp());
   builder.AddNumber("blockingDuration", blockingDuration());
-  ScriptState* script_state = builder.GetScriptState();
-  builder.Add("scripts", FreezeV8Object(ToV8(scripts_, script_state),
-                                        script_state->GetIsolate()));
+  builder.Add("scripts", ToV8Traits<IDLArray<PerformanceScriptTiming>>::ToV8(
+                             builder.GetScriptState(), scripts())
+                             .ToLocalChecked());
 }
 
 void PerformanceLongAnimationFrameTiming::Trace(Visitor* visitor) const {

@@ -22,9 +22,9 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/buildflags.h"
-#include "ui/views/controls/button/label_button.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/style/platform_style.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/views_features.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -44,9 +44,6 @@ bool HasCallback(
 
 }  // namespace
 
-// Debug information for https://crbug.com/1215247.
-int g_instance_count = 0;
-
 ////////////////////////////////////////////////////////////////////////////////
 // DialogDelegate::Params:
 DialogDelegate::Params::Params() = default;
@@ -56,8 +53,6 @@ DialogDelegate::Params::~Params() = default;
 // DialogDelegate:
 
 DialogDelegate::DialogDelegate() {
-  ++g_instance_count;
-
   WidgetDelegate::RegisterWindowWillCloseCallback(
       base::BindOnce(&DialogDelegate::WindowWillClose, base::Unretained(this)));
 }
@@ -152,8 +147,31 @@ std::u16string DialogDelegate::GetDialogButtonLabel(
              : l10n_util::GetStringUTF16(IDS_APP_CLOSE);
 }
 
+ui::ButtonStyle DialogDelegate::GetDialogButtonStyle(
+    ui::DialogButton button) const {
+  absl::optional<ui::ButtonStyle> style = GetParams().button_styles[button];
+  if (style.has_value()) {
+    return *style;
+  }
+
+  return GetIsDefault(button) ? ui::ButtonStyle::kProminent
+                              : ui::ButtonStyle::kDefault;
+}
+
+bool DialogDelegate::GetIsDefault(ui::DialogButton button) const {
+  return GetDefaultDialogButton() == button &&
+         (button != ui::DIALOG_BUTTON_CANCEL ||
+          PlatformStyle::kDialogDefaultButtonCanBeCancel);
+}
+
 bool DialogDelegate::IsDialogButtonEnabled(ui::DialogButton button) const {
   return params_.enabled_buttons & button;
+}
+
+bool DialogDelegate::ShouldIgnoreButtonPressedEventHandling(
+    View* button,
+    const ui::Event& event) const {
+  return false;
 }
 
 bool DialogDelegate::Cancel() {
@@ -280,10 +298,7 @@ std::unique_ptr<NonClientFrameView> DialogDelegate::CreateDialogFrameView(
 const DialogClientView* DialogDelegate::GetDialogClientView() const {
   if (!GetWidget())
     return nullptr;
-  const views::View* client_view = GetWidget()->client_view();
-  return client_view->GetClassName() == DialogClientView::kViewClassName
-             ? static_cast<const DialogClientView*>(client_view)
-             : nullptr;
+  return AsViewClass<DialogClientView>(GetWidget()->client_view());
 }
 
 DialogClientView* DialogDelegate::GetDialogClientView() {
@@ -300,13 +315,13 @@ BubbleFrameView* DialogDelegate::GetBubbleFrameView() const {
   return view ? static_cast<BubbleFrameView*>(view->frame_view()) : nullptr;
 }
 
-views::LabelButton* DialogDelegate::GetOkButton() const {
+views::MdTextButton* DialogDelegate::GetOkButton() const {
   DCHECK(GetWidget()) << "Don't call this before OnWidgetInitialized";
   auto* client = GetDialogClientView();
   return client ? client->ok_button() : nullptr;
 }
 
-views::LabelButton* DialogDelegate::GetCancelButton() const {
+views::MdTextButton* DialogDelegate::GetCancelButton() const {
   DCHECK(GetWidget()) << "Don't call this before OnWidgetInitialized";
   auto* client = GetDialogClientView();
   return client ? client->cancel_button() : nullptr;
@@ -329,7 +344,7 @@ views::View* DialogDelegate::GetFootnoteViewForTesting() const {
   // it to create anything other than a BubbleFrameView.
   // TODO(https://crbug.com/1011446): Make CreateDialogFrameView final, then
   // remove this DCHECK.
-  DCHECK_EQ(frame->GetClassName(), BubbleFrameView::kViewClassName);
+  DCHECK(IsViewClass<BubbleFrameView>(frame));
   return static_cast<BubbleFrameView*>(frame)->GetFootnoteView();
 }
 
@@ -346,8 +361,8 @@ void DialogDelegate::DialogModelChanged() {
     observer.OnDialogChanged();
 }
 
-void DialogDelegate::TriggerInputProtection() {
-  GetDialogClientView()->TriggerInputProtection();
+void DialogDelegate::TriggerInputProtection(bool force_early) {
+  GetDialogClientView()->TriggerInputProtection(force_early);
 }
 
 void DialogDelegate::SetDefaultButton(int button) {
@@ -379,6 +394,15 @@ void DialogDelegate::SetButtonLabel(ui::DialogButton button,
   if (params_.button_labels[button] == label)
     return;
   params_.button_labels[button] = label;
+  DialogModelChanged();
+}
+
+void DialogDelegate::SetButtonStyle(ui::DialogButton button,
+                                    absl::optional<ui::ButtonStyle> style) {
+  if (params_.button_styles[button] == style) {
+    return;
+  }
+  params_.button_styles[button] = style;
   DialogModelChanged();
 }
 
@@ -429,15 +453,6 @@ void DialogDelegate::AcceptDialog() {
   if (already_started_close_ || !Accept())
     return;
 
-  // Check for Accept() deleting `this` but returning false. Empirically the
-  // steady state instance count with no dialogs open is zero, so if it's back
-  // to zero `this` is deleted https://crbug.com/1215247
-  if (g_instance_count <= 0) {
-    // LOG(FATAL) instead of CHECK() to put the widget name into a crash key.
-    // See "Product Data" in the crash tool if a crash report shows this line.
-    LOG(FATAL) << last_widget_name;
-  }
-
   already_started_close_ = true;
   GetWidget()->CloseWithReason(
       views::Widget::ClosedReason::kAcceptButtonClicked);
@@ -458,9 +473,7 @@ void DialogDelegate::CancelDialog() {
       views::Widget::ClosedReason::kCancelButtonClicked);
 }
 
-DialogDelegate::~DialogDelegate() {
-  --g_instance_count;
-}
+DialogDelegate::~DialogDelegate() = default;
 
 ax::mojom::Role DialogDelegate::GetAccessibleWindowRole() {
   return ax::mojom::Role::kDialog;

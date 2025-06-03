@@ -10,6 +10,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
@@ -942,9 +943,11 @@ const Operator* JSOperatorBuilder::CallRuntime(
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
-    const wasm::FunctionSig* wasm_signature, int function_index,
-    wasm::NativeModule* native_module, FeedbackSource const& feedback) {
-  JSWasmCallParameters parameters(wasm_module, wasm_signature, function_index,
+    const wasm::FunctionSig* wasm_signature, int wasm_function_index,
+    SharedFunctionInfoRef shared_fct_info, wasm::NativeModule* native_module,
+    FeedbackSource const& feedback) {
+  JSWasmCallParameters parameters(wasm_module, wasm_signature,
+                                  wasm_function_index, shared_fct_info,
                                   native_module, feedback);
   return zone()->New<Operator1<JSWasmCallParameters>>(
       IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
@@ -1399,9 +1402,20 @@ const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,
 }
 
 const Operator* JSOperatorBuilder::StackCheck(StackCheckKind kind) {
+  Operator::Properties properties;
+  switch (kind) {
+    case StackCheckKind::kJSFunctionEntry:
+    case StackCheckKind::kCodeStubAssembler:
+    case StackCheckKind::kWasm:
+      properties = Operator::kNoProperties;
+      break;
+    case StackCheckKind::kJSIterationBody:
+      properties = Operator::kNoWrite;
+      break;
+  }
   return zone()->New<Operator1<StackCheckKind>>(  // --
       IrOpcode::kJSStackCheck,                    // opcode
-      Operator::kNoProperties,                    // properties
+      properties,                                 // properties
       "JSStackCheck",                             // name
       0, 1, 1, 0, 1, 2,                           // counts
       kind);                                      // parameter

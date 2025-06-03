@@ -10,13 +10,14 @@ import android.os.StrictMode;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.library_loader.LoaderErrors;
@@ -168,7 +169,6 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
         return sInstance;
     }
 
-    @VisibleForTesting
     public static void overrideInstanceForTest(BrowserStartupController controller) {
         sInstance = (BrowserStartupControllerImpl) controller;
     }
@@ -349,14 +349,12 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
     /**
      * Asserts that library process type is one of the supported types.
      * @param libraryProcessType the type of process the shared library is loaded. It must be
-     *                           LibraryProcessType.PROCESS_BROWSER,
-     *                           LibraryProcessType.PROCESS_WEBVIEW or
-     *                           LibraryProcessType.PROCESS_WEBLAYER.
+     *                           LibraryProcessType.PROCESS_BROWSER or
+     *                           LibraryProcessType.PROCESS_WEBVIEW.
      */
     private void assertProcessTypeSupported(@LibraryProcessType int libraryProcessType) {
         assert LibraryProcessType.PROCESS_BROWSER == libraryProcessType
-                || LibraryProcessType.PROCESS_WEBVIEW == libraryProcessType
-                || LibraryProcessType.PROCESS_WEBLAYER == libraryProcessType;
+                || LibraryProcessType.PROCESS_WEBVIEW == libraryProcessType;
         LibraryLoader.getInstance().assertCompatibleProcessType(libraryProcessType);
     }
 

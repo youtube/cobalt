@@ -10,7 +10,6 @@
 #include <string>
 
 #include "ash/system/firmware_update/firmware_update_notification_controller.h"
-#include "ash/webui/firmware_update_ui/mojom/firmware_update.mojom-test-utils.h"
 #include "ash/webui/firmware_update_ui/mojom/firmware_update.mojom.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -20,6 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "chromeos/ash/components/dbus/fwupd/fwupd_client.h"
 #include "chromeos/ash/components/fwupd/fake_fwupd_download_client.h"
 #include "chromeos/ash/components/fwupd/histogram_util.h"
@@ -72,6 +72,8 @@ const char kFirmwareUpdateNotificationId[] =
     "cros_firmware_update_notification_id";
 const char kFlagsKey[] = "Flags";
 const uint64_t kFakeFlagForTesting = 1;
+const char kTrustFlagsKey[] = "TrustFlags";
+const uint64_t kFakeReportFlagForTesting = 1llu << 8;
 
 void RunResponseCallback(dbus::ObjectProxy::ResponseOrErrorCallback callback,
                          std::unique_ptr<dbus::Response> response) {
@@ -291,6 +293,11 @@ class FirmwareUpdateManagerTest : public testing::Test {
     device_array_writer.OpenDictEntry(&dict_writer);
     dict_writer.AppendString(kFlagsKey);
     dict_writer.AppendVariantOfUint64(kFakeFlagForTesting);
+    device_array_writer.CloseContainer(&dict_writer);
+
+    device_array_writer.OpenDictEntry(&dict_writer);
+    dict_writer.AppendString(kTrustFlagsKey);
+    dict_writer.AppendVariantOfUint64(kFakeReportFlagForTesting);
     device_array_writer.CloseContainer(&dict_writer);
 
     response_array_writer.CloseContainer(&device_array_writer);
@@ -520,11 +527,12 @@ class FirmwareUpdateManagerTest : public testing::Test {
   }
 
   bool PrepareForUpdate(const std::string& device_id) {
-    mojo::PendingRemote<ash::firmware_update::mojom::InstallController>
-        pending_remote;
-    ash::firmware_update::mojom::UpdateProviderAsyncWaiter(
-        update_provider_remote_.get())
-        .PrepareForUpdate(device_id, &pending_remote);
+    base::test::TestFuture<
+        mojo::PendingRemote<ash::firmware_update::mojom::InstallController>>
+        pending_remote_future;
+    update_provider_remote_->PrepareForUpdate(
+        device_id, pending_remote_future.GetCallback());
+    auto pending_remote = pending_remote_future.Take();
     if (!pending_remote.is_valid())
       return false;
 
@@ -548,7 +556,8 @@ class FirmwareUpdateManagerTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
 
   // `FwupdClient` must be be before `FirmwareUpdateManager`.
-  raw_ptr<FwupdClient, ExperimentalAsh> dbus_client_ = nullptr;
+  raw_ptr<FwupdClient, DanglingUntriaged | ExperimentalAsh> dbus_client_ =
+      nullptr;
   std::unique_ptr<FakeFwupdDownloadClient> fake_fwupd_download_client_;
   std::unique_ptr<FirmwareUpdateManager> firmware_update_manager_;
   // `FirmwareUpdateNotificationController` must be be after

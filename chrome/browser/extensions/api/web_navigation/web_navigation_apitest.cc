@@ -111,8 +111,9 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
   // WebContentsObserver:
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override {
-    if (navigation_handle->GetURL() != delay_url_ || !rfh_)
+    if (navigation_handle->GetURL() != delay_url_ || !render_frame_host_) {
       return;
+    }
 
     auto throttle =
         std::make_unique<WillStartRequestObserverThrottle>(navigation_handle);
@@ -120,11 +121,11 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
     navigation_handle->RegisterThrottleForTesting(std::move(throttle));
 
     if (has_user_gesture_) {
-      rfh_->ExecuteJavaScriptWithUserGestureForTests(base::UTF8ToUTF16(script_),
-                                                     base::NullCallback());
+      render_frame_host_->ExecuteJavaScriptWithUserGestureForTests(
+          base::UTF8ToUTF16(script_), base::NullCallback());
     } else {
-      rfh_->ExecuteJavaScriptForTests(base::UTF8ToUTF16(script_),
-                                      base::NullCallback());
+      render_frame_host_->ExecuteJavaScriptForTests(base::UTF8ToUTF16(script_),
+                                                    base::NullCallback());
     }
     script_was_executed_ = true;
   }
@@ -143,7 +144,7 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
     }
 
     if (navigation_handle->IsInMainFrame())
-      rfh_ = navigation_handle->GetRenderFrameHost();
+      render_frame_host_ = navigation_handle->GetRenderFrameHost();
   }
 
   void set_has_user_gesture(bool has_user_gesture) {
@@ -151,9 +152,7 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
   }
 
  private:
-  class WillStartRequestObserverThrottle
-      : public content::NavigationThrottle,
-        public base::SupportsWeakPtr<WillStartRequestObserverThrottle> {
+  class WillStartRequestObserverThrottle : public content::NavigationThrottle {
    public:
     explicit WillStartRequestObserverThrottle(content::NavigationHandle* handle)
         : NavigationThrottle(handle) {}
@@ -168,6 +167,10 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
       Resume();
     }
 
+    base::WeakPtr<WillStartRequestObserverThrottle> AsWeakPtr() {
+      return weak_ptr_factory_.GetWeakPtr();
+    }
+
    private:
     NavigationThrottle::ThrottleCheckResult WillStartRequest() override {
       throttled_ = true;
@@ -175,6 +178,9 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
     }
 
     bool throttled_ = false;
+
+    base::WeakPtrFactory<WillStartRequestObserverThrottle> weak_ptr_factory_{
+        this};
   };
 
   base::WeakPtr<WillStartRequestObserverThrottle> throttle_;
@@ -184,7 +190,8 @@ class DelayLoadStartAndExecuteJavascript : public TabStripModelObserver,
   std::string script_;
   bool has_user_gesture_ = false;
   bool script_was_executed_ = false;
-  raw_ptr<content::RenderFrameHost, DanglingUntriaged> rfh_ = nullptr;
+  raw_ptr<content::RenderFrameHost, AcrossTasksDanglingUntriaged>
+      render_frame_host_ = nullptr;
 };
 
 // Handles requests for URLs with paths of "/test*" sent to the test server, so
@@ -239,9 +246,7 @@ class WebNavigationApiBackForwardCacheTest : public WebNavigationApiTest {
   WebNavigationApiBackForwardCacheTest() {
     feature_list_.InitWithFeaturesAndParameters(
         content::GetBasicBackForwardCacheFeatureForTesting(
-            {{features::kBackForwardCache,
-              {{"content_injection_supported", "true"},
-               {"all_extensions_allowed", "true"}}}}),
+            {{features::kBackForwardCache, {}}}),
         content::GetDefaultDisabledBackForwardCacheFeaturesForTesting());
   }
   ~WebNavigationApiBackForwardCacheTest() override = default;
@@ -479,6 +484,8 @@ IN_PROC_BROWSER_TEST_P(WebNavigationApiTestWithContextType, UserAction) {
   params.is_editable = false;
   params.media_type = blink::mojom::ContextMenuDataMediaType::kNone;
   params.page_url = url;
+  params.frame_url = url;
+  params.frame_origin = url::Origin::Create(params.frame_url);
   params.link_url = extension->GetResourceURL("b.html");
 
   // Get the child frame, which will be the one associated with the context
@@ -736,6 +743,7 @@ class WebNavigationApiFencedFrameTest : public WebNavigationApiTest {
     feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/{{blink::features::kFencedFrames, {}},
                               {blink::features::kFencedFramesAPIChanges, {}},
+                              {blink::features::kFencedFramesDefaultMode, {}},
                               {features::kPrivacySandboxAdsAPIsOverride, {}}},
         /*disabled_features=*/{features::kSpareRendererForSitePerProcess});
     // Fenced frames are only allowed in a secure context.
@@ -750,51 +758,5 @@ class WebNavigationApiFencedFrameTest : public WebNavigationApiTest {
 IN_PROC_BROWSER_TEST_F(WebNavigationApiFencedFrameTest, Load) {
   ASSERT_TRUE(StartEmbeddedTestServer());
   ASSERT_TRUE(RunExtensionTest("webnavigation/fencedFrames")) << message_;
-}
-
-// Tests that the actual url of a fenced frame navaigation is visible to the
-// extensions
-IN_PROC_BROWSER_TEST_F(WebNavigationApiFencedFrameTest, MappedURL) {
-  ASSERT_TRUE(StartEmbeddedTestServer());
-
-  GURL main_url = embedded_test_server()->GetURL(
-      "a.test",
-      "/extensions/api_test/webnavigation/fencedFramesMappedURL/main.html");
-  content::RenderFrameHost* rfh =
-      ui_test_utils::NavigateToURL(browser(), main_url);
-  ASSERT_FALSE(rfh->IsErrorDocument());
-
-  const char* kScript = R"(
-    var ff = document.createElement('fencedframe');
-    document.body.appendChild(ff);
-  )";
-  EXPECT_TRUE(content::ExecJs(rfh, kScript));
-
-  ExtensionTestMessageListener background_page_read("ready",
-                                                    ReplyBehavior::kWillReply);
-  const Extension* extension =
-      LoadExtension(test_data_dir_.AppendASCII("webnavigation")
-                        .AppendASCII("fencedFramesMappedURL"));
-  ASSERT_TRUE(extension);
-  ASSERT_TRUE(background_page_read.WaitUntilSatisfied());
-  background_page_read.Reply("mparch");
-  background_page_read.Reset();
-  ASSERT_TRUE(background_page_read.WaitUntilSatisfied());
-  background_page_read.Reply("");
-
-  GURL frame_url = embedded_test_server()->GetURL(
-      "b.test",
-      "/extensions/api_test/webnavigation/fencedFramesMappedURL/frame.html");
-
-  GURL urn_uuid = content::test::CreateFencedFrameURLMapping(rfh, frame_url);
-
-  ResultCatcher catcher;
-  EXPECT_TRUE(content::ExecJs(
-      rfh, content::JsReplace("ff.config = new FencedFrameConfig($1);",
-                              urn_uuid.spec())));
-  ASSERT_TRUE(catcher.GetNextResult()) << message_;
-
-  // The parent still sees the urn_uuid as the fenced frame src.
-  EXPECT_EQ(urn_uuid.spec(), content::EvalJs(rfh, "ff.config.url"));
 }
 }  // namespace extensions

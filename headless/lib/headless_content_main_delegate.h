@@ -46,6 +46,9 @@ class HEADLESS_EXPORT HeadlessContentMainDelegate
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
   absl::optional<int> PreBrowserMain() override;
+#if BUILDFLAG(IS_WIN)
+  bool ShouldHandleConsoleControlEvents() override;
+#endif
   content::ContentClient* CreateContentClient() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentUtilityClient* CreateContentUtilityClient() override;
@@ -72,12 +75,14 @@ class HEADLESS_EXPORT HeadlessContentMainDelegate
   void InitLogging(const base::CommandLine& command_line);
   void InitCrashReporter(const base::CommandLine& command_line);
 
+  // Other clients may retain pointers to browser, so it should come
+  // first.
+  std::unique_ptr<HeadlessBrowserImpl> const browser_;
+
   std::unique_ptr<content::ContentRendererClient> renderer_client_;
   std::unique_ptr<content::ContentBrowserClient> browser_client_;
   std::unique_ptr<content::ContentUtilityClient> utility_client_;
   HeadlessContentClient content_client_;
-
-  std::unique_ptr<HeadlessBrowserImpl> browser_;
 };
 
 }  // namespace headless

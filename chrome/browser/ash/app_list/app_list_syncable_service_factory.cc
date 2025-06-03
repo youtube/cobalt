@@ -31,7 +31,8 @@ AppListSyncableService* AppListSyncableServiceFactory::GetForProfile(
 
 // static
 AppListSyncableServiceFactory* AppListSyncableServiceFactory::GetInstance() {
-  return base::Singleton<AppListSyncableServiceFactory>::get();
+  static base::NoDestructor<AppListSyncableServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -82,9 +83,10 @@ AppListSyncableServiceFactory::AppListSyncableServiceFactory()
 
 AppListSyncableServiceFactory::~AppListSyncableServiceFactory() = default;
 
-KeyedService* AppListSyncableServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppListSyncableServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* browser_context) const {
-  return BuildInstanceFor(static_cast<Profile*>(browser_context)).release();
+  return BuildInstanceFor(static_cast<Profile*>(browser_context));
 }
 
 void AppListSyncableServiceFactory::RegisterProfilePrefs(

@@ -4,9 +4,9 @@
 
 import("//build/config/features.gni")
 import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("browser") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_agent.h",
     "autofill_agent.mm",
@@ -18,8 +18,12 @@ source_set("browser") {
     "autofill_driver_ios_factory.mm",
     "autofill_java_script_feature.h",
     "autofill_java_script_feature.mm",
+    "autofill_manager_observer_bridge.h",
+    "autofill_manager_observer_bridge.mm",
     "autofill_switches.cc",
     "autofill_switches.h",
+    "child_frame_registration_java_script_feature.h",
+    "child_frame_registration_java_script_feature.mm",
     "credit_card_util.h",
     "credit_card_util.mm",
     "form_suggestion.h",
@@ -35,11 +39,13 @@ source_set("browser") {
 
   deps = [
     ":autofill_js",
+    ":child_frame_registration_ts",
     ":suggestion_controller_js",
     ":util",
     "//base",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
+    "//components/autofill/ios/common",
     "//components/autofill/ios/form_util",
     "//components/autofill/ios/form_util:form_handler_feature",
     "//components/autofill/ios/form_util:form_util_feature",
@@ -59,10 +65,11 @@ source_set("browser") {
     "//ui/gfx/geometry",
     "//url",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_util.h",
     "autofill_util.mm",
@@ -76,21 +83,38 @@ source_set("util") {
     "//ios/web/public/security",
     "//url",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 optimize_js("autofill_js") {
   primary_script = "resources/autofill_controller.js"
   sources = [ "resources/autofill_controller.js" ]
+
+  deps = [
+    "//components/autofill/ios/form_util:fill_js_dependencies",
+    "//ios/web/public/js_messaging:gcrweb",
+  ]
 }
 
-optimize_js("suggestion_controller_js") {
-  primary_script = "resources/suggestion_controller.js"
-  sources = [ "resources/suggestion_controller.js" ]
+optimize_ts("child_frame_registration_ts") {
+  visibility = [ ":browser" ]
+
+  sources = [ "resources/child_frame_registration.ts" ]
+  deps = [
+    "//ios/web/public/js_messaging:frame_id",
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
+}
+
+optimize_ts("suggestion_controller_js") {
+  sources = [ "resources/suggestion_controller.ts" ]
+
+  deps = [ "//ios/web/public/js_messaging:gcrweb" ]
 }
 
 source_set("test_support") {
   testonly = true
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "credit_card_save_manager_test_observer_bridge.h",
     "credit_card_save_manager_test_observer_bridge.mm",
@@ -112,7 +136,6 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_agent_unittests.mm",
     "autofill_util_unittests.mm",
@@ -138,6 +161,7 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/ocmock",
+    "//ui/gfx:test_support",
   ]
 
   # TODO(crbug.com/1427365): Test currently fails on iOS blink.

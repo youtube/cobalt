@@ -37,6 +37,7 @@ config("cpuinfo_config") {
   defines = [
     "_GNU_SOURCE=1",  # Required for CPU_SETSIZE to be available.
     "CPUINFO_INTERNAL=",
+    "CPUINFO_LOG_LEVEL=0",  # CPUINFO_LOG_NONE=0
     "CPUINFO_PRIVATE=",
   ]
 }
@@ -56,6 +57,7 @@ target(_cpuinfo_target_type, "cpuinfo") {
     "src/src/api.c",
     "src/src/cache.c",
     "src/src/init.c",
+    "src/src/log.c",
   ]
 
   deps = [

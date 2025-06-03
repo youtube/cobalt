@@ -20,7 +20,9 @@
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/menu_item_constants.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/startup/first_run_service.h"
+// TODO(crbug.com/1402145): Remove circular dependencies on //c/b/ui.
+#include "chrome/browser/ui/startup/first_run_service.h"  // nogncheck
+#include "chrome/browser/web_applications/app_service/publisher_helper.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
@@ -71,10 +73,7 @@ namespace web_app {
 LacrosWebAppsController::LacrosWebAppsController(Profile* profile)
     : profile_(profile),
       provider_(WebAppProvider::GetForWebApps(profile)),
-      publisher_helper_(profile,
-                        provider_,
-                        this,
-                        /*observe_media_requests=*/true) {
+      publisher_helper_(profile, provider_, this) {
   DCHECK(provider_);
   DCHECK_EQ(publisher_helper_.app_type(), apps::AppType::kWeb);
 }
@@ -92,7 +91,7 @@ void LacrosWebAppsController::Init() {
     }
 
     remote_publisher_version_ =
-        service->GetInterfaceVersion(crosapi::mojom::AppPublisher::Uuid_);
+        service->GetInterfaceVersion<crosapi::mojom::AppPublisher>();
 
     service->GetRemote<crosapi::mojom::AppPublisher>()->RegisterAppController(
         receiver_.BindNewPipeAndPassRemoteWithVersion());
@@ -127,6 +126,9 @@ void LacrosWebAppsController::OnReady() {
 
   std::vector<apps::AppPtr> apps;
   for (const WebApp& web_app : registrar().GetApps()) {
+    if (IsAppServiceShortcut(web_app.app_id(), *provider_)) {
+      continue;
+    }
     apps.push_back(publisher_helper().CreateWebApp(&web_app));
   }
   PublishWebApps(std::move(apps));
@@ -153,20 +155,13 @@ void LacrosWebAppsController::UnpauseApp(const std::string& app_id) {
   publisher_helper().UnpauseApp(app_id);
 }
 
-void LacrosWebAppsController::LoadIcon(const std::string& app_id,
-                                       apps::IconKeyPtr icon_key,
-                                       apps::IconType icon_type,
-                                       int32_t size_hint_in_dip,
-                                       apps::LoadIconCallback callback) {
-  if (!icon_key) {
-    // On failure, we still run the callback, with an empty IconValue.
-    std::move(callback).Run(std::make_unique<apps::IconValue>());
-    return;
-  }
-
-  publisher_helper().LoadIcon(app_id, icon_type, size_hint_in_dip,
-                              static_cast<IconEffects>(icon_key->icon_effects),
-                              std::move(callback));
+void LacrosWebAppsController::DEPRECATED_LoadIcon(
+    const std::string& app_id,
+    apps::IconKeyPtr icon_key,
+    apps::IconType icon_type,
+    int32_t size_hint_in_dip,
+    apps::LoadIconCallback callback) {
+  NOTREACHED();
 }
 
 void LacrosWebAppsController::GetCompressedIcon(
@@ -390,13 +385,19 @@ void LacrosWebAppsController::OnShortcutsMenuIconsRead(
   std::move(callback).Run(std::move(menu_items));
 }
 
-const WebApp* LacrosWebAppsController::GetWebApp(const AppId& app_id) const {
+const WebApp* LacrosWebAppsController::GetWebApp(
+    const webapps::AppId& app_id) const {
   return registrar().GetAppById(app_id);
 }
 
 void LacrosWebAppsController::PublishWebApps(std::vector<apps::AppPtr> apps) {
   if (!remote_publisher_) {
     return;
+  }
+  // Make sure none of the shortcuts that are supposed to be published as
+  // apps::Shortcut instead of apps::App get published here.
+  for (auto& app : apps) {
+    CHECK(!IsAppServiceShortcut(app->app_id, *provider_));
   }
 
   remote_publisher_->OnApps(std::move(apps));
@@ -406,6 +407,9 @@ void LacrosWebAppsController::PublishWebApp(apps::AppPtr app) {
   if (!remote_publisher_) {
     return;
   }
+  // Make sure none of the shortcuts that are supposed to be published as
+  // apps::Shortcut instead of apps::App get published here.
+  CHECK(!IsAppServiceShortcut(app->app_id, *provider_));
 
   std::vector<apps::AppPtr> apps;
   apps.push_back(std::move(app));

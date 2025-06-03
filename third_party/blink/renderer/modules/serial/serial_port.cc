@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_string_unsignedlong.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_serial_input_signals.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_serial_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_serial_output_signals.h"
@@ -127,6 +128,12 @@ SerialPortInfo* SerialPort::getInfo() {
     info->setUsbVendorId(info_->usb_vendor_id);
   if (info_->has_usb_product_id)
     info->setUsbProductId(info_->usb_product_id);
+  if (RuntimeEnabledFeatures::WebSerialBluetoothEnabled() &&
+      info_->bluetooth_service_class_id) {
+    info->setBluetoothServiceClassId(
+        MakeGarbageCollected<V8UnionStringOrUnsignedLong>(
+            info_->bluetooth_service_class_id->uuid));
+  }
   return info;
 }
 
@@ -233,7 +240,7 @@ ScriptPromise SerialPort::open(ScriptState* script_state,
 ReadableStream* SerialPort::readable(ScriptState* script_state,
                                      ExceptionState& exception_state) {
   if (readable_)
-    return readable_;
+    return readable_.Get();
 
   if (!port_.is_bound() || open_resolver_ || IsClosing() || read_fatal_)
     return nullptr;
@@ -253,13 +260,13 @@ ReadableStream* SerialPort::readable(ScriptState* script_state,
       script_state, this, std::move(consumer));
   readable_ =
       ReadableStream::CreateByteStream(script_state, underlying_source_);
-  return readable_;
+  return readable_.Get();
 }
 
 WritableStream* SerialPort::writable(ScriptState* script_state,
                                      ExceptionState& exception_state) {
   if (writable_)
-    return writable_;
+    return writable_.Get();
 
   if (!port_.is_bound() || open_resolver_ || IsClosing() || write_fatal_)
     return nullptr;
@@ -284,7 +291,7 @@ WritableStream* SerialPort::writable(ScriptState* script_state,
   // extra layer of buffering.
   writable_ = WritableStream::CreateWithCountQueueingStrategy(
       script_state, underlying_sink_, /*high_water_mark=*/1);
-  return writable_;
+  return writable_.Get();
 }
 
 ScriptPromise SerialPort::getSignals(ScriptState* script_state,
@@ -495,7 +502,7 @@ void SerialPort::Trace(Visitor* visitor) const {
   visitor->Trace(open_resolver_);
   visitor->Trace(signal_resolvers_);
   visitor->Trace(close_resolver_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ActiveScriptWrappable<SerialPort>::Trace(visitor);
 }
 
@@ -626,13 +633,19 @@ void SerialPort::OnOpen(
     return;
   }
 
+  auto* execution_context = GetExecutionContext();
+  feature_handle_for_scheduler_ =
+      execution_context->GetScheduler()->RegisterFeature(
+          SchedulingPolicy::Feature::kWebSerial,
+          SchedulingPolicy{SchedulingPolicy::DisableAggressiveThrottling()});
+
   port_.Bind(std::move(port),
-             GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI));
+             execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI));
   port_.set_disconnect_handler(
       WTF::BindOnce(&SerialPort::OnConnectionError, WrapWeakPersistent(this)));
   client_receiver_.Bind(
       std::move(client_receiver),
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI));
+      execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI));
 
   open_resolver_->Resolve();
   open_resolver_ = nullptr;
@@ -680,6 +693,7 @@ void SerialPort::OnClose() {
   DCHECK(IsClosing());
   close_resolver_->Resolve();
   close_resolver_ = nullptr;
+  feature_handle_for_scheduler_.reset();
 }
 
 void SerialPort::OnForget(ScriptPromiseResolver* resolver) {

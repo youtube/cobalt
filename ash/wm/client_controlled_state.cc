@@ -4,8 +4,6 @@
 
 #include "ash/wm/client_controlled_state.h"
 
-#include "ash/public/cpp/shell_window_ids.h"
-#include "ash/public/cpp/window_animation_types.h"
 #include "ash/root_window_controller.h"
 #include "ash/screen_util.h"
 #include "ash/shell.h"
@@ -18,14 +16,14 @@
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_delegate.h"
 #include "ash/wm/window_state_util.h"
-#include "ash/wm/wm_event.h"
+#include "ash/wm/wm_metrics.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/wm/window_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
 #include "ui/compositor/layer.h"
-#include "ui/display/display.h"
+#include "ui/compositor/layer_animator.h"
 #include "ui/display/screen.h"
 #include "ui/wm/core/window_util.h"
 
@@ -40,6 +38,11 @@ constexpr int kClientControlledWindowMinimumOnScreenArea =
     kMinimumOnScreenArea + 1;
 }  // namespace
 
+ClientControlledState::ClientControlledState(std::unique_ptr<Delegate> delegate)
+    : BaseState(WindowStateType::kDefault), delegate_(std::move(delegate)) {}
+
+ClientControlledState::~ClientControlledState() = default;
+
 // static
 void ClientControlledState::AdjustBoundsForMinimumWindowVisibility(
     const gfx::Rect& display_bounds,
@@ -48,11 +51,6 @@ void ClientControlledState::AdjustBoundsForMinimumWindowVisibility(
       display_bounds, kClientControlledWindowMinimumOnScreenArea,
       kClientControlledWindowMinimumOnScreenArea, bounds);
 }
-
-ClientControlledState::ClientControlledState(std::unique_ptr<Delegate> delegate)
-    : BaseState(WindowStateType::kDefault), delegate_(std::move(delegate)) {}
-
-ClientControlledState::~ClientControlledState() = default;
 
 void ClientControlledState::ResetDelegate() {
   delegate_.reset();
@@ -116,21 +114,33 @@ void ClientControlledState::HandleWorkspaceEvents(WindowState* window_state,
     return;
   // Client is responsible for adjusting bounds after workspace bounds change.
   if (window_state->IsSnapped()) {
-    gfx::Rect bounds = GetSnappedWindowBoundsInParent(
-        window_state->window(), window_state->GetStateType());
+    const aura::Window* window = window_state->window();
+    // If `SplitViewController` is aware of `window` (e.g. in tablet), let the
+    // controller handle the workspace event.
+    if (SplitViewController::Get(window)->IsWindowInSplitView(window)) {
+      return;
+    }
+
+    gfx::Rect bounds = window->bounds();
+    window_state->AdjustSnappedBoundsForDisplayWorkspaceChange(&bounds);
+
     // Then ask delegate to set the desired bounds for the snap state.
     delegate_->HandleBoundsRequest(window_state, window_state->GetStateType(),
                                    bounds, window_state->GetDisplay().id());
   } else if (window_state->IsFloated()) {
     const gfx::Rect bounds =
         Shell::Get()->tablet_mode_controller()->InTabletMode()
-            ? FloatController::GetPreferredFloatWindowTabletBounds(
+            ? FloatController::GetFloatWindowTabletBounds(
                   window_state->window())
-            : FloatController::GetPreferredFloatWindowClamshellBounds(
-                  window_state->window());
+            : FloatController::GetFloatWindowClamshellBounds(
+                  window_state->window(),
+                  // TODO(b/292579250): Add a mechanism to float as close to the
+                  // previous bounds in the event of a workspace event. For now,
+                  // use the default float location.
+                  chromeos::FloatStartLocation::kBottomRight);
     delegate_->HandleBoundsRequest(window_state, window_state->GetStateType(),
                                    bounds, window_state->GetDisplay().id());
-  } else if (event->type() == WM_EVENT_DISPLAY_BOUNDS_CHANGED) {
+  } else if (event->type() == WM_EVENT_DISPLAY_METRICS_CHANGED) {
     // Explicitly handle the primary change because it can change the display id
     // with no bounds change.
     if (event->AsDisplayMetricsChangedWMEvent()->primary_changed()) {
@@ -201,8 +211,7 @@ void ClientControlledState::HandleBoundsEvents(WindowState* window_state,
   auto* const window = window_state->window();
   switch (event->type()) {
     case WM_EVENT_SET_BOUNDS: {
-      const auto* set_bounds_event =
-          static_cast<const SetBoundsWMEvent*>(event);
+      const auto* set_bounds_event = event->AsSetBoundsWMEvent();
       const gfx::Rect& bounds = set_bounds_event->requested_bounds();
       if (set_bounds_locally_) {
         // Don’t preempt on-going animation (e.g. tucking) for floated windows.
@@ -258,9 +267,6 @@ void ClientControlledState::HandleBoundsEvents(WindowState* window_state,
       }
       break;
     }
-    case WM_EVENT_CENTER:
-      CenterWindow(window_state);
-      break;
     default:
       NOTREACHED() << "Unknown event:" << event->type();
   }
@@ -339,39 +345,33 @@ void ClientControlledState::UpdateWindowForTransitionEvents(
   const WMEventType event_type = event->type();
   aura::Window* window = window_state->window();
 
-  if (next_state_type == WindowStateType::kPrimarySnapped ||
-      next_state_type == WindowStateType::kSecondarySnapped) {
+  if (chromeos::IsSnappedWindowStateType(next_state_type)) {
     if (window_state->CanSnap()) {
+      const bool is_restoring =
+          window->GetProperty(aura::client::kIsRestoringKey) ||
+          event_type == WM_EVENT_RESTORE;
+      CHECK(is_restoring || event->IsSnapEvent());
+
+      const WindowSnapActionSource snap_action_source =
+          is_restoring ? WindowSnapActionSource::kSnapByWindowStateRestore
+                       : event->AsSnapEvent()->snap_action_source();
       HandleWindowSnapping(window_state,
                            next_state_type == WindowStateType::kPrimarySnapped
                                ? WM_EVENT_SNAP_PRIMARY
-                               : WM_EVENT_SNAP_SECONDARY);
-
-      if (event_type == WM_EVENT_RESTORE) {
-        window_state->set_snap_action_source(
-            WindowSnapActionSource::kSnapByWindowStateRestore);
-      }
-      window_state->RecordAndResetWindowSnapActionSource(
-          window_state->GetStateType(), next_state_type);
+                               : WM_EVENT_SNAP_SECONDARY,
+                           snap_action_source);
+      window_state->RecordWindowSnapActionSource(snap_action_source);
 
       // Get the desired window bounds for the snap state.
-      const bool is_restoring =
-          window_state->window()->GetProperty(aura::client::kIsRestoringKey) ||
-          event_type == WM_EVENT_RESTORE;
       // TODO(b/246683799): Investigate why window_state->snap_ratio() can be
       // empty.
       // Use the saved `window_state->snap_ratio()` if restoring, otherwise use
       // the event requested snap ratio, which has a default value.
-      float next_snap_ratio;
-      if (is_restoring) {
-        next_snap_ratio =
-            window_state->snap_ratio().value_or(chromeos::kDefaultSnapRatio);
-      } else {
-        DCHECK(event->IsSnapEvent());
-        next_snap_ratio = event->snap_ratio();
-      }
-      gfx::Rect bounds = GetSnappedWindowBoundsInParent(window, next_state_type,
-                                                        next_snap_ratio);
+      const float next_snap_ratio =
+          is_restoring
+              ? window_state->snap_ratio().value_or(chromeos::kDefaultSnapRatio)
+              : event->AsSnapEvent()->snap_ratio();
+
       // We don't want Unminimize() to restore the pre-snapped state during the
       // transition. See crbug.com/1031313 for why we need this.
       // kRestoreShowStateKey property will be updated properly after the window
@@ -385,15 +385,21 @@ void ClientControlledState::UpdateWindowForTransitionEvents(
               << ", next_state=" << next_state_type;
 
       // Then ask delegate to set the desired bounds for the snap state.
-      delegate_->HandleBoundsRequest(window_state, next_state_type, bounds,
-                                     window_state->GetDisplay().id());
+      delegate_->HandleBoundsRequest(
+          window_state, next_state_type,
+          GetSnappedWindowBoundsInParent(window, next_state_type,
+                                         next_snap_ratio),
+          window_state->GetDisplay().id());
     }
   } else if (next_state_type == WindowStateType::kFloated) {
     if (chromeos::wm::CanFloatWindow(window)) {
       const gfx::Rect bounds =
           Shell::Get()->tablet_mode_controller()->InTabletMode()
-              ? FloatController::GetPreferredFloatWindowTabletBounds(window)
-              : FloatController::GetPreferredFloatWindowClamshellBounds(window);
+              ? FloatController::GetFloatWindowTabletBounds(window)
+              : FloatController::GetFloatWindowClamshellBounds(
+                    window, event_type == WM_EVENT_FLOAT
+                                ? event->AsFloatEvent()->float_start_location()
+                                : chromeos::FloatStartLocation::kBottomRight);
 
       window_state->UpdateWindowPropertiesFromStateType();
       VLOG(1) << "Processing State Transtion: event=" << event_type

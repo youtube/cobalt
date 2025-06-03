@@ -14,6 +14,7 @@
 #include <memory>
 #include <set>
 
+#include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/nack.h"
@@ -36,13 +37,17 @@ namespace webrtc {
 namespace {
 const uint32_t kSenderSsrc = 0x12345;
 const uint32_t kReceiverSsrc = 0x23456;
-const int64_t kOneWayNetworkDelayMs = 100;
+constexpr TimeDelta kOneWayNetworkDelay = TimeDelta::Millis(100);
 const uint8_t kBaseLayerTid = 0;
 const uint8_t kHigherLayerTid = 1;
 const uint16_t kSequenceNumber = 100;
 const uint8_t kPayloadType = 100;
 const int kWidth = 320;
 const int kHeight = 100;
+
+MATCHER_P2(Near, value, margin, "") {
+  return value - margin <= arg && arg <= value + margin;
+}
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -71,25 +76,24 @@ class SendTransport : public Transport {
     clock_ = clock;
     delay_ms_ = delay_ms;
   }
-  bool SendRtp(const uint8_t* data,
-               size_t len,
+  bool SendRtp(rtc::ArrayView<const uint8_t> data,
                const PacketOptions& options) override {
     RtpPacket packet;
-    EXPECT_TRUE(packet.Parse(data, len));
+    EXPECT_TRUE(packet.Parse(data));
     ++rtp_packets_sent_;
     last_rtp_sequence_number_ = packet.SequenceNumber();
     return true;
   }
-  bool SendRtcp(const uint8_t* data, size_t len) override {
+  bool SendRtcp(rtc::ArrayView<const uint8_t> data) override {
     test::RtcpPacketParser parser;
-    parser.Parse(data, len);
+    parser.Parse(data);
     last_nack_list_ = parser.nack()->packet_ids();
 
     if (clock_) {
       clock_->AdvanceTimeMilliseconds(delay_ms_);
     }
     EXPECT_TRUE(receiver_);
-    receiver_->IncomingRtcpPacket(rtc::MakeArrayView(data, len));
+    receiver_->IncomingRtcpPacket(data);
     ++rtcp_packets_sent_;
     return true;
   }
@@ -110,7 +114,7 @@ class RtpRtcpModule : public RtcpPacketTypeCounterObserver {
         receive_statistics_(ReceiveStatistics::Create(clock)),
         clock_(clock) {
     CreateModuleImpl();
-    transport_.SimulateNetworkDelay(kOneWayNetworkDelayMs, clock);
+    transport_.SimulateNetworkDelay(kOneWayNetworkDelay.ms(), clock);
   }
 
   const bool is_sender_;
@@ -218,7 +222,6 @@ class RtpRtcpImplTest : public ::testing::Test {
     rtp_video_header.height = kHeight;
     rtp_video_header.rotation = kVideoRotation_0;
     rtp_video_header.content_type = VideoContentType::UNSPECIFIED;
-    rtp_video_header.playout_delay = {-1, -1};
     rtp_video_header.is_first_packet_in_frame = true;
     rtp_video_header.simulcastIdx = 0;
     rtp_video_header.codec = kVideoCodecVP8;
@@ -227,8 +230,9 @@ class RtpRtcpImplTest : public ::testing::Test {
 
     const uint8_t payload[100] = {0};
     EXPECT_TRUE(module->impl_->OnSendingRtpFrame(0, 0, kPayloadType, true));
-    EXPECT_TRUE(sender->SendVideo(kPayloadType, VideoCodecType::kVideoCodecVP8,
-                                  0, 0, payload, rtp_video_header, 0, {}));
+    EXPECT_TRUE(sender->SendVideo(
+        kPayloadType, VideoCodecType::kVideoCodecVP8, 0, clock_.CurrentTime(),
+        payload, sizeof(payload), rtp_video_header, TimeDelta::Zero(), {}));
   }
 
   void IncomingRtcpNack(const RtpRtcpModule* module, uint16_t sequence_number) {
@@ -290,35 +294,23 @@ TEST_F(RtpRtcpImplTest, Rtt) {
   EXPECT_EQ(0, receiver_.impl_->SendRTCP(kRtcpReport));
 
   // Verify RTT.
-  int64_t rtt;
-  int64_t avg_rtt;
-  int64_t min_rtt;
-  int64_t max_rtt;
-  EXPECT_EQ(
-      0, sender_.impl_->RTT(kReceiverSsrc, &rtt, &avg_rtt, &min_rtt, &max_rtt));
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, avg_rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, min_rtt, 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, max_rtt, 1);
-
-  // No RTT from other ssrc.
-  EXPECT_EQ(-1, sender_.impl_->RTT(kReceiverSsrc + 1, &rtt, &avg_rtt, &min_rtt,
-                                   &max_rtt));
+  EXPECT_THAT(sender_.impl_->LastRtt(),
+              Near(2 * kOneWayNetworkDelay, TimeDelta::Millis(1)));
 
   // Verify RTT from rtt_stats config.
   EXPECT_EQ(0, sender_.rtt_stats_.LastProcessedRtt());
   EXPECT_EQ(0, sender_.impl_->rtt_ms());
   sender_.impl_->Process();
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, sender_.rtt_stats_.LastProcessedRtt(),
-              1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, sender_.impl_->rtt_ms(), 1);
+  EXPECT_NEAR(2 * kOneWayNetworkDelay.ms(),
+              sender_.rtt_stats_.LastProcessedRtt(), 1);
+  EXPECT_NEAR(2 * kOneWayNetworkDelay.ms(), sender_.impl_->rtt_ms(), 1);
 }
 
 TEST_F(RtpRtcpImplTest, RttForReceiverOnly) {
-  // Receiver module should send a Receiver time reference report (RTRR).
+  // Receiver module should send a Receiver reference time report block (RRTR).
   EXPECT_EQ(0, receiver_.impl_->SendRTCP(kRtcpReport));
 
-  // Sender module should send a response to the last received RTRR (DLRR).
+  // Sender module should send a response to the last received RRTR (DLRR).
   clock_.AdvanceTimeMilliseconds(1000);
   // Send Frame before sending a SR.
   SendFrame(&sender_, sender_video_.get(), kBaseLayerTid);
@@ -328,9 +320,9 @@ TEST_F(RtpRtcpImplTest, RttForReceiverOnly) {
   EXPECT_EQ(0, receiver_.rtt_stats_.LastProcessedRtt());
   EXPECT_EQ(0, receiver_.impl_->rtt_ms());
   receiver_.impl_->Process();
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs,
+  EXPECT_NEAR(2 * kOneWayNetworkDelay.ms(),
               receiver_.rtt_stats_.LastProcessedRtt(), 1);
-  EXPECT_NEAR(2 * kOneWayNetworkDelayMs, receiver_.impl_->rtt_ms(), 1);
+  EXPECT_NEAR(2 * kOneWayNetworkDelay.ms(), receiver_.impl_->rtt_ms(), 1);
 }
 
 TEST_F(RtpRtcpImplTest, NoSrBeforeMedia) {
@@ -562,7 +554,8 @@ TEST_F(RtpRtcpImplTest, StoresPacketInfoForSentPackets) {
   packet.SetTimestamp(1);
   packet.set_first_packet_of_frame(true);
   packet.SetMarker(true);
-  sender_.impl_->TrySendPacket(&packet, pacing_info);
+  sender_.impl_->TrySendPacket(std::make_unique<RtpPacketToSend>(packet),
+                               pacing_info);
 
   std::vector<RtpSequenceNumberMap::Info> seqno_info =
       sender_.impl_->GetSentRtpPacketInfos(std::vector<uint16_t>{1});
@@ -576,13 +569,16 @@ TEST_F(RtpRtcpImplTest, StoresPacketInfoForSentPackets) {
   packet.SetTimestamp(2);
   packet.set_first_packet_of_frame(true);
   packet.SetMarker(false);
-  sender_.impl_->TrySendPacket(&packet, pacing_info);
+  sender_.impl_->TrySendPacket(std::make_unique<RtpPacketToSend>(packet),
+                               pacing_info);
 
   packet.set_first_packet_of_frame(false);
-  sender_.impl_->TrySendPacket(&packet, pacing_info);
+  sender_.impl_->TrySendPacket(std::make_unique<RtpPacketToSend>(packet),
+                               pacing_info);
 
   packet.SetMarker(true);
-  sender_.impl_->TrySendPacket(&packet, pacing_info);
+  sender_.impl_->TrySendPacket(std::make_unique<RtpPacketToSend>(packet),
+                               pacing_info);
 
   seqno_info =
       sender_.impl_->GetSentRtpPacketInfos(std::vector<uint16_t>{2, 3, 4});

@@ -13,9 +13,10 @@
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/webapps/common/web_app_id.h"
+#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -29,7 +30,7 @@ namespace task_manager {
 
 class WebAppTagWebAppTest : public web_app::WebAppControllerBrowserTest {
  protected:
-  Browser* LaunchBrowserForWebAppInTabAndWait(const web_app::AppId& app_id,
+  Browser* LaunchBrowserForWebAppInTabAndWait(const webapps::AppId& app_id,
                                               const GURL& observe_url) {
     ui_test_utils::UrlLoadObserver url_observer(
         observe_url, content::NotificationService::AllSources());
@@ -60,7 +61,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTagWebAppTest, WebAppTaskCreatedForTab) {
 
   const GURL start_url =
       https_server()->GetURL("app.com", "/google/google.html");
-  const web_app::AppId app_id = InstallPWA(start_url);
+  const webapps::AppId app_id = InstallPWA(start_url);
 
   MockWebContentsTaskManager task_manager;
   EXPECT_TRUE(task_manager.tasks().empty());
@@ -89,7 +90,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTagWebAppTest, WebAppTaskCreatedForStandalone) {
 
   const GURL start_url =
       https_server()->GetURL("app.com", "/google/google.html");
-  const web_app::AppId app_id = InstallPWA(start_url);
+  const webapps::AppId app_id = InstallPWA(start_url);
 
   MockWebContentsTaskManager task_manager;
   EXPECT_TRUE(task_manager.tasks().empty());
@@ -118,7 +119,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTagWebAppTest, TabNavigatedAwayNotWebAppTask) {
 
   const GURL start_url =
       https_server()->GetURL("app.com", "/google/google.html");
-  const web_app::AppId app_id = InstallPWA(start_url);
+  const webapps::AppId app_id = InstallPWA(start_url);
 
   MockWebContentsTaskManager task_manager;
   EXPECT_TRUE(task_manager.tasks().empty());
@@ -155,7 +156,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTagWebAppTest, TabNavigatedAwayNotWebAppTask) {
 class WebAppTagIsolatedWebAppTest
     : public web_app::IsolatedWebAppBrowserTestHarness {
  protected:
-  web_app::AppId InstallIsolatedWebApp() {
+  webapps::AppId InstallIsolatedWebApp() {
     server_ =
         CreateAndStartServer(FILE_PATH_LITERAL("web_apps/simple_isolated_app"));
     web_app::IsolatedWebAppUrlInfo url_info =
@@ -188,7 +189,7 @@ class WebAppTagIsolatedWebAppTest
 IN_PROC_BROWSER_TEST_F(WebAppTagIsolatedWebAppTest, IsolatedWebAppTaskCreated) {
   EXPECT_EQ(1U, tracked_tags().size());
 
-  web_app::AppId app_id = InstallIsolatedWebApp();
+  webapps::AppId app_id = InstallIsolatedWebApp();
   MockWebContentsTaskManager task_manager;
   EXPECT_TRUE(task_manager.tasks().empty());
 
@@ -216,7 +217,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTagIsolatedWebAppTest,
                        IsolatedWebAppTaskTitleFallbackToAppName) {
   EXPECT_EQ(1U, tracked_tags().size());
 
-  web_app::AppId app_id = InstallIsolatedWebApp();
+  webapps::AppId app_id = InstallIsolatedWebApp();
   MockWebContentsTaskManager task_manager;
   EXPECT_TRUE(task_manager.tasks().empty());
 

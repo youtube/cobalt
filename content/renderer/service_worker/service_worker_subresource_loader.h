@@ -10,6 +10,7 @@
 #include "base/scoped_observation.h"
 #include "base/task/sequenced_task_runner.h"
 #include "content/common/content_export.h"
+#include "content/common/service_worker/forwarded_race_network_request_url_loader_factory.h"
 #include "content/common/service_worker/race_network_request_url_loader_client.h"
 #include "content/common/service_worker/service_worker_resource_loader.h"
 #include "content/renderer/service_worker/controller_service_worker_connector.h"
@@ -213,6 +214,18 @@ class CONTENT_EXPORT ServiceWorkerSubresourceLoader
   // fetch handler.
   bool MaybeStartRaceNetworkRequest();
 
+  // Returns false if fails to start race network request.
+  // A caller should handle the case.
+  bool StartRaceNetworkRequest();
+
+  std::vector<blink::ServiceWorkerRouterSource> MaybeEvaluateRouterConditions()
+      const;
+
+  bool MaybeStartAutoPreload();
+
+  void DidCacheStorageMatch(base::TimeTicks event_dispatch_time,
+                            blink::mojom::MatchResultPtr result);
+
   network::mojom::URLResponseHeadPtr response_head_;
   absl::optional<net::RedirectInfo> redirect_info_;
   int redirect_limit_;
@@ -267,15 +280,14 @@ class CONTENT_EXPORT ServiceWorkerSubresourceLoader
   blink::mojom::ServiceWorkerFetchEventTimingPtr fetch_event_timing_;
   network::mojom::FetchResponseSource response_source_;
 
-  // True when RaceNetworkRequest is triggered regardless of its result.
-  bool did_start_race_network_request_ = false;
-
   scoped_refptr<network::SharedURLLoaderFactory>
       race_network_request_url_loader_factory_;
-  mojo::PendingRemote<network::mojom::URLLoader>
-      race_network_request_url_loader_;
   absl::optional<ServiceWorkerRaceNetworkRequestURLLoaderClient>
       race_network_request_loader_client_;
+  absl::optional<ServiceWorkerForwardedRaceNetworkRequestURLLoaderFactory>
+      forwarded_race_network_request_url_loader_factory_;
+  mojo::PendingRemote<network::mojom::URLLoaderFactory>
+      remote_forwarded_race_network_request_url_loader_factory_;
 
   base::WeakPtrFactory<ServiceWorkerSubresourceLoader> weak_factory_{this};
 };

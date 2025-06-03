@@ -122,7 +122,8 @@ bool ClipboardCommands::DispatchClipboardEvent(LocalFrame& frame,
       DataTransfer::kCopyAndPaste, policy,
       policy == DataTransferAccessPolicy::kWritable
           ? DataObject::Create()
-          : DataObject::CreateFromClipboard(system_clipboard, paste_mode));
+          : DataObject::CreateFromClipboard(target->GetExecutionContext(),
+                                            system_clipboard, paste_mode));
 
   Event* const evt = ClipboardEvent::Create(event_type, data_transfer);
   target->DispatchEvent(*evt);
@@ -301,6 +302,12 @@ bool ClipboardCommands::ExecuteCut(LocalFrame& frame,
                                    Event*,
                                    EditorCommandSource source,
                                    const String&) {
+  // document.execCommand("cut") is a no-op in EditContext
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return true;
+  }
+
   if (!DispatchCopyOrCutEvent(frame, source, event_type_names::kCut))
     return true;
   if (!frame.GetEditor().CanCut())
@@ -426,6 +433,12 @@ void ClipboardCommands::PasteFromClipboard(LocalFrame& frame,
 void ClipboardCommands::Paste(LocalFrame& frame, EditorCommandSource source) {
   DCHECK(frame.GetDocument());
 
+  // document.execCommand("paste") is a no-op in EditContext
+  if (source == EditorCommandSource::kDOM &&
+      frame.GetInputMethodController().GetActiveEditContext()) {
+    return;
+  }
+
   // The code below makes multiple calls to SystemClipboard methods which
   // implies multiple IPC calls to the ClipboardHost in the browaser process.
   // SystemClipboard snapshotting tells SystemClipboard to cache results from
@@ -455,16 +468,19 @@ void ClipboardCommands::Paste(LocalFrame& frame, EditorCommandSource source) {
                                    : PasteMode::kPlainTextOnly;
 
   if (source == EditorCommandSource::kMenuOrKeyBinding) {
+    Element* const target = FindEventTargetForClipboardEvent(frame, source);
+
     DataTransfer* data_transfer = DataTransfer::Create(
         DataTransfer::kCopyAndPaste, DataTransferAccessPolicy::kReadable,
-        DataObject::CreateFromClipboard(frame.GetSystemClipboard(),
-                                        paste_mode));
+        DataObject::CreateFromClipboard(
+            target ? target->GetExecutionContext() : nullptr,
+            frame.GetSystemClipboard(), paste_mode));
 
     if (DispatchBeforeInputDataTransfer(
-            FindEventTargetForClipboardEvent(frame, source),
-            InputEvent::InputType::kInsertFromPaste,
-            data_transfer) != DispatchEventResult::kNotCanceled)
+            target, InputEvent::InputType::kInsertFromPaste, data_transfer) !=
+        DispatchEventResult::kNotCanceled) {
       return;
+    }
     // 'beforeinput' event handler may destroy target frame.
     if (frame.GetDocument()->GetFrame() != frame)
       return;
@@ -697,15 +713,18 @@ bool ClipboardCommands::ExecutePasteAndMatchStyle(LocalFrame& frame,
     if (!frame.Selection().SelectionHasFocus())
       return false;
 
+    Element* const target = FindEventTargetForClipboardEvent(frame, source);
+
     DataTransfer* data_transfer = DataTransfer::Create(
         DataTransfer::kCopyAndPaste, DataTransferAccessPolicy::kReadable,
-        DataObject::CreateFromClipboard(frame.GetSystemClipboard(),
-                                        PasteMode::kPlainTextOnly));
+        DataObject::CreateFromClipboard(
+            target ? target->GetExecutionContext() : nullptr,
+            frame.GetSystemClipboard(), PasteMode::kPlainTextOnly));
     if (DispatchBeforeInputDataTransfer(
-            FindEventTargetForClipboardEvent(frame, source),
-            InputEvent::InputType::kInsertFromPaste,
-            data_transfer) != DispatchEventResult::kNotCanceled)
+            target, InputEvent::InputType::kInsertFromPaste, data_transfer) !=
+        DispatchEventResult::kNotCanceled) {
       return true;
+    }
     // 'beforeinput' event handler may destroy target frame.
     if (frame.GetDocument()->GetFrame() != frame)
       return true;

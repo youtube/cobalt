@@ -6,13 +6,14 @@
 
 #include "base/functional/callback.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
 #include "chrome/browser/policy/dm_token_utils.h"
-#include "chrome/browser/policy/management_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/policy/core/common/cloud/dm_token.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/browser/realtime/policy_engine.h"
 #include "components/safe_browsing/core/browser/realtime/url_lookup_service_base.h"
@@ -42,7 +43,8 @@ ChromeEnterpriseRealTimeUrlLookupService::
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
-                                   referrer_chain_provider),
+                                   referrer_chain_provider,
+                                   /* pref_service= */ nullptr),
       profile_(profile),
       connectors_service_(connectors_service),
       token_fetcher_(std::move(token_fetcher)) {}
@@ -63,16 +65,15 @@ bool ChromeEnterpriseRealTimeUrlLookupService::
 
   // Don't allow using the access token if the managed profile doesn't match the
   // managed device.
-  if (policy::IsDeviceCloudManaged() &&
+  if (policy::ManagementServiceFactory::GetForProfile(profile_)
+          ->HasManagementAuthority(
+              policy::EnterpriseManagementAuthority::CLOUD_DOMAIN) &&
       !chrome::enterprise_util::IsProfileAffiliated(profile_)) {
     return false;
   }
 
-  if (safe_browsing::SyncUtils::IsPrimaryAccountSignedIn(
-          IdentityManagerFactory::GetForProfile(profile_))) {
-    return base::FeatureList::IsEnabled((kRealTimeUrlFilteringForEnterprise));
-  }
-  return false;
+  return safe_browsing::SyncUtils::IsPrimaryAccountSignedIn(
+      IdentityManagerFactory::GetForProfile(profile_));
 }
 
 int ChromeEnterpriseRealTimeUrlLookupService::GetReferrerUserGestureLimit()
@@ -108,7 +109,6 @@ void ChromeEnterpriseRealTimeUrlLookupService::GetAccessToken(
     RTLookupRequestCallback request_callback,
     RTLookupResponseCallback response_callback,
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner) {
-  DCHECK(base::FeatureList::IsEnabled((kRealTimeUrlFilteringForEnterprise)));
   token_fetcher_->Start(base::BindOnce(
       &ChromeEnterpriseRealTimeUrlLookupService::OnGetAccessToken,
       weak_factory_.GetWeakPtr(), url, last_committed_url, is_mainframe,
@@ -183,6 +183,11 @@ ChromeEnterpriseRealTimeUrlLookupService::GetTrafficAnnotationTag() const {
 
 std::string ChromeEnterpriseRealTimeUrlLookupService::GetMetricSuffix() const {
   return ".Enterprise";
+}
+
+void ChromeEnterpriseRealTimeUrlLookupService::Shutdown() {
+  token_fetcher_.reset();
+  RealTimeUrlLookupServiceBase::Shutdown();
 }
 
 bool ChromeEnterpriseRealTimeUrlLookupService::ShouldIncludeCredentials()

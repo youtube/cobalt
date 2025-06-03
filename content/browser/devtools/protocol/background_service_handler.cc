@@ -8,6 +8,7 @@
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/storage_partition_impl.h"
+#include "content/public/browser/devtools_background_services_context.h"
 #include "content/public/browser/render_process_host.h"
 
 namespace content {
@@ -81,7 +82,8 @@ ToBackgroundServiceEvent(const devtools::proto::BackgroundServiceEvent& event) {
   base::Time timestamp = base::Time::FromDeltaSinceWindowsEpoch(
       base::Microseconds(event.timestamp()));
   return protocol::BackgroundService::BackgroundServiceEvent::Create()
-      .SetTimestamp(timestamp.ToJsTime() / 1'000)  // milliseconds -> seconds
+      .SetTimestamp(timestamp.InMillisecondsFSinceUnixEpoch() /
+                    1'000)  // milliseconds -> seconds
       .SetOrigin(event.origin())
       .SetServiceWorkerRegistrationId(
           base::NumberToString(event.service_worker_registration_id()))
@@ -113,30 +115,38 @@ void BackgroundServiceHandler::SetRenderer(int process_host_id,
                                            RenderFrameHostImpl* frame_host) {
   RenderProcessHost* process_host = RenderProcessHost::FromID(process_host_id);
   if (!process_host) {
-    if (devtools_context_ && !enabled_services_.empty())
-      devtools_context_->RemoveObserver(this);
+    SetDevToolsContext(nullptr);
     enabled_services_.clear();
-    devtools_context_ = nullptr;
     return;
   }
 
   auto* storage_partition =
       static_cast<StoragePartitionImpl*>(process_host->GetStoragePartition());
 
-  if (devtools_context_) {
-    DCHECK_EQ(devtools_context_,
-              storage_partition->GetDevToolsBackgroundServicesContext());
-    return;
-  }
-
-  devtools_context_ = static_cast<DevToolsBackgroundServicesContextImpl*>(
-      storage_partition->GetDevToolsBackgroundServicesContext());
+  SetDevToolsContext(storage_partition->GetDevToolsBackgroundServicesContext());
   DCHECK(devtools_context_);
 }
 
-Response BackgroundServiceHandler::Disable() {
-  if (!enabled_services_.empty())
+void BackgroundServiceHandler::SetDevToolsContext(
+    DevToolsBackgroundServicesContext* devtools_context) {
+  if (devtools_context_ == devtools_context) {
+    return;
+  }
+
+  if (devtools_context_ && !enabled_services_.empty()) {
     devtools_context_->RemoveObserver(this);
+  }
+
+  devtools_context_ =
+      static_cast<DevToolsBackgroundServicesContextImpl*>(devtools_context);
+
+  if (devtools_context_ && !enabled_services_.empty()) {
+    devtools_context_->AddObserver(this);
+  }
+}
+
+Response BackgroundServiceHandler::Disable() {
+  SetDevToolsContext(nullptr);
   enabled_services_.clear();
   return Response::Success();
 }

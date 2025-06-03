@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {TimeTicks} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
 
-import {keyToIconNameMap} from './input_key.js';
-import {stringToMojoString16} from './mojo_utils.js';
-import {AcceleratorCategory, AcceleratorSource, AcceleratorState, AcceleratorSubcategory, AcceleratorType, LayoutStyle, Modifier, MojoAcceleratorConfig, MojoAcceleratorInfo, MojoLayoutInfo, MojoSearchResult, TextAcceleratorPartType} from './shortcut_types.js';
+import {Accelerator, AcceleratorCategory, AcceleratorKeyState, AcceleratorSource, AcceleratorState, AcceleratorSubcategory, AcceleratorType, LayoutStyle, Modifier, MojoAcceleratorConfig, MojoAcceleratorInfo, MojoLayoutInfo, MojoSearchResult, TextAcceleratorPartType} from './shortcut_types.js';
+import {keyToIconNameMap} from './shortcut_utils.js';
 
 const fakeTimestamp: TimeTicks = {
   internalValue: BigInt(0),
@@ -453,6 +453,49 @@ export const CycleTabsTextSearchResult: MojoSearchResult = {
   acceleratorInfos: [cycleTabsAcceleratorInfo],
   relevanceScore: 0.95,
 };
+
+// SearchResult that has disabled accelerators.
+export const OpenCalculatorAppSearchResult: MojoSearchResult = {
+  acceleratorLayoutInfo: {
+    category: AcceleratorCategory.kGeneral,
+    subCategory: AcceleratorSubcategory.kApps,
+    description: stringToMojoString16('Open Calculator app'),
+    style: LayoutStyle.kDefault,
+    source: AcceleratorSource.kAsh,
+    action: 3,
+  },
+  acceleratorInfos: [{
+    type: AcceleratorType.kDefault,
+    state: AcceleratorState.kDisabledByUnavailableKeys,
+    locked: false,
+    layoutProperties: {
+      standardAccelerator: {
+        keyDisplay: stringToMojoString16('LaunchApplication2'),
+        accelerator: {
+          modifiers: Modifier.NONE,
+          keyCode: 183,
+          keyState: 0,
+          timeStamp: fakeTimestamp,
+        },
+      },
+      textAccelerator: undefined,
+    },
+  }],
+  relevanceScore: 0.95,
+};
+
+export const fakeDefaultAccelerators: Accelerator[] = [
+  {
+    modifiers: Modifier.COMMAND | Modifier.SHIFT,
+    keyCode: 187,
+    keyState: AcceleratorKeyState.PRESSED,
+  },
+  {
+    modifiers: Modifier.CONTROL,
+    keyCode: 84,
+    keyState: AcceleratorKeyState.PRESSED,
+  },
+];
 
 export const createFakeMojoAccelInfo =
     (keyDisplay: string = 'a'): MojoAcceleratorInfo => {

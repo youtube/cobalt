@@ -1,6 +1,7 @@
 // Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// @ts-nocheck
 
 import {assert} from 'chrome://resources/ash/common/assert.js';
 import {ImageOrientation, ImageTransformParam} from './image_orientation.js';
@@ -73,7 +74,7 @@ export class LoadImageResponse {
    * }}
    */
   static cacheValue(response, timestamp) {
-    if (response.status === LoadImageResponseStatus.ERROR) {
+    if (!response || response.status === LoadImageResponseStatus.ERROR) {
       return null;
     }
 

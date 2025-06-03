@@ -4,14 +4,20 @@
 
 #include "chrome/browser/ui/quick_answers/ui/quick_answers_view.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/quick_answers/quick_answers_ui_controller.h"
-#include "chrome/browser/ui/quick_answers/ui/quick_answers_pre_target_handler.h"
+#include "chrome/browser/ui/quick_answers/ui/quick_answers_text_label.h"
+#include "chrome/browser/ui/quick_answers/ui/quick_answers_util.h"
+#include "chrome/browser/ui/views/editor_menu/utils/focus_search.h"
+#include "chrome/browser/ui/views/editor_menu/utils/pre_target_handler.h"
 #include "chromeos/components/quick_answers/quick_answers_model.h"
 #include "chromeos/components/quick_answers/utils/quick_answers_metrics.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/browser/speech/tts_controller_impl.h"
@@ -21,6 +27,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/display/screen.h"
@@ -41,6 +48,7 @@
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
+#include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/painter.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
@@ -64,11 +72,19 @@ constexpr int kMarginDip = 10;
 
 constexpr auto kMainViewInsets = gfx::Insets::VH(4, 0);
 constexpr auto kContentViewInsets = gfx::Insets::TLBR(8, 0, 8, 16);
+constexpr auto kRichCardRedesignContentViewInsets =
+    gfx::Insets::TLBR(8, 0, 8, 0);
 constexpr int kMaxRows = 3;
 
 // Google icon.
 constexpr int kGoogleIconSizeDip = 16;
 constexpr auto kGoogleIconInsets = gfx::Insets::TLBR(10, 10, 0, 10);
+
+// Result type icon.
+constexpr int kResultTypeIconContainerRadius = 18;
+constexpr int kResultTypeIconSizeDip = 12;
+constexpr auto kResultTypeIconContainerInsets = gfx::Insets::VH(8, 12);
+constexpr auto kResultTypeIconCircleInsets = gfx::Insets::TLBR(4, 4, 4, 4);
 
 // Info icon.
 constexpr int kDogfoodIconSizeDip = 20;
@@ -77,9 +93,6 @@ constexpr int kDogfoodIconBorderDip = 8;
 // Spacing between lines in the main view.
 constexpr int kLineSpacingDip = 4;
 constexpr int kDefaultLineHeightDip = 20;
-
-// Spacing between labels in the horizontal elements view.
-constexpr int kLabelSpacingDip = 2;
 
 // Buttons view.
 constexpr int kButtonsViewMarginDip = 4;
@@ -99,70 +112,28 @@ constexpr char kGoogleSansFont[] = "Google Sans";
 constexpr int kReportQueryButtonMarginDip = 16;
 constexpr int kReportQueryViewFontSize = 12;
 
+// Expansion affordance indicator.
+constexpr char kRobotoFont[] = "Roboto";
+constexpr int kExpansionIndicatorLabelFontSize = 12;
+constexpr int kExpansionIndicatorIconSizeDip = 12;
+constexpr int kExpansionIndicatorIconBorderDip = 4;
+constexpr int kExpansionIndicatorSizeDip = 72;
+constexpr auto kExpansionIndicatorViewInsets = gfx::Insets::TLBR(8, 8, 12, 12);
+
 // TTS audio.
 constexpr char kGoogleTtsEngineId[] = "com.google.android.tts";
 
-// Maximum height QuickAnswersView can expand to.
-int MaximumViewHeight() {
-  return kMainViewInsets.height() + kContentViewInsets.height() +
-         kMaxRows * kDefaultLineHeightDip + (kMaxRows - 1) * kLineSpacingDip;
+gfx::Insets GetContentViewInsets() {
+  if (chromeos::features::IsQuickAnswersRichCardEnabled()) {
+    return kRichCardRedesignContentViewInsets;
+  }
+  return kContentViewInsets;
 }
 
-class QuickAnswersTextLabel : public views::Label {
- public:
-  METADATA_HEADER(QuickAnswersTextLabel);
-
-  explicit QuickAnswersTextLabel(QuickAnswerText quick_answers_text)
-      : Label(quick_answers_text.text),
-        quick_answers_text_(quick_answers_text) {
-    SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
-  }
-
-  QuickAnswersTextLabel(const QuickAnswersTextLabel&) = delete;
-  QuickAnswersTextLabel& operator=(const QuickAnswersTextLabel&) = delete;
-
-  ~QuickAnswersTextLabel() override = default;
-
-  // views::View:
-  void OnThemeChanged() override {
-    views::Label::OnThemeChanged();
-    SetEnabledColor(GetColorProvider()->GetColor(quick_answers_text_.color_id));
-  }
-
- private:
-  QuickAnswerText quick_answers_text_;
-};
-
-BEGIN_METADATA(QuickAnswersTextLabel, views::Label)
-END_METADATA
-
-// Adds the list of |QuickAnswerUiElement| horizontally to the container.
-View* AddHorizontalUiElements(
-    const std::vector<std::unique_ptr<QuickAnswerUiElement>>& elements,
-    View* container) {
-  auto* labels_container =
-      container->AddChildView(std::make_unique<views::View>());
-  auto* layout =
-      labels_container->SetLayoutManager(std::make_unique<views::FlexLayout>());
-  layout->SetOrientation(views::LayoutOrientation::kHorizontal)
-      .SetDefault(views::kMarginsKey,
-                  gfx::Insets::TLBR(0, 0, 0, kLabelSpacingDip));
-
-  for (const auto& element : elements) {
-    switch (element->type) {
-      case QuickAnswerUiElementType::kText:
-        labels_container->AddChildView(std::make_unique<QuickAnswersTextLabel>(
-            *static_cast<QuickAnswerText*>(element.get())));
-        break;
-      case QuickAnswerUiElementType::kImage:
-        // TODO(yanxiao): Add image view
-        break;
-      default:
-        break;
-    }
-  }
-
-  return labels_container;
+// Maximum height QuickAnswersView can expand to.
+int MaximumViewHeight() {
+  return kMainViewInsets.height() + GetContentViewInsets().height() +
+         kMaxRows * kDefaultLineHeightDip + (kMaxRows - 1) * kLineSpacingDip;
 }
 
 class MainView : public views::Button {
@@ -173,7 +144,6 @@ class MainView : public views::Button {
     SetAccessibleName(
         l10n_util::GetStringUTF16(IDS_QUICK_ANSWERS_VIEW_A11Y_NAME_TEXT));
     SetInstallFocusRingOnFocus(false);
-    set_suppress_default_focus_handling();
 
     // This is because waiting for mouse-release to fire buttons would be too
     // late, since mouse-press dismisses the menu.
@@ -343,6 +313,8 @@ class QuickAnswersUtteranceEventDelegate
 
 }  // namespace
 
+namespace quick_answers {
+
 // QuickAnswersView -----------------------------------------------------------
 
 QuickAnswersView::QuickAnswersView(
@@ -355,28 +327,67 @@ QuickAnswersView::QuickAnswersView(
       title_(title),
       is_internal_(is_internal),
       quick_answers_view_handler_(
-          std::make_unique<QuickAnswersPreTargetHandler>(this)),
-      focus_search_(std::make_unique<QuickAnswersFocusSearch>(
+          std::make_unique<chromeos::editor_menu::PreTargetHandler>(this)),
+      focus_search_(std::make_unique<chromeos::editor_menu::FocusSearch>(
           this,
           base::BindRepeating(&QuickAnswersView::GetFocusableViews,
                               base::Unretained(this)))) {
   InitLayout();
-  InitWidget();
 
   // Focus.
   SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   set_suppress_default_focus_handling();
-
-  // Allow tooltips to be shown despite menu-controller owning capture.
-  GetWidget()->SetNativeWindowProperty(
-      views::TooltipManager::kGroupingPropertyKey,
-      reinterpret_cast<void*>(views::MenuConfig::kMenuControllerGroupingId));
 }
 
 QuickAnswersView::~QuickAnswersView() = default;
 
-const char* QuickAnswersView::GetClassName() const {
-  return "QuickAnswersView";
+views::UniqueWidgetPtr QuickAnswersView::CreateWidget(
+    const gfx::Rect& anchor_view_bounds,
+    const std::string& title,
+    bool is_internal,
+    base::WeakPtr<QuickAnswersUiController> controller) {
+  views::Widget::InitParams params;
+  params.activatable = views::Widget::InitParams::Activatable::kNo;
+  params.shadow_elevation = 2;
+  params.shadow_type = views::Widget::InitParams::ShadowType::kDrop;
+  params.type = views::Widget::InitParams::TYPE_POPUP;
+  params.z_order = ui::ZOrderLevel::kFloatingUIElement;
+
+  // Parent the widget to the owner of the menu.
+  auto* active_menu_controller = views::MenuController::GetActiveInstance();
+  DCHECK(active_menu_controller && active_menu_controller->owner());
+
+  // This widget has to be a child of menu owner's widget to make keyboard focus
+  // work.
+  params.parent = active_menu_controller->owner()->GetNativeView();
+  params.child = true;
+  params.name = kWidgetName;
+
+  views::UniqueWidgetPtr widget =
+      std::make_unique<views::Widget>(std::move(params));
+  QuickAnswersView* quick_answers_view =
+      widget->SetContentsView(std::make_unique<QuickAnswersView>(
+          anchor_view_bounds, title, is_internal, controller));
+  quick_answers_view->UpdateBounds();
+
+  // Allow tooltips to be shown despite menu-controller owning capture.
+  widget->SetNativeWindowProperty(
+      views::TooltipManager::kGroupingPropertyKey,
+      reinterpret_cast<void*>(views::MenuConfig::kMenuControllerGroupingId));
+
+  return widget;
+}
+
+void QuickAnswersView::RequestFocus() {
+  // When the Quick Answers view is focused, we actually want `main_view_`
+  // to have the focus for highlight and selection purposes.
+  main_view_->RequestFocus();
+}
+
+bool QuickAnswersView::HasFocus() const {
+  // When the Quick Answers view is focused, `main_view_` should have
+  // the focus.
+  return main_view_->HasFocus();
 }
 
 void QuickAnswersView::OnFocus() {
@@ -464,7 +475,8 @@ void QuickAnswersView::ShowRetryView() {
 
   // Add title.
   auto* title_label = content_view_->AddChildView(
-      std::make_unique<QuickAnswersTextLabel>(QuickAnswerText(title_)));
+      std::make_unique<quick_answers::QuickAnswersTextLabel>(
+          QuickAnswerText(title_)));
   title_label->SetMaximumWidthSingleLine(GetLabelWidth());
 
   // Add error label.
@@ -492,6 +504,11 @@ void QuickAnswersView::ShowRetryView() {
       l10n_util::GetStringUTF8(IDS_QUICK_ANSWERS_VIEW_A11Y_RETRY_LABEL_DESC));
 }
 
+ui::ImageModel QuickAnswersView::GetIconImageModelForTesting() {
+  return result_type_icon_ ? result_type_icon_->GetImageModel()
+                           : ui::ImageModel();
+}
+
 void QuickAnswersView::InitLayout() {
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
@@ -507,40 +524,22 @@ void QuickAnswersView::InitLayout() {
   auto* layout =
       main_view_->SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kHorizontal)
-      .SetInteriorMargin(kMainViewInsets)
-      .SetCrossAxisAlignment(views::LayoutAlignment::kStart);
+      .SetInteriorMargin(kMainViewInsets);
 
-  // Add branding icon.
-  AddGoogleIcon();
+  if (chromeos::features::IsQuickAnswersRichCardEnabled()) {
+    // Add icon that corresponds to the quick answer result type.
+    AddDefaultResultTypeIcon();
+  } else {
+    // Add branding icon.
+    AddGoogleIcon();
+  }
 
   AddContentView();
 
-  // Add util buttons in the top-right corner.
-  AddFrameButtons();
-}
-
-void QuickAnswersView::InitWidget() {
-  views::Widget::InitParams params;
-  params.activatable = views::Widget::InitParams::Activatable::kNo;
-  params.shadow_elevation = 2;
-  params.shadow_type = views::Widget::InitParams::ShadowType::kDrop;
-  params.type = views::Widget::InitParams::TYPE_POPUP;
-  params.z_order = ui::ZOrderLevel::kFloatingUIElement;
-
-  // Parent the widget to the owner of the menu.
-  auto* active_menu_controller = views::MenuController::GetActiveInstance();
-  DCHECK(active_menu_controller && active_menu_controller->owner());
-
-  // This widget has to be a child of menu owner's widget to make keyboard focus
-  // work.
-  params.parent = active_menu_controller->owner()->GetNativeView();
-  params.child = true;
-  params.name = kWidgetName;
-
-  views::Widget* widget = new views::Widget();
-  widget->Init(std::move(params));
-  widget->SetContentsView(this);
-  UpdateBounds();
+  if (!chromeos::features::IsQuickAnswersRichCardEnabled()) {
+    // Add util buttons in the top-right corner.
+    AddFrameButtons();
+  }
 }
 
 void QuickAnswersView::AddContentView() {
@@ -549,16 +548,18 @@ void QuickAnswersView::AddContentView() {
   auto* layout =
       content_view_->SetLayoutManager(std::make_unique<views::FlexLayout>());
   layout->SetOrientation(views::LayoutOrientation::kVertical)
-      .SetInteriorMargin(kContentViewInsets)
+      .SetInteriorMargin(GetContentViewInsets())
       .SetDefault(views::kMarginsKey,
                   gfx::Insets::TLBR(0, 0, kLineSpacingDip, 0));
   auto* title_label = content_view_->AddChildView(
-      std::make_unique<QuickAnswersTextLabel>(QuickAnswerText(title_)));
+      std::make_unique<quick_answers::QuickAnswersTextLabel>(
+          QuickAnswerText(title_)));
   title_label->SetMaximumWidthSingleLine(GetLabelWidth());
   std::string loading =
       l10n_util::GetStringUTF8(IDS_QUICK_ANSWERS_VIEW_LOADING);
   content_view_->AddChildView(
-      std::make_unique<QuickAnswersTextLabel>(QuickAnswerResultText(loading)));
+      std::make_unique<quick_answers::QuickAnswersTextLabel>(
+          QuickAnswerResultText(loading)));
 }
 
 void QuickAnswersView::AddFrameButtons() {
@@ -623,12 +624,48 @@ void QuickAnswersView::AddPhoneticsAudioButton(
 
 void QuickAnswersView::AddGoogleIcon() {
   // Add Google icon.
+  auto* google_icon_container = main_view_->AddChildView(
+      views::Builder<views::FlexLayoutView>()
+          .SetOrientation(views::LayoutOrientation::kHorizontal)
+          .SetCrossAxisAlignment(views::LayoutAlignment::kStart)
+          .Build());
+
   auto* google_icon =
-      main_view_->AddChildView(std::make_unique<views::ImageView>());
+      google_icon_container->AddChildView(std::make_unique<views::ImageView>());
   google_icon->SetBorder(views::CreateEmptyBorder(kGoogleIconInsets));
   google_icon->SetImage(gfx::CreateVectorIcon(vector_icons::kGoogleColorIcon,
                                               kGoogleIconSizeDip,
                                               gfx::kPlaceholderColor));
+}
+
+void QuickAnswersView::AddDefaultResultTypeIcon() {
+  // Use a container view for the icon and circle background to set
+  // the correct margins.
+  auto* result_type_icon_container = main_view_->AddChildView(
+      views::Builder<views::FlexLayoutView>()
+          .SetOrientation(views::LayoutOrientation::kHorizontal)
+          .SetCrossAxisAlignment(views::LayoutAlignment::kStart)
+          .SetInteriorMargin(kResultTypeIconContainerInsets)
+          .Build());
+
+  // Add a circle background behind the icon.
+  auto* result_type_icon_circle = result_type_icon_container->AddChildView(
+      std::make_unique<views::FlexLayoutView>());
+  result_type_icon_circle->SetBackground(
+      views::CreateThemedRoundedRectBackground(cros_tokens::kCrosSysPrimary,
+                                               kResultTypeIconContainerRadius));
+  result_type_icon_circle->SetBorder(
+      views::CreateEmptyBorder(kResultTypeIconCircleInsets));
+
+  // Use the default result type icon until a valid quick answers result is
+  // received and the view is updated. In the `no result` case, this will be
+  // kept as the default icon.
+  result_type_icon_ = result_type_icon_circle->AddChildView(
+      std::make_unique<views::ImageView>());
+  result_type_icon_->SetImage(
+      ui::ImageModel::FromVectorIcon(GetResultTypeIcon(ResultType::kNoResult),
+                                     cros_tokens::kCrosSysSystemBaseElevated,
+                                     /*icon_size=*/kResultTypeIconSizeDip));
 }
 
 int QuickAnswersView::GetBoundsWidth() {
@@ -636,9 +673,17 @@ int QuickAnswersView::GetBoundsWidth() {
 }
 
 int QuickAnswersView::GetLabelWidth() {
-  return GetBoundsWidth() - kMainViewInsets.width() -
-         kContentViewInsets.width() - kGoogleIconInsets.width() -
-         kGoogleIconSizeDip;
+  int label_width = GetBoundsWidth() - kMainViewInsets.width() -
+                    GetContentViewInsets().width() - kGoogleIconInsets.width() -
+                    kGoogleIconSizeDip;
+
+  // If the rich card feature flag is enabled, leave additional space
+  // for the expansion affordance indicator.
+  if (chromeos::features::IsQuickAnswersRichCardEnabled()) {
+    return label_width - kExpansionIndicatorSizeDip;
+  }
+
+  return label_width;
 }
 
 void QuickAnswersView::ResetContentView() {
@@ -659,7 +704,7 @@ void QuickAnswersView::UpdateBounds() {
   int y_min = anchor_view_bounds_.y() - kMarginDip - MaximumViewHeight();
   if (y_min < display::Screen::GetScreen()
                   ->GetDisplayMatching(anchor_view_bounds_)
-                  .bounds()
+                  .work_area()
                   .y()) {
     // The Quick Answers view will be off screen if showing above the anchor.
     // Show below the anchor instead.
@@ -669,7 +714,7 @@ void QuickAnswersView::UpdateBounds() {
   gfx::Rect bounds = {{anchor_view_bounds_.x(), y}, {GetBoundsWidth(), height}};
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // For Ash, convert the position relative to the screen.
-  // For Lacros, `bounds` is already relative to the toplevel window and the
+  // For Lacros, `bounds` is already relative to the top-level window and the
   // position will be calculated on server side.
   wm::ConvertRectFromScreen(GetWidget()->GetNativeWindow()->parent(), &bounds);
 #endif
@@ -686,6 +731,16 @@ void QuickAnswersView::UpdateQuickAnswerResult(
   if (report_query_view_) {
     base_view_->RemoveChildViewT(report_query_view_.get());
     report_query_view_ = nullptr;
+  }
+
+  // Update the icon representing the quick answers result type if it's shown.
+  // In the case that the rich card feature is not enabled, this icon is null
+  // and the google icon is being shown instead.
+  if (result_type_icon_ && quick_answer.result_type != ResultType::kNoResult) {
+    result_type_icon_->SetImage(ui::ImageModel::FromVectorIcon(
+        GetResultTypeIcon(quick_answer.result_type),
+        cros_tokens::kCrosSysSystemBaseElevated,
+        /*icon_size=*/kResultTypeIconSizeDip));
   }
 
   // Add title.
@@ -708,8 +763,9 @@ void QuickAnswersView::UpdateQuickAnswerResult(
   }
   bool first_answer_is_single_label =
       first_answer_view->children().size() == 1 &&
-      first_answer_view->children().front()->GetClassName() ==
-          QuickAnswersTextLabel::kViewClassName;
+      std::string_view(first_answer_view->children().front()->GetClassName()) ==
+          std::string_view(
+              quick_answers::QuickAnswersTextLabel::kViewClassName);
   if (first_answer_is_single_label) {
     // Update announcement.
     auto* answer_label =
@@ -727,7 +783,7 @@ void QuickAnswersView::UpdateQuickAnswerResult(
     // allow that label to wrap through to the row intended for the former.
     if (first_answer_is_single_label) {
       // Cache multi-line label for resizing when view bounds change.
-      first_answer_label_ = static_cast<QuickAnswersTextLabel*>(
+      first_answer_label_ = static_cast<quick_answers::QuickAnswersTextLabel*>(
           first_answer_view->children().front());
       first_answer_label_->SetMultiLine(true);
       first_answer_label_->SetMaxLines(kMaxRows - /*exclude title*/ 1);
@@ -749,14 +805,44 @@ void QuickAnswersView::UpdateQuickAnswerResult(
             &QuickAnswersUiController::OnReportQueryButtonPressed,
             controller_)));
   }
+
+  if (chromeos::features::IsQuickAnswersRichCardEnabled() &&
+      quick_answer.result_type != ResultType::kNoResult) {
+    // Show the expansion affordance indicator if rich card view is available.
+    auto* expansion_indicator_view = main_view_->AddChildView(
+        views::Builder<views::FlexLayoutView>()
+            .SetOrientation(views::LayoutOrientation::kHorizontal)
+            .SetInteriorMargin(kExpansionIndicatorViewInsets)
+            .SetMainAxisAlignment(views::LayoutAlignment::kStart)
+            .SetCrossAxisAlignment(views::LayoutAlignment::kEnd)
+            .Build());
+
+    auto* expansion_indicator_label =
+        expansion_indicator_view->AddChildView(std::make_unique<Label>(
+            l10n_util::GetStringUTF16(
+                IDS_QUICK_ANSWERS_VIEW_EXPANSION_INDICATOR_LABEL),
+            Label::CustomFont{gfx::FontList({kRobotoFont}, gfx::Font::NORMAL,
+                                            kExpansionIndicatorLabelFontSize,
+                                            gfx::Font::Weight::MEDIUM)}));
+    expansion_indicator_label->SetEnabledColorId(
+        cros_tokens::kTextColorProminent);
+
+    auto* expansion_indicator_icon = expansion_indicator_view->AddChildView(
+        std::make_unique<views::ImageView>());
+    expansion_indicator_icon->SetImage(ui::ImageModel::FromVectorIcon(
+        vector_icons::kCaretDownIcon, cros_tokens::kTextColorProminent,
+        /*icon_size=*/kExpansionIndicatorIconSizeDip));
+    expansion_indicator_icon->SetBorder(
+        views::CreateEmptyBorder(kExpansionIndicatorIconBorderDip));
+  }
 }
 
 std::vector<views::View*> QuickAnswersView::GetFocusableViews() {
   std::vector<views::View*> focusable_views;
-  // The view itself does not gain focus for retry-view and transfers it to the
+  // The main view does not gain focus for retry-view and transfers it to the
   // retry-label, and so is not included when this is the case.
   if (!retry_label_) {
-    focusable_views.push_back(this);
+    focusable_views.push_back(main_view_);
   }
   if (dogfood_feedback_button_ && dogfood_feedback_button_->GetVisible()) {
     focusable_views.push_back(dogfood_feedback_button_);
@@ -802,3 +888,8 @@ void QuickAnswersView::OnPhoneticsAudioButtonPressed(
 
   tts_controller->SpeakOrEnqueue(std::move(tts_utterance));
 }
+
+BEGIN_METADATA(QuickAnswersView, views::View)
+END_METADATA
+
+}  // namespace quick_answers

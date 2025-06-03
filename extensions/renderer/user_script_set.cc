@@ -216,7 +216,8 @@ std::unique_ptr<ScriptInjection> UserScriptSet::GetInjectionForScript(
   // injected into a frame.
   bool is_extension_dynamic_script =
       (host_id_.type == mojom::HostID::HostType::kExtensions) &&
-      !script->IsIDGenerated();
+      (script->GetSource() == UserScript::Source::kDynamicContentScript ||
+       script->GetSource() == UserScript::Source::kDynamicUserScript);
   std::unique_ptr<ScriptInjector> injector(new UserScriptInjector(
       script, this, is_declarative || is_extension_dynamic_script));
 
@@ -237,7 +238,7 @@ std::unique_ptr<ScriptInjection> UserScriptSet::GetInjectionForScript(
   return injection;
 }
 
-blink::WebString UserScriptSet::GetJsSource(const UserScript::File& file,
+blink::WebString UserScriptSet::GetJsSource(const UserScript::Content& file,
                                             bool emulate_greasemonkey) {
   const GURL& url = file.url();
   auto iter = script_sources_.find(url);
@@ -254,14 +255,13 @@ blink::WebString UserScriptSet::GetJsSource(const UserScript::File& file,
         base::StrCat({kUserScriptHead, script_content, kUserScriptTail});
     source = blink::WebString::FromUTF8(content);
   } else {
-    source = blink::WebString::FromUTF8(script_content.data(),
-                                        script_content.length());
+    source = blink::WebString::FromUTF8(script_content);
   }
   script_sources_[url] = source;
   return source;
 }
 
-blink::WebString UserScriptSet::GetCssSource(const UserScript::File& file) {
+blink::WebString UserScriptSet::GetCssSource(const UserScript::Content& file) {
   const GURL& url = file.url();
   auto iter = script_sources_.find(url);
   if (iter != script_sources_.end())
@@ -269,9 +269,7 @@ blink::WebString UserScriptSet::GetCssSource(const UserScript::File& file) {
 
   base::StringPiece script_content = file.GetContent();
   return script_sources_
-      .insert(std::make_pair(
-          url, blink::WebString::FromUTF8(script_content.data(),
-                                          script_content.length())))
+      .insert(std::make_pair(url, blink::WebString::FromUTF8(script_content)))
       .first->second;
 }
 

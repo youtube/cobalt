@@ -138,8 +138,10 @@ class DataPipeProducer::SequenceState
       DataSource::ReadResult result =
           data_source_->Read(bytes_transferred_, read_buffer);
       producer_handle_->EndWriteData(result.bytes_read);
-
-      if (result.result != MOJO_RESULT_OK) {
+      // result.bytes_read == 0 is used to determine if the read operation did
+      // not retrieve any bytes, which typically occurs when reaching the end of
+      // the file (EOF).
+      if (result.result != MOJO_RESULT_OK || result.bytes_read == 0) {
         Finish(result.result);
         return;
       }
@@ -210,6 +212,10 @@ void DataPipeProducer::OnWriteComplete(CompletionCallback callback,
   producer_ = std::move(producer);
   sequence_state_ = nullptr;
   std::move(callback).Run(ready_result);
+}
+
+const DataPipeProducerHandle& DataPipeProducer::GetProducerHandle() const {
+  return producer_.get();
 }
 
 }  // namespace mojo

@@ -4,10 +4,11 @@
 
 package org.chromium.net;
 
-import static junit.framework.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.net.impl.CronetUrlRequestContext;
 import org.chromium.net.test.FailurePhase;
 
@@ -45,7 +46,7 @@ public final class MockUrlRequestJobFactory {
      * @param netError reported by UrlRequestJob. Passing -1, results in hang.
      */
     public static String getMockUrlWithFailure(int phase, int netError) {
-        assertTrue(netError < 0);
+        assertThat(netError).isLessThan(0);
         switch (phase) {
             case FailurePhase.START:
             case FailurePhase.READ_SYNC:

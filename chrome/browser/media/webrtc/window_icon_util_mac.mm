@@ -6,8 +6,8 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
@@ -16,18 +16,18 @@ gfx::ImageSkia GetWindowIcon(content::DesktopMediaID id) {
 
   CGWindowID ids[1];
   ids[0] = id.id;
-  base::ScopedCFTypeRef<CFArrayRef> window_id_array(CFArrayCreate(
+  base::apple::ScopedCFTypeRef<CFArrayRef> window_id_array(CFArrayCreate(
       nullptr, reinterpret_cast<const void**>(&ids), std::size(ids), nullptr));
-  base::ScopedCFTypeRef<CFArrayRef> window_array(
+  base::apple::ScopedCFTypeRef<CFArrayRef> window_array(
       CGWindowListCreateDescriptionFromArray(window_id_array));
   if (!window_array || 0 == CFArrayGetCount(window_array)) {
     return gfx::ImageSkia();
   }
 
-  CFDictionaryRef window = base::mac::CFCastStrict<CFDictionaryRef>(
+  CFDictionaryRef window = base::apple::CFCastStrict<CFDictionaryRef>(
       CFArrayGetValueAtIndex(window_array, 0));
-  CFNumberRef pid_ref =
-      base::mac::GetValueFromDictionary<CFNumberRef>(window, kCGWindowOwnerPID);
+  CFNumberRef pid_ref = base::apple::GetValueFromDictionary<CFNumberRef>(
+      window, kCGWindowOwnerPID);
 
   int pid;
   CFNumberGetValue(pid_ref, kCFNumberIntType, &pid);
@@ -59,7 +59,8 @@ gfx::ImageSkia GetWindowIcon(content::DesktopMediaID id) {
   }
 
   CGDataProviderRef provider = CGImageGetDataProvider(cg_icon_image);
-  base::ScopedCFTypeRef<CFDataRef> cf_data(CGDataProviderCopyData(provider));
+  base::apple::ScopedCFTypeRef<CFDataRef> cf_data(
+      CGDataProviderCopyData(provider));
 
   int width = CGImageGetWidth(cg_icon_image);
   int height = CGImageGetHeight(cg_icon_image);

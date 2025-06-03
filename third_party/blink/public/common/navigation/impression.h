@@ -5,9 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_NAVIGATION_IMPRESSION_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_NAVIGATION_IMPRESSION_H_
 
+#include "services/network/public/cpp/attribution_reporting_runtime_features.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
-#include "third_party/blink/public/mojom/conversions/attribution_reporting.mojom.h"
 
 namespace blink {
 
@@ -21,7 +21,9 @@ struct BLINK_COMMON_EXPORT Impression {
   // Indicates the attributionsrc request associated with `this`.
   // Data parameters will be used from the attributionsrc response.
   AttributionSrcToken attribution_src_token;
-  blink::mojom::AttributionNavigationType nav_type;
+  // TODO(crbug.com/1443561): Get rid of this when Runtime Feature State fully
+  // supports runtime feature access from the browser process.
+  network::AttributionReportingRuntimeFeatures runtime_features;
 };
 
 }  // namespace blink

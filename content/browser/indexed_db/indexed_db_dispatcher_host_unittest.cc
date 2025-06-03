@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/indexed_db/indexed_db_dispatcher_host.h"
+// TODO(crbug.com/843764): `IndexedDBDispatcherHost` has been removed, but
+// surprisingly this file did not actually rely on it. These tests, many of
+// which are disabled, should be cleaned up and merged into other unit tests,
+// such as `IndexedDBTest`.
+
+// #include "content/browser/indexed_db/indexed_db_dispatcher_host.h"
 
 #include <tuple>
 
@@ -25,14 +30,13 @@
 #include "build/build_config.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "content/browser/indexed_db/indexed_db_callbacks.h"
 #include "content/browser/indexed_db/indexed_db_context_impl.h"
 #include "content/browser/indexed_db/indexed_db_database_callbacks.h"
 #include "content/browser/indexed_db/indexed_db_factory.h"
-#include "content/browser/indexed_db/indexed_db_leveldb_env.h"
+#include "content/browser/indexed_db/indexed_db_factory_client.h"
 #include "content/browser/indexed_db/indexed_db_pending_connection.h"
-#include "content/browser/indexed_db/mock_mojo_indexed_db_callbacks.h"
 #include "content/browser/indexed_db/mock_mojo_indexed_db_database_callbacks.h"
+#include "content/browser/indexed_db/mock_mojo_indexed_db_factory_client.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -108,7 +112,7 @@ struct TestDatabaseConnection {
         version(version),
         upgrade_txn_id(upgrade_txn_id),
         open_callbacks(
-            std::make_unique<StrictMock<MockMojoIndexedDBCallbacks>>()),
+            std::make_unique<StrictMock<MockMojoIndexedDBFactoryClient>>()),
         connection_callbacks(
             std::make_unique<
                 StrictMock<MockMojoIndexedDBDatabaseCallbacks>>()) {}
@@ -144,7 +148,7 @@ struct TestDatabaseConnection {
   mojo::AssociatedRemote<blink::mojom::IDBTransaction>
       version_change_transaction;
 
-  std::unique_ptr<MockMojoIndexedDBCallbacks> open_callbacks;
+  std::unique_ptr<MockMojoIndexedDBFactoryClient> open_callbacks;
   std::unique_ptr<MockMojoIndexedDBDatabaseCallbacks> connection_callbacks;
 };
 
@@ -203,8 +207,9 @@ class IndexedDBDispatcherHostTest : public testing::Test {
     context_impl_->IDBTaskRunner()->PostTask(
         FROM_HERE, base::BindLambdaForTesting([&]() {
           context_impl_->BindIndexedDB(
-              blink::StorageKey::CreateFromStringForTesting(kOrigin),
-              mojo::PendingAssociatedRemote<
+              storage::BucketLocator::ForDefaultBucket(
+                  blink::StorageKey::CreateFromStringForTesting(kOrigin)),
+              mojo::PendingRemote<
                   storage::mojom::IndexedDBClientStateChecker>(),
               idb_mojo_factory_.BindNewPipeAndPassReceiver());
           loop.Quit();
@@ -334,7 +339,7 @@ TEST_F(IndexedDBDispatcherHostTest, CloseAfterUpgrade) {
             .WillOnce(RunClosure(quit_closure2));
         EXPECT_CALL(
             *connection->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(false), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
             .Times(1)
             .WillOnce(RunClosure(std::move(quit_closure2)));
 
@@ -416,12 +421,12 @@ TEST_F(IndexedDBDispatcherHostTest, MAYBE_OpenNewConnectionWhileUpgrading) {
             .WillOnce(RunClosure(quit_closure2));
         EXPECT_CALL(
             *connection1->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(false), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
             .Times(1)
             .WillOnce(RunClosure(quit_closure2));
         EXPECT_CALL(
             *connection2->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(true), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(true), _))
             .WillOnce(testing::DoAll(MoveArgPointee<0>(&pending_database2),
                                      testing::SaveArg<1>(&metadata2),
                                      RunClosure(std::move(quit_closure2))));
@@ -632,9 +637,9 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBListChanged) {
                       Complete(kTransactionId1))
               .Times(1)
               .WillOnce(RunClosure(quit_closure));
-          EXPECT_CALL(*connection1->open_callbacks,
-                      MockedSuccessDatabase(
-                          IsAssociatedInterfacePtrInfoValid(false), _))
+          EXPECT_CALL(
+              *connection1->open_callbacks,
+              MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
               .Times(1)
               .WillOnce(RunClosure(std::move(quit_closure)));
 
@@ -704,9 +709,9 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBListChanged) {
                       Complete(kTransactionId2))
               .Times(1)
               .WillOnce(RunClosure(quit_closure));
-          EXPECT_CALL(*connection2->open_callbacks,
-                      MockedSuccessDatabase(
-                          IsAssociatedInterfacePtrInfoValid(false), _))
+          EXPECT_CALL(
+              *connection2->open_callbacks,
+              MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
               .Times(1)
               .WillOnce(RunClosure(std::move(quit_closure)));
 
@@ -767,9 +772,9 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBListChanged) {
                       Complete(kTransactionId3))
               .Times(1)
               .WillOnce(RunClosure(quit_closure));
-          EXPECT_CALL(*connection3->open_callbacks,
-                      MockedSuccessDatabase(
-                          IsAssociatedInterfacePtrInfoValid(false), _))
+          EXPECT_CALL(
+              *connection3->open_callbacks,
+              MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
               .Times(1)
               .WillOnce(RunClosure(std::move(quit_closure)));
 
@@ -864,7 +869,7 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBContentChanged) {
             .WillOnce(RunClosure(quit_closure2));
         EXPECT_CALL(
             *connection1->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(false), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
             .Times(1)
             .WillOnce(RunClosure(std::move(quit_closure2)));
 
@@ -933,8 +938,6 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBContentChanged) {
   EXPECT_EQ(connection2->version, metadata2.version);
   EXPECT_EQ(connection2->db_name, metadata2.name);
 
-  std::unique_ptr<StrictMock<MockMojoIndexedDBCallbacks>> clear_callbacks;
-
   // Clear object store.
   base::RunLoop loop5;
   base::RepeatingClosure quit_closure5 =
@@ -943,28 +946,21 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBContentChanged) {
       FROM_HERE, base::BindLambdaForTesting([&]() {
         ::testing::InSequence dummy;
 
-        clear_callbacks =
-            std::make_unique<StrictMock<MockMojoIndexedDBCallbacks>>();
-
-        EXPECT_CALL(*clear_callbacks, Success())
-            .Times(1)
-            .WillOnce(RunClosure(quit_closure5));
         EXPECT_CALL(*connection2->connection_callbacks,
                     Complete(kTransactionId2))
             .Times(1)
             .WillOnce(RunClosure(quit_closure5));
         EXPECT_CALL(
             *connection2->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(false), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
             .Times(1)
-            .WillOnce(RunClosure(std::move(quit_closure5)));
+            .WillOnce(RunClosure(quit_closure5));
 
         connection2->database.Bind(std::move(pending_database2));
         ASSERT_TRUE(connection2->database.is_bound());
         ASSERT_TRUE(connection2->version_change_transaction.is_bound());
-        connection2->database->Clear(
-            kTransactionId2, kObjectStoreId,
-            clear_callbacks->CreateInterfacePtrAndBind());
+        connection2->database->Clear(kTransactionId2, kObjectStoreId,
+                                     base::IgnoreArgs<bool>(quit_closure5));
         connection2->version_change_transaction->Commit(0);
       }));
   loop5.Run();
@@ -976,7 +972,6 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_NotifyIndexedDBContentChanged) {
   base::RunLoop loop6;
   context_impl_->IDBTaskRunner()->PostTask(FROM_HERE,
                                            base::BindLambdaForTesting([&]() {
-                                             clear_callbacks.reset();
                                              connection2.reset();
                                              loop6.Quit();
                                            }));
@@ -1040,7 +1035,7 @@ TEST_F(IndexedDBDispatcherHostTest, DISABLED_DatabaseOperationSequencing) {
             .WillOnce(RunClosure(quit_closure2));
         EXPECT_CALL(
             *connection->open_callbacks,
-            MockedSuccessDatabase(IsAssociatedInterfacePtrInfoValid(false), _))
+            MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
             .Times(1)
             .WillOnce(testing::DoAll(testing::SaveArg<1>(&metadata2),
                                      RunClosure(std::move(quit_closure2))));

@@ -4,8 +4,17 @@
 
 import {assert, assertExists} from './assert.js';
 import * as Comlink from './lib/comlink.js';
-import {GAHelper} from './untrusted_ga_helper.js';
+import {isLocalDev} from './models/load_time_data.js';
+import {
+  Ga4EventParams,
+  Ga4MetricDimension,
+  GaBaseEvent,
+  GaHelper,
+  GaMetricDimension,
+  MemoryUsageEventDimension,
+} from './untrusted_ga_helper.js';
 import {VideoProcessorHelper} from './untrusted_video_processor_helper.js';
+import {expandPath} from './util.js';
 import {WaitableEvent} from './waitable_event.js';
 
 interface UntrustedIFrame {
@@ -21,10 +30,16 @@ export function createUntrustedIframe(): UntrustedIFrame {
   const untrustedPageReady = new WaitableEvent();
   const iframe = document.createElement('iframe');
   iframe.addEventListener('load', () => untrustedPageReady.signal());
-  iframe.setAttribute(
-      'src',
-      'chrome-untrusted://camera-app/views/untrusted_script_loader.html');
+  if (isLocalDev()) {
+    iframe.setAttribute(
+        'src', expandPath('/views/untrusted_script_loader.html'));
+  } else {
+    iframe.setAttribute(
+        'src',
+        'chrome-untrusted://camera-app/views/untrusted_script_loader.html');
+  }
   iframe.hidden = true;
+  iframe.setAttribute('allow', 'cross-origin-isolated');
   document.body.appendChild(iframe);
   return {iframe, pageReadyEvent: untrustedPageReady};
 }
@@ -32,7 +47,10 @@ export function createUntrustedIframe(): UntrustedIFrame {
 // TODO(pihsun): actually get correct type from the function definition.
 interface UntrustedScriptLoader {
   loadScript(url: string): Promise<void>;
+  measureMemoryUsage(): Promise<MemoryMeasurement>;
 }
+
+let memoryMeasurementHelper: Comlink.Remote<UntrustedScriptLoader>|null = null;
 
 /**
  * Creates JS module by given |scriptUrl| under untrusted context with given
@@ -49,32 +67,56 @@ export async function injectUntrustedJSModule<T>(
   assert(iframe.contentWindow !== null);
   const untrustedRemote = Comlink.wrap<UntrustedScriptLoader>(
       Comlink.windowEndpoint(iframe.contentWindow, self));
+
+  // Memory measurement for all untrusted scripts can be done on any single
+  // untrusted frame.
+  if (memoryMeasurementHelper === null) {
+    memoryMeasurementHelper = untrustedRemote;
+  }
+
   await untrustedRemote.loadScript(scriptUrl);
+
   // loadScript adds the script exports to what's exported by the
   // untrustedRemote, so we manually cast it to the expected type.
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return untrustedRemote as unknown as Comlink.Remote<T>;
 }
 
-let gaHelper: Promise<Comlink.Remote<GAHelper>>|null = null;
+let gaHelper: Promise<Comlink.Remote<GaHelper>>|null = null;
 let videoProcessorHelper: Promise<Comlink.Remote<VideoProcessorHelper>>|null =
     null;
 
 /**
- * Gets the singleton GAHelper instance that is located in an untrusted iframe.
+ * Measure memory used by untrusted scripts.
  */
-export function getGAHelper(): Promise<Comlink.Remote<GAHelper>> {
+export async function measureUntrustedScriptsMemory():
+    Promise<MemoryMeasurement> {
+  assert(memoryMeasurementHelper !== null);
+  return memoryMeasurementHelper.measureMemoryUsage();
+}
+
+/**
+ * Gets the singleton GaHelper instance that is located in an untrusted iframe.
+ */
+export function getGaHelper(): Promise<Comlink.Remote<GaHelper>> {
   return assertExists(gaHelper);
 }
 
 /**
- * Sets the singleton GAHelper instance. This should only be called on
+ * Sets the singleton GaHelper instance. This should only be called on
  * initialize by init.ts.
  */
-export function setGAHelper(newGAHelper: Promise<Comlink.Remote<GAHelper>>):
+export function setGaHelper(newGaHelper: Promise<Comlink.Remote<GaHelper>>):
     void {
   assert(gaHelper === null, 'gaHelper should only be initialize once on init');
-  gaHelper = newGAHelper;
+  gaHelper = newGaHelper;
 }
+
+/**
+ * Types of event parameters and dimensions for GA and GA4.
+ */
+export {Ga4MetricDimension, GaMetricDimension};
+export type {Ga4EventParams, GaBaseEvent, MemoryUsageEventDimension};
 
 /**
  * Gets the singleton VideoProcessorHelper instance that is located in an

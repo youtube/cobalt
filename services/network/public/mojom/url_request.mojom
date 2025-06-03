@@ -25,6 +25,7 @@ import "services/network/public/mojom/isolation_info.mojom";
 import "services/network/public/mojom/network_param.mojom";
 import "services/network/public/mojom/referrer_policy.mojom";
 import "services/network/public/mojom/request_priority.mojom";
+import "services/network/public/mojom/shared_dictionary_access_observer.mojom";
 import "services/network/public/mojom/site_for_cookies.mojom";
 import "services/network/public/mojom/trust_tokens.mojom";
 import "services/network/public/mojom/trust_token_access_observer.mojom";
@@ -39,6 +40,7 @@ enum SourceType {
   kBrotli,
   kDeflate,
   kGzip,
+  kZstd,
   kNone,
   kUnknown,
 };
@@ -101,6 +103,11 @@ struct TrustedUrlRequestParams {
   // received. Can be null to signify that the requestor is not interested in
   // ACCEPT_CH frames.
   pending_remote<AcceptCHFrameObserver>? accept_ch_frame_observer;
+
+  // Observer which should be notified when this URLRequest accesses a shared
+  // dictionary. If this is set to non-null, the observer passed to
+  // URLLoaderFactory will be ignored.
+  pending_remote<SharedDictionaryAccessObserver>? shared_dictionary_observer;
 };
 
 // Options that may only be set on URLRequests which are related to WebBundle.
@@ -118,15 +125,6 @@ struct WebBundleTokenParams {
   // process, for subframe navigation requests to bundled resources. Not used
   // for subresource requests sent by renderer processes.
   int32 render_process_id;
-};
-
-// Options that may be set when URLRequests need to take over NetLog related
-// parameters. The URLRequest will use these parameters on logging.
-// Typemapped to net::NetLogSource.
-struct NetLogSource {
-  uint32 source_type;
-  uint32 source_id;
-  mojo_base.mojom.TimeTicks start_time;
 };
 
 // Typemapped to network::ResourceRequest.
@@ -167,7 +165,10 @@ struct URLRequest {
   // content script of an extension, with its own, separate origin).  This
   // needs to be true even if the request might be "proxied" in the browser
   // process on behalf of a web origin (e.g. as is the case for PaymentRequest
-  // API).
+  // API). In that sense, it is equivalent to the Fetch Standard's request
+  // origin concept [1].
+  //
+  // [1]: https://fetch.spec.whatwg.org/#concept-request-origin
   //
   // |request_initiator| should be omitted (i.e. set to absl::nullopt) for
   // browser-initiated requests (e.g. navigations initiated via omnibox or
@@ -323,6 +324,16 @@ struct URLRequest {
   // https://github.com/patcg-individual-drafts/topics
   bool browsing_topics;
 
+  // True if this is an ad auction request eligible for attaching the
+  // `Sec-Ad-Auction-Fetch` request header and processing the
+  // `X-Ad-Auction-Result` response header.
+  // https://github.com/WICG/turtledove/blob/main/FLEDGE_browser_bidding_and_auction_API.md#step-3-get-response-blobs-to-browser
+  bool ad_auction_headers;
+
+  // True if the request should send the `Sec-Shared-Storage-Writable` request
+  // header.
+  bool shared_storage_writable_eligible;
+
   // True if the request was user initiated.
   bool has_user_gesture;
 
@@ -397,6 +408,10 @@ struct URLRequest {
 
   // True for XHR, Fetch, and EventSource.
   bool is_fetch_like_api;
+
+  // True for FetchLater.
+  // https://whatpr.org/fetch/1647/094ea69...152d725.html#fetch-later-method
+  bool is_fetch_later_api;
 
   // True for favicon.
   bool is_favicon;
@@ -485,6 +500,13 @@ struct URLRequest {
   // other than `kUnknown`.
   IPAddressSpace target_ip_address_space;
 
+  // The target address space to which a given fetch operation is expected to
+  // connect. See more:
+  // https://wicg.github.io/private-network-access/#permission-prompt.
+  // If the actual address space and the expected address space don't match, a
+  // network error will be returned.
+  network.mojom.IPAddressSpace required_ip_address_space;
+
   // True if the request is eligible for using Storage Access API grant (if
   // one exists). This is secure since the renderer cannot forge a new storage
   // access permission grant, so the renderer would not be able to gain access
@@ -503,6 +525,32 @@ struct URLRequest {
   // the request is made.
   AttributionReportingEligibility attribution_reporting_eligibility =
     AttributionReportingEligibility.kUnset;
+
+  // Indicates whether Attribution Reporting API related runtime features are
+  // enabled.
+  //
+  // TODO(https://crbug.com/1443602): Get rid of this with proper OT
+  // infrastructure support in the network service.
+  AttributionReportingRuntimeFeatures attribution_reporting_runtime_features;
+
+  // When applicable, indicates the token of an Attribution Reporting API
+  // eligible navigation request to which the current request is associated.
+  mojo_base.mojom.UnguessableToken? attribution_reporting_src_token;
+
+  // Indicates whether this request has been determined to be used for
+  // advertising purposes.
+  bool is_ad_tagged = false;
+
+  // Indicate the state of CompressionDictionaryTransport feature. When it is
+  // true, `use-as-dictionary` response HTTP header may be processed.
+  // TODO(crbug.com/1413922): Remove this flag when we launch
+  // CompressionDictionaryTransport feature.
+  bool shared_dictionary_writer_enabled = false;
+
+  // Indicates where the original ResourceRequest is created.
+  // TODO(https://crbug.com/1456586): Remove this once the issue is fixed.
+  [EnableIf=is_android]
+  string created_location;
 };
 
 // URLRequestBody represents body (i.e. upload data) of a HTTP request.

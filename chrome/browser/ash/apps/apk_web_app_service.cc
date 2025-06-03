@@ -9,6 +9,7 @@
 
 #include "ash/components/arc/mojom/app.mojom.h"
 #include "ash/components/arc/session/connection_holder.h"
+#include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/single_thread_task_runner.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_finalizer.h"
@@ -32,6 +34,7 @@
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -81,6 +84,19 @@ bool IsAppInstalled(apps::AppRegistryCache& app_registry_cache,
   return installed;
 }
 
+absl::optional<webapps::AppId> GetWebAppIdForPackage(
+    ArcAppListPrefs::PackageInfo* package) {
+  if (!package || !package->web_app_info) {
+    return absl::nullopt;
+  }
+
+  // TWAs do not currently support manifest IDs, so the App ID is only based off
+  // the start URL.
+  return web_app::GenerateAppId(/*manifest_id_path=*/absl::nullopt,
+                                GURL(package->web_app_info->start_url));
+}
+
+// TODO(b/304184466): Refactor this DelegateImpl to reduce code duplication.
 // Delegate implementation that actually talks to ARC And Lacros.
 // It looks up |ArcAppListPrefs| in the profile to find the ARC connection.
 class ApkWebAppServiceDelegateImpl : public ApkWebAppService::Delegate,
@@ -108,7 +124,7 @@ class ApkWebAppServiceDelegateImpl : public ApkWebAppService::Delegate,
                        package_name, std::move(web_app_info)));
   }
 
-  void MaybeUninstallWebAppInLacros(const web_app::AppId& web_app_id) override {
+  void MaybeUninstallWebAppInLacros(const webapps::AppId& web_app_id) override {
     DCHECK(web_app::IsWebAppsCrosapiEnabled());
     if (crosapi::mojom::WebAppProviderBridge* web_app_provider_bridge =
             crosapi::CrosapiManager::Get()
@@ -132,13 +148,19 @@ class ApkWebAppServiceDelegateImpl : public ApkWebAppService::Delegate,
                           const std::string& package_name,
                           arc::mojom::WebAppInfoPtr web_app_info,
                           arc::mojom::RawIconPngDataPtr icon) {
+    // Track the upcoming installation attempt.
+    std::string web_app_id =
+        web_app::GenerateAppId(absl::nullopt, GURL(web_app_info->start_url));
+    ApkWebAppService::Get(profile_)->AddInstallingWebApkPackageName(
+        web_app_id, package_name);
+
     ApkWebAppInstaller::Install(profile_, package_name, std::move(web_app_info),
                                 std::move(icon), std::move(callback),
                                 weak_ptr_factory_.GetWeakPtr());
   }
 
   raw_ptr<Profile> profile_;
-  raw_ptr<ArcAppListPrefs> arc_app_list_prefs_;
+  raw_ptr<ArcAppListPrefs, DanglingUntriaged> arc_app_list_prefs_;
 
   // Must go last.
   base::WeakPtrFactory<ApkWebAppServiceDelegateImpl> weak_ptr_factory_{this};
@@ -191,7 +213,7 @@ ApkWebAppService::ApkWebAppService(Profile* profile, Delegate* test_delegate)
 
 ApkWebAppService::~ApkWebAppService() = default;
 
-bool ApkWebAppService::IsWebOnlyTwa(const web_app::AppId& app_id) {
+bool ApkWebAppService::IsWebOnlyTwa(const webapps::AppId& app_id) {
   absl::optional<std::string> package_name = GetPackageNameForWebApp(app_id);
   if (!package_name) {
     return false;
@@ -205,7 +227,7 @@ bool ApkWebAppService::IsWebOnlyTwa(const web_app::AppId& app_id) {
 }
 
 bool ApkWebAppService::IsWebAppInstalledFromArc(
-    const web_app::AppId& web_app_id) {
+    const webapps::AppId& web_app_id) {
   // The web app will only be in prefs under this key if it was installed from
   // ARC++.
   return WebAppToApks().FindDict(web_app_id) != nullptr;
@@ -218,11 +240,18 @@ bool ApkWebAppService::IsWebAppShellPackage(const std::string& package_name) {
 }
 
 absl::optional<std::string> ApkWebAppService::GetPackageNameForWebApp(
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id,
+    bool include_installing_apks) {
   if (const base::Value::Dict* app_dict = WebAppToApks().FindDict(app_id)) {
     if (const std::string* value = app_dict->FindString(kPackageNameKey)) {
       return *value;
     }
+  }
+  // If requested, check whether there is a package name for the web app among
+  // the currently installing web app apks.
+  auto it = currently_installing_apks_.find(app_id);
+  if (include_installing_apks && it != currently_installing_apks_.end()) {
+    return it->second;
   }
   return absl::nullopt;
 }
@@ -230,12 +259,14 @@ absl::optional<std::string> ApkWebAppService::GetPackageNameForWebApp(
 absl::optional<std::string> ApkWebAppService::GetPackageNameForWebApp(
     const GURL& url) {
   auto* web_app_provider = web_app::WebAppProvider::GetForWebApps(profile_);
-  if (!web_app_provider)
+  if (!web_app_provider) {
     return absl::nullopt;
-  absl::optional<web_app::AppId> app_id =
+  }
+  absl::optional<webapps::AppId> app_id =
       web_app_provider->registrar_unsafe().FindAppWithUrlInScope(url);
-  if (!app_id)
+  if (!app_id) {
     return absl::nullopt;
+  }
 
   return GetPackageNameForWebApp(app_id.value());
 }
@@ -253,7 +284,7 @@ absl::optional<std::string> ApkWebAppService::GetWebAppIdForPackageName(
 }
 
 absl::optional<std::string> ApkWebAppService::GetCertificateSha256Fingerprint(
-    const web_app::AppId& app_id) {
+    const webapps::AppId& app_id) {
   absl::optional<std::string> package_name = GetPackageNameForWebApp(app_id);
   if (!package_name) {
     return absl::nullopt;
@@ -264,15 +295,6 @@ absl::optional<std::string> ApkWebAppService::GetCertificateSha256Fingerprint(
     return absl::nullopt;
   }
   return package->web_app_info->certificate_sha256_fingerprint;
-}
-
-void ApkWebAppService::SetArcAppListPrefsForTesting(ArcAppListPrefs* prefs) {
-  DCHECK(prefs);
-  if (arc_app_list_prefs_)
-    arc_app_list_prefs_->RemoveObserver(this);
-
-  arc_app_list_prefs_ = prefs;
-  arc_app_list_prefs_->AddObserver(this);
 }
 
 void ApkWebAppService::SetWebAppInstalledCallbackForTesting(
@@ -309,7 +331,7 @@ void ApkWebAppService::MaybeInstallWebApp(
                      std::move(web_app_info)));
 }
 
-void ApkWebAppService::MaybeUninstallWebApp(const web_app::AppId& web_app_id) {
+void ApkWebAppService::MaybeUninstallWebApp(const webapps::AppId& web_app_id) {
   if (web_app::IsWebAppsCrosapiEnabled()) {
     GetDelegate().MaybeUninstallWebAppInLacros(web_app_id);
     return;
@@ -322,7 +344,7 @@ void ApkWebAppService::MaybeUninstallWebApp(const web_app::AppId& web_app_id) {
 
   auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
   DCHECK(provider);
-  provider->install_finalizer().UninstallExternalWebApp(
+  provider->scheduler().RemoveInstallSource(
       web_app_id, web_app::WebAppManagement::kWebAppStore,
       webapps::WebappUninstallSource::kArc, base::DoNothing());
 }
@@ -357,8 +379,9 @@ void ApkWebAppService::UpdateShelfPin(
     DCHECK(arc_app_list_prefs_);
     std::unordered_set<std::string> apps =
         arc_app_list_prefs_->GetAppsForPackage(package_name);
-    if (!apps.empty())
+    if (!apps.empty()) {
       new_app_id = *apps.begin();
+    }
   }
 
   // Query for the old app id, which is cached in the package dict to ensure it
@@ -367,24 +390,27 @@ void ApkWebAppService::UpdateShelfPin(
       arc_app_list_prefs_->GetPackagePrefs(package_name, kLastAppId);
 
   std::string last_app_id;
-  if (last_app_id_value && last_app_id_value->is_string())
+  if (last_app_id_value && last_app_id_value->is_string()) {
     last_app_id = last_app_id_value->GetString();
+  }
 
   if (new_app_id != last_app_id && !new_app_id.empty()) {
     arc_app_list_prefs_->SetPackagePrefs(package_name, kLastAppId,
                                          base::Value(new_app_id));
     if (!last_app_id.empty()) {
       auto* shelf_controller = ChromeShelfController::instance();
-      if (!shelf_controller)
+      if (!shelf_controller) {
         return;
+      }
       int index = shelf_controller->PinnedItemIndexByAppID(last_app_id);
       // The previously installed app has been uninstalled or hidden, in this
       // instance get the saved pin index and pin at that place.
       if (index == ChromeShelfController::kInvalidIndex) {
         const base::Value* saved_index =
             arc_app_list_prefs_->GetPackagePrefs(package_name, kPinIndex);
-        if (!(saved_index && saved_index->is_int()))
+        if (!(saved_index && saved_index->is_int())) {
           return;
+        }
         shelf_controller->PinAppAtIndex(new_app_id, saved_index->GetInt());
         arc_app_list_prefs_->SetPackagePrefs(
             package_name, kPinIndex,
@@ -398,8 +424,9 @@ void ApkWebAppService::UpdateShelfPin(
 
 void ApkWebAppService::Shutdown() {
   // Can be null in tests.
-  if (arc_app_list_prefs_)
+  if (arc_app_list_prefs_) {
     arc_app_list_prefs_ = nullptr;
+  }
 }
 
 void ApkWebAppService::OnPackageInstalled(
@@ -458,7 +485,7 @@ void ApkWebAppService::OnWebAppProviderBridgeConnected() {
 }
 
 void ApkWebAppService::MaybeRemoveArcPackageForWebApp(
-    const web_app::AppId& web_app_id) {
+    const webapps::AppId& web_app_id) {
   absl::optional<std::string> package_name =
       GetPackageNameForWebApp(web_app_id);
   std::string removed_package_name;
@@ -496,6 +523,11 @@ void ApkWebAppService::OnDidGetWebAppIcon(
     const std::string& package_name,
     arc::mojom::WebAppInfoPtr web_app_info,
     arc::mojom::RawIconPngDataPtr icon) {
+  // Track the upcoming installation attempt.
+  std::string web_app_id =
+      web_app::GenerateAppId(absl::nullopt, GURL(web_app_info->start_url));
+  AddInstallingWebApkPackageName(web_app_id, package_name);
+
   ApkWebAppInstaller::Install(
       profile_, package_name, std::move(web_app_info), std::move(icon),
       base::BindOnce(&ApkWebAppService::OnDidFinishInstall,
@@ -505,7 +537,7 @@ void ApkWebAppService::OnDidGetWebAppIcon(
 
 void ApkWebAppService::OnDidFinishInstall(
     const std::string& package_name,
-    const web_app::AppId& web_app_id,
+    const webapps::AppId& web_app_id,
     bool is_web_only_twa,
     const absl::optional<std::string> sha256_fingerprint,
     webapps::InstallResultCode code) {
@@ -530,10 +562,12 @@ void ApkWebAppService::OnDidFinishInstall(
     // when the container starts up again.
     web_app_dict->Set(kShouldRemoveKey, false);
   }
+  RemoveInstallingWebApkPackageName(web_app_id);
 
   // For testing.
-  if (web_app_installed_callback_)
+  if (web_app_installed_callback_) {
     std::move(web_app_installed_callback_).Run(package_name, web_app_id);
+  }
 }
 
 const base::Value::Dict& ApkWebAppService::WebAppToApks() const {
@@ -590,6 +624,53 @@ void ApkWebAppService::SyncArcAndWebApps() {
       continue;
     }
     arc_packages[package_name] = arc_app_list_prefs_->GetPackage(package_name);
+  }
+
+  // Map of package names which have migrated a web app from one package to
+  // another. There should only be one package at a time on Play Store that
+  // installs a particular web app. However, when migrating between packages,
+  // some users might end up with two packages that are trying to install the
+  // same web app. In this case, the packages will conflict over which one is
+  // associated with the web app. We solve this by silently migrating installs
+  // from the "deprecated" package to the "canonical" package.
+  base::flat_map<std::string, std::string> migration_packages{
+      {"com.google.android.apps.tachyon",   // Canonical package.
+       "com.google.android.apps.meetings"}  // Deprecated package.
+  };
+
+  for (const auto& [canonical_package, deprecated_package] :
+       migration_packages) {
+    // We only perform a migration if both packages are installed and both
+    // trying to install the same web app.
+    if (!base::Contains(arc_packages, canonical_package) ||
+        !base::Contains(arc_packages, deprecated_package)) {
+      continue;
+    }
+
+    absl::optional<webapps::AppId> canonical_id =
+        GetWebAppIdForPackage(arc_packages.at(canonical_package).get());
+    absl::optional<webapps::AppId> deprecated_id =
+        GetWebAppIdForPackage(arc_packages.at(deprecated_package).get());
+
+    if (!canonical_id.has_value() || canonical_id != deprecated_id) {
+      continue;
+    }
+
+    // If the web app is currently installed but pointing to the deprecated
+    // package, switch to the canonical package. If the web app is not currently
+    // installed, it will be installed later in this Sync call.
+    if (GetPackageNameForWebApp(*canonical_id) == deprecated_package) {
+      ScopedDictPrefUpdate dict_update(profile_->GetPrefs(),
+                                       kWebAppToApkDictPref);
+      base::Value::Dict* app_id_dict = dict_update->EnsureDict(*canonical_id);
+      app_id_dict->Set(kPackageNameKey, canonical_package);
+    }
+
+    // Uninstalling the deprecated package is asynchronous, so we also need to
+    // remove the package from `arc_packages` to prevent it from being
+    // considered during the rest of this Sync call.
+    MaybeUninstallArcPackage(deprecated_package);
+    arc_packages.erase(deprecated_package);
   }
 
   // For each ARC package, decide if a matching web app needs to be installed or
@@ -656,11 +737,22 @@ void ApkWebAppService::SyncArcAndWebApps() {
 
 // TODO(crbug/1421626): Remove this code after migrations are complete.
 void ApkWebAppService::RemoveObsoletePrefValues(
-    const web_app::AppId& web_app_id) {
+    const webapps::AppId& web_app_id) {
   ScopedDictPrefUpdate dict_update(profile_->GetPrefs(), kWebAppToApkDictPref);
   base::Value::Dict* app_id_dict = dict_update->EnsureDict(web_app_id);
   app_id_dict->Remove(kIsWebOnlyTwaKey);
   app_id_dict->Remove(kSha256FingerprintKey);
+}
+
+void ApkWebAppService::AddInstallingWebApkPackageName(
+    const std::string& app_id,
+    const std::string& package_name) {
+  currently_installing_apks_[app_id] = package_name;
+}
+
+void ApkWebAppService::RemoveInstallingWebApkPackageName(
+    const std::string& app_id) {
+  currently_installing_apks_.erase(app_id);
 }
 
 }  // namespace ash

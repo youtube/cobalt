@@ -7,7 +7,7 @@
  */
 
 GEN_INCLUDE([
-  '//chrome/test/data/webui/polymer_browser_test_base.js',
+  '//chrome/test/data/webui/chromeos/polymer_browser_test_base.js',
 ]);
 
 GEN('#include "ash/constants/ash_features.h"');
@@ -30,7 +30,7 @@ var PolymerSecurityTokenPinTest = class extends PolymerTest {
 
   get extraLibraries() {
     return [
-      '//third_party/mocha/mocha.js',
+      '//third_party/node/node_modules/mocha/mocha.js',
       '//chrome/test/data/webui/mocha_adapter.js',
       'components/oobe_types.js',
     ];

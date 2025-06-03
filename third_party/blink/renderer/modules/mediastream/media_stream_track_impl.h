@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_track_video_stats.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
@@ -62,12 +63,6 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
   static MediaStreamTrack* Create(ExecutionContext* context,
                                   MediaStreamComponent* component,
                                   base::OnceClosure callback);
-  // Creates a new MediaStreamTrackImpl with a component cloned from an existing
-  // component with an initialized platform track. The cloned component will be
-  // connected to the same platform track as the passed in component.
-  static MediaStreamTrackImpl* CreateCloningComponent(
-      ExecutionContext* execution_context,
-      MediaStreamComponent* component);
 
   MediaStreamTrackImpl(ExecutionContext*, MediaStreamComponent*);
   MediaStreamTrackImpl(ExecutionContext*,
@@ -76,7 +71,8 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
   MediaStreamTrackImpl(ExecutionContext*,
                        MediaStreamComponent*,
                        MediaStreamSource::ReadyState,
-                       base::OnceClosure callback);
+                       base::OnceClosure callback,
+                       bool is_clone = false);
   ~MediaStreamTrackImpl() override;
 
   // MediaStreamTrack
@@ -94,6 +90,7 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
   MediaTrackCapabilities* getCapabilities() const override;
   MediaTrackConstraints* getConstraints() const override;
   MediaTrackSettings* getSettings() const override;
+  MediaStreamTrackVideoStats* stats() override;
   CaptureHandle* getCaptureHandle() const override;
   ScriptPromise applyConstraints(ScriptState*,
                                  const MediaTrackConstraints*) override;
@@ -117,7 +114,7 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
     return ready_state_;
   }
 
-  MediaStreamComponent* Component() const override { return component_; }
+  MediaStreamComponent* Component() const override { return component_.Get(); }
   bool Ended() const override;
 
   void RegisterMediaStream(MediaStream*) override;
@@ -135,7 +132,9 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
   std::unique_ptr<AudioSourceProvider> CreateWebAudioSource(
       int context_sample_rate) override;
 
-  ImageCapture* GetImageCapture() override { return image_capture_; }
+  MediaStreamTrackPlatform::VideoFrameStats GetVideoFrameStats() const;
+
+  ImageCapture* GetImageCapture() override { return image_capture_.Get(); }
 
   absl::optional<const MediaStreamDevice> device() const override;
 
@@ -199,6 +198,7 @@ class MODULES_EXPORT MediaStreamTrackImpl : public MediaStreamTrack,
   bool muted_ = false;
   MediaConstraints constraints_;
   absl::optional<bool> suppress_local_audio_playback_setting_;
+  Member<MediaStreamTrackVideoStats> video_stats_;
 };
 
 }  // namespace blink

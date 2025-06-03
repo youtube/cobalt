@@ -51,7 +51,7 @@ export class StreamManager {
   private devicesInfo: Promise<MediaDeviceInfo[]>|null = null;
 
   /**
-   * Camera3DeviceInfo of all available video devices. Is null on HALv1 device
+   * Camera3DeviceInfo of all available video devices. It's null on HALv1 device
    * without mojo api support.
    */
   private camera3DevicesInfo: Promise<DeviceInfo[]|null>|null = null;
@@ -67,23 +67,23 @@ export class StreamManager {
   private realDevices: DeviceInfo[] = [];
 
   /**
-   * Real device id and corresponding virtual devices id mapping and it is
+   * Real device id to corresponding virtual devices id mapping and it is
    * only available on HALv3.
    */
   private virtualMap: VirtualMap|null = null;
 
   /**
-   * Signal it to indicate that the virtual device is ready.
+   * Signals it to indicate that the virtual device is ready.
    */
   private waitVirtual: WaitableEvent<string>|null = null;
 
   /**
-   * Signal to indicate that the virtual device is successfully removed.
+   * Signals to indicate that the virtual device is successfully removed.
    */
   private waitVirtualRemoved: WaitableEvent|null = null;
 
   /**
-   * Filter out lagging 720p on grunt. See https://crbug.com/1122852.
+   * Filters out lagging 720p on grunt. See https://crbug.com/1122852.
    */
   private readonly videoConfigFilter: (config: VideoConfig) => boolean;
 
@@ -100,7 +100,7 @@ export class StreamManager {
 
   /**
    * Creates a new instance of StreamManager if it is not set. Returns the
-   *     exist instance.
+   *     existing instance.
    *
    * @return The singleton instance.
    */
@@ -141,7 +141,7 @@ export class StreamManager {
   }
 
   /**
-   * Closes the given capture stream.
+   * Closes the given `captureStream`.
    */
   async closeCaptureStream(captureStream: MediaStream): Promise<void> {
     assertExists(captureStream.getVideoTracks()[0]).stop();
@@ -172,7 +172,7 @@ export class StreamManager {
   }
 
   /**
-   * Gets devices information via mojo IPC.
+   * Updates devices information via mojo IPC.
    */
   private async doDeviceInfoUpdate(): Promise<DeviceInfo[]|null> {
     this.devicesInfo = this.enumerateDevices();
@@ -180,13 +180,20 @@ export class StreamManager {
     try {
       return await this.camera3DevicesInfo;
     } catch (e) {
-      reportError(ErrorType.DEVICE_INFO_UPDATE_FAILURE, ErrorLevel.ERROR, e);
+      if (loadTimeData.isVideoCaptureDisallowed()) {
+        // The failure is expected due to the policy so don't throw any error.
+        // TODO(b/297317408): Show messages on the UI.
+        // eslint-disable-next-line no-console
+        console.log('Failed to load camera since it is blocked by policy');
+      } else {
+        reportError(ErrorType.DEVICE_INFO_UPDATE_FAILURE, ErrorLevel.ERROR, e);
+      }
     }
     return null;
   }
 
   /**
-   * Notifies device changes to listeners and create a mapping for real and
+   * Notifies device changes to listeners and creates a mapping for real and
    * virtual device.
    */
   private doDeviceNotify(devices: DeviceInfo[]) {
@@ -238,7 +245,7 @@ export class StreamManager {
   }
 
   /**
-   * Enumerates all available devices and gets their MediaDeviceInfo. Retry at
+   * Enumerates all available devices and gets their MediaDeviceInfo. Retries at
    * one-second intervals if devices length is zero.
    */
   private async enumerateDevices(): Promise<MediaDeviceInfo[]> {
@@ -246,7 +253,7 @@ export class StreamManager {
     const shouldHaveBuiltinCamera =
         deviceType === 'chromebook' || deviceType === 'chromebase';
     let attempts = 5;
-    while (attempts--) {
+    while (attempts-- > 0) {
       const devices = (await navigator.mediaDevices.enumerateDevices())
                           .filter((device) => device.kind === 'videoinput');
       if (!shouldHaveBuiltinCamera || devices.length > 0) {
@@ -282,9 +289,6 @@ export class StreamManager {
    * Enables/Disables virtual device on target camera device. The extra
    * stream will be reported as virtual video device from
    * navigator.mediaDevices.enumerateDevices().
-   *
-   * @param deviceId The id of target camera device.
-   * @param enabled True for enabling virtual device.
    */
   async setVirtualDeviceEnabled(deviceId: string, enabled: boolean):
       Promise<void> {

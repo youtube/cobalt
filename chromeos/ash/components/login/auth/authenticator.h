@@ -35,18 +35,21 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
 
   // Given externally authenticated username and password (part of
   // |user_context|), this method attempts to complete authentication process.
-  virtual void CompleteLogin(std::unique_ptr<UserContext> user_context) = 0;
+  virtual void CompleteLogin(bool ephemeral,
+                             std::unique_ptr<UserContext> user_context) = 0;
 
   // Given a user credentials in |user_context|,
   // this method attempts to authenticate to login.
   // Must be called on the UI thread.
   virtual void AuthenticateToLogin(
+      bool ephemeral,
       std::unique_ptr<UserContext> user_context) = 0;
 
   // Given a user credentials in |user_context|,
   // this method attempts to authenticate to unlock.
   // Must be called on the UI thread.
   virtual void AuthenticateToUnlock(
+      bool ephemeral,
       std::unique_ptr<UserContext> user_context) = 0;
 
   // Initiates incognito ("browse without signing in") login.
@@ -102,6 +105,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
   // Call this method to erase the user's encrypted data
   // and create a new cryptohome.
   virtual void ResyncEncryptedData(
+      bool ephemeral,
       std::unique_ptr<UserContext> user_context) = 0;
 
   // Sets consumer explicitly.
@@ -110,7 +114,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
  protected:
   virtual ~Authenticator();
 
-  raw_ptr<AuthStatusConsumer, ExperimentalAsh> consumer_;
+  raw_ptr<AuthStatusConsumer, DanglingUntriaged | ExperimentalAsh> consumer_;
 
  private:
   friend class base::RefCountedThreadSafe<Authenticator>;

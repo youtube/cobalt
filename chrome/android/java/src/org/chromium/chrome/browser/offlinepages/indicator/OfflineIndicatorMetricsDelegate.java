@@ -4,11 +4,11 @@
 
 package org.chromium.chrome.browser.offlinepages.indicator;
 
-import androidx.annotation.VisibleForTesting;
-
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /**
  * Tracks metrics about how long the Offline Indicator is shown. All state related to the metrics
@@ -25,11 +25,6 @@ public class OfflineIndicatorMetricsDelegate {
     // UMA Histograms.
     public static final String OFFLINE_INDICATOR_SHOWN_DURATION_V2 =
             "OfflineIndicator.ShownDurationV2";
-    public static final String
-            OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED =
-                    "OfflineIndicator.ShownDurationV2.InForegroundWithoutBeingBackgrounded";
-    public static final String OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED =
-            "OfflineIndicator.ShownDurationV2.NumTimesBackgrounded";
 
     /** Whether or not we are tracking a shown duration of the offline indicator. */
     private boolean mIsTrackingShownDuration;
@@ -76,7 +71,7 @@ public class OfflineIndicatorMetricsDelegate {
     private int mNumTimesBackgrounded;
 
     public OfflineIndicatorMetricsDelegate() {
-        SharedPreferencesManager sharedPreferencesManager = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
 
         // Read stored state from Prefs
         if (sharedPreferencesManager.contains(
@@ -143,7 +138,7 @@ public class OfflineIndicatorMetricsDelegate {
     public void onIndicatorShown() {
         if (mIsTrackingShownDuration) return;
 
-        SharedPreferencesManager sharedPreferencesManager = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
 
         long currentTimeMs = sClock.currentTimeMillis();
 
@@ -205,7 +200,7 @@ public class OfflineIndicatorMetricsDelegate {
 
             // Updates state based on the foreground to background transition.
             SharedPreferencesManager sharedPreferencesManager =
-                    SharedPreferencesManager.getInstance();
+                    ChromeSharedPreferences.getInstance();
             if (!sharedPreferencesManager.contains(
                         ChromePreferenceKeys.OFFLINE_INDICATOR_V2_FIRST_TIME_IN_FOREGROUND_MS)) {
                 mFirstTimeInForegroundMs = mTimeInForegroundMs;
@@ -227,7 +222,7 @@ public class OfflineIndicatorMetricsDelegate {
      * |mLastUpdateWallTimeMs| until now. Metrics are persisted to prefs when updated.
      */
     private void updateForegroundPeriod() {
-        SharedPreferencesManager sharedPreferencesManager = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
 
         long currentTimeMs = sClock.currentTimeMillis();
         long timeSinceLastUpdateMs = currentTimeMs - mLastUpdateWallTimeMs;
@@ -248,7 +243,7 @@ public class OfflineIndicatorMetricsDelegate {
      * |mLastUpdateWallTimeMs| until now. Metrics are persisted to prefs when updated.
      */
     private void updateBackgroundPeriod() {
-        SharedPreferencesManager sharedPreferencesManager = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
 
         long currentTimeMs = sClock.currentTimeMillis();
         long timeSinceLastUpdateMs = currentTimeMs - mLastUpdateWallTimeMs;
@@ -259,7 +254,7 @@ public class OfflineIndicatorMetricsDelegate {
                 mTimeInBackgroundMs);
 
         mLastUpdateWallTimeMs = currentTimeMs;
-        SharedPreferencesManager.getInstance().writeLong(
+        ChromeSharedPreferences.getInstance().writeLong(
                 ChromePreferenceKeys.OFFLINE_INDICATOR_V2_LAST_UPDATE_WALL_TIME_MS,
                 mLastUpdateWallTimeMs);
     }
@@ -271,17 +266,10 @@ public class OfflineIndicatorMetricsDelegate {
     private void recordShownDurationHistograms() {
         RecordHistogram.recordLongTimesHistogram100(
                 OFFLINE_INDICATOR_SHOWN_DURATION_V2, mTimeInForegroundMs + mTimeInBackgroundMs);
-        RecordHistogram.recordCount100Histogram(
-                OFFLINE_INDICATOR_SHOWN_DURATION_V2_NUM_TIMES_BACKGROUNDED, mNumTimesBackgrounded);
 
-        if (!SharedPreferencesManager.getInstance().contains(
+        if (!ChromeSharedPreferences.getInstance().contains(
                     ChromePreferenceKeys.OFFLINE_INDICATOR_V2_TIME_IN_BACKGROUND_MS)) {
             assert mNumTimesBackgrounded == 0;
-            // This histogram is only recorded if the app was always in the foreground while the
-            // offline indicator was shown.
-            RecordHistogram.recordLongTimesHistogram(
-                    OFFLINE_INDICATOR_SHOWN_DURATION_V2_IN_FOREGROUND_WITHOUT_BEING_BACKGROUNDED,
-                    mTimeInForegroundMs);
         }
     }
 
@@ -298,7 +286,7 @@ public class OfflineIndicatorMetricsDelegate {
         mNumTimesBackgrounded = 0;
         mIsTrackingShownDuration = false;
 
-        SharedPreferencesManager sharedPreferencesManager = SharedPreferencesManager.getInstance();
+        SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
         sharedPreferencesManager.removeKey(
                 ChromePreferenceKeys.OFFLINE_INDICATOR_V2_WALL_TIME_SHOWN_MS);
         sharedPreferencesManager.removeKey(
@@ -313,8 +301,9 @@ public class OfflineIndicatorMetricsDelegate {
                 ChromePreferenceKeys.OFFLINE_INDICATOR_V2_NUM_TIMES_BACKGROUNDED);
     }
 
-    @VisibleForTesting
     static void setClockForTesting(Clock clock) {
+        var oldValue = sClock;
         sClock = clock;
+        ResettersForTesting.register(() -> sClock = oldValue);
     }
 }

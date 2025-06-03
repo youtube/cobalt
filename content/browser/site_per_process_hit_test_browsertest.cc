@@ -824,24 +824,6 @@ class SitePerProcessHitTestBrowserTest : public SitePerProcessBrowserTestBase {
 #endif
 };
 
-// This tests the kInputTargetClientHighPriority finch experiment where we
-// upgrade the TaskQueue priority for InputTargetClient methods.
-class SitePerProcessHitTestTaskPriorityBrowserTest
-    : public SitePerProcessHitTestBrowserTest {
- public:
-  SitePerProcessHitTestTaskPriorityBrowserTest() = default;
-
- protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    SitePerProcessBrowserTestBase::SetUpCommandLine(command_line);
-    feature_list_.InitAndEnableFeature(
-        blink::features::kInputTargetClientHighPriority);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
 //
 // SitePerProcessHighDPIHitTestBrowserTest
 //
@@ -970,7 +952,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessInternalsHitTestBrowserTest,
       "      B = http://b.com/",
       DepictFrameTree(root));
 
-  const char* get_element_location_script_fmt =
+  static constexpr char kGetElementLocationScriptFmt[] =
       "var rect = "
       "document.getElementById('%s').getBoundingClientRect();\n"
       "var point = {\n"
@@ -983,18 +965,18 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessInternalsHitTestBrowserTest,
   // with the parent frame, we need to query element offsets in both documents
   // before converting to root space coordinates for the wheel event.
   gfx::PointF nested_point_f;
-  ConvertJSONToPoint(EvalJs(nested_iframe_node->current_frame_host(),
-                            base::StringPrintf(get_element_location_script_fmt,
-                                               "scrollable_div"))
-                         .ExtractString(),
-                     &nested_point_f);
+  ConvertJSONToPoint(
+      EvalJs(nested_iframe_node->current_frame_host(),
+             base::StringPrintf(kGetElementLocationScriptFmt, "scrollable_div"))
+          .ExtractString(),
+      &nested_point_f);
 
   gfx::PointF parent_offset_f;
-  ConvertJSONToPoint(EvalJs(parent_iframe_node->current_frame_host(),
-                            base::StringPrintf(get_element_location_script_fmt,
-                                               "nested_frame"))
-                         .ExtractString(),
-                     &parent_offset_f);
+  ConvertJSONToPoint(
+      EvalJs(parent_iframe_node->current_frame_host(),
+             base::StringPrintf(kGetElementLocationScriptFmt, "nested_frame"))
+          .ExtractString(),
+      &parent_offset_f);
 
   // Compute location for wheel event.
   gfx::PointF point_f(parent_offset_f.x() + nested_point_f.x() + 5.f,
@@ -1084,7 +1066,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessInternalsHitTestBrowserTest,
       "      B = http://b.com/",
       DepictFrameTree(root));
 
-  const char* get_element_location_script_fmt =
+  static constexpr char kGetElementLocationScriptFmt[] =
       "var rect = "
       "document.getElementById('%s').getBoundingClientRect();\n"
       "var point = {\n"
@@ -1097,11 +1079,11 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessInternalsHitTestBrowserTest,
   // with the parent frame, we need to query element offsets in both documents
   // before converting to root space coordinates for the wheel event.
   gfx::PointF nested_point_f;
-  ConvertJSONToPoint(EvalJs(nested_iframe_node->current_frame_host(),
-                            base::StringPrintf(get_element_location_script_fmt,
-                                               "scrollable_div"))
-                         .ExtractString(),
-                     &nested_point_f);
+  ConvertJSONToPoint(
+      EvalJs(nested_iframe_node->current_frame_host(),
+             base::StringPrintf(kGetElementLocationScriptFmt, "scrollable_div"))
+          .ExtractString(),
+      &nested_point_f);
 
   EXPECT_EQ(
       1,
@@ -1123,11 +1105,11 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessInternalsHitTestBrowserTest,
                     &non_fast_scrollable_rect_before_scroll);
 
   gfx::PointF parent_offset_f;
-  ConvertJSONToPoint(EvalJs(parent_iframe_node->current_frame_host(),
-                            base::StringPrintf(get_element_location_script_fmt,
-                                               "nested_frame"))
-                         .ExtractString(),
-                     &parent_offset_f);
+  ConvertJSONToPoint(
+      EvalJs(parent_iframe_node->current_frame_host(),
+             base::StringPrintf(kGetElementLocationScriptFmt, "nested_frame"))
+          .ExtractString(),
+      &parent_offset_f);
 
   // Compute location for wheel event to scroll the parent with respect to the
   // mainframe.
@@ -4478,8 +4460,75 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
     set_cursor_interceptor->Wait();
     EXPECT_TRUE(set_cursor_interceptor->cursor().has_value());
     EXPECT_EQ(ui::mojom::CursorType::kPointer,
-              set_cursor_interceptor->cursor());
+              set_cursor_interceptor->cursor()->type());
   }
+}
+
+// Regression test for https://crbug.com/1454515. An OOPIF
+// scrolled away from the main document should not allow
+// large cursors to intersect browser UI.
+IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
+                       LargeCursorRemovedInScrolledOOPIF) {
+  GURL url(R"(data:text/html,
+    <iframe id='iframe'
+            style ='position:absolute; top: 0px'
+            width=1000px height=1000px>
+    </iframe>)");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  // The large-cursor.html document has a custom cursor that is 120x120 with a
+  // hotspot on the bottom right corner.
+  NavigateIframeToURL(shell()->web_contents(), "iframe",
+                      embedded_test_server()->GetURL("/large-cursor.html"));
+
+  auto* web_contents = static_cast<WebContentsImpl*>(shell()->web_contents());
+  FrameTreeNode* root = web_contents->GetPrimaryFrameTree().root();
+
+  FrameTreeNode* child_node = root->child_at(0);
+  EXPECT_NE(shell()->web_contents()->GetSiteInstance(),
+            child_node->current_frame_host()->GetSiteInstance());
+
+  WaitForHitTestData(child_node->current_frame_host());
+
+  RenderWidgetHostViewBase* root_view = static_cast<RenderWidgetHostViewBase*>(
+      root->current_frame_host()->GetRenderWidgetHost()->GetView());
+  RenderWidgetHostImpl* rwh_child =
+      root->child_at(0)->current_frame_host()->GetRenderWidgetHost();
+  RenderWidgetHostViewBase* child_view =
+      static_cast<RenderWidgetHostViewBase*>(rwh_child->GetView());
+
+  auto* router = web_contents->GetInputEventRouter();
+
+  // Scroll the main frame.
+  gfx::Rect initial_child_view_bounds = child_view->GetViewBounds();
+  EXPECT_TRUE(ExecJs(root, "window.scrollTo(0, 10);"));
+  // Wait until the OOPIF positions have been updated in the browser process.
+  while (true) {
+    base::RunLoop run_loop;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
+    run_loop.Run();
+    if (initial_child_view_bounds.y() ==
+        child_view->GetViewBounds().y() + 10)
+      break;
+  }
+
+  // A cursor should not be shown when the main frame is scrolled
+  // and the iframe is outside the root view's visible viewport.
+  blink::WebMouseEvent mouse_event(
+      blink::WebInputEvent::Type::kMouseMove,
+      blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  SetWebEventPositions(&mouse_event, gfx::Point(300, 115), root_view);
+  auto set_cursor_interceptor =
+      std::make_unique<SetCursorInterceptor>(rwh_child);
+  RouteMouseEventAndWaitUntilDispatch(router, root_view, child_view,
+                                      &mouse_event);
+  // We should see a new cursor come in that replaces the large one.
+  set_cursor_interceptor->Wait();
+  EXPECT_TRUE(set_cursor_interceptor->cursor().has_value());
+  EXPECT_EQ(ui::mojom::CursorType::kPointer,
+            set_cursor_interceptor->cursor()->type());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -6746,13 +6795,6 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest, HitTestNestedFrames) {
   HitTestNestedFramesHelper(shell(), embedded_test_server());
 }
 
-// Test that the InputTargetClient interface works as expected even when Running
-// a TaskPriority finch experiment.
-IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestTaskPriorityBrowserTest,
-                       SmokeTestInputTargetClientTaskPriority) {
-  HitTestNestedFramesHelper(shell(), embedded_test_server());
-}
-
 IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
                        HitTestOOPIFWithPaddingAndBorder) {
   GURL main_url(embedded_test_server()->GetURL(
@@ -7358,7 +7400,8 @@ class SitePerProcessDelegatedInkBrowserTest
 // trails results in the metadata being correctly sent to the child's
 // RenderWidgetHost and is usable for sending delegated ink points.
 // TODO(https://crbug.com/1318221): Fix and enable the test on Fuchsia.
-#if BUILDFLAG(IS_FUCHSIA)
+// TODO(https://crbug.com/1490367): flaky on ChromeOS
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_MetadataAndPointGoThroughOOPIF \
   DISABLED_MetadataAndPointGoThroughOOPIF
 #else

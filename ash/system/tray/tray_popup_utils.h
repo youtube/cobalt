@@ -24,6 +24,10 @@ class Painter;
 class Separator;
 }  // namespace views
 
+namespace ui {
+class ImageModel;
+}  // namespace ui
+
 namespace ash {
 class HoverHighlightView;
 class UnfocusableLabel;
@@ -128,8 +132,11 @@ class ASH_EXPORT TrayPopupUtils {
   // Creates a default focus painter used for most things in tray popups.
   static std::unique_ptr<views::Painter> CreateFocusPainter();
 
-  // Sets up |view| to be a sticky header in a tray detail scroll view.
+  // Sets up `view` to be a sticky header in a tray detail scroll view.
   static void ConfigureAsStickyHeader(views::View* view);
+
+  // Sets up `ink_drop` according to jelly ux requirements for row buttons.
+  static void ConfigureRowButtonInkdrop(views::InkDropHost* ink_drop);
 
   // Creates a button for use in the system menu. For MD, this is a prominent
   // text
@@ -165,6 +172,11 @@ class ASH_EXPORT TrayPopupUtils {
   // user, and not in the supervised user creation flow.
   static bool CanOpenWebUISettings();
 
+  // Returns true if it is possible to show the night light feature tile, i.e.
+  // the `session_manager::SessionState` is ACTIVE, LOGGED_IN_NOT_ACTIVE, or
+  // LOCKED. This should only be used when `kQsRevamp` is enabled.
+  static bool CanShowNightLightFeatureTile();
+
   // Initializes a row in the system menu as checkable and update the check mark
   // status of this row. If |enterprise_managed| is true, adds an enterprise
   // managed icon to the row.
@@ -175,7 +187,17 @@ class ASH_EXPORT TrayPopupUtils {
   static void UpdateCheckMarkVisibility(HoverHighlightView* container,
                                         bool visible);
 
+  // Updates the color of the checkable row |container|.
+  static void UpdateCheckMarkColor(HoverHighlightView* container,
+                                   ui::ColorId color_id);
+
+  // Creates the check mark.
+  static ui::ImageModel CreateCheckMark(ui::ColorId color_id);
+
   // Sets the font list for |label| based on |style|.
+  // DEPRECATED: Use `TypographyProvider` in new code. If you need legacy fonts,
+  // use TypographyToken::kLegacy*. This function DCHECKs if used when QsRevamp
+  // and Jelly are both enabled.
   static void SetLabelFontList(views::Label* label, FontStyle style);
 };
 

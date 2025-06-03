@@ -4,6 +4,7 @@
 
 #include "chrome/browser/signin/dice_response_handler.h"
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/signin/account_reconcilor_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/signin_features.h"
 #include "components/signin/core/browser/about_signin_internals.h"
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "components/signin/public/base/consent_level.h"
@@ -35,6 +37,7 @@
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 #include "chrome/browser/signin/bound_session_credentials/registration_token_helper.h"  // nogncheck
 #include "chrome/browser/signin/bound_session_credentials/unexportable_key_service_factory.h"  // nogncheck
+#include "components/signin/public/base/signin_switches.h"
 #include "components/unexportable_keys/unexportable_key_id.h"       // nogncheck
 #include "components/unexportable_keys/unexportable_key_service.h"  // nogncheck
 #include "google_apis/gaia/gaia_urls.h"
@@ -82,6 +85,12 @@ enum DiceTokenFetchResult {
 };
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+bool IsBoundSessionCredentialsEnabledForDice() {
+  return switches::IsBoundSessionCredentialsEnabled() &&
+         switches::kEnableBoundSessionCredentialsDiceSupport.Get() ==
+             switches::EnableBoundSessionCredentialsDiceSupport::kEnabled;
+}
+
 std::unique_ptr<RegistrationTokenHelper> BuildRegistrationTokenHelper(
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     base::StringPiece client_id,
@@ -89,7 +98,7 @@ std::unique_ptr<RegistrationTokenHelper> BuildRegistrationTokenHelper(
     const GURL& registration_url,
     base::OnceCallback<void(absl::optional<RegistrationTokenHelper::Result>)>
         callback) {
-  return std::make_unique<RegistrationTokenHelper>(
+  return RegistrationTokenHelper::CreateForTokenBinding(
       unexportable_key_service, client_id, auth_code, registration_url,
       std::move(callback));
 }
@@ -98,6 +107,10 @@ DiceResponseHandler::RegistrationTokenHelperFactory
 CreateRegistrationTokenHelperFactory(
     unexportable_keys::UnexportableKeyService* unexportable_key_service) {
   if (!unexportable_key_service) {
+    return {};
+  }
+
+  if (!IsBoundSessionCredentialsEnabledForDice()) {
     return {};
   }
 
@@ -123,14 +136,7 @@ class DiceResponseHandlerFactory : public ProfileKeyedServiceFactory {
   friend struct base::DefaultSingletonTraits<DiceResponseHandlerFactory>;
 
   DiceResponseHandlerFactory()
-      : ProfileKeyedServiceFactory(
-            "DiceResponseHandler",
-            ProfileSelections::Builder()
-                .WithRegular(ProfileSelection::kOriginalOnly)
-                // TODO(crbug.com/1418376): Check if this service is needed in
-                // Guest mode.
-                .WithGuest(ProfileSelection::kOriginalOnly)
-                .Build()) {
+      : ProfileKeyedServiceFactory("DiceResponseHandler") {
     DependsOn(AboutSigninInternalsFactory::GetInstance());
     DependsOn(AccountReconcilorFactory::GetInstance());
     DependsOn(ChromeSigninClientFactory::GetInstance());
@@ -204,6 +210,7 @@ DiceResponseHandler::DiceTokenFetcher::DiceTokenFetcher(
       std::make_unique<AccountReconcilor::Lock>(account_reconcilor);
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   if (!registration_token_helper_factory.is_null()) {
+    CHECK(IsBoundSessionCredentialsEnabledForDice());
     StartBindingKeyGeneration(registration_token_helper_factory);
     // Wait until the binding key is generated before fetching a token.
     return;
@@ -229,16 +236,17 @@ void DiceResponseHandler::DiceTokenFetcher::OnClientOAuthSuccess(
   gaia_auth_fetcher_.reset();
   timeout_closure_.Cancel();
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  absl::optional<unexportable_keys::UnexportableKeyId> binding_key_id;
-  if (result.is_bound_to_key) {
-    binding_key_id = binding_key_id_;
+  if (!IsBoundSessionCredentialsEnabledForDice() || !result.is_bound_to_key) {
+    // Pass an empty binding key if conditions don't apply. This key won't be
+    // needed for anything else, so we can just clear it in place.
+    wrapped_binding_key_.clear();
   }
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   dice_response_handler_->OnTokenExchangeSuccess(
       this, result.refresh_token, result.is_under_advanced_protection
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
       ,
-      binding_key_id
+      wrapped_binding_key_
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   );
   // |this| may be deleted at this point.
@@ -273,6 +281,7 @@ void DiceResponseHandler::DiceTokenFetcher::StartTokenFetch() {
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 void DiceResponseHandler::DiceTokenFetcher::StartBindingKeyGeneration(
     const RegistrationTokenHelperFactory& registration_token_helper_factory) {
+  CHECK(IsBoundSessionCredentialsEnabledForDice());
   // `base::Unretained()` is safe because `this` owns
   // `registration_token_helper_`.
   registration_token_helper_ = registration_token_helper_factory.Run(
@@ -285,9 +294,10 @@ void DiceResponseHandler::DiceTokenFetcher::StartBindingKeyGeneration(
 
 void DiceResponseHandler::DiceTokenFetcher::OnRegistrationTokenGenerated(
     absl::optional<RegistrationTokenHelper::Result> result) {
+  CHECK(IsBoundSessionCredentialsEnabledForDice());
   if (result.has_value()) {
-    binding_key_id_ = result->binding_key_id;
     binding_registration_token_ = std::move(result->registration_token);
+    wrapped_binding_key_ = std::move(result->wrapped_binding_key);
   }
   registration_token_helper_.reset();
   StartTokenFetch();
@@ -369,6 +379,7 @@ void DiceResponseHandler::SetTaskRunner(
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 void DiceResponseHandler::SetRegistrationTokenHelperFactoryForTesting(
     RegistrationTokenHelperFactory factory) {
+  CHECK(IsBoundSessionCredentialsEnabledForDice());
   registration_token_helper_factory_ = std::move(factory);
 }
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
@@ -403,6 +414,8 @@ void DiceResponseHandler::ProcessDiceSigninHeader(
   VLOG(1) << "Start processing Dice signin response";
   RecordDiceResponseHeader(kSignin);
 
+  delegate->OnDiceSigninHeaderReceived();
+
   for (auto it = token_fetchers_.begin(); it != token_fetchers_.end(); ++it) {
     if ((it->get()->gaia_id() == gaia_id) && (it->get()->email() == email) &&
         (it->get()->authorization_code() == authorization_code)) {
@@ -410,6 +423,7 @@ void DiceResponseHandler::ProcessDiceSigninHeader(
       return;  // There is already a request in flight with the same parameters.
     }
   }
+
   token_fetchers_.push_back(std::make_unique<DiceTokenFetcher>(
       gaia_id, email, authorization_code, signin_client_, account_reconcilor_,
       std::move(delegate), registration_token_helper_factory_, this));
@@ -432,9 +446,8 @@ void DiceResponseHandler::ProcessEnableSyncHeader(
       return;  // There is already a request in flight with the same parameters.
     }
   }
-  CoreAccountId account_id =
-      identity_manager_->PickAccountIdForAccount(gaia_id, email);
-  delegate->EnableSync(account_id);
+  delegate->EnableSync(
+      identity_manager_->FindExtendedAccountInfoByGaiaId(gaia_id));
 }
 
 void DiceResponseHandler::ProcessDiceSignoutHeader(
@@ -503,7 +516,7 @@ void DiceResponseHandler::OnTokenExchangeSuccess(
     bool is_under_advanced_protection
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
     ,
-    absl::optional<unexportable_keys::UnexportableKeyId> binding_key_id
+    const std::vector<uint8_t>& wrapped_binding_key
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 ) {
   const std::string& email = token_fetcher->email();
@@ -514,17 +527,26 @@ void DiceResponseHandler::OnTokenExchangeSuccess(
       identity_manager_->PickAccountIdForAccount(gaia_id, email);
   bool is_new_account =
       !identity_manager_->HasAccountWithRefreshToken(account_id);
-  // TODO(http://b/274463812): propagate binding key to `IdentityManager`.
+  // If this is a reauth, do not update the access point.
   identity_manager_->GetAccountsMutator()->AddOrUpdateAccount(
       gaia_id, email, refresh_token, is_under_advanced_protection,
+      is_new_account ? token_fetcher->delegate()->GetAccessPoint()
+                     : signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN,
       signin_metrics::SourceForRefreshTokenOperation::
-          kDiceResponseHandler_Signin);
+          kDiceResponseHandler_Signin
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+      ,
+      wrapped_binding_key
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+  );
   about_signin_internals_->OnRefreshTokenReceived(
       base::StringPrintf("Successful (%s)", account_id.ToString().c_str()));
   token_fetcher->delegate()->HandleTokenExchangeSuccess(account_id,
                                                         is_new_account);
-  if (should_enable_sync)
-    token_fetcher->delegate()->EnableSync(account_id);
+  if (should_enable_sync) {
+    token_fetcher->delegate()->EnableSync(
+        identity_manager_->FindExtendedAccountInfoByAccountId(account_id));
+  }
 
   DeleteTokenFetcher(token_fetcher);
 }

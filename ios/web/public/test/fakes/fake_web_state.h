@@ -14,7 +14,6 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
-#include "ios/web/public/deprecated/url_verification_constants.h"
 #import "ios/web/public/favicon/favicon_status.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/web_state_policy_decider.h"
@@ -31,11 +30,14 @@ namespace web {
 class FakeWebState : public WebState {
  public:
   FakeWebState();
+  explicit FakeWebState(WebStateID unique_identifier);
   ~FakeWebState() override;
 
   // WebState implementation.
+  void SerializeToProto(proto::WebStateStorage& storage) const override;
   WebStateDelegate* GetDelegate() override;
   void SetDelegate(WebStateDelegate* delegate) override;
+  std::unique_ptr<WebState> Clone() const override;
   bool IsRealized() const final;
   WebState* ForceRealized() final;
   bool IsWebUsageEnabled() const override;
@@ -66,11 +68,11 @@ class FakeWebState : public WebState {
   const SessionCertificatePolicyCache* GetSessionCertificatePolicyCache()
       const override;
   SessionCertificatePolicyCache* GetSessionCertificatePolicyCache() override;
-  CRWSessionStorage* BuildSessionStorage() override;
+  CRWSessionStorage* BuildSessionStorage() const override;
   void LoadData(NSData* data, NSString* mime_type, const GURL& url) override;
   void ExecuteUserJavaScript(NSString* javaScript) override;
   NSString* GetStableIdentifier() const override;
-  SessionID GetUniqueIdentifier() const override;
+  WebStateID GetUniqueIdentifier() const override;
   const std::string& GetContentsMimeType() const override;
   bool ContentIsHTML() const override;
   const std::u16string& GetTitle() const override;
@@ -86,7 +88,7 @@ class FakeWebState : public WebState {
   int GetNavigationItemCount() const override;
   const GURL& GetVisibleURL() const override;
   const GURL& GetLastCommittedURL() const override;
-  GURL GetCurrentURL(URLVerificationTrustLevel* trust_level) const override;
+  absl::optional<GURL> GetLastCommittedURLIfTrusted() const override;
   CRWWebViewProxyType GetWebViewProxy() const override;
 
   void AddObserver(WebStateObserver* observer) override;
@@ -114,6 +116,8 @@ class FakeWebState : public WebState {
   void SetFindInteractionEnabled(bool enabled) final;
   id<CRWFindInteraction> GetFindInteraction() final API_AVAILABLE(ios(16));
   id GetActivityItem() API_AVAILABLE(ios(16.4)) final;
+  UIColor* GetThemeColor() final;
+  UIColor* GetUnderPageBackgroundColor() final;
 
   void AddPolicyDecider(WebStatePolicyDecider* decider) override;
   void RemovePolicyDecider(WebStatePolicyDecider* decider) override;
@@ -136,7 +140,6 @@ class FakeWebState : public WebState {
   void SetCurrentURL(const GURL& url);
   void SetNavigationItemCount(int count);
   void SetVisibleURL(const GURL& url);
-  void SetTrustLevel(URLVerificationTrustLevel trust_level);
   void SetNavigationManager(
       std::unique_ptr<NavigationManager> navigation_manager);
   void SetWebFramesManager(
@@ -178,13 +181,11 @@ class FakeWebState : public WebState {
   void OnRenderProcessGone();
   void OnBackForwardStateChanged();
   void OnVisibleSecurityStateChanged();
-  void OnWebFrameDidBecomeAvailable(WebFrame* frame);
-  void OnWebFrameWillBecomeUnavailable(WebFrame* frame);
 
  private:
   BrowserState* browser_state_ = nullptr;
   NSString* stable_identifier_ = nil;
-  const SessionID unique_identifier_;
+  const WebStateID unique_identifier_;
   bool web_usage_enabled_ = true;
   bool is_realized_ = true;
   bool is_loading_ = false;
@@ -201,7 +202,6 @@ class FakeWebState : public WebState {
   FaviconStatus favicon_status_;
   GURL url_;
   std::u16string title_;
-  URLVerificationTrustLevel trust_level_ = kAbsolute;
   bool content_is_html_ = true;
   std::string mime_type_;
   std::unique_ptr<NavigationManager> navigation_manager_;

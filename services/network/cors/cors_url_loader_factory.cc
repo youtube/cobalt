@@ -9,15 +9,18 @@
 #include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/types/optional_util.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/load_flags.h"
+#include "net/extras/shared_dictionary/shared_dictionary_isolation_key.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "services/network/cors/cors_url_loader.h"
 #include "services/network/cors/preflight_controller.h"
 #include "services/network/network_service.h"
+#include "services/network/private_network_access_checker.h"
 #include "services/network/public/cpp/cors/cors.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/header_util.h"
@@ -29,10 +32,10 @@
 #include "services/network/resource_scheduler/resource_scheduler_client.h"
 #include "services/network/shared_dictionary/shared_dictionary_manager.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
-#include "services/network/shared_dictionary/shared_dictionary_storage_isolation_key.h"
 #include "services/network/url_loader.h"
 #include "services/network/url_loader_factory.h"
 #include "services/network/web_bundle/web_bundle_url_loader_factory.h"
+#include "url/gurl.h"
 #include "url/origin.h"
 
 namespace network::cors {
@@ -51,8 +54,9 @@ bool VerifyTrustTokenParamsIntegrityIfPresent(
     const NetworkContext* context,
     mojom::TrustTokenOperationPolicyVerdict trust_token_issuance_policy,
     mojom::TrustTokenOperationPolicyVerdict trust_token_redemption_policy) {
-  if (!resource_request.trust_token_params)
+  if (!resource_request.trust_token_params) {
     return true;
+  }
 
   if (!context->trust_token_store()) {
     // Got a request with Trust Tokens parameters with Trust tokens
@@ -100,6 +104,24 @@ base::debug::CrashKeyString* GetRequestInitiatorOriginLockCrashKey() {
   static auto* crash_key = base::debug::AllocateCrashKeyString(
       "request_initiator_origin_lock", base::debug::CrashKeySize::Size256);
   return crash_key;
+}
+
+bool IsTrustedNavigationRequestFromSecureContext(
+    const ResourceRequest& request) {
+  if (!request.trusted_params) {
+    return false;
+  }
+  if (request.mode != mojom::RequestMode::kNavigate) {
+    return false;
+  }
+
+  // `client_security_state` is not set for top-level navigation requests.
+  // TODO(crbug.com/1129326): Remove this when we set it for top-level
+  // navigation requests.
+  if (!request.trusted_params->client_security_state) {
+    return IsUrlPotentiallyTrustworthy(request.url);
+  }
+  return request.trusted_params->client_security_state->is_web_secure_context;
 }
 
 }  // namespace
@@ -183,7 +205,8 @@ CorsURLLoaderFactory::CorsURLLoaderFactory(
     mojom::URLLoaderFactoryParamsPtr params,
     scoped_refptr<ResourceSchedulerClient> resource_scheduler_client,
     mojo::PendingReceiver<mojom::URLLoaderFactory> receiver,
-    const OriginAccessList* origin_access_list)
+    const OriginAccessList* origin_access_list,
+    NetworkServiceResourceBlockList* resource_block_list)
     : context_(context),
       is_trusted_(params->is_trusted),
       disable_web_security_(params->disable_web_security),
@@ -202,7 +225,12 @@ CorsURLLoaderFactory::CorsURLLoaderFactory(
               : CrossOriginEmbedderPolicy()),
       coep_reporter_(std::move(params->coep_reporter)),
       client_security_state_(params->client_security_state.Clone()),
-      origin_access_list_(origin_access_list) {
+      url_loader_network_service_observer_(
+          std::move(params->url_loader_network_observer)),
+      shared_dictionary_observer_(
+          std::move(params->shared_dictionary_observer)),
+      origin_access_list_(origin_access_list),
+      resource_block_list_(resource_block_list) {
   DCHECK(context_);
   DCHECK(origin_access_list_);
   DCHECK_NE(mojom::kInvalidProcessId, process_id_);
@@ -215,10 +243,10 @@ CorsURLLoaderFactory::CorsURLLoaderFactory(
     DCHECK_EQ(mojom::kBrowserProcessId, process_id_);
   }
 
-  if (context_->GetSharedDictionaryManager()) {
-    absl::optional<SharedDictionaryStorageIsolationKey> isolation_key =
-        SharedDictionaryStorageIsolationKey::MaybeCreate(
-            params->isolation_info);
+  if (context_->GetSharedDictionaryManager() && client_security_state_ &&
+      client_security_state_->is_web_secure_context) {
+    absl::optional<net::SharedDictionaryIsolationKey> isolation_key =
+        net::SharedDictionaryIsolationKey::MaybeCreate(params->isolation_info);
     if (isolation_key) {
       shared_dictionary_storage_ =
           context_->GetSharedDictionaryManager()->GetStorage(*isolation_key);
@@ -259,6 +287,17 @@ CorsURLLoaderFactory::~CorsURLLoaderFactory() {
   }
 }
 
+// This function is only used as an export for URLLoaderNetworkServiceObserver
+// gained from URLLoaderFactoryParams, which might be invalid in a few cases.
+// Please call URLLoaderFactory::GetURLLoaderNetworkServiceObserver() instead.
+mojom::URLLoaderNetworkServiceObserver*
+CorsURLLoaderFactory::url_loader_network_service_observer() const {
+  if (url_loader_network_service_observer_) {
+    return url_loader_network_service_observer_.get();
+  }
+  return nullptr;
+}
+
 void CorsURLLoaderFactory::OnURLLoaderCreated(
     std::unique_ptr<URLLoader> loader) {
   OnLoaderCreated(std::move(loader), url_loaders_);
@@ -277,6 +316,18 @@ void CorsURLLoaderFactory::DestroyCorsURLLoader(CorsURLLoader* loader) {
   DestroyLoader(loader, cors_url_loaders_);
 }
 
+bool CorsURLLoaderFactory::ShouldBlockRequestForAfpExperiment(
+    const ResourceRequest& resource_request) {
+  if (context_ && context_->AfpBlockListExperimentEnabled() &&
+      resource_block_list_) {
+    return resource_block_list_->Matches(
+        resource_request.url,
+        URLLoader::GetIsolationInfo(isolation_info_, false, resource_request));
+  }
+
+  return false;
+}
+
 void CorsURLLoaderFactory::CreateLoaderAndStart(
     mojo::PendingReceiver<mojom::URLLoader> receiver,
     int32_t request_id,
@@ -284,6 +335,14 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& resource_request,
     mojo::PendingRemote<mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+#if BUILDFLAG(IS_ANDROID)
+  // Use pseudo flag to investigate histogram issue.
+  // See https://crbug.com/1439721.
+  const bool observed = true;
+  base::UmaHistogramBoolean("NetworkService.CorsURLLoaderFactoryStart",
+                            observed);
+#endif
+
   debug::ScopedResourceRequestCrashKeys request_crash_keys(resource_request);
   SCOPED_CRASH_KEY_NUMBER("net", "traffic_annotation_hash",
                           traffic_annotation.unique_id_hash_code);
@@ -292,6 +351,15 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
   if (!IsValidRequest(resource_request, options)) {
     mojo::Remote<mojom::URLLoaderClient>(std::move(client))
         ->OnComplete(URLLoaderCompletionStatus(net::ERR_INVALID_ARGUMENT));
+    return;
+  }
+
+  if (ShouldBlockRequestForAfpExperiment(resource_request)) {
+    VLOG(1)
+        << "CorsURLLoaderFactory: blocking request for resource_request.url: "
+        << resource_request.url;
+    mojo::Remote<mojom::URLLoaderClient>(std::move(client))
+        ->OnComplete(URLLoaderCompletionStatus(net::ERR_BLOCKED_BY_CLIENT));
     return;
   }
 
@@ -312,8 +380,9 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
             coep_reporter());
     client = web_bundle_url_loader_factory->MaybeWrapURLLoaderClient(
         std::move(client));
-    if (!client)
+    if (!client) {
       return;
+    }
   }
 
   mojom::URLLoaderFactory* const inner_url_loader_factory =
@@ -328,9 +397,29 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
     auto isolation_info = URLLoader::GetIsolationInfo(
         isolation_info_, automatically_assign_isolation_info_,
         resource_request);
-    if (isolation_info)
+    if (isolation_info) {
       isolation_info_ptr = &isolation_info.value();
+    }
 
+    scoped_refptr<SharedDictionaryStorage> shared_dictionary_storage =
+        shared_dictionary_storage_;
+    if (context_->GetSharedDictionaryManager() &&
+        IsTrustedNavigationRequestFromSecureContext(resource_request)) {
+      // For trusted navigation requests, we need to get a storage using
+      // `isolation_info_ptr`.
+      absl::optional<net::SharedDictionaryIsolationKey> isolation_key =
+          net::SharedDictionaryIsolationKey::MaybeCreate(*isolation_info_ptr);
+      if (isolation_key) {
+        shared_dictionary_storage =
+            context_->GetSharedDictionaryManager()->GetStorage(*isolation_key);
+      }
+    }
+
+    mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver> observer_remote;
+    if (url_loader_network_service_observer_.is_bound()) {
+      url_loader_network_service_observer_->Clone(
+          observer_remote.InitWithNewPipeAndPassReceiver());
+    }
     auto loader = std::make_unique<CorsURLLoader>(
         std::move(receiver), process_id_, request_id, options,
         base::BindOnce(&CorsURLLoaderFactory::DestroyCorsURLLoader,
@@ -343,7 +432,11 @@ void CorsURLLoaderFactory::CreateLoaderAndStart(
         origin_access_list_, GetAllowAnyCorsExemptHeaderForBrowser(),
         HasFactoryOverride(!!factory_override_), *isolation_info_ptr,
         std::move(devtools_observer), client_security_state_.get(),
-        cross_origin_embedder_policy_, shared_dictionary_storage_, context_);
+        &url_loader_network_service_observer_, cross_origin_embedder_policy_,
+        shared_dictionary_storage,
+        shared_dictionary_observer_ ? shared_dictionary_observer_.get()
+                                    : nullptr,
+        context_);
     auto* raw_loader = loader.get();
     OnCorsURLLoaderCreated(std::move(loader));
     raw_loader->Start();
@@ -366,8 +459,9 @@ void CorsURLLoaderFactory::ClearBindings() {
 }
 
 void CorsURLLoaderFactory::DeleteIfNeeded() {
-  if (receivers_.empty() && url_loaders_.empty() && cors_url_loaders_.empty())
+  if (receivers_.empty() && url_loaders_.empty() && cors_url_loaders_.empty()) {
     context_->DestroyURLLoaderFactory(this);
+  }
 }
 
 // static
@@ -390,7 +484,13 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
                                           uint32_t options) {
   if (request.url.SchemeIs(url::kDataScheme)) {
     LOG(WARNING) << "CorsURLLoaderFactory doesn't support `data` scheme.";
-    mojo::ReportBadMessage("CorsURLLoaderFactory: data: URL is not supported.");
+    mojo::ReportBadMessage(
+        "CorsURLLoaderFactory: data: URL is not supported."
+#if BUILDFLAG(IS_ANDROID)
+        " Request created location is " +
+        request.created_location
+#endif
+    );
     return false;
   }
 
@@ -640,9 +740,21 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       return false;
     }
 
-    if (request.target_ip_address_space != mojom::IPAddressSpace::kUnknown) {
+    if (client_security_state_ &&
+        PrivateNetworkAccessChecker::NeedPermission(
+            request.url, client_security_state_->is_web_secure_context,
+            request.target_address_space)) {
+      if (request.target_address_space == mojom::IPAddressSpace::kPublic) {
+        mojo::ReportBadMessage(
+            "CorsURLLoaderFactory: target_address_space "
+            "is set to public.");
+        return false;
+      }
+    } else if (request.target_ip_address_space !=
+               mojom::IPAddressSpace::kUnknown) {
       mojo::ReportBadMessage(
-          "CorsURLLoaderFactory: target_ip_address_space field is set");
+          "CorsURLLoaderFactory: target_ip_address_space is "
+          "set.");
       return false;
     }
   }
@@ -670,10 +782,17 @@ CorsURLLoaderFactory::GetDevToolsObserver(
     mojom::DevToolsObserver* observer =
         factory_override_ ? factory_override_->GetDevToolsObserver()
                           : network_loader_factory_->GetDevToolsObserver();
-    if (observer)
+    if (observer) {
       observer->Clone(devtools_observer.InitWithNewPipeAndPassReceiver());
+    }
   }
   return devtools_observer;
+}
+
+mojom::SharedDictionaryAccessObserver*
+CorsURLLoaderFactory::GetSharedDictionaryAccessObserver() const {
+  return shared_dictionary_observer_ ? shared_dictionary_observer_.get()
+                                     : nullptr;
 }
 
 }  // namespace network::cors

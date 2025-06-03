@@ -30,6 +30,7 @@ namespace ash {
   E_CPONLY(kColorAshControlBackgroundColorWarning) \
   E_CPONLY(kColorAshControlBackgroundColorPositive) \
   E_CPONLY(kColorAshFocusAuraColor) \
+  E_CPONLY(kColorAshSecondaryButtonBackgroundColor)\
   /* Content layer colors. */ \
   E_CPONLY(kColorAshScrollBarColor) \
   E_CPONLY(kColorAshSeparatorColor) \
@@ -51,6 +52,10 @@ namespace ash {
   E_CPONLY(kColorAshIconColorProminent) \
   /*  Background for kColorAshIconColorSecondary. */ \
   E_CPONLY(kColorAshIconColorSecondaryBackground) \
+  /* Colors for Bar Chart within System Info Answer Cards in the Launcher. */ \
+  E_CPONLY(kColorAshSystemInfoBarChartColorForeground) \
+  E_CPONLY(kColorAshSystemInfoBarChartWarningColorForeground) \
+  E_CPONLY(kColorAshSystemInfoBarChartColorBackground) \
   /* The default color for button labels. */ \
   E_CPONLY(kColorAshButtonLabelColor) \
   E_CPONLY(kColorAshButtonLabelColorLight) \
@@ -129,7 +134,13 @@ namespace ash {
   /* Color for the background of the app count indicator on a folder */ \
   E_CPONLY(kColorAshFolderItemCountBackgroundColor) \
   /* Color for the background of the phantom window */ \
-  E_CPONLY(kColorAshPhantomWindowBackgroundColor)
+  E_CPONLY(kColorAshPhantomWindowBackgroundColor) \
+  /* Color for the stroke on the window header view */ \
+  E_CPONLY(kColorAshWindowHeaderStrokeColor) \
+  /* Color for the 6+ scrollable list view on the login screen */ \
+  E_CPONLY(kColorAshLoginScrollableUserListBackground) \
+  /* Color for the resize shadow */ \
+  E_CPONLY(kColorAshResizeShadowColor)
 
 #include "ui/color/color_id_macros.inc"
 

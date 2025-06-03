@@ -18,7 +18,7 @@
 #include "content/browser/devtools/shared_worker_devtools_manager.h"
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
-#include "content/browser/renderer_host/local_network_access_util.h"
+#include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "content/browser/service_worker/service_worker_object_host.h"
@@ -233,8 +233,8 @@ void SharedWorkerHost::Start(
     } else {
       auto policy = base::FeatureList::IsEnabled(
                         features::kPrivateNetworkAccessForWorkers)
-                        ? network::mojom::LocalNetworkRequestPolicy::kBlock
-                        : network::mojom::LocalNetworkRequestPolicy::kAllow;
+                        ? network::mojom::PrivateNetworkRequestPolicy::kBlock
+                        : network::mojom::PrivateNetworkRequestPolicy::kAllow;
 
       // Create a maximally restricted client security state if the policy
       // container is missing.
@@ -350,13 +350,11 @@ void SharedWorkerHost::Start(
   // Send the CreateSharedWorker message.
   factory_.Bind(std::move(factory));
   factory_->CreateSharedWorker(
-      std::move(info), token_, instance_.storage_key().origin(),
+      std::move(info), token_, instance_.storage_key(),
       creator_policy_container_host_ &&
           creator_policy_container_host_->policies().is_web_secure_context,
       GetContentClient()->browser()->GetUserAgentBasedOnPolicy(
           GetProcessHost()->GetBrowserContext()),
-      GetContentClient()->browser()->GetFullUserAgent(),
-      GetContentClient()->browser()->GetReducedUserAgent(),
       GetContentClient()->browser()->GetUserAgentMetadata(),
       devtools_handle_->pause_on_start(), devtools_handle_->dev_tools_token(),
       std::move(renderer_preferences), std::move(preference_watcher_receiver),
@@ -406,7 +404,8 @@ SharedWorkerHost::CreateNetworkFactoryForSubresources(
       /*navigation_id=*/absl::nullopt,
       ukm::SourceIdObj::FromInt64(ukm_source_id_), &default_factory_receiver,
       &factory_params->header_client, bypass_redirect_checks,
-      /*disable_secure_dns=*/nullptr, &factory_params->factory_override);
+      /*disable_secure_dns=*/nullptr, &factory_params->factory_override,
+      /*navigation_response_task_runner=*/nullptr);
 
   devtools_instrumentation::WillCreateURLLoaderFactoryForSharedWorker(
       this, &factory_params->factory_override);
@@ -427,14 +426,7 @@ SharedWorkerHost::CreateNetworkFactoryParamsForSubresources() {
   }
   network::mojom::URLLoaderFactoryParamsPtr factory_params =
       URLLoaderFactoryParamsHelper::CreateForWorker(
-          GetProcessHost(), origin,
-          net::IsolationInfo::Create(
-              net::IsolationInfo::RequestType::kOther,
-              // TODO(https://crbug.com/1147281): We
-              // should pass the top_level_site from
-              // `GetStorageKey()` instead.
-              origin, origin, net::SiteForCookies::FromOrigin(origin),
-              /*party_context=*/absl::nullopt, GetStorageKey().nonce()),
+          GetProcessHost(), origin, GetStorageKey().ToPartialNetIsolationInfo(),
           std::move(coep_reporter),
           /*url_loader_network_observer=*/mojo::NullRemote(),
           /*devtools_observer=*/mojo::NullRemote(),
@@ -683,20 +675,20 @@ base::WeakPtr<SharedWorkerHost> SharedWorkerHost::AsWeakPtr() {
 }
 
 net::NetworkIsolationKey SharedWorkerHost::GetNetworkIsolationKey() const {
-  // TODO(https://crbug.com/1147281): This is the NetworkIsolationKey of a
-  // top-level browsing context, which shouldn't be use for SharedWorkers used
-  // in iframes.
-  return net::NetworkIsolationKey::ToDoUseTopFrameOriginAsWell(
-      GetStorageKey().origin());
+  // Note: Since shared workers are partitioned by the storage key, we'll use
+  // the storage key to create a NIK that matches the current partitioning
+  // scheme. In other words, if storage partitioning is disabled, frames with
+  // different top-level sites will be able to share the same shared worker, so
+  // it doesn't make sense to incorporate the top-level site into the NIK in
+  // that case either.
+  return GetStorageKey().ToPartialNetIsolationInfo().network_isolation_key();
 }
 
 net::NetworkAnonymizationKey SharedWorkerHost::GetNetworkAnonymizationKey()
     const {
-  // TODO(https://crbug.com/1147281): This is the NetworkAnonymizationKey of a
-  // top-level browsing context, which shouldn't be use for SharedWorkers used
-  // in iframes.
-  return net::NetworkAnonymizationKey::ToDoUseTopFrameOriginAsWell(
-      GetStorageKey().origin());
+  return GetStorageKey()
+      .ToPartialNetIsolationInfo()
+      .network_anonymization_key();
 }
 
 const blink::StorageKey& SharedWorkerHost::GetStorageKey() const {

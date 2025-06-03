@@ -62,10 +62,6 @@ struct IdentifiableTokenKeyHashTraits
 // Tracks and reports UKM metrics of attempted font family match attempts (both
 // successful and not successful) by the current frame.
 //
-// The number of successful / not successful font family match attempts are
-// reported to UKM. The class de-dupes attempts to match the same font family
-// name such that they are counted as one attempt.
-//
 // Each local font lookup is also reported as is each mapping of generic font
 // family name to its corresponding actual font family names. Local font lookups
 // are deduped according to the family name looked up in the FontCache and the
@@ -89,12 +85,6 @@ class FontMatchingMetrics {
   // Called when a page attempts to match a font family, and the font family is
   // not available.
   void ReportFailedFontFamilyMatch(const AtomicString& font_family_name);
-
-  // Called when a page attempts to match a system font family.
-  void ReportSystemFontFamily(const AtomicString& font_family_name);
-
-  // Called when a page attempts to match a web font family.
-  void ReportWebFontFamily(const AtomicString& font_family_name);
 
   // Reports a font listed in a @font-face src:local rule that successfully
   // matched.
@@ -158,10 +148,6 @@ class FontMatchingMetrics {
   // destruction and every minute, as long as additional lookups are occurring.
   void PublishIdentifiabilityMetrics();
 
-  // Publishes the number of font family matches attempted (both successful
-  // and otherwise) to UKM. Recorded on page unload.
-  void PublishUkmMetrics();
-
   // Publishes the ratio of correctly shaped to incorrectly shaped emoji
   // segments during the lifetime of this metrics recorder, which usually is
   // coupled to the lifetime of a document or WorkerGlobalContext.
@@ -194,6 +180,13 @@ class FontMatchingMetrics {
   void ReportLocalFontExistenceByUniqueNameOnly(const AtomicString& font_name,
                                                 bool font_exists);
 
+  // Reports a local font's existence was looked up by a name, but its actual
+  // font data may or may not have been loaded. This includes lookups where the
+  // name is allowed to match full font names or family names.
+  void ReportLocalFontExistenceByUniqueOrFamilyName(
+      const AtomicString& font_name,
+      bool font_exists);
+
   // Constructs a builder with a hash of the FontSelectionRequest already added.
   IdentifiableTokenBuilder GetTokenBuilderWithFontSelectionRequest(
       const FontDescription& font_description);
@@ -209,34 +202,13 @@ class FontMatchingMetrics {
   IdentifiableToken GetPostScriptNameTokenForFontData(
       SimpleFontData* font_data);
 
-  // Font family names successfully matched.
-  HashSet<AtomicString> successful_font_families_;
-
-  // Font family names that weren't successfully matched.
-  HashSet<AtomicString> failed_font_families_;
-
-  // System font families the page attempted to match.
-  HashSet<AtomicString> system_font_families_;
-
-  // Web font families the page attempted to match.
-  HashSet<AtomicString> web_font_families_;
-
-  // @font-face src:local fonts that successfully matched.
-  HashSet<AtomicString> local_fonts_succeeded_;
-
-  // @font-face src:local fonts that didn't successfully match.
-  HashSet<AtomicString> local_fonts_failed_;
-
-  // Indicates whether this FontMatchingMetrics instance is for a top-level
-  // frame, a subframe or a worker.
-  const FontLoadContext load_context_;
-
   TokenToTokenHashMap font_lookups_by_unique_or_family_name_;
   TokenToTokenHashMap font_lookups_by_unique_name_only_;
   TokenToTokenHashMap font_lookups_by_fallback_character_;
   TokenToTokenHashMap font_lookups_as_last_resort_;
   TokenToTokenHashMap generic_font_lookups_;
   TokenToTokenHashMap font_load_postscript_name_;
+  TokenToTokenHashMap local_font_existence_by_unique_or_family_name_;
   TokenToTokenHashMap local_font_existence_by_unique_name_only_;
 
   uint64_t total_emoji_clusters_shaped_ = 0;

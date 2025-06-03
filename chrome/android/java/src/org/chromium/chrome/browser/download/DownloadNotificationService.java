@@ -24,13 +24,15 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.OTRProfileID;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.background_task_scheduler.BackgroundTask.TaskFinishedCallback;
 import org.chromium.components.browser_ui.notifications.NotificationManagerProxy;
 import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
 import org.chromium.components.offline_items_collection.ContentId;
@@ -82,9 +84,6 @@ public class DownloadNotificationService {
             "org.chromium.chrome.browser.download.IS_OFF_THE_RECORD";
     static final String EXTRA_OTR_PROFILE_ID =
             "org.chromium.chrome.browser.download.OTR_PROFILE_ID";
-    // Used to propagate request state information for OfflineItems.StateAtCancel UMA.
-    static final String EXTRA_DOWNLOAD_STATE_AT_CANCEL =
-            "org.chromium.chrome.browser.download.OfflineItemsStateAtCancel";
 
     static final String EXTRA_NOTIFICATION_BUNDLE_ICON_ID = "Chrome.NotificationBundleIconIdExtra";
     static final String EXTRA_IS_AUTO_RESUMPTION =
@@ -94,15 +93,13 @@ public class DownloadNotificationService {
 
     private static final int MAX_RESUMPTION_ATTEMPT_LEFT = 5;
 
-    private static DownloadNotificationService sInstanceForTests;
-
-    @VisibleForTesting
-    final List<ContentId> mDownloadsInProgress = new ArrayList<ContentId>();
+    private static DownloadNotificationService sInstanceForTesting;
 
     private NotificationManagerProxy mNotificationManager;
     private Bitmap mDownloadSuccessLargeIcon;
     private DownloadSharedPreferenceHelper mDownloadSharedPreferenceHelper;
     private DownloadForegroundServiceManager mDownloadForegroundServiceManager;
+    private DownloadUserInitiatedTaskManager mDownloadUserInitiatedTaskManager;
 
     private static class LazyHolder {
         private static final DownloadNotificationService INSTANCE =
@@ -113,12 +110,12 @@ public class DownloadNotificationService {
      * Creates DownloadNotificationService.
      */
     public static DownloadNotificationService getInstance() {
-        return sInstanceForTests == null ? LazyHolder.INSTANCE : sInstanceForTests;
+        return sInstanceForTesting == null ? LazyHolder.INSTANCE : sInstanceForTesting;
     }
 
-    @VisibleForTesting
-    static void setInstanceForTests(DownloadNotificationService service) {
-        sInstanceForTests = service;
+    public static void setInstanceForTests(DownloadNotificationService service) {
+        sInstanceForTesting = service;
+        ResettersForTesting.register(() -> sInstanceForTesting = null);
     }
 
     @VisibleForTesting
@@ -127,42 +124,26 @@ public class DownloadNotificationService {
                 new NotificationManagerProxyImpl(ContextUtils.getApplicationContext());
         mDownloadSharedPreferenceHelper = DownloadSharedPreferenceHelper.getInstance();
         mDownloadForegroundServiceManager = new DownloadForegroundServiceManager();
+        mDownloadUserInitiatedTaskManager = new DownloadUserInitiatedTaskManager();
+    }
+
+    /**
+     * Called to set a callback that will be run to attach a notification to the background task
+     * life-cycle.
+     *
+     * @param backgroundTaskNotificationCallback The callback to be invoked to attach
+     *     notification.
+     */
+    public void setBackgroundTaskNotificationCallback(
+            int taskId, TaskFinishedCallback backgroundTaskNotificationCallback) {
+        mDownloadUserInitiatedTaskManager.setTaskNotificationCallback(
+                taskId, backgroundTaskNotificationCallback);
     }
 
     @VisibleForTesting
     void setDownloadForegroundServiceManager(
             DownloadForegroundServiceManager downloadForegroundServiceManager) {
         mDownloadForegroundServiceManager = downloadForegroundServiceManager;
-    }
-
-    /**
-     * @return Whether or not there are any current resumable downloads being tracked.  These
-     *         tracked downloads may not currently be showing notifications.
-     */
-    static boolean isTrackingResumableDownloads(Context context) {
-        List<DownloadSharedPreferenceEntry> entries =
-                DownloadSharedPreferenceHelper.getInstance().getEntries();
-        for (DownloadSharedPreferenceEntry entry : entries) {
-            if (canResumeDownload(context, entry)) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Track in-progress downloads here.
-     * @param id The {@link ContentId} of the download that has been started and should be tracked.
-     */
-    private void startTrackingInProgressDownload(ContentId id) {
-        if (!mDownloadsInProgress.contains(id)) mDownloadsInProgress.add(id);
-    }
-
-    /**
-     * Stop tracking the download represented by {@code id}.
-     * @param id                  The {@link ContentId} of the download that has been paused or
-     *                            canceled and shouldn't be tracked.
-     */
-    private void stopTrackingInProgressDownload(ContentId id) {
-        mDownloadsInProgress.remove(id);
     }
 
     /**
@@ -261,8 +242,8 @@ public class DownloadNotificationService {
                         canDownloadWhileMetered, fileName, true, isTransient));
         mDownloadForegroundServiceManager.updateDownloadStatus(
                 context, DownloadStatus.IN_PROGRESS, notificationId, notification);
-
-        startTrackingInProgressDownload(id);
+        mDownloadUserInitiatedTaskManager.updateDownloadStatus(
+                context, DownloadStatus.IN_PROGRESS, notificationId, notification);
     }
 
     private void cancelNotification(int notificationId) {
@@ -281,8 +262,6 @@ public class DownloadNotificationService {
     public void cancelNotification(int notificationId, ContentId id) {
         cancelNotification(notificationId);
         mDownloadSharedPreferenceHelper.removeSharedPreferenceEntry(id);
-
-        stopTrackingInProgressDownload(id);
     }
 
     /**
@@ -294,6 +273,8 @@ public class DownloadNotificationService {
     @VisibleForTesting
     public void notifyDownloadCanceled(ContentId id, int notificationId, boolean hasUserGesture) {
         mDownloadForegroundServiceManager.updateDownloadStatus(ContextUtils.getApplicationContext(),
+                DownloadStatus.CANCELLED, notificationId, null);
+        mDownloadUserInitiatedTaskManager.updateDownloadStatus(ContextUtils.getApplicationContext(),
                 DownloadStatus.CANCELLED, notificationId, null);
         cancelNotification(notificationId, id);
     }
@@ -348,7 +329,6 @@ public class DownloadNotificationService {
         if (isAutoResumable || pendingState != PendingState.NOT_PENDING) {
             notifyDownloadPending(id, fileName, otrProfileID, canDownloadWhileMetered, isTransient,
                     icon, originalUrl, shouldPromoteOrigin, hasUserGesture, pendingState);
-            stopTrackingInProgressDownload(id);
             return;
         }
         int notificationId = entry == null ? getNotificationId(id) : entry.notificationId;
@@ -373,8 +353,8 @@ public class DownloadNotificationService {
 
         mDownloadForegroundServiceManager.updateDownloadStatus(
                 context, DownloadStatus.PAUSED, notificationId, notification);
-
-        stopTrackingInProgressDownload(id);
+        mDownloadUserInitiatedTaskManager.updateDownloadStatus(
+                context, DownloadStatus.PAUSED, notificationId, notification);
     }
 
     /**
@@ -429,7 +409,8 @@ public class DownloadNotificationService {
         updateNotification(notificationId, notification, id, null);
         mDownloadForegroundServiceManager.updateDownloadStatus(
                 context, DownloadStatus.COMPLETED, notificationId, notification);
-        stopTrackingInProgressDownload(id);
+        mDownloadUserInitiatedTaskManager.updateDownloadStatus(
+                context, DownloadStatus.COMPLETED, notificationId, notification);
         return notificationId;
     }
 
@@ -473,8 +454,8 @@ public class DownloadNotificationService {
         updateNotification(notificationId, notification, id, null);
         mDownloadForegroundServiceManager.updateDownloadStatus(
                 context, DownloadStatus.FAILED, notificationId, notification);
-
-        stopTrackingInProgressDownload(id);
+        mDownloadUserInitiatedTaskManager.updateDownloadStatus(
+                context, DownloadStatus.FAILED, notificationId, notification);
     }
 
     private Bitmap getLargeNotificationIcon(Bitmap bitmap) {
@@ -565,13 +546,13 @@ public class DownloadNotificationService {
      * @return notificationId that is next based on stored value.
      */
     private static int getNextNotificationId() {
-        int nextNotificationId = SharedPreferencesManager.getInstance().readInt(
+        int nextNotificationId = ChromeSharedPreferences.getInstance().readInt(
                 ChromePreferenceKeys.DOWNLOAD_NEXT_DOWNLOAD_NOTIFICATION_ID,
                 STARTING_NOTIFICATION_ID);
         int nextNextNotificationId = nextNotificationId == Integer.MAX_VALUE
                 ? STARTING_NOTIFICATION_ID
                 : nextNotificationId + 1;
-        SharedPreferencesManager.getInstance().writeInt(
+        ChromeSharedPreferences.getInstance().writeInt(
                 ChromePreferenceKeys.DOWNLOAD_NEXT_DOWNLOAD_NOTIFICATION_ID,
                 nextNextNotificationId);
         return nextNotificationId;
@@ -593,39 +574,6 @@ public class DownloadNotificationService {
             }
         }
         return newNotificationId;
-    }
-
-    /**
-     * Helper method to update the remaining number of background resumption attempts left.
-     *
-     * @param numAutoResumptionAttemptLeft the number of auto resumption attempts left.
-     */
-    private static void updateResumptionAttemptLeft(int numAutoResumptionAttemptLeft) {
-        SharedPreferencesManager.getInstance().writeInt(
-                ChromePreferenceKeys.DOWNLOAD_AUTO_RESUMPTION_ATTEMPT_LEFT,
-                numAutoResumptionAttemptLeft);
-    }
-
-    /** Helper method to get the remaining number of background resumption attempts left. */
-    private static int getResumptionAttemptLeft() {
-        return SharedPreferencesManager.getInstance().readInt(
-                ChromePreferenceKeys.DOWNLOAD_AUTO_RESUMPTION_ATTEMPT_LEFT,
-                MAX_RESUMPTION_ATTEMPT_LEFT);
-    }
-
-    /** Helper method to clear the remaining number of background resumption attempts left. */
-    static void clearResumptionAttemptLeft() {
-        SharedPreferencesManager.getInstance().removeKey(
-                ChromePreferenceKeys.DOWNLOAD_AUTO_RESUMPTION_ATTEMPT_LEFT);
-    }
-
-    void onForegroundServiceRestarted(int pinnedNotificationId) {
-        // In API < 24, notifications pinned to the foreground will get killed with the service.
-        // Fix this by relaunching the notification that was pinned to the service as the service
-        // dies, if there is one.
-        relaunchPinnedNotification(pinnedNotificationId);
-
-        updateNotificationsForShutdown();
     }
 
     void onForegroundServiceTaskRemoved() {

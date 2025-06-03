@@ -100,7 +100,7 @@ PasswordProtectionServiceBase::~PasswordProtectionServiceBase() {
 
 // static
 bool PasswordProtectionServiceBase::CanGetReputationOfURL(const GURL& url) {
-  if (VerdictCacheManager::has_artificial_unsafe_url()) {
+  if (VerdictCacheManager::has_artificial_cached_url()) {
     return true;
   }
   if (!safe_browsing::CanGetReputationOfUrl(url)) {
@@ -343,7 +343,7 @@ PasswordProtectionServiceBase::GetPasswordProtectionReusedPasswordAccountType(
       return reused_password_account_type;
     case PasswordType::PRIMARY_ACCOUNT_PASSWORD: {
       reused_password_account_type.set_is_account_syncing(
-          IsPrimaryAccountSyncing());
+          IsPrimaryAccountSyncingHistory());
       if (!IsPrimaryAccountSignedIn()) {
         reused_password_account_type.set_account_type(
             ReusedPasswordAccountType::UNKNOWN);

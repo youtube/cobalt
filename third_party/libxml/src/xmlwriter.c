@@ -16,6 +16,7 @@
 #include <libxml/parser.h>
 #include <libxml/uri.h>
 #include <libxml/HTMLtree.h>
+#include <libxml/SAX2.h>
 
 #ifdef LIBXML_WRITER_ENABLED
 
@@ -709,7 +710,11 @@ xmlTextWriterEndDocument(xmlTextWriterPtr writer)
         sum += count;
     }
 
-    sum += xmlTextWriterFlush(writer);
+    count = xmlTextWriterFlush(writer);
+    if (count < 0)
+        return -1;
+    sum += count;
+
 
     return sum;
 }

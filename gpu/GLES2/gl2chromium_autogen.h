@@ -374,12 +374,14 @@
   GLES2_GET_FUN(ConvertRGBAToYUVAMailboxesINTERNAL)
 #define glConvertYUVAMailboxesToRGBINTERNAL \
   GLES2_GET_FUN(ConvertYUVAMailboxesToRGBINTERNAL)
+#define glConvertYUVAMailboxesToTextureINTERNAL \
+  GLES2_GET_FUN(ConvertYUVAMailboxesToTextureINTERNAL)
 #define glCopySharedImageINTERNAL GLES2_GET_FUN(CopySharedImageINTERNAL)
 #define glCopySharedImageToTextureINTERNAL \
   GLES2_GET_FUN(CopySharedImageToTextureINTERNAL)
 #define glReadbackARGBImagePixelsINTERNAL \
   GLES2_GET_FUN(ReadbackARGBImagePixelsINTERNAL)
-#define glWritePixelsINTERNAL GLES2_GET_FUN(WritePixelsINTERNAL)
+#define glWritePixelsYUVINTERNAL GLES2_GET_FUN(WritePixelsYUVINTERNAL)
 #define glEnableiOES GLES2_GET_FUN(EnableiOES)
 #define glDisableiOES GLES2_GET_FUN(DisableiOES)
 #define glBlendEquationiOES GLES2_GET_FUN(BlendEquationiOES)
@@ -411,5 +413,8 @@
   GLES2_GET_FUN(GetFramebufferPixelLocalStorageParameterfvANGLE)
 #define glGetFramebufferPixelLocalStorageParameterivANGLE \
   GLES2_GET_FUN(GetFramebufferPixelLocalStorageParameterivANGLE)
+#define glClipControlEXT GLES2_GET_FUN(ClipControlEXT)
+#define glPolygonModeANGLE GLES2_GET_FUN(PolygonModeANGLE)
+#define glPolygonOffsetClampEXT GLES2_GET_FUN(PolygonOffsetClampEXT)
 
 #endif  // GPU_GLES2_GL2CHROMIUM_AUTOGEN_H_

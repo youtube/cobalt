@@ -147,8 +147,10 @@ void EventSource::Connect() {
   ExecutionContext& execution_context = *GetExecutionContext();
   ResourceRequest request(current_url_);
   request.SetHttpMethod(http_names::kGET);
-  request.SetHttpHeaderField(http_names::kAccept, "text/event-stream");
-  request.SetHttpHeaderField(http_names::kCacheControl, "no-cache");
+  request.SetHttpHeaderField(http_names::kAccept,
+                             AtomicString("text/event-stream"));
+  request.SetHttpHeaderField(http_names::kCacheControl,
+                             AtomicString("no-cache"));
   request.SetRequestContext(mojom::blink::RequestContextType::EVENT_SOURCE);
   request.SetFetchLikeAPI(true);
   request.SetMode(network::mojom::RequestMode::kCors);
@@ -385,7 +387,7 @@ void EventSource::Trace(Visitor* visitor) const {
   visitor->Trace(parser_);
   visitor->Trace(loader_);
   visitor->Trace(connect_timer_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ThreadableLoaderClient::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventSourceParser::Client::Trace(visitor);

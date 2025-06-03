@@ -7,9 +7,9 @@
 
 #include <map>
 #include <set>
-#include <unordered_map>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_util.h"
@@ -175,6 +175,11 @@ class ServiceWorkerTaskQueue : public KeyedService,
     // Called when SW was re-registered to fix missing registration, and that
     // step finished to mitigate the problem.
     virtual void RegistrationMismatchMitigated(bool mitigation_succeeded) {}
+
+    // Called when a service worker is registered for the extension with the
+    // associated `extension_id`.
+    virtual void DidInitializeServiceWorkerContext(
+        const ExtensionId& extension_id) {}
   };
 
   static void SetObserverForTest(TestObserver* observer);
@@ -212,6 +217,7 @@ class ServiceWorkerTaskQueue : public KeyedService,
                               int process_id,
                               int thread_id);
   void DidStartWorkerFail(const SequencedContextId& context_id,
+                          base::Time start_time,
                           blink::ServiceWorkerStatusCode status_code);
 
   // Records that the extension with |extension_id| and |version| successfully
@@ -266,7 +272,7 @@ class ServiceWorkerTaskQueue : public KeyedService,
   // for a regular profile.
   // TODO(crbug.com/939664): Make this better by passing in something that
   // will manage storing and retrieving this data.
-  std::unordered_map<ExtensionId, base::Version> off_the_record_registrations_;
+  base::flat_map<ExtensionId, base::Version> off_the_record_registrations_;
 
   // Current activation tokens for each activated extensions.
   std::map<ExtensionId, base::UnguessableToken> activation_tokens_;

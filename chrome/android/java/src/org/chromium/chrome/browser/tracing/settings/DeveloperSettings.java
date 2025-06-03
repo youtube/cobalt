@@ -6,12 +6,12 @@ package org.chromium.chrome.browser.tracing.settings;
 
 import android.os.Bundle;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.preference.PreferenceFragmentCompat;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.version_info.Channel;
 import org.chromium.components.version_info.VersionConstants;
@@ -34,18 +34,18 @@ public class DeveloperSettings extends PreferenceFragmentCompat {
         if (sIsEnabledForTests != null) return sIsEnabledForTests;
 
         if (VersionConstants.CHANNEL <= Channel.DEV) return true;
-        return SharedPreferencesManager.getInstance().readBoolean(
+        return ChromeSharedPreferences.getInstance().readBoolean(
                 ChromePreferenceKeys.SETTINGS_DEVELOPER_ENABLED, false);
     }
 
     public static void setDeveloperSettingsEnabled() {
-        SharedPreferencesManager.getInstance().writeBoolean(
+        ChromeSharedPreferences.getInstance().writeBoolean(
                 ChromePreferenceKeys.SETTINGS_DEVELOPER_ENABLED, true);
     }
 
-    @VisibleForTesting
     public static void setIsEnabledForTests(Boolean isEnabled) {
         sIsEnabledForTests = isEnabled;
+        ResettersForTesting.register(() -> sIsEnabledForTests = null);
     }
 
     @Override

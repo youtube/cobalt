@@ -38,9 +38,6 @@
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "ui/gfx/color_space.h"
 
-#include "third_party/blink/public/platform/web_texttrack_metadata.h"
-#include "third_party/blink/renderer/platform/wtf/vector.h"
-
 namespace cc {
 class Layer;
 }
@@ -53,7 +50,6 @@ enum class AudioCodec;
 
 namespace blink {
 
-class WebInbandTextTrack;
 class WebMediaSource;
 class WebRemotePlaybackClient;
 
@@ -108,8 +104,6 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
                                                 const WebString& language,
                                                 bool selected) = 0;
   virtual void RemoveVideoTrack(WebMediaPlayer::TrackId) = 0;
-  virtual void AddTextTrack(WebInbandTextTrack*) = 0;
-  virtual void RemoveTextTrack(WebInbandTextTrack*) = 0;
   virtual void MediaSourceOpened(WebMediaSource*) = 0;
   virtual void RemotePlaybackCompatibilityChanged(const WebURL&,
                                                   bool is_compatible) = 0;
@@ -149,9 +143,6 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // Returns the remote playback client associated with the media element, if
   // any.
   virtual WebRemotePlaybackClient* RemotePlaybackClient() { return nullptr; }
-
-  // Returns metadata for out-of-band text tracks declared as <track> elements.
-  virtual Vector<TextTrackMetadata> GetTextTrackMetadata() = 0;
 
   // Returns the color space to render media into if.
   // Rendering media into this color space may avoid some conversions.

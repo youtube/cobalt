@@ -47,7 +47,8 @@ const uint32_t ServiceWorkerNewScriptLoader::kReadBufferSize = 32768;
 class ServiceWorkerNewScriptLoader::WrappedIOBuffer
     : public net::WrappedIOBuffer {
  public:
-  explicit WrappedIOBuffer(const char* data) : net::WrappedIOBuffer(data) {}
+  WrappedIOBuffer(const char* data, size_t size)
+      : net::WrappedIOBuffer(data, size) {}
 
  private:
   ~WrappedIOBuffer() override = default;
@@ -331,6 +332,13 @@ void ServiceWorkerNewScriptLoader::OnReceiveResponse(
 
   WriteHeaders(response_head.Clone());
 
+  // WriteHeaders() can commit completed.
+  if (network_loader_state_ == LoaderState::kCompleted &&
+      header_writer_state_ == WriterState::kCompleted &&
+      body_writer_state_ == WriterState::kCompleted) {
+    return;
+  }
+
   // Don't pass SSLInfo to the client when the original request doesn't ask
   // to send it.
   if (response_head->ssl_info.has_value() &&
@@ -523,7 +531,20 @@ void ServiceWorkerNewScriptLoader::MaybeStartNetworkConsumerHandleWatcher() {
     return;
   }
 
-  CHECK_EQ(WriterState::kNotStarted, body_writer_state_);
+  if (body_writer_state_ != WriterState::kNotStarted) {
+    static bool has_dumped_without_crashing = false;
+    if (!has_dumped_without_crashing) {
+      has_dumped_without_crashing = true;
+      SCOPED_CRASH_KEY_NUMBER("SWNewScriptLoader", "network_loader_state",
+                              static_cast<int>(network_loader_state_));
+      SCOPED_CRASH_KEY_NUMBER("SWNewScriptLoader", "header_writer_state",
+                              static_cast<int>(header_writer_state_));
+      SCOPED_CRASH_KEY_NUMBER("SWNewScriptLoader", "body_writer_state",
+                              static_cast<int>(body_writer_state_));
+      base::debug::DumpWithoutCrashing();
+    }
+    return;
+  }
   body_writer_state_ = WriterState::kWriting;
 
   network_watcher_.Watch(
@@ -539,9 +560,8 @@ void ServiceWorkerNewScriptLoader::OnNetworkDataAvailable(MojoResult) {
   CHECK_EQ(WriterState::kWriting, body_writer_state_);
   CHECK(network_consumer_.is_valid());
   scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer;
-  uint32_t bytes_available = 0;
   MojoResult result = network::MojoToNetPendingBuffer::BeginRead(
-      &network_consumer_, &pending_buffer, &bytes_available);
+      &network_consumer_, &pending_buffer);
   TRACE_EVENT_WITH_FLOW1("ServiceWorker",
                          "ServiceWorkerNewScriptLoader::OnNetworkDataAvailable",
                          TRACE_ID_WITH_SCOPE(kServiceWorkerNewScriptLoaderScope,
@@ -549,17 +569,21 @@ void ServiceWorkerNewScriptLoader::OnNetworkDataAvailable(MojoResult) {
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
                          "begin_read_result", result);
   switch (result) {
-    case MOJO_RESULT_OK:
+    case MOJO_RESULT_OK: {
+      const uint32_t bytes_available = pending_buffer->size();
       WriteData(std::move(pending_buffer), bytes_available);
       return;
-    case MOJO_RESULT_FAILED_PRECONDITION:
+    }
+    case MOJO_RESULT_FAILED_PRECONDITION: {
       // Call WriteData() with null buffer to let the cache writer know that
       // body from the network reaches to the end.
       WriteData(/*pending_buffer=*/nullptr, /*bytes_available=*/0);
       return;
-    case MOJO_RESULT_SHOULD_WAIT:
+    }
+    case MOJO_RESULT_SHOULD_WAIT: {
       network_watcher_.ArmOrNotify();
       return;
+    }
   }
   CHECK(false) << static_cast<int>(result);  // NOTREACHED
 }
@@ -572,7 +596,8 @@ void ServiceWorkerNewScriptLoader::WriteData(
   uint32_t bytes_written = std::min<uint32_t>(kReadBufferSize, bytes_available);
 
   auto buffer = base::MakeRefCounted<WrappedIOBuffer>(
-      pending_buffer ? pending_buffer->buffer() : nullptr);
+      pending_buffer ? pending_buffer->buffer() : nullptr,
+      pending_buffer ? pending_buffer->size() : 0);
   MojoResult result = client_producer_->WriteData(
       buffer->data(), &bytes_written, MOJO_WRITE_DATA_FLAG_NONE);
   TRACE_EVENT_WITH_FLOW1("ServiceWorker",

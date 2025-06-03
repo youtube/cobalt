@@ -17,9 +17,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_constants.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_features.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_helpers.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_features.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/sharing/click_to_call/click_to_call_ui_controller.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -61,6 +59,7 @@
 #include "ui/views/layout/table_layout.h"
 #include "ui/views/layout/table_layout_view.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/style/typography_provider.h"
 #include "ui/views/view_class_properties.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -347,8 +346,9 @@ class IntentPickerLabelButton : public views::LabelButton {
         provider->GetDistanceMetric(DISTANCE_CONTENT_LIST_VERTICAL_MULTI),
         provider->GetInsetsMetric(views::INSETS_DIALOG).left())));
     views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
-    views::InkDrop::Get(this)->SetBaseColorId(views::style::GetColorId(
-        views::style::CONTEXT_BUTTON, views::style::STYLE_SECONDARY));
+    views::InkDrop::Get(this)->SetBaseColorId(
+        views::TypographyProvider::Get().GetColorId(
+            views::style::CONTEXT_BUTTON, views::style::STYLE_SECONDARY));
   }
   IntentPickerLabelButton(const IntentPickerLabelButton&) = delete;
   IntentPickerLabelButton& operator=(const IntentPickerLabelButton&) = delete;
@@ -395,11 +395,9 @@ class IntentPickerAppListView
     DCHECK(!contents()->children().empty());
     const int row_height =
         contents()->children().front()->GetPreferredSize().height();
-    // TODO(djacobo): Replace this limit to correctly reflect the UI mocks,
-    // which now instead of limiting the results to 3.5 will allow whatever fits
-    // in 256pt. Using |kMaxAppResults| as a measure of how many apps we want to
-    // show.
-    ClipHeightTo(row_height, (apps::kMaxAppResults + 0.5) * row_height);
+    // Use |kMaxAppResults| as a measure of how many apps we want to show.
+    constexpr int kMaxAppResults = 3;
+    ClipHeightTo(row_height, (kMaxAppResults + 0.5) * row_height);
   }
 
   ~IntentPickerAppListView() override = default;
@@ -625,7 +623,7 @@ IntentPickerBubbleView::IntentPickerBubbleView(
     : LocationBarBubbleDelegateView(anchor_view, web_contents),
       intent_picker_cb_(std::move(intent_picker_cb)),
       app_info_(std::move(app_info)),
-      use_grid_view_(apps::features::LinkCapturingUiUpdateEnabled() &&
+      use_grid_view_(apps::features::ShouldShowLinkCapturingUX() &&
                      bubble_type == BubbleType::kLinkCapturing),
       show_stay_in_chrome_(show_stay_in_chrome && !use_grid_view_),
       show_remember_selection_(show_remember_selection),
@@ -790,13 +788,7 @@ void IntentPickerBubbleView::UpdateCheckboxState(size_t index) {
   if (!remember_selection_checkbox_)
     return;
   auto selected_app_type = app_info_[index].type;
-  bool should_enable = true;
-  if (selected_app_type == apps::PickerEntryType::kDevice) {
-    // TODO(crbug.com/1000037): Allow persisting remote devices.
-    should_enable = false;
-  } else if (selected_app_type == apps::PickerEntryType::kWeb) {
-    should_enable = apps::IntentPickerPwaPersistenceEnabled();
-  }
+  bool should_enable = selected_app_type != apps::PickerEntryType::kDevice;
 
   // Reset the checkbox state to the default unchecked if becomes disabled.
   if (!should_enable)

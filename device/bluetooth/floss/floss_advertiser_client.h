@@ -17,7 +17,11 @@
 namespace floss {
 
 constexpr char kAdvertisingSetCallbackPath[] =
-    "/org/chromium/bluetooth/advertising_set_callback";
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/advertising_set/callback/lacros";
+#else
+    "/org/chromium/bluetooth/advertising_set/callback";
+#endif
 
 // Represents type of address to advertise.
 enum class OwnAddressType {
@@ -161,6 +165,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
   // Manages observers.
@@ -203,6 +208,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
   // Completes the method call for RegisterAdvertiserCallback.
   void CompleteRegisterCallback(dbus::Response* response,
                                 dbus::ErrorResponse* error_response);
+
+  // Completes the method call for UnregisterAdvertiserCallback.
+  void CompleteUnregisterCallback(DBusResult<bool> ret);
 
   // Completes the method call for |StartAdvertisingSet|.
   void CompleteStartAdvertisingSetCallback(
@@ -256,7 +264,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
       AdvertisingStatus status);
 
   // Managed by FlossDBusManager - we keep local pointer to access object proxy.
-  base::raw_ptr<dbus::Bus> bus_ = nullptr;
+  raw_ptr<dbus::Bus> bus_ = nullptr;
 
   // Path used for gatt api calls by this class.
   dbus::ObjectPath gatt_adapter_path_;

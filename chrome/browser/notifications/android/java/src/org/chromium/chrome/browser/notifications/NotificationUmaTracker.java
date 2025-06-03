@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.notifications;
 
+import android.Manifest;
 import android.app.Notification;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -20,10 +21,10 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.compat.ApiHelperForO;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
-import org.chromium.ui.permissions.PermissionConstants;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -33,8 +34,6 @@ import java.lang.annotation.RetentionPolicy;
  * single entry point here to make more complex tracking easier to add in the future.
  */
 public class NotificationUmaTracker {
-    private static final String TAG = "NotifsUMATracker";
-
     /*
      * A list of notification types.  To add a type to this list please update
      * SystemNotificationType in enums.xml and make sure to keep this list in sync.  Additions
@@ -265,7 +264,7 @@ public class NotificationUmaTracker {
     }
 
     private NotificationUmaTracker() {
-        mSharedPreferences = SharedPreferencesManager.getInstance();
+        mSharedPreferences = ChromeSharedPreferences.getInstance();
         mNotificationManager = NotificationManagerCompat.from(ContextUtils.getApplicationContext());
     }
 
@@ -440,7 +439,7 @@ public class NotificationUmaTracker {
      */
     public void onNotificationPermissionRequestResult(String[] permissions, int[] grantResults) {
         if (permissions.length != 1 || grantResults.length != 1
-                || !permissions[0].equals(PermissionConstants.NOTIFICATION_PERMISSION)) {
+                || !permissions[0].equals(Manifest.permission.POST_NOTIFICATIONS)) {
             assert false;
             return;
         }

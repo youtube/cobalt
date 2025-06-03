@@ -44,6 +44,8 @@ class UkmDatabaseClient {
 
   UkmObserver* ukm_observer_for_testing() { return ukm_observer_.get(); }
 
+  void clear_ukm_recorder_for_testing() { ukm_recorder_for_testing_ = nullptr; }
+
  private:
   friend base::NoDestructor<UkmDatabaseClient>;
   UkmDatabaseClient();

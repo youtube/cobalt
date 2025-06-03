@@ -28,10 +28,6 @@
 #import "ios/web/public/web_state.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using autofill::FieldPropertiesFlags;
 using autofill::FormData;
 using autofill::FormRendererId;
@@ -46,13 +42,15 @@ using password_manager::JsonStringToFormData;
 namespace password_manager {
 bool GetPageURLAndCheckTrustLevel(web::WebState* web_state,
                                   GURL* __nullable page_url) {
-  auto trustLevel = web::URLVerificationTrustLevel::kNone;
-  GURL dummy;
-  if (!page_url) {
-    page_url = &dummy;
+  absl::optional<GURL> last_committed_url =
+      web_state->GetLastCommittedURLIfTrusted();
+  if (last_committed_url) {
+    if (page_url) {
+      *page_url = std::move(*last_committed_url);
+    }
+    return true;
   }
-  *page_url = web_state->GetCurrentURL(&trustLevel);
-  return trustLevel == web::URLVerificationTrustLevel::kAbsolute;
+  return false;
 }
 
 // The frame id associated with the frame which sent to form message.
@@ -352,8 +350,8 @@ const char kFrameIdKey[] = "frame_id";
 
 - (void)handleFormSubmittedMessage:(const web::ScriptMessage&)message {
   web::WebFrame* frame = nullptr;
-  std::string* frame_id =
-      message.body()->FindStringKey(password_manager::kFrameIdKey);
+  const auto& dict = message.body()->GetDict();
+  const std::string* frame_id = dict.FindString(password_manager::kFrameIdKey);
   if (frame_id) {
     password_manager::PasswordManagerJavaScriptFeature* feature =
         password_manager::PasswordManagerJavaScriptFeature::GetInstance();
@@ -369,8 +367,8 @@ const char kFrameIdKey[] = "frame_id";
   }
 
   FormData form;
-  if (!autofill::ExtractFormData(*message.body(), false, std::u16string(),
-                                 pageURL, pageURL.DeprecatedGetOriginAsURL(),
+  if (!autofill::ExtractFormData(dict, false, std::u16string(), pageURL,
+                                 pageURL.DeprecatedGetOriginAsURL(),
                                  *self.fieldDataManager, &form)) {
     return;
   }

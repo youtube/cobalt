@@ -178,11 +178,26 @@ void QueryShaderPrecisionFormat(const gl::GLVersionInfo& gl_version_info,
 void PopulateNumericCapabilities(Capabilities* caps,
                                  const FeatureInfo* feature_info) {
   DCHECK(caps != nullptr);
+  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &caps->max_texture_size);
+
+  if (feature_info->IsWebGL2OrES3OrHigherContext()) {
+    caps->major_version = 3;
+    if (feature_info->IsES31ForTestingContext()) {
+      caps->minor_version = 1;
+    } else {
+      caps->minor_version = 0;
+    }
+  }
+}
+
+void PopulateGLCapabilities(GLCapabilities* caps,
+                            const FeatureInfo* feature_info) {
+  CHECK(caps);
 
   const gl::GLVersionInfo& version_info = feature_info->gl_version_info();
   caps->VisitPrecisions([&version_info](
                             GLenum shader, GLenum type,
-                            Capabilities::ShaderPrecision* shader_precision) {
+                            GLCapabilities::ShaderPrecision* shader_precision) {
     GLint range[2] = {0, 0};
     GLint precision = 0;
     QueryShaderPrecisionFormat(version_info, shader, type, range, &precision);
@@ -198,7 +213,6 @@ void PopulateNumericCapabilities(Capabilities* caps,
                 &caps->max_fragment_uniform_vectors);
   glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &caps->max_renderbuffer_size);
   glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &caps->max_texture_image_units);
-  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &caps->max_texture_size);
   glGetIntegerv(GL_MAX_VARYING_VECTORS, &caps->max_varying_vectors);
   glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &caps->max_vertex_attribs);
   glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS,
@@ -214,7 +228,8 @@ void PopulateNumericCapabilities(Capabilities* caps,
   glGetIntegerv(GL_NUM_COMPRESSED_TEXTURE_FORMATS,
                 &caps->num_compressed_texture_formats);
   glGetIntegerv(GL_NUM_SHADER_BINARY_FORMATS, &caps->num_shader_binary_formats);
-
+  glGetIntegerv(GL_BIND_GENERATES_RESOURCE_CHROMIUM,
+                &caps->bind_generates_resource_chromium);
   if (feature_info->IsWebGL2OrES3OrHigherContext()) {
     glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &caps->max_3d_texture_size);
     glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &caps->max_array_texture_layers);
@@ -255,12 +270,10 @@ void PopulateNumericCapabilities(Capabilities* caps,
     glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS,
                   &caps->max_vertex_uniform_components);
     glGetIntegerv(GL_MIN_PROGRAM_TEXEL_OFFSET, &caps->min_program_texel_offset);
-    glGetIntegerv(GL_NUM_EXTENSIONS, &caps->num_extensions);
     glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS,
                   &caps->num_program_binary_formats);
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,
                   &caps->uniform_buffer_offset_alignment);
-    caps->major_version = 3;
     if (feature_info->IsES31ForTestingContext()) {
       glGetIntegerv(GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS,
                     &caps->max_atomic_counter_buffer_bindings);
@@ -268,9 +281,6 @@ void PopulateNumericCapabilities(Capabilities* caps,
                     &caps->max_shader_storage_buffer_bindings);
       glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT,
                     &caps->shader_storage_buffer_offset_alignment);
-      caps->minor_version = 1;
-    } else {
-      caps->minor_version = 0;
     }
   }
   if (feature_info->feature_flags().multisampled_render_to_texture ||

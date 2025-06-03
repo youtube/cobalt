@@ -9,6 +9,7 @@
 #include "base/files/file_path.h"
 #include "base/json/json_writer.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
@@ -19,17 +20,17 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/standalone_browser/standalone_browser_features.h"
 #include "chromeos/crosapi/mojom/account_manager.mojom.h"
-#include "chromeos/crosapi/mojom/sync.mojom-test-utils.h"
 #include "chromeos/crosapi/mojom/sync.mojom.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync/chromeos/explicit_passphrase_mojo_utils.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
 #include "components/sync/engine/loopback_server/persistent_unique_client_entity.h"
 #include "components/sync/engine/nigori/nigori.h"
 #include "components/sync/nigori/cryptographer_impl.h"
 #include "components/sync/protocol/os_preference_specifics.pb.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/sync/test/fake_server_nigori_helper.h"
 #include "components/sync/test/nigori_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -138,7 +139,7 @@ class AshCustomPassphraseSharingSyncTest : public SyncTest {
  public:
   AshCustomPassphraseSharingSyncTest() : SyncTest(SINGLE_CLIENT) {
     feature_list_.InitWithFeatures(
-        {ash::features::kLacrosSupport, ash::features::kLacrosPrimary}, {});
+        {ash::standalone_browser::features::kLacrosOnly}, {});
   }
 
   AshCustomPassphraseSharingSyncTest(
@@ -160,6 +161,8 @@ class AshCustomPassphraseSharingSyncTest : public SyncTest {
   }
 
   void SetupCrosapi() {
+    ASSERT_TRUE(crosapi::browser_util::IsLacrosEnabled());
+
     crosapi::CrosapiAsh* crosapi_ash =
         crosapi::CrosapiManager::Get()->crosapi_ash();
     DCHECK(crosapi_ash);
@@ -176,14 +179,11 @@ class AshCustomPassphraseSharingSyncTest : public SyncTest {
   }
 
   std::unique_ptr<syncer::Nigori> GetDecryptionKeyExposedViaCrosapi() {
-    crosapi::mojom::SyncExplicitPassphraseClientAsyncWaiter
-        explicit_passphrase_client_async_waiter(
-            explicit_passphrase_client_remote_.get());
+    base::test::TestFuture<crosapi::mojom::NigoriKeyPtr> mojo_nigori_key_future;
+    explicit_passphrase_client_remote_->GetDecryptionNigoriKey(
+        GetSyncingUserAccountKey(), mojo_nigori_key_future.GetCallback());
 
-    crosapi::mojom::NigoriKeyPtr mojo_nigori_key;
-    explicit_passphrase_client_async_waiter.GetDecryptionNigoriKey(
-        GetSyncingUserAccountKey(), &mojo_nigori_key);
-
+    auto mojo_nigori_key = mojo_nigori_key_future.Take();
     if (!mojo_nigori_key) {
       return nullptr;
     }
@@ -196,7 +196,7 @@ class AshCustomPassphraseSharingSyncTest : public SyncTest {
     auto nigori = syncer::Nigori::CreateByDerivation(
         key_params.derivation_params, key_params.password);
 
-    explicit_passphrase_client_remote_.get()->SetDecryptionNigoriKey(
+    explicit_passphrase_client_remote_->SetDecryptionNigoriKey(
         GetSyncingUserAccountKey(),
         /*decryption_key=*/syncer::NigoriToMojo(*nigori));
   }

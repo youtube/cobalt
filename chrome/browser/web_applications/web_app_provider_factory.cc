@@ -9,7 +9,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/model_type_store_service_factory.h"
 #include "chrome/browser/web_applications/daily_metrics_helper.h"
-#include "chrome/browser/web_applications/externally_installed_web_app_prefs.h"
+#include "chrome/browser/web_applications/extensions_manager.h"
 #include "chrome/browser/web_applications/install_bounce_metric.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut_manager.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
@@ -32,7 +32,8 @@ WebAppProvider* WebAppProviderFactory::GetForProfile(Profile* profile) {
 
 // static
 WebAppProviderFactory* WebAppProviderFactory::GetInstance() {
-  return base::Singleton<WebAppProviderFactory>::get();
+  static base::NoDestructor<WebAppProviderFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -50,14 +51,16 @@ WebAppProviderFactory::WebAppProviderFactory()
   // Required to listen to file handling settings change in
   // `WebAppInstallFinalizer::OnContentSettingChanged()`
   DependsOn(HostContentSettingsMapFactory::GetInstance());
+  DependsOn(ExtensionsManager::GetExtensionSystemSharedFactory());
 }
 
 WebAppProviderFactory::~WebAppProviderFactory() = default;
 
-KeyedService* WebAppProviderFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+WebAppProviderFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  WebAppProvider* provider = new WebAppProvider(profile);
+  auto provider = std::make_unique<WebAppProvider>(profile);
   provider->Start();
 
   return provider;
@@ -75,7 +78,6 @@ content::BrowserContext* WebAppProviderFactory::GetBrowserContextToUse(
 void WebAppProviderFactory::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   UserUninstalledPreinstalledWebAppPrefs::RegisterProfilePrefs(registry);
-  ExternallyInstalledWebAppPrefs::RegisterProfilePrefs(registry);
   PreinstalledWebAppManager::RegisterProfilePrefs(registry);
   WebAppPolicyManager::RegisterProfilePrefs(registry);
   WebAppPrefsUtilsRegisterProfilePrefs(registry);

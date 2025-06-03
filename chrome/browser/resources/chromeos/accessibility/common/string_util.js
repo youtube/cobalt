@@ -77,6 +77,15 @@ export class StringUtil {
   }
 
   /**
+   * @param {string} title
+   * @return {string}
+   */
+  static toTitleCase(title) {
+    return title.replace(
+        /\w\S*/g, word => word.charAt(0).toUpperCase() + word.substr(1));
+  }
+
+  /**
    * Returns a unicode-aware substring of |text|.
    * @param {string} text
    * @param {number} startIndex
@@ -99,6 +108,15 @@ export class StringUtil {
    */
   static camelToSnake(s) {
     return s.replace(/([A-Z0-9])/g, '_$1').toLowerCase();
+  }
+
+  /**
+   * @param {string} ch The character to test.
+   * @return {boolean} True if a character breaks a word, used to determine
+   *     if the previous word should be spoken.
+   */
+  static isWordBreakChar(ch) {
+    return Boolean(ch.match(/^\W$/));
   }
 }
 

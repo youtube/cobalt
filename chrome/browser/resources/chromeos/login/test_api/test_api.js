@@ -7,6 +7,8 @@ import {loadTimeData} from '//resources/ash/common/load_time_data.m.js';
 import {$} from '//resources/ash/common/util.js';
 import {afterNextRender} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {Oobe} from '../../cr_ui.js';
+
 /**
  * @fileoverview Common testing utils methods used for OOBE tast tests.
  */
@@ -209,7 +211,41 @@ class EnrollmentScreenTester extends ScreenElementApi {
 class UserCreationScreenTester extends ScreenElementApi {
   constructor() {
     super('user-creation');
+    this.personalCrButton = new PolymerElementApi(this, '#selfButton');
+    this.enrollCrButton = new PolymerElementApi(this, '#enrollButton');
+    this.enrollTriageCrButton =
+        new PolymerElementApi(this, '#triageEnrollButton');
     this.nextButton = new PolymerElementApi(this, '#nextButton');
+    this.enrollNextButton =
+        new PolymerElementApi(this, '#enrollTriageNextButton');
+  }
+
+  /**
+   * Presses enroll device button to select it in enroll triage step.
+   */
+  selectEnrollTriageButton() {
+    this.enrollTriageCrButton.click();
+  }
+
+  /**
+   * Presses for personal use button to select it.
+   */
+  selectPersonalUser() {
+    this.personalCrButton.click();
+  }
+
+  /**
+   * Presses for work button to select it.
+   */
+  selectForWork() {
+    this.enrollCrButton.click();
+  }
+
+  /**
+   * Presses next button in enroll-triage step.
+   */
+  clickEnrollNextButton() {
+    this.enrollNextButton.click();
   }
 }
 
@@ -268,7 +304,7 @@ class AssistantScreenTester extends ScreenElementApi {
   }
   /** @override */
   shouldSkip() {
-    return !loadTimeData.getBoolean('testapi_isLibAssistantEnabled');
+    return loadTimeData.getBoolean('testapi_shouldSkipAssistant');
   }
 
   /**
@@ -790,6 +826,11 @@ class GestureNavigationScreenTester extends ScreenElementApi {
   getNextButtonName() {
     return loadTimeData.getString('gestureNavigationIntroNextButton');
   }
+
+  /** @return {string} */
+  getSkipButtonName() {
+    return loadTimeData.getString('gestureNavigationIntroSkipButton');
+  }
 }
 
 class ConsolidatedConsentScreenTester extends ScreenElementApi {
@@ -927,6 +968,92 @@ class CryptohomeRecoverySetupScreenTester extends ScreenElementApi {
   }
 }
 
+class GaiaInfoScreenTester extends ScreenElementApi {
+  constructor() {
+    super('gaia-info');
+    this.nextButton = new PolymerElementApi(this, '#nextButton');
+  }
+}
+
+class ConsumerUpdateScreenTester extends ScreenElementApi {
+  constructor() {
+    super('consumer-update');
+    this.skipButton = new PolymerElementApi(this, '#skipButton');
+  }
+
+  clickSkip() {
+    this.skipButton.click();
+  }
+}
+
+class ChoobeScreenTester extends ScreenElementApi {
+  constructor() {
+    super('choobe');
+    this.skipButton = new PolymerElementApi(this, '#skipButton');
+    this.nextButton = new PolymerElementApi(this, '#nextButton');
+    this.choobeScreensList = new PolymerElementApi(this, '#screensList');
+    this.drivePinningScreenButton = new PolymerElementApi(
+        this.choobeScreensList, '#cr-button-drive-pinning');
+  }
+
+  isReadyForTesting() {
+    return this.isVisible();
+  }
+
+  clickDrivePinningScreen() {
+    this.drivePinningScreenButton.click();
+  }
+
+  isDrivePinningScreenVisible() {
+    return this.drivePinningScreenButton.element() &&
+        this.drivePinningScreenButton.isVisible();
+  }
+
+  isDrivePinningScreenChecked() {
+    return !!this.drivePinningScreenButton.element().getAttribute('checked');
+  }
+
+  clickNext() {
+    this.nextButton.click();
+  }
+
+  clickSkip() {
+    this.skipButton.click();
+  }
+}
+
+class ChoobeDrivePinningScreenTester extends ScreenElementApi {
+  constructor() {
+    super('drive-pinning');
+    this.nextButton = new PolymerElementApi(this, '#nextButton');
+    this.drivePinningToggle =
+        new PolymerElementApi(this, '#drivePinningToggle');
+    this.drivePinningSpaceInformation =
+        new PolymerElementApi(this, '#spaceInformation');
+  }
+
+  isReadyForTesting() {
+    return this.isVisible() && this.drivePinningToggle.isVisible() &&
+        this.drivePinningSpaceInformation.isVisible();
+  }
+
+  toggleFileSync() {
+    this.drivePinningToggle.click();
+  }
+
+  isFileSyncEnabled() {
+    return !!this.drivePinningToggle.element().checked;
+  }
+
+  getSpaceInformationString() {
+    return this.drivePinningSpaceInformation.element().innerText;
+  }
+
+  clickNext() {
+    this.nextButton.click();
+  }
+}
+
 export class OobeApiProvider {
   constructor() {
     this.screens = {
@@ -953,6 +1080,10 @@ export class OobeApiProvider {
       ConsolidatedConsentScreen: new ConsolidatedConsentScreenTester(),
       SmartPrivacyProtectionScreen: new SmartPrivacyProtectionScreenTester(),
       CryptohomeRecoverySetupScreen: new CryptohomeRecoverySetupScreenTester(),
+      GaiaInfoScreen: new GaiaInfoScreenTester(),
+      ConsumerUpdateScreen: new ConsumerUpdateScreenTester(),
+      ChoobeScreen: new ChoobeScreenTester(),
+      ChoobeDrivePinningScreen: new ChoobeDrivePinningScreenTester(),
     };
 
     this.loginWithPin = function(username, pin) {
@@ -982,7 +1113,133 @@ export class OobeApiProvider {
     this.getBrowseAsGuestButtonName = function() {
       return loadTimeData.getString('testapi_browseAsGuest');
     };
+
+    this.getCurrentScreenName = function() {
+      return Oobe.getInstance().currentScreen.id.trim();
+    };
+
+    this.getCurrentScreenStep = function() {
+      const step = Oobe.getInstance().currentScreen.getAttribute('multistep');
+      if (step === null) {
+        return 'default';
+      }
+      return step.trim();
+    };
+
+    /**
+     * Returns currently displayed OOBE dialog HTML element.
+     * @returns {Object}
+     */
+    this.getOobeActiveDialog = function() {
+      const adaptiveDialogs =
+          Oobe.getInstance().currentScreen.shadowRoot.querySelectorAll(
+              'oobe-adaptive-dialog');
+      for (const dialog of adaptiveDialogs) {
+        // Only one adaptive dialog could be shown at the same time.
+        if (!dialog.hidden) {
+          return dialog;
+        }
+      }
+
+      // If we didn't find any active adaptive dialog we might currently display
+      // a loading dialog, a special wrapper over oobe-adaptive-dialog to show
+      // loading process.
+      // In this case we can try to fetch all loading dialogs attached to the
+      // current screen and check their internal adaptive dialogs.
+      const loadingDialogs =
+          Oobe.getInstance().currentScreen.shadowRoot.querySelectorAll(
+              'oobe-loading-dialog');
+      for (const dialog of loadingDialogs) {
+        if (!dialog.hidden) {
+          return dialog.shadowRoot.querySelector('oobe-adaptive-dialog');
+        }
+      }
+
+      return null;
+    };
+
+    /**
+     * Returns array of the slot HTML elements with a given slot name.
+     * @param {string} slotName
+     * @returns {!Array<!Element>}
+     */
+    this.findActiveOobeDialogSlotsByName = function(slotName) {
+      const dialog = this.getOobeActiveDialog();
+      if (dialog === null) {
+        return [];
+      }
+
+      if (dialog.children === undefined || dialog.children == null) {
+        return [];
+      }
+
+      // There are cases when we have different element with the same slot, so
+      // we must find all of them for a given adaptive dialog.
+      var result = [];
+
+      for (const child of dialog.children) {
+        if (child.hidden) {
+          continue;
+        }
+
+        const slot = child.slot;
+        if (slot === undefined) {
+          continue;
+        }
+
+        if (typeof slot !== 'string') {
+          continue;
+        }
+
+        if (slot.toLowerCase().trim() === slotName.toLowerCase().trim()) {
+          result.push(child);
+        }
+      }
+
+      return result;
+    };
+
+    /**
+     * Concatenates innerText of all slots with a given name inside a currently
+     * displayed OOBE dialog.
+     * @param {string} slotName
+     * @returns {string}
+     */
+    this.combineTextOfAdaptiveDialogSlots = function(slotName) {
+      const slots = this.findActiveOobeDialogSlotsByName(slotName);
+      let result = '';
+
+      // innerText should be sufficient as it contains only visible text, no
+      // need to manually traverse a DOM tree and check all child elements.
+      for (const slot of slots) {
+        result = result.concat(slot.innerText.trim().concat('\n'));
+      }
+
+      return result;
+    };
+
+    /**
+     * Returns text inside displayed title slots.
+     * @returns {string}
+     */
+    this.getOobeActiveDialogTitleText = function() {
+      return this.combineTextOfAdaptiveDialogSlots('title');
+    };
+
+    /**
+     * Returns text inside displayed subtitle slots.
+     * @returns {string}
+     */
+    this.getOobeActiveDialogSubtitleText = function() {
+      return this.combineTextOfAdaptiveDialogSlots('subtitle');
+    };
+
+    /**
+     * Returns text inside displayed content slots.
+     * @returns {string}
+     */
+    this.getOobeActiveDialogContentText = function() {
+      return this.combineTextOfAdaptiveDialogSlots('content');
+    };
   }
 }
-
-window.OobeAPI = new OobeApiProvider();

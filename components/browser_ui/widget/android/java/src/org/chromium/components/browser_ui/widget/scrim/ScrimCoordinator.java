@@ -148,6 +148,11 @@ public class ScrimCoordinator {
         return mMediator.isActive();
     }
 
+    /** Forces the current scrim fade animation to complete if one is running. */
+    public void forceAnimationToFinish() {
+        mMediator.forceAnimationToFinish();
+    }
+
     /**
      * Manually set the alpha for the scrim.
      * @param alpha The alpha in range [0, 1].
@@ -161,17 +166,14 @@ public class ScrimCoordinator {
         mMediator.destroy();
     }
 
-    @VisibleForTesting
     public void disableAnimationForTesting(boolean disable) {
         mMediator.disableAnimationForTesting(disable);
     }
 
-    @VisibleForTesting
     public ScrimView getViewForTesting() {
         return mView;
     }
 
-    @VisibleForTesting
     ScrimMediator getMediatorForTesting() {
         return mMediator;
     }

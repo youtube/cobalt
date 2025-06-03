@@ -10,17 +10,45 @@
 
 @protocol BubblePresenterDelegate;
 @class BubbleViewControllerPresenter;
-class ChromeBrowserState;
+@class CommandDispatcher;
+class HostContentSettingsMap;
 @class LayoutGuideCenter;
+class PrefService;
+@class SceneState;
+@protocol TabStripCommands;
 @protocol ToolbarCommands;
+class UrlLoadingNotifierBrowserAgent;
+class WebStateList;
 
+namespace feature_engagement {
+class Tracker;
+}  // namespace feature_engagement
+
+namespace segmentation_platform {
+class DeviceSwitcherResultDispatcher;
+}  // namespace segmentation_platform
+
+// TODO(crbug.com/1454553): refactor the class.
 // Object handling the presentation of the different bubbles tips. The class is
 // holding all the bubble presenters.
 @interface BubblePresenter : NSObject <HelpCommands>
 
 // Initializes a BubblePresenter whose bubbles are presented on the
 // `rootViewController`.
-- (instancetype)initWithBrowserState:(ChromeBrowserState*)browserState
+- (instancetype)
+    initWithDeviceSwitcherResultDispatcher:
+        (segmentation_platform::DeviceSwitcherResultDispatcher*)
+            deviceSwitcherResultDispatcher
+                    hostContentSettingsMap:(HostContentSettingsMap*)settingsMap
+                           loadingNotifier:(UrlLoadingNotifierBrowserAgent*)
+                                               urlLoadingNotifier
+                               prefService:(PrefService*)prefService
+                                sceneState:(SceneState*)sceneState
+                   tabStripCommandsHandler:
+                       (id<TabStripCommands>)tabStripCommandsHandler
+                                   tracker:(feature_engagement::Tracker*)
+                                               engagementTracker
+                              webStateList:(WebStateList*)webStateList
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -31,16 +59,11 @@ class ChromeBrowserState;
 
 @property(nonatomic, weak) id<BubblePresenterDelegate> delegate;
 @property(nonatomic, weak) UIViewController* rootViewController;
-@property(nonatomic, weak) id<ToolbarCommands> toolbarHandler;
 @property(nonatomic, strong) LayoutGuideCenter* layoutGuideCenter;
+@property(nonatomic, weak) id<ToolbarCommands> toolbarCommandsHandler;
 
+// Stops this presenter.
 - (void)stop;
-
-// Notifies the presenter that the user entered the tab switcher.
-- (void)userEnteredTabSwitcher;
-
-// Notifies the presenter that the tools menu has been displayed.
-- (void)toolsMenuDisplayed;
 
 // Presents a bubble associated with the Discover feed header's menu button.
 - (void)presentDiscoverFeedHeaderTipBubble;
@@ -59,9 +82,13 @@ class ChromeBrowserState;
 // the item on the current website.
 - (void)presentPriceNotificationsWhileBrowsingTipBubble;
 
-// Presents a help bubble to inform the user how they can find the tab they just
-// pinned.
-- (void)presentTabPinnedBubble;
+// Presents a help bubble to inform the user that they can tap the Lens
+// button in the omnibox keyboard to search with their camera.
+- (void)presentLensKeyboardTipBubble;
+
+// Presents a help bubble to inform the user that their tracked packages will
+// appear in the Magic Stack.
+- (void)presentParcelTrackingTipBubble;
 
 @end
 

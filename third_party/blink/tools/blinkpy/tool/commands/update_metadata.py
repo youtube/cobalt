@@ -4,19 +4,21 @@
 
 """Update WPT metadata from builder results."""
 
-from concurrent.futures import ThreadPoolExecutor
 import collections
 import contextlib
+import enum
 import functools
 import io
+import itertools
 import json
 import logging
 import pathlib
 import optparse
+import os
 import re
+from concurrent.futures import Executor
 from typing import (
     Any,
-    ClassVar,
     Collection,
     Dict,
     FrozenSet,
@@ -25,18 +27,19 @@ from typing import (
     List,
     Literal,
     Mapping,
+    NamedTuple,
     Optional,
     Set,
     TypedDict,
+    Tuple,
     Union,
 )
+from urllib.parse import urljoin
 
 from blinkpy.common import path_finder
 from blinkpy.common.host import Host
-from blinkpy.common.memoized import memoized
 from blinkpy.common.net.git_cl import BuildStatuses, GitCL
 from blinkpy.common.net.rpc import Build, RPCError
-from blinkpy.common.system.filesystem import FileSystem
 from blinkpy.common.system.user import User
 from blinkpy.tool import grammar
 from blinkpy.tool.commands.build_resolver import (
@@ -45,17 +48,24 @@ from blinkpy.tool.commands.build_resolver import (
 )
 from blinkpy.tool.commands.command import Command
 from blinkpy.tool.commands.rebaseline_cl import RebaselineCL
+from blinkpy.w3c import wpt_metadata
 from blinkpy.web_tests.port.base import Port
+from blinkpy.web_tests.port.factory import wpt_options
+from blinkpy.web_tests.models.test_expectations import (
+    TestExpectations,
+    SPECIAL_PREFIXES,
+)
+from blinkpy.web_tests.models import typ_types
 
 path_finder.bootstrap_wpt_imports()
 from manifest import manifest as wptmanifest
 from wptrunner import (
-    manifestexpected,
+    expectedtree,
     manifestupdate,
     metadata,
     testloader,
-    wpttest,
 )
+from wptrunner.wptcommandline import TestRoot
 from wptrunner.wptmanifest import node as wptnode
 from wptrunner.wptmanifest.parser import ParseError
 
@@ -69,21 +79,46 @@ class TestPaths(TypedDict):
     url_base: Optional[str]
 
 
-BUG_PATTERN = re.compile(r'(crbug(\.com)?/)?(?P<bug>\d+)')
 ManifestMap = Mapping[wptmanifest.Manifest, TestPaths]
+
+
+class UpdateProperties(NamedTuple):
+    primary_properties: List[str]
+    dependent_properties: Dict[str, List[str]]
+
+    def __str__(self) -> str:
+        return ', '.join(map(repr, sorted(self.as_set())))
+
+    def as_set(self) -> FrozenSet[str]:
+        return frozenset(
+            self.primary_properties).union(*self.dependent_properties.values())
+
+
+UpdateProperties.DEFAULT = UpdateProperties(
+    ['product'],
+    {
+        # TODO(crbug.com/1152503): Modify the condition-building algorithm
+        # `wptrunner.expectedtree.build_tree(...)` to support a chain of
+        # dependent properties product -> virtual_suite -> os.
+        #
+        # https://chromium-review.googlesource.com/c/chromium/src/+/4749449/comment/43744bf3_eaa0fdd2/
+        # sketches out a proposed solution.
+        'product': ['os', 'virtual_suite'],
+        'os': ['port', 'flag_specific'],
+    })
 
 
 class UpdateMetadata(Command):
     name = 'update-metadata'
-    show_in_main_help = False  # TODO(crbug.com/1299650): To be switched on.
+    show_in_main_help = True
     help_text = 'Update WPT metadata from builder results.'
     argument_names = '[<test>,...]'
     long_help = __doc__
 
     def __init__(self,
                  tool: Host,
-                 git_cl: Optional[GitCL] = None,
-                 max_io_workers: int = 4):
+                 io_pool: Optional[Executor] = None,
+                 git_cl: Optional[GitCL] = None):
         super().__init__(options=[
             optparse.make_option(
                 '--build',
@@ -95,15 +130,14 @@ class UpdateMetadata(Command):
                 help=('Comma-separated list of builds or build ranges to '
                       'download results for (e.g., "ci/Linux Tests:100-110"). '
                       'When provided with only the builder name, use the try '
-                      'build from the latest patchset. '
+                      'build from `--patchset`. '
                       'May specify multiple times.')),
-            optparse.make_option(
-                '-b',
-                '--bug',
-                action='callback',
-                callback=_coerce_bug_number,
-                type='string',
-                help='Bug number to include for updated tests.'),
+            optparse.make_option('-b',
+                                 '--bug',
+                                 action='callback',
+                                 callback=_coerce_bug_number,
+                                 type='string',
+                                 help='Bug number to use for updated tests.'),
             optparse.make_option(
                 '--overwrite-conditions',
                 default='fill',
@@ -119,11 +153,17 @@ class UpdateMetadata(Command):
             optparse.make_option(
                 '--disable-intermittent',
                 metavar='REASON',
-                help=('Disable tests and subtests that have inconsistent '
-                      'results instead of updating the status list.')),
+                help=('Disable tests and subtests that have flaky '
+                      'results instead of expecting multiple statuses.')),
             optparse.make_option('--keep-statuses',
                                  action='store_true',
                                  help='Keep all existing statuses.'),
+            optparse.make_option(
+                '--migrate',
+                action='store_true',
+                help=('Import comments, bugs, and test disables from '
+                      'TestExpectations. Warning: Some manual reformatting '
+                      'may be required afterwards.')),
             optparse.make_option('--exclude',
                                  action='append',
                                  help='URL prefix of tests to exclude. '
@@ -133,6 +173,7 @@ class UpdateMetadata(Command):
             #   --report out/*/wpt_reports*android*.json
             optparse.make_option(
                 '--report',
+                metavar='REPORT',
                 dest='reports',
                 action='callback',
                 callback=self._append_reports,
@@ -140,18 +181,38 @@ class UpdateMetadata(Command):
                 help=('Path to a wptreport log file (or directory of '
                       'log files) to use in the update. May specify '
                       'multiple times.')),
+            optparse.make_option(
+                '--update-properties',
+                action='callback',
+                callback=self._parse_update_properties,
+                type='string',
+                help=('Path to a JSON file specifying what properties to use '
+                      'in conditions. See https://web-platform-tests.org/tools'
+                      '/wptrunner/docs/expectation.html'
+                      '#properties-file-format for format.')),
+            optparse.make_option(
+                '--min-samples',
+                metavar='N',
+                type='int',
+                default=4,
+                help=("Minimum number of results to update a test's "
+                      'expectations. Default to 4 so that expectations are '
+                      'only updated for tests that exhaust all retries. '
+                      'A threshold too low may destabilize expectations for '
+                      'flaky or unexpectedly passing tests.')),
             RebaselineCL.patchset_option,
             RebaselineCL.test_name_file_option,
             RebaselineCL.only_changed_tests_option,
             RebaselineCL.no_trigger_jobs_option,
             RebaselineCL.dry_run_option,
+            *wpt_options(),
         ])
         self._tool = tool
         # This tool's performance bottleneck is the network I/O to ResultDB.
         # Using `ProcessPoolExecutor` here would allow for physical parallelism
         # (i.e., avoid Python's Global Interpreter Lock) but incur the cost of
         # IPC.
-        self._io_pool = ThreadPoolExecutor(max_workers=max_io_workers)
+        self._io_pool = io_pool
         self._path_finder = path_finder.PathFinder(self._tool.filesystem)
         self.git = self._tool.git(path=self._path_finder.web_tests_dir())
         self.git_cl = git_cl or GitCL(self._tool)
@@ -160,34 +221,49 @@ class UpdateMetadata(Command):
     def _fs(self):
         return self._tool.filesystem
 
+    @property
+    def _map_for_io(self):
+        return self._io_pool.map if self._io_pool else map
+
     def execute(self, options: optparse.Values, args: List[str],
                 _tool: Host) -> Optional[int]:
         build_resolver = BuildResolver(
             self._tool.web,
             self.git_cl,
             can_trigger_jobs=(options.trigger_jobs and not options.dry_run))
-        manifests = load_and_update_manifests(self._path_finder)
+        manifests = load_and_update_manifests(
+            self._path_finder, force_update=options.manifest_update)
+        builds = self._select_builds(options)
+        update_properties = (options.update_properties
+                             or self.default_update_properties(builds))
         updater = MetadataUpdater.from_manifests(
             manifests,
-            TestConfigurations.generate(self._tool),
-            self._tool.filesystem,
+            wpt_metadata.TestConfigurations.generate(self._tool),
+            self._tool.port_factory.get(),
             self._explicit_include_patterns(options, args),
             options.exclude,
+            min_samples=options.min_samples,
+            update_properties=update_properties,
             overwrite_conditions=options.overwrite_conditions,
             disable_intermittent=options.disable_intermittent,
             keep_statuses=options.keep_statuses,
+            migrate=options.migrate,
             bug=options.bug,
             dry_run=options.dry_run)
+        _log.debug('Performing update with properties: %s',
+                   updater.update_properties)
+
         try:
             test_files = updater.test_files_to_update()
             if options.only_changed_tests:
                 test_files = self._filter_unchanged_test_files(test_files)
             self._check_test_files(test_files)
             build_statuses = build_resolver.resolve_builds(
-                self._select_builds(options), options.patchset)
+                builds, options.patchset)
             with contextlib.ExitStack() as stack:
                 stack.enter_context(self._trace('Updated metadata'))
-                stack.enter_context(self._io_pool)
+                if self._io_pool:
+                    stack.enter_context(self._io_pool)
                 tests_from_builders = updater.collect_results(
                     self.gather_reports(build_statuses, options.reports or []))
                 if not options.only_changed_tests:
@@ -206,6 +282,23 @@ class UpdateMetadata(Command):
         except (UnresolvedBuildException, UpdateAbortError, OSError) as error:
             _log.error('%s', error)
             return 1
+
+    def default_update_properties(self,
+                                  builds: List[Build]) -> UpdateProperties:
+        primary_properties = list(UpdateProperties.DEFAULT.primary_properties)
+        specifiers = frozenset(
+            itertools.chain.from_iterable(
+                self._tool.builders.specifiers_for_builder(build.builder_name)
+                for build in builds))
+        # Only split expectations by debug/release if there are actually debug
+        # results, which are generally only available from the waterfall. When
+        # settings expectations from try results, which are generally all
+        # release, the release results should be automatically extended to
+        # debug.
+        if 'debug' in {specifier.lower() for specifier in specifiers}:
+            primary_properties.append('debug')
+        return UpdateProperties(primary_properties,
+                                UpdateProperties.DEFAULT.dependent_properties)
 
     def remove_orphaned_metadata(self,
                                  manifests: ManifestMap,
@@ -254,7 +347,7 @@ class UpdateMetadata(Command):
         modified_test_files = []
         write = functools.partial(self._log_update_write, updater)
         for test_file, modified in zip(test_files,
-                                       self._io_pool.map(write, test_files)):
+                                       self._map_for_io(write, test_files)):
             if modified:
                 modified_test_files.append(test_file)
         return modified_test_files
@@ -366,14 +459,14 @@ class UpdateMetadata(Command):
     def _select_builds(self, options: optparse.Values) -> List[Build]:
         if options.builds:
             return options.builds
-        if options.reports:
+        if options.reports or (options.migrate and not options.trigger_jobs):
             return []
         # Only default to wptrunner try builders if neither builds nor local
         # reports are explicitly specified.
         builders = self._tool.builders.all_try_builder_names()
         return [
             Build(builder) for builder in builders
-            if self._tool.builders.uses_wptrunner(builder)
+            if self._tool.builders.has_wptrunner_steps(builder)
         ]
 
     def _explicit_include_patterns(self, options: optparse.Values,
@@ -404,10 +497,10 @@ class UpdateMetadata(Command):
             UpdateAbortError: If one or more builds finished with
                 `INFRA_FAILURE` and the user chose not to continue.
         """
-        if GitCL.filter_infra_failed(build_statuses):
+        if GitCL.filter_incomplete(build_statuses):
             if not self._tool.user.confirm(default=User.DEFAULT_NO):
-                raise UpdateAbortError('Aborting update due to build(s) with '
-                                       'infrastructure failures.')
+                raise UpdateAbortError(
+                    'Aborting update due to build(s) with incomplete results.')
         # TODO(crbug.com/1299650): Filter by failed builds again after the FYI
         # builders are green and no longer experimental.
         build_ids = [
@@ -436,7 +529,7 @@ class UpdateMetadata(Command):
             with self._fs.open_text_file_for_reading(path) as file_handle:
                 yield file_handle
             _log.debug('Read report from %r', path)
-        responses = self._io_pool.map(self._tool.web.get_binary, urls)
+        responses = self._map_for_io(self._tool.web.get_binary, urls)
         for url, response in zip(urls, responses):
             _log.debug('Fetched report from %r (size: %d bytes)', url,
                        len(response))
@@ -467,144 +560,137 @@ class UpdateMetadata(Command):
                 '%r is neither a regular file nor a directory' % value)
         setattr(parser.values, option.dest, reports)
 
-
-class TestConfigurations(collections.abc.Mapping):
-    def __init__(self, fs: FileSystem, configs):
-        self._fs = fs
-        self._finder = path_finder.PathFinder(self._fs)
-        self._configs = configs
-        self._get_dir_manifest = memoized(manifestexpected.get_dir_manifest)
-
-    def __getitem__(self, config: metadata.RunInfo) -> Port:
-        return self._configs[config]
-
-    def __len__(self) -> int:
-        return len(self._configs)
-
-    def __iter__(self) -> Iterator[metadata.RunInfo]:
-        return iter(self._configs)
-
-    @classmethod
-    def generate(cls, host: Host) -> 'TestConfigurations':
-        """Construct run info representing all Chromium test environments.
-
-        Each property in a config represents a value that metadata keys can be
-        conditioned on (e.g., 'os').
-        """
-        configs = {}
-        wptrunner_builders = {
-            builder
-            for builder in host.builders.all_builder_names()
-            if host.builders.uses_wptrunner(builder)
-        }
-
-        for builder in wptrunner_builders:
-            port_name = host.builders.port_name_for_builder_name(builder)
-            _, build_config, *_ = host.builders.specifiers_for_builder(builder)
-
-            for step in host.builders.step_names_for_builder(builder):
-                flag_specific = host.builders.flag_specific_option(
-                    builder, step)
-                port = host.port_factory.get(
-                    port_name,
-                    optparse.Values({
-                        'configuration': build_config,
-                        'flag_specific': flag_specific,
-                    }))
-                product = host.builders.product_for_build_step(builder, step)
-                debug = port.get_option('configuration') == 'Debug'
-                config = metadata.RunInfo({
-                    'product': product,
-                    'os': port.operating_system(),
-                    'port': port.version(),
-                    'debug': debug,
-                    'flag_specific': flag_specific or '',
-                })
-                configs[config] = port
-        return cls(host.filesystem, configs)
-
-    def enabled_configs(self, test: manifestupdate.TestNode,
-                        metadata_root: str) -> Set[metadata.RunInfo]:
-        """Find configurations where the given test is enabled.
-
-        This method also checks parent `__dir__.ini` to give a definitive
-        answer.
-
-        Arguments:
-            test: Test node holding expectations in conditional form.
-            test_path: Path to the test file (relative to the test root).
-            metadata_root: Absolute path to where the `.ini` files are stored.
-        """
-        return {
-            config
-            for config in self._configs
-            if not self._config_disabled(config, test, metadata_root)
-        }
-
-    def _config_disabled(
-        self,
-        config: metadata.RunInfo,
-        test: manifestupdate.TestNode,
-        metadata_root: str,
-    ) -> bool:
-        with contextlib.suppress(KeyError):
-            port = self._configs[config]
-            if port.default_smoke_test_only():
-                test_id = test.id
-                if test_id.startswith('/'):
-                    test_id = test_id[1:]
-                if (not self._finder.is_wpt_internal_path(test_id)
-                        and not self._finder.is_wpt_path(test_id)):
-                    test_id = self._finder.wpt_prefix() + test_id
-                if port.skipped_due_to_smoke_tests(test_id):
-                    return True
-        with contextlib.suppress(KeyError):
-            return test.get('disabled', config)
-        test_dir = test.parent.test_path
-        while test_dir:
-            test_dir = self._fs.dirname(test_dir)
-            abs_test_dir = self._fs.join(metadata_root, test_dir)
-            disabled = self._directory_disabled(abs_test_dir, config)
-            if disabled is not None:
-                return disabled
-        return False
-
-    def _directory_disabled(self, dir_path: str,
-                            config: metadata.RunInfo) -> Optional[bool]:
-        """Check if a `__dir__.ini` in the given directory disables tests.
-
-        Returns:
-            * True if the directory disables tests.
-            * False if the directory explicitly enables tests.
-            * None if the key is not present (e.g., `__dir__.ini` doesn't
-              exist). We may need to search other `__dir__.ini` to get a
-              conclusive answer.
-        """
-        metadata_path = self._fs.join(dir_path, '__dir__.ini')
-        manifest = self._get_dir_manifest(metadata_path, config)
-        return manifest.disabled if manifest else None
+    def _parse_update_properties(self, option: optparse.Option, _opt_str: str,
+                                 value: Optional[str],
+                                 parser: optparse.OptionParser):
+        try:
+            raw_properties = json.loads(self._fs.read_text_file(value))
+        except (IOError, ValueError) as error:
+            raise optparse.OptionValueError(
+                f'{value!r} is not a valid JSON file.') from error
+        try:
+            primary_properties = raw_properties['properties']
+            dependent_properties = raw_properties.get('dependents', {})
+            if not isinstance(primary_properties, list):
+                raise ValueError
+            if not isinstance(dependent_properties, dict):
+                raise ValueError
+            for prop in itertools.chain.from_iterable([
+                    primary_properties,
+                    dependent_properties,
+                    *dependent_properties.values(),
+            ]):
+                if not isinstance(prop, str):
+                    raise ValueError
+        except Exception as error:
+            raise optparse.OptionValueError(
+                f'{value!r} does not conform to the properties file format: '
+                '{"properties": ["<prop1>", ...], "dependents": '
+                '{"<prop1>": ["<prop2>", ...], ...}"}') from error
+        setattr(parser.values, option.dest,
+                UpdateProperties(primary_properties, dependent_properties))
 
 
 class UpdateAbortError(Exception):
     """Exception raised when the update should be aborted."""
 
 
+class DisableType(enum.Enum):
+    """Possible values for the `disabled` key (e.g., disable reasons)."""
+    ENABLED = '@False'
+    NEVER_FIX = 'neverfix'
+    MIGRATED = 'skipped in TestExpectations'
+    SLOW_TIMEOUT = 'times out even with `timeout=long`'
+
+
+class DisabledUpdate(manifestupdate.PropertyUpdate):
+    """The algorithm for disabling a test/directory, possibly conditionally.
+
+    This updater overrides the default conditional update algorithm to not
+    promote the most common `disabled` value to the default value at the end of
+    the condition chain, as occurs for updating `expected`. This allows
+    `disabled` to fall back to other `disabled` in parent `__dir__.ini`.
+    """
+
+    property_name = 'disabled'
+    property_builder = manifestupdate.build_conditional_tree
+
+    def updated_value(self, current: str, new: Dict[Optional[str],
+                                                    int]) -> str:
+        if not new:
+            return None
+        # There shouldn't be more than one disable reason in real usage, so
+        # arbitrarily pick the most common non-null one.
+        return max(new, key=lambda reason: (bool(reason), new[reason]))
+
+    def build_tree_conditions(self,
+                              property_tree: expectedtree.Node,
+                              run_info_with_condition: Set[metadata.RunInfo],
+                              prev_default=None):
+        conditions = list(
+            self._build_tree_conditions(property_tree, run_info_with_condition,
+                                        []))
+        # Sort by disable reason first, then by props.
+        conditions.sort(
+            key=lambda condition: (condition[1], condition[0] or []))
+        conditions = [
+            (manifestupdate.make_expr(props, value) if props else None, value)
+            for props, value in conditions
+        ]
+        return conditions, []
+
+    def _build_tree_conditions(self, node: expectedtree.Node,
+                               run_info_with_condition: Set[metadata.RunInfo],
+                               props: List[Tuple[str, Any]]):
+        conditions = []
+        if node.prop:
+            props = [*props, (node.prop, node.value)]
+        if node.result_values and set(node.run_info) - run_info_with_condition:
+            value = self.updated_value(None, node.result_values)
+            if value:
+                # A falsy `props` represents an unconditional value.
+                yield (props, value)
+        for child in node.children:
+            yield from self._build_tree_conditions(child,
+                                                   run_info_with_condition,
+                                                   props)
+
+
+class BugUpdate(manifestupdate.AppendOnlyListUpdate):
+    property_name = 'bug'
+
+    def from_ini_value(self, value: Union[str, List[str]]) -> List[str]:
+        return [value] if isinstance(value, str) else value
+
+    def to_ini_value(self, value: List[str]) -> Union[str, List[str]]:
+        return value[0] if len(value) == 1 else value  # Unwrap single bugs.
+
+
+class TestInfo(NamedTuple):
+    extra_bugs: Set[str]
+    extra_comments: List[str]
+    disabled_configs: Dict[metadata.RunInfo, DisableType]
+    slow: bool = False
+
+    @property
+    def needs_migration(self) -> bool:
+        return self.extra_bugs or self.extra_comments or self.disabled_configs
+
+
 TestFileMap = Mapping[str, metadata.TestFileData]
+# Note: Unlike `TestFileMap`, `TestInfoMap`'s values are set on a per-test ID
+# basis, not a per-test file one.
+TestInfoMap = Mapping[str, TestInfo]
 
 
 class MetadataUpdater:
-    # When using wptreports from builds, only update expectations for tests
-    # that exhaust all retries. Unexpectedly passing tests and occasional
-    # flakes/timeouts will not cause an update.
-    min_results_for_update: ClassVar[int] = 4
-
     def __init__(
         self,
         test_files: TestFileMap,
-        slow_tests: Set[str],
-        configs: TestConfigurations,
-        primary_properties: Optional[List[str]] = None,
-        dependent_properties: Optional[Mapping[str, str]] = None,
+        test_info: TestInfoMap,
+        configs: wpt_metadata.TestConfigurations,
+        min_samples: int = 4,
+        update_properties: UpdateProperties = UpdateProperties.DEFAULT,
         overwrite_conditions: Literal['yes', 'no', 'fill'] = 'fill',
         disable_intermittent: Optional[str] = None,
         keep_statuses: bool = False,
@@ -612,16 +698,12 @@ class MetadataUpdater:
         dry_run: bool = False,
     ):
         self._configs = configs
-        self._slow_tests = slow_tests
-        self._default_expected = _default_expected_by_type()
-        self._primary_properties = primary_properties or [
-            'debug',
-            'product',
-        ]
-        self._dependent_properties = dependent_properties or {
-            'product': ['os'],
-            'os': ['port', 'flag_specific'],
-        }
+        self._test_info = test_info
+        self._min_samples = min_samples
+        self.update_properties = update_properties
+        # Ensure all configs have exactly the same properties.
+        assert len({frozenset(config.data) for config in self._configs}) == 1
+        assert self.update_properties.as_set() <= self._eval_properties
         self._overwrite_conditions = overwrite_conditions
         self._disable_intermittent = disable_intermittent
         self._keep_statuses = keep_statuses
@@ -629,11 +711,21 @@ class MetadataUpdater:
         self._dry_run = dry_run
         self._updater = metadata.ExpectedUpdater(test_files)
 
+    @functools.cached_property
+    def _eval_properties(self) -> FrozenSet[str]:
+        """Properties required to evaluate conditional expressions.
+
+        This forms a superset of `update_properties.as_set()`. The extra
+        properties may still be used in manually written expressions, which
+        `update-metadata` still needs to evaluate.
+        """
+        return frozenset(next(iter(self._configs)).data)
+
     @classmethod
     def from_manifests(cls,
                        manifests: ManifestMap,
-                       configs: Dict[metadata.RunInfo, Port],
-                       fs: FileSystem,
+                       configs: wpt_metadata.TestConfigurations,
+                       default_port: Port,
                        include: Optional[List[str]] = None,
                        exclude: Optional[List[str]] = None,
                        **options) -> 'MetadataUpdater':
@@ -652,7 +744,8 @@ class MetadataUpdater:
         test_filter = testloader.TestFilter(manifests,
                                             include=include,
                                             exclude=exclude)
-        test_files, slow_tests = {}, set()
+        test_files = {}
+        test_info = collections.defaultdict(lambda: TestInfo(set(), [], {}))
         for manifest, paths in manifests.items():
             # Unfortunately, test filtering is tightly coupled to the
             # `testloader.TestLoader` API. Monkey-patching here is the cleanest
@@ -661,14 +754,123 @@ class MetadataUpdater:
             itertypes = manifest.itertypes
             try:
                 manifest.itertypes = _compose(test_filter, manifest.itertypes)
+                # `metadata.create_test_tree(...)` creates test files for
+                # `__dir__.ini` with pseudo-IDs like `wpt_internal/a/b/__dir__`.
+                # Note the lack of a leading `/`, so we normalize them to start
+                # with one later.
                 test_files.update(
                     metadata.create_test_tree(paths['metadata_path'],
                                               manifest))
-                slow_tests.update(test.id for test in _tests(manifest)
-                                  if getattr(test, 'timeout', None) == 'long')
+                for test in _tests(manifest):
+                    slow = getattr(test, 'timeout', None) == 'long'
+                    test_info[test.id] = TestInfo(set(), [], {}, slow)
             finally:
                 manifest.itertypes = itertypes
-        return cls(test_files, slow_tests, configs, **options)
+
+        if options.pop('migrate', False):
+            cls._load_comments_and_bugs_to_migrate(test_info, default_port)
+            cls._load_disables_to_migrate(test_info, configs)
+
+        test_files = {
+            urljoin('/', test_id): test_file
+            for test_id, test_file in test_files.items()
+        }
+        return cls(test_files, test_info, configs, **options)
+
+    @staticmethod
+    def _load_comments_and_bugs_to_migrate(test_infos: TestInfoMap,
+                                           default_port: Port):
+        contents = default_port.all_expectations_dict()
+        # It doesn't matter what `default_port` we pass to `TestExpectations`
+        # because we're only using `expectations` to scan the literal lines of
+        # each file in `contents`. Comments and bugs aren't exposed thorugh
+        # `TestExpectations`'s high-level API because they aren't semantically
+        # significant.
+        expectations = TestExpectations(default_port, contents)
+        comments_buffer = []
+        for path in contents:
+            lines = [typ_types.Expectation()]
+            lines.extend(expectations.get_updated_lines(path))
+            for prev_line, line in zip(lines[:-1], lines[1:]):
+                if line.test:
+                    base_test = default_port.lookup_virtual_test_base(
+                        line.test) or line.test
+                    test_id = wpt_metadata.exp_test_to_wpt_url(base_test)
+                    if not test_id:
+                        continue
+                    test_info = test_infos[test_id]
+                    # Ensure that `comment_buffers` is only added once for a
+                    # block listing the same test multiple times.
+                    if not set(comments_buffer) <= set(
+                            test_info.extra_comments):
+                        test_info.extra_comments.extend(comments_buffer)
+                    comment = _strip_comment(line.trailing_comments)
+                    if comment:
+                        test_info.extra_comments.append(comment)
+                    test_info.extra_bugs.update(line.reason.strip().split())
+                else:
+                    comment_or_empty = _strip_comment(line.to_string())
+                    if not comment_or_empty or prev_line.test:
+                        comments_buffer.clear()
+                    if comment_or_empty:
+                        comments_buffer.append(comment_or_empty)
+
+    @staticmethod
+    def _load_disables_to_migrate(test_info: TestInfoMap,
+                                  configs: wpt_metadata.TestConfigurations):
+        """Read `TestExpectation` files for tests to disable in WPT metadata.
+
+        For each test configuration:
+          1. Translate applicable globs that cover a directory into
+             `__dir__.ini` disables. Remove these glob lines from
+             TestExpectations resolution, so as not to create redundant
+             per-test disables.
+          2. Any test/directory with just `[ Pass ]` will be turned into an
+             explicit enable (i.e., `disabled: @False`), which can override
+             `__dir__.ini`.
+          3. Translate non-glob lines into per-test `disabled values`.
+        """
+        for config, port in configs.items():
+            virtual_suite = config.data.get('virtual_suite', '')
+            virtual_prefix = f'virtual/{virtual_suite}/' if virtual_suite else ''
+
+            expectations = TestExpectations(port)
+            for path in expectations.expectations_dict:
+                glob_lines_to_remove = []
+                for line in expectations.get_updated_lines(path):
+                    if not line.test or not line.test.startswith(
+                            virtual_prefix):
+                        continue
+                    test_id = wpt_metadata.exp_test_to_wpt_url(
+                        line.test[len(virtual_prefix):])
+                    unsatisfied_tags = line.tags - port.get_platform_tags() - {
+                        port.get_option('configuration').lower()
+                    }
+                    if not test_id or unsatisfied_tags:
+                        continue
+                    if line.results == {typ_types.ResultType.Pass}:
+                        test_info[test_id].disabled_configs[
+                            config] = DisableType.ENABLED
+                    elif line.is_glob and line.results == {
+                            typ_types.ResultType.Skip
+                    }:
+                        # Handle non-glob skips later, since virtual lines can
+                        # inherit from nonvirtual ones.
+                        reason = DisableType.MIGRATED
+                        if path == port.path_to_never_fix_tests_file():
+                            reason = DisableType.NEVER_FIX
+                        test_info[test_id].disabled_configs[config] = reason
+                        glob_lines_to_remove.append(line)
+                expectations.remove_expectations(path, glob_lines_to_remove)
+
+            for test_id, test in test_info.items():
+                test_name = urljoin(virtual_prefix,
+                                    wpt_metadata.wpt_url_to_exp_test(test_id))
+                if port.skipped_in_never_fix_tests(test_name):
+                    test.disabled_configs[config] = DisableType.NEVER_FIX
+                elif expectations.matches_an_expected_result(
+                        test_name, typ_types.ResultType.Skip):
+                    test.disabled_configs[config] = DisableType.MIGRATED
 
     def collect_results(self, reports: Iterable[io.TextIOBase]) -> Set[str]:
         """Parse and record test results."""
@@ -682,33 +884,55 @@ class MetadataUpdater:
     def _merge_retry_reports(self, retry_reports):
         report, results_by_test = {}, collections.defaultdict(list)
         for retry_report in retry_reports:
-            retry_report['run_info'] = config = self._reduce_config(
+            retry_report['run_info'] = base_run_info = self._filter_config(
                 retry_report['run_info'])
-            if config != report.get('run_info', config):
-                raise ValueError('run info values should be identical '
-                                 'across retries')
+            retry_report['subsuites'] = {
+                subsuite: self._filter_config(run_info)
+                for subsuite, run_info in retry_report.get('subsuites',
+                                                           {}).items()
+            }
             report.update(retry_report)
             for result in retry_report['results']:
+                # The upstream tool `wpt update-expectations` has a quirk where,
+                # for flaky tests with `known_intermittent`, the `expected`
+                # status is preserved as another `known_intermittent`, even if
+                # it didn't occur during any test run [0].
+                #
+                # Since Chromium uses retries, we can narrow expectations more
+                # aggressively (unless `--keep-statuses` is passed). Therefore,
+                # discard `expected` here.
+                #
+                # [0]: https://github.com/web-platform-tests/wpt/blob/78a04906/tools/wptrunner/wptrunner/metadata.py#L260
+                result.pop('expected', None)
                 results_by_test[result['test']].append(result)
+
+            for subsuite_run_info in retry_report['subsuites'].values():
+                run_info_props = set(base_run_info) | set(subsuite_run_info)
+                missing_props = self._eval_properties - run_info_props
+                if missing_props:
+                    raise UpdateAbortError(
+                        'wptreport `run_info` is missing required properties: '
+                        + ', '.join(sorted(missing_props)))
+
         report['results'] = []
         for test_id, results in results_by_test.items():
-            if len(results) >= self.min_results_for_update:
+            if len(results) >= self._min_samples:
                 report['results'].extend(results)
         return report
 
-    def _reduce_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        properties = frozenset(self._primary_properties).union(
-            *self._dependent_properties.values())
-        return {
-            prop: value
-            for prop, value in config.items() if prop in properties
-        }
+    def _filter_config(
+            self,
+            config: Dict[str, Any],
+            keep: Optional[FrozenSet[str]] = None) -> Dict[str, Any]:
+        """Canonicalize a `run_info` by removing irrelevant properties."""
+        keep = keep or self._eval_properties
+        return {prop: value for prop, value in config.items() if prop in keep}
 
     def test_files_to_update(self) -> List[metadata.TestFileData]:
         test_files = {
             test_file
-            for test_file in self._updater.id_test_map.values()
-            if not test_file.test_path.endswith('__dir__')
+            for test_id, test_file in self._updater.id_test_map.items()
+            if test_id in self._test_info
         }
         return sorted(test_files, key=lambda test_file: test_file.test_path)
 
@@ -726,6 +950,7 @@ class MetadataUpdater:
         still be pruned.
         """
         expected = self._make_initialized_expectations(test_file)
+        default_expected = wpt_metadata.default_expected_by_type()
         for test in expected.child_map.values():
             updated_configs = self._updated_configs(test_file, test.id)
             # Nothing to update. This commonly occurs when every port runs
@@ -735,14 +960,17 @@ class MetadataUpdater:
                 continue
             enabled_configs = self._configs.enabled_configs(
                 test, test_file.metadata_path)
-            missing_configs = enabled_configs - updated_configs
-            for config in missing_configs:
-                self._updater.suite_start({'run_info': config.data})
+            configs_to_preserve = enabled_configs
+            if not self._keep_statuses:
+                configs_to_preserve -= updated_configs
+            for config in configs_to_preserve:
+                self._updater.suite_start(
+                    {'run_info': self._filter_config(config.data)})
                 self._updater.test_start({'test': test.id})
                 for subtest_id, subtest in test.subtests.items():
                     expected, *known_intermittent = self._eval_statuses(
-                        subtest, config,
-                        self._default_expected[test_file.item_type, True])
+                        subtest, config, default_expected[test_file.item_type,
+                                                          True])
                     self._updater.test_status({
                         'test':
                         test.id,
@@ -754,8 +982,7 @@ class MetadataUpdater:
                         known_intermittent,
                     })
                 expected, *known_intermittent = self._eval_statuses(
-                    test, config,
-                    self._default_expected[test_file.item_type, False])
+                    test, config, default_expected[test_file.item_type, False])
                 self._updater.test_end({
                     'test':
                     test.id,
@@ -784,9 +1011,10 @@ class MetadataUpdater:
         # conditionally compiled, meaning keys can be evaluated against
         # different run info without needing to re-read the file.
         expected = test_file.expected(
-            (self._primary_properties, self._dependent_properties),
+            self.update_properties,
             update_intermittent=(not self._disable_intermittent),
-            remove_intermittent=(not self._keep_statuses))
+            remove_intermittent=False)
+        expected.set('type', test_file.item_type)
         for test_id in test_file.data:
             test = expected.get_test(test_id)
             if not test:
@@ -815,10 +1043,26 @@ class MetadataUpdater:
             test_id: str,
             subtest_id: Optional[str] = None,
     ) -> FrozenSet[metadata.RunInfo]:
-        """Find configurations a (sub)test has results for so far."""
+        """Find configurations a (sub)test has results for so far.
+
+        The extra filtering step ensures that all `self._configs` whose update
+        properties match at least one result are considered "updated", and will
+        share results. For example, for:
+          os=linux, debug
+          os=linux, not debug
+
+        if only `os` is an update property, then both configurations will
+        inherit any `os=linux` result.
+        """
         subtests = test_file.data.get(test_id, {})
         subtest_data = subtests.get(subtest_id, [])
-        return frozenset(run_info for _, run_info, _ in subtest_data)
+        update_properties = self.update_properties.as_set()
+        filter_to_update_props = lambda config: metadata.RunInfo(
+            self._filter_config(config.data, update_properties))
+        configs_updated = frozenset(
+            filter_to_update_props(config) for _, config, _ in subtest_data)
+        return frozenset(config for config in self._configs
+                         if filter_to_update_props(config) in configs_updated)
 
     def update(self, test_file: metadata.TestFileData) -> bool:
         """Update and serialize the AST of a metadata file.
@@ -826,60 +1070,125 @@ class MetadataUpdater:
         Returns:
             Whether the test file's metadata was modified.
         """
+        needs_migration = any(self._test_info[test_id].needs_migration
+                              for test_id in test_file.tests)
+        if test_file.test_path.endswith('__dir__'):
+            needs_migration = True
+        if not test_file.data and not needs_migration:
+            # Without test results and no TestExpectations to migrate, skip the
+            # general update case, which is slow and unnecessary. See
+            # crbug.com/1466002.
+            return False
         if self._overwrite_conditions == 'fill':
             self._fill_missing(test_file)
+        # Set `requires_update` to check for orphaned test sections.
+        test_file.set_requires_update()
         expected = test_file.update(
-            self._default_expected,
-            (self._primary_properties, self._dependent_properties),
+            wpt_metadata.default_expected_by_type(),
+            self.update_properties,
             full_update=(self._overwrite_conditions != 'no'),
             disable_intermittent=self._disable_intermittent,
             # `disable_intermittent` becomes a no-op when `update_intermittent`
             # is set, so always force them to be opposites. See:
             #   https://github.com/web-platform-tests/wpt/blob/merge_pr_35624/tools/wptrunner/wptrunner/manifestupdate.py#L422-L436
-            update_intermittent=(not self._disable_intermittent),
-            remove_intermittent=(not self._keep_statuses))
+            update_intermittent=(not self._disable_intermittent))
         if expected:
-            self._disable_slow_timeouts(test_file, expected)
+            self._remove_orphaned_tests(expected)
+            self._mark_slow_timeouts_for_disabling(expected)
+            for section, test_info in self._sections_to_annotate(expected):
+                self._migrate_disables(section, test_info)
+                self._migrate_comments(section, test_info)
+                self._update_bugs(section, test_info)
 
         modified = expected and expected.modified
         if modified:
-            if self._bug:
-                self._add_bug_url(expected)
             sort_metadata_ast(expected.node)
             if not self._dry_run:
                 metadata.write_new_expected(test_file.metadata_path, expected)
         return modified
 
-    def _disable_slow_timeouts(
-            self,
-            test_file: metadata.TestFileData,
-            expected: manifestupdate.ExpectedManifest,
-            message: str = 'times out even with extended deadline'):
+    def _mark_slow_timeouts_for_disabling(
+            self, expected: manifestupdate.ExpectedManifest):
         """Disable tests that are simultaneously slow and consistently time out.
 
         Such tests provide too little value for the large amount of time/compute
         that they consume.
         """
         for test in expected.iterchildren():
-            if test.id not in self._slow_tests:
+            if not self._test_info[test.id].slow:
                 continue
-            results = test_file.data.get(test.id, {}).get(None, [])
-            statuses_by_config = collections.defaultdict(set)
-            for prop, config, value in results:
-                if prop == 'status':
-                    statuses_by_config[config].add(value)
-            # Writing a conditional `disabled` value is complicated, so just
-            # disable the test unconditionally if any configuration times out
-            # consistently.
-            if any(statuses == {'TIMEOUT'}
-                   for statuses in statuses_by_config.values()):
-                test.set('disabled', message)
-                test.modified = True
+            status_counts_by_config = test.update_properties.expected.results
+            disabled_configs = self._test_info[test.id].disabled_configs
+            for config in self._configs:
+                reduced_config = metadata.RunInfo(
+                    self._filter_config(config.data))
+                status_counts = status_counts_by_config.get(reduced_config, {})
+                if set(status_counts) == {'TIMEOUT'}:
+                    disabled_configs[config] = DisableType.SLOW_TIMEOUT
 
-    def _add_bug_url(self, expected: manifestupdate.ExpectedManifest):
-        for test in expected.iterchildren():
-            if test.modified:
-                test.set('bug', 'crbug.com/%d' % self._bug)
+    def _remove_orphaned_tests(self,
+                               expected: manifestupdate.ExpectedManifest):
+        # Iterate over a copy, since `test.remove()` mutates `expected`.
+        for test in list(expected.iterchildren()):
+            if test.id not in self._updater.id_test_map:
+                test.remove()
+                expected.modified = True
+
+    def _migrate_disables(self, section: wptmanifest.ManifestItem,
+                          test_info: TestInfo):
+        if not test_info.disabled_configs:
+            return
+        update = DisabledUpdate(section)
+        for config in self._configs:
+            try:
+                # Attempt to preserve existing values for `disabled`.
+                reason = section.get('disabled', config)
+            except KeyError:
+                reason = test_info.disabled_configs.get(config)
+                reason = reason.value if reason else None
+            update.set(config, reason)
+        update.update(full_update=True, disable_intermittent=False)
+
+    def _migrate_comments(self, section: wptmanifest.ManifestItem,
+                          test_info: TestInfo):
+        if section.is_empty or not test_info.extra_comments:
+            return
+        # Clear existing comments so that `--migrate` is idempotent.
+        section.node.comments.clear()
+        section.node.comments.extend(
+            ('comment', comment) for comment in test_info.extra_comments)
+        section.modified = True
+
+    def _update_bugs(self, section: wptmanifest.ManifestItem,
+                     test_info: TestInfo):
+        update = BugUpdate(section)
+        for extra_bug in test_info.extra_bugs:
+            update.set(None, extra_bug)
+        if self._bug and section.modified:
+            section.set('bug', [])  # Overwrite existing bugs.
+            update.set(None, f'crbug.com/{self._bug}')
+        update.update()
+
+    def _sections_to_annotate(
+        self,
+        expected: manifestupdate.ExpectedManifest,
+    ) -> Iterator[Tuple[wptmanifest.ManifestItem, TestInfo]]:
+        if expected.test_path.endswith('__dir__'):
+            dir_id = urljoin(expected.url_base,
+                             expected.test_path.replace(os.path.sep, '/'))
+            # Updates the root section in `__dir__.ini`.
+            yield expected, self._test_info[dir_id]
+        else:
+            for test in expected.iterchildren():
+                yield test, self._test_info[test.id]
+
+
+def _strip_comment(maybe_comment: str) -> str:
+    maybe_comment = maybe_comment.lstrip()
+    if maybe_comment.startswith('#') and not any(
+            maybe_comment.startswith(prefix) for prefix in SPECIAL_PREFIXES):
+        return maybe_comment[1:]
+    return ''
 
 
 def sort_metadata_ast(node: wptnode.DataNode) -> None:
@@ -909,12 +1218,15 @@ def _compose(f, g):
     return lambda *args, **kwargs: f(g(*args, **kwargs))
 
 
-def load_and_update_manifests(finder: path_finder.PathFinder) -> ManifestMap:
+def load_and_update_manifests(finder: path_finder.PathFinder,
+                              force_update: bool = True) -> ManifestMap:
     """Load and update WPT manifests on disk by scanning the test root.
 
     Arguments:
         finder: Path finder for constructing test paths (test root, metadata
             root, and manifest path).
+        force_update: True to force a manifest update, which may be slow. A
+            stale manifest may cause the wrong tests to be recognized.
 
     See Also:
         https://github.com/web-platform-tests/wpt/blob/merge_pr_35574/tools/wptrunner/wptrunner/testloader.py#L171-L199
@@ -922,16 +1234,8 @@ def load_and_update_manifests(finder: path_finder.PathFinder) -> ManifestMap:
     test_paths = {}
     for rel_path_to_wpt_root, url_base in Port.WPT_DIRS.items():
         wpt_root = finder.path_from_web_tests(rel_path_to_wpt_root)
-        test_paths[url_base] = {
-            'tests_path':
-            wpt_root,
-            'metadata_path':
-            wpt_root,
-            'manifest_path':
-            finder.path_from_web_tests(rel_path_to_wpt_root, 'MANIFEST.json'),
-        }
-    return testloader.ManifestLoader(test_paths,
-                                     force_manifest_update=True).load()
+        test_paths[url_base] = TestRoot(wpt_root, wpt_root)
+    return testloader.ManifestLoader(test_paths, force_update).load()
 
 
 def _tests(
@@ -943,18 +1247,6 @@ def _tests(
     }
     for _, _, tests in manifest.itertypes(*item_types):
         yield from tests
-
-
-def _default_expected_by_type():
-    default_expected_by_type = {}
-    for test_type, test_cls in wpttest.manifest_test_cls.items():
-        if test_cls.result_cls:
-            expected = test_cls.result_cls.default_expected
-            default_expected_by_type[test_type, False] = expected
-        if test_cls.subtest_result_cls:
-            expected = test_cls.subtest_result_cls.default_expected
-            default_expected_by_type[test_type, True] = expected
-    return default_expected_by_type
 
 
 def _parse_build_specifiers(option: optparse.Option, _opt_str: str, value: str,
@@ -984,7 +1276,7 @@ def _parse_build_specifiers(option: optparse.Option, _opt_str: str, value: str,
 
 def _coerce_bug_number(option: optparse.Option, _opt_str: str, value: str,
                        parser: optparse.OptionParser):
-    bug_match = BUG_PATTERN.fullmatch(value)
+    bug_match = wpt_metadata.BUG_PATTERN.fullmatch(value)
     if not bug_match:
         raise optparse.OptionValueError('invalid bug number or URL %r' % value)
     setattr(parser.values, option.dest, int(bug_match['bug']))

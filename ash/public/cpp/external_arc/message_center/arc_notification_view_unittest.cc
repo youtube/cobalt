@@ -24,6 +24,7 @@
 #include "ui/base/ime/dummy_text_input_client.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/events/event.h"
@@ -161,6 +162,11 @@ class ArcNotificationViewTest : public AshTestBase {
         .x();
   }
 
+  bool IsPopupRemovedAfterIdle(const std::string& notification_id) const {
+    base::RunLoop().RunUntilIdle();
+    return !MessageCenter::Get()->FindPopupNotificationById(notification_id);
+  }
+
   bool IsRemovedAfterIdle(const std::string& notification_id) const {
     base::RunLoop().RunUntilIdle();
     return !MessageCenter::Get()->FindVisibleNotificationById(notification_id);
@@ -212,7 +218,7 @@ class ArcNotificationViewTest : public AshTestBase {
       nullptr;  // owned by its widget.
 
   std::unique_ptr<MockArcNotificationItem> item_;
-  std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(ArcNotificationViewTest, Events) {
@@ -240,19 +246,19 @@ TEST_F(ArcNotificationViewTest, SlideOut) {
   BeginScroll();
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
   ScrollBy(-10);
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(-10.f, GetNotificationSlideAmount());
   EndScroll();
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
 
   BeginScroll();
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
   ScrollBy(-200);
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(-200.f, GetNotificationSlideAmount());
   EndScroll();
-  EXPECT_TRUE(IsRemovedAfterIdle(notification_id));
+  EXPECT_TRUE(IsPopupRemovedAfterIdle(notification_id));
 }
 
 // TODO(crbug.com/1410724): Flaky on MSAN bots.
@@ -271,19 +277,19 @@ TEST_F(ArcNotificationViewTest, MAYBE_SlideOutNested) {
   BeginScroll();
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
   ScrollBy(-10);
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(-10.f, GetNotificationSlideAmount());
   EndScroll();
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
 
   BeginScroll();
   EXPECT_EQ(0.f, GetNotificationSlideAmount());
   ScrollBy(-200);
-  EXPECT_FALSE(IsRemovedAfterIdle(notification_id));
+  EXPECT_FALSE(IsPopupRemovedAfterIdle(notification_id));
   EXPECT_EQ(-200.f, GetNotificationSlideAmount());
   EndScroll();
-  EXPECT_TRUE(IsRemovedAfterIdle(notification_id));
+  EXPECT_TRUE(IsPopupRemovedAfterIdle(notification_id));
 }
 
 TEST_F(ArcNotificationViewTest, SlideOutPinned) {
@@ -380,6 +386,36 @@ TEST_F(ArcNotificationViewTest, ChangeContentHeight) {
   size = notification_view()->GetPreferredSize();
   size.Enlarge(0, -notification_view()->GetInsets().height());
   EXPECT_EQ("344x1000", size.ToString());
+}
+
+class NotificationGestureUpdateTest : public ArcNotificationViewTest {
+ public:
+  NotificationGestureUpdateTest() = default;
+  NotificationGestureUpdateTest(const NotificationGestureUpdateTest&) = delete;
+  NotificationGestureUpdateTest& operator=(
+      const NotificationGestureUpdateTest&) = delete;
+
+  // Overridden from ViewsTestBase:
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeatures(
+        {::features::kNotificationGesturesUpdate}, {});
+
+    ArcNotificationViewTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(NotificationGestureUpdateTest, TrackPadGestureSlideOut) {
+  ui::ScopedAnimationDurationScaleMode zero_duration_scope(
+      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+
+  ui::test::EventGenerator generator(
+      (notification_view()->GetWidget()->GetNativeWindow()->GetRootWindow()));
+  generator.ScrollSequence(gfx::Point(), base::TimeDelta(), /*x_offset=*/20,
+                           /*y_offset=*/0, /*steps=*/1, /*num_fingers=*/2);
+  EXPECT_TRUE(IsPopupRemovedAfterIdle(kDefaultNotificationId));
 }
 
 }  // namespace ash

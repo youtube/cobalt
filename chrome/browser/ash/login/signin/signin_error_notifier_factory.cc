@@ -10,6 +10,7 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/signin_error_controller_factory.h"
+#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 
 namespace ash {
 
@@ -24,9 +25,10 @@ SigninErrorNotifierFactory::SigninErrorNotifierFactory()
               .Build()) {
   DependsOn(SigninErrorControllerFactory::GetInstance());
   DependsOn(NotificationDisplayServiceFactory::GetInstance());
+  DependsOn(SupervisedUserServiceFactory::GetInstance());
 }
 
-SigninErrorNotifierFactory::~SigninErrorNotifierFactory() {}
+SigninErrorNotifierFactory::~SigninErrorNotifierFactory() = default;
 
 // static
 SigninErrorNotifier* SigninErrorNotifierFactory::GetForProfile(
@@ -37,17 +39,19 @@ SigninErrorNotifier* SigninErrorNotifierFactory::GetForProfile(
 
 // static
 SigninErrorNotifierFactory* SigninErrorNotifierFactory::GetInstance() {
-  return base::Singleton<SigninErrorNotifierFactory>::get();
+  static base::NoDestructor<SigninErrorNotifierFactory> instance;
+  return instance.get();
 }
 
-KeyedService* SigninErrorNotifierFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SigninErrorNotifierFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   // If this is during dummy login from tests, suppress the notification.
   if (switches::IsGaiaServicesDisabled())
     return nullptr;
 
   Profile* profile = static_cast<Profile*>(context);
-  return new SigninErrorNotifier(
+  return std::make_unique<SigninErrorNotifier>(
       SigninErrorControllerFactory::GetForProfile(profile), profile);
 }
 

@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -16,13 +17,13 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/printing/print_job.h"
 #include "chrome/browser/printing/print_job_manager.h"
 #include "chrome/browser/printing/print_job_worker.h"
 #include "chrome/browser/printing/print_test_utils.h"
 #include "chrome/browser/printing/print_view_manager.h"
 #include "chrome/browser/printing/print_view_manager_base.h"
 #include "chrome/browser/printing/printer_query.h"
-#include "chrome/browser/printing/test_print_job.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
@@ -33,8 +34,12 @@
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "printing/print_settings.h"
 #include "printing/print_settings_conversion.h"
+#include "printing/printed_document.h"
 #include "printing/units.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "printing/mojom/print.mojom.h"
@@ -200,6 +205,96 @@ class TestPrintViewManagerForSystemDialogPrint : public PrintViewManager {
   }
 };
 
+class TestPrintJob : public PrintJob {
+ public:
+  // Create an empty `PrintJob`. When initializing with this constructor,
+  // post-constructor initialization must be done with `Initialize()`.
+  TestPrintJob() = default;
+
+  // Getters for values stored by `TestPrintJob` in Start...Converter functions.
+  const gfx::Size& page_size() const { return page_size_; }
+  const gfx::Rect& content_area() const { return content_area_; }
+  const gfx::Point& physical_offsets() const { return physical_offsets_; }
+#if BUILDFLAG(IS_WIN)
+  mojom::PrinterLanguageType type() const { return type_; }
+#endif
+
+  // All remaining functions are `PrintJob` implementation.
+  void Initialize(std::unique_ptr<PrinterQuery> query,
+                  const std::u16string& name,
+                  uint32_t page_count) override {
+    // Since we do not actually print in these tests, just let this get
+    // destroyed when this function exits.
+    std::unique_ptr<PrintJobWorker> worker =
+        query->TransferContextToNewWorker(nullptr);
+
+    scoped_refptr<PrintedDocument> new_doc =
+        base::MakeRefCounted<PrintedDocument>(query->ExtractSettings(), name,
+                                              query->cookie());
+
+    new_doc->set_page_count(page_count);
+    UpdatePrintedDocument(new_doc.get());
+  }
+
+  // Sets `job_pending_` to true.
+  void StartPrinting() override { set_job_pending_for_testing(true); }
+
+  // Sets `job_pending_` to false and deletes the worker.
+  void Stop() override { set_job_pending_for_testing(false); }
+
+  // Sets `job_pending_` to false and deletes the worker.
+  void Cancel() override { set_job_pending_for_testing(false); }
+
+  void OnFailed() override {}
+
+  void OnDocDone(int job_id, PrintedDocument* document) override {}
+
+  // Intentional no-op, returns true.
+  bool FlushJob(base::TimeDelta timeout) override { return true; }
+
+#if BUILDFLAG(IS_WIN)
+  // These functions fill in the corresponding member variables based on the
+  // arguments passed in.
+  void StartPdfToEmfConversion(scoped_refptr<base::RefCountedMemory> bytes,
+                               const gfx::Size& page_size,
+                               const gfx::Rect& content_area,
+                               const GURL& url) override {
+    page_size_ = page_size;
+    content_area_ = content_area;
+    type_ = mojom::PrinterLanguageType::kNone;
+  }
+
+  void StartPdfToPostScriptConversion(
+      scoped_refptr<base::RefCountedMemory> bytes,
+      const gfx::Rect& content_area,
+      const gfx::Point& physical_offsets,
+      bool ps_level2,
+      const GURL& url) override {
+    content_area_ = content_area;
+    physical_offsets_ = physical_offsets;
+    type_ = ps_level2 ? mojom::PrinterLanguageType::kPostscriptLevel2
+                      : mojom::PrinterLanguageType::kPostscriptLevel3;
+  }
+
+  void StartPdfToTextConversion(scoped_refptr<base::RefCountedMemory> bytes,
+                                const gfx::Size& page_size,
+                                const GURL& url) override {
+    page_size_ = page_size;
+    type_ = mojom::PrinterLanguageType::kTextOnly;
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
+ private:
+  ~TestPrintJob() override { set_job_pending_for_testing(false); }
+
+  gfx::Size page_size_;
+  gfx::Rect content_area_;
+  gfx::Point physical_offsets_;
+#if BUILDFLAG(IS_WIN)
+  mojom::PrinterLanguageType type_;
+#endif
+};
+
 }  // namespace
 
 class TestPrintViewManager : public PrintViewManagerBase {
@@ -225,8 +320,11 @@ class TestPrintViewManager : public PrintViewManagerBase {
 
     mojo::AssociatedRemote<mojom::PrintRenderFrame> print_render_frame;
     rfh->GetRemoteAssociatedInterfaces()->GetInterface(&print_render_frame);
-    print_render_frame->InitiatePrintPreview(mojo::NullAssociatedRemote(),
-                                             has_selection);
+    print_render_frame->InitiatePrintPreview(
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+        mojo::NullAssociatedRemote(),
+#endif
+        has_selection);
     return true;
   }
 
@@ -259,7 +357,7 @@ class TestPrintViewManager : public PrintViewManagerBase {
 
  protected:
   // Override to create a `TestPrintJob` instead of a real one.
-  bool CreateNewPrintJob(std::unique_ptr<PrinterQuery> query) override {
+  bool SetupNewPrintJob(std::unique_ptr<PrinterQuery> query) override {
     print_job_ = base::MakeRefCounted<TestPrintJob>();
     print_job_->Initialize(std::move(query), RenderSourceName(),
                            number_pages());
@@ -350,7 +448,7 @@ TEST_F(PrintViewManagerTest, PostScriptHasCorrectOffsets) {
   // Setup PostScript printer with printable area offsets of 0.1in.
   queue->SetupPrinterLanguageType(
       mojom::PrinterLanguageType::kPostscriptLevel2);
-  int offset_in_pixels = static_cast<int>(kTestPrinterDpi * 0.1f);
+  int offset_in_pixels = static_cast<int>(test::kPrinterDpi * 0.1f);
   queue->SetupPrinterOffsets(offset_in_pixels, offset_in_pixels);
   g_browser_process->print_job_manager()->SetQueueForTest(queue);
 
@@ -366,7 +464,8 @@ TEST_F(PrintViewManagerTest, PostScriptHasCorrectOffsets) {
   print_view_manager->PrintPreviewNow(web_contents->GetPrimaryMainFrame(),
                                       false);
 
-  base::Value::Dict print_ticket = GetPrintTicket(mojom::PrinterType::kLocal);
+  base::Value::Dict print_ticket =
+      test::GetPrintTicket(mojom::PrinterType::kLocal);
   const char kTestData[] = "abc";
   auto print_data = base::MakeRefCounted<base::RefCountedStaticMemory>(
       kTestData, sizeof(kTestData));

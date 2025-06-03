@@ -116,7 +116,7 @@ std::string FileSystemProviderBase::GetProviderId() const {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // Terminal app is the only non-extension to use fsp.
   if (!extension()) {
-    CHECK(url::IsSameOriginWith(GURL(source_url()),
+    CHECK(url::IsSameOriginWith(source_url(),
                                 GURL(chrome::kChromeUIUntrustedTerminalURL)));
     return guest_os::kTerminalSystemAppId;
   }
@@ -135,16 +135,16 @@ void FileSystemProviderBase::RespondWithError(const std::string& error) {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
 bool FileSystemProviderBase::MountFinishedInterfaceAvailable() {
   auto* service = chromeos::LacrosService::Get();
-  return service->GetInterfaceVersion(
-             crosapi::mojom::FileSystemProviderService::Uuid_) >=
+  return service->GetInterfaceVersion<
+             crosapi::mojom::FileSystemProviderService>() >=
          int{crosapi::mojom::FileSystemProviderService::MethodMinVersions::
                  kMountFinishedMinVersion};
 }
 
 bool FileSystemProviderBase::OperationFinishedInterfaceAvailable() {
   auto* service = chromeos::LacrosService::Get();
-  return service->GetInterfaceVersion(
-             crosapi::mojom::FileSystemProviderService::Uuid_) >=
+  return service->GetInterfaceVersion<
+             crosapi::mojom::FileSystemProviderService>() >=
          int{crosapi::mojom::FileSystemProviderService::MethodMinVersions::
                  kOperationFinishedMinVersion};
 }

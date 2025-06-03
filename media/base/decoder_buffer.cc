@@ -38,19 +38,14 @@ DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
 DecoderBuffer::TimeInfo& DecoderBuffer::TimeInfo::operator=(const TimeInfo&) =
     default;
 
-DecoderBuffer::DecoderBuffer(size_t size)
-    : size_(size), side_data_size_(0), is_key_frame_(false) {
+DecoderBuffer::DecoderBuffer(size_t size) : size_(size), is_key_frame_(false) {
   Initialize();
 }
 
-DecoderBuffer::DecoderBuffer(const uint8_t* data,
-                             size_t size,
-                             const uint8_t* side_data,
-                             size_t side_data_size)
-    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size)
+    : size_(size), is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
-    CHECK(!side_data);
     return;
   }
 
@@ -61,46 +56,27 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-  if (!side_data) {
-    CHECK_EQ(side_data_size, 0u);
-    return;
-  }
-
-  DCHECK_GT(side_data_size_, 0u);
-  memcpy(side_data_.get(), side_data, side_data_size_);
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              const uint8_t* data,
-                             size_t size,
-                             const uint8_t* side_data,
-                             size_t side_data_size)
-    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+                             size_t size)
+    : size_(size), is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
-    CHECK(!side_data);
     return;
   }
 
   Initialize(type);
 
   memcpy(data_, data, size_);
-
-  if (!side_data) {
-    CHECK_EQ(side_data_size, 0u);
-    return;
-  }
-
-  DCHECK_GT(side_data_size_, 0u);
-  memcpy(side_data_.get(), side_data, side_data_size_);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  : DecoderBuffer(data.get(), size, nullptr, 0) {
+  : DecoderBuffer(data.get(), size) {
   // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
 }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -126,7 +102,6 @@ DecoderBuffer::~DecoderBuffer() {
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-  side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
@@ -135,8 +110,6 @@ void DecoderBuffer::Initialize() {
   Initialize(DemuxerStream::UNKNOWN);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
-  if (side_data_size_ > 0)
-    side_data_.reset(new uint8_t[side_data_size_]);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
@@ -152,9 +125,6 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
                                                       allocated_size_,
                                                       alignment));
   memset(data_ + size_, 0, padding);
-
-  if (side_data_size_ > 0)
-    side_data_.reset(new uint8_t[side_data_size_]);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -163,19 +133,7 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
                                                      size_t data_size) {
   // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
   CHECK(data);
-  return base::WrapRefCounted(new DecoderBuffer(data, data_size, nullptr, 0));
-}
-
-// static
-scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
-                                                     size_t data_size,
-                                                     const uint8_t* side_data,
-                                                     size_t side_data_size) {
-  // If you hit this CHECK you likely have a bug in a demuxer. Go fix it.
-  CHECK(data);
-  CHECK(side_data);
-  return base::WrapRefCounted(
-      new DecoderBuffer(data, data_size, side_data, side_data_size));
+  return base::WrapRefCounted(new DecoderBuffer(data, data_size));
 }
 
 // static
@@ -228,28 +186,33 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
-  return base::WrapRefCounted(new DecoderBuffer(nullptr, 0, nullptr, 0));
+  return base::WrapRefCounted(new DecoderBuffer(nullptr, 0));
 }
 
 // static
-bool DecoderBuffer::DoSubsamplesMatch(const DecoderBuffer& encrypted) {
+bool DecoderBuffer::DoSubsamplesMatch(const DecoderBuffer& buffer) {
   // If buffer is at end of stream, no subsamples to verify
-  if (encrypted.end_of_stream()) {
+  if (buffer.end_of_stream()) {
     return true;
   }
 
   // If stream is unencrypted, we do not have to verify subsamples size.
-  const DecryptConfig* decrypt_config = encrypted.decrypt_config();
-  if (decrypt_config == nullptr ||
-      decrypt_config->encryption_scheme() == EncryptionScheme::kUnencrypted) {
+  if (!buffer.is_encrypted()) {
     return true;
   }
 
-  const auto& subsamples = decrypt_config->subsamples();
+  const auto& subsamples = buffer.decrypt_config()->subsamples();
   if (subsamples.empty()) {
     return true;
   }
-  return VerifySubsamplesMatchSize(subsamples, encrypted.data_size());
+  return VerifySubsamplesMatchSize(subsamples, buffer.data_size());
+}
+
+DecoderBufferSideData& DecoderBuffer::WritableSideData() {
+  if (!side_data_.has_value()) {
+    side_data_.emplace();
+  }
+  return side_data_.value();
 }
 
 bool DecoderBuffer::MatchesMetadataForTesting(
@@ -264,6 +227,14 @@ bool DecoderBuffer::MatchesMetadataForTesting(
   if (timestamp() != buffer.timestamp() || duration() != buffer.duration() ||
       is_key_frame() != buffer.is_key_frame() ||
       discard_padding() != buffer.discard_padding()) {
+    return false;
+  }
+
+  if (has_side_data() != buffer.has_side_data()) {
+    return false;
+  }
+
+  if (has_side_data() && !side_data()->Matches(buffer.side_data().value())) {
     return false;
   }
 
@@ -284,9 +255,7 @@ bool DecoderBuffer::MatchesForTesting(const DecoderBuffer& buffer) const {
 
   DCHECK(!buffer.end_of_stream());
   return data_size() == buffer.data_size() &&
-         side_data_size() == buffer.side_data_size() &&
-         memcmp(data(), buffer.data(), data_size()) == 0 &&
-         memcmp(side_data(), buffer.side_data(), side_data_size()) == 0;
+         memcmp(data(), buffer.data(), data_size()) == 0;
 }
 
 std::string DecoderBuffer::AsHumanReadableString(bool verbose) const {
@@ -301,7 +270,7 @@ std::string DecoderBuffer::AsHumanReadableString(bool verbose) const {
     << " encrypted=" << (decrypt_config_ != nullptr);
 
   if (verbose) {
-    s << " side_data_size=" << side_data_size_ << " discard_padding (us)=("
+    s << " has_side_data=" << has_side_data() << " discard_padding (us)=("
       << time_info_.discard_padding.first.InMicroseconds() << ", "
       << time_info_.discard_padding.second.InMicroseconds() << ")";
 
@@ -319,18 +288,6 @@ void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
   time_info_.timestamp = timestamp;
 }
 
-void DecoderBuffer::CopySideDataFrom(const uint8_t* side_data,
-                                     size_t side_data_size) {
-  if (side_data_size > 0) {
-    side_data_size_ = side_data_size;
-    side_data_.reset(new uint8_t[side_data_size_]);
-    memcpy(side_data_.get(), side_data, side_data_size_);
-  } else {
-    side_data_.reset();
-    side_data_size_ = 0;
-  }
-}
-
 size_t DecoderBuffer::GetMemoryUsage() const {
   size_t memory_usage = sizeof(DecoderBuffer);
 
@@ -340,10 +297,6 @@ size_t DecoderBuffer::GetMemoryUsage() const {
 
   memory_usage += data_size();
 
-  // Side data and decrypt config would not change after construction.
-  if (side_data_size_ > 0) {
-    memory_usage += side_data_size_;
-  }
   if (decrypt_config_) {
     memory_usage += sizeof(DecryptConfig);
     memory_usage += decrypt_config_->key_id().capacity();

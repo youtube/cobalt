@@ -48,25 +48,24 @@ public class AdaptiveButtonActionMenuCoordinatorTest {
         protected void showPopupWindow() {}
     }
 
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
-    @Rule
-    public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private Callback<Integer> mCallback;
+    @Mock private Callback<Integer> mCallback;
 
     @Test
     @SmallTest
-    @DisableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR})
-    @EnableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2})
+    @DisableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR)
+    @EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2)
     public void testCreateOnLongClickListener() {
         AdaptiveButtonActionMenuCoordinator coordinator = new AdaptiveButtonActionMenuCoordinator();
         View.OnLongClickListener listener = coordinator.createOnLongClickListener(mCallback);
 
         ListMenuButton menuView =
-                spy(new ListMenuButton(ApplicationProvider.getApplicationContext(),
-                        Robolectric.buildAttributeSet().build()));
+                spy(
+                        new ListMenuButton(
+                                ApplicationProvider.getApplicationContext(),
+                                Robolectric.buildAttributeSet().build()));
         doReturn(ApplicationProvider.getApplicationContext().getResources())
                 .when(menuView)
                 .getResources();
@@ -83,15 +82,17 @@ public class AdaptiveButtonActionMenuCoordinatorTest {
 
     @Test
     @SmallTest
-    @DisableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR})
-    @EnableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2})
+    @DisableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR)
+    @EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2)
     public void testCreateOnLongClickListener_clickHandlerIsNotModified() {
         AdaptiveButtonActionMenuCoordinator coordinator = new AdaptiveButtonActionMenuCoordinator();
         View.OnLongClickListener listener = coordinator.createOnLongClickListener(mCallback);
 
         ListMenuButton menuView =
-                spy(new ListMenuButton(ApplicationProvider.getApplicationContext(),
-                        Robolectric.buildAttributeSet().build()));
+                spy(
+                        new ListMenuButton(
+                                ApplicationProvider.getApplicationContext(),
+                                Robolectric.buildAttributeSet().build()));
         doReturn(ApplicationProvider.getApplicationContext().getResources())
                 .when(menuView)
                 .getResources();

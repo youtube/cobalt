@@ -17,7 +17,7 @@ import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button
 import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import {CrTextareaElement} from 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PasswordManagerImpl} from '../password_manager_proxy.js';
@@ -59,6 +59,27 @@ function recordAddCredentialInteraction(
       AddCredentialFromSettingsUserInteractions.COUNT);
 }
 
+/**
+ * Should be kept in sync with
+ * |password_manager::metrics_util::PasswordNoteAction|.
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ */
+export enum PasswordNoteAction {
+  NOTE_ADDED_IN_ADD_DIALOG = 0,
+  NOTE_ADDED_IN_EDIT_DIALOG = 1,
+  NOTE_EDITED_IN_EDIT_DIALOG = 2,
+  NOTE_REMOVED_IN_EDIT_DIALOG = 3,
+  NOTE_NOT_CHANGED = 4,
+  // Must be last.
+  COUNT = 5,
+}
+
+export function recordPasswordNoteAction(action: PasswordNoteAction) {
+  chrome.metricsPrivate.recordEnumerationValue(
+      'PasswordManager.PasswordNoteActionInSettings2', action,
+      PasswordNoteAction.COUNT);
+}
 
 export interface AddPasswordDialogElement {
   $: {
@@ -243,6 +264,10 @@ export class AddPasswordDialogElement extends AddPasswordDialogElementBase {
    * Helper function that checks whether the entered url is valid.
    */
   private async validateWebsite_() {
+    if (this.website_.length === 0) {
+      this.websiteErrorMessage_ = null;
+      return;
+    }
     PasswordManagerImpl.getInstance()
         .getUrlCollection(this.website_)
         .then(urlCollection => {
@@ -255,7 +280,7 @@ export class AddPasswordDialogElement extends AddPasswordDialogElementBase {
 
   private onWebsiteInputBlur_() {
     if (this.website_.length === 0) {
-      this.websiteErrorMessage_ = this.i18n('notValidWebsite');
+      this.websiteErrorMessage_ = '';
     } else if (!this.websiteErrorMessage_ && !this.website_.includes('.')) {
       this.websiteErrorMessage_ =
           this.i18n('missingTLD', `${this.website_}.com`);
@@ -263,7 +288,11 @@ export class AddPasswordDialogElement extends AddPasswordDialogElementBase {
   }
 
   private isWebsiteInputInvalid_(): boolean {
-    return !!this.websiteErrorMessage_;
+    return this.websiteErrorMessage_ !== null;
+  }
+
+  private showWebsiteError_(): boolean {
+    return !!this.websiteErrorMessage_ && this.websiteErrorMessage_!.length > 0;
   }
 
   private computeUsernameErrorMessage_(): string|null {
@@ -331,6 +360,14 @@ export class AddPasswordDialogElement extends AddPasswordDialogElementBase {
         AddCredentialFromSettingsUserInteractions.CREDENTIAL_ADDED);
     const useAccountStore = this.isAccountStoreUser &&
         (this.$.storePicker.value === this.storeOptionAccountValue_);
+    if (!this.$.storePicker.hidden) {
+      chrome.metricsPrivate.recordBoolean(
+          'PasswordManager.AddCredentialFromSettings.AccountStoreUsed2',
+          useAccountStore);
+    }
+    if (this.note_.trim()) {
+      recordPasswordNoteAction(PasswordNoteAction.NOTE_ADDED_IN_ADD_DIALOG);
+    }
 
     PasswordManagerImpl.getInstance()
         .addPassword({

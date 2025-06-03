@@ -7,10 +7,13 @@
 #include <memory>
 
 #include "ash/user_education/user_education_class_properties.h"
+#include "ash/user_education/user_education_types.h"
+#include "ash/user_education/user_education_util.h"
 #include "ash/user_education/views/help_bubble_view_ash.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/user_education/user_education_service.h"
-#include "chrome/browser/ui/user_education/user_education_service_factory.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/user_education/common/help_bubble.h"
 #include "components/user_education/common/help_bubble_factory_registry.h"
@@ -24,13 +27,27 @@
 #include "ui/views/widget/unique_widget_ptr.h"
 #include "ui/views/widget/widget.h"
 
+namespace {
+
 // Aliases.
-using ash::HelpBubbleContext;
-using ash::HelpBubbleViewAsh;
-using ash::HelpBubbleViewsAsh;
-using ash::kHelpBubbleContextKey;
-using user_education::HelpBubbleView;
-using user_education::HelpBubbleViews;
+using ::ash::HelpBubbleContext;
+using ::ash::HelpBubbleViewAsh;
+using ::ash::HelpBubbleViewsAsh;
+using ::ash::kHelpBubbleContextKey;
+using ::user_education::HelpBubbleParams;
+using ::user_education::HelpBubbleView;
+using ::user_education::HelpBubbleViews;
+
+// Helpers ---------------------------------------------------------------------
+
+HelpBubbleParams CreateHelpBubbleParams(ash::HelpBubbleId help_bubble_id) {
+  HelpBubbleParams help_bubble_params;
+  help_bubble_params.extended_properties =
+      ash::user_education_util::CreateExtendedProperties(help_bubble_id);
+  return help_bubble_params;
+}
+
+}  // namespace
 
 // HelpBubbleFactoryViewsAshBrowserTest ----------------------------------------
 
@@ -47,7 +64,8 @@ class HelpBubbleFactoryViewsAshBrowserTest
 
   // Returns the help bubble factory registry for the active browser profile.
   user_education::HelpBubbleFactoryRegistry& GetHelpBubbleFactoryRegistry() {
-    return UserEducationServiceFactory::GetForProfile(browser()->profile())
+    return UserEducationServiceFactory::GetForBrowserContext(
+               browser()->profile())
         ->help_bubble_factory_registry();
   }
 };
@@ -86,7 +104,7 @@ IN_PROC_BROWSER_TEST_P(HelpBubbleFactoryViewsAshBrowserTest, CreateBubble) {
 
   // Create a help `bubble` anchored to `element`.
   auto bubble = GetHelpBubbleFactoryRegistry().CreateHelpBubble(
-      element, user_education::HelpBubbleParams());
+      element, CreateHelpBubbleParams(ash::HelpBubbleId::kTest));
   ASSERT_TRUE(bubble);
 
   // The help `bubble` should be Ash-specific depending on `context`.

@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "components/viz/common/gpu/vulkan_context_provider.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
@@ -22,9 +22,13 @@
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_util.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
+#include "third_party/skia/include/core/SkColorType.h"
+#include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrBackendSemaphore.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/MutableTextureState.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gl/gl_utils.h"
 
 namespace gpu {
@@ -63,7 +67,7 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
     const gfx::Rect& update_rect,
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(promise_texture_);
 
@@ -82,7 +86,7 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
       surface_props != surface_->props()) {
     SkColorType sk_color_type = viz::ToClosestSkColorType(
         /*gpu_compositing=*/true, format());
-    surface_ = SkSurface::MakeFromBackendTexture(
+    surface_ = SkSurfaces::WrapBackendTexture(
         gr_context, promise_texture_->backendTexture(), surface_origin(),
         final_msaa_count, sk_color_type, color_space().ToSkColorSpace(),
         &surface_props);
@@ -100,11 +104,11 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
   return {surface_};
 }
 
-std::vector<sk_sp<SkPromiseImageTexture>>
+std::vector<sk_sp<GrPromiseImageTexture>>
 SkiaVkAndroidImageRepresentation::BeginWriteAccess(
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(promise_texture_);
 
@@ -134,11 +138,11 @@ void SkiaVkAndroidImageRepresentation::EndWriteAccess() {
   EndAccess(/*readonly=*/false);
 }
 
-std::vector<sk_sp<SkPromiseImageTexture>>
+std::vector<sk_sp<GrPromiseImageTexture>>
 SkiaVkAndroidImageRepresentation::BeginReadAccess(
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(!surface_);
   DCHECK(promise_texture_);
@@ -281,7 +285,7 @@ void SkiaVkAndroidImageRepresentation::EndAccess(bool readonly) {
   mode_ = RepresentationAccessMode::kNone;
 }
 
-std::unique_ptr<GrBackendSurfaceMutableState>
+std::unique_ptr<skgpu::MutableTextureState>
 SkiaVkAndroidImageRepresentation::GetEndAccessState() {
   // There is no layout to change if there is no image.
   if (!vulkan_image_)
@@ -298,7 +302,7 @@ SkiaVkAndroidImageRepresentation::GetEndAccessState() {
   // create new vkImage each time.
   if ((android_backing()->usage() & ~kSingleDeviceUsage) ||
       android_backing()->is_thread_safe()) {
-    return std::make_unique<GrBackendSurfaceMutableState>(
+    return std::make_unique<skgpu::MutableTextureState>(
         VK_IMAGE_LAYOUT_UNDEFINED, vulkan_image_->queue_family_index());
   }
   return nullptr;

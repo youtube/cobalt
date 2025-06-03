@@ -25,6 +25,8 @@ class AddressEditorView;
 class EditAddressProfileView : public AutofillBubbleBase,
                                public views::DialogDelegateView {
  public:
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kTopViewId);
+
   explicit EditAddressProfileView(
       EditAddressProfileDialogController* controller);
 
@@ -51,6 +53,8 @@ class EditAddressProfileView : public AutofillBubbleBase,
   raw_ptr<EditAddressProfileDialogController> controller_;
   raw_ptr<AddressEditorView> address_editor_view_ = nullptr;
   base::CallbackListSubscription on_is_valid_change_subscription_;
+  AutofillClient::SaveAddressProfileOfferUserDecision decision_ =
+      AutofillClient::SaveAddressProfileOfferUserDecision::kIgnored;
 };
 
 }  // namespace autofill

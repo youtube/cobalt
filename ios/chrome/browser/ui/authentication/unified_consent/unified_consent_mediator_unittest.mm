@@ -8,9 +8,9 @@
 
 #import "base/functional/callback_helpers.h"
 #import "base/run_loop.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
@@ -19,7 +19,7 @@
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "ios/chrome/browser/ui/authentication/unified_consent/unified_consent_view_controller.h"
-#import "ios/chrome/browser/unified_consent/unified_consent_service_factory.h"
+#import "ios/chrome/browser/unified_consent/model/unified_consent_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gmock/include/gmock/gmock.h"
@@ -28,10 +28,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 #import "third_party/ocmock/ocmock_extensions.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 class UnifiedConsentMediatorTest : public PlatformTest {
  public:
@@ -153,7 +149,8 @@ TEST_F(UnifiedConsentMediatorTest, SelectDefaultIdentityForSignedInUser) {
   AddIdentities();
   CreateMediator();
 
-  GetAuthenticationService()->SignIn(identity2_);
+  GetAuthenticationService()->SignIn(
+      identity2_, signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   [mediator_ start];
 
   ASSERT_NSEQ(identity2_, mediator_.selectedIdentity);
@@ -166,7 +163,8 @@ TEST_F(UnifiedConsentMediatorTest,
   AddIdentities();
   CreateMediator();
 
-  GetAuthenticationService()->SignIn(identity3_);
+  GetAuthenticationService()->SignIn(
+      identity3_, signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   [mediator_ start];
   ASSERT_NSEQ(identity3_, mediator_.selectedIdentity);
   GetAuthenticationService()->SignOut(signin_metrics::ProfileSignout::kTest,
@@ -200,7 +198,8 @@ TEST_F(UnifiedConsentMediatorTest, DontOverrideIdentityForSignedInUser) {
   AddIdentities();
   CreateMediator();
 
-  GetAuthenticationService()->SignIn(identity1_);
+  GetAuthenticationService()->SignIn(
+      identity1_, signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   mediator_.selectedIdentity = identity2_;
   [mediator_ start];
 

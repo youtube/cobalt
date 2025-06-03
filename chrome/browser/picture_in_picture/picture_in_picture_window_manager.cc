@@ -6,6 +6,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_bounds_cache.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
@@ -16,16 +18,42 @@
 #include "ui/display/display.h"
 #include "ui/gfx/geometry/resize_utils.h"
 #include "ui/gfx/geometry/size.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
+#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+#include "third_party/blink/public/common/features.h"
+#include "ui/views/view.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace {
 
 // The minimum window size for Document Picture-in-Picture windows. This does
 // not apply to video Picture-in-Picture windows.
-constexpr gfx::Size kMinWindowSize(300, 300);
+constexpr gfx::Size kMinWindowSize(240, 52);
 
 // The maximum window size for Document Picture-in-Picture windows. This does
 // not apply to video Picture-in-Picture windows.
 constexpr double kMaxWindowSizeRatio = 0.8;
+
+#if !BUILDFLAG(IS_ANDROID)
+// Returns true if a document picture-in-picture window should be focused upon
+// opening it.
+bool ShouldFocusPictureInPictureWindow(const NavigateParams& params) {
+  // All document picture-in-picture openings must have a source_contents.
+  CHECK(params.source_contents);
+
+  const auto* auto_picture_in_picture_tab_helper =
+      AutoPictureInPictureTabHelper::FromWebContents(params.source_contents);
+  if (!auto_picture_in_picture_tab_helper) {
+    return true;
+  }
+
+  // The picture-in-picture window should be focused unless it's opened by the
+  // AutoPictureInPictureTabHelper.
+  return !auto_picture_in_picture_tab_helper->IsInAutoPictureInPicture();
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -109,6 +137,8 @@ void PictureInPictureWindowManager::EnterDocumentPictureInPicture(
   // Show the new window. As a side effect, this also first closes any
   // pre-existing PictureInPictureWindowController's window (if any).
   EnterPictureInPictureWithController(controller);
+
+  NotifyObservers(&Observer::OnEnterPictureInPicture);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -128,7 +158,35 @@ PictureInPictureWindowManager::EnterVideoPictureInPicture(
     CreateWindowInternal(web_contents);
   }
 
+  NotifyObservers(&Observer::OnEnterPictureInPicture);
   return content::PictureInPictureResult::kSuccess;
+}
+
+bool PictureInPictureWindowManager::ExitPictureInPictureViaWindowUi(
+    UiBehavior behavior) {
+  if (!pip_window_controller_) {
+    return false;
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (auto_pip_setting_helper_) {
+    auto_pip_setting_helper_->OnUserClosedWindow();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  switch (behavior) {
+    case UiBehavior::kCloseWindowOnly:
+      pip_window_controller_->Close(/*should_pause_video=*/false);
+      break;
+    case UiBehavior::kCloseWindowAndPauseVideo:
+      pip_window_controller_->Close(/*should_pause_video=*/true);
+      break;
+    case UiBehavior::kCloseWindowAndFocusOpener:
+      pip_window_controller_->CloseAndFocusInitiator();
+      break;
+  }
+
+  return true;
 }
 
 bool PictureInPictureWindowManager::ExitPictureInPicture() {
@@ -137,6 +195,16 @@ bool PictureInPictureWindowManager::ExitPictureInPicture() {
     return true;
   }
   return false;
+}
+
+// static
+void PictureInPictureWindowManager::ExitPictureInPictureSoon() {
+  // Unretained is safe because we're a singleton.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(base::IgnoreResult(
+                         &PictureInPictureWindowManager::ExitPictureInPicture),
+                     base::Unretained(GetInstance())));
 }
 
 void PictureInPictureWindowManager::FocusInitiator() {
@@ -178,24 +246,41 @@ PictureInPictureWindowManager::GetPictureInPictureWindowBounds() const {
                                 : absl::nullopt;
 }
 
-// static
-gfx::Rect
-PictureInPictureWindowManager::CalculateInitialPictureInPictureWindowBounds(
+gfx::Rect PictureInPictureWindowManager::CalculatePictureInPictureWindowBounds(
     const blink::mojom::PictureInPictureWindowOptions& pip_options,
-    const display::Display& display) {
+    const display::Display& display,
+    const gfx::Size& minimum_outer_window_size) {
   // TODO(https://crbug.com/1327797): This copies a bunch of logic from
   // VideoOverlayWindowViews. That class and this one should be refactored so
   // VideoOverlayWindowViews uses PictureInPictureWindowManager to calculate
   // window sizing.
   gfx::Rect work_area = display.work_area();
   gfx::Rect window_bounds;
+
+  // Typically, we have a window controller at this point, but often during
+  // tests we don't.  Don't worry about the cache if it's missing.
+  if (pip_window_controller_) {
+    auto* const web_contents = pip_window_controller_->GetWebContents();
+    absl::optional<gfx::Size> requested_content_bounds;
+    if (pip_options.width > 0 && pip_options.height > 0) {
+      requested_content_bounds.emplace(pip_options.width, pip_options.height);
+    }
+    auto cached_window_bounds =
+        PictureInPictureBoundsCache::GetBoundsForNewWindow(
+            web_contents, display, requested_content_bounds);
+    if (cached_window_bounds) {
+      // Cache hit!  Just return it as the window bounds.
+      return *cached_window_bounds;
+    }
+  }
+
   if (pip_options.width > 0 && pip_options.height > 0) {
     // Use width and height if we have them both, but ensure it's within the
     // required bounds.
     gfx::Size window_size(base::saturated_cast<int>(pip_options.width),
                           base::saturated_cast<int>(pip_options.height));
     window_size.SetToMin(GetMaximumWindowSize(display));
-    window_size.SetToMax(GetMinimumInnerWindowSize());
+    window_size.SetToMax(minimum_outer_window_size);
     window_bounds = gfx::Rect(window_size);
   } else {
     // Otherwise, fall back to the aspect ratio.
@@ -204,7 +289,7 @@ PictureInPictureWindowManager::CalculateInitialPictureInPictureWindowBounds(
                                       : 1.0;
     gfx::Size window_size(work_area.width() / 5, work_area.height() / 5);
     window_size.SetToMin(GetMaximumWindowSize(display));
-    window_size.SetToMax(GetMinimumInnerWindowSize());
+    window_size.SetToMax(minimum_outer_window_size);
     window_bounds = gfx::Rect(window_size);
     gfx::SizeRectToAspectRatio(gfx::ResizeEdge::kTopLeft, initial_aspect_ratio,
                                GetMinimumInnerWindowSize(),
@@ -225,6 +310,34 @@ PictureInPictureWindowManager::CalculateInitialPictureInPictureWindowBounds(
   return window_bounds;
 }
 
+gfx::Rect
+PictureInPictureWindowManager::CalculateInitialPictureInPictureWindowBounds(
+    const blink::mojom::PictureInPictureWindowOptions& pip_options,
+    const display::Display& display) {
+  return CalculatePictureInPictureWindowBounds(pip_options, display,
+                                               GetMinimumInnerWindowSize());
+}
+
+gfx::Rect PictureInPictureWindowManager::AdjustPictureInPictureWindowBounds(
+    const blink::mojom::PictureInPictureWindowOptions& pip_options,
+    const display::Display& display,
+    const gfx::Size& minimum_window_size) {
+  return CalculatePictureInPictureWindowBounds(pip_options, display,
+                                               minimum_window_size);
+}
+
+void PictureInPictureWindowManager::UpdateCachedBounds(
+    const gfx::Rect& most_recent_bounds) {
+  // Typically, we have a window controller at this point, but often during
+  // tests we don't.  Don't worry about the cache if it's missing.
+  if (!pip_window_controller_) {
+    return;
+  }
+  auto* const web_contents = pip_window_controller_->GetWebContents();
+  PictureInPictureBoundsCache::UpdateCachedBounds(web_contents,
+                                                  most_recent_bounds);
+}
+
 // static
 gfx::Size PictureInPictureWindowManager::GetMinimumInnerWindowSize() {
   return kMinWindowSize;
@@ -236,6 +349,17 @@ gfx::Size PictureInPictureWindowManager::GetMaximumWindowSize(
   return gfx::ScaleToRoundedSize(display.size(), kMaxWindowSizeRatio);
 }
 
+// static
+void PictureInPictureWindowManager::SetWindowParams(NavigateParams& params) {
+#if !BUILDFLAG(IS_ANDROID)
+  // Always show document picture-in-picture in a new window. When this is
+  // not opened via the AutoPictureInPictureTabHelper, focus the window.
+  params.window_action = ShouldFocusPictureInPictureWindow(params)
+                             ? NavigateParams::SHOW_WINDOW
+                             : NavigateParams::SHOW_WINDOW_INACTIVE;
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
 void PictureInPictureWindowManager::CreateWindowInternal(
     content::WebContents* web_contents) {
   video_web_contents_observer_ =
@@ -245,11 +369,14 @@ void PictureInPictureWindowManager::CreateWindowInternal(
 }
 
 void PictureInPictureWindowManager::CloseWindowInternal() {
-  DCHECK(pip_window_controller_);
+  CHECK(pip_window_controller_);
 
   video_web_contents_observer_.reset();
   pip_window_controller_->Close(false /* should_pause_video */);
   pip_window_controller_ = nullptr;
+#if !BUILDFLAG(IS_ANDROID)
+  auto_pip_setting_helper_.reset();
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -258,8 +385,101 @@ void PictureInPictureWindowManager::DocumentWebContentsDestroyed() {
   // contents, so we only need to forget the controller here when user closes
   // the parent web contents with the PiP window open.
   document_web_contents_observer_.reset();
+  // `auto_pip_setting_helper_` depends on the opener's WebContents.
+  auto_pip_setting_helper_.reset();
   if (pip_window_controller_)
     pip_window_controller_ = nullptr;
+}
+
+std::unique_ptr<AutoPipSettingOverlayView>
+PictureInPictureWindowManager::GetOverlayView(
+    const gfx::Rect& browser_view_overridden_bounds,
+    views::View* anchor_view,
+    views::BubbleBorder::Arrow arrow) {
+  // This should probably CHECK, but tests often can't set the controller.
+  if (!pip_window_controller_) {
+    return nullptr;
+  }
+
+  // This is redundant with the check for `auto_pip_tab_helper`, below.
+  // However, for safety, early-out here when the flag is off.
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kMediaSessionEnterPictureInPicture)) {
+    return nullptr;
+  }
+
+  // It would be nice to create this in `EnterPictureInPicture*`, but detecting
+  // auto-pip while pip is in the process of opening doesn't work.
+  //
+  // Instead, defer this until after setup, when we're asked for an overlay
+  // view.  Since the helper is only destroyed when the pip window closes, this
+  // effectively means that there's still at most one helper instance per
+  // (auto-)pip window.  This is important, because we can be asked for the
+  // overlay view multiple times if the pip window frame is destroyed and
+  // recreated.  This can happen on theme change sometimes, or on linux on days
+  // that end in a Y.  If we did recreate the helper each time we're asked, then
+  // the helper might think that there were multiple instances of a dismissed
+  // permission, and update the embargo.
+  CreateAutoPipSettingHelperIfNeeded();
+
+  // No overlay view if we're not in auto-pip.
+  if (!auto_pip_setting_helper_) {
+    return nullptr;
+  }
+
+  auto overlay_view = auto_pip_setting_helper_->CreateOverlayViewIfNeeded(
+      browser_view_overridden_bounds, anchor_view, arrow);
+  if (!overlay_view) {
+    // Clear the setting helper, since the setting is either allowed or blocked.
+    auto_pip_setting_helper_.reset();
+  } else if (auto* pip_contents = GetChildWebContents()) {
+    // For document pip, block input too.
+    auto_pip_setting_helper_->IgnoreInputEvents(pip_contents);
+  }
+
+  return overlay_view;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+std::vector<url::Origin>
+PictureInPictureWindowManager::GetActiveSessionOrigins() {
+  std::vector<url::Origin> active_origins;
+  if (pip_window_controller_ &&
+      pip_window_controller_->GetOrigin().has_value()) {
+    active_origins.push_back(pip_window_controller_->GetOrigin().value());
+  }
+  return active_origins;
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+void PictureInPictureWindowManager::CreateAutoPipSettingHelperIfNeeded() {
+  // Because we have to defer creating this until after the tab helper finds out
+  // about pip, we don't care if there's already a helper.  Just use it.
+  if (auto_pip_setting_helper_) {
+    return;
+  }
+
+  auto* const web_contents = pip_window_controller_->GetWebContents();
+  CHECK(web_contents);
+
+  auto* auto_pip_tab_helper =
+      AutoPictureInPictureTabHelper::FromWebContents(web_contents);
+  if (!auto_pip_tab_helper) {
+    return;
+  }
+
+  // Check both preconditions and "in pip", since we don't know if pip is
+  // officially ready yet or not.  This might be during the opening of the pip
+  // window, so the tab helper might not know about it yet.
+  if (!auto_pip_tab_helper->AreAutoPictureInPicturePreconditionsMet() &&
+      !auto_pip_tab_helper->IsInAutoPictureInPicture()) {
+    // This isn't auto-pip, so the content setting doesn't matter.
+    return;
+  }
+
+  auto_pip_setting_helper_ = AutoPipSettingHelper::CreateForWebContents(
+      web_contents,
+      base::BindOnce(&PictureInPictureWindowManager::ExitPictureInPictureSoon));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

@@ -52,11 +52,13 @@
 #include "content/public/test/ppapi_test_utils.h"
 #endif
 
-#if BUILDFLAG(IS_FUCHSIA)
-#include <fuchsia/ui/scenic/cpp/fidl.h>
-#include <lib/sys/cpp/component_context.h>
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
+
+#if BUILDFLAG(IS_FUCHSIA)
+#include <lib/sys/cpp/component_context.h>
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
@@ -67,7 +69,7 @@ namespace content {
 
 namespace {
 
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
 // Fuchsia doesn't support stdin stream for packaged apps, and stdout from
 // run-test-suite not only has extra emissions from the Fuchsia test
 // infrastructure, it also merges stderr and stdout together. Combined, these
@@ -76,6 +78,10 @@ namespace {
 // workaround this issue for web tests we redirect stdin and stdout to a TCP
 // socket connected to the web test runner. The runner uses --stdio-redirect to
 // specify address and port for stdin and stdout redirection.
+//
+// iOS is in a similar situation where the simulator does not support the use of
+// the stdin stream for applications. Therefore, iOS also redirects stdin and
+// stdout to a TCP socket that is connected to the web test runner.
 constexpr char kStdioRedirectSwitch[] = "stdio-redirect";
 
 void ConnectStdioSocket(const std::string& host_and_port) {
@@ -108,25 +114,6 @@ void ConnectStdioSocket(const std::string& host_and_port) {
   PCHECK(close(fd) == 0);
 }
 
-// Checks the supported ozone platform with Scenic if no arg is specified
-// already.
-void MaybeSetOzonePlatformArg(base::CommandLine& command_line) {
-  if (command_line.HasSwitch(switches::kOzonePlatform)) {
-    return;
-  }
-
-  fuchsia::ui::scenic::ScenicSyncPtr scenic;
-  zx_status_t status =
-      base::ComponentContextForProcess()->svc()->Connect(scenic.NewRequest());
-  ZX_CHECK(status == ZX_OK, status) << "Couldn't connect to Scenic.";
-
-  bool scenic_uses_flatland = false;
-  status = scenic->UsesFlatland(&scenic_uses_flatland);
-  ZX_CHECK(status == ZX_OK, status) << "UsesFlatland()";
-  command_line.AppendSwitchNative(switches::kOzonePlatform,
-                                  scenic_uses_flatland ? "flatland" : "scenic");
-}
-
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 bool RunOneTest(const content::TestInfo& test_info,
@@ -144,7 +131,7 @@ bool RunOneTest(const content::TestInfo& test_info,
 }
 
 void RunTests(content::BrowserMainRunner* main_runner) {
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
   if (auto& cmd_line = *base::CommandLine::ForCurrentProcess();
       cmd_line.HasSwitch(kStdioRedirectSwitch)) {
     ConnectStdioSocket(cmd_line.GetSwitchValueASCII(kStdioRedirectSwitch));
@@ -219,10 +206,15 @@ void WebTestBrowserMainRunner::Initialize() {
   command_line.AppendSwitch(cc::switches::kEnableGpuBenchmarking);
   command_line.AppendSwitch(switches::kEnableLogging);
   command_line.AppendSwitch(switches::kAllowFileAccessFromFiles);
-  // only default to a software GL if the flag isn't already specified.
-  if (!command_line.HasSwitch(switches::kUseGpuInTests) &&
-      !command_line.HasSwitch(switches::kUseGL)) {
-    gl::SetSoftwareGLCommandLineSwitches(&command_line);
+
+  // On IOS, we always use hardware GL for the web test as content_browsertests.
+  // See also https://crrev.com/c/4885954.
+  if constexpr (!BUILDFLAG(IS_IOS)) {
+    // only default to a software GL if the flag isn't already specified.
+    if (!command_line.HasSwitch(switches::kUseGpuInTests) &&
+        !command_line.HasSwitch(switches::kUseGL)) {
+      gl::SetSoftwareGLCommandLineSwitches(&command_line);
+    }
   }
   command_line.AppendSwitchASCII(switches::kTouchEventFeatureDetection,
                                  switches::kTouchEventFeatureDetectionEnabled);
@@ -240,11 +232,6 @@ void WebTestBrowserMainRunner::Initialize() {
     command_line.AppendSwitch(switches::kEnableBlinkTestFeatures);
   }
 
-  if (!command_line.HasSwitch(switches::kEnableThreadedCompositing)) {
-    command_line.AppendSwitch(switches::kDisableThreadedCompositing);
-    command_line.AppendSwitch(cc::switches::kDisableThreadedAnimation);
-  }
-
   // With display compositor pixel dumps, we ensure that we complete all
   // stages of compositing before draw. We also can't have checker imaging,
   // since it's incompatible with single threaded compositor and display
@@ -260,7 +247,7 @@ void WebTestBrowserMainRunner::Initialize() {
   command_line.AppendSwitch(switches::kEnablePreciseMemoryInfo);
 
   command_line.AppendSwitchASCII(network::switches::kHostResolverRules,
-                                 "MAP nonexistent.*.test ~NOTFOUND,"
+                                 "MAP nonexistent.*.test ^NOTFOUND,"
                                  "MAP web-platform.test:443 127.0.0.1:8444,"
                                  "MAP not-web-platform.test:443 127.0.0.1:8444,"
                                  "MAP devtools.test:443 127.0.0.1:8443,"
@@ -270,9 +257,9 @@ void WebTestBrowserMainRunner::Initialize() {
   // These must be kept in sync with
   // //third_party/blink/web_tests/external/wpt/config.json.
   command_line.AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
-                                 "127.0.0.1:8082=local,"
+                                 "127.0.0.1:8082=private,"
                                  "127.0.0.1:8093=public,"
-                                 "127.0.0.1:8446=local,"
+                                 "127.0.0.1:8446=private,"
                                  "127.0.0.1:8447=public");
 
   // We want to know determanistically from command line flags if the Gpu
@@ -283,6 +270,13 @@ void WebTestBrowserMainRunner::Initialize() {
   // want to choose at runtime, and we ensure that gpu raster is disabled.
   if (!command_line.HasSwitch(switches::kEnableGpuRasterization))
     command_line.AppendSwitch(switches::kDisableGpuRasterization);
+
+  // If Graphite is not explicitly enabled, disable it. This is to keep using
+  // Ganesh as renderer for web tests for now until we finish rebaselining all
+  // images for Graphite renderer.
+  if (!command_line.HasSwitch(switches::kEnableSkiaGraphite)) {
+    command_line.AppendSwitch(switches::kDisableSkiaGraphite);
+  }
 
   // If the virtual test suite didn't specify a display color space, then
   // force sRGB.
@@ -312,13 +306,12 @@ void WebTestBrowserMainRunner::Initialize() {
   // interference. This GPU process is launched 120 seconds after chrome starts.
   command_line.AppendSwitch(switches::kDisableGpuProcessForDX12InfoCollection);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+  // Disable the backgrounding of renderers to make running tests faster.
+  command_line.AppendSwitch(switches::kDisableRendererBackgrounding);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
   content::WebTestBrowserPlatformInitialize();
-#endif
-
-#if BUILDFLAG(IS_FUCHSIA)
-  MaybeSetOzonePlatformArg(command_line);
 #endif
 
   RenderWidgetHostImpl::DisableResizeAckCheckForTesting();

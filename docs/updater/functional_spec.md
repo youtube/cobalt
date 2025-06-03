@@ -43,6 +43,14 @@ Google-branded builds assume the first case.
 The brand code is a string of up to 4 characters long. The brand code is
 persisted during the install, over-installs, and updates.
 
+On macOS, the brand code (as well as AP parameter and the app version) can be
+specified using a path to a plist file and a key within that plist file. When
+so specified, the updater will read the associated value from the plist and use
+it rather than the updater's built-in `pv` value. This allows the updater to
+detect and properly represent any overinstallations of an application, which are
+done by users or third-party software on macOS (and don't otherwise interact
+with the updater).
+
 #### Elevation (Windows)
 The metainstaller parses its tag and re-launches itself at high integrity if
 installing an application with `needsadmin=true` or `needsadmin=prefers`.
@@ -58,27 +66,155 @@ TODO(crbug.com/1035895): Implement bundle installers.
 The bundle installer allows installation of more than one application. The
 bundle installer is typically used in software distribution scenarios.
 
-### Standalone Installer
-TODO(crbug.com/1281688): Implement standalone installers.
-
-TODO(crbug.com/1035895): Document the standalone installer, including building
-a standalone installer for a given application.
-
-Standalone installers embed all data required to install the application,
+### Offline/Standalone Installer
+Offline installers embed all data required to install the application,
 including the payload and various configuration data needed by the application
 setup. Such an install completes even if a network connection is not available.
 
-Standalone installers are used:
+Offline installers are used:
 
 1. when an interactive user experience is not needed, such as automated
 deployments in an enterprise.
 2. when downloading the application payload is not desirable for any reason.
 3. during OEM installation.
 
+On Windows, a offline installer is created by embedding a manifest file and
+application installer inside of the metainstaller (UpdaterSetup). These files
+are embedded in the metainstaller's `updater.7z` archive at the following paths
+using
+[sign.py](https://source.chromium.org/chromium/chromium/src/+/main:chrome/updater/win/signing/sign.py)
+:
+* `bin\Offline\{GUID}\OfflineManifest.gup`
+* `bin\Offline\{GUID}\{app_id}\installer.exe`
+
+`{GUID}` is an unique Windows GUID in the format
+`{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}`.
+
+See the
+[Steps to create an offline metainstaller for Windows](#steps-to-create-an-offline-metainstaller-for-windows)
+section for how to create an example offline installer.
+
+See the [Offline installs](#offline-installs) section below for more information
+on the manifest file and application installer.
+
 Applications on macOS frequently install via "drag-install", and then install
-the updater using a standalone installer on the application's first-run. The
+the updater using an offline installer on the application's first-run. The
 updater app can be embedded in a macOS application bundle as a helper and then
 invoked with appropriate command line arguments to install itself.
+
+##### Steps to create an offline metainstaller for Windows
+
+An offline metainstaller can be created using the
+[sign.py](https://source.chromium.org/chromium/chromium/src/+/main:chrome/updater/win/signing/sign.py)
+tool, and can then be tagged by using the metainstaller tagging tool
+[tag.py](https://source.chromium.org/chromium/chromium/src/+/main:chrome/updater/tools/tag.py).
+
+The example below generates an offline installer for `Chrome Beta`, with an
+`appid` of `{8237E44A-0054-442C-B6B6-EA0509993955}`.
+
+The input files are the following:
+* the untagged metainstaller `out\ChromeBrandedDebug\UpdaterSetup.exe`.
+* the setup executable for Chrome Beta, saved at:
+`out/ChromeBrandedDebug/UpdaterSigning/chrome_installer.exe`.
+* the manifest, shown below, saved at:
+`out/ChromeBrandedDebug/UpdaterSigning/OfflineManifest.gup`.
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<response protocol="3.0">
+  <systemrequirements platform="win" arch="${ARCH_REQUIREMENT}" min_os_version="6.1"/>
+  <app appid="${APP_ID}" status="ok">
+    <updatecheck status="ok">
+      <urls>
+        <url codebase="https://dl.google.com/edgedl/chrome/install/${INSTALLER_VERSION}/"/>
+      </urls>
+      <manifest version="${INSTALLER_VERSION}">
+        <packages>
+          <package name="${INSTALLER_FILENAME}" hash_sha256="${INSTALLER_HASH_SHA256}" size="${INSTALLER_SIZE}" required="true"/>
+        </packages>
+        <actions>
+          <action event="install" run="${INSTALLER_FILENAME}" arguments="--do-not-launch-chrome" needsadmin="false" />
+          <action event="postinstall" onsuccess="exitsilentlyonlaunchcmd"/>
+        </actions>
+      </manifest>
+    </updatecheck>
+  </app>
+</response>
+```
+
+* and the final tagged offline setup file will be
+`out\ChromeBrandedDebug\UpdaterSigning\Signed_ChromeBetaOfflineSetup.exe`.
+
+Here are the steps to create a tagged offline metainstaller, with the `out`
+directory at `out\ChromeBrandedDebug`:
+
+* One-time step: from an elevated powershell prompt:
+```
+New-SelfSignedCertificate -DnsName id@domain.tld -Type CodeSigning
+ -CertStoreLocation cert:\CurrentUser\My
+```
+* Note: all the steps below are run from a medium cmd prompt.
+* One-time step: `python3 -m pip install pypiwin32`
+* One-time step:
+```
+set PYTHONPATH=C:\src\chromium\src\chrome\tools\build\win`
+```
+* create the untagged offline installer `ChromeBetaOfflineSetup.exe`:
+```
+python3 chrome/updater/win/signing/sign.py                                     ^
+  --in_file out/ChromeBrandedDebug/UpdaterSetup.exe                            ^
+  --out_file out/ChromeBrandedDebug/UpdaterSigning/ChromeBetaOfflineSetup.exe  ^
+  --identity id@domain.tld                                                     ^
+  --appid {8237E44A-0054-442C-B6B6-EA0509993955}                               ^
+  --installer_path out/ChromeBrandedDebug/UpdaterSigning/chrome_installer.exe  ^
+  --manifest_path out/ChromeBrandedDebug/UpdaterSigning/OfflineManifest.gup    ^
+  --lzma_7z "C:/Program Files/7-Zip/7z.exe"                                    ^
+  --signtool ../../fig/google3/third_party/windows_sdk/windows_sdk_10/files/bin/10.0.22000.0/x86/signtool.exe ^
+  --certificate_tag out/ChromeBrandedDebug/UpdaterSigning/certificate_tag.exe  ^
+  --manifest_dict_replacements "{'${INSTALLER_VERSION}':'110.0.5478.0', '${ARCH_REQUIREMENT}':'x86'}"
+```
+* tag the offline installer and save the result as
+`Signed_ChromeBetaOfflineSetup.exe`:
+```
+python3 chrome/updater/tools/tag.py                                            ^
+  --certificate_tag=out/ChromeBrandedDebug/UpdaterSigning/certificate_tag.exe  ^
+  --in_file=out/ChromeBrandedDebug/UpdaterSigning/ChromeBetaOfflineSetup.exe   ^
+  --out_file=out/ChromeBrandedDebug/UpdaterSigning/Signed_ChromeBetaOfflineSetup.exe ^
+  --tag="appguid={8237E44A-0054-442C-B6B6-EA0509993955}&appname=Google%20Chrome%20Beta&needsadmin=Prefers"
+```
+* Now you can run the final signed offline installer:
+`Signed_ChromeBetaOfflineSetup.exe`!
+
+In the example above, the `OfflineManifest.gup` has the following replaceable parameters which are replaced by `sign.py` as follows:
+* `${APP_ID}`: `{8237E44A-0054-442C-B6B6-EA0509993955}`.
+* `${INSTALLER_FILENAME}`: `chrome_installer.exe`.
+* `${INSTALLER_SIZE}`: computed size of `installer_path`.
+* `${INSTALLER_HASH_SHA256}`: computed sha256 hash of `installer_path`.
+* `${INSTALLER_VERSION}`: `110.0.5478.0` (provided on the command line in `--manifest_dict_replacements`).
+* `${ARCH_REQUIREMENT}`: `x86` (provided on the command line in `--manifest_dict_replacements`).
+
+The final manifest looks as follows:
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<response protocol="3.0">
+  <systemrequirements platform="win" arch="x86" min_os_version="6.1"/>
+  <app appid="{8237E44A-0054-442C-B6B6-EA0509993955}" status="ok">
+    <updatecheck status="ok">
+      <urls>
+        <url codebase="https://dl.google.com/edgedl/chrome/install/110.0.5478.0/"/>
+      </urls>
+      <manifest version="110.0.5478.0">
+        <packages>
+          <package name="chrome_installer.exe" hash_sha256="1d28b3ca401b063b3e06b281f8ba80b52797e40de7830f1532c1018544027af8" size="89150504" required="true"/>
+        </packages>
+        <actions>
+          <action event="install" run="chrome_installer.exe" arguments="--do-not-launch-chrome" needsadmin="false" />
+          <action event="postinstall" onsuccess="exitsilentlyonlaunchcmd"/>
+        </actions>
+      </manifest>
+    </updatecheck>
+  </app>
+</response>
+```
 
 ### MSI Wrapper
 TODO(crbug.com/1327497) - Implement and document.
@@ -96,6 +232,8 @@ Depending on the scope, the updater is installed at:
 * (Windows, System): `%PROGRAM_FILES%\{COMPANY}\{UPDATERNAME}\{VERSION}\updater.exe`
 * (macOS, User): `~/Library/{COMPANY}/{UPDATERNAME}/{VERSION}/{UPDATERNAME}.app`
 * (macOS, System): `/Library/{COMPANY}/{UPDATERNAME}/{VERSION}/{UPDATERNAME}.app`
+* (Linux, User): `~/.local/{COMPANY}/{UPDATERNAME}/{VERSION}/updater`
+* (Linux, System): `/opt/{COMPANY}/{UPDATERNAME}/{VERSION}/updater`
 
 ### Command Line
 
@@ -209,6 +347,10 @@ To maintain backwards compatibility with
 [Keystone](https://code.google.com/archive/p/update-engine/), the updater
 installs small versions of those programs that implement a subset of their APIs.
 
+The updater also imports the properties and state of the apps that have been
+registered with Omaha and Keystone, so they show up as registered with the
+updater.
+
 #### Keystone Shims
 The updater installs a Keystone-like application that contains these shims:
 
@@ -279,10 +421,11 @@ Some of these actions accept parameters:
 
 #### Omaha Shims
 On Windows, the updater replaces Omaha's files with a copy of the updater, and
-keeps the Omaha registry entry
-(`CLIENTS/{430FD4D0-B729-4F61-AA34-91526481799D}`) up-to-date with the latest
-`pv` value. Additionally, the updater replaces the Omaha uninstall command line
-with its own.
+keeps the Omaha registry entries
+(`CLIENTS/{430FD4D0-B729-4F61-AA34-91526481799D}` and
+`CLIENTSTATE/{430FD4D0-B729-4F61-AA34-91526481799D}`) up-to-date with the
+latest `pv` value. Additionally, the updater replaces the Omaha uninstall
+command line with its own.
 
 The updater takes over the COM registration for the following classes:
 * GoogleUpdate3WebUserClass
@@ -329,7 +472,7 @@ The updater communicates with update servers using the
 [Omaha Protocol](protocol_3_1.md).
 
 The updater uses platform-native network stacks (WinHTTP on Windows and
-NSURLSession on macOS).
+NSURLSession on macOS) with user-agent `"{PRODUCT_FULLNAME} {UpdaterVersion}"`.
 
 #### Security
 It is not possible to MITM the updater even if the network (including TLS) is
@@ -404,12 +547,37 @@ installing so that the updater can provide feedback to the user on the progress.
 * `InstallerResult` : Specifies the result type and how to determine success or
 failure:
   *   0 - SUCCESS
-  *   1 - FAILED\_CUSTOM\_ERROR
-  *   2 - FAILED\_MSI\_ERROR
-  *   3 - FAILED\_SYSTEM\_ERROR
-  *   4 - FAILED\_EXIT\_CODE (default)
+      The installer succeeded, unconditionally.
+      - if a launch command was provided via the installer API, the command will
+        be launched and the updater UI will exit silently. Otherwise, the
+        updater will show an install success dialog.
+
+  *   All the error installer results below are treated the same.
+      - if an installer error was not provided via the installer API or the exit
+        code, generic error `kErrorApplicationInstallerFailed` will be reported.
+      - the installer extra code is used if reported via the installer API.
+      - the text description of the error is used if reported via the installer
+        API.
+      *   1 - FAILED\_CUSTOM\_ERROR
+      *   2 - FAILED\_MSI\_ERROR
+      *   3 - FAILED\_SYSTEM\_ERROR
+      *   4 - FAILED\_EXIT\_CODE (default)
+
+  *   If an installer result is not explicitly reported by the installer, the
+      installer API values are internally set based on whether the exit code
+      from the installer process is a success or an error:
+      - If the exit code is a success, the installer result is set to success.
+        If a launch command was provided via the installer API, the command will
+        be launched and the updater UI will exit silently. Otherwise, the
+        updater will show an install success dialog.
+      - If the exit code is a failure, the installer result is set to
+        `kExitCode`, the installer error is set to
+        `kErrorApplicationInstallerFailed`, and the installer extra code is set
+        to the exit code.
+      - If a text description is reported via the installer API, it will be
+        used.
 * `InstallerResultUIString` : A string to be displayed to the user, if
-`InstallerResult` is FAILED*.
+`InstallerResult` is FAILED*.
 * `InstallerSuccessLaunchCmdLine` : On success, the installer writes a command
 line to be launched by the updater. The command line will be launched at medium
 integrity on Vista with UAC on, even if the application being installed is a
@@ -425,6 +593,23 @@ display the string.
 
 TODO(crbug.com/1339454): Implement running installers at
 BELOW_NORMAL_PRIORITY_CLASS if the update flow is a background flow.
+
+#### Updater UI behavior
+
+The updater UI does the following:
+*   on successful installs that do not specify an installer API launch command:
+    *   Displays a "Thank you for installing" message that the user must click
+        to close.
+*   on successful installs that specify a launch command:
+    *   Shows all UI until installation is completed then launches the launch
+        command and then exits without displaying the thank you message or
+        requiring the user to click on the UI.
+*   on error:
+    *   The UI is always shown with the error message. If a specific text
+        description of the error is provided via the installer API, that is
+        shown. Otherwise, a generic message with the error code is shown, either
+        the code provided via the installer API, or the exit code, or a generic
+        error `kErrorApplicationInstallerFailed`.
 
 ### Installer Setup
 
@@ -473,21 +658,21 @@ deterministic with the design above:
 
 * --uninstall-if-unused for active version A calls --uninstall-self for inactive
 version B.
-* At the same time, version B is trying to install itself via –install, and
-–install is waiting for `GetVersion`.
+* At the same time, version B is trying to install itself via -install, and
+-install is waiting for `GetVersion`.
 * `GetVersion` is waiting on the global prefs lock, because
 --uninstall-if-unused is holding the global prefs lock.
 
 In this example flow, the following scenarios may occur:
 
-* `GetVersion` may timeout and fail –install on version B, in which case the
-–uninstall-self for version B gets the version-specific setup lock and proceeds
-to uninstall. Result: The user gets an error, and retries –install.
-* Version B’s uninstall may timeout getting the version-specific setup lock,
+* `GetVersion` may timeout and fail -install on version B, in which case the
+-uninstall-self for version B gets the version-specific setup lock and proceeds
+to uninstall. Result: The user gets an error, and retries -install.
+* Version B's uninstall may timeout getting the version-specific setup lock,
 returning back to version A, and version A proceeds to uninstall itself and
-releasing the global prefs lock, which allows version B’s –install to proceed.
-Result: the user gets a successful –install.
-* Version B’s uninstall may timeout getting the version-specific setup lock, and
+releasing the global prefs lock, which allows version B's -install to proceed.
+Result: the user gets a successful -install.
+* Version B's uninstall may timeout getting the version-specific setup lock, and
 `GetVersion` may also timeout and fail the install on version B. Result: The
 user gets an error, and retries the install.
 
@@ -531,12 +716,71 @@ treating "x64" the same as "x86_64".
 For more information, see the
 [protocol document](protocol_3_1.md#update-checks-body-update-check-response-objects-update-check-response-3).
 
-### MSI installers
+### MSI installers (work in progress)
 
-MSI installers are currently built only for legacy Omaha 3. The updater handles
-handoffs from legacy Omaha 3 pertaining to offline and MSI installers. MSI
-installers package an offline installer, and otherwise function just like the
-offline installer.
+MSI installers package an offline/standalone installer, and can be built using
+[msi_from_standalone.py](https://source.chromium.org/chromium/chromium/src/+/main:chrome/updater/win/signing/msi_from_standalone.py)
+
+`msi_from_standalone.py` builds an MSI around the supplied standalone installer.
+This MSI installer is intended to enable enterprise installation scenarios while
+being as close to a normal install as possible.
+
+This method only works for application installers that do not use MSI.
+
+For example, to create `GoogleChromeBetaStandaloneEnterprise.msi` from
+`ChromeBetaOfflineSetup.exe`:
+```
+python3 chrome/updater/win/signing/msi_from_standalone.py
+    --candle_path ../third_party/wix/v3_8_1128/files/candle.exe
+    --light_path ../third_party/wix/v3_8_1128/files/light.exe
+    --product_name "GoogleChromeBeta"
+    --product_version 110.0.5478.0
+    --appid {8237E44A-0054-442C-B6B6-EA0509993955}
+    --product_custom_params "&brand=GCEA"
+    --product_uninstaller_additional_args=--force-uninstall
+    --product_installer_data "%7B%22dis%22%3A%7B%22msi%22%3Atrue%7D%7D"
+    --standalone_installer_path ChromeBetaOfflineSetup.exe
+    --custom_action_dll_path out/Default/msi_custom_action.dll
+    --msi_base_name GoogleChromeBetaStandaloneEnterprise
+    --enterprise_installer_dir chrome/updater/win/signing
+    --company_name "Google"
+    --company_full_name "Google LLC"
+    --output_dir out/Default
+```
+
+If this untagged MSI installer is run as-is, it will run the updater
+metainstaller with the following parameters:
+```
+--silent
+--tag=appguid={8237E44A-0054-442C-B6B6-EA0509993955}&appname=GoogleChromeBeta&
+      needsAdmin=True&brand=GCEA
+--installsource enterprisemsi
+--appargs=appguid={8237E44A-0054-442C-B6B6-EA0509993955}&
+          installerdata=%7B%22dis%22%3A%7B%22msi%22%3Atrue%7D%7D
+```
+
+This MSI can be tagged using `tag.exe` as follows:
+```
+out\ChromeBrandedDebug\tag.exe
+    "--set-tag=appguid={8237E44A-0054-442C-B6B6-EA0509993955}&
+     appname=Google%20Chrome%20Beta&needsAdmin=True&brand=GGLL"
+    GoogleChromeBetaStandaloneEnterprise.msi
+```
+
+Notice that the tag overrode the `product_name` and `product_custom_params` that
+were used to create the original MSI installer. The tag needs to include the
+`appguid`, the `appname`, and `needsAdmin`. Other tag parameters are optional.
+
+If this tagged MSI installer is run, it will run the updater metainstaller with
+the following parameters:
+```
+--silent
+--tag=appguid={8237E44A-0054-442C-B6B6-EA0509993955}&appname=Google%20Chrome%20
+      Beta&needsAdmin=True&brand=GGLL
+--installsource enterprisemsi
+--appargs=appguid={8237E44A-0054-442C-B6B6-EA0509993955}&
+          installerdata=%7B%22dis%22%3A%7B%22msi%22%3Atrue%7D%7D
+```
 
 ### Enterprise Enrollment
 The updater may be enrolled with a particular enterprise. Enrollment is
@@ -553,7 +797,7 @@ server.
 By default, if enrollment fails, for example if the enrollment token is invalid
 or revoked, the updater will start in an unmanaged state. Instead, if you want
 to prevent the updater from starting if enrollment fails, set
-`EnrollmentMandatory` to `1`.
+`EnrollmentMandatory` to `1` (Windows only).
 
 After the updater sets itself up, the `FetchPolicies` RPC is invoked on the
 updater server to register with device management and fetch policies.
@@ -562,8 +806,11 @@ The updater also checks for policy updates when the `RunPeriodicTasks` RPC is
 invoked at periodic intervals.
 
 #### Windows
-The `EnrollmentToken` REG_SZ value is read from
-`HKLM\Software\Policies\{COMPANY_SHORTNAME}\CloudManagement`.
+The enrollment token is searched in the order:
+* The `EnrollmentToken` REG_SZ value from
+  `HKLM\Software\Policies\{COMPANY_SHORTNAME}\CloudManagement`
+* The `CloudManagementEnrollmentToken` REG_SZ value from
+  `HKLM\Software\Policies\{COMPANY_SHORTNAME}\{BROWSER_NAME}`
 
 The `EnrollmentMandatory` REG_DWORD value is also read from
 `HKLM\Software\Policies\{COMPANY_SHORTNAME}\CloudManagement`.
@@ -578,6 +825,13 @@ The enrollment token is searched in the order:
 CBCM enterprise enrollment and policy fetches are done every time an install or
 or update happens, as well as when the updater periodic background task
 `--wake` runs.
+
+#### Linux
+The enrollment token is stored in:
+`/opt/{COMPANY_SHORTNAME}/{PRODUCT_FULLNAME}/CloudManagementEnrollmentToken`
+
+The device management token is stored in:
+`/opt/{COMPANY_SHORTNAME}/{PRODUCT_FULLNAME}/CloudManagement`
 
 ### Enterprise Policies
 Enterprise policies can prevent the installation of applications:
@@ -602,19 +856,33 @@ for any policy value. When a policy value is configured in multiple providers,
 the service always returns the first active valid value.
 
 The policy searching order:
-#### Windows
+##### Windows
 * Policy dictionary defined in
  [External constants](#external-constants-overrides)(testing overrides)
 * Group Policy
 * Device Management policy
 * Policy from default value provider
+>**_NOTE:_** If the global policy `CloudPolicyOverridesPlatformPolicy` is set
+to a non-zero DWORD value, then the search order of `Group policy` and
+`Device Management policy` is reversed.
 
-#### macOS
+
+##### macOS
 * Policy dictionary defined in
  [External constants](#external-constants-overrides)(testing overrides)
 * Device management policy
 * Policy from Managed Preferences
 * Policy from default value provider
+
+#### COM interfaces (Windows only)
+The updater exposes
+[IPolicyStatus3](https://source.chromium.org/chromium/chromium/src/+/main:chrome/updater/app/server/win/updater_legacy_idl.template;l=555?q=IPolicyStatus3&ss=chromium)
+and the corresponding `IDispatch` implementation to provide clients such as
+Chrome the ability to query the updater enterprise policies.
+
+A client can `CoCreateInstance` the `PolicyStatusUserClass` or the
+`PolicyStatusSystemClass` to get the corresponding policy status object and
+query it via the `IPolicyStatus3` methods.
 
 #### Deploying enterprise applications via updater policy
 For each application that needs to be deployed via the updater, the policy for
@@ -745,8 +1013,8 @@ This is how a JSON response from the update server may look like:
      }],
      "updatecheck":{
      "status":"ok",
-     "urls":{"url":[{"codebase":"http://example.com/"},
-                    {"codebasediff":"http://diff.example.com/"}]},
+     "urls":{"url":[{"codebase":"https://example.com/"},
+                    {"codebasediff":"https://diff.example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
       "prodversionmin":"2.0.143.0",
@@ -845,13 +1113,31 @@ millisecond of each second).
 Background updates can be disabled entirely through policy.
 
 #### Windows Scheduling of Updates
-The update tasks are scheduled using the OS task scheduler.
+The update wake task is scheduled using the OS task scheduler.
 
-The time resolution for tasks is 1 minute. Tasks are set to run 5 minutes after
-they've been created. If a task execution is missed, it will run as soon as the
-system is able to.
+The time resolution for tasks is 1 minute. The update wake task is set to run 5
+minutes after creation. If a task execution is missed, it will run as soon as
+the system is able to.
 
-The updater also runs at user login.
+The updater runs the wake task at system startup for system installs, via the
+system service, which is set to Automatic Start.
+
+The updater also runs at user login. For system installs, this is done via a
+logon trigger on the scheduled task. For user installs, this is done via both
+the logon trigger on the scheduled task, as well as the "Run" registry entry in
+`HKCU` for redundancy.
+
+### Server Lifetime
+The updater's RPC server starts and waits for incoming RPCs. The server
+considers itself idle if it has not been processing any RPC in the last ten
+seconds. Every five minutes, the updater will check itself for idleness and
+shut down if idle.
+
+Additionally, on macOS, after answering at least one RPC, the server will shut
+itself down as soon as it becomes idle.
+
+Additionally, on Windows, the updater will shut itself down if all clients
+release their references to the server.
 
 ### On-Demand Updates
 The updater exposes an RPC interface for any user to trigger an update check.
@@ -888,6 +1174,14 @@ not permitted.
 If the application is already installed, it is registered with the version
 present on disk. If it has not yet been installed, a version of `0` is used.
 
+User-scope updaters will update any application registered with them, except
+apps that are managed by a system-scope updater.
+
+System-scope updaters will update any application registered with them. On
+POSIX platforms, they will additionally lchown the existence checker path
+registered by the application to be owned by the root user. User-scope updaters
+use this as a signal that the application is managed by a system-scope updater.
+
 ### App Activity Reporting
 Applications can report whether they are actively used or not through the
 updater. Update servers can then aggregate this information to produce user
@@ -917,10 +1211,13 @@ any piece of software it manages is permitted to send usage stats.
 
 #### Windows:
 *   Applications enable usage stats by writing:
-    `HKCU\SOFTWARE\{Company}\Update\ClientState\{APPID}` â†’ usagestats (DWORD): 1
-    or
+    `HKCU\SOFTWARE\{Company}\Update\ClientState\{APPID}` â†’ usagestats
+    (DWORD): 1 for user install,
+    and either
     `HKLM\SOFTWARE\{Company}\Update\ClientStateMedium\{APPID}` â†’ usagestats
-    (DWORD): 1
+    (DWORD): 1 or
+    `HKLM\SOFTWARE\{Company}\Update\ClientState\{APPID}` â†’ usagestats
+    (DWORD): 1 for system install.
 *   Applications rescind this permission by writing a value of 0.
 
 #### macOS:
@@ -1130,9 +1427,9 @@ functionality that can be queried and shown in chrome://policy.
 
 ## Uninstallation
 On Mac and Linux, if the application was registered with an existence path
-checker and no file at that path exists (or if the file at that path is owned
-by another user), the updater considers the application uninstalled, sends
-the ping, and stops trying to keep it up to date.
+checker and no file at that path exists, the updater considers the application
+uninstalled, sends the ping, and stops trying to keep it up to date. User-scope
+updaters will also do this if the file is owned by the root user.
 
 On Windows, if the ClientState entry for for the application is deleted, the
 app is considered uninstalled.
@@ -1155,15 +1452,26 @@ small log file in its data directory.
 ### External Constants Overrides
 Building the updater produces both a production-ready updater executable and a
 version of the executable used for the purposes of testing. The test executable
-is identical to the production one except that it allows cetain constants to be
+is identical to the production one except that it allows certain constants to be
 overridden by the execution environment:
 
-*   `url`: Update check & ping-back URL.
+*   `url`: List of URLs for update check & ping-back.
+*   `crash_upload_url`: Crash reporting URL.
+*   `device_management_url`: URL to fetch device management policies.
+*   `initial_delay`: Time to delay the start of the automated background tasks.
+*   `overinstall_timeout`: Over-install timeout.
+*   `server_keep_alive`: Minimum amount of time the server needs to stay alive.
 *   `use_cup`: Whether CUP is used at all.
 *   `cup_public_key`: An unarmored PEM-encoded ASN.1 SubjectPublicKeyInfo with
     the ecPublicKey algorithm and containing a named elliptic curve.
 *   `group_policies`: Allows setting group policies, such as install and update
     policies.
+*   `crx_verifier_format`: An integer value to guide how to verify the CRX file.
+       - 0: CRX3.
+       - 1: CRX3 with test publisher proof.
+       - 2: CRX3 with production publisher proof.
+*   `idle_check_period`: The idleness check period.
+*   `managed_device`: Whether the device is enterprise managed.
 
 Overrides are specified in an overrides.json file placed in the updater data
 directory.

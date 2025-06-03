@@ -22,6 +22,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
+#include "chrome/browser/apps/app_service/package_id_util.h"
 #include "chrome/browser/ash/app_list/app_list_controller_delegate.h"
 #include "chrome/browser/ash/app_list/app_service/app_service_context_menu.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
@@ -113,14 +114,24 @@ AppServiceAppItem::AppServiceAppItem(
       SetPosition(CalculateDefaultPositionIfApplicable());
     }
 
-    // Crostini apps start in the crostini folder.
+    // Crostini and Bruschetta apps start in their respective folders.
     if (app_type_ == apps::AppType::kCrostini) {
       DCHECK(folder_id().empty());
       SetChromeFolderId(ash::kCrostiniFolderId);
+    } else if (app_type_ == apps::AppType::kBruschetta) {
+      DCHECK(folder_id().empty());
+      SetChromeFolderId(ash::kBruschettaFolderId);
     }
   }
 
-  const bool is_new_install = !sync_item && IsNewInstall(app_update);
+  absl::optional<apps::PackageId> package_id =
+      apps_util::GetPackageIdForApp(profile, app_update);
+  if (package_id.has_value()) {
+    SetPromisePackageId(package_id.value().ToString());
+  }
+
+  const bool is_new_install =
+      (!sync_item || sync_item->is_new) && IsNewInstall(app_update);
   DVLOG(1) << "New AppServiceAppItem is_new_install " << is_new_install
            << " from update " << app_update;
   SetIsNewInstall(is_new_install);

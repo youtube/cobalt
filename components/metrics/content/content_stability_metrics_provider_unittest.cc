@@ -15,9 +15,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_data.h"
 #include "content/public/browser/child_process_termination_info.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/common/process_type.h"
@@ -125,36 +122,28 @@ TEST_F(ContentStabilityMetricsProviderTest, NotificationObserver) {
   content::ChildProcessTerminationInfo crash_details;
   crash_details.status = base::TERMINATION_STATUS_PROCESS_CRASHED;
   crash_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&crash_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, crash_details);
 
   content::ChildProcessTerminationInfo term_details;
   term_details.status = base::TERMINATION_STATUS_ABNORMAL_TERMINATION;
   term_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&term_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, term_details);
 
   // Kill does not increment renderer crash count.
   content::ChildProcessTerminationInfo kill_details;
   kill_details.status = base::TERMINATION_STATUS_PROCESS_WAS_KILLED;
   kill_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&kill_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, kill_details);
 
   // Failed launch increments failed launch count.
   content::ChildProcessTerminationInfo failed_launch_details;
   failed_launch_details.status = base::TERMINATION_STATUS_LAUNCH_FAILED;
   failed_launch_details.exit_code = 1;
-  provider.Observe(content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                   content::Source<content::RenderProcessHost>(host),
-                   content::Details<content::ChildProcessTerminationInfo>(
-                       &failed_launch_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, failed_launch_details);
 
   // Verify metrics.
   histogram_tester.ExpectBucketCount("Stability.Counts2",
@@ -192,19 +181,15 @@ TEST_F(ContentStabilityMetricsProviderTest, ExtensionsNotificationObserver) {
   content::ChildProcessTerminationInfo crash_details;
   crash_details.status = base::TERMINATION_STATUS_PROCESS_CRASHED;
   crash_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(extension_host),
-      content::Details<content::ChildProcessTerminationInfo>(&crash_details));
+  provider.OnRenderProcessHostCreated(extension_host);
+  provider.RenderProcessExited(extension_host, crash_details);
 
   // Failed launch increments failed launch count.
   content::ChildProcessTerminationInfo failed_launch_details;
   failed_launch_details.status = base::TERMINATION_STATUS_LAUNCH_FAILED;
   failed_launch_details.exit_code = 1;
-  provider.Observe(content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                   content::Source<content::RenderProcessHost>(extension_host),
-                   content::Details<content::ChildProcessTerminationInfo>(
-                       &failed_launch_details));
+  provider.OnRenderProcessHostCreated(extension_host);
+  provider.RenderProcessExited(extension_host, failed_launch_details);
 
   // Verify metrics.
   histogram_tester.ExpectBucketCount("Stability.Counts2",

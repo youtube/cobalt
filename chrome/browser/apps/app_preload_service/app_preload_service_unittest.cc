@@ -49,14 +49,17 @@ namespace apps {
 class AppPreloadServiceTest : public testing::Test {
  protected:
   AppPreloadServiceTest()
-      : scoped_user_manager_(std::make_unique<ash::FakeChromeUserManager>()) {
+      : scoped_user_manager_(std::make_unique<ash::FakeChromeUserManager>()),
+        startup_check_resetter_(
+            AppPreloadService::DisablePreloadsOnStartupForTesting()) {
     scoped_feature_list_.InitAndEnableFeature(features::kAppPreloadService);
+    AppPreloadServiceFactory::SkipApiKeyCheckForTesting(true);
   }
 
   void SetUp() override {
     testing::Test::SetUp();
 
-    GetFakeUserManager()->set_current_user_new(true);
+    GetFakeUserManager()->SetIsCurrentUserNew(true);
 
     TestingProfile::Builder profile_builder;
     profile_builder.SetSharedURLLoaderFactory(
@@ -65,6 +68,10 @@ class AppPreloadServiceTest : public testing::Test {
     profile_ = profile_builder.Build();
 
     web_app::test::AwaitStartWebAppProviderAndSubsystems(GetProfile());
+  }
+
+  void TearDown() override {
+    AppPreloadServiceFactory::SkipApiKeyCheckForTesting(false);
   }
 
   Profile* GetProfile() { return profile_.get(); }
@@ -77,11 +84,13 @@ class AppPreloadServiceTest : public testing::Test {
   network::TestURLLoaderFactory url_loader_factory_;
 
  private:
+  // BrowserTaskEnvironment has to be the first member or test will break.
   content::BrowserTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestingProfile> profile_;
   user_manager::ScopedUserManager scoped_user_manager_;
   ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
+  base::AutoReset<bool> startup_check_resetter_;
 };
 
 TEST_F(AppPreloadServiceTest, ServiceAccessPerProfile) {
@@ -133,8 +142,9 @@ TEST_F(AppPreloadServiceTest, ServiceAccessPerProfile) {
 }
 
 TEST_F(AppPreloadServiceTest, FirstLoginStartedPrefSet) {
-  // Ensure that the AppPreloadService is created.
-  AppPreloadService::Get(GetProfile());
+  auto* service = AppPreloadService::Get(GetProfile());
+  // Start the login flow, but do not wait for it to finish.
+  service->StartFirstLoginFlowForTesting(base::DoNothing());
 
   auto flow_started =
       GetStateManager(GetProfile()).FindBool(kFirstLoginFlowStartedKey);
@@ -157,7 +167,7 @@ TEST_F(AppPreloadServiceTest, FirstLoginCompletedPrefSetAfterSuccess) {
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
   // We expect that the key has been set after the first login flow has been
@@ -169,11 +179,11 @@ TEST_F(AppPreloadServiceTest, FirstLoginCompletedPrefSetAfterSuccess) {
 }
 
 TEST_F(AppPreloadServiceTest, FirstLoginExistingUserNotStarted) {
-  GetFakeUserManager()->set_current_user_new(false);
+  GetFakeUserManager()->SetIsCurrentUserNew(false);
   TestingProfile existing_user_profile;
 
-  // Ensure that the AppPreloadService is created.
-  AppPreloadService::Get(&existing_user_profile);
+  auto* service = AppPreloadService::Get(&existing_user_profile);
+  service->StartFirstLoginFlowForTesting(base::DoNothing());
 
   auto flow_started = GetStateManager(&existing_user_profile)
                           .FindBool(kFirstLoginFlowStartedKey);
@@ -196,7 +206,7 @@ TEST_F(AppPreloadServiceTest, IgnoreAndroidAppInstall) {
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
   // It's hard to assert conclusively that nothing happens in this case, but for
@@ -215,7 +225,7 @@ TEST_F(AppPreloadServiceTest, FirstLoginStartedNotCompletedAfterServerError) {
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_FALSE(result.Get());
 
   auto flow_started =

@@ -8,6 +8,7 @@
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_data.h"
+#include "third_party/blink/public/web/web_autofill_client.h"
 #include "third_party/blink/public/web/web_image.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
@@ -15,8 +16,10 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
+#include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
 #include "third_party/blink/renderer/core/inspector/inspector_issue_storage.h"
 #include "third_party/blink/renderer/core/inspector/inspector_network_agent.h"
+#include "third_party/blink/renderer/core/inspector/protocol/audits.h"
 #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -77,7 +80,7 @@ std::unique_ptr<protocol::Audits::InspectorIssue> CreateLowTextContrastIssue(
   Element* element = info.element;
 
   StringBuilder sb;
-  auto element_id = element->getAttribute("id").LowerASCII();
+  auto element_id = element->GetIdAttribute().LowerASCII();
   sb.Append(element->nodeName().LowerASCII());
   if (!element_id.empty()) {
     sb.Append("#");
@@ -97,7 +100,7 @@ std::unique_ptr<protocol::Audits::InspectorIssue> CreateLowTextContrastIssue(
           .setFontWeight(info.font_weight)
           .setContrastRatio(info.contrast_ratio)
           .setViolatingNodeSelector(sb.ToString())
-          .setViolatingNodeId(DOMNodeIds::IdForNode(element))
+          .setViolatingNodeId(element->GetDomNodeId())
           .build();
   issue_details.setLowTextContrastIssueDetails(std::move(low_contrast_details));
 
@@ -115,13 +118,16 @@ void InspectorAuditsAgent::Trace(Visitor* visitor) const {
   InspectorBaseAgent::Trace(visitor);
 }
 
-InspectorAuditsAgent::InspectorAuditsAgent(InspectorNetworkAgent* network_agent,
-                                           InspectorIssueStorage* storage,
-                                           InspectedFrames* inspected_frames)
+InspectorAuditsAgent::InspectorAuditsAgent(
+    InspectorNetworkAgent* network_agent,
+    InspectorIssueStorage* storage,
+    InspectedFrames* inspected_frames,
+    WebAutofillClient* web_autofill_client)
     : inspector_issue_storage_(storage),
       enabled_(&agent_state_, false),
       network_agent_(network_agent),
-      inspected_frames_(inspected_frames) {
+      inspected_frames_(inspected_frames),
+      web_autofill_client_(web_autofill_client) {
   DCHECK(network_agent);
 }
 
@@ -153,7 +159,7 @@ protocol::Response InspectorAuditsAgent::getEncodedResponse(
 
   Vector<unsigned char> encoded_image;
   if (!EncodeAsImage(base64_decoded_buffer.data(), base64_decoded_buffer.size(),
-                     encoding, quality.fromMaybe(kDefaultEncodeQuality),
+                     encoding, quality.value_or(kDefaultEncodeQuality),
                      &encoded_image)) {
     return protocol::Response::ServerError(
         "Could not encode image with given settings");
@@ -162,7 +168,7 @@ protocol::Response InspectorAuditsAgent::getEncodedResponse(
   *out_original_size = static_cast<int>(base64_decoded_buffer.size());
   *out_encoded_size = static_cast<int>(encoded_image.size());
 
-  if (!size_only.fromMaybe(false)) {
+  if (!size_only.value_or(false)) {
     *out_body = protocol::Binary::fromVector(std::move(encoded_image));
   }
   return protocol::Response::Success();
@@ -171,7 +177,6 @@ protocol::Response InspectorAuditsAgent::getEncodedResponse(
 void InspectorAuditsAgent::CheckContrastForDocument(Document* document,
                                                     bool report_aaa) {
   InspectorContrast contrast(document);
-  Vector<std::pair<Element*, mojom::blink::InspectorIssueInfoPtr>> issues;
   unsigned max_elements = 100;
   for (ContrastInfo info :
        contrast.GetElementsWithContrastIssues(report_aaa, max_elements)) {
@@ -191,8 +196,7 @@ protocol::Response InspectorAuditsAgent::checkContrast(
   if (!main_window)
     return protocol::Response::ServerError("Document is not available");
 
-  CheckContrastForDocument(main_window->document(),
-                           report_aaa.fromMaybe(false));
+  CheckContrastForDocument(main_window->document(), report_aaa.value_or(false));
 
   return protocol::Response::Success();
 }
@@ -204,6 +208,32 @@ protocol::Response InspectorAuditsAgent::enable() {
 
   enabled_.Set(true);
   InnerEnable();
+  return protocol::Response::Success();
+}
+
+protocol::Response InspectorAuditsAgent::checkFormsIssues(
+    std::unique_ptr<protocol::Array<protocol::Audits::GenericIssueDetails>>*
+        out_formIssues) {
+  *out_formIssues = std::make_unique<
+      protocol::Array<protocol::Audits::GenericIssueDetails>>();
+  if (web_autofill_client_) {
+    std::vector<WebAutofillClient::FormIssue> form_issues =
+        web_autofill_client_->ProccessFormsAndReturnIssues();
+    for (const WebAutofillClient::FormIssue& form_issue : form_issues) {
+      std::unique_ptr<protocol::Audits::GenericIssueDetails>
+          generic_issue_details =
+              protocol::Audits::GenericIssueDetails::create()
+                  .setErrorType(AuditsIssue::GenericIssueErrorTypeToProtocol(
+                      form_issue.issue_type))
+                  .setViolatingNodeAttribute(
+                      form_issue.violating_node_attribute)
+                  .setViolatingNodeId(form_issue.violating_node)
+                  .build();
+
+      (*out_formIssues)->emplace_back(std::move(generic_issue_details));
+    }
+  }
+
   return protocol::Response::Success();
 }
 

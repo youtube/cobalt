@@ -1,4 +1,4 @@
-// Copyright 2023 The Chromium Authors. All rights reserved.
+// Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,9 +57,7 @@ mojom::blink::DirectTCPServerSocketOptionsPtr CreateTCPServerSocketOptions(
           "equivalent.");
       return {};
     }
-    socket_options->ipv6_only =
-        options->ipv6Only() ? network::mojom::blink::OptionalBool::kTrue
-                            : network::mojom::blink::OptionalBool::kFalse;
+    socket_options->ipv6_only = options->ipv6Only();
   }
 
   socket_options->local_addr = std::move(local_addr);

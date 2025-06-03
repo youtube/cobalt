@@ -184,10 +184,7 @@
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_CLOSED" desc="Accessibility string read when the all passwords bottom sheet showing a list of the user's credentials is closed.">
         List of credentials to be filled on touch is closed.
       </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials.">
-        Passwords
-      </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE_GPM" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials when the `Select password` button is clicked.">
+      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials when the `Select password` button is clicked.">
         Select password
       </message>
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_SEARCH_HINT" desc="The label for a search button appears in all passwords bottom sheet.">
@@ -195,12 +192,6 @@
       </message>
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_NO_PASSWORD" desc="The title for the disabled button on the all passwords bottom sheet UI when a credential doesn't contain a password.">
         No password
-      </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_WARNING_DIALOG_MESSAGE_FIRST" desc="The first paragraph in the warning message showing when the `User other password` button is clicked.">
-        If you trust <ph name="ORIGIN">%s<ex>example.com</ex></ph>, you can use a saved password for another site.
-      </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_WARNING_DIALOG_MESSAGE_SECOND" desc="The second paragraph in the warning message showing when the `User other password` button is clicked.">
-        Try to use a unique password for every site.
       </message>
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_SUBTITLE" desc="The subtitle string for the all passwords bottom sheet showing when the `Select password` button is clicked.">
         If you trust <ph name="ORIGIN">%s<ex>example.com</ex></ph>, you can use a saved password to sign in
@@ -226,11 +217,11 @@
       <message name="IDS_PASSWORD_GENERATION_ACCESSORY_BUTTON" desc="Text for the button used to generate a password.">
         Suggest strong password
       </message>
-      <message name="IDS_PASSWORD_GENERATION_ACCESSORY_BUTTON_SHORT" desc="Shortened text for the button used to generate a password. This is used for devices with small screen.">
-        Suggest password
-      </message>
       <message name="IDS_PASSWORD_ACCESSORY_SHEET_TOGGLE" desc="Description for the icon button used to open and close the password accessory sheet.">
         Show saved passwords and password options
+      </message>
+      <message name="IDS_PASSWORD_ACCESSORY_PASSKEY_LABEL" desc="Label for a chip that fills a Passkey on selection.">
+        Passkey
       </message>
       <message name="IDS_ADDRESS_ACCESSORY_SHEET_TITLE" desc="Text used as title for the address accessory sheet.">
         Addresses
@@ -246,6 +237,12 @@
       </message>
       <message name="IDS_IPH_KEYBOARD_ACCESSORY_PAYMENT_OFFER" desc="Text used for the In-Product-Help bubble suggesting that the current credit card suggestion has a card linked offer attached.">
         Cashback linked
+      </message>
+      <message name="IDS_MORE_PASSKEYS" desc="Title of the chip that opens Android Credential Manager UI. The user can select passkeys from other providers there.">
+        More passkeys
+      </message>
+      <message name="IDS_SELECT_PASSKEY" desc="Title of the button that opens Android Credential Manager UI when there are no passkeys in the keyboard accessory. The user can select passkeys from other providers there.">
+        Select passkey
       </message>
     </messages>
   </release>

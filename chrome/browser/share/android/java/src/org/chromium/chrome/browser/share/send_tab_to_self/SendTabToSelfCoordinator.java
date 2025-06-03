@@ -11,20 +11,21 @@ import androidx.annotation.StringRes;
 
 import org.chromium.base.Callback;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetCoordinator;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetCoordinator.EntryPoint;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerDelegate;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.base.GoogleServiceAuthError;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
+import org.chromium.components.sync.SyncService;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.List;
@@ -57,13 +58,13 @@ public class SendTabToSelfCoordinator {
             mGotDeviceListCallback = gotDeviceListCallback;
             mProfile = profile;
 
-            SyncService.get().addSyncStateChangedListener(this);
+            SyncServiceFactory.get().addSyncStateChangedListener(this);
             mBottomSheetController.addObserver(this);
             notifyAndDestroyIfDone();
         }
 
         private void destroy() {
-            SyncService.get().removeSyncStateChangedListener(this);
+            SyncServiceFactory.get().removeSyncStateChangedListener(this);
             mBottomSheetController.removeObserver(this);
         }
 
@@ -116,7 +117,9 @@ public class SendTabToSelfCoordinator {
                 String accountEmail, Callback<GoogleServiceAuthError> onSignInErrorCallback) {
             SigninManager signinManager = IdentityServicesProvider.get().getSigninManager(mProfile);
             Account account = AccountUtils.createAccountFromName(accountEmail);
-            signinManager.signin(account, SigninAccessPoint.SEND_TAB_TO_SELF_PROMO,
+            signinManager.signin(
+                    account,
+                    SigninAccessPoint.SEND_TAB_TO_SELF_PROMO,
                     new SigninManager.SignInCallback() {
                         @Override
                         public void onSignInComplete() {
@@ -124,15 +127,12 @@ public class SendTabToSelfCoordinator {
                         }
 
                         @Override
-                        public void onSignInAborted() {
-                            // TODO(crbug.com/1219434) Consider calling onSignInErrorCallback here.
-                        }
+                        public void onSignInAborted() {}
                     });
         }
 
         @Override
-        @EntryPoint
-        public int getEntryPoint() {
+        public @EntryPoint int getEntryPoint() {
             return EntryPoint.SEND_TAB_TO_SELF;
         }
     }
@@ -143,28 +143,24 @@ public class SendTabToSelfCoordinator {
     private final String mTitle;
     private final BottomSheetController mController;
     private final Profile mProfile;
+    private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
 
     public SendTabToSelfCoordinator(Context context, WindowAndroid windowAndroid, String url,
-            String title, BottomSheetController controller, Profile profile) {
+            String title, BottomSheetController controller, Profile profile,
+            DeviceLockActivityLauncher deviceLockActivityLauncher) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mUrl = url;
         mTitle = title;
         mController = controller;
         mProfile = profile;
+        mDeviceLockActivityLauncher = deviceLockActivityLauncher;
     }
 
     public void show() {
         Optional</*@EntryPointDisplayReason*/ Integer> displayReason =
                 SendTabToSelfAndroidBridge.getEntryPointDisplayReason(mProfile, mUrl);
-        if (!displayReason.isPresent()) {
-            // This must be the old behavior where the entry point is shown even in states where
-            // no promo is shown.
-            assert !ChromeFeatureList.isEnabled(ChromeFeatureList.SEND_TAB_TO_SELF_SIGNIN_PROMO);
-            MetricsRecorder.recordSendingEvent(SendingEvent.SHOW_NO_TARGET_DEVICE_MESSAGE);
-            mController.requestShowContent(new NoTargetDeviceBottomSheetContent(mContext), true);
-            return;
-        }
+        assert displayReason.isPresent();
 
         switch (displayReason.get()) {
             case EntryPointDisplayReason.INFORM_NO_TARGET_DEVICE:
@@ -174,8 +170,6 @@ public class SendTabToSelfCoordinator {
                 return;
             case EntryPointDisplayReason.OFFER_FEATURE:
                 MetricsRecorder.recordSendingEvent(SendingEvent.SHOW_DEVICE_LIST);
-                // TODO(crbug.com/1219434): Merge with INFORM_NO_TARGET_DEVICE, just let the UI
-                // differentiate between the 2 by checking the device list size.
                 List<TargetDeviceInfo> targetDevices =
                         SendTabToSelfAndroidBridge.getAllTargetDeviceInfos(mProfile);
                 mController.requestShowContent(
@@ -187,7 +181,7 @@ public class SendTabToSelfCoordinator {
                 MetricsRecorder.recordSendingEvent(SendingEvent.SHOW_SIGNIN_PROMO);
                 new AccountPickerBottomSheetCoordinator(mWindowAndroid, mController,
                         new SendTabToSelfAccountPickerDelegate(this::onSignInComplete, mProfile),
-                        new BottomSheetStrings());
+                        new BottomSheetStrings(), mDeviceLockActivityLauncher);
                 return;
             }
         }

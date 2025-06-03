@@ -96,6 +96,9 @@ RendererMainThreadTaskExecution::TaskType TaskTypeToProto(TaskType task_type) {
     case TaskType::kMainThreadTaskQueueV8:
       return RendererMainThreadTaskExecution::
           TASK_TYPE_MAIN_THREAD_TASK_QUEUE_V8;
+    case TaskType::kMainThreadTaskQueueV8LowPriority:
+      return RendererMainThreadTaskExecution::
+          TASK_TYPE_MAIN_THREAD_TASK_QUEUE_V8_LOW_PRIORITY;
     case TaskType::kMainThreadTaskQueueCompositor:
       return RendererMainThreadTaskExecution::
           TASK_TYPE_MAIN_THREAD_TASK_QUEUE_COMPOSITOR;
@@ -191,6 +194,9 @@ RendererMainThreadTaskExecution::TaskType TaskTypeToProto(TaskType task_type) {
           TASK_TYPE_MAIN_THREAD_TASK_QUEUE_IPC_TRACKING;
     case TaskType::kNetworkingUnfreezable:
       return RendererMainThreadTaskExecution::TASK_TYPE_NETWORKING_UNFREEZABLE;
+    case TaskType::kNetworkingUnfreezableImageLoading:
+      return RendererMainThreadTaskExecution::
+          TASK_TYPE_NETWORKING_UNFREEZABLE_IMAGE_LOADING;
     case TaskType::kWakeLock:
       return RendererMainThreadTaskExecution::TASK_TYPE_WAKE_LOCK;
     case TaskType::kInternalInputBlocking:

@@ -8,8 +8,9 @@ import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.url.GURL;
 
 /**
@@ -79,7 +80,7 @@ public final class DomDistillerUrlUtils {
     }
 
     @NativeMethods
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
         String getDistillerViewUrlFromUrl(String scheme, String url, String title);
         GURL getOriginalUrlFromDistillerUrl(String viewerUrl);

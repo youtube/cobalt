@@ -1,6 +1,7 @@
 // Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// @ts-nocheck
 
 /**
  * Declares the piex-wasm Module interface. The Module has many interfaces
@@ -112,115 +113,46 @@ function piexModuleFailed() {
 let PiexPreviewImageData;
 
 /**
- * @param {!PiexPreviewImageData} data The extracted preview image data.
- * @constructor
  * @struct
  */
-function PiexLoaderResponse(data) {
+class PiexLoaderResponse {
   /**
-   * @public {!ArrayBuffer}
-   * @const
+   * @param {!PiexPreviewImageData} data The extracted preview image data.
    */
-  this.thumbnail = data.thumbnail;
+  constructor(data) {
+    /**
+     * @type {!ArrayBuffer}
+     * @const
+     */
+    this.thumbnail = data.thumbnail;
 
-  /**
-   * @public {string}
-   * @const
-   */
-  this.mimeType = data.mimeType || 'image/jpeg';
+    /**
+     * @type {string}
+     * @const
+     */
+    this.mimeType = data.mimeType || 'image/jpeg';
 
-  /**
-   * JEITA EXIF image orientation being an integer in [1..8].
-   * @public {number}
-   * @const
-   */
-  this.orientation = data.orientation;
+    /**
+     * JEITA EXIF image orientation being an integer in [1..8].
+     * @type {number}
+     * @const
+     */
+    this.orientation = data.orientation;
 
-  /**
-   * JEITA EXIF image color space: 'sRgb' or 'adobeRgb'.
-   * @public {string}
-   * @const
-   */
-  this.colorSpace = data.colorSpace;
+    /**
+     * JEITA EXIF image color space: 'sRgb' or 'adobeRgb'.
+     * @type {string}
+     * @const
+     */
+    this.colorSpace = data.colorSpace;
 
-  /**
-   * JSON encoded RAW image photographic details.
-   * @public {?string}
-   * @const
-   */
-  this.ifd = data.ifd || null;
-}
-
-/**
- * Returns the source data.
- *
- * If the source is an ArrayBuffer, return it. Otherwise assume the source is
- * is a File or DOM fileSystemURL and return its content in an ArrayBuffer.
- *
- * @param {!ArrayBuffer|!File|string} source
- * @return {!Promise<!ArrayBuffer>}
- */
-function readSourceData(source) {
-  if (source instanceof ArrayBuffer) {
-    return Promise.resolve(source);
+    /**
+     * JSON encoded RAW image photographic details.
+     * @type {?string}
+     * @const
+     */
+    this.ifd = data.ifd || null;
   }
-
-  return new Promise((resolve, reject) => {
-    /**
-     * Reject the Promise on fileEntry URL resolve or file read failures.
-     * @param {!Error|string|!ProgressEvent<!FileReader>|!FileError} error
-     */
-    function failure(error) {
-      reject(new Error('Reading file system: ' + (error.message || error)));
-    }
-
-    /**
-     * Returns true if the file size is within sensible limits.
-     * @param {number} size - file size.
-     * @return {boolean}
-     */
-    function valid(size) {
-      return size > 0 && size < Math.pow(2, 30);
-    }
-
-    /**
-     * Reads the file content to an ArrayBuffer. Resolve the Promise with
-     * the ArrayBuffer result, or reject the Promise on failure.
-     * @param {!File} file - file to read.
-     */
-    function readFile(file) {
-      if (valid(file.size)) {
-        const reader = new FileReader();
-        reader.onerror = failure;
-        reader.onload = (_) => {
-          resolve(reader.result);
-        };
-        reader.readAsArrayBuffer(file);
-      } else {
-        failure('invalid file size: ' + file.size);
-      }
-    }
-
-    /**
-     * Resolve the fileEntry's file then read it with readFile, or reject
-     * the Promise on failure.
-     * @param {!Entry} entry - file system entry.
-     */
-    function readEntry(entry) {
-      const fileEntry = /** @type {!FileEntry} */ (entry);
-      fileEntry.file((file) => {
-        readFile(file);
-      }, failure);
-    }
-
-    if (source instanceof File) {
-      readFile(/** @type {!File} */ (source));
-      return;
-    }
-
-    const url = /** @type {string} fileSystemURL */ (source);
-    globalThis.webkitResolveLocalFileSystemURL(url, readEntry, failure);
-  });
 }
 
 /**
@@ -733,17 +665,16 @@ export const PiexLoader = {};
  * to reload the page. Callback |onPiexModuleFailed| is used to indicate that
  * the caller should initiate failure recovery steps.
  *
- * @param {!ArrayBuffer|!File|string} source
+ * @param {!ArrayBuffer} buffer
  * @param {!function()} onPiexModuleFailed
  * @return {!Promise<!PiexLoaderResponse>}
  */
-PiexLoader.load = function(source, onPiexModuleFailed) {
+PiexLoader.load = function(buffer, onPiexModuleFailed) {
   /** @type {?ImageBuffer} */
   let imageBuffer;
 
   return piexModuleInitialized()
-      .then(() => readSourceData(source))
-      .then((/** !ArrayBuffer */ buffer) => {
+      .then(() => {
         if (piexModuleFailed()) {
           throw new Error('piex wasm module failed');
         }

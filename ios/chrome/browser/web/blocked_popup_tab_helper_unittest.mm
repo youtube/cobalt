@@ -10,19 +10,15 @@
 #import "components/infobars/core/confirm_infobar_delegate.h"
 #import "components/infobars/core/infobar.h"
 #import "components/infobars/core/infobar_manager.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/content_settings/host_content_settings_map_factory.h"
+#import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
 #import "ios/chrome/browser/infobars/confirm_infobar_metrics_recorder.h"
 #import "ios/chrome/browser/infobars/infobar_manager_impl.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/web/public/test/fakes/fake_web_state_delegate.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using web::WebState;
 
@@ -106,8 +102,8 @@ TEST_F(BlockedPopupTabHelperTest, AllowBlockedPopup) {
   GetBlockedPopupTabHelper()->HandlePopup(target_url, referrer);
 
   // Allow blocked popup.
-  ASSERT_EQ(1U, GetInfobarManager()->infobar_count());
-  infobars::InfoBar* infobar = GetInfobarManager()->infobar_at(0);
+  ASSERT_EQ(1U, GetInfobarManager()->infobars().size());
+  infobars::InfoBar* infobar = GetInfobarManager()->infobars()[0];
   auto* delegate = infobar->delegate()->AsConfirmInfoBarDelegate();
   ASSERT_TRUE(delegate);
   ASSERT_FALSE(web_state_delegate_.last_open_url_request());
@@ -148,19 +144,19 @@ TEST_F(BlockedPopupTabHelperTest, DestroyWebState) {
 // BlockedPopupTabHelper::HandlePopup() is called.
 TEST_F(BlockedPopupTabHelperTest, ShowAndDismissInfoBar) {
   // Check that there are no infobars showing and no registered observers.
-  EXPECT_EQ(0U, GetInfobarManager()->infobar_count());
+  EXPECT_EQ(0U, GetInfobarManager()->infobars().size());
   EXPECT_FALSE(IsObservingSources());
 
   // Call `HandlePopup` to show an infobar.
   const GURL test_url("https://popups.example.com");
   GetBlockedPopupTabHelper()->HandlePopup(test_url, web::Referrer());
-  ASSERT_EQ(1U, GetInfobarManager()->infobar_count());
+  ASSERT_EQ(1U, GetInfobarManager()->infobars().size());
   EXPECT_TRUE(IsObservingSources());
 
   // Dismiss the infobar and check that the tab helper no longer has any
   // registered observers.
-  GetInfobarManager()->infobar_at(0)->RemoveSelf();
-  EXPECT_EQ(0U, GetInfobarManager()->infobar_count());
+  GetInfobarManager()->infobars()[0]->RemoveSelf();
+  EXPECT_EQ(0U, GetInfobarManager()->infobars().size());
   EXPECT_FALSE(IsObservingSources());
 }
 
@@ -173,7 +169,7 @@ TEST_F(BlockedPopupTabHelperTest, RecordDismissMetrics) {
   // histogram was recorded correctly.
   const GURL test_url("https://popups.example.com");
   GetBlockedPopupTabHelper()->HandlePopup(test_url, web::Referrer());
-  ASSERT_EQ(1U, GetInfobarManager()->infobar_count());
+  ASSERT_EQ(1U, GetInfobarManager()->infobars().size());
   histogram_tester.ExpectUniqueSample(
       "Mobile.Messages.Confirm.Event.ConfirmInfobarTypeBlockPopups",
       static_cast<base::HistogramBase::Sample>(
@@ -182,7 +178,7 @@ TEST_F(BlockedPopupTabHelperTest, RecordDismissMetrics) {
 
   // Dismiss the infobar and check that the Dismiss histogram was recorded
   // correctly.
-  GetInfobarManager()->infobar_at(0)->delegate()->InfoBarDismissed();
+  GetInfobarManager()->infobars()[0]->delegate()->InfoBarDismissed();
   histogram_tester.ExpectBucketCount(
       kInfobarTypeBlockPopupsEventHistogram,
       static_cast<base::HistogramBase::Sample>(
@@ -203,9 +199,9 @@ TEST_F(BlockedPopupTabHelperTest, RecordAcceptMetrics) {
 
   // Accept the infobar and check that the Accepted histogram was recorded
   // correctly.
-  ASSERT_EQ(1U, GetInfobarManager()->infobar_count());
+  ASSERT_EQ(1U, GetInfobarManager()->infobars().size());
   auto* delegate = GetInfobarManager()
-                       ->infobar_at(0)
+                       ->infobars()[0]
                        ->delegate()
                        ->AsConfirmInfoBarDelegate();
   delegate->Accept();

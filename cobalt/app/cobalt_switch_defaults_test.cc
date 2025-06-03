@@ -108,9 +108,6 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
     "disable-fre", ::switches::kNoFirstRun, ::switches::kKioskMode,
         ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
         ::switches::kIgnoreGpuBlocklist,
-#if BUILDFLAG(IS_ANDROID)
-        ::switches::kUserLevelMemoryPressureSignalParams,
-#endif  // BUILDFLAG(IS_ANDROID)
         sandbox::policy::switches::kNoSandbox
   };
 

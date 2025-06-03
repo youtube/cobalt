@@ -27,6 +27,10 @@ const char kEnterpriseMDMManagementMac[] =
 const char kScreenTimeEnabled[] = "policy.screen_time";
 #endif
 
+// Enterprise policy controlled value representing whether the user may be shown
+// HaTS surveys.
+const char kFeedbackSurveysEnabled[] = "policy.feedback_surveys_enabled";
+
 // 64-bit serialization of the time last policy usage statistics were collected
 // by UMA_HISTOGRAM_ENUMERATION.
 const char kLastPolicyStatisticsUpdate[] = "policy.last_statistics_update";
@@ -83,6 +87,9 @@ const char kIntensiveWakeUpThrottlingEnabled[] =
 #if BUILDFLAG(IS_ANDROID)
 // Boolean policy preference to disable the BackForwardCache feature.
 const char kBackForwardCacheEnabled[] = "policy.back_forward_cache_enabled";
+
+// Boolean policy preference to disable the Read Aloud feature.
+const char kReadAloudEnabled[] = "policy.read_aloud_enabled";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Boolean policy preference to disable the User-Agent Client Hints
@@ -107,11 +114,6 @@ const char kUserPolicyNotificationWasShown[] =
     "policy.user_policy_notification_was_shown";
 #endif
 
-// A boolean indicating whether the deprecated API Event.path is enabled. It
-// should eventually be disabled and removed.
-// https://chromestatus.com/feature/5726124632965120
-const char kEventPathEnabled[] = "policy.event_path_enabled";
-
 // A boolean indicating whether the newly specified behavior for
 // Element.offsetParent is in effect.
 const char kOffsetParentNewSpecBehaviorEnabled[] =
@@ -121,21 +123,6 @@ const char kOffsetParentNewSpecBehaviorEnabled[] =
 // disabled form controls is in effect.
 const char kSendMouseEventsDisabledFormControlsEnabled[] =
     "policy.send_mouse_events_disabled_form_controls_enabled";
-
-// If true the feature UseMojoVideoDecoderForPepper will be allowed, otherwise
-// feature will be forced off.
-const char kUseMojoVideoDecoderForPepperAllowed[] =
-    "policy.use_mojo_video_decoder_for_pepper_allowed";
-
-// If true the feature PPAPISharedImagesSwapChain will be allowed, otherwise
-// feature will be forced off.
-const char kPPAPISharedImagesSwapChainAllowed[] =
-    "policy.ppapi_shared_images_swap_chain_allowed";
-
-// If true then support for the PPB_VideoDecoder(Dev) API will be enabled;
-// otherwise the browser will decide whether the API is supported.
-const char kForceEnablePepperVideoDecoderDevAPI[] =
-    "policy.force_enable_pepper_video_decoder_dev_api";
 
 // Boolean controlling whether SafeSearch is mandatory for Google Web Searches.
 const char kForceGoogleSafeSearch[] = "settings.force_google_safesearch";
@@ -153,6 +140,35 @@ const char kHideWebStoreIcon[] = "hide_web_store_icon";
 // 1 - Disabled. User cannot browse pages in Incognito mode.
 // 2 - Forced. All pages/sessions are forced into Incognito.
 const char kIncognitoModeAvailability[] = "incognito.mode_availability";
+
+// A boolean indicating whether the new behavior for beforeunload show cancel
+// dialog is in effect. If true, then
+// 1. If event.preventDefault() is called, prompt cancel dialog.
+// 2. If event.returnValue is the empty string, do not prompt cancel dialog.
+const char kBeforeunloadEventCancelByPreventDefaultEnabled[] =
+    "policy.beforeunload_event_cancel_by_prevent_default_enabled";
+
+// Boolean indicating whether Policy Test Page is Enabled.
+// The value is controlled by the PolicyTestPageEnabled policy.
+// If this is set to True, the page will be accessible.
+const char kPolicyTestPageEnabled[] = "policy_test_page_enabled";
+
+// A boolean pref indicating whether the new the page with "Cache-Control:
+// no-store" header is allowed to be stored in back/forward cache.
+const char kAllowBackForwardCacheForCacheControlNoStorePageEnabled[] =
+    "policy.allow_back_forward_cache_for_cache_control_no_store_page_enabled";
+
+const char kLocalTestPoliciesForNextStartup[] =
+    "local_test_policies_for_next_startup";
+
+// A boolean pref indicating whether to allow deprecation of the "unload"
+// event.
+// If false, the deprecation rollout will be ignored.
+const char kForcePermissionPolicyUnloadDefaultEnabled[] =
+    "policy.force_permission_policy_unload_default_enabled";
+
+const char kPPAPISharedImagesForVideoDecoderAllowed[] =
+    "policy.ppapi_shared_images_for_video_decoder_allowed";
 
 }  // namespace policy_prefs
 }  // namespace policy

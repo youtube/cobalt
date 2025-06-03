@@ -19,12 +19,14 @@ bool StructTraits<blink::mojom::ViewTransitionElementDataView,
       !data.ReadViewportMatrix(&out->viewport_matrix) ||
       !data.ReadOverflowRectInLayoutSpace(
           &out->overflow_rect_in_layout_space) ||
-      !data.ReadSnapshotId(&out->snapshot_id)) {
+      !data.ReadSnapshotId(&out->snapshot_id) ||
+      !data.ReadCapturedRectInLayoutSpace(
+          &out->captured_rect_in_layout_space) ||
+      !data.ReadCapturedCssProperties(&out->captured_css_properties)) {
     return false;
   }
 
   out->paint_order = data.paint_order();
-  out->is_root = data.is_root();
   return true;
 }
 
@@ -32,6 +34,7 @@ bool StructTraits<blink::mojom::ViewTransitionStateDataView,
                   blink::ViewTransitionState>::
     Read(blink::mojom::ViewTransitionStateDataView data,
          blink::ViewTransitionState* out) {
+  out->device_pixel_ratio = data.device_pixel_ratio();
   return data.ReadElements(&out->elements) &&
          data.ReadNavigationId(&out->navigation_id) &&
          data.ReadSnapshotRootSizeAtCapture(

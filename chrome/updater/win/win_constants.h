@@ -55,6 +55,11 @@ extern const wchar_t kRegValueName[];
 extern const wchar_t kRegValueUninstallCmdLine[];
 extern const wchar_t kRegValueVersion[];
 
+// Cohort registry constants.
+extern const wchar_t kRegKeyCohort[];
+extern const wchar_t kRegValueCohortName[];
+extern const wchar_t kRegValueCohortHint[];
+
 // Installer API registry names.
 // Registry values read from the Clients key for transmitting custom install
 // errors, messages, etc. On an update or install, the InstallerXXX values are
@@ -75,6 +80,8 @@ extern const wchar_t kRegValueLastInstallerExtraCode1[];
 extern const wchar_t kRegValueLastInstallerResultUIString[];
 extern const wchar_t kRegValueLastInstallerSuccessLaunchCmdLine[];
 
+extern const wchar_t* const kRegValuesLastInstaller[5];
+
 // AppCommand registry constants.
 extern const wchar_t kRegKeyCommands[];
 extern const wchar_t kRegValueCommandLine[];
@@ -85,6 +92,13 @@ extern const wchar_t kRegValueAutoRunOnOSUpgrade[];
 // Registry for enrollment token.
 extern const wchar_t kRegKeyCompanyCloudManagement[];
 extern const wchar_t kRegValueEnrollmentToken[];
+
+// Legacy registry for enrollment token.
+extern const wchar_t kRegKeyCompanyLegacyCloudManagement[];
+extern const wchar_t kRegValueCloudManagementEnrollmentToken[];
+
+#define UPDATER_DEV_KEY COMPANY_KEY L"UpdaterDev\\"
+extern const wchar_t kRegValueIntegrationTestMode[];
 
 // The name of the policy indicating that enrollment in cloud-based device
 // management is mandatory.
@@ -129,6 +143,38 @@ extern const wchar_t kLegacyRunValuePrefix[];
 // GoogleUpdate tasks for system and user respectively.
 extern const wchar_t kLegacyTaskNamePrefixSystem[];
 extern const wchar_t kLegacyTaskNamePrefixUser[];
+
+// `InstallerResult` values defined by the Installer API.
+enum class InstallerResult {
+  // The installer succeeded, unconditionally.
+  // - if a launch command was provided via the installer API, the command will
+  //   be launched and the updater UI will exit silently. Otherwise, the updater
+  //   will show an install success dialog.
+  kSuccess = 0,
+
+  // All the error installer results below are treated the same.
+  // - if an installer error was not provided via the installer API or the exit
+  //   code, generic error `kErrorApplicationInstallerFailed` will be reported.
+  // - the installer extra code is used if reported via the installer API.
+  // - the text description of the error is used if reported via the installer
+  //   API.
+  // If an installer result is not explicitly reported by the installer, the
+  // installer API values are internally set based on whether the exit code from
+  // the installer process is a success or an error:
+  // - If the exit code is a success, the installer result is set to success. If
+  //   a launch command was provided via the installer API, the command will be
+  //   launched and the updater UI will exit silently. Otherwise, the updater
+  //   will show an install success dialog.
+  // - If the exit code is a failure, the installer result is set to
+  //   `kExitCode`, the installer error is set to
+  //   `kErrorApplicationInstallerFailed`, and the installer extra code is set
+  //   to the exit code.
+  // - If a text description is reported via the installer API, it will be used.
+  kCustomError = 1,
+  kMsiError = 2,
+  kSystemError = 3,
+  kExitCode = 4,
+};
 
 }  // namespace updater
 

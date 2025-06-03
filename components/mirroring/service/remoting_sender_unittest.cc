@@ -38,33 +38,38 @@ namespace mirroring {
 namespace {
 
 void AreEqualExceptKeyframeImpl(const media::cast::SenderEncodedFrame& frame,
-                                const media::DecoderBuffer& buffer) {
+                                const media::DecoderBuffer& buffer,
+                                base::test::TaskEnvironment& environment) {
   if (buffer.is_key_frame()) {
     EXPECT_EQ(frame.dependency, Dependency::kKeyFrame);
   }
 
   scoped_refptr<media::DecoderBuffer> received_buffer =
       media::cast::ByteArrayToDecoderBuffer(
-          reinterpret_cast<const uint8_t*>(frame.data.data()),
-          frame.data.size());
+          base::as_bytes(base::make_span(frame.data)));
   EXPECT_EQ(std::string(reinterpret_cast<const char*>(buffer.data()),
                         buffer.data_size()),
             std::string(reinterpret_cast<const char*>(received_buffer->data()),
                         received_buffer->data_size()));
 
-  const auto timestamp = base::TimeTicks() + buffer.timestamp();
-  EXPECT_EQ(frame.reference_time, timestamp);
-  EXPECT_EQ(frame.encode_completion_time, timestamp);
+  // The reference time and encode completion time should be the same, and
+  // is based on the clock time.
+  EXPECT_EQ(frame.reference_time, frame.encode_completion_time);
+
+  // The reference time should use the current environment time. Since we are
+  // using a mock clock that is only manually advanced, it should be equal to
+  // the environment's current time.
+  EXPECT_EQ(frame.reference_time, environment.NowTicks());
 }
 
-ACTION_P(AreEqualNotFirstFrame, buffer) {
-  AreEqualExceptKeyframeImpl(*arg0, *buffer);
+ACTION_P(AreEqualNotFirstFrame, buffer, env) {
+  AreEqualExceptKeyframeImpl(*arg0, *buffer, *env);
   return media::cast::CastStreamingFrameDropReason::kNotDropped;
 }
 
-ACTION_P(AreEqualFirstFrame, buffer) {
+ACTION_P(AreEqualFirstFrame, buffer, env) {
   EXPECT_EQ(arg0->dependency, Dependency::kKeyFrame);
-  AreEqualExceptKeyframeImpl(*arg0, *buffer);
+  AreEqualExceptKeyframeImpl(*arg0, *buffer, *env);
   return media::cast::CastStreamingFrameDropReason::kNotDropped;
 }
 
@@ -78,11 +83,8 @@ class FakeSender : public media::cast::FrameSender {
   MOCK_METHOD1(SetTargetPlayoutDelay, void(base::TimeDelta));
   MOCK_CONST_METHOD0(GetTargetPlayoutDelay, base::TimeDelta());
   MOCK_CONST_METHOD0(NeedsKeyFrame, bool());
-  MOCK_CONST_METHOD1(
-      ShouldDropNextFrame,
-      media::cast::CastStreamingFrameDropReason(base::TimeDelta));
-  MOCK_METHOD1(GetRecordedRtpTimestamp,
-               media::cast::RtpTimeTicks(media::cast::FrameId));
+  MOCK_METHOD1(ShouldDropNextFrame,
+               media::cast::CastStreamingFrameDropReason(base::TimeDelta));
   MOCK_CONST_METHOD0(GetUnacknowledgedFrameCount, int());
   MOCK_METHOD2(GetSuggestedBitrate, int(base::TimeTicks, base::TimeDelta));
   MOCK_CONST_METHOD0(MaxFrameRate, double());
@@ -157,8 +159,9 @@ class MojoSenderWrapper {
 class RemotingSenderTest : public ::testing::Test {
  public:
   RemotingSenderTest()
-      : cast_environment_(new media::cast::CastEnvironment(
-            base::DefaultTickClock::GetInstance(),
+      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
+        cast_environment_(new media::cast::CastEnvironment(
+            task_environment_.GetMockTickClock(),
             task_environment_.GetMainThreadTaskRunner(),
             task_environment_.GetMainThreadTaskRunner(),
             task_environment_.GetMainThreadTaskRunner())) {
@@ -226,7 +229,7 @@ class RemotingSenderTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   const scoped_refptr<media::cast::CastEnvironment> cast_environment_;
 
-  raw_ptr<testing::StrictMock<FakeSender>> sender_;
+  raw_ptr<testing::StrictMock<FakeSender>, DanglingUntriaged> sender_;
   bool expecting_error_callback_run_ = false;
 
   std::unique_ptr<MojoSenderWrapper> mojo_sender_wrapper_;
@@ -241,9 +244,17 @@ class RemotingSenderTest : public ::testing::Test {
 };
 
 TEST_F(RemotingSenderTest, SendsFramesViaMojoDataPipe) {
+  EXPECT_CALL(*sender_, LastSendTime)
+      .WillRepeatedly(Return(base::TimeTicks::Now() - base::Milliseconds(100)));
+
+  EXPECT_CALL(*sender_, GetRecordedRtpTimestamp(media::cast::FrameId(0)))
+      .WillRepeatedly(Return(media::cast::RtpTimeTicks(1111)));
+  EXPECT_CALL(*sender_, GetRecordedRtpTimestamp(media::cast::FrameId(1)))
+      .WillRepeatedly(Return(media::cast::RtpTimeTicks(2222)));
+
   EXPECT_CALL(*sender_, GetUnacknowledgedFrameCount).WillOnce(Return(0));
   EXPECT_CALL(*sender_, EnqueueFrame(_))
-      .WillOnce(AreEqualFirstFrame(first_buffer_));
+      .WillOnce(AreEqualFirstFrame(first_buffer_, &task_environment_));
   mojo_sender_wrapper_->SendFrame(first_buffer_);
   EXPECT_TRUE(mojo_sender_wrapper_->is_frame_in_flight());
   RunPendingTasks();
@@ -251,7 +262,7 @@ TEST_F(RemotingSenderTest, SendsFramesViaMojoDataPipe) {
 
   EXPECT_CALL(*sender_, GetUnacknowledgedFrameCount).WillOnce(Return(0));
   EXPECT_CALL(*sender_, EnqueueFrame(_))
-      .WillOnce(AreEqualNotFirstFrame(second_buffer_));
+      .WillOnce(AreEqualNotFirstFrame(second_buffer_, &task_environment_));
   mojo_sender_wrapper_->SendFrame(second_buffer_);
   EXPECT_TRUE(mojo_sender_wrapper_->is_frame_in_flight());
   RunPendingTasks();
@@ -259,7 +270,7 @@ TEST_F(RemotingSenderTest, SendsFramesViaMojoDataPipe) {
 
   EXPECT_CALL(*sender_, GetUnacknowledgedFrameCount).WillOnce(Return(0));
   EXPECT_CALL(*sender_, EnqueueFrame(_))
-      .WillOnce(AreEqualNotFirstFrame(third_buffer_));
+      .WillOnce(AreEqualNotFirstFrame(third_buffer_, &task_environment_));
   mojo_sender_wrapper_->SendFrame(third_buffer_);
   EXPECT_TRUE(mojo_sender_wrapper_->is_frame_in_flight());
   RunPendingTasks();
@@ -292,7 +303,7 @@ TEST_F(RemotingSenderTest, CancelsOrAcksFramesInFlight) {
   EXPECT_TRUE(mojo_sender_wrapper_->is_frame_in_flight());
 
   EXPECT_CALL(*sender_, EnqueueFrame(_))
-      .WillOnce(AreEqualFirstFrame(first_buffer_));
+      .WillOnce(AreEqualFirstFrame(first_buffer_, &task_environment_));
   EXPECT_CALL(*sender_, GetUnacknowledgedFrameCount)
       .WillOnce(Return(media::cast::kMaxUnackedFrames - 1));
   SendFrameCancelled(first_frame_id_);
@@ -312,7 +323,7 @@ TEST_F(RemotingSenderTest, FramesWaitWhenEnqueueFails) {
 
   EXPECT_CALL(*sender_, GetUnacknowledgedFrameCount).WillOnce(Return(0));
   EXPECT_CALL(*sender_, EnqueueFrame(_))
-      .WillOnce(AreEqualFirstFrame(first_buffer_));
+      .WillOnce(AreEqualFirstFrame(first_buffer_, &task_environment_));
   SendFrameCancelled(first_frame_id_);
   RunPendingTasks();
   EXPECT_FALSE(mojo_sender_wrapper_->is_frame_in_flight());

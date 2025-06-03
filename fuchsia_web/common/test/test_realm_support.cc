@@ -80,13 +80,18 @@ void AppendCommandLineArgumentsForRealm(
   realm_builder.ReplaceRealmDecl(std::move(decl));
 }
 
+void AddRouteFromParent(RealmBuilder& realm_builder,
+                        base::StringPiece child_name,
+                        base::StringPiece protocol_name) {
+  ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
+  realm_builder.AddRoute(Route{.capabilities = {Protocol{protocol_name}},
+                               .source = ParentRef{},
+                               .targets = {std::move(child_ref)}});
+}
+
 void AddSyslogRoutesFromParent(RealmBuilder& realm_builder,
                                base::StringPiece child_name) {
-  ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
-  realm_builder.AddRoute(
-      Route{.capabilities = {Protocol{"fuchsia.logger.LogSink"}},
-            .source = ParentRef{},
-            .targets = {std::move(child_ref)}});
+  AddRouteFromParent(realm_builder, child_name, "fuchsia.logger.LogSink");
 }
 
 void AddVulkanRoutesFromParent(RealmBuilder& realm_builder,
@@ -103,15 +108,18 @@ void AddVulkanRoutesFromParent(RealmBuilder& realm_builder,
 void AddFontService(RealmBuilder& realm_builder, base::StringPiece child_name) {
   static constexpr char kFontsService[] = "isolated_fonts";
   static constexpr char kFontsUrl[] =
-      "fuchsia-pkg://fuchsia.com/fonts#meta/fonts.cm";
+      "fuchsia-pkg://fuchsia.com/fonts_hermetic_for_test"
+      "#meta/font_provider_hermetic_for_test.cm";
   realm_builder.AddChild(kFontsService, kFontsUrl);
   AddSyslogRoutesFromParent(realm_builder, kFontsService);
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
   realm_builder
-      .AddRoute(Route{
-          .capabilities = {Directory{.name = "config-data", .subdir = "fonts"}},
-          .source = ParentRef{},
-          .targets = {ChildRef{kFontsService}}})
+      .AddRoute(Route{.capabilities =
+                          {
+                              Protocol{"fuchsia.tracing.provider.Registry"},
+                          },
+                      .source = ParentRef{},
+                      .targets = {ChildRef{kFontsService}}})
       .AddRoute(Route{.capabilities = {Protocol{"fuchsia.fonts.Provider"}},
                       .source = ChildRef{kFontsService},
                       .targets = {std::move(child_ref)}});
@@ -123,8 +131,11 @@ void AddTestUiStack(RealmBuilder& realm_builder, base::StringPiece child_name) {
       "fuchsia-pkg://fuchsia.com/flatland-scene-manager-test-ui-stack#meta/"
       "test-ui-stack.cm";
   realm_builder.AddChild(kTestUiStackService, kTestUiStackUrl);
+  AddRouteFromParent(realm_builder, kTestUiStackService,
+                     "fuchsia.scheduler.ProfileProvider");
   AddSyslogRoutesFromParent(realm_builder, kTestUiStackService);
   AddVulkanRoutesFromParent(realm_builder, kTestUiStackService);
+
   ChildRef child_ref{std::string_view(child_name.data(), child_name.size())};
   realm_builder
       .AddRoute(
@@ -135,7 +146,6 @@ void AddTestUiStack(RealmBuilder& realm_builder, base::StringPiece child_name) {
                           {
                               Protocol{"fuchsia.ui.composition.Allocator"},
                               Protocol{"fuchsia.ui.composition.Flatland"},
-                              Protocol{"fuchsia.ui.scenic.Scenic"},
                           },
                       .source = ChildRef{kTestUiStackService},
                       .targets = {std::move(child_ref)}});

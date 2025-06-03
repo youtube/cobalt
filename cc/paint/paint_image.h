@@ -184,8 +184,8 @@ class CC_PAINT_EXPORT PaintImage {
     }
   };
 
-  enum class AnimationType { ANIMATED, VIDEO, STATIC };
-  enum class CompletionState { DONE, PARTIALLY_DONE };
+  enum class AnimationType { kAnimated, kVideo, kStatic };
+  enum class CompletionState { kDone, kPartiallyDone };
   enum class DecodingMode {
     // No preference has been specified. The compositor may choose to use sync
     // or async decoding. See CheckerImageTracker for the default behaviour.
@@ -279,6 +279,7 @@ class CC_PAINT_EXPORT PaintImage {
   bool is_multipart() const { return is_multipart_; }
   bool is_high_bit_depth() const { return is_high_bit_depth_; }
   bool may_be_lcp_candidate() const { return may_be_lcp_candidate_; }
+  bool no_cache() const { return no_cache_; }
   int repetition_count() const { return repetition_count_; }
   bool ShouldAnimate() const;
   AnimationSequenceId reset_animation_sequence_id() const {
@@ -357,6 +358,13 @@ class CC_PAINT_EXPORT PaintImage {
     return gainmap_info_.value();
   }
 
+  absl::optional<gfx::HDRMetadata> GetHDRMetadata() const {
+    if (const auto* image_metadata = GetImageHeaderMetadata()) {
+      return image_metadata->hdr_metadata;
+    }
+    return absl::nullopt;
+  }
+
   std::string ToString() const;
 
  private:
@@ -398,14 +406,19 @@ class CC_PAINT_EXPORT PaintImage {
   ContentId content_id_ = kInvalidContentId;
 
   sk_sp<PaintImageGenerator> paint_image_generator_;
+
+  // Gainmap HDR metadata.
   sk_sp<PaintImageGenerator> gainmap_paint_image_generator_;
   absl::optional<SkGainmapInfo> gainmap_info_;
+
+  // The HDR metadata for non-gainmap HDR rendering.
+  absl::optional<gfx::HDRMetadata> hdr_metadata_;
 
   sk_sp<TextureBacking> texture_backing_;
 
   Id id_ = 0;
-  AnimationType animation_type_ = AnimationType::STATIC;
-  CompletionState completion_state_ = CompletionState::DONE;
+  AnimationType animation_type_ = AnimationType::kStatic;
+  CompletionState completion_state_ = CompletionState::kDone;
   int repetition_count_ = kAnimationNone;
 
   // Whether the data fetched for this image is a part of a multpart response.
@@ -419,6 +432,11 @@ class CC_PAINT_EXPORT PaintImage {
   // it, but this flag is intended for metrics on when we do not present the
   // image when the system claims.
   bool may_be_lcp_candidate_ = false;
+
+  // Indicates that the image is unlikely to be re-used past the first frame it
+  // appears in. Used as a hint to avoid caching it downstream, but is not a
+  // mandate.
+  bool no_cache_ = false;
 
   // An incrementing sequence number maintained by the painter to indicate if
   // this animation should be reset in the compositor. Incrementing this number

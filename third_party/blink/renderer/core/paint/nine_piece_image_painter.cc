@@ -12,7 +12,7 @@
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/nine_piece_image.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
-#include "third_party/blink/renderer/platform/graphics/scoped_interpolation_quality.h"
+#include "third_party/blink/renderer/platform/graphics/scoped_image_rendering_settings.h"
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -120,8 +120,10 @@ void PaintPieces(GraphicsContext& context,
   // TODO(penglin):  We need to make a single classification for the entire grid
   auto image_auto_dark_mode = ImageAutoDarkMode::Disabled();
 
-  ScopedInterpolationQuality interpolation_quality_scope(
-      context, style.GetInterpolationQuality());
+  ScopedImageRenderingSettings image_rendering_settings_scope(
+      context, style.GetInterpolationQuality(),
+      static_cast<cc::PaintFlags::DynamicRangeLimit>(
+          style.DynamicRangeLimit()));
   for (NinePiece piece = kMinPiece; piece < kMaxPiece; ++piece) {
     NinePieceImageGrid::NinePieceDrawInfo draw_info =
         grid.GetNinePieceDrawInfo(piece);
@@ -157,12 +159,6 @@ void PaintPieces(GraphicsContext& context,
         draw_info.source.height() * draw_info.tile_scale.y());
     if (!h_tile || !v_tile)
       continue;
-
-    // TODO(cavalcantii): see crbug.com/662507.
-    absl::optional<ScopedInterpolationQuality> interpolation_quality_override;
-    if (draw_info.tile_rule.horizontal == kRoundImageRule ||
-        draw_info.tile_rule.vertical == kRoundImageRule)
-      interpolation_quality_override.emplace(context, kInterpolationMedium);
 
     ImageTilingInfo tiling_info;
     tiling_info.image_rect = draw_info.source;

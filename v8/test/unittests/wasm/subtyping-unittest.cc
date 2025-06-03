@@ -32,20 +32,20 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
-  module->add_struct_type(builder.Build(), supertype, is_final);
+  module->AddStructTypeForTesting(builder.Build(), supertype, is_final);
   if (in_singleton_rec_group) {
-    GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
 }
 
 void DefineArray(WasmModule* module, FieldInit element_type,
                  uint32_t supertype = kNoSuperType, bool is_final = false,
                  bool in_singleton_rec_group = true) {
-  module->add_array_type(module->signature_zone.New<ArrayType>(
-                             element_type.first, element_type.second),
-                         supertype, is_final);
+  module->AddArrayTypeForTesting(module->signature_zone.New<ArrayType>(
+                                     element_type.first, element_type.second),
+                                 supertype, is_final);
   if (in_singleton_rec_group) {
-    GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module);
   }
 }
 
@@ -54,7 +54,7 @@ void DefineSignature(WasmModule* module,
                      std::initializer_list<ValueType> returns,
                      uint32_t supertype = kNoSuperType, bool is_final = false,
                      bool in_singleton_rec_group = true) {
-  module->add_signature(
+  module->AddSignatureForTesting(
       FunctionSig::Build(&module->signature_zone, returns, params), supertype,
       is_final);
   if (in_singleton_rec_group) {
@@ -89,8 +89,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     /* 12 */ DefineSignature(module, {kWasmI32, kWasmI32}, {kWasmI32});
     /* 13 */ DefineSignature(module, {ref(1)}, {kWasmI32});
     /* 14 */ DefineSignature(module, {ref(0)}, {kWasmI32}, 13);
-    /* 15 */ DefineSignature(module, {ref(0)}, {ref(4)}, 16);
-    /* 16 */ DefineSignature(module, {ref(0)}, {ref(0)});
+    /* 15 */ DefineSignature(module, {ref(0)}, {ref(0)});
+    /* 16 */ DefineSignature(module, {ref(0)}, {ref(4)}, 15);
     /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))});
 
     // Rec. group.
@@ -144,6 +144,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       kWasmExternRef, kWasmNullExternRef,   // --
       kWasmNullRef,   kWasmNullFuncRef,     // --
       kWasmStringRef, kWasmStringViewIter,  // --
+      kWasmExnRef,    kWasmNullExnRef,      // --
       refNull(0),     ref(0),               // struct
       refNull(2),     ref(2),               // array
       refNull(11),    ref(11)               // signature
@@ -210,12 +211,14 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       const bool is_string_view = ref_type == kWasmStringViewIter ||
                                   ref_type == kWasmStringViewWtf8 ||
                                   ref_type == kWasmStringViewWtf16;
+      const bool is_exn =
+          ref_type == kWasmExnRef || ref_type == kWasmNullExnRef;
       SCOPED_TRACE("ref_type: " + ref_type.name());
       // Concrete reference types, i31ref, structref and arrayref are subtypes
-      // of eqref, externref/funcref/anyref/functions are not.
+      // of eqref, externref/funcref/anyref/exnref/functions are not.
       SUBTYPE_IFF(ref_type, kWasmEqRef,
                   ref_type != kWasmAnyRef && !is_any_func && !is_extern &&
-                      !is_string_view && ref_type != kWasmStringRef);
+                      !is_string_view && ref_type != kWasmStringRef && !is_exn);
       // Struct types are subtypes of structref.
       SUBTYPE_IFF(ref_type, kWasmStructRef,
                   ref_type == kWasmStructRef || ref_type == kWasmNullRef ||
@@ -231,7 +234,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Each non-func, non-extern, non-string-view, non-string-iter reference
       // type is a subtype of anyref.
       SUBTYPE_IFF(ref_type, kWasmAnyRef,
-                  !is_any_func && !is_extern && !is_string_view);
+                  !is_any_func && !is_extern && !is_string_view && !is_exn);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
       // Only externref and nullexternref are subtypes of externref.
@@ -240,8 +243,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       SUBTYPE_IFF(ref_type, kWasmNullExternRef, ref_type == kWasmNullExternRef);
       // Each nullable non-func, non-extern reference type is a supertype of
       // nullref.
-      SUBTYPE_IFF(kWasmNullRef, ref_type,
-                  ref_type.is_nullable() && !is_any_func && !is_extern);
+      SUBTYPE_IFF(
+          kWasmNullRef, ref_type,
+          ref_type.is_nullable() && !is_any_func && !is_extern && !is_exn);
       // Only nullref is a subtype of nullref.
       SUBTYPE_IFF(ref_type, kWasmNullRef, ref_type == kWasmNullRef);
       // Only nullable funcs are supertypes of nofunc.
@@ -263,8 +267,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // The rest of ref. types are unrelated.
-    for (ValueType type_1 : {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
-      for (ValueType type_2 : {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
+    for (ValueType type_1 :
+         {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef, kWasmExnRef}) {
+      for (ValueType type_2 :
+           {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef, kWasmExnRef}) {
         SUBTYPE_IFF(type_1, type_2, type_1 == type_2);
       }
     }
@@ -310,7 +316,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Parameter contravariance holds.
     VALID_SUBTYPE(ref(14), ref(13));
     // Return type covariance holds.
-    VALID_SUBTYPE(ref(15), ref(16));
+    VALID_SUBTYPE(ref(16), ref(15));
     // Identical types are subtype-related.
     VALID_SUBTYPE(ref(10), ref(10));
     VALID_SUBTYPE(ref(11), ref(11));
@@ -384,12 +390,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
         INTERSECTION(type, kWasmAnyRef, kWasmBottom);
         continue;
       }
-      UNION(kWasmAnyRef, type, kWasmAnyRef);
-      INTERSECTION(kWasmAnyRef, type, type);
+      bool is_exn = type == kWasmExnRef || type == kWasmNullExnRef;
+      UNION(kWasmAnyRef, type, is_exn ? kWasmBottom : kWasmAnyRef);
+      INTERSECTION(kWasmAnyRef, type, is_exn ? kWasmBottom : type);
       UNION(kWasmAnyRef.AsNonNull(), type,
-            type.is_nullable() ? kWasmAnyRef : kWasmAnyRef.AsNonNull());
+            is_exn               ? kWasmBottom
+            : type.is_nullable() ? kWasmAnyRef
+                                 : kWasmAnyRef.AsNonNull());
       INTERSECTION(kWasmAnyRef.AsNonNull(), type,
-                   type != kWasmNullRef ? type.AsNonNull() : kWasmBottom);
+                   is_exn                 ? kWasmBottom
+                   : type != kWasmNullRef ? type.AsNonNull()
+                                          : kWasmBottom);
     }
 
     // Abstract types vs abstract types.

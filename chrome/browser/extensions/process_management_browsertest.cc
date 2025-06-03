@@ -10,7 +10,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,7 +18,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -622,7 +620,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest,
   std::string script =
       base::StringPrintf("location.href = '%s';", redirect_url.spec().c_str());
   content::TestNavigationObserver observer(new_web_contents);
-  EXPECT_TRUE(content::ExecuteScript(new_web_contents, script));
+  EXPECT_TRUE(content::ExecJs(new_web_contents, script));
   observer.Wait();
 
   EXPECT_EQ(observer.last_navigation_url(), blocked_url);
@@ -689,7 +687,7 @@ IN_PROC_BROWSER_TEST_F(
             canAccess;
          }
        )";
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         web_contents, base::StringPrintf(kOpenNewWindow, url.spec().c_str())));
 
     // WaitForLoadStop() will return false on a 404, but that can happen if we

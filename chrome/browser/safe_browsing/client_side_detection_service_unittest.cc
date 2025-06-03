@@ -114,10 +114,6 @@ class ClientSideDetectionServiceTest
     profile_ = profile_manager_.CreateTestingProfile("test-user");
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {kSafeBrowsingRemoveCookiesInAuthRequests, {}}};
-    if (ShouldEnableCacao()) {
-      enabled_features.push_back(
-          {kClientSideDetectionModelOptimizationGuide, {}});
-    }
     if (ShouldEnableESBDailyPhishingLimit()) {
       base::FieldTrialParams params;
       params["kMaxReportsPerIntervalESB"] = "10";
@@ -125,24 +121,26 @@ class ClientSideDetectionServiceTest
           {kSafeBrowsingDailyPhishingReportsLimit, params});
     }
 
+    if (ShouldEnableImageEmbeddingModelCacao()) {
+      enabled_features.push_back({kClientSideDetectionModelImageEmbedder, {}});
+    }
+
     feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }
-  bool ShouldEnableCacao() { return get<0>(GetParam()); }
 
-  bool ShouldEnableESBDailyPhishingLimit() { return get<1>(GetParam()); }
+  bool ShouldEnableESBDailyPhishingLimit() { return get<0>(GetParam()); }
+
+  bool ShouldEnableImageEmbeddingModelCacao() { return get<1>(GetParam()); }
 
  protected:
   void SetUp() override {
     test_shared_loader_factory_ =
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &test_url_loader_factory_);
-    if (base::FeatureList::IsEnabled(
-            kClientSideDetectionModelOptimizationGuide)) {
-      model_observer_tracker_ =
-          std::make_unique<ClientSidePhishingModelObserverTracker>();
-      background_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-          {base::MayBlock(), base::TaskPriority::BEST_EFFORT});
-    }
+    model_observer_tracker_ =
+        std::make_unique<ClientSidePhishingModelObserverTracker>();
+    background_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT});
   }
 
   void TearDown() override {
@@ -161,7 +159,7 @@ class ClientSideDetectionServiceTest
 
   void ReadModelAndTfLiteFiles() {
     base::FilePath model_file_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &model_file_path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &model_file_path);
     model_file_path = model_file_path.AppendASCII("components")
                           .AppendASCII("test")
                           .AppendASCII("data")
@@ -169,7 +167,8 @@ class ClientSideDetectionServiceTest
                           .AppendASCII("client_model.pb");
 
     base::FilePath additional_files_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &additional_files_path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
+                           &additional_files_path);
     additional_files_path = additional_files_path.AppendASCII("components")
                                 .AppendASCII("test")
                                 .AppendASCII("data")
@@ -322,10 +321,7 @@ TEST_P(ClientSideDetectionServiceTest, ServiceObjectDeletedBeforeCallbackDone) {
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
-    ReadModelAndTfLiteFiles();
-  }
+  ReadModelAndTfLiteFiles();
   profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
   EXPECT_NE(csd_service_.get(), nullptr);
   // We delete the client-side detection service class even though the callbacks
@@ -340,10 +336,7 @@ TEST_P(ClientSideDetectionServiceTest, SendClientReportPhishingRequest) {
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
   csd_service_->SetURLLoaderFactoryForTesting(test_shared_loader_factory_);
 
   GURL url("http://a.com/");
@@ -403,10 +396,7 @@ TEST_P(ClientSideDetectionServiceTest,
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
   csd_service_->SetURLLoaderFactoryForTesting(test_shared_loader_factory_);
 
   profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
@@ -435,10 +425,7 @@ TEST_P(ClientSideDetectionServiceTest,
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
   csd_service_->SetURLLoaderFactoryForTesting(test_shared_loader_factory_);
 
   profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
@@ -465,10 +452,7 @@ TEST_P(ClientSideDetectionServiceTest, GetNumReportTest) {
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
 
   base::Time now = base::Time::Now();
   base::TimeDelta twenty_five_hours = base::Hours(25);
@@ -485,10 +469,7 @@ TEST_P(ClientSideDetectionServiceTest, GetNumReportTestESB) {
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
 
   profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
 
@@ -516,10 +497,7 @@ TEST_P(ClientSideDetectionServiceTest, CacheTest) {
   csd_service_ = std::make_unique<ClientSideDetectionService>(
       std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
       model_observer_tracker_.get(), background_task_runner_);
-  if (base::FeatureList::IsEnabled(
-          kClientSideDetectionModelOptimizationGuide)) {
     ReadModelAndTfLiteFiles();
-  }
 
   TestCache();
 }
@@ -602,6 +580,27 @@ TEST_P(ClientSideDetectionServiceTest, TestModelFollowsPrefs) {
   // Safe Browsing is enabled.
   profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
   EXPECT_TRUE(csd_service_->enabled());
+}
+
+TEST_P(ClientSideDetectionServiceTest,
+       TestReceivingImageEmbedderUpdatesAfterResubscription) {
+  if (!base::FeatureList::IsEnabled(kClientSideDetectionModelImageEmbedder)) {
+    return;
+  }
+
+  profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
+  profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
+  csd_service_ = std::make_unique<ClientSideDetectionService>(
+      std::make_unique<ChromeClientSideDetectionServiceDelegate>(profile_),
+      model_observer_tracker_.get(), background_task_runner_);
+
+  EXPECT_TRUE(csd_service_->IsSubscribedToImageEmbeddingModelUpdates());
+
+  profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, false);
+  EXPECT_TRUE(csd_service_->IsSubscribedToImageEmbeddingModelUpdates());
+
+  profile_->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnhanced, true);
+  EXPECT_TRUE(csd_service_->IsSubscribedToImageEmbeddingModelUpdates());
 }
 
 }  // namespace safe_browsing

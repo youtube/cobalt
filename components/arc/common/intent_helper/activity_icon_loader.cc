@@ -16,7 +16,7 @@
 #include "base/task/thread_pool.h"
 #include "components/arc/common/intent_helper/adaptive_icon_delegate.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
@@ -38,13 +38,6 @@ constexpr size_t kSmallIconSizeInDip = 16;
 constexpr size_t kLargeIconSizeInDip = 20;
 constexpr size_t kMaxIconSizeInPx = 200;
 constexpr char kPngDataUrlPrefix[] = "data:image/png;base64,";
-
-ui::ResourceScaleFactor GetSupportedResourceScaleFactor() {
-  std::vector<ui::ResourceScaleFactor> scale_factors =
-      ui::GetSupportedResourceScaleFactors();
-  DCHECK(!scale_factors.empty());
-  return scale_factors.back();
-}
 
 // Returns an instance for calling RequestActivityIcons().
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -132,11 +125,11 @@ GetInstanceForRequestActivityIcons() {
     return ActivityIconLoader::GetResult::FAILED_ARC_NOT_SUPPORTED;
   }
 
-  if (service->GetInterfaceVersion(crosapi::mojom::Arc::Uuid_) <
+  if (service->GetInterfaceVersion<crosapi::mojom::Arc>() <
       int{crosapi::mojom::Arc::MethodMinVersions::
               kRequestActivityIconsMinVersion}) {
     VLOG(2) << "Ash Lacros-Arc version "
-            << service->GetInterfaceVersion(crosapi::mojom::Arc::Uuid_)
+            << service->GetInterfaceVersion<crosapi::mojom::Arc>()
             << " does not support RequestActivityIcons().";
     return ActivityIconLoader::GetResult::FAILED_ARC_NOT_SUPPORTED;
   }
@@ -261,7 +254,7 @@ bool ActivityIconLoader::ActivityName::operator<(
 }
 
 ActivityIconLoader::ActivityIconLoader()
-    : scale_factor_(GetSupportedResourceScaleFactor()) {}
+    : scale_factor_(ui::GetMaxSupportedResourceScaleFactor()) {}
 
 ActivityIconLoader::~ActivityIconLoader() = default;
 

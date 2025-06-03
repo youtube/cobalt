@@ -295,7 +295,7 @@ class FakeCameraDevice::Subscription
   void OnFrameReadyInBuffer(
       video_capture::mojom::ReadyFrameInBufferPtr buffer) {
     DCHECK(is_active_ && !is_suspended_);
-    subscriber_->OnFrameReadyInBuffer(std::move(buffer), {});
+    subscriber_->OnFrameReadyInBuffer(std::move(buffer));
   }
 
   void OnFrameDropped() {
@@ -412,6 +412,9 @@ void FakeCameraDevice::CreatePushSubscription(
       requested_settings);
 }
 
+void FakeCameraDevice::RegisterVideoEffectsManager(
+    mojo::PendingRemote<::video_capture::mojom::VideoEffectsManager> remote) {}
+
 void FakeCameraDevice::OnFinishedConsumingBuffer(int32_t buffer_id) {
   auto iter = buffer_pool_.find(buffer_id);
   if (iter != buffer_pool_.end())
@@ -495,7 +498,6 @@ void FakeCameraDevice::OnNextFrame() {
     info->coded_size = current_settings_->requested_format.frame_size;
     info->visible_rect = gfx::Rect(info->coded_size);
     info->is_premapped = false;
-    info->color_space = gfx::ColorSpace();
 
     subscription->OnFrameReadyInBuffer(
         video_capture::mojom::ReadyFrameInBuffer::New(buffer->buffer_id(),

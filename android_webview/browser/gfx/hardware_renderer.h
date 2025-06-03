@@ -21,6 +21,7 @@ namespace android_webview {
 class AwVulkanContextProvider;
 class RenderThreadManager;
 
+// Lifetime: Temporary
 struct OverlaysParams {
   enum class Mode {
     Disabled,
@@ -35,6 +36,7 @@ struct OverlaysParams {
   MergeTransactionFn merge_transaction = nullptr;
 };
 
+// Lifetime: Temporary
 struct HardwareRendererDrawParams {
   bool operator==(const HardwareRendererDrawParams& other) const;
   bool operator!=(const HardwareRendererDrawParams& other) const;
@@ -49,6 +51,7 @@ struct HardwareRendererDrawParams {
   gfx::ColorSpace color_space;
 };
 
+// Lifetime: WebView
 class HardwareRenderer {
  public:
   // Two rules:
@@ -86,6 +89,7 @@ class HardwareRenderer {
 
   void InitializeOnViz(RootFrameSinkGetter root_frame_sink_getter);
   bool IsUsingVulkan() const;
+  bool IsUsingANGLEOverGL() const;
   void MergeTransactionIfNeeded(
       OverlaysParams::MergeTransactionFn merge_transaction);
   void ReturnChildFrame(std::unique_ptr<ChildFrame> child_frame);
@@ -96,6 +100,7 @@ class HardwareRenderer {
   void ReportDrawMetric(const HardwareRendererDrawParams& params);
   void DrawAndSwap(const HardwareRendererDrawParams& params,
                    const OverlaysParams& overlays_params);
+  void MarkAllowContextLoss();
 
   THREAD_CHECKER(render_thread_checker_);
 

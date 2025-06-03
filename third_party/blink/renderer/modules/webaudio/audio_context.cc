@@ -135,19 +135,20 @@ using blink::SetSinkIdResolver;
 
 }  // namespace
 
-AudioContext* AudioContext::Create(Document& document,
+AudioContext* AudioContext::Create(ExecutionContext* context,
                                    const AudioContextOptions* context_options,
                                    ExceptionState& exception_state) {
   DCHECK(IsMainThread());
 
-  if (document.IsDetached()) {
+  LocalDOMWindow& window = *To<LocalDOMWindow>(context);
+  if (!window.GetFrame()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Cannot create AudioContext on a detached document.");
     return nullptr;
   }
 
-  document.domWindow()->CountUseOnlyInCrossOriginIframe(
+  window.CountUseOnlyInCrossOriginIframe(
       WebFeature::kAudioContextCrossOriginIframe);
 
   WebAudioLatencyHint latency_hint(WebAudioLatencyHint::kCategoryInteractive);
@@ -180,10 +181,10 @@ AudioContext* AudioContext::Create(Document& document,
   }
 
   // The empty string means the default audio device.
-  auto frame_token = document.domWindow()->GetLocalFrameToken();
+  auto frame_token = window.GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor(String(""), frame_token);
 
-  if (document.domWindow()->IsSecureContext() && context_options->hasSinkId()) {
+  if (window.IsSecureContext() && context_options->hasSinkId()) {
     if (context_options->sinkId()->IsString()) {
       sink_descriptor = WebAudioSinkDescriptor(
           context_options->sinkId()->GetAsString(), frame_token);
@@ -209,7 +210,7 @@ AudioContext* AudioContext::Create(Document& document,
 
   SCOPED_UMA_HISTOGRAM_TIMER("WebAudio.AudioContext.CreateTime");
   AudioContext* audio_context = MakeGarbageCollected<AudioContext>(
-      document, latency_hint, sample_rate, sink_descriptor);
+      window, latency_hint, sample_rate, sink_descriptor);
   ++hardware_context_count;
   audio_context->UpdateStateIfNeeded();
 
@@ -234,25 +235,25 @@ AudioContext* AudioContext::Create(Document& document,
   base::UmaHistogramSparse("WebAudio.AudioContext.MaxChannelsAvailable",
                            audio_context->destination()->maxChannelCount());
 
-  probe::DidCreateAudioContext(&document);
+  probe::DidCreateAudioContext(&window);
 
   return audio_context;
 }
 
-AudioContext::AudioContext(Document& document,
+AudioContext::AudioContext(LocalDOMWindow& window,
                            const WebAudioLatencyHint& latency_hint,
                            absl::optional<float> sample_rate,
                            WebAudioSinkDescriptor sink_descriptor)
-    : BaseAudioContext(&document, kRealtimeContext),
+    : BaseAudioContext(&window, kRealtimeContext),
       context_id_(context_id++),
-      audio_context_manager_(document.GetExecutionContext()),
-      permission_service_(document.GetExecutionContext()),
-      permission_receiver_(this, document.GetExecutionContext()),
+      audio_context_manager_(&window),
+      permission_service_(&window),
+      permission_receiver_(this, &window),
       sink_descriptor_(sink_descriptor),
       v8_sink_id_(
           MakeGarbageCollected<V8UnionAudioSinkInfoOrString>(String(""))),
-      media_device_service_(document.GetExecutionContext()),
-      media_device_service_receiver_(this, document.GetExecutionContext()) {
+      media_device_service_(&window),
+      media_device_service_receiver_(this, &window) {
   RecordAudioContextOperation(AudioContextOperation::kCreate);
   SendLogMessage(GetAudioContextLogString(latency_hint, sample_rate));
 
@@ -264,12 +265,24 @@ AudioContext::AudioContext(Document& document,
 
   switch (GetAutoplayPolicy()) {
     case AutoplayPolicy::Type::kNoUserGestureRequired:
+      CHECK(window.document());
+      if (window.document()->IsPrerendering()) {
+        // In prerendering, the AudioContext will not start even if the
+        // AutoplayPolicy permits it. the context will resume automatically
+        // once the page is activated. See:
+        // https://wicg.github.io/nav-speculation/prerendering.html#web-audio-patch
+        autoplay_status_ = AutoplayStatus::kFailed;
+        blocked_by_prerendering_ = true;
+        window.document()->AddPostPrerenderingActivationStep(
+            WTF::BindOnce(&AudioContext::ResumeOnPrerenderActivation,
+                          WrapWeakPersistent(this)));
+      }
       break;
     case AutoplayPolicy::Type::kUserGestureRequired:
       // kUserGestureRequire policy only applies to cross-origin iframes for Web
       // Audio.
-      if (document.GetFrame() &&
-          document.GetFrame()->IsCrossOriginToOutermostMainFrame()) {
+      if (window.GetFrame() &&
+          window.GetFrame()->IsCrossOriginToOutermostMainFrame()) {
         autoplay_status_ = AutoplayStatus::kFailed;
         user_gesture_required_ = true;
       }
@@ -299,12 +312,10 @@ AudioContext::AudioContext(Document& document,
                                 base_latency_));
 
   // Perform the initial permission check for the output latency precision.
-  ExecutionContext* execution_context = document.GetExecutionContext();
   auto microphone_permission_name = mojom::blink::PermissionName::AUDIO_CAPTURE;
-  ConnectToPermissionService(
-      execution_context,
-      permission_service_.BindNewPipeAndPassReceiver(
-          execution_context->GetTaskRunner(TaskType::kPermission)));
+  ConnectToPermissionService(&window,
+                             permission_service_.BindNewPipeAndPassReceiver(
+                                 window.GetTaskRunner(TaskType::kPermission)));
   permission_service_->HasPermission(
       CreatePermissionDescriptor(microphone_permission_name),
       WTF::BindOnce(&AudioContext::DidInitialPermissionCheck,
@@ -367,9 +378,10 @@ ScriptPromise AudioContext::suspendContext(ScriptState* script_state,
   DCHECK(IsMainThread());
 
   if (ContextState() == kClosed) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Cannot suspend a closed AudioContext.");
-    return ScriptPromise();
+    return ScriptPromise::RejectWithDOMException(
+        script_state, MakeGarbageCollected<DOMException>(
+                          DOMExceptionCode::kInvalidStateError,
+                          "Cannot suspend a closed AudioContext."));
   }
 
   suspended_by_user_ = true;
@@ -380,7 +392,7 @@ ScriptPromise AudioContext::suspendContext(ScriptState* script_state,
   }
 
   // Probe reports the suspension only when the promise is resolved.
-  probe::DidSuspendAudioContext(GetDocument());
+  probe::DidSuspendAudioContext(GetExecutionContext());
 
   // Since we don't have any way of knowing when the hardware actually stops,
   // we'll just resolve the promise now.
@@ -392,9 +404,10 @@ ScriptPromise AudioContext::resumeContext(ScriptState* script_state,
   DCHECK(IsMainThread());
 
   if (ContextState() == kClosed) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Cannot resume a closed AudioContext.");
-    return ScriptPromise();
+    return ScriptPromise::RejectWithDOMException(
+        script_state, MakeGarbageCollected<DOMException>(
+                          DOMExceptionCode::kInvalidStateError,
+                          "Cannot resume a closed AudioContext."));
   }
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -418,7 +431,7 @@ ScriptPromise AudioContext::resumeContext(ScriptState* script_state,
       StartRendering();
 
       // Probe reports only when the user gesture allows the audio rendering.
-      probe::DidResumeAudioContext(GetDocument());
+      probe::DidResumeAudioContext(GetExecutionContext());
     }
   }
 
@@ -489,12 +502,10 @@ AudioTimestamp* AudioContext::getOutputTimestamp(
 ScriptPromise AudioContext::closeContext(ScriptState* script_state,
                                          ExceptionState& exception_state) {
   if (ContextState() == kClosed) {
-    // We've already closed the context previously, but it hasn't yet been
-    // resolved, so just throw a DOM exception to trigger a promise rejection
-    // and return an empty promise.
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "Cannot close a closed AudioContext.");
-    return ScriptPromise();
+    return ScriptPromise::RejectWithDOMException(
+        script_state, MakeGarbageCollected<DOMException>(
+                          DOMExceptionCode::kInvalidStateError,
+                          "Cannot close a closed AudioContext."));
   }
 
   close_resolver_ = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -507,7 +518,7 @@ ScriptPromise AudioContext::closeContext(ScriptState* script_state,
   // The promise from closing context resolves immediately after this function.
   DidClose();
 
-  probe::DidCloseAudioContext(GetDocument());
+  probe::DidCloseAudioContext(GetExecutionContext());
   RecordAudioContextOperation(AudioContextOperation::kClose);
 
   return promise;
@@ -683,11 +694,11 @@ void AudioContext::NotifySourceNodeStart() {
 }
 
 AutoplayPolicy::Type AudioContext::GetAutoplayPolicy() const {
-  Document* document = GetDocument();
-  DCHECK(document);
+  LocalDOMWindow* window = GetWindow();
+  DCHECK(window);
 
   auto autoplay_policy =
-      AutoplayPolicy::GetAutoplayPolicyForDocument(*document);
+      AutoplayPolicy::GetAutoplayPolicyForDocument(*window->document());
 
   if (autoplay_policy ==
           AutoplayPolicy::Type::kDocumentUserActivationRequired &&
@@ -705,15 +716,15 @@ AutoplayPolicy::Type AudioContext::GetAutoplayPolicy() const {
 }
 
 bool AudioContext::AreAutoplayRequirementsFulfilled() const {
-  DCHECK(GetDocument());
+  DCHECK(GetWindow());
 
   switch (GetAutoplayPolicy()) {
     case AutoplayPolicy::Type::kNoUserGestureRequired:
       return true;
     case AutoplayPolicy::Type::kUserGestureRequired:
-      return LocalFrame::HasTransientUserActivation(GetDocument()->GetFrame());
+      return LocalFrame::HasTransientUserActivation(GetWindow()->GetFrame());
     case AutoplayPolicy::Type::kDocumentUserActivationRequired:
-      return AutoplayPolicy::IsDocumentAllowedToPlay(*GetDocument());
+      return AutoplayPolicy::IsDocumentAllowedToPlay(*GetWindow()->document());
   }
 
   NOTREACHED();
@@ -736,6 +747,12 @@ void AudioContext::MaybeAllowAutoplayWithUnlockType(AutoplayUnlockType type) {
 }
 
 bool AudioContext::IsAllowedToStart() const {
+  if (blocked_by_prerendering_) {
+    // In prerendering, the AudioContext will not start rendering. See:
+    // https://wicg.github.io/nav-speculation/prerendering.html#web-audio-patch
+    return false;
+  }
+
   if (!user_gesture_required_) {
     return true;
   }
@@ -769,13 +786,13 @@ bool AudioContext::IsAllowedToStart() const {
 }
 
 void AudioContext::RecordAutoplayMetrics() {
-  if (!autoplay_status_.has_value() || !GetDocument()) {
+  if (!autoplay_status_.has_value() || !GetWindow()) {
     return;
   }
 
-  ukm::UkmRecorder* ukm_recorder = GetDocument()->UkmRecorder();
+  ukm::UkmRecorder* ukm_recorder = GetWindow()->UkmRecorder();
   DCHECK(ukm_recorder);
-  ukm::builders::Media_Autoplay_AudioContext(GetDocument()->UkmSourceID())
+  ukm::builders::Media_Autoplay_AudioContext(GetWindow()->UkmSourceID())
       .SetStatus(static_cast<int>(autoplay_status_.value()))
       .SetUnlockType(autoplay_unlock_type_
                          ? static_cast<int>(autoplay_unlock_type_.value())
@@ -786,8 +803,8 @@ void AudioContext::RecordAutoplayMetrics() {
   // Record autoplay_status_ value.
   base::UmaHistogramEnumeration("WebAudio.Autoplay", autoplay_status_.value());
 
-  if (GetDocument()->GetFrame() &&
-      GetDocument()->GetFrame()->IsCrossOriginToOutermostMainFrame()) {
+  if (GetWindow()->GetFrame() &&
+      GetWindow()->GetFrame()->IsCrossOriginToOutermostMainFrame()) {
     base::UmaHistogramEnumeration("WebAudio.Autoplay.CrossOrigin",
                                   autoplay_status_.value());
   }
@@ -834,8 +851,8 @@ bool AudioContext::HandlePreRenderTasks(const AudioIOPosition* output_position,
     // passed.
     HandleStoppableSourceNodes();
 
-    // Update the dirty state of the listener.
-    listener()->UpdateState();
+    // Update the dirty state of the AudioListenerHandler.
+    listener()->Handler().UpdateState();
 
     // Update output timestamp and metric.
     output_position_ = *output_position;
@@ -934,14 +951,14 @@ void AudioContext::NotifyAudibleAudioStopped() {
 }
 
 void AudioContext::EnsureAudioContextManagerService() {
-  if (audio_context_manager_.is_bound() || !GetDocument()) {
+  if (audio_context_manager_.is_bound() || !GetWindow()) {
     return;
   }
 
-  GetDocument()->GetFrame()->GetBrowserInterfaceBroker().GetInterface(
+  GetWindow()->GetFrame()->GetBrowserInterfaceBroker().GetInterface(
       mojo::GenericPendingReceiver(
           audio_context_manager_.BindNewPipeAndPassReceiver(
-              GetDocument()->GetTaskRunner(TaskType::kInternalMedia))));
+              GetWindow()->GetTaskRunner(TaskType::kInternalMedia))));
 
   audio_context_manager_.set_disconnect_handler(
       WTF::BindOnce(&AudioContext::OnAudioContextManagerServiceConnectionError,
@@ -1007,24 +1024,47 @@ double AudioContext::GetOutputLatencyQuantizingFactor() const {
       : kOutputLatencyQuatizingFactor;
 }
 
+void AudioContext::NotifySetSinkIdBegins() {
+  DCHECK(IsMainThread());
+
+  // This performs step 5 to 9 from the second part of setSinkId() algorithm:
+  // https://webaudio.github.io/web-audio-api/#dom-audiocontext-setsinkid-domstring-or-audiosinkoptions-sinkid
+  sink_transition_flag_was_running_ = ContextState() != kSuspended;
+  destination()->GetAudioDestinationHandler().StopRendering();
+  if (sink_transition_flag_was_running_) {
+    SetContextState(kSuspended);
+  }
+}
+
 void AudioContext::NotifySetSinkIdIsDone(
     WebAudioSinkDescriptor pending_sink_descriptor) {
+  DCHECK(IsMainThread());
+
   sink_descriptor_ = pending_sink_descriptor;
   if (sink_descriptor_.Type() ==
           WebAudioSinkDescriptor::AudioSinkType::kAudible &&
       base::FeatureList::IsEnabled(kWebAudioSetSinkEchoCancellation)) {
     // Note: in order to not break echo cancellation of PeerConnection audio, we
     // are heavily relying on the fact that setSinkId() path of AudioContext is
-    // not triggered unless the sink ID is explicitly specified. I.e. we assume
-    // we don't end up here when AudioContext is being created by default.
+    // not triggered unless the sink ID is explicitly specified. It assumes we
+    // don't end up here when AudioContext is being created with the default
+    // device.
     if (auto* execution_context = GetExecutionContext()) {
       PeerConnectionDependencyFactory::From(*execution_context)
           .GetWebRtcAudioDevice()
           ->SetOutputDeviceForAec(sink_descriptor_.SinkId());
     }
   }
+
+  // This performs steps 11 and 12 from the second part of the setSinkId()
+  // algorithm:
+  // https://webaudio.github.io/web-audio-api/#dom-audiocontext-setsinkid-domstring-or-audiosinkoptions-sinkid
   UpdateV8SinkId();
   DispatchEvent(*Event::Create(event_type_names::kSinkchange));
+  if (sink_transition_flag_was_running_) {
+    SetContextState(kRunning);
+    sink_transition_flag_was_running_ = false;
+  }
 }
 
 void AudioContext::InitializeMediaDeviceService() {
@@ -1061,13 +1101,13 @@ void AudioContext::DevicesEnumerated(
         audio_input_capabilities) {
   Vector<WebMediaDeviceInfo> output_devices =
       enumeration[static_cast<wtf_size_t>(
-          mojom::blink::MediaDeviceType::MEDIA_AUDIO_OUTPUT)];
+          mojom::blink::MediaDeviceType::kMediaAudioOuput)];
 
   TRACE_EVENT1(
       "webaudio", "AudioContext::DevicesEnumerated", "DeviceEnumeration",
       audio_utilities::GetDeviceEnumerationForTracing(output_devices));
 
-  OnDevicesChanged(mojom::blink::MediaDeviceType::MEDIA_AUDIO_OUTPUT,
+  OnDevicesChanged(mojom::blink::MediaDeviceType::kMediaAudioOuput,
                    output_devices);
 
   // Start the first resolver in the queue once `output_device_ids_` is
@@ -1079,7 +1119,7 @@ void AudioContext::DevicesEnumerated(
 
 void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
                                     const Vector<WebMediaDeviceInfo>& devices) {
-  if (device_type == mojom::blink::MediaDeviceType::MEDIA_AUDIO_OUTPUT) {
+  if (device_type == mojom::blink::MediaDeviceType::kMediaAudioOuput) {
     output_device_ids_.clear();
     for (auto device : devices) {
       if (device.device_id == "default") {
@@ -1101,8 +1141,9 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
         MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kOther,
             mojom::ConsoleMessageLevel::kInfo,
-            "AudioContext: Fallback to default device due to audio device "
-            "changed."));
+            "[AudioContext] Fallback to the default device due to an invalid"
+            " audio device change. ("
+            + String(sink_descriptor_.SinkId().Utf8()) + ")"));
     sink_descriptor_ = WebAudioSinkDescriptor(
         String(""),
         To<LocalDOMWindow>(GetExecutionContext())->GetLocalFrameToken());
@@ -1139,6 +1180,20 @@ bool AudioContext::IsValidSinkDescriptor(
   return sink_descriptor.Type() ==
              WebAudioSinkDescriptor::AudioSinkType::kSilent ||
          output_device_ids_.Contains(sink_descriptor.SinkId());
+}
+
+void AudioContext::ResumeOnPrerenderActivation() {
+  CHECK(blocked_by_prerendering_);
+  blocked_by_prerendering_ = false;
+  switch (ContextState()) {
+    case kSuspended:
+      StartRendering();
+      break;
+    case kRunning:
+      NOTREACHED_NORETURN();
+    case kClosed:
+      break;
+  }
 }
 
 }  // namespace blink

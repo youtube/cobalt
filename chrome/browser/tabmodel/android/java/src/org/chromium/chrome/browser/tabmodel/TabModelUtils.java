@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.tabmodel;
 
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSelectionType;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -47,7 +46,7 @@ public class TabModelUtils {
      */
     public static boolean closeTabById(TabModel model, int tabId, boolean canUndo) {
         Tab tab = TabModelUtils.getTabById(model, tabId);
-        if (tab == null) return false;
+        if (tab == null || tab.isClosing()) return false;
 
         return model.closeTab(tab, true, false, canUndo);
     }
@@ -75,7 +74,8 @@ public class TabModelUtils {
 
         for (int i = 0; i < count; i++) {
             Tab tab = model.getTabAt(i);
-            if (tab.getId() == tabId) return i;
+            assert tab != null : "getTabAt() shouldn't return a null Tab from TabModel.";
+            if (tab != null && tab.getId() == tabId) return i;
         }
 
         return TabModel.INVALID_TAB_INDEX;
@@ -176,11 +176,9 @@ public class TabModelUtils {
      * @param tabId The ID of the Tab whose children should be returned.
      */
     public static List<Tab> getChildTabs(TabList model, int tabId) {
-        Tab tab = model.getTabAt(tabId);
-
         ArrayList<Tab> childTabs = new ArrayList<Tab>();
         for (int i = 0; i < model.getCount(); i++) {
-            if (CriticalPersistedTabData.from(model.getTabAt(i)).getParentId() == tabId) {
+            if (model.getTabAt(i).getParentId() == tabId) {
                 childTabs.add(model.getTabAt(i));
             }
         }
@@ -213,9 +211,10 @@ public class TabModelUtils {
             final Tab currentTab = model.getTabAt(i);
             if (currentTab.getId() == tabId || currentTab.isClosing()) continue;
 
-            final long currentTime = CriticalPersistedTabData.from(currentTab).getTimestampMillis();
-            if (currentTime != CriticalPersistedTabData.INVALID_TIMESTAMP
-                    && mostRecentTabTime < currentTime) {
+            final long currentTime = currentTab.getTimestampMillis();
+            // TODO(b/301642179) Consider using Optional on Tab interface for getTimestampMillis()
+            // to signal that the timestamp is unknown.
+            if (currentTime != Tab.INVALID_TIMESTAMP && mostRecentTabTime < currentTime) {
                 mostRecentTabTime = currentTime;
                 mostRecentTab = currentTab;
             }

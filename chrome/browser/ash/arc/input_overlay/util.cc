@@ -7,9 +7,11 @@
 #include <algorithm>
 
 #include "ash/constants/ash_features.h"
+#include "ash/public/cpp/window_properties.h"
 #include "base/notreached.h"
 #include "chrome/browser/ash/arc/input_overlay/actions/action.h"
 #include "chrome/browser/ash/arc/input_overlay/actions/input_element.h"
+#include "ui/aura/window.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
 
@@ -57,25 +59,6 @@ MouseAction ConvertToMouseActionEnum(const std::string& mouse_action) {
   return MouseAction::NONE;
 }
 
-bool UpdatePositionByArrowKey(ui::KeyboardCode key, gfx::Point& position) {
-  switch (key) {
-    case ui::VKEY_LEFT:
-      position.set_x(position.x() - kArrowKeyMoveDistance);
-      return true;
-    case ui::VKEY_RIGHT:
-      position.set_x(position.x() + kArrowKeyMoveDistance);
-      return true;
-    case ui::VKEY_UP:
-      position.set_y(position.y() - kArrowKeyMoveDistance);
-      return true;
-    case ui::VKEY_DOWN:
-      position.set_y(position.y() + kArrowKeyMoveDistance);
-      return true;
-    default:
-      return false;
-  }
-}
-
 InputElement* GetInputBindingByBindingOption(Action* action,
                                              BindingOption binding_option) {
   InputElement* input_binding = nullptr;
@@ -95,32 +78,8 @@ InputElement* GetInputBindingByBindingOption(Action* action,
   return input_binding;
 }
 
-void ClampPosition(gfx::Point& position,
-                   const gfx::Size& ui_size,
-                   const gfx::Size& parent_size,
-                   int parent_padding) {
-  int lo = parent_padding;
-  int hi = parent_size.width() - ui_size.width() - parent_padding;
-  if (lo >= hi) {
-    // Ignore |parent_padding| if there is not enough space.
-    lo = 0;
-    hi += parent_padding;
-  }
-  position.set_x(std::clamp(position.x(), lo, hi));
-
-  lo = parent_padding;
-  hi = parent_size.height() - ui_size.height() - parent_padding;
-  if (lo >= hi) {
-    // Ignore |parent_padding| if there is not enough space.
-    lo = 0;
-    hi += parent_padding;
-  }
-  position.set_y(std::clamp(position.y(), lo, hi));
-}
-
-absl::optional<std::string> GetCurrentSystemVersion() {
-  return AllowReposition() ? absl::make_optional(kSystemVersionAlphaV2)
-                           : absl::nullopt;
+std::string GetCurrentSystemVersion() {
+  return kSystemVersionAlphaV2;
 }
 
 void ResetFocusTo(views::View* view) {
@@ -132,9 +91,44 @@ void ResetFocusTo(views::View* view) {
   focus_manager->SetFocusedView(view);
 }
 
-bool AllowReposition() {
-  return ash::features::IsArcInputOverlayAlphaV2Enabled() ||
-         ash::features::IsArcInputOverlayBetaEnabled();
+// For the keys that are caught by display overlay, check if they are reserved
+// for special use.
+bool IsReservedDomCode(ui::DomCode code) {
+  switch (code) {
+    // Audio, brightness key events won't be caught by display overlay so no
+    // need to add them.
+    // Used for mouse lock.
+    case ui::DomCode::ESCAPE:
+    // Used for traversing the views, which is also required by Accessibility.
+    case ui::DomCode::TAB:
+    // Don't support according to UX requirement.
+    case ui::DomCode::BROWSER_BACK:
+    case ui::DomCode::BROWSER_FORWARD:
+    case ui::DomCode::BROWSER_REFRESH:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void UpdateFlagAndProperty(aura::Window* window,
+                           ash::ArcGameControlsFlag flag,
+                           bool turn_on) {
+  const ash::ArcGameControlsFlag flags =
+      window->GetProperty(ash::kArcGameControlsFlagsKey);
+
+  if (IsFlagSet(flags, flag) != turn_on) {
+    window->SetProperty(ash::kArcGameControlsFlagsKey,
+                        UpdateFlag(flags, flag, turn_on));
+  }
+}
+
+bool IsBeta() {
+  return ash::features::IsArcInputOverlayBetaEnabled();
+}
+
+bool IsGameDashboardFlagOn() {
+  return ash::features::IsGameDashboardEnabled();
 }
 
 }  // namespace arc::input_overlay

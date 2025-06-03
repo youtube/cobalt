@@ -49,17 +49,22 @@ bool HistoryClustersSidePanelCoordinator::IsSupported(Profile* profile) {
       HistoryClustersServiceFactory::GetForBrowserContext(profile);
   return base::FeatureList::IsEnabled(history_clusters::kSidePanelJourneys) &&
          history_clusters_service &&
-         history_clusters_service->IsJourneysEnabled() &&
+         history_clusters_service->IsJourneysEnabledAndVisible() &&
          !profile->IsIncognitoProfile() && !profile->IsGuestSession();
 }
 
 void HistoryClustersSidePanelCoordinator::CreateAndRegisterEntry(
     SidePanelRegistry* global_registry) {
+  const bool rename_journeys =
+      base::FeatureList::IsEnabled(history_clusters::kRenameJourneys);
   global_registry->Register(std::make_unique<SidePanelEntry>(
       SidePanelEntry::Id::kHistoryClusters,
-      l10n_util::GetStringUTF16(IDS_HISTORY_CLUSTERS_JOURNEYS_TAB_LABEL),
-      ui::ImageModel::FromVectorIcon(kJourneysIcon, ui::kColorIcon,
-                                     /*icon_size=*/16),
+      l10n_util::GetStringUTF16(rename_journeys
+                                    ? IDS_HISTORY_TITLE
+                                    : IDS_HISTORY_CLUSTERS_JOURNEYS_TAB_LABEL),
+      ui::ImageModel::FromVectorIcon(
+          rename_journeys ? kHistoryIcon : kJourneysIcon, ui::kColorIcon,
+          /*icon_size=*/16),
       base::BindRepeating(
           &HistoryClustersSidePanelCoordinator::CreateHistoryClustersWebView,
           base::Unretained(this)),
@@ -115,12 +120,9 @@ void HistoryClustersSidePanelCoordinator::OnHistoryClustersPreferenceChanged() {
   auto* browser = &GetBrowser();
   auto* global_registry =
       SidePanelCoordinator::GetGlobalSidePanelRegistry(browser);
-  if (browser->profile()->GetPrefs()->GetBoolean(
-          history_clusters::prefs::kVisible)) {
-    if (IsSupported(browser->profile())) {
-      HistoryClustersSidePanelCoordinator::GetOrCreateForBrowser(browser)
-          ->CreateAndRegisterEntry(global_registry);
-    }
+  if (IsSupported(browser->profile())) {
+    HistoryClustersSidePanelCoordinator::GetOrCreateForBrowser(browser)
+        ->CreateAndRegisterEntry(global_registry);
   } else {
     global_registry->Deregister(
         SidePanelEntry::Key(SidePanelEntry::Id::kHistoryClusters));
@@ -128,9 +130,11 @@ void HistoryClustersSidePanelCoordinator::OnHistoryClustersPreferenceChanged() {
 }
 
 bool HistoryClustersSidePanelCoordinator::Show(const std::string& query) {
-  auto* browser_view = BrowserView::GetBrowserViewForBrowser(&GetBrowser());
-  if (!browser_view)
+  SidePanelUI* side_panel_ui =
+      SidePanelUI::GetSidePanelUIForBrowser(&GetBrowser());
+  if (!side_panel_ui) {
     return false;
+  }
 
   if (history_clusters_ui_) {
     history_clusters_ui_->SetQuery(query);
@@ -140,9 +144,7 @@ bool HistoryClustersSidePanelCoordinator::Show(const std::string& query) {
     initial_query_ = query;
   }
 
-  if (auto* side_panel_coordinator = browser_view->side_panel_coordinator()) {
-    side_panel_coordinator->Show(SidePanelEntry::Id::kHistoryClusters);
-  }
+  side_panel_ui->Show(SidePanelEntry::Id::kHistoryClusters);
 
   return true;
 }
@@ -152,8 +154,8 @@ GURL HistoryClustersSidePanelCoordinator::GetOpenInNewTabURL() const {
   if (history_clusters_ui_)
     query = history_clusters_ui_->GetLastQueryIssued();
 
-  return query.empty() ? GURL(history_clusters::kChromeUIHistoryClustersURL)
+  return query.empty() ? GURL(history_clusters::GetChromeUIHistoryClustersURL())
                        : history_clusters::GetFullJourneysUrlForQuery(query);
 }
 
-WEB_CONTENTS_USER_DATA_KEY_IMPL(HistoryClustersSidePanelCoordinator);
+BROWSER_USER_DATA_KEY_IMPL(HistoryClustersSidePanelCoordinator);

@@ -9,14 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "ash/public/cpp/session/user_info.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_checkers_collection.h"
 #include "chrome/browser/ash/login/signin/token_handle_util.h"
-#include "chrome/browser/ash/login/ui/login_display.h"
 #include "chrome/browser/ash/login/user_online_signin_notifier.h"
 #include "chrome/browser/ash/system/system_clock.h"
 #include "chromeos/ash/components/dbus/cryptohome/rpc.pb.h"
@@ -31,7 +29,7 @@ class AccountId;
 
 namespace ash {
 
-class EasyUnlockService;
+class SmartLockService;
 class UserBoardView;
 struct LoginUserInfo;
 
@@ -73,11 +71,6 @@ class UserSelectionScreen
   // proximity_auth::ScreenlockBridge::LockHandler implementation:
   void ShowBannerMessage(const std::u16string& message,
                          bool is_warning) override;
-  void ShowUserPodCustomIcon(
-      const AccountId& account_id,
-      const proximity_auth::ScreenlockBridge::UserPodCustomIconInfo& icon_info)
-      override;
-  void HideUserPodCustomIcon(const AccountId& account_id) override;
   void SetSmartLockState(const AccountId& account_id,
                          SmartLockState state) override;
   void NotifySmartLockAuthResult(const AccountId& account_id,
@@ -102,12 +95,6 @@ class UserSelectionScreen
   // UserOnlineSigninNotifier::Observer
   void OnOnlineSigninEnforced(const AccountId& account_id) override;
 
-  // Determines if user auth status requires online sign in.
-  static bool ShouldForceOnlineSignIn(const user_manager::User* user);
-
-  // Builds a `UserAvatar` instance which contains the current image for `user`.
-  static UserAvatar BuildAshUserAvatarForUser(const user_manager::User& user);
-
   std::vector<LoginUserInfo> UpdateAndReturnUserListForAsh();
   void SetUsersLoaded(bool loaded);
 
@@ -125,11 +112,12 @@ class UserSelectionScreen
   class DircryptoMigrationChecker;
   class TpmLockedChecker;
 
-  EasyUnlockService* GetEasyUnlockServiceForUser(
+  SmartLockService* GetSmartLockServiceForUser(
       const AccountId& account_id) const;
 
   void OnUserStatusChecked(const AccountId& account_id,
-                           TokenHandleUtil::TokenHandleStatus status);
+                           const std::string& token,
+                           bool reauth_required);
   void OnAllowedInputMethodsChanged();
 
   // Purpose of the screen.

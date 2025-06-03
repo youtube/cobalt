@@ -51,12 +51,11 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "content/public/browser/android/child_process_importance.h"
-#include "services/network/public/mojom/attribution.mojom-forward.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 #include "media/mojo/mojom/stable/stable_video_decoder.mojom-forward.h"
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "media/mojo/mojom/fuchsia_media.mojom-forward.h"
@@ -361,10 +360,23 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Sender,
   // 10 milliseconds.
   virtual base::TimeDelta GetChildProcessIdleTime() = 0;
 
-  // Checks that the given renderer can request |url|, if not it sets it to
-  // about:blank.
-  // |empty_allowed| must be set to false for navigations for security reasons.
-  virtual void FilterURL(bool empty_allowed, GURL* url) = 0;
+  // Checks that the given renderer is allowed to request `url`; if not, `url`
+  // will be set to "about:blank#blocked".
+  //
+  // `empty_allowed` must be `false` when filtering URLs for navigations. The
+  // browser typically treats a navigation to an empty URL as a navigation to
+  // the home page, but this is often a privileged page, e.g. chrome://newtab/,
+  // which is a security problem that this method is specifically trying to
+  // block.
+  //
+  // This method return whether or not the URL was blocked so that callers can
+  // distinguish between the blocked case and a literal request to navigate to
+  // "about:blank#blocked".
+  enum class FilterURLResult {
+    kAllowed,
+    kBlocked,
+  };
+  virtual FilterURLResult FilterURL(bool empty_allowed, GURL* url) = 0;
 
   virtual void EnableAudioDebugRecordings(const base::FilePath& file) = 0;
   virtual void DisableAudioDebugRecordings() = 0;
@@ -651,19 +663,43 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Sender,
       const blink::StorageKey& storage_key,
       mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) = 0;
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   virtual void CreateStableVideoDecoder(
       mojo::PendingReceiver<media::stable::mojom::StableVideoDecoder>
           receiver) = 0;
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
   // Returns the current number of active views in this process.  Excludes
   // any RenderViewHosts that are swapped out.
   size_t GetActiveViewCount();
 
-  // Returns the isolation level of the RenderProcessHost's ProcessLock. We
-  // do not return the ProcessLock or WebExposedIsolationInfo because those
-  // are not exposed outside of //content for now.
+  // Returns the cross-origin isolation mode used by content in this process.
+  //
+  // This returns the kMaybe* enum values because it can't take Permissions
+  // Policy into account. A frame's isolation capability may be kNotIsolated
+  // even if it is running in a kMaybeIsolated process if the
+  // "cross-origin-isolated" feature was not delegated to the frame. Because
+  // of this, not all frames or workers in the same process will share the same
+  // isolation capability.
+  //
+  // Additionally, unlike WebExposedIsolationInfo, this is not guaranteed to be
+  // the same for all processes in a BrowsingInstance; content that is
+  // cross-origin to a kMaybeIsolatedApplication main frame will return
+  // kMaybeIsolated, as the application isolation level cannot be inherited
+  // cross-origin.
+  //
+  // RenderFrameHost::GetWebExposedIsolationLevel() should typically be used
+  // instead of this function if running in the context a frame so that
+  // Permissions Policy can be taken into account. This function should be used
+  // in contexts that don't have an associated frame like shared/service
+  // workers. Once Permissions Policy applies to workers, a worker-specific
+  // API to access isolation capability may need to be introduced which should
+  // be used instead of this.
+  //
+  // Note that this function doesn't account for API availability for certain
+  // documents and URLs that might be force-enabled by the embedder even if they
+  // lack the necessary privilege; in order for this matter to be taken into
+  // consideration, use content::IsIsolatedContext(RenderProcessHost*).
   WebExposedIsolationLevel GetWebExposedIsolationLevel();
 
   // Posts |task|, if this RenderProcessHost is ready or when it becomes ready
@@ -698,15 +734,6 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Sender,
   // directory once they log in.
   virtual void ReinitializeLogging(uint32_t logging_dest,
                                    base::ScopedFD log_file_descriptor) = 0;
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-  // Sets whether web or OS-level Attribution Reporting is supported. This may
-  // be called if the renderer process was created before the Measurement API
-  // state is returned from the underlying platform. See
-  // https://github.com/WICG/attribution-reporting-api/blob/main/app_to_web.md.
-  virtual void SetAttributionReportingSupport(
-      network::mojom::AttributionSupport) = 0;
 #endif
 
   // Static management functions -----------------------------------------------

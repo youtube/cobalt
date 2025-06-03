@@ -96,7 +96,8 @@ class SubSurface : public SurfaceDelegate,
   void UnsetCanGoBack() override {}
   void SetPip() override {}
   void UnsetPip() override {}
-  void SetFloat() override {}
+  void SetFloatToLocation(
+      chromeos::FloatStartLocation float_start_location) override {}
   void SetAspectRatio(const gfx::SizeF& aspect_ratio) override {}
   void MoveToDesk(int desk_index) override {}
   void SetVisibleOnAllWorkspaces() override {}
@@ -104,6 +105,7 @@ class SubSurface : public SurfaceDelegate,
   void Pin(bool trusted) override {}
   void Unpin() override {}
   void SetSystemModal(bool system_modal) override {}
+  void SetTopInset(int height) override {}
   SecurityDelegate* GetSecurityDelegate() override;
 
   // Overridden from SurfaceObserver:

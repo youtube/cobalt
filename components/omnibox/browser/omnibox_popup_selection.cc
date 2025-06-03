@@ -3,11 +3,12 @@
 // found in the LICENSE file.
 
 #include "components/omnibox/browser/omnibox_popup_selection.h"
-#include "components/omnibox/browser/actions/omnibox_action.h"
-
-#include <algorithm>
 
 #include "build/build_config.h"
+#include "components/omnibox/browser/actions/omnibox_action.h"
+#include "components/omnibox/browser/autocomplete_result.h"
+
+#include <algorithm>
 
 const size_t OmniboxPopupSelection::kNoMatch = static_cast<size_t>(-1);
 
@@ -36,6 +37,10 @@ bool OmniboxPopupSelection::IsChangeToKeyword(
 
 bool OmniboxPopupSelection::IsButtonFocused() const {
   return state != NORMAL && state != KEYWORD_MODE;
+}
+
+bool OmniboxPopupSelection::IsAction() const {
+  return state == FOCUSED_BUTTON_ACTION;
 }
 
 bool OmniboxPopupSelection::IsControlPresentOnMatch(
@@ -81,27 +86,9 @@ bool OmniboxPopupSelection::IsControlPresentOnMatch(
       return true;
     case KEYWORD_MODE:
       return match.associated_keyword != nullptr;
-    case FOCUSED_BUTTON_TAB_SWITCH:
-      // The default action for suggestions from the open tab provider in
-      // keyword mode is to switch to the open tab so no button is necessary.
-      if (OmniboxFieldTrial::IsSiteSearchStarterPackEnabled() &&
-          match.from_keyword &&
-          match.provider->type() == AutocompleteProvider::TYPE_OPEN_TAB) {
-        return false;
-      }
-      return match.has_tab_match.value_or(false);
     case FOCUSED_BUTTON_ACTION: {
       // Actions buttons should not be shown in keyword mode.
-      if (OmniboxFieldTrial::IsSiteSearchStarterPackEnabled() &&
-          match.from_keyword) {
-        return false;
-      }
-      if (action_index >= match.actions.size()) {
-        return false;
-      }
-      // If the action takes over the whole match, don't have a separate Action
-      // control in the tab order (or rendered).
-      return !match.actions[action_index]->TakesOverMatch();
+      return !match.from_keyword && action_index < match.actions.size();
     }
     case FOCUSED_BUTTON_REMOVE_SUGGESTION:
       return match.SupportsDeletion();
@@ -201,7 +188,6 @@ OmniboxPopupSelection::GetAllAvailableSelectionsSorted(
 
     all_states.push_back(NORMAL);
     all_states.push_back(KEYWORD_MODE);
-    all_states.push_back(FOCUSED_BUTTON_TAB_SWITCH);
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     all_states.push_back(FOCUSED_BUTTON_ACTION);
 #endif
@@ -212,33 +198,27 @@ OmniboxPopupSelection::GetAllAvailableSelectionsSorted(
 
   // Now, for each accessible line, add all the available line states to a list.
   std::vector<OmniboxPopupSelection> available_selections;
-  {
-    auto add_available_line_states_for_line = [&](size_t line_number) {
-      for (LineState line_state : all_states) {
-        if (line_state == FOCUSED_BUTTON_ACTION) {
-          constexpr size_t kMaxActionCount = 8;
-          for (size_t i = 0; i < kMaxActionCount; i++) {
-            OmniboxPopupSelection selection(line_number, line_state, i);
-            if (selection.IsControlPresentOnMatch(result, pref_service)) {
-              available_selections.push_back(selection);
-            } else {
-              // Break early when there are no more actions. Note, this
-              // implies that a match takeover action should be last
-              // to allow other actions on the match to be included.
-              break;
-            }
-          }
-        } else {
-          OmniboxPopupSelection selection(line_number, line_state);
+  for (size_t line_number = 0; line_number < result.size(); ++line_number) {
+    for (LineState line_state : all_states) {
+      if (line_state == FOCUSED_BUTTON_ACTION) {
+        constexpr size_t kMaxActionCount = 8;
+        for (size_t i = 0; i < kMaxActionCount; i++) {
+          OmniboxPopupSelection selection(line_number, line_state, i);
           if (selection.IsControlPresentOnMatch(result, pref_service)) {
             available_selections.push_back(selection);
+          } else {
+            // Break early when there are no more actions. Note, this
+            // implies that a match takeover action should be last
+            // to allow other actions on the match to be included.
+            break;
           }
         }
+      } else {
+        OmniboxPopupSelection selection(line_number, line_state);
+        if (selection.IsControlPresentOnMatch(result, pref_service)) {
+          available_selections.push_back(selection);
+        }
       }
-    };
-
-    for (size_t line_number = 0; line_number < result.size(); ++line_number) {
-      add_available_line_states_for_line(line_number);
     }
   }
   DCHECK(

@@ -6,11 +6,8 @@
 
 #include "base/no_destructor.h"
 #include "base/values.h"
+#import "components/autofill/ios/common/javascript_feature_util.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 const char kFillScriptName[] = "fill";
@@ -27,9 +24,7 @@ FormUtilJavaScriptFeature* FormUtilJavaScriptFeature::GetInstance() {
 
 FormUtilJavaScriptFeature::FormUtilJavaScriptFeature()
     : web::JavaScriptFeature(
-          // TODO(crbug.com/1175793): Move autofill code to kIsolatedWorld
-          // once all scripts are converted to JavaScriptFeatures.
-          web::ContentWorld::kPageContentWorld,
+          ContentWorldForAutofillJavascriptFeatures(),
           {FeatureScript::CreateWithFilename(
                kFillScriptName,
                FeatureScript::InjectionTime::kDocumentStart,
@@ -48,9 +43,9 @@ FormUtilJavaScriptFeature::~FormUtilJavaScriptFeature() = default;
 void FormUtilJavaScriptFeature::SetUpForUniqueIDsWithInitialState(
     web::WebFrame* frame,
     uint32_t next_available_id) {
-  std::vector<base::Value> parameters;
-  parameters.emplace_back(static_cast<int>(next_available_id));
-  CallJavaScriptFunction(frame, "fill.setUpForUniqueIDs", parameters);
+  CallJavaScriptFunction(
+      frame, "fill.setUpForUniqueIDs",
+      base::Value::List().Append(static_cast<int>(next_available_id)));
 }
 
 }  // namespace autofill

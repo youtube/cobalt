@@ -35,6 +35,8 @@
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/performance_mark_or_measure.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
@@ -128,7 +130,8 @@ AtomicString PerformanceResourceTiming::deliveryType() const {
 }
 
 AtomicString PerformanceResourceTiming::renderBlockingStatus() const {
-  return info_->render_blocking_status ? "blocking" : "non-blocking";
+  return AtomicString(info_->render_blocking_status ? "blocking"
+                                                    : "non-blocking");
 }
 
 AtomicString PerformanceResourceTiming::contentType() const {
@@ -150,7 +153,7 @@ AtomicString PerformanceResourceTiming::GetNextHopProtocol(
   // string.
   // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
   if (returnedProtocol == "unknown" || !info_->allow_timing_details) {
-    returnedProtocol = "";
+    returnedProtocol = g_empty_atom;
   }
 
   return returnedProtocol;
@@ -330,8 +333,10 @@ DOMHighResTimeStamp PerformanceResourceTiming::firstInterimResponseStart()
     return 0;
   }
 
-  base::TimeTicks response_start = info_->timing->first_early_hints_time;
-  if (response_start.is_null()) {
+  base::TimeTicks response_start = info_->timing->receive_headers_start;
+  if (response_start.is_null() ||
+      response_start ==
+          info_->timing->receive_non_informational_headers_start) {
     return 0;
   }
 
@@ -413,12 +418,8 @@ PerformanceResourceTiming::serverTiming() const {
 
 void PerformanceResourceTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
   PerformanceEntry::BuildJSONValue(builder);
-  ExecutionContext* execution_context =
-      ExecutionContext::From(builder.GetScriptState());
   builder.AddString("initiatorType", initiatorType());
-  if (RuntimeEnabledFeatures::DeliveryTypeEnabled(execution_context)) {
-    builder.AddString("deliveryType", deliveryType());
-  }
+  builder.AddString("deliveryType", deliveryType());
   builder.AddString("nextHopProtocol", nextHopProtocol());
   if (RuntimeEnabledFeatures::RenderBlockingStatusEnabled()) {
     builder.AddString("renderBlockingStatus", renderBlockingStatus());
@@ -450,9 +451,10 @@ void PerformanceResourceTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
     builder.AddNumber("responseStatus", responseStatus());
   }
 
-  ScriptState* script_state = builder.GetScriptState();
-  builder.Add("serverTiming", FreezeV8Object(ToV8(serverTiming(), script_state),
-                                             script_state->GetIsolate()));
+  builder.Add("serverTiming",
+              ToV8Traits<IDLArray<PerformanceServerTiming>>::ToV8(
+                  builder.GetScriptState(), serverTiming())
+                  .ToLocalChecked());
 }
 
 void PerformanceResourceTiming::Trace(Visitor* visitor) const {

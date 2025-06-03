@@ -31,7 +31,8 @@ const size_t kMaxReportCountInQueue = 5;
 // static
 CertificateReportingServiceFactory*
 CertificateReportingServiceFactory::GetInstance() {
-  return base::Singleton<CertificateReportingServiceFactory>::get();
+  static base::NoDestructor<CertificateReportingServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -77,7 +78,12 @@ void CertificateReportingServiceFactory::SetURLLoaderFactoryForTesting(
 CertificateReportingServiceFactory::CertificateReportingServiceFactory()
     : ProfileKeyedServiceFactory(
           "cert_reporting::Factory",
-          ProfileSelections::BuildForRegularAndIncognito()),
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()),
       server_public_key_(nullptr),
       server_public_key_version_(0),
       clock_(base::DefaultClock::GetInstance()),
@@ -85,7 +91,8 @@ CertificateReportingServiceFactory::CertificateReportingServiceFactory()
       max_queued_report_count_(kMaxReportCountInQueue),
       service_reset_callback_(base::DoNothing()) {}
 
-CertificateReportingServiceFactory::~CertificateReportingServiceFactory() {}
+CertificateReportingServiceFactory::~CertificateReportingServiceFactory() =
+    default;
 
 KeyedService* CertificateReportingServiceFactory::BuildServiceInstanceFor(
     content::BrowserContext* browser_context) const {

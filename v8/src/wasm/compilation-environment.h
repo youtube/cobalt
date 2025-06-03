@@ -31,20 +31,6 @@ class WasmCode;
 class WasmEngine;
 class WasmError;
 
-enum RuntimeExceptionSupport : bool {
-  kRuntimeExceptionSupport = true,
-  kNoRuntimeExceptionSupport = false
-};
-
-enum BoundsCheckStrategy : int8_t {
-  // Emit protected instructions, use the trap handler for OOB detection.
-  kTrapHandler,
-  // Emit explicit bounds checks.
-  kExplicitBoundsChecks,
-  // Emit no bounds checks at all (for testing only).
-  kNoBoundsChecks
-};
-
 enum DynamicTiering : bool {
   kDynamicTiering = true,
   kNoDynamicTiering = false
@@ -68,27 +54,15 @@ struct CompilationEnv {
   // A pointer to the decoded module's static representation.
   const WasmModule* const module;
 
-  // The bounds checking strategy to use.
-  const BoundsCheckStrategy bounds_checks;
-
-  // If the runtime doesn't support exception propagation,
-  // we won't generate stack checks, and trap handling will also
-  // be generated differently.
-  const RuntimeExceptionSupport runtime_exception_support;
-
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
   const DynamicTiering dynamic_tiering;
 
   constexpr CompilationEnv(const WasmModule* module,
-                           BoundsCheckStrategy bounds_checks,
-                           RuntimeExceptionSupport runtime_exception_support,
-                           const WasmFeatures& enabled_features,
+                           WasmFeatures enabled_features,
                            DynamicTiering dynamic_tiering)
       : module(module),
-        bounds_checks(bounds_checks),
-        runtime_exception_support(runtime_exception_support),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering) {}
 };
@@ -179,6 +153,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   void operator delete(void* ptr) { ::operator delete(ptr); }
 
   CompilationState() = delete;
+
+  size_t EstimateCurrentMemoryConsumption() const;
 
  private:
   // NativeModule is allowed to call the static {New} method.

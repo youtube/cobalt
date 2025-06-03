@@ -101,11 +101,6 @@ std::set<std::string> ParseFindCertificateOutputToDerCerts(std::string output) {
   return certs;
 }
 
-class DebugData : public base::SupportsUserData {
- public:
-  ~DebugData() override = default;
-};
-
 const char* TrustImplTypeToString(TrustStoreMac::TrustImplType t) {
   switch (t) {
     case TrustStoreMac::TrustImplType::kSimple:
@@ -191,12 +186,12 @@ TEST_P(TrustStoreMacImplTest, MultiRootNotTrusted) {
   // SecKeychainOpen does not fail if the file doesn't exist, so assert it here
   // for easier debugging.
   ASSERT_TRUE(base::PathExists(keychain_path));
-  base::ScopedCFTypeRef<SecKeychainRef> keychain;
+  base::apple::ScopedCFTypeRef<SecKeychainRef> keychain;
   OSStatus status = SecKeychainOpen(keychain_path.MaybeAsASCII().c_str(),
                                     keychain.InitializeInto());
   ASSERT_EQ(errSecSuccess, status);
   ASSERT_TRUE(keychain);
-  test_keychain_search_list->AddKeychain(keychain);
+  test_keychain_search_list->AddKeychain(keychain.get());
 
 #pragma clang diagnostic pop
 
@@ -261,17 +256,9 @@ TEST_P(TrustStoreMacImplTest, MultiRootNotTrusted) {
   // added and trusted the test certs on the machine the test is being run on).
   for (const auto& cert :
        {a_by_b, b_by_c, b_by_f, c_by_d, c_by_e, f_by_e, d_by_d, e_by_e}) {
-    DebugData debug_data;
-    CertificateTrust trust = trust_store.GetTrust(cert.get(), &debug_data);
+    CertificateTrust trust = trust_store.GetTrust(cert.get());
     EXPECT_EQ(CertificateTrust::ForUnspecified().ToDebugString(),
               trust.ToDebugString());
-    // The combined_trust_debug_info should be 0 since no trust records
-    // should exist for these test certs.
-    const TrustStoreMac::ResultDebugData* trust_debug_data =
-        TrustStoreMac::ResultDebugData::Get(&debug_data);
-    ASSERT_TRUE(trust_debug_data);
-    EXPECT_EQ(0, trust_debug_data->combined_trust_debug_info());
-    EXPECT_EQ(trust_impl, trust_debug_data->trust_impl());
   }
 }
 
@@ -309,7 +296,8 @@ TEST_P(TrustStoreMacImplTest, SystemCerts) {
   base::HistogramTester histogram_tester;
   TrustStoreMac trust_store(kSecPolicyAppleX509Basic, trust_impl);
 
-  base::ScopedCFTypeRef<SecPolicyRef> sec_policy(SecPolicyCreateBasicX509());
+  base::apple::ScopedCFTypeRef<SecPolicyRef> sec_policy(
+      SecPolicyCreateBasicX509());
   ASSERT_TRUE(sec_policy);
   std::vector<std::string> all_certs;
   std::set_union(find_certificate_default_search_list_certs.begin(),
@@ -339,7 +327,7 @@ TEST_P(TrustStoreMacImplTest, SystemCerts) {
       continue;
     }
 
-    base::ScopedCFTypeRef<SecCertificateRef> cert_handle(
+    base::apple::ScopedCFTypeRef<SecCertificateRef> cert_handle(
         x509_util::CreateSecCertificateFromBytes(cert->der_cert().UnsafeData(),
                                                  cert->der_cert().Length()));
     if (!cert_handle) {
@@ -348,8 +336,7 @@ TEST_P(TrustStoreMacImplTest, SystemCerts) {
     }
 
     // Check if this cert is considered a trust anchor by TrustStoreMac.
-    DebugData debug_data;
-    CertificateTrust cert_trust = trust_store.GetTrust(cert.get(), &debug_data);
+    CertificateTrust cert_trust = trust_store.GetTrust(cert.get());
     bool is_trusted = cert_trust.IsTrustAnchor() || cert_trust.IsTrustLeaf();
     if (is_trusted) {
       EXPECT_EQ(ExpectedTrustForAnchor().ToDebugString(),
@@ -357,14 +344,14 @@ TEST_P(TrustStoreMacImplTest, SystemCerts) {
     }
 
     // Check if this cert is considered a trust anchor by the OS.
-    base::ScopedCFTypeRef<SecTrustRef> trust;
+    base::apple::ScopedCFTypeRef<SecTrustRef> trust;
     {
       base::AutoLock lock(crypto::GetMacSecurityServicesLock());
-      ASSERT_EQ(noErr,
-                SecTrustCreateWithCertificates(cert_handle, sec_policy,
-                                               trust.InitializeInto()));
-      ASSERT_EQ(noErr,
-                SecTrustSetOptions(trust, kSecTrustOptionLeafIsCA |
+      ASSERT_EQ(noErr, SecTrustCreateWithCertificates(cert_handle.get(),
+                                                      sec_policy.get(),
+                                                      trust.InitializeInto()));
+      ASSERT_EQ(noErr, SecTrustSetOptions(trust.get(),
+                                          kSecTrustOptionLeafIsCA |
                                               kSecTrustOptionAllowExpired |
                                               kSecTrustOptionAllowExpiredRoot));
 
@@ -379,46 +366,17 @@ TEST_P(TrustStoreMacImplTest, SystemCerts) {
         // Cert is only in the system domain. It should be untrusted.
         EXPECT_FALSE(is_trusted);
       } else {
-        bool trusted;
-        if (__builtin_available(macOS 10.14, *)) {
-          trusted = SecTrustEvaluateWithError(trust, nullptr);
-        } else {
-          SecTrustResultType trust_result;
-          ASSERT_EQ(noErr, SecTrustEvaluate(trust, &trust_result));
-          trusted = (trust_result == kSecTrustResultProceed) ||
-                    (trust_result == kSecTrustResultUnspecified);
-        }
-
+        bool trusted = SecTrustEvaluateWithError(trust.get(), nullptr);
         bool expected_trust_anchor =
-            trusted && (SecTrustGetCertificateCount(trust) == 1);
+            trusted && (SecTrustGetCertificateCount(trust.get()) == 1);
         EXPECT_EQ(expected_trust_anchor, is_trusted);
       }
-      auto* trust_debug_data = TrustStoreMac::ResultDebugData::Get(&debug_data);
-      ASSERT_TRUE(trust_debug_data);
-      if (is_trusted &&
-          trust_impl != TrustStoreMac::TrustImplType::kKeychainCacheFullCerts) {
-        // Since this test queries the real trust store, can't know exactly
-        // what bits should be set in the trust debug info, but if it's trusted
-        // it should at least have something set.
-        EXPECT_NE(0, trust_debug_data->combined_trust_debug_info());
-      }
-      // The impl that was used should be specified in the debug data.
-      EXPECT_EQ(trust_impl, trust_debug_data->trust_impl());
     }
 
     // Call GetTrust again on the same cert. This should exercise the code
     // that checks the trust value for a cert which has already been cached.
-    DebugData debug_data2;
-    CertificateTrust cert_trust2 =
-        trust_store.GetTrust(cert.get(), &debug_data2);
+    CertificateTrust cert_trust2 = trust_store.GetTrust(cert.get());
     EXPECT_EQ(cert_trust.ToDebugString(), cert_trust2.ToDebugString());
-    auto* trust_debug_data = TrustStoreMac::ResultDebugData::Get(&debug_data);
-    ASSERT_TRUE(trust_debug_data);
-    auto* trust_debug_data2 = TrustStoreMac::ResultDebugData::Get(&debug_data2);
-    ASSERT_TRUE(trust_debug_data2);
-    EXPECT_EQ(trust_debug_data->combined_trust_debug_info(),
-              trust_debug_data2->combined_trust_debug_info());
-    EXPECT_EQ(trust_debug_data->trust_impl(), trust_debug_data2->trust_impl());
   }
 
   // Since this is testing the actual platform certs and trust settings, we

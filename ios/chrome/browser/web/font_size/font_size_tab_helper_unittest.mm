@@ -13,12 +13,13 @@
 #import "base/test/scoped_feature_list.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
 #import "components/sync_preferences/pref_service_syncable.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/prefs/browser_prefs.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/web/features.h"
 #import "ios/chrome/browser/web/font_size/font_size_java_script_feature.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
+#import "ios/web/public/test/fakes/fake_web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/scoped_testing_web_client.h"
 #import "ios/web/public/test/web_state_test_util.h"
@@ -27,10 +28,6 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using sync_preferences::PrefServiceMockFactory;
 using sync_preferences::PrefServiceSyncable;
@@ -43,6 +40,10 @@ class FontSizeTabHelperFakeWebStateTest : public PlatformTest {
     scoped_feature_list_.InitAndEnableFeature(
         {web::kWebPageDefaultZoomFromDynamicType});
 
+    // FontSizeTabHelper requires a web frames manager.
+    web_state_.SetWebFramesManager(
+        FontSizeJavaScriptFeature::GetInstance()->GetSupportedContentWorld(),
+        std::make_unique<web::FakeWebFramesManager>());
     FontSizeTabHelper::CreateForWebState(&web_state_);
   }
 

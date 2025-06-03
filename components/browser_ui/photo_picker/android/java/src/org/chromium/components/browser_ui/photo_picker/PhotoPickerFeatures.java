@@ -4,9 +4,12 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import android.os.Build;
+
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Features;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Provides an API for querying the status of Photo Picker features.
@@ -29,21 +32,38 @@ public class PhotoPickerFeatures extends Features {
     private final int mOrdinal;
 
     public static boolean launchViaActionGetContent() {
+        // ActionGetContent is the study flavor we want to launch with on Android U.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return true;
+        }
+
         return ANDROID_MEDIA_PICKER_ADOPTION.getFieldTrialParamByFeatureAsBoolean(
                 PARAM_ACTION_GET_CONTENT, false);
     }
 
     public static boolean launchViaActionPickImages() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return false;
+        }
+
         return ANDROID_MEDIA_PICKER_ADOPTION.getFieldTrialParamByFeatureAsBoolean(
                 PARAM_ACTION_PICK_IMAGES, false);
     }
 
     public static boolean launchViaActionPickImagesPlus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return false;
+        }
+
         return ANDROID_MEDIA_PICKER_ADOPTION.getFieldTrialParamByFeatureAsBoolean(
                 PARAM_ACTION_PICK_IMAGES_PLUS, false);
     }
 
     public static boolean launchRegularWithoutBrowse() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return false;
+        }
+
         return ANDROID_MEDIA_PICKER_ADOPTION.getFieldTrialParamByFeatureAsBoolean(
                 PARAM_CHROME_PICKER_SUPPRESS_BROWSE, false);
     }

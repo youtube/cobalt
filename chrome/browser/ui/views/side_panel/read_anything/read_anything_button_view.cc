@@ -23,8 +23,6 @@ ReadAnythingButtonView::ReadAnythingButtonView(
                                            icon_size);
   ConfigureInkDropForToolbar(this);
   views::InstallCircleHighlightPathGenerator(this);
-  SetBorder(views::CreateEmptyBorder(
-      gfx::Insets::VH(kInternalInsets / 2, kInternalInsets / 2)));
   SetTooltipText(tooltip);
 }
 
@@ -35,9 +33,12 @@ bool ReadAnythingButtonView::IsGroupFocusTraversable() const {
 
 void ReadAnythingButtonView::UpdateIcon(const gfx::VectorIcon& icon,
                                         int icon_size,
-                                        ui::ColorId icon_color) {
+                                        ui::ColorId icon_color,
+                                        ui::ColorId focus_ring_color) {
   views::SetImageFromVectorIconWithColorId(this, icon, icon_color, icon_color,
                                            icon_size);
+  DCHECK(views::FocusRing::Get(this));
+  views::FocusRing::Get(this)->SetColorId(focus_ring_color);
 }
 
 void ReadAnythingButtonView::Enable() {

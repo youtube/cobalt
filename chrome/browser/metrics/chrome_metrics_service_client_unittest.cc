@@ -21,6 +21,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/metrics/client_info.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -41,6 +42,7 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/dbus/power/power_manager_client.h"
+#include "components/metrics/structured/structured_metrics_features.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -52,6 +54,9 @@ class TestChromeMetricsServiceClient : public ChromeMetricsServiceClient {
   // Equivalent to ChromeMetricsServiceClient::Create
   static std::unique_ptr<TestChromeMetricsServiceClient> Create(
       metrics::MetricsStateManager* metrics_state_manager) {
+    // Needed because RegisterMetricsServiceProviders() checks for this.
+    metrics::SubprocessMetricsProvider::CreateInstance();
+
     std::unique_ptr<TestChromeMetricsServiceClient> client(
         new TestChromeMetricsServiceClient(metrics_state_manager));
     client->Initialize();
@@ -210,8 +215,8 @@ TEST_F(ChromeMetricsServiceClientTest, TestRegisterMetricsServiceProviders) {
 
 #if BUILDFLAG(IS_ANDROID)
   // AndroidMetricsProvider, ChromeAndroidMetricsProvider,
-  // and PageLoadMetricsProvider.
-  expected_providers += 3;
+  // PageLoadMetricsProvider, GmsMetricsProvider.
+  expected_providers += 4;
 #else
   // performance_manager::MetricsProvider
   expected_providers += 1;
@@ -230,11 +235,19 @@ TEST_F(ChromeMetricsServiceClientTest, TestRegisterMetricsServiceProviders) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // AmbientModeMetricsProvider, AssistantServiceMetricsProvider,
   // CrosHealthdMetricsProvider, ChromeOSMetricsProvider,
-  // KeyboardBacklightColorMetricsProvider, PrinterMetricsProvider,
-  // HashedLoggingMetricsProvider, FamilyUserMetricsProvider,
-  // FamilyLinkUserMetricsProvider, UpdateEngineMetricsProvider,
+  // ChromeOSHistogramMetricsProvider,
+  // KeyboardBacklightColorMetricsProvider,
+  // PersonalizationAppThemeMetricsProvider, PrinterMetricsProvider,
+  // FamilyUserMetricsProvider, FamilyLinkUserMetricsProvider,
+  // UpdateEngineMetricsProvider, OsSettingsMetricsProvider,
   // and UserTypeByDeviceTypeMetricsProvider.
-  expected_providers += 11;
+  expected_providers += 13;
+
+  // StructuredMetricsProvider.
+  if (!base::FeatureList::IsEnabled(
+          metrics::structured::kEnabledStructuredMetricsService)) {
+    expected_providers++;
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH)

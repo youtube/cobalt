@@ -28,6 +28,7 @@
 #include "chrome/updater/util/util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/crashpad/crashpad/client/crashpad_client.h"
+#include "third_party/crashpad/crashpad/client/crashpad_info.h"
 #include "third_party/crashpad/crashpad/handler/handler_main.h"
 #include "url/gurl.h"
 
@@ -87,14 +88,28 @@ void StartCrashReporter(UpdaterScope updater_scope,
   annotations["ver"] = version;
   annotations["prod"] = CRASH_PRODUCT_NAME;
 
+  // Save dereferenced memory from all registers on the crashing thread.
+  // Crashpad saves up to 512 bytes per CPU register, and in the worst case,
+  // ARM64 has 32 registers.
+  constexpr uint32_t kIndirectMemoryLimit = 32 * 512;
+  crashpad::CrashpadInfo::GetCrashpadInfo()
+      ->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled,
+                                                kIndirectMemoryLimit);
   crashpad::CrashpadClient& client = GetCrashpadClient();
+  std::vector<base::FilePath> attachments;
+#if !BUILDFLAG(IS_MAC)  // Crashpad does not support attachments on macOS.
+  absl::optional<base::FilePath> log_file = GetLogFilePath(updater_scope);
+  if (log_file) {
+    attachments.push_back(*log_file);
+  }
+#endif
   if (!client.StartHandler(
           handler_path, *database_path,
           /*metrics_dir=*/base::FilePath(),
           CreateExternalConstants()->CrashUploadURL().possibly_invalid_spec(),
           annotations, MakeCrashHandlerArgs(updater_scope),
           /*restartable=*/true,
-          /*asynchronous_start=*/false)) {
+          /*asynchronous_start=*/false, attachments)) {
     VLOG(1) << "Failed to start handler.";
     return;
   }

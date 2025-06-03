@@ -45,7 +45,9 @@ class CORE_EXPORT ContainerSelector {
   bool operator==(const ContainerSelector& o) const {
     return (name_ == o.name_) && (physical_axes_ == o.physical_axes_) &&
            (logical_axes_ == o.logical_axes_) &&
-           (has_style_query_ == o.has_style_query_);
+           (has_style_query_ == o.has_style_query_) &&
+           (has_sticky_query_ == o.has_sticky_query_) &&
+           (has_snap_query_ == o.has_snap_query_);
   }
   bool operator!=(const ContainerSelector& o) const { return !(*this == o); }
 
@@ -63,6 +65,12 @@ class CORE_EXPORT ContainerSelector {
   }
 
   bool SelectsStyleContainers() const { return has_style_query_; }
+  bool SelectsStickyContainers() const { return has_sticky_query_; }
+  bool SelectsSnapContainers() const { return has_snap_query_; }
+  bool SelectsStateContainers() const {
+    return SelectsStickyContainers() || SelectsSnapContainers();
+  }
+  bool HasUnknownFeature() const { return has_unknown_feature_; }
 
   PhysicalAxes GetPhysicalAxes() const { return physical_axes_; }
   LogicalAxes GetLogicalAxes() const { return logical_axes_; }
@@ -72,6 +80,9 @@ class CORE_EXPORT ContainerSelector {
   PhysicalAxes physical_axes_{kPhysicalAxisNone};
   LogicalAxes logical_axes_{kLogicalAxisNone};
   bool has_style_query_{false};
+  bool has_sticky_query_{false};
+  bool has_snap_query_{false};
+  bool has_unknown_feature_{false};
 };
 
 class ScopedContainerSelector

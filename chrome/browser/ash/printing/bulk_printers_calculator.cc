@@ -327,10 +327,14 @@ class BulkPrintersCalculatorImpl : public BulkPrintersCalculator {
     return (last_processed_task_ == last_received_task_);
   }
 
-  const std::unordered_map<std::string, chromeos::Printer>& GetPrinters()
+  std::unordered_map<std::string, chromeos::Printer> GetPrinters()
       const override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return printers_;
+  }
+
+  base::WeakPtr<BulkPrintersCalculator> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
   }
 
  private:

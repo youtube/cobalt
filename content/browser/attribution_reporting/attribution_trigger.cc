@@ -5,10 +5,10 @@
 #include "content/browser/attribution_reporting/attribution_trigger.h"
 
 #include <utility>
+#include <vector>
 
 #include "components/attribution_reporting/suitable_origin.h"
-#include "services/network/public/cpp/trigger_attestation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/network/public/cpp/trigger_verification.h"
 
 namespace content {
 
@@ -16,12 +16,12 @@ AttributionTrigger::AttributionTrigger(
     attribution_reporting::SuitableOrigin reporting_origin,
     attribution_reporting::TriggerRegistration registration,
     attribution_reporting::SuitableOrigin destination_origin,
-    absl::optional<network::TriggerAttestation> attestation,
+    std::vector<network::TriggerVerification> verifications,
     bool is_within_fenced_frame)
     : reporting_origin_(std::move(reporting_origin)),
       registration_(std::move(registration)),
       destination_origin_(std::move(destination_origin)),
-      attestation_(std::move(attestation)),
+      verifications_(std::move(verifications)),
       is_within_fenced_frame_(is_within_fenced_frame) {}
 
 AttributionTrigger::AttributionTrigger(const AttributionTrigger&) = default;

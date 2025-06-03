@@ -115,7 +115,6 @@ bool X11SoftwareBitmapPresenter::CompositeBitmap(x11::Connection* connection,
   if (!fg_bitmap.installPixels(image_info, const_cast<void*>(data), 4 * width))
     return false;
   canvas.drawImage(fg_bitmap.asImage(), 0, 0);
-  canvas.flush();
 
   connection->PutImage({x11::ImageFormat::ZPixmap, widget, gc, w_u16, h_u16,
                         x_i16, y_i16, 0, d_u8, bg});
@@ -183,7 +182,7 @@ void X11SoftwareBitmapPresenter::Resize(const gfx::Size& pixel_size) {
                                          viewport_pixel_size_.height(),
                                          color_type, kOpaque_SkAlphaType);
     SkSurfaceProps props = skia::LegacyDisplayGlobals::GetSkSurfaceProps();
-    surface_ = SkSurface::MakeRaster(info, &props);
+    surface_ = SkSurfaces::Raster(info, &props);
   }
 }
 

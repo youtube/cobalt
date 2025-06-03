@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/js/util_ts.js';
+import '//resources/js/util.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_dialog/cr_dialog.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
@@ -27,12 +27,16 @@ import '//resources/cr_elements/cr_toast/cr_toast.js';
 import {CrDialogElement} from '//resources/cr_elements/cr_dialog/cr_dialog.js';
 import {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
 import {WebUiListenerMixin} from '//resources/cr_elements/web_ui_listener_mixin.js';
-import {assert, assertNotReached} from '//resources/js/assert_ts.js';
+import {assert, assertNotReached} from '//resources/js/assert.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
 import {IronCollapseElement} from '//resources/polymer/v3_0/iron-collapse/iron-collapse.js';
 import {flush, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {PageStatus, StatusAction, SyncBrowserProxy, SyncBrowserProxyImpl, SyncPrefs, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
+// <if expr="chromeos_lacros">
+import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
+
+// </if>
 
 import {FocusConfig} from '../focus_config.js';
 import {loadTimeData} from '../i18n_setup.js';
@@ -190,6 +194,19 @@ export class SettingsSyncPageElement extends SettingsSyncPageElementBase {
         computed: 'computeExistingPassphraseLabel_(syncPrefs.encryptAllData,' +
             'syncPrefs.explicitPassphraseTime)',
       },
+
+      // <if expr="chromeos_lacros">
+      /**
+       * Whether to show the new UI for OS Sync Settings and
+       * Browser Sync Settings  which include sublabel and
+       * Apps toggle shared between Ash and Lacros.
+       */
+      showSyncSettingsRevamp_: {
+        type: Boolean,
+        value: loadTimeData.getBoolean('showSyncSettingsRevamp'),
+        readOnly: true,
+      },
+      //</if>
     };
   }
 
@@ -211,6 +228,10 @@ export class SettingsSyncPageElement extends SettingsSyncPageElementBase {
   private signedIn_: boolean;
   private syncDisabledByAdmin_: boolean;
   private syncSectionDisabled_: boolean;
+
+  // <if expr="chromeos_lacros">
+  private showSyncSettingsRevamp_: boolean;
+  // </if>
 
   // <if expr="not chromeos_ash">
   private showSetupCancelDialog_: boolean;
@@ -307,15 +328,22 @@ export class SettingsSyncPageElement extends SettingsSyncPageElementBase {
   }
   // </if>
 
-  // <if expr="is_chromeos">
-  private shouldShowLacrosSideBySideWarning_(): boolean {
-    return loadTimeData.getBoolean('shouldShowLacrosSideBySideWarning');
-  }
-  // </if>
-
   private computeSignedIn_(): boolean {
     return !!this.syncStatus.signedIn;
   }
+
+  // <if expr="chromeos_lacros">
+  private onOsSyncSettingsLinkClick_(): void {
+    OpenWindowProxyImpl.getInstance().openUrl(
+        loadTimeData.getString('osSyncSettingsUrl'));
+  }
+
+  private getManageSyncedDataSubtitle_(): string {
+    return this.showSyncSettingsRevamp_ ?
+        this.i18n('manageSyncedDataSubtitle') :
+        '';
+  }
+  // </if>
 
   private computeSyncSectionDisabled_(): boolean {
     return this.syncStatus !== undefined &&

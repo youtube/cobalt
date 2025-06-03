@@ -303,6 +303,14 @@ unsigned GpuVideoAcceleratorFactoriesImpl::ImageTextureTarget(
 media::GpuVideoAcceleratorFactories::OutputFormat
 GpuVideoAcceleratorFactoriesImpl::VideoFrameOutputFormat(
     media::VideoPixelFormat pixel_format) {
+  auto format = VideoFrameOutputFormatImpl(pixel_format);
+  UMA_HISTOGRAM_ENUMERATION("Media.GPU.OutputFormat", format);
+  return format;
+}
+
+media::GpuVideoAcceleratorFactories::OutputFormat
+GpuVideoAcceleratorFactoriesImpl::VideoFrameOutputFormatImpl(
+    media::VideoPixelFormat pixel_format) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (CheckContextLost())
     return media::GpuVideoAcceleratorFactories::OutputFormat::UNDEFINED;
@@ -356,21 +364,16 @@ GpuVideoAcceleratorFactoriesImpl::VideoFrameOutputFormat(
 #endif
   }
 
-  if (capabilities.texture_rg &&
-      base::FeatureList::IsEnabled(
-          media::kUseMultiPlaneFormatForSoftwareVideo)) {
-    // Use a single GMB and single multi-planar shared image for video.
-    return media::GpuVideoAcceleratorFactories::OutputFormat::NV12_SINGLE_GMB;
-  }
-
   if (capabilities.image_ycbcr_420v &&
       !capabilities.image_ycbcr_420v_disabled_for_video_frames) {
     return media::GpuVideoAcceleratorFactories::OutputFormat::NV12_SINGLE_GMB;
   }
   if (capabilities.texture_rg) {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
     // Windows supports binding single shmem GMB as separate shared images. We
     // prefer single GMB because it makes dcomp overlay code simpler.
+    // UseMultiPlaneFormatForSoftwareVideo is enabled by default on mac so we
+    // can use NV12_SINGLE_GMB.
     return media::GpuVideoAcceleratorFactories::OutputFormat::NV12_SINGLE_GMB;
 #else
     return media::GpuVideoAcceleratorFactories::OutputFormat::NV12_DUAL_GMB;

@@ -267,7 +267,7 @@ fil{
         TM{"Turkmenistan"}
         TN{"Tunisia"}
         TO{"Tonga"}
-        TR{"Turkey"}
+        TR{"Türkiye"}
         TT{"Trinidad & Tobago"}
         TV{"Tuvalu"}
         TW{"Taiwan"}
@@ -310,6 +310,5 @@ fil{
         CZ{"Czech Republic"}
         NZ{"Aotearoa New Zealand"}
         TL{"East Timor"}
-        TR{"Türkiye"}
     }
 }

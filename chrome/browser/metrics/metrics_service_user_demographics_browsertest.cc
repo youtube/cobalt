@@ -28,7 +28,7 @@
 #include "components/metrics/demographics/demographic_metrics_test_utils.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -126,7 +126,7 @@ IN_PROC_BROWSER_TEST_P(MetricsServiceUserDemographicsBrowserTest,
   std::unique_ptr<SyncServiceImplHarness> harness =
       test::InitializeProfileForSync(test_profile,
                                      GetFakeServer()->AsWeakPtr());
-  harness->SetupSync();
+  ASSERT_TRUE(harness->SetupSync());
 
   // Make sure that there is only one Profile to allow reporting the user's
   // birth year and gender.

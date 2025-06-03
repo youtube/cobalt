@@ -45,7 +45,6 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.JniMocker;
 import org.chromium.base.test.util.UserActionTester;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.privacy_sandbox.FakePrivacySandboxBridge;
@@ -56,7 +55,6 @@ import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -65,19 +63,15 @@ import org.chromium.ui.test.util.RenderTestRule;
 
 import java.io.IOException;
 
-/**
- * Tests {@link TopicsFragmentV4}
- */
+/** Tests {@link TopicsFragmentV4} */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@EnableFeatures(ChromeFeatureList.PRIVACY_SANDBOX_SETTINGS_4)
 public final class TopicsFragmentV4Test {
     private static final String TOPIC_NAME_1 = "Topic 1";
     private static final String TOPIC_NAME_2 = "Topic 2";
 
-    @Rule
-    public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
+    @Rule public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
 
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
@@ -89,8 +83,7 @@ public final class TopicsFragmentV4Test {
     public SettingsActivityTestRule<TopicsFragmentV4> mSettingsActivityTestRule =
             new SettingsActivityTestRule<>(TopicsFragmentV4.class);
 
-    @Rule
-    public JniMocker mocker = new JniMocker();
+    @Rule public JniMocker mocker = new JniMocker();
 
     private FakePrivacySandboxBridge mFakePrivacySandboxBridge;
     private UserActionTester mUserActionTester;
@@ -105,24 +98,30 @@ public final class TopicsFragmentV4Test {
 
     @After
     public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
-            prefService.clearPref(Pref.PRIVACY_SANDBOX_M1_TOPICS_ENABLED);
-        });
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
+                    prefService.clearPref(Pref.PRIVACY_SANDBOX_M1_TOPICS_ENABLED);
+                });
 
         mUserActionTester.tearDown();
     }
 
     private void startTopicsSettings() {
         mSettingsActivityTestRule.startSettingsActivity();
-        onViewWaiting(allOf(withText(R.string.settings_topics_page_title),
-                withParent(withId(R.id.action_bar))));
+        onViewWaiting(
+                allOf(
+                        withText(R.string.settings_topics_page_title),
+                        withParent(withId(R.id.action_bar))));
     }
 
     private Matcher<View> getTopicsToggleMatcher() {
-        return allOf(withId(R.id.switchWidget),
-                withParent(withParent(
-                        hasDescendant(withText(R.string.settings_topics_page_toggle_label)))));
+        return allOf(
+                withId(R.id.switchWidget),
+                withParent(
+                        withParent(
+                                hasDescendant(
+                                        withText(R.string.settings_topics_page_toggle_label)))));
     }
 
     private View getTopicsRootView() {
@@ -139,12 +138,14 @@ public final class TopicsFragmentV4Test {
 
     private void setTopicsPrefEnabled(boolean isEnabled) {
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> TopicsFragmentV4.setTopicsPrefEnabled(isEnabled));
+                () ->
+                        TopicsFragmentV4.setTopicsPrefEnabled(
+                                Profile.getLastUsedRegularProfile(), isEnabled));
     }
 
     private boolean isTopicsPrefEnabled() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> TopicsFragmentV4.isTopicsPrefEnabled());
+                () -> TopicsFragmentV4.isTopicsPrefEnabled(Profile.getLastUsedRegularProfile()));
     }
 
     @Test
@@ -279,7 +280,8 @@ public final class TopicsFragmentV4Test {
         onView(withText(R.string.settings_topics_page_current_topics_description_empty))
                 .check(doesNotExist());
 
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.Topics.Disabled"));
     }
 
@@ -306,7 +308,8 @@ public final class TopicsFragmentV4Test {
         onView(withText(TOPIC_NAME_1)).check(matches(isDisplayed()));
         onView(withText(TOPIC_NAME_2)).check(matches(isDisplayed()));
 
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.Topics.BlockedTopicsOpened"));
     }
 
@@ -322,7 +325,8 @@ public final class TopicsFragmentV4Test {
         onView(withText(TOPIC_NAME_1)).check(matches(isDisplayed()));
         onView(withText(TOPIC_NAME_2)).check(matches(isDisplayed()));
 
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.Topics.BlockedTopicsOpened"));
     }
 
@@ -358,8 +362,10 @@ public final class TopicsFragmentV4Test {
         onView(withText(TOPIC_NAME_2)).check(matches(isDisplayed()));
 
         // Verify that actions are reported
-        assertThat(mUserActionTester.getActions(),
-                hasItems("Settings.PrivacySandbox.Topics.BlockedTopicsOpened",
+        assertThat(
+                mUserActionTester.getActions(),
+                hasItems(
+                        "Settings.PrivacySandbox.Topics.BlockedTopicsOpened",
                         "Settings.PrivacySandbox.Topics.TopicRemoved"));
     }
 
@@ -399,19 +405,20 @@ public final class TopicsFragmentV4Test {
         onView(withText(TOPIC_NAME_2)).check(matches(isDisplayed()));
 
         // Verify that actions are sent
-        assertThat(mUserActionTester.getActions(),
-                hasItems("Settings.PrivacySandbox.Topics.BlockedTopicsOpened",
+        assertThat(
+                mUserActionTester.getActions(),
+                hasItems(
+                        "Settings.PrivacySandbox.Topics.BlockedTopicsOpened",
                         "Settings.PrivacySandbox.Topics.TopicAdded"));
     }
 
     @Test
     @SmallTest
     @Policies.Add({
-        @Policies.Item(key = "PrivacySandboxAdTopicsEnabled", string = "false")
-        , @Policies.Item(key = "PrivacySandboxPromptEnabled", string = "false")
+        @Policies.Item(key = "PrivacySandboxAdTopicsEnabled", string = "false"),
+        @Policies.Item(key = "PrivacySandboxPromptEnabled", string = "false")
     })
-    public void
-    testTopicsManaged() {
+    public void testTopicsManaged() {
         startTopicsSettings();
 
         // Check default state and try to press the toggle.
@@ -436,7 +443,8 @@ public final class TopicsFragmentV4Test {
         // Close the additional activity by navigating back.
         pressBack();
         // Verify that metrics are sent
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.Topics.LearnMoreClicked"));
     }
 

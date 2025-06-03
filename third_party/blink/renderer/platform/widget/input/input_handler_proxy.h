@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "cc/input/browser_controls_state.h"
 #include "cc/input/input_handler.h"
@@ -210,6 +211,8 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   // compositor thread has had a chance to update the scroll offset.
   void SetDeferBeginMainFrame(bool defer_begin_main_frame) const;
 
+  void RequestCallbackAfterEventQueueFlushed(base::OnceClosure callback);
+
   // cc::InputHandlerClient implementation.
   void WillShutdown() override;
   void Animate(base::TimeTicks time) override;
@@ -227,6 +230,7 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
 
   // SnapFlingClient implementation.
   bool GetSnapFlingInfoAndSetAnimatingSnapTarget(
+      const gfx::Vector2dF& current_delta,
       const gfx::Vector2dF& natural_displacement,
       gfx::PointF* initial_offset,
       gfx::PointF* target_offset) const override;
@@ -245,6 +249,9 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   blink::WebGestureDevice currently_active_gesture_device() const {
     return currently_active_gesture_device_.value();
   }
+
+  // Immediately dispatches all queued events.
+  void FlushQueuedEventsForTesting();
 
  private:
   friend class test::TestInputHandlerProxy;
@@ -321,20 +328,20 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   }
 
   void RecordScrollBegin(blink::WebGestureDevice device,
-                         uint32_t reasons_from_scroll_begin,
                          uint32_t main_thread_hit_tested_reasons,
                          uint32_t main_thread_repaint_reasons);
 
   bool HasQueuedEventsReadyForDispatch(bool frame_aligned);
 
-  InputHandlerProxyClient* client_;
+  raw_ptr<InputHandlerProxyClient, ExperimentalRenderer> client_;
 
   // The input handler object is owned by the compositor delegate. The input
   // handler must call WillShutdown() on this class before it is deleted at
   // which point this pointer will be cleared.
-  cc::InputHandler* input_handler_;
+  raw_ptr<cc::InputHandler, ExperimentalRenderer> input_handler_;
 
-  SynchronousInputHandler* synchronous_input_handler_;
+  raw_ptr<SynchronousInputHandler, ExperimentalRenderer>
+      synchronous_input_handler_;
 
   // This should be true when a pinch is in progress. The sequence of events is
   // as follows: GSB GPB GSU GPU ... GPE GSE.
@@ -376,6 +383,8 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   // which source device is currently performing a gesture based scroll.
   absl::optional<blink::WebGestureDevice> currently_active_gesture_device_;
 
+  base::OnceClosure queue_flushed_callback_;
+
   // Tracks whether the first scroll update gesture event has been seen after a
   // scroll begin. This is set/reset when scroll gestures are processed in
   // HandleInputEventWithLatencyInfo and shouldn't be used outside the scope
@@ -389,7 +398,7 @@ class PLATFORM_EXPORT InputHandlerProxy : public cc::InputHandlerClient,
   // latency component should be added for injected GestureScrollUpdates.
   bool last_injected_gesture_was_begin_;
 
-  const base::TickClock* tick_clock_;
+  raw_ptr<const base::TickClock, ExperimentalRenderer> tick_clock_;
 
   std::unique_ptr<cc::SnapFlingController> snap_fling_controller_;
 

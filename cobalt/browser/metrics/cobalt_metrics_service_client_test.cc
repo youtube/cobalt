@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"

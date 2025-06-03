@@ -14,7 +14,8 @@
 
 FakeDesktopMediaPicker::FakeDesktopMediaPicker(
     FakeDesktopMediaPickerFactory::TestFlags* expectation)
-    : expectation_(expectation) {
+    : expectation_(expectation),
+      picker_params_(Params::RequestSource::kUnknown) {
   expectation_->picker_created = true;
 }
 FakeDesktopMediaPicker::~FakeDesktopMediaPicker() {
@@ -89,8 +90,8 @@ void FakeDesktopMediaPickerFactory::SetTestFlags(TestFlags* test_flags,
   current_test_ = 0;
 }
 
-std::unique_ptr<DesktopMediaPicker>
-FakeDesktopMediaPickerFactory::CreatePicker() {
+std::unique_ptr<DesktopMediaPicker> FakeDesktopMediaPickerFactory::CreatePicker(
+    const content::MediaStreamRequest* request) {
   EXPECT_LE(current_test_, tests_count_);
   if (current_test_ >= tests_count_)
     return nullptr;

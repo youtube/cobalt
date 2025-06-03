@@ -8,8 +8,9 @@
 #include "ash/ash_export.h"
 #include "ash/wm/desks/cros_next_desk_button_base.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/color/color_id.h"
+#include "ui/views/animation/animation_abort_handle.h"
 
 namespace gfx {
 struct VectorIcon;
@@ -21,9 +22,9 @@ class DeskBarViewBase;
 
 // A button view in the desks bar with an icon. The button have three different
 // states, and the three states are interchangeable.
-// TODO(conniekxu): Remove `ZeroStateIconButton` and `ExpandedDesksBarButton`,
-// replace them with this class, and rename this class by removing the prefix
-// CrOSNext.
+// TODO(http://b/291622042): Remove `ZeroStateIconButton` and
+// `ExpandedDesksBarButton`, replace them with this class, and rename this class
+// by removing the prefix CrOSNext.
 class ASH_EXPORT CrOSNextDeskIconButton : public CrOSNextDeskButtonBase {
  public:
   METADATA_HEADER(CrOSNextDeskIconButton);
@@ -66,6 +67,13 @@ class ASH_EXPORT CrOSNextDeskIconButton : public CrOSNextDeskButtonBase {
     paint_as_active_ = paint_as_active;
   }
 
+  // Sets the animation abort handle. Please note, it will abort the existing
+  // animation first (if there is one) when a new one comes.
+  void set_animation_abort_handle(
+      std::unique_ptr<views::AnimationAbortHandle> animation_abort_handle) {
+    animation_abort_handle_ = std::move(animation_abort_handle);
+  }
+
   // Called when the button's state (kZero, kExpanded, kActive) gets updated. It
   // updates `state_` to store the most updated state, corner radius of the
   // background and the focus ring based on `state_`.
@@ -80,6 +88,10 @@ class ASH_EXPORT CrOSNextDeskIconButton : public CrOSNextDeskButtonBase {
   void UpdateFocusState() override;
   void OnThemeChanged() override;
   void StateChanged(ButtonState old_state) override;
+
+  absl::optional<ui::ColorId> GetFocusColorIdForTesting() const {
+    return focus_color_id_;
+  }
 
  private:
   // Triggered when the button's enable state gets changed, i.e, the button is
@@ -100,6 +112,8 @@ class ASH_EXPORT CrOSNextDeskIconButton : public CrOSNextDeskButtonBase {
   const ui::ColorId background_color_id_;
 
   absl::optional<ui::ColorId> focus_color_id_;
+
+  std::unique_ptr<views::AnimationAbortHandle> animation_abort_handle_;
 };
 
 }  // namespace ash

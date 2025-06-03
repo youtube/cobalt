@@ -61,6 +61,10 @@ bool ShouldUseNullInputType(bool surrounding_text_supported) {
   return state->GetCurrentInputMethod().id().find("xkb:") != std::string::npos;
 }
 
+gfx::Range RemoveOffset(gfx::Range range, size_t offset) {
+  return {range.start() - offset, range.end() - offset};
+}
+
 }  // namespace
 
 TextInput::TextInput(std::unique_ptr<Delegate> delegate)
@@ -125,18 +129,18 @@ void TextInput::Resync() {
 }
 
 void TextInput::Reset() {
-  surrounding_text_tracker_.Reset();
+  surrounding_text_tracker_.CancelComposition();
   if (input_method_)
     input_method_->CancelComposition(this);
 }
 
 void TextInput::SetSurroundingText(
     base::StringPiece16 text,
+    uint32_t offset,
     const gfx::Range& cursor_pos,
     const absl::optional<ui::GrammarFragment>& grammar_fragment,
     const absl::optional<ui::AutocorrectInfo>& autocorrect_info) {
-  // TODO(crbug.com/1402906): Text range is not currently handled correctly.
-  surrounding_text_tracker_.Update(text, 0u, cursor_pos);
+  surrounding_text_tracker_.Update(text, offset, cursor_pos);
 
   grammar_fragment_at_cursor_ = grammar_fragment;
   if (autocorrect_info.has_value()) {
@@ -155,8 +159,10 @@ void TextInput::SetTypeModeFlags(ui::TextInputType type,
                                  bool should_do_learning,
                                  bool can_compose_inline,
                                  bool surrounding_text_supported) {
-  if (!input_method_)
+  if (!input_method_) {
     return;
+  }
+
   bool changed = (input_type_ != type) || (input_mode_ != mode) ||
                  (flags_ != flags) ||
                  (should_do_learning_ != should_do_learning) ||
@@ -207,21 +213,28 @@ void TextInput::SetCompositionText(const ui::CompositionText& composition) {
 }
 
 size_t TextInput::ConfirmCompositionText(bool keep_selection) {
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
   const auto& [surrounding_text, utf16_offset, cursor_pos, composition] =
-      surrounding_text_tracker_.predicted_state();
+      predicted_state;
 
-  const size_t composition_text_length = composition.length();
-  if (keep_selection && cursor_pos.IsValid() &&
-      surrounding_text.length() >= cursor_pos.GetMax()) {
-    delegate_->SetCursor(surrounding_text, cursor_pos);
+  if (!(base::FeatureList::IsEnabled(
+            ash::features::kExoExtendedConfirmComposition) &&
+        delegate_->ConfirmComposition(keep_selection))) {
+    // Fallback to SetCursor and Commit if ConfirmComposition is not supported.
+    // TODO(b/265853952): Remove once all versions of Lacros supports
+    // ConfirmComposition.
+    if (keep_selection && cursor_pos.IsValid() &&
+        cursor_pos.IsBoundedBy(predicted_state.GetSurroundingTextRange())) {
+      delegate_->SetCursor(surrounding_text,
+                           RemoveOffset(cursor_pos, utf16_offset));
+    }
+
+    delegate_->Commit(
+        predicted_state.GetCompositionText().value_or(base::StringPiece16()));
   }
-  base::StringPiece16 composition_text =
-      composition.is_empty()
-          ? base::StringPiece16()
-          : base::StringPiece16(surrounding_text)
-                .substr(composition.GetMin(), composition.length());
 
-  delegate_->Commit(composition_text);
+  // Preserve the result value before updating the tracker's state.
+  const size_t composition_text_length = composition.length();
   surrounding_text_tracker_.OnConfirmCompositionText(keep_selection);
   return composition_text_length;
 }
@@ -244,24 +257,54 @@ void TextInput::InsertText(const std::u16string& text,
 }
 
 void TextInput::InsertChar(const ui::KeyEvent& event) {
-  // TODO(b/240618514): Short term workaround to accept temporary fix in IME
-  // for urgent production breakage.
-  // We should come up with the proper solution of what to be done.
-  if (event.key_code() == ui::VKEY_UNKNOWN) {
-    // On some specific cases, IME use InsertChar, even if there's no clear
-    // key mapping from key_code. Then, use InsertText().
-    InsertText(std::u16string(1u, event.GetCharacter()),
-               InsertTextCursorBehavior::kMoveCursorAfterText);
-    return;
+  // TODO(crbug.com/1401822): remove the old behavior, once the fix is
+  // stabilized.
+  if (!base::FeatureList::IsEnabled(ash::features::kExoConsumedByImeByFlag)) {
+    // TODO(b/240618514): Short term workaround to accept temporary fix in IME
+    // for urgent production breakage.
+    // We should come up with the proper solution of what to be done.
+    if (event.key_code() == ui::VKEY_UNKNOWN) {
+      // On some specific cases, IME use InsertChar, even if there's no clear
+      // key mapping from key_code. Then, use InsertText().
+      InsertText(std::u16string(1u, event.GetCharacter()),
+                 InsertTextCursorBehavior::kMoveCursorAfterText);
+      return;
+    }
+    // TextInput is currently used only for Lacros, and this is the
+    // short term workaround not to duplicate KeyEvent there.
+    // This is what we do for ARC, which is being removed in the near
+    // future.
+    // TODO(fukino): Get rid of this, too, when the wl_keyboard::key
+    // and text_input::keysym events are handled properly in Lacros.
+    if (ConsumedByIme(surface_->window(), event)) {
+      delegate_->SendKey(event);
+    }
+  } else {
+    if (ConsumedByIme(surface_->window(), event)) {
+      // TODO(b/240618514): Short term workaround to accept temporary fix in IME
+      // for urgent production breakage.
+      // We should come up with the proper solution of what to be done.
+      if (event.code() == ui::DomCode::NONE) {
+        // On some specific cases, IME use InsertChar, even if there's no clear
+        // key mapping from key_code. Then, use InsertText().
+        InsertText(std::u16string(1u, event.GetCharacter()),
+                   InsertTextCursorBehavior::kMoveCursorAfterText);
+      } else {
+        delegate_->SendKey(event);
+      }
+    }
   }
-  // TextInput is currently used only for Lacros, and this is the
-  // short term workaround not to duplicate KeyEvent there.
-  // This is what we do for ARC, which is being removed in the near
-  // future.
-  // TODO(fukino): Get rid of this, too, when the wl_keyboard::key
-  // and text_input::keysym events are handled properly in Lacros.
-  if (ConsumedByIme(surface_->window(), event))
-    delegate_->SendKey(event);
+}
+
+bool TextInput::CanInsertImage() {
+  return delegate_->HasImageInsertSupport() &&
+         input_type_ == ui::TEXT_INPUT_TYPE_CONTENT_EDITABLE;
+}
+
+void TextInput::InsertImage(const GURL& src) {
+  if (CanInsertImage()) {
+    delegate_->InsertImage(src);
+  }
 }
 
 ui::TextInputType TextInput::GetTextInputType() const {
@@ -309,11 +352,10 @@ ui::TextInputClient::FocusReason TextInput::GetFocusReason() const {
 
 bool TextInput::GetTextRange(gfx::Range* range) const {
   DCHECK(range);
-  const auto& [surrounding_text, utf16_offset, selection, unused_composition] =
-      surrounding_text_tracker_.predicted_state();
-  DCHECK(selection.IsValid());
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  DCHECK(predicted_state.selection.IsValid());
 
-  *range = gfx::Range(0, surrounding_text.length());
+  *range = predicted_state.GetSurroundingTextRange();
   return true;
 }
 
@@ -338,17 +380,20 @@ bool TextInput::GetEditableSelectionRange(gfx::Range* range) const {
 }
 
 bool TextInput::SetEditableSelectionRange(const gfx::Range& range) {
-  const auto& [surrounding_text, utf16_offset, unused_selection, composition] =
-      surrounding_text_tracker_.predicted_state();
-  if (surrounding_text.length() < range.GetMax())
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  absl::optional<base::StringPiece16> composition_text =
+      predicted_state.GetCompositionText();
+  if (!range.IsBoundedBy(predicted_state.GetSurroundingTextRange()) ||
+      !composition_text.has_value()) {
     return false;
+  }
 
   // Send a SetCursor followed by a Commit of the current composition text, or
   // empty string if there is no composition text. This is necessary since
   // SetCursor only takes effect on the following Commit.
-  delegate_->SetCursor(surrounding_text, range);
-  delegate_->Commit(base::StringPiece16(surrounding_text)
-                        .substr(composition.GetMin(), composition.length()));
+  delegate_->SetCursor(predicted_state.surrounding_text,
+                       RemoveOffset(range, predicted_state.utf16_offset));
+  delegate_->Commit(*composition_text);
   surrounding_text_tracker_.OnSetEditableSelectionRange(range);
   return true;
 }
@@ -356,11 +401,13 @@ bool TextInput::SetEditableSelectionRange(const gfx::Range& range) {
 bool TextInput::GetTextFromRange(const gfx::Range& range,
                                  std::u16string* text) const {
   DCHECK(text);
-  const auto& surrounding_text =
-      surrounding_text_tracker_.predicted_state().surrounding_text;
-  if (surrounding_text.length() < range.GetMax())
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  if (!range.IsBoundedBy(predicted_state.GetSurroundingTextRange())) {
     return false;
-  text->assign(surrounding_text, range.GetMin(), range.length());
+  }
+
+  text->assign(predicted_state.surrounding_text,
+               range.GetMin() - predicted_state.utf16_offset, range.length());
   return true;
 }
 
@@ -388,11 +435,21 @@ void TextInput::ExtendSelectionAndDelete(size_t before, size_t after) {
 
   size_t utf16_start =
       selection.GetMin() - std::min(before, selection.GetMin());
-  size_t utf16_end =
-      std::min(selection.GetMax() + after, surrounding_text.length());
-  delegate_->DeleteSurroundingText(surrounding_text,
-                                   gfx::Range(utf16_start, utf16_end));
+  size_t utf16_end = std::min(selection.GetMax() + after,
+                              surrounding_text.length() + utf16_offset);
+
+  delegate_->DeleteSurroundingText(
+      surrounding_text,
+      gfx::Range(utf16_start - utf16_offset, utf16_end - utf16_offset));
   surrounding_text_tracker_.OnExtendSelectionAndDelete(before, after);
+}
+
+void TextInput::ExtendSelectionAndReplace(
+    size_t before,
+    size_t after,
+    const base::StringPiece16 replacement_text) {
+  // TODO(crbug.com/1443726): Implement this using an extended Wayland API.
+  NOTIMPLEMENTED_LOG_ONCE();
 }
 
 void TextInput::EnsureCaretNotInRect(const gfx::Rect& rect) {
@@ -422,20 +479,27 @@ bool TextInput::ShouldDoLearning() {
 bool TextInput::SetCompositionFromExistingText(
     const gfx::Range& range,
     const std::vector<ui::ImeTextSpan>& ui_ime_text_spans) {
-  const auto& [surrounding_text, utf16_offset, selection, unused_composition] =
-      surrounding_text_tracker_.predicted_state();
-  DCHECK(selection.IsValid());
-  if (surrounding_text.length() < range.GetMax())
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  const gfx::Range surrounding_text_range =
+      predicted_state.GetSurroundingTextRange();
+  DCHECK(predicted_state.selection.IsValid());
+  if (!range.IsBoundedBy(surrounding_text_range) ||
+      !predicted_state.selection.IsBoundedBy(surrounding_text_range)) {
     return false;
+  }
 
   const auto composition_length = range.length();
   for (const auto& span : ui_ime_text_spans) {
-    if (composition_length < std::max(span.start_offset, span.end_offset))
+    if (composition_length < std::max(span.start_offset, span.end_offset)) {
       return false;
+    }
   }
 
-  delegate_->SetCompositionFromExistingText(surrounding_text, selection, range,
-                                            ui_ime_text_spans);
+  const size_t utf16_offset = predicted_state.utf16_offset;
+  delegate_->SetCompositionFromExistingText(
+      predicted_state.surrounding_text,
+      RemoveOffset(predicted_state.selection, utf16_offset),
+      RemoveOffset(range, utf16_offset), ui_ime_text_spans);
   surrounding_text_tracker_.OnSetCompositionFromExistingText(range);
   return true;
 }
@@ -449,9 +513,19 @@ gfx::Rect TextInput::GetAutocorrectCharacterBounds() const {
 }
 
 bool TextInput::SetAutocorrectRange(const gfx::Range& range) {
-  const auto& surrounding_text =
-      surrounding_text_tracker_.predicted_state().surrounding_text;
-  delegate_->SetAutocorrectRange(surrounding_text, range);
+  if (range.is_empty()) {
+    delegate_->SetAutocorrectRange(u"", range);
+    return true;
+  }
+
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  if (!range.IsBoundedBy(predicted_state.GetSurroundingTextRange())) {
+    return false;
+  }
+
+  delegate_->SetAutocorrectRange(
+      predicted_state.surrounding_text,
+      RemoveOffset(range, predicted_state.utf16_offset));
   return true;
 }
 
@@ -461,25 +535,39 @@ absl::optional<ui::GrammarFragment> TextInput::GetGrammarFragmentAtCursor()
 }
 
 bool TextInput::ClearGrammarFragments(const gfx::Range& range) {
-  const auto& surrounding_text =
-      surrounding_text_tracker_.predicted_state().surrounding_text;
-  if (surrounding_text.length() < range.GetMax())
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  if (!range.IsBoundedBy(predicted_state.GetSurroundingTextRange())) {
     return false;
+  }
 
-  delegate_->ClearGrammarFragments(surrounding_text, range);
+  delegate_->ClearGrammarFragments(
+      predicted_state.surrounding_text,
+      RemoveOffset(range, predicted_state.utf16_offset));
   return true;
 }
 
 bool TextInput::AddGrammarFragments(
     const std::vector<ui::GrammarFragment>& fragments) {
-  const auto& surrounding_text =
-      surrounding_text_tracker_.predicted_state().surrounding_text;
-  for (auto& fragment : fragments) {
-    if (surrounding_text.length() < fragment.range.GetMax())
+  const auto& predicted_state = surrounding_text_tracker_.predicted_state();
+  const gfx::Range surrounding_text_range =
+      predicted_state.GetSurroundingTextRange();
+
+  for (const auto& fragment : fragments) {
+    if (!fragment.range.IsBoundedBy(surrounding_text_range)) {
       continue;
-    delegate_->AddGrammarFragment(surrounding_text, fragment);
+    }
+
+    delegate_->AddGrammarFragment(
+        predicted_state.surrounding_text,
+        ui::GrammarFragment(
+            RemoveOffset(fragment.range, predicted_state.utf16_offset),
+            fragment.suggestion));
   }
   return true;
+}
+
+bool TextInput::SupportsAlwaysConfirmComposition() {
+  return delegate_->SupportsConfirmPreedit();
 }
 
 void GetActiveTextInputControlLayoutBounds(

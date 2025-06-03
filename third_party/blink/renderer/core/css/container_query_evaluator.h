@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/container_selector.h"
+#include "third_party/blink/renderer/core/css/container_state.h"
 #include "third_party/blink/renderer/core/css/media_query_evaluator.h"
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/css/style_recalc_change.h"
@@ -20,7 +21,7 @@ namespace blink {
 
 class ComputedStyle;
 class ContainerQuery;
-class Document;
+class ContainerQueryScrollSnapshot;
 class Element;
 class MatchResult;
 class StyleRecalcContext;
@@ -28,6 +29,8 @@ class StyleRecalcContext;
 class CORE_EXPORT ContainerQueryEvaluator final
     : public GarbageCollected<ContainerQueryEvaluator> {
  public:
+  explicit ContainerQueryEvaluator(Element& container);
+
   // Look for a container query container in the shadow-including inclusive
   // ancestor chain of 'starting_element'.
   static Element* FindContainer(Element* starting_element,
@@ -38,10 +41,6 @@ class CORE_EXPORT ContainerQueryEvaluator final
                          const ContainerQuery&,
                          ContainerSelectorCache&,
                          MatchResult&);
-
-  // Creates an evaluator with no containment, hence all queries evaluated
-  // against it will fail.
-  ContainerQueryEvaluator() = default;
 
   // Width/Height are used by container relative units (qi, qb, etc).
   //
@@ -72,18 +71,30 @@ class CORE_EXPORT ContainerQueryEvaluator final
   //
   // Dependent queries are cleared when kUnnamed/kNamed is returned (and left
   // unchanged otherwise).
-  Change SizeContainerChanged(Document&,
-                              Element& container,
-                              PhysicalSize,
-                              PhysicalAxes contained_axes);
+  Change SizeContainerChanged(PhysicalSize, PhysicalAxes contained_axes);
 
   // Re-evaluate the cached results and clear any results which are affected.
   Change StyleContainerChanged();
 
+  // Update the ContainerValues for the evaluator if necessary based on the
+  // latest snapshot.
+  Change ApplyScrollSnapshot();
+
+  // Re-evaluate the cached results and clear any results which are affected by
+  // the ContainerStuckPhysical changes.
+  Change StickyContainerChanged(ContainerStuckPhysical stuck_horizontal,
+                                ContainerStuckPhysical stuck_vertical);
+
   // We may need to update the internal CSSContainerValues of this evaluator
   // when e.g. the rem unit changes.
-  void UpdateValuesIfNeeded(Document&, Element& container, StyleRecalcChange);
+  void UpdateContainerValuesFromUnitChanges(StyleRecalcChange);
 
+  // If size container queries are expressed in font-relative units, the query
+  // evaluation may change even if the size of the container in pixels did not
+  // change. If the old and new style use different font properties, and there
+  // are existing queries that depend on font relative units, mark the
+  // evaluator as requiring size query re-evaluation even if the size does not
+  // change.
   void MarkFontDirtyIfNeeded(const ComputedStyle& old_style,
                              const ComputedStyle& new_style);
 
@@ -92,16 +103,25 @@ class CORE_EXPORT ContainerQueryEvaluator final
  private:
   friend class ContainerQueryEvaluatorTest;
 
-  void SetData(Document&,
-               Element& container,
-               PhysicalSize,
-               PhysicalAxes contained_axes);
+  // Update the CSSContainerValues with the new size and contained axes to be
+  // used for queries.
+  void UpdateContainerSize(PhysicalSize, PhysicalAxes contained_axes);
 
-  enum ContainerType { kSizeContainer, kStyleContainer };
+  // Update the CSSContainerValues with the new stuck state.
+  void UpdateContainerStuck(ContainerStuckPhysical stuck_horizontal,
+                            ContainerStuckPhysical stuck_vertical);
+
+  enum ContainerType { kSizeContainer, kStyleContainer, kStickyContainer };
   void ClearResults(Change change, ContainerType container_type);
 
+  // Re-evaluate cached query results after a size change and return which
+  // elements need to be invalidated if necessary.
   Change ComputeSizeChange() const;
+
+  // Re-evaluate cached query results after a style change and return which
+  // elements need to be invalidated if necessary.
   Change ComputeStyleChange() const;
+  Change ComputeStickyChange() const;
 
   struct Result {
     // Main evaluation result.
@@ -126,13 +146,17 @@ class CORE_EXPORT ContainerQueryEvaluator final
   Member<MediaQueryEvaluator> media_query_evaluator_;
   PhysicalSize size_;
   PhysicalAxes contained_axes_;
+  ContainerStuckPhysical stuck_horizontal_ = ContainerStuckPhysical::kNo;
+  ContainerStuckPhysical stuck_vertical_ = ContainerStuckPhysical::kNo;
   HeapHashMap<Member<const ContainerQuery>, Result> results_;
+  Member<ContainerQueryScrollSnapshot> snapshot_;
   // The MediaQueryExpValue::UnitFlags of all queries evaluated against this
   // ContainerQueryEvaluator.
   unsigned unit_flags_ = 0;
   bool referenced_by_unit_ = false;
   bool font_dirty_ = false;
   bool depends_on_style_ = false;
+  bool depends_on_state_ = false;
 };
 
 }  // namespace blink

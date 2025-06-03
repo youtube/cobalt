@@ -4,11 +4,15 @@
 
 package org.chromium.chrome.browser.compositor.scene_layer;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -46,11 +50,14 @@ public class StaticTabSceneLayer extends SceneLayer {
         float y = model.get(LayoutTab.CONTENT_OFFSET)
                 + model.get(LayoutTab.RENDER_Y) * LayoutTab.sDpToPx;
 
+        // Check isActiveLayout to prevent pushing a TAB_ID for a static layer that may already be
+        // invalidated by the next layout.
         StaticTabSceneLayerJni.get().updateTabLayer(mNativePtr, StaticTabSceneLayer.this,
-                model.get(LayoutTab.TAB_ID), model.get(LayoutTab.CAN_USE_LIVE_TEXTURE),
-                model.get(LayoutTab.BACKGROUND_COLOR), x, y,
-                model.get(LayoutTab.STATIC_TO_VIEW_BLEND), model.get(LayoutTab.SATURATION),
-                model.get(LayoutTab.BRIGHTNESS));
+                model.get(LayoutTab.IS_ACTIVE_LAYOUT_SUPPLIER).isActiveLayout()
+                        ? model.get(LayoutTab.TAB_ID)
+                        : Tab.INVALID_TAB_ID,
+                model.get(LayoutTab.CAN_USE_LIVE_TEXTURE), model.get(LayoutTab.BACKGROUND_COLOR), x,
+                y, model.get(LayoutTab.STATIC_TO_VIEW_BLEND), model.get(LayoutTab.SATURATION));
     }
 
     /**
@@ -77,11 +84,12 @@ public class StaticTabSceneLayer extends SceneLayer {
     }
 
     @NativeMethods
-    interface Natives {
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public interface Natives {
         long init(StaticTabSceneLayer caller);
         void updateTabLayer(long nativeStaticTabSceneLayer, StaticTabSceneLayer caller, int id,
                 boolean canUseLiveLayer, int backgroundColor, float x, float y,
-                float staticToViewBlend, float saturation, float brightness);
+                float staticToViewBlend, float saturation);
         void setTabContentManager(long nativeStaticTabSceneLayer, StaticTabSceneLayer caller,
                 TabContentManager tabContentManager);
     }

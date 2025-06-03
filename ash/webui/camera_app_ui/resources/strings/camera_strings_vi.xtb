@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Đang di chuyển theo hướng lên trên và sang trái</translation>
 <translation id="3573890771273113519">Chuyển sang chế độ quét</translation>
 <translation id="3583444040776960729">Góc dưới cùng bên trái của tài liệu</translation>
+<translation id="3642192109456033823">Đang xử lý video...</translation>
 <translation id="3789724198583203151">Xoay 90 độ ngược chiều kim đồng hồ</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Sao chép văn bản</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Tạm dừng quay</translation>
 <translation id="4121305183798804752">Đã phát hiện tài liệu</translation>
 <translation id="414641094616694804">Máy ảnh này không thể thay đổi độ phân giải</translation>
+<translation id="4176463684765177261">Đã tắt</translation>
 <translation id="4269820728363426813">Sao chép địa chỉ liên kết</translation>
-<translation id="4281620174117014503">Độ phân giải trung bình</translation>
 <translation id="428234092390943511">Hình thu nhỏ của trang</translation>
+<translation id="4349714250734879769">Điều chỉnh tỷ lệ khung hình bằng Chrome</translation>
 <translation id="4383571725254449280">In nhật ký hiệu suất</translation>
 <translation id="4445542136948522167">Dừng chụp ảnh</translation>
 <translation id="4570032796877367747">Máy ảnh mặt trước</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Đang quét trang <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Vuông</translation>
+<translation id="574392208103952083">Trung bình</translation>
 <translation id="5746169159649715125">Lưu dưới dạng PDF</translation>
 <translation id="5753488212459587150">Bật chế độ chuyên gia</translation>
 <translation id="5759254179196327752">Quét tài liệu</translation>
@@ -133,7 +136,7 @@ Nếu ý kiến phản hồi của bạn là về chất lượng ảnh hoặc v
 <translation id="7608223098072244877">4 x 4</translation>
 <translation id="761421184377987513">Đang di chuyển theo hướng xuống dưới và sang trái</translation>
 <translation id="7649070708921625228">Trợ giúp</translation>
-<translation id="7658239707568436148">Hủy</translation>
+<translation id="7658239707568436148">Huỷ</translation>
 <translation id="7670511624014457267">60 khung hình/giây</translation>
 <translation id="7671804233658741790">Góc dưới cùng bên phải của tài liệu</translation>
 <translation id="7684446460490665873">Quay video ở chế độ tua nhanh thời gian</translation>
@@ -148,6 +151,7 @@ Nếu ý kiến phản hồi của bạn là về chất lượng ảnh hoặc v
 <translation id="8145038249676204903">Chuyển sang chụp ảnh</translation>
 <translation id="8167081290930651932">Lưu dưới dạng Ảnh</translation>
 <translation id="8239780215768881278">Chụp ảnh từ video</translation>
+<translation id="8346544573713510785">Điều chỉnh tỷ lệ khung hình bằng lớp trừu tượng phần cứng (HAL) cho máy ảnh</translation>
 <translation id="8425673304802773841">Xoay xuống</translation>
 <translation id="8428213095426709021">Cài đặt</translation>
 <translation id="8629662593426079630">360p</translation>

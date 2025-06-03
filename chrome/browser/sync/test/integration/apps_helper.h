@@ -15,9 +15,9 @@
 #include "chrome/browser/extensions/install_tracker.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "components/sync/model/string_ordinal.h"
+#include "components/webapps/common/web_app_id.h"
 #include "extensions/browser/extension_prefs_observer.h"
 #include "extensions/browser/extension_registry_observer.h"
 
@@ -48,7 +48,8 @@ std::string InstallHostedAppForAllProfiles(int index);
 
 // Installs the web app for the given WebAppInstallInfo and profile. This does
 // not download icons or run OS integration installs.
-web_app::AppId InstallWebApp(Profile* profile, const WebAppInstallInfo& info);
+webapps::AppId InstallWebApp(Profile* profile,
+                             const web_app::WebAppInstallInfo& info);
 
 // Uninstalls the app for the given index from |profile|. Assumes that it was
 // previously installed.

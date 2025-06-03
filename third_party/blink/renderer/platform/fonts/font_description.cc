@@ -84,9 +84,9 @@ FontDescription::FontDescription()
       adjusted_size_(0),
       letter_spacing_(0),
       word_spacing_(0),
-      font_selection_request_(NormalWeightValue(),
-                              NormalWidthValue(),
-                              NormalSlopeValue()) {
+      font_selection_request_(kNormalWeightValue,
+                              kNormalWidthValue,
+                              kNormalSlopeValue) {
   fields_as_unsigned_.parts[0] = 0;
   fields_as_unsigned_.parts[1] = 0;
   fields_.orientation_ = static_cast<unsigned>(FontOrientation::kHorizontal);
@@ -114,6 +114,7 @@ FontDescription::FontDescription()
   fields_.font_synthesis_style_ = kAutoFontSynthesisStyle;
   fields_.font_synthesis_small_caps_ = kAutoFontSynthesisSmallCaps;
   fields_.variant_position_ = kNormalVariantPosition;
+  static_assert(static_cast<unsigned>(TextSpacingTrim::kSpaceFirst) == 0);
 }
 
 FontDescription::FontDescription(const FontDescription&) = default;
@@ -249,9 +250,9 @@ float FontDescription::AdjustedSpecifiedSize() const {
 
 FontDescription FontDescription::SizeAdjustedFontDescription(
     float size_adjust) const {
-  // TODO(crbug.com/451346): The font-size-adjust property and size-adjust
-  // descriptor currently don't work together. For sanity, if both are set, we
-  // ignore size-adjust. Fix it when shipping font-size-adjust.
+  // See note in: https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop
+  // When the font-size-adjust property is applied while a size-adjust
+  // descriptor is set, the latter must not have an effect
   if (HasSizeAdjust())
     return *this;
 
@@ -265,15 +266,16 @@ FontDescription FontDescription::SizeAdjustedFontDescription(
 
 FontCacheKey FontDescription::CacheKey(
     const FontFaceCreationParams& creation_params,
-    bool is_unique_match,
-    bool is_generic_family) const {
+    bool is_unique_match) const {
   unsigned options =
-      static_cast<unsigned>(fields_.font_optical_sizing_) << 7 |  // bit 8
-      static_cast<unsigned>(fields_.synthetic_italic_) << 6 |     // bit 7
-      static_cast<unsigned>(fields_.synthetic_bold_) << 5 |       // bit 6
-      static_cast<unsigned>(fields_.text_rendering_) << 3 |       // bits 4-5
-      static_cast<unsigned>(fields_.orientation_) << 1 |          // bit 2-3
-      static_cast<unsigned>(fields_.subpixel_text_position_);     // bit 1
+      static_cast<unsigned>(fields_.font_synthesis_style_) << 9 |   // bit 10
+      static_cast<unsigned>(fields_.font_synthesis_weight_) << 8 |  // bit 9
+      static_cast<unsigned>(fields_.font_optical_sizing_) << 7 |    // bit 8
+      static_cast<unsigned>(fields_.synthetic_italic_) << 6 |       // bit 7
+      static_cast<unsigned>(fields_.synthetic_bold_) << 5 |         // bit 6
+      static_cast<unsigned>(fields_.text_rendering_) << 3 |         // bits 4-5
+      static_cast<unsigned>(fields_.orientation_) << 1 |            // bit 2-3
+      static_cast<unsigned>(fields_.subpixel_text_position_);       // bit 1
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   float device_scale_factor_for_key = FontCache::DeviceScaleFactor();
@@ -281,14 +283,14 @@ FontCacheKey FontDescription::CacheKey(
   float device_scale_factor_for_key = 1.0f;
 #endif
   FontCacheKey cache_key(creation_params, EffectiveFontSize(),
-                         options | font_selection_request_.GetHash() << 9,
-                         device_scale_factor_for_key, variation_settings_,
-                         font_palette_, font_variant_alternates_,
-                         is_unique_match, is_generic_family);
+                         options | font_selection_request_.GetHash() << 11,
+                         device_scale_factor_for_key, size_adjust_,
+                         variation_settings_, font_palette_,
+                         font_variant_alternates_, is_unique_match);
 #if BUILDFLAG(IS_ANDROID)
   if (const LayoutLocale* locale = Locale()) {
     if (FontCache::GetLocaleSpecificFamilyName(creation_params.Family()))
-      cache_key.SetLocale(locale->LocaleForSkFontMgr());
+      cache_key.SetLocale(AtomicString(locale->LocaleForSkFontMgr()));
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   return cache_key;
@@ -381,8 +383,13 @@ unsigned FontDescription::StyleHashWithoutFamilyList() const {
     }
   }
 
-  if (VariationSettings())
+  if (VariationSettings()) {
     WTF::AddIntToHash(hash, VariationSettings()->GetHash());
+  }
+
+  if (font_palette_) {
+    WTF::AddIntToHash(hash, font_palette_->GetHash());
+  }
 
   if (locale_) {
     const AtomicString& locale = locale_->LocaleString();
@@ -394,12 +401,12 @@ unsigned FontDescription::StyleHashWithoutFamilyList() const {
   WTF::AddFloatToHash(hash, NormalizeSign(specified_size_));
   WTF::AddFloatToHash(hash, NormalizeSign(computed_size_));
   WTF::AddFloatToHash(hash, NormalizeSign(adjusted_size_));
-  WTF::AddFloatToHash(hash, NormalizeSign(size_adjust_.Value()));
   WTF::AddFloatToHash(hash, NormalizeSign(letter_spacing_));
   WTF::AddFloatToHash(hash, NormalizeSign(word_spacing_));
   WTF::AddIntToHash(hash, fields_as_unsigned_.parts[0]);
   WTF::AddIntToHash(hash, fields_as_unsigned_.parts[1]);
   WTF::AddIntToHash(hash, font_selection_request_.GetHash());
+  WTF::AddIntToHash(hash, size_adjust_.GetHash());
 
   return hash;
 }
@@ -438,41 +445,51 @@ void FontDescription::UpdateSyntheticOblique() {
   fields_.synthetic_oblique_ =
       IsVerticalAnyUpright() && original_slope < FontSelectionValue(0);
   font_selection_request_.slope =
-      fields_.synthetic_oblique_ ? NormalSlopeValue() : original_slope;
+      fields_.synthetic_oblique_ ? kNormalSlopeValue : original_slope;
 }
 
 SkFontStyle FontDescription::SkiaFontStyle() const {
   // FIXME(drott): This is a lossy conversion, compare
   // https://bugs.chromium.org/p/skia/issues/detail?id=6844
   int skia_width = SkFontStyle::kNormal_Width;
-  if (Stretch() <= UltraCondensedWidthValue())
+  if (Stretch() <= kUltraCondensedWidthValue) {
     skia_width = SkFontStyle::kUltraCondensed_Width;
-  if (Stretch() <= ExtraCondensedWidthValue())
+  }
+  if (Stretch() <= kExtraCondensedWidthValue) {
     skia_width = SkFontStyle::kExtraCondensed_Width;
-  if (Stretch() <= CondensedWidthValue())
+  }
+  if (Stretch() <= kCondensedWidthValue) {
     skia_width = SkFontStyle::kCondensed_Width;
-  if (Stretch() <= SemiCondensedWidthValue())
+  }
+  if (Stretch() <= kSemiCondensedWidthValue) {
     skia_width = SkFontStyle::kSemiCondensed_Width;
-  if (Stretch() >= SemiExpandedWidthValue())
+  }
+  if (Stretch() >= kSemiExpandedWidthValue) {
     skia_width = SkFontStyle::kSemiExpanded_Width;
-  if (Stretch() >= ExpandedWidthValue())
+  }
+  if (Stretch() >= kExpandedWidthValue) {
     skia_width = SkFontStyle::kExpanded_Width;
-  if (Stretch() >= ExtraExpandedWidthValue())
+  }
+  if (Stretch() >= kExtraExpandedWidthValue) {
     skia_width = SkFontStyle::kExtraExpanded_Width;
-  if (Stretch() >= UltraExpandedWidthValue())
+  }
+  if (Stretch() >= kUltraExpandedWidthValue) {
     skia_width = SkFontStyle::kUltraExpanded_Width;
+  }
 
   SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant;
   FontSelectionValue style = Style();
-  if (style > NormalSlopeValue() && style <= ItalicThreshold())
+  if (style > kNormalSlopeValue && style <= kItalicThreshold) {
     slant = SkFontStyle::kItalic_Slant;
-  if (style > ItalicThreshold()) {
+  }
+  if (style > kItalicThreshold) {
     slant = SkFontStyle::kOblique_Slant;
   }
 
   int skia_weight = SkFontStyle::kNormal_Weight;
-  if (Weight() >= MinWeightValue() && Weight() <= MaxWeightValue())
+  if (Weight() >= kMinWeightValue && Weight() <= kMaxWeightValue) {
     skia_weight = static_cast<int>(Weight());
+  }
 
   return SkFontStyle(skia_weight, skia_width, slant);
 }
@@ -482,35 +499,35 @@ void FontDescription::UpdateFromSkiaFontStyle(const SkFontStyle& font_style) {
 
   switch (font_style.width()) {
     case (SkFontStyle::kUltraCondensed_Width):
-      SetStretch(UltraCondensedWidthValue());
+      SetStretch(kUltraCondensedWidthValue);
       break;
     case (SkFontStyle::kExtraCondensed_Width):
-      SetStretch(ExtraCondensedWidthValue());
+      SetStretch(kExtraCondensedWidthValue);
       break;
     case (SkFontStyle::kCondensed_Width):
-      SetStretch(CondensedWidthValue());
+      SetStretch(kCondensedWidthValue);
       break;
     case (SkFontStyle::kSemiCondensed_Width):
-      SetStretch(SemiCondensedWidthValue());
+      SetStretch(kSemiCondensedWidthValue);
       break;
     case (SkFontStyle::kSemiExpanded_Width):
-      SetStretch(SemiExpandedWidthValue());
+      SetStretch(kSemiExpandedWidthValue);
       break;
     case (SkFontStyle::kExpanded_Width):
-      SetStretch(ExpandedWidthValue());
+      SetStretch(kExpandedWidthValue);
       break;
     case (SkFontStyle::kExtraExpanded_Width):
-      SetStretch(ExtraExpandedWidthValue());
+      SetStretch(kExtraExpandedWidthValue);
       break;
     case (SkFontStyle::kUltraExpanded_Width):
-      SetStretch(UltraExpandedWidthValue());
+      SetStretch(kUltraExpandedWidthValue);
       break;
   }
 
   if (font_style.slant() == SkFontStyle::kOblique_Slant)
-    SetStyle(ItalicSlopeValue());
+    SetStyle(kItalicSlopeValue);
   else
-    SetStyle(NormalSlopeValue());
+    SetStyle(kNormalSlopeValue);
 }
 
 int FontDescription::MinimumPrefixWidthToHyphenate() const {
@@ -571,24 +588,25 @@ String FontDescription::ToString(Kerning kerning) {
 }
 
 String FontDescription::ToString(FontSelectionValue selection_value) {
-  if (selection_value == UltraCondensedWidthValue())
+  if (selection_value == kUltraCondensedWidthValue) {
     return "Ultra-Condensed";
-  else if (selection_value == ExtraCondensedWidthValue())
+  } else if (selection_value == kExtraCondensedWidthValue) {
     return "Extra-Condensed";
-  else if (selection_value == CondensedWidthValue())
+  } else if (selection_value == kCondensedWidthValue) {
     return "Condensed";
-  else if (selection_value == SemiCondensedWidthValue())
+  } else if (selection_value == kSemiCondensedWidthValue) {
     return "Semi-Condensed";
-  else if (selection_value == NormalWidthValue())
+  } else if (selection_value == kNormalWidthValue) {
     return "Normal";
-  else if (selection_value == SemiExpandedWidthValue())
+  } else if (selection_value == kSemiExpandedWidthValue) {
     return "Semi-Expanded";
-  else if (selection_value == ExpandedWidthValue())
+  } else if (selection_value == kExpandedWidthValue) {
     return "Expanded";
-  else if (selection_value == ExtraExpandedWidthValue())
+  } else if (selection_value == kExtraExpandedWidthValue) {
     return "Extra-Expanded";
-  else if (selection_value == UltraExpandedWidthValue())
+  } else if (selection_value == kUltraExpandedWidthValue) {
     return "Ultra-Expanded";
+  }
 
   return "Unknown";
 }

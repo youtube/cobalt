@@ -192,12 +192,125 @@ TEST_P(UniformBufferTest, UniformBufferBindings)
     EXPECT_PIXEL_EQ(px, py, 10, 20, 30, 40);
 }
 
+// Test when the only change between draw calls is the change in the uniform binding range.
+TEST_P(UniformBufferTest, BufferBindingRangeChange)
+{
+    constexpr GLsizei kVec4Size = 4 * sizeof(float);
+
+    GLint alignment;
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+    if (alignment < kVec4Size)
+    {
+        alignment = kVec4Size;
+    }
+    ASSERT_EQ(alignment % 4, 0);
+
+    // Put two colors in the uniform buffer, the sum of which is yellow.
+    // Note: |alignment| is in bytes, so we can place each uniform in |alignment/4| floats.
+    std::vector<float> colors(alignment / 2);
+    // Half red
+    colors[0] = 0.55;
+    colors[1] = 0.0;
+    colors[2] = 0.0;
+    colors[3] = 0.35;
+    // Greenish yellow
+    colors[alignment / 4 + 0] = 0.55;
+    colors[alignment / 4 + 1] = 1.0;
+    colors[alignment / 4 + 2] = 0.0;
+    colors[alignment / 4 + 3] = 0.75;
+
+    glBindBuffer(GL_UNIFORM_BUFFER, mUniformBuffer);
+    glBufferData(GL_UNIFORM_BUFFER, alignment * 2, colors.data(), GL_STATIC_DRAW);
+
+    const GLint positionLoc = glGetAttribLocation(mProgram, essl3_shaders::PositionAttrib());
+    setupQuadVertexBuffer(0.5f, 1.0f);
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // Enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Draw twice, binding the uniform buffer to a different range each time
+    glUseProgram(mProgram);
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, mUniformBuffer, 0, kVec4Size);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, mUniformBuffer, alignment, kVec4Size);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::yellow);
+}
+
+// Test when glUniformBlockBinding is called between draws while the program is not current.
+// Regression test for a missing dirty bit bug in this scenario.
+TEST_P(UniformBufferTest, BufferBlockBindingChange)
+{
+    constexpr GLsizei kVec4Size = 4 * sizeof(float);
+
+    GLint alignment;
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
+    if (alignment < kVec4Size)
+    {
+        alignment = kVec4Size;
+    }
+    ASSERT_EQ(alignment % 4, 0);
+
+    // Put two colors in the uniform buffer, the sum of which is yellow.
+    // Note: |alignment| is in bytes, so we can place each uniform in |alignment/4| floats.
+    std::vector<float> colors(alignment / 2);
+    // Half red
+    colors[0] = 0.55;
+    colors[1] = 0.0;
+    colors[2] = 0.0;
+    colors[3] = 0.35;
+    // Greenish yellow
+    colors[alignment / 4 + 0] = 0.55;
+    colors[alignment / 4 + 1] = 1.0;
+    colors[alignment / 4 + 2] = 0.0;
+    colors[alignment / 4 + 3] = 0.75;
+
+    glBindBuffer(GL_UNIFORM_BUFFER, mUniformBuffer);
+    glBufferData(GL_UNIFORM_BUFFER, alignment * 2, colors.data(), GL_STATIC_DRAW);
+
+    const GLint positionLoc = glGetAttribLocation(mProgram, essl3_shaders::PositionAttrib());
+    setupQuadVertexBuffer(0.5f, 1.0f);
+    glEnableVertexAttribArray(positionLoc);
+    glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // Enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Draw twice, binding the uniform buffer to a different range each time
+    glUseProgram(mProgram);
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, mUniformBuffer, 0, kVec4Size);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // Change the block binding while the program is not current
+    glUseProgram(0);
+    glUniformBlockBinding(mProgram, 0, 1);
+    glUseProgram(mProgram);
+
+    glBindBufferRange(GL_UNIFORM_BUFFER, 1, mUniformBuffer, alignment, kVec4Size);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::yellow);
+}
+
 // Update a UBO many time and verify that ANGLE uses the latest version of the data.
 // https://code.google.com/p/angleproject/issues/detail?id=965
 TEST_P(UniformBufferTest, UniformBufferManyUpdates)
 {
     // TODO(jmadill): Figure out why this fails on OSX Intel OpenGL.
-    ANGLE_SKIP_TEST_IF(IsIntel() && IsOSX() && IsOpenGL());
+    ANGLE_SKIP_TEST_IF(IsIntel() && IsMac() && IsOpenGL());
 
     int px = getWindowWidth() / 2;
     int py = getWindowHeight() / 2;
@@ -1288,7 +1401,7 @@ TEST_P(UniformBufferTest, Std140UniformBlockWithRowMajorQualifier)
 {
     // AMD OpenGL driver doesn't seem to apply the row-major qualifier right.
     // http://anglebug.com/2273
-    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsOSX());
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsMac());
 
     constexpr char kFS[] =
         R"(#version 300 es
@@ -1336,7 +1449,7 @@ TEST_P(UniformBufferTest, Std140UniformBlockWithPerMemberRowMajorQualifier)
 {
     // AMD OpenGL driver doesn't seem to apply the row-major qualifier right.
     // http://anglebug.com/2273
-    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsOSX());
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsMac());
 
     constexpr char kFS[] =
         R"(#version 300 es
@@ -1430,7 +1543,7 @@ TEST_P(UniformBufferTest, Std140UniformBlockWithRowMajorQualifierOnStruct)
 {
     // AMD OpenGL driver doesn't seem to apply the row-major qualifier right.
     // http://anglebug.com/2273
-    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsOSX());
+    ANGLE_SKIP_TEST_IF(IsAMD() && IsOpenGL() && !IsMac());
 
     constexpr char kFS[] =
         R"(#version 300 es
@@ -1495,7 +1608,7 @@ void main()
 })";
 
     // http://anglebug.com/2287
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsNVIDIA() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsNVIDIA() && IsDesktopOpenGL());
 
     ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kFragmentShader);
 
@@ -1757,7 +1870,7 @@ void main()
 TEST_P(UniformBufferTest, Std140UniformBlockWithDynamicallyIndexedRowMajorArray)
 {
     // http://anglebug.com/3837 , http://anglebug.com/2273
-    ANGLE_SKIP_TEST_IF((IsLinux() && IsIntel() && IsOpenGL()) || IsOSX());
+    ANGLE_SKIP_TEST_IF((IsLinux() && IsIntel() && IsOpenGL()) || IsMac());
 
     constexpr char kFS[] =
         R"(#version 300 es
@@ -2446,7 +2559,7 @@ TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMixStructFloatAndVec
 // member.
 TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMixStructVec3AndFloat)
 {
-    ANGLE_SKIP_TEST_IF(IsOSX());
+    ANGLE_SKIP_TEST_IF(IsMac());
 
     std::ostringstream stream;
     generateArraySizeAndDivisorsDeclaration(stream, false, false, false);
@@ -2661,7 +2774,7 @@ TEST_P(UniformBlockWithOneLargeArrayMemberTest, TwoUniformBlocksInDiffProgram)
 // buffer data correctly.
 TEST_P(UniformBlockWithOneLargeArrayMemberTest, SharedSameBufferWithOtherOne)
 {
-    ANGLE_SKIP_TEST_IF(IsIntel() && IsOSX() && IsOpenGL());
+    ANGLE_SKIP_TEST_IF(IsIntel() && IsMac() && IsOpenGL());
 
     std::ostringstream stream;
     generateArraySizeAndDivisorsDeclaration(stream, false, true, false);
@@ -2874,7 +2987,7 @@ TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMatrixAndInstanced)
 TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMatrixAndRowMajorQualifier)
 {
     // http://anglebug.com/3837 , http://anglebug.com/2273
-    ANGLE_SKIP_TEST_IF((IsOSX() && IsOpenGL()) || IsAndroid() || (IsAMD() && IsOpenGL()) ||
+    ANGLE_SKIP_TEST_IF((IsMac() && IsOpenGL()) || IsAndroid() || (IsAMD() && IsOpenGL()) ||
                        (IsLinux() && IsIntel() && IsOpenGL()));
 
     std::ostringstream stream;
@@ -3184,7 +3297,7 @@ TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMixStructFloatAndMat
 // member.
 TEST_P(UniformBlockWithOneLargeArrayMemberTest, MemberTypeIsMixStructFloatAndVec4)
 {
-    ANGLE_SKIP_TEST_IF(IsOSX());
+    ANGLE_SKIP_TEST_IF(IsMac());
 
     std::ostringstream stream;
     generateArraySizeAndDivisorsDeclaration(stream, false, false, false);
@@ -3466,6 +3579,70 @@ TEST_P(UniformBufferTest, BufferDataInLoop)
     EXPECT_PIXEL_NEAR(0, 0, 128, 191, 64, 255, 1);
 }
 
+class UniformBufferMemoryTest : public UniformBufferTest
+{
+  protected:
+    angle::VulkanPerfCounters getPerfCounters()
+    {
+        if (mIndexMap.empty())
+        {
+            mIndexMap = BuildCounterNameToIndexMap();
+        }
+
+        return GetPerfCounters(mIndexMap);
+    }
+
+    CounterNameToIndexMap mIndexMap;
+};
+
+// Calling BufferData and drawing with it in a loop without glFlush() should still work. Driver is
+// supposedly to issue flush if needed.
+TEST_P(UniformBufferMemoryTest, BufferDataInLoopManyTimes)
+{
+    // Run this test for Vulkan only.
+    ANGLE_SKIP_TEST_IF(!IsVulkan());
+    uint64_t expectedSubmitCalls = getPerfCounters().commandQueueSubmitCallsTotal + 1;
+
+    glClear(GL_COLOR_BUFFER_BIT);
+    constexpr size_t kBufferSize = 64 * 1024 * 1024;
+    std::vector<float> floatData;
+    floatData.resize(kBufferSize / (sizeof(float)), 0.0f);
+    floatData[0] = 0.5f;
+    floatData[1] = 0.75f;
+    floatData[2] = 0.25f;
+    floatData[3] = 1.0f;
+
+    GLTexture texture;
+    GLFramebuffer fbo;
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, 256, 256);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    constexpr uint32_t kIterationCount = 4096;
+    for (uint32_t loop = 0; loop < kIterationCount; loop++)
+    {
+        glBindBuffer(GL_UNIFORM_BUFFER, mUniformBuffer);
+        glBufferData(GL_UNIFORM_BUFFER, kBufferSize, nullptr, GL_STATIC_DRAW);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, kBufferSize, floatData.data());
+
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, mUniformBuffer);
+        glUniformBlockBinding(mProgram, mUniformBufferIndex, 0);
+        drawQuad(mProgram, essl3_shaders::PositionAttrib(), 0.5f);
+
+        if (getPerfCounters().commandQueueSubmitCallsTotal == expectedSubmitCalls)
+        {
+            break;
+        }
+    }
+    EXPECT_EQ(getPerfCounters().commandQueueSubmitCallsTotal, expectedSubmitCalls);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_PIXEL_NEAR(0, 0, 128, 191, 64, 255, 1);
+}
+
 class WebGL2UniformBufferTest : public UniformBufferTest
 {
   protected:
@@ -3531,6 +3708,9 @@ ANGLE_INSTANTIATE_TEST_ES3(UniformBlockWithOneLargeArrayMemberTest);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(UniformBufferTest31);
 ANGLE_INSTANTIATE_TEST_ES31(UniformBufferTest31);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(UniformBufferMemoryTest);
+ANGLE_INSTANTIATE_TEST_ES3(UniformBufferMemoryTest);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(WebGL2UniformBufferTest);
 ANGLE_INSTANTIATE_TEST_ES3(WebGL2UniformBufferTest);

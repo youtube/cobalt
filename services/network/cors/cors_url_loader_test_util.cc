@@ -10,6 +10,7 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "mojo/public/cpp/system/data_pipe.h"
+#include "net/base/scheme_host_port_matcher_rule.h"
 #include "net/http/http_response_headers.h"
 #include "net/log/net_log_entry.h"
 #include "net/log/net_log_event_type.h"
@@ -170,6 +171,10 @@ CorsURLLoaderTestBase::CorsURLLoaderTestBase(bool shared_dictionary_enabled)
 
   context_params->shared_dictionary_enabled = shared_dictionary_enabled;
 
+  // The AFP Block List experiment won't affect tests that don't also populate
+  // the block list, so this is safe to enable for all tests.
+  context_params->afp_block_list_experiment_enabled = true;
+
   network_context_ = std::make_unique<NetworkContext>(
       network_service_.get(),
       network_context_remote_.BindNewPipeAndPassReceiver(),
@@ -294,17 +299,16 @@ void CorsURLLoaderTestBase::ResetFactory(absl::optional<url::Origin> initiator,
 
   auto resource_scheduler_client =
       base::MakeRefCounted<ResourceSchedulerClient>(
-          last_issued_resource_scheduler_client_id_,
+          ResourceScheduler::ClientId::Create(),
           IsBrowserInitiated(process_id == mojom::kBrowserProcessId),
           &resource_scheduler_,
           url_request_context_->network_quality_estimator());
-  last_issued_resource_scheduler_client_id_.Increment();
   cors_url_loader_factory_remote_.reset();
   cors_url_loader_factory_ = std::make_unique<CorsURLLoaderFactory>(
       network_context_.get(), std::move(factory_params),
       resource_scheduler_client,
       cors_url_loader_factory_remote_.BindNewPipeAndPassReceiver(),
-      &origin_access_list_);
+      &origin_access_list_, /*resource_block_list=*/nullptr);
 }
 
 std::vector<net::NetLogEntry> CorsURLLoaderTestBase::GetEntries() const {
@@ -361,6 +365,17 @@ net::RedirectInfo CorsURLLoaderTestBase::CreateRedirectInfo(
   redirect_info.new_referrer_policy = referrer_policy;
   redirect_info.new_site_for_cookies = site_for_cookies;
   return redirect_info;
+}
+
+void CorsURLLoaderTestBase::AddResourceBlockListRule(
+    const std::string& domain,
+    const std::string& top_frame_bypass) {
+  net::SchemeHostPortMatcher bypass_matcher;
+  bypass_matcher.AddAsFirstRule(
+      net::SchemeHostPortMatcherRule::FromUntrimmedRawString(top_frame_bypass));
+
+  network_service_->network_service_resource_block_list()
+      ->AddDomainWithBypassForTesting(domain, std::move(bypass_matcher));
 }
 
 }  // namespace network::cors

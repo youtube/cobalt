@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+import * as UI from 'devtools/ui/legacy/legacy.js';
+
 (async function() {
   TestRunner.addResult(
       `Tests that animations can be created with KeyframeEffect without crashing.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   await TestRunner.loadHTML(`
       <div id="node" style="background-color: red; height: 100px"></div>
@@ -19,8 +22,7 @@
       }
   `);
 
-  await UI.viewManager.showView('animations');
-  var timeline = Animation.AnimationTimeline.instance();
+  await UI.ViewManager.ViewManager.instance().showView('animations');
   TestRunner.evaluateInPage('startAnimationWithKeyframeEffect()');
   ElementsTestRunner.waitForAnimationAdded(step2);
 

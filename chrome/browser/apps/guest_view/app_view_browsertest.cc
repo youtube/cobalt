@@ -12,7 +12,6 @@
 #include "components/guest_view/browser/guest_view_manager_factory.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
 #include "content/public/browser/child_process_termination_info.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_process_host_observer.h"
@@ -41,9 +40,7 @@ using guest_view::TestGuestViewManagerFactory;
 
 class AppViewTest : public extensions::PlatformAppBrowserTest {
  public:
-  AppViewTest() {
-    GuestViewManager::set_factory_for_testing(&factory_);
-  }
+  AppViewTest() = default;
   AppViewTest(const AppViewTest&) = delete;
   AppViewTest& operator=(const AppViewTest&) = delete;
 
@@ -78,7 +75,7 @@ class AppViewTest : public extensions::PlatformAppBrowserTest {
 
     ExtensionTestMessageListener done_listener("TEST_PASSED");
     done_listener.set_failure_message("TEST_FAILED");
-    if (!content::ExecuteScript(
+    if (!content::ExecJs(
             embedder_web_contents,
             base::StringPrintf("runTest('%s', '%s')", test_name.c_str(),
                                app_to_embed.c_str()))) {
@@ -117,12 +114,9 @@ class AppViewTest : public extensions::PlatformAppBrowserTest {
  private:
   void SetUpOnMainThread() override {
     extensions::PlatformAppBrowserTest::SetUpOnMainThread();
-    test_guest_view_manager_ = static_cast<guest_view::TestGuestViewManager*>(
-        guest_view::GuestViewManager::CreateWithDelegate(
-            browser()->profile(),
-            std::unique_ptr<guest_view::GuestViewManagerDelegate>(
-                ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate(
-                    browser()->profile()))));
+    test_guest_view_manager_ = factory_.GetOrCreateTestGuestViewManager(
+        browser()->profile(),
+        ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
   }
 
   TestGuestViewManagerFactory factory_;
@@ -253,12 +247,12 @@ IN_PROC_BROWSER_TEST_F(AppViewTest,
   const extensions::Extension* bad_app =
       LoadAndLaunchPlatformApp("app_view/bad_app", "AppViewTest.LAUNCHED");
   // The host app attemps to embed the guest
-  EXPECT_TRUE(content::ExecuteScript(
-      extensions::AppWindowRegistry::Get(browser()->profile())
-          ->GetCurrentAppWindowForApp(host_app->id())
-          ->web_contents(),
-      base::StringPrintf("onAppCommand('%s', '%s');", "EMBED",
-                         guest_app->id().c_str())));
+  EXPECT_TRUE(
+      content::ExecJs(extensions::AppWindowRegistry::Get(browser()->profile())
+                          ->GetCurrentAppWindowForApp(host_app->id())
+                          ->web_contents(),
+                      base::StringPrintf("onAppCommand('%s', '%s');", "EMBED",
+                                         guest_app->id().c_str())));
   ExtensionTestMessageListener on_embed_requested_listener(
       "AppViewTest.EmbedRequested");
   EXPECT_TRUE(on_embed_requested_listener.WaitUntilSatisfied());

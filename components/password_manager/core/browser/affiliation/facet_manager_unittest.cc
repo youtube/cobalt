@@ -508,6 +508,7 @@ TEST_F(FacetManagerTest,
     EXPECT_FALSE(facet_manager()->IsCachedDataFresh());
     EXPECT_TRUE(facet_manager()->CanBeDiscarded());
     EXPECT_FALSE(main_task_runner()->HasPendingTask());
+    DestroyFacetManager();
   }
 }
 

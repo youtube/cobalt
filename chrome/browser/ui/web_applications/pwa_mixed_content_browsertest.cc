@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -117,7 +118,7 @@ IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTestWithAutoupgradesDisabled,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL app_url = GetMixedContentAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
   Browser* const app_browser = LaunchWebAppBrowserAndWait(app_id);
   CHECK(app_browser);
   web_app::CheckMixedContentLoaded(app_browser);
@@ -130,7 +131,7 @@ IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTestWithAutoupgradesDisabled,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL app_url = GetMixedContentAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
   Browser* const app_browser = LaunchWebAppBrowserAndWait(app_id);
 
   // Mixed content should be able to load in web app windows.
@@ -167,7 +168,7 @@ IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTestWithAutoupgradesDisabled,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL app_url = GetMixedContentAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
 
   NavigateToURLAndWait(browser(), GetMixedContentAppURL());
   content::WebContents* tab_contents =
@@ -203,7 +204,7 @@ IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTestWithAutoupgradesDisabled,
 // Tests that mixed content is not loaded inside iframes in PWA windows.
 IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTest, IFrameMixedContentInPWA) {
   const GURL app_url = GetSecureIFrameAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
   Browser* const app_browser = LaunchWebAppBrowserAndWait(app_id);
 
   CheckMixedContentFailedToLoad(app_browser);
@@ -217,7 +218,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL app_url = GetSecureIFrameAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
 
   NavigateToURLAndWait(browser(), app_url);
   CheckMixedContentFailedToLoad(browser());
@@ -253,7 +254,7 @@ IN_PROC_BROWSER_TEST_F(PWAMixedContentBrowserTestWithAutoupgradesDisabled,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   const GURL app_url = GetSecureIFrameAppURL();
-  const AppId app_id = InstallPWA(app_url);
+  const webapps::AppId app_id = InstallPWA(app_url);
   Browser* const app_browser = LaunchWebAppBrowserAndWait(app_id);
 
   chrome::OpenInChrome(app_browser);

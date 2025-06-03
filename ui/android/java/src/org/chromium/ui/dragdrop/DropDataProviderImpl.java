@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,6 @@ import android.webkit.MimeTypeMap;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
@@ -400,21 +399,18 @@ public class DropDataProviderImpl {
         return null;
     }
 
-    @VisibleForTesting
     byte[] getImageBytesForTesting() {
         synchronized (LOCK) {
             return mImageBytes;
         }
     }
 
-    @VisibleForTesting
     Handler getHandlerForTesting() {
         synchronized (LOCK) {
             return mHandler;
         }
     }
 
-    @VisibleForTesting
     void clearLastUriCreatedTimestampForTesting() {
         synchronized (LOCK) {
             mLastUriCreatedTimestamp = 0;

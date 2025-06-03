@@ -29,6 +29,8 @@
 import collections
 import contextlib
 import logging
+import uuid
+from pathlib import PurePosixPath
 from typing import (
     Collection,
     Dict,
@@ -40,11 +42,12 @@ from typing import (
     Set,
     Tuple,
 )
+from urllib.parse import urlparse
 
 from blinkpy.common.host import Host
 from blinkpy.common.memoized import memoized
 from blinkpy.common.path_finder import PathFinder
-from blinkpy.web_tests.models.testharness_results import is_all_pass_testharness_result
+from blinkpy.web_tests.models.testharness_results import is_all_pass_test_result
 from blinkpy.web_tests.models.test_expectations import TestExpectationsCache
 from blinkpy.web_tests.models.typ_types import ResultType
 from blinkpy.web_tests.port.base import Port
@@ -80,6 +83,11 @@ class BaselineLocation(NamedTuple):
 # Sentinel node to force removal of all-pass nonvirtual baselines without
 # implementing a special case.
 BaselineLocation.ALL_PASS = BaselineLocation(platform='<all-pass>')
+# Sentinel node to block optimization between a virtual and nonvirtual tree.
+# Used for not deduplicating `virtual/stable/**/webexposed/` with their
+# nonvirtual counterparts.
+BaselineLocation.BLOCK = BaselineLocation(platform='<block>')
+
 SearchPath = List[BaselineLocation]
 DigestMap = Dict[BaselineLocation, 'ResultDigest']
 # An adjacency list.
@@ -205,17 +213,17 @@ class BaselineOptimizer:
             all of them.
           * Ports where a test is skipped will not generate corresponding paths.
         """
+        is_webexposed = 'webexposed' in _test_path(nonvirtual_test).parts
         # Group ports to write less verbose output.
         skipped_ports_by_test = collections.defaultdict(list)
         for port in self._ports:
-            if self._skips_test(port, nonvirtual_test):
-                skipped_ports_by_test[nonvirtual_test].append(port)
-                continue
             search_path = self._baseline_search_path(port)
             nonvirtual_locations = [
                 self.location(path) for path in search_path
             ]
-            yield nonvirtual_locations
+            if not self._skips_test(port, nonvirtual_test):
+                skipped_ports_by_test[nonvirtual_test].append(port)
+                yield nonvirtual_locations
             for virtual_test in virtual_tests:
                 if self._skips_test(port, virtual_test):
                     skipped_ports_by_test[virtual_test].append(port)
@@ -224,6 +232,16 @@ class BaselineOptimizer:
                     self.location(self._filesystem.join(path, virtual_test))
                     for path in search_path
                 ]
+                test_abs_path = self._finder.path_from_web_tests(virtual_test)
+                virtual_suite = self.location(test_abs_path).virtual_suite
+                # Virtual suite was parsed correctly from all baseline/test
+                # paths.
+                assert {
+                    location.virtual_suite
+                    for location in virtual_locations
+                } == {virtual_suite}, virtual_locations
+                if virtual_suite == 'stable' and is_webexposed:
+                    virtual_locations.append(BaselineLocation.BLOCK)
                 yield virtual_locations + nonvirtual_locations
         for test, ports in skipped_ports_by_test.items():
             port_names = [
@@ -271,7 +289,9 @@ class BaselineOptimizer:
         digests = {}
         for location in locations:
             path = self.path(location, baseline_name)
-            if self._filesystem.exists(path):
+            if location == BaselineLocation.BLOCK:
+                digests[location] = random_digest()
+            elif self._filesystem.exists(path):
                 digests[location] = ResultDigest.from_file(
                     self._filesystem, path, is_reftest)
         return digests
@@ -451,7 +471,7 @@ class ResultDigest:
         if path.endswith('.txt'):
             try:
                 content = fs.read_text_file(path)
-                is_extra_result = not content or is_all_pass_testharness_result(
+                is_extra_result = not content or is_all_pass_test_result(
                     content)
             except UnicodeDecodeError as e:
                 is_extra_result = False
@@ -662,3 +682,16 @@ def _indent_log(prefix: str = ' ' * 2) -> Iterator[None]:
         yield
     finally:
         logging.setLogRecordFactory(record_factory)
+
+
+def _test_path(test: str) -> PurePosixPath:
+    return PurePosixPath(urlparse(test).path)
+
+
+def random_digest() -> ResultDigest:
+    """Synthesize a digest that is guaranteed to not equal any other.
+
+    The purpose of this digest is to simulate a baseline that prevents
+    predecessors from being removed.
+    """
+    return ResultDigest(uuid.uuid4().hex)

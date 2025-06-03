@@ -122,6 +122,9 @@ class CORE_EXPORT CSSParserContext final
 
   KURL CompleteURL(const String& url) const;
 
+  // Like CompleteURL(), but if `url` is empty a null KURL is returned.
+  KURL CompleteNonEmptyURL(const String& url) const;
+
   SecureContextMode GetSecureContextMode() const {
     return secure_context_mode_;
   }
@@ -129,7 +132,7 @@ class CORE_EXPORT CSSParserContext final
   void Count(WebFeature) const;
   void Count(CSSParserMode, CSSPropertyID) const;
   void CountDeprecation(WebFeature) const;
-  bool IsUseCounterRecordingEnabled() const { return document_; }
+  bool IsUseCounterRecordingEnabled() const { return document_ != nullptr; }
   bool IsDocumentHandleEqual(const Document* other) const;
   const Document* GetDocument() const;
   const ExecutionContext* GetExecutionContext() const;

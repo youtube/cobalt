@@ -70,10 +70,8 @@
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/image_observer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
-#include "third_party/blink/renderer/platform/graphics/paint/drawing_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_record.h"
-#include "third_party/blink/renderer/platform/graphics/paint/paint_record_builder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_shader.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
@@ -265,7 +263,8 @@ bool SVGImage::GetIntrinsicSizingInfo(
   const LayoutSVGRoot* layout_root = LayoutRoot();
   if (!layout_root)
     return false;
-  layout_root->UnscaledIntrinsicSizingInfo(intrinsic_sizing_info);
+  layout_root->UnscaledIntrinsicSizingInfo(intrinsic_sizing_info,
+                                           /*use_correct_viewbox=*/false);
 
   if (!intrinsic_sizing_info.has_width || !intrinsic_sizing_info.has_height) {
     // We're not using an intrinsic aspect ratio to resolve a missing
@@ -395,20 +394,17 @@ void SVGImage::DrawPatternForContainer(const DrawInfo& draw_info,
   pattern_transform.setTranslate(tiling_info.phase.x() + spaced_tile.x(),
                                  tiling_info.phase.y() + spaced_tile.y());
 
-  auto* builder = MakeGarbageCollected<PaintRecordBuilder>(context);
-  {
-    DrawingRecorder recorder(builder->Context(), *builder,
-                             DisplayItem::Type::kSVGImage);
-    // When generating an expanded tile, make sure we don't draw into the
-    // spacing area.
-    if (!tiling_info.spacing.IsZero())
-      builder->Context().Clip(tile);
-    DrawForContainer(draw_info, builder->Context().Canvas(), cc::PaintFlags(),
-                     tile, tiling_info.image_rect);
+  PaintRecorder recorder;
+  cc::PaintCanvas* tile_canvas = recorder.beginRecording();
+  // When generating an expanded tile, make sure we don't draw into the
+  // spacing area.
+  if (!tiling_info.spacing.IsZero()) {
+    tile_canvas->clipRect(gfx::RectFToSkRect(tile));
   }
-
+  DrawForContainer(draw_info, tile_canvas, cc::PaintFlags(), tile,
+                   tiling_info.image_rect);
   sk_sp<PaintShader> tile_shader = PaintShader::MakePaintRecord(
-      builder->EndRecording(), gfx::RectFToSkRect(spaced_tile),
+      recorder.finishRecordingAsPicture(), gfx::RectFToSkRect(spaced_tile),
       SkTileMode::kRepeat, SkTileMode::kRepeat, &pattern_transform);
 
   // If the shader could not be instantiated (e.g. non-invertible matrix),
@@ -442,8 +438,8 @@ void SVGImage::PopulatePaintRecordForCurrentFrameForContainer(
 
   builder.set_completion_state(
       load_state_ == LoadState::kLoadCompleted
-          ? PaintImage::CompletionState::DONE
-          : PaintImage::CompletionState::PARTIALLY_DONE);
+          ? PaintImage::CompletionState::kDone
+          : PaintImage::CompletionState::kPartiallyDone);
 }
 
 bool SVGImage::ApplyShaderInternal(const DrawInfo& draw_info,
@@ -521,8 +517,10 @@ absl::optional<PaintRecord> SVGImage::PaintRecordForCurrentFrame(
   // re-laying out the image.
   ImageObserverDisabler disable_image_observer(this);
 
-  if (LayoutSVGRoot* layout_root = LayoutRoot())
-    layout_root->SetContainerSize(RoundedLayoutSize(draw_info.ContainerSize()));
+  if (LayoutSVGRoot* layout_root = LayoutRoot()) {
+    layout_root->SetContainerSize(
+        PhysicalSize::FromSizeFFloor(draw_info.ContainerSize()));
+  }
   LocalFrameView* view = GetFrame()->View();
   const gfx::Size rounded_container_size = draw_info.RoundedContainerSize();
   view->Resize(rounded_container_size);
@@ -853,7 +851,7 @@ Image::SizeAvailability SVGImage::DataChanged(bool all_data_received) {
 
   TRACE_EVENT0("blink", "SVGImage::dataChanged::load");
 
-  frame->ForceSynchronousDocumentInstall("image/svg+xml", Data());
+  frame->ForceSynchronousDocumentInstall(AtomicString("image/svg+xml"), Data());
 
   // Set up our Page reference after installing our document. This avoids
   // tripping on a non-existing (null) Document if a GC is triggered during the
@@ -881,7 +879,7 @@ Image::SizeAvailability SVGImage::DataChanged(bool all_data_received) {
     return kSizeUnavailable;
 
   // Set the concrete object size before a container size is available.
-  intrinsic_size_ = RoundedLayoutSize(ConcreteObjectSize(gfx::SizeF(
+  intrinsic_size_ = PhysicalSize::FromSizeFFloor(ConcreteObjectSize(gfx::SizeF(
       LayoutReplaced::kDefaultWidth, LayoutReplaced::kDefaultHeight)));
 
   if (load_state_ == kWaitingForAsyncLoadCompletion)

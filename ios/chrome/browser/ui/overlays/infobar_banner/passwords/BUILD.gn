@@ -8,16 +8,19 @@ source_set("passwords") {
     "password_infobar_banner_overlay_mediator.mm",
   ]
 
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//components/password_manager/core/common:features",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/credential_provider_promo/model:features",
     "//ios/chrome/browser/overlays",
+    "//ios/chrome/browser/overlays/public/default",
     "//ios/chrome/browser/overlays/public/infobar_banner",
+    "//ios/chrome/browser/passwords/model:infobar_delegates",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/ui/infobars/banners",
+    "//ios/chrome/browser/ui/overlays:coordinators",
     "//ios/chrome/browser/ui/overlays/infobar_banner:mediators",
     "//ui/base",
   ]
@@ -26,8 +29,6 @@ source_set("passwords") {
 source_set("unit_tests") {
   testonly = true
   sources = [ "password_infobar_banner_overlay_mediator_unittest.mm" ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 
   deps = [
     ":passwords",
@@ -39,12 +40,15 @@ source_set("unit_tests") {
     "//components/strings",
     "//components/url_formatter",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/credential_provider_promo/model:features",
     "//ios/chrome/browser/infobars",
     "//ios/chrome/browser/overlays",
+    "//ios/chrome/browser/overlays/public/default",
     "//ios/chrome/browser/overlays/public/infobar_banner",
     "//ios/chrome/browser/overlays/test",
-    "//ios/chrome/browser/passwords:infobar_delegates",
-    "//ios/chrome/browser/passwords/test",
+    "//ios/chrome/browser/passwords/model:infobar_delegates",
+    "//ios/chrome/browser/passwords/model/test",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/ui/infobars/banners/test",
@@ -52,6 +56,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/ui/overlays/test",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/ocmock",
     "//ui/base",
   ]
 }

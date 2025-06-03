@@ -7,8 +7,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/component_export.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/process/process_handle.h"
 #include "ui/accessibility/platform/inspect/ax_event_recorder.h"
 #include "ui/accessibility/platform/inspect/ax_inspect.h"
@@ -40,10 +40,10 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXEventRecorderMac
   void AddNotification(NSString* notification);
 
   // The AXUIElement for the application.
-  base::ScopedCFTypeRef<AXUIElementRef> application_;
+  base::apple::ScopedCFTypeRef<AXUIElementRef> application_;
 
   // The AXObserver we use to monitor AX notifications.
-  base::ScopedCFTypeRef<AXObserverRef> observer_ref_;
+  base::apple::ScopedCFTypeRef<AXObserverRef> observer_ref_;
   CFRunLoopSourceRef observer_run_loop_source_;
 };
 

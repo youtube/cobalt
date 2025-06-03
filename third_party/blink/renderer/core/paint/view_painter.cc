@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/paint/box_decoration_data.h"
 #include "third_party/blink/renderer/core/paint/box_model_object_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter.h"
+#include "third_party/blink/renderer/core/paint/object_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -73,8 +74,8 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
   if (layout_view_.StyleRef().Visibility() != EVisibility::kVisible)
     return;
 
-  bool has_hit_test_data = layout_view_.HasEffectiveAllowedTouchAction() ||
-                           layout_view_.InsideBlockingWheelEventHandler();
+  bool has_hit_test_data =
+      ObjectPainter(layout_view_).ShouldRecordSpecialHitTestData(paint_info);
   bool painting_background_in_contents_space =
       paint_info.IsPaintingBackgroundInContentsSpace();
 
@@ -84,8 +85,8 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
       !painting_background_in_contents_space &&
       layout_view_.FirstFragment().PaintProperties()->Scroll();
   bool is_represented_via_pseudo_elements = [this]() {
-    if (auto* transition = ViewTransitionUtils::GetActiveTransition(
-            layout_view_.GetDocument())) {
+    if (auto* transition =
+            ViewTransitionUtils::GetTransition(layout_view_.GetDocument())) {
       return transition->IsRepresentedViaPseudoElements(layout_view_);
     }
     return false;
@@ -194,9 +195,8 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
                           painted_separate_effect);
   }
   if (has_hit_test_data) {
-    BoxPainter(layout_view_)
-        .RecordHitTestData(paint_info,
-                           PhysicalRect(pixel_snapped_background_rect),
+    ObjectPainter(layout_view_)
+        .RecordHitTestData(paint_info, pixel_snapped_background_rect,
                            *background_client);
   }
 
@@ -212,8 +212,14 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
   // if this were immediately before the non-scrolling background.
   if (paints_scroll_hit_test) {
     DCHECK(!painting_background_in_contents_space);
+
+    // The root never fragments. In paged media page fragments are inserted
+    // under the LayoutView, but the LayoutView itself never fragments.
+    DCHECK(!layout_view_.IsFragmented());
+
     BoxPainter(layout_view_)
-        .RecordScrollHitTestData(paint_info, *background_client);
+        .RecordScrollHitTestData(paint_info, *background_client,
+                                 &layout_view_.FirstFragment());
   }
 }
 
@@ -250,8 +256,9 @@ void ViewPainter::PaintRootElementGroup(
 
   const Document& document = layout_view_.GetDocument();
   const LocalFrameView& frame_view = *layout_view_.GetFrameView();
-  bool paints_base_background = frame_view.ShouldPaintBaseBackgroundColor() &&
-                                (frame_view.BaseBackgroundColor().Alpha() > 0);
+  bool paints_base_background =
+      frame_view.ShouldPaintBaseBackgroundColor() &&
+      !frame_view.BaseBackgroundColor().IsFullyTransparent();
   Color base_background_color =
       paints_base_background ? frame_view.BaseBackgroundColor() : Color();
   if (document.Printing() && base_background_color == Color::kWhite) {
@@ -323,7 +330,7 @@ void ViewPainter::PaintRootElementGroup(
 
   if (!background_renderable) {
     if (!painted_separate_backdrop) {
-      if (base_background_color.Alpha()) {
+      if (!base_background_color.IsFullyTransparent()) {
         context.FillRect(
             pixel_snapped_background_rect, base_background_color,
             auto_dark_mode,
@@ -350,13 +357,15 @@ void ViewPainter::PaintRootElementGroup(
   } else {
     // If the root background color is opaque, isolation group can be skipped
     // because the canvas will be cleared by root background color.
-    if (!root_element_background_color.HasAlpha())
+    if (root_element_background_color.IsOpaque()) {
       should_draw_background_in_separate_buffer = false;
+    }
 
     // We are going to clear the canvas with transparent pixels, isolation group
     // can be skipped.
-    if (!base_background_color.Alpha() && should_clear_canvas)
+    if (base_background_color.IsFullyTransparent() && should_clear_canvas) {
       should_draw_background_in_separate_buffer = false;
+    }
   }
 
   // Only use BeginLayer if not only we should draw in a separate buffer, but
@@ -365,7 +374,7 @@ void ViewPainter::PaintRootElementGroup(
   // mode. An extra BeginLayer will result in incorrect blend isolation if
   // it is added on top of any effect on the root element.
   if (should_draw_background_in_separate_buffer && !painted_separate_effect) {
-    if (base_background_color.Alpha()) {
+    if (!base_background_color.IsFullyTransparent()) {
       context.FillRect(
           paint_rect, base_background_color, auto_dark_mode,
           should_clear_canvas ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
@@ -381,7 +390,7 @@ void ViewPainter::PaintRootElementGroup(
   if (combined_background_color != frame_view.BaseBackgroundColor())
     context.GetPaintController().SetFirstPainted();
 
-  if (combined_background_color.Alpha()) {
+  if (!combined_background_color.IsFullyTransparent()) {
     context.FillRect(
         paint_rect, combined_background_color, auto_dark_mode,
         (should_draw_background_in_separate_buffer || should_clear_canvas)

@@ -136,7 +136,6 @@ void ScanningHandler::HandleOpenFilesInMediaApp(const base::Value::List& args) {
     return;
 
   CHECK_EQ(1U, args.size());
-  DCHECK(args[0].is_list());
   const base::Value::List& value_list = args[0].GetList();
   DCHECK(!value_list.empty());
 
@@ -163,7 +162,7 @@ void ScanningHandler::HandleRequestScanToLocation(
   content::WebContents* web_contents = web_ui()->GetWebContents();
   gfx::NativeWindow owning_window =
       web_contents ? web_contents->GetTopLevelNativeWindow()
-                   : gfx::kNullNativeWindow;
+                   : gfx::NativeWindow();
   select_file_dialog_ = ui::SelectFileDialog::Create(
       this, scanning_app_delegate_->CreateChromeSelectFilePolicy());
   select_file_dialog_->SelectFile(

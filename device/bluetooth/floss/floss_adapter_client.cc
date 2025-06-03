@@ -10,6 +10,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/observer_list.h"
+#include "base/strings/string_number_conversions.h"
 #include "dbus/bus.h"
 #include "dbus/exported_object.h"
 #include "dbus/message.h"
@@ -33,7 +34,12 @@ void HandleExported(const std::string& method_name,
 constexpr char FlossAdapterClient::kErrorUnknownAdapter[] =
     "org.chromium.Error.UnknownAdapter";
 constexpr char FlossAdapterClient::kExportedCallbacksPath[] =
-    "/org/chromium/bluetooth/adapterclient";
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    "/org/chromium/bluetooth/adapter/callback/lacros";
+#else
+    "/org/chromium/bluetooth/adapter/callback";
+#endif
+static uint32_t callback_path_index_ = 0;
 
 void FlossAdapterClient::SetName(ResponseCallback<Void> callback,
                                  const std::string& name) {
@@ -112,6 +118,13 @@ void FlossAdapterClient::GetRemoteUuids(
     FlossDeviceId device) {
   CallAdapterMethod<device::BluetoothDevice::UUIDList>(
       std::move(callback), adapter::kGetRemoteUuids, device);
+}
+
+void FlossAdapterClient::GetRemoteVendorProductInfo(
+    ResponseCallback<FlossAdapterClient::VendorProductInfo> callback,
+    FlossDeviceId device) {
+  CallAdapterMethod<FlossAdapterClient::VendorProductInfo>(
+      std::move(callback), adapter::kGetRemoteVendorProductInfo, device);
 }
 
 void FlossAdapterClient::GetBondState(ResponseCallback<uint32_t> callback,
@@ -193,10 +206,15 @@ void FlossAdapterClient::RemoveSdpRecord(ResponseCallback<bool> callback,
 void FlossAdapterClient::Init(dbus::Bus* bus,
                               const std::string& service_name,
                               const int adapter_index,
+                              base::Version version,
                               base::OnceClosure on_ready) {
   bus_ = bus;
   adapter_path_ = GenerateAdapterPath(adapter_index);
   service_name_ = service_name;
+  exported_callback_path_ =
+      kExportedCallbacksPath + base::NumberToString(callback_path_index_);
+  callback_path_index_++;
+  version_ = version;
 
   dbus::ObjectProxy* object_proxy =
       bus_->GetObjectProxy(service_name_, adapter_path_);
@@ -206,7 +224,7 @@ void FlossAdapterClient::Init(dbus::Bus* bus,
   }
 
   dbus::ExportedObject* callbacks =
-      bus_->GetExportedObject(dbus::ObjectPath(kExportedCallbacksPath));
+      bus_->GetExportedObject(dbus::ObjectPath(exported_callback_path_));
   if (!callbacks) {
     LOG(ERROR) << "FlossAdapterClient couldn't export client callbacks";
     return;
@@ -232,6 +250,12 @@ void FlossAdapterClient::Init(dbus::Bus* bus,
       base::BindOnce(&HandleExported, adapter::kOnDeviceCleared));
 
   callbacks->ExportMethod(
+      adapter::kCallbackInterface, adapter::kOnDevicePropertiesChanged,
+      base::BindRepeating(&FlossAdapterClient::OnDevicePropertiesChanged,
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(&HandleExported, adapter::kOnDevicePropertiesChanged));
+
+  callbacks->ExportMethod(
       adapter::kCallbackInterface, adapter::kOnDiscoveringChanged,
       base::BindRepeating(&FlossAdapterClient::OnDiscoveringChanged,
                           weak_ptr_factory_.GetWeakPtr()),
@@ -242,6 +266,18 @@ void FlossAdapterClient::Init(dbus::Bus* bus,
       base::BindRepeating(&FlossAdapterClient::OnSspRequest,
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindOnce(&HandleExported, adapter::kOnSspRequest));
+
+  callbacks->ExportMethod(
+      adapter::kCallbackInterface, adapter::kOnPinDisplay,
+      base::BindRepeating(&FlossAdapterClient::OnPinDisplay,
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(&HandleExported, adapter::kOnPinDisplay));
+
+  callbacks->ExportMethod(
+      adapter::kCallbackInterface, adapter::kOnPinRequest,
+      base::BindRepeating(&FlossAdapterClient::OnPinRequest,
+                          weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(&HandleExported, adapter::kOnPinRequest));
 
   callbacks->ExportMethod(
       adapter::kCallbackInterface, adapter::kOnBondStateChanged,
@@ -275,18 +311,18 @@ void FlossAdapterClient::Init(dbus::Bus* bus,
 
   property_address_.Init(
       this, bus_, service_name_, adapter_path_,
-      dbus::ObjectPath(kExportedCallbacksPath),
+      dbus::ObjectPath(exported_callback_path_),
       base::BindRepeating(&FlossAdapterClient::OnAddressChanged,
                           weak_ptr_factory_.GetWeakPtr()));
 
   property_name_.Init(this, bus_, service_name_, adapter_path_,
-                      dbus::ObjectPath(kExportedCallbacksPath),
+                      dbus::ObjectPath(exported_callback_path_),
                       base::BindRepeating(&FlossAdapterClient::OnNameChanged,
                                           weak_ptr_factory_.GetWeakPtr()));
 
   property_discoverable_.Init(
       this, bus_, service_name_, adapter_path_,
-      dbus::ObjectPath(kExportedCallbacksPath),
+      dbus::ObjectPath(exported_callback_path_),
       base::BindRepeating(&FlossAdapterClient::OnDiscoverableChanged,
                           weak_ptr_factory_.GetWeakPtr()));
 
@@ -294,16 +330,16 @@ void FlossAdapterClient::Init(dbus::Bus* bus,
 
   pending_register_calls_ = 2;
 
-  CallAdapterMethod<Void>(
-      base::BindOnce(&FlossAdapterClient::OnRegisterCallbacks,
+  CallAdapterMethod<uint32_t>(
+      base::BindOnce(&FlossAdapterClient::OnRegisterCallback,
                      weak_ptr_factory_.GetWeakPtr()),
-      adapter::kRegisterCallback, dbus::ObjectPath(kExportedCallbacksPath));
+      adapter::kRegisterCallback, dbus::ObjectPath(exported_callback_path_));
 
-  CallAdapterMethod<Void>(
-      base::BindOnce(&FlossAdapterClient::OnRegisterCallbacks,
+  CallAdapterMethod<uint32_t>(
+      base::BindOnce(&FlossAdapterClient::OnRegisterConnectionCallback,
                      weak_ptr_factory_.GetWeakPtr()),
       adapter::kRegisterConnectionCallback,
-      dbus::ObjectPath(kExportedCallbacksPath));
+      dbus::ObjectPath(exported_callback_path_));
 
   on_ready_ = std::move(on_ready);
 }
@@ -416,6 +452,32 @@ void FlossAdapterClient::OnDeviceCleared(
   std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 
+void FlossAdapterClient::OnDevicePropertiesChanged(
+    dbus::MethodCall* method_call,
+    dbus::ExportedObject::ResponseSender response_sender) {
+  dbus::MessageReader reader(method_call);
+  FlossDeviceId device;
+  std::vector<uint32_t> props;
+
+  DVLOG(1) << __func__;
+
+  if (!ReadAllDBusParams(&reader, &device, &props)) {
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, kErrorInvalidParameters, std::string()));
+    return;
+  }
+
+  for (auto& prop : props) {
+    BtPropertyType prop_type = static_cast<BtPropertyType>(prop);
+    for (auto& observer : observers_) {
+      observer.AdapterDevicePropertyChanged(prop_type, device);
+    }
+  }
+
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
+}
+
 void FlossAdapterClient::OnSspRequest(
     dbus::MethodCall* method_call,
     dbus::ExportedObject::ResponseSender response_sender) {
@@ -430,10 +492,68 @@ void FlossAdapterClient::OnSspRequest(
     return;
   }
 
+  // Block the event in LaCrOS so it won't race with AshChrome. See b/308988818.
+  // TODO(b/274706838): Redesign DBus API so it's only received by the correct
+  // client.
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
   for (auto& observer : observers_) {
     observer.AdapterSspRequest(
         device, cod, static_cast<BluetoothSspVariant>(variant), passkey);
   }
+#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
+
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
+}
+
+void FlossAdapterClient::OnPinDisplay(
+    dbus::MethodCall* method_call,
+    dbus::ExportedObject::ResponseSender response_sender) {
+  dbus::MessageReader reader(method_call);
+  FlossDeviceId device;
+  std::string pincode;
+
+  if (!ReadAllDBusParams(&reader, &device, &pincode)) {
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, kErrorInvalidParameters, std::string()));
+    return;
+  }
+
+  // Block the event in LaCrOS so it won't race with AshChrome. See b/308988818.
+  // TODO(b/274706838): Redesign DBus API so it's only received by the correct
+  // client.
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+  for (auto& observer : observers_) {
+    observer.AdapterPinDisplay(device, pincode);
+  }
+#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
+
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
+}
+
+void FlossAdapterClient::OnPinRequest(
+    dbus::MethodCall* method_call,
+    dbus::ExportedObject::ResponseSender response_sender) {
+  dbus::MessageReader reader(method_call);
+  FlossDeviceId device;
+  uint32_t cod;
+  bool min_16_digit;
+
+  if (!ReadAllDBusParams(&reader, &device, &cod, &min_16_digit)) {
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, kErrorInvalidParameters, std::string()));
+    return;
+  }
+
+  // Block the event in LaCrOS so it won't race with AshChrome. See b/308988818.
+  // TODO(b/274706838): Redesign DBus API so it's only received by the correct
+  // client.
+#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+  for (auto& observer : observers_) {
+    observer.AdapterPinRequest(device, cod, min_16_digit);
+  }
+#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
   std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
@@ -588,10 +708,12 @@ void FlossAdapterClient::OnDiscoverableTimeout(DBusResult<uint32_t> ret) {
   }
 }
 
-void FlossAdapterClient::OnRegisterCallbacks(DBusResult<Void> ret) {
+void FlossAdapterClient::OnRegisterCallback(DBusResult<uint32_t> ret) {
   if (!ret.has_value()) {
     return;
   }
+
+  callback_id_ = *ret;
 
   if (pending_register_calls_ > 0) {
     pending_register_calls_--;
@@ -602,10 +724,46 @@ void FlossAdapterClient::OnRegisterCallbacks(DBusResult<Void> ret) {
   }
 }
 
+void FlossAdapterClient::OnRegisterConnectionCallback(
+    DBusResult<uint32_t> ret) {
+  if (!ret.has_value()) {
+    return;
+  }
+
+  connection_callback_id_ = *ret;
+
+  if (pending_register_calls_ > 0) {
+    pending_register_calls_--;
+
+    if (pending_register_calls_ == 0 && on_ready_) {
+      std::move(on_ready_).Run();
+    }
+  }
+}
+
+void FlossAdapterClient::OnUnregisterCallbacks(DBusResult<bool> ret) {
+  if (!ret.has_value() || *ret == false) {
+    LOG(WARNING) << __func__ << "Failed to unregister callback";
+  }
+}
+
 FlossAdapterClient::FlossAdapterClient() = default;
 FlossAdapterClient::~FlossAdapterClient() {
+  if (callback_id_) {
+    CallAdapterMethod<bool>(
+        base::BindOnce(&FlossAdapterClient::OnUnregisterCallbacks,
+                       weak_ptr_factory_.GetWeakPtr()),
+        adapter::kUnregisterCallback, callback_id_.value());
+  }
+  if (connection_callback_id_) {
+    CallAdapterMethod<bool>(
+        base::BindOnce(&FlossAdapterClient::OnUnregisterCallbacks,
+                       weak_ptr_factory_.GetWeakPtr()),
+        adapter::kUnregisterConnectionCallback,
+        connection_callback_id_.value());
+  }
   if (bus_) {
-    bus_->UnregisterExportedObject(dbus::ObjectPath(kExportedCallbacksPath));
+    bus_->UnregisterExportedObject(dbus::ObjectPath(exported_callback_path_));
   }
 }
 

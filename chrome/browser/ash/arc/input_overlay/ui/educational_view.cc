@@ -171,7 +171,7 @@ void EducationalView::Init(const gfx::Size& parent_size) {
     banner_ = AddChildView(std::move(banner));
   }
   {
-    // |Game controls [Alpha]| title tag.
+    // `Game controls [Alpha]` title tag.
     auto container_view = std::make_unique<views::View>();
     container_view->SetLayoutManager(std::make_unique<views::FlexLayout>())
         ->SetOrientation(views::LayoutOrientation::kHorizontal)
@@ -196,8 +196,7 @@ void EducationalView::Init(const gfx::Size& parent_size) {
             l10n_util::GetStringUTF16(IDS_INPUT_OVERLAY_RELEASE_ALPHA),
             /*view_defining_max_width=*/nullptr,
             /*enabled_color_type=*/
-            is_dark ? cros_tokens::kColorSelection
-                    : cros_tokens::kColorSelectionLight,
+            cros_tokens::kCrosSysPrimary,
             /*font_list=*/
             gfx::FontList({ash::login_views_utils::kGoogleSansFont},
                           gfx::Font::FontStyle::NORMAL, kAlphaFontSize,
@@ -207,7 +206,7 @@ void EducationalView::Init(const gfx::Size& parent_size) {
         alpha_label->GetPreferredSize().width() + 2 * kAlphaSidePadding,
         kAlphaHeight));
     alpha_label->SetBackground(views::CreateThemedRoundedRectBackground(
-        cros_tokens::kHighlightColor, kAlphaCornerRadius));
+        cros_tokens::kCrosSysHighlightShape, kAlphaCornerRadius));
     alpha_label->SetProperty(views::kMarginsKey,
                              gfx::Insets::TLBR(0, kAlphaLeftMargin, 0, 0));
     container_view->SetProperty(
@@ -243,7 +242,7 @@ void EducationalView::Init(const gfx::Size& parent_size) {
     description_label->SetSize(gfx::Size());
   }
   {
-    // Edit/add |Got it| button to exit UI.
+    // Edit/add `Got it` button to exit UI.
     accept_button_ = AddChildView(std::make_unique<ash::PillButton>(
         base::BindRepeating(&EducationalView::OnAcceptedPressed,
                             base::Unretained(this)),

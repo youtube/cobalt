@@ -37,6 +37,9 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
   class Client {
    public:
     virtual void ReportLongAnimationFrameTiming(AnimationFrameTimingInfo*) = 0;
+    virtual void ReportLongTaskTiming(base::TimeTicks start,
+                                      base::TimeTicks end,
+                                      ExecutionContext* context) = 0;
     virtual bool ShouldReportLongAnimationFrameTiming() const = 0;
     virtual bool RequestedMainFramePending() = 0;
     virtual ukm::UkmRecorder* MainFrameUkmRecorder() = 0;
@@ -72,19 +75,27 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
 
   // probes
   void WillHandlePromise(ExecutionContext*,
+                         ScriptState*,
                          bool resolving,
                          const char* class_like,
-                         const char* property_like);
-  void Will(const probe::CompileAndRunScript&);
-  void Did(const probe::CompileAndRunScript&);
+                         const String& property_like,
+                         const String& script_url);
+  void Will(const probe::EvaluateScriptBlock&);
+  void Did(const probe::EvaluateScriptBlock& probe_data) {
+    PopScriptEntryPoint(probe_data);
+  }
   void Will(const probe::ExecuteScript&);
-  void Did(const probe::ExecuteScript&);
+  void Did(const probe::ExecuteScript& probe_data) {
+    PopScriptEntryPoint(probe_data);
+  }
   void Will(const probe::RecalculateStyle&);
   void Did(const probe::RecalculateStyle&);
   void Will(const probe::UpdateLayout&);
   void Did(const probe::UpdateLayout&);
   void Will(const probe::InvokeCallback&);
-  void Did(const probe::InvokeCallback&);
+  void Did(const probe::InvokeCallback& probe_data) {
+    PopScriptEntryPoint(probe_data);
+  }
   void Will(const probe::InvokeEventHandler&);
   void Did(const probe::InvokeEventHandler&);
   void WillRunJavaScriptDialog();
@@ -108,22 +119,23 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
     base::TimeDelta pause_duration;
     int layout_depth = 0;
     const char* class_like_name = nullptr;
-    const char* property_like_name = nullptr;
+    String property_like_name;
     ScriptTimingInfo::ScriptSourceLocation source_location;
   };
 
-  ScriptTimingInfo* DidExecuteScript(const probe::ProbeBase& probe,
-                                     ExecutionContext* context);
-  ScriptTimingInfo* MaybeAddScript(ExecutionContext* context,
-                                   base::TimeTicks end_time);
-  void OnMicrotasksCompleted(ExecutionContext*);
-  bool ShouldAddScript(ExecutionContext*);
-  template <typename Probe>
-  ScriptTimingInfo* DidExecuteScript(const Probe& probe) {
-    return DidExecuteScript(probe, probe.context);
-  }
+  ScriptTimingInfo* PopScriptEntryPoint(
+      ExecutionContext* context,
+      const probe::ProbeBase* probe,
+      base::TimeTicks end_time = base::TimeTicks());
 
-  void RecordLongAnimationFrameUKM(const AnimationFrameTimingInfo&);
+  template <typename Probe>
+  ScriptTimingInfo* PopScriptEntryPoint(const Probe& probe) {
+    return PopScriptEntryPoint(probe.context, &probe);
+  }
+  bool PushScriptEntryPoint(ExecutionContext*);
+  bool PopScriptEntryPoint(ExecutionContext*);
+
+  void RecordLongAnimationFrameUKMAndTrace(const AnimationFrameTimingInfo&);
   void ApplyTaskDuration(base::TimeDelta task_duration);
 
   absl::optional<PendingScriptInfo> pending_script_info_;
@@ -144,14 +156,14 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
   };
   State state_ = State::kIdle;
 
-  int user_callback_depth_ = 0;
-
   base::TimeTicks desired_render_start_time_;
   base::TimeTicks first_ui_event_timestamp_;
   base::TimeTicks javascript_dialog_start_;
   base::TimeDelta total_blocking_time_excluding_longest_task_;
   base::TimeDelta longest_task_duration_;
   bool did_pause_ = false;
+
+  unsigned entry_point_depth_ = 0;
 
   bool enabled_ = false;
 };

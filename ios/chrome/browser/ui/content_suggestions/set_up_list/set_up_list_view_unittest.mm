@@ -6,22 +6,16 @@
 
 #import "ios/chrome/browser/ui/content_suggestions/set_up_list/set_up_list_view.h"
 
-#import "base/test/ios/wait_util.h"
 #import "base/test/task_environment.h"
 #import "ios/chrome/browser/ntp/set_up_list.h"
 #import "ios/chrome/browser/ntp/set_up_list_item.h"
 #import "ios/chrome/browser/ntp/set_up_list_item_type.h"
+#import "ios/chrome/browser/ui/content_suggestions/set_up_list/constants.h"
 #import "ios/chrome/browser/ui/content_suggestions/set_up_list/set_up_list_item_view+private.h"
 #import "ios/chrome/browser/ui/content_suggestions/set_up_list/set_up_list_item_view.h"
 #import "ios/chrome/browser/ui/content_suggestions/set_up_list/set_up_list_item_view_data.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using base::test::ios::SpinRunLoopWithMaxDelay;
 
 // Tests the SetUpListView and subviews.
 class SetUpListViewTest : public PlatformTest {
@@ -83,7 +77,7 @@ class SetUpListViewTest : public PlatformTest {
     ASSERT_TRUE(button);
     [button sendActionsForControlEvents:UIControlEventTouchUpInside];
     // Give time for run loop to execute events.
-    SpinRunLoopWithMaxDelay(base::Milliseconds(100));
+    _task_environment.RunUntilIdle();
   }
 
   // Returns a count of subviews of the given `klass`.
@@ -115,41 +109,44 @@ class SetUpListViewTest : public PlatformTest {
 // expand / collapse button functions as it should. Also verifies that
 // the items that are expected to be in the list are there at each step.
 TEST_F(SetUpListViewTest, ExpandCollapse) {
-  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData];
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData
+                                                    rootView:nil];
   [_superview addSubview:view];
 
   // It should initially display two items.
   ExpectSubviewCount(2, [SetUpListItemView class]);
-  ExpectSubview(@"kSetUpListItemSignInID", true);
-  ExpectSubview(@"kSetUpListItemDefaultBrowserID", true);
-  ExpectSubview(@"kSetUpListItemAutofillID", false);
-  ExpectSubview(@"kSetUpListItemFollowID", false);
+  ExpectSubview(set_up_list::kSignInItemID, true);
+  ExpectSubview(set_up_list::kDefaultBrowserItemID, true);
+  ExpectSubview(set_up_list::kAutofillItemID, false);
+  ExpectSubview(set_up_list::kFollowItemID, false);
 
   // After touching the expand button, the list should show 3 items.
-  TouchButton(@"kSetUpListExpandButtonID");
+  TouchButton(set_up_list::kExpandButtonID);
   ExpectSubviewCount(3, [SetUpListItemView class]);
-  ExpectSubview(@"kSetUpListItemSignInID", true);
-  ExpectSubview(@"kSetUpListItemDefaultBrowserID", true);
-  ExpectSubview(@"kSetUpListItemAutofillID", true);
-  ExpectSubview(@"kSetUpListItemFollowID", false);
+  ExpectSubview(set_up_list::kSignInItemID, true);
+  ExpectSubview(set_up_list::kDefaultBrowserItemID, true);
+  ExpectSubview(set_up_list::kAutofillItemID, true);
+  ExpectSubview(set_up_list::kFollowItemID, false);
 
   // After touching the expand button again, the list should show 2 items.
-  TouchButton(@"kSetUpListExpandButtonID");
+  TouchButton(set_up_list::kExpandButtonID);
   ExpectSubviewCount(2, [SetUpListItemView class]);
-  ExpectSubview(@"kSetUpListItemSignInID", true);
-  ExpectSubview(@"kSetUpListItemDefaultBrowserID", true);
-  ExpectSubview(@"kSetUpListItemAutofillID", false);
-  ExpectSubview(@"kSetUpListItemFollowID", false);
+  ExpectSubview(set_up_list::kSignInItemID, true);
+  ExpectSubview(set_up_list::kDefaultBrowserItemID, true);
+  ExpectSubview(set_up_list::kAutofillItemID, false);
+  ExpectSubview(set_up_list::kFollowItemID, false);
 }
 
 // Tests that a touch on a SetUpListItemView results in a call to the view\
 // delegate.
 TEST_F(SetUpListViewTest, TouchSetUpListItemView) {
-  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData];
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData
+                                                    rootView:nil];
+
   [_superview addSubview:view];
 
   SetUpListItemView* item_view =
-      (SetUpListItemView*)FindSubview(@"kSetUpListItemSignInID");
+      (SetUpListItemView*)FindSubview(set_up_list::kSignInItemID);
   EXPECT_TRUE(item_view != nil);
 
   id view_delegate = OCMProtocolMock(@protocol(SetUpListViewDelegate));
@@ -163,38 +160,40 @@ TEST_F(SetUpListViewTest, TouchSetUpListItemView) {
   gesture_recognizer.state = UIGestureRecognizerStateEnded;
   [item_view handleTap:(UITapGestureRecognizer*)gesture_recognizer];
   // Give time for run loop to execute events.
-  SpinRunLoopWithMaxDelay(base::Milliseconds(100));
+  _task_environment.RunUntilIdle();
 
   [view_delegate verify];
 }
 
 // Tests that a tap on the menu button results in a call to the view delegate.
 TEST_F(SetUpListViewTest, MenuButton) {
-  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData];
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData
+                                                    rootView:nil];
   [_superview addSubview:view];
 
   id view_delegate = OCMProtocolMock(@protocol(SetUpListViewDelegate));
-  OCMExpect([view_delegate showSetUpListMenu]);
+  OCMExpect([view_delegate showSetUpListMenuWithButton:[OCMArg any]]);
   view.delegate = view_delegate;
 
-  TouchButton(@"kSetUpListMenuButtonID");
+  TouchButton(set_up_list::kMenuButtonID);
 
   [view_delegate verify];
 }
 
 // Tests that a SetUpListItemView can be marked complete.
 TEST_F(SetUpListViewTest, SetUpListItemViewMarkComplete) {
-  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData];
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData
+                                                    rootView:nil];
   [_superview addSubview:view];
 
   SetUpListItemView* item_view =
-      (SetUpListItemView*)FindSubview(@"kSetUpListItemSignInID");
+      (SetUpListItemView*)FindSubview(set_up_list::kSignInItemID);
   EXPECT_TRUE(item_view != nil);
   EXPECT_FALSE(item_view.complete);
 
-  [item_view markComplete];
+  [view markItemComplete:SetUpListItemType::kSignInSync completion:nil];
   // Give time for run loop to execute events.
-  SpinRunLoopWithMaxDelay(base::Milliseconds(100));
+  _task_environment.RunUntilIdle();
 
   EXPECT_TRUE(item_view.complete);
 }
@@ -203,10 +202,29 @@ TEST_F(SetUpListViewTest, SetUpListItemViewMarkComplete) {
 TEST_F(SetUpListViewTest, NoExpandButton) {
   NSArray<SetUpListItemViewData*>* first_two_items =
       [_itemsData subarrayWithRange:NSMakeRange(0, 2)];
-  SetUpListView* view = [[SetUpListView alloc] initWithItems:first_two_items];
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:first_two_items
+                                                    rootView:nil];
+
   [_superview addSubview:view];
 
   SetUpListItemView* expand_button =
-      (SetUpListItemView*)FindSubview(@"kSetUpListExpandButtonID");
+      (SetUpListItemView*)FindSubview(set_up_list::kExpandButtonID);
   EXPECT_TRUE(expand_button == nil);
+}
+
+// Tests that the "All Set" can be shown.
+TEST_F(SetUpListViewTest, AllSetView) {
+  SetUpListView* view = [[SetUpListView alloc] initWithItems:_itemsData
+                                                    rootView:nil];
+  [_superview addSubview:view];
+
+  ExpectSubview(set_up_list::kAllSetID, false);
+  ExpectSubview(set_up_list::kSignInItemID, true);
+
+  [view showDoneWithAnimations:nil];
+  // Give time for run loop to execute events.
+  _task_environment.RunUntilIdle();
+
+  ExpectSubview(set_up_list::kAllSetID, true);
+  ExpectSubview(set_up_list::kSignInItemID, false);
 }

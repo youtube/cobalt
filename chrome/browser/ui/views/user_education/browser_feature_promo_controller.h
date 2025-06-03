@@ -23,7 +23,7 @@ class TrackedElement;
 
 namespace user_education {
 class FeaturePromoRegistry;
-class FeaturePromoSnoozeService;
+class FeaturePromoStorageService;
 class HelpBubbleFactoryRegistry;
 class TutorialService;
 }  // namespace user_education
@@ -49,7 +49,7 @@ class BrowserFeaturePromoController
       feature_engagement::Tracker* feature_engagement_tracker,
       user_education::FeaturePromoRegistry* registry,
       user_education::HelpBubbleFactoryRegistry* help_bubble_registry,
-      user_education::FeaturePromoSnoozeService* snooze_service,
+      user_education::FeaturePromoStorageService* storage_service,
       user_education::TutorialService* tutorial_service);
   ~BrowserFeaturePromoController() override;
 
@@ -71,11 +71,13 @@ class BrowserFeaturePromoController
                            GetAcceleratorProvider);
   FRIEND_TEST_ALL_PREFIXES(BrowserFeaturePromoControllerTest,
                            GetFocusHelpBubbleScreenReaderHint);
-  FRIEND_TEST_ALL_PREFIXES(BrowserFeaturePromoControllerUiTest, CanShowPromo);
+  FRIEND_TEST_ALL_PREFIXES(BrowserFeaturePromoControllerUiTest,
+                           CanShowPromoForElement);
 
   // FeaturePromoController:
   ui::ElementContext GetAnchorContext() const override;
-  bool CanShowPromo(ui::TrackedElement* anchor_element) const override;
+  bool CanShowPromoForElement(
+      ui::TrackedElement* anchor_element) const override;
   const ui::AcceleratorProvider* GetAcceleratorProvider() const override;
   std::u16string GetTutorialScreenReaderHint() const override;
   std::u16string GetFocusHelpBubbleScreenReaderHint(
@@ -85,6 +87,7 @@ class BrowserFeaturePromoController
   std::u16string GetBodyIconAltText() const override;
   const base::Feature* GetScreenReaderPromptPromoFeature() const override;
   const char* GetScreenReaderPromptPromoEventName() const override;
+  std::string GetAppId() const override;
 
  private:
   // The browser window this instance is responsible for.

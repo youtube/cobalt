@@ -11,7 +11,7 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import '../../common/icons.html.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {CurrentWallpaper, WallpaperLayout} from '../../personalization_app.mojom-webui.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
@@ -25,11 +25,11 @@ import {getWallpaperProvider} from './wallpaper_interface_provider.js';
 
 const fullscreenClass = 'fullscreen-preview';
 
-export interface WallpaperFullscreen {
+export interface WallpaperFullscreenElement {
   $: {container: HTMLDivElement, exit: HTMLElement};
 }
 
-export class WallpaperFullscreen extends WithPersonalizationStore {
+export class WallpaperFullscreenElement extends WithPersonalizationStore {
   static get is() {
     return 'wallpaper-fullscreen';
   }
@@ -87,16 +87,16 @@ export class WallpaperFullscreen extends WithPersonalizationStore {
     this.$.container.addEventListener(
         'fullscreenchange', this.onFullscreenChange_.bind(this));
 
-    this.watch<WallpaperFullscreen['visible_']>(
+    this.watch<WallpaperFullscreenElement['visible_']>(
         'visible_', state => state.wallpaper.fullscreen);
-    this.watch<WallpaperFullscreen['showLayoutOptions_']>(
+    this.watch<WallpaperFullscreenElement['showLayoutOptions_']>(
         'showLayoutOptions_',
         state => !!state.wallpaper.pendingSelected &&
             (isFilePath(state.wallpaper.pendingSelected) ||
              isGooglePhotosPhoto(state.wallpaper.pendingSelected)));
-    this.watch<WallpaperFullscreen['currentSelected_']>(
+    this.watch<WallpaperFullscreenElement['currentSelected_']>(
         'currentSelected_', state => state.wallpaper.currentSelected);
-    this.watch<WallpaperFullscreen['pendingSelected_']>(
+    this.watch<WallpaperFullscreenElement['pendingSelected_']>(
         'pendingSelected_', state => state.wallpaper.pendingSelected);
 
     // Visibility change will fire in case of alt+tab, closing the window, or
@@ -150,15 +150,17 @@ export class WallpaperFullscreen extends WithPersonalizationStore {
   }
 
   private async onClickExit_() {
-    await this.exitFullscreen();
     await cancelPreviewWallpaper(getWallpaperProvider());
+    await this.exitFullscreen();
   }
 
   private async onClickConfirm_() {
-    // Begin to exit fullscreen mode before confirming preview wallpaper. This
-    // makes local images and online images execute updates in the same order.
-    await this.exitFullscreen();
+    // Confirm the preview wallpaper before exiting fullscreen. In tablet
+    // splitscreen, this prevents `WallpaperController::OnOverviewModeWillStart`
+    // from triggering first, which leads to preview wallpaper getting canceled
+    // before it gets confirmed (b/289133203).
     await confirmPreviewWallpaper(getWallpaperProvider());
+    await this.exitFullscreen();
   }
 
   private async onClickLayout_(event: MouseEvent) {
@@ -181,4 +183,5 @@ export class WallpaperFullscreen extends WithPersonalizationStore {
   }
 }
 
-customElements.define(WallpaperFullscreen.is, WallpaperFullscreen);
+customElements.define(
+    WallpaperFullscreenElement.is, WallpaperFullscreenElement);

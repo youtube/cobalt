@@ -26,18 +26,25 @@ ChromeVoxLearnModeTest = class extends ChromeVoxE2ETest {
   async setUpDeferred() {
     await super.setUpDeferred();
 
-    // Alphabetical based on file path.
-    await importModule(
-        'CommandHandlerInterface',
-        '/chromevox/background/command_handler_interface.js');
-    await importModule(
-        ['BrailleKeyEvent', 'BrailleKeyCommand'],
-        '/chromevox/common/braille/braille_key_types.js');
-    await importModule(
-        'LearnModeBridge', '/chromevox/common/learn_mode_bridge.js');
-    await importModule('QueueMode', '/chromevox/common/tts_types.js');
-    await importModule('AsyncUtil', '/common/async_util.js');
-    await importModule('KeyCode', '/common/key_code.js');
+    await Promise.all([
+      // Alphabetical based on file path.
+      importModule(
+          'BrailleCommandHandler',
+          '/chromevox/background/braille/braille_command_handler.js'),
+      importModule(
+          'CommandHandlerInterface',
+          '/chromevox/background/input/command_handler_interface.js'),
+      importModule(
+          'GestureCommandHandler',
+          '/chromevox/background/input/gesture_command_handler.js'),
+      importModule(
+          ['BrailleKeyEvent', 'BrailleKeyCommand'],
+          '/chromevox/common/braille/braille_key_types.js'),
+      importModule('LearnModeBridge', '/chromevox/common/learn_mode_bridge.js'),
+      importModule('QueueMode', '/chromevox/common/tts_types.js'),
+      importModule('AsyncUtil', '/common/async_util.js'),
+      importModule('KeyCode', '/common/key_code.js'),
+    ]);
   }
 
   async runOnLearnModePage() {
@@ -150,10 +157,10 @@ AX_TEST_F('ChromeVoxLearnModeTest', 'Gesture', async function() {
       .expectSpeechWithQueueMode('Touch explore', QueueMode.CATEGORY_FLUSH)
 
       // Test for inclusion of commandDescriptionMsgId when provided.
-      .call(doLearnModeGesture(Gesture.SWIPE_LEFT2))
+      .call(doLearnModeGesture(Gesture.SWIPE_RIGHT2))
       .expectSpeechWithQueueMode(
-          'Swipe two fingers left', QueueMode.CATEGORY_FLUSH)
-      .expectSpeechWithQueueMode('Escape', QueueMode.QUEUE);
+          'Swipe two fingers right', QueueMode.CATEGORY_FLUSH)
+      .expectSpeechWithQueueMode('Enter', QueueMode.QUEUE);
 
   await mockFeedback.replay();
 });
@@ -205,3 +212,12 @@ AX_TEST_F('ChromeVoxLearnModeTest', 'HardwareFunctionKeys', async function() {
 
   await mockFeedback.replay();
 });
+
+AX_TEST_F(
+    'ChromeVoxLearnModeTest', 'CommandHandlersDisabled', async function() {
+      const [mockFeedback, evt] = await this.runOnLearnModePage();
+      await LearnModeBridge.ready();
+      assertTrue(BrailleCommandHandler.instance.bypassed_);
+      assertTrue(GestureCommandHandler.instance.bypassed_);
+      await mockFeedback.replay();
+    });

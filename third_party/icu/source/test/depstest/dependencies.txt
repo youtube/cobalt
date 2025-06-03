@@ -48,6 +48,9 @@ group: std_mutex
     std::condition_variable::~condition_variable()
     std::condition_variable_any::condition_variable_any()
     std::condition_variable_any::~condition_variable_any()
+    pthread_once
+    pthread_mutex_lock
+    pthread_mutex_unlock
 
 group: ubsan
     # UBSan=UndefinedBehaviorSanitizer, clang -fsanitize=bounds
@@ -211,7 +214,7 @@ group: breakiterator
     brkiter.o brkeng.o ubrk.o
     rbbi.o rbbinode.o rbbiscan.o rbbisetb.o rbbistbl.o rbbitblb.o
     rbbidata.o rbbirb.o rbbi_cache.o
-    dictionarydata.o dictbe.o lstmbe.o
+    dictionarydata.o dictbe.o lstmbe.o mlbe.o
     # BreakIterator::makeInstance() factory implementation makes for circular dependency
     # between BreakIterator base and FilteredBreakIteratorBuilder.
     filteredbrk.o
@@ -348,7 +351,7 @@ group: uniset_core
 group: icu_utility_with_props
     util_props.o
   deps
-    icu_utility uchar ucase
+    icu_utility uchar ucase uprops
 
 group: icu_utility
     util.o
@@ -1007,6 +1010,9 @@ group: numberformatter
     number_scientific.o
     currpinf.o
     numrange_fluent.o numrange_impl.o
+    # NOTE: This could go into its own dependency block, but it would require
+    # refactoring more of the dependencies (e.g. removing class methods).
+    number_simple.o
   deps
     decnumber double_conversion formattable units unitsformatter
     listformatter number_representation number_output
@@ -1078,7 +1084,7 @@ group: formatting
     measfmt.o quantityformatter.o
     # dateformat
     astro.o buddhcal.o calendar.o cecal.o chnsecal.o coptccal.o dangical.o ethpccal.o
-    gregocal.o gregoimp.o hebrwcal.o indiancal.o islamcal.o japancal.o persncal.o taiwncal.o
+    gregocal.o gregoimp.o hebrwcal.o indiancal.o islamcal.o iso8601cal.o japancal.o persncal.o taiwncal.o
     erarules.o  # mostly for Japanese eras
     ucal.o
     basictz.o olsontz.o rbtz.o simpletz.o timezone.o tzrule.o tztrans.o

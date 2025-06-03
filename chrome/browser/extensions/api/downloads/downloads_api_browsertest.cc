@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/values.h"
+#include "chrome/browser/download/download_browsertest_utils.h"
 #include "chrome/browser/extensions/api/downloads/downloads_api.h"
 
 #include <stddef.h>
@@ -31,7 +32,6 @@
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
-#include "chrome/browser/download/bubble/download_display.h"
 #include "chrome/browser/download/bubble/download_display_controller.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/download/download_display.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/common/extensions/api/downloads.h"
 #include "chrome/common/pref_names.h"
@@ -201,11 +202,12 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
 
     std::string Debug() {
       return base::StringPrintf("Event(%p, %s, %f)", profile_.get(),
-                                event_name_.c_str(), caught_.ToJsTime());
+                                event_name_.c_str(),
+                                caught_.InMillisecondsFSinceUnixEpoch());
     }
 
    private:
-    raw_ptr<Profile, DanglingUntriaged> profile_;
+    raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
     std::string event_name_;
     std::string json_args_;
     base::Value args_;
@@ -231,7 +233,8 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
   }
 
   // extensions::EventRouter::TestObserver:
-  void OnDidDispatchEventToProcess(const extensions::Event& event) override {}
+  void OnDidDispatchEventToProcess(const extensions::Event& event,
+                                   int process_id) override {}
 
   bool WaitFor(Profile* profile,
                const std::string& event_name,
@@ -274,7 +277,7 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
   base::Time last_wait_;
   std::unique_ptr<Event> waiting_for_;
   base::circular_deque<std::unique_ptr<Event>> events_;
-  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
 };
 
 // Object waiting for a download open event.
@@ -420,6 +423,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
       DownloadTestFileActivityObserver observer(incognito_browser_->profile());
       observer.EnableFileChooser(false);
     }
+    SetPromptForDownload(incognito_browser_, false);
     current_browser_ = incognito_browser_;
     if (events_listener_.get())
       events_listener_->UpdateProfile(current_browser()->profile());
@@ -551,7 +555,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
   DownloadItem* CreateFirstSlowTestDownload() {
     DownloadManager* manager = GetCurrentManager();
 
-    EXPECT_EQ(0, manager->NonMaliciousInProgressCount());
+    EXPECT_EQ(0, manager->BlockingShutdownCount());
     EXPECT_EQ(0, manager->InProgressCount());
     if (manager->InProgressCount() != 0)
       return nullptr;
@@ -574,7 +578,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
     const GURL url = embedded_test_server()->GetURL(path);
     ui_test_utils::NavigateToURLWithDisposition(
         current_browser(), url, WindowOpenDisposition::CURRENT_TAB,
-        ui_test_utils::BROWSER_TEST_NONE);
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
 
     response->WaitForRequest();
     response->Send(
@@ -758,8 +762,8 @@ class DownloadExtensionTest : public ExtensionApiTest {
 
   raw_ptr<const Extension, DanglingUntriaged> extension_;
   raw_ptr<const Extension, DanglingUntriaged> second_extension_;
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_;
-  raw_ptr<Browser, DanglingUntriaged> current_browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> current_browser_;
   std::unique_ptr<DownloadsEventsListener> events_listener_;
 
   std::unique_ptr<net::test_server::ControllableHttpResponse> first_download_;
@@ -4337,7 +4341,7 @@ IN_PROC_BROWSER_TEST_F(
     std::unique_ptr<content::DownloadTestObserver> observer(
         new JustInProgressDownloadObserver(manager, 1));
     ASSERT_EQ(0, manager->InProgressCount());
-    ASSERT_EQ(0, manager->NonMaliciousInProgressCount());
+    ASSERT_EQ(0, manager->BlockingShutdownCount());
     // Tabs created just for a download are automatically closed, invalidating
     // the download's WebContents. Downloads without WebContents cannot be
     // resumed. http://crbug.com/225901
@@ -4347,7 +4351,7 @@ IN_PROC_BROWSER_TEST_F(
         // NetworkService shipping.
         // TODO(https://crbug.com/700382): Fix or delete this test.
         GURL(), WindowOpenDisposition::CURRENT_TAB,
-        ui_test_utils::BROWSER_TEST_NONE);
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
     observer->WaitForFinished();
     EXPECT_EQ(1u, observer->NumDownloadsSeenInState(DownloadItem::IN_PROGRESS));
     DownloadManager::DownloadVector items;

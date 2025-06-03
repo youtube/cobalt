@@ -121,7 +121,7 @@ class VIZ_SERVICE_EXPORT Surface final {
   enum QueueFrameResult { REJECTED, ACCEPTED_ACTIVE, ACCEPTED_PENDING };
 
   using CommitPredicate =
-      base::RepeatingCallback<bool(const SurfaceId&, const BeginFrameId&)>;
+      base::FunctionRef<bool(const SurfaceId&, const BeginFrameId&)>;
 
   Surface(const SurfaceInfo& surface_info,
           SurfaceManager* surface_manager,
@@ -179,6 +179,12 @@ class VIZ_SERVICE_EXPORT Surface final {
   // it's marked as respecting deadlines.
   void ActivatePendingFrameForDeadline();
 
+  // Places the copy-of-output request on the render pass defined by
+  // |PendingCopyOutputRequest::subtree_capture_id| if such a render pass
+  // exists, otherwise the request will be ignored.
+  void RequestCopyOfOutput(
+      PendingCopyOutputRequest pending_copy_output_request);
+
   using CopyRequestsMap =
       std::multimap<CompositorRenderPassId, std::unique_ptr<CopyOutputRequest>>;
 
@@ -202,7 +208,6 @@ class VIZ_SERVICE_EXPORT Surface final {
   const CompositorFrame& GetActiveFrame() const;
   const CompositorFrameMetadata& GetActiveFrameMetadata() const;
 
-  void ResetInterpolatedFrame();
   void SetInterpolatedFrame(CompositorFrame frame);
   const CompositorFrame& GetActiveOrInterpolatedFrame() const;
   bool HasInterpolatedFrame() const;
@@ -311,15 +316,13 @@ class VIZ_SERVICE_EXPORT Surface final {
       std::unique_ptr<CopyOutputRequest> copy_request,
       CompositorRenderPassId render_pass_id);
 
-  void DidAggregate();
-
   // Returns frame id of the oldest uncommitted frame if any,
-  absl::optional<BeginFrameId> GetFirstUncommitedFrameId();
+  absl::optional<uint64_t> GetFirstUncommitedFrameIndex();
 
-  // Returns frame id of the oldest uncommitted frame that is newer than
-  // provided `frame_id`.
-  absl::optional<BeginFrameId> GetUncommitedFrameIdNewerThan(
-      const BeginFrameId& frame_id);
+  // Returns frame index of the oldest uncommitted frame that is newer than
+  // provided `frame_index`.
+  absl::optional<uint64_t> GetUncommitedFrameIndexNewerThan(
+      uint64_t frame_index);
 
  private:
   struct FrameData {
@@ -346,12 +349,6 @@ class VIZ_SERVICE_EXPORT Surface final {
     // for a callback that will supply presentation feedback to the client.
     bool will_be_notified_of_presentation = false;
   };
-
-  // Places the copy-of-output request on the render pass defined by
-  // |PendingCopyOutputRequest::subtree_capture_id| if such a render pass
-  // exists, otherwise the request will be ignored.
-  void RequestCopyOfOutput(
-      PendingCopyOutputRequest pending_copy_output_request);
 
   // Updates surface references of the surface using the referenced
   // surfaces from the most recent CompositorFrame.
@@ -439,8 +436,6 @@ class VIZ_SERVICE_EXPORT Surface final {
   bool is_latency_info_taken_ = false;
 
   const raw_ptr<SurfaceAllocationGroup> allocation_group_;
-
-  bool has_damage_from_interpolated_frame_ = false;
 
   const size_t max_uncommitted_frames_;
 

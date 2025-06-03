@@ -16,12 +16,6 @@
 // The fast_c_api object also supports querying the number of fast/slow calls
 // and resetting these counters.
 
-// Make sure to sync the following with src/compiler/globals.h.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
-#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#endif
-
 namespace v8 {
 namespace {
 
@@ -164,8 +158,8 @@ class FastCApiObject {
 
     // For Wasm call, we don't pass FastCApiObject as the receiver, so we need
     // to retrieve the FastCApiObject instance from a static variable.
-    if (Utils::OpenHandle(*receiver)->IsJSGlobalProxy() ||
-        Utils::OpenHandle(*receiver)->IsUndefined()) {
+    if (IsJSGlobalProxy(*Utils::OpenHandle(*receiver)) ||
+        IsUndefined(*Utils::OpenHandle(*receiver))) {
       // Note: FastCApiObject::instance() returns the reference of an object
       // allocated in thread-local storage, its value cannot be stored in a
       // static variable here.
@@ -1177,6 +1171,185 @@ class FastCApiObject {
     info.GetReturnValue().Set(pointer_a == pointer_b);
   }
 
+  static int64_t sumInt64FastCallback(Local<Object> receiver, int64_t a,
+                                      int64_t b,
+                                      FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(0);
+    self->fast_call_count_++;
+
+    return a + b;
+  }
+
+  template <typename T>
+  static bool Convert(double value, T* out_result) {
+    if (!IsInRange<T>(value)) return false;
+    *out_result = static_cast<T>(value);
+    return true;
+  }
+
+  static void sumInt64AsNumberSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    if (info.Length() != 2) {
+      info.GetIsolate()->ThrowError(
+          "Invalid number of arguments, expected two.");
+      return;
+    }
+
+    Local<Value> value_a = info[0];
+    Local<Value> value_b = info[1];
+
+    if (!value_a->IsNumber()) {
+      info.GetIsolate()->ThrowError("Did not get a number as first parameter.");
+      return;
+    }
+    int64_t a;
+    if (!Convert(value_a.As<Number>()->Value(), &a)) {
+      info.GetIsolate()->ThrowError("First number is out of int64_t range.");
+      return;
+    }
+
+    if (!value_b->IsNumber()) {
+      info.GetIsolate()->ThrowError(
+          "Did not get a number as second parameter.");
+      return;
+    }
+    int64_t b;
+    if (!Convert(value_b.As<Number>()->Value(), &b)) {
+      info.GetIsolate()->ThrowError("Second number is out of int64_t range.");
+      return;
+    }
+
+    info.GetReturnValue().Set(Number::New(isolate, static_cast<double>(a + b)));
+  }
+
+  static void sumInt64AsBigIntSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    if (info.Length() != 2) {
+      info.GetIsolate()->ThrowError(
+          "Invalid number of arguments, expected two.");
+      return;
+    }
+
+    Local<Value> value_a = info[0];
+    Local<Value> value_b = info[1];
+
+    int64_t a;
+    if (value_a->IsBigInt()) {
+      a = static_cast<int64_t>(value_a.As<BigInt>()->Int64Value());
+    } else {
+      info.GetIsolate()->ThrowError("Did not get a BigInt as first parameter.");
+      return;
+    }
+
+    int64_t b;
+    if (value_b->IsBigInt()) {
+      b = static_cast<int64_t>(value_b.As<BigInt>()->Int64Value());
+    } else {
+      info.GetIsolate()->ThrowError(
+          "Did not get a BigInt as second parameter.");
+      return;
+    }
+
+    info.GetReturnValue().Set(BigInt::New(isolate, a + b));
+  }
+
+  static uint64_t sumUint64FastCallback(Local<Object> receiver, uint64_t a,
+                                        uint64_t b,
+                                        FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(0);
+    self->fast_call_count_++;
+
+    return a + b;
+  }
+
+  static void sumUint64AsNumberSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    if (info.Length() != 2) {
+      info.GetIsolate()->ThrowError(
+          "Invalid number of arguments, expected two.");
+      return;
+    }
+
+    Local<Value> value_a = info[0];
+    Local<Value> value_b = info[1];
+
+    if (!value_a->IsNumber()) {
+      info.GetIsolate()->ThrowError("Did not get a number as first parameter.");
+      return;
+    }
+    uint64_t a;
+    if (!Convert(value_a.As<Number>()->Value(), &a)) {
+      info.GetIsolate()->ThrowError("First number is out of uint64_t range.");
+      return;
+    }
+
+    if (!value_b->IsNumber()) {
+      info.GetIsolate()->ThrowError(
+          "Did not get a number as second parameter.");
+      return;
+    }
+    uint64_t b;
+    if (!Convert(value_b.As<Number>()->Value(), &b)) {
+      info.GetIsolate()->ThrowError("Second number is out of uint64_t range.");
+      return;
+    }
+
+    info.GetReturnValue().Set(Number::New(isolate, static_cast<double>(a + b)));
+  }
+
+  static void sumUint64AsBigIntSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    Isolate* isolate = info.GetIsolate();
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    if (info.Length() != 2) {
+      info.GetIsolate()->ThrowError(
+          "Invalid number of arguments, expected two.");
+      return;
+    }
+
+    Local<Value> value_a = info[0];
+    Local<Value> value_b = info[1];
+
+    uint64_t a;
+    if (value_a->IsBigInt()) {
+      a = static_cast<uint64_t>(value_a.As<BigInt>()->Uint64Value());
+    } else {
+      info.GetIsolate()->ThrowError("Did not get a BigInt as first parameter.");
+      return;
+    }
+
+    uint64_t b;
+    if (value_b->IsBigInt()) {
+      b = static_cast<uint64_t>(value_b.As<BigInt>()->Uint64Value());
+    } else {
+      info.GetIsolate()->ThrowError(
+          "Did not get a BigInt as second parameter.");
+      return;
+    }
+
+    info.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, a + b));
+  }
+
   static void FastCallCount(const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW();
@@ -1665,6 +1838,42 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::ComparePointersSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &compare_pointers_c_func));
+    CFunction sum_int64_as_number_c_func =
+        CFunctionBuilder().Fn(FastCApiObject::sumInt64FastCallback).Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "sum_int64_as_number",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::sumInt64AsNumberSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &sum_int64_as_number_c_func));
+    CFunction sum_int64_as_bigint_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::sumInt64FastCallback)
+            .Build<CFunctionInfo::Int64Representation::kBigInt>();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "sum_int64_as_bigint",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::sumInt64AsBigIntSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &sum_int64_as_bigint_c_func));
+    CFunction sum_uint64_as_number_c_func =
+        CFunctionBuilder().Fn(FastCApiObject::sumUint64FastCallback).Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "sum_uint64_as_number",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::sumUint64AsNumberSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &sum_uint64_as_number_c_func));
+    CFunction sum_uint64_as_bigint_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::sumUint64FastCallback)
+            .Build<CFunctionInfo::Int64Representation::kBigInt>();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "sum_uint64_as_bigint",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::sumUint64AsBigIntSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &sum_uint64_as_bigint_c_func));
 
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",
@@ -1681,6 +1890,23 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
         FunctionTemplate::New(isolate, FastCApiObject::ResetCounts,
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
+
+    CFunction add_all_32bit_int_5args_enforce_range_c_func =
+        CFunctionBuilder()
+            .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
+            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<5, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Patch(FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch)
+#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+            .Build();
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_5args_enforce_range",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasNoSideEffect,
+            &add_all_32bit_int_5args_enforce_range_c_func));
   }
   api_obj_ctor->InstanceTemplate()->SetInternalFieldCount(
       FastCApiObject::kV8WrapperObjectIndex + 1);

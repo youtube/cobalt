@@ -13,6 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "content/browser/service_worker/service_worker_hid_delegate_observer.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/document_service.h"
@@ -25,58 +26,6 @@
 #include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom.h"
 
 namespace content {
-
-namespace {
-
-// Removes reports from |device| if the report IDs match the IDs in the
-// protected report ID lists. If all of the reports are removed from a
-// collection, the collection is also removed.
-void RemoveProtectedReports(device::mojom::HidDeviceInfo& device,
-                            bool is_fido_allowed) {
-  std::vector<device::mojom::HidCollectionInfoPtr> collections;
-  for (auto& collection : device.collections) {
-    const bool is_fido =
-        collection->usage->usage_page == device::mojom::kPageFido;
-    std::vector<device::mojom::HidReportDescriptionPtr> input_reports;
-    for (auto& report : collection->input_reports) {
-      if ((is_fido && is_fido_allowed) ||
-          !device.protected_input_report_ids.has_value() ||
-          !base::Contains(*device.protected_input_report_ids,
-                          report->report_id)) {
-        input_reports.push_back(std::move(report));
-      }
-    }
-    std::vector<device::mojom::HidReportDescriptionPtr> output_reports;
-    for (auto& report : collection->output_reports) {
-      if ((is_fido && is_fido_allowed) ||
-          !device.protected_output_report_ids.has_value() ||
-          !base::Contains(*device.protected_output_report_ids,
-                          report->report_id)) {
-        output_reports.push_back(std::move(report));
-      }
-    }
-    std::vector<device::mojom::HidReportDescriptionPtr> feature_reports;
-    for (auto& report : collection->feature_reports) {
-      if ((is_fido && is_fido_allowed) ||
-          !device.protected_feature_report_ids.has_value() ||
-          !base::Contains(*device.protected_feature_report_ids,
-                          report->report_id)) {
-        feature_reports.push_back(std::move(report));
-      }
-    }
-    // Only keep the collection if it has at least one report.
-    if (!input_reports.empty() || !output_reports.empty() ||
-        !feature_reports.empty()) {
-      collection->input_reports = std::move(input_reports);
-      collection->output_reports = std::move(output_reports);
-      collection->feature_reports = std::move(feature_reports);
-      collections.push_back(std::move(collection));
-    }
-  }
-  device.collections = std::move(collections);
-}
-
-}  // namespace
 
 // Deletes the HidService when the connected document is destroyed.
 class DocumentHelper
@@ -123,41 +72,52 @@ class DocumentHelper
 
 HidService::HidService(
     RenderFrameHostImpl* render_frame_host,
-    base::WeakPtr<ServiceWorkerContextCore> service_worker_context,
+    base::WeakPtr<ServiceWorkerVersion> service_worker_version,
     const url::Origin& origin)
     : render_frame_host_(render_frame_host),
-      service_worker_context_(std::move(service_worker_context)),
+      service_worker_version_(std::move(service_worker_version)),
       origin_(origin) {
   watchers_.set_disconnect_handler(base::BindRepeating(
       &HidService::OnWatcherRemoved, base::Unretained(this),
       /* cleanup_watcher_ids=*/true, /*watchers_removed=*/1));
 
   HidDelegate* delegate = GetContentClient()->browser()->GetHidDelegate();
-  if (delegate)
+  if (delegate && render_frame_host_) {
     delegate->AddObserver(GetBrowserContext(), this);
+  } else if (service_worker_version_) {
+    // For service worker case, it relies on ServiceWorkerHidDelegateObserver to
+    // be the broker between HidDelegate and HidService.
+    auto context = service_worker_version_->context();
+    if (context) {
+      context->hid_delegate_observer()->RegisterHidService(
+          service_worker_version_->registration_id(),
+          weak_factory_.GetWeakPtr());
+    }
+  }
 }
 
 HidService::HidService(RenderFrameHostImpl* render_frame_host)
     : HidService(render_frame_host,
-                 /*service_worker_context=*/nullptr,
+                 /*service_worker_version=*/nullptr,
                  render_frame_host->GetMainFrame()->GetLastCommittedOrigin()) {}
 
 HidService::HidService(
-    base::WeakPtr<ServiceWorkerContextCore> service_worker_context,
+    base::WeakPtr<ServiceWorkerVersion> service_worker_version,
     const url::Origin& origin)
     : HidService(/*render_frame_host=*/nullptr,
-                 std::move(service_worker_context),
+                 std::move(service_worker_version),
                  origin) {}
 
 HidService::~HidService() {
   HidDelegate* delegate = GetContentClient()->browser()->GetHidDelegate();
-  if (delegate)
+  if (delegate && render_frame_host_) {
     delegate->RemoveObserver(GetBrowserContext(), this);
+  }
 
   // Update connection count and active frame count tracking as remaining
   // watchers will be closed from this end.
   if (!watchers_.empty())
-    DecrementActiveFrameCount();
+    DecrementActivityCount();
   for (size_t i = 0; i < watchers_.size(); i++) {
     delegate->DecrementConnectionCount(GetBrowserContext(), origin_);
   }
@@ -205,10 +165,10 @@ void HidService::Create(
 
 // static
 void HidService::Create(
-    base::WeakPtr<ServiceWorkerContextCore> service_worker_context,
+    base::WeakPtr<ServiceWorkerVersion> service_worker_version,
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
-  DCHECK(service_worker_context);
+  DCHECK(service_worker_version);
 
   if (origin.opaque()) {
     // Service worker should not be available to a window/worker client which
@@ -225,13 +185,76 @@ void HidService::Create(
   // This makes HidService a self-owned receiver so it will self-destruct when a
   // mojo interface error occurs.
   mojo::MakeSelfOwnedReceiver(
-      std::make_unique<HidService>(std::move(service_worker_context), origin),
+      std::make_unique<HidService>(std::move(service_worker_version), origin),
       std::move(receiver));
+}
+
+// static
+void HidService::RemoveProtectedReports(device::mojom::HidDeviceInfo& device,
+                                        bool is_fido_allowed) {
+  std::vector<device::mojom::HidCollectionInfoPtr> collections;
+  for (auto& collection : device.collections) {
+    const bool is_fido =
+        collection->usage->usage_page == device::mojom::kPageFido;
+    std::vector<device::mojom::HidReportDescriptionPtr> input_reports;
+    for (auto& report : collection->input_reports) {
+      if ((is_fido && is_fido_allowed) ||
+          !device.protected_input_report_ids.has_value() ||
+          !base::Contains(*device.protected_input_report_ids,
+                          report->report_id)) {
+        input_reports.push_back(std::move(report));
+      }
+    }
+    std::vector<device::mojom::HidReportDescriptionPtr> output_reports;
+    for (auto& report : collection->output_reports) {
+      if ((is_fido && is_fido_allowed) ||
+          !device.protected_output_report_ids.has_value() ||
+          !base::Contains(*device.protected_output_report_ids,
+                          report->report_id)) {
+        output_reports.push_back(std::move(report));
+      }
+    }
+    std::vector<device::mojom::HidReportDescriptionPtr> feature_reports;
+    for (auto& report : collection->feature_reports) {
+      if ((is_fido && is_fido_allowed) ||
+          !device.protected_feature_report_ids.has_value() ||
+          !base::Contains(*device.protected_feature_report_ids,
+                          report->report_id)) {
+        feature_reports.push_back(std::move(report));
+      }
+    }
+    // Only keep the collection if it has at least one report.
+    if (!input_reports.empty() || !output_reports.empty() ||
+        !feature_reports.empty()) {
+      collection->input_reports = std::move(input_reports);
+      collection->output_reports = std::move(output_reports);
+      collection->feature_reports = std::move(feature_reports);
+      collections.push_back(std::move(collection));
+    }
+  }
+  device.collections = std::move(collections);
 }
 
 void HidService::RegisterClient(
     mojo::PendingAssociatedRemote<device::mojom::HidManagerClient> client) {
   clients_.Add(std::move(client));
+  if (service_worker_version_ && service_worker_version_->context()) {
+    // HidService is expected to have only one HidManagerClient when it is for a
+    // service worker. One renderer side of a service worker has its own
+    // associated HidService.
+    CHECK_EQ(1u, clients_.size());
+    // When a service worker is woken up by a device connection event, the
+    // client might not have yet registered with the HidService or the
+    // HidService hasn't been created yet when service worker is in running
+    // state. This is because service worker is set to running state after
+    // script evaluation but inter-processes request triggered from the script
+    // evaluation that creates HidService or registers a client might not be
+    // done in the browser process. To handle this situation, pending callbacks
+    // are stored and to be processed when registering the client.
+    service_worker_version_->context()
+        ->hid_delegate_observer()
+        ->ProcessPendingCallbacks(service_worker_version_.get());
+  }
 }
 
 void HidService::GetDevices(GetDevicesCallback callback) {
@@ -291,7 +314,7 @@ void HidService::Connect(
   }
 
   if (watchers_.empty()) {
-    IncrementActiveFrameCount();
+    IncrementActivityCount();
   }
 
   delegate->IncrementConnectionCount(browser_context, origin_);
@@ -324,7 +347,7 @@ void HidService::Forget(device::mojom::HidDeviceInfoPtr device_info,
 void HidService::OnWatcherRemoved(bool cleanup_watcher_ids,
                                   size_t watchers_removed) {
   if (watchers_.empty())
-    DecrementActiveFrameCount();
+    DecrementActivityCount();
 
   // When |cleanup_watcher_ids| is true, it is the case like watcher disconnect
   // handler where the entry in |watchers_| is removed but |watcher_ids_| isn't
@@ -342,19 +365,30 @@ void HidService::OnWatcherRemoved(bool cleanup_watcher_ids,
   }
 }
 
-void HidService::IncrementActiveFrameCount() {
+void HidService::IncrementActivityCount() {
   if (render_frame_host_) {
     auto* web_contents_impl =
         WebContentsImpl::FromRenderFrameHostImpl(render_frame_host_);
     web_contents_impl->IncrementHidActiveFrameCount();
+  } else if (service_worker_version_) {
+    CHECK(!service_worker_activity_request_uuid_);
+    service_worker_activity_request_uuid_ = base::Uuid::GenerateRandomV4();
+    service_worker_version_->StartExternalRequest(
+        *service_worker_activity_request_uuid_,
+        ServiceWorkerExternalRequestTimeoutType::kDoesNotTimeout);
   }
 }
 
-void HidService::DecrementActiveFrameCount() {
+void HidService::DecrementActivityCount() {
   if (render_frame_host_) {
     auto* web_contents_impl =
         WebContentsImpl::FromRenderFrameHostImpl(render_frame_host_);
     web_contents_impl->DecrementHidActiveFrameCount();
+  } else if (service_worker_version_) {
+    CHECK(service_worker_activity_request_uuid_);
+    service_worker_version_->FinishExternalRequest(
+        *service_worker_activity_request_uuid_);
+    service_worker_activity_request_uuid_.reset();
   }
 }
 
@@ -521,8 +555,8 @@ BrowserContext* HidService::GetBrowserContext() {
   if (render_frame_host_) {
     return render_frame_host_->GetBrowserContext();
   }
-  if (service_worker_context_) {
-    return service_worker_context_->wrapper()->browser_context();
+  if (service_worker_version_ && service_worker_version_->context()) {
+    return service_worker_version_->context()->wrapper()->browser_context();
   }
   return nullptr;
 }

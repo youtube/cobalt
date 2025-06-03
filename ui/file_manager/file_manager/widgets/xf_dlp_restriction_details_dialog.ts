@@ -4,7 +4,7 @@
 
 import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 
-import {str, strf} from '../common/js/util.js';
+import {str, strf} from '../common/js/translations.js';
 
 import {getTemplate} from './xf_dlp_restriction_details_dialog.html.js';
 
@@ -198,6 +198,8 @@ export class XfDlpRestrictionDetailsDialog extends HTMLElement {
         return str('DLP_COMPONENT_PLAY');
       case chrome.fileManagerPrivate.VolumeType.GUEST_OS:
         return str('DLP_COMPONENT_VM');
+      case chrome.fileManagerPrivate.VolumeType.DOCUMENTS_PROVIDER:
+        return str('DLP_COMPONENT_MICROSOFT_ONEDRIVE');
       default:
         console.warn(`Got unexpected VolumeType value ${component}.`);
         return '';

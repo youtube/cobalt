@@ -41,7 +41,6 @@
 #include "media/base/demuxer.h"
 #include "media/base/media_log.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/text_track_config.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 #include "media/ffmpeg/scoped_av_packet.h"
@@ -134,8 +133,6 @@ class MEDIA_EXPORT FFmpegDemuxerStream : public DemuxerStream {
   // Returns the total memory usage of FFMpegDemuxerStream.
   size_t MemoryUsage() const;
 
-  TextKind GetTextKind() const;
-
   // Returns the value associated with |key| in the metadata for the avstream.
   // Returns an empty string if the key is not present.
   std::string GetMetadata(const char* key) const;
@@ -150,8 +147,7 @@ class MEDIA_EXPORT FFmpegDemuxerStream : public DemuxerStream {
 
   // Use FFmpegDemuxerStream::Create to construct.
   // Audio/Video streams must include their respective DecoderConfig. At most
-  // one DecoderConfig should be provided (leaving the other nullptr). Both
-  // configs should be null for text streams.
+  // one DecoderConfig should be provided (leaving the other nullptr).
   FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
                       AVStream* stream,
                       std::unique_ptr<AudioDecoderConfig> audio_config,
@@ -273,7 +269,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
   }
 
   container_names::MediaContainerName container() const {
-    return glue_ ? glue_->container() : container_names::CONTAINER_UNKNOWN;
+    return glue_ ? glue_->container()
+                 : container_names::MediaContainerName::kContainerUnknown;
   }
 
  private:
@@ -328,10 +325,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
   FFmpegDemuxerStream* GetFirstEnabledFFmpegStream(
       DemuxerStream::Type type) const;
 
-  // Called after the streams have been collected from the media, to allow
-  // the text renderer to bind each text stream to the cue rendering engine.
-  void AddTextStreams();
-
   void SetLiveness(StreamLiveness liveness);
 
   void SeekInternal(base::TimeDelta time,
@@ -350,7 +343,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
   // Executes |pending_seek_cb_| with |status| and closes out the async trace.
   void RunPendingSeekCB(PipelineStatus status);
 
-  raw_ptr<DemuxerHost, DanglingUntriaged> host_ = nullptr;
+  raw_ptr<DemuxerHost, AcrossTasksDanglingUntriaged> host_ = nullptr;
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 

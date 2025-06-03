@@ -13,7 +13,7 @@ import android.text.TextUtils;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -31,25 +31,27 @@ public class LocaleUtils {
     /**
      * Java keeps deprecated language codes for Hebrew, Yiddish and Indonesian but Chromium uses
      * updated ones. Similarly, Android uses "tl" while Chromium uses "fil" for Tagalog/Filipino.
-     * So apply a mapping here.
-     * See http://developer.android.com/reference/java/util/Locale.html
+     * The Translate settings use "gom", but Chrome uses "kok". Apply a mapping here. See
+     * http://developer.android.com/reference/java/util/Locale.html
      * @return a updated language code for Chromium with given language string.
      */
     public static String getUpdatedLanguageForChromium(String language) {
-        // IMPORTANT: Keep in sync with the mapping found in:
-        // build/android/gyp/util/resource_utils.py (Yiddish and Javanese are not possible Android
-        // languages but are possible Chromium languages, they do not need to be kept in sync).
+        // IMPORTANT: If adding a new Chrome UI language, update the mapping found in:
+        // build/android/gyp/util/resource_utils.py (Languages that are accept languages, but not
+        // Chrome Android UI languages do not need to be kept in sync).
         switch (language) {
+            case "gom":
+                return "kok"; // Konkani
+            case "in":
+                return "id"; // Indonesian
             case "iw":
                 return "he"; // Hebrew
             case "ji":
                 return "yi"; // Yiddish
-            case "in":
-                return "id"; // Indonesian
-            case "tl":
-                return "fil"; // Filipino
             case "jw":
                 return "jv"; // Javanese
+            case "tl":
+                return "fil"; // Filipino
             default:
                 return language;
         }
@@ -104,39 +106,12 @@ public class LocaleUtils {
 
     /**
      * This function creates a Locale object from xx-XX style string where xx is language code
-     * and XX is a country code. This works for API level lower than 21.
-     * @return the locale that best represents the language tag.
-     */
-    public static Locale forLanguageTagCompat(String languageTag) {
-        String[] tag = languageTag.split("-");
-        if (tag.length == 0) {
-            return new Locale("");
-        }
-        String language = getUpdatedLanguageForAndroid(tag[0]);
-        if ((language.length() != 2 && language.length() != 3)) {
-            return new Locale("");
-        }
-        if (tag.length == 1) {
-            return new Locale(language);
-        }
-        String country = tag[1];
-        if (country.length() != 2 && country.length() != 3) {
-            return new Locale(language);
-        }
-        return new Locale(language, country);
-    }
-
-    /**
-     * This function creates a Locale object from xx-XX style string where xx is language code
      * and XX is a country code.
      * @return the locale that best represents the language tag.
      */
     public static Locale forLanguageTag(String languageTag) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            Locale locale = Locale.forLanguageTag(languageTag);
-            return getUpdatedLocaleForAndroid(locale);
-        }
-        return forLanguageTagCompat(languageTag);
+        Locale locale = Locale.forLanguageTag(languageTag);
+        return getUpdatedLocaleForAndroid(locale);
     }
 
     /**

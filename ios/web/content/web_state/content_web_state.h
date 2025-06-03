@@ -13,12 +13,15 @@
 
 #import "base/observer_list.h"
 #import "build/blink_buildflags.h"
+#import "content/public/browser/web_contents_delegate.h"
 #import "content/public/browser/web_contents_observer.h"
 #import "ios/web/content/js_messaging/content_web_frames_manager.h"
 #import "ios/web/content/navigation/content_navigation_manager.h"
 #import "ios/web/public/favicon/favicon_status.h"
 #import "ios/web/public/session/session_certificate_policy_cache.h"
+#import "ios/web/public/web_state_id.h"
 
+@class CRCWebViewportContainerView;
 @class CRWWebViewProxy;
 
 #if !BUILDFLAG(USE_BLINK)
@@ -35,13 +38,22 @@ class WebContents;
 namespace web {
 
 // ContentWebState is an implementation of WebState that's based on WebContents.
-class ContentWebState : public WebState, public content::WebContentsObserver {
+class ContentWebState : public WebState,
+                        public content::WebContentsObserver,
+                        public content::WebContentsDelegate {
  public:
   explicit ContentWebState(const CreateParams& params);
 
-  // Constructor for ContentWebState created for deserialized sessions
+  // Constructor for ContentWebState created for deserialized sessions.
   ContentWebState(const CreateParams& params,
                   CRWSessionStorage* session_storage);
+
+  // Constructor for ContentWebState created for deserialized sessions.
+  ContentWebState(BrowserState* browser_state,
+                  WebStateID unique_identifier,
+                  proto::WebStateMetadataStorage metadata,
+                  WebStateStorageLoader storage_loader,
+                  NativeSessionFetcher session_fetcher);
 
   ~ContentWebState() override;
 
@@ -49,8 +61,10 @@ class ContentWebState : public WebState, public content::WebContentsObserver {
   content::WebContents* GetWebContents();
 
   // WebState implementation.
+  void SerializeToProto(proto::WebStateStorage& storage) const override;
   WebStateDelegate* GetDelegate() override;
   void SetDelegate(WebStateDelegate* delegate) override;
+  std::unique_ptr<WebState> Clone() const override;
   bool IsRealized() const final;
   WebState* ForceRealized() final;
   bool IsWebUsageEnabled() const override;
@@ -80,11 +94,11 @@ class ContentWebState : public WebState, public content::WebContentsObserver {
   const SessionCertificatePolicyCache* GetSessionCertificatePolicyCache()
       const override;
   SessionCertificatePolicyCache* GetSessionCertificatePolicyCache() override;
-  CRWSessionStorage* BuildSessionStorage() override;
+  CRWSessionStorage* BuildSessionStorage() const override;
   void LoadData(NSData* data, NSString* mime_type, const GURL& url) override;
   void ExecuteUserJavaScript(NSString* javaScript) override;
   NSString* GetStableIdentifier() const override;
-  SessionID GetUniqueIdentifier() const override;
+  WebStateID GetUniqueIdentifier() const override;
   const std::string& GetContentsMimeType() const override;
   bool ContentIsHTML() const override;
   const std::u16string& GetTitle() const override;
@@ -101,7 +115,7 @@ class ContentWebState : public WebState, public content::WebContentsObserver {
   int GetNavigationItemCount() const override;
   const GURL& GetVisibleURL() const override;
   const GURL& GetLastCommittedURL() const override;
-  GURL GetCurrentURL(URLVerificationTrustLevel* trust_level) const override;
+  absl::optional<GURL> GetLastCommittedURLIfTrusted() const override;
   WebFramesManager* GetWebFramesManager(ContentWorld world) override;
   CRWWebViewProxyType GetWebViewProxy() const override;
   void AddObserver(WebStateObserver* observer) override;
@@ -125,6 +139,8 @@ class ContentWebState : public WebState, public content::WebContentsObserver {
   void SetFindInteractionEnabled(bool enabled) final;
   id<CRWFindInteraction> GetFindInteraction() final API_AVAILABLE(ios(16));
   id GetActivityItem() API_AVAILABLE(ios(16.4)) final;
+  UIColor* GetThemeColor() final;
+  UIColor* GetUnderPageBackgroundColor() final;
   void AddPolicyDecider(WebStatePolicyDecider* decider) override;
   void RemovePolicyDecider(WebStatePolicyDecider* decider) override;
   void DidChangeVisibleSecurityState() override;
@@ -163,20 +179,42 @@ class ContentWebState : public WebState, public content::WebContentsObserver {
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override;
 
+  // WebContentsDelegate
+  void AddNewContents(content::WebContents* source,
+                      std::unique_ptr<content::WebContents> new_contents,
+                      const GURL& target_url,
+                      WindowOpenDisposition disposition,
+                      const blink::mojom::WindowFeatures& window_features,
+                      bool user_gesture,
+                      bool* was_blocked) override;
+  int GetTopControlsHeight() override;
+  int GetTopControlsMinHeight() override;
+  int GetBottomControlsHeight() override;
+  int GetBottomControlsMinHeight() override;
+  bool ShouldAnimateBrowserControlsHeightChanges() override;
+  bool DoBrowserControlsShrinkRendererSize(
+      content::WebContents* web_contents) override;
+  bool OnlyExpandTopControlsAtPageTop() override;
+  void SetTopControlsGestureScrollInProgress(bool in_progress) override;
+
  private:
-  UIScrollView* web_view_;
+  WebStateDelegate* delegate_ = nullptr;
+  CRCWebViewportContainerView* web_view_;
   CRWSessionStorage* session_storage_;
   std::unique_ptr<content::WebContents> web_contents_;
+  std::unique_ptr<content::WebContents> child_web_contents_;
   std::unique_ptr<web::SessionCertificatePolicyCache> certificate_policy_cache_;
   id<CRWWebViewProxy> web_view_proxy_;
   NSString* UUID_;
   // The unique identifier. Stable across application restarts.
-  const SessionID unique_identifier_;
+  const WebStateID unique_identifier_;
   base::ObserverList<WebStatePolicyDecider, true> policy_deciders_;
   base::ObserverList<WebStateObserver, true> observers_;
   std::unique_ptr<ContentNavigationManager> navigation_manager_;
   std::unique_ptr<ContentWebFramesManager> web_frames_manager_;
   FaviconStatus favicon_status_;
+  bool top_control_scroll_in_progress_ = false;
+  bool cached_shrink_controls_ = false;
 
   base::WeakPtrFactory<ContentWebState> weak_factory_{this};
 };

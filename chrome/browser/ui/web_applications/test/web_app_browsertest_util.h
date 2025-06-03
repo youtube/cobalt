@@ -14,9 +14,9 @@
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -41,35 +41,35 @@ class WebAppInstallManager;
 
 // Navigates to |app_url| and installs app without any installability checks.
 // Always selects to open app in its own window.
-AppId InstallWebAppFromPage(Browser* browser, const GURL& app_url);
+webapps::AppId InstallWebAppFromPage(Browser* browser, const GURL& app_url);
 
 // Same as InstallWebAppFromPage() but waits for the app browser window to
 // appear and closes it.
-AppId InstallWebAppFromPageAndCloseAppBrowser(Browser* browser,
-                                              const GURL& app_url);
+webapps::AppId InstallWebAppFromPageAndCloseAppBrowser(Browser* browser,
+                                                       const GURL& app_url);
 
 // Navigates to |app_url|, verifies WebApp installability, and installs app.
-AppId InstallWebAppFromManifest(Browser* browser, const GURL& app_url);
+webapps::AppId InstallWebAppFromManifest(Browser* browser, const GURL& app_url);
 
 // Launches a new app window for |app| in |profile| with specified
 // |disposition|.
 Browser* LaunchWebAppBrowser(
     Profile*,
-    const AppId&,
+    const webapps::AppId&,
     WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB);
 
 // Launches the app, waits for the app url to load.
 Browser* LaunchWebAppBrowserAndWait(
     Profile*,
-    const AppId&,
+    const webapps::AppId&,
     WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB);
 
 // Launches a new tab for |app| in |profile|.
-Browser* LaunchBrowserForWebAppInTab(Profile*, const AppId&);
+Browser* LaunchBrowserForWebAppInTab(Profile*, const webapps::AppId&);
 
 // Launches the web app to the given URL.
 Browser* LaunchWebAppToURL(Profile* profile,
-                           const AppId& app_id,
+                           const webapps::AppId& app_id,
                            const GURL& url);
 
 // Return |ExternalInstallOptions| with OS shortcut creation disabled.
@@ -110,7 +110,7 @@ AppMenuCommandState GetAppMenuCommandState(int command_id, Browser* browser);
 
 // Searches for a Browser window for a given |app_id|. browser->app_name() must
 // be defined.
-Browser* FindWebAppBrowser(Profile* profile, const AppId& app_id);
+Browser* FindWebAppBrowser(Profile* profile, const webapps::AppId& app_id);
 
 void CloseAndWait(Browser* browser);
 
@@ -118,7 +118,7 @@ bool IsBrowserOpen(const Browser* test_browser);
 
 // Install a web policy app with |url|.
 // Returns a valid app ID of the installed app or nullopt.
-absl::optional<AppId> ForceInstallWebApp(Profile* profile, GURL url);
+absl::optional<webapps::AppId> ForceInstallWebApp(Profile* profile, GURL url);
 
 // Helper class that lets you await one Browser added and one Browser removed
 // event. Optionally filters to a specific Browser with |filter|. Useful for
@@ -138,13 +138,13 @@ class BrowserWaiter : public BrowserListObserver {
   void OnBrowserRemoved(Browser* browser) override;
 
  private:
-  const raw_ptr<Browser, DanglingUntriaged> filter_ = nullptr;
+  const raw_ptr<Browser, AcrossTasksDanglingUntriaged> filter_ = nullptr;
 
   base::RunLoop added_run_loop_;
-  raw_ptr<Browser, DanglingUntriaged> added_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> added_browser_ = nullptr;
 
   base::RunLoop removed_run_loop_;
-  raw_ptr<Browser, DanglingUntriaged> removed_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> removed_browser_ = nullptr;
 };
 
 class UpdateAwaiter : public WebAppInstallManagerObserver {
@@ -154,8 +154,7 @@ class UpdateAwaiter : public WebAppInstallManagerObserver {
   void AwaitUpdate(const base::Location& location = base::Location::Current());
 
   // WebAppInstallManagerObserver:
-  void OnWebAppManifestUpdated(const AppId& app_id,
-                               base::StringPiece old_name) override;
+  void OnWebAppManifestUpdated(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
 
  private:

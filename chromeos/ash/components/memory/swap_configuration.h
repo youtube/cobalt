@@ -11,24 +11,6 @@
 
 namespace ash {
 
-// Controls the ChromeOS /proc/sys/vm/min_filelist_kb swap tunable, if the
-// feature is enabled it will use the value (in MB) from the feature param.
-BASE_DECLARE_FEATURE(kCrOSTuneMinFilelist);
-extern const base::FeatureParam<int> kCrOSTuneMinFilelistMb;
-
-// Controls the ChromeOS /sys/kernel/mm/chromeos-low_mem/ram_vs_swap_weight
-// tunable. The number is a zero or positive number which represents how well
-// zram based swap is compressed in physical ram.
-BASE_DECLARE_FEATURE(kCrOSTuneRamVsSwapWeight);
-extern const base::FeatureParam<int> kCrOSRamVsSwapWeight;
-
-// Controls the ChromeOS /proc/sys/vm/extra_free_kbytes tunable. The number is a
-// zero or positive number which represents how much additional memory the
-// kernel will keep around. Raising this number has the affect of causing
-// swapping earlier.
-BASE_DECLARE_FEATURE(kCrOSTuneExtraFree);
-extern const base::FeatureParam<int> kCrOSExtraFreeMb;
-
 // Controls the threshold at which memory pressure signals are sent for
 // arc-disabled devices.
 COMPONENT_EXPORT(ASH_MEMORY)
@@ -113,7 +95,9 @@ struct ZramWritebackParams {
 };
 
 // Configure swap will configure any swap related experiments that this user may
-// be opted into.
+// be opted into. This method should be called at most once. It should be called
+// after the user logs in, since that is the only time when we know if arc is
+// enabled or not.
 COMPONENT_EXPORT(ASH_MEMORY) void ConfigureSwap(bool arc_enabled);
 
 }  // namespace ash

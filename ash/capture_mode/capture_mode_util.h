@@ -9,7 +9,6 @@
 
 #include "ash/ash_export.h"
 #include "ash/capture_mode/capture_mode_types.h"
-#include "base/files/file_path.h"
 #include "base/time/time.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/animation/tween.h"
@@ -20,6 +19,10 @@
 namespace aura {
 class Window;
 }  // namespace aura
+
+namespace chromeos {
+class FrameHeader;
+}  // namespace chromeos
 
 namespace gfx {
 class PointF;
@@ -51,6 +54,9 @@ namespace capture_mode_util {
 // CaptureModeController, which has many transitive includes.
 ASH_EXPORT bool IsCaptureModeActive();
 
+// Retrieves the screen location for the `event`.
+gfx::PointF GetEventScreenLocation(const ui::LocatedEvent& event);
+
 // Retrieves the point on the |rect| associated with |position|.
 ASH_EXPORT gfx::Point GetLocationForFineTunePosition(const gfx::Rect& rect,
                                                      FineTunePosition position);
@@ -76,6 +82,11 @@ void TriggerAccessibilityAlert(int message_id);
 // ChromeVox.
 void TriggerAccessibilityAlertSoon(const std::string& message);
 void TriggerAccessibilityAlertSoon(int message_id);
+
+// Adjusts the bounds if needed so that the `out_bounds` is always within the
+// `confined_bounds`.
+void AdjustBoundsWithinConfinedBounds(const gfx::Rect& confined_bounds,
+                                      gfx::Rect& out_bounds);
 
 // Returns the next horizontal or vertical snap position based on the current
 // camera preview snap position `current` and the movement. Returns `current` if
@@ -205,15 +216,19 @@ ASH_EXPORT gfx::Rect CalculateHighlightLayerBounds(
     const gfx::PointF& center_point,
     int highlight_layer_radius);
 
-// Returns the number of currently supported recording types. The value may
-// differ based on whether `is_in_projector_mode` is true or false.
-int GetNumberOfSupportedRecordingTypes(bool is_in_projector_mode);
-
 // Sets a highlight border to the `view` with given rounded corner radius and
 // type.
 void SetHighlightBorder(views::View* view,
                         int corner_radius,
                         views::HighlightBorder::Type type);
+
+// Returns the frame header of the given `window` if any, nullptr otherwise.
+ASH_EXPORT chromeos::FrameHeader* GetWindowFrameHeader(aura::Window* window);
+
+// Returns the bounds within which the on-capture-surface UI elements (e.g. the
+// selfie camera, or the demo tools key combo widgets) will be confined, when
+// the given non-root `window` is being captured.
+ASH_EXPORT gfx::Rect GetCaptureWindowConfineBounds(aura::Window* window);
 
 }  // namespace capture_mode_util
 

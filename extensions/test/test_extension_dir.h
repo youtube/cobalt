@@ -8,6 +8,7 @@
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/string_piece.h"
+#include "base/values.h"
 
 namespace extensions {
 
@@ -25,9 +26,12 @@ class TestExtensionDir {
   TestExtensionDir& operator=(const TestExtensionDir&) = delete;
   TestExtensionDir& operator=(TestExtensionDir&&);
 
-  // Writes |manifest| to manifest.json within the unpacked dir.  No validation
+  // Writes |manifest| to manifest.json within the unpacked dir. No validation
   // is performed. If desired this should be done on extension installation.
   void WriteManifest(base::StringPiece manifest);
+
+  // As above, but using a base::Value::Dict instead of JSON string.
+  void WriteManifest(const base::Value::Dict& manifest);
 
   // Writes |contents| to |filename| within the unpacked dir, overwriting
   // anything that was already there.
@@ -41,7 +45,11 @@ class TestExtensionDir {
 
   // Packs the extension into a .crx, and returns the path to that
   // .crx. Multiple calls to Pack() will produce extensions with the same ID.
-  base::FilePath Pack();
+  // If `custom_path` is provided, this will create a new .crx (nested under
+  // this directory's temp dir) at `custom_path`. This allows for creating
+  // multiple versions of a CRX easily without overwriting or moving them. If
+  // omitted, the .crx will be at "ext.crx".
+  base::FilePath Pack(base::StringPiece custom_path = base::StringPiece());
 
   // Returns the path to the unpacked directory.
   base::FilePath UnpackedPath() const;

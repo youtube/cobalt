@@ -49,13 +49,17 @@ WaylandTestBase::WaylandTestBase(wl::ServerConfig config)
   buffer_manager_gpu_ = std::make_unique<WaylandBufferManagerGpu>();
   surface_factory_ = std::make_unique<WaylandSurfaceFactory>(
       connection_.get(), buffer_manager_gpu_.get());
+  if (config.use_ime_keep_selection_fix) {
+    enabled_features_.push_back(features::kWaylandKeepSelectionFix);
+  } else {
+    disabled_features_.push_back(features::kWaylandKeepSelectionFix);
+  }
 }
 
 WaylandTestBase::~WaylandTestBase() = default;
 
 void WaylandTestBase::SetUp() {
   disabled_features_.push_back(ui::kWaylandSurfaceSubmissionInPixelCoordinates);
-  disabled_features_.push_back(features::kWaylandScreenCoordinatesEnabled);
 
   feature_list_.InitWithFeatures(enabled_features_, disabled_features_);
 

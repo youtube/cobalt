@@ -64,6 +64,7 @@
 #include "net/base/mime_sniffer.h"
 #include "storage/browser/blob/blob_data_handle.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
 
 using content::WebContents;
 using storage_monitor::MediaStorageUtil;
@@ -251,7 +252,9 @@ class SelectDirectoryDialog : public ui::SelectFileDialog::Listener,
 
  private:
   friend class base::RefCounted<SelectDirectoryDialog>;
-  ~SelectDirectoryDialog() override = default;
+  ~SelectDirectoryDialog() override {
+    select_file_dialog_->ListenerDestroyed();
+  }
 
   scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
   raw_ptr<WebContents> web_contents_;
@@ -659,7 +662,7 @@ void MediaGalleriesGetMetadataFunction::OnPreferencesInit(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   BlobReader::Read(
-      browser_context(), blob_uuid,
+      browser_context()->GetBlobRemote(blob_uuid),
       base::BindOnce(&MediaGalleriesGetMetadataFunction::GetMetadata, this,
                      metadata_type, blob_uuid),
       0, net::kMaxBytesToSniff);

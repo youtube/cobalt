@@ -74,18 +74,30 @@ void XrSessionCoordinator::RequestVrSession(
     const device::CompositorDelegateProvider& compositor_delegate_provider,
     device::SurfaceReadyCallback ready_callback,
     device::SurfaceTouchCallback touch_callback,
-    device::SurfaceDestroyedCallback destroyed_callback) {
+    device::SurfaceDestroyedCallback destroyed_callback,
+    device::XrSessionButtonTouchedCallback button_touched_callback) {
   DVLOG(1) << __func__;
   JNIEnv* env = AttachCurrentThread();
 
   surface_ready_callback_ = std::move(ready_callback);
   surface_touch_callback_ = std::move(touch_callback);
   surface_destroyed_callback_ = std::move(destroyed_callback);
+  xr_button_touched_callback_ = std::move(button_touched_callback);
 
   Java_XrSessionCoordinator_startVrSession(
       env, j_xr_session_coordinator_,
       compositor_delegate_provider.GetJavaObject(),
       webxr::GetJavaWebContents(render_process_id, render_frame_id));
+}
+
+void XrSessionCoordinator::RequestXrSession(
+    ActivityReadyCallback ready_callback) {
+  DVLOG(1) << __func__;
+  JNIEnv* env = AttachCurrentThread();
+
+  activity_ready_callback_ = std::move(ready_callback);
+
+  Java_XrSessionCoordinator_startXrSession(env, j_xr_session_coordinator_);
 }
 
 void XrSessionCoordinator::EndSession() {
@@ -142,6 +154,25 @@ void XrSessionCoordinator::OnDrawingSurfaceDestroyed(
   }
 }
 
+void XrSessionCoordinator::OnXrSessionButtonTouched(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& obj) {
+  DVLOG(1) << __func__ << ":::";
+  if (xr_button_touched_callback_) {
+    std::move(xr_button_touched_callback_).Run();
+  }
+}
+
+void XrSessionCoordinator::OnXrHostActivityReady(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& obj,
+    const base::android::JavaParamRef<jobject>& activity) {
+  DVLOG(1) << __func__;
+  if (activity_ready_callback_) {
+    std::move(activity_ready_callback_).Run(activity);
+  }
+}
+
 bool XrSessionCoordinator::EnsureARCoreLoaded() {
 #if BUILDFLAG(ENABLE_ARCORE)
   DCHECK(device::IsArCoreSupported());
@@ -170,9 +201,29 @@ bool XrSessionCoordinator::EnsureARCoreLoaded() {
 #endif
 }
 
+ScopedJavaLocalRef<jobject> XrSessionCoordinator::GetCurrentActivityContext() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_XrSessionCoordinator_getCurrentActivityContext(env);
+}
+
+ScopedJavaLocalRef<jobject> XrSessionCoordinator::GetActivityFrom(
+    int render_process_id,
+    int render_frame_id) {
+  return GetActivity(
+      webxr::GetJavaWebContents(render_process_id, render_frame_id));
+}
+
+// static
 ScopedJavaLocalRef<jobject> XrSessionCoordinator::GetApplicationContext() {
   JNIEnv* env = AttachCurrentThread();
   return Java_XrSessionCoordinator_getApplicationContext(env);
+}
+
+// static
+ScopedJavaLocalRef<jobject> XrSessionCoordinator::GetActivity(
+    ScopedJavaLocalRef<jobject> web_contents) {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_XrSessionCoordinator_getActivity(env, web_contents);
 }
 
 }  // namespace webxr

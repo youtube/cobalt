@@ -41,7 +41,8 @@ class DesktopMediaTabListTest : public testing::Test {
     picker_views_ = std::make_unique<DesktopMediaPickerViews>();
 
     const std::u16string kAppName = u"foo";
-    DesktopMediaPicker::Params picker_params;
+    DesktopMediaPicker::Params picker_params{
+        DesktopMediaPicker::Params::RequestSource::kUnknown};
     picker_params.context = test_helper_.GetContext();
     picker_params.app_name = kAppName;
     picker_params.target_name = kAppName;
@@ -61,7 +62,7 @@ class DesktopMediaTabListTest : public testing::Test {
 
     tab_list_ =
         static_cast<DesktopMediaTabList*>(test_api_.GetSelectedListView());
-    list_ = tab_list_->list_;
+    list_ = tab_list_->table_;
     preview_ = tab_list_->preview_;
     preview_label_ = tab_list_->preview_label_;
 
@@ -103,13 +104,13 @@ class DesktopMediaTabListTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   views::ScopedViewsTestHelper test_helper_{
       std::make_unique<ChromeTestViewsDelegate<>>()};
-  raw_ptr<FakeDesktopMediaList> media_list_;
+  raw_ptr<FakeDesktopMediaList, DanglingUntriaged> media_list_;
   std::unique_ptr<DesktopMediaPickerViews> picker_views_;
   DesktopMediaPickerViewsTestApi test_api_;
-  raw_ptr<DesktopMediaTabList> tab_list_;
-  raw_ptr<views::ImageView> preview_;
-  raw_ptr<views::TableView> list_;
-  raw_ptr<views::Label> preview_label_;
+  raw_ptr<DesktopMediaTabList, DanglingUntriaged> tab_list_;
+  raw_ptr<views::ImageView, DanglingUntriaged> preview_;
+  raw_ptr<views::TableView, DanglingUntriaged> list_;
+  raw_ptr<views::Label, DanglingUntriaged> preview_label_;
   std::unique_ptr<views::test::WidgetDestroyedWaiter> widget_destroyed_waiter_;
 
   gfx::ImageSkia preview_0_;

@@ -10,8 +10,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/side_panel/companion/companion_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -23,10 +25,15 @@
 #include "chrome/browser/ui/views/toolbar/side_panel_toolbar_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_menu_model_adapter.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/animation/ink_drop_state.h"
 #include "ui/views/controls/button/button_controller.h"
 #include "ui/views/layout/animating_layout_manager.h"
 #include "ui/views/layout/flex_layout.h"
@@ -37,6 +44,7 @@
 SidePanelToolbarContainer::PinnedSidePanelToolbarButton::
     PinnedSidePanelToolbarButton(BrowserView* browser_view,
                                  SidePanelEntry::Id id,
+                                 std::u16string accessible_name,
                                  std::u16string name,
                                  const gfx::VectorIcon& icon)
     : ToolbarButton(
@@ -47,6 +55,10 @@ SidePanelToolbarContainer::PinnedSidePanelToolbarButton::
       browser_view_(browser_view),
       id_(id) {
   SetTooltipText(name);
+  SetAccessibleName(accessible_name);
+  GetViewAccessibility().OverrideDescription(
+      std::u16string(), ax::mojom::DescriptionFrom::kAttributeExplicitlyEmpty);
+
   SetVectorIcon(icon);
 
   button_controller()->set_notify_action(
@@ -60,14 +72,21 @@ SidePanelToolbarContainer::PinnedSidePanelToolbarButton::
     ~PinnedSidePanelToolbarButton() = default;
 
 void SidePanelToolbarContainer::PinnedSidePanelToolbarButton::ButtonPressed() {
-  auto* coordinator = browser_view_->side_panel_coordinator();
-  if (coordinator->GetCurrentEntryId() ==
+  auto* side_panel_ui =
+      SidePanelUI::GetSidePanelUIForBrowser(browser_view_->browser());
+  if (side_panel_ui->GetCurrentEntryId() ==
       SidePanelEntry::Id::kSearchCompanion) {
-    coordinator->Close();
+    side_panel_ui->Close();
   } else {
-    coordinator->Show(
+    side_panel_ui->Show(
         id_, SidePanelUtil::SidePanelOpenTrigger::kPinnedEntryToolbarButton);
   }
+  // Close IPH for companion if shown and record usage for side panel promo.
+  browser_view_->NotifyFeatureEngagementEvent(
+      "companion_side_panel_accessed_via_toolbar_button");
+  browser_view_->CloseFeaturePromo(
+      feature_engagement::kIPHCompanionSidePanelFeature,
+      user_education::FeaturePromoCloseReason::kFeatureEngaged);
 }
 
 void SidePanelToolbarContainer::PinnedSidePanelToolbarButton::
@@ -93,6 +112,11 @@ SidePanelToolbarContainer::PinnedSidePanelToolbarButton::CreateMenuModel() {
       dialog_model.Build());
 }
 
+BEGIN_METADATA(SidePanelToolbarContainer,
+               PinnedSidePanelToolbarButton,
+               ToolbarButton)
+END_METADATA
+
 ///////////////////////////////////////////////////////////////////////////////
 // SidePanelToolbarContainer:
 
@@ -110,6 +134,8 @@ SidePanelToolbarContainer::SidePanelToolbarContainer(BrowserView* browser_view)
   // button view, too.
   SetNotifyEnterExitOnChild(true);
 
+  SetProperty(views::kElementIdentifierKey,
+              kToolbarSidePanelContainerElementId);
   const views::FlexSpecification hide_icon_flex_specification =
       views::FlexSpecification(views::LayoutOrientation::kHorizontal,
                                views::MinimumFlexSizeRule::kPreferredSnapToZero,
@@ -137,7 +163,7 @@ SidePanelToolbarContainer::~SidePanelToolbarContainer() {}
 
 bool SidePanelToolbarContainer::IsActiveEntryPinnedAndVisible() {
   absl::optional<SidePanelEntry::Id> active_id =
-      browser_view_->side_panel_coordinator()->GetCurrentEntryId();
+      GetSidePanelCoordinator()->GetCurrentEntryId();
   for (auto* pinned_button : pinned_entry_buttons_) {
     if (pinned_button->id() == active_id) {
       return pinned_button->GetVisible();
@@ -158,6 +184,16 @@ SidePanelToolbarButton* SidePanelToolbarContainer::GetSidePanelButton() const {
   return side_panel_button_.get();
 }
 
+ToolbarButton& SidePanelToolbarContainer::GetPinnedButtonForId(
+    SidePanelEntry::Id id) {
+  const auto iter = base::ranges::find(
+      pinned_entry_buttons_, id, [](auto* button) { return button->id(); });
+  // TODO(crbug.com/1447841): Remove all companion related special case code
+  // once a generalized path forward has been determined.
+  CHECK(iter != pinned_entry_buttons_.end());
+  return **iter;
+}
+
 void SidePanelToolbarContainer::ObserveSidePanelView(views::View* side_panel) {
   side_panel_visibility_change_subscription_ =
       side_panel->AddVisibleChangedCallback(base::BindRepeating(
@@ -174,27 +210,34 @@ void SidePanelToolbarContainer::CreatePinnedEntryButtons() {
   // update pinned entry toolbar buttons as the coordinator becomes aware of
   // them. This sort of observation is unnecessary for now when there is only
   // one pinned entry.
+  // Runtime availability checks are set to `true` because pinned buttons should
+  // be created only if runtime checks pass.
   if (!SearchCompanionSidePanelCoordinator::IsSupported(
-          browser_view_->GetProfile())) {
+          browser_view_->GetProfile(), /*include_runtime_checks=*/true)) {
     return;
   }
   auto* search_companion_coordinator =
       SearchCompanionSidePanelCoordinator::GetOrCreateForBrowser(
           browser_view_->browser());
-  AddPinnedEntryButtonFor(SidePanelEntry::Id::kSearchCompanion,
-                          search_companion_coordinator->name(),
-                          search_companion_coordinator->icon());
+  AddPinnedEntryButtonFor(
+      SidePanelEntry::Id::kSearchCompanion,
+      search_companion_coordinator->accessible_name(),
+      search_companion_coordinator->GetTooltipForToolbarButton(),
+      search_companion_coordinator->icon());
 }
 
 void SidePanelToolbarContainer::AddPinnedEntryButtonFor(
     SidePanelEntry::Id id,
+    std::u16string accessible_name,
     std::u16string name,
     const gfx::VectorIcon& icon) {
   if (HasPinnedEntryButtonFor(id)) {
     return;
   }
-  auto button = std::make_unique<PinnedSidePanelToolbarButton>(browser_view_,
-                                                               id, name, icon);
+  auto button = std::make_unique<PinnedSidePanelToolbarButton>(
+      browser_view_, id, accessible_name, name, icon);
+  button->SetProperty(views::kElementIdentifierKey,
+                      kSidePanelCompanionToolbarButtonElementId);
   button->SetVisible(false);
   ObserveButton(button.get());
   pinned_button_visibility_change_subscription_ =
@@ -215,7 +258,8 @@ void SidePanelToolbarContainer::RemovePinnedEntryButtonFor(
   const auto iter = base::ranges::find(
       pinned_entry_buttons_, id, [](auto* button) { return button->id(); });
   DCHECK(iter != pinned_entry_buttons_.end());
-  RemoveChildView(*iter);
+  // This returns a unique_ptr which is immediately destroyed.
+  RemoveChildViewT(*iter);
   pinned_entry_buttons_.erase(iter);
   pinned_button_visibility_change_subscription_ =
       base::CallbackListSubscription();
@@ -235,7 +279,7 @@ void SidePanelToolbarContainer::UpdateSidePanelContainerButtonsState() {
   bool side_panel_visible = browser_view_->unified_side_panel()->GetVisible();
   bool side_panel_button_highlighted = side_panel_visible;
   absl::optional<SidePanelEntry::Id> current_active_id =
-      browser_view_->side_panel_coordinator()->GetCurrentEntryId();
+      GetSidePanelCoordinator()->GetCurrentEntryId();
   for (PinnedSidePanelToolbarButton* pinned_button : pinned_entry_buttons_) {
     if (browser_view_->unified_side_panel()->GetVisible() &&
         pinned_button->GetVisible() &&
@@ -243,15 +287,17 @@ void SidePanelToolbarContainer::UpdateSidePanelContainerButtonsState() {
       pinned_button->SetHighlighted(true);
       side_panel_button_highlighted = false;
     } else {
-      pinned_button->SetHighlighted(false);
+      // We cannot use pinned_button->SetHighlighted(false) here because that
+      // sets the ink drop to a deactivated state and AnimateToState may restart
+      // animations for non hidden->hidden same state transitions which could
+      // cause GetHighlighted to return true when animating from deactivated ->
+      // deactivated.
+      views::InkDrop::Get(pinned_button)
+          ->GetInkDrop()
+          ->AnimateToState(views::InkDropState::HIDDEN);
     }
   }
-  // TODO(corising): Update tooltip for case when pinned button is highlighted
-  // once provided by UX.
   GetSidePanelButton()->SetHighlighted(side_panel_button_highlighted);
-  GetSidePanelButton()->SetTooltipText(l10n_util::GetStringUTF16(
-      side_panel_visible ? IDS_TOOLTIP_SIDE_PANEL_HIDE
-                         : IDS_TOOLTIP_SIDE_PANEL_SHOW));
 }
 
 bool SidePanelToolbarContainer::HasPinnedEntryButtonFor(SidePanelEntry::Id id) {
@@ -267,7 +313,7 @@ void SidePanelToolbarContainer::ReorderViews() {
 
 void SidePanelToolbarContainer::OnPinnedButtonPrefChanged() {
   UpdatePinnedButtonsVisibility();
-  browser_view_->side_panel_coordinator()->UpdateHeaderPinButtonState();
+  GetSidePanelCoordinator()->UpdateHeaderPinButtonState();
 }
 
 void SidePanelToolbarContainer::UpdatePinnedButtonsVisibility() {
@@ -285,3 +331,11 @@ void SidePanelToolbarContainer::UpdatePinnedButtonsVisibility() {
     }
   }
 }
+
+SidePanelCoordinator* SidePanelToolbarContainer::GetSidePanelCoordinator() {
+  return SidePanelUtil::GetSidePanelCoordinatorForBrowser(
+      browser_view_->browser());
+}
+
+BEGIN_METADATA(SidePanelToolbarContainer, ToolbarIconContainerView)
+END_METADATA

@@ -22,13 +22,15 @@ class NetworkScreenView : public base::SupportsWeakPtr<NetworkScreenView> {
   virtual ~NetworkScreenView() = default;
 
   // Shows the contents of the screen.
-  virtual void Show() = 0;
+  virtual void ShowScreenWithData(base::Value::Dict data) = 0;
 
   // Shows error message in a bubble.
   virtual void ShowError(const std::u16string& message) = 0;
 
   // Hides error messages showing no error state.
   virtual void ClearErrors() = 0;
+
+  virtual void SetQuickStartEnabled() = 0;
 };
 
 // WebUI implementation of NetworkScreenView. It is used to interact with
@@ -47,9 +49,10 @@ class NetworkScreenHandler : public NetworkScreenView,
 
  private:
   // NetworkScreenView:
-  void Show() override;
+  void ShowScreenWithData(base::Value::Dict data) override;
   void ShowError(const std::u16string& message) override;
   void ClearErrors() override;
+  void SetQuickStartEnabled() override;
 
   // BaseScreenHandler:
   void DeclareLocalizedValues(

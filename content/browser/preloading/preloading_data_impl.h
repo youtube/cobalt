@@ -20,6 +20,7 @@ namespace content {
 
 class PreloadingAttemptImpl;
 class PreloadingPrediction;
+class ExperimentalPreloadingPrediction;
 class PrefetchDocumentManager;
 
 // Defines predictors confusion matrix enums used by UMA records. Entries should
@@ -70,7 +71,8 @@ class CONTENT_EXPORT PreloadingDataImpl
   PreloadingAttempt* AddPreloadingAttempt(
       PreloadingPredictor predictor,
       PreloadingType preloading_type,
-      PreloadingURLMatchCallback url_match_predicate) override;
+      PreloadingURLMatchCallback url_match_predicate,
+      ukm::SourceId triggering_primary_page_source_id) override;
   void AddPreloadingPrediction(
       PreloadingPredictor predictor,
       int64_t confidence,
@@ -78,6 +80,36 @@ class CONTENT_EXPORT PreloadingDataImpl
   void SetIsNavigationInDomainCallback(
       PreloadingPredictor predictor,
       PredictorDomainCallback is_navigation_in_domain_callback) override;
+  bool CheckNavigationInDomainCallbackForTesting(
+      PreloadingPredictor predictor) {
+    return is_navigation_in_predictor_domain_callbacks_.count(predictor);
+  }
+
+  // The output of many predictors is a score (usually probability or logit),
+  // where a higher score indicates a higher confidence in the prediction. To
+  // use this score for binary classification, we compare it to a threshold. If
+  // the score is above the threshold, we classify the instance as positive;
+  // otherwise, we classify it as negative. Threshold choice affects classifier
+  // precision and recall. There is a trade-off between precision and recall. If
+  // we set the threshold too low, we will have high precision but low recall.
+  // If we set the threshold too high, we will have high recall but low
+  // precision. To choose the best threshold, we can use ROC curves,
+  // precision-recall curves, or precision and recall curves.
+  // `ExperimentalPreloadingPrediction` helps us collect the UMA data required
+  // to achieve this. This method creates a new
+  // ExperimentalPreloadingPrediction. Same as above `url_match_predicate` is
+  // passed by the caller to verify that navigated URL is a match. The `score`
+  // is the probability/logit score, `min_score`  and `max_score` are the
+  // minimum/maximum values that the `score` can have and `buckets` is the
+  // number of buckets that will be used for UMA aggregation and should be less
+  // than 101.
+  void AddExperimentalPreloadingPrediction(
+      base::StringPiece name,
+      PreloadingURLMatchCallback url_match_predicate,
+      float score,
+      float min_score,
+      float max_score,
+      size_t buckets);
 
   // WebContentsObserver override.
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
@@ -131,6 +163,12 @@ class CONTENT_EXPORT PreloadingDataImpl
   base::flat_set<std::pair<PreloadingPredictor, PreloadingType>,
                  PreloadingAttemptLess>
       preloading_attempt_recall_stats_;
+
+  // Stores all the experimental preloading predictions that are happening for
+  // the next navigation until the navigation takes place or the WebContents is
+  // destroyed.
+  std::vector<std::unique_ptr<ExperimentalPreloadingPrediction>>
+      experimental_predictions_;
 
   // Stores all the preloading attempts that are happening for the next
   // navigation until the navigation takes place.

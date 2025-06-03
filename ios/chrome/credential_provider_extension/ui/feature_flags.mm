@@ -8,24 +8,9 @@
 #import "ios/chrome/common/app_group/app_group_field_trial_version.h"
 #import "ios/chrome/common/credential_provider/constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 BOOL IsPasswordCreationUserEnabled() {
   return [[app_group::GetGroupUserDefaults()
       objectForKey:
           AppGroupUserDefaulsCredentialProviderSavingPasswordsEnabled()]
       boolValue];
-}
-
-BOOL IsPasswordNotesWithBackupEnabled() {
-  NSDictionary* allFeatures = [app_group::GetGroupUserDefaults()
-      objectForKey:app_group::kChromeExtensionFieldTrialPreference];
-  NSDictionary* featureData = allFeatures[@"PasswordNotesWithBackup"];
-  if (!featureData || kCredentialProviderExtensionPasswordNotesVersion !=
-                          [featureData[kFieldTrialVersionKey] intValue]) {
-    return NO;
-  }
-  return [featureData[kFieldTrialValueKey] boolValue];
 }

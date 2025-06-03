@@ -668,7 +668,6 @@ interface IDBIndex
     getter name
     getter objectStore
     getter unique
-    method batchGetAll
     method constructor
     method count
     method get
@@ -698,7 +697,6 @@ interface IDBObjectStore
     getter name
     getter transaction
     method add
-    method batchGetAll
     method clear
     method constructor
     method count
@@ -935,6 +933,10 @@ interface NotificationEvent : ExtendableEvent
     getter notification
     getter reply
     method constructor
+interface Observable
+    attribute @@toStringTag
+    method constructor
+    method subscribe
 interface OffscreenCanvas : EventTarget
     attribute @@toStringTag
     getter height
@@ -1296,6 +1298,7 @@ interface Request
     getter referrer
     getter referrerPolicy
     getter signal
+    getter targetAddressSpace
     getter url
     method arrayBuffer
     method blob
@@ -1406,6 +1409,13 @@ interface StorageManager : EventTarget
     method getDirectory
     method persisted
     setter onquotachange
+interface Subscriber
+    attribute @@toStringTag
+    getter signal
+    method complete
+    method constructor
+    method error
+    method next
 interface SubtleCrypto
     attribute @@toStringTag
     method constructor
@@ -1483,13 +1493,15 @@ interface TextMetrics
     getter actualBoundingBoxLeft
     getter actualBoundingBoxRight
     getter advances
+    getter alphabeticBaseline
     getter emHeightAscent
     getter emHeightDescent
     getter fontBoundingBoxAscent
     getter fontBoundingBoxDescent
+    getter hangingBaseline
+    getter ideographicBaseline
     getter width
     method constructor
-    method getBaselines
 interface TimestampTrigger
     attribute @@toStringTag
     getter timestamp
@@ -1547,6 +1559,7 @@ interface TrustedTypePolicyFactory : EventTarget
     method isScriptURL
     setter onbeforecreatepolicy
 interface URL
+    static method canParse
     attribute @@toStringTag
     getter hash
     getter host
@@ -2615,8 +2628,10 @@ interface WebGLRenderingContext
     attribute RGB
     attribute RGB565
     attribute RGB5_A1
+    attribute RGB8
     attribute RGBA
     attribute RGBA4
+    attribute RGBA8
     attribute SAMPLER_2D
     attribute SAMPLER_CUBE
     attribute SAMPLES
@@ -2931,7 +2946,7 @@ interface WebSocket : EventTarget
 interface WebSocketStream
     attribute @@toStringTag
     getter closed
-    getter connection
+    getter opened
     getter url
     method close
     method constructor

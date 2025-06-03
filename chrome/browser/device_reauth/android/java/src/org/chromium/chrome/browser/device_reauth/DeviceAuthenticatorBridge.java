@@ -16,13 +16,14 @@ import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
 import android.os.CancellationSignal;
-import android.support.annotation.NonNull;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 

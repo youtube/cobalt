@@ -67,13 +67,18 @@ def ParseArgs():
                             'conditions between updating the checkout and '
                             'running the script.'))
   parser.add_argument(
-      '--non-hidden-failures',
+      '--non-hidden-failures-only',
       action='store_true',
       default=False,
       help=
       ('Enable this option to only targeting visible failures on CI builders. '
        'The test results will fail the builder runs, flaky results will '
        'consider as pass in this option.'))
+  parser.add_argument('--builder-name',
+                      default=[],
+                      action="append",
+                      dest="builder_names",
+                      help="CI builder list to suppress tests.")
   args = parser.parse_args()
 
   if not args.prompt_for_user_input:

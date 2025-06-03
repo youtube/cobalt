@@ -108,7 +108,7 @@ TEST(HTMLDocumentParserFastpathTest, MaximumHTMLParserDOMTreeDepth) {
 
   // Because kMaximumHTMLParserDOMTreeDepth was encountered, the deepest
   // node should have siblings.
-  Element* deepest = div->getElementById("deepest");
+  Element* deepest = div->getElementById(AtomicString("deepest"));
   ASSERT_TRUE(deepest);
   EXPECT_EQ(deepest->parentNode()->CountChildren(), 3u);
 }
@@ -271,6 +271,56 @@ TEST(HTMLDocumentParserFastpathTest, HandlesCompleteCharacterReference) {
   histogram_tester.ExpectTotalCount("Blink.HTMLFastPathParser.ParseResult", 1);
   histogram_tester.ExpectUniqueSample("Blink.HTMLFastPathParser.ParseResult",
                                       HtmlFastPathResult::kSucceeded, 1);
+}
+
+TEST(HTMLDocumentParserFastpathTest, FailsWithNestedLis) {
+  ScopedNullExecutionContext execution_context;
+  auto* document =
+      HTMLDocument::CreateForTest(execution_context.GetExecutionContext());
+  document->write("<body></body>");
+  auto* div = MakeGarbageCollected<HTMLDivElement>(*document);
+
+  base::HistogramTester histogram_tester;
+  div->setInnerHTML("<li><li></li></li>");
+  // The html results in two children (nested <li>s implicitly close the open
+  // <li>, resulting in two sibling <li>s, not one). The fast path parser does
+  // not handle this case.
+  EXPECT_EQ(2u, div->CountChildren());
+  histogram_tester.ExpectTotalCount("Blink.HTMLFastPathParser.ParseResult", 1);
+  histogram_tester.ExpectBucketCount("Blink.HTMLFastPathParser.ParseResult",
+                                     HtmlFastPathResult::kSucceeded, 0);
+}
+
+TEST(HTMLDocumentParserFastpathTest, HandlesLi) {
+  ScopedNullExecutionContext execution_context;
+  auto* document =
+      HTMLDocument::CreateForTest(execution_context.GetExecutionContext());
+  document->write("<body></body>");
+  auto* div = MakeGarbageCollected<HTMLDivElement>(*document);
+
+  base::HistogramTester histogram_tester;
+  div->setInnerHTML("<div><li></li></div>");
+  histogram_tester.ExpectTotalCount("Blink.HTMLFastPathParser.ParseResult", 1);
+  histogram_tester.ExpectUniqueSample("Blink.HTMLFastPathParser.ParseResult",
+                                      HtmlFastPathResult::kSucceeded, 1);
+}
+
+TEST(HTMLDocumentParserFastpathTest, NullMappedToReplacementChar) {
+  ScopedNullExecutionContext execution_context;
+  auto* document =
+      HTMLDocument::CreateForTest(execution_context.GetExecutionContext());
+  document->write("<body></body>");
+  auto* div = MakeGarbageCollected<HTMLDivElement>(*document);
+
+  base::HistogramTester histogram_tester;
+  // Constructor that takes size is needed because of \0 in string.
+  div->setInnerHTML(
+      String("<div id='x' name='x\0y'></div>", static_cast<size_t>(29)));
+  Element* new_div = div->getElementById(AtomicString("x"));
+  ASSERT_TRUE(new_div);
+  // Null chars are generally mapped to \uFFFD (at least this test should
+  // trigger the replacement).
+  EXPECT_EQ(AtomicString(String(u"x\uFFFDy")), new_div->GetNameAttribute());
 }
 
 }  // namespace

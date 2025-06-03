@@ -80,6 +80,13 @@ class PermissionServiceContextTest : public RenderViewHostTestHarness {
             render_frame_host);
   }
 
+  void TearDown() override {
+    permission_controller_ = nullptr;
+    render_frame_host_impl_ = nullptr;
+    permission_service_context_ = nullptr;
+    RenderViewHostTestHarness::TearDown();
+  }
+
   std::unique_ptr<TestPermissionObserver> CreateSubscription(
       PermissionType type,
       blink::mojom::PermissionStatus last_status,

@@ -7,10 +7,10 @@ package org.chromium.chrome.browser.layouts;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 
 /**
- * A {@link LayoutStateObserver} that filters events based on a specified layout ID. This utility
- * is helpful if a feature wishes to exclusively listen to events on a specific layout without the
- * need for many conditionals. The only event that is not affected by the filter is
- * {@link LayoutStateObserver#onTabSelectionHinted(int)}.
+ * A {@link LayoutStateObserver} that filters events based on a specified layout ID. This utility is
+ * helpful if a feature wishes to exclusively listen to events on a specific layout without the need
+ * for many conditionals. The only event that is not affected by the filter is {@link
+ * LayoutStateObserver#onTabSelectionHinted(int)}.
  */
 public final class FilterLayoutStateObserver implements LayoutStateObserver {
     /** The observer that will receive the filtered events. */
@@ -31,9 +31,9 @@ public final class FilterLayoutStateObserver implements LayoutStateObserver {
     }
 
     @Override
-    public void onStartedShowing(int layoutType, boolean showToolbar) {
+    public void onStartedShowing(int layoutType) {
         if (layoutType != mType) return;
-        mObserver.onStartedShowing(layoutType, showToolbar);
+        mObserver.onStartedShowing(layoutType);
     }
 
     @Override
@@ -43,9 +43,9 @@ public final class FilterLayoutStateObserver implements LayoutStateObserver {
     }
 
     @Override
-    public void onStartedHiding(int layoutType, boolean showToolbar, boolean delayAnimation) {
+    public void onStartedHiding(int layoutType) {
         if (layoutType != mType) return;
-        mObserver.onStartedHiding(layoutType, showToolbar, delayAnimation);
+        mObserver.onStartedHiding(layoutType);
     }
 
     @Override

@@ -40,6 +40,7 @@ enum class TaskPriority : uint8_t {
    * possible.
    */
   kUserBlocking,
+  kMaxPriority = kUserBlocking
 };
 
 /**
@@ -571,6 +572,42 @@ class PageAllocator {
   virtual bool CanAllocateSharedPages() { return false; }
 };
 
+/**
+ * An allocator that uses per-thread permissions to protect the memory.
+ *
+ * The implementation is platform/hardware specific, e.g. using pkeys on x64.
+ *
+ * INTERNAL ONLY: This interface has not been stabilised and may change
+ * without notice from one release to another without being deprecated first.
+ */
+class ThreadIsolatedAllocator {
+ public:
+  virtual ~ThreadIsolatedAllocator() = default;
+
+  virtual void* Allocate(size_t size) = 0;
+
+  virtual void Free(void* object) = 0;
+
+  enum class Type {
+    kPkey,
+  };
+
+  virtual Type Type() const = 0;
+
+  /**
+   * Return the pkey used to implement the thread isolation if Type == kPkey.
+   */
+  virtual int Pkey() const { return -1; }
+
+  /**
+   * Per-thread permissions can be reset on signal handler entry. Even reading
+   * ThreadIsolated memory will segfault in that case.
+   * Call this function on signal handler entry to ensure that read permissions
+   * are restored.
+   */
+  static void SetDefaultPermissionsForSignalHandler();
+};
+
 // Opaque type representing a handle to a shared memory region.
 using PlatformSharedMemoryHandle = intptr_t;
 static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
@@ -698,6 +735,15 @@ class VirtualAddressSpace {
    * \returns the maximum page permissions.
    */
   PagePermissions max_page_permissions() const { return max_page_permissions_; }
+
+  /**
+   * Whether the |address| is inside the address space managed by this instance.
+   *
+   * \returns true if it is inside the address space, false if not.
+   */
+  bool Contains(Address address) const {
+    return (address >= base()) && (address < base() + size());
+  }
 
   /**
    * Sets the random seed so that GetRandomPageAddress() will generate
@@ -975,6 +1021,16 @@ class Platform {
   virtual PageAllocator* GetPageAllocator() = 0;
 
   /**
+   * Allows the embedder to provide an allocator that uses per-thread memory
+   * permissions to protect allocations.
+   * Returning nullptr will cause V8 to disable protections that rely on this
+   * feature.
+   */
+  virtual ThreadIsolatedAllocator* GetThreadIsolatedAllocator() {
+    return nullptr;
+  }
+
+  /**
    * Allows the embedder to specify a custom allocator used for zones.
    */
   virtual ZoneBackingAllocator* GetZoneBackingAllocator() {
@@ -1005,9 +1061,24 @@ class Platform {
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * The TaskRunner's NonNestableTasksEnabled() must be true. This function
    * should only be called from a foreground thread.
+   * TODO(chromium:1448758): Deprecate once |GetForegroundTaskRunner(Isolate*,
+   * TaskPriority)| is ready.
    */
   virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      Isolate* isolate) = 0;
+      Isolate* isolate) {
+    return GetForegroundTaskRunner(isolate, TaskPriority::kUserBlocking);
+  }
+
+  /**
+   * Returns a TaskRunner with a specific |priority| which can be used to post a
+   * task on the foreground thread. The TaskRunner's NonNestableTasksEnabled()
+   * must be true. This function should only be called from a foreground thread.
+   * TODO(chromium:1448758): Make pure virtual once embedders implement it.
+   */
+  virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      Isolate* isolate, TaskPriority priority) {
+    return nullptr;
+  }
 
   /**
    * Schedules a task to be invoked on a worker thread.
@@ -1032,7 +1103,8 @@ class Platform {
   virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a high
     // priority pool.
-    CallOnWorkerThread(std::move(task));
+    PostTaskOnWorkerThreadImpl(TaskPriority::kUserBlocking, std::move(task),
+                               SourceLocation::Current());
   }
 
   /**
@@ -1045,7 +1117,8 @@ class Platform {
   virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a low
     // priority pool.
-    CallOnWorkerThread(std::move(task));
+    PostTaskOnWorkerThreadImpl(TaskPriority::kBestEffort, std::move(task),
+                               SourceLocation::Current());
   }
 
   /**
@@ -1168,7 +1241,7 @@ class Platform {
    * required.
    */
   virtual int64_t CurrentClockTimeMilliseconds() {
-    return floor(CurrentClockTimeMillis());
+    return static_cast<int64_t>(floor(CurrentClockTimeMillis()));
   }
 
   /**
@@ -1238,7 +1311,9 @@ class Platform {
    */
   virtual void PostTaskOnWorkerThreadImpl(TaskPriority priority,
                                           std::unique_ptr<Task> task,
-                                          const SourceLocation& location) {}
+                                          const SourceLocation& location) {
+    CallOnWorkerThread(std::move(task));
+  }
 
   /**
    * Schedules a task with |priority| to be invoked on a worker thread after

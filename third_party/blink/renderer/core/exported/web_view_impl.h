@@ -42,6 +42,7 @@
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/page/browsing_context_group_info.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
@@ -127,7 +128,8 @@ class CORE_EXPORT WebViewImpl final : public WebView,
       mojo::PendingAssociatedReceiver<mojom::blink::PageBroadcast> page_handle,
       scheduler::WebAgentGroupScheduler& agent_group_scheduler,
       const SessionStorageNamespaceId& session_storage_namespace_id,
-      absl::optional<SkColor> page_base_background_color);
+      absl::optional<SkColor> page_base_background_color,
+      const BrowsingContextGroupInfo& browsing_context_group_info);
 
   // All calls to Create() should be balanced with a call to Close(). This
   // synchronously destroys the WebViewImpl.
@@ -316,6 +318,10 @@ class CORE_EXPORT WebViewImpl final : public WebView,
       mojom::blink::RemoteFrameInterfacesFromBrowserPtr remote_frame_interfaces,
       mojom::blink::RemoteMainFrameInterfacesPtr remote_main_frame_interfaces)
       override;
+  void UpdatePageBrowsingContextGroup(
+      const BrowsingContextGroupInfo& browsing_context_group_info) override;
+  void SetPageAttributionSupport(
+      network::mojom::AttributionSupport support) override;
 
   void DispatchPersistedPageshow(base::TimeTicks navigation_start);
   void DispatchPagehide(mojom::blink::PagehideDispatch pagehide_dispatch);
@@ -592,6 +598,9 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   // empty document of a main frame.
   void DidAccessInitialMainDocument();
 
+  // Sends window.setResizable() requests to the browser window.
+  void SetResizable(bool resizable);
+
   // TODO(crbug.com/1149992): This is called from the associated widget and this
   // code should eventually move out of WebView into somewhere else.
   void ApplyViewportChanges(const ApplyViewportChangesArgs& args);
@@ -692,7 +701,8 @@ class CORE_EXPORT WebViewImpl final : public WebView,
       mojo::PendingAssociatedReceiver<mojom::blink::PageBroadcast> page_handle,
       scheduler::WebAgentGroupScheduler& agent_group_scheduler,
       const SessionStorageNamespaceId& session_storage_namespace_id,
-      absl::optional<SkColor> page_base_background_color);
+      absl::optional<SkColor> page_base_background_color,
+      const BrowsingContextGroupInfo& browsing_context_group_info);
   ~WebViewImpl() override;
 
   void ConfigureAutoResizeMode();

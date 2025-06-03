@@ -11,6 +11,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method constructor
 [Worker] interface AbortSignal : EventTarget
 [Worker]     static method abort
+[Worker]     static method any
 [Worker]     static method timeout
 [Worker]     attribute @@toStringTag
 [Worker]     getter aborted
@@ -963,10 +964,12 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter connectEnd
 [Worker]     getter connectStart
 [Worker]     getter decodedBodySize
+[Worker]     getter deliveryType
 [Worker]     getter domainLookupEnd
 [Worker]     getter domainLookupStart
 [Worker]     getter encodedBodySize
 [Worker]     getter fetchStart
+[Worker]     getter firstInterimResponseStart
 [Worker]     getter initiatorType
 [Worker]     getter nextHopProtocol
 [Worker]     getter redirectEnd
@@ -1250,8 +1253,11 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter actualBoundingBoxDescent
 [Worker]     getter actualBoundingBoxLeft
 [Worker]     getter actualBoundingBoxRight
+[Worker]     getter alphabeticBaseline
 [Worker]     getter fontBoundingBoxAscent
 [Worker]     getter fontBoundingBoxDescent
+[Worker]     getter hangingBaseline
+[Worker]     getter ideographicBaseline
 [Worker]     getter width
 [Worker]     method constructor
 [Worker] interface TransformStream
@@ -1302,6 +1308,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method isScript
 [Worker]     method isScriptURL
 [Worker] interface URL
+[Worker]     static method canParse
 [Worker]     static method createObjectURL
 [Worker]     static method revokeObjectURL
 [Worker]     attribute @@toStringTag
@@ -2833,6 +2840,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method open
 [Worker]     method overrideMimeType
 [Worker]     method send
+[Worker]     method setPrivateToken
 [Worker]     method setRequestHeader
 [Worker]     setter onreadystatechange
 [Worker]     setter responseType

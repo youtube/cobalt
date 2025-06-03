@@ -16,9 +16,10 @@ namespace ui {
 class AXNode;
 class AXTreeManagerMap;
 
-// Abstract interface for a class that owns an AXTree and manages its
-// connections to other AXTrees in the same page or desktop (parent and child
-// trees).
+// Interface for a class that owns an AXTree and manages its connections
+// to other AXTrees in the same page or desktop (parent and child trees)
+// as well as a mapping of AXNode's by ID for supporting `GetNodeFromTree`
+// and related methods.
 //
 // Note, the tree manager may be created for a tree which has unknown (not
 // valid) tree id. A such tree is not registered with the tree map and thus
@@ -34,9 +35,16 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
   // tree manager for that child tree. Otherwise, return nullptr.
   static AXTreeManager* ForChildTree(const AXNode& parent_node);
 
+  // For testing only, get the registered focus change callback
+  static base::RepeatingClosure& GetFocusChangeCallbackForTesting();
   // For testing only, register a function to be called when focus changes
   // in any AXTreeManager.
   static void SetFocusChangeCallbackForTesting(base::RepeatingClosure callback);
+
+  // This default constructor does not create an empty accessibility tree. Call
+  // `SetTree` if you need to manage a specific tree.
+  AXTreeManager();
+  explicit AXTreeManager(std::unique_ptr<AXTree> tree);
 
   AXTreeManager(const AXTreeManager&) = delete;
   AXTreeManager& operator=(const AXTreeManager&) = delete;
@@ -57,6 +65,9 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
   virtual void FireGeneratedEvent(ui::AXEventGenerator::Event event_type,
                                   const ui::AXNode* node) {}
   virtual bool CanFireEvents() const;
+
+  // Returns whether or not this tree manager is for a view.
+  virtual bool IsView() const;
 
   // Returns the AXNode with the given |node_id| from the tree that has the
   // given |tree_id|. This allows for callers to access nodes outside of their
@@ -86,8 +97,12 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
   // Returns AXTreeIDUnknown if this tree doesn't have a parent tree.
   virtual AXTreeID GetParentTreeID() const;
 
+  // Whether this manager can access platform nodes. Defaults to false
+  // and is overridden in `AXPlatformTreeManager` to return true.
+  virtual bool IsPlatformTreeManager() const;
+
   // Returns the AXNode that is at the root of the current tree.
-  AXNode* GetRoot() const;
+  virtual AXNode* GetRoot() const;
 
   bool IsRoot() const;
 
@@ -106,7 +121,15 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
   // `AXTreeManagerMap`.
   void WillBeRemovedFromMap();
 
+  // Returns a pointer to the managed tree, if any.
   AXTree* ax_tree() const { return ax_tree_.get(); }
+
+  // Takes ownership of a new accessibility tree and returns the one that is
+  // currently being managed. It is considered an error to pass an empty
+  // unique_ptr for `tree`. If no tree is currently being managed, returns an
+  // empty unique_ptr.
+  std::unique_ptr<AXTree> SetTree(std::unique_ptr<AXTree> tree);
+  std::unique_ptr<AXTree> SetTree(const AXTreeUpdate& initial_state);
 
   const AXEventGenerator& event_generator() const { return event_generator_; }
   AXEventGenerator& event_generator() { return event_generator_; }
@@ -130,8 +153,10 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
       const std::vector<AXTreeObserver::Change>& changes) override;
 
  protected:
-  AXTreeManager();
-  explicit AXTreeManager(std::unique_ptr<AXTree> tree);
+  // This is only made protected to accommodate the `AtomicViewAXTreeManager`.
+  // It should be made private once that class is removed.
+  // TODO(crbug.com/1468416): Make private.
+  static AXTreeManagerMap& GetMap();
 
   virtual AXTreeManager* GetParentManager() const;
 
@@ -176,9 +201,7 @@ class AX_EXPORT AXTreeManager : public AXTreeObserver {
   static absl::optional<AXTreeID> last_focused_node_tree_id_;
 
  private:
-  friend class SingleAXTreeManager;
-
-  static AXTreeManagerMap& GetMap();
+  friend class TestSingleAXTreeManager;
 
   // Automatically stops observing notifications from the AXTree when this class
   // is destructed.

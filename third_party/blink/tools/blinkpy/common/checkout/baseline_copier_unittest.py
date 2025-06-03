@@ -1,4 +1,4 @@
-# Copyright 2023 The Chromium Authors. All rights reserved.
+# Copyright 2023 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -499,4 +499,24 @@ class BaselineCopierTest(BaselineTest):
                 None,
                 'platform/test-win-win7/virtual/other_virtual/':
                 'virtual win10 result',
+            })
+
+    def test_copy_for_physical_test_under_virtual_dir(self):
+        self._write_baselines(
+            'physical1-expected.txt', {
+                'platform/test-mac-mac10.11/virtual/virtual_empty_bases/':
+                'virtual mac10.11 result',
+            })
+        baseline_set = self._baseline_set([
+            ('virtual/virtual_empty_bases/physical1.html', 'MOCK mac10.11-rel',
+             None),
+        ])
+        self.copier.write_copies(
+            self.copier.find_baselines_to_copy(
+                'virtual/virtual_empty_bases/physical1.html', 'txt',
+                baseline_set))
+        self._assert_baselines(
+            'physical1-expected.txt', {
+                'platform/test-mac-mac10.10/virtual/virtual_empty_bases/':
+                'virtual mac10.11 result',
             })

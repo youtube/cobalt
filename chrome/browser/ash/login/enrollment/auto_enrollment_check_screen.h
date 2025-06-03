@@ -48,9 +48,6 @@ class AutoEnrollmentCheckScreen : public BaseScreen,
 
   static std::string GetResultString(Result result);
 
-  // Clears the cached state causing the forced enrollment check to be retried.
-  void ClearState();
-
   void set_auto_enrollment_controller(
       policy::AutoEnrollmentController* auto_enrollment_controller) {
     auto_enrollment_controller_ = auto_enrollment_controller;
@@ -119,10 +116,13 @@ class AutoEnrollmentCheckScreen : public BaseScreen,
   // necessary".
   bool ShouldBlockOnServerError() const;
 
+  // Clears the cached state so that the check can be retried.
+  void ClearState();
+
   base::WeakPtr<AutoEnrollmentCheckScreenView> view_;
   raw_ptr<ErrorScreen, ExperimentalAsh> error_screen_;
   base::RepeatingCallback<void(Result result)> exit_callback_;
-  base::raw_ptr<policy::AutoEnrollmentController> auto_enrollment_controller_ =
+  raw_ptr<policy::AutoEnrollmentController> auto_enrollment_controller_ =
       nullptr;
 
   base::CallbackListSubscription auto_enrollment_progress_subscription_;

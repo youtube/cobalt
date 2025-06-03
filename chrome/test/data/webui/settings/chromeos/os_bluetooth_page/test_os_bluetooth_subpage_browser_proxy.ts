@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://os-settings/chromeos/os_settings.js';
+import 'chrome://os-settings/os_settings.js';
 
-import {FastPairSavedDevice, FastPairSavedDevicesOptInStatus, OsBluetoothDevicesSubpageBrowserProxy} from 'chrome://os-settings/chromeos/os_settings.js';
+import {FastPairSavedDevice, FastPairSavedDevicesOptInStatus, OsBluetoothDevicesSubpageBrowserProxy} from 'chrome://os-settings/os_settings.js';
 import {webUIListenerCallback} from 'chrome://resources/ash/common/cr.m.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
-/**
- * @implements {OsBluetoothDevicesSubpageBrowserProxy}
- */
 export class TestOsBluetoothDevicesSubpageBrowserProxy extends TestBrowserProxy
     implements OsBluetoothDevicesSubpageBrowserProxy {
   savedDevices: FastPairSavedDevice[] = [];
@@ -22,6 +19,21 @@ export class TestOsBluetoothDevicesSubpageBrowserProxy extends TestBrowserProxy
       'deleteFastPairSavedDevice',
       'requestFastPairDeviceSupport',
     ]);
+  }
+
+  override reset() {
+    super.reset();
+    // reset instance variables
+    this.savedDevices = [];
+    this.optInStatus = FastPairSavedDevicesOptInStatus.STATUS_OPTED_IN;
+  }
+
+  setSavedDevices(savedDevices: FastPairSavedDevice[]): void {
+    this.savedDevices = savedDevices;
+  }
+
+  setOptInStatus(status: FastPairSavedDevicesOptInStatus): void {
+    this.optInStatus = status;
   }
 
   requestFastPairDeviceSupport(): void {}

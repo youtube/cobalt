@@ -26,8 +26,9 @@ class BoxModelObjectPainter : public BoxPainterBase {
   explicit BoxModelObjectPainter(const LayoutBoxModelObject&);
 
  protected:
-  NGPhysicalBoxStrut ComputeBorders() const override;
-  NGPhysicalBoxStrut ComputePadding() const override;
+  PhysicalBoxStrut ComputeBorders() const override;
+  PhysicalBoxStrut ComputePadding() const override;
+  PhysicalBoxStrut ComputeMargins() const override;
   BoxPainterBase::FillLayerInfo GetFillLayerInfo(
       const Color&,
       const FillLayer&,
@@ -37,7 +38,7 @@ class BoxModelObjectPainter : public BoxPainterBase {
   void PaintTextClipMask(const PaintInfo&,
                          const gfx::Rect& mask_rect,
                          const PhysicalOffset& paint_offset,
-                         bool object_has_multiple_boxes) override;
+                         bool object_has_multiple_boxes) override {}
   PhysicalRect AdjustRectForScrolledContent(
       const PaintInfo&,
       const BoxPainterBase::FillLayerInfo&,

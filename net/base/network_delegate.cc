@@ -118,10 +118,11 @@ bool NetworkDelegate::AnnotateAndMoveUserBlockedCookies(
 
 bool NetworkDelegate::CanSetCookie(const URLRequest& request,
                                    const CanonicalCookie& cookie,
-                                   CookieOptions* options) {
+                                   CookieOptions* options,
+                                   CookieInclusionStatus* inclusion_status) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!(request.load_flags() & LOAD_DO_NOT_SAVE_COOKIES));
-  return OnCanSetCookie(request, cookie, options);
+  return OnCanSetCookie(request, cookie, options, inclusion_status);
 }
 
 NetworkDelegate::PrivacySetting NetworkDelegate::ForcePrivacyMode(
@@ -162,16 +163,6 @@ bool NetworkDelegate::CanUseReportingClient(const url::Origin& origin,
                                             const GURL& endpoint) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return OnCanUseReportingClient(origin, endpoint);
-}
-
-absl::optional<FirstPartySetsCacheFilter::MatchInfo>
-NetworkDelegate::GetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
-    const SchemefulSite& request_site,
-    base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
-    const {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(request_site,
-                                                           std::move(callback));
 }
 
 // static

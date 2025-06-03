@@ -121,7 +121,10 @@ class BackForwardCacheMetrics
     // 57: kActivationNavigationsDisallowedForBug1234857 was fixed.
     kErrorDocument = 58,
     kFencedFramesEmbedder = 59,
-    kMaxValue = kFencedFramesEmbedder,
+    kCookieDisabled = 60,
+    kHTTPAuthRequired = 61,
+    kCookieFlushed = 62,
+    kMaxValue = kCookieFlushed,
   };
 
   using NotRestoredReasons =
@@ -142,24 +145,6 @@ class BackForwardCacheMetrics
     kRestored = 0,
     kByJavaScript = 1,
     kMaxValue = kByJavaScript,
-  };
-
-  // Please keep in sync with BackForwardCacheReloadsAndHistoryNavigations
-  // in tools/metrics/histograms/enums.xml. These values should not be
-  // renumbered.
-  enum class ReloadsAndHistoryNavigations {
-    kHistoryNavigation = 0,
-    kReloadAfterHistoryNavigation = 1,
-    kMaxValue = kReloadAfterHistoryNavigation,
-  };
-
-  // Please keep in sync with BackForwardCacheReloadsAfterHistoryNavigation
-  // in tools/metrics/histograms/enums.xml. These values should not be
-  // renumbered.
-  enum class ReloadsAfterHistoryNavigation {
-    kNotServedFromBackForwardCache = 0,
-    kServedFromBackForwardCache = 1,
-    kMaxValue = kServedFromBackForwardCache,
   };
 
   // Please keep in sync with BackForwardCachePageWithFormStorable
@@ -196,10 +181,12 @@ class BackForwardCacheMetrics
   static void RecordEvictedAfterDocumentRestored(
       EvictedAfterDocumentRestoredReason reason);
 
-  // Sets the reason why the browsing instance is swapped/not swapped. Passing
-  // absl::nullopt resets the reason.
+  // Sets the reason why the browsing instance is swapped/not swapped when
+  // navigating away from `navigated_away_rfh`. Passing`reason` as absl::nullopt
+  // resets the reason and other tracked information.
   void SetBrowsingInstanceSwapResult(
-      absl::optional<ShouldSwapBrowsingInstance> reason);
+      absl::optional<ShouldSwapBrowsingInstance> reason,
+      RenderFrameHostImpl* navigated_away_rfh);
 
   absl::optional<ShouldSwapBrowsingInstance> browsing_instance_swap_result()
       const {
@@ -287,8 +274,30 @@ class BackForwardCacheMetrics
   static bool IsCrossDocumentMainFrameHistoryNavigation(
       NavigationRequest* navigation);
 
+  // Returns the debug string for `page_stored_result_`.
+  std::string GetPageStoredResultString();
+
  private:
   friend class base::RefCounted<BackForwardCacheMetrics>;
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest, WindowOpen);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest, WindowOpenCrossSite);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest,
+                           WindowOpenCrossSiteNavigateSameSite);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest,
+                           WindowOpenCrossSiteWithSameSiteChild);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest, WindowOpenThenClose);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest,
+                           WindowWithOpenerAndOpenee);
+  FRIEND_TEST_ALL_PREFIXES(
+      BackForwardCacheBrowserTestWithVaryingNavigationSite,
+      RelatedActiveContentsLoggingOnPageWithBlockingFeature);
+  FRIEND_TEST_ALL_PREFIXES(
+      BackForwardCacheBrowserTestWithVaryingNavigationSite,
+      RelatedActiveContentsLoggingOnPageWithBlockingFeatureAndRAC);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest,
+                           WindowOpen_SameSitePopupPendingDeletion);
+  FRIEND_TEST_ALL_PREFIXES(BackForwardCacheBrowserTest,
+                           WindowOpen_UnrelatedSameSiteAndProcessTab);
 
   ~BackForwardCacheMetrics();
 
@@ -318,6 +327,13 @@ class BackForwardCacheMetrics
   // (`browsing_instance_swap_result_` is not set).  Returns false otherwise.
   bool DidSwapBrowsingInstance() const;
 
+  // Sets information about `rfh`'s related active contents, whose existence
+  // make `rfh` ineligible for back/forward cache. This should be set at the
+  // same time as `browsing_instance_swap_result_` to reflect the condition of
+  // the related active contents at the time the BrowsingInstance swap decision
+  // was made when navigating away from `rfh`.
+  void SetRelatedActiveContentsInfo(RenderFrameHostImpl* rfh);
+
   // Main frame document sequence number that identifies all
   // NavigationEntries this metrics object is associated with.
   const int64_t document_sequence_number_;
@@ -327,10 +343,6 @@ class BackForwardCacheMetrics
   //
   // Should not be confused with NavigationEntryId.
   int64_t last_committed_cross_document_main_frame_navigation_id_ = -1;
-
-  // These values are updated only for cross-document main frame navigations.
-  bool previous_navigation_is_history_ = false;
-  bool previous_navigation_is_served_from_bfcache_ = false;
 
   // Whether any document within the page that this BackForwardCacheMetrics
   // associated with has any form data. This state is not persisted and only
@@ -368,6 +380,28 @@ class BackForwardCacheMetrics
   // The reason why the last attempted navigation in the main frame used or
   // didn't use a new BrowsingInstance.
   absl::optional<ShouldSwapBrowsingInstance> browsing_instance_swap_result_;
+
+  // The number of related active contents for the page.
+  int related_active_contents_count_ = 1;
+
+  // Whether any document in the page can potentially be accessed synchronously
+  // by another document in a different page, i.e. if there are any documents
+  // using the same SiteInstance as any document in the page. See also
+  // `SetRelatedActiveContentsInfo()`.
+  // Please keep in sync with RelatedActiveContentsSyncAccessInfo
+  // in tools/metrics/histograms/enums.xml. These values should not be
+  // renumbered.
+  enum class RelatedActiveContentsSyncAccessInfo {
+    kNoSyncAccess = 0,
+    // Deprecated: We check using SiteInfo instead of just SiteInstance now,
+    // so this category is no longer used.
+    kPotentiallySyncAccessibleDefaultSiteInstance = 1,
+    kPotentiallySyncAccessible = 2,
+    kMaxValue = kPotentiallySyncAccessible
+  };
+  RelatedActiveContentsSyncAccessInfo
+      related_active_contents_sync_access_info_ =
+          RelatedActiveContentsSyncAccessInfo::kNoSyncAccess;
 
   raw_ptr<TestObserver> test_observer_ = nullptr;
 };

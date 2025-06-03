@@ -4,10 +4,13 @@
 
 #include "components/omnibox/browser/history_cluster_provider.h"
 
+#include "base/feature_list.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/history_clusters/core/config.h"
+#include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_service.h"
+#include "components/history_clusters/core/url_constants.h"
 #include "components/omnibox/browser/actions/history_clusters_action.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -53,10 +56,9 @@ void HistoryClusterProvider::CompleteHistoryClustersMatch(
   // the traditional History/Journeys WebUI. As a side effect, it will also
   // record the action-centric metrics.
   DCHECK(match->actions.empty());
-  match->actions.push_back(
+  match->takeover_action =
       base::MakeRefCounted<history_clusters::HistoryClustersAction>(
-          matching_text, std::move(matched_keyword_data),
-          /*takes_over_match=*/true));
+          matching_text, std::move(matched_keyword_data));
 }
 
 void HistoryClusterProvider::Start(const AutocompleteInput& input,
@@ -66,8 +68,8 @@ void HistoryClusterProvider::Start(const AutocompleteInput& input,
   if (input.omit_asynchronous_matches())
     return;
 
-  if (!IsJourneysEnabledInOmnibox(client_->GetHistoryClustersService(),
-                                  client_->GetPrefs())) {
+  if (!client_->GetHistoryClustersService() ||
+      !client_->GetHistoryClustersService()->IsJourneysEnabledAndVisible()) {
     return;
   }
 
@@ -160,18 +162,16 @@ AutocompleteMatch HistoryClusterProvider::CreateMatch(
   //  Ideally, relevance would depend on how many keywords matched, how
   //  significant the keywords were, how significant their clusters were etc.
   match.relevance =
-      history_clusters::GetConfig()
-              .omnibox_history_cluster_provider_inherit_search_match_score
-          ? search_match.relevance - 1
-          : history_clusters::GetConfig()
-                .omnibox_history_cluster_provider_score;
+      history_clusters::GetConfig().omnibox_history_cluster_provider_score;
 
   const auto& text = search_match.contents;
 
-  match.destination_url = GURL(base::UTF8ToUTF16(base::StringPrintf(
-      "chrome://history/journeys?q=%s",
-      base::EscapeQueryParamValue(base::UTF16ToUTF8(text), /*use_plus=*/false)
-          .c_str())));
+  match.destination_url = GURL(
+      base::UTF8ToUTF16(history_clusters::GetChromeUIHistoryClustersURL() +
+                        base::StringPrintf("?q=%s", base::EscapeQueryParamValue(
+                                                        base::UTF16ToUTF8(text),
+                                                        /*use_plus=*/false)
+                                                        .c_str())));
 
   match.fill_into_edit = text;
 
@@ -181,7 +181,9 @@ AutocompleteMatch HistoryClusterProvider::CreateMatch(
       ACMatchClassification::MATCH, ACMatchClassification::NONE);
 
   match.contents = l10n_util::GetStringUTF16(
-      IDS_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH_HINT);
+      base::FeatureList::IsEnabled(history_clusters::kRenameJourneys)
+          ? IDS_OMNIBOX_HISTORY_CLUSTERS_SEARCH_HINT
+          : IDS_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH_HINT);
   match.contents_class = {{0, ACMatchClassification::DIM}};
 
   CompleteHistoryClustersMatch(base::UTF16ToUTF8(text),

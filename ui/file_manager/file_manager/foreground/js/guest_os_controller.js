@@ -4,10 +4,10 @@
 
 import {listMountableGuests} from '../../common/js/api.js';
 import {GuestOsPlaceholder} from '../../common/js/files_app_entry_types.js';
-import {util} from '../../common/js/util.js';
+import {isGuestOsEnabled, isNewDirectoryTreeEnabled} from '../../common/js/flags.js';
 import {VolumeManagerCommon} from '../../common/js/volume_manager_types.js';
 import {VolumeManager} from '../../externs/volume_manager.js';
-import {addUiEntry, removeUiEntry} from '../../state/actions/ui_entries.js';
+import {addUiEntry, removeUiEntry} from '../../state/ducks/ui_entries.js';
 import {getEntry, getStore} from '../../state/store.js';
 
 import {DirectoryModel} from './directory_model.js';
@@ -25,7 +25,7 @@ export class GuestOsController {
    * @param {!VolumeManager} volumeManager VolumeManager.
    */
   constructor(directoryModel, directoryTree, volumeManager) {
-    if (!util.isGuestOsEnabled()) {
+    if (!isGuestOsEnabled()) {
       console.warn('Created a guest os controller when it\'s not enabled');
     }
     /** @private @const */
@@ -34,7 +34,7 @@ export class GuestOsController {
     /** @private @const */
     this.directoryTree_ = directoryTree;
 
-    /** @private @const {!VolumeManager} */
+    /** @private @const @type {!VolumeManager} */
     this.volumeManager_ = volumeManager;
 
     chrome.fileManagerPrivate.onMountableGuestsChanged.addListener(
@@ -64,21 +64,14 @@ export class GuestOsController {
     for (const uiEntryKey of state.uiEntries) {
       const uiEntry = getEntry(state, uiEntryKey);
       if (uiEntry && 'guest_id' in uiEntry &&
+          // @ts-ignore: error TS2345: Argument of type 'unknown' is not
+          // assignable to parameter of type 'number'.
           !newGuestIdSet.has(uiEntry.guest_id)) {
         store.dispatch(removeUiEntry({key: uiEntryKey}));
       }
     }
 
-    // Deduplicate GuestOSes with the same name/vmType to ignore issues from the
-    // backend. b/279378611. The instances that appear later prevail, assuming
-    // they're mounted/registered more recently.
-    const uniqGuests = new Map();
-    guests.forEach(guest => {
-      uniqGuests.set(`${guest.vmType}-${guest.displayName}`, guest);
-    });
-
-    this.directoryTree_.dataModel
-        .guestOsPlaceholders = Array.from(uniqGuests.values()).map(guest => {
+    const newGuestOsPlaceholders = guests.map(guest => {
       const guestOsEntry =
           new GuestOsPlaceholder(guest.displayName, guest.id, guest.vmType);
       const navigationModelItem = new NavigationModelFakeItem(
@@ -93,7 +86,12 @@ export class GuestOsController {
       return navigationModelItem;
     });
 
-    // Redraw the tree to ensure any newly added/removed roots are updated.
-    this.directoryTree_.redraw(false);
+    if (!isNewDirectoryTreeEnabled()) {
+      this.directoryTree_.dataModel.guestOsPlaceholders =
+          newGuestOsPlaceholders;
+      // Redraw the tree to ensure any newly added/removed roots are
+      // updated.
+      this.directoryTree_.redraw(false);
+    }
   }
 }

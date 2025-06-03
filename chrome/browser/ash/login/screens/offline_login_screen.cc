@@ -20,8 +20,9 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/ui/webui/ash/login/offline_login_screen_handler.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/components/login/auth/public/auth_types.h"
 #include "chromeos/ash/components/login/auth/public/key.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "components/user_manager/known_user.h"
@@ -149,16 +150,13 @@ void OfflineLoginScreen::HandleCompleteAuth(const std::string& email,
 
   UserContext user_context(*user);
   user_context.SetKey(Key(password));
+  user_context.SetLocalPasswordInput(LocalPasswordInput{password});
   // Save the user's plaintext password for possible authentication to a
   // network. See https://crbug.com/386606 for details.
   user_context.SetPasswordKey(Key(password));
   user_context.SetIsUsingPin(false);
-  if (account_id.GetAccountType() == AccountType::ACTIVE_DIRECTORY) {
-    CHECK(user_context.GetUserType() ==
-          user_manager::UserType::USER_TYPE_ACTIVE_DIRECTORY)
-        << "Incorrect Active Directory user type "
-        << user_context.GetUserType();
-  }
+  CHECK(account_id.GetAccountType() != AccountType::ACTIVE_DIRECTORY)
+      << "Incorrect Active Directory user type " << user_context.GetUserType();
   user_context.SetIsUsingOAuth(false);
 
   if (ExistingUserController::current_controller()) {
@@ -236,7 +234,6 @@ void OfflineLoginScreen::UpdateState(NetworkError::ErrorReason reason) {
   NetworkStateInformer::State state = network_state_informer_->state();
   is_network_available_ =
       (state == NetworkStateInformer::ONLINE &&
-       reason != NetworkError::ERROR_REASON_PORTAL_DETECTED &&
        reason != NetworkError::ERROR_REASON_LOADING_TIMEOUT);
 }
 

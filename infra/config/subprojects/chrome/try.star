@@ -85,6 +85,10 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "chromeos-betty-pi-arc-cfi-thin-lto-chrome",
+)
+
+chrome_internal_verifier(
     builder = "chromeos-betty-pi-arc-chrome",
 )
 
@@ -96,35 +100,12 @@ chrome_internal_verifier(
     builder = "chromeos-eve-compile-chrome",
 )
 
-# TODO(crbug.com/1295085): Migrate to gitfooter based trigger
-# During Nearby Connection library autoroller uprev, we want
-# chromeos-jacuzzi-nearby-chrome-fyi to run as an experimental builder
-# and not block the auto-submission of the CL.
-# Currently there is no support for gitfooter based trigger like
-# "Cq-Include-Trybots" for experimental builders, we are using the following
-# workaround until the support is available.
-# Autoroller generated CL keeps an additional githash bookkeeping in
-# third_party/nearby/README.chromium. This file serves as a unique marker for
-# Nearby uprev and is used to trigger the Nearby builder.
-branches.cq_tryjob_verifier(
-    builder = "{}:try/{}".format(settings.chrome_project, "chromeos-jacuzzi-nearby-chrome-fyi"),
-    cq_group = "cq",
-    experiment_percentage = 100,
-    includable_only = False,
-    location_filters = [cq.location_filter(path_regexp = "third_party/nearby/README.chromium")],
-    owner_whitelist = [
-        "googlers",
-        "project-chromium-robot-committers",
-    ],
-    result_visibility = cq.COMMENT_LEVEL_RESTRICTED,
+chrome_internal_verifier(
+    builder = "chromeos-jacuzzi-chrome",
 )
 
 chrome_internal_verifier(
-    builder = "chromeos-kevin-chrome",
-)
-
-chrome_internal_verifier(
-    builder = "chromeos-kevin-compile-chrome",
+    builder = "chromeos-jacuzzi-compile-chrome",
 )
 
 chrome_internal_verifier(
@@ -141,6 +122,26 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "fuchsia-fyi-astro",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-fyi-nelson",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-fyi-sherlock",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-internal-images-roller",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-smoke-nelson",
+)
+
+chrome_internal_verifier(
+    builder = "fuchsia-smoke-sherlock",
 )
 
 chrome_internal_verifier(
@@ -215,6 +216,11 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "test-o-emulator",
+)
+
+chrome_internal_verifier(
+    branch_selector = branches.selector.WINDOWS_BRANCHES,
+    builder = "win-arm64-pgo",
 )
 
 chrome_internal_verifier(

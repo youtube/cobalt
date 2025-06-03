@@ -4,16 +4,12 @@
 
 #import "ios/chrome/browser/signin/resized_avatar_cache.h"
 
-#import "ios/chrome/browser/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/signin/signin_util.h"
 #import "ios/chrome/browser/signin/system_identity.h"
 #import "ios/chrome/browser/signin/system_identity_manager.h"
 #import "ios/chrome/common/ui/util/image_util.h"
 #import "ios/public/provider/chrome/browser/signin/signin_resources_api.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ResizedAvatarCache ()
 

@@ -80,6 +80,11 @@ PLATFORM_EXPORT BASE_DECLARE_FEATURE(kPrioritizeCompositingAfterDelayTrials);
 // feature is enabled.
 PLATFORM_EXPORT base::TimeDelta GetForegroundTimersThrottledWakeUpInterval();
 
+// Buffer time that we want to extend the loading state after the FMP is
+// received.
+PLATFORM_EXPORT base::TimeDelta
+GetLoadingPhaseBufferTimeAfterFirstMeaningfulPaint();
+
 // Finch flag for preventing rendering starvation during threaded scrolling.
 // With this feature enabled, the existing delay-based rendering anti-starvation
 // applies, and the compositor task queue priority is controlled with the
@@ -109,29 +114,9 @@ PLATFORM_EXPORT extern const base::FeatureParam<
     CompositorTQPolicyDuringThreadedScroll>
     kCompositorTQPolicyDuringThreadedScroll;
 
-BASE_FEATURE(kRejectedPromisesPerWindowAgent,
-             "BlinkSchedulerRejectedPromisesPerWindowAgent",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kMicrotaskQueuePerWindowAgent,
-             "BlinkSchedulerMicroTaskQueuePerWindowAgent",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kMicrotaskQueuePerPaintWorklet,
-             "BlinkSchedulerMicroTaskQueuePerPaintWorklet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kMicrotaskQueuePerAnimationWorklet,
-             "BlinkSchedulerMicroTaskQueuePerAnimationWorklet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kMicrotaskQueuePerAudioWorklet,
-             "BlinkSchedulerMicroTaskQueuePerAudioWorklet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kMicrotaskQueuePerWorkerAgent,
              "BlinkSchedulerMicroTaskQueuePerWorkerAgent",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMicrotaskQueueRejectPromisesOnEachCompletion,
              "BlinkSchedulerMicroTaskRejectPromisesOnEachCompletion",

@@ -11,9 +11,11 @@
 #include <vector>
 
 #include "android_webview/browser/aw_browser_context.h"
+#include "android_webview/browser/aw_browser_context_store.h"
 #include "android_webview/browser/aw_browser_process.h"
 #include "android_webview/browser/aw_feature_entries.h"
 #include "android_webview/browser/aw_metrics_service_client_delegate.h"
+#include "android_webview/browser/metrics/android_metrics_provider.h"
 #include "android_webview/browser/metrics/aw_metrics_service_client.h"
 #include "android_webview/browser/tracing/aw_tracing_delegate.h"
 #include "android_webview/browser/variations/variations_seed_loader.h"
@@ -33,6 +35,7 @@
 #include "components/embedder_support/android/metrics/android_metrics_service_client.h"
 #include "components/embedder_support/origin_trials/origin_trial_prefs.h"
 #include "components/embedder_support/origin_trials/pref_names.h"
+#include "components/metrics/android_metrics_helper.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/policy/core/browser/configuration_policy_pref_store.h"
@@ -49,6 +52,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/safe_seed_manager.h"
 #include "components/variations/service/variations_service.h"
+#include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "net/base/features.h"
@@ -109,6 +113,14 @@ const char* const kPersistentPrefsAllowlist[] = {
 
     // The state of the previous background tracing session.
     tracing::kBackgroundTracingSessionState,
+
+    // System-level info.
+    metrics::prefs::kVersionCodePref,
+    prefs::kPrimaryCpuAbiBitnessPref,
+
+    // Records about profiles/contexts and their stored data
+    prefs::kProfileListPref,
+    prefs::kProfileCounterPref,
 };
 
 void HandleReadError(PersistentPrefStore::PrefReadError error) {}
@@ -167,6 +179,7 @@ std::unique_ptr<PrefService> AwFeatureListCreator::CreatePrefService() {
   AwBrowserProcess::RegisterEnterpriseAuthenticationAppLinkPolicyPref(
       pref_registry.get());
   AwTracingDelegate::RegisterPrefs(pref_registry.get());
+  AwBrowserContextStore::RegisterPrefs(pref_registry.get());
 
   PrefServiceFactory pref_service_factory;
 
@@ -214,7 +227,7 @@ void AwFeatureListCreator::SetUpFieldTrials() {
     // than base::Time::Now() because we want to compute seed freshness based on
     // the initial download time, which happened in the service at some earlier
     // point.
-    seed_date = base::Time::FromJavaTime(seed_proto->date());
+    seed_date = base::Time::FromMillisecondsSinceUnixEpoch(seed_proto->date());
 
     seed = std::make_unique<variations::SeedResponse>();
     seed->data = seed_proto->seed_data();
@@ -228,6 +241,8 @@ void AwFeatureListCreator::SetUpFieldTrials() {
   auto seed_store = std::make_unique<variations::VariationsSeedStore>(
       local_state_.get(), /*initial_seed=*/std::move(seed),
       /*signature_verification_enabled=*/g_signature_verification_enabled,
+      std::make_unique<variations::VariationsSafeSeedStoreLocalState>(
+          local_state_.get()),
       /*use_first_run_prefs=*/false);
 
   if (!seed_date.is_null())

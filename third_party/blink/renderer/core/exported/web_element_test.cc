@@ -15,7 +15,9 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 
@@ -32,7 +34,7 @@ void WebElementTest::InsertHTML(String html) {
 }
 
 WebElement WebElementTest::TestElement() {
-  Element* element = GetDocument().getElementById("testElement");
+  Element* element = GetDocument().getElementById(AtomicString("testElement"));
   DCHECK(element);
   return WebElement(element);
 }
@@ -96,6 +98,52 @@ TEST_F(WebElementTest, IsAutonomousCustomElement) {
       WebElement(To<Element>(v1autonomous)).IsAutonomousCustomElement());
 }
 
+TEST_F(WebElementTest, PasteTextIntoContentEditable) {
+  InsertHTML(
+      "<div id=testElement contenteditable>Some <b>rich text</b> here.</div>"
+      "<textarea>Some plain text here.</textarea>");
+  auto* element = GetDocument().getElementById(AtomicString("testElement"));
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  Selection().SelectSubString(*element->firstElementChild(), 0, 9);
+  ASSERT_EQ(Selection().SelectedText(), String("rich text"));
+  // Paste and append.
+  TestElement().PasteText("fancy text", /*replace_all=*/false);
+  EXPECT_EQ(element->innerHTML(), "Some <b>fancy text</b>&nbsp;here.");
+  // Paste and replace all.
+  TestElement().PasteText("Hello", /*replace_all=*/true);
+  EXPECT_EQ(element->innerHTML(), "Hello");
+  // Paste into an unfocused element.
+  element->nextElementSibling()->Focus();
+  TestElement().PasteText("world", /*replace_all=*/false);
+  EXPECT_EQ(element->innerHTML(), "Hello&nbsp;world");
+}
+
+TEST_F(WebElementTest, PasteTextIntoTextArea) {
+  InsertHTML(
+      "<div contenteditable>Some <b>rich text</b> here.</div>"
+      "<textarea id=testElement>Some plain text here.</textarea>");
+  auto* element = blink::To<HTMLTextAreaElement>(
+      GetDocument().getElementById(AtomicString("testElement")));
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  element->Focus();
+  element->setSelectionStart(5);
+  element->setSelectionEnd(15);
+  ASSERT_EQ(element->Value().Substring(
+                element->selectionStart(),
+                element->selectionEnd() - element->selectionStart()),
+            String("plain text"));
+  // Paste and append.
+  TestElement().PasteText("boring text", /*replace_all=*/false);
+  EXPECT_EQ(element->Value(), "Some boring text here.");
+  // Paste and replace all.
+  TestElement().PasteText("Hello", /*replace_all=*/true);
+  EXPECT_EQ(element->Value(), "Hello");
+  // Paste into an unfocused element.
+  element->previousElementSibling()->Focus();
+  TestElement().PasteText("world", /*replace_all=*/false);
+  EXPECT_EQ(element->Value(), "Hello world");
+}
+
 TEST_F(WebElementTest, ShadowRoot) {
   InsertHTML("<input id=testElement>");
   EXPECT_TRUE(TestElement().ShadowRoot().IsNull())
@@ -105,7 +153,7 @@ TEST_F(WebElementTest, ShadowRoot) {
     InsertHTML("<span id=testElement></span>");
     EXPECT_TRUE(TestElement().ShadowRoot().IsNull())
         << "No ShadowRoot initially.";
-    auto* element = GetDocument().getElementById("testElement");
+    auto* element = GetDocument().getElementById(AtomicString("testElement"));
     element->AttachShadowRootInternal(ShadowRootType::kOpen);
     EXPECT_FALSE(TestElement().ShadowRoot().IsNull())
         << "Should return V1 open ShadowRoot.";
@@ -115,7 +163,7 @@ TEST_F(WebElementTest, ShadowRoot) {
     InsertHTML("<p id=testElement></p>");
     EXPECT_TRUE(TestElement().ShadowRoot().IsNull())
         << "No ShadowRoot initially.";
-    auto* element = GetDocument().getElementById("testElement");
+    auto* element = GetDocument().getElementById(AtomicString("testElement"));
     element->AttachShadowRootInternal(ShadowRootType::kClosed);
     EXPECT_FALSE(TestElement().ShadowRoot().IsNull())
         << "Should return V1 closed ShadowRoot.";

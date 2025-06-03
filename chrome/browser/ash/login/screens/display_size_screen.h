@@ -12,6 +12,8 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 
+class Profile;
+
 namespace ash {
 class DisplaySizeScreenView;
 
@@ -24,6 +26,11 @@ class DisplaySizeScreen : public BaseScreen {
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
 
+  static std::string GetResultString(Result result);
+
+  // Updates zoom factor if `kOobeDisplaySizeFactorDeferred` pref is set.
+  static void MaybeUpdateZoomFactor(Profile* profile);
+
   DisplaySizeScreen(base::WeakPtr<DisplaySizeScreenView> view,
                     const ScreenExitCallback& exit_callback);
 
@@ -32,7 +39,13 @@ class DisplaySizeScreen : public BaseScreen {
 
   ~DisplaySizeScreen() override;
 
-  static std::string GetResultString(Result result);
+  void set_exit_callback_for_testing(const ScreenExitCallback& callback) {
+    exit_callback_ = callback;
+  }
+
+  const ScreenExitCallback& get_exit_callback_for_testing() {
+    return exit_callback_;
+  }
 
  private:
   // BaseScreen:

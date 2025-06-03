@@ -36,7 +36,7 @@ class TParseContext;
 class TranslatorHLSL;
 #endif  // ANGLE_ENABLE_HLSL
 #ifdef ANGLE_ENABLE_METAL
-class TranslatorMetalDirect;
+class TranslatorMSL;
 #endif  // ANGLE_ENABLE_METAL
 
 using SpecConstUsageBits = angle::PackedEnumBitSet<vk::SpecConstUsage, uint32_t>;
@@ -64,12 +64,12 @@ class TShHandleBase
   public:
     TShHandleBase();
     virtual ~TShHandleBase();
-    virtual TCompiler *getAsCompiler() { return 0; }
+    virtual TCompiler *getAsCompiler() { return nullptr; }
 #ifdef ANGLE_ENABLE_HLSL
-    virtual TranslatorHLSL *getAsTranslatorHLSL() { return 0; }
+    virtual TranslatorHLSL *getAsTranslatorHLSL() { return nullptr; }
 #endif  // ANGLE_ENABLE_HLSL
 #ifdef ANGLE_ENABLE_METAL
-    virtual TranslatorMetalDirect *getAsTranslatorMetalDirect() { return nullptr; }
+    virtual TranslatorMSL *getAsTranslatorMSL() { return nullptr; }
 #endif  // ANGLE_ENABLE_METAL
 
   protected:
@@ -141,7 +141,7 @@ class TCompiler : public TShHandleBase
     TSymbolTable &getSymbolTable() { return mSymbolTable; }
     ShShaderSpec getShaderSpec() const { return mShaderSpec; }
     ShShaderOutput getOutputType() const { return mOutputType; }
-    ShBuiltInResources getBuiltInResources() const { return mResources; }
+    const ShBuiltInResources &getBuiltInResources() const { return mResources; }
     const std::string &getBuiltInResourcesString() const { return mBuiltInResourcesString; }
 
     bool isHighPrecisionSupported() const;
@@ -245,9 +245,7 @@ class TCompiler : public TShHandleBase
     const BuiltInFunctionEmulator &getBuiltInFunctionEmulator() const;
 
     virtual bool shouldFlattenPragmaStdglInvariantAll() = 0;
-    virtual bool shouldCollectVariables(const ShCompileOptions &compileOptions);
 
-    bool wereVariablesCollected() const;
     std::vector<sh::ShaderVariable> mAttributes;
     std::vector<sh::ShaderVariable> mOutputVariables;
     std::vector<sh::ShaderVariable> mUniforms;

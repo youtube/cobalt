@@ -19,7 +19,7 @@
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/prefs/pref_service.h"
 
-using enterprise_connectors::kContextAwareAccessSignalsAllowlistPref;
+using enterprise_connectors::kUserContextAwareAccessSignalsAllowlistPref;
 
 namespace ash {
 
@@ -52,12 +52,15 @@ bool UrlMatchesPattern(const GURL& url, const base::Value::List& patterns) {
 bool AreContextAwareAccessSignalsEnabledForUrl(const GURL& url,
                                                const Profile* profile) {
   const PrefService* prefs = profile->GetPrefs();
-  if (!prefs || !prefs->HasPrefPath(kContextAwareAccessSignalsAllowlistPref))
+  if (!prefs ||
+      !prefs->HasPrefPath(kUserContextAwareAccessSignalsAllowlistPref)) {
     return false;
+  }
 
-  return prefs->IsManagedPreference(kContextAwareAccessSignalsAllowlistPref) &&
+  return prefs->IsManagedPreference(
+             kUserContextAwareAccessSignalsAllowlistPref) &&
          UrlMatchesPattern(
-             url, prefs->GetList(kContextAwareAccessSignalsAllowlistPref));
+             url, prefs->GetList(kUserContextAwareAccessSignalsAllowlistPref));
 }
 
 void LogVerifiedAccessForSAMLDeviceTrustMatchesEndpoints(bool is_matching) {
@@ -149,7 +152,7 @@ void SamlChallengeKeyHandler::BuildChallengeResponse() {
   tpm_key_challenger_ =
       std::make_unique<attestation::TpmChallengeKeyWithTimeout>();
   tpm_key_challenger_->BuildResponse(
-      GetTpmResponseTimeout(), attestation::KEY_DEVICE, profile_,
+      GetTpmResponseTimeout(), ::attestation::ENTERPRISE_MACHINE, profile_,
       base::BindOnce(&SamlChallengeKeyHandler::ReturnResult,
                      weak_factory_.GetWeakPtr()),
       decoded_challenge_, /*register_key=*/false,

@@ -13,9 +13,8 @@
 #include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_dialog_handler.h"
 #include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "chrome/grit/google_chrome_strings.h"
 #include "chrome/grit/privacy_sandbox_resources.h"
 #include "chrome/grit/privacy_sandbox_resources_map.h"
 #include "components/strings/grit/components_strings.h"
@@ -173,7 +172,7 @@ PrivacySandboxDialogUI::PrivacySandboxDialogUI(content::WebUI* web_ui)
        IDS_PRIVACY_SANDBOX_M1_NOTICE_ROW_LEARN_MORE_DESCRIPTION_5},
       // Strings for the restricted notice dialog (kM1NoticeRestricted).
       {"m1NoticeRestrictedTitle",
-       IDS_PRIVACY_SANDBOX_M1_NOTICE_RESTRICTED_DESCRIPTION_1},
+       IDS_PRIVACY_SANDBOX_M1_NOTICE_RESTRICTED_TITLE},
       {"m1NoticeRestrictedDescription1",
        IDS_PRIVACY_SANDBOX_M1_NOTICE_RESTRICTED_DESCRIPTION_1},
       {"m1NoticeRestrictedDescription2",

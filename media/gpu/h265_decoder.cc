@@ -5,9 +5,9 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/gpu/h265_decoder.h"
 
 namespace media {
@@ -79,10 +79,26 @@ H265Decoder::H265Accelerator::H265Accelerator() = default;
 
 H265Decoder::H265Accelerator::~H265Accelerator() = default;
 
+void H265Decoder::H265Accelerator::ProcessVPS(
+    const H265VPS* vps,
+    base::span<const uint8_t> vps_nalu_data) {}
+
+void H265Decoder::H265Accelerator::ProcessSPS(
+    const H265SPS* sps,
+    base::span<const uint8_t> sps_nalu_data) {}
+
+void H265Decoder::H265Accelerator::ProcessPPS(
+    const H265PPS* pps,
+    base::span<const uint8_t> pps_nalu_data) {}
+
 H265Decoder::H265Accelerator::Status H265Decoder::H265Accelerator::SetStream(
     base::span<const uint8_t> stream,
     const DecryptConfig* decrypt_config) {
   return H265Decoder::H265Accelerator::Status::kNotSupported;
+}
+
+bool H265Decoder::H265Accelerator::IsAlphaLayerSupported() {
+  return false;
 }
 
 H265Decoder::H265Decoder(std::unique_ptr<H265Accelerator> accelerator,
@@ -143,6 +159,9 @@ void H265Decoder::SetStream(int32_t id, const DecoderBuffer& decoder_buffer) {
 }
 
 void H265Decoder::Reset() {
+  first_picture_ = true;
+  no_rasl_output_flag_ = true;
+
   curr_pic_ = nullptr;
   curr_nalu_ = nullptr;
   curr_slice_hdr_ = nullptr;
@@ -215,10 +234,89 @@ H265Decoder::DecodeResult H265Decoder::Decode() {
       DVLOG(4) << "New NALU: " << static_cast<int>(curr_nalu_->nal_unit_type);
     }
 
-    // 8.1.2 We only want nuh_layer_id of zero.
+    // 8.1.2 We only handle nuh_layer_id of zero.
+    // As a workaround for accelerators that support alpha layers, the data is
+    // simply passed through.
+    // TODO(crbug.com/1331597): Only pass through vps->aux_alpha_layer_id.
     if (curr_nalu_->nuh_layer_id) {
-      DVLOG(4) << "Skipping NALU with nuh_layer_id="
-               << curr_nalu_->nuh_layer_id;
+      if (accelerator_->IsAlphaLayerSupported()) {
+        switch (curr_nalu_->nal_unit_type) {
+          case H265NALU::BLA_W_LP:
+          case H265NALU::BLA_W_RADL:
+          case H265NALU::BLA_N_LP:
+          case H265NALU::IDR_W_RADL:
+          case H265NALU::IDR_N_LP:
+          case H265NALU::TRAIL_N:
+          case H265NALU::TRAIL_R:
+          case H265NALU::TSA_N:
+          case H265NALU::TSA_R:
+          case H265NALU::STSA_N:
+          case H265NALU::STSA_R:
+          case H265NALU::RADL_N:
+          case H265NALU::RADL_R:
+          case H265NALU::RASL_N:
+          case H265NALU::RASL_R:
+          case H265NALU::CRA_NUT: {
+            if (!curr_slice_hdr_) {
+              curr_slice_hdr_ = std::make_unique<H265SliceHeader>();
+              par_res = parser_.ParseSliceHeader(
+                  *curr_nalu_, curr_slice_hdr_.get(), last_slice_hdr_.get());
+              if (par_res == H265Parser::kMissingParameterSet) {
+                // As with the base layer, we could be trying to start decoding
+                // from a bad frame, and may be able to recover later.
+                curr_slice_hdr_.reset();
+                last_slice_hdr_.reset();
+                break;
+              }
+              if (par_res != H265Parser::kOk) {
+                SET_ERROR_AND_RETURN();
+              }
+            }
+            const H265PPS* pps =
+                parser_.GetPPS(curr_slice_hdr_->slice_pic_parameter_set_id);
+            const H265SPS* sps = parser_.GetSPS(pps->pps_seq_parameter_set_id);
+            H265Picture::Vector empty;
+            CHECK_ACCELERATOR_RESULT(accelerator_->SubmitSlice(
+                sps, pps, curr_slice_hdr_.get(), empty, empty, empty, empty,
+                empty, curr_pic_.get(), curr_slice_hdr_->nalu_data,
+                curr_slice_hdr_->nalu_size, parser_.GetCurrentSubsamples()));
+            last_slice_hdr_.swap(curr_slice_hdr_);
+            curr_slice_hdr_.reset();
+            break;
+          }
+          case H265NALU::SPS_NUT: {
+            int sps_id;
+            par_res = parser_.ParseSPS(&sps_id);
+            if (par_res != H265Parser::kOk) {
+              SET_ERROR_AND_RETURN();
+            }
+            accelerator_->ProcessSPS(
+                parser_.GetSPS(sps_id),
+                base::span<const uint8_t>(
+                    curr_nalu_->data,
+                    base::checked_cast<size_t>(curr_nalu_->size)));
+            break;
+          }
+          case H265NALU::PPS_NUT: {
+            int pps_id;
+            par_res = parser_.ParsePPS(*curr_nalu_, &pps_id);
+            if (par_res != H265Parser::kOk) {
+              SET_ERROR_AND_RETURN();
+            }
+            accelerator_->ProcessPPS(
+                parser_.GetPPS(pps_id),
+                base::span<const uint8_t>(
+                    curr_nalu_->data,
+                    base::checked_cast<size_t>(curr_nalu_->size)));
+            break;
+          }
+          default:
+            break;
+        }
+      } else {
+        DVLOG(4) << "Skipping NALU with nuh_layer_id="
+                 << curr_nalu_->nuh_layer_id;
+      }
       curr_nalu_.reset();
       continue;
     }
@@ -312,13 +410,30 @@ H265Decoder::DecodeResult H265Decoder::Decode() {
         last_slice_hdr_.swap(curr_slice_hdr_);
         curr_slice_hdr_.reset();
         break;
+      case H265NALU::VPS_NUT:
+        CHECK_ACCELERATOR_RESULT(FinishPrevFrameIfPresent());
+        int vps_id;
+        par_res = parser_.ParseVPS(&vps_id);
+        if (par_res != H265Parser::kOk) {
+          SET_ERROR_AND_RETURN();
+        }
+        accelerator_->ProcessVPS(
+            parser_.GetVPS(vps_id),
+            base::span<const uint8_t>(
+                curr_nalu_->data,
+                base::checked_cast<size_t>(curr_nalu_->size)));
+        break;
       case H265NALU::SPS_NUT:
         CHECK_ACCELERATOR_RESULT(FinishPrevFrameIfPresent());
         int sps_id;
         par_res = parser_.ParseSPS(&sps_id);
         if (par_res != H265Parser::kOk)
           SET_ERROR_AND_RETURN();
-
+        accelerator_->ProcessSPS(
+            parser_.GetSPS(sps_id),
+            base::span<const uint8_t>(
+                curr_nalu_->data,
+                base::checked_cast<size_t>(curr_nalu_->size)));
         break;
       case H265NALU::PPS_NUT:
         CHECK_ACCELERATOR_RESULT(FinishPrevFrameIfPresent());
@@ -326,6 +441,11 @@ H265Decoder::DecodeResult H265Decoder::Decode() {
         par_res = parser_.ParsePPS(*curr_nalu_, &pps_id);
         if (par_res != H265Parser::kOk)
           SET_ERROR_AND_RETURN();
+        accelerator_->ProcessPPS(
+            parser_.GetPPS(pps_id),
+            base::span<const uint8_t>(
+                curr_nalu_->data,
+                base::checked_cast<size_t>(curr_nalu_->size)));
 
         // For ARC CTS tests they expect us to request the buffers after only
         // processing the SPS/PPS, we can't wait until we get the first IDR. To
@@ -377,16 +497,18 @@ H265Decoder::DecodeResult H265Decoder::Decode() {
               // 3. Both container and bitstream.
               // Thus we should also extract HDR metadata here in case we
               // miss the information.
-              if (!hdr_metadata_)
-                hdr_metadata_ = gfx::HDRMetadata();
-              sei_msg.content_light_level_info.PopulateHDRMetadata(
-                  hdr_metadata_.value());
+              if (!hdr_metadata_.has_value()) {
+                hdr_metadata_.emplace();
+              }
+              hdr_metadata_->cta_861_3 =
+                  sei_msg.content_light_level_info.ToGfx();
               break;
             case H265SEIMessage::kSEIMasteringDisplayInfo:
-              if (!hdr_metadata_)
-                hdr_metadata_ = gfx::HDRMetadata();
-              sei_msg.mastering_display_info.PopulateColorVolumeMetadata(
-                  hdr_metadata_->color_volume_metadata);
+              if (!hdr_metadata_.has_value()) {
+                hdr_metadata_.emplace();
+              }
+              hdr_metadata_->smpte_st_2086 =
+                  sei_msg.mastering_display_info.ToGfx();
               break;
             default:
               break;
@@ -424,6 +546,9 @@ VideoChromaSampling H265Decoder::GetChromaSampling() const {
   return chroma_sampling_;
 }
 
+VideoColorSpace H265Decoder::GetVideoColorSpace() const {
+  return picture_color_space_;
+}
 absl::optional<gfx::HDRMetadata> H265Decoder::GetHDRMetadata() const {
   return hdr_metadata_;
 }
@@ -460,10 +585,6 @@ bool H265Decoder::ProcessPPS(int pps_id, bool* need_new_buffers) {
   }
 
   VideoChromaSampling new_chroma_sampling = sps->GetChromaSampling();
-  if (new_chroma_sampling != chroma_sampling_) {
-    base::UmaHistogramEnumeration("Media.PlatformVideoDecoding.ChromaSampling",
-                                  new_chroma_sampling);
-  }
 
   if (!accelerator_->IsChromaSamplingSupported(new_chroma_sampling)) {
     DVLOG(1) << "Only YUV 4:2:0 is supported";
@@ -476,18 +597,36 @@ bool H265Decoder::ProcessPPS(int pps_id, bool* need_new_buffers) {
 
   VideoCodecProfile new_profile = H265Parser::ProfileIDCToVideoCodecProfile(
       sps->profile_tier_level.general_profile_idc);
-  uint8_t new_bit_depth = 0;
-  if (!ParseBitDepth(*sps, new_bit_depth))
+  if (new_profile == VIDEO_CODEC_PROFILE_UNKNOWN) {
     return false;
+  }
+  uint8_t new_bit_depth = 0;
+  if (!ParseBitDepth(*sps, new_bit_depth)) {
+    return false;
+  }
   if (!IsValidBitDepth(new_bit_depth, new_profile)) {
     DVLOG(1) << "Invalid bit depth=" << base::strict_cast<int>(new_bit_depth)
              << ", profile=" << GetProfileName(new_profile);
     return false;
   }
 
+  VideoColorSpace new_color_space;
+  // For H265, prefer the frame color space over the config.
+  if (sps->GetColorSpace().IsSpecified()) {
+    new_color_space = sps->GetColorSpace();
+  } else if (container_color_space_.IsSpecified()) {
+    new_color_space = container_color_space_;
+  }
+
+  bool is_color_space_change = false;
+  if (base::FeatureList::IsEnabled(kAVDColorSpaceChanges)) {
+    is_color_space_change = new_color_space.IsSpecified() &&
+                            new_color_space != picture_color_space_;
+  }
+
   if (pic_size_ != new_pic_size || dpb_.max_num_pics() != sps->max_dpb_size ||
       profile_ != new_profile || bit_depth_ != new_bit_depth ||
-      chroma_sampling_ != new_chroma_sampling) {
+      chroma_sampling_ != new_chroma_sampling || is_color_space_change) {
     if (!Flush())
       return false;
     DVLOG(1) << "Codec profile: " << GetProfileName(new_profile)
@@ -501,6 +640,7 @@ bool H265Decoder::ProcessPPS(int pps_id, bool* need_new_buffers) {
     bit_depth_ = new_bit_depth;
     pic_size_ = new_pic_size;
     chroma_sampling_ = new_chroma_sampling;
+    picture_color_space_ = new_color_space;
     dpb_.set_max_num_pics(sps->max_dpb_size);
     if (need_new_buffers)
       *need_new_buffers = true;
@@ -550,8 +690,9 @@ void H265Decoder::CalcPicOutputFlags(const H265SliceHeader* slice_hdr) {
         (curr_nalu_->nal_unit_type >= H265NALU::BLA_W_LP &&
          curr_nalu_->nal_unit_type <= H265NALU::IDR_N_LP) ||
         curr_pic_->first_picture_;
+    no_rasl_output_flag_ = curr_pic_->no_rasl_output_flag_;
   } else {
-    curr_pic_->no_rasl_output_flag_ = false;
+    curr_pic_->no_rasl_output_flag_ = no_rasl_output_flag_;
   }
 
   // C.5.2.2
@@ -882,10 +1023,9 @@ H265Decoder::H265Accelerator::Status H265Decoder::StartNewFrame(
 
     curr_pic_->set_visible_rect(visible_rect_);
     curr_pic_->set_bitstream_id(stream_id_);
-    if (sps->GetColorSpace().IsSpecified())
-      curr_pic_->set_colorspace(sps->GetColorSpace());
-    else
-      curr_pic_->set_colorspace(container_color_space_);
+
+    // Set the color space for the picture.
+    curr_pic_->set_colorspace(picture_color_space_);
 
     CalcPicOutputFlags(slice_hdr);
     CalcPictureOrderCount(pps, slice_hdr);
@@ -901,6 +1041,7 @@ H265Decoder::H265Accelerator::Status H265Decoder::StartNewFrame(
     if (!PerformDpbOperations(sps)) {
       return H265Accelerator::Status::kFail;
     }
+
     curr_pic_->processed_ = true;
   }
 
@@ -910,22 +1051,31 @@ H265Decoder::H265Accelerator::Status H265Decoder::StartNewFrame(
 }
 
 H265Decoder::H265Accelerator::Status H265Decoder::FinishPrevFrameIfPresent() {
-  // If we already have a frame waiting to be decoded, decode it and finish.
-  if (curr_pic_) {
-    H265Accelerator::Status result = DecodePicture();
-    if (result != H265Accelerator::Status::kOk)
-      return result;
+  // If we don't already have a frame waiting to be decoded, do nothing.
+  if (!curr_pic_) {
+    return H265Accelerator::Status::kOk;
+  }
 
-    scoped_refptr<H265Picture> pic = curr_pic_;
-    curr_pic_ = nullptr;
-    FinishPicture(pic);
+  // If there is no slice header (eg. because the last one was dropped due to
+  // a missing PPS), this picture can't be decoded.
+  if (!last_slice_hdr_) {
+    return H265Accelerator::Status::kFail;
+  }
+
+  H265Accelerator::Status result = DecodePicture();
+  if (result != H265Accelerator::Status::kOk) {
+    return result;
+  }
+
+  if (!FinishPicture(std::move(curr_pic_), std::move(last_slice_hdr_))) {
+    return H265Accelerator::Status::kFail;
   }
 
   return H265Accelerator::Status::kOk;
 }
 
 bool H265Decoder::PerformDpbOperations(const H265SPS* sps) {
-  // C.5.2.2
+  // C.5.2.2 - Output and removal of pictures from the DPB
   if (curr_pic_->irap_pic_ && curr_pic_->no_rasl_output_flag_ &&
       !curr_pic_->first_picture_) {
     if (!curr_pic_->no_output_of_prior_pics_flag_) {
@@ -945,16 +1095,39 @@ bool H265Decoder::PerformDpbOperations(const H265SPS* sps) {
       // Calculate how many pictures we need to output.
       num_to_output = 0;
       int highest_tid = sps->sps_max_sub_layers_minus1;
+
+      // C.5.2.2 - "The number of pictures in the DPB that are marked as "needed
+      // for output" is greater than sps_max_num_reorder_pics[ HighestTid ]."
       num_to_output = std::max(num_to_output,
                                static_cast<int>(not_outputted.size()) -
                                    sps->sps_max_num_reorder_pics[highest_tid]);
+
+      // C.5.2.2 - "The number of pictures in the DPB is greater than or equal
+      // to sps_max_dec_pic_buffering_minus1[ HighestTid ] + 1 −
+      // TwoVersionsOfCurrDecPicFlag."
       num_to_output =
           std::max(num_to_output,
                    static_cast<int>(dpb_.size()) -
                        sps->sps_max_dec_pic_buffering_minus1[highest_tid]);
 
+      // C.5.2.2 - "sps_max_latency_increase_plus1[ HighestTid ] is not equal to
+      // 0 and there is at least one picture in the DPB that is marked as
+      // "needed for output" for which the associated variable PicLatencyCount
+      // is greater than or equal to SpsMaxLatencyPictures[ HighestTid ]."
+      int pic_latency_output_count = 0;
+      if (sps->sps_max_latency_increase_plus1[highest_tid] != 0) {
+        for (const auto& pic : not_outputted) {
+          if (pic->pic_latency_count_ >=
+              sps->sps_max_latency_pictures[highest_tid]) {
+            ++pic_latency_output_count;
+          }
+        }
+      }
+      num_to_output = std::max(num_to_output, pic_latency_output_count);
+
       num_to_output =
           std::min(num_to_output, static_cast<int>(not_outputted.size()));
+
       if (!num_to_output && dpb_.IsFull()) {
         // This is wrong, we should try to output pictures until we can clear
         // one from the DPB. This is better than failing, but we then may end up
@@ -967,10 +1140,6 @@ bool H265Decoder::PerformDpbOperations(const H265SPS* sps) {
         }
       }
 
-      // TODO(jkardatzke): There's another output picture requirement regarding
-      // the sps_max_latency_increase_plus1, but I have yet to understand how
-      // that could be larger than the sps_max_num_reorder_pics since the actual
-      // latency value used is the sum of both.
       not_outputted.resize(num_to_output);
       for (auto& pic : not_outputted) {
         if (!OutputPic(pic))
@@ -991,10 +1160,86 @@ bool H265Decoder::PerformDpbOperations(const H265SPS* sps) {
   return true;
 }
 
-void H265Decoder::FinishPicture(scoped_refptr<H265Picture> pic) {
+bool H265Decoder::FinishPicture(scoped_refptr<H265Picture> pic,
+                                std::unique_ptr<H265SliceHeader> slice_hdr) {
   // 8.3.1
   if (pic->valid_for_prev_tid0_pic_)
     prev_tid0_pic_ = pic;
+
+  int pps_id = slice_hdr->slice_pic_parameter_set_id;
+  const H265PPS* pps = parser_.GetPPS(pps_id);
+  // Slice header parsing already verified this should exist.
+  DCHECK(pps);
+
+  int sps_id = pps->pps_seq_parameter_set_id;
+  const H265SPS* sps = parser_.GetSPS(sps_id);
+  // Slice header parsing already verified this should exist.
+  DCHECK(sps);
+
+  // C.5.2.3 - Additional bumping
+  if (pic->pic_output_flag_) {
+    // C.5.2.3 - "When the current picture has PicOutputFlag equal to 1, for
+    // each picture in the DPB that is marked as "needed for output" and follows
+    // the current picture in output order, the associated variable
+    // PicLatencyCount is set equal to PicLatencyCount + 1."
+    H265Picture::Vector to_output;
+    dpb_.AppendPendingOutputPics(&to_output);
+    for (const auto& pending_output_pic : to_output) {
+      if (pic->pic_order_cnt_val_ < pending_output_pic->pic_order_cnt_val_) {
+        ++pending_output_pic->pic_latency_count_;
+      }
+    }
+
+    // C.5.2.3 - "If the current decoded picture has PicOutputFlag equal to 1,
+    // it is marked as "needed for output" and its associated variable
+    // PicLatencyCount is set equal to 0."
+    pic->pic_latency_count_ = 0;
+  }
+
+  // Get all pictures that haven't been outputted yet.
+  H265Picture::Vector not_outputted;
+  dpb_.AppendPendingOutputPics(&not_outputted);
+
+  // Sort in output order.
+  std::sort(not_outputted.begin(), not_outputted.end(), POCAscCompare());
+
+  // C.5.2.3 - "When one or more of the following conditions are true, the
+  // "bumping" process specified in clause C.5.2.4 is invoked repeatedly until
+  // none of the following conditions are true:
+
+  // C.5.2.3 - "The number of pictures in the DPB that are marked as "needed
+  // for output" is greater than sps_max_num_reorder_pics[ HighestTid ]."
+  int num_to_output = 0;
+  int highest_tid = sps->sps_max_sub_layers_minus1;
+  num_to_output =
+      std::max(num_to_output, static_cast<int>(not_outputted.size()) -
+                                  sps->sps_max_num_reorder_pics[highest_tid]);
+
+  // C.5.2.3 - "sps_max_latency_increase_plus1[ HighestTid ] is not equal to 0
+  // and there is at least one picture in the DPB that is marked as "needed for
+  // output" for which the associated variable PicLatencyCount that is greater
+  // than or equal to SpsMaxLatencyPictures[ HighestTid ]."
+  int pic_latency_output_count = 0;
+  if (sps->sps_max_latency_increase_plus1[highest_tid] != 0) {
+    for (auto& pending_output_pic : not_outputted) {
+      if (pending_output_pic->pic_latency_count_ >=
+          sps->sps_max_latency_pictures[highest_tid]) {
+        ++pic_latency_output_count;
+      }
+    }
+  }
+  num_to_output = std::max(num_to_output, pic_latency_output_count);
+
+  // C.5.2.4 - "Bumping" process
+  num_to_output =
+      std::min(num_to_output, static_cast<int>(not_outputted.size()));
+  not_outputted.resize(num_to_output);
+  for (auto& pending_output_pic : not_outputted) {
+    if (!OutputPic(pending_output_pic)) {
+      return false;
+    }
+  }
+  dpb_.DeleteUnused();
 
   ref_pic_list_.clear();
   ref_pic_list0_.clear();
@@ -1003,7 +1248,7 @@ void H265Decoder::FinishPicture(scoped_refptr<H265Picture> pic) {
   ref_pic_set_st_curr_after_.clear();
   ref_pic_set_st_curr_before_.clear();
 
-  last_slice_hdr_.reset();
+  return true;
 }
 
 H265Decoder::H265Accelerator::Status H265Decoder::DecodePicture() {

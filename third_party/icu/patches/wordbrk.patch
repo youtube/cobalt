@@ -1,5 +1,5 @@
 diff --git a/source/data/brkitr/rules/word.txt b/source/data/brkitr/rules/word.txt
-index 0f0e734d27c0..b46038237859 100644
+index 0f0e734d..b4603823 100644
 --- a/source/data/brkitr/rules/word.txt
 +++ b/source/data/brkitr/rules/word.txt
 @@ -38,12 +38,34 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
@@ -41,7 +41,7 @@ index 0f0e734d27c0..b46038237859 100644
  $ExtendNumLet       = [\p{Word_Break = ExtendNumLet}];
  $WSegSpace          = [\p{Word_Break = WSegSpace}];
 diff --git a/source/data/brkitr/rules/word_POSIX.txt b/source/data/brkitr/rules/word_POSIX.txt
-index e62fd7fac3b1..1115b464d835 100644
+index e62fd7fa..1115b464 100644
 --- a/source/data/brkitr/rules/word_POSIX.txt
 +++ b/source/data/brkitr/rules/word_POSIX.txt
 @@ -38,12 +38,30 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];
@@ -79,7 +79,7 @@ index e62fd7fac3b1..1115b464d835 100644
  $ExtendNumLet       = [\p{Word_Break = ExtendNumLet}];
  $WSegSpace          = [\p{Word_Break = WSegSpace}];
 diff --git a/source/data/brkitr/rules/word_fi_sv.txt b/source/data/brkitr/rules/word_fi_sv.txt
-index 544558f91adf..da79385318d0 100644
+index 544558f9..da793853 100644
 --- a/source/data/brkitr/rules/word_fi_sv.txt
 +++ b/source/data/brkitr/rules/word_fi_sv.txt
 @@ -38,12 +38,34 @@ $Regional_Indicator = [\p{Word_Break = Regional_Indicator}];

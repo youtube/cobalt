@@ -37,7 +37,7 @@
 #include "components/site_engagement/content/site_engagement_score.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/ukm/test_ukm_recorder.h"
-#include "components/url_formatter/spoof_checks/top_domains/test_top500_domains.h"
+#include "components/url_formatter/spoof_checks/top_domains/test_top_bucket_domains.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_paths.h"
@@ -267,7 +267,7 @@ class LookalikeUrlNavigationThrottleBrowserTest
     test_helper_ =
         std::make_unique<LookalikeTestHelper>(test_ukm_recorder_.get());
 
-    const base::Time kNow = base::Time::FromDoubleT(1000);
+    const base::Time kNow = base::Time::FromSecondsSinceUnixEpoch(1000);
     test_clock_.SetNow(kNow);
 
     LookalikeUrlService* lookalike_service =
@@ -1856,7 +1856,7 @@ class LookalikeUrlNavigationThrottlePrerenderBrowserTest
   }
 
   void SetUpOnMainThread() override {
-    prerender_helper_->SetUp(https_server());
+    prerender_helper_->RegisterServerRequestMonitor(https_server());
     LookalikeUrlNavigationThrottleBrowserTest::SetUpOnMainThread();
   }
 

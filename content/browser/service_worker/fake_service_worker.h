@@ -53,11 +53,17 @@ class FakeServiceWorker : public blink::mojom::ServiceWorker {
   // Flush messages in the message pipe.
   void FlushForTesting();
 
+  base::WeakPtr<FakeServiceWorker> AsWeakPtr();
+
  protected:
   // blink::mojom::ServiceWorker overrides:
   void InitializeGlobalScope(
       mojo::PendingAssociatedRemote<blink::mojom::ServiceWorkerHost>
           service_worker_host,
+      mojo::PendingAssociatedRemote<blink::mojom::AssociatedInterfaceProvider>
+          associated_interfaces_from_browser,
+      mojo::PendingAssociatedReceiver<blink::mojom::AssociatedInterfaceProvider>
+          associated_interfaces_to_browser,
       blink::mojom::ServiceWorkerRegistrationObjectInfoPtr registration_info,
       blink::mojom::ServiceWorkerObjectInfoPtr service_worker_info,
       FetchHandlerExistence fetch_handler_existence,
@@ -160,6 +166,8 @@ class FakeServiceWorker : public blink::mojom::ServiceWorker {
 
   // absl::nullopt means SetIdleDelay() is not called.
   absl::optional<base::TimeDelta> idle_delay_;
+
+  base::WeakPtrFactory<FakeServiceWorker> weak_ptr_factory_{this};
 };
 
 }  // namespace content

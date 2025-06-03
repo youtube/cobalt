@@ -36,7 +36,7 @@
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/site_engagement/content/site_engagement_service.h"
-#include "components/url_formatter/spoof_checks/top_domains/top500_domains.h"
+#include "components/url_formatter/spoof_checks/top_domains/top_bucket_domains.h"
 #include "components/url_formatter/spoof_checks/top_domains/top_domain_util.h"
 #include "content/public/browser/navigation_handle.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
@@ -102,7 +102,7 @@ bool IsLookalikeUrl(Profile* profile,
 
 BASE_FEATURE(kPrewarmLookalikeCheck,
              "PrewarmLookalikeCheck",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 LookalikeUrlNavigationThrottle::LookalikeUrlNavigationThrottle(
     content::NavigationHandle* navigation_handle)
@@ -130,7 +130,7 @@ ThrottleCheckResult LookalikeUrlNavigationThrottle::WillRedirectRequest() {
   if (base::FeatureList::IsEnabled(kPrewarmLookalikeCheck) &&
       redirect_lookup_cache_checks_ <
           base::GetFieldTrialParamByFeatureAsInt(
-              kPrewarmLookalikeCheck, "redirect_lookup_cache_limit", 10)) {
+              kPrewarmLookalikeCheck, "redirect_lookup_cache_limit", 2)) {
     redirect_lookup_cache_checks_++;
     PrewarmLookalikeCheckAsync();
   }

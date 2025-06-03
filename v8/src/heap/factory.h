@@ -17,12 +17,8 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
-#include "src/objects/code.h"
-#include "src/objects/dictionary.h"
-#include "src/objects/js-array.h"
+// TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
-#include "src/objects/shared-function-info.h"
-#include "src/objects/string.h"
 
 namespace unibrow {
 enum class Utf8Variant : uint8_t;
@@ -119,21 +115,17 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+enum class ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
   inline ReadOnlyRoots read_only_roots() const;
 
-  Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
-                             Handle<Object> to_number, const char* type_of,
-                             byte kind);
-
-  // Marks self references within code generation.
-  Handle<Oddball> NewSelfReferenceMarker();
-
-  // Marks references to a function's basic-block usage counters array during
-  // code generation.
-  Handle<Oddball> NewBasicBlockCountersMarker();
+  Handle<Hole> NewHole();
 
   // Allocates a property array initialized with undefined values.
   Handle<PropertyArray> NewPropertyArray(
@@ -146,10 +138,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT
   MaybeHandle<FixedArray> TryNewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
-
-  // Allocates a closure feedback cell array whose feedback cells are
-  // initialized with undefined values.
-  Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(int num_slots);
 
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
@@ -167,11 +155,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocates a NameDictionary with an internal capacity calculated such that
   // |at_least_space_for| entries can be added without reallocating.
   Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
-
-  // Allocates an OrderedNameDictionary of the given capacity. This guarantees
-  // that |capacity| entries can be added without reallocating.
-  Handle<OrderedNameDictionary> NewOrderedNameDictionary(
-      int capacity = OrderedNameDictionary::kInitialCapacity);
 
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
@@ -196,6 +179,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a new Tuple2 struct.
+  Handle<Tuple2> NewTuple2Uninitialized(AllocationType allocation);
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
 
@@ -204,7 +188,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(const base::Vector<const char>& str);
+  Handle<String> InternalizeUtf8String(base::Vector<const char> str);
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(base::CStrVector(str));
   }
@@ -215,6 +199,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<String> InternalizeString(base::Vector<const char> str,
                                    bool convert_encoding = false) {
     return InternalizeString(base::Vector<const uint8_t>::cast(str));
+  }
+
+  Handle<String> InternalizeString(const char* str,
+                                   bool convert_encoding = false) {
+    return InternalizeString(base::OneByteVector(str));
   }
 
   template <typename SeqString>
@@ -248,26 +237,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
-      const char (&str)[N],
-      AllocationType allocation = AllocationType::kYoung) {
-    DCHECK_EQ(N, strlen(str) + 1);
-    return NewStringFromOneByte(base::StaticOneByteVector(str), allocation)
-        .ToHandleChecked();
-  }
-
+      const char (&str)[N], AllocationType allocation = AllocationType::kYoung);
   inline Handle<String> NewStringFromAsciiChecked(
-      const char* str, AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromOneByte(base::OneByteVector(str), allocation)
-        .ToHandleChecked();
-  }
+      const char* str, AllocationType allocation = AllocationType::kYoung);
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      const base::Vector<const char>& str,
+      base::Vector<const char> str,
       AllocationType allocation = AllocationType::kYoung);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      const base::Vector<const uint8_t>& str, unibrow::Utf8Variant utf8_variant,
+      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -291,7 +271,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      const base::Vector<const base::uc16>& str,
+      base::Vector<const base::uc16> str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
@@ -302,7 +282,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Usually the two-byte encodings are in the native endianness, but for
   // WebAssembly linear memory, they are explicitly little-endian.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByteLittleEndian(
-      const base::Vector<const base::uc16>& str,
+      base::Vector<const base::uc16> str,
       AllocationType allocation = AllocationType::kYoung);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -350,6 +330,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Create a new string object which holds a proper substring of a string.
   Handle<String> NewProperSubString(Handle<String> str, int begin, int end);
+  // Same, but always copies (never creates a SlicedString).
+  // {str} must be flat, {length} must be non-zero.
+  Handle<String> NewCopiedSubstring(Handle<String> str, int begin, int length);
 
   // Create a new string object which holds a substring of a string.
   inline Handle<String> NewSubString(Handle<String> str, int begin, int end);
@@ -360,9 +343,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
-      const ExternalOneByteString::Resource* resource);
+      const v8::String::ExternalOneByteStringResource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
+      const v8::String::ExternalStringResource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);
@@ -457,7 +440,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
-  Handle<Cell> NewCell(Smi value);
+  Handle<Cell> NewCell(Tagged<Smi> value);
   Handle<Cell> NewCell();
 
   Handle<PropertyCell> NewPropertyCell(
@@ -483,9 +466,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Initializes the fields of a newly created Map using roots from the
   // passed-in Heap. Exposed for tests and heap setup; other code should just
   // call NewMap which takes care of it.
-  Map InitializeMap(Map map, InstanceType type, int instance_size,
-                    ElementsKind elements_kind, int inobject_properties,
-                    Heap* roots);
+  Tagged<Map> InitializeMap(Tagged<Map> map, InstanceType type,
+                            int instance_size, ElementsKind elements_kind,
+                            int inobject_properties, Heap* roots);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
@@ -536,6 +519,24 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(Handle<FixedDoubleArray> array);
 
+  template <ExternalPointerTag tag>
+  Handle<ExternalPointerArray> CopyExternalPointerArrayAndGrow(
+      Handle<ExternalPointerArray> src, int grow_by,
+      AllocationType alloction = AllocationType::kYoung) {
+    int old_len = src->length();
+    int new_len = old_len + grow_by;
+    Handle<ExternalPointerArray> result = NewExternalPointerArray(new_len);
+
+    // Copy the pointers one-by-one. We can't just do a memcpy here since when
+    // the sandbox is enabled, this array will contain external pointer handles
+    // which must not be copied/moved between objects.
+    for (int i = 0; i < old_len; i++) {
+      result->set<tag>(i, isolate(), src->get<tag>(i, isolate()));
+    }
+
+    return result;
+  }
+
   // Creates a new HeapNumber in read-only space if possible otherwise old
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
@@ -565,19 +566,19 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewJSObjectFromMap(
       Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
-  // Like NewJSObjectFromMap, but includes allocating a properties dictionary.
+  // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
-      Handle<Map> map,
-      int number_of_slow_properties = NameDictionary::kInitialCapacity,
+      Handle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  Handle<JSObject> NewSlowJSObjectFromMap(Handle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
   // map is a dictionary map.
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
-      Handle<Map> map,
-      int number_of_slow_properties = NameDictionary::kInitialCapacity,
+      Handle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(Handle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
   // {prototype} and {properties}. The newly created object will be
   // in dictionary properties mode. The {elements} can either be the
@@ -594,7 +595,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSArray> NewJSArray(
@@ -603,8 +605,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     if (capacity != 0) {
       elements_kind = GetHoleyElementsKind(elements_kind);
     }
-    return NewJSArray(elements_kind, 0, capacity,
-                      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, allocation);
+    return NewJSArray(
+        elements_kind, 0, capacity,
+        ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+        allocation);
   }
 
   // Create a JSArray with the given elements.
@@ -623,7 +627,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   void NewJSArrayStorage(
       Handle<JSArray> array, int length, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   Handle<JSWeakMap> NewJSWeakMap();
 
@@ -638,7 +643,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,
                                        int instance_size_bytes,
-                                       Handle<WasmInstanceObject> instance,
+                                       Handle<WasmInstanceObject> opt_instance,
                                        uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(Address opt_call_target,
                                                        Handle<HeapObject> ref,
@@ -654,13 +659,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
       int wrapper_budget, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
-      Handle<JSReceiver> callable, wasm::Suspend suspend,
-      Handle<WasmInstanceObject> instance);
+      Handle<HeapObject> callable, wasm::Suspend suspend,
+      Handle<HeapObject> instance,
+      Handle<PodArray<wasm::ValueType>> serialized_sig);
+  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
+      Handle<WasmApiFunctionRef> ref);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
-      Address opt_call_target, Handle<JSReceiver> callable, int return_count,
-      int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
+      Address opt_call_target, Handle<JSReceiver> callable,
+      Handle<PodArray<wasm::ValueType>> serialized_sig,
       Handle<Code> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
       wasm::Promise promise);
   Handle<WasmResumeData> NewWasmResumeData(
@@ -760,8 +768,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
-  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
-
   // Allocates a new code object and initializes it to point to the given
   // off-heap entry point.
   //
@@ -781,7 +787,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Interface for creating error objects.
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
-                            Handle<String> message);
+                            Handle<String> message,
+                            Handle<Object> options = Handle<Object>());
 
   Handle<Object> NewInvalidStringLengthError();
 
@@ -789,15 +796,28 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
                             MessageTemplate template_index,
-                            Handle<Object> arg0 = Handle<Object>(),
-                            Handle<Object> arg1 = Handle<Object>(),
-                            Handle<Object> arg2 = Handle<Object>());
+                            base::Vector<const Handle<Object>> args);
 
-#define DECLARE_ERROR(NAME)                                          \
-  Handle<JSObject> New##NAME(MessageTemplate template_index,         \
-                             Handle<Object> arg0 = Handle<Object>(), \
-                             Handle<Object> arg1 = Handle<Object>(), \
-                             Handle<Object> arg2 = Handle<Object>());
+  template <typename... Args,
+            typename = std::enable_if_t<std::conjunction_v<
+                std::is_convertible<Args, Handle<Object>>...>>>
+  Handle<JSObject> NewError(Handle<JSFunction> constructor,
+                            MessageTemplate template_index, Args... args) {
+    return NewError(constructor, template_index,
+                    base::VectorOf<Handle<Object>>({args...}));
+  }
+
+#define DECLARE_ERROR(NAME)                                                  \
+  Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
+                             base::Vector<const Handle<Object>> args);       \
+                                                                             \
+  template <typename... Args,                                                \
+            typename = std::enable_if_t<std::conjunction_v<                  \
+                std::is_convertible<Args, Handle<Object>>...>>>              \
+  Handle<JSObject> New##NAME(MessageTemplate template_index, Args... args) { \
+    return New##NAME(template_index,                                         \
+                     base::VectorOf<Handle<Object>>({args...}));             \
+  }
   DECLARE_ERROR(Error)
   DECLARE_ERROR(EvalError)
   DECLARE_ERROR(RangeError)
@@ -867,7 +887,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<StoreHandler> NewStoreHandler(int data_count);
   Handle<MegaDomHandler> NewMegaDomHandler(MaybeObjectHandle accessor,
                                            MaybeObjectHandle context);
-  Handle<RegExpMatchInfo> NewRegExpMatchInfo();
 
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.
@@ -898,7 +917,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
 
-  HeapObject NewForTest(Handle<Map> map, AllocationType allocation) {
+  Tagged<HeapObject> NewForTest(Handle<Map> map, AllocationType allocation) {
     return New(map, allocation);
   }
 
@@ -1039,14 +1058,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
-    // Dispatches to support concurrent allocation.
-    inline bool CompiledWithConcurrentBaseline() const;
     Handle<ByteArray> NewByteArray(int length, AllocationType allocation);
-    MaybeHandle<InstructionStream> NewInstructionStream(
-        bool retry_allocation_or_fail);
-    MaybeHandle<InstructionStream> AllocateInstructionStream(
-        bool retry_allocation_or_fail);
-    MaybeHandle<InstructionStream> AllocateConcurrentSparkplugInstructionStream(
+    // Return an allocation suitable for InstructionStreams but without writing
+    // the map.
+    Tagged<HeapObject> AllocateUninitializedInstructionStream(
         bool retry_allocation_or_fail);
     Handle<Code> NewCode(const NewCodeOptions& options);
 
@@ -1074,8 +1089,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // ------
   // Customization points for FactoryBase
-  HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned);
 
   Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -1105,7 +1121,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                         ScriptEventType script_event_type);
   // ------
 
-  HeapObject AllocateRawWithAllocationSite(
+  Tagged<HeapObject> AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
       Handle<AllocationSite> allocation_site);
 
@@ -1113,14 +1129,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map, Handle<FixedArrayBase> elements,
       Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
 
-  Symbol NewSymbolInternal(AllocationType allocation = AllocationType::kOld);
+  Tagged<Symbol> NewSymbolInternal(
+      AllocationType allocation = AllocationType::kOld);
 
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Context NewContextInternal(Handle<Map> map, int size,
-                             int variadic_part_length,
-                             AllocationType allocation);
+  Tagged<Context> NewContextInternal(Handle<Map> map, int size,
+                                     int variadic_part_length,
+                                     AllocationType allocation);
 
   template <typename T>
   Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
@@ -1128,7 +1145,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Creates a heap object based on the map. The fields of the heap object are
   // not initialized, it's the responsibility of the caller to do that.
-  HeapObject New(Handle<Map> map, AllocationType allocation);
+  Tagged<HeapObject> New(Handle<Map> map, AllocationType allocation);
 
   template <typename T>
   Handle<T> CopyArrayWithMap(
@@ -1142,12 +1159,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                            AllocationType allocation);
 
   // Functions to get the hash of a number for the number_string_cache.
-  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(Tagged<Smi> number);
   int NumberToStringCacheHash(double number);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  V8_INLINE Handle<Object> NumberToStringCacheGet(Object number, int hash);
+  V8_INLINE Handle<Object> NumberToStringCacheGet(Tagged<Object> number,
+                                                  int hash);
 
   // Update the cache with a new number-string pair.
   V8_INLINE void NumberToStringCacheSet(Handle<Object> number, int hash,
@@ -1168,15 +1186,18 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // this method requires capacity greater than zero.
   Handle<FixedArrayBase> NewJSArrayStorage(
       ElementsKind elements_kind, int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode mode =
+          ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
-  void InitializeAllocationMemento(AllocationMemento memento,
-                                   AllocationSite allocation_site);
+  void InitializeAllocationMemento(Tagged<AllocationMemento> memento,
+                                   Tagged<AllocationSite> allocation_site);
 
   // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(JSObject obj, Object properties, Map map);
+  void InitializeJSObjectFromMap(Tagged<JSObject> obj,
+                                 Tagged<Object> properties, Tagged<Map> map);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(JSObject obj, Map map, int start_offset);
+  void InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
+                              int start_offset);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
@@ -1185,7 +1206,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // The resulting array will be uninitialized, which means GC might fail for
   // reference arrays until initialization. Follow this up with a
   // {DisallowGarbageCollection} scope until initialization.
-  WasmArray NewWasmArrayUninitialized(uint32_t length, Handle<Map> map);
+  Tagged<WasmArray> NewWasmArrayUninitialized(uint32_t length, Handle<Map> map);
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

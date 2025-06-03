@@ -10,11 +10,17 @@
 
 #include "base/functional/callback.h"
 #include "components/permissions/permission_ui_selector.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
 namespace content {
 class WebContents;
 }
+
+namespace ui {
+class Event;
+}  // namespace ui
 
 namespace permissions {
 enum class PermissionPromptDisposition;
@@ -63,6 +69,12 @@ class PermissionPrompt {
     virtual void Deny() = 0;
     virtual void Dismiss() = 0;
     virtual void Ignore() = 0;
+
+    // Called to explicitly finalize the request, if
+    // |ShouldFinalizeRequestAfterDecided| returns false.
+    virtual void FinalizeCurrentRequests() = 0;
+
+    virtual void OpenHelpCenterLink(const ui::Event& event) = 0;
 
     // This method preemptively ignores a permission request but does not
     // finalize a permission prompt. That is needed in case a permission prompt
@@ -142,6 +154,14 @@ class PermissionPrompt {
 
   // Get the type of prompt UI shown for metrics.
   virtual PermissionPromptDisposition GetPromptDisposition() const = 0;
+
+  // Get the prompt view bounds in screen coordinates.
+  virtual absl::optional<gfx::Rect> GetViewBoundsInScreen() const = 0;
+
+  // Get whether the permission request is allowed to be finalized as soon a
+  // decision is transmitted. If this returns `false` the delegate should wait
+  // for an explicit |Delegate::FinalizeCurrentRequests()| call to be made.
+  virtual bool ShouldFinalizeRequestAfterDecided() const = 0;
 };
 
 }  // namespace permissions

@@ -50,6 +50,8 @@ class VIEWS_EXPORT LabelButton : public Button, public NativeThemeDelegate {
   virtual gfx::ImageSkia GetImage(ButtonState for_state) const;
   // TODO(http://crbug.com/1100034) prefer SetImageModel over SetImage().
   void SetImage(ButtonState for_state, const gfx::ImageSkia& image);
+
+  const ui::ImageModel& GetImageModel(ButtonState for_state) const;
   virtual void SetImageModel(ButtonState for_state,
                              const ui::ImageModel& image_model);
   bool HasImage(ButtonState for_state) const;
@@ -57,6 +59,9 @@ class VIEWS_EXPORT LabelButton : public Button, public NativeThemeDelegate {
   // Gets or sets the text shown on the button.
   const std::u16string& GetText() const;
   virtual void SetText(const std::u16string& text);
+
+  // Set the text style of the label.
+  void SetLabelStyle(views::style::TextStyle text_style);
 
   // Makes the button report its preferred size without the label. This lets
   // AnimatingLayoutManager gradually shrink the button until the text is
@@ -126,6 +131,11 @@ class VIEWS_EXPORT LabelButton : public Button, public NativeThemeDelegate {
   // Creates the default border for this button. This can be overridden by
   // subclasses.
   virtual std::unique_ptr<LabelButtonBorder> CreateDefaultBorder() const;
+
+  // Normally a LabelButton only appears as disabled in an inactive widget if
+  // PlatformStyle::kInactiveWidgetControlsAppearDisabled is true. This method
+  // overrides the default PlatformStyle behavior for this button.
+  void SetAppearDisabledInInactiveWidget(bool appear_disabled);
 
   // Button:
   void SetBorder(std::unique_ptr<Border> border) override;
@@ -284,6 +294,8 @@ class VIEWS_EXPORT LabelButton : public Button, public NativeThemeDelegate {
   float focus_ring_corner_radius_ = FocusRing::kDefaultCornerRadiusDp;
 
   base::CallbackListSubscription paint_as_active_subscription_;
+
+  bool appear_disabled_in_inactive_widget_ = false;
 
   base::CallbackListSubscription flip_canvas_on_paint_subscription_ =
       AddFlipCanvasOnPaintForRTLUIChangedCallback(

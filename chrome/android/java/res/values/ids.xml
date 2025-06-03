@@ -101,10 +101,10 @@ found in the LICENSE file.
     <item type="id" name="ntp_feed_header_menu_item_activity" />
     <item type="id" name="ntp_feed_header_menu_item_interest" />
     <item type="id" name="ntp_feed_header_menu_item_reactions" />
-    <item type="id" name="ntp_feed_header_menu_item_autoplay" />
     <item type="id" name="ntp_feed_header_menu_item_learn" />
     <item type="id" name="ntp_feed_header_menu_item_toggle_switch" />
 
     <!-- Custom Tabs -->
     <item type="id" name="view_id_tag_key" />
+    <item type="id" name="custom_tabs_toolbar_tintable" />
 </resources>

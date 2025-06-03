@@ -11,15 +11,13 @@
 #import "ios/chrome/browser/ui/omnibox/omnibox_util.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
-OmniboxSuggestionIconType IconTypeFromMatchAndAnswerType(
-    AutocompleteMatchType::Type type,
-    absl::optional<int> answerType) {
+OmniboxSuggestionIconType IconTypeFromMatch(const AutocompleteMatch& match) {
+  absl::optional<int> answerType =
+      match.answer.has_value() ? absl::make_optional<int>(match.answer->type())
+                               : absl::nullopt;
+
   // Some suggestions have custom icons. Others fallback to the icon from the
   // overall match type.
   if (answerType) {
@@ -49,7 +47,12 @@ OmniboxSuggestionIconType IconTypeFromMatchAndAnswerType(
         break;
     }
   }
-  return GetOmniboxSuggestionIconTypeForAutocompleteMatchType(type);
+
+  if (match.IsTrendSuggestion()) {
+    return OmniboxSuggestionIconType::kSearchTrend;
+  }
+
+  return GetOmniboxSuggestionIconTypeForAutocompleteMatchType(match.type);
 }
 
 }  // namespace
@@ -75,10 +78,8 @@ OmniboxSuggestionIconType IconTypeFromMatchAndAnswerType(
     imageURL = GURL();
   }
 
-  auto answerType =
-      isAnswer ? absl::make_optional<int>(match.answer->type()) : absl::nullopt;
-  OmniboxSuggestionIconType suggestionIconType =
-      IconTypeFromMatchAndAnswerType(match.type, answerType);
+  OmniboxSuggestionIconType suggestionIconType = IconTypeFromMatch(match);
+
   return [self initWithIconType:iconType
              suggestionIconType:suggestionIconType
                        isAnswer:isAnswer

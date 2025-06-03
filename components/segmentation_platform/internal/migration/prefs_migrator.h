@@ -9,7 +9,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
-#include "components/segmentation_platform/internal/selection/client_result_prefs.h"
+#include "components/segmentation_platform/internal/database/client_result_prefs.h"
 #include "components/segmentation_platform/internal/selection/segmentation_result_prefs.h"
 #include "components/segmentation_platform/public/config.h"
 #include "components/segmentation_platform/public/result.h"
@@ -18,13 +18,13 @@ class PrefService;
 
 namespace segmentation_platform {
 struct Config;
-class ClientResultPrefs;
 
 // PrefsMigrator migrates pref entries for models that support multi output from
 // old prefs to new prefs.
 class PrefsMigrator {
  public:
   PrefsMigrator(PrefService* pref_service,
+                ClientResultPrefs* client_prefs,
                 const std::vector<std::unique_ptr<Config>>& configs);
 
   ~PrefsMigrator();
@@ -61,7 +61,7 @@ class PrefsMigrator {
 
   // The underlying pref backed store to read the pref values from after multi
   // output support.
-  std::unique_ptr<ClientResultPrefs> new_prefs_;
+  const raw_ptr<ClientResultPrefs> new_prefs_;
 
   base::WeakPtrFactory<PrefsMigrator> weak_ptr_factory_{this};
 };

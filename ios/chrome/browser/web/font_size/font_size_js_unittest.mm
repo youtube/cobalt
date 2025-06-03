@@ -6,7 +6,7 @@
 #import <stddef.h>
 
 #import "base/ios/ios_util.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/js_test_util.h"
 #import "ios/web/public/test/scoped_testing_web_client.h"
@@ -16,10 +16,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Test fixture for accessibility.js testing.
 class FontSizeJsTest : public PlatformTest {

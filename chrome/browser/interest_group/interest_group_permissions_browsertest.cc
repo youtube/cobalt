@@ -7,15 +7,17 @@
 #include "base/test/bind.h"
 #include "base/test/test_timeouts.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations_mixin.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "content/public/common/content_features.h"
@@ -26,7 +28,8 @@
 
 namespace interest_group {
 
-class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
+class InterestGroupPermissionsBrowserTest
+    : public MixinBasedInProcessBrowserTest {
  public:
   InterestGroupPermissionsBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
@@ -42,6 +45,10 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    // Mark all Privacy Sandbox APIs as attested since the test cases are
+    // testing behaviors not related to attestations.
+    privacy_sandbox::PrivacySandboxAttestations::GetInstance()
+        ->SetAllPrivacySandboxAttestedForTesting(true);
     host_resolver()->AddRule("*", "127.0.0.1");
     https_server_ = std::make_unique<net::EmbeddedTestServer>(
         net::test_server::EmbeddedTestServer::TYPE_HTTPS);
@@ -127,11 +134,11 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
               name: 'cars',
               owner: $1,
               biddingLogicUrl: $2,
-              trustedBiddingSignalsUrl: $3,
+              trustedBiddingSignalsURL: $3,
               trustedBiddingSignalsKeys: ['key1'],
               userBiddingSignals: {some: 'json', data: {here: [1, 2, 3]}},
               ads: [{
-                renderUrl: $4,
+                renderURL: $4,
                 metadata: {ad: 'metadata', here: [1, 2, 3]},
               }],
             },
@@ -158,7 +165,7 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
 (async function() {
   return await navigator.runAdAuction({
     seller: $1,
-    decisionLogicUrl: $2,
+    decisionLogicURL: $2,
     interestGroupBuyers: [$1],
     auctionSignals: {x: 1},
     sellerSignals: {yet: 'more', info: 1},
@@ -203,6 +210,8 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
+  privacy_sandbox::PrivacySandboxAttestationsMixin
+      privacy_sandbox_attestations_mixin_{&mixin_host_};
 };
 
 class InterestGroupOffBrowserTest : public InterestGroupPermissionsBrowserTest {

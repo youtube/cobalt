@@ -16,10 +16,10 @@
 #import "components/metrics/metrics_pref_names.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state_manager.h"
-#import "ios/chrome/browser/upgrade/upgrade_constants.h"
-#import "ios/chrome/browser/upgrade/upgrade_recommended_details.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state_manager.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_constants.h"
+#import "ios/chrome/browser/upgrade/model/upgrade_recommended_details.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_chrome_browser_state_manager.h"
 #import "ios/public/provider/chrome/browser/omaha/omaha_api.h"
@@ -33,10 +33,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -149,7 +145,7 @@ TEST_F(OmahaServiceTest, PingMessageTest) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   std::string content = service.GetPingContent(
-      "requestId", "sessionId", version_info::GetVersionNumber(),
+      "requestId", "sessionId", std::string(version_info::GetVersionNumber()),
       GetChannelString(), base::Time::Now(), OmahaService::USAGE_PING);
   regex_t regex;
   regcomp(&regex, expectedResult, REG_NOSUB);
@@ -177,7 +173,7 @@ TEST_F(OmahaServiceTest, PingMessageTestWithUnknownInstallDate) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   std::string content = service.GetPingContent(
-      "requestId", "sessionId", version_info::GetVersionNumber(),
+      "requestId", "sessionId", std::string(version_info::GetVersionNumber()),
       GetChannelString(), base::Time::FromTimeT(kUnknownInstallDate),
       OmahaService::USAGE_PING);
   regex_t regex;
@@ -189,7 +185,7 @@ TEST_F(OmahaServiceTest, PingMessageTestWithUnknownInstallDate) {
 }
 
 TEST_F(OmahaServiceTest, InstallEventMessageTest) {
-  const char* kExpectedResultFormat =
+  static constexpr char kExpectedResultFormat[] =
       "<request protocol=\"3.0\" updater=\"iOS\" updaterversion=\"[^\"]*\""
       " updaterchannel=\"[^\"]*\" ismachine=\"1\" requestid=\"requestId\""
       " sessionid=\"sessionId\" hardware_class=\"[^\"]*\">"
@@ -210,7 +206,7 @@ TEST_F(OmahaServiceTest, InstallEventMessageTest) {
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   CleanService(&service, "");
   std::string content = service.GetPingContent(
-      "requestId", "sessionId", version_info::GetVersionNumber(),
+      "requestId", "sessionId", std::string(version_info::GetVersionNumber()),
       GetChannelString(), base::Time::Now(), OmahaService::INSTALL_EVENT);
   regmatch_t matches[2];
   regex_t regex;
@@ -227,7 +223,7 @@ TEST_F(OmahaServiceTest, InstallEventMessageTest) {
   const char* kPreviousVersion = "0.5";
   CleanService(&service, kPreviousVersion);
   content = service.GetPingContent(
-      "requestId", "sessionId", version_info::GetVersionNumber(),
+      "requestId", "sessionId", std::string(version_info::GetVersionNumber()),
       GetChannelString(), base::Time::Now(), OmahaService::INSTALL_EVENT);
   expected_result = base::StringPrintf(kExpectedResultFormat, kPreviousVersion,
                                        0 /* install age */, 3 /* event type */);
@@ -246,7 +242,7 @@ TEST_F(OmahaServiceTest, SendPingSuccess) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -275,7 +271,7 @@ TEST_F(OmahaServiceTest, PingUpToDateUpdatesUserDefaults) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -296,7 +292,7 @@ TEST_F(OmahaServiceTest, PingOutOfDateUpdatesUserDefaults) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -337,7 +333,7 @@ TEST_F(OmahaServiceTest, CallbackForScheduledNotUsedOnErrorResponse) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -375,7 +371,7 @@ TEST_F(OmahaServiceTest, OneOffSuccess) {
       base::BindOnce(^(UpgradeRecommendedDetails details) {
         OmahaServiceTest::OneOffCheck(details);
       });
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -405,7 +401,7 @@ TEST_F(OmahaServiceTest, OngoingPingOneOffCallbackUsed) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -447,7 +443,7 @@ TEST_F(OmahaServiceTest, OneOffCallbackUsedOnlyOnce) {
       base::BindOnce(^(UpgradeRecommendedDetails details) {
         OmahaServiceTest::OneOffCheck(details);
       });
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -491,7 +487,7 @@ TEST_F(OmahaServiceTest, ScheduledPingDuringOneOffDropped) {
       base::BindOnce(^(UpgradeRecommendedDetails details) {
         OmahaServiceTest::OneOffCheck(details);
       });
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -528,7 +524,7 @@ TEST_F(OmahaServiceTest, ParseAndEchoLastServerDate) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -550,7 +546,7 @@ TEST_F(OmahaServiceTest, ParseAndEchoLastServerDate) {
       "<ping active=\"1\" ad=\"4088\" rd=\"4088\"/></app></request>";
 
   std::string content = service.GetPingContent(
-      "requestId", "sessionId", version_info::GetVersionNumber(),
+      "requestId", "sessionId", std::string(version_info::GetVersionNumber()),
       GetChannelString(), base::Time::FromTimeT(kUnknownInstallDate),
       OmahaService::USAGE_PING);
   regex_t regex;
@@ -603,7 +599,7 @@ TEST_F(OmahaServiceTest, SendPingReceiveUpdate) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -650,7 +646,7 @@ TEST_F(OmahaServiceTest, SendPingFailure) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 
@@ -695,7 +691,7 @@ TEST_F(OmahaServiceTest, SendPingFailure) {
 }
 
 TEST_F(OmahaServiceTest, PersistStatesTest) {
-  std::string version_string = version_info::GetVersionNumber();
+  std::string version_string(version_info::GetVersionNumber());
   base::Time now = base::Time::Now();
   OmahaService service(false);
   service.StartInternal();
@@ -780,7 +776,7 @@ TEST_F(OmahaServiceTest, NonSpammingTest) {
   service.set_upgrade_recommended_callback(base::BindRepeating(
       &OmahaServiceTest::OnNeedUpdate, base::Unretained(this)));
   service.InitializeURLLoaderFactory(test_shared_url_loader_factory_);
-  CleanService(&service, version_info::GetVersionNumber());
+  CleanService(&service, std::string(version_info::GetVersionNumber()));
 
   service.SendPing();
 

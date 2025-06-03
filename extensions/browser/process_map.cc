@@ -7,10 +7,12 @@
 #include <tuple>
 
 #include "content/public/browser/child_process_security_policy.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
 #include "extensions/browser/process_map_factory.h"
+#include "extensions/browser/script_injection_tracker.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/feature.h"
 
@@ -46,12 +48,8 @@ bool IsWebViewProcessForExtension(int process_id,
 
 // Item
 struct ProcessMap::Item {
-  Item(const std::string& extension_id,
-       int process_id,
-       content::SiteInstanceId site_instance_id)
-      : extension_id(extension_id),
-        process_id(process_id),
-        site_instance_id(site_instance_id) {}
+  Item(const std::string& extension_id, int process_id)
+      : extension_id(extension_id), process_id(process_id) {}
 
   Item(const Item&) = delete;
   Item& operator=(const Item&) = delete;
@@ -62,14 +60,12 @@ struct ProcessMap::Item {
   Item& operator=(ProcessMap::Item&&) = default;
 
   bool operator<(const ProcessMap::Item& other) const {
-    return std::tie(extension_id, process_id, site_instance_id) <
-           std::tie(other.extension_id, other.process_id,
-                    other.site_instance_id);
+    return std::tie(extension_id, process_id) <
+           std::tie(other.extension_id, other.process_id);
   }
 
   std::string extension_id;
   int process_id = 0;
-  content::SiteInstanceId site_instance_id;
 };
 
 
@@ -83,16 +79,8 @@ ProcessMap* ProcessMap::Get(content::BrowserContext* browser_context) {
   return ProcessMapFactory::GetForBrowserContext(browser_context);
 }
 
-bool ProcessMap::Insert(const std::string& extension_id,
-                        int process_id,
-                        content::SiteInstanceId site_instance_id) {
-  return items_.insert(Item(extension_id, process_id, site_instance_id)).second;
-}
-
-bool ProcessMap::Remove(const std::string& extension_id,
-                        int process_id,
-                        content::SiteInstanceId site_instance_id) {
-  return items_.erase(Item(extension_id, process_id, site_instance_id)) > 0;
+bool ProcessMap::Insert(const std::string& extension_id, int process_id) {
+  return items_.insert(Item(extension_id, process_id)).second;
 }
 
 int ProcessMap::RemoveAllFromProcess(int process_id) {
@@ -148,9 +136,11 @@ bool ProcessMap::IsPrivilegedExtensionProcess(const Extension& extension,
          !is_lock_screen_context_;
 }
 
-bool ProcessMap::CanProcessHostContextType(const Extension* extension,
-                                           int process_id,
-                                           Feature::Context context_type) {
+bool ProcessMap::CanProcessHostContextType(
+    const Extension* extension,
+    const content::RenderProcessHost& process,
+    Feature::Context context_type) {
+  const int process_id = process.GetID();
   switch (context_type) {
     case Feature::UNSPECIFIED_CONTEXT:
       // We never consider unspecified contexts valid. Even though they would be
@@ -166,13 +156,14 @@ bool ProcessMap::CanProcessHostContextType(const Extension* extension,
       return extension &&
              IsWebViewProcessForExtension(process_id, extension->id());
     case Feature::CONTENT_SCRIPT_CONTEXT:
-    case Feature::USER_SCRIPT_CONTEXT:
-      // Currently, we assume any process can host a content script or user
-      // script.
+      // Currently, we assume any process can host a content script.
       // TODO(crbug.com/1186557): This could be better by looking at
-      // ContentScriptTracker for (which also means hooking user scripts up to
-      // ContentScriptTracker).
+      // ScriptInjectionTracker, as we do for user scripts below.
       return !!extension;
+    case Feature::USER_SCRIPT_CONTEXT:
+      return extension &&
+             ScriptInjectionTracker::DidProcessRunUserScriptFromExtension(
+                 process, extension->id());
     case Feature::LOCK_SCREEN_EXTENSION_CONTEXT:
       // Lock screen contexts are essentially blessed contexts that run on the
       // lock screen profile. We don't run component hosted apps there, so no

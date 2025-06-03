@@ -5,7 +5,7 @@
 #import "ios/chrome/browser/infobars/overlays/default_infobar_overlay_request_factory.h"
 
 #import "base/feature_list.h"
-#import "base/guid.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/autofill_test_utils.h"
 #import "components/autofill/core/browser/data_model/autofill_profile.h"
 #import "components/autofill/core/browser/data_model/credit_card.h"
@@ -17,26 +17,16 @@
 #import "ios/chrome/browser/infobars/overlays/browser_agent/interaction_handlers/test/mock_autofill_save_card_infobar_delegate_mobile.h"
 #import "ios/chrome/browser/infobars/overlays/browser_agent/interaction_handlers/test/mock_autofill_save_update_address_profile_delegate_ios.h"
 #import "ios/chrome/browser/infobars/test/mock_infobar_delegate.h"
+#import "ios/chrome/browser/overlays/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/public/infobar_banner/confirm_infobar_banner_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_banner/password_infobar_banner_overlay.h"
 #import "ios/chrome/browser/overlays/public/infobar_banner/save_address_profile_infobar_banner_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_banner/save_card_infobar_banner_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_banner/tailored_security_service_infobar_banner_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_banner/translate_infobar_banner_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_modal/password_infobar_modal_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/public/infobar_modal/save_address_profile_infobar_modal_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_modal/save_card_infobar_modal_overlay_request_config.h"
-#import "ios/chrome/browser/overlays/public/infobar_modal/translate_infobar_modal_overlay_request_config.h"
-#import "ios/chrome/browser/passwords/ios_chrome_save_password_infobar_delegate.h"
-#import "ios/chrome/browser/passwords/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
-#import "ios/chrome/browser/safe_browsing/tailored_security/test/mock_tailored_security_service_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_save_password_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/model/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
+#import "ios/chrome/browser/safe_browsing/model/tailored_security/test/mock_tailored_security_service_infobar_delegate.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill_address_profile_infobar_overlays::
     SaveAddressProfileBannerRequestConfig;
@@ -46,12 +36,6 @@ using confirm_infobar_overlays::ConfirmBannerRequestConfig;
 using infobars::InfoBar;
 using infobars::InfoBarDelegate;
 using safe_browsing::TailoredSecurityServiceMessageState;
-using save_card_infobar_overlays::SaveCardBannerRequestConfig;
-using save_card_infobar_overlays::SaveCardModalRequestConfig;
-using tailored_security_service_infobar_overlays::
-    TailoredSecurityServiceBannerRequestConfig;
-using translate_infobar_overlays::TranslateBannerRequestConfig;
-using translate_infobar_overlays::TranslateModalRequestConfig;
 
 using DefaultInfobarOverlayRequestFactoryTest = PlatformTest;
 
@@ -68,14 +52,12 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, SavePasswords) {
   std::unique_ptr<OverlayRequest> banner_request =
       DefaultInfobarOverlayRequestFactory(&infobar,
                                           InfobarOverlayType::kBanner);
-  EXPECT_TRUE(
-      banner_request->GetConfig<PasswordInfobarBannerOverlayRequestConfig>());
+  EXPECT_TRUE(banner_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 
   // Test modal request creation.
   std::unique_ptr<OverlayRequest> modal_request =
       DefaultInfobarOverlayRequestFactory(&infobar, InfobarOverlayType::kModal);
-  EXPECT_TRUE(
-      modal_request->GetConfig<PasswordInfobarModalOverlayRequestConfig>());
+  EXPECT_TRUE(modal_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 }
 
 // Tests that the factory creates an update passwords infobar request.
@@ -91,14 +73,12 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, UpdatePasswords) {
   std::unique_ptr<OverlayRequest> banner_request =
       DefaultInfobarOverlayRequestFactory(&infobar,
                                           InfobarOverlayType::kBanner);
-  EXPECT_TRUE(
-      banner_request->GetConfig<PasswordInfobarBannerOverlayRequestConfig>());
+  EXPECT_TRUE(banner_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 
   // Test modal request creation.
   std::unique_ptr<OverlayRequest> modal_request =
       DefaultInfobarOverlayRequestFactory(&infobar, InfobarOverlayType::kModal);
-  EXPECT_TRUE(
-      modal_request->GetConfig<PasswordInfobarModalOverlayRequestConfig>());
+  EXPECT_TRUE(modal_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 }
 
 // Tests that the factory creates an confirm infobar request.
@@ -121,7 +101,8 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, Confirm) {
 
 // Tests that the factory creates a save card request.
 TEST_F(DefaultInfobarOverlayRequestFactoryTest, SaveCard) {
-  autofill::CreditCard card(base::GenerateGUID(), "https://www.example.com/");
+  autofill::CreditCard card(base::Uuid::GenerateRandomV4().AsLowercaseString(),
+                            "https://www.example.com/");
 
   InfoBarIOS infobar(
       InfobarType::kInfobarTypeSaveCard,
@@ -132,12 +113,12 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, SaveCard) {
   std::unique_ptr<OverlayRequest> banner_request =
       DefaultInfobarOverlayRequestFactory(&infobar,
                                           InfobarOverlayType::kBanner);
-  EXPECT_TRUE(banner_request->GetConfig<SaveCardBannerRequestConfig>());
+  EXPECT_TRUE(banner_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 
   // Test modal request creation.
   std::unique_ptr<OverlayRequest> modal_request =
       DefaultInfobarOverlayRequestFactory(&infobar, InfobarOverlayType::kModal);
-  EXPECT_TRUE(modal_request->GetConfig<SaveCardModalRequestConfig>());
+  EXPECT_TRUE(modal_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 }
 
 // Tests that the factory creates a translate request.
@@ -154,19 +135,17 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, Translate) {
   std::unique_ptr<OverlayRequest> banner_request =
       DefaultInfobarOverlayRequestFactory(&infobar,
                                           InfobarOverlayType::kBanner);
-  EXPECT_TRUE(banner_request->GetConfig<TranslateBannerRequestConfig>());
+  EXPECT_TRUE(banner_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 
   // Test modal request creation.
   std::unique_ptr<OverlayRequest> modal_request =
       DefaultInfobarOverlayRequestFactory(&infobar, InfobarOverlayType::kModal);
-  EXPECT_TRUE(modal_request->GetConfig<TranslateModalRequestConfig>());
+  EXPECT_TRUE(modal_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 }
 
 // Tests that the factory creates a save address profile request.
 TEST_F(DefaultInfobarOverlayRequestFactoryTest, SaveAddressProfile) {
-  autofill::AutofillProfile profile(base::GenerateGUID(),
-                                    "https://www.example.com/");
-
+  autofill::AutofillProfile profile;
   InfoBarIOS infobar(
       InfobarType::kInfobarTypeSaveAutofillAddressProfile,
       MockAutofillSaveUpdateAddressProfileDelegateIOSFactory::
@@ -200,6 +179,5 @@ TEST_F(DefaultInfobarOverlayRequestFactoryTest, TailoredSecurityService) {
   std::unique_ptr<OverlayRequest> banner_request =
       DefaultInfobarOverlayRequestFactory(&infobar,
                                           InfobarOverlayType::kBanner);
-  EXPECT_TRUE(
-      banner_request->GetConfig<TailoredSecurityServiceBannerRequestConfig>());
+  EXPECT_TRUE(banner_request->GetConfig<DefaultInfobarOverlayRequestConfig>());
 }

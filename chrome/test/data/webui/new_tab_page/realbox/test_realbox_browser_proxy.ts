@@ -4,7 +4,8 @@
 
 import {NavigationPredictor, PageCallbackRouter, PageHandlerInterface, PageRemote} from 'chrome://resources/cr_components/omnibox/omnibox.mojom-webui.js';
 import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
-import {TimeDelta, TimeTicks} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
+import {TimeTicks} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
+import {Size} from 'chrome://resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -25,6 +26,8 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'queryAutocomplete',
       'stopAutocomplete',
       'toggleSuggestionGroupIdVisibility',
+      'onFocusChanged',
+      'popupElementSizeChanged',
     ]);
   }
 
@@ -32,16 +35,25 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     this.methodCalled('setPage', page);
   }
 
+  onFocusChanged(focused: boolean) {
+    this.methodCalled('onFocusChanged', {focused});
+  }
+
+  popupElementSizeChanged(size: Size) {
+    this.methodCalled('popupElementSizeChanged', {size});
+  }
+
   deleteAutocompleteMatch(line: number, url: Url) {
     this.methodCalled('deleteAutocompleteMatch', {line, url});
   }
 
   executeAction(
-      line: number, url: Url, matchSelectionTimestamp: TimeTicks,
-      mouseButton: number, altKey: boolean, ctrlKey: boolean, metaKey: boolean,
-      shiftKey: boolean) {
+      line: number, actionIndex: number, url: Url,
+      matchSelectionTimestamp: TimeTicks, mouseButton: number, altKey: boolean,
+      ctrlKey: boolean, metaKey: boolean, shiftKey: boolean) {
     this.methodCalled('executeAction', {
       line,
+      actionIndex,
       url,
       matchSelectionTimestamp,
       mouseButton,
@@ -53,14 +65,12 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
   }
 
   openAutocompleteMatch(
-      line: number, url: Url, areMatchesShowing: boolean,
-      timeElapsedSinceLastFocus: TimeDelta, mouseButton: number,
+      line: number, url: Url, areMatchesShowing: boolean, mouseButton: number,
       altKey: boolean, ctrlKey: boolean, metaKey: boolean, shiftKey: boolean) {
     this.methodCalled('openAutocompleteMatch', {
       line,
       url,
       areMatchesShowing,
-      timeElapsedSinceLastFocus,
       mouseButton,
       altKey,
       ctrlKey,

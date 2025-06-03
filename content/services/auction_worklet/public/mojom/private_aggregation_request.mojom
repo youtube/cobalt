@@ -35,8 +35,6 @@ struct SignalBucket {
   double scale = 1.0;
 
   // Optional offset to add/subtract to the auction result value.
-  // TODO(qingxinwu): Inline BucketOffset's fields here with default values, and
-  // get rid of BucketOffset struct.
   BucketOffset? offset;
 };
 
@@ -52,16 +50,16 @@ struct SignalValue {
   int32 offset = 0;
 };
 
-// A bucket which is a 128bit ID or a SignalBucketOrValue which tells the
-// browser how to calculate the bucket.
+// A bucket which is a 128bit ID or a SignalBucket which tells the browser how
+// to calculate the bucket.
 union ForEventSignalBucket {
   // TODO(qingxinwu): Consider changing it to a more clear name.
   mojo_base.mojom.Uint128 id_bucket;
   SignalBucket signal_bucket;
 };
 
-// A value is an integer, or a SignalBucketOrValue which tells the browser how
-// to calculate the value.
+// A value is an integer, or a SignalValue which tells the browser how to
+// calculate the value.
 union ForEventSignalValue {
   int32 int_value;
   SignalValue signal_value;
@@ -77,7 +75,7 @@ struct AggregatableReportForEventContribution {
   string event_type;
 };
 
-// `histogram_contribution` for sendHistogramReport(), and
+// `histogram_contribution` for contributeToHistogram(), and
 // `for_event_contribution` for reportPrivateAggregationEvent().
 union AggregatableReportContribution {
   blink.mojom.AggregatableReportHistogramContribution histogram_contribution;
@@ -85,7 +83,7 @@ union AggregatableReportContribution {
 };
 
 // Represents a request made to Private Aggregation API. It can be either
-// sendHistogramReport() or reportPrivateAggregationEvent(), depending on the
+// contributeToHistogram() or reportPrivateAggregationEvent(), depending on the
 // type of contribution.
 struct PrivateAggregationRequest {
   AggregatableReportContribution contribution;

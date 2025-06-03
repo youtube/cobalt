@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,7 +49,7 @@ TEST(PasswordStoreConsumerTest, OnGetPasswordStoreResultsFromIsCalledWithData) {
   ON_CALL(consumer, OnGetPasswordStoreResultsOrErrorFrom)
       .WillByDefault(
           [&consumer](PasswordStoreInterface* store,
-                      PasswordStoreConsumer::FormsOrError forms_or_error) {
+                      LoginsResultOrError forms_or_error) {
             return consumer
                 .PasswordStoreConsumer::OnGetPasswordStoreResultsOrErrorFrom(
                     store, std::move(forms_or_error));
@@ -75,7 +75,7 @@ TEST(PasswordStoreConsumerTest,
   ON_CALL(consumer, OnGetPasswordStoreResultsOrErrorFrom)
       .WillByDefault(
           [&consumer](PasswordStoreInterface* store,
-                      PasswordStoreConsumer::FormsOrError forms_or_error) {
+                      LoginsResultOrError forms_or_error) {
             return consumer
                 .PasswordStoreConsumer::OnGetPasswordStoreResultsOrErrorFrom(
                     store, std::move(forms_or_error));

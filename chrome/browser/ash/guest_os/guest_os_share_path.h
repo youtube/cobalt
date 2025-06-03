@@ -17,12 +17,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager_observer.h"
 #include "chrome/browser/ash/guest_os/guest_id.h"
+#include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
-#include "chromeos/ash/components/dbus/seneschal/seneschal_service.pb.h"
-#include "chromeos/ash/components/drivefs/drivefs_host_observer.h"
+#include "chromeos/ash/components/drivefs/drivefs_host.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 namespace guest_os {
@@ -43,9 +44,9 @@ struct SharedPathInfo {
 // Handles sharing and unsharing paths from the Chrome OS host to guest VMs via
 // seneschal.
 class GuestOsSharePath : public KeyedService,
-                         public ash::ConciergeClient::VmObserver,
-                         public file_manager::VolumeManagerObserver,
-                         public drivefs::DriveFsHostObserver {
+                         ash::ConciergeClient::VmObserver,
+                         file_manager::VolumeManagerObserver,
+                         drivefs::DriveFsHost::Observer {
  public:
   using SharePathCallback =
       base::OnceCallback<void(const base::FilePath&, bool, const std::string&)>;
@@ -65,6 +66,16 @@ class GuestOsSharePath : public KeyedService,
     virtual void OnGuestUnregistered(const guest_os::GuestId& guest) = 0;
   };
 
+  // ConvertArgsToPathsToShare returns this.
+  struct PathsToShare {
+    PathsToShare();
+    PathsToShare(PathsToShare&);
+    ~PathsToShare();
+
+    std::vector<base::FilePath> paths_to_share;
+    std::vector<std::string> launch_args;
+  };
+
   static GuestOsSharePath* GetForProfile(Profile* profile);
   explicit GuestOsSharePath(Profile* profile);
 
@@ -80,6 +91,16 @@ class GuestOsSharePath : public KeyedService,
 
   // Observer receives unshare events.
   void AddObserver(Observer* obs);
+  void RemoveObserver(Observer* obs);
+
+  // Convert launch args and return paths to share with the VM, and string args
+  // to pass to the app being launched. On failure, returns an error string
+  // instead.
+  absl::variant<PathsToShare, std::string> ConvertArgsToPathsToShare(
+      const guest_os::GuestOsRegistryService::Registration& registration,
+      const std::vector<guest_os::LaunchArg>& args,
+      const base::FilePath& vm_mount,
+      bool map_crostini_home);
 
   // Share specified absolute |path| with vm. If |persist| is set, the path will
   // be automatically shared at container startup. Callback receives path mapped
@@ -135,7 +156,7 @@ class GuestOsSharePath : public KeyedService,
   void OnVolumeUnmounted(ash::MountError error_code,
                          const file_manager::Volume& volume) override;
 
-  // drivefs::DriveFsHostObserver
+  // DriveFsHost::Observer implementation.
   void OnFilesChanged(
       const std::vector<drivefs::mojom::FileChange>& changes) override;
 

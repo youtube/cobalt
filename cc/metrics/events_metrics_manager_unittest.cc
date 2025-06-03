@@ -58,8 +58,9 @@ class EventsMetricsManagerTest : public testing::Test {
     base::TimeTicks arrived_in_browser_main_timestamp =
         test_tick_clock_.NowTicks();
     test_tick_clock_.Advance(base::Microseconds(10));
-    return EventMetrics::CreateForTesting(
-        type, event_time, arrived_in_browser_main_timestamp, &test_tick_clock_);
+    return EventMetrics::CreateForTesting(type, event_time,
+                                          arrived_in_browser_main_timestamp,
+                                          &test_tick_clock_, absl::nullopt);
   }
 
   EventsMetricsManager manager_;
@@ -91,7 +92,7 @@ TEST_F(EventsMetricsManagerTest, EventsMetricsSaved) {
 
       // A non-interesting event type for which SaveActiveEventMetrics() is
       // called inside its monitor scope.
-      {CreateEventMetrics(ui::ET_MOUSE_MOVED), Behavior::kSaveInsideScope},
+      {CreateEventMetrics(ui::ET_MOUSE_ENTERED), Behavior::kSaveInsideScope},
   };
   EXPECT_NE(events[0].first, nullptr);
   EXPECT_NE(events[1].first, nullptr);

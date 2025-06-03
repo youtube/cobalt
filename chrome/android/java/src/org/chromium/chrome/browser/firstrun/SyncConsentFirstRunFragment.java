@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.firstrun;
 
-import android.accounts.Account;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
@@ -42,15 +41,19 @@ public class SyncConsentFirstRunFragment
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        final List<Account> accounts = AccountUtils.getAccountsIfFulfilledOrEmpty(
-                AccountManagerFacadeProvider.getInstance().getAccounts());
+        final @Nullable CoreAccountInfo defaultAccount =
+                AccountUtils.getDefaultCoreAccountInfoIfFulfilled(
+                        AccountManagerFacadeProvider.getInstance().getCoreAccountInfos());
+        final @Nullable String accountEmail =
+                defaultAccount == null ? null : defaultAccount.getEmail();
         boolean isChild = getPageDelegate().getProperties().getBoolean(IS_CHILD_ACCOUNT, false);
-        String accountName = accounts.isEmpty() ? null : accounts.get(0).name;
         final Bundle arguments;
+        // TODO(crbug.com/1491387): Avoid sending `accountEmail` to create arguments. This class
+        // uses the primary account from IdentityManager.
         if (!isChild && ChromeFeatureList.isEnabled(ChromeFeatureList.TANGIBLE_SYNC)) {
-            arguments = createArgumentsForTangibleSync(SigninAccessPoint.START_PAGE, accountName);
+            arguments = createArgumentsForTangibleSync(SigninAccessPoint.START_PAGE, accountEmail);
         } else {
-            arguments = createArguments(SigninAccessPoint.START_PAGE, accountName, isChild);
+            arguments = createArguments(SigninAccessPoint.START_PAGE, accountEmail, isChild);
         }
         setArguments(arguments);
     }
@@ -83,7 +86,7 @@ public class SyncConsentFirstRunFragment
         // Special case for child accounts. In rare cases, e.g. if Terms & Conditions is clicked,
         // SigninChecker might have been triggered before the FRE ends and started sign-in (the
         // ConsentLevel depends on AllowSyncOffForChildAccounts). In doubt, wait.
-        Profile profile = Profile.getLastUsedRegularProfile();
+        Profile profile = getPageDelegate().getProfileSupplier().get();
         IdentityServicesProvider.get().getSigninManager(profile).runAfterOperationInProgress(() -> {
             CoreAccountInfo syncingAccount = IdentityServicesProvider.get()
                                                      .getIdentityManager(profile)
@@ -128,9 +131,10 @@ public class SyncConsentFirstRunFragment
     }
 
     @Override
-    protected void updateAccounts(List<Account> accounts) {
-        final boolean selectedAccountDoesNotExist = (mSelectedAccountName != null
-                && AccountUtils.findAccountByName(accounts, mSelectedAccountName) == null);
+    protected void updateAccounts(List<CoreAccountInfo> coreAccountInfos) {
+        final boolean selectedAccountDoesNotExist = (mSelectedAccountEmail != null
+                && AccountUtils.findCoreAccountInfoByEmail(coreAccountInfos, mSelectedAccountEmail)
+                        == null);
         if (selectedAccountDoesNotExist) {
             // With MICe, there's no account picker and the sync consent is fixed for the signed
             // in account on welcome screen. If the signed-in account is removed, this page
@@ -138,6 +142,6 @@ public class SyncConsentFirstRunFragment
             getPageDelegate().abortFirstRunExperience();
             return;
         }
-        super.updateAccounts(accounts);
+        super.updateAccounts(coreAccountInfos);
     }
 }

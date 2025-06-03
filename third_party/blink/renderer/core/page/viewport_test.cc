@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -49,7 +50,6 @@
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
-#include "third_party/blink/renderer/platform/testing/histogram_tester.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
@@ -3106,7 +3106,7 @@ class ViewportHistogramsTest : public SimTest {
     blink::test::RunPendingTasks();
   }
 
-  HistogramTester histogram_tester_;
+  base::HistogramTester histogram_tester_;
 };
 
 TEST_F(ViewportHistogramsTest, NoOpOnWhenViewportDisabled) {
@@ -3320,8 +3320,9 @@ TEST_F(ViewportMetaSimTest, VirtualKeyboardUpdateContent) {
   ASSERT_EQ(WebView().VirtualKeyboardModeForTesting(),
             ui::mojom::blink::VirtualKeyboardMode::kResizesContent);
 
-  Element* meta = GetDocument().QuerySelector("[name=viewport]");
-  meta->setAttribute(html_names::kContentAttr, "interactive-widget=bad-value");
+  Element* meta = GetDocument().QuerySelector(AtomicString("[name=viewport]"));
+  meta->setAttribute(html_names::kContentAttr,
+                     AtomicString("interactive-widget=bad-value"));
 
   EXPECT_EQ(WebView().VirtualKeyboardModeForTesting(),
             ui::mojom::blink::VirtualKeyboardMode::kUnset);

@@ -20,7 +20,6 @@
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
-#include "base/cxx17_backports.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -44,6 +43,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -61,6 +61,7 @@
 #include "content/browser/renderer_host/input/input_router.h"
 #include "content/browser/renderer_host/input/synthetic_gesture.h"
 #include "content/browser/renderer_host/input/synthetic_gesture_target.h"
+#include "content/browser/renderer_host/input/synthetic_pointer_action.h"
 #include "content/browser/renderer_host/input/synthetic_tap_gesture.h"
 #include "content/browser/renderer_host/input/synthetic_touchscreen_pinch_gesture.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
@@ -107,6 +108,7 @@
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/policy_container_utils.h"
 #include "content/public/test/render_frame_host_test_support.h"
+#include "content/public/test/test_devtools_protocol_client.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_navigation_throttle.h"
@@ -124,6 +126,7 @@
 #include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
+#include "net/base/url_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/mock_http_cache.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -200,14 +203,9 @@ void VerifyChildProcessHasMainFrame(
     mojo::Remote<mojom::MainFrameCounterTest>& main_frame_counter,
     bool expected_state) {
   main_frame_counter.FlushForTesting();
-  base::RunLoop run_loop;
-  main_frame_counter->HasMainFrame(base::BindOnce(
-      [](base::RunLoop* loop, bool expected_state, bool has_main_frame) {
-        EXPECT_EQ(expected_state, has_main_frame);
-        loop->Quit();
-      },
-      &run_loop, expected_state));
-  run_loop.Run();
+  base::test::TestFuture<bool> has_main_frame_future;
+  main_frame_counter->HasMainFrame(has_main_frame_future.GetCallback());
+  EXPECT_EQ(expected_state, has_main_frame_future.Get());
 }
 
 using CrashVisibility = CrossProcessFrameConnector::CrashVisibility;
@@ -219,7 +217,7 @@ using CrashVisibility = CrossProcessFrameConnector::CrashVisibility;
 void PostMessageAndWaitForReply(FrameTreeNode* sender_ftn,
                                 const std::string& post_message_script,
                                 const std::string& reply_status) {
-  // Subtle: msg_queue needs to be declared before the ExecuteScript below, or
+  // Subtle: msg_queue needs to be declared before the EvalJs below, or
   // else it might miss the message of interest.  See https://crbug.com/518729.
   DOMMessageQueue msg_queue(sender_ftn->current_frame_host());
 
@@ -383,8 +381,9 @@ CreateParsedPermissionsPolicyDeclaration(
   declaration.matches_opaque_src = match_all_origins;
 
   for (const auto& origin : origins)
-    declaration.allowed_origins.emplace_back(url::Origin::Create(origin),
-                                             /*has_subdomain_wildcard=*/false);
+    declaration.allowed_origins.emplace_back(
+        *blink::OriginWithPossibleWildcards::FromOrigin(
+            url::Origin::Create(origin)));
 
   std::sort(declaration.allowed_origins.begin(),
             declaration.allowed_origins.end());
@@ -477,6 +476,9 @@ void SitePerProcessBrowserTestBase::SetUpCommandLine(
   IsolateAllSitesForTesting(command_line);
 
   command_line->AppendSwitch(switches::kValidateInputEventStream);
+  // Without this, FocusFrame can be flaky. It depends on dispatching input
+  // events which can inadventently get dropped.
+  command_line->AppendSwitch(blink::switches::kAllowPreCommitInput);
 }
 
 void SitePerProcessBrowserTestBase::SetUpOnMainThread() {
@@ -8520,7 +8522,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     }
 
    private:
-    const raw_ref<RenderFrameHost, DanglingUntriaged> requesting_rfh_;
+    const raw_ref<RenderFrameHost, AcrossTasksDanglingUntriaged>
+        requesting_rfh_;
   };
 
   // Set up a test page with a same-site child frame.
@@ -8939,13 +8942,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
   mojo::Remote<blink::mojom::LeakDetector> leak_detector_remote;
   new_shell->web_contents()->GetPrimaryMainFrame()->GetProcess()->BindReceiver(
       leak_detector_remote.BindNewPipeAndPassReceiver());
-  blink::mojom::LeakDetectorAsyncWaiter leak_detector(
-      leak_detector_remote.get());
 
   // One live document is expected from the newly opened popup.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(1u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(2u, result->number_of_live_frames);
@@ -8961,8 +8963,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
   // Speculative RFH should be created in B, increasing the number of live
   // documents and frames.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(2u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(3u, result->number_of_live_frames);
@@ -8976,8 +8979,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
   // The resources associated with the speculative RFH should be freed now, as
   // well as the original frame from the now closed shell.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(1u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(1u, result->number_of_live_frames);
@@ -9000,13 +9004,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
   mojo::Remote<blink::mojom::LeakDetector> leak_detector_remote;
   new_shell->web_contents()->GetPrimaryMainFrame()->GetProcess()->BindReceiver(
       leak_detector_remote.BindNewPipeAndPassReceiver());
-  blink::mojom::LeakDetectorAsyncWaiter leak_detector(
-      leak_detector_remote.get());
 
   // One live document is expected from the newly opened popup.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(1u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(3u, result->number_of_live_frames);
@@ -9027,8 +9030,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
   // Speculative RFH should be created in B, increasing the number of live
   // documents and frames.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(2u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(4u, result->number_of_live_frames);
@@ -9042,8 +9046,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTestWithLeakDetector,
 
   // The resources associated with the speculative RFH should be freed now.
   {
-    blink::mojom::LeakDetectionResultPtr result;
-    leak_detector.PerformLeakDetection(&result);
+    base::test::TestFuture<blink::mojom::LeakDetectionResultPtr> result_future;
+    leak_detector_remote->PerformLeakDetection(result_future.GetCallback());
+    auto result = result_future.Take();
     EXPECT_EQ(1u, result->number_of_live_documents);
     // Note: the number of live frames includes remote frames.
     EXPECT_EQ(2u, result->number_of_live_frames);
@@ -9244,7 +9249,7 @@ class TouchSelectionControllerClientTestWrapper
   ui::SelectionEventType expected_event_;
   std::unique_ptr<base::RunLoop> run_loop_;
   // Not owned.
-  raw_ptr<ui::TouchSelectionControllerClient> client_;
+  raw_ptr<ui::TouchSelectionControllerClient, DanglingUntriaged> client_;
 };
 
 class TouchSelectionControllerClientAndroidSiteIsolationTest
@@ -9355,9 +9360,14 @@ class TouchSelectionControllerClientAndroidSiteIsolationTest
   gfx::PointF GetPointInChild() {
     gfx::PointF point_f;
     std::string str = EvalJs(child_frame_tree_node_->current_frame_host(),
-                             "get_point_inside_text()")
+                             "get_top_left_of_text()")
                           .ExtractString();
     ConvertJSONToPoint(str, &point_f);
+    // Offset the point so that it is within the text. Character dimensions are
+    // based on the font size in `touch_selection.html`.
+    constexpr int kCharacterWidth = 15;
+    constexpr int kCharacterHeight = 15;
+    point_f.Offset(2 * kCharacterWidth, 0.5f * kCharacterHeight);
     point_f = child_rwhv()->TransformPointToRootCoordSpaceF(point_f);
     return point_f;
   }
@@ -9447,11 +9457,11 @@ class TouchSelectionControllerClientAndroidSiteIsolationTest
     view->OnTouchEvent(touch);
   }
 
-  raw_ptr<RenderWidgetHostViewAndroid> root_rwhv_;
-  raw_ptr<RenderWidgetHostViewChildFrame> child_rwhv_;
-  raw_ptr<FrameTreeNode> child_frame_tree_node_;
+  raw_ptr<RenderWidgetHostViewAndroid, DanglingUntriaged> root_rwhv_;
+  raw_ptr<RenderWidgetHostViewChildFrame, DanglingUntriaged> child_rwhv_;
+  raw_ptr<FrameTreeNode, DanglingUntriaged> child_frame_tree_node_;
   std::unique_ptr<RenderFrameSubmissionObserver> frame_observer_;
-  raw_ptr<TouchSelectionControllerClientTestWrapper>
+  raw_ptr<TouchSelectionControllerClientTestWrapper, DanglingUntriaged>
       selection_controller_client_;
 
   std::unique_ptr<base::RunLoop> gesture_run_loop_;
@@ -11657,7 +11667,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   // Start a cross-site navigation.  Using a renderer-initiated navigation
   // rather than a browser-initiated one is important here, since
   // https://crbug.com/825677 was triggered only when replaceState ran while
-  // having a user gesture, which will be the case here since ExecuteScript
+  // having a user gesture, which will be the case here since ExecJs
   // runs with a user gesture.
   EXPECT_TRUE(ExecJs(root, JsReplace("location.href = $1", url2)));
   EXPECT_TRUE(cross_site_navigation.WaitForRequestStart());
@@ -12149,7 +12159,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
           ->TransformPointToRootCoordSpaceF(gfx::PointF(10, 10));
 
   // Generate a double-tap.
-  std::string actions_template = R"HTML(
+  static constexpr char kActionsTemplate[] = R"HTML(
       [{
         "source" : "touch",
         "actions" : [
@@ -12162,16 +12172,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
       }]
   )HTML";
   std::string double_tap_actions_json =
-      base::StringPrintf(actions_template.c_str(), tap_position.x(),
-                         tap_position.y(), tap_position.x(), tap_position.y());
+      base::StringPrintf(kActionsTemplate, tap_position.x(), tap_position.y(),
+                         tap_position.x(), tap_position.y());
   auto parsed_json =
       base::JSONReader::ReadAndReturnValueWithError(double_tap_actions_json);
   ASSERT_TRUE(parsed_json.has_value()) << parsed_json.error().message;
   ActionsParser actions_parser(std::move(*parsed_json));
 
   ASSERT_TRUE(actions_parser.Parse());
-  auto synthetic_gesture_doubletap =
-      SyntheticGesture::Create(actions_parser.gesture_params());
+  auto synthetic_gesture_doubletap = std::make_unique<SyntheticPointerAction>(
+      actions_parser.pointer_action_params());
 
   // Queue the event and wait for it to be acked.
   InputEventAckWaiter ack_waiter(
@@ -12763,9 +12773,16 @@ IN_PROC_BROWSER_TEST_P(InnerWebContentsAttachTest, PrepareFrame) {
   auto* child_node = web_contents()->GetPrimaryFrameTree().root()->child_at(0);
   EXPECT_TRUE(NavigateToURLFromRenderer(child_node, child_frame_url));
   if (test_beforeunload) {
-    EXPECT_TRUE(ExecJs(child_node,
-                       "window.addEventListener('beforeunload', (e) => {"
-                       "e.preventDefault(); return e; });"));
+    if (base::FeatureList::IsEnabled(
+            blink::features::kBeforeunloadEventCancelByPreventDefault)) {
+      EXPECT_TRUE(ExecJs(child_node,
+                         "window.addEventListener('beforeunload', (e) => {"
+                         "e.preventDefault(); return e; });"));
+    } else {
+      EXPECT_TRUE(ExecJs(child_node,
+                         "window.addEventListener('beforeunload', (e) => {"
+                         "e.returnValue = 'Not empty string'; return e; });"));
+    }
   }
   auto* original_child_frame = child_node->current_frame_host();
   RenderFrameDeletedObserver original_child_frame_observer(
@@ -12883,7 +12900,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_THAT(
       result,
       ::testing::MatchesRegex(
-          "SecurityError: Blocked a frame with origin \"http://a.com:\\d+\" "
+          "SecurityError: Failed to read a named property 'document' from "
+          "'Window': Blocked a frame with origin \"http://a.com:\\d+\" "
           "from accessing a cross-origin frame."));
 }
 
@@ -12998,21 +13016,43 @@ IN_PROC_BROWSER_TEST_P(DisableProcessReusePolicyTest,
             second_child->current_frame_host()->GetProcess());
 }
 
-class SitePerProcessWithMainFrameThresholdTest
-    : public SitePerProcessBrowserTest {
+class SitePerProcessWithMainFrameThresholdTestBase
+    : public SitePerProcessBrowserTestBase {
  public:
   static constexpr size_t kThreshold = 2;
 
-  SitePerProcessWithMainFrameThresholdTest() {
+  SitePerProcessWithMainFrameThresholdTestBase() {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         features::kProcessPerSiteUpToMainFrameThreshold,
         {{"ProcessPerSiteMainFrameThreshold",
           base::StringPrintf("%zu", kThreshold)}});
   }
-  ~SitePerProcessWithMainFrameThresholdTest() override = default;
+  ~SitePerProcessWithMainFrameThresholdTestBase() override = default;
+
+  Shell* CreateShellAndNavigateToURL(const GURL& url) {
+    const GURL kOtherUrl =
+        embedded_test_server()->GetURL("bar.test", "/title1.html");
+
+    Shell* shell = CreateBrowser();
+    // Navigate to a different site first so that the new shell has  a non empty
+    // site info before navigating to the target site.
+    // TODO(https://crbug.com/1434900): Remove this workaround once we figure
+    // out how to handle navigation from an empty site to a new site.
+    CHECK(NavigateToURL(shell, kOtherUrl));
+    CHECK(NavigateToURL(shell, url));
+    return shell;
+  }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SitePerProcessWithMainFrameThresholdTest
+    : public SitePerProcessWithMainFrameThresholdTestBase,
+      public ::testing::WithParamInterface<std::string> {
+ public:
+  SitePerProcessWithMainFrameThresholdTest() = default;
+  ~SitePerProcessWithMainFrameThresholdTest() override = default;
 };
 
 // Tests that a RenderProcessHost is reused up to a certain threshold against
@@ -13038,13 +13078,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
 
   std::vector<Shell*> shells;
   for (size_t i = 0; i < kThreshold - 1; ++i) {
-    Shell* new_shell = CreateBrowser();
-    // Navigate to a different site first so that the new shell has  a non empty
-    // site info before navigating to the target site.
-    // TODO(https://crbug.com/1434900): Remove this workaround once we figure
-    // out how to handle navigation from an empty site to a new site.
-    ASSERT_TRUE(NavigateToURL(new_shell, kOtherUrl));
-    ASSERT_TRUE(NavigateToURL(new_shell, kUrl));
+    Shell* new_shell = CreateShellAndNavigateToURL(kUrl);
     RenderFrameHostImpl* new_frame =
         static_cast<WebContentsImpl*>(new_shell->web_contents())
             ->GetPrimaryMainFrame();
@@ -13120,6 +13154,83 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdTest,
                 ->GetProcess());
 }
 
+class SitePerProcessWithMainFrameThresholdLocalhostTest
+    : public SitePerProcessWithMainFrameThresholdTestBase,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  SitePerProcessWithMainFrameThresholdLocalhostTest() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kProcessPerSiteUpToMainFrameThreshold,
+        {{"ProcessPerSiteMainFrameThreshold",
+          base::StringPrintf("%zu", kThreshold)},
+         {"ProcessPerSiteMainFrameAllowIPAndLocalhost",
+          IsLocalhostAllowed() ? "true" : "false"}});
+  }
+  ~SitePerProcessWithMainFrameThresholdLocalhostTest() override = default;
+
+  bool IsLocalhostAllowed() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that process reuse is allowed or disallowed for localhost based on a
+// feature parameter.
+IN_PROC_BROWSER_TEST_P(SitePerProcessWithMainFrameThresholdLocalhostTest,
+                       AllowReuseLocalHost) {
+  const GURL kUrl = embedded_test_server()->GetURL("localhost", "/title1.html");
+  ASSERT_TRUE(net::IsLocalHostname(kUrl.host()));
+
+  ASSERT_TRUE(NavigateToURL(shell(), kUrl));
+  Shell* second_shell = CreateShellAndNavigateToURL(kUrl);
+
+  RenderFrameHostImpl* main_frame =
+      static_cast<WebContentsImpl*>(shell()->web_contents())
+          ->GetPrimaryMainFrame();
+  RenderFrameHostImpl* second_frame =
+      static_cast<WebContentsImpl*>(second_shell->web_contents())
+          ->GetPrimaryMainFrame();
+  if (IsLocalhostAllowed()) {
+    ASSERT_EQ(main_frame->GetProcess(), second_frame->GetProcess());
+  } else {
+    ASSERT_NE(main_frame->GetProcess(), second_frame->GetProcess());
+  }
+}
+
+class SitePerProcessWithMainFrameThresholdDevToolsTest
+    : public SitePerProcessWithMainFrameThresholdTestBase,
+      public TestDevToolsProtocolClient {
+ public:
+  SitePerProcessWithMainFrameThresholdDevToolsTest() = default;
+  ~SitePerProcessWithMainFrameThresholdDevToolsTest() override = default;
+
+  void TearDown() override {
+    DetachProtocolClient();
+    SitePerProcessWithMainFrameThresholdTestBase::TearDown();
+  }
+};
+
+// Tests that process reuse is diallowed when DevTools is attached to the
+// renderer process.
+IN_PROC_BROWSER_TEST_F(SitePerProcessWithMainFrameThresholdDevToolsTest,
+                       DevToolsAttached) {
+  const GURL kUrl = embedded_test_server()->GetURL("foo.test", "/title1.html");
+
+  ASSERT_TRUE(NavigateToURL(shell(), kUrl));
+
+  AttachToWebContents(shell()->web_contents());
+  set_agent_host_can_close();
+
+  Shell* second_shell = CreateShellAndNavigateToURL(kUrl);
+  RenderFrameHostImpl* main_frame =
+      static_cast<WebContentsImpl*>(shell()->web_contents())
+          ->GetPrimaryMainFrame();
+  RenderFrameHostImpl* second_frame =
+      static_cast<WebContentsImpl*>(second_shell->web_contents())
+          ->GetPrimaryMainFrame();
+  ASSERT_NE(main_frame->GetProcess(), second_frame->GetProcess());
+}
+
 INSTANTIATE_TEST_SUITE_P(All,
                          RequestDelayingSitePerProcessBrowserTest,
                          testing::ValuesIn(RenderDocumentFeatureLevelValues()));
@@ -13157,5 +13268,9 @@ INSTANTIATE_TEST_SUITE_P(All,
 INSTANTIATE_TEST_SUITE_P(All,
                          SitePerProcessBrowserTestWithLeakDetector,
                          testing::ValuesIn(RenderDocumentFeatureLevelValues()));
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SitePerProcessWithMainFrameThresholdLocalhostTest,
+                         testing::Bool());
 
 }  // namespace content

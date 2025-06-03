@@ -56,7 +56,7 @@ class PressureManagerSync {
   // The reference is immutable, so accessing it is thread-safe. The referenced
   // device::mojom::PressureManager implementation is called synchronously,
   // so it's acceptable to rely on its own thread-safety checks.
-  const raw_ref<device::mojom::PressureManager> manager_;
+  const raw_ref<device::mojom::PressureManager, DanglingUntriaged> manager_;
 };
 
 // Test double for PressureClient that records all updates.
@@ -134,11 +134,7 @@ class FakePressureClient : public device::mojom::PressureClient {
 
 class ComputePressureTest : public RenderViewHostImplTestHarness {
  public:
-  ComputePressureTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        blink::features::kComputePressure);
-  }
-
+  ComputePressureTest() = default;
   ~ComputePressureTest() override = default;
 
   ComputePressureTest(const ComputePressureTest&) = delete;
@@ -177,8 +173,6 @@ class ComputePressureTest : public RenderViewHostImplTestHarness {
  protected:
   const GURL kTestUrl{"https://example.com/compute_pressure.html"};
   const GURL kInsecureUrl{"http://example.com/compute_pressure.html"};
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   mojo::Remote<device::mojom::PressureManager> pressure_manager_;
   std::unique_ptr<PressureManagerSync> pressure_manager_sync_;

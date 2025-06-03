@@ -10,9 +10,9 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_child_layout_context.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_child_layout_context.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_node.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_box_fragment_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_constraint_space_builder.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_box_fragment.h"
@@ -53,8 +53,9 @@ void FormattedText::Dispose() {
 void FormattedText::UpdateComputedStylesIfNeeded(
     Document& document,
     const FontDescription& defaultFont) {
-  auto style = document.GetStyleResolver().StyleForFormattedText(
-      /*is_text_run*/ false, defaultFont, GetCssPropertySet());
+  const ComputedStyle* style =
+      document.GetStyleResolver().StyleForFormattedText(
+          /*is_text_run*/ false, defaultFont, GetCssPropertySet());
   block_->SetStyle(style, LayoutObject::ApplyStyleChanges::kNo);
   block_->SetHorizontalWritingMode(style->IsHorizontalWritingMode());
   for (auto& text_run : text_runs_)
@@ -195,8 +196,8 @@ PaintRecord FormattedText::PaintFormattedText(Document& document,
   const NGLayoutResult* block_results = block_node.Layout(space, nullptr);
   const auto& fragment =
       To<NGPhysicalBoxFragment>(block_results->PhysicalFragment());
-  block_->RecalcFragmentsVisualOverflow();
-  bounds = gfx::RectF{block_->PhysicalVisualOverflowRect()};
+  block_->RecalcVisualOverflow();
+  bounds = gfx::RectF{block_->VisualOverflowRect()};
   auto* paint_record_builder = MakeGarbageCollected<PaintRecordBuilder>();
   PaintInfo paint_info(paint_record_builder->Context(), CullRect::Infinite(),
                        PaintPhase::kForeground);

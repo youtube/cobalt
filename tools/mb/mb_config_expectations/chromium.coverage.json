@@ -60,12 +60,12 @@
   "chromeos-js-code-coverage": {
     "gn_args": {
       "dcheck_always_on": false,
-      "enable_webui_inline_sourcemaps": true,
-      "is_clang": true,
+      "ffmpeg_branding": "ChromeOS",
       "is_component_build": false,
       "is_debug": false,
       "optimize_webui": false,
-      "symbol_level": 0,
+      "proprietary_codecs": true,
+      "target_os": "chromeos",
       "use_javascript_coverage": true,
       "use_remoteexec": true
     }
@@ -120,10 +120,23 @@
       "use_remoteexec": true
     }
   },
+  "linux-fuzz-coverage": {
+    "gn_args": {
+      "dcheck_always_on": false,
+      "enable_mojom_fuzzer": true,
+      "enable_nacl": false,
+      "ffmpeg_branding": "ChromeOS",
+      "is_component_build": false,
+      "pdf_enable_xfa": true,
+      "proprietary_codecs": true,
+      "use_clang_coverage": true,
+      "use_libfuzzer": true,
+      "use_remoteexec": true
+    }
+  },
   "linux-js-code-coverage": {
     "gn_args": {
       "dcheck_always_on": false,
-      "enable_webui_inline_sourcemaps": true,
       "is_clang": true,
       "is_component_build": false,
       "is_debug": false,

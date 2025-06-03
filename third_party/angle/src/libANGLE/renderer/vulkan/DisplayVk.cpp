@@ -96,7 +96,6 @@ DisplayVk::DisplayVk(const egl::DisplayState &state)
     : DisplayImpl(state),
       vk::Context(new RendererVk()),
       mScratchBuffer(1000u),
-      mSavedError({VK_SUCCESS, "", "", 0}),
       mSupportedColorspaceFormatsMap{}
 {}
 
@@ -109,7 +108,7 @@ egl::Error DisplayVk::initialize(egl::Display *display)
 {
     ASSERT(mRenderer != nullptr && display != nullptr);
     angle::Result result = mRenderer->initialize(this, display, getWSIExtension(), getWSILayer());
-    ANGLE_TRY(angle::ToEGL(result, this, EGL_NOT_INITIALIZED));
+    ANGLE_TRY(angle::ToEGL(result, EGL_NOT_INITIALIZED));
     // Query and cache supported surface format and colorspace for later use.
     initSupportedSurfaceFormatColorspaces();
     return egl::NoError();
@@ -183,7 +182,7 @@ egl::Error DisplayVk::waitClient(const gl::Context *context)
 {
     ANGLE_TRACE_EVENT0("gpu.angle", "DisplayVk::waitClient");
     ContextVk *contextVk = vk::GetImpl(context);
-    return angle::ToEGL(contextVk->finishImpl(RenderPassClosureReason::EGLWaitClient), this,
+    return angle::ToEGL(contextVk->finishImpl(RenderPassClosureReason::EGLWaitClient),
                         EGL_BAD_ACCESS);
 }
 
@@ -237,9 +236,9 @@ ImageImpl *DisplayVk::createImage(const egl::ImageState &state,
     return new ImageVk(state, context);
 }
 
-ShareGroupImpl *DisplayVk::createShareGroup()
+ShareGroupImpl *DisplayVk::createShareGroup(const egl::ShareGroupState &state)
 {
-    return new ShareGroupVk();
+    return new ShareGroupVk(state);
 }
 
 bool DisplayVk::isConfigFormatSupported(VkFormat format) const
@@ -459,7 +458,8 @@ void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
     outExtensions->imagePixmap           = false;  // ANGLE does not support pixmaps
     outExtensions->glTexture2DImage      = true;
     outExtensions->glTextureCubemapImage = true;
-    outExtensions->glTexture3DImage = getRenderer()->getFeatures().supportsImage2dViewOf3d.enabled;
+    outExtensions->glTexture3DImage =
+        getRenderer()->getFeatures().supportsSampler2dViewOf3d.enabled;
     outExtensions->glRenderbufferImage = true;
     outExtensions->imageNativeBuffer =
         getRenderer()->getFeatures().supportsAndroidHardwareBuffer.enabled;
@@ -485,10 +485,10 @@ void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
     outExtensions->contextPriority = !getRenderer()->getFeatures().allocateNonZeroMemory.enabled;
     outExtensions->noConfigContext = true;
 
-#if defined(ANGLE_PLATFORM_ANDROID)
+#if defined(ANGLE_PLATFORM_ANDROID) || defined(ANGLE_PLATFORM_LINUX)
     outExtensions->nativeFenceSyncANDROID =
         getRenderer()->getFeatures().supportsAndroidNativeFenceSync.enabled;
-#endif  // defined(ANGLE_PLATFORM_ANDROID)
+#endif  // defined(ANGLE_PLATFORM_ANDROID) || defined(ANGLE_PLATFORM_LINUX)
 
 #if defined(ANGLE_PLATFORM_GGP)
     outExtensions->ggpStreamDescriptor = true;
@@ -536,6 +536,11 @@ void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
             isColorspaceSupported(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT);
         outExtensions->glColorspaceScrgbLinear =
             isColorspaceSupported(VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT);
+        outExtensions->glColorspaceBt2020Linear =
+            isColorspaceSupported(VK_COLOR_SPACE_BT2020_LINEAR_EXT);
+        outExtensions->glColorspaceBt2020Pq =
+            isColorspaceSupported(VK_COLOR_SPACE_HDR10_ST2084_EXT);
+        outExtensions->glColorspaceBt2020Hlg = isColorspaceSupported(VK_COLOR_SPACE_HDR10_HLG_EXT);
     }
 }
 
@@ -568,29 +573,19 @@ void DisplayVk::handleError(VkResult result,
 {
     ASSERT(result != VK_SUCCESS);
 
-    mSavedError.errorCode = result;
-    mSavedError.file      = file;
-    mSavedError.function  = function;
-    mSavedError.line      = line;
+    std::stringstream errorStream;
+    errorStream << "Internal Vulkan error (" << result << "): " << VulkanResultString(result)
+                << ", in " << file << ", " << function << ":" << line << ".";
+    std::string errorString = errorStream.str();
 
     if (result == VK_ERROR_DEVICE_LOST)
     {
-        WARN() << "Internal Vulkan error (" << result << "): " << VulkanResultString(result)
-               << ", in " << file << ", " << function << ":" << line << ".";
+        WARN() << errorString;
         mRenderer->notifyDeviceLost();
     }
-}
 
-// TODO(jmadill): Remove this. http://anglebug.com/3041
-egl::Error DisplayVk::getEGLError(EGLint errorCode)
-{
-    std::stringstream errorStream;
-    errorStream << "Internal Vulkan error (" << mSavedError.errorCode
-                << "): " << VulkanResultString(mSavedError.errorCode) << ", in " << mSavedError.file
-                << ", " << mSavedError.function << ":" << mSavedError.line << ".";
-    std::string errorString = errorStream.str();
-
-    return egl::Error(errorCode, 0, std::move(errorString));
+    // Note: the errorCode will be set later in angle::ToEGL where it's available.
+    *egl::Display::GetCurrentThreadErrorScratchSpace() = egl::Error(0, 0, std::move(errorString));
 }
 
 void DisplayVk::initializeFrontendFeatures(angle::FrontendFeatures *features) const

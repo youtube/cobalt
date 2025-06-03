@@ -10,14 +10,11 @@
 
 #include "ash/ash_export.h"
 #include "ash/wm/window_cycle/window_cycle_controller.h"
-#include "ash/wm/window_cycle/window_cycle_view.h"
 #include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
 #include "ui/aura/window_observer.h"
 #include "ui/display/display_observer.h"
-#include "ui/display/screen.h"
-#include "ui/views/controls/label.h"
-#include "ui/views/view.h"
+#include "ui/events/event.h"
 
 namespace aura {
 class ScopedWindowTargeter;
@@ -26,9 +23,13 @@ class Window;
 
 namespace views {
 class Widget;
-}
+}  // namespace views
 
 namespace ash {
+
+class WindowCycleView;
+
+using WindowCyclingDirection = WindowCycleController::WindowCyclingDirection;
 
 // Tracks a set of Windows that can be stepped through. This class is used by
 // the WindowCycleController.
@@ -61,9 +62,9 @@ class ASH_EXPORT WindowCycleList : public aura::WindowObserver,
   // default position if |starting_alt_tab_or_switching_mode| is true.
   // This moves the focus ring and also scrolls the list.
   // If |starting_alt_tab_or_switching_mode| is true and |direction| is
-  // forward, the highlight moves to the first non-active window in MRU list:
+  // forward, the focus ring moves to the first non-active window in MRU list:
   // the second window by default or the first window if it is not active.
-  void Step(WindowCycleController::WindowCyclingDirection direction,
+  void Step(WindowCyclingDirection direction,
             bool starting_alt_tab_or_switching_mode);
 
   // Should be called when a user drags their finger on the touch screen.
@@ -104,11 +105,18 @@ class ASH_EXPORT WindowCycleList : public aura::WindowObserver,
 
   static void SetDisableInitialDelayForTesting(bool disabled);
 
+  const WindowList& windows_for_testing() const { return windows_; }
+
  private:
   friend class ModeSelectionWindowCycleControllerTest;
   friend class MultiUserWindowCycleControllerTest;
   friend class WindowCycleListTestApi;
   friend class WindowCycleControllerTest;
+
+  // Returns true if the given `window` is in a snap group and we need to step
+  // twice to get to the next window cycle item.
+  bool ShouldDoubleCycleStep(aura::Window* window,
+                             WindowCyclingDirection direction) const;
 
   // aura::WindowObserver:
   // There is a chance a window is destroyed, for example by JS code. We need to
@@ -149,8 +157,9 @@ class ASH_EXPORT WindowCycleList : public aura::WindowObserver,
   // |windows_|.
   int GetIndexOfWindow(aura::Window* window) const;
 
-  // Returns the number of windows in the window cycle list for all desks.
-  int GetNumberOfWindowsAllDesks() const;
+  // Returns the number of items to be cycled in the window cycle list with the
+  // existence of snap groups for all desks.
+  int GetNumberOfCycleItemsAllDesks() const;
 
   // Computes and reports the number of non-same-app windows skipped metric if
   // `same_app_only_`. This must be called from the destructor before the call
@@ -195,12 +204,12 @@ class ASH_EXPORT WindowCycleList : public aura::WindowObserver,
   std::unique_ptr<aura::ScopedWindowTargeter> window_targeter_;
 
   // Tracks what window was active when starting to cycle and used to determine
-  // if alt-tab should highlight the first or the second window in the list.
+  // if alt-tab should focus the first or the second window in the list.
   raw_ptr<aura::Window, ExperimentalAsh> active_window_before_window_cycle_ =
       nullptr;
 
   // The most recent direction `Step()` was called with.
-  WindowCycleController::WindowCyclingDirection last_cycling_direction_;
+  WindowCyclingDirection last_cycling_direction_;
 };
 
 }  // namespace ash

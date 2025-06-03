@@ -15,10 +15,10 @@
 #include "base/strings/string_piece.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "chrome/browser/apps/app_discovery_service/recommended_arc_apps/recommend_apps_fetcher.h"
+#include "chrome/browser/apps/app_discovery_service/recommended_arc_apps/recommend_apps_fetcher_delegate.h"
+#include "chrome/browser/apps/app_discovery_service/recommended_arc_apps/scoped_test_recommend_apps_fetcher_factory.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
-#include "chrome/browser/ash/login/screens/recommend_apps/recommend_apps_fetcher.h"
-#include "chrome/browser/ash/login/screens/recommend_apps/recommend_apps_fetcher_delegate.h"
-#include "chrome/browser/ash/login/screens/recommend_apps/scoped_test_recommend_apps_fetcher_factory.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
@@ -88,9 +88,10 @@ constexpr char kJsonResponse[] =
   }
   ]})json";
 
-class StubRecommendAppsFetcher : public RecommendAppsFetcher {
+class StubRecommendAppsFetcher : public apps::RecommendAppsFetcher {
  public:
-  explicit StubRecommendAppsFetcher(RecommendAppsFetcherDelegate* delegate)
+  explicit StubRecommendAppsFetcher(
+      apps::RecommendAppsFetcherDelegate* delegate)
       : delegate_(delegate) {}
   ~StubRecommendAppsFetcher() override = default;
 
@@ -125,7 +126,7 @@ class StubRecommendAppsFetcher : public RecommendAppsFetcher {
   void Retry() override { NOTREACHED(); }
 
  protected:
-  const raw_ptr<RecommendAppsFetcherDelegate, ExperimentalAsh> delegate_;
+  const raw_ptr<apps::RecommendAppsFetcherDelegate, ExperimentalAsh> delegate_;
   bool started_ = false;
 };
 
@@ -147,7 +148,7 @@ class RecommendAppsScreenTest : public OobeBaseTest {
         true;
 
     recommend_apps_fetcher_factory_ =
-        std::make_unique<ScopedTestRecommendAppsFetcherFactory>(
+        std::make_unique<apps::ScopedTestRecommendAppsFetcherFactory>(
             base::BindRepeating(
                 &RecommendAppsScreenTest::CreateRecommendAppsFetcher,
                 base::Unretained(this)));
@@ -202,10 +203,10 @@ class RecommendAppsScreenTest : public OobeBaseTest {
     test::OobeJS().ExpectHiddenPath({kRecommendAppsId, "loadingDialog"});
   }
 
-  base::raw_ptr<RecommendAppsScreen, DanglingUntriaged> recommend_apps_screen_ =
-      nullptr;
+  raw_ptr<RecommendAppsScreen, AcrossTasksDanglingUntriaged>
+      recommend_apps_screen_ = nullptr;
   absl::optional<RecommendAppsScreen::Result> screen_result_;
-  base::raw_ptr<StubRecommendAppsFetcher, DanglingUntriaged>
+  raw_ptr<StubRecommendAppsFetcher, AcrossTasksDanglingUntriaged>
       recommend_apps_fetcher_ = nullptr;
 
   LoginManagerMixin login_manager_{&mixin_host_};
@@ -218,8 +219,8 @@ class RecommendAppsScreenTest : public OobeBaseTest {
       std::move(screen_exit_callback_).Run();
   }
 
-  std::unique_ptr<RecommendAppsFetcher> CreateRecommendAppsFetcher(
-      RecommendAppsFetcherDelegate* delegate) {
+  std::unique_ptr<apps::RecommendAppsFetcher> CreateRecommendAppsFetcher(
+      apps::RecommendAppsFetcherDelegate* delegate) {
     EXPECT_FALSE(recommend_apps_fetcher_);
 
     auto fetcher = std::make_unique<StubRecommendAppsFetcher>(delegate);
@@ -227,7 +228,7 @@ class RecommendAppsScreenTest : public OobeBaseTest {
     return fetcher;
   }
 
-  std::unique_ptr<ScopedTestRecommendAppsFetcherFactory>
+  std::unique_ptr<apps::ScopedTestRecommendAppsFetcherFactory>
       recommend_apps_fetcher_factory_;
 
   base::OnceClosure screen_exit_callback_;

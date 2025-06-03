@@ -13,10 +13,10 @@
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_histogram_helper.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_reporting_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager.h"
+#include "components/enterprise/data_controls/dlp_histogram_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/common/constants.h"
@@ -26,7 +26,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/webui/file_manager/url_constants.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace policy {
@@ -128,7 +128,7 @@ DlpRulesManager::Level IsDataTransferAllowed(
 #if BUILDFLAG(IS_CHROMEOS_ASH)
     case ui::EndpointType::kCrostini: {
       level = dlp_rules_manager.IsRestrictedComponent(
-          src_url, DlpRulesManager::Component::kCrostini,
+          src_url, data_controls::Component::kCrostini,
           DlpRulesManager::Restriction::kClipboard, src_pattern,
           out_rule_metadata);
       break;
@@ -136,7 +136,7 @@ DlpRulesManager::Level IsDataTransferAllowed(
 
     case ui::EndpointType::kPluginVm: {
       level = dlp_rules_manager.IsRestrictedComponent(
-          src_url, DlpRulesManager::Component::kPluginVm,
+          src_url, data_controls::Component::kPluginVm,
           DlpRulesManager::Restriction::kClipboard, src_pattern,
           out_rule_metadata);
       break;
@@ -144,7 +144,7 @@ DlpRulesManager::Level IsDataTransferAllowed(
 
     case ui::EndpointType::kArc: {
       level = dlp_rules_manager.IsRestrictedComponent(
-          src_url, DlpRulesManager::Component::kArc,
+          src_url, data_controls::Component::kArc,
           DlpRulesManager::Restriction::kClipboard, src_pattern,
           out_rule_metadata);
       break;
@@ -207,7 +207,8 @@ void MaybeReportWarningProceededEventAndPaste(
 // static
 void DataTransferDlpController::Init(const DlpRulesManager& dlp_rules_manager) {
   if (!HasInstance()) {
-    DlpBooleanHistogram(dlp::kDataTransferControllerStartedUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kDataTransferControllerStartedUMA, true);
     new DataTransferDlpController(dlp_rules_manager);
   }
 }
@@ -275,7 +276,8 @@ bool DataTransferDlpController::IsClipboardReadAllowed(
     default:
       break;
   }
-  DlpBooleanHistogram(dlp::kClipboardReadBlockedUMA, !is_read_allowed);
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kClipboardReadBlockedUMA, !is_read_allowed);
   return is_read_allowed;
 }
 
@@ -358,7 +360,8 @@ void DataTransferDlpController::DropIfAllowed(
 
   if (drag_data->HasFile() && !IsFilesApp(data_dst)) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    auto* files_controller = dlp_rules_manager_->GetDlpFilesController();
+    auto* files_controller = static_cast<policy::DlpFilesControllerAsh*>(
+        dlp_rules_manager_->GetDlpFilesController());
     if (files_controller) {
       std::vector<ui::FileInfo> dropped_files;
       drag_data->GetFilenames(&dropped_files);
@@ -497,7 +500,8 @@ bool DataTransferDlpController::ShouldSkipReporting(
   if (is_same_src && is_same_dst && is_same_mode) {
     base::TimeDelta time_diff = curr_time - last_reported_.time;
     base::UmaHistogramTimes(
-        GetDlpHistogramPrefix() + dlp::kDataTransferReportingTimeDiffUMA,
+        data_controls::GetDlpHistogramPrefix() +
+            data_controls::dlp::kDataTransferReportingTimeDiffUMA,
         time_diff);
 
     return time_diff < GetSkipReportingTimeout();
@@ -538,21 +542,21 @@ void DataTransferDlpController::ReportEvent(
 #if BUILDFLAG(IS_CHROMEOS_ASH)
     case ui::EndpointType::kCrostini:
       reporting_manager->ReportEvent(
-          src_pattern, DlpRulesManager::Component::kCrostini,
+          src_pattern, data_controls::Component::kCrostini,
           DlpRulesManager::Restriction::kClipboard, level, rule_metadata.name,
           rule_metadata.obfuscated_id);
       break;
 
     case ui::EndpointType::kPluginVm:
       reporting_manager->ReportEvent(
-          src_pattern, DlpRulesManager::Component::kPluginVm,
+          src_pattern, data_controls::Component::kPluginVm,
           DlpRulesManager::Restriction::kClipboard, level, rule_metadata.name,
           rule_metadata.obfuscated_id);
       break;
 
     case ui::EndpointType::kArc:
       reporting_manager->ReportEvent(
-          src_pattern, DlpRulesManager::Component::kArc,
+          src_pattern, data_controls::Component::kArc,
           DlpRulesManager::Restriction::kClipboard, level, rule_metadata.name,
           rule_metadata.obfuscated_id);
       break;
@@ -626,7 +630,8 @@ void DataTransferDlpController::ContinueDropIfAllowed(
 
   const bool is_drop_allowed = (level == DlpRulesManager::Level::kAllow) ||
                                (level == DlpRulesManager::Level::kReport);
-  DlpBooleanHistogram(dlp::kDragDropBlockedUMA, !is_drop_allowed);
+  data_controls::DlpBooleanHistogram(data_controls::dlp::kDragDropBlockedUMA,
+                                     !is_drop_allowed);
 }
 
 DataTransferDlpController::LastReportedEndpoints::LastReportedEndpoints() =

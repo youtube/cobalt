@@ -18,7 +18,9 @@ class GPUAdapterInfo : public ScriptWrappable {
                  const String& architecture,
                  const String& device = String(),
                  const String& description = String(),
-                 const String& driver = String());
+                 const String& driver = String(),
+                 const String& backend = String(),
+                 const String& type = String());
 
   GPUAdapterInfo(const GPUAdapterInfo&) = delete;
   GPUAdapterInfo& operator=(const GPUAdapterInfo&) = delete;
@@ -29,6 +31,8 @@ class GPUAdapterInfo : public ScriptWrappable {
   const String& device() const;
   const String& description() const;
   const String& driver() const;
+  const String& backend() const;
+  const String& type() const;
 
  private:
   String vendor_;
@@ -36,6 +40,8 @@ class GPUAdapterInfo : public ScriptWrappable {
   String device_;
   String description_;
   String driver_;
+  String backend_;
+  String type_;
 };
 
 }  // namespace blink

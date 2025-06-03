@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-#include <vector>
-
 #include "gpu/command_buffer/common/command_buffer.h"
 #include "gpu/command_buffer/common/command_buffer_id.h"
 #include "ppapi/c/pp_graphics_3d.h"
@@ -22,7 +20,7 @@
 
 namespace gpu {
 struct Capabilities;
-struct ContextCreationAttribs;
+struct GLCapabilities;
 }
 
 namespace ppapi {
@@ -36,10 +34,7 @@ class PpapiCommandBufferProxy;
 
 class PPAPI_PROXY_EXPORT Graphics3D : public PPB_Graphics3D_Shared {
  public:
-  Graphics3D(const HostResource& resource,
-             const gfx::Size& size,
-             const bool single_buffer,
-             bool use_shared_images_swapchain);
+  Graphics3D(const HostResource& resource, const gfx::Size& size);
 
   Graphics3D(const Graphics3D&) = delete;
   Graphics3D& operator=(const Graphics3D&) = delete;
@@ -48,6 +43,7 @@ class PPAPI_PROXY_EXPORT Graphics3D : public PPB_Graphics3D_Shared {
 
   bool Init(gpu::gles2::GLES2Implementation* share_gles2,
             const gpu::Capabilities& capabilities,
+            const gpu::GLCapabilities& gl_capabilities,
             SerializedHandle shared_state,
             gpu::CommandBufferId command_buffer_id);
 
@@ -64,7 +60,6 @@ class PPAPI_PROXY_EXPORT Graphics3D : public PPB_Graphics3D_Shared {
       int32_t start,
       int32_t end) override;
   void EnsureWorkVisible() override;
-  void TakeFrontBuffer() override;
   void ResolveAndDetachFramebuffer() override;
 
  private:
@@ -76,9 +71,6 @@ class PPAPI_PROXY_EXPORT Graphics3D : public PPB_Graphics3D_Shared {
   void DoResize(gfx::Size size) override;
 
   std::unique_ptr<PpapiCommandBufferProxy> command_buffer_;
-
-  uint64_t swap_id_ = 0;
-  bool single_buffer = false;
 };
 
 class PPB_Graphics3D_Proxy : public InterfaceProxy {
@@ -103,9 +95,10 @@ class PPB_Graphics3D_Proxy : public InterfaceProxy {
  private:
   void OnMsgCreate(PP_Instance instance,
                    HostResource share_context,
-                   const gpu::ContextCreationAttribs& attrib_helper,
+                   const Graphics3DContextAttribs& context_attribs,
                    HostResource* result,
                    gpu::Capabilities* capabilities,
+                   gpu::GLCapabilities* gl_capabilities,
                    SerializedHandle* handle,
                    gpu::CommandBufferId* command_buffer_id);
   void OnMsgSetGetBuffer(const HostResource& context, int32_t id);
@@ -130,7 +123,6 @@ class PPB_Graphics3D_Proxy : public InterfaceProxy {
   void OnMsgSwapBuffers(const HostResource& context,
                         const gpu::SyncToken& sync_token,
                         const gfx::Size& size);
-  void OnMsgTakeFrontBuffer(const HostResource& context);
   void OnMsgEnsureWorkVisible(const HostResource& context);
   void OnMsgResolveAndDetachFramebuffer(const HostResource& context);
   void OnMsgResize(const HostResource& context, gfx::Size size);

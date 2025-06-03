@@ -8,15 +8,16 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
-#include "components/autofill/core/browser/address_rewriter.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_model/autofill_structured_address_constants.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/geo/address_rewriter.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
 
@@ -108,12 +109,12 @@ class Re2RegExCache {
 
   // Returns a pointer to a constant compiled expression that matches |pattern|
   // case-sensitively.
-  const RE2* GetRegEx(const std::string& pattern);
+  const RE2* GetRegEx(std::string_view pattern);
 
 #ifdef UNIT_TEST
   // Returns true if the compiled regular expression corresponding to |pattern|
   // is cached.
-  bool IsRegExCachedForTesting(const std::string& pattern) {
+  bool IsRegExCachedForTesting(std::string_view pattern) {
     return regex_map_.count(pattern) > 0;
   }
 #endif
@@ -126,39 +127,7 @@ class Re2RegExCache {
   friend class base::NoDestructor<Re2RegExCache>;
 
   // Stores a compiled regular expression keyed by its corresponding |pattern|.
-  std::map<std::string, std::unique_ptr<const RE2>> regex_map_;
-
-  // A lock to prevent concurrent access to the map.
-  base::Lock lock_;
-};
-
-// A cache for address rewriter for different countries.
-class RewriterCache {
- public:
-  RewriterCache& operator=(const RewriterCache&) = delete;
-  RewriterCache(const RewriterCache&) = delete;
-  ~RewriterCache() = delete;
-
-  // Returns a singleton instance.
-  static RewriterCache* GetInstance();
-
-  // Applies the rewriter to |text| for a specific county given by
-  // |country_code|.
-  static std::u16string Rewrite(const std::u16string& country_code,
-                                const std::u16string& text);
-
- private:
-  RewriterCache();
-
-  // Returns the Rewriter for |country_code|.
-  const AddressRewriter& GetRewriter(const std::u16string& country_code);
-
-  // Since the constructor is private, |base::NoDestructor| must be friend to be
-  // allowed to construct the cache.
-  friend class base::NoDestructor<RewriterCache>;
-
-  // Stores a country-specific Rewriter keyed by its corresponding |pattern|.
-  std::map<std::u16string, const AddressRewriter> rewriter_map_;
+  std::map<std::string, std::unique_ptr<const RE2>, std::less<>> regex_map_;
 
   // A lock to prevent concurrent access to the map.
   base::Lock lock_;
@@ -173,7 +142,7 @@ bool HasCjkNameCharacteristics(const std::string& name);
 // name:
 // * Name contains a very common Hispanic/Latinx surname.
 // * Name uses a surname conjunction.
-bool HasHispanicLatinxNameCharaceristics(const std::string& name);
+bool HasHispanicLatinxNameCharacteristics(const std::string& name);
 
 // Returns true if |middle_name| has the characteristics of a containing only
 // initials:
@@ -199,7 +168,7 @@ ParseValueByRegularExpression(const std::string& value,
                               const std::string& pattern);
 
 // Returns a compiled case sensitive regular expression for |pattern|.
-std::unique_ptr<const RE2> BuildRegExFromPattern(const std::string& pattern);
+std::unique_ptr<const RE2> BuildRegExFromPattern(std::string_view pattern);
 
 // Returns true if |value| can be matched by the enumuerated RegEx |regex|.
 bool IsPartialMatch(const std::string& value, RegEx regex);
@@ -219,7 +188,7 @@ std::vector<std::string> GetAllPartialMatches(const std::string& value,
 std::vector<std::string> ExtractAllPlaceholders(const std::string& value);
 
 // Returns |value| as a placeholder token: ${value}.
-std::string GetPlaceholderToken(const std::string& value);
+std::string GetPlaceholderToken(std::string_view value);
 
 // Returns a named capture group created by the concatenation of the
 // StringPieces in |pattern_span_initializer_list|. The group is named by the
@@ -273,6 +242,12 @@ std::string CaptureTypeWithPattern(
     const std::string& pattern,
     const CaptureOptions options = CaptureOptions());
 
+// Normalizes and rewrites |text| using the rules for |country_code|.
+// If |country_code| is empty, it defaults to US.
+std::u16string NormalizeAndRewrite(const std::u16string& country_code,
+                                   const std::u16string& text,
+                                   bool keep_white_space);
+
 // Collapses white spaces and line breaks, converts the string to lower case and
 // removes diacritics.
 // If |keep_white_spaces| is true, white spaces are collapsed. Otherwise,
@@ -287,6 +262,11 @@ bool AreSortedTokensEqual(const std::vector<AddressToken>& first,
 // Returns true if both strings contain the same tokens after normalization.
 bool AreStringTokenEquivalent(const std::u16string& one,
                               const std::u16string& other);
+
+// Returns true if all tokens from the first string are contained in the set of
+// tokens from the second string.
+bool AreStringTokenCompatible(const std::u16string& first,
+                              const std::u16string& second);
 
 // Returns a sorted vector containing the tokens of |value| after |value| was
 // canonicalized. |value| is tokenized by splitting it by white spaces and

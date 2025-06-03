@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
@@ -96,6 +97,13 @@ class PendingBeaconHostTestBase : public RenderViewHostTestHarness {
       delete;
   PendingBeaconHostTestBase() = default;
 
+  void TearDown() override {
+    // Clean up error handler, to avoid causing other tests run in the same
+    // process from crashing.
+    mojo::SetDefaultProcessErrorHandler(base::NullCallback());
+    RenderViewHostTestHarness::TearDown();
+  }
+
  protected:
   PendingBeaconHost* host() { return GetOrCreateHostIfNotExist(); }
   mojo::Remote<blink::mojom::PendingBeaconHost>& host_remote() {
@@ -166,8 +174,8 @@ class PendingBeaconHostTestBase : public RenderViewHostTestHarness {
         browser_context()->GetPermissionControllerDelegate());
 
     ON_CALL(*mock_permission_manager,
-            GetPermissionResultForOriginWithoutContext(permission_type,
-                                                       ::testing::_))
+            GetPermissionResultForOriginWithoutContext(
+                permission_type, ::testing::_, ::testing::_))
         .WillByDefault(::testing::Return(PermissionResult(
             permission_status, PermissionStatusSource::UNSPECIFIED)));
   }

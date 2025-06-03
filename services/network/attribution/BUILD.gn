@@ -9,16 +9,19 @@ source_set("attribution") {
     "//services/network:test_support",
     "//services/network:tests",
   ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]
   sources = [
-    "attribution_attestation_mediator.cc",
-    "attribution_attestation_mediator.h",
-    "attribution_attestation_mediator_metrics_recorder.cc",
-    "attribution_attestation_mediator_metrics_recorder.h",
     "attribution_request_helper.cc",
     "attribution_request_helper.h",
-    "boringssl_attestation_cryptographer.cc",
-    "boringssl_attestation_cryptographer.h",
+    "attribution_verification_mediator.cc",
+    "attribution_verification_mediator.h",
+    "attribution_verification_mediator_metrics_recorder.cc",
+    "attribution_verification_mediator_metrics_recorder.h",
+    "boringssl_verification_cryptographer.cc",
+    "boringssl_verification_cryptographer.h",
+    "request_headers_internal.cc",
+    "request_headers_internal.h",
   ]
   deps = [
     "//base",
@@ -36,12 +39,13 @@ source_set("tests") {
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]
 
   sources = [
-    "attribution_attestation_mediator_metrics_recorder_unittest.cc",
-    "attribution_attestation_mediator_unittest.cc",
     "attribution_request_helper_unittest.cc",
     "attribution_test_utils.cc",
     "attribution_test_utils.h",
-    "boringssl_attestation_cryptographer_unittest.cc",
+    "attribution_verification_mediator_metrics_recorder_unittest.cc",
+    "attribution_verification_mediator_unittest.cc",
+    "boringssl_verification_cryptographer_unittest.cc",
+    "request_headers_internal_unittest.cc",
   ]
 
   deps = [

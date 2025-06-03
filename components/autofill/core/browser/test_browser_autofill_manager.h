@@ -10,10 +10,9 @@
 #include <utility>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/autofill_trigger_source.h"
+#include "components/autofill/core/browser/autofill_trigger_details.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_unittest_util.h"
@@ -52,8 +51,7 @@ class TestBrowserAutofillManager : public BrowserAutofillManager {
       const FormData& form,
       const FormFieldData& field,
       const gfx::RectF& bounding_box,
-      AutoselectFirstSuggestion autoselect_first_suggestion,
-      FormElementWasClicked form_element_was_clicked) override;
+      AutofillSuggestionTriggerSource trigger_source) override;
   void OnJavaScriptChangedAutofilledValue(
       const FormData& form,
       const FormFieldData& field,
@@ -64,25 +62,24 @@ class TestBrowserAutofillManager : public BrowserAutofillManager {
 
   // BrowserAutofillManager overrides.
   bool IsAutofillProfileEnabled() const override;
-  bool IsAutofillCreditCardEnabled() const override;
+  bool IsAutofillPaymentMethodsEnabled() const override;
   void StoreUploadVotesAndLogQualityCallback(
       FormSignature form_signature,
       base::OnceClosure callback) override;
   void UploadVotesAndLogQuality(std::unique_ptr<FormStructure> submitted_form,
                                 base::TimeTicks interaction_time,
                                 base::TimeTicks submission_time,
-                                bool observed_submission) override;
+                                bool observed_submission,
+                                const ukm::SourceId source_id) override;
   const gfx::Image& GetCardImage(const CreditCard& credit_card) override;
   bool MaybeStartVoteUploadProcess(
       std::unique_ptr<FormStructure> form_structure,
       bool observed_submission) override;
   // Immediately triggers the refill.
   void ScheduleRefill(const FormData& form,
-                      const AutofillTriggerSource trigger_source) override;
+                      const AutofillTriggerDetails& trigger_details) override;
 
   // Unique to TestBrowserAutofillManager:
-
-  int GetPackedCreditCardID(int credit_card_id);
 
   void AddSeenForm(const FormData& form,
                    const std::vector<ServerFieldType>& field_types,
@@ -99,7 +96,8 @@ class TestBrowserAutofillManager : public BrowserAutofillManager {
 
   void AddSeenForm(
       const FormData& form,
-      const std::vector<std::vector<std::pair<PatternSource, ServerFieldType>>>&
+      const std::vector<
+          std::vector<std::pair<HeuristicSource, ServerFieldType>>>&
           heuristic_types,
       const std::vector<ServerFieldType>& server_types,
       bool preserve_values_in_form_structure = false);
@@ -115,35 +113,26 @@ class TestBrowserAutofillManager : public BrowserAutofillManager {
       const FormData& form,
       const FormFieldData& field,
       const gfx::RectF& bounding_box = {},
-      AutoselectFirstSuggestion autoselect_first_suggestion =
-          AutoselectFirstSuggestion(false),
-      FormElementWasClicked form_element_was_clicked =
-          FormElementWasClicked(false));
+      AutofillSuggestionTriggerSource trigger_source =
+          AutofillSuggestionTriggerSource::kTextFieldDidChange);
 
   // Require a TestAutofillClient because `this` does not know whether its
   // `client()` is a *Test*AutofillClient.
   void SetAutofillProfileEnabled(TestAutofillClient& client,
                                  bool profile_enabled);
-  void SetAutofillCreditCardEnabled(TestAutofillClient& client,
-                                    bool credit_card_enabled);
+  void SetAutofillPaymentMethodsEnabled(TestAutofillClient& client,
+                                        bool credit_card_enabled);
 
   void SetExpectedSubmittedFieldTypes(
       const std::vector<ServerFieldTypeSet>& expected_types);
 
   void SetExpectedObservedSubmission(bool expected);
 
-  struct MakeFrontendIdParams {
-    std::string credit_card_id;
-    std::string profile_id;
-  };
-
-  int MakeFrontendId(const MakeFrontendIdParams& params);
-
  private:
   bool autofill_profile_enabled_ = true;
-  bool autofill_credit_card_enabled_ = true;
+  bool autofill_payment_methods_enabled_ = true;
   absl::optional<bool> expected_observed_submission_;
-  const gfx::Image card_image_ = gfx::test::CreateImage(32, 20);
+  const gfx::Image card_image_ = gfx::test::CreateImage(40, 24);
 
   std::unique_ptr<base::RunLoop> run_loop_;
 

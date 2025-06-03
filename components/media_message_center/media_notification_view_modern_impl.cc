@@ -81,14 +81,9 @@ constexpr gfx::Size kVolumeSliderSize = {50, 20};
 constexpr gfx::Size kMuteButtonSize = {20, 20};
 constexpr int kMuteButtonIconSize = 16;
 
-void RecordMetadataHistogram(
-    MediaNotificationViewModernImpl::Metadata metadata) {
-  UMA_HISTOGRAM_ENUMERATION(
-      MediaNotificationViewModernImpl::kMetadataHistogramName, metadata);
-}
-
 class MediaButton : public views::ImageButton {
  public:
+  METADATA_HEADER(MediaButton);
   MediaButton(PressedCallback callback, int icon_size, gfx::Size button_size)
       : ImageButton(callback), icon_size_(icon_size) {
     SetHasInkDropActionOnClick(true);
@@ -133,15 +128,10 @@ class MediaButton : public views::ImageButton {
   int icon_size_;
 };
 
+BEGIN_METADATA(MediaButton, views::ImageButton)
+END_METADATA
+
 }  // anonymous namespace
-
-// static
-const char MediaNotificationViewModernImpl::kArtworkHistogramName[] =
-    "Media.Notification.ArtworkPresent";
-
-// static
-const char MediaNotificationViewModernImpl::kMetadataHistogramName[] =
-    "Media.Notification.MetadataPresent";
 
 MediaNotificationViewModernImpl::MediaNotificationViewModernImpl(
     MediaNotificationContainer* container,
@@ -344,7 +334,7 @@ MediaNotificationViewModernImpl::MediaNotificationViewModernImpl(
     util_buttons_layout->set_cross_axis_alignment(
         views::BoxLayout::CrossAxisAlignment::kStretch);
 
-    if (item_->SourceType() != SourceType::kCast) {
+    if (item_->GetSourceType() != SourceType::kCast) {
       // The picture-in-picture button appears directly under the media
       // labels.
       auto picture_in_picture_button = std::make_unique<MediaButton>(
@@ -364,7 +354,7 @@ MediaNotificationViewModernImpl::MediaNotificationViewModernImpl(
       util_buttons_layout->SetFlexForView(footer_view, 1);
     }
 
-    if (item_->SourceType() == SourceType::kCast) {
+    if (item_->GetSourceType() == SourceType::kCast) {
       auto volume_slider = std::make_unique<MediaNotificationVolumeSliderView>(
           base::BindRepeating(&MediaNotificationViewModernImpl::SetVolume,
                               base::Unretained(this)));
@@ -454,6 +444,7 @@ void MediaNotificationViewModernImpl::UpdateWithMediaSessionInfo(
 void MediaNotificationViewModernImpl::UpdateWithMediaMetadata(
     const media_session::MediaMetadata& metadata) {
   title_label_->SetText(metadata.title);
+  subtitle_label_->SetElideBehavior(gfx::ELIDE_HEAD);
   subtitle_label_->SetText(metadata.source_title);
 
   // Stores the text to be read by screen readers describing the notification.
@@ -466,7 +457,6 @@ void MediaNotificationViewModernImpl::UpdateWithMediaMetadata(
     title_label_->SetFocusBehavior(FocusBehavior::NEVER);
   } else {
     title_label_->SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
-    RecordMetadataHistogram(Metadata::kTitle);
   }
 
   // The subtitle label should only be a11y-focusable when there is text to be
@@ -475,10 +465,7 @@ void MediaNotificationViewModernImpl::UpdateWithMediaMetadata(
     subtitle_label_->SetFocusBehavior(FocusBehavior::NEVER);
   } else {
     subtitle_label_->SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
-    RecordMetadataHistogram(Metadata::kSource);
   }
-
-  RecordMetadataHistogram(Metadata::kCount);
 
   container_->OnMediaSessionMetadataChanged(metadata);
 
@@ -508,7 +495,6 @@ void MediaNotificationViewModernImpl::UpdateWithMediaArtwork(
     const gfx::ImageSkia& image) {
   GetMediaNotificationBackground()->UpdateArtwork(image);
 
-  UMA_HISTOGRAM_BOOLEAN(kArtworkHistogramName, !image.isNull());
   artwork_->SetImage(image);
   artwork_->SetPreferredSize(kArtworkSize);
 
@@ -536,12 +522,6 @@ void MediaNotificationViewModernImpl::OnThemeChanged() {
   UpdateForegroundColor();
 }
 
-void MediaNotificationViewModernImpl::UpdateDeviceSelectorAvailability(
-    bool availability) {
-  GetMediaNotificationBackground()->UpdateDeviceSelectorAvailability(
-      availability);
-}
-
 void MediaNotificationViewModernImpl::UpdateWithMuteStatus(bool mute) {
   if (mute_button_) {
     mute_button_->SetToggled(mute);
@@ -561,6 +541,11 @@ void MediaNotificationViewModernImpl::UpdateWithMuteStatus(bool mute) {
 void MediaNotificationViewModernImpl::UpdateWithVolume(float volume) {
   if (volume_slider_)
     volume_slider_->SetVolume(volume);
+}
+
+void MediaNotificationViewModernImpl::UpdateDeviceSelectorVisibility(
+    bool visible) {
+  GetMediaNotificationBackground()->UpdateDeviceSelectorVisibility(visible);
 }
 
 void MediaNotificationViewModernImpl::UpdateActionButtonsVisibility() {

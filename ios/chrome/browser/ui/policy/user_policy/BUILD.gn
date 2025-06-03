@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("user_policy") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "user_policy_prompt_coordinator.h",
     "user_policy_prompt_coordinator.mm",
@@ -18,10 +17,10 @@ source_set("user_policy") {
     "//base",
     "//components/signin/public/base",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/policy",
     "//ios/chrome/browser/policy/resources:enterprise_grey_icon_large",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/ui/elements:activity_overlay",
     "//ios/chrome/browser/signin",

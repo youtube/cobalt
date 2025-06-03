@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_MEMORY_CACHE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_MEMORY_CACHE_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -55,7 +56,7 @@ class MemoryCacheEntry final : public GarbageCollected<MemoryCacheEntry> {
   explicit MemoryCacheEntry(Resource* resource) : resource_(resource) {}
 
   void Trace(Visitor*) const;
-  Resource* GetResource() const { return resource_; }
+  Resource* GetResource() const { return resource_.Get(); }
 
  private:
   void ClearResourceWeak(const LivenessBroker&);

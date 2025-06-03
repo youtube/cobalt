@@ -16,8 +16,9 @@ static_library("firmware_update_ui") {
 
   deps = [
     "//ash/constants",
+    "//ash/webui/common:trusted_types_util",
     "//ash/webui/firmware_update_ui/mojom",
-    "//ash/webui/resources:firmware_update_app_resources",
+    "//ash/webui/firmware_update_ui/resources:resources",
     "//chromeos/ash/components/fwupd",
     "//chromeos/strings/",
     "//content/public/browser",
@@ -26,8 +27,4 @@ static_library("firmware_update_ui") {
     "//ui/web_dialogs:web_dialogs",
     "//ui/webui",
   ]
-}
-
-group("closure_compile") {
-  deps = [ "resources:closure_compile" ]
 }

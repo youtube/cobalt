@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {DismissModuleEvent, RecipesHandlerProxy, RecipesModuleElement, recipeTasksDescriptor} from 'chrome://new-tab-page/lazy_load.js';
 import {$$, CrAutoImgElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {RecipesHandlerRemote} from 'chrome://new-tab-page/recipes.mojom-webui.js';
@@ -120,21 +118,30 @@ suite('NewTabPageModulesRecipesTest', () => {
         pills[1]!.querySelector<HTMLElement>('.search-text')!.innerText);
   });
 
-  test('recipes and pills are hidden when cutoff', async () => {
+  test('recipes and pills are not displayed when cutoff', async () => {
+    loadTimeData.overrideValues({
+      modulesOverflowScrollbarEnabled: true,
+      wideModulesEnabled: false,
+    });
+
+    const recipesCount = 3;
+    const relatedSearchesCount = 10;
     const repeat = (n: number, fn: () => any) => Array(n).fill(0).map(fn);
     handler.setResultFor('getPrimaryTask', Promise.resolve({
       task: {
         title: 'Hello world',
-        recipes: repeat(20, () => ({
-                              name: 'foo',
-                              imageUrl: {url: 'https://foo.com/img.png'},
-                              siteName: 'Foo Site',
-                              targetUrl: {url: 'https://foo.com'},
-                            })),
-        relatedSearches: repeat(20, () => ({
-                                      text: 'baz',
-                                      targetUrl: {url: 'https://baz.com'},
-                                    })),
+        recipes:
+            repeat(recipesCount, () => ({
+                                   name: 'foo',
+                                   imageUrl: {url: 'https://foo.com/img.png'},
+                                   siteName: 'Foo Site',
+                                   targetUrl: {url: 'https://foo.com'},
+                                 })),
+        relatedSearches:
+            repeat(relatedSearchesCount, () => ({
+                                           text: 'baz',
+                                           targetUrl: {url: 'https://baz.com'},
+                                         })),
       },
     }));
     const moduleElement =
@@ -143,24 +150,87 @@ suite('NewTabPageModulesRecipesTest', () => {
     document.body.append(moduleElement);
     moduleElement.$.recipesRepeat.render();
     moduleElement.$.relatedSearchesRepeat.render();
-    const getElements = () => Array.from(
+
+    const getRecipeElements = () => Array.from(
         moduleElement.shadowRoot!.querySelectorAll<HTMLAnchorElement>(
-            '.recipe, .pill'));
-    assertEquals(40, getElements().length);
-    const hiddenCount = () =>
-        getElements().filter(el => el.style.visibility === 'hidden').length;
-    const checkHidden = async (width: string, count: number) => {
+            '.recipe'));
+    assertEquals(recipesCount, getRecipeElements().length);
+
+    const getPillElements = () => Array.from(
+        moduleElement.shadowRoot!.querySelectorAll<HTMLAnchorElement>('.pill'));
+    assertEquals(relatedSearchesCount, getPillElements().length);
+
+    const displayedPillCount = () =>
+        getPillElements().filter(el => el.style.display !== 'none').length;
+    const checkDisplayedPills = async (width: string, count: number) => {
       const waitForVisibilityUpdate =
           eventToPromise('visibility-update', moduleElement);
       moduleElement.style.width = width;
       await waitForVisibilityUpdate;
-      assertEquals(count, hiddenCount());
+      assertEquals(count, displayedPillCount());
     };
-    await checkHidden('500px', 32);
-    await checkHidden('300px', 36);
-    await checkHidden('700px', 28);
-    await checkHidden('500px', 32);
+    await checkDisplayedPills('561px', 7);
   });
+
+  test(
+      'recipes and pills are hidden when cutoff and no overflow scroll',
+      async () => {
+        loadTimeData.overrideValues({
+          modulesOverflowScrollbarEnabled: false,
+          wideModulesEnabled: false,
+        });
+
+        const recipesCount = 3;
+        const relatedSearchesCount = 10;
+        const repeat = (n: number, fn: () => any) => Array(n).fill(0).map(fn);
+        handler.setResultFor('getPrimaryTask', Promise.resolve({
+          task: {
+            title: 'Hello world',
+            recipes: repeat(
+                recipesCount, () => ({
+                                name: 'foo',
+                                imageUrl: {url: 'https://foo.com/img.png'},
+                                siteName: 'Foo Site',
+                                targetUrl: {url: 'https://foo.com'},
+                              })),
+            relatedSearches: repeat(
+                relatedSearchesCount, () => ({
+                                        text: 'baz',
+                                        targetUrl: {url: 'https://baz.com'},
+                                      })),
+          },
+        }));
+        const moduleElement =
+            await recipeTasksDescriptor.initialize(0) as RecipesModuleElement;
+        assertTrue(!!moduleElement);
+        document.body.append(moduleElement);
+        moduleElement.$.recipesRepeat.render();
+        moduleElement.$.relatedSearchesRepeat.render();
+
+        const getRecipeElements = () => Array.from(
+            moduleElement.shadowRoot!.querySelectorAll<HTMLAnchorElement>(
+                '.recipe'));
+        assertEquals(3, getRecipeElements().length);
+
+        const getPillElements = () => Array.from(
+            moduleElement.shadowRoot!.querySelectorAll<HTMLAnchorElement>(
+                '.pill'));
+        assertEquals(relatedSearchesCount, getPillElements().length);
+
+        const hiddenPillCount = () =>
+            getPillElements()
+                .filter(el => el.style.visibility === 'hidden')
+                .length;
+        const checkHiddenPills = async (width: string, count: number) => {
+          const waitForVisibilityUpdate =
+              eventToPromise('visibility-update', moduleElement);
+          moduleElement.style.width = width;
+          await waitForVisibilityUpdate;
+          assertEquals(count, hiddenPillCount());
+        };
+        await checkHiddenPills('561px', 3);
+        await checkHiddenPills('337px', 6);
+      });
 
   test('Backend is notified when module is dismissed or restored', async () => {
     // Arrange.
@@ -319,7 +389,7 @@ suite('NewTabPageModulesRecipesTest', () => {
     // Arrange.
     const task = {
       title: 'Hello world',
-      taskItems: [
+      recipes: [
         {
           name: 'foo',
           imageUrl: {url: 'https://foo.com/img.png'},
@@ -359,7 +429,7 @@ suite('NewTabPageModulesRecipesTest', () => {
         // Arrange.
         const task = {
           title: 'Hello world',
-          taskItems: [
+          recipes: [
             {
               name: 'foo',
               imageUrl: {url: 'https://foo.com/img.png'},

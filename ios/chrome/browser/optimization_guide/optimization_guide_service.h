@@ -12,7 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/core/new_optimization_guide_decider.h"
+#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_metadata.h"
@@ -37,15 +37,14 @@ class PredictionManager;
 class HintsManager;
 }  // namespace optimization_guide
 
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
 class BrowserList;
 class OptimizationGuideLogger;
 class OptimizationGuideNavigationData;
 class PrefService;
-
-namespace web {
-class BrowserState;
-class NavigationContext;
-}  // namespace web
 
 // A BrowserState keyed service that is used to own the underlying Optimization
 // Guide components. This is a rough copy of the OptimizationGuideKeyedService
@@ -56,7 +55,7 @@ class NavigationContext;
 // data is cleared.
 class OptimizationGuideService
     : public KeyedService,
-      public optimization_guide::NewOptimizationGuideDecider,
+      public optimization_guide::OptimizationGuideDecider,
       public optimization_guide::OptimizationGuideModelProvider {
  public:
   // BackgroundDownloadService is only available once the profile is fully
@@ -75,7 +74,8 @@ class OptimizationGuideService
       PrefService* pref_service,
       BrowserList* browser_list,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      BackgroundDownloadServiceProvider background_download_service_provider);
+      BackgroundDownloadServiceProvider background_download_service_provider,
+      signin::IdentityManager* identity_manager);
   ~OptimizationGuideService() override;
 
   OptimizationGuideService(const OptimizationGuideService&) = delete;
@@ -83,41 +83,23 @@ class OptimizationGuideService
 
   // Some initialization parts must be done once the browser_state is fully
   // initialized.
-  void DoFinalInit();
+  void DoFinalInit(download::BackgroundDownloadService*
+                       background_download_service = nullptr);
 
-  // Registers the optimization types that intend to be queried during the
-  // session. It is expected for this to be called right after the browser has
-  // been initialized.
+  // optimization_guide::OptimizationGuideDecider implementation:
   void RegisterOptimizationTypes(
       const std::vector<optimization_guide::proto::OptimizationType>&
           optimization_types) override;
-
-  // optimization_guide::NewOptimizationGuideDecider implementation:
-  // WARNING: This API is not quite ready for general use. Use
-  // CanApplyOptimizationAsync or CanApplyOptimization using NavigationHandle
-  // instead.
   void CanApplyOptimization(
       const GURL& url,
       optimization_guide::proto::OptimizationType optimization_type,
       optimization_guide::OptimizationGuideDecisionCallback callback) override;
-
-  // Returns whether `optimization_type` can be applied for `url`. This should
-  // only be called for main frame navigations or future main frame navigations.
   optimization_guide::OptimizationGuideDecision CanApplyOptimization(
       const GURL& url,
       optimization_guide::proto::OptimizationType optimization_type,
       optimization_guide::OptimizationMetadata* optimization_metadata) override;
 
-  // Invokes `callback` with the decision for the URL contained in
-  // `navigation_context` and `optimization_type`, when sufficient information
-  // has been collected to make the decision. This should only be called for
-  // main frame navigations.
-  void CanApplyOptimizationAsync(
-      web::NavigationContext* navigation_context,
-      optimization_guide::proto::OptimizationType optimization_type,
-      optimization_guide::OptimizationGuideDecisionCallback callback);
-
-  // optimization_guide::OptimizationGuideModelProvider implementation
+  // optimization_guide::OptimizationGuideModelProvider implementation:
   void AddObserverForOptimizationTargetModel(
       optimization_guide::proto::OptimizationTarget optimization_target,
       const absl::optional<optimization_guide::proto::Any>& model_metadata,

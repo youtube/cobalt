@@ -7,19 +7,17 @@
 #include <memory>
 #include <vector>
 
-#include "base/compiler_specific.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "components/sync/base/features.h"
 #include "components/sync/engine/cycle/sync_cycle_context.h"
-#include "components/sync/protocol/bookmark_specifics.pb.h"
-#include "components/sync/protocol/password_specifics.pb.h"
 #include "components/sync/protocol/sync.pb.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "components/sync/test/fake_sync_scheduler.h"
 #include "components/sync/test/mock_connection_manager.h"
 #include "components/sync/test/model_type_test_util.h"
+#include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -60,7 +58,6 @@ ClientToServerMessage DefaultGetUpdatesRequest() {
   msg.mutable_bag_of_chips();
   msg.set_api_key("api_key");
   msg.mutable_client_status();
-  msg.set_invalidator_client_id("client_id");
 
   return msg;
 }
@@ -77,7 +74,7 @@ TEST(SyncerProtoUtil, GetTypesToMigrate) {
   response.add_migrated_data_type_id(
       GetSpecificsFieldNumberFromModelType(HISTORY_DELETE_DIRECTIVES));
   response.add_migrated_data_type_id(-1);
-  EXPECT_EQ(ModelTypeSet(BOOKMARKS, HISTORY_DELETE_DIRECTIVES),
+  EXPECT_EQ(ModelTypeSet({BOOKMARKS, HISTORY_DELETE_DIRECTIVES}),
             GetTypesToMigrate(response));
 }
 
@@ -93,7 +90,7 @@ TEST(SyncerProtoUtil, ConvertErrorPBToSyncProtocolError) {
       GetSpecificsFieldNumberFromModelType(HISTORY_DELETE_DIRECTIVES));
   error_pb.add_error_data_type_ids(-1);
   SyncProtocolError error = ConvertErrorPBToSyncProtocolError(error_pb);
-  EXPECT_EQ(ModelTypeSet(BOOKMARKS, HISTORY_DELETE_DIRECTIVES),
+  EXPECT_EQ(ModelTypeSet({BOOKMARKS, HISTORY_DELETE_DIRECTIVES}),
             error.error_data_types);
 }
 
@@ -106,7 +103,6 @@ class SyncerProtoUtilTest : public testing::Test {
         /*listeners=*/std::vector<SyncEngineEventListener*>(),
         /*debug_info_getter=*/nullptr,
         /*model_type_registry=*/nullptr,
-        /*invalidator_client_id=*/"",
         /*cache_guid=*/"",
         /*birthday=*/"",
         /*bag_of_chips=*/"",
@@ -224,10 +220,9 @@ class DummyConnectionManager : public ServerConnectionManager {
 
   HttpResponse PostBuffer(const std::string& buffer_in,
                           const std::string& access_token,
-                          bool allow_batching,
                           std::string* buffer_out) override {
     if (send_error_) {
-      return HttpResponse::ForIoErrorForTest();
+      return HttpResponse::ForNetError(net::ERR_FAILED);
     }
 
     response_.SerializeToString(buffer_out);
@@ -276,8 +271,8 @@ TEST_F(SyncerProtoUtilTest, ShouldHandleGetUpdatesRetryDelay) {
                            /*extensions_activity=*/nullptr,
                            /*listeners=*/{},
                            /*debug_info_getter=*/nullptr,
-                           /*model_type_registry=*/nullptr,
-                           "invalidator_client_id", "cache_guid", "birthday",
+                           /*model_type_registry=*/nullptr, "cache_guid",
+                           "birthday",
                            /*bag_of_chips=*/"", base::Seconds(100));
   SyncCycle cycle(&context, &mock_sync_scheduler);
 
@@ -286,7 +281,7 @@ TEST_F(SyncerProtoUtilTest, ShouldHandleGetUpdatesRetryDelay) {
   SyncerError error = SyncerProtoUtil::PostClientToServerMessage(
       DefaultGetUpdatesRequest(), &response, &cycle,
       &partial_failure_data_types);
-  EXPECT_EQ(error.value(), SyncerError::SYNCER_OK);
+  EXPECT_EQ(error.type(), SyncerError::Type::kSuccess);
 }
 
 TEST_F(SyncerProtoUtilTest, ShouldIgnoreGetUpdatesRetryDelay) {
@@ -307,8 +302,8 @@ TEST_F(SyncerProtoUtilTest, ShouldIgnoreGetUpdatesRetryDelay) {
                            /*extensions_activity=*/nullptr,
                            /*listeners=*/{},
                            /*debug_info_getter=*/nullptr,
-                           /*model_type_registry=*/nullptr,
-                           "invalidator_client_id", "cache_guid", "birthday",
+                           /*model_type_registry=*/nullptr, "cache_guid",
+                           "birthday",
                            /*bag_of_chips=*/"", base::Seconds(100));
   SyncCycle cycle(&context, &mock_sync_scheduler);
 
@@ -317,7 +312,7 @@ TEST_F(SyncerProtoUtilTest, ShouldIgnoreGetUpdatesRetryDelay) {
   SyncerError error = SyncerProtoUtil::PostClientToServerMessage(
       DefaultGetUpdatesRequest(), &response, &cycle,
       &partial_failure_data_types);
-  EXPECT_EQ(error.value(), SyncerError::SYNCER_OK);
+  EXPECT_EQ(error.type(), SyncerError::Type::kSuccess);
 }
 
 }  // namespace syncer

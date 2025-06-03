@@ -18,7 +18,7 @@ import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_butto
 import {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PasswordManagerImpl} from '../password_manager_proxy.js';
@@ -95,7 +95,7 @@ export class MultiStoreDeletePasswordDialogElement extends
     } else {
       assert(this.removeFromDeviceChecked_);
     }
-    PasswordManagerImpl.getInstance().removeSavedPassword(
+    PasswordManagerImpl.getInstance().removeCredential(
         this.duplicatedPassword.id, fromStores);
     this.dispatchEvent(new CustomEvent('password-removed', {
       bubbles: true,

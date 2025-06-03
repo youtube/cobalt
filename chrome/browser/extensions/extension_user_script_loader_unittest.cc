@@ -278,8 +278,8 @@ TEST_F(ExtensionUserScriptLoaderTest, SkipBOMAtTheBeginning) {
   ASSERT_TRUE(base::WriteFile(path, content));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("_generated");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script->set_id("_mc_generated");
+  user_script->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), path.BaseName(), GURL()));
 
   auto user_scripts = std::make_unique<UserScriptList>();
@@ -312,8 +312,8 @@ TEST_F(ExtensionUserScriptLoaderTest, LeaveBOMNotAtTheBeginning) {
   ASSERT_TRUE(base::WriteFile(path, content));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("test");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script->set_id("_mc_test");
+  user_script->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), path.BaseName(), GURL()));
 
   auto user_scripts = std::make_unique<UserScriptList>();
@@ -334,10 +334,10 @@ TEST_F(ExtensionUserScriptLoaderTest, LeaveBOMNotAtTheBeginning) {
   // that the length of the script is 0 kb.
   histogram_tester.ExpectUniqueSample(
       "Extensions.ContentScripts.ContentScriptLength", 0, 1);
-  histogram_tester.ExpectTotalCount(
-      "Extensions.ContentScripts.ManifestContentScriptsLengthPerLoad", 0);
   histogram_tester.ExpectUniqueSample(
-      "Extensions.ContentScripts.DynamicContentScriptsLengthPerLoad", 0, 1);
+      "Extensions.ContentScripts.ManifestContentScriptsLengthPerLoad", 0, 1);
+  histogram_tester.ExpectTotalCount(
+      "Extensions.ContentScripts.DynamicContentScriptsLengthPerLoad", 0);
 }
 
 TEST_F(ExtensionUserScriptLoaderTest, ComponentExtensionContentScriptIsLoaded) {
@@ -348,9 +348,9 @@ TEST_F(ExtensionUserScriptLoaderTest, ComponentExtensionContentScriptIsLoaded) {
   const base::FilePath resource_path(FILE_PATH_LITERAL("main.js"));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("test");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
-      extension_path, resource_path, GURL()));
+  user_script->set_id("_dc_test");
+  user_script->js_scripts().push_back(
+      UserScript::Content::CreateFile(extension_path, resource_path, GURL()));
 
   auto user_scripts = std::make_unique<UserScriptList>();
   user_scripts->push_back(std::move(user_script));
@@ -390,16 +390,16 @@ TEST_F(ExtensionUserScriptLoaderTest, RecordScriptLengthUmas) {
 
   // Create a dynamic user script which specifies a 3kb and 2kb file.
   auto user_script_1 = std::make_unique<UserScript>();
-  user_script_1->set_id("dynamic");
-  user_script_1->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_1->set_id("_dc_dynamic");
+  user_script_1->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), a_script_path.BaseName(), GURL()));
-  user_script_1->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_1->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), b_script_path.BaseName(), GURL()));
 
   // Create a manifest user script which specifies a 1kb file.
   auto user_script_2 = std::make_unique<UserScript>();
-  user_script_2->set_id("_generated_manifest");
-  user_script_2->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_2->set_id("_mc_generated_manifest");
+  user_script_2->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), c_script_path.BaseName(), GURL()));
 
   auto user_scripts = std::make_unique<UserScriptList>();

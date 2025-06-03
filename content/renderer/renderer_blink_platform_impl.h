@@ -12,6 +12,7 @@
 #include <string>
 
 #include "base/containers/id_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
@@ -80,8 +81,6 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   uint64_t VisitedLinkHash(const char* canonicalURL, size_t length) override;
   bool IsLinkVisited(uint64_t linkHash) override;
   blink::WebString UserAgent() override;
-  blink::WebString FullUserAgent() override;
-  blink::WebString ReducedUserAgent() override;
   blink::UserAgentMetadata UserAgentMetadata() override;
   bool IsRedirectSafe(const GURL& from_url, const GURL& to_url) override;
   void AppendVariationsThrottles(
@@ -135,7 +134,7 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
       blink::WebAudioDeviceSourceType source_type,
       blink::WebLocalFrame* web_frame,
       const media::AudioSinkParameters& params) override;
-  media::AudioLatency::LatencyType GetAudioSourceLatencyType(
+  media::AudioLatency::Type GetAudioSourceLatencyType(
       blink::WebAudioDeviceSourceType source_type) override;
   bool ShouldEnforceWebRTCRoutingPreferences() override;
   bool UsesFakeCodecForPeerConnection() override;
@@ -149,20 +148,19 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
                                     bool* allow_mdns_obfuscation) override;
   bool IsWebRtcHWEncodingEnabled() override;
   bool IsWebRtcHWDecodingEnabled() override;
-  bool IsWebRtcSrtpAesGcmEnabled() override;
   bool IsWebRtcSrtpEncryptedHeadersEnabled() override;
   bool AllowsLoopbackInPeerConnection() override;
   blink::WebVideoCaptureImplManager* GetVideoCaptureImplManager() override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>
   CreateOffscreenGraphicsContext3DProvider(
       const blink::Platform::ContextAttributes& attributes,
-      const blink::WebURL& top_document_web_url,
+      const blink::WebURL& document_url,
       blink::Platform::GraphicsInfo* gl_info) override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>
   CreateSharedOffscreenGraphicsContext3DProvider() override;
   std::unique_ptr<blink::WebGraphicsContext3DProvider>
   CreateWebGPUGraphicsContext3DProvider(
-      const blink::WebURL& top_document_web_url) override;
+      const blink::WebURL& document_url) override;
   gpu::GpuMemoryBufferManager* GetGpuMemoryBufferManager() override;
   blink::WebString ConvertIDNToUnicode(const blink::WebString& host) override;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -178,8 +176,8 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   void WorkerContextCreated(const v8::Local<v8::Context>& worker) override;
   bool AllowScriptExtensionForServiceWorker(
       const blink::WebSecurityOrigin& script_origin) override;
-  blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel()
-      override;
+  blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel(
+      const blink::WebSecurityOrigin& origin) override;
   bool OriginCanAccessServiceWorkers(const blink::WebURL& url) override;
   std::tuple<blink::CrossVariantMojoRemote<
                  blink::mojom::ServiceWorkerContainerHostInterfaceBase>,
@@ -194,8 +192,6 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
           blink::mojom::ServiceWorkerContainerHostInterfaceBase>
           service_worker_container_host,
       const blink::WebString& client_id,
-      blink::mojom::ServiceWorkerFetchHandlerBypassOption
-          fetch_handler_bypass_option,
       std::unique_ptr<network::PendingSharedURLLoaderFactory> fallback_factory,
       mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver,
       scoped_refptr<base::SequencedTaskRunner> task_runner) override;
@@ -218,7 +214,6 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
       const blink::WebURL& url,
       blink::WebVector<blink::WebContentSecurityPolicyHeader>* csp) override;
   base::PlatformThreadId GetIOThreadId() const override;
-  network::mojom::AttributionSupport GetAttributionReportingSupport() override;
   scoped_refptr<base::SingleThreadTaskRunner> VideoFrameCompositorTaskRunner()
       override;
 #if BUILDFLAG(IS_ANDROID)
@@ -259,7 +254,8 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   bool is_locked_to_site_;
 
   // NOT OWNED
-  blink::scheduler::WebThreadScheduler* main_thread_scheduler_;
+  raw_ptr<blink::scheduler::WebThreadScheduler, ExperimentalRenderer>
+      main_thread_scheduler_;
 
   // Event that signals `io_thread_id_` is set and ready to be read.
   mutable base::WaitableEvent io_thread_id_ready_event_;

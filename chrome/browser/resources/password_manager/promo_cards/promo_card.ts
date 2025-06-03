@@ -9,7 +9,7 @@ import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 
 import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -58,6 +58,8 @@ export interface PromoCardElement {
   };
 }
 
+const isOpenedAsShortcut = window.matchMedia('(display-mode: standalone)');
+
 export class PromoCardElement extends PolymerElement {
   static get is() {
     return 'promo-card';
@@ -74,6 +76,24 @@ export class PromoCardElement extends PolymerElement {
   }
 
   promoCard: PromoCard;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    // If this is a shortcut promo we should listen to display mode changes to
+    // close it automatically when shortcut is installed from another place.
+    // Check crbug.com/1493264 for more details when it can happen.
+    if (this.promoCard.id === PromoCardId.SHORTCUT) {
+      isOpenedAsShortcut.addEventListener('change', this.close_.bind(this));
+    }
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+
+    if (this.promoCard.id === PromoCardId.SHORTCUT) {
+      isOpenedAsShortcut.removeEventListener('change', this.close_.bind(this));
+    }
+  }
 
   private getDescription_(): TrustedHTML {
     return sanitizeInnerHtml(this.promoCard.description);

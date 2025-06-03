@@ -20,6 +20,7 @@
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -44,68 +45,80 @@ enum class CreationResult {
 }  // namespace
 
 ShortcutSubManager::ShortcutSubManager(Profile& profile,
-                                       WebAppIconManager& icon_manager,
-                                       WebAppRegistrar& registrar)
-    : profile_(profile), icon_manager_(icon_manager), registrar_(registrar) {}
+                                       WebAppProvider& provider)
+    : profile_(profile), provider_(provider) {}
 
 ShortcutSubManager::~ShortcutSubManager() = default;
 
 void ShortcutSubManager::Configure(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     proto::WebAppOsIntegrationState& desired_state,
     base::OnceClosure configure_done) {
   DCHECK(!desired_state.has_shortcut());
 
   desired_state.clear_shortcut();
 
-  if (!registrar_->IsLocallyInstalled(app_id)) {
+  if (!provider_->registrar_unsafe().IsLocallyInstalled(app_id)) {
     std::move(configure_done).Run();
     return;
   }
 
   auto* shortcut = desired_state.mutable_shortcut();
-  shortcut->set_title(registrar_->GetAppShortName(app_id));
-  shortcut->set_description(registrar_->GetAppDescription(app_id));
-  icon_manager_->ReadIconsLastUpdateTime(
+  shortcut->set_title(provider_->registrar_unsafe().GetAppShortName(app_id));
+  shortcut->set_description(
+      provider_->registrar_unsafe().GetAppDescription(app_id));
+  provider_->icon_manager().ReadIconsLastUpdateTime(
       app_id, base::BindOnce(&ShortcutSubManager::StoreIconDataFromDisk,
                              weak_ptr_factory_.GetWeakPtr(), shortcut)
                   .Then(std::move(configure_done)));
 }
 
 void ShortcutSubManager::Execute(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const absl::optional<SynchronizeOsOptions>& synchronize_options,
     const proto::WebAppOsIntegrationState& desired_state,
     const proto::WebAppOsIntegrationState& current_state,
     base::OnceClosure callback) {
   base::FilePath shortcut_data_dir = GetOsIntegrationResourcesDirectoryForApp(
-      profile_->GetPath(), app_id, registrar_->GetAppStartUrl(app_id));
+      profile_->GetPath(), app_id,
+      provider_->registrar_unsafe().GetAppStartUrl(app_id));
 
-  const WebApp* app = registrar_->GetAppById(app_id);
+  bool force_create_shortcuts =
+      synchronize_options.has_value() &&
+      synchronize_options.value().force_create_shortcuts;
+
+  const WebApp* app = provider_->registrar_unsafe().GetAppById(app_id);
   DCHECK(app);
 
   // First, handle the case where both current & desired don't have shortcuts,
   // which should be a no-op.
-  if (!desired_state.has_shortcut() && !current_state.has_shortcut()) {
+  if (!desired_state.has_shortcut() && !current_state.has_shortcut() &&
+      !force_create_shortcuts) {
     std::move(callback).Run();
     return;
   }
 
-  // Second, handle shortcut creation.
-  if (desired_state.has_shortcut() && !current_state.has_shortcut()) {
-    // This is required to create the app shim registry for the current profile
-    // on Mac, otherwise updates to the AppShimRegistry do not happen.
+  // Second, handle shortcut creation if either one of the following conditions
+  // match:
+  // 1. current_state is empty but desired_state has shortcut information.
+  // 2. desired_state has value and force_create_shortcuts is true. This is
+  // necessary for use-cases where the user might have deleted shortcuts
+  // manually but the current_state has not been updated to show that.
+  if ((desired_state.has_shortcut() && !current_state.has_shortcut()) ||
+      (desired_state.has_shortcut() && force_create_shortcuts)) {
 #if BUILDFLAG(IS_MAC)
     AppShimRegistry::Get()->OnAppInstalledForProfile(app_id,
                                                      profile_->GetPath());
 #endif
+
     std::unique_ptr<ShortcutInfo> desired_shortcut_info =
         BuildShortcutInfoWithoutFavicon(
-            app_id, registrar_->GetAppStartUrl(app_id), profile_->GetPath(),
+            app_id, provider_->registrar_unsafe().GetAppStartUrl(app_id),
+            profile_->GetPath(),
             profile_->GetPrefs()->GetString(prefs::kProfileName),
             desired_state);
     PopulateFaviconForShortcutInfo(
-        app, *icon_manager_, std::move(desired_shortcut_info),
+        app, provider_->icon_manager(), std::move(desired_shortcut_info),
         base::BindOnce(&ShortcutSubManager::CreateShortcut,
                        weak_ptr_factory_.GetWeakPtr(), app_id,
                        synchronize_options, std::move(callback)));
@@ -116,7 +129,8 @@ void ShortcutSubManager::Execute(
   if (!desired_state.has_shortcut() && current_state.has_shortcut()) {
     std::unique_ptr<ShortcutInfo> current_shortcut_info =
         BuildShortcutInfoWithoutFavicon(
-            app_id, registrar_->GetAppStartUrl(app_id), profile_->GetPath(),
+            app_id, provider_->registrar_unsafe().GetAppStartUrl(app_id),
+            profile_->GetPath(),
             profile_->GetPrefs()->GetString(prefs::kProfileName),
             current_state);
 
@@ -131,7 +145,8 @@ void ShortcutSubManager::Execute(
   // Fourth, handle update.
   std::unique_ptr<ShortcutInfo> desired_shortcut_info =
       BuildShortcutInfoWithoutFavicon(
-          app_id, registrar_->GetAppStartUrl(app_id), profile_->GetPath(),
+          app_id, provider_->registrar_unsafe().GetAppStartUrl(app_id),
+          profile_->GetPath(),
           profile_->GetPrefs()->GetString(prefs::kProfileName), desired_state);
 
   // The following section decides if an update needs to occur or not. To
@@ -150,10 +165,11 @@ void ShortcutSubManager::Execute(
   // Note: This callback is either called immediately (and synchronously), or
   // not at all. This is why the usage of `std::ref` and `app` is safe.
   auto do_update = base::BindOnce(
-      &PopulateFaviconForShortcutInfo, app, std::ref(*icon_manager_),
+      &PopulateFaviconForShortcutInfo, app, std::ref(provider_->icon_manager()),
       std::move(desired_shortcut_info),
       base::BindOnce(&ShortcutSubManager::UpdateShortcut,
                      weak_ptr_factory_.GetWeakPtr(), app_id,
+                     synchronize_options,
                      base::UTF8ToUTF16(current_state.shortcut().title()),
                      std::move(callback_for_update)));
 
@@ -208,14 +224,27 @@ void ShortcutSubManager::Execute(
   std::move(callback_for_no_update).Run();
 }
 
-// TODO(b/279068663): Implement if needed.
-void ShortcutSubManager::ForceUnregister(const AppId& app_id,
+void ShortcutSubManager::ForceUnregister(const webapps::AppId& app_id,
                                          base::OnceClosure callback) {
-  std::move(callback).Run();
+  base::FilePath shortcut_data_dir = GetOsIntegrationResourcesDirectoryForApp(
+      profile_->GetPath(), app_id,
+      provider_->registrar_unsafe().GetAppStartUrl(app_id));
+
+  auto current_shortcut_info = std::make_unique<ShortcutInfo>();
+  current_shortcut_info->app_id = app_id;
+  current_shortcut_info->profile_path = profile_->GetPath();
+  current_shortcut_info->title =
+      base::UTF8ToUTF16(provider_->registrar_unsafe().GetAppShortName(app_id));
+
+  internals::ScheduleDeletePlatformShortcuts(
+      shortcut_data_dir, std::move(current_shortcut_info),
+      base::BindOnce(&ShortcutSubManager::OnShortcutsDeleted,
+                     weak_ptr_factory_.GetWeakPtr(), app_id,
+                     std::move(callback)));
 }
 
 void ShortcutSubManager::CreateShortcut(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     absl::optional<SynchronizeOsOptions> synchronize_options,
     base::OnceClosure on_complete,
     std::unique_ptr<ShortcutInfo> shortcut_info) {
@@ -240,15 +269,27 @@ void ShortcutSubManager::CreateShortcut(
 }
 
 void ShortcutSubManager::UpdateShortcut(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
+    absl::optional<SynchronizeOsOptions> synchronize_options,
     const std::u16string& old_app_title,
     base::OnceClosure on_complete,
     std::unique_ptr<ShortcutInfo> shortcut_info) {
+  absl::optional<ShortcutLocations> locations = absl::nullopt;
+  if (synchronize_options.has_value()) {
+    ShortcutLocations creation_locations;
+    creation_locations.on_desktop =
+        synchronize_options->add_shortcut_to_desktop;
+    creation_locations.in_quick_launch_bar =
+        synchronize_options->add_to_quick_launch_bar;
+    locations = creation_locations;
+  }
+
   base::FilePath shortcut_data_dir =
       internals::GetShortcutDataDir(*shortcut_info);
   internals::PostShortcutIOTaskAndReplyWithResult(
       base::BindOnce(&internals::UpdatePlatformShortcuts,
-                     std::move(shortcut_data_dir), std::move(old_app_title)),
+                     std::move(shortcut_data_dir), std::move(old_app_title),
+                     locations),
       std::move(shortcut_info),
       base::BindOnce([](Result result) {
         base::UmaHistogramBoolean("WebApp.Shortcuts.Update.Result",
@@ -256,7 +297,7 @@ void ShortcutSubManager::UpdateShortcut(
       }).Then(std::move(on_complete)));
 }
 
-void ShortcutSubManager::OnShortcutsDeleted(const AppId& app_id,
+void ShortcutSubManager::OnShortcutsDeleted(const webapps::AppId& app_id,
                                             base::OnceClosure final_callback,
                                             bool success) {
   ResultCallback final_result_callback =

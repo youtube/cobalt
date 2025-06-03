@@ -15,7 +15,6 @@
 #include "chrome/browser/ash/plugin_vm/plugin_vm_pref_names.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_test_helper.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_util.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/profiles/profile.h"
@@ -155,9 +154,11 @@ class PluginVmInstallerViewBrowserTest : public DialogBrowserTest {
   std::unique_ptr<network::TestNetworkConnectionTracker>
       network_connection_tracker_;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
-  raw_ptr<PluginVmInstallerView, ExperimentalAsh> view_;
-  raw_ptr<ash::FakeConciergeClient, ExperimentalAsh> fake_concierge_client_;
-  raw_ptr<ash::FakeVmPluginDispatcherClient, ExperimentalAsh>
+  raw_ptr<PluginVmInstallerView, DanglingUntriaged | ExperimentalAsh> view_;
+  raw_ptr<ash::FakeConciergeClient, DanglingUntriaged | ExperimentalAsh>
+      fake_concierge_client_;
+  raw_ptr<ash::FakeVmPluginDispatcherClient,
+          DanglingUntriaged | ExperimentalAsh>
       fake_vm_plugin_dispatcher_client_;
 
  private:
@@ -181,8 +182,6 @@ class PluginVmInstallerViewBrowserTest : public DialogBrowserTest {
     auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
     user_manager->AddUserWithAffiliation(account_id, true);
     user_manager->LoginUser(account_id);
-    ash::ProfileHelper::Get()->SetProfileToUserMappingForTesting(
-        user_manager->GetActiveUser());
     scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
         std::move(user_manager));
   }

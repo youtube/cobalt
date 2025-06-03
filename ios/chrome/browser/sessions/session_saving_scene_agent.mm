@@ -4,18 +4,14 @@
 
 #import "ios/chrome/browser/sessions/session_saving_scene_agent.h"
 
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_provider.h"
-#import "ios/chrome/browser/main/browser_provider_interface.h"
-#import "ios/chrome/browser/sessions/session_restoration_browser_agent.h"
-#import "ios/chrome/browser/snapshots/snapshot_tab_helper.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/sessions/session_restoration_util.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/web_state_list/web_usage_enabler/web_usage_enabler_browser_agent.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @implementation SessionSavingSceneAgent {
   // YES when sessions need saving -- specifically after the scene has
@@ -30,6 +26,7 @@
     transitionedToActivationLevel:(SceneActivationLevel)level {
   switch (level) {
     case SceneActivationLevelUnattached:
+    case SceneActivationLevelDisconnected:
       // no-op.
       break;
     case SceneActivationLevelBackground:
@@ -58,19 +55,14 @@
   }
 
   // Since the app is about to be backgrounded or terminated, save the sessions
-  // immediately.
-  Browser* mainBrowser = browserProviderInterface.mainBrowserProvider.browser;
-  SessionRestorationBrowserAgent::FromBrowser(mainBrowser)
-      ->SaveSession(/*immediately=*/true);
-  Browser* inactiveBrowser =
-      browserProviderInterface.mainBrowserProvider.inactiveBrowser;
-  SessionRestorationBrowserAgent::FromBrowser(inactiveBrowser)
-      ->SaveSession(/*immediately=*/true);
+  // immediately for the main Browser, the inactive Browser and, if it exists,
+  // the incognito Browser.
+  auto mainBrowserProvider = browserProviderInterface.mainBrowserProvider;
+  SaveSessionForBrowser(mainBrowserProvider.browser);
+  SaveSessionForBrowser(mainBrowserProvider.inactiveBrowser);
   if (browserProviderInterface.hasIncognitoBrowserProvider) {
-    Browser* incognitoBrowser =
-        browserProviderInterface.incognitoBrowserProvider.browser;
-    SessionRestorationBrowserAgent::FromBrowser(incognitoBrowser)
-        ->SaveSession(/*immediately=*/true);
+    SaveSessionForBrowser(
+        browserProviderInterface.incognitoBrowserProvider.browser);
   }
 
   // Save a grey version of the active webstates.

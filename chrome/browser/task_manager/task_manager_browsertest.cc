@@ -16,7 +16,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/notifications/notification_test_util.h"
@@ -44,7 +43,6 @@
 #include "components/infobars/core/infobar.h"
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/child_process_security_policy.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_features.h"
@@ -155,7 +153,8 @@ class TaskManagerBrowserTest : public extensions::ExtensionBrowserTest {
 
     // Add content/test/data so we can use cross_site_iframe_factory.html
     base::FilePath test_data_dir;
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
     embedded_test_server()->ServeFilesFromDirectory(
         test_data_dir.AppendASCII("content/test/data/"));
     ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
@@ -311,13 +310,14 @@ IN_PROC_BROWSER_TEST_F(TaskManagerBrowserTest, NavigateAwayFromHungRenderer) {
   // SiteInstance. Then immediately hang the renderer so that title3.html can't
   // load in this process.
   content::WebContentsAddedObserver web_contents_added_observer;
-  bool dummy_value;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      tab1->GetPrimaryMainFrame(),
-      "window.open('title3.html', '_blank');\n"
-      "window.domAutomationController.send(false);\n"
-      "while(1);",
-      &dummy_value));
+  content::DOMMessageQueue message_queue;
+  content::ExecuteScriptAsync(tab1->GetPrimaryMainFrame(),
+                              "window.open('title3.html', '_blank');\n"
+                              "window.domAutomationController.send(false);\n"
+                              "while(1);");
+  std::string message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&message));
+  EXPECT_EQ("false", message);
 
   // Blocks until a new WebContents appears as a result of window.open().
   WebContents* tab2 = web_contents_added_observer.GetWebContents();
@@ -950,9 +950,9 @@ IN_PROC_BROWSER_TEST_P(TaskManagerOOPIFBrowserTest, SubframeHistoryNavigation) {
 
   GURL d_url = embedded_test_server()->GetURL(
       "d.com", "/cross_site_iframe_factory.html?d(e)");
-  ASSERT_TRUE(content::ExecuteScript(
-      tab->GetPrimaryMainFrame(),
-      "frames[0][0].location.href = '" + d_url.spec() + "';"));
+  ASSERT_TRUE(
+      content::ExecJs(tab->GetPrimaryMainFrame(),
+                      "frames[0][0].location.href = '" + d_url.spec() + "';"));
 
   ASSERT_NO_FATAL_FAILURE(
       WaitForTaskManagerRows(0, MatchSubframe("http://c.com/")));
@@ -1082,7 +1082,7 @@ IN_PROC_BROWSER_TEST_P(TaskManagerOOPIFBrowserTest, KillSubframe) {
 
   // Reload the subframe and verify it has re-appeared in the task manager.
   // This is a regression test for https://crbug.com/642958.
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       browser()
           ->tab_strip_model()
           ->GetActiveWebContents()
@@ -1229,11 +1229,11 @@ IN_PROC_BROWSER_TEST_P(TaskManagerOOPIFBrowserTest,
   const std::string r_script =
       R"( document.getElementById('frame1').src='/title1.html';
           document.title='aac'; )";
-  ASSERT_TRUE(content::ExecuteScript(browser()
-                                         ->tab_strip_model()
-                                         ->GetActiveWebContents()
-                                         ->GetPrimaryMainFrame(),
-                                     r_script));
+  ASSERT_TRUE(content::ExecJs(browser()
+                                  ->tab_strip_model()
+                                  ->GetActiveWebContents()
+                                  ->GetPrimaryMainFrame(),
+                              r_script));
   ASSERT_NO_FATAL_FAILURE(WaitForTaskManagerRows(1, MatchTab("aac")));
   ASSERT_NO_FATAL_FAILURE(WaitForTaskManagerRows(1, MatchAnyTab()));
   if (!ShouldExpectSubframes()) {
@@ -1875,11 +1875,22 @@ class FencedFrameTaskBrowserTest : public TaskManagerBrowserTest {
       std::make_unique<content::test::FencedFrameTestHelper>();
 };
 
+// TODO(crbug.com/1491942): This fails with the field trial testing config.
+class FencedFrameTaskBrowserTestNoTestingConfig
+    : public FencedFrameTaskBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    FencedFrameTaskBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch("disable-field-trial-config");
+  }
+};
+
 }  // namespace
 
 // Testing that the task manager properly displays fenced frame tasks with
 // re-opening task manager, and with fenced frame navigations.
-IN_PROC_BROWSER_TEST_F(FencedFrameTaskBrowserTest, ProperlyShowsTasks) {
+IN_PROC_BROWSER_TEST_F(FencedFrameTaskBrowserTestNoTestingConfig,
+                       ProperlyShowsTasks) {
   ShowTaskManager();
   ASSERT_NO_FATAL_FAILURE(WaitForTaskManagerRows(1, MatchAboutBlankTab()));
 

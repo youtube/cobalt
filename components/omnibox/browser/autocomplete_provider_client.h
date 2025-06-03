@@ -20,7 +20,6 @@ struct AutocompleteMatch;
 class AutocompleteClassifier;
 class AutocompleteSchemeClassifier;
 class RemoteSuggestionsService;
-class DocumentSuggestionsService;
 class GURL;
 class InMemoryURLIndex;
 class KeywordExtensionsDelegate;
@@ -32,6 +31,8 @@ class ShortcutsBackend;
 class TabMatcher;
 class ZeroSuggestCacheService;
 class AutocompleteScoringModelService;
+class OnDeviceTailModelService;
+struct ProviderStateService;
 
 namespace bookmarks {
 class BookmarkModel;
@@ -41,7 +42,7 @@ namespace history {
 class HistoryService;
 class URLDatabase;
 class TopSites;
-}
+}  // namespace history
 
 namespace history_clusters {
 class HistoryClustersService;
@@ -80,13 +81,12 @@ class AutocompleteProviderClient : public OmniboxAction::Client {
   virtual history_clusters::HistoryClustersService* GetHistoryClustersService();
   virtual scoped_refptr<history::TopSites> GetTopSites() = 0;
   virtual bookmarks::BookmarkModel* GetLocalOrSyncableBookmarkModel() = 0;
+  virtual bookmarks::BookmarkModel* GetAccountBookmarkModel() = 0;
   virtual history::URLDatabase* GetInMemoryDatabase() = 0;
   virtual InMemoryURLIndex* GetInMemoryURLIndex() = 0;
   virtual TemplateURLService* GetTemplateURLService() = 0;
   virtual const TemplateURLService* GetTemplateURLService() const = 0;
   virtual RemoteSuggestionsService* GetRemoteSuggestionsService(
-      bool create_if_necessary) const = 0;
-  virtual DocumentSuggestionsService* GetDocumentSuggestionsService(
       bool create_if_necessary) const = 0;
   virtual ZeroSuggestCacheService* GetZeroSuggestCacheService() = 0;
   virtual const ZeroSuggestCacheService* GetZeroSuggestCacheService() const = 0;
@@ -100,6 +100,8 @@ class AutocompleteProviderClient : public OmniboxAction::Client {
       const = 0;
   virtual AutocompleteScoringModelService* GetAutocompleteScoringModelService()
       const = 0;
+  virtual OnDeviceTailModelService* GetOnDeviceTailModelService() const = 0;
+  virtual ProviderStateService* GetProviderStateService() const = 0;
 
   // The value to use for Accept-Languages HTTP header when making an HTTP
   // request.

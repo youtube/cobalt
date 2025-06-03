@@ -8,9 +8,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.UserDataHost;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.content_public.browser.navigation_controller.LoadURLType;
 import org.chromium.content_public.browser.navigation_controller.UserAgentOverrideOption;
@@ -53,6 +54,8 @@ public class LoadUrlParams {
     private long mInputStartTimestamp;
     private boolean mHasUserGesture;
     private boolean mShouldClearHistoryList;
+    @Nullable
+    private AdditionalNavigationParams mAdditionalNavigationParams;
     private Supplier<Long> mNavigationUIDataSupplier;
 
     /**
@@ -129,6 +132,7 @@ public class LoadUrlParams {
         copy.mInputStartTimestamp = other.mInputStartTimestamp;
         copy.mHasUserGesture = other.mHasUserGesture;
         copy.mShouldClearHistoryList = other.mShouldClearHistoryList;
+        copy.mAdditionalNavigationParams = other.mAdditionalNavigationParams;
         return copy;
     }
 
@@ -600,6 +604,24 @@ public class LoadUrlParams {
     /** Returns whether session history should be cleared once the navigation commits. */
     public boolean getShouldClearHistoryList() {
         return mShouldClearHistoryList;
+    }
+
+    /**
+     * Set the additional navigation params associated with the load.
+     *
+     * @param additionalNavigationParams Additional navigation params associated with the load.
+     */
+    public void setAdditionalNavigationParams(
+            AdditionalNavigationParams additionalNavigationParams) {
+        mAdditionalNavigationParams = additionalNavigationParams;
+    }
+
+    /**
+     * @return The additional navigation params associated with the load.
+     */
+    @Nullable
+    public AdditionalNavigationParams getAdditionalNavigationParams() {
+        return mAdditionalNavigationParams;
     }
 
     public boolean isBaseUrlDataScheme() {

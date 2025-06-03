@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_VARIATIONS_SERVICE_GOOGLE_GROUPS_UPDATER_SERVICE_H_
 #define COMPONENTS_VARIATIONS_SERVICE_GOOGLE_GROUPS_UPDATER_SERVICE_H_
 
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -15,10 +14,19 @@ namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
-extern const char kDogfoodGroupsSyncPrefName[];
-extern const char kDogfoodGroupsSyncPrefGaiaIdKey[];
+namespace variations {
+// Per-profile preference for the sync data containing the list of dogfood group
+// gaia IDs for a given syncing user.
+// The variables below are the pref name, and the key for the gaia ID within
+// the dictionary value.
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+inline constexpr char kOsDogfoodGroupsSyncPrefName[] = "sync.os_dogfood_groups";
+#else
+inline constexpr char kDogfoodGroupsSyncPrefName[] = "sync.dogfood_groups";
+#endif
 
-BASE_DECLARE_FEATURE(kVariationsGoogleGroupFiltering);
+inline constexpr char kDogfoodGroupsSyncPrefGaiaIdKey[] = "gaia_id";
+}  // namespace variations
 
 // Service responsible for one-way synchronization of Google group information
 // from per-profile sync data to local-state.
@@ -36,12 +44,17 @@ class GoogleGroupsUpdaterService : public KeyedService {
 
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
+  // Clears state that should only exist for a signed in syncing user.
+  // This should be called when the user signs out or disables sync, as the
+  // server is the source-of-truth for this state, not the client.
+  void ClearSigninScopedState();
+
  private:
   // Update the group memberships in `target_prefs_`.
   // Called when `source_prefs_` have been initialized or modified.
   void UpdateGoogleGroups();
 
-  // The preferences to write to.
+  // The preferences to write to. These are the local-state prefs.
   // Preferences are guaranteed to outlive keyed services, so this reference
   // will stay valid for the lifetime of this service.
   const raw_ref<PrefService> target_prefs_;
@@ -51,7 +64,7 @@ class GoogleGroupsUpdaterService : public KeyedService {
   // across Chrome restarts).
   const std::string key_;
 
-  // The preferences to read from.
+  // The preferences to read from. These are the profile prefs.
   // Preferences are guaranteed to outlive keyed services, so this reference
   // will stay valid for the lifetime of this service.
   const raw_ref<PrefService> source_prefs_;

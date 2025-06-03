@@ -20,6 +20,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -81,28 +82,31 @@ void InstantiateLinuxUiDelegate() {
 #endif
 
 scoped_refptr<base::SequencedTaskRunner> GetPrintingTaskRunner() {
+#if BUILDFLAG(IS_LINUX)
+  // Use task runner associated with equivalent of UI thread.  Needed for calls
+  // made through `PrintDialogLinuxInterface` to properly execute.
+  CHECK(base::SequencedTaskRunner::HasCurrentDefault());
+  return base::SequencedTaskRunner::GetCurrentDefault();
+#else
+
   static constexpr base::TaskTraits kTraits = {
       base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN};
 
 #if BUILDFLAG(USE_CUPS)
   // CUPS is thread safe, so a task runner can be allocated for each job.
-  scoped_refptr<base::SequencedTaskRunner> task_runner =
-      base::ThreadPool::CreateSequencedTaskRunner(kTraits);
+  return base::ThreadPool::CreateSequencedTaskRunner(kTraits);
 #elif BUILDFLAG(IS_WIN)
   // For Windows, we want a single threaded task runner shared for all print
   // jobs in the process because Windows printer drivers are oftentimes not
   // thread-safe.  This protects against multiple print jobs to the same device
   // from running in the driver at the same time.
-  static scoped_refptr<base::SequencedTaskRunner> task_runner =
-      base::ThreadPool::CreateSingleThreadTaskRunner(kTraits);
+  return base::ThreadPool::CreateSingleThreadTaskRunner(kTraits);
 #else
   // Be conservative for unsupported platforms, use a single threaded runner
   // so that concurrent print jobs are not in driver code at the same time.
-  static scoped_refptr<base::SequencedTaskRunner> task_runner =
-      base::ThreadPool::CreateSingleThreadTaskRunner(kTraits);
+  return base::ThreadPool::CreateSingleThreadTaskRunner(kTraits);
 #endif
-
-  return task_runner;
+#endif  // BUILDFLAG(IS_LINUX)
 }
 
 std::unique_ptr<Metafile> CreateMetafile(mojom::MetafileDataType data_type) {
@@ -555,15 +559,14 @@ void PrintBackendServiceImpl::FetchCapabilities(
 #if BUILDFLAG(IS_WIN)
   if (xml_parser_remote_.is_bound() &&
       base::FeatureList::IsEnabled(features::kReadPrinterCapabilitiesWithXps)) {
-    base::expected<XpsCapabilities, mojom::ResultCode> xps_capabilities =
-        GetXpsCapabilities(printer_name);
-    if (!xps_capabilities.has_value()) {
-      std::move(callback).Run(mojom::PrinterCapsAndInfoResult::NewResultCode(
-          xps_capabilities.error()));
-      return;
-    }
+    ASSIGN_OR_RETURN(
+        XpsCapabilities xps_capabilities, GetXpsCapabilities(printer_name),
+        [&](mojom::ResultCode error) {
+          return std::move(callback).Run(
+              mojom::PrinterCapsAndInfoResult::NewResultCode(error));
+        });
 
-    MergeXpsCapabilities(std::move(xps_capabilities.value()), caps);
+    MergeXpsCapabilities(std::move(xps_capabilities), caps);
   }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -621,7 +624,8 @@ void PrintBackendServiceImpl::EstablishPrintingContext(uint32_t context_id
 #endif
 
   context_container->context = PrintingContext::Create(
-      context_container->delegate.get(), /*skip_system_calls=*/false);
+      context_container->delegate.get(),
+      PrintingContext::ProcessBehavior::kOopEnabledPerformSystemCalls);
 
   bool inserted = persistent_printing_contexts_
                       .insert({context_id, std::move(context_container)})
@@ -740,7 +744,7 @@ void PrintBackendServiceImpl::StartPrinting(
 #if !BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
   if (settings) {
     // Apply the settings from the in-browser system dialog to the context.
-    context_container->context->ApplyPrintSettings(*settings);
+    context_container->context->SetPrintSettings(*settings);
   }
 #endif
 
@@ -937,17 +941,17 @@ void PrintBackendServiceImpl::RemoveDocumentHelper(
 #if BUILDFLAG(IS_WIN)
 base::expected<XpsCapabilities, mojom::ResultCode>
 PrintBackendServiceImpl::GetXpsCapabilities(const std::string& printer_name) {
-  base::expected<std::string, mojom::ResultCode> xml =
-      print_backend_->GetXmlPrinterCapabilitiesForXpsDriver(printer_name);
-  if (!xml.has_value()) {
-    DLOG(ERROR) << "Failure getting XPS capabilities of printer "
-                << printer_name << ", error: " << xml.error();
-    return base::unexpected(xml.error());
-  }
+  ASSIGN_OR_RETURN(
+      std::string xml,
+      print_backend_->GetXmlPrinterCapabilitiesForXpsDriver(printer_name),
+      [&](mojom::ResultCode error) {
+        DLOG(ERROR) << "Failure getting XPS capabilities of printer "
+                    << printer_name << ", error: " << error;
+        return error;
+      });
 
   mojom::PrinterCapabilitiesValueResultPtr value_result;
-  xml_parser_remote_->ParseXmlForPrinterCapabilities(xml.value(),
-                                                     &value_result);
+  xml_parser_remote_->ParseXmlForPrinterCapabilities(xml, &value_result);
   if (value_result->is_result_code()) {
     DLOG(ERROR) << "Failure parsing XML of XPS capabilities of printer "
                 << printer_name

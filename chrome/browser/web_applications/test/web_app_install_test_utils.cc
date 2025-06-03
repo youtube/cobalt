@@ -20,7 +20,6 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
-#include "chrome/browser/web_applications/web_app_sources.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/webapps/browser/install_result_code.h"
@@ -31,11 +30,6 @@
 
 namespace web_app {
 namespace test {
-namespace {
-using WebAppSourcesSet = base::EnumSet<WebAppManagement::Type,
-                                       WebAppManagement::kMinValue,
-                                       WebAppManagement::kMaxValue>;
-}
 
 void WaitUntilReady(WebAppProvider* provider) {
   if (provider->on_registry_ready().is_signaled())
@@ -68,10 +62,11 @@ void AwaitStartWebAppProviderAndSubsystems(Profile* profile) {
   WaitUntilWebAppProviderAndSubsystemsReady(provider);
 }
 
-AppId InstallDummyWebApp(Profile* profile,
-                         const std::string& app_name,
-                         const GURL& start_url,
-                         const webapps::WebappInstallSource install_source) {
+webapps::AppId InstallDummyWebApp(
+    Profile* profile,
+    const std::string& app_name,
+    const GURL& start_url,
+    const webapps::WebappInstallSource install_source) {
   auto web_app_info = std::make_unique<WebAppInstallInfo>();
 
   web_app_info->start_url = start_url;
@@ -86,15 +81,15 @@ AppId InstallDummyWebApp(Profile* profile,
                        install_source);
 }
 
-AppId InstallWebApp(Profile* profile,
-                    std::unique_ptr<WebAppInstallInfo> web_app_info,
-                    bool overwrite_existing_manifest_fields,
-                    webapps::WebappInstallSource install_source) {
+webapps::AppId InstallWebApp(Profile* profile,
+                             std::unique_ptr<WebAppInstallInfo> web_app_info,
+                             bool overwrite_existing_manifest_fields,
+                             webapps::WebappInstallSource install_source) {
   // The sync system requires that sync entity name is never empty.
   if (web_app_info->title.empty())
     web_app_info->title = u"WebAppInstallInfo App Name";
 
-  AppId app_id;
+  webapps::AppId app_id;
   base::RunLoop run_loop;
   auto* provider = WebAppProvider::GetForTest(profile);
   DCHECK(provider);
@@ -105,12 +100,12 @@ AppId InstallWebApp(Profile* profile,
   provider->scheduler().InstallFromInfo(
       std::move(web_app_info), overwrite_existing_manifest_fields,
       install_source,
-      base::BindLambdaForTesting(
-          [&](const AppId& installed_app_id, webapps::InstallResultCode code) {
-            EXPECT_EQ(webapps::InstallResultCode::kSuccessNewInstall, code);
-            app_id = installed_app_id;
-            run_loop.Quit();
-          }));
+      base::BindLambdaForTesting([&](const webapps::AppId& installed_app_id,
+                                     webapps::InstallResultCode code) {
+        EXPECT_EQ(webapps::InstallResultCode::kSuccessNewInstall, code);
+        app_id = installed_app_id;
+        run_loop.Quit();
+      }));
 
   run_loop.Run();
   // Allow updates to be published to App Service listeners.
@@ -118,19 +113,14 @@ AppId InstallWebApp(Profile* profile,
   return app_id;
 }
 
-void UninstallWebApp(Profile* profile, const AppId& app_id) {
+void UninstallWebApp(Profile* profile, const webapps::AppId& app_id) {
   WebAppProvider* const provider = WebAppProvider::GetForTest(profile);
-  base::RunLoop run_loop;
+  base::test::TestFuture<webapps::UninstallResultCode> future;
+  DCHECK(provider->registrar_unsafe().CanUserUninstallWebApp(app_id));
+  provider->scheduler().UninstallWebApp(
+      app_id, webapps::WebappUninstallSource::kAppMenu, future.GetCallback());
+  EXPECT_TRUE(UninstallSucceeded(future.Get()));
 
-  DCHECK(provider->install_finalizer().CanUserUninstallWebApp(app_id));
-  provider->install_finalizer().UninstallWebApp(
-      app_id, webapps::WebappUninstallSource::kAppMenu,
-      base::BindLambdaForTesting([&](webapps::UninstallResultCode code) {
-        EXPECT_EQ(code, webapps::UninstallResultCode::kSuccess);
-        run_loop.Quit();
-      }));
-
-  run_loop.Run();
   // Allow updates to be published to App Service listeners.
   base::RunLoop().RunUntilIdle();
 }
@@ -140,18 +130,18 @@ bool UninstallAllWebApps(Profile* profile) {
   auto* provider = WebAppProvider::GetForTest(profile);
   if (!provider)
     return false;
-  std::vector<AppId> app_ids = provider->registrar_unsafe().GetAppIds();
+  std::vector<webapps::AppId> app_ids =
+      provider->registrar_unsafe().GetAppIds();
   for (auto& app_id : app_ids) {
     const WebApp* app = provider->registrar_unsafe().GetAppById(app_id);
-    WebAppSourcesSet sources =
-        WebAppSourcesSet::FromEnumBitmask(app->GetSources().to_ullong());
+    WebAppManagementTypes sources = app->GetSources();
 
     // Non-user installs first, as they block user uninstalls.
     for (WebAppManagement::Type source : sources) {
       if (source == WebAppManagement::kSync)
         continue;
       base::test::TestFuture<webapps::UninstallResultCode> result;
-      provider->install_finalizer().UninstallExternalWebApp(
+      provider->scheduler().RemoveInstallSource(
           app_id, source, webapps::WebappUninstallSource::kTestCleanup,
           result.GetCallback());
       if (!result.Wait() ||
@@ -166,7 +156,7 @@ bool UninstallAllWebApps(Profile* profile) {
       if (source != WebAppManagement::kSync)
         continue;
       base::test::TestFuture<webapps::UninstallResultCode> result;
-      provider->install_finalizer().UninstallWebApp(
+      provider->scheduler().UninstallWebApp(
           app_id, webapps::WebappUninstallSource::kTestCleanup,
           result.GetCallback());
       if (!result.Wait() ||

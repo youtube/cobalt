@@ -38,6 +38,7 @@ _allowed_config_options = [
 # Allowed compilerOptions
 _allowed_compiler_options = [
     'allowUmdGlobalAccess',
+    'isolatedModules',
     'lib',
     'noPropertyAccessFromIndexSignature',
     'noUncheckedIndexedAccess',
@@ -120,16 +121,26 @@ def validateJavaScriptAllowed(source_dir, out_dir, is_ios):
 
   # Specific exceptions for directories that are still migrating to TS.
   migrating_directories = [
+      # TODO(crbug.com/1337318): Migrate bluetooth-internals to TypeScript and
+      # remove exception.
       'chrome/browser/resources/bluetooth_internals',
       'chrome/browser/resources/chromeos/accessibility',
-      'chrome/browser/resources/chromeos/emoji_picker',
-      'chrome/browser/resources/ntp4',
       'chrome/test/data/webui',
       'chrome/test/data/webui/chromeos',
+      'chrome/test/data/webui/chromeos/ash_common',
+      # TODO(b/305287898): Migrate scanning app tests to Typescript and
+      # remove exception.
+      'chrome/test/data/webui/chromeos/scanning',
+      'chrome/test/data/webui/cr_components/chromeos',
+      'chrome/test/data/webui/nearby_share',
       'chrome/test/data/webui/settings/chromeos',
       'components/policy/resources/webui',
       'ui/webui/resources/js',
       'ui/webui/resources/mojo',
+
+      # TODO(crbug.com/1478961) : Migrate to TypeScript.
+      'chrome/test/data/webui/media_internals',
+      'content/browser/resources/media',
   ]
   for directory in migrating_directories:
     if (source_dir.endswith(directory)

@@ -6,14 +6,18 @@
 #define CHROME_BROWSER_ASH_CROSAPI_BROWSER_LOADER_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "base/version.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace component_updater {
 class CrOSComponentManager;
@@ -49,6 +53,33 @@ class BrowserLoader {
   // a newer lacros-chrome version and update checking can be skipped.
   static bool WillLoadStatefulComponentBuilds();
 
+  struct LacrosSelectionVersion {
+    LacrosSelectionVersion(LacrosSelection selection, base::Version version);
+
+    // LacrosSelection::kRootfs or kStateful should be set here, not
+    // kDeployedLocally.
+    LacrosSelection selection;
+
+    base::Version version;
+  };
+
+  // Indicates how lacros is selected.
+  enum class LacrosSelectionSource {
+    kUnknown,
+
+    // Selected by comparing the version to choose newer one or either of the
+    // lacros selection is not available.
+    kCompatibilityCheck,
+
+    // Forced by the selection policy or about:flags. See
+    // browser_util::DetermineLacrosSelection for the detailed condition when
+    // the lacros selection is forced.
+    kForced,
+
+    // Forced by registered lacros-chrome path.
+    kDeployedPath,
+  };
+
   // Starts to load lacros-chrome binary or the rootfs lacros-chrome binary.
   // |callback| is called on completion with the path to the lacros-chrome on
   // success, or an empty filepath on failure, and the loaded lacros selection
@@ -74,6 +105,8 @@ class BrowserLoader {
                            OnLoadVersionSelectionRootfsIsNewer);
   FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest,
                            OnLoadVersionSelectionRootfsIsOlder);
+  FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest,
+                           OnLoadVersionSelectionSameVersions);
   FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest, OnLoadSelectionPolicyIsRootfs);
   FRIEND_TEST_ALL_PREFIXES(
       BrowserLoaderTest,
@@ -81,25 +114,30 @@ class BrowserLoader {
   FRIEND_TEST_ALL_PREFIXES(
       BrowserLoaderTest,
       OnLoadSelectionPolicyIsUserChoiceAndCommandLineIsStateful);
-  FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest, OnLoadLacrosSpecifiedBySwitch);
+  FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest,
+                           OnLoadLacrosBinarySpecifiedBySwitch);
+  FRIEND_TEST_ALL_PREFIXES(BrowserLoaderTest,
+                           OnLoadLacrosDirectorySpecifiedBySwitch);
 
-  // `load_stateful_lacros` specifies whether we should start the installation
-  // of stateful lacros in the background.
+  // `source` indicates why rootfs/stateful is selected. `source` is only used
+  // for logging.
   void SelectRootfsLacros(LoadCompletionCallback callback,
-                          bool load_stateful_lacros = false);
-  void SelectStatefulLacros(LoadCompletionCallback callback);
+                          LacrosSelectionSource source);
+  void SelectStatefulLacros(LoadCompletionCallback callback,
+                            LacrosSelectionSource source);
 
-  // Called when stateful lacros version is calculated.
-  // TODO(crbug.com/1429138): Make it pararell to load stateful and rootfs
-  // lacros.
-  void OnLoadStatefulLacros(LoadCompletionCallback callback,
-                            base::Version stateful_lacros_version);
+  // Called on GetVersion for each rootfs and stateful lacros loader.
+  void OnGetVersion(
+      LacrosSelection selection,
+      base::OnceCallback<void(LacrosSelectionVersion)> barrier_callback,
+      const base::Version& version);
 
   // Called to determine which lacros to load based on version (rootfs vs
   // stateful).
-  void OnLoadVersionSelection(LoadCompletionCallback callback,
-                              base::Version stateful_lacros_version,
-                              base::Version rootfs_lacros_version);
+  // `versions` consists of 2 elements, one for rootfs lacros, one for stateful
+  // lacros. The order is not specified.
+  void OnLoadVersions(LoadCompletionCallback callback,
+                      std::vector<LacrosSelectionVersion> versions);
 
   // Called on the completion of loading.
   void OnLoadComplete(LoadCompletionCallback callback,
@@ -110,7 +148,7 @@ class BrowserLoader {
                             const base::FilePath& path,
                             LacrosSelection selection,
                             base::Version version,
-                            bool lacros_binary_exists);
+                            const base::FilePath& lacros_binary);
 
   // Loader for rootfs lacros and stateful lacros.
   std::unique_ptr<LacrosSelectionLoader> rootfs_lacros_loader_;
@@ -119,8 +157,13 @@ class BrowserLoader {
   // Time when the lacros component was loaded.
   base::TimeTicks lacros_start_load_time_;
 
+  // Used for DCHECKs to ensure method calls executed in the correct thread.
+  SEQUENCE_CHECKER(sequence_checker_);
+
   base::WeakPtrFactory<BrowserLoader> weak_factory_{this};
 };
+
+std::ostream& operator<<(std::ostream&, BrowserLoader::LacrosSelectionSource);
 
 }  // namespace crosapi
 

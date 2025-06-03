@@ -67,7 +67,7 @@ void FaceDetectionImplMacVision::OnFacesDetected(VNRequest* request,
   if (receiver_)  // Can be unbound in unit testing.
     receiver_->ResumeIncomingMethodCallProcessing();
 
-  if (![request.results count] || error) {
+  if (!request.results.count || error) {
     std::move(detected_callback_).Run({});
     return;
   }

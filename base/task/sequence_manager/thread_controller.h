@@ -109,10 +109,6 @@ class BASE_EXPORT ThreadController {
   // Must be called before the first call to Schedule*Work().
   virtual void SetSequencedTaskSource(SequencedTaskSource*) = 0;
 
-  // Requests desired timer precision from the OS.
-  // Has no effect on some platforms.
-  virtual void SetTimerSlack(TimerSlack timer_slack) = 0;
-
   // Completes delayed initialization of unbound ThreadControllers.
   // BindToCurrentThread(MessageLoopBase*) or BindToCurrentThread(MessagePump*)
   // may only be called once.
@@ -144,6 +140,10 @@ class BASE_EXPORT ThreadController {
   // controller to be shut down cleanly.
   virtual void DetachFromMessagePump() = 0;
 #endif
+
+  // Initializes the state of all the thread controller features. Must be
+  // invoked after FeatureList initialization.
+  static void InitializeFeatures();
 
   // Enables TimeKeeper metrics. `thread_name` will be used as a suffix.
   void EnableMessagePumpTimeKeeperMetrics(const char* thread_name);
@@ -399,6 +399,8 @@ class BASE_EXPORT ThreadController {
      private:
       State state_ = kIdle;
       bool is_nested_;
+
+      bool ShouldRecordSampleMetadata();
 
       const raw_ref<TimeKeeper> time_keeper_;
       // Must be set shortly before ~RunLevel.

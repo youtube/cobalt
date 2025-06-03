@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,15 @@
 #define CHROME_BROWSER_UI_ASH_NETWORK_NETWORK_PORTAL_SIGNIN_CONTROLLER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ash/net/network_portal_web_dialog.h"
+#include "base/scoped_observation.h"
+#include "ui/views/widget/widget_observer.h"
+#include "url/gurl.h"
 
 class Profile;
 
 namespace ash {
 
-class NetworkPortalSigninController : public NetworkPortalWebDialog::Delegate {
+class NetworkPortalSigninController : public views::WidgetObserver {
  public:
   // Keep this in sync with the NetworkPortalSigninMode enum in
   // tools/metrics/histograms/enums.xml.
@@ -70,21 +72,20 @@ class NetworkPortalSigninController : public NetworkPortalWebDialog::Delegate {
   // Returns whether the sigin UI is show.
   bool DialogIsShown();
 
-  // NetworkPortalWebDialog::Delegate
-  void OnDialogDestroyed(const NetworkPortalWebDialog* dialog) override;
+  // views::WidgetObserver:
+  void OnWidgetDestroying(views::Widget* widget) override;
 
  protected:
   // May be overridden in tests.
   virtual void ShowDialog(Profile* profile, const GURL& url);
   virtual void ShowTab(Profile* profile, const GURL& url);
-  virtual void ShowSingletonTab(Profile* profile, const GURL& url);
 
   SigninMode GetSigninMode() const;
 
  private:
-  raw_ptr<NetworkPortalWebDialog, ExperimentalAsh> dialog_ = nullptr;
-  base::WeakPtrFactory<NetworkPortalWebDialog::Delegate>
-      web_dialog_weak_factory_{this};
+  raw_ptr<views::Widget> dialog_widget_ = nullptr;
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      dialog_widget_observation_{this};
   base::WeakPtrFactory<NetworkPortalSigninController> weak_factory_{this};
 };
 

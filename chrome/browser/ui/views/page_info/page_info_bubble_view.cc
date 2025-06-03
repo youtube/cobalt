@@ -22,7 +22,7 @@
 #include "components/dom_distiller/core/url_utils.h"
 #include "components/page_info/core/features.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/common/constants.h"
@@ -164,7 +164,7 @@ PageInfoBubbleView::PageInfoBubbleView(
   SetShowCloseButton(false);
   // The title isn't visible, it is set for a11y purposes and the actual visible
   // title is a custom label in the content view.
-  SetTitle(presenter_->GetSiteNameOrAppNameToDisplay());
+  SetTitle(presenter_->GetSubjectNameForDisplay());
 
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
@@ -177,7 +177,10 @@ PageInfoBubbleView::PageInfoBubbleView(
   views::BubbleDialogDelegateView::CreateBubble(this);
 }
 
-PageInfoBubbleView::~PageInfoBubbleView() = default;
+PageInfoBubbleView::~PageInfoBubbleView() {
+  page_container_ = nullptr;
+  RemoveAllChildViews();
+}
 
 // static
 views::BubbleDialogDelegateView* PageInfoBubbleView::CreatePageInfoBubble(
@@ -249,8 +252,7 @@ void PageInfoBubbleView::OpenAdPersonalizationPage() {
 }
 
 void PageInfoBubbleView::OpenCookiesPage() {
-  presenter_->RecordPageInfoAction(
-      PageInfo::PageInfoAction::PAGE_INFO_COOKIES_PAGE_OPENED);
+  presenter_->OnCookiesPageOpened();
   std::unique_ptr<views::View> cookies_page_view =
       view_factory_->CreateCookiesPageView();
   cookies_page_view->SetID(PageInfoViewFactory::VIEW_ID_PAGE_INFO_CURRENT_VIEW);

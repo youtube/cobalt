@@ -9,16 +9,17 @@ import {DialogType} from '../common/js/dialog_type.js';
 import {Crostini} from '../externs/background/crostini.js';
 import {FilesAppDirEntry} from '../externs/files_app_entry_interfaces.js';
 import {FileKey, PropStatus, State} from '../externs/ts/state.js';
-import {VolumeInfo} from '../externs/volume_info.js';
+import type {VolumeInfo} from '../externs/volume_info.js';
+import {DirectoryTreeNamingController} from '../foreground/js/directory_tree_naming_controller.js';
 import {FakeFileSelectionHandler} from '../foreground/js/fake_file_selection_handler.js';
 import {MetadataModel} from '../foreground/js/metadata/metadata_model.js';
 import {MockMetadataModel} from '../foreground/js/metadata/mock_metadata.js';
 import {createFakeDirectoryModel} from '../foreground/js/mock_directory_model.js';
 import {TaskController} from '../foreground/js/task_controller.js';
 
-import {EntryMetadata, updateMetadata} from './actions/all_entries.js';
-import {changeDirectory, updateDirectoryContent, updateSelection} from './actions/current_directory.js';
-import {getEmptyState, getStore, StateSelector, Store, waitForState} from './store.js';
+import {type EntryMetadata, updateMetadata} from './ducks/all_entries.js';
+import {changeDirectory, updateDirectoryContent, updateSelection} from './ducks/current_directory.js';
+import {getEmptyState, getStore, type StateSelector, type Store, waitForState} from './store.js';
 
 /**
  * Compares 2 State objects and fails with nicely formatted message when it
@@ -148,6 +149,8 @@ export function setUpFileManagerOnWindow() {
     taskController: {} as unknown as TaskController,
     dialogType: DialogType.FULL_PAGE,
     directoryModel: createFakeDirectoryModel(),
+    directoryTreeNamingController: {} as unknown as
+        DirectoryTreeNamingController,
   };
 }
 

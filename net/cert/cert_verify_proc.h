@@ -63,6 +63,10 @@ class NET_EXPORT CertVerifyProc
     // (Note that this entirely disables the online revocation/AIA code paths.
     // Theoretically we could still check for cached results.)
     VERIFY_DISABLE_NETWORK_FETCHES = 1 << 4,
+
+    // Also update GetNetConstants() in net/log/net_log_util.cc when updating
+    // this enum.
+    VERIFY_FLAGS_LAST = VERIFY_DISABLE_NETWORK_FETCHES
   };
 
   // These values are persisted to logs. Entries should not be renumbered and
@@ -84,7 +88,7 @@ class NET_EXPORT CertVerifyProc
       scoped_refptr<CRLSet> crl_set);
 #endif
 
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(USE_NSS_CERTS)
+#if BUILDFLAG(IS_FUCHSIA)
   // Creates and returns a CertVerifyProcBuiltin using the SSL SystemTrustStore.
   static scoped_refptr<CertVerifyProc> CreateBuiltinVerifyProc(
       scoped_refptr<CertNetFetcher> cert_net_fetcher,
@@ -200,17 +204,9 @@ class NET_EXPORT CertVerifyProc
       const std::vector<std::string>& dns_names,
       const std::vector<std::string>& ip_addrs);
 
-  // The CA/Browser Forum's Baseline Requirements specify maximum validity
-  // periods (https://cabforum.org/baseline-requirements-documents/).
-  //
-  // For certificates issued after 1 July 2012: 60 months.
-  // For certificates issued after 1 April 2015: 39 months.
-  // For certificates issued after 1 March 2018: 825 days.
-  //
-  // For certificates issued before the BRs took effect, there were no
-  // guidelines, but clamp them at a maximum of 10 year validity, with the
-  // requirement they expire within 7 years after the effective date of the BRs
-  // (i.e. by 1 July 2019).
+  // Checks the validity period of the certificate against the maximum
+  // allowable validity period for publicly trusted certificates. Returns true
+  // if the validity period is too long.
   static bool HasTooLongValidity(const X509Certificate& cert);
 
   const scoped_refptr<CRLSet> crl_set_;

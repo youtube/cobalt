@@ -84,7 +84,6 @@ void AutoEnrollmentCheckScreen::ShowImpl() {
   new_captive_portal_state = default_network
                                  ? default_network->GetPortalState()
                                  : NetworkState::PortalState::kUnknown;
-  network_state_handler->RequestPortalDetection();
 
   // Perform an initial UI update.
   if (!UpdateCaptivePortalState(new_captive_portal_state))
@@ -111,8 +110,9 @@ void AutoEnrollmentCheckScreen::ShowImpl() {
 }
 
 void AutoEnrollmentCheckScreen::HideImpl() {
-  if (NetworkHandler::IsInitialized())
+  if (NetworkHandler::IsInitialized()) {
     NetworkHandler::Get()->network_state_handler()->RemoveObserver(this);
+  }
 }
 
 bool AutoEnrollmentCheckScreen::MaybeSkip(WizardContext& context) {

@@ -19,7 +19,9 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ash/file_system_provider/notification_manager_interface.h"
+#include "chrome/browser/ash/file_system_provider/request_manager.h"
 #include "chrome/browser/ash/file_system_provider/request_value.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
@@ -28,6 +30,8 @@
 namespace ash {
 namespace file_system_provider {
 namespace {
+
+const RequestType kTestRequestType = RequestType::kGetMetadata;
 
 absl::optional<std::string> GetTestingParamFromResult(
     const RequestValue& result) {
@@ -81,6 +85,30 @@ class FakeNotificationManager : public NotificationManagerInterface {
   }
 
   CallbackMap callbacks_;
+};
+
+class TimeoutWaiter : public RequestManager::Observer {
+ public:
+  explicit TimeoutWaiter(RequestManager* request_manager) {
+    scoped_observation_.Observe(request_manager);
+  }
+  void OnRequestCreated(int request_id, RequestType type) override {}
+  void OnRequestDestroyed(int request_id,
+                          OperationCompletion completion) override {}
+  void OnRequestExecuted(int request_id) override {}
+  void OnRequestFulfilled(int request_id,
+                          const RequestValue& result,
+                          bool has_more) override {}
+  void OnRequestRejected(int request_id,
+                         const RequestValue& result,
+                         base::File::Error error) override {}
+  void OnRequestTimedOut(int request_id) override { run_loop_.Quit(); }
+  void Wait() { run_loop_.Run(); }
+
+ private:
+  base::RunLoop run_loop_;
+  base::ScopedObservation<RequestManager, RequestManager::Observer>
+      scoped_observation_{this};
 };
 
 // Logs calls of the success and error callbacks on requests.
@@ -292,6 +320,17 @@ class RequestObserver : public RequestManager::Observer {
     base::File::Error error_;
   };
 
+  class DestroyedEvent : public Event {
+   public:
+    DestroyedEvent(int request_id, OperationCompletion completion)
+        : Event(request_id), completion_(completion) {}
+
+    OperationCompletion completion() const { return completion_; }
+
+   private:
+    OperationCompletion completion_;
+  };
+
   RequestObserver() {}
 
   RequestObserver(const RequestObserver&) = delete;
@@ -305,8 +344,9 @@ class RequestObserver : public RequestManager::Observer {
   }
 
   // RequestManager::Observer overrides.
-  void OnRequestDestroyed(int request_id) override {
-    destroyed_.push_back(Event(request_id));
+  void OnRequestDestroyed(int request_id,
+                          OperationCompletion completion) override {
+    destroyed_.push_back(DestroyedEvent(request_id, completion));
   }
 
   // RequestManager::Observer overrides.
@@ -329,24 +369,24 @@ class RequestObserver : public RequestManager::Observer {
   }
 
   // RequestManager::Observer overrides.
-  void OnRequestTimeouted(int request_id) override {
-    timeouted_.push_back(Event(request_id));
+  void OnRequestTimedOut(int request_id) override {
+    timed_out_.push_back(Event(request_id));
   }
 
   const std::vector<CreatedEvent>& created() const { return created_; }
-  const std::vector<Event>& destroyed() const { return destroyed_; }
+  const std::vector<DestroyedEvent>& destroyed() const { return destroyed_; }
   const std::vector<Event>& executed() const { return executed_; }
   const std::vector<FulfilledEvent>& fulfilled() const { return fulfilled_; }
   const std::vector<RejectedEvent>& rejected() const { return rejected_; }
-  const std::vector<Event>& timeouted() const { return timeouted_; }
+  const std::vector<Event>& timed_out() const { return timed_out_; }
 
  private:
   std::vector<CreatedEvent> created_;
-  std::vector<Event> destroyed_;
+  std::vector<DestroyedEvent> destroyed_;
   std::vector<Event> executed_;
   std::vector<FulfilledEvent> fulfilled_;
   std::vector<RejectedEvent> rejected_;
-  std::vector<Event> timeouted_;
+  std::vector<Event> timed_out_;
 };
 
 }  // namespace
@@ -360,14 +400,14 @@ class FileSystemProviderRequestManagerTest : public testing::Test {
     profile_ = std::make_unique<TestingProfile>();
     notification_manager_ = std::make_unique<FakeNotificationManager>();
     request_manager_ = std::make_unique<OperationRequestManager>(
-        profile_.get(), std::string() /* provider_id */,
-        notification_manager_.get());
+        profile_.get(), /*provider_id=*/std::string(),
+        notification_manager_.get(), /*timeout=*/base::Seconds(10));
   }
 
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<FakeNotificationManager> notification_manager_;
-  std::unique_ptr<RequestManager> request_manager_;
+  std::unique_ptr<OperationRequestManager> request_manager_;
 };
 
 TEST_F(FileSystemProviderRequestManagerTest, CreateFailure) {
@@ -376,7 +416,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateFailure) {
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), false /* execute_reply */)));
 
@@ -385,7 +425,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateFailure) {
   EXPECT_EQ(0u, logger.error_events().size());
 
   EXPECT_EQ(1u, observer.created().size());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
   EXPECT_EQ(1u, observer.destroyed().size());
   EXPECT_EQ(0u, observer.executed().size());
 
@@ -402,7 +442,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill) {
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -412,7 +452,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill) {
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -462,7 +502,9 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill) {
 
   ASSERT_EQ(1u, observer.destroyed().size());
   EXPECT_EQ(request_id, observer.destroyed()[0].request_id());
-  EXPECT_EQ(0u, observer.timeouted().size());
+  EXPECT_EQ(OperationCompletion::kCompletedNormally,
+            observer.destroyed()[0].completion());
+  EXPECT_EQ(0u, observer.timed_out().size());
 
   request_manager_->RemoveObserver(&observer);
 }
@@ -473,7 +515,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill_WithHasNext) {
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -483,7 +525,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill_WithHasNext) {
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -539,7 +581,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndFulFill_WithHasNext) {
 
   ASSERT_EQ(1u, observer.destroyed().size());
   EXPECT_EQ(request_id, observer.destroyed()[0].request_id());
-  EXPECT_EQ(0u, observer.timeouted().size());
+  EXPECT_EQ(0u, observer.timed_out().size());
 
   request_manager_->RemoveObserver(&observer);
 }
@@ -550,7 +592,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndReject) {
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -560,7 +602,7 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndReject) {
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -600,7 +642,9 @@ TEST_F(FileSystemProviderRequestManagerTest, CreateAndReject) {
 
   ASSERT_EQ(1u, observer.destroyed().size());
   EXPECT_EQ(request_id, observer.destroyed()[0].request_id());
-  EXPECT_EQ(0u, observer.timeouted().size());
+  EXPECT_EQ(OperationCompletion::kCompletedNormally,
+            observer.destroyed()[0].completion());
+  EXPECT_EQ(0u, observer.timed_out().size());
 
   request_manager_->RemoveObserver(&observer);
 }
@@ -612,7 +656,7 @@ TEST_F(FileSystemProviderRequestManagerTest,
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -622,7 +666,7 @@ TEST_F(FileSystemProviderRequestManagerTest,
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -658,7 +702,7 @@ TEST_F(FileSystemProviderRequestManagerTest,
   request_manager_->AddObserver(&observer);
 
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -668,7 +712,7 @@ TEST_F(FileSystemProviderRequestManagerTest,
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -699,12 +743,12 @@ TEST_F(FileSystemProviderRequestManagerTest, UniqueIds) {
   EventLogger logger;
 
   const int first_request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
   const int second_request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -719,11 +763,12 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnDestroy) {
 
   {
     OperationRequestManager request_manager(
-        profile_.get(), std::string() /* provider_id */, nullptr);
+        profile_.get(), /*provider_id=*/std::string(),
+        /*notification_manager=*/nullptr, /*timeout=*/base::Seconds(10));
     request_manager.AddObserver(&observer);
 
     request_id = request_manager.CreateRequest(
-        TESTING,
+        kTestRequestType,
         base::WrapUnique<RequestManager::HandlerInterface>(
             new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
 
@@ -734,7 +779,7 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnDestroy) {
 
     ASSERT_EQ(1u, observer.created().size());
     EXPECT_EQ(request_id, observer.created()[0].request_id());
-    EXPECT_EQ(TESTING, observer.created()[0].type());
+    EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
     ASSERT_EQ(1u, observer.executed().size());
     EXPECT_EQ(request_id, observer.executed()[0].request_id());
@@ -742,7 +787,7 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnDestroy) {
     EXPECT_EQ(0u, observer.fulfilled().size());
     EXPECT_EQ(0u, observer.rejected().size());
     EXPECT_EQ(0u, observer.destroyed().size());
-    EXPECT_EQ(0u, observer.timeouted().size());
+    EXPECT_EQ(0u, observer.timed_out().size());
 
     // Do not remove the observer, to catch events while destructing.
   }
@@ -757,11 +802,13 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnDestroy) {
   EXPECT_EQ(0u, logger.success_events().size());
 
   EXPECT_EQ(0u, observer.fulfilled().size());
-  EXPECT_EQ(0u, observer.timeouted().size());
+  EXPECT_EQ(0u, observer.timed_out().size());
   ASSERT_EQ(1u, observer.rejected().size());
   EXPECT_EQ(request_id, observer.rejected()[0].request_id());
   EXPECT_EQ(base::File::FILE_ERROR_ABORT, observer.rejected()[0].error());
   ASSERT_EQ(1u, observer.destroyed().size());
+  EXPECT_EQ(OperationCompletion::kAbortedInternally,
+            observer.destroyed()[0].completion());
 }
 
 TEST_F(FileSystemProviderRequestManagerTest, AbortOnTimeout) {
@@ -771,7 +818,7 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnTimeout) {
 
   request_manager_->SetTimeoutForTesting(base::Seconds(0));
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
   EXPECT_EQ(1, request_id);
@@ -781,12 +828,12 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnTimeout) {
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
 
-  // Wait until the request is timeouted.
+  // Wait until the request is timed out.
   base::RunLoop().RunUntilIdle();
 
   // Abort the request.
@@ -803,10 +850,12 @@ TEST_F(FileSystemProviderRequestManagerTest, AbortOnTimeout) {
   ASSERT_EQ(1u, observer.rejected().size());
   EXPECT_EQ(request_id, observer.rejected()[0].request_id());
   EXPECT_EQ(base::File::FILE_ERROR_ABORT, observer.rejected()[0].error());
-  ASSERT_EQ(1u, observer.timeouted().size());
-  EXPECT_EQ(request_id, observer.timeouted()[0].request_id());
+  ASSERT_EQ(1u, observer.timed_out().size());
+  EXPECT_EQ(request_id, observer.timed_out()[0].request_id());
   ASSERT_EQ(1u, observer.destroyed().size());
   EXPECT_EQ(request_id, observer.destroyed()[0].request_id());
+  EXPECT_EQ(OperationCompletion::kAbortedFromNotification,
+            observer.destroyed()[0].completion());
 
   request_manager_->RemoveObserver(&observer);
 }
@@ -818,7 +867,7 @@ TEST_F(FileSystemProviderRequestManagerTest, ContinueOnTimeout) {
 
   request_manager_->SetTimeoutForTesting(base::Seconds(0));
   const int request_id = request_manager_->CreateRequest(
-      TESTING,
+      kTestRequestType,
       base::WrapUnique<RequestManager::HandlerInterface>(
           new FakeHandler(logger.GetWeakPtr(), true /* execute_reply */)));
   EXPECT_EQ(1, request_id);
@@ -829,12 +878,12 @@ TEST_F(FileSystemProviderRequestManagerTest, ContinueOnTimeout) {
 
   ASSERT_EQ(1u, observer.created().size());
   EXPECT_EQ(request_id, observer.created()[0].request_id());
-  EXPECT_EQ(TESTING, observer.created()[0].type());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
 
   ASSERT_EQ(1u, observer.executed().size());
   EXPECT_EQ(request_id, observer.executed()[0].request_id());
 
-  // Wait until the request is timeouted.
+  // Wait until the request is timed out.
   base::RunLoop().RunUntilIdle();
 
   // Let the provider have more time by closing the notification.
@@ -847,11 +896,71 @@ TEST_F(FileSystemProviderRequestManagerTest, ContinueOnTimeout) {
   EXPECT_EQ(0u, logger.error_events().size());
   EXPECT_EQ(0u, logger.abort_events().size());
 
-  // Wait until the request is timeouted again.
+  // Wait until the request is timed out again.
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1u, notification_manager_->size());
 
+  // Fulfill and check that operation completion mode changes.
+  const base::File::Error result = request_manager_->FulfillRequest(
+      request_id,
+      RequestValue(RequestValue::CreateForTesting("i-like-vanilla")),
+      /*has_more=*/false);
+  EXPECT_EQ(base::File::FILE_OK, result);
+
+  ASSERT_EQ(1u, observer.fulfilled().size());
+  ASSERT_EQ(1u, observer.destroyed().size());
+  EXPECT_EQ(OperationCompletion::kCompletedAfterWarning,
+            observer.destroyed()[0].completion());
+
   request_manager_->RemoveObserver(&observer);
+}
+
+TEST_F(FileSystemProviderRequestManagerTest, NoNotificationWhileInteractive) {
+  EventLogger logger;
+  RequestObserver observer;
+  base::ScopedObservation<RequestManager, RequestManager::Observer> observation(
+      &observer);
+  observation.Observe(request_manager_.get());
+
+  request_manager_->StartUserInteraction();
+
+  request_manager_->SetTimeoutForTesting(base::Seconds(0));
+  int request_id = request_manager_->CreateRequest(
+      kTestRequestType,
+      base::WrapUnique<RequestManager::HandlerInterface>(
+          new FakeHandler(logger.GetWeakPtr(), /*execute_reply=*/true)));
+  EXPECT_EQ(1, request_id);
+  EXPECT_EQ(0u, logger.success_events().size());
+  EXPECT_EQ(0u, logger.error_events().size());
+  EXPECT_EQ(0u, logger.abort_events().size());
+  EXPECT_EQ(0u, notification_manager_->size());
+
+  ASSERT_EQ(1u, observer.created().size());
+  EXPECT_EQ(request_id, observer.created()[0].request_id());
+  EXPECT_EQ(kTestRequestType, observer.created()[0].type());
+
+  ASSERT_EQ(1u, observer.executed().size());
+  EXPECT_EQ(request_id, observer.executed()[0].request_id());
+
+  // Wait until the request is timed out.
+  TimeoutWaiter(request_manager_.get()).Wait();
+
+  // Should not have shown a notification.
+  EXPECT_EQ(0u, notification_manager_->size());
+
+  // The request is still active.
+  EXPECT_EQ(0u, logger.success_events().size());
+  EXPECT_EQ(0u, logger.error_events().size());
+  EXPECT_EQ(0u, logger.abort_events().size());
+
+  // No longer interacting with the user.
+  request_manager_->EndUserInteraction();
+
+  // Wait until the request is timed out again.
+  TimeoutWaiter(request_manager_.get()).Wait();
+
+  // Shown a notification.
+  EXPECT_EQ(1u, notification_manager_->size());
 }
 
 }  // namespace file_system_provider

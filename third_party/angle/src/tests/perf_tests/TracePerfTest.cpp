@@ -146,6 +146,7 @@ class TracePerfTest : public ANGLERenderTest
     EGLint onEglClientWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTimeKHR timeout);
     EGLint onEglClientWaitSyncKHR(EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTimeKHR timeout);
     EGLint onEglGetError();
+    EGLDisplay onEglGetCurrentDisplay();
 
     void onReplayFramebufferChange(GLenum target, GLuint framebuffer);
     void onReplayInvalidateFramebuffer(GLenum target,
@@ -231,7 +232,7 @@ class TracePerfTest : public ANGLERenderTest
     uint32_t mOffscreenFrameCount                                       = 0;
     uint32_t mTotalFrameCount                                           = 0;
     bool mScreenshotSaved                                               = false;
-    uint32_t mScreenshotFrame                                           = gScreenshotFrame;
+    int32_t mScreenshotFrame                                            = gScreenshotFrame;
     std::unique_ptr<TraceLibrary> mTraceReplay;
 };
 
@@ -326,6 +327,11 @@ EGLint KHRONOS_APIENTRY EglClientWaitSyncKHR(EGLDisplay dpy,
 EGLint KHRONOS_APIENTRY EglGetError()
 {
     return gCurrentTracePerfTest->onEglGetError();
+}
+
+EGLDisplay KHRONOS_APIENTRY EglGetCurrentDisplay()
+{
+    return gCurrentTracePerfTest->onEglGetCurrentDisplay();
 }
 
 void KHRONOS_APIENTRY BindFramebufferProc(GLenum target, GLuint framebuffer)
@@ -668,6 +674,10 @@ angle::GenericProc KHRONOS_APIENTRY TraceLoadProc(const char *procName)
     {
         return reinterpret_cast<angle::GenericProc>(EglGetError);
     }
+    if (strcmp(procName, "eglGetCurrentDisplay") == 0)
+    {
+        return reinterpret_cast<angle::GenericProc>(EglGetCurrentDisplay);
+    }
 
     // GLES
     if (strcmp(procName, "glBindFramebuffer") == 0)
@@ -892,6 +902,11 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
         {
             WARN() << "Ignoring keyframe, user requested frame " << mScreenshotFrame
                    << " for screenshot";
+            if (mScreenshotFrame == kAllFrames)
+            {
+                WARN() << "Capturing screenshots of all frames since requested frame was "
+                       << kAllFrames;
+            }
         }
     }
 
@@ -1533,9 +1548,9 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
 
     if (traceNameIs("pubg_mobile_launch"))
     {
-        if (isIntelWinNative)
+        if (isIntelWinNative || isIntelWinANGLE)
         {
-            skipTest("http://anglebug.com/7929 Too slow on Win Intel native");
+            skipTest("http://anglebug.com/7929 Too slow on Win Intel native and Vulkan");
         }
     }
 
@@ -1593,6 +1608,55 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
         }
     }
 
+    if (traceNameIs("honkai_star_rail"))
+    {
+        addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
+        if (isIntelWin)
+        {
+            skipTest("https://anglebug.com/8175 Consistently stuck on Intel/windows");
+        }
+    }
+
+    if (traceNameIs("gangstar_vegas"))
+    {
+        if (mParams->isSwiftshader())
+        {
+            skipTest("TODO: http://anglebug.com/8173 Missing shadows on Swiftshader");
+        }
+    }
+
+    if (traceNameIs("respawnables"))
+    {
+        if (!mParams->isANGLE() && (IsWindows() || IsLinux()))
+        {
+            skipTest("TODO: https://anglebug.com/8191 Undefined behavior on native");
+        }
+    }
+
+    if (traceNameIs("street_fighter_iv_ce"))
+    {
+        if (mParams->isSwiftshader())
+        {
+            skipTest("https://anglebug.com/8243 Too slow on Swiftshader (large keyframe)");
+        }
+    }
+
+    if (traceNameIs("monster_hunter_stories"))
+    {
+        if (isIntelWinANGLE)
+        {
+            skipTest("http://anglebug.com/7557 Flaky context lost on Win Intel Vulkan");
+        }
+    }
+
+    if (traceNameIs("injustice_2"))
+    {
+        if (isNVIDIAWinANGLE)
+        {
+            skipTest("https://anglebug.com/8316 NVIDIA Windows flaky diffs");
+        }
+    }
+
     // glDebugMessageControlKHR and glDebugMessageCallbackKHR crash on ARM GLES1.
     if (IsARM() && mParams->traceInfo.contextClientMajorVersion == 1)
     {
@@ -1607,11 +1671,6 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     if (gTraceTestValidation)
     {
         mStepsToRun = frameCount();
-    }
-
-    if (gWarmupSteps == kAllFrames)
-    {
-        mWarmupSteps = frameCount();
     }
 
     if (gRunToKeyFrame)
@@ -1695,9 +1754,9 @@ void TracePerfTest::initializeBenchmark()
 
     mStartFrame = traceInfo.frameStart;
     mEndFrame   = traceInfo.frameEnd;
-    mTraceReplay->setBinaryDataDecompressCallback(DecompressBinaryData, DeleteBinaryData);
     mTraceReplay->setValidateSerializedStateCallback(ValidateSerializedState);
     mTraceReplay->setBinaryDataDir(testDataDir);
+    mTraceReplay->setReplayResourceMode(gIncludeInactiveResources);
 
     if (gMinimizeGPUWork)
     {
@@ -2108,6 +2167,11 @@ EGLint TracePerfTest::onEglGetError()
     return getGLWindow()->getEGLError();
 }
 
+EGLDisplay TracePerfTest::onEglGetCurrentDisplay()
+{
+    return getGLWindow()->getCurrentDisplay();
+}
+
 // Triggered when the replay calls glBindFramebuffer.
 void TracePerfTest::onReplayFramebufferChange(GLenum target, GLuint framebuffer)
 {
@@ -2385,23 +2449,26 @@ void TracePerfTest::swap()
 {
     // Capture a screenshot if enabled.
     if (gScreenshotDir != nullptr && gSaveScreenshots && !mScreenshotSaved &&
-        mScreenshotFrame == mCurrentIteration)
+        (static_cast<uint32_t>(mScreenshotFrame) == mCurrentIteration ||
+         mScreenshotFrame == kAllFrames))
     {
         std::stringstream screenshotNameStr;
         screenshotNameStr << gScreenshotDir << GetPathSeparator() << "angle" << mBackend << "_"
                           << mStory;
 
         // Add a marker to the name for any screenshot that isn't start frame
-        if (mStartFrame != mScreenshotFrame)
+        if (mStartFrame != static_cast<uint32_t>(mScreenshotFrame))
         {
-            screenshotNameStr << "_frame" << mScreenshotFrame;
+            screenshotNameStr << "_frame" << mCurrentIteration;
         }
 
         screenshotNameStr << ".png";
 
         std::string screenshotName = screenshotNameStr.str();
         saveScreenshot(screenshotName);
-        mScreenshotSaved = true;
+
+        // Only set this value if we're capturing a single frame
+        mScreenshotSaved = mScreenshotFrame != kAllFrames;
     }
 
     getGLWindow()->swap();

@@ -12,10 +12,12 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/download/download_commands.h"
 #include "chrome/browser/download/download_ui_model.h"
+#include "chrome/browser/ui/download/download_bubble_row_view_info.h"
 #include "chrome/browser/ui/download/download_item_mode.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/download/bubble/download_bubble_row_list_view.h"
 #include "chrome/browser/ui/views/download/bubble/download_toolbar_button_view.h"
+#include "components/download/public/common/download_item.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/controls/button/button.h"
@@ -41,17 +43,16 @@ class DownloadBubbleUIController;
 
 class DownloadBubbleRowView : public views::View,
                               public views::ContextMenuController,
-                              public DownloadUIModel::Delegate,
-                              public views::FocusChangeListener {
+                              public views::FocusChangeListener,
+                              public DownloadBubbleRowViewInfoObserver {
  public:
   METADATA_HEADER(DownloadBubbleRowView);
 
   explicit DownloadBubbleRowView(
-      DownloadUIModel::DownloadUIModelPtr model,
-      DownloadBubbleRowListView* row_list_view,
-      DownloadBubbleUIController* bubble_controller,
-      DownloadBubbleNavigationHandler* navigation_handler,
-      Browser* browser,
+      const DownloadBubbleRowViewInfo& info,
+      base::WeakPtr<DownloadBubbleUIController> bubble_controller,
+      base::WeakPtr<DownloadBubbleNavigationHandler> navigation_handler,
+      base::WeakPtr<Browser> browser,
       int fixed_width);
   DownloadBubbleRowView(const DownloadBubbleRowView&) = delete;
   DownloadBubbleRowView& operator=(const DownloadBubbleRowView&) = delete;
@@ -79,11 +80,6 @@ class DownloadBubbleRowView : public views::View,
   void UpdateRowForHover(bool hovered);
   void UpdateRowForFocus(bool visible, bool request_focus_on_last_quick_action);
 
-  // Overrides DownloadUIModel::Delegate:
-  void OnDownloadOpened() override;
-  void OnDownloadUpdated() override;
-  void OnDownloadDestroyed(const ContentId& id) override;
-
   // Overrides views::ContextMenuController:
   void ShowContextMenuForViewImpl(View* source,
                                   const gfx::Point& point,
@@ -95,13 +91,10 @@ class DownloadBubbleRowView : public views::View,
 
   const std::u16string& GetSecondaryLabelTextForTesting();
 
-  DownloadUIModel* model() { return model_.get(); }
+  DownloadUIModel* model() { return info_->model(); }
+  const DownloadBubbleRowViewInfo& info() const { return *info_; }
 
-  DownloadUIModel::BubbleUIInfo& ui_info() { return ui_info_; }
-  void SetUIInfoForTesting(DownloadUIModel::BubbleUIInfo ui_info) {
-    ui_info_ = ui_info;
-  }
-
+  void SimulateMainButtonClickForTesting(const ui::Event& event);
   bool IsQuickActionButtonVisibleForTesting(DownloadCommands::Command command);
   views::ImageButton* GetQuickActionButtonForTesting(
       DownloadCommands::Command command);
@@ -114,20 +107,15 @@ class DownloadBubbleRowView : public views::View,
                                   float new_device_scale_factor) override;
 
  private:
-  views::MdTextButton* AddMainPageButton(DownloadCommands::Command command,
-                                         const std::u16string& button_string);
+  void AddMainPageButton(DownloadCommands::Command command,
+                         const std::u16string& button_string);
   views::ImageButton* AddQuickAction(DownloadCommands::Command command);
   views::ImageButton* GetActionButtonForCommand(
       DownloadCommands::Command command);
   std::u16string GetAccessibleNameForQuickAction(
       DownloadCommands::Command command);
-  views::MdTextButton* GetMainPageButton(DownloadCommands::Command command);
   std::u16string GetAccessibleNameForMainPageButton(
       DownloadCommands::Command command);
-
-  // If there is any change in state, update UI info.
-  // Returns whether the ui info was changed.
-  bool UpdateBubbleUIInfo(bool initial_setup);
 
   // Update the DownloadBubbleRowView's members.
   void UpdateRow(bool initial_setup);
@@ -143,10 +131,8 @@ class DownloadBubbleRowView : public views::View,
   // Returns whether we were able to synchronously set |icon_| to an appropriate
   // icon for the file path.
   bool StartLoadFileIcon();
-#if !BUILDFLAG(IS_CHROMEOS)
-  // Callback invoked when the IconManager's asynchronous lookup returns.
+  // Callback invoked when the IconManager's lookup returns.
   void OnFileIconLoaded(gfx::Image icon);
-#endif
   // Sets |icon_| to the image in |file_icon_|.
   void SetFileIconAsIcon(bool is_default_icon);
 
@@ -171,6 +157,12 @@ class DownloadBubbleRowView : public views::View,
   void RegisterAccelerators(views::FocusManager* focus_manager);
   void UnregisterAccelerators(views::FocusManager* focus_manager);
 
+  // DownloadBubbleRowViewInfoObserver implementation:
+  void OnInfoChanged() override;
+  void OnDownloadStateChanged(
+      download::DownloadItem::DownloadState old_state,
+      download::DownloadItem::DownloadState new_state) override;
+
   // The icon for the file. We get platform-specific file type icons from
   // IconLoader (see below).
   raw_ptr<views::ImageView> icon_ = nullptr;
@@ -190,14 +182,8 @@ class DownloadBubbleRowView : public views::View,
   raw_ptr<views::Label> secondary_label_ = nullptr;
 
   // Buttons on the main page.
-  raw_ptr<views::MdTextButton> cancel_button_ = nullptr;
-  raw_ptr<views::MdTextButton> discard_button_ = nullptr;
-  raw_ptr<views::MdTextButton> keep_button_ = nullptr;
-  raw_ptr<views::MdTextButton> scan_button_ = nullptr;
-  raw_ptr<views::MdTextButton> open_now_button_ = nullptr;
-  raw_ptr<views::MdTextButton> resume_button_ = nullptr;
-  raw_ptr<views::MdTextButton> review_button_ = nullptr;
-  raw_ptr<views::MdTextButton> retry_button_ = nullptr;
+  base::flat_map<DownloadCommands::Command, raw_ptr<views::MdTextButton>>
+      main_page_buttons_;
 
   // Quick Actions on the main page.
   raw_ptr<views::ImageButton> resume_action_ = nullptr;
@@ -219,25 +205,17 @@ class DownloadBubbleRowView : public views::View,
   float current_scale_ = 1.0f;
 
   // The model controlling this object's state.
-  DownloadUIModel::DownloadUIModelPtr model_;
+  raw_ref<const DownloadBubbleRowViewInfo> info_;
 
   // Reuse the download shelf context menu in the bubble.
   std::unique_ptr<DownloadShelfContextMenuView> context_menu_;
 
-  // Parent row list view.
-  raw_ptr<DownloadBubbleRowListView> row_list_view_ = nullptr;
-
   // Controller for keeping track of downloads.
-  raw_ptr<DownloadBubbleUIController> bubble_controller_ = nullptr;
+  base::WeakPtr<DownloadBubbleUIController> bubble_controller_ = nullptr;
 
-  raw_ptr<DownloadBubbleNavigationHandler> navigation_handler_ = nullptr;
+  base::WeakPtr<DownloadBubbleNavigationHandler> navigation_handler_ = nullptr;
 
-  raw_ptr<Browser> browser_ = nullptr;
-
-  download::DownloadItemMode mode_;
-  download::DownloadItem::DownloadState state_;
-  DownloadUIModel::BubbleUIInfo ui_info_;
-  bool is_paused_;
+  base::WeakPtr<Browser> browser_ = nullptr;
 
   // The last override icon, e.g. an incognito or warning icon. If this is
   // null, we should either use the filetype icon or a default icon.
@@ -256,6 +234,11 @@ class DownloadBubbleRowView : public views::View,
   bool dragging_ = false;
   // Position that a possible drag started at.
   absl::optional<gfx::Point> drag_start_point_;
+  // A CloseOnDeactivate pin that prevents the download bubble from closing on
+  // deactivating, for the duration of its lifetime. This is used to prevent
+  // the dialog from closing when the row is being dragged.
+  std::unique_ptr<DownloadBubbleNavigationHandler::CloseOnDeactivatePin>
+      download_dragging_pin_;
 
   // Whether the download's completion has already been logged. This is used to
   // avoid inaccurate repeated logging.

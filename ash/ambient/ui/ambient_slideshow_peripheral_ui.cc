@@ -7,18 +7,22 @@
 #include <memory>
 
 #include "ash/ambient/ui/ambient_shield_view.h"
+#include "ash/ambient/ui/ambient_slideshow_peripheral_ui.h"
 #include "ash/ambient/ui/ambient_view_delegate.h"
 #include "ash/ambient/ui/ambient_view_ids.h"
 #include "ash/ambient/ui/jitter_calculator.h"
 #include "ash/ambient/ui/media_string_view.h"
 #include "ash/ambient/util/ambient_util.h"
+#include "ash/public/cpp/ambient/ambient_ui_model.h"
 #include "ash/style/ash_color_id.h"
 #include "base/logging.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
+#include "ui/views/border.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
+#include "ui/views/view.h"
 
 namespace ash {
 
@@ -27,29 +31,13 @@ namespace {
 // Appearance.
 constexpr int kMediaStringMarginDip = 32;
 
-constexpr JitterCalculator::Config kDefaultGlanceableInfoJitterConfig = {
-    /*step_size=*/5,
-    /*x_min_translation=*/0,
-    /*x_max_translation=*/20,
-    /*y_min_translation=*/-20,
-    /*y_max_translation=*/0};
-
 }  // namespace
 
-std::unique_ptr<JitterCalculator>
-AmbientSlideshowPeripheralUi::CreateDefaultJitterCalculator() {
-  return std::make_unique<JitterCalculator>(kDefaultGlanceableInfoJitterConfig);
-}
-
 AmbientSlideshowPeripheralUi::AmbientSlideshowPeripheralUi(
-    AmbientViewDelegate* delegate,
-    JitterCalculator* jitter_calculator)
-    : owned_jitter_calculator_(
-          jitter_calculator ? nullptr : CreateDefaultJitterCalculator()),
-      jitter_calculator_(jitter_calculator ? jitter_calculator
-                                           : owned_jitter_calculator_.get()) {
+    AmbientViewDelegate* delegate)
+    : jitter_calculator_(std::make_unique<JitterCalculator>(
+          AmbientUiModel::Get()->GetSlideshowPeripheralUiJitterConfig())) {
   CHECK(delegate);
-  CHECK(jitter_calculator_);
   SetID(AmbientViewID::kAmbientSlideshowPeripheralUi);
   InitLayout(delegate);
 }
@@ -118,6 +106,11 @@ void AmbientSlideshowPeripheralUi::UpdateGlanceableInfoPosition() {
     media_string_transform.Translate(-jitter.x(), -jitter.y());
     media_string_view_->layer()->SetTransform(media_string_transform);
   }
+}
+
+void AmbientSlideshowPeripheralUi::UpdateLeftPaddingToMatchBottom() {
+  ambient_info_view_->SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(
+      0, ambient_info_view_->GetAdjustedLeftPaddingToMatchBottom(), 0, 0)));
 }
 
 void AmbientSlideshowPeripheralUi::UpdateImageDetails(

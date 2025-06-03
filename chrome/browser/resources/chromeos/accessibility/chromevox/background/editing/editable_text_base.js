@@ -14,10 +14,13 @@
  * or to provide other customizations.
  */
 import {LocalStorage} from '../../../common/local_storage.js';
+import {StringUtil} from '../../../common/string_util.js';
 import {Msgs} from '../../common/msgs.js';
 import {Personality, QueueMode, TtsCategory, TtsSpeechProperties} from '../../common/tts_types.js';
 import {ChromeVoxState} from '../chromevox_state.js';
 import {TtsInterface} from '../tts_interface.js';
+
+import {TypingEchoState} from './typing_echo.js';
 
 /**
  * A class containing the information needed to speak
@@ -54,46 +57,6 @@ export class TextChangeEvent {
     this.value_ = val.replace(/\u00a0/g, ' ');
   }
 }
-
-
-/**
- * A list of typing echo options.
- * This defines the way typed characters get spoken.
- * CHARACTER: echoes typed characters.
- * WORD: echoes a word once a breaking character is typed (i.e. spacebar).
- * CHARACTER_AND_WORD: combines CHARACTER and WORD behavior.
- * NONE: speaks nothing when typing.
- * COUNT: The number of possible echo levels.
- * @enum
- */
-export const TypingEcho = {
-  CHARACTER: 0,
-  WORD: 1,
-  CHARACTER_AND_WORD: 2,
-  NONE: 3,
-  COUNT: 4,
-};
-
-
-/**
- * @param {number} cur Current typing echo.
- * @return {number} Next typing echo.
- */
-TypingEcho.cycle = function(cur) {
-  return (cur + 1) % TypingEcho.COUNT;
-};
-
-
-/**
- * Return if characters should be spoken given the typing echo option.
- * @param {number} typingEcho Typing echo option.
- * @return {boolean} Whether the character should be spoken.
- */
-TypingEcho.shouldSpeakChar = function(typingEcho) {
-  return typingEcho === TypingEcho.CHARACTER_AND_WORD ||
-      typingEcho === TypingEcho.CHARACTER;
-};
-
 
 /**
  * A class representing an abstracted editable text control.
@@ -165,42 +128,24 @@ export class ChromeVoxEditableTextBase {
   }
 
   /**
-   * Performs setup for this element.
+   * @param {number} charIndex
+   * @return {number}
    */
-  setup() {}
-
-  /**
-   * Performs teardown for this element.
-   */
-  teardown() {}
-
-  /**
-   * Get the line number corresponding to a particular index.
-   * Default implementation that can be overridden by subclasses.
-   * @param {number} index The 0-based character index.
-   * @return {number} The 0-based line number corresponding to that character.
-   */
-  getLineIndex(index) {
+  getLineIndex(charIndex) {
     return 0;
   }
-
   /**
-   * Get the start character index of a line.
-   * Default implementation that can be overridden by subclasses.
-   * @param {number} index The 0-based line index.
-   * @return {number} The 0-based index of the first character in this line.
+   * @param {number} lineIndex
+   * @return {number}
    */
-  getLineStart(index) {
+  getLineStart(lineIndex) {
     return 0;
   }
-
   /**
-   * Get the end character index of a line.
-   * Default implementation that can be overridden by subclasses.
-   * @param {number} index The 0-based line index.
-   * @return {number} The 0-based index of the end of this line.
+   * @param {number} lineIndex
+   * @return {number}
    */
-  getLineEnd(index) {
+  getLineEnd(lineIndex) {
     return this.value.length;
   }
 
@@ -213,23 +158,6 @@ export class ChromeVoxEditableTextBase {
     const lineStart = this.getLineStart(index);
     const lineEnd = this.getLineEnd(index);
     return this.value.substr(lineStart, lineEnd - lineStart);
-  }
-
-  /**
-   * @param {string} ch The character to test.
-   * @return {boolean} True if a character is whitespace.
-   */
-  isWhitespaceChar(ch) {
-    return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t';
-  }
-
-  /**
-   * @param {string} ch The character to test.
-   * @return {boolean} True if a character breaks a word, used to determine
-   *     if the previous word should be spoken.
-   */
-  isWordBreakChar(ch) {
-    return Boolean(ch.match(/^\W$/));
   }
 
   /**
@@ -302,11 +230,7 @@ export class ChromeVoxEditableTextBase {
     //   - one to speak
 
     if (this.isPassword) {
-      this.speak(
-          (new goog.i18n.MessageFormat(Msgs.getMsg('bullet')).format({
-            'COUNT': 1,
-          })),
-          evt.triggeredByUser);
+      this.speak(Msgs.getMsg('password_char'), evt.triggeredByUser);
       return;
     }
     if (evt.start === evt.end) {
@@ -352,8 +276,9 @@ export class ChromeVoxEditableTextBase {
       if (this.start + 1 === evt.start && this.end === this.value.length &&
           evt.end === this.value.length) {
         // Autocomplete: the user typed one character of autocompleted text.
-        if (LocalStorage.get('typingEcho') === TypingEcho.CHARACTER ||
-            LocalStorage.get('typingEcho') === TypingEcho.CHARACTER_AND_WORD) {
+        if (LocalStorage.get('typingEcho') === TypingEchoState.CHARACTER ||
+            LocalStorage.get('typingEcho') ===
+                TypingEchoState.CHARACTER_AND_WORD) {
           this.speak(this.value.substr(this.start, 1), evt.triggeredByUser);
         }
         this.speak(this.value.substr(evt.start));
@@ -406,10 +331,7 @@ export class ChromeVoxEditableTextBase {
     }
     if (this.isPassword) {
       this.speak(
-          (new goog.i18n.MessageFormat(Msgs.getMsg('bullet')).format({
-            'COUNT': 1,
-          })),
-          evt.triggeredByUser, personality);
+          Msgs.getMsg('password_char'), evt.triggeredByUser, personality);
       return;
     }
 
@@ -523,7 +445,7 @@ export class ChromeVoxEditableTextBase {
            value[prefixLen] === evtValue[prefixLen]) {
       prefixLen++;
     }
-    while (prefixLen > 0 && !this.isWordBreakChar(value[prefixLen - 1])) {
+    while (prefixLen > 0 && !StringUtil.isWordBreakChar(value[prefixLen - 1])) {
       prefixLen--;
     }
 
@@ -532,7 +454,8 @@ export class ChromeVoxEditableTextBase {
            value[len - suffixLen - 1] === evtValue[newLen - suffixLen - 1]) {
       suffixLen++;
     }
-    while (suffixLen > 0 && !this.isWordBreakChar(value[len - suffixLen])) {
+    while (suffixLen > 0 &&
+           !StringUtil.isWordBreakChar(value[len - suffixLen])) {
       suffixLen--;
     }
 
@@ -573,13 +496,14 @@ export class ChromeVoxEditableTextBase {
       }
       utterance = inserted;
     } else if (insertedLen === 1) {
-      if ((LocalStorage.get('typingEcho') === TypingEcho.WORD ||
-           LocalStorage.get('typingEcho') === TypingEcho.CHARACTER_AND_WORD) &&
-          this.isWordBreakChar(inserted) && prefixLen > 0 &&
-          !this.isWordBreakChar(evt.value.substr(prefixLen - 1, 1))) {
+      if ((LocalStorage.get('typingEcho') === TypingEchoState.WORD ||
+           LocalStorage.get('typingEcho') ===
+               TypingEchoState.CHARACTER_AND_WORD) &&
+          StringUtil.isWordBreakChar(inserted) && prefixLen > 0 &&
+          !StringUtil.isWordBreakChar(evt.value.substr(prefixLen - 1, 1))) {
         // Speak previous word.
         let index = prefixLen;
-        while (index > 0 && !this.isWordBreakChar(evt.value[index - 1])) {
+        while (index > 0 && !StringUtil.isWordBreakChar(evt.value[index - 1])) {
           index--;
         }
         if (index < prefixLen) {
@@ -589,8 +513,9 @@ export class ChromeVoxEditableTextBase {
           triggeredByUser = false;  // Implies QUEUE_MODE_QUEUE.
         }
       } else if (
-          LocalStorage.get('typingEcho') === TypingEcho.CHARACTER ||
-          LocalStorage.get('typingEcho') === TypingEcho.CHARACTER_AND_WORD) {
+          LocalStorage.get('typingEcho') === TypingEchoState.CHARACTER ||
+          LocalStorage.get('typingEcho') ===
+              TypingEchoState.CHARACTER_AND_WORD) {
         utterance = inserted;
       }
     } else if (deletedLen > 1 && !autocompleteSuffix) {
@@ -610,70 +535,6 @@ export class ChromeVoxEditableTextBase {
     if (utterance) {
       this.speak(utterance, triggeredByUser, opt_personality);
     }
-  }
-
-  /**
-   * Moves the cursor forward by one character.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToNextCharacter() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor backward by one character.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToPreviousCharacter() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor forward by one word.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToNextWord() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor backward by one word.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToPreviousWord() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor forward by one line.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToNextLine() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor backward by one line.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToPreviousLine() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor forward by one paragraph.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToNextParagraph() {
-    return false;
-  }
-
-  /**
-   * Moves the cursor backward by one paragraph.
-   * @return {boolean} True if the action was handled.
-   */
-  moveCursorToPreviousParagraph() {
-    return false;
   }
 }
 

@@ -7,8 +7,6 @@ package org.chromium.components.browser_ui.widget.displaystyle;
 import android.content.Context;
 import android.view.View;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.Log;
 import org.chromium.ui.widget.Toast;
 
@@ -93,7 +91,6 @@ public class UiConfig {
     /**
      * Sets the display style, notifying observers of changes. Should only be used in testing.
      */
-    @VisibleForTesting
     public void setDisplayStyleForTesting(DisplayStyle displayStyle) {
         updateDisplayStyle(displayStyle);
     }
@@ -191,6 +188,13 @@ public class UiConfig {
         public boolean isSmall() {
             return horizontal == HorizontalDisplayStyle.NARROW
                     || vertical == VerticalDisplayStyle.FLAT;
+        }
+
+        /**
+         * @return whether the display is horizontally wide.
+         */
+        public boolean isWide() {
+            return horizontal == HorizontalDisplayStyle.WIDE;
         }
 
         @Override

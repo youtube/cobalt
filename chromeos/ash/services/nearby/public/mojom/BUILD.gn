@@ -20,6 +20,7 @@ mojom("nearby_share_settings") {
 
   webui_module_path =
       "chrome://resources/mojo/chromeos/ash/services/nearby/public/mojom"
+  use_typescript_sources = true
 }
 
 mojom("mojom") {
@@ -30,6 +31,7 @@ mojom("mojom") {
     "nearby_decoder.mojom",
     "nearby_decoder_types.mojom",
     "nearby_presence.mojom",
+    "nearby_presence_credential_storage.mojom",
     "quick_start_decoder.mojom",
     "quick_start_decoder_types.mojom",
     "sharing.mojom",

@@ -319,6 +319,8 @@ bool StyleColor::IsSystemColorIncludingDeprecated(CSSValueID id) {
 
 bool StyleColor::IsSystemColor(CSSValueID id) {
   switch (id) {
+    case CSSValueID::kAccentcolor:
+    case CSSValueID::kAccentcolortext:
     case CSSValueID::kActivetext:
     case CSSValueID::kButtonborder:
     case CSSValueID::kButtonface:
@@ -347,6 +349,19 @@ bool StyleColor::IsSystemColor(CSSValueID id) {
 CSSValueID StyleColor::EffectiveColorKeyword() const {
   return IsSystemColorIncludingDeprecated(color_keyword_) ? CSSValueID::kInvalid
                                                           : color_keyword_;
+}
+
+CORE_EXPORT std::ostream& operator<<(std::ostream& stream,
+                                     const StyleColor& color) {
+  if (color.IsCurrentColor()) {
+    return stream << "currentcolor";
+  } else if (color.IsUnresolvedColorMixFunction()) {
+    return stream << "<unresolved color-mix>";
+  } else if (color.HasColorKeyword() && !color.IsNumeric()) {
+    return stream << getValueName(color.GetColorKeyword());
+  } else {
+    return stream << color.GetColor();
+  }
 }
 
 }  // namespace blink

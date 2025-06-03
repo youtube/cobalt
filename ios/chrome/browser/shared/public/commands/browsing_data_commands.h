@@ -9,7 +9,7 @@
 
 #import "base/ios/block_types.h"
 #import "components/browsing_data/core/browsing_data_utils.h"
-#include "ios/chrome/browser/browsing_data/browsing_data_remove_mask.h"
+#include "ios/chrome/browser/browsing_data/model/browsing_data_remove_mask.h"
 
 class ChromeBrowserState;
 
@@ -18,7 +18,7 @@ class ChromeBrowserState;
 
 // Remove browsing data for `browserState` for the `timePeriod`. The type of
 // data to remove is controlled by `removeMask` (see BrowserDataRemoveMask).
-// Once data is removed, `completionBlock` is invoked.
+// Once data is removed, `completionBlock` is invoked asynchronously.
 - (void)removeBrowsingDataForBrowserState:(ChromeBrowserState*)browserState
                                timePeriod:(browsing_data::TimePeriod)timePeriod
                                removeMask:(BrowsingDataRemoveMask)removeMask

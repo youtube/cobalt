@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include <sys/mman.h>
-
 #include <memory>
 #include <string>
 #include <tuple>
@@ -23,11 +22,13 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_layout.h"
 #include "media/base/video_types.h"
+#include "media/gpu/chromeos/chromeos_compressed_gpu_memory_buffer_video_frame_utils.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/chromeos/image_processor.h"
 #include "media/gpu/chromeos/image_processor_backend.h"
 #include "media/gpu/chromeos/image_processor_factory.h"
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
+#include "media/gpu/chromeos/vulkan_image_processor_backend.h"
 #include "media/gpu/test/image.h"
 #include "media/gpu/test/image_processor/image_processor_client.h"
 #include "media/gpu/test/video_frame_file_writer.h"
@@ -38,6 +39,7 @@
 #include "media/gpu/video_frame_mapper_factory.h"
 #include "mojo/core/embedder/embedder.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/libyuv/include/libyuv.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
@@ -111,13 +113,11 @@ const base::FilePath::CharType* kI420Image360P =
 const base::FilePath::CharType* kI420Image270P =
     FILE_PATH_LITERAL("puppets-480x270.i420.yuv");
 
-// Files for rotation test.
-const base::FilePath::CharType* kNV12Image90 =
-    FILE_PATH_LITERAL("bear_192x320_90.nv12.yuv");
-const base::FilePath::CharType* kNV12Image180 =
-    FILE_PATH_LITERAL("bear_320x192_180.nv12.yuv");
-const base::FilePath::CharType* kNV12Image270 =
-    FILE_PATH_LITERAL("bear_192x320_270.nv12.yuv");
+#if BUILDFLAG(USE_V4L2_CODEC)
+// File for MM21 detile and scaling test.
+const base::FilePath::CharType* kMM21Image270P =
+    FILE_PATH_LITERAL("puppets-480x270.mm21.yuv");
+#endif
 
 enum class YuvSubsampling {
   kYuv420,
@@ -205,10 +205,18 @@ scoped_refptr<VideoFrame> CreateRandomMM21Frame(const gfx::Size& size,
     return nullptr;
   }
 
+  // The MM21 path only makes sense for V4L2, so we should never get an Intel
+  // media compressed buffer here.
+  CHECK(!IsIntelMediaCompressedModifier(ret->layout().modifier()));
   std::unique_ptr<VideoFrameMapper> frame_mapper =
       VideoFrameMapperFactory::CreateMapper(
           VideoPixelFormat::PIXEL_FORMAT_NV12, type,
-          /*force_linear_buffer_mapper=*/true);
+          /*force_linear_buffer_mapper=*/true,
+          /*must_support_intel_media_compressed_buffers=*/false);
+  if (!frame_mapper) {
+    LOG(ERROR) << "Unable to create a VideoFrameMapper";
+    return nullptr;
+  }
   scoped_refptr<VideoFrame> mapped_ret =
       frame_mapper->Map(ret, PROT_READ | PROT_WRITE);
   if (!mapped_ret) {
@@ -243,14 +251,27 @@ bool CompareNV12VideoFrames(scoped_refptr<VideoFrame> test_frame,
     return false;
   }
 
+  // We run this test for the V4L2 path only, so we should never get Intel media
+  // compressed frames here.
+  CHECK(!IsIntelMediaCompressedModifier(test_frame->layout().modifier()));
+  CHECK(!IsIntelMediaCompressedModifier(golden_frame->layout().modifier()));
+
   std::unique_ptr<VideoFrameMapper> test_frame_mapper =
       VideoFrameMapperFactory::CreateMapper(
           VideoPixelFormat::PIXEL_FORMAT_NV12, test_frame->storage_type(),
-          /*force_linear_buffer_mapper=*/true);
+          /*force_linear_buffer_mapper=*/true,
+          /*must_support_intel_media_compressed_buffers=*/false);
+  if (!test_frame_mapper) {
+    return false;
+  }
   std::unique_ptr<VideoFrameMapper> golden_frame_mapper =
       VideoFrameMapperFactory::CreateMapper(
           VideoPixelFormat::PIXEL_FORMAT_NV12, golden_frame->storage_type(),
-          /*force_linear_buffer_mapper=*/true);
+          /*force_linear_buffer_mapper=*/true,
+          /*must_support_intel_media_compressed_buffers=*/false);
+  if (!golden_frame_mapper) {
+    return false;
+  }
   scoped_refptr<VideoFrame> mapped_test_frame =
       test_frame_mapper->Map(test_frame, PROT_READ | PROT_WRITE);
   if (!mapped_test_frame) {
@@ -335,27 +356,7 @@ class ImageProcessorParamTest
     ImageProcessor::PortConfig output_config(
         output_fourcc, output_image->Size(), output_layout->planes(),
         output_image->VisibleRect(), output_storage_types);
-    int rotation = (output_image->Rotation() - input_image.Rotation()) % 360;
-    if (rotation < 0)
-      rotation += 360;
-    VideoRotation relative_rotation = VIDEO_ROTATION_0;
-    switch (rotation) {
-      case 0:
-        relative_rotation = VIDEO_ROTATION_0;
-        break;
-      case 90:
-        relative_rotation = VIDEO_ROTATION_90;
-        break;
-      case 180:
-        relative_rotation = VIDEO_ROTATION_180;
-        break;
-      case 270:
-        relative_rotation = VIDEO_ROTATION_270;
-        break;
-      default:
-        NOTREACHED() << "Invalid rotation: " << rotation;
-        return nullptr;
-    }
+
     // TODO(crbug.com/917951): Select more appropriate number of buffers.
     constexpr size_t kNumBuffers = 1;
     LOG_ASSERT(output_image->IsMetadataLoaded());
@@ -399,8 +400,7 @@ class ImageProcessorParamTest
     }
 
     auto ip_client = test::ImageProcessorClient::Create(
-        input_config, output_config, kNumBuffers, relative_rotation,
-        std::move(frame_processors));
+        input_config, output_config, kNumBuffers, std::move(frame_processors));
     return ip_client;
   }
 
@@ -570,17 +570,6 @@ INSTANTIATE_TEST_SUITE_P(NV12CroppingAndScaling,
                          ::testing::Values(std::make_tuple(kNV12Image360PIn480P,
                                                            kNV12Image270P)));
 
-// Rotate frame to specified rotation.
-// Now only VaapiIP maybe support rotaion.
-INSTANTIATE_TEST_SUITE_P(
-    NV12Rotation,
-    ImageProcessorParamTest,
-    ::testing::Values(std::make_tuple(kNV12Image, kNV12Image90),
-                      std::make_tuple(kNV12Image, kNV12Image180),
-                      std::make_tuple(kNV12Image, kNV12Image270),
-                      std::make_tuple(kNV12Image180, kNV12Image90),
-                      std::make_tuple(kNV12Image180, kNV12Image)));
-
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 // TODO(hiroh): Add more tests.
 // MEM->DMABUF (V4L2VideoEncodeAccelerator),
@@ -682,6 +671,173 @@ TEST(ImageProcessorBackendTest, CompareLibYUVAndGLBackendsForMM21Image) {
   ASSERT_TRUE(libyuv_output_frame);
   ASSERT_TRUE(gl_output_frame);
   ASSERT_TRUE(CompareNV12VideoFrames(gl_output_frame, libyuv_output_frame));
+}
+
+TEST(ImageProcessorBackendTest, VulkanDetileScaleTest) {
+  test::Image input_image(BuildSourceFilePath(base::FilePath(kMM21Image270P)));
+  ASSERT_TRUE(input_image.Load());
+  gfx::Size coded_size = input_image.Size();
+  gfx::Rect visible_rect = input_image.VisibleRect();
+  scoped_refptr<VideoFrame> mm21_frame = CreateNV12Frame(
+      input_image.Size(), VideoFrame::STORAGE_GPU_MEMORY_BUFFER);
+  std::unique_ptr<VideoFrameMapper> frame_mapper =
+      VideoFrameMapperFactory::CreateMapper(
+          VideoPixelFormat::PIXEL_FORMAT_NV12,
+          VideoFrame::STORAGE_GPU_MEMORY_BUFFER,
+          /*force_linear_buffer_mapper=*/true);
+  scoped_refptr<VideoFrame> mapped_mm21_frame =
+      frame_mapper->Map(mm21_frame, PROT_READ | PROT_WRITE);
+  ASSERT_TRUE(mapped_mm21_frame);
+  uint8_t* input_y_plane =
+      (uint8_t*)mapped_mm21_frame->GetWritableVisibleData(VideoFrame::kYPlane);
+  uint8_t* input_uv_plane =
+      (uint8_t*)mapped_mm21_frame->GetWritableVisibleData(VideoFrame::kUVPlane);
+  libyuv::NV12Copy(
+      input_image.Data(), coded_size.width(),
+      input_image.Data() + coded_size.GetArea(), coded_size.width(),
+      input_y_plane, mapped_mm21_frame->stride(VideoFrame::kYPlane),
+      input_uv_plane, mapped_mm21_frame->stride(VideoFrame::kUVPlane),
+      coded_size.width(), coded_size.height());
+
+  gfx::Size output_size(1000, 1000);
+  gfx::Rect output_visible_rect(output_size);
+  constexpr base::TimeDelta kNullTimestamp;
+  Fourcc output_fourcc(Fourcc::AR24);
+  scoped_refptr<VideoFrame> vulkan_output_frame =
+      CreateGpuMemoryBufferVideoFrame(VideoPixelFormat::PIXEL_FORMAT_ARGB,
+                                      output_size, output_visible_rect,
+                                      output_size, kNullTimestamp,
+                                      gfx::BufferUsage::SCANOUT_CPU_READ_WRITE);
+
+  auto input_layout =
+      test::CreateVideoFrameLayout(input_image.PixelFormat(), coded_size);
+  auto output_layout = test::CreateVideoFrameLayout(
+      output_fourcc.ToVideoPixelFormat(), output_size);
+  ImageProcessor::PortConfig input_config(
+      Fourcc(Fourcc::MM21), coded_size, input_layout->planes(), visible_rect,
+      {VideoFrame::STORAGE_GPU_MEMORY_BUFFER});
+  ImageProcessor::PortConfig output_config(
+      output_fourcc, output_size, output_layout->planes(), output_visible_rect,
+      {VideoFrame::STORAGE_GPU_MEMORY_BUFFER});
+  base::RunLoop run_loop;
+  base::RepeatingClosure quit_closure = run_loop.QuitClosure();
+  bool image_processor_error = false;
+  auto client_task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+  ImageProcessor::ErrorCB error_cb = base::BindRepeating(
+      [](scoped_refptr<base::SequencedTaskRunner> client_task_runner,
+         base::RepeatingClosure quit_closure, bool* image_processor_error) {
+        CHECK(client_task_runner->RunsTasksInCurrentSequence());
+        *image_processor_error = true;
+        quit_closure.Run();
+      },
+      client_task_runner, quit_closure, &image_processor_error);
+  auto vulkan_image_processor = VulkanImageProcessorBackend::Create(
+      input_config, output_config, ImageProcessorBackend::OutputMode::IMPORT,
+      error_cb);
+  ASSERT_TRUE(vulkan_image_processor);
+
+  ImageProcessor::FrameReadyCB vulkan_callback = base::BindOnce(
+      [](scoped_refptr<base::SequencedTaskRunner> client_task_runner,
+         base::RepeatingClosure quit_closure,
+         scoped_refptr<VideoFrame>* output_frame,
+         scoped_refptr<VideoFrame> frame) {
+        CHECK(client_task_runner->RunsTasksInCurrentSequence());
+        quit_closure.Run();
+      },
+      client_task_runner, quit_closure, &vulkan_output_frame);
+  vulkan_image_processor->Process(mm21_frame, vulkan_output_frame,
+                                  std::move(vulkan_callback));
+  run_loop.Run();
+
+  // Replicate this operation using LibYUV. Note that we don't use the image
+  // processor since we need to do a very specific conversion and scale
+  // operation that the LibYUV image processor backend doesn't support.
+  size_t i420_y_size = visible_rect.size().GetArea();
+  size_t i420_u_v_size =
+      ((visible_rect.width() + 1) / 2) * ((visible_rect.height() + 1) / 2);
+  uint8_t* i420_y = (uint8_t*)mmap(nullptr, i420_y_size, PROT_READ | PROT_WRITE,
+                                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* i420_u =
+      (uint8_t*)mmap(nullptr, i420_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* i420_v =
+      (uint8_t*)mmap(nullptr, i420_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  libyuv::MM21ToI420(
+      input_image.Data(), coded_size.width(),
+      input_image.Data() + coded_size.GetArea(),
+      ((coded_size.width() + 1) & (~1)), i420_y, visible_rect.width(), i420_u,
+      (visible_rect.width() + 1) / 2, i420_v, (visible_rect.width() + 1) / 2,
+      visible_rect.width(), visible_rect.height());
+  size_t i420_scaled_y_size = output_size.GetArea();
+  size_t i420_scaled_u_v_size =
+      ((output_size.width() + 1) / 2) * ((output_size.width() + 1) / 2);
+  uint8_t* i420_scaled_y =
+      (uint8_t*)mmap(nullptr, i420_scaled_y_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* i420_scaled_u =
+      (uint8_t*)mmap(nullptr, i420_scaled_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* i420_scaled_v =
+      (uint8_t*)mmap(nullptr, i420_scaled_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  libyuv::I420Scale(i420_y, visible_rect.width(), i420_u,
+                    (visible_rect.width() + 1) / 2, i420_v,
+                    (visible_rect.width() + 1) / 2, visible_rect.width(),
+                    visible_rect.height(), i420_scaled_y, output_size.width(),
+                    i420_scaled_u, (output_size.width() + 1) / 2, i420_scaled_v,
+                    (output_size.height() + 1) / 2, output_size.width(),
+                    output_size.height(), libyuv::kFilterBilinear);
+  munmap(i420_y, i420_y_size);
+  munmap(i420_u, i420_u_v_size);
+  munmap(i420_v, i420_u_v_size);
+
+  // Convert the vulkan frame into I420. We really want to scan this out as
+  // ARGB since that's what the display controller supports, but the LibYUV
+  // PSNR calculator only takes I420.
+  uint8_t* vulkan_output_y =
+      (uint8_t*)mmap(nullptr, i420_scaled_y_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* vulkan_output_u =
+      (uint8_t*)mmap(nullptr, i420_scaled_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  uint8_t* vulkan_output_v =
+      (uint8_t*)mmap(nullptr, i420_scaled_u_v_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  std::unique_ptr<VideoFrameMapper> output_frame_mapper =
+      VideoFrameMapperFactory::CreateMapper(
+          VideoPixelFormat::PIXEL_FORMAT_ARGB,
+          VideoFrame::STORAGE_GPU_MEMORY_BUFFER,
+          /*force_linear_buffer_mapper=*/true);
+  scoped_refptr<VideoFrame> mapped_output_frame =
+      output_frame_mapper->Map(vulkan_output_frame, PROT_READ | PROT_WRITE);
+  const uint8_t* argb_plane =
+      mapped_output_frame->visible_data(VideoFrame::kARGBPlane);
+  libyuv::ARGBToI420(
+      argb_plane, mapped_output_frame->stride(VideoFrame::kARGBPlane),
+      vulkan_output_y, output_size.width(), vulkan_output_u,
+      (output_size.width() + 1) / 2, vulkan_output_v,
+      (output_size.width() + 1) / 2, output_size.width(), output_size.height());
+
+  // Calculate PSNR. Note that we can't just do a byte by byte comparison
+  // because floating point inacuracies in both the color conversion and the
+  // bilinear filtering will result in small differences between these two
+  // methods.
+  double psnr = libyuv::I420Psnr(
+      i420_scaled_y, output_size.width(), i420_scaled_u,
+      (output_size.width() + 1) / 2, i420_scaled_v,
+      (output_size.width() + 1) / 2, vulkan_output_y, output_size.width(),
+      vulkan_output_u, (output_size.width() + 1) / 2, vulkan_output_v,
+      (output_size.width() + 1) / 2, output_size.width(), output_size.height());
+  constexpr double kPsnrThreshold = 45.0;
+  ASSERT_TRUE(psnr >= kPsnrThreshold);
+
+  munmap(i420_scaled_y, i420_scaled_y_size);
+  munmap(i420_scaled_u, i420_scaled_u_v_size);
+  munmap(i420_scaled_v, i420_scaled_u_v_size);
+  munmap(vulkan_output_y, i420_scaled_y_size);
+  munmap(vulkan_output_u, i420_scaled_u_v_size);
+  munmap(vulkan_output_v, i420_scaled_u_v_size);
 }
 #endif
 

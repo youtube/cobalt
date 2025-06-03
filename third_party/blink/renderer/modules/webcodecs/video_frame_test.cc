@@ -43,7 +43,7 @@ class VideoFrameTest : public testing::Test {
  public:
   void SetUp() override {
     test_context_provider_ = viz::TestContextProvider::Create();
-    InitializeSharedGpuContext(test_context_provider_.get());
+    InitializeSharedGpuContextGLES2(test_context_provider_.get());
   }
 
   void TearDown() override { SharedGpuContext::ResetForTesting(); }
@@ -227,7 +227,7 @@ TEST_F(VideoFrameTest, ImageBitmapCreationAndZeroCopyRoundTrip) {
   auto* init = VideoFrameInit::Create();
   init->setTimestamp(0);
 
-  sk_sp<SkSurface> surface(SkSurface::MakeRaster(
+  sk_sp<SkSurface> surface(SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(5, 5, SkColorSpace::MakeSRGB())));
   sk_sp<SkImage> original_image = surface->makeImageSnapshot();
 
@@ -298,7 +298,7 @@ void TestWrappedVideoFrameImageReuse(V8TestingScope& scope,
 TEST_F(VideoFrameTest, ImageReuse_VideoFrameFromImage) {
   V8TestingScope scope;
 
-  sk_sp<SkSurface> surface(SkSurface::MakeRaster(
+  sk_sp<SkSurface> surface(SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(5, 5, SkColorSpace::MakeSRGB())));
   sk_sp<SkImage> original_image = surface->makeImageSnapshot();
 
@@ -317,7 +317,7 @@ TEST_F(VideoFrameTest, ImageReuse_VideoFrameFromImage) {
 TEST_F(VideoFrameTest, ImageReuse_VideoFrameFromVideoFrameFromImage) {
   V8TestingScope scope;
 
-  sk_sp<SkSurface> surface(SkSurface::MakeRaster(
+  sk_sp<SkSurface> surface(SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(5, 5, SkColorSpace::MakeSRGB())));
   sk_sp<SkImage> original_image = surface->makeImageSnapshot();
 
@@ -345,11 +345,10 @@ TEST_F(VideoFrameTest, VideoFrameFromGPUImageBitmap) {
   auto resource_provider = CanvasResourceProvider::CreateSharedImageProvider(
       SkImageInfo::MakeN32Premul(100, 100), cc::PaintFlags::FilterQuality::kLow,
       CanvasResourceProvider::ShouldInitialize::kNo, context_provider_wrapper,
-      RasterMode::kGPU, true /*is_origin_top_left*/,
-      0u /*shared_image_usage_flags*/);
+      RasterMode::kGPU, /*shared_image_usage_flags=*/0u);
 
-  scoped_refptr<StaticBitmapImage> bitmap = resource_provider->Snapshot(
-      CanvasResourceProvider::FlushReason::kTesting);
+  scoped_refptr<StaticBitmapImage> bitmap =
+      resource_provider->Snapshot(FlushReason::kTesting);
   ASSERT_TRUE(bitmap->IsTextureBacked());
 
   auto* image_bitmap = MakeGarbageCollected<ImageBitmap>(bitmap);
@@ -398,7 +397,7 @@ TEST_F(VideoFrameTest, HandleMonitoring) {
       media_frame1, scope.GetExecutionContext(), source1);
   verify_expectations(/* source1 */ 1, 1, 0, /* source2 */ 0, 0, 0);
 
-  sk_sp<SkSurface> surface(SkSurface::MakeRaster(
+  sk_sp<SkSurface> surface(SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(5, 5, SkColorSpace::MakeSRGB())));
   sk_sp<SkImage> sk_image = surface->makeImageSnapshot();
   auto handle_2_1 = base::MakeRefCounted<VideoFrameHandle>(

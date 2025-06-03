@@ -17,21 +17,22 @@
 #include "chrome/browser/extensions/install_observer.h"
 #include "chrome/browser/extensions/install_tracker.h"
 #include "chrome/browser/ui/extensions/extension_enable_flow_delegate.h"
-#include "chrome/browser/web_applications/app_registrar_observer.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_registrar_observer.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/sync/model/string_ordinal.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 class ExtensionEnableFlow;
@@ -62,7 +63,7 @@ class AppLauncherHandler
       public extensions::ExtensionUninstallDialog::Delegate,
       public ExtensionEnableFlowDelegate,
       public extensions::InstallObserver,
-      public web_app::AppRegistrarObserver,
+      public web_app::WebAppRegistrarObserver,
       public web_app::WebAppInstallManagerObserver,
       public extensions::ExtensionRegistryObserver {
  public:
@@ -74,7 +75,7 @@ class AppLauncherHandler
 
   ~AppLauncherHandler() override;
 
-  base::Value::Dict CreateWebAppInfo(const web_app::AppId& app_id);
+  base::Value::Dict CreateWebAppInfo(const webapps::AppId& app_id);
 
   base::Value::Dict CreateExtensionInfo(const extensions::Extension* extension);
 
@@ -104,19 +105,19 @@ class AppLauncherHandler
                               extensions::UninstallReason reason) override;
 
   // web_app::OnWebAppInstallManagerObserver:
-  void OnWebAppInstalled(const web_app::AppId& app_id) override;
-  void OnWebAppWillBeUninstalled(const web_app::AppId& app_id) override;
+  void OnWebAppInstalled(const webapps::AppId& app_id) override;
+  void OnWebAppWillBeUninstalled(const webapps::AppId& app_id) override;
   void OnWebAppUninstalled(
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source) override;
   void OnWebAppInstallManagerDestroyed() override;
 
-  // web_app::AppRegistrarObserver:
-  void OnWebAppInstallTimeChanged(const web_app::AppId& app_id,
-                                  const base::Time& time) override;
+  // web_app::WebAppRegistrarObserver:
+  void OnWebAppFirstInstallTimeChanged(const webapps::AppId& app_id,
+                                       const base::Time& time) override;
   void OnAppRegistrarDestroyed() override;
   void OnWebAppRunOnOsLoginModeChanged(
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       web_app::RunOnOsLoginMode run_on_os_login_mode) override;
   void OnWebAppSettingsPolicyChanged() override;
 
@@ -127,7 +128,7 @@ class AppLauncherHandler
   base::Value::Dict GetExtensionInfo(const extensions::Extension* extension);
 
   // Create a dictionary value for the given web app.
-  base::Value::Dict GetWebAppInfo(const web_app::AppId& app_id);
+  base::Value::Dict GetWebAppInfo(const webapps::AppId& app_id);
 
   // Handles the "launchApp" message with unused |args|.
   void HandleGetApps(const base::Value::List& args);
@@ -244,7 +245,7 @@ class AppLauncherHandler
   const raw_ptr<web_app::WebAppProvider> web_app_provider_;
 
   base::ScopedObservation<web_app::WebAppRegistrar,
-                          web_app::AppRegistrarObserver>
+                          web_app::WebAppRegistrarObserver>
       web_apps_observation_{this};
 
   base::ScopedObservation<web_app::WebAppInstallManager,
@@ -276,7 +277,7 @@ class AppLauncherHandler
 
   // The id of the extension we are prompting the user about (either enable or
   // uninstall).
-  std::string extension_id_prompting_;
+  extensions::ExtensionId extension_id_prompting_;
 
   // When true, we ignore changes to the underlying data rather than immediately
   // refreshing. This is useful when making many batch updates to avoid flicker.

@@ -45,13 +45,17 @@ class ASH_EXPORT SecurityCurtainController {
     InitParams& operator=(InitParams&&);
     ~InitParams();
 
-    // Filter to specify which input |ui::Event|s should or should not be
+    // Filter to specify which input `ui::Event`s should or should not be
     // suppressed. If unspecified all input events will be suppressed.
     EventFilter event_filter;
 
     // Factory that creates the view that will be shown as the curtain overlay.
     // Will be invoked multiple times, once for each monitor.
     ViewFactory curtain_factory;
+
+    bool mute_audio_output = true;
+    bool mute_audio_input = true;
+    bool disable_camera_access = true;
   };
 
   virtual ~SecurityCurtainController() = default;

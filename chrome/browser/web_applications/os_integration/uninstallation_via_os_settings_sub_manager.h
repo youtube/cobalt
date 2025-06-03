@@ -11,40 +11,36 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace web_app {
 
-class WebAppRegistrar;
-
-// Allows skipping the entire Execute() step for the sub manager.
-// Useful for testing crbug.com/1434577.
-extern bool g_skip_execute_os_settings_sub_manager_for_testing;
+class WebAppProvider;
 
 // Used to perform registration/unregistration of uninstalling through OS
 // settings. Currently this is only used on Windows OS.
 class UninstallationViaOsSettingsSubManager : public OsIntegrationSubManager {
  public:
   UninstallationViaOsSettingsSubManager(const base::FilePath& profile_path,
-                                        WebAppRegistrar& registrar);
+                                        WebAppProvider& provider);
   ~UninstallationViaOsSettingsSubManager() override;
 
-  void Configure(const AppId& app_id,
+  void Configure(const webapps::AppId& app_id,
                  proto::WebAppOsIntegrationState& desired_state,
                  base::OnceClosure configure_done) override;
-  void Execute(const AppId& app_id,
+  void Execute(const webapps::AppId& app_id,
                const absl::optional<SynchronizeOsOptions>& synchronize_options,
                const proto::WebAppOsIntegrationState& desired_state,
                const proto::WebAppOsIntegrationState& current_state,
                base::OnceClosure callback) override;
-  void ForceUnregister(const AppId& app_id,
+  void ForceUnregister(const webapps::AppId& app_id,
                        base::OnceClosure callback) override;
 
  private:
-  void CompleteUnregistration(const AppId& app_id);
+  void CompleteUnregistration(const webapps::AppId& app_id);
   const base::FilePath profile_path_;
-  const raw_ref<WebAppRegistrar> registrar_;
+  const raw_ref<WebAppProvider> provider_;
   base::WeakPtrFactory<UninstallationViaOsSettingsSubManager> weak_factory_{
       this};
 };

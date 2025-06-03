@@ -41,16 +41,19 @@ LensRegionSearchController::~LensRegionSearchController() {
   CloseWithReason(views::Widget::ClosedReason::kLostFocus);
 }
 
-void LensRegionSearchController::Start(content::WebContents* web_contents,
-                                       bool use_fullscreen_capture,
-                                       bool is_google_default_search_provider) {
+void LensRegionSearchController::Start(
+    content::WebContents* web_contents,
+    bool use_fullscreen_capture,
+    bool is_google_default_search_provider,
+    lens::AmbientSearchEntryPoint entry_point) {
+  entry_point_ = entry_point;
   is_google_default_search_provider_ = is_google_default_search_provider;
   // Return early if web contents/browser don't exist and if capture mode is
   // already active.
   if (!web_contents || in_capture_mode_) {
     return;
   }
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -228,14 +231,14 @@ void LensRegionSearchController::OnCaptureCompleted(
     return;
   }
 
-  lens::RecordAmbientSearchQuery(
-      is_google_default_search_provider_
-          ? lens::AmbientSearchEntryPoint::
-                CONTEXT_MENU_SEARCH_REGION_WITH_GOOGLE_LENS
-          : lens::AmbientSearchEntryPoint::CONTEXT_MENU_SEARCH_REGION_WITH_WEB);
+  lens::RecordAmbientSearchQuery(entry_point_);
   if (is_google_default_search_provider_) {
-    core_tab_helper->RegionSearchWithLens(image, captured_image.Size(),
-                                          std::move(log_data));
+    lens::EntryPoint lens_entry_point =
+        entry_point_ == lens::AmbientSearchEntryPoint::COMPANION_REGION_SEARCH
+            ? lens::EntryPoint::COMPANION_REGION_SEARCH
+            : lens::EntryPoint::CHROME_REGION_SEARCH_MENU_ITEM;
+    core_tab_helper->RegionSearchWithLens(
+        image, captured_image.Size(), std::move(log_data), lens_entry_point);
   } else {
     core_tab_helper->SearchByImage(image, captured_image.Size());
   }
@@ -294,6 +297,11 @@ bool LensRegionSearchController::IsOverlayUIVisibleForTesting() {
   if (!bubble_widget_ || !screenshot_flow_)
     return false;
   return bubble_widget_->IsVisible() && screenshot_flow_->IsCaptureModeActive();
+}
+
+void LensRegionSearchController::SetEntryPointForTesting(
+    lens::AmbientSearchEntryPoint entry_point) {
+  entry_point_ = entry_point;
 }
 
 void LensRegionSearchController::SetWebContentsForTesting(

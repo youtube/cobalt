@@ -21,7 +21,7 @@ namespace media_router {
 MediaRouterGmcUiForTest::MediaRouterGmcUiForTest(
     content::WebContents* web_contents)
     : MediaRouterUiForTestBase(web_contents),
-      browser_(chrome::FindBrowserWithWebContents(web_contents)) {
+      browser_(chrome::FindBrowserWithTab(web_contents)) {
   DCHECK(browser_);
 }
 
@@ -55,6 +55,14 @@ CastDialogView::SourceType MediaRouterGmcUiForTest::GetChosenSourceType()
     const {
   NOTIMPLEMENTED();
   return CastDialogView::SourceType();
+}
+
+void MediaRouterGmcUiForTest::StartCasting(const std::string& sink_name) {
+  ClickOnView(GetSinkButton(sink_name));
+}
+
+void MediaRouterGmcUiForTest::StopCasting(const std::string& sink_name) {
+  NOTIMPLEMENTED();
 }
 
 std::string MediaRouterGmcUiForTest::GetRouteIdForSink(

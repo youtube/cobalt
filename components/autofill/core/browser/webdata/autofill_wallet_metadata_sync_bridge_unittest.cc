@@ -22,7 +22,6 @@
 #include "components/autofill/core/browser/data_model/autofill_metadata.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
-#include "components/autofill/core/browser/geo/country_names.h"
 #include "components/autofill/core/browser/test_autofill_clock.h"
 #include "components/autofill/core/browser/webdata/autofill_sync_bridge_test_util.h"
 #include "components/autofill/core/browser/webdata/autofill_sync_bridge_util.h"
@@ -31,6 +30,7 @@
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/sync/base/client_tag_hash.h"
+#include "components/sync/base/model_type.h"
 #include "components/sync/engine/data_type_activation_response.h"
 #include "components/sync/model/client_tag_based_model_type_processor.h"
 #include "components/sync/model/data_batch.h"
@@ -89,8 +89,6 @@ const char kCard1SyncTag[] = "card-Y2FyZDHvv74=";
 
 const char kLocalAddr1ServerId[] = "e171e3ed-858a-4dd5-9bf3-8517f14ba5fc";
 const char kLocalAddr2ServerId[] = "fa232b9a-f248-4e5a-8d76-d46f821c0c5f";
-
-const char kLocaleString[] = "en-US";
 
 const char kDefaultCacheGuid[] = "CacheGuid";
 
@@ -199,7 +197,7 @@ AutofillProfile CreateLocalProfileWithDetails(size_t use_count,
 CreditCard CreateLocalCreditCardWithDetails(size_t use_count,
                                             int64_t use_date) {
   CreditCard card;
-  DCHECK_EQ(card.record_type(), CreditCard::LOCAL_CARD);
+  DCHECK_EQ(card.record_type(), CreditCard::RecordType::kLocalCard);
   card.set_use_count(use_count);
   card.set_use_date(UseDateFromProtoValue(use_date));
   return card;
@@ -299,7 +297,6 @@ class AutofillWalletMetadataSyncBridgeTest : public testing::Test {
   void SetUp() override {
     // Fix a time for implicitly constructed use_dates in AutofillProfile.
     test_clock_.SetNow(kDefaultTime);
-    CountryNames::SetLocaleString(kLocaleString);
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     db_.AddTable(&table_);
     db_.Init(temp_dir_.GetPath().AppendASCII("SyncTestWebDatabase"));
@@ -627,7 +624,9 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   // Now stop sync. This should wipe the data but not notify the backend (as the
   // data bridge will do that).
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   StopSyncingAndClearMetadata();
 
   EXPECT_THAT(GetAllLocalDataInclRestart(), IsEmpty());
@@ -651,13 +650,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   EXPECT_CALL(mock_processor(), Put).Times(0);
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::UPDATE,
-                            updated_profile.server_id(), &updated_profile));
+                            updated_profile.server_id(), updated_profile));
   bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::UPDATE, updated_card.server_id(), &updated_card));
+      CreditCardChange::UPDATE, updated_card.server_id(), updated_card));
 
   // Check that also the local metadata did not get updated.
   EXPECT_THAT(
@@ -689,13 +690,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   EXPECT_CALL(mock_processor(), Put).Times(0);
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::ADD,
-                            updated_profile.server_id(), &updated_profile));
+                            updated_profile.server_id(), updated_profile));
   bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::ADD, updated_card.server_id(), &updated_card));
+      CreditCardChange::ADD, updated_card.server_id(), updated_card));
 
   // Check that also the local metadata did not get updated.
   EXPECT_THAT(
@@ -736,13 +739,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
               Put(kCard1StorageKey, HasSpecifics(expected_card_specifics), _));
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::UPDATE,
-                            updated_profile.server_id(), &updated_profile));
+                            updated_profile.server_id(), updated_profile));
   bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::UPDATE, updated_card.server_id(), &updated_card));
+      CreditCardChange::UPDATE, updated_card.server_id(), updated_card));
 
   // Check that the local metadata got update as well.
   EXPECT_THAT(GetAllLocalDataInclRestart(),
@@ -773,12 +778,14 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
               Put(kCard1StorageKey, HasSpecifics(expected_card_specifics), _));
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(AutofillProfileChange(
-      AutofillProfileChange::ADD, new_profile.server_id(), &new_profile));
+      AutofillProfileChange::ADD, new_profile.server_id(), new_profile));
   bridge()->CreditCardChanged(
-      CreditCardChange(CreditCardChange::ADD, new_card.server_id(), &new_card));
+      CreditCardChange(CreditCardChange::ADD, new_card.server_id(), new_card));
 
   // Check that the new metadata got created as well.
   EXPECT_THAT(GetAllLocalDataInclRestart(),
@@ -810,12 +817,14 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest, SendNewDataToServerOnLocalUpdate) {
               Put(kCard1StorageKey, HasSpecifics(expected_card_specifics), _));
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(AutofillProfileChange(
-      AutofillProfileChange::UPDATE, new_profile.server_id(), &new_profile));
-  bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::UPDATE, new_card.server_id(), &new_card));
+      AutofillProfileChange::UPDATE, new_profile.server_id(), new_profile));
+  bridge()->CreditCardChanged(CreditCardChange(CreditCardChange::UPDATE,
+                                               new_card.server_id(), new_card));
 
   // Check that the new metadata got created as well.
   EXPECT_THAT(GetAllLocalDataInclRestart(),
@@ -838,13 +847,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   EXPECT_CALL(mock_processor(), Delete(kCard1StorageKey, _));
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::REMOVE,
-                            existing_profile.server_id(), &existing_profile));
+                            existing_profile.server_id(), existing_profile));
   bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::REMOVE, existing_card.server_id(), &existing_card));
+      CreditCardChange::REMOVE, existing_card.server_id(), existing_card));
 
   // Check that there is no metadata anymore.
   EXPECT_THAT(GetAllLocalDataInclRestart(), IsEmpty());
@@ -868,13 +879,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::REMOVE,
-                            existing_profile.server_id(), &existing_profile));
+                            existing_profile.server_id(), existing_profile));
   bridge()->CreditCardChanged(CreditCardChange(
-      CreditCardChange::REMOVE, existing_card.server_id(), &existing_card));
+      CreditCardChange::REMOVE, existing_card.server_id(), existing_card));
 
   // Check that there is also no metadata at the end.
   EXPECT_THAT(GetAllLocalDataInclRestart(), IsEmpty());
@@ -894,13 +907,15 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest, DoNotPropagateNonSyncAddresses) {
   EXPECT_CALL(mock_processor(), Put).Times(0);
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   existing_profile.set_use_count(11);
   existing_profile.set_use_date(UseDateFromProtoValue(21));
   bridge()->AutofillProfileChanged(
       AutofillProfileChange(AutofillProfileChange::UPDATE,
-                            existing_profile.guid(), &existing_profile));
+                            existing_profile.guid(), existing_profile));
 
   // Check that there is also no metadata at the end.
   EXPECT_THAT(GetAllLocalDataInclRestart(), IsEmpty());
@@ -924,12 +939,14 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest, DoNotPropagateNonSyncCards) {
   EXPECT_CALL(mock_processor(), Put).Times(0);
   // Local changes should not cause local DB writes.
   EXPECT_CALL(*backend(), CommitChanges()).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
 
   existing_card.set_use_count(31);
   existing_card.set_use_date(UseDateFromProtoValue(41));
   bridge()->CreditCardChanged(CreditCardChange(
-      AutofillProfileChange::UPDATE, existing_card.guid(), &existing_card));
+      CreditCardChange::UPDATE, existing_card.guid(), existing_card));
 
   // Check that there is also no metadata at the end.
   EXPECT_THAT(GetAllLocalDataInclRestart(), IsEmpty());
@@ -1054,7 +1071,8 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
               Put(kCard1StorageKey, HasSpecifics(preexisting_card), _));
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ResetBridge(/*initial_sync_done=*/false);
   StartSyncing({remote_profile, remote_card});
@@ -1099,7 +1117,8 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
               Put(kCard1StorageKey, HasSpecifics(preexisting_card), _));
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ResetBridge(/*initial_sync_done=*/false);
   StartSyncing({remote_profile, remote_card});
@@ -1133,7 +1152,9 @@ TEST_F(AutofillWalletMetadataSyncBridgeTest,
   // We still need to commit the updated progress marker and sync metadata.
   EXPECT_CALL(*backend(), CommitChanges());
   // Changes should _not_ happen in the local autofill database.
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   ReceiveTombstones({profile, card});
 
   // Verify that even though the processor does not track these entities any
@@ -1196,7 +1217,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest, EmptyUpdateIgnored) {
 
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1221,7 +1244,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest, SameDataIgnored) {
 
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1257,7 +1282,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates(
       {updated_remote_profile, updated_remote_card});
@@ -1293,7 +1319,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kAddr1StorageKey, HasSpecifics(profile), _));
   EXPECT_CALL(mock_processor(), Put(kCard1StorageKey, HasSpecifics(card), _));
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1340,7 +1368,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kCard1StorageKey, HasSpecifics(merged_card), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates(
       {updated_remote_profile, updated_remote_card});
@@ -1386,7 +1415,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kCard1StorageKey, HasSpecifics(merged_card), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates(
       {updated_remote_profile, updated_remote_card});
@@ -1421,7 +1451,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates(
       {updated_remote_profile, updated_remote_card});
@@ -1452,7 +1483,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_card});
 
@@ -1480,7 +1512,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
 
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put(kCard1StorageKey, HasSpecifics(card), _));
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1511,7 +1545,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_card});
 
@@ -1539,7 +1574,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
 
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put(kCard1StorageKey, HasSpecifics(card), _));
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1570,7 +1607,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_card});
 
@@ -1598,7 +1636,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
 
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put(kCard1StorageKey, HasSpecifics(card), _));
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1638,7 +1678,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kCard1StorageKey, HasSpecifics(merged_card), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_card});
 
@@ -1676,7 +1717,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kCard1StorageKey, HasSpecifics(merged_card), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_card});
 
@@ -1705,7 +1747,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_profile});
 
@@ -1733,7 +1776,9 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(),
               Put(kAddr1StorageKey, HasSpecifics(profile), _));
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges()).Times(0);
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA))
+      .Times(0);
   // We still need to commit the updated progress marker.
   EXPECT_CALL(*backend(), CommitChanges());
 
@@ -1771,7 +1816,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kAddr1StorageKey, HasSpecifics(merged_profile), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_profile});
 
@@ -1807,7 +1853,8 @@ TEST_P(AutofillWalletMetadataSyncBridgeRemoteChangesTest,
   EXPECT_CALL(mock_processor(),
               Put(kAddr1StorageKey, HasSpecifics(merged_profile), _));
   EXPECT_CALL(*backend(), CommitChanges());
-  EXPECT_CALL(*backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(*backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_METADATA));
 
   ReceivePotentiallyInitialUpdates({updated_remote_profile});
 

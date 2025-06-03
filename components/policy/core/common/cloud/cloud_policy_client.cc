@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
@@ -50,8 +51,8 @@ DeviceMode TranslateProtobufDeviceMode(
       return DEVICE_MODE_ENTERPRISE;
     case em::DeviceRegisterResponse::RETAIL_DEPRECATED:
       return DEPRECATED_DEVICE_MODE_LEGACY_RETAIL_MODE;
-    case em::DeviceRegisterResponse::CHROME_AD:
-      return DEVICE_MODE_ENTERPRISE_AD;
+    case em::DeviceRegisterResponse::CHROME_AD_DEPRECATED:
+      break;
     case em::DeviceRegisterResponse::DEMO:
       return DEVICE_MODE_DEMO;
   }
@@ -64,6 +65,57 @@ bool IsChromePolicy(const std::string& type) {
   return type == dm_protocol::kChromeDevicePolicyType ||
          type == dm_protocol::kChromeUserPolicyType ||
          IsMachineLevelUserCloudPolicyType(type);
+}
+
+em::DevicePolicyRequest::Reason TranslateFetchReason(PolicyFetchReason reason) {
+  using Request = em::DevicePolicyRequest;
+  switch (reason) {
+    case PolicyFetchReason::kUnspecified:
+      return Request::UNSPECIFIED;
+    case PolicyFetchReason::kBrowserStart:
+      return Request::BROWSER_START;
+    case PolicyFetchReason::kCrdHostPolicyWatcher:
+      return Request::CRD_HOST_POLICY_WATCHER;
+    case PolicyFetchReason::kDeviceEnrollment:
+      return Request::DEVICE_ENROLLMENT;
+    case PolicyFetchReason::kInvalidation:
+      return Request::INVALIDATION;
+    case PolicyFetchReason::kLacros:
+      return Request::LACROS;
+    case PolicyFetchReason::kRegistrationChanged:
+      return Request::REGISTRATION_CHANGED;
+    case PolicyFetchReason::kRetryAfterStatusServiceActivationPending:
+      return Request::RETRY_AFTER_STATUS_SERVICE_ACTIVATION_PENDING;
+    case PolicyFetchReason::kRetryAfterStatusServicePolicyNotFound:
+      return Request::RETRY_AFTER_STATUS_SERVICE_POLICY_NOT_FOUND;
+    case PolicyFetchReason::kRetryAfterStatusServiceTooManyRequests:
+      return Request::RETRY_AFTER_STATUS_SERVICE_TOO_MANY_REQUESTS;
+    case PolicyFetchReason::kRetryAfterStatusRequestFailed:
+      return Request::RETRY_AFTER_STATUS_REQUEST_FAILED;
+    case PolicyFetchReason::kRetryAfterStatusTemporaryUnavailable:
+      return Request::RETRY_AFTER_STATUS_TEMPORARY_UNAVAILABLE;
+    case PolicyFetchReason::kRetryAfterStatusCannotSignRequest:
+      return Request::RETRY_AFTER_STATUS_CANNOT_SIGN_REQUEST;
+    case PolicyFetchReason::kRetryAfterStatusRequestInvalid:
+      return Request::RETRY_AFTER_STATUS_REQUEST_INVALID;
+    case PolicyFetchReason::kRetryAfterStatusHttpStatusError:
+      return Request::RETRY_AFTER_STATUS_HTTP_STATUS_ERROR;
+    case PolicyFetchReason::kRetryAfterStatusResponseDecodingError:
+      return Request::RETRY_AFTER_STATUS_RESPONSE_DECODING_ERROR;
+    case PolicyFetchReason::kRetryAfterStatusServiceManagementNotSupported:
+      return Request::RETRY_AFTER_STATUS_SERVICE_MANAGEMENT_NOT_SUPPORTED;
+    case PolicyFetchReason::kRetryAfterStatusRequestTooLarge:
+      return Request::RETRY_AFTER_STATUS_REQUEST_TOO_LARGE;
+    case PolicyFetchReason::kScheduled:
+      return Request::SCHEDULED;
+    case PolicyFetchReason::kSignin:
+      return Request::SIGNIN;
+    case PolicyFetchReason::kTest:
+      return Request::TEST;
+    case PolicyFetchReason::kUserRequest:
+      return Request::USER_REQUEST;
+  }
+  NOTREACHED_NORETURN();
 }
 
 em::PolicyValidationReportRequest::ValidationResultType
@@ -404,7 +456,7 @@ void CloudPolicyClient::SetOAuthTokenAsAdditionalAuth(
   oauth_token_ = oauth_token;
 }
 
-void CloudPolicyClient::FetchPolicy() {
+void CloudPolicyClient::FetchPolicy(PolicyFetchReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CHECK(is_registered());
@@ -448,7 +500,8 @@ void CloudPolicyClient::FetchPolicy() {
         fetch_request->set_device_dm_token(device_dm_token_);
       }
       if (!last_policy_timestamp_.is_null()) {
-        fetch_request->set_timestamp(last_policy_timestamp_.ToJavaTime());
+        fetch_request->set_timestamp(
+            last_policy_timestamp_.InMillisecondsSinceUnixEpoch());
       }
       if (!invalidation_payload_.empty()) {
         fetch_request->set_invalidation_version(invalidation_version_);
@@ -476,6 +529,8 @@ void CloudPolicyClient::FetchPolicy() {
       key_update_request->add_server_backed_state_keys(*key);
     }
   }
+
+  policy_request->set_reason(TranslateFetchReason(reason));
 
   // Set the fetched invalidation version to the latest invalidation version
   // since it is now the invalidation version used for the latest fetch.
@@ -717,7 +772,7 @@ void CloudPolicyClient::UploadEncryptedReport(
   auto config = std::make_unique<EncryptedReportingJobConfiguration>(
       GetURLLoaderFactory(), DMAuth::FromDMToken(dm_token()),
       service()->configuration()->GetEncryptedReportingServerUrl(),
-      std::move(merging_payload), dm_token(), client_id(),
+      std::move(merging_payload), this,
       base::BindOnce(&CloudPolicyClient::OnEncryptedReportUploadCompleted,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   if (context.has_value()) {
@@ -761,36 +816,11 @@ void CloudPolicyClient::CancelAppInstallReportUpload() {
   }
 }
 
-void CloudPolicyClient::UploadExtensionInstallReport(base::Value::Dict report,
-                                                     ResultCallback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!is_registered()) {
-    std::move(callback).Run(CloudPolicyClient::Result(NotRegistered()));
-    return;
-  }
-
-  CancelExtensionInstallReportUpload();
-  extension_install_report_request_job_ = CreateNewRealtimeReportingJob(
-      std::move(report),
-      service()->configuration()->GetRealtimeReportingServerUrl(),
-      /* include_device_info */ true,
-      /* add_connector_url_params=*/false, std::move(callback));
-  DCHECK(extension_install_report_request_job_);
-}
-
-void CloudPolicyClient::CancelExtensionInstallReportUpload() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (extension_install_report_request_job_) {
-    RemoveJob(extension_install_report_request_job_);
-    DCHECK_EQ(extension_install_report_request_job_, nullptr);
-  }
-}
-
 void CloudPolicyClient::FetchRemoteCommands(
     std::unique_ptr<RemoteCommandJob::UniqueIDType> last_command_id,
     const std::vector<em::RemoteCommandResult>& command_results,
     em::PolicyFetchRequest::SignatureType signature_type,
+    const std::string& request_type,
     RemoteCommandCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(is_registered());
@@ -818,6 +848,7 @@ void CloudPolicyClient::FetchRemoteCommands(
 
   request->set_send_secure_commands(true);
   request->set_signature_type(signature_type);
+  request->set_type(request_type);
 
   request_jobs_.push_back(service_->CreateJob(std::move(config)));
 }
@@ -1224,10 +1255,10 @@ void CloudPolicyClient::OnPolicyFetchCompleted(DMServerJobResult result) {
 
     VLOG_POLICY(2, CBCM_ENROLLMENT) << "Policy fetch succeeded";
   } else {
-    NotifyClientError();
-
     VLOG_POLICY(2, CBCM_ENROLLMENT)
         << "Policy fetching failed with DM status error: " << last_dm_status_;
+
+    NotifyClientError();
 
     if (result.dm_status == DM_STATUS_SERVICE_DEVICE_NOT_FOUND ||
         result.dm_status == DM_STATUS_SERVICE_DEVICE_NEEDS_RESET) {
@@ -1482,6 +1513,10 @@ void CloudPolicyClient::CreateDeviceRegisterRequest(
   if (params.license_type.has_value()) {
     request->mutable_license_type()->set_license_type(
         params.license_type.value());
+  }
+  if (params.demo_mode_dimensions.has_value()) {
+    *request->mutable_demo_mode_dimensions() =
+        params.demo_mode_dimensions.value();
   }
 }
 

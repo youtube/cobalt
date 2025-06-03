@@ -21,10 +21,10 @@
 #include "extensions/browser/api/declarative_net_request/ruleset_install_pref.h"
 #include "extensions/browser/blocklist_state.h"
 #include "extensions/browser/disable_reason.h"
-#include "extensions/browser/extension_prefs_scope.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/pref_types.h"
 #include "extensions/common/api/declarative_net_request/constants.h"
+#include "extensions/common/api/types.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
@@ -79,6 +79,7 @@ class URLPatternSet;
 class ExtensionPrefs : public KeyedService {
  public:
   using ExtensionsInfo = std::vector<ExtensionInfo>;
+  using ChromeSettingScope = extensions::api::types::ChromeSettingScope;
 
   // Vector containing identifiers for preferences.
   typedef std::set<std::string> PrefKeySet;
@@ -161,7 +162,7 @@ class ExtensionPrefs : public KeyedService {
   // content settings do not become effective. EarlyExtensionPrefsObservers
   // should be included in |early_observers| if they need to observe events
   // which occur during initialization of the ExtensionPrefs object.
-  static ExtensionPrefs* Create(
+  static std::unique_ptr<ExtensionPrefs> Create(
       content::BrowserContext* browser_context,
       PrefService* prefs,
       const base::FilePath& root_dir,
@@ -171,7 +172,7 @@ class ExtensionPrefs : public KeyedService {
 
   // A version of Create which allows injection of a custom base::Time provider.
   // Use this as needed for testing.
-  static ExtensionPrefs* Create(
+  static std::unique_ptr<ExtensionPrefs> Create(
       content::BrowserContext* browser_context,
       PrefService* prefs,
       const base::FilePath& root_dir,
@@ -179,6 +180,16 @@ class ExtensionPrefs : public KeyedService {
       bool extensions_disabled,
       const std::vector<EarlyExtensionPrefsObserver*>& early_observers,
       base::Clock* clock);
+
+  // See the Create methods.
+  ExtensionPrefs(
+      content::BrowserContext* browser_context,
+      PrefService* prefs,
+      const base::FilePath& root_dir,
+      ExtensionPrefValueMap* extension_pref_value_map,
+      base::Clock* clock,
+      bool extensions_disabled,
+      const std::vector<EarlyExtensionPrefsObserver*>& early_observers);
 
   ExtensionPrefs(const ExtensionPrefs&) = delete;
   ExtensionPrefs& operator=(const ExtensionPrefs&) = delete;
@@ -660,7 +671,6 @@ class ExtensionPrefs : public KeyedService {
   // Schedules garbage collection of an extension's on-disk data on the next
   // start of this ExtensionService. Applies only to extensions with isolated
   // storage.
-  void SetNeedsStorageGarbageCollection(bool value);
   bool NeedsStorageGarbageCollection() const;
 
   // Used by AppWindowGeometryCache to persist its cache. These methods
@@ -801,16 +811,6 @@ class ExtensionPrefs : public KeyedService {
   friend class
       ExtensionPrefsBitMapPrefValueClearedIfEqualsDefaultValue;  // Unit test.
 
-  // See the Create methods.
-  ExtensionPrefs(
-      content::BrowserContext* browser_context,
-      PrefService* prefs,
-      const base::FilePath& root_dir,
-      ExtensionPrefValueMap* extension_pref_value_map,
-      base::Clock* clock,
-      bool extensions_disabled,
-      const std::vector<EarlyExtensionPrefsObserver*>& early_observers);
-
   // Updates ExtensionPrefs for a specific extension.
   void UpdateExtensionPrefInternal(const std::string& id,
                                    const PrefMap& pref,
@@ -913,7 +913,7 @@ class ExtensionPrefs : public KeyedService {
 
   // Loads preferences for the given |extension_id| into the pref value map.
   void LoadExtensionControlledPrefs(const ExtensionId& extension_id,
-                                    ExtensionPrefsScope scope);
+                                    ChromeSettingScope scope);
 
   // Helper function to complete initialization of the values in
   // |extension_dict| for an extension install. Also see
@@ -944,7 +944,8 @@ class ExtensionPrefs : public KeyedService {
   base::FilePath install_directory_;
 
   // Weak pointer, owned by BrowserContext.
-  raw_ptr<ExtensionPrefValueMap, DanglingUntriaged> extension_pref_value_map_;
+  raw_ptr<ExtensionPrefValueMap, AcrossTasksDanglingUntriaged>
+      extension_pref_value_map_;
 
   raw_ptr<base::Clock> clock_;
 

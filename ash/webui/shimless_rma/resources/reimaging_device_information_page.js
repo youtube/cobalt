@@ -9,12 +9,14 @@ import './icons.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 
+import {assert} from 'chrome://resources/ash/common/assert.js';
 import {I18nBehavior, I18nBehaviorInterface} from 'chrome://resources/ash/common/i18n_behavior.js';
+import {CrContainerShadowMixin} from 'chrome://resources/cr_elements/cr_container_shadow_mixin.js';
 import {afterNextRender, html, mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getShimlessRmaService} from './mojo_interface_provider.js';
-import {ShimlessRmaServiceInterface, StateResult} from './shimless_rma_types.js';
-import {disableNextButton, enableNextButton, focusPageTitle} from './shimless_rma_util.js';
+import {FeatureLevel, ShimlessRmaServiceInterface, StateResult} from './shimless_rma_types.js';
+import {disableNextButton, enableNextButton, focusPageTitle, isComplianceCheckEnabled, isSkuDescriptionEnabled} from './shimless_rma_util.js';
 
 /**
  * @fileoverview
@@ -28,7 +30,17 @@ import {disableNextButton, enableNextButton, focusPageTitle} from './shimless_rm
  * @implements {I18nBehaviorInterface}
  */
 const ReimagingDeviceInformationPageBase =
-    mixinBehaviors([I18nBehavior], PolymerElement);
+    mixinBehaviors([I18nBehavior], CrContainerShadowMixin(PolymerElement));
+
+/**
+ * Supported options for IsChassisBranded and HwComplianceVersion questions.
+ * @enum {string}
+ */
+export const BooleanOrDefaultOptions = {
+  DEFAULT: 'default',
+  YES: 'yes',
+  NO: 'no',
+};
 
 /** @polymer */
 export class ReimagingDeviceInformationPage extends
@@ -43,7 +55,9 @@ export class ReimagingDeviceInformationPage extends
 
   static get observers() {
     return [
-      'updateNextButtonDisabledState_(serialNumber_, skuIndex_, regionIndex_)',
+      'updateNextButtonDisabledState_(serialNumber_, skuIndex_, regionIndex_,' +
+          ' customLabelIndex_, isChassisBranded_, hwComplianceVersion_,' +
+          ' featureLevel_)',
     ];
   }
 
@@ -78,10 +92,10 @@ export class ReimagingDeviceInformationPage extends
       },
 
       /** @protected */
-      disableResetWhiteLabel_: {
+      disableResetCustomLabel_: {
         type: Boolean,
-        computed: 'getDisableResetWhiteLabel_(' +
-            'originalWhiteLabelIndex_, whiteLabelIndex_, allButtonsDisabled)',
+        computed: 'getDisableResetCustomLabel_(' +
+            'originalCustomLabelIndex_, customLabelIndex_, allButtonsDisabled)',
       },
 
       /** @protected */
@@ -140,19 +154,19 @@ export class ReimagingDeviceInformationPage extends
       },
 
       /** @protected {!Array<string>} */
-      whiteLabels_: {
+      customLabels_: {
         type: Array,
         value: () => [],
       },
 
       /** @protected */
-      originalWhiteLabelIndex_: {
+      originalCustomLabelIndex_: {
         type: Number,
         value: 0,
       },
 
       /** @protected */
-      whiteLabelIndex_: {
+      customLabelIndex_: {
         type: Number,
         value: 0,
       },
@@ -167,6 +181,34 @@ export class ReimagingDeviceInformationPage extends
       dramPartNumber_: {
         type: String,
         value: '',
+      },
+
+      /** @protected */
+      featureLevel_: {
+        type: Number,
+        value: FeatureLevel.kRmadFeatureLevelUnsupported,
+      },
+
+      /**
+       * Used to refer to the enum values in the HTML file.
+       * @protected {?BooleanOrDefaultOptions}
+       */
+      booleanOrDefaultOptions_: {
+        type: Object,
+        value: BooleanOrDefaultOptions,
+        readOnly: true,
+      },
+
+      /** @protected */
+      isChassisBranded_: {
+        type: String,
+        value: BooleanOrDefaultOptions.DEFAULT,
+      },
+
+      /** @protected */
+      hwComplianceVersion_: {
+        type: String,
+        value: BooleanOrDefaultOptions.DEFAULT,
       },
     };
   }
@@ -183,16 +225,27 @@ export class ReimagingDeviceInformationPage extends
     this.getOriginalSerialNumber_();
     this.getOriginalRegionAndRegionList_();
     this.getOriginalSkuAndSkuList_();
-    this.getOriginalWhiteLabelAndWhiteLabelList_();
+    this.getOriginalCustomLabelAndCustomLabelList_();
     this.getOriginalDramPartNumber_();
+
+    if (isComplianceCheckEnabled()) {
+      this.getOriginalFeatureLevel_();
+    }
 
     focusPageTitle(this);
   }
 
   /** @private */
   allInformationIsValid_() {
+    const complianceQuestionsHaveDefaultValues =
+        this.isChassisBranded_ === BooleanOrDefaultOptions.DEFAULT ||
+        this.hwComplianceVersion_ === BooleanOrDefaultOptions.DEFAULT;
+    if (this.areComplianceQuestionsShown_() &&
+        complianceQuestionsHaveDefaultValues) {
+      return false;
+    }
     return (this.serialNumber_ !== '') && (this.skuIndex_ >= 0) &&
-        (this.regionIndex_ >= 0);
+        (this.regionIndex_ >= 0) && (this.customLabelIndex_ >= 0);
   }
 
   /** @private */
@@ -243,6 +296,16 @@ export class ReimagingDeviceInformationPage extends
         .then((result) => {
           this.skus_ = result.skus;
           this.skuIndex_ = this.originalSkuIndex_;
+          return this.shimlessRmaService_.getSkuDescriptionList();
+        })
+        .then((result) => {
+          // The SKU description list can be empty if the backend disables this
+          // feature.
+          if (isSkuDescriptionEnabled() &&
+              this.skus_.length === result.skuDescriptions.length) {
+            this.skus_ = this.skus_.map(
+                (sku, index) => `${sku}: ${result.skuDescriptions[index]}`);
+          }
 
           // Need to wait for the select options to render before setting the
           // selected index.
@@ -254,29 +317,29 @@ export class ReimagingDeviceInformationPage extends
   }
 
   /** @private */
-  getOriginalWhiteLabelAndWhiteLabelList_() {
-    this.shimlessRmaService_.getOriginalWhiteLabel()
+  getOriginalCustomLabelAndCustomLabelList_() {
+    this.shimlessRmaService_.getOriginalCustomLabel()
         .then((result) => {
-          this.originalWhiteLabelIndex_ = result.whiteLabelIndex;
-          return this.shimlessRmaService_.getWhiteLabelList();
+          this.originalCustomLabelIndex_ = result.customLabelIndex;
+          return this.shimlessRmaService_.getCustomLabelList();
         })
         .then((result) => {
-          this.whiteLabels_ = result.whiteLabels;
-          const blankIndex = this.whiteLabels_.indexOf('');
+          this.customLabels_ = result.customLabels;
+          const blankIndex = this.customLabels_.indexOf('');
           if (blankIndex >= 0) {
-            this.whiteLabels_[blankIndex] =
-                this.i18n('confirmDeviceInfoEmptyWhiteLabelLabel');
-            if (this.originalWhiteLabelIndex_ < 0) {
-              this.originalWhiteLabelIndex_ = blankIndex;
+            this.customLabels_[blankIndex] =
+                this.i18n('confirmDeviceInfoEmptyCustomLabelLabel');
+            if (this.originalCustomLabelIndex_ < 0) {
+              this.originalCustomLabelIndex_ = blankIndex;
             }
           }
-          this.whiteLabelIndex_ = this.originalWhiteLabelIndex_;
+          this.customLabelIndex_ = this.originalCustomLabelIndex_;
 
           // Need to wait for the select options to render before setting the
           // selected index.
           afterNextRender(this, () => {
-            this.shadowRoot.querySelector('#whiteLabelSelect').selectedIndex =
-                this.whiteLabelIndex_;
+            this.shadowRoot.querySelector('#customLabelSelect').selectedIndex =
+                this.customLabelIndex_;
           });
         });
   }
@@ -286,6 +349,13 @@ export class ReimagingDeviceInformationPage extends
     this.shimlessRmaService_.getOriginalDramPartNumber().then((result) => {
       this.originalDramPartNumber_ = result.dramPartNumber;
       this.dramPartNumber_ = this.originalDramPartNumber_;
+    });
+  }
+
+  /** @private */
+  getOriginalFeatureLevel_() {
+    this.shimlessRmaService_.getOriginalFeatureLevel().then((result) => {
+      this.featureLevel_ = result.originalFeatureLevel;
     });
   }
 
@@ -307,8 +377,8 @@ export class ReimagingDeviceInformationPage extends
   }
 
   /** @protected */
-  getDisableResetWhiteLabel_() {
-    return this.originalWhiteLabelIndex_ === this.whiteLabelIndex_ ||
+  getDisableResetCustomLabel_() {
+    return this.originalCustomLabelIndex_ === this.customLabelIndex_ ||
         this.allButtonsDisabled;
   }
 
@@ -330,9 +400,9 @@ export class ReimagingDeviceInformationPage extends
   }
 
   /** @protected */
-  onSelectedWhiteLabelChange_(event) {
-    this.whiteLabelIndex_ =
-        this.shadowRoot.querySelector('#whiteLabelSelect').selectedIndex;
+  onSelectedCustomLabelChange_(event) {
+    this.customLabelIndex_ =
+        this.shadowRoot.querySelector('#customLabelSelect').selectedIndex;
   }
 
   /** @protected */
@@ -354,10 +424,10 @@ export class ReimagingDeviceInformationPage extends
   }
 
   /** @protected */
-  onResetWhiteLabelButtonClicked_(event) {
-    this.whiteLabelIndex_ = this.originalWhiteLabelIndex_;
-    this.shadowRoot.querySelector('#whiteLabelSelect').selectedIndex =
-        this.whiteLabelIndex_;
+  onResetCustomLabelButtonClicked_(event) {
+    this.customLabelIndex_ = this.originalCustomLabelIndex_;
+    this.shadowRoot.querySelector('#customLabelSelect').selectedIndex =
+        this.customLabelIndex_;
   }
 
   /** @protected */
@@ -365,15 +435,71 @@ export class ReimagingDeviceInformationPage extends
     this.dramPartNumber_ = this.originalDramPartNumber_;
   }
 
+  /** @protected */
+  onIsChassisBrandedChange_(event) {
+    this.isChassisBranded_ =
+        this.shadowRoot.querySelector('#isChassisBranded').value;
+  }
+
+  /** @protected */
+  onDoesMeetRequirementsChange_(event) {
+    this.hwComplianceVersion_ =
+        this.shadowRoot.querySelector('#doesMeetRequirements').value;
+  }
+
   /** @return {!Promise<!{stateResult: !StateResult}>} */
   onNextButtonClick() {
     if (!this.allInformationIsValid_()) {
       return Promise.reject(new Error('Some required information is not set'));
     } else {
+      let isChassisBranded = false;
+      let hwComplianceVersion = 0;
+
+      if (this.areComplianceQuestionsShown_()) {
+        // Convert isChassisBranded_ to boolean value for mojo.
+        isChassisBranded =
+            this.isChassisBranded_ === BooleanOrDefaultOptions.YES;
+
+        // Convert hwComplianceVersion_ to correct value for mojo.
+        const HARDWARE_COMPLIANT = 1;
+        const HARDWARE_NOT_COMPLIANT = 0;
+        hwComplianceVersion =
+            this.hwComplianceVersion_ === BooleanOrDefaultOptions.YES ?
+            HARDWARE_COMPLIANT :
+            HARDWARE_NOT_COMPLIANT;
+      }
+
       return this.shimlessRmaService_.setDeviceInformation(
           this.serialNumber_, this.regionIndex_, this.skuIndex_,
-          this.whiteLabelIndex_, this.dramPartNumber_);
+          this.customLabelIndex_, this.dramPartNumber_, isChassisBranded,
+          hwComplianceVersion);
     }
+  }
+
+  /** @private */
+  shouldShowComplianceSection_() {
+    return isComplianceCheckEnabled() &&
+        this.featureLevel_ !== FeatureLevel.kRmadFeatureLevelUnsupported;
+  }
+
+  /** @private */
+  isComplianceStatusKnown_() {
+    return this.featureLevel_ !== FeatureLevel.kRmadFeatureLevelUnsupported &&
+        this.featureLevel_ !== FeatureLevel.kRmadFeatureLevelUnknown;
+  }
+
+  /** @private */
+  areComplianceQuestionsShown_() {
+    return this.shouldShowComplianceSection_() &&
+        !this.isComplianceStatusKnown_();
+  }
+
+  /** @private */
+  getComplianceStatusString_() {
+    const deviceIsCompliant =
+        this.featureLevel_ >= FeatureLevel.kRmadFeatureLevel1;
+    return deviceIsCompliant ? this.i18n('confirmDeviceInfoDeviceCompliant') :
+                               this.i18n('confirmDeviceInfoDeviceNotCompliant');
   }
 }
 

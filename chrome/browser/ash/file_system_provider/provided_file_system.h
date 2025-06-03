@@ -44,6 +44,7 @@ namespace file_system_provider {
 
 class NotificationManagerInterface;
 class RequestDispatcher;
+class ODFSMetrics;
 
 // Automatically calls the |update_callback| after all of the callbacks created
 // with |CreateCallback| are called.
@@ -153,6 +154,9 @@ class ProvidedFileSystem : public ProvidedFileSystemInterface {
       int64_t offset,
       int length,
       storage::AsyncFileUtil::StatusCallback callback) override;
+  AbortCallback FlushFile(
+      int file_handle,
+      storage::AsyncFileUtil::StatusCallback callback) override;
   AbortCallback AddWatcher(const GURL& origin,
                            const base::FilePath& entry_path,
                            bool recursive,
@@ -178,6 +182,7 @@ class ProvidedFileSystem : public ProvidedFileSystemInterface {
               storage::AsyncFileUtil::StatusCallback callback) override;
   void Configure(storage::AsyncFileUtil::StatusCallback callback) override;
   base::WeakPtr<ProvidedFileSystemInterface> GetWeakPtr() override;
+  std::unique_ptr<ScopedUserInteraction> StartUserInteraction() override;
 
  private:
   // Wrapper for arguments for AddWatcherInQueue, as it's too many of them to
@@ -248,12 +253,16 @@ class ProvidedFileSystem : public ProvidedFileSystemInterface {
 
   void OnLacrosOperationForwarded(int request_id, base::File::Error error);
 
+  // Creates `request_manager_`, or replaces it if it exists (in tests).
+  void ConstructRequestManager();
+
   raw_ptr<Profile, ExperimentalAsh> profile_;  // Not owned.
   raw_ptr<extensions::EventRouter, ExperimentalAsh>
       event_router_;  // Not owned. May be NULL.
   ProvidedFileSystemInfo file_system_info_;
   std::unique_ptr<NotificationManagerInterface> notification_manager_;
   std::unique_ptr<RequestDispatcher> request_dispatcher_;
+  std::unique_ptr<ODFSMetrics> odfs_metrics_;
   std::unique_ptr<OperationRequestManager> request_manager_;
   Watchers watchers_;
   Queue watcher_queue_;

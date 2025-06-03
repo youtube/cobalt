@@ -9,10 +9,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 using base::test::ios::WaitUntilConditionOrTimeout;
@@ -44,7 +40,6 @@ ArchivableCredential* TestCredential() {
                                      serviceIdentifier:@"serviceIdentifier"
                                            serviceName:@"serviceName"
                                                   user:@"user"
-                                  validationIdentifier:@"validationIdentifier"
                                                   note:@"note"];
 }
 
@@ -80,16 +75,15 @@ TEST_F(UserDefaultsCredentialStoreTest, update) {
   [credentialStore addCredential:credential];
   EXPECT_EQ(1u, credentialStore.credentials.count);
 
-  ArchivableCredential* updatedCredential = [[ArchivableCredential alloc]
-           initWithFavicon:@"other_favicon"
-        keychainIdentifier:@"other_keychainIdentifier"
-                      rank:credential.rank + 10
-          recordIdentifier:@"recordIdentifier"
-         serviceIdentifier:@"other_serviceIdentifier"
-               serviceName:@"other_serviceName"
-                      user:@"other_user"
-      validationIdentifier:@"other_validationIdentifier"
-                      note:@"other_note"];
+  ArchivableCredential* updatedCredential =
+      [[ArchivableCredential alloc] initWithFavicon:@"other_favicon"
+                                 keychainIdentifier:@"other_keychainIdentifier"
+                                               rank:credential.rank + 10
+                                   recordIdentifier:@"recordIdentifier"
+                                  serviceIdentifier:@"other_serviceIdentifier"
+                                        serviceName:@"other_serviceName"
+                                               user:@"other_user"
+                                               note:@"other_note"];
 
   [credentialStore updateCredential:updatedCredential];
   EXPECT_EQ(1u, credentialStore.credentials.count);

@@ -374,6 +374,20 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define TRIVIAL_ABI
 #endif
 
+// Detect whether a type is trivially relocatable, ie. a move-and-destroy
+// sequence can replaced with memmove(). This can be used to optimise the
+// implementation of containers. This is automatically true for types that were
+// defined with TRIVIAL_ABI such as scoped_refptr.
+//
+// See also:
+//   https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p1144r8.html
+//   https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__is_trivially_relocatable
+#if defined(__clang__) && HAS_BUILTIN(__is_trivially_relocatable)
+#define IS_TRIVIALLY_RELOCATABLE(t) __is_trivially_relocatable(t)
+#else
+#define IS_TRIVIALLY_RELOCATABLE(t) false
+#endif
+
 // Marks a member function as reinitializing a moved-from variable.
 // See also
 // https://clang.llvm.org/extra/clang-tidy/checks/bugprone-use-after-move.html#reinitialization
@@ -412,6 +426,27 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST [[gnu::abi_tag("logically_const")]]
 #else
 #define LOGICALLY_CONST
+#endif
+
+// preserve_most clang's calling convention. Reduces register pressure for the
+// caller and as such can be used for cold calls. Support for the
+// "preserve_most" attribute is limited:
+// - 32-bit platforms do not implement it,
+// - component builds fail because _dl_runtime_resolve() clobbers registers,
+// - there are crashes on arm64 on Windows (https://crbug.com/v8/14065), which
+//   can hopefully be fixed in the future.
+// Additionally, the initial implementation in clang <= 16 overwrote the return
+// register(s) in the epilogue of a preserve_most function, so we only use
+// preserve_most in clang >= 17 (see https://reviews.llvm.org/D143425).
+// See https://clang.llvm.org/docs/AttributeReference.html#preserve-most for
+// more details.
+#if defined(ARCH_CPU_64_BITS) &&                       \
+    !(BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)) && \
+    !defined(COMPONENT_BUILD) && defined(__clang__) && \
+    __clang_major__ >= 17 && HAS_ATTRIBUTE(preserve_most)
+#define PRESERVE_MOST __attribute__((preserve_most))
+#else
+#define PRESERVE_MOST
 #endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_

@@ -8,26 +8,24 @@
 import {BrowserUtil} from '../../common/browser_util.js';
 import {constants} from '../../common/constants.js';
 import {LocalStorage} from '../../common/local_storage.js';
+import {StringUtil} from '../../common/string_util.js';
 import {BackgroundBridge} from '../common/background_bridge.js';
-import {BrailleCommandData} from '../common/braille/braille_command_data.js';
 import {BridgeConstants} from '../common/bridge_constants.js';
 import {BridgeHelper} from '../common/bridge_helper.js';
-import {Command, CommandCategory, CommandStore} from '../common/command_store.js';
+import {Command} from '../common/command.js';
+import {CommandStore} from '../common/command_store.js';
 import {EventSourceType} from '../common/event_source_type.js';
 import {GestureCommandData} from '../common/gesture_command_data.js';
-import {KeyMap} from '../common/key_map.js';
-import {KeyUtil} from '../common/key_util.js';
 import {LocaleOutputHelper} from '../common/locale_output_helper.js';
 import {Msgs} from '../common/msgs.js';
 import {PanelCommand, PanelCommandType} from '../common/panel_command.js';
-import {ALL_PANEL_MENU_NODE_DATA, PanelNodeMenuData, PanelNodeMenuId, PanelNodeMenuItemData} from '../common/panel_menu_data.js';
+import {ALL_PANEL_MENU_NODE_DATA} from '../common/panel_menu_data.js';
 import {SettingsManager} from '../common/settings_manager.js';
 import {QueueMode} from '../common/tts_types.js';
 
 import {ISearchUI} from './i_search_ui.js';
 import {MenuManager} from './menu_manager.js';
 import {PanelInterface} from './panel_interface.js';
-import {PanelMenu, PanelNodeMenu, PanelSearchMenu} from './panel_menu.js';
 import {PanelMode, PanelModeInfo} from './panel_mode.js';
 
 const $ = (id) => document.getElementById(id);
@@ -35,10 +33,9 @@ const $ = (id) => document.getElementById(id);
 /** Class to manage the panel. */
 export class Panel extends PanelInterface {
   /**
-   * @param {boolean} deprecateTabsMenu Whether to deprecate the tabs menu.
    * @private
    */
-  constructor(deprecateTabsMenu) {
+  constructor() {
     super();
     /** @private {!PanelMode} */
     this.mode_ = PanelMode.COLLAPSED;
@@ -78,9 +75,6 @@ export class Panel extends PanelInterface {
 
     /** @private {boolean} */
     this.tutorialReadyForTesting_ = false;
-
-    /** @private {boolean} */
-    this.deprecateTabsMenu_ = deprecateTabsMenu;
 
     this.initListeners_();
   }
@@ -132,14 +126,7 @@ export class Panel extends PanelInterface {
     await SettingsManager.init();
     LocaleOutputHelper.init();
 
-    const deprecateTabsMenu = await new Promise(resolve => {
-      chrome.accessibilityPrivate.isFeatureEnabled(
-          chrome.accessibilityPrivate.AccessibilityFeature
-              .CHROMEVOX_TABS_DEPRECATION,
-          resolve);
-    });
-
-    Panel.instance = new Panel(deprecateTabsMenu);
+    Panel.instance = new Panel();
     PanelInterface.instance = Panel.instance;
 
     Msgs.addTranslatedMessagesToDom(document);
@@ -240,6 +227,8 @@ export class Panel extends PanelInterface {
       case PanelCommandType.CLOSE_CHROMEVOX:
         this.onClose_();
       case PanelCommandType.ENABLE_TEST_HOOKS:
+        window.MenuManager = MenuManager;
+        window.Msgs = Msgs;
         window.Panel = Panel;
         break;
     }
@@ -333,9 +322,6 @@ export class Panel extends PanelInterface {
       const touchMenu = touchScreen ?
           this.menuManager_.addMenu('panel_menu_touchgestures') :
           null;
-      const tabsMenu = this.deprecateTabsMenu_ ?
-          null :
-          this.menuManager_.addMenu('panel_menu_tabs');
       const chromevoxMenu = this.menuManager_.addMenu('panel_menu_chromevox');
       const actionsMenu = this.menuManager_.addMenu('panel_menu_actions');
 
@@ -345,126 +331,24 @@ export class Panel extends PanelInterface {
 
       // Create a mapping between categories from CommandStore, and our
       // top-level menus. Some categories aren't mapped to any menu.
-      const categoryToMenu = {
-        [CommandCategory.NAVIGATION]: jumpMenu,
-        [CommandCategory.JUMP_COMMANDS]: jumpMenu,
-        [CommandCategory.OVERVIEW]: jumpMenu,
-        [CommandCategory.TABLES]: jumpMenu,
-        [CommandCategory.CONTROLLING_SPEECH]: speechMenu,
-        [CommandCategory.INFORMATION]: speechMenu,
-        [CommandCategory.MODIFIER_KEYS]: chromevoxMenu,
-        [CommandCategory.HELP_COMMANDS]: chromevoxMenu,
-        [CommandCategory.ACTIONS]: actionsMenu,
-
-        [CommandCategory.BRAILLE]: null,
-        [CommandCategory.DEVELOPER]: null,
-        [CommandCategory.NO_CATEGORY]: null,
-      };
-
-      // TODO(accessibility): Commands should be based off of CommandStore and
-      // not the keymap. There are commands that don't have a key binding (e.g.
-      // commands for touch).
-
-      // Get the key map.
-      const keymap = KeyMap.get();
+      const categoryToMenu = this.menuManager_.makeCategoryMapping(
+          actionsMenu, chromevoxMenu, jumpMenu, speechMenu);
 
       // Make a copy of the key bindings, get the localized title of each
       // command, and then sort them.
-      const sortedBindings = keymap.bindings().slice();
-      for (let binding, i = 0; binding = sortedBindings[i]; i++) {
-        const command = binding.command;
-        const keySeq = binding.sequence;
-        binding.keySeq = await KeyUtil.keySequenceToString(keySeq, true);
-        const titleMsgId = CommandStore.messageForCommand(command);
-        if (!titleMsgId) {
-          // Title messages are intentionally missing for some keyboard
-          // shortcuts.
-          if (!(command in COMMANDS_WITH_NO_MSG_ID)) {
-            console.error('No localization for: ' + command);
-          }
-          binding.title = '';
-          continue;
-        }
-        let title = Msgs.getMsg(titleMsgId);
-        // Convert to title case.
-        title = title.replace(
-            /\w\S*/g, word => word.charAt(0).toUpperCase() + word.substr(1));
-        binding.title = title;
-      }
-      sortedBindings.sort(
-          (binding1, binding2) => binding1.title.localeCompare(binding2.title));
+      const sortedBindings = await this.menuManager_.getSortedKeyBindings();
 
       // Insert items from the bindings into the menus.
-      const sawBindingSet = {};
-      const bindingMap = new Map();
-      const gestures = Object.keys(GestureCommandData.GESTURE_COMMAND_MAP);
-      sortedBindings.forEach(binding => {
-        const command = binding.command;
-        bindingMap.set(binding.command, binding);
-        if (sawBindingSet[command]) {
-          return;
-        }
-        sawBindingSet[command] = true;
+      const bindingMap = this.menuManager_.makeBindingMap(sortedBindings);
+      for (const binding of bindingMap.values()) {
         const category = CommandStore.categoryForCommand(binding.command);
         const menu = category ? categoryToMenu[category] : null;
-        if (binding.title && menu) {
-          let keyText;
-          let brailleText;
-          let gestureText;
-          if (touchScreen) {
-            for (let i = 0, gesture; gesture = gestures[i]; i++) {
-              const data = GestureCommandData.GESTURE_COMMAND_MAP[gesture];
-              if (data && data.command === command) {
-                gestureText = Msgs.getMsg(data.msgId);
-                break;
-              }
-            }
-          } else {
-            keyText = binding.keySeq;
-            brailleText =
-                BrailleCommandData.getDotShortcut(binding.command, true);
-          }
-
-          menu.addMenuItem(
-              binding.title, keyText, brailleText, gestureText,
-              () => BackgroundBridge.CommandHandler.onCommand(binding.command),
-              binding.command);
-        }
-      });
-
-      // Add Touch Gestures menu items.
-      if (touchScreen) {
-        const touchGestureItems = [];
-        for (const key in GestureCommandData.GESTURE_COMMAND_MAP) {
-          const command =
-              GestureCommandData.GESTURE_COMMAND_MAP[key]['command'];
-          if (!command) {
-            continue;
-          }
-
-          const gestureText =
-              Msgs.getMsg(GestureCommandData.GESTURE_COMMAND_MAP[key]['msgId']);
-          const msgForCmd =
-              GestureCommandData
-                  .GESTURE_COMMAND_MAP[key]['commandDescriptionMsgId'] ||
-              CommandStore.messageForCommand(command);
-          const titleText = Msgs.getMsg(msgForCmd);
-          touchGestureItems.push({titleText, gestureText, command});
-        }
-
-        touchGestureItems.sort(
-            (item1, item2) => item1.titleText.localeCompare(item2.titleText));
-
-        for (const item of touchGestureItems) {
-          touchMenu.addMenuItem(
-              item.titleText, '', '', item.gestureText,
-              () => BackgroundBridge.CommandHandler.onCommand(item.command),
-              item.command);
-        }
+        this.menuManager_.addMenuItemFromKeyBinding(binding, menu, touchScreen);
       }
 
-      if (!this.deprecateTabsMenu_) {
-        this.populateTabsMenu_(tabsMenu);
+      // Add Touch Gestures menu items.
+      if (touchMenu) {
+        this.menuManager_.addTouchGestureMenuItems(touchMenu);
       }
 
       if (this.sessionState_ !== 'IN_SESSION') {
@@ -490,8 +374,11 @@ export class Panel extends PanelInterface {
           continue;
         }
         const commandName = CommandStore.commandForMessage(actionMsg);
-        const command = bindingMap.get(commandName);
-        const shortcutName = command ? command.keySeq : '';
+        let shortcutName = '';
+        if (commandName) {
+          const commandBinding = bindingMap.get(commandName);
+          shortcutName = commandBinding ? commandBinding.keySeq : '';
+        }
         const actionDesc = Msgs.getMsg(actionMsg);
         actionsMenu.addMenuItem(
             actionDesc, shortcutName, '' /* menuItemBraille */,
@@ -523,25 +410,6 @@ export class Panel extends PanelInterface {
       onFocusDo();
     } else {
       window.addEventListener('focus', onFocusDo);
-    }
-  }
-
-  /**
-   * Creates and populates the Tabs menu.
-   * @private
-   */
-  async populateTabsMenu_(tabsMenu) {
-    // Add all open tabs to the Tabs menu.
-    const data = await BackgroundBridge.PanelBackground.getTabMenuData();
-    for (const menuInfo of data) {
-      tabsMenu.addMenuItem(menuInfo.title, '', '', '', async () => {
-        BackgroundBridge.PanelBackground.focusTab(
-            menuInfo.windowId, menuInfo.tabId);
-      });
-    }
-
-    if (this.sessionState_ !== 'IN_SESSION') {
-      tabsMenu.disable();
     }
   }
 
@@ -964,25 +832,6 @@ export class Panel extends PanelInterface {
       await BackgroundBridge.UserActionMonitor.destroy();
       this.onCloseTutorial_();
     });
-    $('chromevox-tutorial').addEventListener('requestspeech', evt => {
-      /**
-       * @type {{
-       * text: string,
-       * queueMode: QueueMode,
-       * properties: ({doNotInterrupt: boolean}|undefined)}}
-       */
-      const detail = evt.detail;
-      const text = detail.text;
-      const queueMode = detail.queueMode;
-      const properties = detail.properties || {};
-      if (!text || queueMode === undefined) {
-        throw new Error(
-            `Must specify text and queueMode when requesting speech from the
-                tutorial`);
-      }
-      const cvox = backgroundPage['ChromeVox'];
-      cvox.tts.speak(text, queueMode, properties);
-    });
     $('chromevox-tutorial')
         .addEventListener('startinteractivemode', async evt => {
           const actions = evt.detail.actions;
@@ -1102,21 +951,6 @@ Panel.ACTION_TO_MSG_ID = {
   showContextMenu: 'show_context_menu',
   longClick: 'force_long_click_on_current_item',
 };
-
-const COMMANDS_WITH_NO_MSG_ID = [
-  'nativeNextCharacter',
-  'nativePreviousCharacter',
-  'nativeNextWord',
-  'nativePreviousWord',
-  'enableLogging',
-  'disableLogging',
-  'dumpTree',
-  'showActionsMenu',
-  'enableChromeVoxArcSupportForCurrentApp',
-  'disableChromeVoxArcSupportForCurrentApp',
-  'showTalkBackKeyboardShortcuts',
-  'copy',
-];
 
 window.addEventListener('load', async () => await Panel.init(), false);
 

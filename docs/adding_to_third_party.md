@@ -88,6 +88,30 @@ guidelines on size increases see
 [//docs/speed/binary_size/binary_size_explainer.md](speed/binary_size/binary_size_explainer.md) and Googlers can
 additionally check [go/chrome-binary-size](https://goto.google.com/chrome-binary-size)
 
+### Binaries, obfuscated or minified code
+
+The addition of third-party dependencies that contain binaries, obfuscated
+code, or minified code is strongly discouraged. Code review is an important
+part of reducing risk to Chromium and a reviewer asked to approve a change
+that contains any of these has no way to determine the legitimacy of what
+they are approving. Minification for performance optimization is
+[usually not necessary](speed/binary_size/optimization_advice.md), and the
+trade-off in terms of understandability and security is rarely worth
+it.
+
+Where your dependency will form part of a release binary where size is a concern,
+there are existing tools which handle [compression for distribution](speed/binary_size/optimization_advice.md).
+
+You should not check in any pre-built binaries where there is an alternate,
+supported solution for getting them. If you need to compile from source,
+consider using [CIPD](cipd_and_3pp.md) instead.
+
+_Accessible to Googlers only. Non-Googlers can email one of the people in
+third_party/OWNERS for help.
+
+See [Chrome Code Policy](https://goto.google.com/chrome-code-policy)
+
+
 ## Get the code
 
 There are two common ways to depend on third-party code: you can reference a
@@ -203,6 +227,7 @@ into the product and does any of the following:
 * Collects new data
 * Influences or sets security-related policy (including the user experience)
 
+**CPE Prefix**
 One of the fields is CPEPrefix. This is used by Chromium and Google systems to
 spot known upstream security vulnerabilities, and ensure we merge the fixes
 into our third-party copy. These systems are not foolproof, so as the OWNER,
@@ -211,17 +236,43 @@ automated systems. But, adding CPEs decreases the chances of us missing
 vulnerabilities, so they should always be added if possible.
 
 The CPE is a common format shared across the industry; you can look up the CPE
-for your package [here](https://nvd.nist.gov/products/cpe/search). Please use
-CPE format 2.2. When searching for a CPE, you may find that there is not yet
-a CPE for the specific upstream version you're using. This is normal, as CPEs
-are typically allocated only when a vulnerability is found. You should follow
-the version number convention such that, when that does occur in future, we'll
-be notified. If no CPE is available, please specify "unknown".
+for your package [here](https://nvd.nist.gov/products/cpe/search).
+* Use CPE format 2.3 (preferred) or CPE format 2.2 (supported).
+* If the CPE uses the 2.3 URI binding or 2.2 format (i.e. starts with "cpe:/"),
+and no version is explicitly specified within the `CPEPrefix`, the `Version`
+in the `README.chromium` file will be appended to the `CPEPrefix`, if available.
+  * Note: if the `Version` field is set to a git hash value, version matching
+  for vulnerabilities will fail.
+
+When searching for a CPE, you may find that there is not yet a CPE for the
+specific upstream version you're using. This is normal, as CPEs are typically
+allocated only when a vulnerability is found. You should follow the version
+number convention such that, when that does occur in future, we'll be notified.
+If no CPE is available, please specify "unknown".
 
 If you're using a patched or modified version which is halfway between two
 public versions, please "round downwards" to the lower of the public versions
 (it's better for us to be notified of false-positive vulnerabilities than
 false-negatives).
+
+
+**Shipped**
+Your README.chromium should also specify whether your third party dependency
+will be shipped as part of a final binary. The "Shipped" field replaces the now
+deprecated special value of "NOT_SHIPPED" which was previously allowed in the
+"License File" field. This use is no longer supported and if your third party
+dependency includes a license you should also use the "Licence File" field to
+reference it, regardless of whether it is shipped or not.
+
+
+**Multiple packages**
+Each package should have its own README.chromium. However, if this is not
+possible and the information for multiple packages must be placed in a single
+README.chromium, use the below line to separate the data for each package:
+```
+-------------------- DEPENDENCY DIVIDER --------------------
+```
+
 
 ### Add a LICENSE file and run related checks
 
@@ -233,8 +284,8 @@ data for third_party checkins. We use `licenses.py credits` to generate the
 about:credits page in Google Chrome builds.
 
 If the library will never be shipped as a part of Chrome (e.g. build-time tools,
-testing tools), make sure to set "License File" as "NOT_SHIPPED" so that the
-license is not included in about:credits page ([more on this below](#credits)).
+testing tools), make sure to set the "Shipped" field to "no" so that the license
+is not included in about:credits page ([more on this below](#credits)).
 
 ## Get a review
 
@@ -283,6 +334,7 @@ That page displays a resource embedded in the browser as part of the
 GRIT file; the actual HTML text is generated in the
 [//components/resources:about_credits](../components/resources/BUILD.gn)
 build target using a template from the output of the
-[//tools/licenses/licenses.py](../tools/licenses/licenses.py) script. Assuming you've followed
-the rules above to ensure that you have the proper LICENSE file and it passes
-the checks, it'll be included automatically.
+[//tools/licenses/licenses.py](../tools/licenses/licenses.py) script. Assuming
+you‘ve followed the rules above to ensure that you have the proper path to the
+LICENSE file and set the Shipped value, if it passes the checks, it’ll be
+included automatically.

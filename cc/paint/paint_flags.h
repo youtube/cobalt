@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "cc/paint/color_filter.h"
 #include "cc/paint/paint_export.h"
-#include "third_party/skia/include/core/SkColorFilter.h"
 #include "third_party/skia/include/core/SkDrawLooper.h"
 #include "third_party/skia/include/core/SkMaskFilter.h"
 #include "third_party/skia/include/core/SkPaint.h"
@@ -41,17 +41,16 @@ class CC_PAINT_EXPORT PaintFlags {
     return static_cast<Style>(bitfields_.style_);
   }
   ALWAYS_INLINE void setStyle(Style style) { bitfields_.style_ = style; }
-  // TODO(crbug.com/1308932): Remove this function
+  // TODO(crbug.com/1399566): Remove this function
   ALWAYS_INLINE SkColor getColor() const { return color_.toSkColor(); }
   ALWAYS_INLINE SkColor4f getColor4f() const { return color_; }
   ALWAYS_INLINE void setColor(SkColor color) {
     color_ = SkColor4f::FromColor(color);
   }
   ALWAYS_INLINE void setColor(SkColor4f color) { color_ = color; }
-  ALWAYS_INLINE uint8_t getAlpha() const {
-    return SkColorGetA(color_.toSkColor());
-  }
   ALWAYS_INLINE float getAlphaf() const { return color_.fA; }
+  ALWAYS_INLINE bool isFullyTransparent() const { return color_.fA == 0.0f; }
+  ALWAYS_INLINE bool isOpaque() const { return color_.fA >= 1.0f; }
   template <class F, class = std::enable_if_t<std::is_same_v<F, float>>>
   ALWAYS_INLINE void setAlphaf(F a) {
     color_.fA = a;
@@ -79,6 +78,18 @@ class CC_PAINT_EXPORT PaintFlags {
   }
   ALWAYS_INLINE FilterQuality getFilterQuality() const {
     return static_cast<FilterQuality>(bitfields_.filter_quality_);
+  }
+  enum class DynamicRangeLimit {
+    kStandard,
+    kHigh,
+    kConstrainedHigh,
+    kLast = kConstrainedHigh,
+  };
+  ALWAYS_INLINE void setDynamicRangeLimit(DynamicRangeLimit limit) {
+    bitfields_.dynamic_range_limit_ = static_cast<uint32_t>(limit);
+  }
+  ALWAYS_INLINE DynamicRangeLimit getDynamicRangeLimit() const {
+    return static_cast<DynamicRangeLimit>(bitfields_.dynamic_range_limit_);
   }
   ALWAYS_INLINE bool useDarkModeForImage() const {
     return bitfields_.use_dark_mode_for_image_;
@@ -115,10 +126,10 @@ class CC_PAINT_EXPORT PaintFlags {
   }
   ALWAYS_INLINE void setStrokeJoin(Join join) { bitfields_.join_type_ = join; }
 
-  ALWAYS_INLINE const sk_sp<SkColorFilter>& getColorFilter() const {
+  ALWAYS_INLINE const sk_sp<ColorFilter>& getColorFilter() const {
     return color_filter_;
   }
-  ALWAYS_INLINE void setColorFilter(sk_sp<SkColorFilter> filter) {
+  ALWAYS_INLINE void setColorFilter(sk_sp<ColorFilter> filter) {
     color_filter_ = std::move(filter);
   }
   ALWAYS_INLINE const sk_sp<SkMaskFilter>& getMaskFilter() const {
@@ -195,7 +206,7 @@ class CC_PAINT_EXPORT PaintFlags {
   sk_sp<SkPathEffect> path_effect_;
   sk_sp<PaintShader> shader_;
   sk_sp<SkMaskFilter> mask_filter_;
-  sk_sp<SkColorFilter> color_filter_;
+  sk_sp<ColorFilter> color_filter_;
   sk_sp<SkDrawLooper> draw_looper_;
   sk_sp<PaintFilter> image_filter_;
 
@@ -213,6 +224,7 @@ class CC_PAINT_EXPORT PaintFlags {
     uint32_t join_type_ : 2;
     uint32_t style_ : 2;
     uint32_t filter_quality_ : 2;
+    uint32_t dynamic_range_limit_ : 2;
     // Specifies whether the compositor should use a dark mode filter when
     // rasterizing image on the draw op with this PaintFlags.
     uint32_t use_dark_mode_for_image_ : 1;

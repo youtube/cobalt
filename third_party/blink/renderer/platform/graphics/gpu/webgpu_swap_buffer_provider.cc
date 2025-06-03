@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_swap_buffer_provider.h"
 
+#include "base/logging.h"
 #include "build/build_config.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/raster_interface.h"
@@ -38,8 +39,7 @@ WebGPUSwapBufferProvider::WebGPUSwapBufferProvider(
     WGPUTextureUsage usage,
     WGPUTextureFormat format,
     PredefinedColorSpace color_space,
-    gfx::HDRMode hdr_mode,
-    absl::optional<gfx::HDRMetadata> hdr_metadata)
+    const gfx::HDRMetadata& hdr_metadata)
     : dawn_control_client_(dawn_control_client),
       client_(client),
       device_(device),
@@ -59,9 +59,16 @@ WebGPUSwapBufferProvider::WebGPUSwapBufferProvider(
   // paths to keep the rendering correct in that cases.
   layer_->SetContentsOpaque(true);
   layer_->SetPremultipliedAlpha(true);
-  layer_->SetHDRConfiguration(hdr_mode, hdr_metadata);
+  layer_->SetHdrMetadata(hdr_metadata);
 
   dawn_control_client_->GetProcs().deviceReference(device_);
+
+  WGPUSupportedLimits limits = {};
+  auto get_limits_succeeded =
+      dawn_control_client_->GetProcs().deviceGetLimits(device_, &limits);
+  CHECK(get_limits_succeeded);
+
+  max_texture_size_ = limits.limits.maxTextureDimension2D;
 }
 
 WebGPUSwapBufferProvider::~WebGPUSwapBufferProvider() {
@@ -227,6 +234,12 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
     return nullptr;
   }
 
+  if (size.width() > max_texture_size_ || size.height() > max_texture_size_) {
+    LOG(ERROR) << "GetNewTexture(): invalid size " << size.width() << "x"
+               << size.height();
+    return nullptr;
+  }
+
   // Create a new swap buffer.
   current_swap_buffer_ = NewOrRecycledSwapBuffer(
       context_provider->ContextProvider()->SharedImageInterface(),
@@ -257,19 +270,25 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
 
 WebGPUSwapBufferProvider::WebGPUMailboxTextureAndSize
 WebGPUSwapBufferProvider::GetLastWebGPUMailboxTextureAndSize() const {
+  // It's possible this is called after the canvas context current texture has
+  // been destroyed, but `current_swap_buffer_` is still available e.g. when the
+  // context is used offscreen only.
+  auto latest_swap_buffer =
+      current_swap_buffer_ ? current_swap_buffer_ : last_swap_buffer_;
   auto context_provider = GetContextProviderWeakPtr();
-  if (!last_swap_buffer_ || !context_provider)
+  if (!latest_swap_buffer || !context_provider) {
     return WebGPUMailboxTextureAndSize(nullptr, gfx::Size());
+  }
 
   WGPUTextureDescriptor desc = {};
   desc.usage = usage_;
 
   return WebGPUMailboxTextureAndSize(
       WebGPUMailboxTexture::FromExistingMailbox(
-          dawn_control_client_, device_, desc, last_swap_buffer_->mailbox,
-          last_swap_buffer_->access_finished_token,
+          dawn_control_client_, device_, desc, latest_swap_buffer->mailbox,
+          latest_swap_buffer->access_finished_token,
           gpu::webgpu::WEBGPU_MAILBOX_NONE),
-      last_swap_buffer_->size);
+      latest_swap_buffer->size);
 }
 
 base::WeakPtr<WebGraphicsContext3DProviderWrapper>
@@ -292,7 +311,8 @@ bool WebGPUSwapBufferProvider::PrepareTransferableResource(
   *out_resource = viz::TransferableResource::MakeGpu(
       current_swap_buffer_->mailbox, GetTextureTarget(),
       current_swap_buffer_->access_finished_token, current_swap_buffer_->size,
-      Format(), IsOverlayCandidate());
+      Format(), IsOverlayCandidate(),
+      viz::TransferableResource::ResourceSource::kWebGPUSwapBuffer);
   out_resource->color_space = PredefinedColorSpaceToGfxColorSpace(color_space_);
 
   // This holds a ref on the SwapBuffers that will keep it alive until the
@@ -311,7 +331,7 @@ bool WebGPUSwapBufferProvider::CopyToVideoFrame(
     const gfx::ColorSpace& dst_color_space,
     WebGraphicsContext3DVideoFramePool::FrameReadyCallback callback) {
   DCHECK(!neutered_);
-  if (neutered_ || !GetContextProviderWeakPtr()) {
+  if (!current_swap_buffer_ || neutered_ || !GetContextProviderWeakPtr()) {
     return false;
   }
 
@@ -332,18 +352,18 @@ bool WebGPUSwapBufferProvider::CopyToVideoFrame(
                                     current_swap_buffer_->access_finished_token,
                                     GetTextureTarget());
 
-  auto success = frame_pool->CopyRGBATextureToVideoFrame(
-      Format(), current_swap_buffer_->size,
-      PredefinedColorSpaceToGfxColorSpace(color_space_),
-      kTopLeft_GrSurfaceOrigin, mailbox_holder, dst_color_space,
-      std::move(callback));
-
-  // Subsequent access to this swap buffer (either webgpu or compositor) must
-  // wait for the copy operation to finish.
-  frame_pool_ri->GenUnverifiedSyncTokenCHROMIUM(
-      current_swap_buffer_->access_finished_token.GetData());
-
-  return success;
+  if (frame_pool->CopyRGBATextureToVideoFrame(
+          Format(), current_swap_buffer_->size,
+          PredefinedColorSpaceToGfxColorSpace(color_space_),
+          kTopLeft_GrSurfaceOrigin, mailbox_holder, dst_color_space,
+          std::move(callback))) {
+    // Subsequent access to this swap buffer (either webgpu or compositor) must
+    // wait for the copy operation to finish.
+    frame_pool_ri->GenUnverifiedSyncTokenCHROMIUM(
+        current_swap_buffer_->access_finished_token.GetData());
+    return true;
+  }
+  return false;
 }
 
 void WebGPUSwapBufferProvider::MailboxReleased(

@@ -60,14 +60,21 @@ void DisplayCutoutHostImpl::DidFinishNavigation(
     return;
   }
 
+  // When Edge To Edge on Android is enabled it needs the messaging sent to
+  // Java.
+  bool is_not_just_fullscreen =
+      base::FeatureList::IsEnabled(features::kDrawCutoutEdgeToEdge);
+
   // If we finish a main frame navigation and the |WebDisplayMode| is
   // fullscreen then we should make the main frame the current
   // |RenderFrameHost|.  Note that this is probably not correct; we do not check
   // that the navigation completed successfully, nor do we check if the main
   // frame is still IsRenderFrameLive().
   blink::mojom::DisplayMode mode = web_contents_impl_->GetDisplayMode();
-  if (mode == blink::mojom::DisplayMode::kFullscreen)
+  if (is_not_just_fullscreen ||
+      mode == blink::mojom::DisplayMode::kFullscreen) {
     SetCurrentRenderFrameHost(web_contents_impl_->GetPrimaryMainFrame());
+  }
 }
 
 void DisplayCutoutHostImpl::RenderFrameDeleted(RenderFrameHost* rfh) {
@@ -90,8 +97,15 @@ void DisplayCutoutHostImpl::SetDisplayCutoutSafeArea(gfx::Insets insets) {
 }
 
 void DisplayCutoutHostImpl::SetCurrentRenderFrameHost(RenderFrameHost* rfh) {
-  if (current_rfh_.get() == rfh)
+  if (current_rfh_.get() == rfh) {
+    if (rfh) {
+      // Send an update even when navigating to the same page or doing a reload.
+      // When we finish navigation we need to push the Safe Area back to the
+      // client to set env() variables for that frame so it can draw correctly.
+      SendSafeAreaToFrame(rfh, insets_);
+    }
     return;
+  }
 
   // If we had a previous frame then we should clear the insets on that frame.
   if (current_rfh_)

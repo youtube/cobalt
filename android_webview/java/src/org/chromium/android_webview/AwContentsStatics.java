@@ -7,16 +7,18 @@ package org.chromium.android_webview;
 import android.content.Context;
 import android.net.Uri;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.android_webview.common.Flag;
 import org.chromium.android_webview.common.FlagOverrideHelper;
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.common.PlatformServiceBridge;
 import org.chromium.android_webview.common.ProductionSupportedFlagList;
 import org.chromium.android_webview.safe_browsing.AwSafeBrowsingSafeModeAction;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -29,9 +31,9 @@ import java.util.Map;
  * Implementations of various static methods, and also a home for static
  * data structures that are meant to be shared between all webviews.
  */
+@Lifetime.Singleton
 @JNINamespace("android_webview")
 public class AwContentsStatics {
-
     private static ClientCertLookupTable sClientCertLookupTable;
 
     private static String sUnreachableWebDataUrl;
@@ -88,11 +90,6 @@ public class AwContentsStatics {
 
     public static String getProductVersion() {
         return AwContentsStaticsJni.get().getProductVersion();
-    }
-
-    public static void setServiceWorkerIoThreadClient(
-            AwContentsIoThreadClient ioThreadClient, AwBrowserContext browserContext) {
-        AwContentsStaticsJni.get().setServiceWorkerIoThreadClient(ioThreadClient, browserContext);
     }
 
     @CalledByNative
@@ -204,8 +201,6 @@ public class AwContentsStatics {
         void clearClientCertPreferences(Runnable callback);
         String getUnreachableWebDataUrl();
         String getProductVersion();
-        void setServiceWorkerIoThreadClient(
-                AwContentsIoThreadClient ioThreadClient, AwBrowserContext browserContext);
         void setSafeBrowsingAllowlist(String[] urls, Callback<Boolean> callback);
         void setCheckClearTextPermitted(boolean permitted);
         boolean isMultiProcessEnabled();

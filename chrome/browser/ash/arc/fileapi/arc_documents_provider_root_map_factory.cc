@@ -22,7 +22,12 @@ ArcDocumentsProviderRootMapFactory::GetForBrowserContext(
 ArcDocumentsProviderRootMapFactory::ArcDocumentsProviderRootMapFactory()
     : ProfileKeyedServiceFactory(
           "ArcDocumentsProviderRootMap",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ArcFileSystemOperationRunner::GetFactory());
 }
 
@@ -32,7 +37,8 @@ ArcDocumentsProviderRootMapFactory::~ArcDocumentsProviderRootMapFactory() =
 // static
 ArcDocumentsProviderRootMapFactory*
 ArcDocumentsProviderRootMapFactory::GetInstance() {
-  return base::Singleton<ArcDocumentsProviderRootMapFactory>::get();
+  static base::NoDestructor<ArcDocumentsProviderRootMapFactory> instance;
+  return instance.get();
 }
 
 KeyedService* ArcDocumentsProviderRootMapFactory::BuildServiceInstanceFor(

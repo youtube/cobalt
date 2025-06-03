@@ -19,8 +19,9 @@ import '//resources/cr_elements/md_select.css.js';
 
 import {assert} from '//resources/ash/common/assert.js';
 import {I18nBehavior, I18nBehaviorInterface} from '//resources/ash/common/i18n_behavior.js';
-import {ApnAuthenticationType, ApnIpType, ApnProperties, ApnState, ApnType, CrosNetworkConfigRemote} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
-import {mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
+import {ApnAuthenticationType, ApnIpType, ApnProperties, ApnState, ApnType, CrosNetworkConfigInterface} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
+import {afterNextRender, mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './apn_detail_dialog.html.js';
 import {ApnDetailDialogMode} from './cellular_utils.js';
@@ -195,6 +196,29 @@ export class ApnDetailDialog extends ApnDetailDialogElementBase {
         computed: 'computeShouldShowApnTypeErrorMessage_(apnList, ' +
             'isDefaultApnType_, isAttachApnType_)',
       },
+
+      /**
+       * If |shouldAnnounceA11yActionButtonState_| === true, an a11y
+       * announcement will be made. No announcement will be made until the
+       * enable state of the action button changes as a result of user changes
+       * in the dialog, and subsequent action button state changes (i.e the
+       * initial enabled state of the button will not be announced).
+       * @private {boolean|undefined}
+       */
+      shouldAnnounceA11yActionButtonState_: {
+        type: Object,
+        value: undefined,
+      },
+
+      /** @private */
+      actionButtonEnabledA11yText_: {
+        type: String,
+        value: '',
+        observer: 'onActionButtonEnabledStateA11yTextChanged_',
+        computed: 'computeActionButtonEnabledStateA11yText_(apn_, ' +
+            'isMaxApnInputLengthReached_, shouldShowApnTypeErrorMessage_,' +
+            'isDefaultApnType_, isAttachApnType_)',
+      },
     };
   }
 
@@ -202,9 +226,34 @@ export class ApnDetailDialog extends ApnDetailDialogElementBase {
   constructor() {
     super();
 
-    /** @private {!CrosNetworkConfigRemote} */
+    /** @private {!CrosNetworkConfigInterface} */
     this.networkConfig_ =
         MojoInterfaceProviderImpl.getInstance().getMojoServiceRemote();
+  }
+
+  /** @override */
+  connectedCallback() {
+    super.connectedCallback();
+
+    // Set the default focus when the dialog opens.
+    afterNextRender(this, function() {
+      let element;
+      switch (this.mode) {
+        case ApnDetailDialogMode.CREATE:
+        case ApnDetailDialogMode.EDIT:
+          element = this.shadowRoot.querySelector('cr-input');
+          break;
+        case ApnDetailDialogMode.VIEW:
+          element = this.shadowRoot.querySelector('#apnDoneBtn');
+          break;
+      }
+      focusWithoutInk(element);
+
+      // Only after dialog is connected and the intended element is focused can
+      // action enabled state changes be a11y announced.
+      assert(this.shouldAnnounceA11yActionButtonState_ === undefined);
+      this.shouldAnnounceA11yActionButtonState_ = false;
+    });
   }
 
   /**
@@ -370,6 +419,39 @@ export class ApnDetailDialog extends ApnDetailDialogElementBase {
     }
     return this.i18n('apnDetailDialogAdd');
   }
+
+  /**
+   * @return {string}
+   * @private
+   */
+  computeActionButtonEnabledStateA11yText_() {
+    const isDisabled = this.isUiElementDisabled_(UiElement.ACTION_BUTTON);
+    if (this.mode === ApnDetailDialogMode.EDIT) {
+      return isDisabled ? this.i18n('apnDetailDialogA11ySaveDisabled') :
+                          this.i18n('apnDetailDialogA11ySaveEnabled');
+    } else if (this.mode === ApnDetailDialogMode.CREATE) {
+      return isDisabled ? this.i18n('apnDetailDialogA11yAddDisabled') :
+                          this.i18n('apnDetailDialogA11yAddEnabled');
+    }
+    return '';
+  }
+
+  /**
+   * @param {string} newVal
+   * @param {string} oldVal
+   * @private
+   */
+  onActionButtonEnabledStateA11yTextChanged_(newVal, oldVal) {
+    if (this.shouldAnnounceA11yActionButtonState_ === undefined) {
+      return;
+    }
+    if (!newVal || !oldVal) {
+      this.shouldAnnounceA11yActionButtonState_ = false;
+      return;
+    }
+    this.shouldAnnounceA11yActionButtonState_ = oldVal !== newVal;
+  }
+
   /**
    * @private
    */

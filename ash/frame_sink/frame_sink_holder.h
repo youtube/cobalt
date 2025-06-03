@@ -14,6 +14,7 @@
 #include "ash/frame_sink/ui_resource_manager.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/quads/compositor_frame.h"
@@ -49,10 +50,14 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
           bool auto_update,
           const gfx::Size& last_submitted_frame_size,
           float last_submitted_frame_dsf)>;
+  // Refer to declaration of `FrameSinkHost::OnFirstFrameRequested` for a
+  // detailed comment.
+  using OnFirstFrameRequestedCallback = base::RepeatingCallback<void()>;
 
-  // The callback is the source of frames for the holder.
-  FrameSinkHolder(std::unique_ptr<cc::LayerTreeFrameSink> frame_sink,
-                  GetCompositorFrameCallback callback);
+  FrameSinkHolder(
+      std::unique_ptr<cc::LayerTreeFrameSink> frame_sink,
+      GetCompositorFrameCallback get_compositor_frame_callback,
+      OnFirstFrameRequestedCallback on_first_frame_requested_callback);
 
   FrameSinkHolder(const FrameSinkHolder&) = delete;
   FrameSinkHolder& operator=(const FrameSinkHolder&) = delete;
@@ -134,7 +139,7 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
   // Extend the lifetime of `this` by adding it as a observer to `root_window`.
   void SetRootWindowForDeletion(aura::Window* root_window);
 
-  // True when the display compositor has already asked for the a compositor
+  // True when the display compositor has already asked for a compositor
   // frame. This signifies that the gpu process has been fully initialized.
   bool first_frame_requested_ = false;
 
@@ -159,11 +164,6 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
   gfx::Size last_frame_size_in_pixels_;
   float last_frame_device_scale_factor_ = 1.0f;
 
-  // The root window to which `this` holder becomes an observer to extend its
-  // lifespan till all the in-flight resource to display compositor are
-  // reclaimed.
-  base::raw_ptr<aura::Window> root_window_for_deletion_ = nullptr;
-
   // Keeps track of resources that are currently available to be reused in a
   // compositor frame and the resources that are in-use by the display
   // compositor.
@@ -184,6 +184,18 @@ class ASH_EXPORT FrameSinkHolder final : public cc::LayerTreeFrameSinkClient,
 
   // The callback to generate the next compositor frame.
   GetCompositorFrameCallback get_compositor_frame_callback_;
+
+  // The callback invoked when the display compositor asks for a compositor
+  // frame for the first time.
+  OnFirstFrameRequestedCallback on_first_frame_requested_callback_;
+
+  // Observation of the root window to which this holder becomes an observer to
+  // extend its lifespan till all the in-flight resource to display compositor
+  // are reclaimed.
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      root_window_observation_{this};
+  base::ScopedObservation<viz::BeginFrameSource, viz::BeginFrameObserver>
+      begin_frame_observation_{this};
 
   base::WeakPtrFactory<FrameSinkHolder> weak_ptr_factory_{this};
 };

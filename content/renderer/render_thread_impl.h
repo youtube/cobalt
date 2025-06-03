@@ -51,11 +51,11 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/network_change_notifier.h"
 #include "net/nqe/effective_connection_type.h"
-#include "services/network/public/mojom/attribution.mojom.h"
 #include "services/viz/public/mojom/compositing/compositing_mode_watcher.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trials_settings.mojom-forward.h"
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
@@ -181,13 +181,10 @@ class CONTENT_EXPORT RenderThreadImpl
   void SetRendererProcessType(
       blink::scheduler::WebRendererProcessType type) override;
   blink::WebString GetUserAgent() override;
-  blink::WebString GetFullUserAgent() override;
-  blink::WebString GetReducedUserAgent() override;
   const blink::UserAgentMetadata& GetUserAgentMetadata() override;
   void WriteIntoTrace(
       perfetto::TracedProto<perfetto::protos::pbzero::RenderProcessHost> proto)
       override;
-  network::mojom::AttributionSupport GetAttributionReportingSupport() override;
 
   // IPC::Listener implementation via ChildThreadImpl:
   void OnAssociatedInterfaceRequest(
@@ -435,17 +432,16 @@ class CONTENT_EXPORT RenderThreadImpl
   void SetWebKitSharedTimersSuspended(bool suspend) override;
   void InitializeRenderer(
       const std::string& user_agent,
-      const std::string& full_user_agent,
-      const std::string& reduced_user_agent,
       const blink::UserAgentMetadata& user_agent_metadata,
       const std::vector<std::string>& cors_exempt_header_list,
-      network::mojom::AttributionSupport) override;
+      blink::mojom::OriginTrialsSettingsPtr origin_trial_settings) override;
   void UpdateScrollbarTheme(
       mojom::UpdateScrollbarThemeParamsPtr params) override;
   void OnSystemColorsChanged(int32_t aqua_color_variant) override;
   void UpdateSystemColorInfo(
       mojom::UpdateSystemColorInfoParamsPtr params) override;
   void PurgePluginListCache(bool reload_pages) override;
+  void PurgeResourceCache(PurgeResourceCacheCallback callback) override;
   void SetProcessState(mojom::RenderProcessBackgroundState background_state,
                        mojom::RenderProcessVisibleState visible_state) override;
   void SetIsLockedToSite() override;
@@ -454,11 +450,8 @@ class CONTENT_EXPORT RenderThreadImpl
       WriteClangProfilingProfileCallback callback) override;
 #endif
   void SetIsCrossOriginIsolated(bool value) override;
+  void SetIsWebSecurityDisabled(bool value) override;
   void SetIsIsolatedContext(bool value) override;
-#if BUILDFLAG(IS_ANDROID)
-  void SetAttributionReportingSupport(
-      network::mojom::AttributionSupport) override;
-#endif
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
 
@@ -504,11 +497,7 @@ class CONTENT_EXPORT RenderThreadImpl
   absl::optional<mojom::RenderProcessVisibleState> visible_state_;
 
   blink::WebString user_agent_;
-  blink::WebString full_user_agent_;
-  blink::WebString reduced_user_agent_;
   blink::UserAgentMetadata user_agent_metadata_;
-
-  network::mojom::AttributionSupport attribution_support_;
 
   // Sticky once true, indicates that compositing is done without Gpu, so
   // resources given to the compositor or to the viz service should be
@@ -594,6 +583,8 @@ class CONTENT_EXPORT RenderThreadImpl
   int process_foregrounded_count_;
 
   int32_t client_id_;
+
+  bool is_context_result_fatal_ = false;
 
   // A mojo connection to the CompositingModeReporter service.
   mojo::Remote<viz::mojom::CompositingModeReporter> compositing_mode_reporter_;

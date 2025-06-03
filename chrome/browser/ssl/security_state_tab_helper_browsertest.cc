@@ -24,7 +24,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -572,11 +571,9 @@ IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTestWithAutoupgradesDisabled,
       security_state::SECURE, false, false, false,
       false /* expect cert status error */);
   // Load the insecure image.
-  bool js_result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(), "loadBadImage();",
-      &js_result));
-  EXPECT_TRUE(js_result);
+  EXPECT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "loadBadImage();"));
   CheckSecurityInfoForSecure(
       browser()->tab_strip_model()->GetActiveWebContents(),
       security_state::WARNING, false, true, false,
@@ -665,11 +662,9 @@ IN_PROC_BROWSER_TEST_F(
       security_state::SECURE, false, false, false,
       false /* expect cert status error */);
   // Load the insecure image.
-  bool js_result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(), "loadBadImage();",
-      &js_result));
-  EXPECT_TRUE(js_result);
+  EXPECT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "loadBadImage();"));
   CheckSecurityInfoForSecure(
       browser()->tab_strip_model()->GetActiveWebContents(),
       security_state::WARNING, false, true, false,
@@ -795,11 +790,9 @@ IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTestWithAutoupgradesDisabled,
       security_state::NONE, true, false, false,
       false /* expect cert status error */);
   // Load the insecure image.
-  bool js_result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(), "loadBadImage();",
-      &js_result));
-  EXPECT_TRUE(js_result);
+  EXPECT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "loadBadImage();"));
   CheckSecurityInfoForSecure(
       browser()->tab_strip_model()->GetActiveWebContents(),
       security_state::NONE, true, true, false,
@@ -1404,9 +1397,9 @@ IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest, FormSecurityLevelHistogram) {
       browser(), https_server_.GetURL(replacement_path)));
   content::TestNavigationObserver navigation_observer(
       browser()->tab_strip_model()->GetActiveWebContents());
-  ASSERT_TRUE(content::ExecuteScript(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "document.getElementById('submit').click();"));
+  ASSERT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "document.getElementById('submit').click();"));
   navigation_observer.Wait();
   // Check that the histogram count logs the security level of the page
   // containing the form, not of the form target page.
@@ -1499,8 +1492,16 @@ IN_PROC_BROWSER_TEST_F(SignedExchangeSecurityStateTest, SecurityLevelIsSecure) {
       false /* expect_ran_mixed_content */, false /* expect_cert_error */);
 }
 
+// TODO(https://crbug.com/1461939): This test is failing on Mac12 Tests.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SecurityLevelIsSecureAfterPrefetch \
+  DISABLED_SecurityLevelIsSecureAfterPrefetch
+#else
+#define MAYBE_SecurityLevelIsSecureAfterPrefetch \
+  SecurityLevelIsSecureAfterPrefetch
+#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(SignedExchangeSecurityStateTest,
-                       SecurityLevelIsSecureAfterPrefetch) {
+                       MAYBE_SecurityLevelIsSecureAfterPrefetch) {
   embedded_test_server()->ServeFilesFromSourceDirectory("content/test/data");
   ASSERT_TRUE(embedded_test_server()->Start());
 
@@ -1527,7 +1528,7 @@ IN_PROC_BROWSER_TEST_F(SignedExchangeSecurityStateTest,
     content::TitleWatcher title_watcher(contents, expected_title);
     // Execute the JavaScript code to trigger the followup navigation from the
     // current page.
-    EXPECT_TRUE(content::ExecuteScript(
+    EXPECT_TRUE(content::ExecJs(
         contents,
         base::StringPrintf("location.href = '%s';", sxg_url.spec().c_str())));
     // The inner content of test.example.org_test.sxg has
@@ -1562,7 +1563,7 @@ class SecurityStateTabHelperPrerenderTest : public SecurityStateTabHelperTest {
       const SecurityStateTabHelperPrerenderTest&) = delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(&https_server_);
+    prerender_helper_.RegisterServerRequestMonitor(&https_server_);
     SecurityStateTabHelperTest::SetUp();
   }
 
@@ -1586,7 +1587,8 @@ class SecurityStateTabHelperPrerenderTest : public SecurityStateTabHelperTest {
   content::WebContents* web_contents() { return web_contents_; }
 
  protected:
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
   content::test::PrerenderTestHelper prerender_helper_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };

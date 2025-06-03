@@ -7,14 +7,13 @@ package org.chromium.chrome.browser.signin.services;
 import android.accounts.Account;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.browser.SyncFirstSetupCompleteSource;
+import org.chromium.chrome.browser.signin.services.SigninManager.DataWipeOption;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInCallback;
-import org.chromium.chrome.browser.sync.SyncService;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountRenameChecker;
@@ -24,6 +23,7 @@ import org.chromium.components.signin.identitymanager.AccountTrackerService;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
+import org.chromium.components.sync.SyncService;
 
 import java.util.List;
 
@@ -34,6 +34,7 @@ public class SigninChecker implements AccountTrackerService.Observer {
     private static final String TAG = "SigninChecker";
     private final SigninManager mSigninManager;
     private final AccountTrackerService mAccountTrackerService;
+    private final SyncService mSyncService;
     private final AccountManagerFacade mAccountManagerFacade;
     // Counter to record the number of child account checks done for tests.
     private int mNumOfChildAccountChecksDone;
@@ -42,9 +43,11 @@ public class SigninChecker implements AccountTrackerService.Observer {
      * Please use {@link SigninCheckerProvider} to get {@link SigninChecker} instance instead of
      * creating it manually.
      */
-    public SigninChecker(SigninManager signinManager, AccountTrackerService accountTrackerService) {
+    public SigninChecker(SigninManager signinManager, AccountTrackerService accountTrackerService,
+            SyncService syncService) {
         mSigninManager = signinManager;
         mAccountTrackerService = accountTrackerService;
+        mSyncService = syncService;
         mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
         mNumOfChildAccountChecksDone = 0;
 
@@ -52,29 +55,33 @@ public class SigninChecker implements AccountTrackerService.Observer {
     }
 
     private void validateAccountSettings() {
-        mAccountManagerFacade.getAccounts().then(accounts -> {
-            mAccountTrackerService.seedAccountsIfNeeded(() -> {
-                mSigninManager.runAfterOperationInProgress(() -> {
-                    validatePrimaryAccountExists(accounts, /*accountsChanged=*/false);
-                    checkChildAccount(accounts);
-                });
-            });
-        });
+        mAccountManagerFacade
+                .getCoreAccountInfos()
+                .then(
+                        coreAccountInfos -> {
+                            mAccountTrackerService.legacySeedAccountsIfNeeded(
+                                    () -> {
+                                        mSigninManager.runAfterOperationInProgress(
+                                                () -> {
+                                                    validatePrimaryAccountExists(
+                                                            coreAccountInfos,
+                                                            /* accountsChanged= */ false);
+                                                    checkChildAccount(coreAccountInfos);
+                                                });
+                                    });
+                        });
     }
 
-    /**
-     * This method is invoked every time the accounts on device are seeded.
-     */
+    /** This method is invoked every time the accounts on device are seeded. */
     @Override
-    public void onAccountsSeeded(List<CoreAccountInfo> accountInfos, boolean accountsChanged) {
-        final List<Account> accounts = AccountUtils.toAndroidAccounts(accountInfos);
+    public void legacyOnAccountsSeeded(
+            List<CoreAccountInfo> coreAccountInfos, boolean accountsChanged) {
         mSigninManager.runAfterOperationInProgress(() -> {
-            validatePrimaryAccountExists(accounts, accountsChanged);
-            checkChildAccount(accounts);
+            validatePrimaryAccountExists(coreAccountInfos, accountsChanged);
+            checkChildAccount(coreAccountInfos);
         });
     }
 
-    @VisibleForTesting
     public int getNumOfChildAccountChecksDoneForTests() {
         return mNumOfChildAccountChecksDone;
     }
@@ -82,7 +89,8 @@ public class SigninChecker implements AccountTrackerService.Observer {
     /**
      * Validates that the primary account exists on device.
      */
-    private void validatePrimaryAccountExists(List<Account> accounts, boolean accountsChanged) {
+    private void validatePrimaryAccountExists(
+            List<CoreAccountInfo> coreAccountInfos, boolean accountsChanged) {
         final CoreAccountInfo oldAccount =
                 mSigninManager.getIdentityManager().getPrimaryAccountInfo(ConsentLevel.SIGNIN);
         boolean oldSyncConsent =
@@ -92,9 +100,9 @@ public class SigninChecker implements AccountTrackerService.Observer {
             // Do nothing if user is not signed in
             return;
         }
-        if (AccountUtils.findAccountByName(accounts, oldAccount.getEmail()) != null) {
-            // Reload the accounts if the primary account is still on device and this is triggered
-            // by an accounts change event.
+        if (coreAccountInfos.contains(oldAccount)) {
+            // Reload the coreAccountInfos if the primary account is still on device and this is
+            // triggered by an coreAccountInfos change event.
             if (accountsChanged) {
                 mSigninManager.reloadAllAccountsFromSystem(oldAccount.getId());
             }
@@ -102,7 +110,7 @@ public class SigninChecker implements AccountTrackerService.Observer {
         }
         // Check whether the primary account is renamed to another account when it is not on device
         AccountRenameChecker.get()
-                .getNewNameOfRenamedAccountAsync(oldAccount.getEmail(), accounts)
+                .getNewNameOfRenamedAccountAsync(oldAccount.getEmail(), coreAccountInfos)
                 .then(newAccountName -> {
                     if (newAccountName != null) {
                         // Sign in to the new account if the current primary account is renamed to
@@ -125,7 +133,7 @@ public class SigninChecker implements AccountTrackerService.Observer {
                         SigninAccessPoint.ACCOUNT_RENAMED, new SignInCallback() {
                             @Override
                             public void onSignInComplete() {
-                                SyncService.get().setFirstSetupComplete(
+                                mSyncService.setInitialSyncFeatureSetupComplete(
                                         SyncFirstSetupCompleteSource.BASIC_FLOW);
                             }
 
@@ -139,9 +147,9 @@ public class SigninChecker implements AccountTrackerService.Observer {
         }, false);
     }
 
-    private void checkChildAccount(List<Account> accounts) {
+    private void checkChildAccount(List<CoreAccountInfo> coreAccountInfos) {
         AccountUtils.checkChildAccountStatus(
-                mAccountManagerFacade, accounts, this::onChildAccountStatusReady);
+                mAccountManagerFacade, coreAccountInfos, this::onChildAccountStatusReady);
     }
 
     private void onChildAccountStatusReady(boolean isChild, @Nullable Account childAccount) {
@@ -164,7 +172,7 @@ public class SigninChecker implements AccountTrackerService.Observer {
                         RecordUserAction.record("Signin_Signin_WipeDataOnChildAccountSignin2");
                         mSigninManager.signin(
                                 childAccount, SigninAccessPoint.FORCED_SIGNIN, signInCallback);
-                    });
+                    }, DataWipeOption.WIPE_SYNC_DATA);
                     return;
                 }
             });

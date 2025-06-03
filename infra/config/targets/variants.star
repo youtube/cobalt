@@ -5,6 +5,72 @@
 load("//lib/targets.star", "targets")
 
 targets.variant(
+    name = "DISABLE_FIELD_TRIAL_CONFIG",
+    identifier = "Disable Field Trial Config",
+    args = [
+        "--disable-field-trial-config",
+        "--webview-verbose-logging",
+    ],
+)
+
+targets.variant(
+    name = "DISABLE_FIELD_TRIAL_CONFIG_WEBVIEW_COMMANDLINE",
+    identifier = "Disable Field Trial Config",
+    args = [
+        "--webview-command-line-arg=--disable-field-trial-config",
+        "--webview-command-line-arg=--webview-verbose-logging",
+    ],
+)
+
+targets.variant(
+    name = "SINGLE_GROUP_PER_STUDY_PREFER_EXISTING_BEHAVIOR",
+    identifier = "Single Group Per Study Prefer Existing Behavior Field Trial Config",
+    args = [
+        "--variations-test-seed-path=../../third_party/chromium-variations/single_group_per_study_prefer_existing_behavior/seed.json",
+        "--accept-empty-variations-seed-signature",
+        "--webview-verbose-logging",
+        "--disable-field-trial-config",
+        "--fake-variations-channel=stable",
+    ],
+)
+
+targets.variant(
+    name = "SINGLE_GROUP_PER_STUDY_PREFER_NEW_BEHAVIOR",
+    identifier = "Single Group Per Study Prefer New Behavior Field Trial Config",
+    args = [
+        "--variations-test-seed-path=../../third_party/chromium-variations/single_group_per_study_prefer_new_behavior/seed.json",
+        "--accept-empty-variations-seed-signature",
+        "--webview-verbose-logging",
+        "--disable-field-trial-config",
+        "--fake-variations-channel=stable",
+    ],
+)
+
+targets.variant(
+    name = "SINGLE_GROUP_PER_STUDY_PREFER_EXISTING_BEHAVIOR_WEBVIEW_COMMANDLINE",
+    identifier = "Single Group Per Study Prefer Existing Behavior Field Trial Config",
+    args = [
+        "--webview-variations-test-seed-path=../../third_party/chromium-variations/single_group_per_study_prefer_existing_behavior/seed.json",
+        "--webview-command-line-arg=--accept-empty-variations-seed-signature",
+        "--webview-command-line-arg=--webview-verbose-logging",
+        "--webview-command-line-arg=--disable-field-trial-config",
+        "--webview-command-line-arg=--fake-variations-channel=stable",
+    ],
+)
+
+targets.variant(
+    name = "SINGLE_GROUP_PER_STUDY_PREFER_NEW_BEHAVIOR_WEBVIEW_COMMANDLINE",
+    identifier = "Single Group Per Study Prefer New Behavior Field Trial Config",
+    args = [
+        "--webview-variations-test-seed-path=../../third_party/chromium-variations/single_group_per_study_prefer_new_behavior/seed.json",
+        "--webview-command-line-arg=--accept-empty-variations-seed-signature",
+        "--webview-command-line-arg=--webview-verbose-logging",
+        "--webview-command-line-arg=--disable-field-trial-config",
+        "--webview-command-line-arg=--fake-variations-channel=stable",
+    ],
+)
+
+targets.variant(
     name = "IPHONE_7_15_4_1",
     identifier = "iPhone 7 15.4.1",
     swarming = targets.swarming(
@@ -75,289 +141,280 @@ targets.variant(
 targets.variant(
     name = "SIM_IPAD_AIR_2_15_5",
     identifier = "iPad Air 2 15.5",
+    mixins = [
+        "ios_runtime_cache_15_5",
+    ],
     args = [
         "--platform",
         "iPad Air 2",
         "--version",
         "15.5",
     ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_AIR_5TH_GEN_15_5",
+    identifier = "iPad Air (5th generation) 15.5",
     mixins = [
         "ios_runtime_cache_15_5",
     ],
-)
-
-targets.variant(
-    name = "SIM_IPAD_AIR_3RD_GEN_16_2",
-    identifier = "iPad Air (3rd generation) 16.2",
     args = [
         "--platform",
-        "iPad Air (3rd generation)",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPAD_AIR_3RD_GEN_16_4",
-    identifier = "iPad Air (3rd generation) 16.4",
-    args = [
-        "--platform",
-        "iPad Air (3rd generation)",
-        "--version",
-        "16.4",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_4",
-    ],
-)
-
-# In Xcode 12, "iPad Pro (12.9-inch)" requires a generation suffix in
-# "platform" arg.
-targets.variant(
-    name = "SIM_IPAD_PRO_3RD_GEN_16_2",
-    identifier = "iPad Pro (12.9-inch) (3rd generation) 16.2",
-    args = [
-        "--platform",
-        "iPad Pro (12.9-inch) (3rd generation)",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPAD_PRO_3RD_GEN_16_2_T2",
-    identifier = "iPad Pro (12.9-inch) (3rd generation) 16.2",
-    args = [
-        "--platform",
-        "iPad Pro (12.9-inch) (3rd generation)",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-    swarming = targets.swarming(
-        dimensions = {
-            "cpu": "x86-64",
-            "mac_model": "Macmini8,1",
-            "os": "Mac-12",
-        },
-    ),
-)
-
-targets.variant(
-    name = "SIM_IPAD_PRO_3RD_GEN_16_4",
-    identifier = "iPad Pro (12.9-inch) (3rd generation) 16.4",
-    args = [
-        "--platform",
-        "iPad Pro (12.9-inch) (3rd generation)",
-        "--version",
-        "16.4",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_4",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPAD_PRO_3RD_GEN_15_5",
-    identifier = "iPad Pro (12.9-inch) (3rd generation) 15.5",
-    args = [
-        "--platform",
-        "iPad Pro (12.9-inch) (3rd generation)",
+        "iPad Air (5th generation)",
         "--version",
         "15.5",
     ],
-    mixins = [
-        "ios_runtime_cache_15_5",
-    ],
 )
 
 targets.variant(
-    name = "SIM_IPAD_6_GEN_16_2",
-    identifier = "iPad (6th generation) 16.2",
-    args = [
-        "--platform",
-        "iPad (6th generation)",
-        "--version",
-        "16.2",
-    ],
+    name = "SIM_IPAD_AIR_5TH_GEN_16_4",
+    identifier = "iPad Air (5th generation) 16.4",
     mixins = [
-        "ios_runtime_cache_16_2",
+        "ios_runtime_cache_16_4",
     ],
-)
-
-targets.variant(
-    name = "SIM_IPAD_6_GEN_16_4",
-    identifier = "iPad (6th generation) 16.4",
     args = [
         "--platform",
-        "iPad (6th generation)",
+        "iPad Air (5th generation)",
         "--version",
         "16.4",
     ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_AIR_5TH_GEN_17_0",
+    identifier = "iPad Air (5th generation) 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPad Air (5th generation)",
+        "--version",
+        "17.0",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_PRO_6TH_GEN_16_4",
+    identifier = "iPad Pro (12.9-inch) (6th generation) 16.4",
     mixins = [
         "ios_runtime_cache_16_4",
+    ],
+    args = [
+        "--platform",
+        "iPad Pro (12.9-inch) (6th generation)",
+        "--version",
+        "16.4",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_PRO_6TH_GEN_17_0",
+    identifier = "iPad Pro (12.9-inch) (6th generation) 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPad Pro (12.9-inch) (6th generation)",
+        "--version",
+        "17.0",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_10TH_GEN_16_4",
+    identifier = "iPad (10th generation) 16.4",
+    mixins = [
+        "ios_runtime_cache_16_4",
+    ],
+    args = [
+        "--platform",
+        "iPad (10th generation)",
+        "--version",
+        "16.4",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPAD_10TH_GEN_17_0",
+    identifier = "iPad (10th generation) 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPad (10th generation)",
+        "--version",
+        "17.0",
     ],
 )
 
 targets.variant(
     name = "SIM_IPHONE_6S_15_5",
     identifier = "iPhone 6s 15.5",
+    mixins = [
+        "ios_runtime_cache_15_5",
+    ],
     args = [
         "--platform",
         "iPhone 6s",
         "--version",
         "15.5",
     ],
-    mixins = [
-        "ios_runtime_cache_15_5",
-    ],
 )
 
 targets.variant(
-    name = "SIM_IPHONE_6S_PLUS_15_5",
-    identifier = "iPhone 6s Plus 15.5",
+    name = "SIM_IPHONE_13_15_5",
+    identifier = "iPhone 13 15.5",
+    mixins = [
+        "ios_runtime_cache_15_5",
+    ],
     args = [
         "--platform",
-        "iPhone 6s Plus",
+        "iPhone 13",
         "--version",
         "15.5",
     ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_16_4",
+    identifier = "iPhone 14 16.4",
+    mixins = [
+        "ios_runtime_cache_16_4",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14",
+        "--version",
+        "16.4",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_17_0",
+    identifier = "iPhone 14 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14",
+        "--version",
+        "17.0",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_PLUS_16_4",
+    identifier = "iPhone 14 Plus 16.4",
+    mixins = [
+        "ios_runtime_cache_16_4",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14 Plus",
+        "--version",
+        "16.4",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_PLUS_17_0",
+    identifier = "iPhone 14 Plus 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14 Plus",
+        "--version",
+        "17.0",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_PRO_MAX_16_4",
+    identifier = "iPhone 14 Pro Max 16.4",
+    mixins = [
+        "ios_runtime_cache_16_4",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14 Pro Max",
+        "--version",
+        "16.4",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_14_PRO_MAX_17_0",
+    identifier = "iPhone 14 Pro Max 17.0",
+    mixins = [
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPhone 14 Pro Max",
+        "--version",
+        "17.0",
+    ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_SE_3RD_GEN_15_5",
+    identifier = "iPhone SE (3rd generation) 15.5",
     mixins = [
         "ios_runtime_cache_15_5",
     ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_7_15_5",
-    identifier = "iPhone 7 15.5",
-    args = [
-        "--platform",
-        "iPhone 7",
-        "--version",
-        "15.5",
-    ],
-    mixins = [
-        "ios_runtime_cache_15_5",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_8_16_2",
-    identifier = "iPhone 8 16.2",
-    args = [
-        "--platform",
-        "iPhone 8",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_8_PLUS_16_2",
-    identifier = "iPhone 8 Plus 16.2",
-    args = [
-        "--platform",
-        "iPhone 8 Plus",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_SE_1ST_GEN_15_5",
-    identifier = "iPhone SE (1st generation) 15.5",
-    args = [
-        "--platform",
-        "iPhone SE (1st generation)",
-        "--version",
-        "15.5",
-    ],
-    mixins = [
-        "ios_runtime_cache_15_5",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_SE_3RD_GEN_16_2",
-    identifier = "iPhone SE (3rd generation) 16.2",
     args = [
         "--platform",
         "iPhone SE (3rd generation)",
         "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
+        "15.5",
     ],
 )
 
 targets.variant(
     name = "SIM_IPHONE_SE_3RD_GEN_16_4",
     identifier = "iPhone SE (3rd generation) 16.4",
+    mixins = [
+        "ios_runtime_cache_16_4",
+    ],
     args = [
         "--platform",
         "iPhone SE (3rd generation)",
         "--version",
         "16.4",
     ],
+)
+
+targets.variant(
+    name = "SIM_IPHONE_SE_3RD_GEN_17_0",
+    identifier = "iPhone SE (3rd generation) 17.0",
     mixins = [
-        "ios_runtime_cache_16_4",
+        "ios_runtime_cache_17_0",
+    ],
+    args = [
+        "--platform",
+        "iPhone SE (3rd generation)",
+        "--version",
+        "17.0",
     ],
 )
 
 targets.variant(
     name = "SIM_IPHONE_X_15_5",
     identifier = "iPhone X 15.5",
+    mixins = [
+        "ios_runtime_cache_15_5",
+    ],
     args = [
         "--platform",
         "iPhone X",
         "--version",
         "15.5",
-    ],
-    mixins = [
-        "ios_runtime_cache_15_5",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_X_16_2",
-    identifier = "iPhone X 16.2",
-    args = [
-        "--platform",
-        "iPhone X",
-        "--version",
-        "16.2",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_2",
-    ],
-)
-
-targets.variant(
-    name = "SIM_IPHONE_X_16_4",
-    identifier = "iPhone X 16.4",
-    args = [
-        "--platform",
-        "iPhone X",
-        "--version",
-        "16.4",
-    ],
-    mixins = [
-        "ios_runtime_cache_16_4",
     ],
 )
 
@@ -404,9 +461,9 @@ targets.variant(
     ],
     swarming = targets.swarming(
         dimensions = {
-            "cpu": "x86",
+            "cpu": "x86-64",
             "kvm": "1",
-            "os": "Ubuntu-18.04",
+            "os": "Ubuntu-22.04",
         },
     ),
 )
@@ -420,47 +477,20 @@ targets.variant(
 )
 
 targets.variant(
-    name = "LACROS_BETTY_PI_ARC",
-    identifier = "betty-pi-arc",
-    args = [
-        "--board=betty-pi-arc",
-        "--use-vm",
-    ],
-    swarming = targets.swarming(
-        dimensions = {
-            "cpu": "x86",
-            "kvm": "1",
-            "os": "Ubuntu-18.04",
-        },
-    ),
-)
-
-targets.variant(
     name = "LACROS_EVE",
     identifier = "eve",
     args = [
         "--board=eve",
         "--flash",
     ],
+    # TODO: crbug.com/1479528 - We have limited eve ChromeOS capacity in
+    # swarming, switch the try builders to use skylab or add additional ChromeOS
+    # capacity if we want to test eve on the CQ
+    ci_only = True,
     swarming = targets.swarming(
         dimensions = {
             "os": "ChromeOS",
             "device_type": "eve",
-        },
-    ),
-)
-
-targets.variant(
-    name = "LACROS_JACUZZI",
-    identifier = "jacuzzi",
-    args = [
-        "--board=jacuzzi",
-        "--flash",
-    ],
-    swarming = targets.swarming(
-        dimensions = {
-            "os": "ChromeOS",
-            "device_type": "jacuzzi",
         },
     ),
 )
@@ -479,5 +509,34 @@ targets.variant(
     identifier = "10de:2184",
     mixins = [
         "win10_nvidia_gtx_1660_stable",
+    ],
+)
+
+# Model validation tests with no args as they are passed in from Google3.
+targets.variant(
+    name = "MODEL_VALIDATION_BASE",
+    identifier = "MODEL_VALIDATION_BASE",
+)
+
+targets.variant(
+    name = "MODEL_VALIDATION_TRUNK",
+    identifier = "MODEL_VALIDATION_TRUNK",
+    linux_args = [
+        "--chromedriver",
+        "chromedriver",
+        "--binary",
+        "chrome",
+    ],
+    mac_args = [
+        "--chromedriver",
+        "chromedriver",
+        "--binary",
+        "Chromium.app/Contents/MacOS/Chromium",
+    ],
+    win64_args = [
+        "--chromedriver",
+        "chromedriver.exe",
+        "--binary",
+        "Chrome.exe",
     ],
 )

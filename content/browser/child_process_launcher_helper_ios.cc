@@ -69,6 +69,10 @@ ChildProcessTerminationInfo ChildProcessLauncherHelper::GetTerminationInfo(
     const ChildProcessLauncherHelper::Process& process,
     bool known_dead) {
   ChildProcessTerminationInfo info;
+  info.status = known_dead ? base::GetKnownDeadTerminationStatus(
+                                 process.process.Handle(), &info.exit_code)
+                           : base::GetTerminationStatus(
+                                 process.process.Handle(), &info.exit_code);
   return info;
 }
 
@@ -90,9 +94,9 @@ void ChildProcessLauncherHelper::ForceNormalProcessTerminationSync(
   base::EnsureProcessTerminated(std::move(process.process));
 }
 
-void ChildProcessLauncherHelper::SetProcessBackgroundedOnLauncherThread(
+void ChildProcessLauncherHelper::SetProcessPriorityOnLauncherThread(
     base::Process process,
-    bool is_background) {}
+    base::Process::Priority priority) {}
 
 // static
 base::File OpenFileToShare(const base::FilePath& path,

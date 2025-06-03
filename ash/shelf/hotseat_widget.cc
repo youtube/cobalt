@@ -375,11 +375,17 @@ class HotseatWindowTargeter : public aura::WindowTargeter {
                        gfx::Rect* hit_test_rect_mouse,
                        gfx::Rect* hit_test_rect_touch) const override {
     if (target == hotseat_widget_->GetNativeWindow()) {
-      // Shrink the hit bounds from the size of the window to the size of the
-      // hotseat translucent background.
-      gfx::Rect hit_bounds = target->bounds();
-      hit_bounds.ClampToCenteredSize(
-          hotseat_widget_->GetTranslucentBackgroundSize());
+      // Shrink the hit bounds from the size of the hotseat to the size of the
+      // scrollable shelf view.
+      auto* const scrollable_shelf_view =
+          hotseat_widget_->scrollable_shelf_view();
+
+      gfx::Rect hit_bounds = scrollable_shelf_view->GetLocalBounds();
+      hit_bounds.Inset(
+          scrollable_shelf_view->CalculateMirroredEdgePadding(true));
+      hit_bounds = scrollable_shelf_view->ConvertRectToWidget(hit_bounds);
+      hit_bounds.Offset(target->bounds().origin().OffsetFromOrigin());
+
       *hit_test_rect_mouse = *hit_test_rect_touch = hit_bounds;
       return true;
     }
@@ -471,7 +477,8 @@ class HotseatWidget::DelegateView : public HotseatTransitionAnimator::Observer,
   }
 
  private:
-  raw_ptr<FocusCycler, ExperimentalAsh> focus_cycler_ = nullptr;
+  raw_ptr<FocusCycler, DanglingUntriaged | ExperimentalAsh> focus_cycler_ =
+      nullptr;
   // A background layer that may be visible depending on HotseatState.
   raw_ptr<views::View, ExperimentalAsh> translucent_background_ = nullptr;
   raw_ptr<ScrollableShelfView, DanglingUntriaged | ExperimentalAsh>
@@ -530,6 +537,9 @@ void HotseatWidget::DelegateView::Init(
   auto* shadow_layer = shadow_->GetLayer();
   parent_layer->Add(shadow_layer);
   parent_layer->StackAtBottom(shadow_layer);
+
+  // Make shadow observe the widget theme change.
+  shadow_->ObserveColorProviderSource(hotseat_widget);
 }
 
 void HotseatWidget::DelegateView::UpdateTranslucentBackground() {
@@ -641,8 +651,11 @@ void HotseatWidget::DelegateView::SetBackgroundBlur(bool enable_blur) {
 
   const int blur_radius =
       enable_blur ? ShelfConfig::Get()->shelf_blur_radius() : 0;
-  if (translucent_background_->layer()->background_blur() != blur_radius)
+  if (translucent_background_->layer()->background_blur() != blur_radius) {
     translucent_background_->layer()->SetBackgroundBlur(blur_radius);
+    translucent_background_->layer()->SetBackdropFilterQuality(
+        ColorProvider::kBackgroundBlurQuality);
+  }
 }
 
 void HotseatWidget::DelegateView::OnHotseatTransitionAnimationWillStart(
@@ -762,6 +775,8 @@ void HotseatWidget::Initialize(aura::Window* container, Shelf* shelf) {
       std::make_unique<ScrollableShelfView>(ShelfModel::Get(), shelf));
   delegate_view_->Init(scrollable_shelf_view(), this);
   delegate_view_->SetEnableArrowKeyTraversal(true);
+  hotseat_window_targeter_ = std::make_unique<aura::ScopedWindowTargeter>(
+      GetNativeWindow(), std::make_unique<HotseatWindowTargeter>(this));
 
   // The initialization of scrollable shelf should update the translucent
   // background which is stored in |delegate_view_|. So initializes
@@ -958,6 +973,10 @@ gfx::Size HotseatWidget::CalculateInlineAppBarSize() const {
   return gfx::Size(hotseat_size, height);
 }
 
+void HotseatWidget::ReserveSpaceForAdjacentWidgets(const gfx::Insets& space) {
+  reserved_space_ = space;
+}
+
 void HotseatWidget::CalculateTargetBounds() {
   ShelfLayoutManager* layout_manager = shelf_->shelf_layout_manager();
   const HotseatState hotseat_target_state =
@@ -1018,13 +1037,19 @@ void HotseatWidget::CalculateTargetBounds() {
 }
 
 gfx::Rect HotseatWidget::GetTargetBounds() const {
-  return target_bounds_;
+  gfx::Rect inset_bounds = target_bounds_;
+  inset_bounds.Inset(reserved_space_);
+  return inset_bounds;
 }
 
 void HotseatWidget::UpdateLayout(bool animate) {
   const LayoutInputs new_layout_inputs = GetLayoutInputs();
   if (layout_inputs_ == new_layout_inputs)
     return;
+
+  // The cached `layout_inputs_` should always be up-to-date, thus it is updated
+  // here before all other potential shelf layout invocations.
+  layout_inputs_ = new_layout_inputs;
 
   // Never show this widget outside of an active session.
   if (!new_layout_inputs.is_active_session_state)
@@ -1074,7 +1099,6 @@ void HotseatWidget::UpdateLayout(bool animate) {
     SetBounds(target_bounds);
   }
 
-  layout_inputs_ = new_layout_inputs;
   delegate_view_->UpdateTranslucentBackground();
 
   // Setting visibility during an animation causes the visibility property to
@@ -1163,15 +1187,6 @@ void HotseatWidget::SetState(HotseatState state) {
     return;
 
   state_ = state;
-
-  // If the hotseat is not extended we can use the normal targeting as the
-  // hidden parts of the hotseat will not block non-shelf items from taking
-  if (state == HotseatState::kExtended) {
-    hotseat_window_targeter_ = std::make_unique<aura::ScopedWindowTargeter>(
-        GetNativeWindow(), std::make_unique<HotseatWindowTargeter>(this));
-  } else {
-    hotseat_window_targeter_.reset();
-  }
 }
 
 ui::Layer* HotseatWidget::GetLayerForNudgeAnimation() {
@@ -1180,7 +1195,9 @@ ui::Layer* HotseatWidget::GetLayerForNudgeAnimation() {
 
 HotseatWidget::LayoutInputs HotseatWidget::GetLayoutInputs() const {
   const ShelfLayoutManager* layout_manager = shelf_->shelf_layout_manager();
-  return {target_bounds_, CalculateShelfViewOpacity(),
+  gfx::Rect inset_bounds = target_bounds_;
+  inset_bounds.Inset(reserved_space_);
+  return {inset_bounds, CalculateShelfViewOpacity(),
           layout_manager->is_active_session_state()};
 }
 
@@ -1206,8 +1223,9 @@ void HotseatWidget::MaybeAdjustTargetBoundsForAppScaling(
 HotseatDensity HotseatWidget::CalculateTargetHotseatDensity() const {
   // App scaling is only applied to the standard shelf. So the hotseat density
   // should not update in dense shelf.
-  if (ShelfConfig::Get()->is_dense())
-    return target_hotseat_density_;
+  if (ShelfConfig::Get()->is_dense() || !shelf_->IsHorizontalAlignment()) {
+    return HotseatDensity::kNormal;
+  }
 
   // TODO(crbug.com/1081476): Currently the scaling animation of hotseat bounds
   // and that of shelf icons do not synchronize due to performance issue. As a

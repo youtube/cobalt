@@ -59,9 +59,14 @@ defaults.build_numbers.set(True)
 defaults.builder_group.set("chromium.dev")
 defaults.builderless.set(None)
 defaults.cpu.set(cpu.X86_64)
-defaults.executable.set("recipe:swarming/staging")
+defaults.executable.set("recipe:chromium")
 defaults.execution_timeout.set(3 * time.hour)
 defaults.os.set(os.LINUX_DEFAULT)
+defaults.properties.set({
+    "$build/chromium_swarming": {
+        "verbose": True,
+    },
+})
 defaults.service_account.set(
     "chromium-ci-builder-dev@chops-service-accounts.iam.gserviceaccount.com",
 )
@@ -114,6 +119,8 @@ ci_builder(
     ),
 )
 
+# TODO(crbug.com/1412588): Delete this builder when bionic image rolls are
+# disabled.
 ci_builder(
     name = "linux-rel-dev",
     description_html = "Test description. <b>Test HTML</b>.",
@@ -125,6 +132,7 @@ ci_builder(
             build_config = builder_config.build_config.RELEASE,
         ),
     ),
+    os = os.LINUX_BIONIC,
 )
 
 ci_builder(
@@ -196,6 +204,22 @@ ci_builder(
 )
 
 ci_builder(
+    name = "win-local-ssd-rel-dev",
+    description_html = "Ensures mounting local SSDs on Windows works.",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(config = "chromium"),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+        ),
+    ),
+    builderless = False,
+    os = os.WINDOWS_10,
+    ssd = 1,
+)
+
+ci_builder(
     name = "win-rel-dev",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(config = "chromium"),
@@ -206,6 +230,7 @@ ci_builder(
         ),
     ),
     os = os.WINDOWS_10,
+    ssd = 0,
 )
 
 ci_builder(

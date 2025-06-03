@@ -17,7 +17,6 @@ import androidx.preference.PreferenceCategory;
 
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.components.browser_ui.settings.FragmentSettingsLauncher;
 import org.chromium.components.browser_ui.settings.SettingsLauncher;
@@ -68,7 +67,7 @@ public class AdPersonalizationRemovedFragment extends PrivacySandboxSettingsBase
         assert mEmptyFledgePreference != null;
 
         if (mLargeIconBridge == null) {
-            mLargeIconBridge = new LargeIconBridge(Profile.getLastUsedRegularProfile());
+            mLargeIconBridge = new LargeIconBridge(getProfile());
         }
 
         for (Topic topic : PrivacySandboxBridge.getBlockedTopics()) {
@@ -150,7 +149,6 @@ public class AdPersonalizationRemovedFragment extends PrivacySandboxSettingsBase
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_id_targeted_help) {
             // Override action for the help button.
-            mSettingsLauncher.launchSettingsActivity(getContext(), LearnMoreFragment.class);
             return true;
         }
         return false;

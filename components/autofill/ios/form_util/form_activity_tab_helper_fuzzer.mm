@@ -16,10 +16,6 @@
 #import "ios/web/public/web_state.h"
 #include "testing/libfuzzer/proto/lpm_interface.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
@@ -70,7 +66,7 @@ DEFINE_PROTO_FUZZER(const web::ScriptMessageProto& proto_js_message) {
     // Insert the |frameID| at 98% probability. We still want to check how API
     // behaves at an invalid |frameID|.
     if (base::RandDouble() < 0.98) {
-      script_message->body()->SetStringKey("frameID", env.main_frame_id_);
+      script_message->body()->GetDict().Set("frameID", env.main_frame_id_);
     }
   }
 

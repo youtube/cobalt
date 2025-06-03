@@ -507,7 +507,9 @@ void Parser::DeserializeScopeChain(
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
         ast_value_factory(), mode);
-    if (flags().is_eval() || IsArrowFunction(flags().function_kind())) {
+    if (flags().is_eval() || IsArrowFunction(flags().function_kind()) ||
+        flags().function_kind() ==
+            FunctionKind::kClassStaticInitializerFunction) {
       original_scope_->GetReceiverScope()->DeserializeReceiver(
           ast_value_factory());
     }
@@ -575,7 +577,7 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
     if (!flags().is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script->source()).length();
+      end = String::cast(script->source())->length();
     }
     LOG(isolate,
         FunctionEvent(event_name, flags().script_id(), ms, start, end, "", 0));
@@ -858,12 +860,10 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // If the function is a class member initializer and there isn't a
   // scope mismatch, we will only deserialize up to the outer scope of
   // the class scope, and regenerate the class scope during reparsing.
-  if (flags().function_kind() ==
-          FunctionKind::kClassMembersInitializerFunction &&
+  if (IsClassMembersInitializerFunction(flags().function_kind()) &&
       shared_info->HasOuterScopeInfo() &&
       maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
-      maybe_outer_scope_info.ToHandleChecked()->StartPosition() ==
-          start_position) {
+      maybe_outer_scope_info.ToHandleChecked()->EndPosition() == end_position) {
     Handle<ScopeInfo> outer_scope_info =
         maybe_outer_scope_info.ToHandleChecked();
     if (outer_scope_info->HasOuterScopeInfo()) {
@@ -898,20 +898,28 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
       shared_info->Name(), SharedStringAccessGuardIfNeeded(isolate)));
   scanner_.Initialize();
 
+  FunctionKind function_kind = flags().function_kind();
   FunctionLiteral* result;
-  if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
-                  original_scope_->is_class_scope())) {
+  if (V8_UNLIKELY(IsClassMembersInitializerFunction(function_kind))) {
+    // Reparsing of class member initializer functions has to be handled
+    // specially because they require reparsing of the whole class body,
+    // function start/end positions correspond to the class literal body
+    // positions.
+    result = ParseClassForMemberInitialization(
+        isolate, maybe_outer_scope_info, function_kind, start_position,
+        function_literal_id, end_position, info->function_name());
+
+  } else if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
+                         original_scope_->is_class_scope())) {
     // If the function skips the outer class and the outer scope is a class, the
     // function is in heritage position. Otherwise the function scope's skip bit
     // will be correctly inherited from the outer scope.
     ClassScope::HeritageParsingScope heritage(original_scope_->AsClassScope());
-    result = DoParseDeserializedFunction(
-        isolate, maybe_outer_scope_info, info, start_position, end_position,
-        function_literal_id, info->function_name());
+    result = DoParseFunction(isolate, info, start_position, end_position,
+                             function_literal_id, info->function_name());
   } else {
-    result = DoParseDeserializedFunction(
-        isolate, maybe_outer_scope_info, info, start_position, end_position,
-        function_literal_id, info->function_name());
+    result = DoParseFunction(isolate, info, start_position, end_position,
+                             function_literal_id, info->function_name());
   }
   MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
@@ -1074,29 +1082,15 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   return result;
 }
 
-FunctionLiteral* Parser::DoParseDeserializedFunction(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-    ParseInfo* info, int start_position, int end_position,
-    int function_literal_id, const AstRawString* raw_name) {
-  if (flags().function_kind() ==
-      FunctionKind::kClassMembersInitializerFunction) {
-    return ParseClassForInstanceMemberInitialization(
-        isolate, maybe_outer_scope_info, start_position, function_literal_id,
-        end_position);
-  }
-
-  return DoParseFunction(isolate, info, start_position, end_position,
-                         function_literal_id, raw_name);
-}
-
-FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
+FunctionLiteral* Parser::ParseClassForMemberInitialization(
     Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-    int initializer_pos, int initializer_id, int initializer_end_pos) {
-  // When the function is a kClassMembersInitializerFunction, we record the
-  // source range of the entire class as its positions in its SFI, so at this
-  // point the scanner should be rewound to the position of the class token.
-  int class_token_pos = initializer_pos;
-  DCHECK_EQ(peek_position(), class_token_pos);
+    FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
+    int initializer_end_pos, const AstRawString* class_name) {
+  // When the function is a class members initializer function, we record the
+  // source range of the entire class body as its positions in its SFI, so at
+  // this point the scanner should be rewound to the position of the class
+  // token.
+  DCHECK_EQ(peek_position(), initializer_pos);
 
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
@@ -1111,15 +1105,53 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   ExpressionParsingScope no_expression_scope(impl());
 
-  // Reparse the class as an expression to build the instance member
-  // initializer function.
-  Expression* expr = ParseClassExpression(original_scope_);
+  // Reparse the whole class body to build member initializer functions.
+  Expression* expr;
+  {
+    bool is_anonymous = IsNull(class_name);
+    ClassScope* class_scope = NewClassScope(original_scope_, is_anonymous);
+    BlockState block_state(&scope_, class_scope);
+    RaiseLanguageMode(LanguageMode::kStrict);
+
+    BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
+
+    ClassInfo class_info(this);
+    class_info.is_anonymous = is_anonymous;
+
+    // Create an arbitrary non-Null expression to indicate that the class
+    // extends something. Doing so unconditionally is fine because:
+    //  - the fact whether the class extends something affects parsing of
+    //    'super' expressions which cause parse-time SyntaxError if the class
+    //    is not a derived one. However, all such errors must have been
+    //    reported during initial parse of the class declaration.
+    //  - "extends" clause affects class constructor's FunctionKind, but here
+    //    we are interested only in the member initializer functions and thus
+    //    we can ignore the constructor function details.
+    //
+    // Given all the above we can simplify things and for the purpose of class
+    // member initializers reparsing don't bother propagating the existence of
+    // the "extends" clause through scope serialization/deserialization.
+    class_info.extends = factory()->NewNullLiteral(kNoSourcePosition);
+
+    // Note that we don't recheck class_name for strict-reserved words or eval
+    // because all such checks have already been done during initial paring and
+    // respective SyntaxErrors must have been thrown if necessary.
+
+    // Class initializers don't care about position of the class token.
+    int class_token_pos = kNoSourcePosition;
+    expr = ParseClassLiteralBody(class_scope, class_info, class_name,
+                                 class_token_pos);
+  }
+
   if (has_error()) return nullptr;
 
   DCHECK(expr->IsClassLiteral());
+  DCHECK(IsClassMembersInitializerFunction(initalizer_kind));
   ClassLiteral* literal = expr->AsClassLiteral();
   FunctionLiteral* initializer =
-      literal->instance_members_initializer_function();
+      initalizer_kind == FunctionKind::kClassMembersInitializerFunction
+          ? literal->instance_members_initializer_function()
+          : literal->static_initializer();
 
   // Reindex so that the function literal ids match.
   AstFunctionLiteralIdReindexer reindexer(
@@ -1133,8 +1165,8 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   bool needs_allocation_fixup =
       !maybe_class_scope_info.is_null() &&
       maybe_class_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
-      maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
-          class_token_pos;
+      maybe_class_scope_info.ToHandleChecked()->EndPosition() ==
+          initializer_end_pos;
 
   ClassScope* reparsed_scope = literal->scope();
   reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_class_scope_info,
@@ -1142,8 +1174,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
                                              needs_allocation_fixup);
   original_scope_ = reparsed_scope;
 
-  DCHECK_EQ(initializer->kind(),
-            FunctionKind::kClassMembersInitializerFunction);
+  DCHECK_EQ(initializer->kind(), initalizer_kind);
   DCHECK_EQ(initializer->function_literal_id(), initializer_id);
   DCHECK_EQ(initializer->end_position(), initializer_end_pos);
 
@@ -1344,39 +1375,40 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 }
 
 ImportAssertions* Parser::ParseImportAssertClause() {
+  // WithClause :
+  //    with '{' '}'
+  //    with '{' WithEntries ','? '}'
+
+  // WithEntries :
+  //    LiteralPropertyName
+  //    LiteralPropertyName ':' StringLiteral , WithEntries
+
+  // (DEPRECATED)
   // AssertClause :
   //    assert '{' '}'
-  //    assert '{' AssertEntries '}'
-
-  // AssertEntries :
-  //    IdentifierName: AssertionKey
-  //    IdentifierName: AssertionKey , AssertEntries
-
-  // AssertionKey :
-  //     IdentifierName
-  //     StringLiteral
+  //    assert '{' WithEntries ','? '}'
 
   auto import_assertions = zone()->New<ImportAssertions>(zone());
 
-  if (!v8_flags.harmony_import_assertions) {
-    return import_assertions;
-  }
-
-  // Assert clause is optional, and cannot be preceded by a LineTerminator.
-  if (scanner()->HasLineTerminatorBeforeNext() ||
-      !CheckContextualKeyword(ast_value_factory()->assert_string())) {
+  if (v8_flags.harmony_import_attributes && Check(Token::WITH)) {
+    // 'with' keyword consumed
+  } else if (v8_flags.harmony_import_assertions &&
+             !scanner()->HasLineTerminatorBeforeNext() &&
+             CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    // The 'assert' contextual keyword is deprecated in favor of 'with', and we
+    // need to investigate feasibility of unshipping.
+    //
+    // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
+    ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
+  } else {
     return import_assertions;
   }
 
   Expect(Token::LBRACE);
 
   while (peek() != Token::RBRACE) {
-    const AstRawString* attribute_key = nullptr;
-    if (Check(Token::STRING)) {
-      attribute_key = GetSymbol();
-    } else {
-      attribute_key = ParsePropertyName();
-    }
+    const AstRawString* attribute_key =
+        Check(Token::STRING) ? GetSymbol() : ParsePropertyName();
 
     Scanner::Location location = scanner()->location();
 
@@ -1406,12 +1438,6 @@ ImportAssertions* Parser::ParseImportAssertClause() {
   }
 
   Expect(Token::RBRACE);
-
-  // The 'assert' contextual keyword is deprecated in favor of 'with', and we
-  // need to investigate feasibility of unshipping.
-  //
-  // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
-  ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
 
   return import_assertions;
 }
@@ -1704,7 +1730,7 @@ Statement* Parser::ParseExportDeclaration() {
         const ImportAssertions* import_assertions = ParseImportAssertClause();
         ExpectSemicolon();
 
-        if (export_data->is_empty()) {
+        if (export_data->empty()) {
           module()->AddEmptyImport(module_specifier, import_assertions,
                                    specifier_loc, zone());
         } else {
@@ -2653,7 +2679,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called() || is_wrapped ||
               params_need_validation ||
-              scanner()->SawMagicCommentCompileHintsAll()
+              (info()->flags().compile_hints_magic_enabled() &&
+               scanner()->SawMagicCommentCompileHintsAll())
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
@@ -2692,15 +2719,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), info()->flags().allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
-  if (eager_compile_hint == FunctionLiteral::kShouldLazyCompile) {
-    // Apply compile hints from the embedder.
-    int compile_hint_position = peek_position();
-    v8::CompileHintCallback callback = info()->compile_hint_callback();
-    if (callback != nullptr &&
-        callback(compile_hint_position, info()->compile_hint_callback_data())) {
-      eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-    }
-  }
+
+  int compile_hint_position = peek_position();
+  eager_compile_hint =
+      GetEmbedderCompileHint(eager_compile_hint, compile_hint_position);
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
@@ -3249,19 +3271,20 @@ void Parser::AddClassStaticBlock(Block* block, ClassInfo* class_info) {
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
-    const char* name, DeclarationScope* scope, Statement* initializer_stmt) {
+    const AstRawString* class_name, DeclarationScope* scope,
+    Statement* initializer_stmt) {
   DCHECK(IsClassMembersInitializerFunction(scope->function_kind()));
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
   statements.Add(initializer_stmt);
   FunctionLiteral* result = factory()->NewFunctionLiteral(
-      ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
+      class_name, scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
 #ifdef DEBUG
-  scope->SetScopeName(ast_value_factory()->GetOneByteString(name));
+  scope->SetScopeName(class_name);
 #endif
   RecordFunctionLiteralSourceRange(result);
 
@@ -3298,7 +3321,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   FunctionLiteral* static_initializer = nullptr;
   if (class_info->has_static_elements) {
     static_initializer = CreateInitializerFunction(
-        "<static_initializer>", class_info->static_elements_scope,
+        name, class_info->static_elements_scope,
         factory()->NewInitializeClassStaticElementsStatement(
             class_info->static_elements, kNoSourcePosition));
   }
@@ -3306,7 +3329,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
-        "<instance_members_initializer>", class_info->instance_members_scope,
+        name, class_info->instance_members_scope,
         factory()->NewInitializeClassMembersStatement(
             class_info->instance_fields, kNoSourcePosition));
     class_info->constructor->set_requires_instance_members_initializer(true);
@@ -3398,7 +3421,7 @@ void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
   // The API can provide a source map URL and the API should take precedence.
   // Let's make sure we do not override the API with the magic comment.
   if (!source_mapping_url.is_null() &&
-      script->source_mapping_url(isolate).IsUndefined(isolate)) {
+      IsUndefined(script->source_mapping_url(isolate), isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }
@@ -3427,6 +3450,9 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   if (scanner_.SawMagicCommentCompileHintsAll()) {
     isolate->CountUsage(v8::Isolate::kCompileHintsMagicAll);
   }
+  if (scanner_.SawSourceMappingUrlMagicCommentAtSign()) {
+    isolate->CountUsage(v8::Isolate::kSourceMappingUrlMagicCommentAtSign);
+  }
 }
 
 void Parser::UpdateStatistics(
@@ -3448,6 +3474,9 @@ void Parser::UpdateStatistics(
   }
   if (scanner_.SawMagicCommentCompileHintsAll()) {
     use_counts->emplace_back(v8::Isolate::kCompileHintsMagicAll);
+  }
+  if (scanner_.SawSourceMappingUrlMagicCommentAtSign()) {
+    use_counts->emplace_back(v8::Isolate::kSourceMappingUrlMagicCommentAtSign);
   }
 
   *preparse_skipped = total_preparse_skipped_;

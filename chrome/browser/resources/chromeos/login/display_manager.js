@@ -8,6 +8,7 @@
 
 import {assert} from '//resources/ash/common/assert.js';
 import {$, ensureTransitionEndEvent} from '//resources/ash/common/util.js';
+import {afterNextRender} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {DISPLAY_TYPE, OOBE_UI_STATE, SCREEN_DEVICE_DISABLED, SCREEN_WELCOME} from './components/display_manager_types.js';
 import {globalOobeKeyboard} from './components/keyboard_utils_oobe.js';
@@ -19,10 +20,16 @@ import {MultiTapDetector} from './multi_tap_detector.js';
  * Maximum time in milliseconds to wait for step transition to finish.
  * The value is used as the duration for ensureTransitionEndEvent below.
  * It needs to be inline with the step screen transition duration time
- * defined in css file. The current value in css is 200ms. To avoid emulated
- * transitionend fired before real one, 250ms is used.
+ * defined in css file. The current value in css is 1,150ms. To avoid emulated
+ * transitionend fired before real one, +50ms is used.
  */
-const MAX_SCREEN_TRANSITION_DURATION = 250;
+const MAX_SCREEN_TRANSITION_DURATION = 1200;
+
+/**
+ * Maximum delay to call triggerDown from cpp logic. If the logic fails,
+ * triggerDown should be called after this duration to unblock CUJ.
+ */
+const TRIGGERDOWN_FALLBACK_DELAY = 10000;
 
 /**
  * As Polymer behaviors do not provide true inheritance, when two behaviors
@@ -111,10 +118,6 @@ export function invokePolymerMethod(element, name, ...args) {
        * @private
        */
       this.demoModeStartListener_ = null;
-    }
-
-    get virtualKeyboardShown() {
-      return this.virtualKeyboardShown_;
     }
 
     set virtualKeyboardShown(shown) {
@@ -220,6 +223,9 @@ export function invokePolymerMethod(element, name, ...args) {
       const nextStepId = this.screens_[nextStepIndex];
       const oldStep = $(currentStepId);
       const newStep = $(nextStepId);
+      const innerContainer = $('inner-container');
+      const oobeContainer = $('oobe');
+      const isOobeSimonEnabled = loadTimeData.getBoolean('isOobeSimonEnabled');
 
       invokePolymerMethod(oldStep, 'onBeforeHide');
 
@@ -254,7 +260,6 @@ export function invokePolymerMethod(element, name, ...args) {
       // Default control to be focused (if specified).
       const defaultControl = newStep.defaultControl;
 
-      const innerContainer = $('inner-container');
       if (this.currentStep_ != nextStepIndex &&
           !oldStep.classList.contains('hidden')) {
         oldStep.classList.add('hidden');
@@ -265,17 +270,12 @@ export function invokePolymerMethod(element, name, ...args) {
       } else {
         // First screen on OOBE launch.
         if (this.isOobeUI() && innerContainer.classList.contains('down')) {
-          innerContainer.classList.remove('down');
-          innerContainer.addEventListener('transitionend', function f(e) {
-            innerContainer.removeEventListener('transitionend', f);
-            // Refresh defaultControl. It could have changed.
-            const defaultControl = newStep.defaultControl;
-            if (defaultControl) {
-              defaultControl.focus();
-            }
-          });
-          ensureTransitionEndEvent(
-              innerContainer, MAX_SCREEN_TRANSITION_DURATION);
+          if (isOobeSimonEnabled &&
+              oobeContainer.classList.contains('connect')) {
+            setTimeout(this.triggerDown.bind(this), TRIGGERDOWN_FALLBACK_DELAY);
+          } else {
+            this.triggerDown();
+          }
         } else {
           if (defaultControl) {
             defaultControl.focus();
@@ -291,7 +291,22 @@ export function invokePolymerMethod(element, name, ...args) {
       $('oobe').dispatchEvent(
           new CustomEvent('screenchanged', {detail: this.currentScreen.id}));
       chrome.send('updateCurrentScreen', [this.currentScreen.id]);
+
+      // Post a task to finish initial animation once a frame is rendered.
+      // Posting the task makes sure it will be executed after all other
+      // pending calls happening in JS that might delay the paint event.
+      if (isOobeSimonEnabled && innerContainer.classList.contains('down')) {
+        afterNextRender(this, () => this.sendBackdropLoaded());
+      }
     }
+
+    /**
+     * Notify browser that backdrop is ready.
+     */
+    sendBackdropLoaded() {
+      chrome.send('backdropLoaded');
+    }
+
 
     /**
      * Show screen of given screen id.
@@ -384,9 +399,10 @@ export function invokePolymerMethod(element, name, ...args) {
 
     /**
      * Updates "device in tablet mode" state when tablet mode is changed.
-     * @param {Boolean} isInTabletMode True when in tablet mode.
+     * @param {boolean} isInTabletMode True when in tablet mode.
      */
     setTabletModeState_(isInTabletMode) {
+      document.documentElement.setAttribute('tablet', isInTabletMode);
       for (let i = 0; i < this.screens_.length; ++i) {
         const screenId = this.screens_[i];
         const screen = $(screenId);
@@ -394,6 +410,29 @@ export function invokePolymerMethod(element, name, ...args) {
           screen.setTabletModeState(isInTabletMode);
         }
       }
+    }
+
+    /**
+     * Trigger of play down animation for current screen step.
+     */
+    triggerDown() {
+      const innerContainer = $('inner-container');
+      if (!this.isOobeUI() || !innerContainer.classList.contains('down')) {
+        return;
+      }
+
+      innerContainer.classList.remove('down');
+      innerContainer.addEventListener('transitionend', () => {
+        // Refresh defaultControl. It could have changed.
+        const stepId = this.screens_[this.currentStep_];
+        const step = $(stepId);
+        const defaultControl = step.defaultControl;
+        innerContainer.classList.add('down-finished');
+        if (defaultControl) {
+          defaultControl.focus();
+        }
+      }, /*AddEventListenerOptions=*/ {once: true});
+      ensureTransitionEndEvent(innerContainer, MAX_SCREEN_TRANSITION_DURATION);
     }
 
     /** Initializes demo mode start listener.

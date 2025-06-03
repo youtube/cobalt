@@ -12,10 +12,6 @@
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/gfx/ios/uikit_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface GridHeader ()
 // Visual components of the view.
 @property(nonatomic, weak) UIStackView* containerView;
@@ -113,7 +109,7 @@
 #pragma mark - Private
 
 // The collection view header always stretch across the whole collection view
-// width. to work around that, this method adds a padding to the container view
+// width. To work around that, this method adds a padding to the container view
 // based on the current layout and the size classes.
 - (void)updateContentInsets {
   UIEdgeInsets contentInsets;

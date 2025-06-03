@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("incognito") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "incognito_view.h",
     "incognito_view.mm",
@@ -17,8 +16,8 @@ source_set("incognito") {
     "//base",
     "//components/strings",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/drag_and_drop",
+    "//ios/chrome/browser/drag_and_drop/model",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
@@ -28,7 +27,7 @@ source_set("incognito") {
     "//ios/chrome/browser/ui/ntp:ntp_internal",
     "//ios/chrome/browser/ui/toolbar/public",
     "//ios/chrome/browser/ui/toolbar/public:constants",
-    "//ios/chrome/browser/url_loading",
+    "//ios/chrome/browser/url_loading/model",
     "//ios/chrome/common:string_util",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
@@ -37,14 +36,13 @@ source_set("incognito") {
 }
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "incognito_view_util.h",
     "incognito_view_util.mm",
   ]
   deps = [
     "//components/google/core/common",
-    "//ios/chrome/browser/application_context",
+    "//ios/chrome/browser/shared/model/application_context",
   ]
   public_deps = [ "//url:url" ]
 }

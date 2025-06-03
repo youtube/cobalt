@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 package org.chromium.chrome.browser.gesturenav;
+
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.UserData;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
+
 /**
  * A handler to trigger seamless navigation / predictive back animation when a back gesture is
  * performed on a navigable tab page.
@@ -28,17 +31,18 @@ public class TabOnBackGestureHandler implements UserData {
     private TabOnBackGestureHandler(Tab tab) {
         mNativePtr = TabOnBackGestureHandlerJni.get().init(tab);
     }
-    void onBackStarted(float x, float y, float progress, @BackGestureEventSwipeEdge int edge,
+    public void onBackStarted(float x, float y, float progress, @BackGestureEventSwipeEdge int edge,
             boolean forward) {
         TabOnBackGestureHandlerJni.get().onBackStarted(mNativePtr, x, y, progress, edge, forward);
     }
-    void onBackProgressed(float x, float y, float progress, @BackGestureEventSwipeEdge int edge) {
+    public void onBackProgressed(
+            float x, float y, float progress, @BackGestureEventSwipeEdge int edge) {
         TabOnBackGestureHandlerJni.get().onBackProgressed(mNativePtr, x, y, progress, edge);
     }
-    void onBackCancelled() {
+    public void onBackCancelled() {
         TabOnBackGestureHandlerJni.get().onBackCancelled(mNativePtr);
     }
-    void onBackInvoked() {
+    public void onBackInvoked() {
         TabOnBackGestureHandlerJni.get().onBackInvoked(mNativePtr);
     }
     @Override

@@ -23,12 +23,15 @@ struct OverflowMenuActionSection: View {
       content: {
         ForEach(actionGroup.actions) { action in
           OverflowMenuActionRow(action: action, metricsHandler: metricsHandler)
+            .moveDisabled(!actionGroup.supportsReordering)
         }
+        .onMove(perform: move)
       },
       header: {
         Spacer()
           .frame(height: Dimensions.headerFooterHeight)
           .listRowInsets(EdgeInsets())
+          .accessibilityHidden(true)
       },
       footer: {
         if let actionFooter = actionGroup.footer {
@@ -39,7 +42,12 @@ struct OverflowMenuActionSection: View {
             // it uses a default height.
             .frame(height: CGFloat.leastNonzeroMagnitude)
             .listRowInsets(EdgeInsets())
+            .accessibilityHidden(true)
         }
       })
+  }
+
+  func move(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+    actionGroup.actions.move(fromOffsets: offsets, toOffset: destination)
   }
 }

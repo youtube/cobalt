@@ -66,6 +66,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   WebViewImpl* GetWebView() const override;
   void ChromeDestroyed() override;
   void SetWindowRect(const gfx::Rect&, LocalFrame&) override;
+  void SetResizable(bool resizable, LocalFrame& frame) override;
   gfx::Rect RootWindowRect(LocalFrame&) override;
   void DidAccessInitialMainDocument() override;
   void FocusPage() override;
@@ -109,12 +110,12 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                      const gfx::Vector2dF& velocity_in_viewport) override;
   void SetOverscrollBehavior(LocalFrame& main_frame,
                              const cc::OverscrollBehavior&) override;
-  void InjectGestureScrollEvent(LocalFrame& local_frame,
-                                WebGestureDevice device,
-                                const gfx::Vector2dF& delta,
-                                ui::ScrollGranularity granularity,
-                                CompositorElementId scrollable_area_element_id,
-                                WebInputEvent::Type injected_type) override;
+  void InjectScrollbarGestureScroll(
+      LocalFrame& local_frame,
+      const gfx::Vector2dF& delta,
+      ui::ScrollGranularity granularity,
+      CompositorElementId scrollable_area_element_id,
+      WebInputEvent::Type injected_type) override;
   void FinishScrollFocusedEditableIntoView(
       const gfx::RectF& caret_rect_in_root_frame,
       mojom::blink::ScrollIntoViewParamsPtr params) override;
@@ -260,7 +261,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void OpenTextDataListChooser(HTMLInputElement&) override;
   void TextFieldDataListChanged(HTMLInputElement&) override;
   void DidChangeSelectionInSelectControl(HTMLFormControlElement&) override;
-  void SelectFieldOptionsChanged(HTMLFormControlElement&) override;
+  void SelectOrSelectListFieldOptionsChanged(HTMLFormControlElement&) override;
   void AjaxSucceeded(LocalFrame*) override;
   void JavaScriptChangedAutofilledValue(HTMLFormControlElement&,
                                         const String& old_value) override;

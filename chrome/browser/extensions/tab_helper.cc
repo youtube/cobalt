@@ -8,8 +8,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
-#include "base/strings/string_util.h"
-#include "base/strings/utf_string_conversions.h"
+#include "base/notreached.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/activity_log/activity_log.h"
 #include "chrome/browser/extensions/api/bookmark_manager_private/bookmark_manager_private_api.h"
@@ -20,6 +19,7 @@
 #include "chrome/browser/extensions/install_observer.h"
 #include "chrome/browser/extensions/install_tracker.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
+#include "chrome/browser/extensions/site_permissions_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_tab_helper_factory.h"
 #include "chrome/browser/shell_integration.h"
@@ -31,15 +31,12 @@
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/url_constants.h"
-#include "components/back_forward_cache/back_forward_cache_disable.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -53,6 +50,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/extension_web_contents_observer.h"
 #include "extensions/browser/image_loader.h"
+#include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_icon_set.h"
 #include "extensions/common/extension_messages.h"
@@ -64,7 +62,6 @@
 #include "extensions/common/permissions/api_permission.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
-#include "third_party/blink/public/common/features.h"
 #include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_SESSION_SERVICE)
@@ -80,63 +77,6 @@ namespace extensions {
 
 namespace {
 
-bool AreAllExtensionsAllowedForBFCache() {
-  static base::FeatureParam<bool> all_extensions_allowed(
-      &features::kBackForwardCache, "all_extensions_allowed", true);
-  return all_extensions_allowed.Get();
-}
-
-std::string BlockedExtensionListForBFCache() {
-  static base::FeatureParam<std::string> extensions_blocked(
-      &features::kBackForwardCache, "blocked_extensions", "");
-  return extensions_blocked.Get();
-}
-
-// Check `enabled_extensions` if any of them are specified in the
-// `blocked_extensions` or not.
-bool ProcessDisabledExtensions(const std::string& feature,
-                               const ExtensionSet& enabled_extensions,
-                               content::BrowserContext* context,
-                               bool all_allowed,
-                               const std::string& blocked_extensions) {
-  // If we allow all extensions and there aren't any blocked, then just return.
-  if (all_allowed && blocked_extensions.empty())
-    return false;
-
-  std::vector<std::string> blocked_extensions_list =
-      base::SplitString(blocked_extensions, ",", base::TRIM_WHITESPACE,
-                        base::SPLIT_WANT_NONEMPTY);
-
-  // Compute whether we need to disable it.
-  bool disabled_feature = false;
-  for (const auto& extension : enabled_extensions) {
-    // Skip component extensions, apps, themes, shared modules and the google
-    // docs pre-installed extension.
-    if (Manifest::IsComponentLocation(extension->location()) ||
-        extension->is_app() || extension->is_theme() ||
-        extension->is_shared_module() ||
-        extension->id() == extension_misc::kDocsOfflineExtensionId) {
-      continue;
-    }
-    if (util::IsExtensionVisibleToContext(*extension, context)) {
-      // If we are allowing all extensions with a block filter set, and this
-      // extension is not in it then continue.
-      if (all_allowed &&
-          !base::Contains(blocked_extensions_list, extension->id())) {
-        continue;
-      }
-
-      VLOG(1) << "Disabled " << feature << " due to " << extension->short_name()
-              << "," << extension->id();
-      disabled_feature = true;
-      // TODO(dtapuska): Early termination disabled for now to capture VLOG(1)
-      // break;
-    }
-  }
-
-  return disabled_feature;
-}
-
 void DisableBackForwardCacheIfNecessary(
     const ExtensionSet& enabled_extensions,
     content::BrowserContext* context,
@@ -148,23 +88,6 @@ void DisableBackForwardCacheIfNecessary(
   if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled() ||
       context->GetUserData(kIsBFCacheDisabledKey)) {
     return;
-  }
-
-  if (ProcessDisabledExtensions("bfcache", enabled_extensions, context,
-                                AreAllExtensionsAllowedForBFCache(),
-                                BlockedExtensionListForBFCache())) {
-    // Set a user data key indicating we've disabled bfcache for this
-    // context.
-    context->SetUserData(kIsBFCacheDisabledKey,
-                         std::make_unique<base::SupportsUserData::Data>());
-
-    // We do not care if GetPreviousRenderFrameHostId returns a reused
-    // RenderFrameHost since disabling the cache multiple times has no side
-    // effects.
-    content::BackForwardCache::DisableForRenderFrameHost(
-        navigation_handle->GetPreviousRenderFrameHostId(),
-        back_forward_cache::DisabledReason(
-            back_forward_cache::DisabledReasonId::kExtensions));
   }
 }
 
@@ -250,6 +173,57 @@ SkBitmap* TabHelper::GetExtensionAppIcon() {
   return &extension_app_icon_;
 }
 
+void TabHelper::SetReloadRequired(
+    PermissionsManager::UserSiteSetting site_setting) {
+  switch (site_setting) {
+    case PermissionsManager::UserSiteSetting::kGrantAllExtensions: {
+      // Granting access to all extensions is allowed iff feature is
+      // enabled, and it shouldn't be enabled anywhere where this is called.
+      NOTREACHED_NORETURN();
+    }
+    case PermissionsManager::UserSiteSetting::kBlockAllExtensions: {
+      // A reload is required if any extension that had site access will lose
+      // it.
+      content::WebContents* web_contents = GetVisibleWebContents();
+      SitePermissionsHelper permissions_helper(profile_);
+      const extensions::ExtensionSet& extensions =
+          extensions::ExtensionRegistry::Get(profile_)->enabled_extensions();
+      reload_required_ = base::ranges::any_of(
+          extensions, [&permissions_helper,
+                       web_contents](scoped_refptr<const Extension> extension) {
+            return permissions_helper.GetSiteInteraction(*extension,
+                                                         web_contents) ==
+                   SitePermissionsHelper::SiteInteraction::kGranted;
+          });
+      break;
+    }
+    case PermissionsManager::UserSiteSetting::kCustomizeByExtension:
+      // When the user selects "customize by extension" it means previously all
+      // extensions were blocked and each extension's page access is set as
+      // "denied". Blocked actions in the ExtensionActionRunner are computed by
+      // checking if a page access is "withheld". Therefore, we always need a
+      // refresh since we don't know if there are any extensions that would have
+      // wanted to run if the page had not been restricted by the user.
+      reload_required_ = true;
+      break;
+  }
+}
+
+bool TabHelper::IsReloadRequired() {
+  return reload_required_;
+}
+
+bool TabHelper::HasExtensionDismissedRequests(const ExtensionId& extension_id) {
+  return dismissed_extensions_.contains(extension_id);
+}
+
+void TabHelper::DismissExtensionRequests(const ExtensionId& extension_id) {
+  dismissed_extensions_.insert(extension_id);
+  PermissionsManager::Get(profile_)->NotifyExtensionDismissedRequests(
+      extension_id,
+      web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin());
+}
+
 void TabHelper::OnWatchedPageChanged(
     const std::vector<std::string>& css_selectors) {
   InvokeForContentRulesRegistries(
@@ -304,7 +278,7 @@ void TabHelper::DidFinishNavigation(
   DisableBackForwardCacheIfNecessary(enabled_extensions, context,
                                      navigation_handle);
 
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents());
+  Browser* browser = chrome::FindBrowserWithTab(web_contents());
   if (browser && (browser->is_type_app() || browser->is_type_app_popup())) {
     const Extension* extension = registry->GetInstalledExtension(
         web_app::GetAppIdFromApplicationName(browser->app_name()));
@@ -316,17 +290,19 @@ void TabHelper::DidFinishNavigation(
     UpdateExtensionAppIcon(
         enabled_extensions.GetExtensionOrAppByURL(navigation_handle->GetURL()));
   }
+
+  // Reset the `reload_required_` data member, since a page navigation acts as a
+  // page refresh.
+  reload_required_ = false;
+
+  // Only clear the dismissed extensions for cross-origin navigations.
+  if (!navigation_handle->IsSameOrigin()) {
+    ClearDismissedExtensions();
+  }
 }
 
-bool TabHelper::OnMessageReceived(const IPC::Message& message,
-                                  content::RenderFrameHost* sender) {
-  bool handled = true;
-  IPC_BEGIN_MESSAGE_MAP_WITH_PARAM(TabHelper, message, sender)
-    IPC_MESSAGE_HANDLER(ExtensionHostMsg_ContentScriptsExecuting,
-                        OnContentScriptsExecuting)
-    IPC_MESSAGE_UNHANDLED(handled = false)
-  IPC_END_MESSAGE_MAP()
-  return handled;
+void TabHelper::ClearDismissedExtensions() {
+  dismissed_extensions_.clear();
 }
 
 void TabHelper::DidCloneToNewWebContents(WebContents* old_web_contents,
@@ -344,14 +320,9 @@ void TabHelper::WebContentsDestroyed() {
   InvokeForContentRulesRegistries([this](ContentRulesRegistry* registry) {
     registry->WebContentsDestroyed(web_contents());
   });
-}
 
-void TabHelper::OnContentScriptsExecuting(
-    content::RenderFrameHost* host,
-    const ExecutingScriptsMap& executing_scripts_map,
-    const GURL& on_url) {
-  ActivityLog::GetInstance(profile_)->OnScriptsExecuted(
-      web_contents(), executing_scripts_map, on_url);
+  reload_required_ = false;
+  ClearDismissedExtensions();
 }
 
 const Extension* TabHelper::GetExtension(const ExtensionId& extension_app_id) {
@@ -416,6 +387,13 @@ void TabHelper::OnExtensionUnloaded(content::BrowserContext* browser_context,
     return;
   if (extension == extension_app_)
     SetExtensionApp(nullptr);
+
+  // Technically, the refresh is no longer needed if the unloaded extension was
+  // the only one causing `refresh_required`. However, we would need to track
+  // which are the extensions causing the reload, and sometimes it is not
+  // specific to an extensions. Also, this is a very edge case  (site settings
+  // changed and then extension is installed externally), so it's fine to not
+  // handle it.
 }
 
 void TabHelper::SetTabId(content::RenderFrameHost* render_frame_host) {

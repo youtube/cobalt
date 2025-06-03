@@ -7,20 +7,17 @@
 
 #import <Foundation/Foundation.h>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
+#import "base/memory/scoped_refptr.h"
 #import "ios/chrome/browser/ui/settings/password/password_details/password_details.h"
 #import "ios/chrome/browser/ui/settings/password/password_details/password_details_table_view_controller_delegate.h"
 
 namespace password_manager {
 struct CredentialUIEntry;
+class SavedPasswordsPresenter;
 }  // namespace password_manager
 
-namespace syncer {
-class SyncService;
-}  // namespace syncer
-
-class PrefService;
-class IOSChromePasswordCheckManager;
+class ChromeBrowserState;
 @protocol PasswordDetailsConsumer;
 @protocol PasswordDetailsMediatorDelegate;
 
@@ -35,9 +32,7 @@ class IOSChromePasswordCheckManager;
                     (const std::vector<password_manager::CredentialUIEntry>&)
                         credentials
                       displayName:(NSString*)displayName
-             passwordCheckManager:(IOSChromePasswordCheckManager*)manager
-                      prefService:(PrefService*)prefService
-                      syncService:(syncer::SyncService*)syncService
+                     browserState:(ChromeBrowserState*)browserState
                           context:(DetailsContext)context
                          delegate:(id<PasswordDetailsMediatorDelegate>)delegate
     NS_DESIGNATED_INITIALIZER;
@@ -68,6 +63,9 @@ class IOSChromePasswordCheckManager;
 
 // Dismisses the compromised credential warning.
 - (void)didConfirmWarningDismissalForPassword:(PasswordDetails*)password;
+
+// Getter for SavedPasswordsPresenter owned by the password check manager.
+- (password_manager::SavedPasswordsPresenter*)savedPasswordsPresenter;
 
 @end
 

@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/functional/callback_helpers.h"
+#include "base/memory/singleton.h"
 #include "build/build_config.h"
 #include "chrome/browser/browsing_data/navigation_entry_remover.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -184,11 +185,11 @@ BrowsingDataHistoryObserverService::Factory::Factory()
 #endif
 }
 
-KeyedService*
-BrowsingDataHistoryObserverService::Factory::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
+std::unique_ptr<KeyedService> BrowsingDataHistoryObserverService::Factory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new BrowsingDataHistoryObserverService(profile);
+  return std::make_unique<BrowsingDataHistoryObserverService>(profile);
 }
 
 bool BrowsingDataHistoryObserverService::Factory::

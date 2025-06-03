@@ -32,7 +32,6 @@ import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.InMemorySharedPreferences;
 import org.chromium.base.test.util.ScalableTimeout;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer.OnPageFinishedHelper;
@@ -50,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -83,8 +83,15 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
 
     private List<WeakReference<AwContents>> mAwContentsDestroyedInTearDown = new ArrayList<>();
 
+    private Consumer<AwSettings> mMaybeMutateAwSettings;
+
     public AwActivityTestRule() {
         super(AwTestRunnerActivity.class);
+    }
+
+    public AwActivityTestRule(Consumer<AwSettings> mMaybeMutateAwSettings) {
+        super(AwTestRunnerActivity.class);
+        this.mMaybeMutateAwSettings = mMaybeMutateAwSettings;
     }
 
     @Override
@@ -94,8 +101,11 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
             @Override
             public void evaluate() throws Throwable {
                 setUp();
-                base.evaluate();
-                tearDown();
+                try {
+                    base.evaluate();
+                } finally {
+                    tearDown();
+                }
             }
         }, description);
     }
@@ -151,9 +161,9 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
         return getActivity();
     }
 
-    public AwBrowserContext createAwBrowserContextOnUiThread(InMemorySharedPreferences prefs) {
+    public AwBrowserContext createAwBrowserContextOnUiThread() {
         // Native pointer is initialized later in startBrowserProcess if needed.
-        return new AwBrowserContext(prefs, 0, true);
+        return new AwBrowserContext(0);
     }
 
     public TestDependencyFactory createTestDependencyFactory() {
@@ -192,9 +202,8 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
             throw new AndroidRuntimeException("There should only be one browser context.");
         }
         launchActivity(); // The Activity must be launched in order to load native code
-        final InMemorySharedPreferences prefs = new InMemorySharedPreferences();
         TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> mBrowserContext = createAwBrowserContextOnUiThread(prefs));
+                () -> mBrowserContext = createAwBrowserContextOnUiThread());
     }
 
     public void startBrowserProcess() {
@@ -326,7 +335,6 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
 
     public void loadHtmlSync(final AwContents awContents, CallbackHelper onPageFinishedHelper,
             final String html) throws Throwable {
-        int currentCallCount = onPageFinishedHelper.getCallCount();
         final String encodedData = Base64.encodeToString(html.getBytes(), Base64.NO_PADDING);
         loadDataSync(awContents, onPageFinishedHelper, encodedData, "text/html", true);
     }
@@ -453,6 +461,7 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
 
         AwSettings awSettings =
                 testDependencyFactory.createAwSettings(getActivity(), supportsLegacyQuirks);
+        if (mMaybeMutateAwSettings != null) mMaybeMutateAwSettings.accept(awSettings);
         AwContents awContents = testDependencyFactory.createAwContents(mBrowserContext,
                 testContainerView, testContainerView.getContext(),
                 testContainerView.getInternalAccessDelegate(),
@@ -464,7 +473,7 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
     }
 
     public boolean isHardwareAcceleratedTest() {
-        return !testMethodHasAnnotation(DisableHardwareAccelerationForTest.class);
+        return !testMethodHasAnnotation(DisableHardwareAcceleration.class);
     }
 
     public AwTestContainerView createAwTestContainerViewOnMainSync(final AwContentsClient client) {
@@ -749,7 +758,6 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
     public void loadPopupContents(final AwContents parentAwContents, PopupInfo info,
             OnCreateWindowHandler onCreateWindowHandler) throws Exception {
         TestAwContentsClient popupContentsClient = info.popupContentsClient;
-        AwTestContainerView popupContainerView = info.popupContainerView;
         final AwContents popupContents = info.popupContents;
         OnPageFinishedHelper onPageFinishedHelper = popupContentsClient.getOnPageFinishedHelper();
         int finishCallCount = onPageFinishedHelper.getCallCount();
@@ -770,7 +778,7 @@ public class AwActivityTestRule extends BaseActivityTestRule<AwTestRunnerActivit
     }
 
     private boolean testMethodHasAnnotation(Class<? extends Annotation> clazz) {
-        return mCurrentTestDescription.getAnnotation(clazz) != null ? true : false;
+        return mCurrentTestDescription.getAnnotation(clazz) != null;
     }
 
     /**

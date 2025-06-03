@@ -33,7 +33,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/allocator/partition_allocator/page_allocator.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/page_allocator.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/ranges/algorithm.h"
@@ -102,11 +102,7 @@ class EndOfTaskRunner : public Thread::TaskObserver {
   void WillProcessTask(const base::PendingTask&, bool) override {
     AnimationClock::NotifyTaskStart();
   }
-
-  void DidProcessTask(const base::PendingTask&) override {
-    // TODO(tzik): Move rejected promise handling to EventLoop.
-    V8Initializer::ReportRejectedPromisesOnMainThread();
-  }
+  void DidProcessTask(const base::PendingTask& pending_task) override {}
 };
 
 Thread::TaskObserver* g_end_of_task_runner = nullptr;
@@ -188,6 +184,11 @@ void CreateMainThreadAndInitialize(Platform* platform,
 // Function defined in third_party/blink/public/web/blink.h.
 void SetIsCrossOriginIsolated(bool value) {
   Agent::SetIsCrossOriginIsolated(value);
+}
+
+// Function defined in third_party/blink/public/web/blink.h.
+void SetIsWebSecurityDisabled(bool value) {
+  Agent::SetIsWebSecurityDisabled(value);
 }
 
 // Function defined in third_party/blink/public/web/blink.h.

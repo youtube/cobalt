@@ -76,6 +76,10 @@ class FileSystemServiceTest : public testing::Test {
             GetAllExecutableMetadata(FilePathSet()))
         .WillByDefault(Return(FilePathMap<ExecutableMetadata>()));
   }
+  ~FileSystemServiceTest() override {
+    mock_platform_delegate_ = nullptr;
+    mock_executable_metadata_service_ = nullptr;
+  }
 
   void ExpectResolvablePath(const base::FilePath& path,
                             const base::FilePath& resolved_path) {

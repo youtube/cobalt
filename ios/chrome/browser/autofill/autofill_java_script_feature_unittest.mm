@@ -9,10 +9,11 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/scoped_feature_list.h"
+#import "base/test/test_timeouts.h"
 #import "components/autofill/core/common/autofill_constants.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/ios/form_util/form_util_java_script_feature.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/web/chrome_web_client.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
@@ -23,10 +24,6 @@
 #import "ios/web/public/web_state.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill::FieldRendererId;
 using autofill::FormRendererId;
@@ -132,9 +129,10 @@ class AutofillJavaScriptFeatureTest : public PlatformTest {
                           base::BindOnce(^(NSString* actualResult) {
                             block_was_called = YES;
                           }));
-    base::test::ios::WaitUntilCondition(^bool() {
-      return block_was_called;
-    });
+    ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+        TestTimeouts::action_timeout(), ^bool() {
+          return block_was_called;
+        }));
   }
 
   id ExecuteJavaScript(NSString* java_script) {
@@ -186,6 +184,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"id_attribute" : @"firstname",
         @"identifier" : @"firstname",
         @"form_control_type" : @"text",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -202,6 +201,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"id_attribute" : @"lastname",
         @"identifier" : @"lastname",
         @"form_control_type" : @"text",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -218,6 +218,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
         @"id_attribute" : @"email",
         @"identifier" : @"email",
         @"form_control_type" : @"email",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -237,9 +238,10 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms) {
                           block_was_called = YES;
                           result = [actualResult copy];
                         }));
-  base::test::ios::WaitUntilCondition(^bool() {
-    return block_was_called;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return block_was_called;
+      }));
 
   NSArray* resultArray = [NSJSONSerialization
       JSONObjectWithData:[result dataUsingEncoding:NSUTF8StringEncoding]
@@ -279,6 +281,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"id_attribute" : @"firstname",
         @"identifier" : @"firstname",
         @"form_control_type" : @"text",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -295,6 +298,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"id_attribute" : @"lastname",
         @"identifier" : @"lastname",
         @"form_control_type" : @"text",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -311,6 +315,7 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
         @"id_attribute" : @"email",
         @"identifier" : @"email",
         @"form_control_type" : @"email",
+        @"placeholder_attribute" : @"",
         @"max_length" : GetDefaultMaxLength(),
         @"should_autocomplete" : @true,
         @"is_checkable" : @false,
@@ -330,9 +335,10 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractForms2) {
                           block_was_called = YES;
                           result = [actualResult copy];
                         }));
-  base::test::ios::WaitUntilCondition(^bool() {
-    return block_was_called;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return block_was_called;
+      }));
 
   NSArray* resultArray = [NSJSONSerialization
       JSONObjectWithData:[result dataUsingEncoding:NSUTF8StringEncoding]
@@ -363,9 +369,10 @@ TEST_F(AutofillJavaScriptFeatureTest, ExtractFormlessForms_AllFormlessForms) {
                           block_was_called = YES;
                           result = [actualResult copy];
                         }));
-  base::test::ios::WaitUntilCondition(^bool() {
-    return block_was_called;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return block_was_called;
+      }));
 
   // Verify that the form is non-empty.
   NSArray* resultArray = [NSJSONSerialization
@@ -407,6 +414,35 @@ TEST_F(AutofillJavaScriptFeatureTest, FillActiveFormField) {
   EXPECT_NSEQ(@"newemail@com", ExecuteJavaScript(element_value_javascript));
 }
 
+// Tests filling of a specific field, which differs from `FillActiveFormField`
+// because it does not require that the field have focus.
+TEST_F(AutofillJavaScriptFeatureTest, FillSpecificFormField) {
+  LoadHtml(@"<html><body><form name='testform' method='post'>"
+            "<input type='email' id='email' name='email'/>"
+            "</form></body></html>");
+  RunFormsSearch();
+
+  NSString* get_element_javascript = @"document.getElementsByName('email')[0]";
+  base::Value::Dict data;
+  data.Set("name", "email");
+  data.Set("identifier", "email");
+  data.Set("unique_renderer_id", 2);
+  data.Set("value", "newemail@com");
+  __block BOOL success = NO;
+
+  feature()->FillSpecificFormField(main_web_frame(), std::move(data),
+                                   base::BindOnce(^(BOOL result) {
+                                     success = result;
+                                   }));
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, ^bool() {
+        return success;
+      }));
+  NSString* element_value_javascript =
+      [NSString stringWithFormat:@"%@.value", get_element_javascript];
+  EXPECT_NSEQ(@"newemail@com", ExecuteJavaScript(element_value_javascript));
+}
+
 // Tests the generation of the name of the fields.
 TEST_F(AutofillJavaScriptFeatureTest, TestExtractedFieldsNames) {
   LoadHtml(@"<html><body><form name='testform' method='post'>"
@@ -426,9 +462,10 @@ TEST_F(AutofillJavaScriptFeatureTest, TestExtractedFieldsNames) {
                           block_was_called = YES;
                           result = [actualResult copy];
                         }));
-  base::test::ios::WaitUntilCondition(^bool() {
-    return block_was_called;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return block_was_called;
+      }));
 
   NSArray* resultArray = [NSJSONSerialization
       JSONObjectWithData:[result dataUsingEncoding:NSUTF8StringEncoding]
@@ -490,9 +527,10 @@ TEST_F(AutofillJavaScriptFeatureTest, TestExtractedFieldsIDs) {
                           block_was_called = YES;
                           result = [actualResult copy];
                         }));
-  base::test::ios::WaitUntilCondition(^bool() {
-    return block_was_called;
-  });
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      TestTimeouts::action_timeout(), ^bool() {
+        return block_was_called;
+      }));
 
   NSArray* resultArray = [NSJSONSerialization
       JSONObjectWithData:[result dataUsingEncoding:NSUTF8StringEncoding]

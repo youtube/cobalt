@@ -30,6 +30,13 @@ if (defined(is_fuchsia_tree) && is_fuchsia_tree) {
 
     # If set, the ":icudata" target will copy the ICU data to $root_build_dir.
     icu_copy_icudata_to_root_build_dir = true
+
+    # Fuchsia sometimes requires extra compilation flags for ICU to adapt it to
+    # its current toolchain. Since it takes a while for ICU to roll through
+    # Fuchsia, it can take a long time from an ICU commit to a fix rolling into
+    # Fuchsia. This flag allows us to define the flag ahead of time in
+    # //build/icu.gni, and remove the rollout issues.
+    icu_fuchsia_extra_compile_flags = []
   }
 
   # Set to true if icu is being built from the Fuchsia tree.

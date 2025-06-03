@@ -25,8 +25,6 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync_preferences/pref_service_syncable.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/test/mock_notification_observer.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/blocklist_state.h"
@@ -111,7 +109,7 @@ class ExtensionPrefsLastPingDay : public ExtensionPrefsTest {
  private:
   Time extension_time_;
   Time blocklist_time_;
-  std::string extension_id_;
+  ExtensionId extension_id_;
 };
 TEST_F(ExtensionPrefsLastPingDay, LastPingDay) {}
 
@@ -309,7 +307,7 @@ class ExtensionPrefsGrantedPermissions : public ExtensionPrefsTest {
   }
 
  private:
-  std::string extension_id_;
+  ExtensionId extension_id_;
   APIPermissionSet api_perm_set1_;
   APIPermissionSet api_perm_set2_;
   URLPatternSet ehost_perm_set1_;
@@ -378,7 +376,7 @@ class ExtensionPrefsActivePermissions : public ExtensionPrefsTest {
   }
 
  private:
-  std::string extension_id_;
+  ExtensionId extension_id_;
   std::unique_ptr<const PermissionSet> active_perms_;
 };
 TEST_F(ExtensionPrefsActivePermissions, SetAndGetDesiredActivePermissions) {}

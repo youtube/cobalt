@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/notreached.h"
@@ -15,12 +14,15 @@
 #include "components/password_manager/core/browser/manage_passwords_referrer.h"
 #include "components/password_manager/core/browser/origin_credential_store.h"
 #include "components/password_manager/core/browser/passkey_credential.h"
+#include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
 TouchToFillControllerWebAuthnDelegate::TouchToFillControllerWebAuthnDelegate(
-    WebAuthnRequestDelegateAndroid* request_delegate)
-    : request_delegate_(request_delegate) {}
+    WebAuthnRequestDelegateAndroid* request_delegate,
+    bool should_show_hybrid_option)
+    : request_delegate_(request_delegate),
+      should_show_hybrid_option_(should_show_hybrid_option) {}
 
 TouchToFillControllerWebAuthnDelegate::
     ~TouchToFillControllerWebAuthnDelegate() = default;
@@ -52,6 +54,12 @@ void TouchToFillControllerWebAuthnDelegate::OnManagePasswordsSelected(
   OnDismiss(std::move(action_complete));
 }
 
+void TouchToFillControllerWebAuthnDelegate::OnHybridSignInSelected(
+    base::OnceClosure action_complete) {
+  request_delegate_->ShowHybridSignIn();
+  std::move(action_complete).Run();
+}
+
 void TouchToFillControllerWebAuthnDelegate::OnDismiss(
     base::OnceClosure action_complete) {
   request_delegate_->OnWebAuthnAccountSelected(std::vector<uint8_t>());
@@ -64,6 +72,16 @@ const GURL& TouchToFillControllerWebAuthnDelegate::GetFrameUrl() {
 
 bool TouchToFillControllerWebAuthnDelegate::ShouldTriggerSubmission() {
   return false;
+}
+
+bool TouchToFillControllerWebAuthnDelegate::ShouldShowHybridOption() {
+  return should_show_hybrid_option_;
+}
+
+bool TouchToFillControllerWebAuthnDelegate::
+    ShouldShowNoPasskeysSheetIfRequired() {
+  return webauthn::WebAuthnCredManDelegate::CredManMode() ==
+         webauthn::WebAuthnCredManDelegate::kNonGpmPasskeys;
 }
 
 gfx::NativeView TouchToFillControllerWebAuthnDelegate::GetNativeView() {

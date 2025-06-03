@@ -95,7 +95,7 @@ class ChromeFileSystemAccessPermissionContextPrerenderingBrowserTest
     ASSERT_TRUE(
         temp_dir_.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
 
-    prerender_test_helper_.SetUp(embedded_test_server());
+    prerender_test_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
 
@@ -139,7 +139,8 @@ IN_PROC_BROWSER_TEST_F(
     PerformAfterWriteChecks) {
   const base::FilePath test_file = CreateTestFile("");
   ui::SelectFileDialog::SetFactory(
-      new content::FakeSelectFileDialogFactory({test_file}));
+      std::make_unique<content::FakeSelectFileDialogFactory>(
+          std::vector<base::FilePath>{test_file}));
 
   TestFileSystemAccessPermissionContext permission_context(
       browser()->profile());

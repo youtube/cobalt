@@ -36,7 +36,6 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.UserActionTester;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.privacy_sandbox.R;
@@ -45,7 +44,6 @@ import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -59,10 +57,8 @@ import java.io.IOException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@EnableFeatures(ChromeFeatureList.PRIVACY_SANDBOX_SETTINGS_4)
 public final class AdMeasurementFragmentV4Test {
-    @Rule
-    public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
+    @Rule public ChromeBrowserTestRule mChromeBrowserTestRule = new ChromeBrowserTestRule();
 
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
@@ -83,24 +79,32 @@ public final class AdMeasurementFragmentV4Test {
 
     @After
     public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
-            prefService.clearPref(Pref.PRIVACY_SANDBOX_M1_AD_MEASUREMENT_ENABLED);
-        });
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PrefService prefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
+                    prefService.clearPref(Pref.PRIVACY_SANDBOX_M1_AD_MEASUREMENT_ENABLED);
+                });
 
         mUserActionTester.tearDown();
     }
 
     private void startAdMeasuremenSettings() {
         mSettingsActivityTestRule.startSettingsActivity();
-        ViewUtils.onViewWaiting(allOf(withText(R.string.settings_ad_measurement_page_title),
-                withParent(withId(R.id.action_bar))));
+        ViewUtils.onViewWaiting(
+                allOf(
+                        withText(R.string.settings_ad_measurement_page_title),
+                        withParent(withId(R.id.action_bar))));
     }
 
     private Matcher<View> getAdMeasurementToggleMatcher() {
-        return allOf(withId(R.id.switchWidget),
-                withParent(withParent(hasDescendant(
-                        withText(R.string.settings_ad_measurement_page_toggle_label)))));
+        return allOf(
+                withId(R.id.switchWidget),
+                withParent(
+                        withParent(
+                                hasDescendant(
+                                        withText(
+                                                R.string
+                                                        .settings_ad_measurement_page_toggle_label)))));
     }
 
     private View getRootView(@StringRes int text) {
@@ -112,12 +116,16 @@ public final class AdMeasurementFragmentV4Test {
 
     private void setAdMeasurementPrefEnabled(boolean isEnabled) {
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> AdMeasurementFragmentV4.setAdMeasurementPrefEnabled(isEnabled));
+                () ->
+                        AdMeasurementFragmentV4.setAdMeasurementPrefEnabled(
+                                Profile.getLastUsedRegularProfile(), isEnabled));
     }
 
     private boolean isAdMeasurementPrefEnabled() {
         return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> AdMeasurementFragmentV4.isAdMeasurementPrefEnabled());
+                () ->
+                        AdMeasurementFragmentV4.isAdMeasurementPrefEnabled(
+                                Profile.getLastUsedRegularProfile()));
     }
 
     @Test
@@ -126,7 +134,8 @@ public final class AdMeasurementFragmentV4Test {
     public void testRenderAdMeasurement() throws IOException {
         setAdMeasurementPrefEnabled(true);
         startAdMeasuremenSettings();
-        mRenderTestRule.render(getRootView(R.string.settings_ad_measurement_page_toggle_sub_label),
+        mRenderTestRule.render(
+                getRootView(R.string.settings_ad_measurement_page_toggle_sub_label),
                 "ad_measurement_page_toggle_on");
     }
 
@@ -154,7 +163,8 @@ public final class AdMeasurementFragmentV4Test {
         onView(getAdMeasurementToggleMatcher()).perform(click());
 
         assertTrue(isAdMeasurementPrefEnabled());
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.AdMeasurement.Enabled"));
     }
 
@@ -166,18 +176,18 @@ public final class AdMeasurementFragmentV4Test {
         onView(getAdMeasurementToggleMatcher()).perform(click());
 
         assertFalse(isAdMeasurementPrefEnabled());
-        assertThat(mUserActionTester.getActions(),
+        assertThat(
+                mUserActionTester.getActions(),
                 hasItems("Settings.PrivacySandbox.AdMeasurement.Disabled"));
     }
 
     @Test
     @SmallTest
     @Policies.Add({
-        @Policies.Item(key = "PrivacySandboxAdMeasurementEnabled", string = "false")
-        , @Policies.Item(key = "PrivacySandboxPromptEnabled", string = "false")
+        @Policies.Item(key = "PrivacySandboxAdMeasurementEnabled", string = "false"),
+        @Policies.Item(key = "PrivacySandboxPromptEnabled", string = "false")
     })
-    public void
-    testAdMeasurementManaged() {
+    public void testAdMeasurementManaged() {
         startAdMeasuremenSettings();
 
         // Check default state and try to press the toggle.

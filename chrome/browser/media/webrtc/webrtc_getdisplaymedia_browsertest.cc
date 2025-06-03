@@ -53,8 +53,8 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/chromeos/policy/dlp/dlp_content_manager_test_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
+#include "chrome/browser/chromeos/policy/dlp/test/dlp_content_manager_test_helper.h"
 #endif
 
 namespace {
@@ -130,8 +130,7 @@ std::string DisplaySurfaceTypeAsString(
     case DisplaySurfaceType::kScreen:
       return "screen";
   }
-  NOTREACHED();
-  return "error";
+  NOTREACHED_NORETURN();
 }
 
 void RunGetDisplayMedia(content::WebContents* tab,
@@ -196,7 +195,7 @@ infobars::ContentInfoBarManager* GetInfoBarManager(
 
 ConfirmInfoBarDelegate* GetDelegate(content::WebContents* web_contents) {
   return static_cast<ConfirmInfoBarDelegate*>(
-      GetInfoBarManager(web_contents)->infobar_at(0)->delegate());
+      GetInfoBarManager(web_contents)->infobars()[0]->delegate());
 }
 
 bool HasSecondaryButton(content::WebContents* web_contents) {
@@ -857,8 +856,7 @@ class GetDisplayMediaVideoTrackBrowserTest
       case DisplaySurfaceType::kScreen:
         return "MediaStreamTrack";
     }
-    NOTREACHED();
-    return "Error";
+    NOTREACHED_NORETURN();
   }
 
  protected:
@@ -866,7 +864,7 @@ class GetDisplayMediaVideoTrackBrowserTest
   const DisplaySurfaceType display_surface_type_;
 
  private:
-  raw_ptr<content::WebContents, DanglingUntriaged> tab_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> tab_ = nullptr;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1004,7 +1002,7 @@ class GetDisplayMediaHiDpiBrowserTest
 
   base::test::ScopedFeatureList feature_list_;
   const TestConfigForHiDpi test_config_;
-  raw_ptr<content::WebContents, DanglingUntriaged> tab_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> tab_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_P(GetDisplayMediaHiDpiBrowserTest, Capture) {
@@ -1227,11 +1225,11 @@ IN_PROC_BROWSER_TEST_P(GetDisplayMediaChangeSourceBrowserTest,
     base::RunLoop().RunUntilIdle();
   }
 
-  ASSERT_EQ(GetInfoBarManager(capturing_tab)->infobar_count(), 1u);
+  ASSERT_EQ(GetInfoBarManager(capturing_tab)->infobars().size(), 1u);
   StopAllTracks(capturing_tab);
   do {
     base::RunLoop().RunUntilIdle();
-  } while (GetInfoBarManager(capturing_tab)->infobar_count() > 0u);
+  } while (GetInfoBarManager(capturing_tab)->infobars().size() > 0u);
 }
 
 // TODO(1428806) Re-enable flaky test.
@@ -1424,8 +1422,7 @@ class WebRtcScreenCaptureSelectAllScreensTest
   ~WebRtcScreenCaptureSelectAllScreensTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    // Enables GetDisplayMedia and GetDisplayMediaSetAutoSelectAllScreens
-    // features for multi surface capture.
+    // Enables GetAllScreensMedia features for multi surface capture.
     // TODO(simonha): remove when feature becomes stable.
     if (test_config_.enable_select_all_screens) {
       command_line->AppendSwitch(switches::kEnableBlinkTestFeatures);

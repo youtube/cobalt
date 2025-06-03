@@ -39,6 +39,14 @@ id<GREYMatcher> ButtonWithAccessibilityLabelId(int message_id);
 // `label` and accessibility trait UIAccessibilityTraitButton.
 id<GREYMatcher> ButtonWithAccessibilityLabel(NSString* label);
 
+// Returns a matcher for context menu items with accessibility label
+// corresponding to `label`.
+id<GREYMatcher> ContextMenuItemWithAccessibilityLabel(NSString* label);
+
+// Returns a matcher for context menu items with accessibility label
+// corresponding to `message_id`.
+id<GREYMatcher> ContextMenuItemWithAccessibilityLabelId(int message_id);
+
 // Returns a matcher for element with an image corresponding to `image_id`.
 id<GREYMatcher> ImageViewWithImage(UIImage* image);
 
@@ -113,6 +121,9 @@ id<GREYMatcher> Omnibox();
 
 // Returns matcher for the omnibox popup list row views.
 id<GREYMatcher> OmniboxPopupRow();
+
+// Returns a matcher for a popup row containing `string` as accessibility label.
+id<GREYMatcher> OmniboxPopupRowWithString(NSString* string);
 
 // Returns matcher for the omnibox popup list view.
 id<GREYMatcher> OmniboxPopupList();
@@ -292,6 +303,12 @@ id<GREYMatcher> SettingsPrivacySafeBrowsingTableView();
 // Returns a matcher for the notifications settings table view.
 id<GREYMatcher> SettingsNotificationsTableView();
 
+// Returns a matcher for the inactive tabs settings table view.
+id<GREYMatcher> SettingsInactiveTabsTableView();
+
+// Returns a matcher for the tabs settings table view.
+id<GREYMatcher> SettingsTabsTableView();
+
 // Returns a matcher for the tracking price settings table view.
 id<GREYMatcher> SettingsTrackingPriceTableView();
 
@@ -306,6 +323,17 @@ id<GREYMatcher> GoogleServicesSettingsButton();
 // Returns a matcher for the Manage Sync Settings button on the main Settings
 // screen.
 id<GREYMatcher> ManageSyncSettingsButton();
+
+// Returns a matcher for the Inactive Tabs Settings button on the Tabs Settings
+// screen.
+id<GREYMatcher> InactiveTabsSettingsButton();
+
+// Returns a matcher for the Tab Pickup Settings button on the Tabs Settings
+// screen.
+id<GREYMatcher> TabPickupSettingsButton();
+
+// Returns a matcher for the Tabs Settings button on the main Settings screen.
+id<GREYMatcher> TabsSettingsButton();
 
 // Returns a matcher for the Google Services Settings view.
 id<GREYMatcher> GoogleServicesSettingsView();
@@ -544,6 +572,9 @@ id<GREYMatcher> SettingsBottomToolbarDeleteButton();
 // Returns a matcher for the search engine button in the main settings view.
 id<GREYMatcher> SettingsSearchEngineButton();
 
+// Returns a matcher for the address bar button in the main settings view.
+id<GREYMatcher> SettingsAddressBarButton();
+
 // Returns a matcher for an autofill suggestion view.
 id<GREYMatcher> AutofillSuggestionViewMatcher();
 
@@ -559,6 +590,18 @@ id<GREYMatcher> SettingsToolbarAddButton();
 
 // Returns a matcher matching cells that can be swiped-to-dismiss.
 id<GREYMatcher> CellCanBeSwipedToDismissed();
+
+// Returns a matcher for passwords table view.
+id<GREYMatcher> PasswordsTableViewMatcher();
+
+// Returns a mather for default browser settings table view.
+id<GREYMatcher> DefaultBrowserSettingsTableViewMatcher();
+
+// Returns a matcher for safety check table view.
+id<GREYMatcher> SafetyCheckTableViewMatcher();
+
+// Returns a matcher for action in an AlertCoordinator.
+id<GREYMatcher> AlertAction(NSString* title);
 
 #pragma mark - Promo style view controller
 

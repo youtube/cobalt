@@ -11,10 +11,10 @@ import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 
 import {I18nBehavior, I18nBehaviorInterface} from '//resources/ash/common/i18n_behavior.js';
 import {mixinBehaviors, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ApnDetailDialogMode, ApnEventData} from 'chrome://resources/ash/common/network/cellular_utils.js';
-import {MojoInterfaceProviderImpl} from 'chrome://resources/ash/common/network/mojo_interface_provider.js';
 import {assert} from 'chrome://resources/ash/common/assert.js';
-import {ApnProperties, ApnState, CrosNetworkConfigRemote} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
+import {ApnDetailDialogMode, ApnEventData, getApnDisplayName} from 'chrome://resources/ash/common/network/cellular_utils.js';
+import {MojoInterfaceProviderImpl} from 'chrome://resources/ash/common/network/mojo_interface_provider.js';
+import {ApnProperties, ApnState, CrosNetworkConfigInterface} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 
 import {getTemplate} from './apn_list_item.html.js';
 
@@ -45,7 +45,7 @@ class ApnListItem extends ApnListItemBase {
 
       isConnected: {
         type: Boolean,
-        value: true,
+        value: false,
       },
 
       shouldDisallowDisablingRemoving: {
@@ -58,6 +58,15 @@ class ApnListItem extends ApnListItemBase {
         value: false,
       },
 
+      /** The index of this item in its parent list, used for its a11y label. */
+      itemIndex: Number,
+
+      /**
+       * The total number of elements in this item's parent list, used for its
+       * a11y label.
+       */
+      listSize: Number,
+
       /** @private */
       isDisabled_: {
         reflectToAttribute: true,
@@ -69,9 +78,17 @@ class ApnListItem extends ApnListItemBase {
 
   constructor() {
     super();
-    /** @private {!CrosNetworkConfigRemote} */
+    /** @private {!CrosNetworkConfigInterface} */
     this.networkConfig_ =
         MojoInterfaceProviderImpl.getInstance().getMojoServiceRemote();
+  }
+
+  /**
+   * @param {!ApnProperties} apn
+   * @private
+   */
+  getApnDisplayName_(apn) {
+    return getApnDisplayName(this.i18n.bind(this), apn);
   }
 
   /**
@@ -83,13 +100,18 @@ class ApnListItem extends ApnListItemBase {
         .showAt(/** @type {!HTMLElement} */ (event.target));
   }
 
+  /** @private */
+  closeMenu_() {
+    /** @type {!CrActionMenuElement} */ (this.$.dotsMenu).close();
+  }
+
   /**
    * Opens APN Details dialog.
-   * TODO(b/162365553): Implement.
    * @private
    */
   onDetailsClicked_() {
     assert(!!this.apn);
+    this.closeMenu_();
     this.dispatchEvent(new CustomEvent('show-apn-detail-dialog', {
       composed: true,
       bubbles: true,
@@ -108,6 +130,7 @@ class ApnListItem extends ApnListItemBase {
   onDisableClicked_() {
     assert(this.guid);
     assert(this.apn);
+    this.closeMenu_();
     if (!this.apn.id) {
       console.error('Only custom APNs can be disabled.');
       return;
@@ -140,6 +163,7 @@ class ApnListItem extends ApnListItemBase {
   onEnableClicked_() {
     assert(this.guid);
     assert(this.apn);
+    this.closeMenu_();
     if (!this.apn.id) {
       console.error('Only custom APNs can be enabled.');
       return;
@@ -150,13 +174,11 @@ class ApnListItem extends ApnListItemBase {
       return;
     }
 
-    // TODO(b/162365553): Add string to chromeos_string when it is approved by
-    // writers.
     if (this.shouldDisallowEnabling) {
       this.dispatchEvent(new CustomEvent('show-error-toast', {
         bubbles: true,
         composed: true,
-        detail: `Can't enable this APN. Add a default APN to attach to.`,
+        detail: this.i18n('apnWarningPromptForEnable'),
       }));
       return;
     }
@@ -174,6 +196,7 @@ class ApnListItem extends ApnListItemBase {
   onRemoveClicked_() {
     assert(this.guid);
     assert(this.apn);
+    this.closeMenu_();
     if (!this.apn.id) {
       console.error('Only custom APNs can be removed.');
       return;
@@ -188,7 +211,6 @@ class ApnListItem extends ApnListItemBase {
       return;
     }
 
-    /** @type {!CrActionMenuElement} */ (this.$.dotsMenu).close();
     this.networkConfig_.removeCustomApn(
         this.guid, /** @type {string} */ (this.apn.id));
   }
@@ -227,6 +249,44 @@ class ApnListItem extends ApnListItemBase {
    */
   computeIsDisabled_() {
     return !!this.apn.id && this.apn.state === ApnState.kDisabled;
+  }
+
+  /**
+   * Returns the label for the "Details" menu item.
+   * @return {string}
+   * @private
+   */
+  getDetailsMenuItemLabel_() {
+    return this.apn.id ? this.i18n('apnMenuEdit') : this.i18n('apnMenuDetails');
+  }
+
+  /**
+   * Returns accessibility label for the item.
+   * @return {string}
+   * @private
+   */
+  getAriaLabel_() {
+    if (!this.apn) {
+      return '';
+    }
+
+    let a11yLabel = this.i18n(
+        'apnA11yName', this.itemIndex + 1, this.listSize,
+        this.getApnDisplayName_(this.apn));
+
+    if (!this.apn.id) {
+      a11yLabel += ' ' + this.i18n('apnA11yAutoDetected');
+    }
+
+    if (this.isConnected) {
+      a11yLabel += ' ' + this.i18n('apnA11yConnected');
+    }
+
+    if (this.isDisabled_) {
+      a11yLabel += ' ' + this.i18n('apnA11yDisabled');
+    }
+
+    return a11yLabel;
   }
 }
 

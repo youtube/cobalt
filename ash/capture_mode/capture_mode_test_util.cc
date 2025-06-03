@@ -9,8 +9,11 @@
 #include "ash/accessibility/autoclick/autoclick_controller.h"
 #include "ash/capture_mode/capture_mode_bar_view.h"
 #include "ash/capture_mode/capture_mode_controller.h"
+#include "ash/capture_mode/capture_mode_session.h"
 #include "ash/capture_mode/capture_mode_session_test_api.h"
 #include "ash/capture_mode/capture_mode_source_view.h"
+#include "ash/capture_mode/capture_mode_type_view.h"
+#include "ash/capture_mode/fake_video_source_provider.h"
 #include "ash/capture_mode/test_capture_mode_delegate.h"
 #include "ash/public/cpp/capture_mode/capture_mode_test_api.h"
 #include "ash/public/cpp/projector/projector_controller.h"
@@ -19,10 +22,13 @@
 #include "ash/public/cpp/projector/speech_recognition_availability.h"
 #include "ash/shell.h"
 #include "ash/style/icon_button.h"
+#include "ash/style/pill_button.h"
+#include "ash/style/tab_slider.h"
 #include "ash/system/accessibility/autoclick_menu_bubble_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/safe_base_name.h"
 #include "base/location.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/ranges/algorithm.h"
@@ -32,7 +38,6 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ime/constants.h"
-#include "ui/display/screen.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/image/image.h"
 #include "ui/views/view.h"
@@ -41,6 +46,9 @@
 namespace ash {
 
 namespace {
+
+constexpr char kScreenCaptureNotificationId[] = "capture_mode_notification";
+constexpr char kDefaultCameraDisplayName[] = "Default Cam";
 
 // Dispatch the simulated virtual key event to the WindowEventDispatcher.
 void DispatchVKEvent(ui::test::EventGenerator* event_generator,
@@ -67,8 +75,13 @@ CaptureModeController* StartCaptureSession(CaptureModeSource source,
   controller->SetSource(source);
   controller->SetType(type);
   controller->Start(CaptureModeEntryType::kQuickSettings);
-  DCHECK(controller->IsActive());
+  CHECK(controller->IsActive());
   return controller;
+}
+
+TestCaptureModeDelegate* GetTestDelegate() {
+  return static_cast<TestCaptureModeDelegate*>(
+      CaptureModeController::Get()->delegate_for_testing());
 }
 
 void ClickOnView(const views::View* view,
@@ -92,14 +105,6 @@ void WaitForRecordingToStart() {
   test_delegate->set_on_recording_started_callback(run_loop.QuitClosure());
   run_loop.Run();
   ASSERT_TRUE(controller->is_recording_in_progress());
-}
-
-void MoveMouseToAndUpdateCursorDisplay(
-    const gfx::Point& point,
-    ui::test::EventGenerator* event_generator) {
-  Shell::Get()->cursor_manager()->SetDisplay(
-      display::Screen::GetScreen()->GetDisplayNearestPoint(point));
-  event_generator->MoveMouseTo(point);
 }
 
 void StartVideoRecordingImmediately() {
@@ -131,6 +136,18 @@ base::FilePath CreateCustomFolderInUserDownloadsPath(
   return custom_folder;
 }
 
+base::FilePath CreateFolderOnDriveFS(const std::string& custom_folder_name) {
+  auto* test_delegate = CaptureModeController::Get()->delegate_for_testing();
+  base::FilePath mount_point_path;
+  EXPECT_TRUE(test_delegate->GetDriveFsMountPointPath(&mount_point_path));
+  base::FilePath folder_on_drive_fs =
+      mount_point_path.Append("root").Append(custom_folder_name);
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  const bool result = base::CreateDirectory(folder_on_drive_fs);
+  EXPECT_TRUE(result);
+  return folder_on_drive_fs;
+}
+
 void SendKey(ui::KeyboardCode key_code,
              ui::test::EventGenerator* event_generator,
              int flags,
@@ -150,6 +167,10 @@ void SwitchToTabletMode() {
   TabletModeControllerTestApi test_api;
   test_api.DetachAllMice();
   test_api.EnterTabletMode();
+}
+
+void LeaveTabletMode() {
+  TabletModeControllerTestApi().LeaveTabletMode();
 }
 
 void TouchOnView(const views::View* view,
@@ -172,24 +193,16 @@ void ClickOrTapView(const views::View* view,
     ClickOnView(view, event_generator);
 }
 
+views::Widget* GetCaptureModeBarWidget() {
+  auto* session = CaptureModeController::Get()->capture_mode_session();
+  DCHECK(session);
+  return session->GetCaptureModeBarWidget();
+}
+
 CaptureModeBarView* GetCaptureModeBarView() {
   auto* session = CaptureModeController::Get()->capture_mode_session();
   DCHECK(session);
   return CaptureModeSessionTestApi(session).GetCaptureModeBarView();
-}
-
-IconButton* GetFullscreenToggleButton() {
-  auto* controller = CaptureModeController::Get();
-  DCHECK(controller->IsActive());
-  return GetCaptureModeBarView()
-      ->capture_source_view()
-      ->fullscreen_toggle_button();
-}
-
-IconButton* GetRegionToggleButton() {
-  auto* controller = CaptureModeController::Get();
-  DCHECK(controller->IsActive());
-  return GetCaptureModeBarView()->capture_source_view()->region_toggle_button();
 }
 
 UserNudgeController* GetUserNudgeController() {
@@ -285,14 +298,109 @@ gfx::Image ReadAndDecodeImageFile(const base::FilePath& image_path) {
   return image;
 }
 
+TabSliderButton* GetImageToggleButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  auto* capture_type_view = GetCaptureModeBarView()->GetCaptureTypeView();
+  return capture_type_view ? capture_type_view->image_toggle_button() : nullptr;
+}
+
+TabSliderButton* GetVideoToggleButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  auto* capture_type_view = GetCaptureModeBarView()->GetCaptureTypeView();
+  return capture_type_view ? capture_type_view->video_toggle_button() : nullptr;
+}
+
+TabSliderButton* GetFullscreenToggleButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  auto* capture_source_view = GetCaptureModeBarView()->GetCaptureSourceView();
+  return capture_source_view ? capture_source_view->fullscreen_toggle_button()
+                             : nullptr;
+}
+
+TabSliderButton* GetRegionToggleButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  auto* capture_source_view = GetCaptureModeBarView()->GetCaptureSourceView();
+  return capture_source_view ? capture_source_view->region_toggle_button()
+                             : nullptr;
+}
+
+TabSliderButton* GetWindowToggleButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  auto* capture_source_view = GetCaptureModeBarView()->GetCaptureSourceView();
+  return capture_source_view ? capture_source_view->window_toggle_button()
+                             : nullptr;
+}
+
+PillButton* GetStartRecordingButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  return GetCaptureModeBarView()->GetStartRecordingButton();
+}
+
+IconButton* GetSettingsButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  return GetCaptureModeBarView()->settings_button();
+}
+
+IconButton* GetCloseButton() {
+  auto* controller = CaptureModeController::Get();
+  DCHECK(controller->IsActive());
+  return GetCaptureModeBarView()->close_button();
+}
+
+const message_center::Notification* GetPreviewNotification() {
+  const message_center::NotificationList::Notifications notifications =
+      message_center::MessageCenter::Get()->GetVisibleNotifications();
+  for (const auto* notification : notifications) {
+    if (notification->id() == kScreenCaptureNotificationId) {
+      return notification;
+    }
+  }
+  return nullptr;
+}
+
+void ClickOnNotification(absl::optional<int> button_index) {
+  const message_center::Notification* notification = GetPreviewNotification();
+  CHECK(notification);
+  notification->delegate()->Click(button_index, absl::nullopt);
+}
+
+void AddFakeCamera(const std::string& device_id,
+                   const std::string& display_name,
+                   const std::string& model_id,
+                   media::VideoFacingMode camera_facing_mode) {
+  CameraDevicesChangeWaiter waiter;
+  GetTestDelegate()->video_source_provider()->AddFakeCamera(
+      device_id, display_name, model_id, camera_facing_mode);
+  waiter.Wait();
+}
+
+void RemoveFakeCamera(const std::string& device_id) {
+  CameraDevicesChangeWaiter waiter;
+  GetTestDelegate()->video_source_provider()->RemoveFakeCamera(device_id);
+  waiter.Wait();
+}
+
+void AddDefaultCamera() {
+  AddFakeCamera(kDefaultCameraDeviceId, kDefaultCameraDisplayName,
+                kDefaultCameraModelId);
+}
+
+void RemoveDefaultCamera() {
+  RemoveFakeCamera(kDefaultCameraDeviceId);
+}
+
 // -----------------------------------------------------------------------------
 // ProjectorCaptureModeIntegrationHelper:
 
-ProjectorCaptureModeIntegrationHelper::ProjectorCaptureModeIntegrationHelper() {
-  scoped_feature_list_.InitWithFeatures(
-      /*enabled_features=*/{features::kProjector},
-      /*disabled_features=*/{});
-}
+ProjectorCaptureModeIntegrationHelper::ProjectorCaptureModeIntegrationHelper() =
+    default;
 
 void ProjectorCaptureModeIntegrationHelper::SetUp() {
   auto* projector_controller = ProjectorController::Get();
@@ -323,7 +431,8 @@ void ProjectorCaptureModeIntegrationHelper::StartProjectorModeSession() {
   EXPECT_FALSE(projector_session->is_active());
   auto* projector_controller = ProjectorController::Get();
   EXPECT_CALL(projector_client_, MinimizeProjectorApp());
-  projector_controller->StartProjectorSession("projector_data");
+  projector_controller->StartProjectorSession(
+      base::SafeBaseName::Create("projector_data").value());
   EXPECT_TRUE(projector_session->is_active());
   auto* controller = CaptureModeController::Get();
   EXPECT_EQ(controller->source(), CaptureModeSource::kFullscreen);
@@ -349,6 +458,54 @@ void ViewVisibilityChangeWaiter::OnViewVisibilityChanged(
     views::View* observed_view,
     views::View* starting_view) {
   wait_loop_.Quit();
+}
+
+// -----------------------------------------------------------------------------
+// CaptureNotificationWaiter:
+
+CaptureNotificationWaiter::CaptureNotificationWaiter() {
+  message_center::MessageCenter::Get()->AddObserver(this);
+}
+
+CaptureNotificationWaiter::~CaptureNotificationWaiter() {
+  message_center::MessageCenter::Get()->RemoveObserver(this);
+}
+
+void CaptureNotificationWaiter::Wait() {
+  run_loop_.Run();
+}
+
+void CaptureNotificationWaiter::OnNotificationAdded(
+    const std::string& notification_id) {
+  if (notification_id == kScreenCaptureNotificationId) {
+    run_loop_.Quit();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CameraDevicesChangeWaiter:
+
+CameraDevicesChangeWaiter::CameraDevicesChangeWaiter() {
+  CaptureModeController::Get()->camera_controller()->AddObserver(this);
+}
+
+CameraDevicesChangeWaiter::~CameraDevicesChangeWaiter() {
+  CaptureModeController::Get()->camera_controller()->RemoveObserver(this);
+}
+
+void CameraDevicesChangeWaiter::Wait() {
+  loop_.Run();
+}
+
+void CameraDevicesChangeWaiter::OnAvailableCamerasChanged(
+    const CameraInfoList& cameras) {
+  ++camera_change_event_count_;
+  loop_.Quit();
+}
+
+void CameraDevicesChangeWaiter::OnSelectedCameraChanged(
+    const CameraId& camera_id) {
+  ++selected_camera_change_event_count_;
 }
 
 }  // namespace ash

@@ -20,6 +20,7 @@
 #include "content/browser/renderer_host/render_frame_host_manager.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/browser/web_contents/web_contents_view.h"
 #include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/page_type.h"
@@ -470,7 +471,7 @@ void Portal::NavigationStateChanged(WebContents* source,
   outer_contents->GetDelegate()->NavigationStateChanged(source, changed_flags);
 }
 
-bool Portal::ShouldFocusPageAfterCrash() {
+bool Portal::ShouldFocusPageAfterCrash(WebContents* source) {
   return false;
 }
 
@@ -525,7 +526,7 @@ std::pair<bool, blink::mojom::PortalActivateResult> Portal::CanActivate() {
 
   // If no navigation has yet committed in the portal, it cannot be activated as
   // this would lead to an empty tab contents (without even an about:blank).
-  if (portal_controller.GetLastCommittedEntry()->IsInitialEntry()) {
+  if (portal_contents_->GetPrimaryMainFrame()->is_initial_empty_document()) {
     return std::make_pair(
         false,
         blink::mojom::PortalActivateResult::kRejectedDueToPortalNotReady);
@@ -675,6 +676,8 @@ void Portal::ActivateImpl(blink::TransferableMessage data,
     // to the new RenderWidgetHostView.
     portal_contents_main_frame_view->host()->TakeSyntheticGestureController(
         outer_contents_main_frame_view->host());
+    successor_contents_raw->GetView()->TransferDragSecurityInfo(
+        outer_contents->GetView());
     outer_contents_main_frame_view->Destroy();
   }
 
@@ -732,6 +735,9 @@ void Portal::WebContentsHolder::SetOwned(
     std::unique_ptr<WebContents> web_contents) {
   SetUnowned(static_cast<WebContentsImpl*>(web_contents.get()));
   owned_contents_ = std::move(web_contents);
+  if (owned_contents_) {
+    owned_contents_->SetOwnerLocationForDebug(FROM_HERE);
+  }
 }
 
 void Portal::WebContentsHolder::Clear() {

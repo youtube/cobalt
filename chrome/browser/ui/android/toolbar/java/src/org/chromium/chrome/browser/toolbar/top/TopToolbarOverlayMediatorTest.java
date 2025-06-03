@@ -12,7 +12,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.view.View;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,41 +43,30 @@ public class TopToolbarOverlayMediatorTest {
     private TopToolbarOverlayMediator mMediator;
     private PropertyModel mModel;
 
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
+    @Rule public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Mock
-    private Context mContext;
+    @Mock private Context mContext;
 
-    @Mock
-    private LayoutStateProvider mLayoutStateProvider;
+    @Mock private LayoutStateProvider mLayoutStateProvider;
 
-    @Mock
-    private BrowserControlsStateProvider mBrowserControlsProvider;
+    @Mock private BrowserControlsStateProvider mBrowserControlsProvider;
 
-    @Mock
-    private TopUiThemeColorProvider mTopUiThemeColorProvider;
+    @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
 
-    @Mock
-    private Tab mTab;
+    @Mock private Tab mTab;
 
-    @Mock
-    private Tab mTab2;
+    @Mock private Tab mTab2;
 
-    @Captor
-    private ArgumentCaptor<TabObserver> mTabObserverCaptor;
+    @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
 
     @Captor
     private ArgumentCaptor<BrowserControlsStateProvider.Observer> mBrowserControlsObserverCaptor;
 
-    @Captor
-    private ArgumentCaptor<LayoutStateProvider.LayoutStateObserver> mLayoutObserverCaptor;
+    @Captor private ArgumentCaptor<LayoutStateProvider.LayoutStateObserver> mLayoutObserverCaptor;
 
-    @Mock
-    private ObservableSupplier<Tab> mTabSupplier;
+    @Mock private ObservableSupplier<Tab> mTabSupplier;
 
-    @Captor
-    private ArgumentCaptor<Callback<Tab>> mActivityTabObserverCaptor;
+    @Captor private ArgumentCaptor<Callback<Tab>> mActivityTabObserverCaptor;
 
     @Before
     public void beforeTest() {
@@ -88,21 +76,31 @@ public class TopToolbarOverlayMediatorTest {
         TopToolbarOverlayMediator.setUrlBarColorForTesting(Color.BLUE);
         TopToolbarOverlayMediator.setIsTabletForTesting(false);
 
-        mModel = new PropertyModel.Builder(TopToolbarOverlayProperties.ALL_KEYS)
-                         .with(TopToolbarOverlayProperties.RESOURCE_ID, 0)
-                         .with(TopToolbarOverlayProperties.URL_BAR_RESOURCE_ID, 0)
-                         .with(TopToolbarOverlayProperties.Y_OFFSET, 0)
-                         .with(TopToolbarOverlayProperties.SHOW_SHADOW, true)
-                         .with(TopToolbarOverlayProperties.TOOLBAR_BACKGROUND_COLOR,
-                                 Color.TRANSPARENT)
-                         .with(TopToolbarOverlayProperties.URL_BAR_COLOR, Color.TRANSPARENT)
-                         .with(TopToolbarOverlayProperties.PROGRESS_BAR_INFO, null)
-                         .build();
+        mModel =
+                new PropertyModel.Builder(TopToolbarOverlayProperties.ALL_KEYS)
+                        .with(TopToolbarOverlayProperties.RESOURCE_ID, 0)
+                        .with(TopToolbarOverlayProperties.URL_BAR_RESOURCE_ID, 0)
+                        .with(TopToolbarOverlayProperties.Y_OFFSET, 0)
+                        .with(TopToolbarOverlayProperties.SHOW_SHADOW, true)
+                        .with(
+                                TopToolbarOverlayProperties.TOOLBAR_BACKGROUND_COLOR,
+                                Color.TRANSPARENT)
+                        .with(TopToolbarOverlayProperties.URL_BAR_COLOR, Color.TRANSPARENT)
+                        .with(TopToolbarOverlayProperties.PROGRESS_BAR_INFO, null)
+                        .build();
 
         when(mTabSupplier.get()).thenReturn(mTab);
-        mMediator = new TopToolbarOverlayMediator(mModel, mContext, mLayoutStateProvider,
-                (info)-> {}, mTabSupplier, mBrowserControlsProvider, mTopUiThemeColorProvider,
-                LayoutType.BROWSING, false);
+        mMediator =
+                new TopToolbarOverlayMediator(
+                        mModel,
+                        mContext,
+                        mLayoutStateProvider,
+                        (info) -> {},
+                        mTabSupplier,
+                        mBrowserControlsProvider,
+                        mTopUiThemeColorProvider,
+                        LayoutType.BROWSING,
+                        false);
 
         mMediator.setIsAndroidViewVisible(true);
 
@@ -116,19 +114,13 @@ public class TopToolbarOverlayMediatorTest {
 
         verify(mLayoutStateProvider).addObserver(mLayoutObserverCaptor.capture());
 
-        mLayoutObserverCaptor.getValue().onStartedShowing(LayoutType.BROWSING, true);
+        mLayoutObserverCaptor.getValue().onStartedShowing(LayoutType.BROWSING);
     }
 
     /** Set the tab that will be returned by the supplier and trigger the observer event. */
     private void setTabSupplierTab(Tab tab) {
         when(mTabSupplier.get()).thenReturn(tab);
         mActivityTabObserverCaptor.getValue().onResult(tab);
-    }
-
-    @After
-    public void afterTest() {
-        // Unset any testing state the tests may have set.
-        TopToolbarOverlayMediator.setIsTabletForTesting(null);
     }
 
     @Test
@@ -166,8 +158,9 @@ public class TopToolbarOverlayMediatorTest {
         Assert.assertFalse(
                 "Shadow should be invisible.", mModel.get(TopToolbarOverlayProperties.SHOW_SHADOW));
 
-        mBrowserControlsObserverCaptor.getValue().onAndroidControlsVisibilityChanged(
-                View.INVISIBLE);
+        mBrowserControlsObserverCaptor
+                .getValue()
+                .onAndroidControlsVisibilityChanged(View.INVISIBLE);
         Assert.assertTrue(
                 "Shadow should be visible.", mModel.get(TopToolbarOverlayProperties.SHOW_SHADOW));
     }
@@ -177,11 +170,17 @@ public class TopToolbarOverlayMediatorTest {
     public void testShadowVisibility_suppressToolbarCaptures_initialState() {
         when(mBrowserControlsProvider.getAndroidControlsVisibility()).thenReturn(View.VISIBLE);
 
-        mMediator = new TopToolbarOverlayMediator(mModel, mContext, mLayoutStateProvider,
-                (info)
-                        -> {},
-                mTabSupplier, mBrowserControlsProvider, mTopUiThemeColorProvider,
-                LayoutType.BROWSING, false);
+        mMediator =
+                new TopToolbarOverlayMediator(
+                        mModel,
+                        mContext,
+                        mLayoutStateProvider,
+                        (info) -> {},
+                        mTabSupplier,
+                        mBrowserControlsProvider,
+                        mTopUiThemeColorProvider,
+                        LayoutType.BROWSING,
+                        false);
         mMediator.setIsAndroidViewVisible(true);
 
         Assert.assertFalse(
@@ -194,7 +193,8 @@ public class TopToolbarOverlayMediatorTest {
 
         mTabObserverCaptor.getValue().onLoadProgressChanged(mTab, 0.25f);
 
-        Assert.assertNotNull("The progress bar data should be populated.",
+        Assert.assertNotNull(
+                "The progress bar data should be populated.",
                 mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO));
 
         // Ensure the progress is correct on tab switch.
@@ -209,7 +209,8 @@ public class TopToolbarOverlayMediatorTest {
 
         mTabObserverCaptor.getValue().onLoadProgressChanged(mTab, 0.25f);
 
-        Assert.assertNull("The progress bar data should be still be empty.",
+        Assert.assertNull(
+                "The progress bar data should be still be empty.",
                 mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO));
     }
 

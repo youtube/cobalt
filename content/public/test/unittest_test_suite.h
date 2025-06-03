@@ -12,12 +12,14 @@
 #include "build/build_config.h"
 #include "mojo/core/embedder/configuration.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "v8/include/v8-forward.h"
 
 namespace base {
 class TestSuite;
 }
 
 namespace content {
+class BrowserAccessibilityStateImpl;
 class ContentBrowserClient;
 class ContentClient;
 class ContentUtilityClient;
@@ -67,6 +69,8 @@ class UnitTestTestSuite {
 
   int Run();
 
+  static v8::Isolate* MainThreadIsolateForUnitTestSuite();
+
  private:
   class UnitTestEventListener;
   UnitTestEventListener* CreateTestEventListener();
@@ -77,6 +81,8 @@ class UnitTestTestSuite {
   std::unique_ptr<TestBlinkWebUnitTestSupport> blink_test_support_;
 
   std::unique_ptr<TestHostResolver> test_host_resolver_;
+
+  std::unique_ptr<BrowserAccessibilityStateImpl> browser_accessibility_state_;
 
   base::RepeatingCallback<std::unique_ptr<ContentClients>()> create_clients_;
 

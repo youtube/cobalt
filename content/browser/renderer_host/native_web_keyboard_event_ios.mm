@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "content/public/common/input/native_web_keyboard_event.h"
 
 #include "content/browser/renderer_host/input/web_input_event_builders_ios.h"
 #include "ui/events/base_event_utils.h"
@@ -13,44 +13,39 @@ namespace content {
 NativeWebKeyboardEvent::NativeWebKeyboardEvent(blink::WebInputEvent::Type type,
                                                int modifiers,
                                                base::TimeTicks timestamp)
-    : WebKeyboardEvent(type, modifiers, timestamp),
-      os_event(NULL),
-      skip_in_browser(false) {}
+    : WebKeyboardEvent(type, modifiers, timestamp), skip_if_unhandled(false) {}
 
 NativeWebKeyboardEvent::NativeWebKeyboardEvent(
     const blink::WebKeyboardEvent& web_event,
     gfx::NativeView native_view)
-    : WebKeyboardEvent(web_event), os_event(nullptr), skip_in_browser(false) {}
+    : WebKeyboardEvent(web_event), skip_if_unhandled(false) {}
 
 NativeWebKeyboardEvent::NativeWebKeyboardEvent(gfx::NativeEvent native_event)
-    : WebKeyboardEvent(WebKeyboardEventBuilder::Build(native_event)),
-      os_event([native_event retain]),
-      skip_in_browser(false) {}
+    : WebKeyboardEvent(WebKeyboardEventBuilder::Build(native_event.Get())),
+      os_event(native_event),
+      skip_if_unhandled(false) {}
 
 NativeWebKeyboardEvent::NativeWebKeyboardEvent(const ui::KeyEvent& key_event)
-    : NativeWebKeyboardEvent(key_event.native_event()) {}
+    : NativeWebKeyboardEvent(
+          base::apple::OwnedUIEvent(key_event.native_event())) {}
 
 NativeWebKeyboardEvent::NativeWebKeyboardEvent(
     const NativeWebKeyboardEvent& other)
     : WebKeyboardEvent(other),
-      os_event([other.os_event retain]),
-      skip_in_browser(other.skip_in_browser) {}
+      os_event(other.os_event),
+      skip_if_unhandled(other.skip_if_unhandled) {}
 
 NativeWebKeyboardEvent& NativeWebKeyboardEvent::operator=(
     const NativeWebKeyboardEvent& other) {
   WebKeyboardEvent::operator=(other);
 
-  UIEvent* previous = os_event;
-  os_event = [other.os_event retain];
-  [previous release];
+  os_event = other.os_event;
 
-  skip_in_browser = other.skip_in_browser;
+  skip_if_unhandled = other.skip_if_unhandled;
 
   return *this;
 }
 
-NativeWebKeyboardEvent::~NativeWebKeyboardEvent() {
-  [os_event release];
-}
+NativeWebKeyboardEvent::~NativeWebKeyboardEvent() = default;
 
 }  // namespace content

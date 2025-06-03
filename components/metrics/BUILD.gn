@@ -9,6 +9,7 @@ import("//testing/test.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 # Dependency for histogram manager users: cronet and ios/webview
@@ -71,23 +72,37 @@ if (!is_cronet_build && is_android) {
     ]
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
+}
+
+# Used by the Chrome installer, which doesn't need the whole metrics library.
+source_set("client_info") {
+  sources = [
+    "client_info.cc",
+    "client_info.h",
+  ]
+}
+
+# Used by the Chrome installer, which doesn't need the whole metrics library.
+source_set("metrics_pref_names") {
+  sources = [
+    "metrics_pref_names.cc",
+    "metrics_pref_names.h",
+  ]
 }
 
 if (!is_cronet_build || is_ios) {
   static_library("metrics") {
     sources = [
-      "android_metrics_provider.cc",
-      "android_metrics_provider.h",
+      "android_metrics_helper.cc",
+      "android_metrics_helper.h",
       "call_stack_profile_metrics_provider.cc",
       "call_stack_profile_metrics_provider.h",
       "clean_exit_beacon.cc",
       "clean_exit_beacon.h",
-      "client_info.cc",
-      "client_info.h",
       "cloned_install_detector.cc",
       "cloned_install_detector.h",
       "cpu_metrics_provider.cc",
@@ -128,15 +143,11 @@ if (!is_cronet_build || is_ios) {
       "metrics_features.h",
       "metrics_log.cc",
       "metrics_log.h",
-      "metrics_log_manager.cc",
-      "metrics_log_manager.h",
       "metrics_log_store.cc",
       "metrics_log_store.h",
       "metrics_log_uploader.h",
       "metrics_logs_event_manager.cc",
       "metrics_logs_event_manager.h",
-      "metrics_pref_names.cc",
-      "metrics_pref_names.h",
       "metrics_provider.cc",
       "metrics_provider.h",
       "metrics_reporting_default_state.cc",
@@ -155,6 +166,8 @@ if (!is_cronet_build || is_ios) {
       "metrics_service_client.h",
       "metrics_service_observer.cc",
       "metrics_service_observer.h",
+      "metrics_shutdown.cc",
+      "metrics_shutdown.h",
       "metrics_state_manager.cc",
       "metrics_state_manager.h",
       "metrics_switches.cc",
@@ -183,13 +196,20 @@ if (!is_cronet_build || is_ios) {
       "unsent_log_store_metrics.h",
       "unsent_log_store_metrics_impl.cc",
       "unsent_log_store_metrics_impl.h",
-      "url_constants.cc",
       "url_constants.h",
       "version_utils.cc",
       "version_utils.h",
     ]
 
+    if (is_chrome_branded) {
+      sources += [ "internal/url_constants.cc" ]
+    } else {
+      sources += [ "url_constants.cc" ]
+    }
+
     public_deps = [
+      "//components/metrics:client_info",
+      "//components/metrics:metrics_pref_names",
       "//third_party/metrics_proto",
       "//third_party/zlib/google:compression_utils",
     ]
@@ -198,9 +218,11 @@ if (!is_cronet_build || is_ios) {
       ":library_support",
       "//base",
       "//base:base_static",
+      "//base:i18n",
       "//build:branding_buildflags",
       "//build:chromeos_buildflags",
       "//components/flags_ui:switches",
+      "//components/network_time",
       "//components/prefs",
       "//components/variations",
       "//components/variations/field_trial_config",
@@ -211,16 +233,17 @@ if (!is_cronet_build || is_ios) {
       "//url",
     ]
 
-    if (is_chromeos_ash) {
-      deps += [
-        ":serialization",
-        "//components/metrics/structured:neutrino_logging",
-      ]
-    }
-
     if (is_android) {
-      sources += [ "drive_metrics_provider_android.cc" ]
+      sources += [
+        "android_metrics_provider.cc",
+        "android_metrics_provider.h",
+        "drive_metrics_provider_android.cc",
+        "gms_metrics_provider.cc",
+        "gms_metrics_provider.h",
+      ]
       deps += [ ":jni_headers" ]
+    } else {
+      deps += [ "//components/keep_alive_registry" ]
     }
 
     if (is_ios) {
@@ -480,7 +503,7 @@ if (!is_cronet_build) {
   source_set("unit_tests") {
     testonly = true
     sources = [
-      "android_metrics_provider_unittest.cc",
+      "android_metrics_helper_unittest.cc",
       "call_stack_profile_builder_unittest.cc",
       "call_stack_profile_metadata_unittest.cc",
       "call_stack_profile_metrics_provider_unittest.cc",
@@ -578,6 +601,13 @@ if (!is_cronet_build) {
       deps += [
         "//chromeos/ash/components/dbus:test_support",
         "//chromeos/ash/components/network:test_support",
+      ]
+    }
+
+    if (is_android) {
+      sources += [
+        "android_metrics_provider_unittest.cc",
+        "gms_metrics_provider_unittest.cc",
       ]
     }
 

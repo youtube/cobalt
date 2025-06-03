@@ -949,15 +949,6 @@ void SbPlayerBridge::WriteBuffersInternal(
     sample_info.buffer_size = buffer->data_size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
-    if (buffer->side_data_size() > 0) {
-      // We only support at most one side data currently.
-      side_data->type = kMatroskaBlockAdditional;
-      side_data->data = buffer->side_data();
-      side_data->size = buffer->side_data_size();
-      sample_info.side_data = side_data;
-      sample_info.side_data_count = 1;
-    }
-
     if (sample_type == kSbMediaTypeAudio) {
       DCHECK(audio_stream_info);
       SetStreamInfo(*audio_stream_info, &sample_info.audio_sample_info);

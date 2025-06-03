@@ -182,7 +182,7 @@ TEST_P(PaintChunksToCcLayerTest, EffectFilterGroupingNestedWithTransforms) {
 
   cc::PaintFlags expected_flags;
   expected_flags.setImageFilter(cc::RenderSurfaceFilters::BuildImageFilter(
-      filter.AsCcFilterOperations(), gfx::SizeF()));
+      filter.AsCcFilterOperations()));
   EXPECT_THAT(
       output,
       ElementsAre(
@@ -335,7 +335,7 @@ TEST_P(PaintChunksToCcLayerTest, FilterEffectSpaceInversion) {
 
   cc::PaintFlags expected_flags;
   expected_flags.setImageFilter(cc::RenderSurfaceFilters::BuildImageFilter(
-      filter.AsCcFilterOperations(), gfx::SizeF()));
+      filter.AsCcFilterOperations()));
   EXPECT_THAT(
       output,
       ElementsAre(
@@ -1056,7 +1056,7 @@ TEST_P(PaintChunksToCcLayerTest, EmptyChunkRect) {
 
   cc::PaintFlags expected_flags;
   expected_flags.setImageFilter(cc::RenderSurfaceFilters::BuildImageFilter(
-      filter.AsCcFilterOperations(), gfx::SizeF()));
+      filter.AsCcFilterOperations()));
   EXPECT_THAT(output, ElementsAre(PaintOpEq<cc::SaveLayerOp>(
                                       SkRect::MakeXYWH(0, 0, 0, 0),
                                       expected_flags),           // <e1>
@@ -1066,7 +1066,8 @@ TEST_P(PaintChunksToCcLayerTest, EmptyChunkRect) {
 static sk_sp<cc::PaintFilter> MakeFilter(gfx::RectF bounds) {
   PaintFilter::CropRect rect(gfx::RectFToSkRect(bounds));
   return sk_make_sp<ColorFilterPaintFilter>(
-      SkColorFilters::Blend(SK_ColorBLUE, SkBlendMode::kSrc), nullptr, &rect);
+      cc::ColorFilter::MakeBlend(SkColors::kBlue, SkBlendMode::kSrc), nullptr,
+      &rect);
 }
 
 TEST_P(PaintChunksToCcLayerTest, ReferenceFilterOnEmptyChunk) {
@@ -1093,7 +1094,7 @@ TEST_P(PaintChunksToCcLayerTest, ReferenceFilterOnEmptyChunk) {
 
   cc::PaintFlags expected_flags;
   expected_flags.setImageFilter(cc::RenderSurfaceFilters::BuildImageFilter(
-      filter.AsCcFilterOperations(), gfx::SizeF()));
+      filter.AsCcFilterOperations()));
   EXPECT_THAT(output, ElementsAre(PaintOpIs<cc::SaveOp>(),
                                   PaintOpIs<cc::TranslateOp>(),  // layer offset
                                   PaintOpEq<cc::SaveLayerOp>(
@@ -1133,7 +1134,7 @@ TEST_P(PaintChunksToCcLayerTest, ReferenceFilterOnChunkWithDrawingDisplayItem) {
 
   cc::PaintFlags expected_flags;
   expected_flags.setImageFilter(cc::RenderSurfaceFilters::BuildImageFilter(
-      filter.AsCcFilterOperations(), gfx::SizeF()));
+      filter.AsCcFilterOperations()));
   EXPECT_THAT(
       output,
       ElementsAre(PaintOpIs<cc::SaveOp>(),

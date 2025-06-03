@@ -13,7 +13,6 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
@@ -122,7 +121,8 @@ TEST_P(FaceDetectionImplMacTest, ScanOneFace) {
 
   // Load image data from test directory.
   base::FilePath image_path;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &image_path));
+  ASSERT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &image_path));
   image_path = image_path.AppendASCII(GetParam().image_path);
   ASSERT_TRUE(base::PathExists(image_path));
   std::string image_data;

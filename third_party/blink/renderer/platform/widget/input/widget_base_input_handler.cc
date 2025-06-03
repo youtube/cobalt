@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -17,6 +18,7 @@
 #include "cc/trees/layer_tree_host.h"
 #include "services/tracing/public/cpp/perfetto/flow_event_utils.h"
 #include "services/tracing/public/cpp/perfetto/macros.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_gesture_device.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
 #include "third_party/blink/public/common/input/web_input_event_attribution.h"
@@ -26,6 +28,7 @@
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
+#include "third_party/blink/public/platform/web_input_event_result.h"
 #include "third_party/blink/renderer/platform/widget/input/ime_event_guard.h"
 #include "third_party/blink/renderer/platform/widget/widget_base.h"
 #include "third_party/blink/renderer/platform/widget/widget_base_client.h"
@@ -156,9 +159,12 @@ WebCoalescedInputEvent GetCoalescedWebPointerEventForTouch(
 }
 
 mojom::InputEventResultState GetAckResult(WebInputEventResult processed) {
-  return processed == WebInputEventResult::kNotHandled
-             ? mojom::InputEventResultState::kNotConsumed
-             : mojom::InputEventResultState::kConsumed;
+  if (processed == WebInputEventResult::kNotHandled) {
+    return base::FeatureList::IsEnabled(features::kFixGestureScrollQueuingBug)
+               ? mojom::InputEventResultState::kNotConsumedBlocking
+               : mojom::InputEventResultState::kNotConsumed;
+  }
+  return mojom::InputEventResultState::kConsumed;
 }
 
 bool IsGestureScroll(WebInputEvent::Type type) {
@@ -256,7 +262,7 @@ class WidgetBaseInputHandler::HandlingState {
   // Whether the event we are handling is a touch start or move.
   bool touch_start_or_move_;
 
-  HandlingState* previous_state_;
+  raw_ptr<HandlingState, ExperimentalRenderer> previous_state_;
   bool previous_was_handling_input_;
   base::WeakPtr<WidgetBaseInputHandler> input_handler_;
 };
@@ -559,8 +565,7 @@ bool WidgetBaseInputHandler::DidOverscrollFromBlink(
   return false;
 }
 
-void WidgetBaseInputHandler::InjectGestureScrollEvent(
-    WebGestureDevice device,
+void WidgetBaseInputHandler::InjectScrollbarGestureScroll(
     const gfx::Vector2dF& delta,
     ui::ScrollGranularity granularity,
     cc::ElementId scrollable_area_element_id,
@@ -578,14 +583,14 @@ void WidgetBaseInputHandler::InjectGestureScrollEvent(
   // of that would be an extra frame of latency if we're injecting a scroll
   // during the handling of a rAF aligned input event, such as mouse move.
   if (handling_input_state_) {
-    InjectScrollGestureParams params{device, delta, granularity,
+    InjectScrollGestureParams params{delta, granularity,
                                      scrollable_area_element_id, injected_type};
     handling_input_state_->injected_scroll_params().push_back(params);
   } else {
     base::TimeTicks now = base::TimeTicks::Now();
     std::unique_ptr<WebGestureEvent> gesture_event =
-        WebGestureEvent::GenerateInjectedScrollGesture(
-            injected_type, now, device, gfx::PointF(0, 0), delta, granularity);
+        WebGestureEvent::GenerateInjectedScrollbarGestureScroll(
+            injected_type, now, gfx::PointF(0, 0), delta, granularity);
     if (injected_type == WebInputEvent::Type::kGestureScrollBegin) {
       gesture_event->data.scroll_begin.scrollable_area_element_id =
           scrollable_area_element_id.GetInternalValue();
@@ -621,20 +626,15 @@ void WidgetBaseInputHandler::HandleInjectedScrollGestures(
     // allows end to end latency to be logged for the injected scroll, annotated
     // with the correct type.
     ui::LatencyInfo scrollbar_latency_info(original_latency_info);
-
-    // Currently only scrollbar is supported - if this DCHECK hits due to a
-    // new type being injected, please modify the type passed to
-    // |set_source_event_type()|.
-    DCHECK(params.device == WebGestureDevice::kScrollbar);
     scrollbar_latency_info.set_source_event_type(
         ui::SourceEventType::SCROLLBAR);
     scrollbar_latency_info.AddLatencyNumber(
         ui::LatencyComponentType::INPUT_EVENT_LATENCY_RENDERER_MAIN_COMPONENT);
 
     std::unique_ptr<WebGestureEvent> gesture_event =
-        WebGestureEvent::GenerateInjectedScrollGesture(
-            params.type, input_event.TimeStamp(), params.device, position,
-            params.scroll_delta, params.granularity);
+        WebGestureEvent::GenerateInjectedScrollbarGestureScroll(
+            params.type, input_event.TimeStamp(), position, params.scroll_delta,
+            params.granularity);
 
     std::unique_ptr<cc::EventMetrics> metrics;
     if (params.type == WebInputEvent::Type::kGestureScrollUpdate) {

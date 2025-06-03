@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,10 +23,12 @@
 #include "chrome/common/pref_names.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/commerce/core/pref_names.h"
 #include "components/commerce/core/price_tracking_utils.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/power_bookmarks/core/power_bookmark_utils.h"
 #include "components/power_bookmarks/core/proto/power_bookmark_meta.pb.h"
@@ -41,6 +43,8 @@
 
 namespace {
 
+// This will add the bookmark to the shopping collection if the feature is
+// enabled, otherwise we save to "other bookmarks".
 void AddIfNotBookmarkedToTheDefaultFolder(bookmarks::BookmarkModel* model,
                                           content::WebContents* web_contents) {
   GURL url;
@@ -51,8 +55,14 @@ void AddIfNotBookmarkedToTheDefaultFolder(bookmarks::BookmarkModel* model,
       return;
     }
 
-    const bookmarks::BookmarkNode* other_node = model->other_node();
-    model->AddNewURL(other_node, other_node->children().size(), title, url);
+    const bookmarks::BookmarkNode* parent = model->other_node();
+
+    // Automatically add the bookmark to the shopping collection if enabled.
+    if (base::FeatureList::IsEnabled(commerce::kShoppingCollection)) {
+      parent = commerce::GetShoppingCollectionBookmarkFolder(model, true);
+    }
+
+    model->AddNewURL(parent, parent->children().size(), title, url);
   }
 }
 
@@ -70,12 +80,17 @@ PriceTrackingIconView::PriceTrackingIconView(
       browser_(browser),
       profile_(browser->profile()),
       bubble_coordinator_(this),
-      icon_(&omnibox::kPriceTrackingDisabledIcon) {
+      icon_(OmniboxFieldTrial::IsChromeRefreshIconsEnabled()
+                ? &omnibox::kPriceTrackingDisabledRefreshIcon
+                : &omnibox::kPriceTrackingDisabledIcon) {
   SetUpForInOutAnimation();
   SetProperty(views::kElementIdentifierKey, kPriceTrackingChipElementId);
   SetAccessibilityProperties(
       /*role*/ absl::nullopt,
       l10n_util::GetStringUTF16(IDS_OMNIBOX_TRACK_PRICE));
+
+  SetUseTonalColorsWhenExpanded(
+      base::FeatureList::IsEnabled(commerce::kPriceTrackingIconColors));
 }
 
 PriceTrackingIconView::~PriceTrackingIconView() = default;
@@ -97,6 +112,7 @@ void PriceTrackingIconView::OnExecuting(
   CHECK(tab_helper);
 
   const gfx::Image& product_image = tab_helper->GetProductImage();
+  tab_helper->OnPriceTrackingIconClicked();
   DCHECK(!product_image.IsEmpty());
 
   base::RecordAction(
@@ -150,8 +166,8 @@ void PriceTrackingIconView::UpdateImpl() {
     if (!GetVisible()) {
       base::RecordAction(
           base::UserMetricsAction("Commerce.PriceTracking.OmniboxChipShown"));
-      MaybeShowPageActionLabel();
     }
+    MaybeShowPageActionLabel();
   } else {
     HidePageActionLabel();
   }
@@ -191,10 +207,11 @@ bool PriceTrackingIconView::MaybeShowIPH() {
   if (!browser_->window() || !ShouldShowFirstUseExperienceBubble()) {
     return false;
   }
-  return browser_->window()->MaybeShowFeaturePromo(
-      feature_engagement::kIPHPriceTrackingChipFeature, {},
-      base::BindOnce(&PriceTrackingIconView::UnpauseAnimation,
-                     base::Unretained(this)));
+  user_education::FeaturePromoParams params(
+      feature_engagement::kIPHPriceTrackingChipFeature);
+  params.close_callback = base::BindOnce(
+      &PriceTrackingIconView::UnpauseAnimation, base::Unretained(this));
+  return browser_->window()->MaybeShowFeaturePromo(std::move(params));
 }
 
 void PriceTrackingIconView::ForceVisibleForTesting(bool is_tracking_price) {
@@ -236,17 +253,13 @@ void PriceTrackingIconView::EnablePriceTracking(bool enable) {
     bool should_show_iph = browser_->window()->MaybeShowFeaturePromo(
         feature_engagement::kIPHPriceTrackingInSidePanelFeature);
     if (should_show_iph) {
-      SidePanelCoordinator* coordinator =
-          BrowserView::GetBrowserViewForBrowser(browser_)
-              ->side_panel_coordinator();
-      if (coordinator) {
+      SidePanelUI* side_panel_ui =
+          SidePanelUI::GetSidePanelUIForBrowser(browser_);
+      if (side_panel_ui) {
         SidePanelRegistry* registry =
             SidePanelCoordinator::GetGlobalSidePanelRegistry(browser_);
         registry->SetActiveEntry(registry->GetEntryForKey(
             SidePanelEntry::Key(SidePanelEntry::Id::kBookmarks)));
-      } else {
-        profile_->GetPrefs()->SetBoolean(prefs::kShouldShowSidePanelBookmarkTab,
-                                         true);
       }
     }
   }
@@ -264,8 +277,13 @@ void PriceTrackingIconView::EnablePriceTracking(bool enable) {
 }
 
 void PriceTrackingIconView::SetVisualState(bool enable) {
-  icon_ = enable ? &omnibox::kPriceTrackingEnabledFilledIcon
-                 : &omnibox::kPriceTrackingDisabledIcon;
+  if (OmniboxFieldTrial::IsChromeRefreshIconsEnabled()) {
+    icon_ = enable ? &omnibox::kPriceTrackingEnabledRefreshIcon
+                   : &omnibox::kPriceTrackingDisabledRefreshIcon;
+  } else {
+    icon_ = enable ? &omnibox::kPriceTrackingEnabledFilledIcon
+                   : &omnibox::kPriceTrackingDisabledIcon;
+  }
   // TODO(meiliang@): Confirm with UXW on the tooltip string. If this expected,
   // we can return label()->GetText() instead.
   SetAccessibleName(l10n_util::GetStringUTF16(
@@ -299,26 +317,26 @@ bool PriceTrackingIconView::IsPriceTracking() const {
 bool PriceTrackingIconView::ShouldShowFirstUseExperienceBubble() const {
   return profile_->GetPrefs()->GetBoolean(
              prefs::kShouldShowPriceTrackFUEBubble) &&
+         !profile_->GetPrefs()->HasPrefPath(
+             commerce::kPriceEmailNotificationsEnabled) &&
          !IsPriceTracking();
 }
 
 void PriceTrackingIconView::MaybeShowPageActionLabel() {
-  auto* tracker =
-      feature_engagement::TrackerFactory::GetForBrowserContext(profile_);
-  if (!tracker ||
-      !tracker->ShouldTriggerHelpUI(
-          feature_engagement::kIPHPriceTrackingPageActionIconLabelFeature)) {
+  if (!base::FeatureList::IsEnabled(commerce::kCommerceAllowChipExpansion)) {
+    return;
+  }
+
+  auto* tab_helper =
+      commerce::ShoppingListUiTabHelper::FromWebContents(GetWebContents());
+
+  if (!tab_helper || !tab_helper->ShouldExpandPageActionIcon(
+                         PageActionIconType::kPriceTracking)) {
     return;
   }
 
   should_extend_label_shown_duration_ = true;
   AnimateIn(absl::nullopt);
-
-  // Note that `Dismiss()` in this case does not dismiss the UI. It's telling
-  // the FE backend that the promo is done so that other promos can run. Showing
-  // the label should not block other promos from displaying.
-  tracker->Dismissed(
-      feature_engagement::kIPHPriceTrackingPageActionIconLabelFeature);
 }
 
 void PriceTrackingIconView::HidePageActionLabel() {

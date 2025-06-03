@@ -6,11 +6,11 @@
 #define COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_INSECURE_CREDENTIALS_TABLE_H_
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/types/strong_alias.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_store_sync.h"
+#include "components/password_manager/core/browser/sync/password_store_sync.h"
 #include "url/gurl.h"
 
 namespace sql {
@@ -18,8 +18,6 @@ class Database;
 }
 
 namespace password_manager {
-
-using BulkCheckDone = base::StrongAlias<class BulkCheckDoneTag, bool>;
 
 enum class RemoveInsecureCredentialsReason {
   // If the password was updated in the password store.
@@ -101,9 +99,7 @@ class InsecureCredentialsTable {
   std::vector<InsecureCredential> GetRows(FormPrimaryKey parent_key) const;
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION sql::Database* db_ = nullptr;
+  raw_ptr<sql::Database> db_ = nullptr;
 };
 
 }  // namespace password_manager

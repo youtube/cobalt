@@ -11,6 +11,7 @@
 #include "base/observer_list.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/permissions/one_time_permissions_tracker_observer.h"
+#include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/visibility.h"
@@ -60,6 +61,14 @@ class OneTimePermissionsTracker : public KeyedService {
 
   void Shutdown() override;
 
+  // When the provider expires content settings, this function clears the
+  // associated state in the tracker. This prevents unnecessary calls to the
+  // provider for already expired content settings.
+  void CleanupStateForExpiredContentSetting(
+      ContentSettingsType type,
+      ContentSettingsPattern primary_pattern,
+      ContentSettingsPattern secondary_pattern);
+
   // Fires all running timers for testing purposes.
   void FireRunningTimersForTesting();
 
@@ -94,6 +103,12 @@ class OneTimePermissionsTracker : public KeyedService {
     std::unique_ptr<base::OneShotTimer> background_expiration_timer =
         std::make_unique<base::OneShotTimer>();
 
+    // One shot timer for expiring permissions that are temporarily disabled by
+    // backgrounding. This timer is only used in the File System Access
+    // Persistent Permissions implementation to detect tab backgrounding events.
+    std::unique_ptr<base::OneShotTimer> background_expiration_long_timer =
+        std::make_unique<base::OneShotTimer>();
+
     // One shot timer for user-media one-time permissions for this origin.
     std::map<ContentSettingsType, std::unique_ptr<base::OneShotTimer>>
         content_setting_specific_expiration_timer_map;
@@ -111,7 +126,10 @@ class OneTimePermissionsTracker : public KeyedService {
                                            ContentSettingsType content_setting,
                                            NotifyFunction notify_callback);
 
-  void NotifyBackgroundTimerExpired(const url::Origin& origin);
+  void NotifyBackgroundTimerExpired(
+      const url::Origin& origin,
+      const OneTimePermissionsTrackerObserver::BackgroundExpiryType&
+          expiry_type);
   void NotifyCapturingVideoExpired(const url::Origin& origin);
   void NotifyCapturingAudioExpired(const url::Origin& origin);
 

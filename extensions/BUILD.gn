@@ -204,7 +204,6 @@ repack("shell_and_test_pak") {
   sources = [
     "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
     "$root_gen_dir/content/content_resources.pak",
-    "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/shell/shell_resources.pak",
     "$root_gen_dir/device/bluetooth/strings/bluetooth_strings_en-US.pak",
     "$root_gen_dir/extensions/extensions_browser_resources_100_percent.pak",
@@ -227,7 +226,6 @@ repack("shell_and_test_pak") {
   deps = [
     ":extensions_resources",
     "//content:content_resources",
-    "//content:dev_ui_content_resources",
     "//content/browser/devtools:devtools_resources",
     "//content/shell:resources",
     "//device/bluetooth/strings",
@@ -281,11 +279,9 @@ test("extensions_unittests") {
   ]
 
   if (is_fuchsia) {
-    # TODO(https://crbug.com/1185811): Investigate removing the requirement for
-    # job_policy_ambient_mark_vmo_exec for the sake of V8's allocator in tests.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
-
     additional_manifest_fragments = [
+      # TODO(https://crbug.com/1185811): Investigate removing the requirement
+      # for VmexResource.
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
       "//build/config/fuchsia/test/network.shard.test-cml",
       "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",

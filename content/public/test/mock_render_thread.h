@@ -81,8 +81,6 @@ class MockRenderThread : public RenderThread {
   void SetRendererProcessType(
       blink::scheduler::WebRendererProcessType type) override;
   blink::WebString GetUserAgent() override;
-  blink::WebString GetFullUserAgent() override;
-  blink::WebString GetReducedUserAgent() override;
   const blink::UserAgentMetadata& GetUserAgentMetadata() override;
 #if BUILDFLAG(IS_WIN)
   void PreCacheFont(const LOGFONT& log_font) override;
@@ -93,7 +91,6 @@ class MockRenderThread : public RenderThread {
   void WriteIntoTrace(
       perfetto::TracedProto<perfetto::protos::pbzero::RenderProcessHost> proto)
       override;
-  network::mojom::AttributionSupport GetAttributionReportingSupport() override;
 
   // Returns a new, unique routing ID that can be assigned to the next view,
   // widget, or frame.

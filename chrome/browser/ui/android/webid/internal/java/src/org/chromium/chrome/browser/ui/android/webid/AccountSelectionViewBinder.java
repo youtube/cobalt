@@ -32,7 +32,10 @@ import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.AccountProperties;
 import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.ContinueButtonProperties;
 import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.DataSharingConsentProperties;
+import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.ErrorButtonProperties;
+import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.ErrorProperties;
 import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.HeaderProperties;
+import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.IdpSignInProperties;
 import org.chromium.chrome.browser.ui.android.webid.AccountSelectionProperties.ItemProperties;
 import org.chromium.chrome.browser.ui.android.webid.data.Account;
 import org.chromium.chrome.browser.ui.android.webid.data.IdentityProviderMetadata;
@@ -57,6 +60,14 @@ import java.util.List;
  */
 class AccountSelectionViewBinder {
     private static final String TAG = "AccountSelectionView";
+
+    // Error codes used to show more specific error UI to the user.
+    static final String GENERIC = "";
+    static final String INVALID_REQUEST = "invalid_request";
+    static final String UNAUTHORIZED_CLIENT = "unauthorized_client";
+    static final String ACCESS_DENIED = "access_denied";
+    static final String TEMPORARILY_UNAVAILABLE = "temporarily_unavailable";
+    static final String SERVER_ERROR = "server_error";
 
     /**
      * Returns bitmap with the maskable bitmap's safe zone as defined in
@@ -204,6 +215,156 @@ class AccountSelectionViewBinder {
     }
 
     /**
+     * Called whenever IDP sign in is bound to this view.
+     * @param model The model containing the data for the view.
+     * @param view The view to be bound.
+     * @param key The key of the property to be bound.
+     */
+    static void bindIdpSignInView(PropertyModel model, View view, PropertyKey key) {
+        if (key != IdpSignInProperties.IDP_FOR_DISPLAY) {
+            assert false : "Unhandled update to property: " + key;
+            return;
+        }
+        String idpForDisplay = model.get(IdpSignInProperties.IDP_FOR_DISPLAY);
+        Context context = view.getContext();
+        TextView textView = view.findViewById(R.id.idp_signin);
+        textView.setText(String.format(
+                context.getString(R.string.idp_signin_status_mismatch_dialog_body, idpForDisplay)));
+        textView.setMovementMethod(LinkMovementMethod.getInstance());
+    }
+
+    private static class ErrorText {
+        final String mSummary;
+        final SpannableString mDescription;
+
+        ErrorText(String summary, String description) {
+            mSummary = summary;
+            mDescription = new SpannableString(description);
+        }
+
+        ErrorText(String summary, String description, Context context, Runnable runnable) {
+            mSummary = summary;
+            SpanApplier.SpanInfo moreDetailsSpan =
+                    new SpanApplier.SpanInfo(
+                            "<link_more_details>",
+                            "</link_more_details>",
+                            new NoUnderlineClickableSpan(
+                                    context, (View clickedView) -> runnable.run()));
+            mDescription = SpanApplier.applySpans(description, moreDetailsSpan);
+        }
+    }
+
+    /**
+     * Returns text to be displayed on the error dialog.
+     * @param view The view to be bound.
+     * @param properties The properties which determine what error text to display.
+     * @return The ErrorText containing the summary and description to display.
+     */
+    private static ErrorText getErrorText(View view, ErrorProperties.Properties properties) {
+        String code = properties.mError.getCode();
+        GURL url = properties.mError.getUrl();
+        String idpForDisplay = properties.mIdpForDisplay;
+        String topFrameForDisplay = properties.mTopFrameForDisplay;
+        Context context = view.getContext();
+
+        String summary;
+        String description;
+
+        if (SERVER_ERROR.equals(code)) {
+            summary = String.format(context.getString(R.string.signin_server_error_dialog_summary));
+            description = String.format(context.getString(
+                    R.string.signin_server_error_dialog_description, topFrameForDisplay));
+            // Server errors do not need extra description to be displayed.
+            return new ErrorText(summary, description);
+        } else if (INVALID_REQUEST.equals(code)) {
+            summary = String.format(
+                    context.getString(R.string.signin_invalid_request_error_dialog_summary,
+                            topFrameForDisplay, idpForDisplay));
+            description = String.format(
+                    context.getString(R.string.signin_invalid_request_error_dialog_description));
+        } else if (UNAUTHORIZED_CLIENT.equals(code)) {
+            summary = String.format(
+                    context.getString(R.string.signin_unauthorized_client_error_dialog_summary,
+                            topFrameForDisplay, idpForDisplay));
+            description = String.format(context.getString(
+                    R.string.signin_unauthorized_client_error_dialog_description));
+        } else if (ACCESS_DENIED.equals(code)) {
+            summary = String.format(
+                    context.getString(R.string.signin_access_denied_error_dialog_summary));
+            description = String.format(
+                    context.getString(R.string.signin_access_denied_error_dialog_description));
+        } else if (TEMPORARILY_UNAVAILABLE.equals(code)) {
+            summary = String.format(context.getString(
+                    R.string.signin_temporarily_unavailable_error_dialog_summary));
+            description = String.format(context.getString(
+                    R.string.signin_temporarily_unavailable_error_dialog_description,
+                    idpForDisplay));
+        } else {
+            summary = String.format(
+                    context.getString(R.string.signin_generic_error_dialog_summary, idpForDisplay));
+            description = String.format(
+                    context.getString(R.string.signin_generic_error_dialog_description));
+
+            if (url.isEmpty()) {
+                return new ErrorText(summary, description);
+            }
+
+            description += ". ";
+            description +=
+                    String.format(
+                            context.getString(
+                                    R.string.signin_generic_error_dialog_more_details_prompt));
+            return new ErrorText(
+                    summary, description, context, properties.mMoreDetailsClickRunnable);
+        }
+
+        if (url.isEmpty()) {
+            description += " ";
+            description +=
+                    String.format(
+                            context.getString(
+                                    TEMPORARILY_UNAVAILABLE.equals(code)
+                                            ? R.string
+                                                    .signin_error_dialog_try_other_ways_retry_prompt
+                                            : R.string.signin_error_dialog_try_other_ways_prompt,
+                                    topFrameForDisplay));
+            return new ErrorText(summary, description);
+        }
+
+        description += " ";
+        description +=
+                String.format(
+                        context.getString(
+                                TEMPORARILY_UNAVAILABLE.equals(code)
+                                        ? R.string.signin_error_dialog_more_details_retry_prompt
+                                        : R.string.signin_error_dialog_more_details_prompt,
+                                idpForDisplay));
+        return new ErrorText(summary, description, context, properties.mMoreDetailsClickRunnable);
+    }
+
+    /**
+     * Called whenever error text is bound to this view.
+     * @param model The model containing the data for the view.
+     * @param view The view to be bound.
+     * @param key The key of the property to be bound.
+     */
+    static void bindErrorTextView(PropertyModel model, View view, PropertyKey key) {
+        if (key == ErrorProperties.PROPERTIES) {
+            ErrorText errorText = getErrorText(view, model.get(ErrorProperties.PROPERTIES));
+
+            TextView summaryTextView = view.findViewById(R.id.error_summary);
+            summaryTextView.setText(errorText.mSummary);
+            summaryTextView.setMovementMethod(LinkMovementMethod.getInstance());
+
+            TextView descriptionTextView = view.findViewById(R.id.error_description);
+            descriptionTextView.setText(errorText.mDescription);
+            descriptionTextView.setMovementMethod(LinkMovementMethod.getInstance());
+        } else {
+            assert false : "Unhandled update to property:" + key;
+        }
+    }
+
+    /**
      * Called whenever a continue button for a single account is bound to this view.
      * @param model The model containing the data for the view.
      * @param view The view to be bound.
@@ -213,11 +374,13 @@ class AccountSelectionViewBinder {
     static void bindContinueButtonView(PropertyModel model, View view, PropertyKey key) {
         Context context = view.getContext();
         ButtonCompat button = view.findViewById(R.id.account_selection_continue_btn);
-        if (key == ContinueButtonProperties.IDP_METADATA) {
-            if (!ColorUtils.inNightMode(context)) {
-                IdentityProviderMetadata idpMetadata =
-                        model.get(ContinueButtonProperties.IDP_METADATA);
 
+        if (key == ContinueButtonProperties.PROPERTIES) {
+            ContinueButtonProperties.Properties properties =
+                    model.get(ContinueButtonProperties.PROPERTIES);
+
+            IdentityProviderMetadata idpMetadata = properties.mIdpMetadata;
+            if (!ColorUtils.inNightMode(context)) {
                 Integer backgroundColor = idpMetadata.getBrandBackgroundColor();
                 if (backgroundColor != null) {
                     button.setButtonColor(ColorStateList.valueOf(backgroundColor));
@@ -233,20 +396,69 @@ class AccountSelectionViewBinder {
                     button.setTextColor(textColor);
                 }
             }
-        } else if (key == ContinueButtonProperties.ACCOUNT) {
-            Account account = model.get(ContinueButtonProperties.ACCOUNT);
-            // Prefers to use given name if it is provided otherwise falls back to using the name.
-            String givenName = account.getGivenName();
-            String displayedName =
-                    givenName != null && !givenName.isEmpty() ? givenName : account.getName();
-            String btnText = String.format(
-                    context.getString(R.string.account_selection_continue), displayedName);
+
+            Account account = properties.mAccount;
+            button.setOnClickListener(
+                    clickedView -> {
+                        properties.mOnClickListener.onResult(account);
+                    });
+
+            String btnText;
+            HeaderProperties.HeaderType headerType = properties.mHeaderType;
+            if (headerType == HeaderProperties.HeaderType.SIGN_IN_TO_IDP_STATIC) {
+                btnText =
+                        String.format(
+                                context.getString(
+                                        R.string.idp_signin_status_mismatch_dialog_continue));
+            } else if (headerType == HeaderProperties.HeaderType.SIGN_IN_ERROR) {
+                btnText =
+                        String.format(
+                                context.getString(R.string.signin_error_dialog_got_it_button));
+            } else {
+                // Prefers to use given name if it is provided otherwise falls back to using the
+                // name.
+                String givenName = account.getGivenName();
+                String displayedName =
+                        givenName != null && !givenName.isEmpty() ? givenName : account.getName();
+                btnText = String.format(
+                        context.getString(R.string.account_selection_continue), displayedName);
+            }
+
+            assert btnText != null;
             button.setText(btnText);
-        } else if (key == ContinueButtonProperties.ON_CLICK_LISTENER) {
-            button.setOnClickListener(clickedView -> {
-                Account account = model.get(ContinueButtonProperties.ACCOUNT);
-                model.get(ContinueButtonProperties.ON_CLICK_LISTENER).onResult(account);
-            });
+        } else {
+            assert false : "Unhandled update to property:" + key;
+        }
+    }
+
+    /**
+     * Called whenever a button on the error dialog is bound to this view.
+     * @param model The model containing the data for the view.
+     * @param view The view to be bound.
+     * @param key The key of the property to be bound.
+     * @param button The button to be bound.
+     * @param buttonText The text that should be set to the button to be bound.
+     */
+    @SuppressWarnings("checkstyle:SetTextColorAndSetTextSizeCheck")
+    private static void bindErrorButtonView(
+            PropertyModel model, View view, PropertyKey key, ButtonCompat button, int textId) {
+        Context context = view.getContext();
+        if (key == ErrorButtonProperties.IDP_METADATA) {
+            String buttonText = String.format(context.getString(textId));
+            button.setText(buttonText);
+            if (!ColorUtils.inNightMode(context)) {
+                IdentityProviderMetadata idpMetadata =
+                        model.get(ErrorButtonProperties.IDP_METADATA);
+
+                // TODO(crbug.com/1484245): Decide on how to set colours for error buttons.
+                Integer textColor = idpMetadata.getBrandBackgroundColor();
+                button.setTextColor(textColor != null
+                                ? textColor
+                                : MaterialColors.getColor(context, R.attr.colorOnPrimary, TAG));
+            }
+        } else if (key == ErrorButtonProperties.ON_CLICK_LISTENER) {
+            button.setOnClickListener(
+                    clickedView -> { model.get(ErrorButtonProperties.ON_CLICK_LISTENER).run(); });
         } else {
             assert false : "Unhandled update to property:" + key;
         }
@@ -271,6 +483,12 @@ class AccountSelectionViewBinder {
         } else if (key == ItemProperties.DATA_SHARING_CONSENT) {
             itemView = view.findViewById(R.id.user_data_sharing_consent);
             itemBinder = AccountSelectionViewBinder::bindDataSharingConsentView;
+        } else if (key == ItemProperties.IDP_SIGNIN) {
+            itemView = view.findViewById(R.id.idp_signin);
+            itemBinder = AccountSelectionViewBinder::bindIdpSignInView;
+        } else if (key == ItemProperties.ERROR_TEXT) {
+            itemView = view.findViewById(R.id.error_text);
+            itemBinder = AccountSelectionViewBinder::bindErrorTextView;
         } else {
             assert false : "Unhandled update to property:" + key;
             return;
@@ -320,6 +538,7 @@ class AccountSelectionViewBinder {
                     model.get(HeaderProperties.IDP_FOR_DISPLAY),
                     model.get(HeaderProperties.RP_CONTEXT));
             headerTitleText.setText(title);
+            headerTitleText.setMovementMethod(LinkMovementMethod.getInstance());
 
             // Make instructions for closing the bottom sheet part of the header's content
             // description. This is needed because the bottom sheet's content description (which

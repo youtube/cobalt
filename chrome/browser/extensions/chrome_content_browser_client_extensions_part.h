@@ -85,6 +85,9 @@ class ChromeContentBrowserClientExtensionsPart
   static bool MayDeleteServiceWorkerRegistration(
       const GURL& scope,
       content::BrowserContext* browser_context);
+  static bool ShouldTryToUpdateServiceWorkerRegistration(
+      const GURL& scope,
+      content::BrowserContext* browser_context);
   static std::vector<url::Origin> GetOriginsRequiringDedicatedProcess();
 
   // Helper function to call InfoMap::SetSigninProcess().
@@ -101,6 +104,8 @@ class ChromeContentBrowserClientExtensionsPart
       bool is_for_isolated_world,
       network::mojom::URLLoaderFactoryParams* factory_params);
 
+  // Checks if the component is a loaded component extension or the ODFS
+  // external component extension.
   static bool IsBuiltinComponent(content::BrowserContext* browser_context,
                                  const url::Origin& origin);
 
@@ -121,7 +126,6 @@ class ChromeContentBrowserClientExtensionsPart
   // ChromeContentBrowserClientParts:
   void RenderProcessWillLaunch(content::RenderProcessHost* host) override;
   void SiteInstanceGotProcess(content::SiteInstance* site_instance) override;
-  void SiteInstanceDeleting(content::SiteInstance* site_instance) override;
   void OverrideWebkitPrefs(content::WebContents* web_contents,
                            blink::web_pref::WebPreferences* web_prefs) override;
   bool OverrideWebPreferencesAfterNavigation(
@@ -146,6 +150,12 @@ class ChromeContentBrowserClientExtensionsPart
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
+  void ExposeInterfacesToRendererForServiceWorker(
+      const content::ServiceWorkerVersionBaseInfo& service_worker_version_info,
+      blink::AssociatedInterfaceRegistry& associated_registry) override;
+  void ExposeInterfacesToRendererForRenderFrameHost(
+      content::RenderFrameHost& frame_host,
+      blink::AssociatedInterfaceRegistry& associated_registry) override;
 };
 
 }  // namespace extensions

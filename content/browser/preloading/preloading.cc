@@ -20,10 +20,23 @@ base::StringPiece PreloadingTypeToString(PreloadingType type) {
       return "Prerender";
     case PreloadingType::kNoStatePrefetch:
       return "NoStatePrefetch";
-    default:
-      NOTREACHED();
-      return "";
+    case PreloadingType::kLinkPreview:
+      return "LinkPreview";
   }
+  NOTREACHED_NORETURN();
+}
+
+PreloadingPredictor GetPredictorForSpeculationRules(
+    blink::mojom::SpeculationInjectionWorld world) {
+  switch (world) {
+    case blink::mojom::SpeculationInjectionWorld::kNone:
+      [[fallthrough]];
+    case blink::mojom::SpeculationInjectionWorld::kMain:
+      return content_preloading_predictor::kSpeculationRules;
+    case blink::mojom::SpeculationInjectionWorld::kIsolated:
+      return content_preloading_predictor::kSpeculationRulesFromIsolatedWorld;
+  }
+  NOTREACHED_NORETURN();
 }
 
 }  // namespace content

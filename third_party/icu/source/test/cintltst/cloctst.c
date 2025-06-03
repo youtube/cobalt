@@ -604,7 +604,7 @@ static void TestSimpleResourceInfo() {
             log_err("  ISO-3 Country code mismatch:  %s versus  %s\n",  austrdup(expected),
                 austrdup(dataTable[CTRY3][i]));
         }
-        sprintf(temp2, "%x", (int)uloc_getLCID(testLocale));
+        snprintf(temp2, sizeof(temp2), "%x", (int)uloc_getLCID(testLocale));
         if (strcmp(temp2, rawData2[LCID][i]) != 0) {
             log_err("LCID mismatch: %s versus %s\n", temp2 , rawData2[LCID][i]);
         }
@@ -2508,6 +2508,10 @@ static void TestCanonicalization21749StackUseAfterScope(void)
                 input, u_errorName(status));
         return;
     }
+
+    // ICU-22475 test that we don't free an internal buffer twice.
+    status = U_ZERO_ERROR;
+    uloc_canonicalize("ti-defaultgR-lS-z-UK-0P", buffer, UPRV_LENGTHOF(buffer), &status);
 }
 
 static void TestDisplayKeywords(void)
@@ -4181,7 +4185,7 @@ const char* const full_data[][3] = {
     "pa_PK"
   }, {
     "pap",
-    "pap_Latn_AW",
+    "pap_Latn_CW",
     "pap"
   }, {
     "pau",
@@ -7043,13 +7047,50 @@ static const UldnItem yi_StdMidLong[] = { // https://unicode-org.atlassian.net/b
 	{ "ji",                     TEST_ULOC_LANGUAGE, u"ייִדיש" },
 };
 
+static const UldnItem zh_DiaMidLong[] = {
+    // zh and zh_Hant both have dialect names for the following in ICU 73
+    { "ar_001",                 TEST_ULDN_LOCALE, u"现代标准阿拉伯语" },
+    { "nl_BE",                  TEST_ULDN_LOCALE, u"弗拉芒语" },
+    { "ro_MD",                  TEST_ULDN_LOCALE, u"摩尔多瓦语" },
+    // zh has dialect names for the following in ICU 73
+    { "en_AU",                  TEST_ULDN_LOCALE, u"澳大利亚英语" },
+    { "en_CA",                  TEST_ULDN_LOCALE, u"加拿大英语" },
+    { "en_GB",                  TEST_ULDN_LOCALE, u"英国英语" },
+    { "en_US",                  TEST_ULDN_LOCALE, u"美国英语" },
+    { "es_419",                 TEST_ULDN_LOCALE, u"拉丁美洲西班牙语" },
+    { "es_ES",                  TEST_ULDN_LOCALE, u"欧洲西班牙语" },
+    { "es_MX",                  TEST_ULDN_LOCALE, u"墨西哥西班牙语" },
+    { "fr_CA",                  TEST_ULDN_LOCALE, u"加拿大法语" },
+    { "fr_CH",                  TEST_ULDN_LOCALE, u"瑞士法语" },
+};
+
+static const UldnItem zh_Hant_DiaMidLong[] = {
+    // zh and zh_Hant both have dialect names for the following in ICU 73
+    { "ar_001",                 TEST_ULDN_LOCALE, u"現代標準阿拉伯文" },
+    { "nl_BE",                  TEST_ULDN_LOCALE, u"佛蘭芒文" },
+    { "ro_MD",                  TEST_ULDN_LOCALE, u"摩爾多瓦文" },
+    // zh_Hant no dialect names for the following in ICU-73,
+    // use standard name
+    { "en_AU",                  TEST_ULDN_LOCALE, u"英文（澳洲）" },
+    { "en_CA",                  TEST_ULDN_LOCALE, u"英文（加拿大）" },
+    { "en_GB",                  TEST_ULDN_LOCALE, u"英文（英國）" },
+    { "en_US",                  TEST_ULDN_LOCALE, u"英文（美國）" },
+    { "es_419",                 TEST_ULDN_LOCALE, u"西班牙文（拉丁美洲）" },
+    { "es_ES",                  TEST_ULDN_LOCALE, u"西班牙文（西班牙）" },
+    { "es_MX",                  TEST_ULDN_LOCALE, u"西班牙文（墨西哥）" },
+    { "fr_CA",                  TEST_ULDN_LOCALE, u"法文（加拿大）" },
+    { "fr_CH",                  TEST_ULDN_LOCALE, u"法文（瑞士）" },
+};
+
 static const UldnLocAndOpts uldnLocAndOpts[] = {
-    { "en", optStdMidLong, en_StdMidLong, UPRV_LENGTHOF(en_StdMidLong) },
-    { "en", optStdMidShrt, en_StdMidShrt, UPRV_LENGTHOF(en_StdMidShrt) },
-    { "en", optDiaMidLong, en_DiaMidLong, UPRV_LENGTHOF(en_DiaMidLong) },
-    { "en", optDiaMidShrt, en_DiaMidShrt, UPRV_LENGTHOF(en_DiaMidShrt) },
-    { "ro", optStdMidLong, ro_StdMidLong, UPRV_LENGTHOF(ro_StdMidLong) },
-    { "yi", optStdMidLong, yi_StdMidLong, UPRV_LENGTHOF(yi_StdMidLong) },
+    { "en", optStdMidLong,      en_StdMidLong,      UPRV_LENGTHOF(en_StdMidLong) },
+    { "en", optStdMidShrt,      en_StdMidShrt,      UPRV_LENGTHOF(en_StdMidShrt) },
+    { "en", optDiaMidLong,      en_DiaMidLong,      UPRV_LENGTHOF(en_DiaMidLong) },
+    { "en", optDiaMidShrt,      en_DiaMidShrt,      UPRV_LENGTHOF(en_DiaMidShrt) },
+    { "ro", optStdMidLong,      ro_StdMidLong,      UPRV_LENGTHOF(ro_StdMidLong) },
+    { "yi", optStdMidLong,      yi_StdMidLong,      UPRV_LENGTHOF(yi_StdMidLong) },
+    { "zh", optDiaMidLong,      zh_DiaMidLong,      UPRV_LENGTHOF(zh_DiaMidLong) },
+    { "zh_Hant", optDiaMidLong, zh_Hant_DiaMidLong, UPRV_LENGTHOF(zh_Hant_DiaMidLong) },
     { NULL, NULL, NULL, 0 }
 };
 
@@ -7217,6 +7258,10 @@ static void TestCDefaultLocale() {
     char *env_var = getenv("LANG");
     if (env_var == NULL) {
       log_verbose("Skipping TestCDefaultLocale test, as the LANG variable is not set.");
+      return;
+    }
+    if (getenv("LC_ALL") != NULL) {
+      log_verbose("Skipping TestCDefaultLocale test, as the LC_ALL variable is set.");
       return;
     }
     if ((strcmp(env_var, "C") == 0 || strcmp(env_var, "C.UTF-8") == 0) && strcmp(defaultLocale, "en_US_POSIX") != 0) {

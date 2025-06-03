@@ -164,7 +164,7 @@ void MediaRouterIntegrationBrowserTest::SetUpInProcessBrowserTestFixture() {
 }
 
 void MediaRouterIntegrationBrowserTest::SetUpOnMainThread() {
-  MediaRouterMojoImpl* router = static_cast<MediaRouterMojoImpl*>(
+  MediaRouterDesktop* router = static_cast<MediaRouterDesktop*>(
       MediaRouterFactory::GetApiForBrowserContext(browser()->profile()));
   mojo::PendingRemote<mojom::MediaRouter> media_router_remote;
   mojo::PendingRemote<mojom::MediaRouteProvider> provider_remote;
@@ -314,7 +314,7 @@ void MediaRouterIntegrationBrowserTest::CheckStartFailed(
 base::FilePath MediaRouterIntegrationBrowserTest::GetResourceFile(
     base::FilePath::StringPieceType relative_path) const {
   const base::FilePath full_path =
-      base::PathService::CheckedGet(base::DIR_GEN_TEST_DATA_ROOT)
+      base::PathService::CheckedGet(base::DIR_OUT_TEST_DATA_ROOT)
           .Append(FILE_PATH_LITERAL("media_router/browser_test_resources/"))
           .Append(relative_path);
   {
@@ -328,7 +328,7 @@ base::FilePath MediaRouterIntegrationBrowserTest::GetResourceFile(
 void MediaRouterIntegrationBrowserTest::ExecuteScript(
     const content::ToRenderFrameHost& adapter,
     const std::string& script) {
-  ASSERT_TRUE(content::ExecuteScript(adapter, script));
+  ASSERT_TRUE(content::ExecJs(adapter, script));
 }
 
 bool MediaRouterIntegrationBrowserTest::IsRouteCreatedOnUI() {
@@ -521,32 +521,7 @@ IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationBrowserTest,
   StartSessionAndAssertNotFoundError();
 }
 
-Browser* MediaRouterIntegrationIncognitoBrowserTest::browser() {
-  if (!incognito_browser_)
-    incognito_browser_ = CreateIncognitoBrowser();
-  return incognito_browser_;
-}
-
-IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationIncognitoBrowserTest, Basic) {
-  RunBasicTest();
-  // If we tear down before route observers are notified of route termination,
-  // MediaRouter will create another TerminateRoute() request which will have a
-  // dangling Mojo callback at shutdown. So we must wait for the update.
-  WaitUntilNoRoutes(GetActiveWebContents());
-}
-
-IN_PROC_BROWSER_TEST_P(MediaRouterIntegrationIncognitoBrowserTest,
-                       ReconnectSession) {
-  RunReconnectSessionTest();
-  // If we tear down before route observers are notified of route termination,
-  // MediaRouter will create another TerminateRoute() request which will have a
-  // dangling Mojo callback at shutdown. So we must wait for the update.
-  WaitUntilNoRoutes(GetActiveWebContents());
-}
-
 INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(
     MediaRouterIntegrationBrowserTest);
-INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(
-    MediaRouterIntegrationIncognitoBrowserTest);
 
 }  // namespace media_router

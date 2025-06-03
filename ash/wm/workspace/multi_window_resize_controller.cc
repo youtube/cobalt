@@ -3,9 +3,6 @@
 // found in the LICENSE file.
 
 #include "ash/wm/workspace/multi_window_resize_controller.h"
-#include "base/memory/raw_ptr.h"
-
-#include <memory>
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/shell_window_ids.h"
@@ -14,7 +11,6 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
-#include "ash/style/icon_button.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/resize_shadow_controller.h"
 #include "ash/wm/snap_group/snap_group_controller.h"
@@ -27,7 +23,6 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
-#include "base/time/time.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window_delegate.h"
@@ -949,8 +944,7 @@ bool MultiWindowResizeController::IsOverComponent(
 void MultiWindowResizeController::OnLockButtonPressed() {
   aura::Window* window1 = windows_.window1;
   aura::Window* window2 = windows_.window2;
-  SnapGroupController* snap_group_controller =
-      Shell::Get()->snap_group_controller();
+  SnapGroupController* snap_group_controller = SnapGroupController::Get();
   CHECK(!snap_group_controller->AreWindowsInSnapGroup(window1, window2));
   snap_group_controller->AddSnapGroup(window1, window2);
   ResetResizer();

@@ -6,10 +6,19 @@ import json
 import logging
 import os
 import subprocess
+import time
+import typing
 
 import test_runner
+import test_runner_errors
+import mac_util
 
 LOGGER = logging.getLogger(__name__)
+
+MAX_WAIT_TIME_TO_DELETE_RUNTIME = 15  # 15 seconds
+
+SIMULATOR_DEFAULT_PATH = os.path.expanduser(
+    '~/Library/Developer/CoreSimulator/Devices')
 
 
 def _compose_simulator_name(platform, version):
@@ -17,10 +26,14 @@ def _compose_simulator_name(platform, version):
   return '%s %s test simulator' % (platform, version)
 
 
-def get_simulator_list():
-  """Gets list of available simulator as a dictionary."""
+def get_simulator_list(path=SIMULATOR_DEFAULT_PATH):
+  """Gets list of available simulator as a dictionary.
+
+  Args:
+    path: (str) Path to be passed to '--set' option.
+  """
   return json.loads(
-      subprocess.check_output(['xcrun', 'simctl', 'list',
+      subprocess.check_output(['xcrun', 'simctl', '--set', path, 'list',
                                '-j']).decode('utf-8'))
 
 
@@ -77,7 +90,10 @@ def get_simulator_runtime_by_version(simulators, version):
     test_runner.SimulatorNotFoundError when the version can't be found.
   """
   for runtime in simulators['runtimes']:
-    if runtime['version'] == version and 'iOS' in runtime['name']:
+    # The output might use version with a patch number (e.g. 17.0.1)
+    # but the passed in version does not have a patch number (e.g. 17.0)
+    # Therefore, we should use startswith for substring match.
+    if runtime['version'].startswith(version) and 'iOS' in runtime['name']:
       return runtime['identifier']
   raise test_runner.SimulatorNotFoundError('Not found "%s" SDK in runtimes %s' %
                                            (version, simulators['runtimes']))
@@ -279,4 +295,228 @@ def copy_trusted_certificate(cert_path, udid):
     subprocess.check_call(['xcrun', 'simctl', 'shutdown', udid])
   except subprocess.CalledProcessError as e:
     message = 'Failed to install cert. Error: %s' % e.output
+    LOGGER.error(message)
+
+
+def get_simulator_runtime_list():
+  """Gets list of available simulator runtimes as a dictionary."""
+  return json.loads(
+      subprocess.check_output(['xcrun', 'simctl', 'runtime', 'list',
+                               '-j']).decode('utf-8'))
+
+
+def get_simulator_runtime_match_list():
+  """Gets list of chosen simulator runtime for each simulator sdk type"""
+  return json.loads(
+      subprocess.check_output(
+          ['xcrun', 'simctl', 'runtime', 'match', 'list',
+           '-j']).decode('utf-8'))
+
+
+def get_simulator_runtime_info(ios_version):
+  """Gets runtime object based on iOS version.
+
+  Args:
+    version: (str) A version name, e.g. "13.4"
+
+  Returns:
+    a simulator runtime json object that contains all the info of an
+    iOS runtime
+    e.g.
+    {
+      "build" : "19F70",
+      "deletable" : true,
+      "identifier" : "FD9ED7F9-96A7-4621-B328-4C317893EC8A",
+      etc...
+    }
+    if no runtime for the corresponding iOS version is found, then
+    return None.
+  """
+  runtimes = get_simulator_runtime_list()
+  for runtime in runtimes.values():
+    # The output might use version with a patch number (e.g. 17.0.1)
+    # but the passed in version does not have a patch number (e.g. 17.0)
+    # Therefore, we should use startswith for substring match.
+    if runtime['version'].startswith(ios_version):
+      return runtime
+  return None
+
+
+def override_default_iphonesim_runtime(runtime_id, ios_version):
+  """Overrides the default simulator runtime build version.
+
+  The default simulator runtime build version that Xcode looks
+  for might not be the same as what we downloaded. Therefore,
+  this method gives the option for override the default with a
+  different runtime build version (ideally the one we downloaded from cipd.
+
+  Args:
+    runtime_id: (str) the runtime id that we desire to use.
+      The runtime build version will be extracted and override the
+      default one.
+    ios_version: the iOS version of the iphone sdk we want to
+      override. e.g. 17.0
+  """
+
+  # find the runtime build number to override with
+  overriding_build = None
+  runtimes = get_simulator_runtime_list()
+  for runtime_key in runtimes:
+    if runtime_key in runtime_id:
+      overriding_build = runtimes[runtime_key].get('build')
+      break
+  if overriding_build is None:
+    LOGGER.debug(
+        'Unable to find the simulator runtime build number to override with...')
+    return
+
+  # find the runtime build number to be overridden
+  sdks = get_simulator_runtime_match_list()
+  iphone_sdk_key = 'iphoneos' + ios_version
+  sdk_build = sdks.get(iphone_sdk_key, {}).get("sdkBuild")
+  if sdk_build is None:
+    LOGGER.debug(
+        'Unable to find the simulator runtime build number to be overriden...')
+    return
+  cmd = [
+      'xcrun', 'simctl', 'runtime', 'match', 'set', iphone_sdk_key,
+      overriding_build, '--sdkBuild', sdk_build
+  ]
+  LOGGER.debug('Overriding default runtime with command %s' % cmd)
+  subprocess.check_call(cmd)
+
+
+def add_simulator_runtime(runtime_dmg_path):
+  cmd = ['xcrun', 'simctl', 'runtime', 'add', runtime_dmg_path]
+  LOGGER.debug('Adding runtime with command %s' % cmd)
+  return subprocess.check_output(cmd).decode('utf-8')
+
+
+def delete_simulator_runtime(runtime_id):
+  cmd = ['xcrun', 'simctl', 'runtime', 'delete', runtime_id]
+  LOGGER.debug('Deleting runtime with command %s' % cmd)
+  subprocess.check_output(cmd)
+
+
+def delete_simulator_runtime_after_days(days):
+  cmd = ['xcrun', 'simctl', 'runtime', 'delete', '--notUsedSinceDays', days]
+  LOGGER.debug('Deleting unused runtime with command %s' % cmd)
+  subprocess.run(cmd, check=False)
+
+
+def delete_simulator_runtime_and_wait(ios_version):
+  runtime_to_delete = get_simulator_runtime_info(ios_version)
+  if runtime_to_delete == None:
+    LOGGER.debug('Runtime %s does not exist in Xcode, no need to cleanup...' %
+                 ios_version)
+    return
+
+  delete_simulator_runtime(runtime_to_delete['identifier'])
+  # runtime takes a few seconds to delete
+  time_waited = 0
+  while (runtime_to_delete != None):
+    LOGGER.debug('Waiting for runtime to be deleted. Current state is %s' %
+                 runtime_to_delete['state'])
+    runtime_to_delete = get_simulator_runtime_info(ios_version)
+    time.sleep(1)
+    time_waited += 1
+    if (time_waited > MAX_WAIT_TIME_TO_DELETE_RUNTIME):
+      raise test_runner_errors.SimRuntimeDeleteTimeoutError(ios_version)
+  LOGGER.debug('Runtime successfully deleted!')
+
+
+def disable_hardware_keyboard(udid: str) -> None:
+  """Disables hardware keyboard input for the given simulator.
+
+  Exceptions are caught and logged but do not interrupt program flow. The result
+  is that if the util is unable to change the HW keyboard pref for any reason
+  the test will still run without changing the preference.
+
+  Args:
+    udid: (str) UDID of the simulator to disable hw keyboard for.
+  """
+
+  path = os.path.expanduser(
+      '~/Library/Preferences/com.apple.iphonesimulator.plist')
+
+  try:
+    if not os.path.exists(path):
+      subprocess.check_call(['plutil', '-create', 'binary1', path])
+
+    plist, error = mac_util.plist_as_dict(path)
+    if error:
+      raise error
+
+    if 'DevicePreferences' not in plist:
+      subprocess.check_call(
+          ['plutil', '-insert', 'DevicePreferences', '-dictionary', path])
+      plist['DevicePreferences'] = {}
+
+    if 'DevicePreferences' in plist and udid not in plist['DevicePreferences']:
+      subprocess.check_call([
+          'plutil', '-insert', 'DevicePreferences.{}'.format(udid),
+          '-dictionary', path
+      ])
+      plist['DevicePreferences'][udid] = {}
+
+    subprocess.check_call([
+        'plutil', '-replace',
+        'DevicePreferences.{}.ConnectHardwareKeyboard'.format(udid), '-bool',
+        'NO', path
+    ])
+
+  except subprocess.CalledProcessError as e:
+    message = 'Unable to disable hardware keyboard. Error: %s' % e.stderr
+    LOGGER.error(message)
+  except json.JSONDecodeError as e:
+    message = 'Unable to disable hardware keyboard. Error: %s' % e.msg
+    LOGGER.error(message)
+
+
+def disable_simulator_keyboard_tutorial(udid):
+  """Disables keyboard tutorial for the given simulator.
+
+  Keyboard tutorial can cause flakes to EG tests as they are not expected.
+  Exceptions are caught and logged but do not interrupt program flow.
+
+  Args:
+    udid: (str) UDID of the simulator.
+  """
+  boot_simulator_if_not_booted(udid)
+
+  try:
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'DidShowContinuousPathIntroduction',
+        '1'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'KeyboardDidShowProductivityTutorial',
+        '1'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'DidShowGestureKeyboardIntroduction',
+        '1'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences',
+        'UIKeyboardDidShowInternationalInfoIntroduction', '1'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'KeyboardAutocorrection', '0'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'KeyboardPrediction', '0'
+    ])
+    subprocess.check_call([
+        'xcrun', 'simctl', 'spawn', udid, 'defaults', 'write',
+        'com.apple.keyboard.preferences', 'KeyboardShowPredictionBar', '0'
+    ])
+  except subprocess.CalledProcessError as e:
+    message = 'Unable to disable keyboard tutorial: %s' % e.stderr
     LOGGER.error(message)

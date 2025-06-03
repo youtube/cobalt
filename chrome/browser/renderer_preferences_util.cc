@@ -15,6 +15,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/net/convert_explicitly_allowed_network_ports_pref.h"
+#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #endif
@@ -23,6 +24,7 @@
 #include "components/language/core/browser/language_prefs.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/privacy_sandbox/tracking_protection_settings.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/renderer_preferences_util.h"
 #include "media/media_buildflags.h"
@@ -95,12 +97,6 @@ std::string GetLanguageListForProfile(Profile* profile,
     // In incognito mode return only the first language.
     return language::GetFirstLanguage(language_list);
   }
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // On Chrome OS, if in demo mode, add the demo mode private language list.
-  if (ash::DemoSession::IsDeviceInDemoMode()) {
-    return language_list + "," + ash::DemoSession::GetAdditionalLanguageList();
-  }
-#endif
   return language_list;
 }
 
@@ -115,7 +111,8 @@ void UpdateFromSystemSettings(blink::RendererPreferences* prefs,
       profile, pref_service->GetString(language::prefs::kAcceptLanguages));
   prefs->enable_referrers = pref_service->GetBoolean(prefs::kEnableReferrers);
   prefs->enable_do_not_track =
-      pref_service->GetBoolean(prefs::kEnableDoNotTrack);
+      TrackingProtectionSettingsFactory::GetForProfile(profile)
+          ->IsDoNotTrackEnabled();
   prefs->enable_encrypted_media =
       pref_service->GetBoolean(prefs::kEnableEncryptedMedia);
   prefs->webrtc_ip_handling_policy = std::string();

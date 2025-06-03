@@ -13,7 +13,7 @@
 #include "base/values.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
@@ -27,7 +27,7 @@ enum class ApiApprovalState;
 class UpdateProtocolHandlerApprovalCommand
     : public WebAppCommandTemplate<AppLock> {
  public:
-  UpdateProtocolHandlerApprovalCommand(const AppId& app_id,
+  UpdateProtocolHandlerApprovalCommand(const webapps::AppId& app_id,
                                        const std::string& protocol_scheme,
                                        ApiApprovalState approval_state,
                                        base::OnceClosure callback);
@@ -38,7 +38,6 @@ class UpdateProtocolHandlerApprovalCommand
   void StartWithLock(std::unique_ptr<AppLock> lock) override;
   const LockDescription& lock_description() const override;
   base::Value ToDebugValue() const override;
-  void OnSyncSourceRemoved() override;
   void OnShutdown() override;
 
  private:
@@ -51,7 +50,7 @@ class UpdateProtocolHandlerApprovalCommand
   std::unique_ptr<AppLockDescription> lock_description_;
   std::unique_ptr<AppLock> lock_;
 
-  const AppId app_id_;
+  const webapps::AppId app_id_;
   std::string protocol_scheme_;
   const ApiApprovalState approval_state_;
   base::OnceClosure callback_;

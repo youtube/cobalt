@@ -14,8 +14,8 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
@@ -31,16 +31,29 @@
 #include "components/webapps/browser/features.h"
 #include "components/webapps/browser/installable/installable_data.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/browser/installable/ml_install_operation_tracker.h"
+#include "components/webapps/browser/installable/ml_installability_promoter.h"
 #include "content/public/browser/navigation_entry.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/metrics/structured/event_logging_features.h"
+// TODO(crbug/4925196): enable gn check once it learn about conditional includes
+#include "components/metrics/structured/structured_events.h"  // nogncheck
+#endif
 
 namespace web_app {
 
 namespace {
 
+#if BUILDFLAG(IS_CHROMEOS)
+namespace cros_events = metrics::structured::events::v2::cr_os_events;
+#endif
+
 void OnWebAppInstallShowInstallDialog(
     WebAppInstallFlow flow,
     webapps::WebappInstallSource install_source,
-    chrome::PwaInProductHelpState iph_state,
+    PwaInProductHelpState iph_state,
+    std::unique_ptr<webapps::MlInstallOperationTracker> install_tracker,
     content::WebContents* initiator_web_contents,
     std::unique_ptr<WebAppInstallInfo> web_app_info,
     WebAppInstallationAcceptanceCallback web_app_acceptance_callback) {
@@ -49,28 +62,48 @@ void OnWebAppInstallShowInstallDialog(
   switch (flow) {
     case WebAppInstallFlow::kInstallSite:
       web_app_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
+#if BUILDFLAG(IS_CHROMEOS)
       if (base::FeatureList::IsEnabled(
-              webapps::features::kDesktopPWAsDetailedInstallDialog) &&
-          webapps::AppBannerManager::FromWebContents(initiator_web_contents)
+              metrics::structured::kAppDiscoveryLogging) &&
+          install_source == webapps::WebappInstallSource::MENU_BROWSER_TAB) {
+        webapps::AppId app_id =
+            web_app::GenerateAppIdFromManifestId(web_app_info->manifest_id);
+        cros_events::AppDiscovery_Browser_ClickInstallAppFromMenu()
+            .SetAppId(app_id)
+            .Record();
+      }
+#endif
+      if (webapps::AppBannerManager::FromWebContents(initiator_web_contents)
               ->screenshots()
               .size()) {
-        chrome::ShowWebAppDetailedInstallDialog(
+        ShowWebAppDetailedInstallDialog(
             initiator_web_contents, std::move(web_app_info),
-            std::move(web_app_acceptance_callback),
+            std::move(install_tracker), std::move(web_app_acceptance_callback),
             webapps::AppBannerManager::FromWebContents(initiator_web_contents)
                 ->screenshots(),
             iph_state);
         return;
       } else {
-        chrome::ShowPWAInstallBubble(
-            initiator_web_contents, std::move(web_app_info),
-            std::move(web_app_acceptance_callback), iph_state);
+        ShowPWAInstallBubble(initiator_web_contents, std::move(web_app_info),
+                             std::move(install_tracker),
+                             std::move(web_app_acceptance_callback), iph_state);
         return;
       }
     case WebAppInstallFlow::kCreateShortcut:
-      chrome::ShowWebAppInstallDialog(initiator_web_contents,
-                                      std::move(web_app_info),
-                                      std::move(web_app_acceptance_callback));
+#if BUILDFLAG(IS_CHROMEOS)
+      if (base::FeatureList::IsEnabled(
+              metrics::structured::kAppDiscoveryLogging)) {
+        webapps::AppId app_id =
+            web_app::GenerateAppIdFromManifestId(web_app_info->manifest_id);
+        cros_events::AppDiscovery_Browser_CreateShortcut()
+            .SetAppId(app_id)
+            .Record();
+      }
+#endif
+
+      ShowWebAppInstallDialog(initiator_web_contents, std::move(web_app_info),
+                              std::move(install_tracker),
+                              std::move(web_app_acceptance_callback));
       return;
     case WebAppInstallFlow::kUnknown:
       NOTREACHED();
@@ -84,7 +117,7 @@ WebAppInstalledCallback& GetInstalledCallbackForTesting() {
 }
 
 void OnWebAppInstalled(WebAppInstalledCallback callback,
-                       const AppId& installed_app_id,
+                       const webapps::AppId& installed_app_id,
                        webapps::InstallResultCode code) {
   if (GetInstalledCallbackForTesting())
     std::move(GetInstalledCallbackForTesting()).Run(installed_app_id, code);
@@ -128,6 +161,13 @@ void CreateWebAppFromCurrentWebContents(Browser* browser,
   auto* provider = WebAppProvider::GetForWebContents(web_contents);
   DCHECK(provider);
 
+  webapps::MLInstallabilityPromoter* promoter =
+      webapps::MLInstallabilityPromoter::FromWebContents(web_contents);
+  CHECK(promoter);
+  if (promoter->HasCurrentInstall()) {
+    return;
+  }
+
   if (provider->command_manager().IsInstallingForWebContents(web_contents)) {
     return;
   }
@@ -138,37 +178,52 @@ void CreateWebAppFromCurrentWebContents(Browser* browser,
                             ? webapps::InstallTrigger::CREATE_SHORTCUT
                             : webapps::InstallTrigger::MENU);
 
+  std::unique_ptr<webapps::MlInstallOperationTracker> install_tracker =
+      promoter->RegisterCurrentInstallForWebContents(install_source);
+
   WebAppInstalledCallback callback = base::DoNothing();
 
   provider->scheduler().FetchManifestAndInstall(
       install_source, web_contents->GetWeakPtr(),
-      /*bypass_service_worker_check=*/false,
       base::BindOnce(OnWebAppInstallShowInstallDialog, flow, install_source,
-                     chrome::PwaInProductHelpState::kNotShown),
+                     PwaInProductHelpState::kNotShown,
+                     std::move(install_tracker)),
       base::BindOnce(OnWebAppInstalled, std::move(callback)),
       /*use_fallback=*/true);
 }
 
 bool CreateWebAppFromManifest(content::WebContents* web_contents,
-                              bool bypass_service_worker_check,
                               webapps::WebappInstallSource install_source,
                               WebAppInstalledCallback installed_callback,
-                              chrome::PwaInProductHelpState iph_state) {
+                              PwaInProductHelpState iph_state) {
   auto* provider = WebAppProvider::GetForWebContents(web_contents);
   if (!provider)
     return false;
+
+  webapps::MLInstallabilityPromoter* promoter =
+      webapps::MLInstallabilityPromoter::FromWebContents(web_contents);
+  if (promoter->HasCurrentInstall()) {
+    return false;
+  }
 
   if (provider->command_manager().IsInstallingForWebContents(web_contents)) {
     return false;
   }
 
+  std::unique_ptr<webapps::MlInstallOperationTracker> install_tracker =
+      promoter->RegisterCurrentInstallForWebContents(install_source);
+
+  // If the source is from ML, there may not be a manifest, so allow the command
+  // to use the metadata from the page too.
+  bool use_fallback =
+      install_source == webapps::WebappInstallSource::ML_PROMOTION;
   provider->scheduler().FetchManifestAndInstall(
-      install_source, web_contents->GetWeakPtr(), bypass_service_worker_check,
+      install_source, web_contents->GetWeakPtr(),
       base::BindOnce(OnWebAppInstallShowInstallDialog,
-                     WebAppInstallFlow::kInstallSite, install_source,
-                     iph_state),
+                     WebAppInstallFlow::kInstallSite, install_source, iph_state,
+                     std::move(install_tracker)),
       base::BindOnce(OnWebAppInstalled, std::move(installed_callback)),
-      /*use_fallback=*/false);
+      /*use_fallback=*/use_fallback);
   return true;
 }
 

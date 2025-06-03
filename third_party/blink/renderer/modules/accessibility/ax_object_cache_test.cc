@@ -13,8 +13,10 @@
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/testing/mock_function_scope.h"
+#include "third_party/blink/renderer/core/view_transition/dom_view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/modules/accessibility/testing/accessibility_test.h"
@@ -46,25 +48,25 @@ TEST_F(AccessibilityTest, IsARIAWidget) {
   SetBodyInnerHTML(test_content);
   Element* root(GetDocument().documentElement());
   EXPECT_FALSE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("plain")));
+      *root->getElementById(AtomicString("plain"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("button")));
+      *root->getElementById(AtomicString("button"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("button-parent")));
+      *root->getElementById(AtomicString("button-parent"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("button-caps")));
+      *root->getElementById(AtomicString("button-caps"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("button-second")));
+      *root->getElementById(AtomicString("button-second"))));
   EXPECT_FALSE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("aria-bogus")));
+      *root->getElementById(AtomicString("aria-bogus"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("aria-selected")));
+      *root->getElementById(AtomicString("aria-selected"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("haspopup")));
+      *root->getElementById(AtomicString("haspopup"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("focusable")));
+      *root->getElementById(AtomicString("focusable"))));
   EXPECT_TRUE(AXObjectCache::IsInsideFocusableElementOrARIAWidget(
-      *root->getElementById("focusable-parent")));
+      *root->getElementById(AtomicString("focusable-parent"))));
 }
 
 TEST_F(AccessibilityTest, RemoveReferencesToAXID) {
@@ -117,17 +119,16 @@ TEST_F(AccessibilityTest, PauseUpdatesAfterMaxNumberQueued) {
   ax_object_cache->AssociateAXID(ax_obj);
   for (unsigned i = 0; i < max_updates + 1; i++) {
     ax_object_cache->DeferTreeUpdate(
-        &AXObjectCacheImpl::ChildrenChangedWithCleanLayout, ax_obj);
+        AXObjectCacheImpl::TreeUpdateReason::kChildrenChanged, ax_obj);
   }
   ax_object_cache->ProcessCleanLayoutCallbacks(document);
 
   ASSERT_EQ(0u, MockAXObject::num_children_changed_calls_);
 }
 
-class AXViewTransitionTest : public testing::Test,
-                             private ScopedViewTransitionForTest {
+class AXViewTransitionTest : public testing::Test {
  public:
-  AXViewTransitionTest() : ScopedViewTransitionForTest(true) {}
+  AXViewTransitionTest() {}
 
   void SetUp() override {
     web_view_helper_ = std::make_unique<frame_test_helpers::WebViewHelper>();
@@ -170,8 +171,8 @@ class AXViewTransitionTest : public testing::Test,
 
   using State = ViewTransition::State;
 
-  State GetState(ViewTransition* transition) const {
-    return transition->state_;
+  State GetState(DOMViewTransition* transition) const {
+    return transition->GetViewTransitionForTest()->state_;
   }
 
  protected:
@@ -203,7 +204,8 @@ TEST_F(AXViewTransitionTest, TransitionPseudoNotRelevant) {
   auto* transition = ViewTransitionSupplement::startViewTransition(
       script_state, GetDocument(), view_transition_callback, exception_state);
 
-  ScriptPromiseTester finish_tester(script_state, transition->finished());
+  ScriptPromiseTester finish_tester(script_state,
+                                    transition->finished(script_state));
 
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(GetState(transition), State::kCapturing);
@@ -221,16 +223,16 @@ TEST_F(AXViewTransitionTest, TransitionPseudoNotRelevant) {
       kPseudoIdViewTransition);
   ASSERT_TRUE(transition_pseudo);
   auto* container_pseudo = transition_pseudo->GetPseudoElement(
-      kPseudoIdViewTransitionGroup, "shared");
+      kPseudoIdViewTransitionGroup, AtomicString("shared"));
   ASSERT_TRUE(container_pseudo);
   auto* image_wrapper_pseudo = container_pseudo->GetPseudoElement(
-      kPseudoIdViewTransitionImagePair, "shared");
+      kPseudoIdViewTransitionImagePair, AtomicString("shared"));
   ASSERT_TRUE(image_wrapper_pseudo);
   auto* incoming_image_pseudo = image_wrapper_pseudo->GetPseudoElement(
-      kPseudoIdViewTransitionNew, "shared");
+      kPseudoIdViewTransitionNew, AtomicString("shared"));
   ASSERT_TRUE(incoming_image_pseudo);
   auto* outgoing_image_pseudo = image_wrapper_pseudo->GetPseudoElement(
-      kPseudoIdViewTransitionOld, "shared");
+      kPseudoIdViewTransitionOld, AtomicString("shared"));
   ASSERT_TRUE(outgoing_image_pseudo);
 
   ASSERT_TRUE(transition_pseudo->GetLayoutObject());

@@ -12,8 +12,21 @@ export const ProgressItemState = {
   COMPLETED: 'completed',
   ERROR: 'error',
   CANCELED: 'canceled',
+  PAUSED: 'paused',
 };
 Object.freeze(ProgressItemState);
+
+/**
+ * Policy error type. Only applicable if DLP or Enterprise Connectors policies
+ * apply.
+ * @const @enum {string}
+ */
+export const PolicyErrorType = {
+  DLP: 'dlp',
+  ENTERPRISE_CONNECTORS: 'enterprise_connectors',
+  DLP_WARNING_TIMEOUT: 'dlp_warning_timeout',
+};
+Object.freeze(PolicyErrorType);
 
 /**
  * Type of progress items.
@@ -57,9 +70,11 @@ Object.freeze(ProgressItemType);
  * `callback` defines the arbitrary action.
  * @typedef {{
  *   text: string,
- *   callback: !function(),
+ *   callback: !function():void,
  * }}
  */
+// @ts-ignore: error TS7005: Variable 'ProgressItemExtraButton' implicitly has
+// an 'any' type.
 export let ProgressItemExtraButton;
 
 /**
@@ -69,7 +84,7 @@ export class ProgressCenterItem {
   constructor() {
     /**
      * Item ID.
-     * @private {string}
+     * @private @type {string}
      */
     this.id_ = '';
 
@@ -136,9 +151,16 @@ export class ProgressCenterItem {
 
     /**
      * Callback function to cancel the item.
-     * @type {?function()}
+     * @type {?function():void}
      */
     this.cancelCallback = null;
+
+    /**
+     * Optional callback to be invoked after dismissing the item.
+     */
+    // @ts-ignore: error TS7008: Member 'dismissCallback' implicitly has an
+    // 'any' type.
+    this.dismissCallback = null;
 
     /**
      * The predicted remaining time to complete the progress item in seconds.
@@ -148,7 +170,7 @@ export class ProgressCenterItem {
 
     /**
      * Contains the text and callback on an extra button when the progress
-     * center item is either in COMPLETED or ERROR state.
+     * center item is either in COMPLETED, ERROR, or PAUSED state.
      * @type {!Map<!ProgressItemState, !ProgressItemExtraButton>}
      */
     this.extraButton = new Map();
@@ -159,17 +181,35 @@ export class ProgressCenterItem {
      * @type {boolean}
      */
     this.isDestinationDrive = false;
+
+    /**
+     * The type of policy error that occurred, if any.
+     * @type {?PolicyErrorType}
+     */
+    this.policyError = null;
+
+    /**
+     * The number of files with a policy restriction, if any.
+     * @type {?number}
+     */
+    this.policyFileCount = null;
+
+    /**
+     * The name of the first file with a policy restriction, if any.
+     * @type {?string}
+     */
+    this.policyFileName = null;
   }
 
   /**
    * Sets the extra button text and callback. Use this to add an additional
    * button with configurable functionality.
    * @param {string} text Text to use for the button.
-   * @param {!ProgressItemState} state Which state to show the button,
-   *     currently only `ProgressItemState.COMPLETED` and
-   *     `ProgressItemState.ERROR` are supported.
-   * @param {!function()} callback The callback to invoke when the button is
-   *     pressed.
+   * @param {!ProgressItemState} state Which state to show the button for.
+   *     Currently only `ProgressItemState.COMPLETED`,
+   * `ProgressItemState.ERROR`, and `ProgressItemState.PAUSED` are supported.
+   * @param {!function():void} callback The callback to invoke when the button
+   *     is pressed.
    */
   setExtraButton(state, text, callback) {
     if (!text || !callback) {
@@ -228,9 +268,9 @@ export class ProgressCenterItem {
    * @return {boolean} True if the item can be canceled.
    */
   get cancelable() {
-    return !!(
-        this.state == ProgressItemState.PROGRESSING && this.cancelCallback &&
-        this.single);
+    return !!(this.state == ProgressItemState.PROGRESSING &&
+              this.cancelCallback && this.single) ||
+        !!(this.state == ProgressItemState.PAUSED && this.cancelCallback);
   }
 
   /**

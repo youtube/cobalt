@@ -6,19 +6,20 @@
 
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
+#include "extensions/buildflags/buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 using Type = UrlIdentity::Type;
 using DefaultFormatOptions = UrlIdentity::DefaultFormatOptions;
@@ -46,13 +47,13 @@ constexpr base::StringPiece kTestExtensionId =
 class UrlIdentityTest : public testing::Test {
  protected:
   void SetUp() override {
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
     InstallIsolatedWebApp();
     InstallExtension();
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   void InstallIsolatedWebApp() {
     web_app::test::AwaitStartWebAppProviderAndSubsystems(&testing_profile_);
     std::string iwa_name(kTestIsolatedWebAppName);
@@ -70,7 +71,7 @@ class UrlIdentityTest : public testing::Test {
         extensions::ExtensionRegistry::Get(profile());
     extension_registry->AddEnabled(extension);
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   Profile* profile() { return &testing_profile_; }
 
@@ -92,7 +93,7 @@ TEST_F(UrlIdentityTest, AllowlistedTypesAreAllowed) {
          .type = Type::kDefault,
          .name = u"http://example.com",
      }},
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
     {GURL(kTestIsolatedWebAppUrl),
      {Type::kIsolatedWebApp},
      {},
@@ -107,7 +108,7 @@ TEST_F(UrlIdentityTest, AllowlistedTypesAreAllowed) {
          .type = Type::kChromeExtension,
          .name = u"Test Extension 1",
      }},
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
     {GURL("file:///tmp/index.html"),
      {Type::kFile},
      {},
@@ -162,6 +163,14 @@ TEST_F(UrlIdentityTest, DefaultFormatOptionsTest) {
            .type = Type::kDefault,
            .name = u"abc.example.com",
        }},
+      {GURL("http://user:pass@google.com/path"),
+       {Type::kDefault},
+       {.default_options =
+            {DefaultFormatOptions::kOmitSchemePathAndTrivialSubdomains}},
+       {
+           .type = Type::kDefault,
+           .name = u"google.com",
+       }},
   };
 
   for (const auto& test_case : test_cases) {
@@ -172,7 +181,7 @@ TEST_F(UrlIdentityTest, DefaultFormatOptionsTest) {
   }
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 TEST_F(UrlIdentityTest, ChromeExtensionsOptionsTest) {
   std::string extension_id(kTestExtensionId);
   std::vector<TestCase> test_cases = {
@@ -237,7 +246,7 @@ TEST_F(UrlIdentityTest, IsolatedWebAppFallsBackIfNoWebAppProvider) {
             u"isolated-app://"
             u"berugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic");
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 TEST_F(UrlIdentityTest, FileOptionsTest) {
   std::vector<TestCase> test_cases = {

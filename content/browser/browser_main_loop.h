@@ -86,7 +86,9 @@ class HostFrameSinkManager;
 }  // namespace viz
 
 namespace content {
+class BrowserAccessibilityStateImpl;
 class BrowserMainParts;
+class BackgroundTracingManager;
 class BrowserOnlineStateObserver;
 class BrowserThreadImpl;
 class MediaKeysListenerManagerImpl;
@@ -336,6 +338,7 @@ class CONTENT_EXPORT BrowserMainLoop {
   // Android implementation of ScreenOrientationDelegate
   std::unique_ptr<ScreenOrientationDelegate> screen_orientation_delegate_;
 #endif
+  std::unique_ptr<BrowserAccessibilityStateImpl> browser_accessibility_state_;
 
   // Destroy |parts_| before above members (except the ones that are explicitly
   // reset() on shutdown) but after |main_thread_| and services below.
@@ -387,6 +390,7 @@ class CONTENT_EXPORT BrowserMainLoop {
   std::unique_ptr<MediaStreamManager> media_stream_manager_;
   scoped_refptr<SaveFileManager> save_file_manager_;
   std::unique_ptr<content::TracingControllerImpl> tracing_controller_;
+  std::unique_ptr<BackgroundTracingManager> background_tracing_manager_;
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<viz::HostFrameSinkManager> host_frame_sink_manager_;
 

@@ -308,8 +308,8 @@ bool ExtensionManagement::IsAllowedManifestVersion(
     case internal::GlobalSettings::ManifestV2Setting::kEnabledForForceInstalled:
       auto installation_mode =
           GetInstallationMode(extension_id, /*update_url=*/std::string());
-      return enabled_by_default ||
-             installation_mode == InstallationMode::INSTALLATION_FORCED ||
+      return manifest_version >= 3 ||
+             installation_mode == INSTALLATION_FORCED ||
              installation_mode == INSTALLATION_RECOMMENDED;
   }
 }
@@ -321,37 +321,36 @@ bool ExtensionManagement::IsAllowedManifestVersion(const Extension* extension) {
 
 bool ExtensionManagement::IsAllowedByUnpublishedAvailabilityPolicy(
     const Extension* extension) {
+  // Check the kill switch before applying policy check.
+  if (!base::FeatureList::IsEnabled(kCWSInfoService)) {
+    return true;
+  }
   // This policy only applies to extensions that update from CWS.
   if (!UpdatesFromWebstore(*extension)) {
     return true;
   }
-  switch (global_settings_->unpublished_availability_setting) {
-    case internal::GlobalSettings::UnpublishedAvailability::kAllowUnpublished:
-      return true;
-    case internal::GlobalSettings::UnpublishedAvailability::kDisableUnpublished:
-      auto* extension_prefs = ExtensionPrefs::Get(profile_);
-      base::Time last_update_time =
-          extension_prefs->GetLastUpdateTime(extension->id());
-      // If the extension is being installed (prefs haven't been saved yet) it
-      // is live in CWS since it was downloaded from there. If it was recently
-      // installed, it is most likely live in CWS as well.
-      if ((last_update_time == base::Time()) ||
-          ((base::Time::Now() - last_update_time) < base::Days(1))) {
-        return true;
-      }
-      break;
-  }
-  if (!cws_info_service_) {
-    // TODO(anunoy): Once CWSInfoService is implemented, get the instance here.
+  if (global_settings_->unpublished_availability_setting ==
+      internal::GlobalSettings::UnpublishedAvailability::kAllowUnpublished) {
     return true;
   }
-  // Return the current live-in-CWS status of the extension in CWS if available,
-  // otherwise assume it's currently published and return true.
+  if (!cws_info_service_) {
+    cws_info_service_ = CWSInfoService::Get(profile_);
+  }
+  // Return the current published status of the extension in CWS if available.
+  // Otherwise assume the extension is currently published and return true.
+  // Ignore extensions taken down for malware as they are blocklisted and
+  // unloaded independently of policy.
   // Current publish status may not available if the policy setting just changed
   // to |kDisableUnpublished|. The actual publish status will be retrieved
   // by CWSInfoService separately and will trigger this same policy check.
-  auto live_status = cws_info_service_->IsLiveInCWS(*extension);
-  return live_status.value_or(true);
+  absl::optional<CWSInfoServiceInterface::CWSInfo> cws_info =
+      cws_info_service_->GetCWSInfo(*extension);
+  if (cws_info.has_value() && cws_info->is_present &&
+      cws_info->violation_type !=
+          CWSInfoServiceInterface::CWSViolationType::kMalware) {
+    return cws_info->is_live;
+  }
+  return true;
 }
 
 APIPermissionSet ExtensionManagement::GetBlockedAPIPermissions(
@@ -471,6 +470,11 @@ ExtensionIdSet ExtensionManagement::GetForcePinnedList() const {
       force_pinned_list.insert(entry.first);
   }
   return force_pinned_list;
+}
+
+bool ExtensionManagement::IsFileUrlNavigationAllowed(const ExtensionId& id) {
+  auto* setting = GetSettingsForId(id);
+  return setting && setting->file_url_navigation_allowed;
 }
 
 bool ExtensionManagement::CheckMinimumVersion(const Extension* extension,
@@ -924,17 +928,24 @@ ExtensionManagementFactory* ExtensionManagementFactory::GetInstance() {
 ExtensionManagementFactory::ExtensionManagementFactory()
     : ProfileKeyedServiceFactory(
           "ExtensionManagement",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(InstallStageTrackerFactory::GetInstance());
 }
 
 ExtensionManagementFactory::~ExtensionManagementFactory() {}
 
-KeyedService* ExtensionManagementFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ExtensionManagementFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   TRACE_EVENT0("browser,startup",
                "ExtensionManagementFactory::BuildServiceInstanceFor");
-  return new ExtensionManagement(Profile::FromBrowserContext(context));
+  return std::make_unique<ExtensionManagement>(
+      Profile::FromBrowserContext(context));
 }
 
 void ExtensionManagementFactory::RegisterProfilePrefs(

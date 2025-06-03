@@ -7,12 +7,13 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/segmentation_platform/internal/constants.h"
+#include "components/segmentation_platform/internal/database/client_result_prefs.h"
 #include "components/segmentation_platform/internal/metadata/metadata_utils.h"
 #include "components/segmentation_platform/internal/metadata/metadata_writer.h"
 #include "components/segmentation_platform/internal/migration/migration_test_utils.h"
-#include "components/segmentation_platform/internal/selection/client_result_prefs.h"
 #include "components/segmentation_platform/internal/selection/segmentation_result_prefs.h"
 #include "components/segmentation_platform/public/config.h"
+#include "components/segmentation_platform/public/constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,7 +37,7 @@ class PrefsMigratorTest : public testing::Test {
                                                  std::string());
     pref_service_.registry()->RegisterDictionaryPref(kSegmentationResultPref);
     configs_.push_back(migration_test_utils::GetTestConfigForBinaryClassifier(
-        kShoppingUserSegmentationKey,
+        kShoppingUserSegmentationKey, kShoppingUserUmaName,
         proto::SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHOPPING_USER));
     configs_.push_back(migration_test_utils::GetTestConfigForAdaptiveToolbar());
   }
@@ -56,7 +57,8 @@ TEST_F(PrefsMigratorTest, PrefsMigratorForBinaryClassifier) {
   result.selection_time = base::Time::Now();
   old_result_prefs_->SaveSegmentationResultToPref(kShoppingUserSegmentationKey,
                                                   result);
-  prefs_migrator_ = std::make_unique<PrefsMigrator>(&pref_service_, configs_);
+  prefs_migrator_ = std::make_unique<PrefsMigrator>(
+      &pref_service_, new_result_prefs_.get(), configs_);
 
   prefs_migrator_->MigrateOldPrefsToNewPrefs();
 
@@ -81,7 +83,8 @@ TEST_F(PrefsMigratorTest, PrefsMigratorForBinaryClassifier) {
   result1.selection_time = base::Time::Now();
   old_result_prefs_->SaveSegmentationResultToPref(kShoppingUserSegmentationKey,
                                                   result1);
-  prefs_migrator_ = std::make_unique<PrefsMigrator>(&pref_service_, configs_);
+  prefs_migrator_ = std::make_unique<PrefsMigrator>(
+      &pref_service_, new_result_prefs_.get(), configs_);
   prefs_migrator_->MigrateOldPrefsToNewPrefs();
 
   result_in_new_prefs = new_result_prefs_->ReadClientResultFromPrefs(
@@ -100,7 +103,8 @@ TEST_F(PrefsMigratorTest, PrefsMigratorForAdaptiveToolbar) {
   result.selection_time = base::Time::Now();
   old_result_prefs_->SaveSegmentationResultToPref(
       kAdaptiveToolbarSegmentationKey, result);
-  prefs_migrator_ = std::make_unique<PrefsMigrator>(&pref_service_, configs_);
+  prefs_migrator_ = std::make_unique<PrefsMigrator>(
+      &pref_service_, new_result_prefs_.get(), configs_);
 
   prefs_migrator_->MigrateOldPrefsToNewPrefs();
 
@@ -124,7 +128,8 @@ TEST_F(PrefsMigratorTest, PrefsMigratorForAdaptiveToolbar) {
   result1.selection_time = base::Time::Now();
   old_result_prefs_->SaveSegmentationResultToPref(
       kAdaptiveToolbarSegmentationKey, result1);
-  prefs_migrator_ = std::make_unique<PrefsMigrator>(&pref_service_, configs_);
+  prefs_migrator_ = std::make_unique<PrefsMigrator>(
+      &pref_service_, new_result_prefs_.get(), configs_);
 
   prefs_migrator_->MigrateOldPrefsToNewPrefs();
 
@@ -143,7 +148,8 @@ TEST_F(PrefsMigratorTest, PrefsMigratorForOtherConfig) {
       SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SEARCH_USER, 1);
   result.selection_time = base::Time::Now();
   old_result_prefs_->SaveSegmentationResultToPref(kSearchUserKey, result);
-  prefs_migrator_ = std::make_unique<PrefsMigrator>(&pref_service_, configs_);
+  prefs_migrator_ = std::make_unique<PrefsMigrator>(
+      &pref_service_, new_result_prefs_.get(), configs_);
 
   prefs_migrator_->MigrateOldPrefsToNewPrefs();
 

@@ -8,9 +8,10 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.text.TextUtils;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.content_public.browser.ContactsPicker;
 import org.chromium.content_public.browser.ContactsPickerListener;
 import org.chromium.content_public.browser.WebContents;
@@ -43,6 +44,10 @@ public class ContactsDialogHost implements ContactsPickerListener {
         mNativeContactsProviderAndroid = 0;
     }
 
+    private boolean isDestroyed() {
+        return mNativeContactsProviderAndroid == 0;
+    }
+
     @CalledByNative
     private void showDialog(boolean multiple, boolean includeNames, boolean includeEmails,
             boolean includeTel, boolean includeAddresses, boolean includeIcons,
@@ -71,6 +76,7 @@ public class ContactsDialogHost implements ContactsPickerListener {
 
         windowAndroid.requestPermissions(
                 new String[] {Manifest.permission.READ_CONTACTS}, (permissions, grantResults) -> {
+                    if (isDestroyed()) return;
                     if (permissions.length == 1 && grantResults.length == 1
                             && TextUtils.equals(permissions[0], Manifest.permission.READ_CONTACTS)
                             && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -89,13 +95,13 @@ public class ContactsDialogHost implements ContactsPickerListener {
 
     @Override
     public void onContactsPickerUserAction(@ContactsPickerAction int action, List<Contact> contacts,
-            int percentageShared, int propertiesRequested) {
+            int percentageShared, int propertiesSiteRequested, int propertiesUserRejected) {
         if (mNativeContactsProviderAndroid == 0) return;
 
         switch (action) {
             case ContactsPickerAction.CANCEL:
                 ContactsDialogHostJni.get().endContactsList(
-                        mNativeContactsProviderAndroid, 0, propertiesRequested);
+                        mNativeContactsProviderAndroid, 0, propertiesSiteRequested);
                 break;
 
             case ContactsPickerAction.CONTACTS_SELECTED:
@@ -119,7 +125,7 @@ public class ContactsDialogHost implements ContactsPickerListener {
                                                             : null);
                 }
                 ContactsDialogHostJni.get().endContactsList(
-                        mNativeContactsProviderAndroid, percentageShared, propertiesRequested);
+                        mNativeContactsProviderAndroid, percentageShared, propertiesSiteRequested);
                 break;
 
             case ContactsPickerAction.SELECT_ALL:
@@ -132,8 +138,8 @@ public class ContactsDialogHost implements ContactsPickerListener {
     interface Natives {
         void addContact(long nativeContactsProviderAndroid, String[] names, String[] emails,
                 String[] tel, ByteBuffer[] addresses, ByteBuffer[] icons);
-        void endContactsList(
-                long nativeContactsProviderAndroid, int percentageShared, int propertiesRequested);
+        void endContactsList(long nativeContactsProviderAndroid, int percentageShared,
+                int propertiesSiteRequested);
         void endWithPermissionDenied(long nativeContactsProviderAndroid);
     }
 }

@@ -8,19 +8,23 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.SystemClock;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.url_formatter.UrlFormatter;
@@ -50,7 +54,6 @@ public class PartnerBrowserCustomizations {
     static final String PARTNER_DISABLE_BOOKMARKS_EDITING_PATH = "disablebookmarksediting";
     @VisibleForTesting
     static final String PARTNER_DISABLE_INCOGNITO_MODE_PATH = "disableincognitomode";
-    private static String sProviderAuthority = PROVIDER_AUTHORITY;
     private static Boolean sIgnoreSystemPackageCheck;
     private static Boolean sValid;
 
@@ -59,7 +62,14 @@ public class PartnerBrowserCustomizations {
     private volatile GURL mHomepage;
     private volatile boolean mIncognitoModeDisabled;
     private volatile boolean mBookmarksEditingDisabled;
-    private boolean mIsInitialized;
+    private @Nullable Boolean mIsInitialized;
+
+    /**
+     * The {@link PartnerCustomizationsUma} created in {@link #initializeAsync}.
+     * Will be {@code null} if {@link PartnerBrowserCustomizations#initializeAsync} hasn't been
+     * called at all.
+     */
+    private @Nullable PartnerCustomizationsUma mPartnerCustomizationsUma;
 
     private final List<Runnable> mInitializeAsyncCallbacks;
     private PartnerHomepageListener mListener;
@@ -166,7 +176,7 @@ public class PartnerBrowserCustomizations {
      * to read provider is also considered initialization.
      */
     public boolean isInitialized() {
-        return mIsInitialized;
+        return mIsInitialized != null && mIsInitialized;
     }
 
     /**
@@ -186,16 +196,22 @@ public class PartnerBrowserCustomizations {
      */
     @VisibleForTesting
     void initializeAsync(final Context context, long timeoutMs) {
+        if (mIsInitialized != null && !mIsInitialized) {
+            Log.w(TAG, "Another initializeAsync is already in progress.");
+            return;
+        }
+
+        final PartnerCustomizationsUma partnerCustomizationsUma = new PartnerCustomizationsUma();
         mIsInitialized = false;
         // Setup an initializing async task.
         final AsyncTask<Void> initializeAsyncTask = new AsyncTask<Void>() {
             private boolean mHomepageUriChanged;
-            private long mStartTime;
+            private long mStartTime = SystemClock.elapsedRealtime();
 
             @Override
             protected Void doInBackground() {
                 try {
-                    mStartTime = SystemClock.elapsedRealtime();
+                    partnerCustomizationsUma.logAsyncInitStarted();
                     boolean systemOrPreStable =
                             (context.getApplicationInfo().flags & ApplicationInfo.FLAG_SYSTEM) == 1
                             || !VersionInfo.isStableBuild();
@@ -209,47 +225,42 @@ public class PartnerBrowserCustomizations {
                     CustomizationProviderDelegateImpl delegate =
                             new CustomizationProviderDelegateImpl();
 
-                    if (ChromeFeatureList.sPartnerHomepageInitialLoadImprovement.isEnabled()) {
-                        // Refresh the homepage first, as it has potential impact on the URL to use
-                        // for the initial tab.
-                        if (isCancelled()) return null;
-                        mHomepageUriChanged = refreshHomepage(delegate);
-                    }
+                    // Refresh the homepage first, as it has potential impact on the URL to use
+                    // for the initial tab.
+                    if (isCancelled()) return null;
+                    mHomepageUriChanged = refreshHomepage(delegate);
 
                     if (isCancelled()) return null;
                     refreshIncognitoModeDisabled(delegate);
 
                     if (isCancelled()) return null;
                     refreshBookmarksEditingDisabled(delegate);
-
-                    if (!ChromeFeatureList.sPartnerHomepageInitialLoadImprovement.isEnabled()) {
-                        if (isCancelled()) return null;
-                        mHomepageUriChanged = refreshHomepage(delegate);
-                    }
                 } catch (Exception e) {
                     Log.w(TAG, "Fetching partner customizations failed", e);
+                    partnerCustomizationsUma.logAsyncInitException();
                 }
                 return null;
             }
 
             @Override
             protected void onPostExecute(Void result) {
+                partnerCustomizationsUma.logAsyncInitCompleted();
                 onFinalized();
             }
 
             @Override
             protected void onCancelled(Void result) {
+                partnerCustomizationsUma.logAsyncInitCancelled();
                 onFinalized();
             }
 
             private void onFinalized() {
-                boolean isFirstFinalized = !mIsInitialized;
+                assert mIsInitialized != null;
+                assert !mIsInitialized;
+
                 mIsInitialized = true;
-                if (isFirstFinalized) {
-                    RecordHistogram.recordTimesHistogram(
-                            "Android.PartnerBrowserCustomizationInitDuration",
-                            SystemClock.elapsedRealtime() - mStartTime);
-                }
+                PartnerCustomizationsUma.logPartnerBrowserCustomizationInitDuration(
+                        mStartTime, SystemClock.elapsedRealtime());
 
                 for (Runnable callback : mInitializeAsyncCallbacks) {
                     callback.run();
@@ -259,11 +270,8 @@ public class PartnerBrowserCustomizations {
                 if (mHomepageUriChanged && mListener != null) {
                     mListener.onHomepageUpdate();
                 }
-                if (isFirstFinalized) {
-                    RecordHistogram.recordTimesHistogram(
-                            "Android.PartnerBrowserCustomizationInitDuration.WithCallbacks",
-                            SystemClock.elapsedRealtime() - mStartTime);
-                }
+                partnerCustomizationsUma.logAsyncInitFinalized(
+                        mStartTime, SystemClock.elapsedRealtime(), mHomepageUriChanged);
             }
         };
 
@@ -272,6 +280,39 @@ public class PartnerBrowserCustomizations {
         // Cancel the initialization if it reaches timeout.
         PostTask.postDelayedTask(
                 TaskTraits.UI_DEFAULT, () -> initializeAsyncTask.cancel(true), timeoutMs);
+        mPartnerCustomizationsUma = partnerCustomizationsUma;
+    }
+
+    /**
+     * Logs whether we failed to create an initial tab due to the app finishing or being destroyed.
+     * @param isActivityFinishingOrDestroyed Whether the Activity is going away.
+     */
+    public static void logActivityFinishingOrDestroyed(boolean isActivityFinishingOrDestroyed) {
+        PartnerCustomizationsUma.logActivityFinishingOrDestroyed(isActivityFinishingOrDestroyed);
+    }
+
+    /**
+     * Called when Chrome creates an initial tab.
+     * This notifies the UMA instance so it tracks how much initialization progresses relative to
+     * initial Tab creation.
+     * @param homepageUrlCreated The URL of the initial Tab that was created or {@code null} if
+     *         something other than a Homepage was used for an initial Tab.
+     * @param createInitialTabTime The timestamp when we started to create an initial tab.
+     * @param isOverviewPageOrStartSurface indicates that there was no created Homepage because some
+     *         kind of overview page or Start Surface was presented in place of the initial Tab.
+     * @param activityLifecycleDispatcher The {@link ActivityLifecycleDispatcher} to use to wait for
+     *         native initialization.
+     * @param homepageCharacterizationHelper A supplier to characterize a Homepage.
+     */
+    public void onCreateInitialTab(@Nullable String homepageUrlCreated, long createInitialTabTime,
+            boolean isOverviewPageOrStartSurface,
+            @NonNull ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            @NonNull Supplier<HomepageCharacterizationHelper> homepageCharacterizationHelper) {
+        if (mPartnerCustomizationsUma != null) {
+            mPartnerCustomizationsUma.onCreateInitialTab(isInitialized(), homepageUrlCreated,
+                    createInitialTabTime, isOverviewPageOrStartSurface, activityLifecycleDispatcher,
+                    homepageCharacterizationHelper);
+        }
     }
 
     @VisibleForTesting
@@ -301,7 +342,7 @@ public class PartnerBrowserCustomizations {
             mHomepage = homepageGurl;
             String valueToWrite =
                     mHomepage == null ? GURL.emptyGURL().serialize() : mHomepage.serialize();
-            SharedPreferencesManager.getInstance().writeString(
+            ChromeSharedPreferences.getInstance().writeString(
                     ChromePreferenceKeys.HOMEPAGE_PARTNER_CUSTOMIZED_DEFAULT_GURL, valueToWrite);
         } catch (Exception e) {
             Log.w(TAG, "Partner homepage delegate URL read failed : ", e);
@@ -334,7 +375,7 @@ public class PartnerBrowserCustomizations {
      * @param callback  This is called when the initialization is done.
      */
     public void setOnInitializeAsyncFinished(final Runnable callback) {
-        if (mIsInitialized) {
+        if (isInitialized()) {
             PostTask.postTask(TaskTraits.UI_DEFAULT, callback);
         } else {
             mInitializeAsyncCallbacks.add(callback);
@@ -353,12 +394,12 @@ public class PartnerBrowserCustomizations {
 
         PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, () -> {
             if (mInitializeAsyncCallbacks.remove(callback)) {
-                if (!mIsInitialized) {
+                if (!isInitialized()) {
                     Log.w(TAG, "mInitializeAsyncCallbacks executed as timeout expired.");
                 }
                 callback.run();
             }
-        }, mIsInitialized ? 0 : timeoutMs);
+        }, isInitialized() ? 0 : timeoutMs);
     }
 
     public static void destroy() {
@@ -404,8 +445,9 @@ public class PartnerBrowserCustomizations {
         return true;
     }
 
-    @VisibleForTesting
     public static void setInstanceForTesting(PartnerBrowserCustomizations instance) {
+        var oldValue = sInstance;
         sInstance = instance;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 }

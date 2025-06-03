@@ -30,15 +30,7 @@ namespace {
 const PwaDomain kDomains[] = {PwaDomain::kProdAndroid, PwaDomain::kProdGoogle,
                               PwaDomain::kStaging};
 
-const char kLastSuccessfulDomainPref[] = "android_sms.last_successful_domain";
-
 }  // namespace
-
-// static
-void AndroidSmsAppManagerImpl::RegisterProfilePrefs(
-    PrefRegistrySimple* registry) {
-  registry->RegisterStringPref(kLastSuccessfulDomainPref, std::string());
-}
 
 AndroidSmsAppManagerImpl::PwaDelegate::PwaDelegate() = default;
 
@@ -142,20 +134,12 @@ void AndroidSmsAppManagerImpl::SetUpAndLaunchAndroidSmsApp() {
 }
 
 void AndroidSmsAppManagerImpl::TearDownAndroidSmsApp() {
-  pref_service_->SetString(kLastSuccessfulDomainPref, std::string());
-
   absl::optional<GURL> installed_app_url = GetCurrentAppUrl();
   if (!installed_app_url)
     return;
 
   setup_controller_->DeleteRememberDeviceByDefaultCookie(*installed_app_url,
                                                          base::DoNothing());
-}
-
-bool AndroidSmsAppManagerImpl::HasAppBeenManuallyUninstalledByUser() {
-  GURL url = GetAndroidMessagesURL(true /* use_install_url */);
-  return pref_service_->GetString(kLastSuccessfulDomainPref) == url.spec() &&
-         !setup_controller_->GetPwa(url);
 }
 
 bool AndroidSmsAppManagerImpl::IsAppInstalled() {
@@ -234,7 +218,7 @@ void AndroidSmsAppManagerImpl::OnSetUpNewAppResult(
     bool success) {
   is_new_app_setup_in_progress_ = false;
 
-  absl::optional<web_app::AppId> new_pwa = setup_controller_->GetPwa(
+  absl::optional<webapps::AppId> new_pwa = setup_controller_->GetPwa(
       GetAndroidMessagesURL(true /* use_install_url */));
 
   // If the app failed to install or the PWA does not exist, do not launch.
@@ -243,9 +227,6 @@ void AndroidSmsAppManagerImpl::OnSetUpNewAppResult(
     return;
   }
 
-  if (success)
-    pref_service_->SetString(kLastSuccessfulDomainPref, install_url.spec());
-
   // If there is no PWA installed at the old URL, no migration is needed and
   // setup is finished.
   if (!migrating_from) {
@@ -253,7 +234,7 @@ void AndroidSmsAppManagerImpl::OnSetUpNewAppResult(
     return;
   }
 
-  absl::optional<web_app::AppId> old_pwa = setup_controller_->GetPwa(
+  absl::optional<webapps::AppId> old_pwa = setup_controller_->GetPwa(
       GetAndroidMessagesURL(true /* use_install_url */, *migrating_from));
 
   // Transfer attributes from the old PWA to the new one. This ensures that the

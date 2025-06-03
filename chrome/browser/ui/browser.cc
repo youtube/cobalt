@@ -64,8 +64,8 @@
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/printing/background_printing_manager.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
@@ -121,6 +121,7 @@
 #include "chrome/browser/ui/global_error/global_error_service.h"
 #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/overscroll_pref_manager.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/search/search_tab_helper.h"
 #include "chrome/browser/ui/singleton_tabs.h"
@@ -149,7 +150,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/blocked_content/list_item_position.h"
 #include "components/blocked_content/popup_blocker.h"
@@ -180,7 +181,6 @@
 #include "components/permissions/permission_request_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
-#include "components/services/screen_ai/buildflags/buildflags.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_types.h"
 #include "components/sessions/core/tab_restore_service.h"
@@ -197,8 +197,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -207,6 +205,7 @@
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_exposed_isolation_level.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/page_zoom.h"
@@ -256,6 +255,7 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
+#include "chrome/browser/ash/url_handler.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "components/session_manager/core/session_manager.h"
 #endif
@@ -283,9 +283,8 @@
 #include "ui/display/types/display_constants.h"
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-#include "chrome/browser/accessibility/ax_screen_ai_annotator.h"
-#include "chrome/browser/accessibility/ax_screen_ai_annotator_factory.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/preloading/preview/preview_manager.h"
 #endif
 
 using base::UserMetricsAction;
@@ -502,6 +501,10 @@ Browser::Browser(const CreateParams& params)
       extension_browser_window_helper_(
           std::make_unique<extensions::ExtensionBrowserWindowHelper>(this))
 #endif
+#if defined(USE_AURA)
+      ,
+      overscroll_pref_manager_(std::make_unique<OverscrollPrefManager>(this))
+#endif
 {
   if (!profile_->IsOffTheRecord()) {
     profile_keep_alive_ = std::make_unique<ScopedProfileKeepAlive>(
@@ -577,6 +580,7 @@ Browser::~Browser() {
   // The tab strip should not have any tabs at this point.
   //
   // TODO(crbug.com/1407055): This DCHECK doesn't always pass.
+  // TODO(crbug.com/1434387): convert this to CHECK.
   DCHECK(tab_strip_model_->empty());
 
   // Destroy the BrowserCommandController before removing the browser, so that
@@ -704,10 +708,19 @@ std::u16string Browser::GetWindowTitleForCurrentTab(
       include_app_name, tab_strip_model_->GetActiveWebContents());
 }
 
-std::u16string Browser::GetWindowTitleForTab(bool include_app_name,
-                                             int index) const {
-  return GetWindowTitleFromWebContents(
-      include_app_name, tab_strip_model_->GetWebContentsAt(index));
+std::u16string Browser::GetWindowTitleForTab(int index) const {
+  std::u16string title = base::UTF8ToUTF16(user_title_);
+
+  if (title.empty()) {
+    title = FormatTitleForDisplay(
+        tab_strip_model_->GetWebContentsAt(index)->GetTitle());
+  }
+
+  if (title.empty() && (is_type_normal() || is_type_popup())) {
+    title = CoreTabHelper::GetDefaultTitle();
+  }
+
+  return title;
 }
 
 std::u16string Browser::GetWindowTitleForMaxWidth(int max_width) const {
@@ -920,7 +933,7 @@ Browser* Browser::GetBrowserForOpeningWebUi() {
     // We should always have an opener web contents if the current browser is a
     // picture-in-picture type.
     DCHECK(opener_web_contents);
-    opener_browser_ = chrome::FindBrowserWithWebContents(opener_web_contents);
+    opener_browser_ = chrome::FindBrowserWithTab(opener_web_contents);
   }
 
   return opener_browser_;
@@ -967,8 +980,15 @@ void Browser::OnWindowClosing() {
 
   BrowserList::NotifyBrowserCloseStarted(this);
 
-  if (!tab_strip_model_->empty())
+  if (!tab_strip_model_->empty()) {
+    // Closing all the tabs results in eventually calling back to
+    // OnWindowClosing() again.
     tab_strip_model_->CloseAllTabs();
+  } else {
+    // If there are no tabs, then a task will be scheduled (by views) to delete
+    // this Browser.
+    is_delete_scheduled_ = true;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -985,7 +1005,7 @@ Browser::DownloadCloseType Browser::OkToCloseWithInProgressDownloads(
     return DownloadCloseType::kOk;
 
   int total_download_count =
-      DownloadCoreService::NonMaliciousDownloadCountAllProfiles();
+      DownloadCoreService::BlockingShutdownCountAllProfiles();
   if (total_download_count == 0)
     return DownloadCloseType::kOk;  // No downloads; can definitely close.
 
@@ -1018,10 +1038,9 @@ Browser::DownloadCloseType Browser::OkToCloseWithInProgressDownloads(
   DownloadCoreService* download_core_service =
       DownloadCoreServiceFactory::GetForBrowserContext(profile());
   if ((profile_window_count == 0) &&
-      (download_core_service->NonMaliciousDownloadCount() > 0) &&
+      (download_core_service->BlockingShutdownCount() > 0) &&
       (profile()->IsIncognitoProfile() || profile()->IsGuestSession())) {
-    *num_downloads_blocking =
-        download_core_service->NonMaliciousDownloadCount();
+    *num_downloads_blocking = download_core_service->BlockingShutdownCount();
     return profile()->IsGuestSession()
                ? DownloadCloseType::kLastWindowInGuestSession
                : DownloadCloseType::kLastWindowInIncognitoProfile;
@@ -1303,12 +1322,9 @@ void Browser::TabGroupedStateChanged(
 }
 
 void Browser::TabStripEmpty() {
-  // This function is often called with various Browser related classes on the
-  // stack. Calling code can't handle Browser being deleted here (because it
-  // may delete the classes on the stack calling into this function). Because of
-  // this, BrowserWindow::Close() is used, instead of CloseNow(). CloseNow()
-  // immediately deletes, where was Close() is a hide, and then delete after
-  // posting a task.
+  // Note: even though the tab strip is empty, the call to Close() may not
+  // result in closing this Browser. This can happen in the case of closing
+  // the last Browser with ongoing downloads.
   window_->Close();
 
   // Instant may have visible WebContents that need to be detached before the
@@ -1345,7 +1361,8 @@ void Browser::SetTopControlsGestureScrollInProgress(bool in_progress) {
 bool Browser::CanOverscrollContent() {
 #if defined(USE_AURA)
   return !is_type_devtools() &&
-         base::FeatureList::IsEnabled(features::kOverscrollHistoryNavigation);
+         base::FeatureList::IsEnabled(features::kOverscrollHistoryNavigation) &&
+         overscroll_pref_manager_->IsOverscrollHistoryNavigationEnabled();
 #else
   return false;
 #endif
@@ -1483,7 +1500,7 @@ content::PreloadingEligibility Browser::IsPrerender2Supported(
     content::WebContents& web_contents) {
   Profile* profile =
       Profile::FromBrowserContext(web_contents.GetBrowserContext());
-  return prefetch::IsSomePreloadingEnabled(*profile->GetPrefs(), &web_contents);
+  return prefetch::IsSomePreloadingEnabled(*profile->GetPrefs());
 }
 
 std::unique_ptr<content::WebContents> Browser::ActivatePortalWebContents(
@@ -1561,7 +1578,8 @@ void Browser::OnWindowDidShow() {
     return;
   window_has_shown_ = true;
 
-  startup_metric_utils::RecordBrowserWindowDisplay(base::TimeTicks::Now());
+  startup_metric_utils::GetBrowser().RecordBrowserWindowDisplay(
+      base::TimeTicks::Now());
 
   // Nothing to do for non-tabbed windows.
   if (!is_type_normal())
@@ -1590,6 +1608,13 @@ WebContents* Browser::OpenURLFromTab(WebContents* source,
     DCHECK(window);
     return window->OpenURLFromTab(source, params);
   }
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // Try to intercept the request and open the URL with Lacros.
+  if (ash::TryOpenUrl(params.url, params.disposition)) {
+    return nullptr;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   NavigateParams nav_params(this, params.url, params.transition);
   nav_params.FillNavigateParamsFromOpenURLParams(params);
@@ -1850,6 +1875,13 @@ bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
   return search::NavEntryIsInstantNTP(source, entry);
 }
 
+bool Browser::ShouldFocusPageAfterCrash(WebContents* source) {
+  // Focus only the active page when reloading after a crash, otherwise
+  // return false. This is to ensure background reloads via hovercard
+  // don't end up causing a focus loss which results in its dismissal.
+  return source == tab_strip_model_->GetActiveWebContents();
+}
+
 void Browser::ShowRepostFormWarningDialog(WebContents* source) {
   TabModalConfirmDialog::Create(
       std::make_unique<RepostFormWarningController>(source), source);
@@ -1966,6 +1998,20 @@ std::unique_ptr<content::EyeDropper> Browser::OpenEyeDropper(
   return window()->OpenEyeDropper(frame, listener);
 }
 
+void Browser::InitiatePreview(content::WebContents& web_contents,
+                              const GURL& url) {
+#if !BUILDFLAG(IS_ANDROID)
+  PreviewManager::CreateForWebContents(&web_contents);
+  PreviewManager* manager = PreviewManager::FromWebContents(&web_contents);
+  CHECK(manager);
+  manager->InitiatePreview(url);
+#endif
+}
+
+bool Browser::ShouldUseInstancedSystemMediaControls() const {
+  return is_type_app() || is_type_app_popup();
+}
+
 void Browser::DidFinishNavigation(
     content::WebContents* web_contents,
     content::NavigationHandle* navigation_handle) {
@@ -1991,6 +2037,37 @@ void Browser::EnumerateDirectory(
     scoped_refptr<content::FileSelectListener> listener,
     const base::FilePath& path) {
   FileSelectHelper::EnumerateDirectory(web_contents, std::move(listener), path);
+}
+
+bool Browser::CanUseWindowingControls(
+    content::RenderFrameHost* requesting_frame) {
+  if (!web_app::AppBrowserController::IsWebApp(this)) {
+    requesting_frame->AddMessageToConsole(
+        blink::mojom::ConsoleMessageLevel::kWarning,
+        "API called from something else than a web_app.");
+    return false;
+  }
+  return true;
+}
+
+void Browser::SetCanResizeFromWebAPI(absl::optional<bool> can_resize) {
+  window_->SetCanResizeFromWebAPI(can_resize);
+}
+
+bool Browser::GetCanResize() {
+  return window_->GetCanResize();
+}
+
+void Browser::MinimizeFromWebAPI() {
+  window_->Minimize();
+}
+
+void Browser::MaximizeFromWebAPI() {
+  window_->Maximize();
+}
+
+void Browser::RestoreFromWebAPI() {
+  window_->Restore();
 }
 
 bool Browser::CanEnterFullscreenModeForTab(
@@ -2061,8 +2138,11 @@ blink::mojom::DisplayMode Browser::GetDisplayMode(
 blink::ProtocolHandlerSecurityLevel Browser::GetProtocolHandlerSecurityLevel(
     content::RenderFrameHost* requesting_frame) {
   // WARNING: This must match the logic of
-  // ChromeExtensionsRendererClient::GetProtocolHandlerSecurityLevel().
-
+  // ChromeContentRendererClient::GetProtocolHandlerSecurityLevel().
+  if (requesting_frame->GetLastCommittedOrigin().scheme() ==
+      chrome::kIsolatedAppScheme) {
+    return blink::ProtocolHandlerSecurityLevel::kSameOrigin;
+  }
   content::BrowserContext* context = requesting_frame->GetBrowserContext();
   extensions::ProcessMap* process_map = extensions::ProcessMap::Get(context);
   const Extension* owner_extension =
@@ -2351,8 +2431,8 @@ void Browser::FileSelectedWithExtraInfo(const ui::SelectedFileInfo& file_info,
 
   profile_->set_last_selected_directory(file_info.file_path.DirName());
 
-  GURL url = std::move(file_info.url)
-                 .value_or(net::FilePathToFileURL(file_info.local_path));
+  GURL url =
+      file_info.url.value_or(net::FilePathToFileURL(file_info.local_path));
 
   if (url.is_empty())
     return;
@@ -2396,6 +2476,14 @@ void Browser::OnTranslateEnabledChanged(content::WebContents* source) {
 // Browser, Command and state updating (private):
 
 void Browser::OnTabInsertedAt(WebContents* contents, int index) {
+  // If this Browser is about to be deleted, then WebContents should not be
+  // added to it. This is because scheduling the delete can not be undone, and
+  // proper cleanup is not done if a WebContents is added once delete it
+  // scheduled (WebContents is leaked, unload handlers aren't checked...).
+  // TODO(crbug.com/1434387): this should check that `is_delete_scheduled_` is
+  // false.
+  DUMP_WILL_BE_CHECK(!is_delete_scheduled_);
+
   SetAsDelegate(contents, true);
 
   sessions::SessionTabHelper::FromWebContents(contents)->SetWindowID(
@@ -2655,12 +2743,15 @@ void Browser::ScheduleUIUpdate(WebContents* source, unsigned changed_flags) {
   scheduled_updates_[source] |= changed_flags;
 
   if (!chrome_updater_factory_.HasWeakPtrs()) {
+    base::TimeDelta delay = update_ui_immediately_for_testing_
+                                ? base::Milliseconds(0)
+                                : kUIUpdateCoalescingTime;
     // No task currently scheduled, start another.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Browser::ProcessPendingUIUpdates,
                        chrome_updater_factory_.GetWeakPtr()),
-        kUIUpdateCoalescingTime);
+        delay);
   }
 }
 
@@ -2744,10 +2835,16 @@ void Browser::RemoveScheduledUpdatesFor(WebContents* contents) {
 // Browser, Getters for UI (private):
 
 StatusBubble* Browser::GetStatusBubble() {
-  // In web apps, and in kiosk and exclusive app mode we want to always hide the
-  // status bubble.
-  if (chrome::IsRunningInAppMode() ||
-      web_app::AppBrowserController::IsWebApp(this)) {
+  // For kiosk and exclusive app mode we want to always hide the status bubble.
+  if (chrome::IsRunningInAppMode()) {
+    return nullptr;
+  }
+
+  // We hide the status bar for web apps windows as this matches native
+  // experience. However, we include the status bar for 'minimal-ui' display
+  // mode, as the minimal browser UI includes the status bar.
+  if (web_app::AppBrowserController::IsWebApp(this) &&
+      !app_controller()->HasMinimalUiButtons()) {
     return nullptr;
   }
 
@@ -3217,12 +3314,3 @@ BackgroundContents* Browser::CreateBackgroundContents(
 
   return contents;
 }
-
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-// TODO(https://1278249): Update function name (and trigger chain) when usage
-// is finalized.
-void Browser::RunScreenAIAnnotator() {
-  screen_ai::AXScreenAIAnnotatorFactory::GetForBrowserContext(profile())
-      ->AnnotateScreenshot(this);
-}
-#endif

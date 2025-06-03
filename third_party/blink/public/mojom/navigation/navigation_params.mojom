@@ -22,16 +22,20 @@ import "third_party/blink/public/mojom/navigation/navigation_initiator_activatio
 import "third_party/blink/public/mojom/frame/view_transition_state.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame_config.mojom";
 import "third_party/blink/public/mojom/frame/frame_policy.mojom";
+import "third_party/blink/public/mojom/lcp_critical_path_predictor/lcp_critical_path_predictor.mojom";
 import "third_party/blink/public/mojom/loader/mixed_content.mojom";
 import "third_party/blink/public/mojom/loader/referrer.mojom";
 import "third_party/blink/public/mojom/messaging/task_attribution_id.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_api_history_entry_arrays.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_policy.mojom";
 import "third_party/blink/public/mojom/navigation/prefetched_signed_exchange_info.mojom";
+import "third_party/blink/public/mojom/navigation/renderer_content_settings.mojom";
+import "third_party/blink/public/mojom/navigation/system_entropy.mojom";
 import "third_party/blink/public/mojom/navigation/was_activated_option.mojom";
+import "third_party/blink/public/mojom/page/browsing_context_group_info.mojom";
 import "third_party/blink/public/mojom/page/page.mojom";
 import "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom";
-import "third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state.mojom";
+import "third_party/blink/public/mojom/runtime_feature_state/runtime_feature.mojom";
 import "third_party/blink/public/mojom/storage_key/storage_key.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
 import "url/mojom/origin.mojom";
@@ -44,9 +48,6 @@ enum NavigationType {
 
   // Reload the page, bypassing any cache entries.
   RELOAD_BYPASSING_CACHE,
-
-  // Reload the page using the original request URL.
-  RELOAD_ORIGINAL_REQUEST_URL,
 
   // The navigation is the result of session restore and should honor the
   // page's cache policy while restoring form state. This is set to true if
@@ -149,10 +150,6 @@ struct BeginNavigationParams {
   // in preparation for navigating. Used for metrics.
   mojo_base.mojom.TimeTicks before_unload_start;
   mojo_base.mojom.TimeTicks before_unload_end;
-
-  // Token to identify a WebBundle. Set on navigation to a resource in a
-  // WebBundle.
-  network.mojom.WebBundleTokenParams? web_bundle_token;
 
   // The navigation initiator's user activation and ad status.
   blink.mojom.NavigationInitiatorActivationAndAdStatus
@@ -272,7 +269,8 @@ struct CommonNavigationParams {
   // Whether this is a history navigation in a newly created child frame, in
   // which case the browser process is instructing the renderer process to load
   // a URL from a session history item.  Defaults to false.
-  // TODO(ahemery): Move this to BeginNavigationParams.
+  // TODO(https://crbug.com/962518, https://crbug.com/1467502): Move this to
+  // BeginNavigationParams.
   bool is_history_navigation_in_new_child_frame = false;
 
   // The time the input event leading to the navigation occurred. This will
@@ -310,6 +308,10 @@ struct NavigationTiming {
   mojo_base.mojom.TimeTicks redirect_start;
   mojo_base.mojom.TimeTicks redirect_end;
   mojo_base.mojom.TimeTicks fetch_start;
+
+  // Indicates the entropy state of the user agent at the time the navigation
+  // begins.
+  SystemEntropy system_entropy_at_navigation_start = kEmpty;
 
   ParentResourceTimingAccess parent_resource_timing_access = ParentResourceTimingAccess.kDoNotReport;
 };
@@ -564,10 +566,12 @@ struct CommitNavigationParams {
   // `PerformanceNavigationTiming` APIs.
   network.mojom.NavigationDeliveryType navigation_delivery_type = kDefault;
 
-  // Holds texture references (stored in the GPU process) and geometry state for
-  // the previous Document displayed by this frame. This is used to support
-  // transitions when navigating between same-origin Documents.
-  // See https://drafts.csswg.org/css-view-transitions-1/ for details.
+  // Holds texture references (stored in the GPU process), geometry state, and
+  // select CSS property values from the previous Document displayed by this
+  // frame. This is used to support transitions when navigating between
+  // same-origin Documents. Note that this is only set and used for same-origin
+  // navigations. See https://drafts.csswg.org/css-view-transitions-2/ for
+  // details.
   blink.mojom.ViewTransitionState? view_transition_state;
 
   // If any, the task ID of the initiator of the navigation. This is restricted
@@ -578,7 +582,7 @@ struct CommitNavigationParams {
   // Maps the blink runtime-enabled features modified in the browser process to
   // their new enabled/disabled status:
   // <enum_representing_runtime_enabled_feature, enabled/disabled>
-  map<blink.mojom.RuntimeFeatureState, bool> modified_runtime_features;
+  map<blink.mojom.RuntimeFeature, bool> modified_runtime_features;
 
   // A collection of properties that determines the behavior of a fenced frame.
   // Only non-null for embedder-initiated navigations of a fenced frame root,
@@ -593,4 +597,21 @@ struct CommitNavigationParams {
   // Indicates whether the target document of this navigation should load with
   // the `has_storage_access` bit set.
   bool load_with_storage_access = false;
+
+  // Indicates which browsing context group this frame belongs to. This starts
+  // as nullopt and is only set when we commit a main frame in another browsing
+  // context group. Same browsing context group navigations never set this
+  // because no update is required. Subframes navigations never set this,
+  // because they cannot change browsing context group.
+  blink.mojom.BrowsingContextGroupInfo? browsing_context_group_info;
+
+  // LCP Critical Path Predictor hint data available at navigation timing.
+  blink.mojom.LCPCriticalPathPredictorNavigationTimeHint? lcpp_hint;
+
+  // Some content settings must be enforced by the renderer. See
+  // ContentSettingsType for more details.
+  RendererContentSettings content_settings;
+
+  // The cookie deprecation label for cookie deprecation facilitated testing.
+  string? cookie_deprecation_label;
 };

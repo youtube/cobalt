@@ -12,22 +12,14 @@
 #import "components/signin/public/identity_manager/tribool.h"
 #import "google_apis/gaia/core_account_id.h"
 #import "google_apis/gaia/gaia_auth_util.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/signin/signin_util_internal.h"
 #import "ios/chrome/browser/signin/system_identity.h"
 #import "ios/public/provider/chrome/browser/signin/signin_error_api.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
-
-absl::optional<AccountInfo>& GetPreRestoreIdentity() {
-  static base::NoDestructor<absl::optional<AccountInfo>> pre_restore_identity;
-  return *pre_restore_identity;
-}
 
 const char kAccountInfoKeyAccountId[] = "account_id";
 const char kAccountInfoKeyGaia[] = "gaia";
@@ -35,6 +27,7 @@ const char kAccountInfoKeyEmail[] = "email";
 const char kAccountInfoKeyFullName[] = "full_name";
 const char kAccountInfoKeyGivenName[] = "given_name";
 const char kAccountInfoKeyPictureUrl[] = "picture_url";
+const char kHistorySyncEnabled[] = "history_sync_enabled";
 
 // Copies a string value from a dictionary if the given key is present.
 void CopyStringFromDict(std::string& to,
@@ -97,6 +90,9 @@ CGSize GetSizeForIdentityAvatarSize(IdentityAvatarSize avatar_size) {
 }
 
 signin::Tribool IsFirstSessionAfterDeviceRestore() {
+  if (experimental_flags::SimulatePostDeviceRestore()) {
+    return signin::Tribool::kTrue;
+  }
   static signin::Tribool is_first_session_after_device_restore =
       signin::Tribool::kUnknown;
   static dispatch_once_t once;
@@ -107,9 +103,9 @@ signin::Tribool IsFirstSessionAfterDeviceRestore() {
   return is_first_session_after_device_restore;
 }
 
-void StorePreRestoreIdentity(PrefService* local_state, AccountInfo account) {
-  absl::optional<AccountInfo>& pre_restore_identity = GetPreRestoreIdentity();
-  pre_restore_identity = account;
+void StorePreRestoreIdentity(PrefService* local_state,
+                             AccountInfo account,
+                             bool history_sync_enabled) {
   ScopedDictPrefUpdate update(local_state, prefs::kIosPreRestoreAccountInfo);
   update->Set(kAccountInfoKeyAccountId, account.account_id.ToString());
   update->Set(kAccountInfoKeyGaia, account.gaia);
@@ -117,22 +113,29 @@ void StorePreRestoreIdentity(PrefService* local_state, AccountInfo account) {
   update->Set(kAccountInfoKeyFullName, account.full_name);
   update->Set(kAccountInfoKeyGivenName, account.given_name);
   update->Set(kAccountInfoKeyPictureUrl, account.picture_url);
+  update->Set(kHistorySyncEnabled, history_sync_enabled);
 }
 
 void ClearPreRestoreIdentity(PrefService* local_state) {
-  absl::optional<AccountInfo>& pre_restore_identity = GetPreRestoreIdentity();
-  pre_restore_identity.reset();
   local_state->ClearPref(prefs::kIosPreRestoreAccountInfo);
 }
 
 absl::optional<AccountInfo> GetPreRestoreIdentity(PrefService* local_state) {
-  absl::optional<AccountInfo>& pre_restore_identity = GetPreRestoreIdentity();
-  if (!pre_restore_identity.has_value()) {
-    const base::Value::Dict& dict =
-        local_state->GetDict(prefs::kIosPreRestoreAccountInfo);
-    if (!dict.empty()) {
-      pre_restore_identity = DictToAccountInfo(dict);
-    }
+  const base::Value::Dict& dict =
+      local_state->GetDict(prefs::kIosPreRestoreAccountInfo);
+  if (dict.empty()) {
+    return absl::optional<AccountInfo>();
   }
-  return pre_restore_identity;
+  return DictToAccountInfo(dict);
+}
+
+bool GetPreRestoreHistorySyncEnabled(PrefService* local_state) {
+  const base::Value::Dict& dict =
+      local_state->GetDict(prefs::kIosPreRestoreAccountInfo);
+  if (dict.empty()) {
+    return false;
+  }
+  absl::optional<bool> history_sync_enabled =
+      dict.FindBool(kHistorySyncEnabled);
+  return history_sync_enabled.value_or(false);
 }

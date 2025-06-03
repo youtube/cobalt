@@ -12,6 +12,10 @@
 #include "base/functional/callback_forward.h"
 #include "url/gurl.h"
 
+namespace ash {
+class WindowState;
+}
+
 class ChromeShellDelegate : public ash::ShellDelegate {
  public:
   ChromeShellDelegate();
@@ -25,10 +29,12 @@ class ChromeShellDelegate : public ash::ShellDelegate {
   bool CanShowWindowForUser(const aura::Window* window) const override;
   std::unique_ptr<ash::CaptureModeDelegate> CreateCaptureModeDelegate()
       const override;
+  std::unique_ptr<ash::ClipboardHistoryControllerDelegate>
+  CreateClipboardHistoryControllerDelegate() const override;
   std::unique_ptr<ash::GameDashboardDelegate> CreateGameDashboardDelegate()
       const override;
-  std::unique_ptr<ash::GlanceablesDelegate> CreateGlanceablesDelegate(
-      ash::GlanceablesController* controller) const override;
+  std::unique_ptr<ash::AcceleratorPrefsDelegate>
+  CreateAcceleratorPrefsDelegate() const override;
   ash::AccessibilityDelegate* CreateAccessibilityDelegate() override;
   std::unique_ptr<ash::BackGestureContextualNudgeDelegate>
   CreateBackGestureContextualNudgeDelegate(
@@ -62,7 +68,8 @@ class ChromeShellDelegate : public ash::ShellDelegate {
       override;
   media_session::MediaSessionService* GetMediaSessionService() override;
   bool IsSessionRestoreInProgress() const override;
-  void SetUpEnvironmentForLockedFullscreen(bool locked) override;
+  void SetUpEnvironmentForLockedFullscreen(
+      const ash::WindowState& window_state) override;
   bool IsUiDevToolsStarted() const override;
   void StartUiDevTools() override;
   void StopUiDevTools() override;

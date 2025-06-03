@@ -5,23 +5,19 @@
 #import "ios/chrome/browser/web_state_list/web_usage_enabler/web_usage_enabler_browser_agent.h"
 
 #import "base/test/task_environment.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // URL to load in WebStates.
 const char kURL[] = "https://chromium.org";
-}
+}  // namespace
 
 class WebUsageEnablerBrowserAgentTest : public PlatformTest {
  public:
@@ -65,8 +61,9 @@ class WebUsageEnablerBrowserAgentTest : public PlatformTest {
   }
 
   bool InitialLoadTriggeredForLastWebState() {
-    if (web_state_list_->count() <= 0)
+    if (web_state_list_->count() <= 0) {
       return false;
+    }
     web::WebState* last_web_state =
         web_state_list_->GetWebStateAt(web_state_list_->count() - 1);
     web::FakeNavigationManager* navigation_manager =

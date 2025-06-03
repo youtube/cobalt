@@ -30,6 +30,7 @@
 #include "components/page_load_metrics/browser/observers/core/uma_page_load_metrics_observer.h"
 #include "components/permissions/permission_manager.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -213,8 +214,10 @@ IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest,
       ->profile()
       ->GetPermissionController()
       ->RequestPermissionFromCurrentDocument(
-          blink::PermissionType::GEOLOCATION, rfh_a.get(),
-          /* user_gesture = */ true, callback.Get());
+          rfh_a.get(),
+          content::PermissionRequestDescription(
+              blink::PermissionType::GEOLOCATION, /* user_gesture = */ true),
+          callback.Get());
 
   // Ensure |rfh_a| is evicted from the cache because it is not allowed to
   // service the GEOLOCATION permission request.
@@ -335,7 +338,6 @@ IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest,
 
   // 1) Load page A that has mixed content.
   EXPECT_TRUE(content::NavigateToURL(web_contents(), url_a));
-  content::RenderFrameHostWrapper rfh_a(current_frame_host());
   // Mixed content should be blocked at first.
   EXPECT_FALSE(MixedContentSettingsTabHelper::FromWebContents(web_contents())
                    ->IsRunningInsecureContentAllowed(*current_frame_host()));
@@ -353,6 +355,7 @@ IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest,
 
   // 3) Wait for reload.
   observer.Wait();
+  content::RenderFrameHostWrapper rfh_a(current_frame_host());
 
   // Mixed content should no longer be blocked.
   EXPECT_TRUE(MixedContentSettingsTabHelper::FromWebContents(web_contents())
@@ -677,8 +680,23 @@ INSTANTIATE_TEST_SUITE_P(
     ChromeBackForwardCacheBrowserWithEmbedTest,
     testing::ValuesIn<std::vector<std::string>>({"embed", "object"}));
 
-IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
-                       DoesNotCachePageWithEmbeddedPlugin) {
+// TODO(crbug.com/1491942): This fails with the field trial testing config.
+class ChromeBackForwardCacheBrowserWithEmbedTestNoTestingConfig
+    : public ChromeBackForwardCacheBrowserWithEmbedTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ChromeBackForwardCacheBrowserWithEmbedTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch("disable-field-trial-config");
+  }
+};
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ChromeBackForwardCacheBrowserWithEmbedTestNoTestingConfig,
+    testing::ValuesIn<std::vector<std::string>>({"embed", "object"}));
+
+IN_PROC_BROWSER_TEST_P(
+    ChromeBackForwardCacheBrowserWithEmbedTestNoTestingConfig,
+    DoesNotCachePageWithEmbeddedPlugin) {
   const auto tag = GetParam();
   const auto page_with_plugin = base::StringPrintf(
       "/back_forward_cache/page_with_%s_plugin.html", tag.c_str());
@@ -690,12 +708,19 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
   content::RenderFrameHostWrapper rfh_a(current_frame_host());
 
   // Navigate to B.
+  bool will_change_rfh =
+      rfh_a->ShouldChangeRenderFrameHostOnSameSiteNavigation();
+
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(), embedded_test_server()->GetURL("a.com", "/title2.html")));
 
   // Verify A is NOT stored in the BackForwardCache.
-  EXPECT_NE(rfh_a->GetLifecycleState(),
-            content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  if (will_change_rfh) {
+    EXPECT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
+  } else {
+    EXPECT_NE(rfh_a->GetLifecycleState(),
+              content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  }
 
   // Navigate back to A.
   ASSERT_TRUE(content::HistoryGoBack(web_contents()));
@@ -706,8 +731,9 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
 }
 
 #if BUILDFLAG(ENABLE_PDF)
-IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
-                       DoesNotCachePageWithEmbeddedPdf) {
+IN_PROC_BROWSER_TEST_P(
+    ChromeBackForwardCacheBrowserWithEmbedTestNoTestingConfig,
+    DoesNotCachePageWithEmbeddedPdf) {
   const auto tag = GetParam();
   const auto page_with_pdf = base::StringPrintf(
       "/back_forward_cache/page_with_%s_pdf.html", tag.c_str());
@@ -720,12 +746,19 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
   content::RenderFrameHostWrapper rfh_a(current_frame_host());
 
   // Navigate to B.
+  bool will_change_rfh =
+      rfh_a->ShouldChangeRenderFrameHostOnSameSiteNavigation();
+
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(), embedded_test_server()->GetURL("a.com", "/title2.html")));
 
   // Verify A is NOT stored in the BackForwardCache.
-  EXPECT_NE(rfh_a->GetLifecycleState(),
-            content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  if (will_change_rfh) {
+    EXPECT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
+  } else {
+    EXPECT_NE(rfh_a->GetLifecycleState(),
+              content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  }
 
   // Navigate back to A.
   ASSERT_TRUE(content::HistoryGoBack(web_contents()));
@@ -736,8 +769,14 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
+// Flaky on Mac and ChromeOS: crbug.com/1492026
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded DISABLED_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded
+#else
+#define MAYBE_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded
+#endif
 IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
-                       DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded) {
+                       MAYBE_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded) {
   const auto tag = GetParam();
 
   // Navigate to A.
@@ -762,8 +801,13 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
       web_contents(), embedded_test_server()->GetURL("a.com", "/title2.html")));
 
   // Verify A is NOT stored in the BackForwardCache.
-  EXPECT_NE(rfh_a->GetLifecycleState(),
-            content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  if (content::WillSameSiteNavigationChangeRenderFrameHosts(
+          /*is_main_frame=*/true)) {
+    EXPECT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
+  } else {
+    EXPECT_NE(rfh_a->GetLifecycleState(),
+              content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  }
 
   //  Navigate back to A.
   ASSERT_TRUE(content::HistoryGoBack(web_contents()));
@@ -793,8 +837,14 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
             content::RenderFrameHost::LifecycleState::kInBackForwardCache);
 }
 
+// Flaky on Mac and Linux: crbug.com/1492026
+#if (BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
+#define MAYBE_DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf DISABLED_DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf
+#else
+#define MAYBE_DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf
+#endif
 IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
-                       DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf) {
+                       MAYBE_DoesNotCachePageWithEmbeddedHtmlMutatedIntoPdf) {
   const auto tag = GetParam();
   const auto page_with_html = base::StringPrintf(
       "/back_forward_cache/page_with_%s_html.html", tag.c_str());
@@ -815,13 +865,19 @@ IN_PROC_BROWSER_TEST_P(ChromeBackForwardCacheBrowserWithEmbedTest,
   )",
                                       tag, GetSrcAttributeForTag(tag))));
 
+  bool will_change_rfh =
+      rfh_a->ShouldChangeRenderFrameHostOnSameSiteNavigation();
   // Navigate to B.
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(), embedded_test_server()->GetURL("a.com", "/title2.html")));
 
   // Verify A is NOT stored in the BackForwardCache.
-  EXPECT_NE(rfh_a->GetLifecycleState(),
-            content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  if (will_change_rfh) {
+    EXPECT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
+  } else {
+    EXPECT_NE(rfh_a->GetLifecycleState(),
+              content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+  }
 
   // Navigate back to A.
   ASSERT_TRUE(content::HistoryGoBack(web_contents()));

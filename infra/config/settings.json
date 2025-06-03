@@ -1,8 +1,8 @@
 {
-    "project": "chromium-m114",
-    "project_title": "Chromium M114",
-    "ref": "refs/branch-heads/5735",
-    "chrome_project": "chrome-m114",
+    "project": "chromium-m120",
+    "project_title": "Chromium M120",
+    "ref": "refs/branch-heads/6099",
+    "chrome_project": "chrome-m120",
     "is_main": false,
     "platforms": {
         "cros-lts": {

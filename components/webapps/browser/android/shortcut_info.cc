@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/webapps/browser/android/webapps_icon_utils.h"
+#include "components/webapps/browser/features.h"
 #include "shortcut_info.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/manifest/manifest_icon_selector.h"
@@ -22,6 +23,12 @@ namespace {
 // The maximum number of shortcuts an Android launcher supports.
 // https://developer.android.com/guide/topics/ui/shortcuts#shortcut-limitations
 constexpr size_t kMaxShortcuts = 4;
+
+bool IsWebApkDisplayMode(blink::mojom::DisplayMode display_mode) {
+  return (display_mode == blink::mojom::DisplayMode::kStandalone ||
+          display_mode == blink::mojom::DisplayMode::kFullscreen ||
+          display_mode == blink::mojom::DisplayMode::kMinimalUi);
+}
 
 }  // namespace
 
@@ -54,7 +61,8 @@ ShortcutInfo::~ShortcutInfo() = default;
 std::unique_ptr<ShortcutInfo> ShortcutInfo::CreateShortcutInfo(
     const GURL& manifest_url,
     const blink::mojom::Manifest& manifest,
-    const GURL& primary_icon_url) {
+    const GURL& primary_icon_url,
+    bool primary_icon_maskable) {
   if (blink::IsEmptyManifest(manifest)) {
     return nullptr;
   }
@@ -63,24 +71,73 @@ std::unique_ptr<ShortcutInfo> ShortcutInfo::CreateShortcutInfo(
   shortcut_info->UpdateFromManifest(manifest);
   shortcut_info->manifest_url = manifest_url;
   shortcut_info->best_primary_icon_url = primary_icon_url;
+  shortcut_info->is_primary_icon_maskable = primary_icon_maskable;
   shortcut_info->UpdateBestSplashIcon(manifest);
   return shortcut_info;
 }
 
-std::set<GURL> ShortcutInfo::GetWebApkIcons() {
-  std::set<GURL> icons{best_primary_icon_url};
+std::vector<WebappIcon> ShortcutInfo::GetWebApkIcons() {
+  std::vector<WebappIcon> icons;
+  icons.emplace_back(best_primary_icon_url, is_primary_icon_maskable,
+                     webapk::Image::PRIMARY_ICON);
 
-  if (!splash_image_url.is_empty() &&
-      splash_image_url != best_primary_icon_url) {
-    icons.insert(splash_image_url);
+  if (!splash_image_url.is_empty()) {
+    auto it = std::find_if(icons.begin(), icons.end(), [&](auto& icon) {
+      return icon.url() == splash_image_url;
+    });
+    if (it == icons.end()) {
+      icons.emplace_back(splash_image_url, is_splash_image_maskable,
+                         webapk::Image::SPLASH_ICON);
+    } else {
+      it->AddUsage(webapk::Image::SPLASH_ICON);
+    }
   }
 
-  for (const auto& shortcut_icon : best_shortcut_icon_urls) {
-    if (shortcut_icon.is_valid())
-      icons.insert(shortcut_icon);
+  for (const auto& shortcut_icon_url : best_shortcut_icon_urls) {
+    if (shortcut_icon_url.is_valid()) {
+      auto it = std::find_if(icons.begin(), icons.end(), [&](auto& icon) {
+        return icon.url() == shortcut_icon_url;
+      });
+      if (it == icons.end()) {
+        icons.emplace_back(shortcut_icon_url, false,
+                           webapk::Image::SHORTCUT_ICON);
+      } else {
+        it->AddUsage(webapk::Image::SHORTCUT_ICON);
+      }
+    }
   }
 
   return icons;
+}
+
+void ShortcutInfo::UpdateFromWebPageMetadata(
+    const mojom::WebPageMetadata& metadata) {
+  std::u16string title;
+  base::TrimWhitespace(metadata.title, base::TrimPositions::TRIM_ALL, &title);
+  if (!title.empty()) {
+    user_title = title;
+  }
+  std::u16string app_name;
+  base::TrimWhitespace(metadata.application_name, base::TrimPositions::TRIM_ALL,
+                       &app_name);
+  if (!app_name.empty()) {
+    user_title = app_name;
+  }
+  short_name = user_title;
+  name = user_title;
+
+  if (!metadata.description.empty()) {
+    description = metadata.description;
+  }
+  if (metadata.application_url.is_valid()) {
+    url = metadata.application_url;
+    scope = metadata.application_url;
+  }
+  if (metadata.mobile_capable == mojom::WebPageMobileCapable::ENABLED ||
+      metadata.mobile_capable == mojom::WebPageMobileCapable::ENABLED_APPLE) {
+    display = blink::mojom::DisplayMode::kStandalone;
+    UpdateSource(ShortcutInfo::SOURCE_ADD_TO_HOMESCREEN_STANDALONE);
+  }
 }
 
 void ShortcutInfo::UpdateFromManifest(const blink::mojom::Manifest& manifest) {
@@ -103,8 +160,7 @@ void ShortcutInfo::UpdateFromManifest(const blink::mojom::Manifest& manifest) {
     url = manifest.start_url;
 
   scope = manifest.scope;
-
-  manifest_id = blink::GetIdFromManifest(manifest);
+  manifest_id = manifest.id;
 
   // Set the display based on the manifest value, if any.
   if (manifest.display != DisplayMode::kUndefined)
@@ -193,6 +249,17 @@ void ShortcutInfo::UpdateFromManifest(const blink::mojom::Manifest& manifest) {
         blink::mojom::ManifestImageResource_Purpose::ANY);
     best_shortcut_icon_urls.push_back(std::move(best_url));
   }
+
+  // Set the dark theme color based on the manifest value, if any.
+  dark_theme_color = manifest.has_dark_theme_color
+                         ? absl::make_optional(manifest.dark_theme_color)
+                         : absl::nullopt;
+
+  // Set the dark background color based on the manifest value, if any.
+  dark_background_color =
+      manifest.has_dark_background_color
+          ? absl::make_optional(manifest.dark_background_color)
+          : absl::nullopt;
 }
 
 void ShortcutInfo::UpdateBestSplashIcon(
@@ -217,6 +284,24 @@ void ShortcutInfo::UpdateBestSplashIcon(
         minimum_splash_image_size_in_px,
         blink::mojom::ManifestImageResource_Purpose::ANY);
     is_splash_image_maskable = false;
+  }
+}
+
+void ShortcutInfo::UpdateDisplayMode(bool webapk_compatible) {
+  if (!base::FeatureList::IsEnabled(features::kUniversalInstallManifest)) {
+    return;
+  }
+
+  if (webapk_compatible) {
+    if (!IsWebApkDisplayMode(display)) {
+      display = DisplayMode::kMinimalUi;
+    }
+  } else {
+    if (IsWebApkDisplayMode(display)) {
+      display = DisplayMode::kMinimalUi;
+    } else {
+      display = DisplayMode::kBrowser;
+    }
   }
 }
 

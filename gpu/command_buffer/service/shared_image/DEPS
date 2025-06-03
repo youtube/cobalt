@@ -1,8 +1,7 @@
-include_rules = [
-  "+third_party/dawn/include",
-]
-
 specific_include_rules = {
+  "angle_vulkan_image_backing_factory_unittest\.cc": [
+    "+components/viz/common/gpu/vulkan_in_process_context_provider.h",
+  ],
   "dcomp_image_backing_factory_unittest\.cc": [
     "+ui/platform_window",
   ],

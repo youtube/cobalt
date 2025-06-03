@@ -10,7 +10,6 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
@@ -20,6 +19,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "extensions/common/extension_id.h"
+#include "extensions/common/extension_set.h"
 
 class Profile;
 class PrefService;
@@ -45,10 +45,11 @@ class ExtensionTelemetryPersister;
 class ExtensionTelemetryReportRequest;
 class ExtensionTelemetryReportRequest_ExtensionInfo;
 class ExtensionTelemetryReportRequest_ExtensionInfo_FileInfo;
+class ExtensionTelemetryReportResponse;
 class ExtensionTelemetryUploader;
 class SafeBrowsingTokenFetcher;
 
-// This class process extension signals and reports telemetry for a given
+// This class processes extension signals and reports telemetry for a given
 // profile (regular profile only). It is used exclusively on the UI thread.
 // Lifetime:
 // The service is instantiated when the associated profile is instantiated. It
@@ -56,17 +57,26 @@ class SafeBrowsingTokenFetcher;
 // Enable/Disable state:
 // The service is enabled/disabled based on kEnhancedSafeBrowsing. The service
 // subscribes to the SB preference change notification to update its state.
-// When enabled, the service receives and stores signal information. It also
-// periodically creates telemetry reports and uploads them to the SB servers.
-// When disabled, any previously stored signal information is cleared, incoming
-// signals are ignored and no reports are sent to the SB servers.
+//
+// When enabled, the service receives/stores signal information, and collects
+// file data for off-store extensions. Periodically, the service creates
+// telemetry reports and uploads them to the SB servers. In the upload response,
+// the CRX telemetry server includes unsafe off-store extension verdicts that
+// the service can take action on.
+//
+// When disabled, any previously stored signal information is
+// cleared, incoming signals are ignored and no reports are sent to the SB
+// servers.
 class ExtensionTelemetryService : public KeyedService {
  public:
+  // Convenience method to get the service for a profile.
+  static ExtensionTelemetryService* Get(Profile* profile);
+
+  ExtensionTelemetryService(ExtensionTelemetryService&&) = delete;
+  ExtensionTelemetryService& operator=(ExtensionTelemetryService&&) = delete;
   ExtensionTelemetryService(
       Profile* profile,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      extensions::ExtensionRegistry* extension_registry,
-      extensions::ExtensionPrefs* extension_prefs);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
 
   ExtensionTelemetryService(const ExtensionTelemetryService&) = delete;
   ExtensionTelemetryService& operator=(const ExtensionTelemetryService&) =
@@ -109,7 +119,7 @@ class ExtensionTelemetryService : public KeyedService {
   // Creates and uploads telemetry reports.
   void CreateAndUploadReport();
 
-  void OnUploadComplete(bool success);
+  void OnUploadComplete(bool success, const std::string& response_data);
 
   // Returns a bool that represents if there is any signal processor
   // information to report.
@@ -145,6 +155,16 @@ class ExtensionTelemetryService : public KeyedService {
   // uploads telemetry data. Runs on a delayed post task on startup.
   void StartUploadCheck();
 
+  // Callback used to receive information about any extensions present in
+  // the Chrome command line switch, --load-extension. The information is
+  // collected off the UI thread since it involves reading the manifest file of
+  // the extension. The callback stores the received information, a set of
+  // extension objects, in `commandline_extensions_`.
+  // NOTE: The extension objects are created without actually installing the
+  // extensions.
+  void OnCommandLineExtensionsInfoCollected(
+      extensions::ExtensionSet commandline_extensions);
+
   // Searches for offstore extensions, collects file data such as
   // hashes/manifest content, and saves the data to PrefService. Repeats every 2
   // hours. This method is repeated periodically (default 2 hours) to check if
@@ -158,8 +178,10 @@ class ExtensionTelemetryService : public KeyedService {
   // installed from components.
   void GetOffstoreExtensionDirs();
 
-  // Remove any data in the PrefService that from uninstalled extensions.
-  void RemoveUninstalledExtensionsFileDataFromPref();
+  // Remove any stale off-store file data stored in prefs. The data is
+  // considered stale if the associated off-store extension is no longer
+  // installed or no longer part of the --load-extension command line switch.
+  void RemoveStaleExtensionsFileDataFromPref();
 
   // Collect file data from an offstore extension by making a call to the
   // FileProcessor.
@@ -208,6 +230,12 @@ class ExtensionTelemetryService : public KeyedService {
   absl::optional<OffstoreExtensionFileData> RetrieveOffstoreFileDataForReport(
       const extensions::ExtensionId& extension_id);
 
+  // Validates offending off-store extension verdicts received in a telemetry
+  // report response, and converts them into a blocklist state map for the
+  // ExtensionService to act on.
+  void ProcessOffstoreExtensionVerdicts(
+      const ExtensionTelemetryReportResponse& response);
+
   // The persister object is bound to the threadpool. This prevents the
   // the read/write operations the `persister_` runs from blocking
   // the UI thread. It also allows the `persister_` object to be
@@ -248,6 +276,17 @@ class ExtensionTelemetryService : public KeyedService {
   base::RepeatingTimer timer_;
   base::TimeDelta current_reporting_interval_;
 
+  // Specifies the number of times(N) the telemetry service checks if a
+  // telemetry upload is required within an upload interval(I). The telemetry
+  // service checks if an upload is necessary at I/N intervals. At each check
+  // interval, the in-memory telemetry data is saved to disk - till the time an
+  // upload interval has elapsed. For example, a value of 2 means that the
+  // telemetry service checks for uploads at I/2 and I. At the first check
+  // interval, the in-memory report is written to disk. At the second check
+  // interval, the in-memory report and the previously saved report in disk are
+  // both uploaded to the telemetry server.
+  int num_checks_per_upload_interval_;
+
   // The current report being uploaded.
   std::unique_ptr<ExtensionTelemetryReportRequest> active_report_;
   // The current uploader instance uploading the active report.
@@ -258,6 +297,13 @@ class ExtensionTelemetryService : public KeyedService {
       extensions::ExtensionId,
       std::unique_ptr<ExtensionTelemetryReportRequest_ExtensionInfo>>;
   ExtensionStore extension_store_;
+
+  // Stores extension objects for extensions that are included in the
+  // --load-extension command line switch.
+  extensions::ExtensionSet commandline_extensions_;
+  // Used to ensure that the information about command line extensions is only
+  // collected once.
+  bool collected_commandline_extension_info_ = false;
 
   // Maps offstore extension id to extension root path
   using OffstoreExtensionDirs =
@@ -273,6 +319,7 @@ class ExtensionTelemetryService : public KeyedService {
   // |kExtensionTelemetryFileDataProcessIntervalSeconds| - default: 2 hours.
   base::OneShotTimer offstore_file_data_collection_timer_;
   base::TimeTicks offstore_file_data_collection_start_time_;
+  base::TimeDelta offstore_file_data_collection_duration_limit_;
 
   using SignalProcessors =
       base::flat_map<ExtensionSignalType,
@@ -286,6 +333,12 @@ class ExtensionTelemetryService : public KeyedService {
 
   friend class ExtensionTelemetryServiceTest;
   friend class ExtensionTelemetryServiceBrowserTest;
+  FRIEND_TEST_ALL_PREFIXES(ExtensionTelemetryServiceTest,
+                           PersistsReportsOnInterval);
+  FRIEND_TEST_ALL_PREFIXES(ExtensionTelemetryServiceTest,
+                           MalformedPersistedFile);
+  FRIEND_TEST_ALL_PREFIXES(ExtensionTelemetryServiceTest,
+                           FileData_EnforcesCollectionDurationLimit);
 
   base::WeakPtrFactory<ExtensionTelemetryService> weak_factory_{this};
 };

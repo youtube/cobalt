@@ -5,11 +5,9 @@
 package org.chromium.chrome.browser.homepage.settings;
 
 import android.os.Bundle;
-import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.preference.Preference;
-import androidx.preference.PreferenceFragmentCompat;
 
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.R;
@@ -17,32 +15,22 @@ import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.homepage.HomepagePolicyManager;
 import org.chromium.chrome.browser.homepage.settings.RadioButtonGroupHomepagePreference.HomepageOption;
 import org.chromium.chrome.browser.homepage.settings.RadioButtonGroupHomepagePreference.PreferenceValues;
+import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.url_formatter.UrlFormatter;
+import org.chromium.url.GURL;
 
 /**
  * Fragment that allows the user to configure homepage related preferences.
  */
-public class HomepageSettings extends PreferenceFragmentCompat {
+public class HomepageSettings extends ChromeBaseSettingsFragment {
     @VisibleForTesting
     public static final String PREF_HOMEPAGE_SWITCH = "homepage_switch";
     @VisibleForTesting
     public static final String PREF_HOMEPAGE_RADIO_GROUP = "homepage_radio_group";
-
-    /**
-     * Delegate used to mark that the homepage is being managed.
-     * Created for {@link org.chromium.chrome.browser.settings.HomepagePreferences}
-     */
-    private static class HomepageManagedPreferenceDelegate
-            implements ChromeManagedPreferenceDelegate {
-        @Override
-        public boolean isPreferenceControlledByPolicy(Preference preference) {
-            return HomepagePolicyManager.isHomepageManagedByPolicy();
-        }
-    }
 
     private HomepageManager mHomepageManager;
     private RadioButtonGroupHomepagePreference mRadioButtons;
@@ -54,11 +42,16 @@ public class HomepageSettings extends PreferenceFragmentCompat {
         getActivity().setTitle(R.string.options_homepage_title);
         SettingsUtils.addPreferencesFromResource(this, R.xml.homepage_preferences);
 
-        HomepageManagedPreferenceDelegate managedDelegate = new HomepageManagedPreferenceDelegate();
         // Set up preferences inside the activity.
         ChromeSwitchPreference homepageSwitch =
                 (ChromeSwitchPreference) findPreference(PREF_HOMEPAGE_SWITCH);
-        homepageSwitch.setManagedPreferenceDelegate(managedDelegate);
+        homepageSwitch.setManagedPreferenceDelegate(
+                new ChromeManagedPreferenceDelegate(getProfile()) {
+                    @Override
+                    public boolean isPreferenceControlledByPolicy(Preference preference) {
+                        return HomepagePolicyManager.isHomepageManagedByPolicy();
+                    }
+                });
 
         mRadioButtons =
                 (RadioButtonGroupHomepagePreference) findPreference(PREF_HOMEPAGE_RADIO_GROUP);
@@ -114,8 +107,11 @@ public class HomepageSettings extends PreferenceFragmentCompat {
         if (HomepagePolicyManager.isHomepageManagedByPolicy()) return;
 
         boolean setToUseNTP = newValue.getCheckedOption() == HomepageOption.ENTRY_CHROME_NTP;
-        String newHomepage = UrlFormatter.fixupUrl(newValue.getCustomURI()).getValidSpecOrEmpty();
-        boolean useDefaultUri = HomepageManager.getDefaultHomepageUri().equals(newHomepage);
+        GURL newHomepage = UrlFormatter.fixupUrl(newValue.getCustomURI());
+        if (!newHomepage.isValid()) {
+            newHomepage = GURL.emptyGURL();
+        }
+        boolean useDefaultUri = HomepageManager.getDefaultHomepageGurl().equals(newHomepage);
 
         mHomepageManager.setHomepagePreferences(setToUseNTP, useDefaultUri, newHomepage);
     }
@@ -123,22 +119,22 @@ public class HomepageSettings extends PreferenceFragmentCompat {
     /**
      * @return The user customized homepage setting.
      */
-    private String getHomepageForEditText() {
+    private GURL getHomepageForEditText() {
         if (HomepagePolicyManager.isHomepageManagedByPolicy()) {
-            return HomepagePolicyManager.getHomepageUrl().getSpec();
+            return HomepagePolicyManager.getHomepageUrl();
         }
 
-        String defaultUrl = HomepageManager.getDefaultHomepageUri();
-        String customUrl = mHomepageManager.getPrefHomepageCustomUri();
+        GURL defaultGurl = HomepageManager.getDefaultHomepageGurl();
+        GURL customGurl = mHomepageManager.getPrefHomepageCustomGurl();
         if (mHomepageManager.getPrefHomepageUseDefaultUri()) {
-            return UrlUtilities.isNTPUrl(defaultUrl) ? "" : defaultUrl;
+            return UrlUtilities.isNTPUrl(defaultGurl) ? GURL.emptyGURL() : defaultGurl;
         }
 
-        if (TextUtils.isEmpty(customUrl) && !UrlUtilities.isNTPUrl(defaultUrl)) {
-            return defaultUrl;
+        if (customGurl.isEmpty() && !UrlUtilities.isNTPUrl(defaultGurl)) {
+            return defaultGurl;
         }
 
-        return customUrl;
+        return customGurl;
     }
 
     private PreferenceValues createPreferenceValuesForRadioGroup() {
@@ -153,7 +149,7 @@ public class HomepageSettings extends PreferenceFragmentCompat {
         } else {
             shouldCheckNTP = mHomepageManager.getPrefHomepageUseChromeNTP()
                     || (mHomepageManager.getPrefHomepageUseDefaultUri()
-                            && UrlUtilities.isNTPUrl(HomepageManager.getDefaultHomepageUri()));
+                            && UrlUtilities.isNTPUrl(HomepageManager.getDefaultHomepageGurl()));
         }
 
         @HomepageOption
@@ -169,7 +165,7 @@ public class HomepageSettings extends PreferenceFragmentCompat {
         // Customized option should be visible when policy is not enforced or the option is checked.
         boolean isCustomizedOptionVisible = !isPolicyEnabled || !shouldCheckNTP;
 
-        return new PreferenceValues(checkedOption, getHomepageForEditText(),
+        return new PreferenceValues(checkedOption, getHomepageForEditText().getSpec(),
                 isRadioButtonPreferenceEnabled, isNTPOptionVisible, isCustomizedOptionVisible);
     }
 }

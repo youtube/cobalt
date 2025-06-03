@@ -29,6 +29,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PATH_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PATH_H_
 
+#include "base/memory/raw_ptr.h"
 #include "third_party/blink/renderer/platform/geometry/float_rounded_rect.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -64,7 +65,7 @@ enum PathElementType {
 // returns two tangent points and the endpoint.
 struct PathElement {
   PathElementType type;
-  gfx::PointF* points;
+  raw_ptr<gfx::PointF, ExperimentalRenderer | AllowPtrArithmetic> points;
 };
 
 // Result structure from Path::PointAndNormalAtLength() (and similar).
@@ -135,6 +136,7 @@ class PLATFORM_EXPORT Path {
   void Clear();
   bool IsEmpty() const;
   bool IsClosed() const;
+  bool IsLine() const;
 
   // Specify whether this path is volatile. Temporary paths that are discarded
   // or modified after use should be marked as volatile. This is a hint to the

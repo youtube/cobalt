@@ -4,9 +4,9 @@
 import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {CurrentWallpaper, GooglePhotosAlbum, GooglePhotosEnablementState, GooglePhotosPhoto, WallpaperCollection, WallpaperImage} from '../../personalization_app.mojom-webui.js';
+import {CurrentAttribution, CurrentWallpaper, GooglePhotosAlbum, GooglePhotosEnablementState, GooglePhotosPhoto, WallpaperCollection, WallpaperImage} from '../../personalization_app.mojom-webui.js';
 
-import {DefaultImageSymbol, DisplayableImage, kDefaultImageSymbol} from './constants.js';
+import {DefaultImageSymbol, DisplayableImage, kDefaultImageSymbol, WallpaperSearchThumbnail} from './constants.js';
 
 /**
  * Stores collections and images from backdrop server.
@@ -51,8 +51,8 @@ export interface GooglePhotosState {
  * |local| stores data just for local images on disk.
  * |local.data| stores a mapping of FilePath.path string to loading state.
  *
- * |selected| is a boolean representing the loading state of current wallpaper
- * information. This gets complicated when a user rapidly selects multiple
+ * |selected| stores the loading state of current wallpaper image and
+ * attribution. This gets complicated when a user rapidly selects multiple
  * wallpaper images, or picks a new daily refresh wallpaper. This becomes
  * false when a new CurrentWallpaper object is received and the |setImage|
  * counter is at 0.
@@ -71,7 +71,10 @@ export interface LoadingState {
     data: Record<FilePath['path']|DefaultImageSymbol, boolean>,
   };
   refreshWallpaper: boolean;
-  selected: boolean;
+  selected: {
+    attribution: boolean,
+    image: boolean,
+  };
   setImage: number;
   googlePhotos: {
     enabled: boolean,
@@ -80,6 +83,12 @@ export interface LoadingState {
     photos: boolean,
     photosByAlbumId: Record<string, boolean>,
   };
+}
+
+export interface SeaPenState {
+  query: string|null;
+  thumbnails: WallpaperSearchThumbnail[]|null;
+  thumbnailsLoading: boolean;
 }
 
 /**
@@ -111,11 +120,13 @@ export interface WallpaperState {
   backdrop: BackdropState;
   loading: LoadingState;
   local: LocalState;
+  attribution: CurrentAttribution|null;
   currentSelected: CurrentWallpaper|null;
   pendingSelected: DisplayableImage|null;
   dailyRefresh: DailyRefreshState|null;
   fullscreen: boolean;
   googlePhotos: GooglePhotosState;
+  seaPen: SeaPenState;
 }
 
 export function emptyState(): WallpaperState {
@@ -126,7 +137,10 @@ export function emptyState(): WallpaperState {
       images: {},
       local: {images: false, data: {[kDefaultImageSymbol]: false}},
       refreshWallpaper: false,
-      selected: false,
+      selected: {
+        attribution: false,
+        image: false,
+      },
       setImage: 0,
       googlePhotos: {
         enabled: false,
@@ -137,6 +151,7 @@ export function emptyState(): WallpaperState {
       },
     },
     local: {images: null, data: {[kDefaultImageSymbol]: {url: ''}}},
+    attribution: null,
     currentSelected: null,
     pendingSelected: null,
     dailyRefresh: null,
@@ -149,6 +164,11 @@ export function emptyState(): WallpaperState {
       photosByAlbumId: {},
       resumeTokens:
           {albums: null, albumsShared: null, photos: null, photosByAlbumId: {}},
+    },
+    seaPen: {
+      query: null,
+      thumbnails: null,
+      thumbnailsLoading: false,
     },
   };
 }

@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Перемещение вверх и влево</translation>
 <translation id="3573890771273113519">Переключиться в режим сканирования</translation>
 <translation id="3583444040776960729">Левый нижний угол документа</translation>
+<translation id="3642192109456033823">Обработка видео…</translation>
 <translation id="3789724198583203151">Повернуть на 90 градусов против часовой стрелки</translation>
 <translation id="3810838688059735925">Видео</translation>
 <translation id="3892148308691398805">Копировать текст</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Приостановить запись</translation>
 <translation id="4121305183798804752">Обнаружен документ</translation>
 <translation id="414641094616694804">Разрешение этой камеры нельзя изменить</translation>
+<translation id="4176463684765177261">Отключено</translation>
 <translation id="4269820728363426813">Копировать адрес ссылки</translation>
-<translation id="4281620174117014503">Среднее разрешение</translation>
 <translation id="428234092390943511">Уменьшенное изображение страницы</translation>
+<translation id="4349714250734879769">Масштабировать фреймы с помощью Chrome</translation>
 <translation id="4383571725254449280">Распечатать журнал производительности</translation>
 <translation id="4445542136948522167">Отменить съемку</translation>
 <translation id="4570032796877367747">Фронтальная камера</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Сканирование страницы <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Квадрат</translation>
+<translation id="574392208103952083">Средний</translation>
 <translation id="5746169159649715125">Сохранить как PDF</translation>
 <translation id="5753488212459587150">Включить режим эксперта</translation>
 <translation id="5759254179196327752">Сканирование документов</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">Переключиться на фотосъемку</translation>
 <translation id="8167081290930651932">Сохранить как фото</translation>
 <translation id="8239780215768881278">Сделать снимок</translation>
+<translation id="8346544573713510785">Масштабировать фреймы с помощью камеры HAL</translation>
 <translation id="8425673304802773841">Наклонить вниз</translation>
 <translation id="8428213095426709021">Настройки</translation>
 <translation id="8629662593426079630">360p</translation>

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/memory/raw_ptr.h"
+#include "base/ranges/algorithm.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autofill/autofill_uitest_util.h"
@@ -73,6 +74,9 @@ class OfferNotificationControllerAndroidBrowserTest
   // AndroidBrowserTest
   void SetUpOnMainThread() override {
     personal_data_ = PersonalDataManagerFactory::GetForProfile(GetProfile());
+    // Mimic the user is signed in so payments integration is considered
+    // enabled.
+    personal_data_->SetSyncingForTest(true);
     // Wait for Personal Data Manager to be fully loaded to prevent that
     // spurious notifications deceive the tests.
     WaitForPersonalDataManagerToBeLoaded(GetProfile());
@@ -86,7 +90,7 @@ class OfferNotificationControllerAndroidBrowserTest
   Profile* GetProfile() { return chrome_test_utils::GetProfile(this); }
 
   AutofillOfferData* SetUpOfferDataWithDomains(const GURL& url) {
-    personal_data_->ClearAllServerData();
+    personal_data_->ClearAllServerDataForTesting();
     std::vector<GURL> merchant_origins;
     merchant_origins.emplace_back(url.DeprecatedGetOriginAsURL());
     std::vector<int64_t> eligible_instrument_ids = {0x4444};
@@ -125,7 +129,6 @@ class OfferNotificationControllerAndroidBrowserTest
   // CreditCard that is linked to the offer displayed in the offer notification.
   CreditCard card_;
   base::HistogramTester histogram_tester_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
   test::AutofillBrowserTestEnvironment autofill_environment_;
@@ -148,15 +151,11 @@ class OfferNotificationControllerAndroidBrowserTestForInfobar
   infobars::InfoBar* GetInfoBar() {
     infobars::ContentInfoBarManager* infobar_manager =
         infobars::ContentInfoBarManager::FromWebContents(GetWebContents());
-    for (size_t i = 0; i < infobar_manager->infobar_count(); ++i) {
-      infobars::InfoBar* infobar = infobar_manager->infobar_at(i);
-      if (infobar->delegate()->GetIdentifier() ==
-          infobars::InfoBarDelegate::
-              AUTOFILL_OFFER_NOTIFICATION_INFOBAR_DELEGATE) {
-        return infobar;
-      }
-    }
-    return nullptr;
+    const auto it = base::ranges::find(
+        infobar_manager->infobars(),
+        infobars::InfoBarDelegate::AUTOFILL_OFFER_NOTIFICATION_INFOBAR_DELEGATE,
+        &infobars::InfoBar::GetIdentifier);
+    return it != infobar_manager->infobars().cend() ? *it : nullptr;
   }
 
   AutofillOfferNotificationInfoBarDelegateMobile* GetInfoBarDelegate(
@@ -181,6 +180,9 @@ class OfferNotificationControllerAndroidBrowserTestForInfobar
         "Autofill.OfferNotificationInfoBarResult.CardLinkedOffer", metric,
         count);
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(OfferNotificationControllerAndroidBrowserTestForInfobar,
@@ -265,6 +267,9 @@ class OfferNotificationControllerAndroidBrowserTestForMessagesUi
   }
 
   messages::MessagesTestHelper messages_test_helper_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(

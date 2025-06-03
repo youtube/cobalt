@@ -11,7 +11,7 @@
 #include <string>
 #include <utility>
 
-#include "base/containers/flat_map.h"
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -155,10 +155,23 @@ MovableDisplaySnapshots DrmGpuDisplayManager::GetDisplays() {
 
     // Receiving a signal that DRM state was updated. Need to reset the plane
     // manager's resource cache since IDs may have changed.
-    drm->plane_manager()->ResetConnectorsCache(drm->GetResources());
+    base::flat_set<uint32_t> valid_connector_ids =
+        drm->plane_manager()->ResetConnectorsCacheAndGetValidIds(
+            drm->GetResources());
 
     // Create new DisplaySnapshots and resolve display ID collisions.
     auto display_infos = GetDisplayInfosAndUpdateCrtcs(*drm);
+
+    // Make sure that the display infos we got have valid connector IDs.
+    // If not, we need to remove the display info from the list. This removes
+    // any zombie connectors.
+    display_infos.erase(
+        std::remove_if(display_infos.begin(), display_infos.end(),
+                       [&valid_connector_ids](const auto& display_info) {
+                         return !base::Contains(
+                                 valid_connector_ids, display_info->connector()->connector_id);}),
+                                 display_infos.end());
+
     for (auto& display_info : display_infos) {
       display_snapshots.emplace_back(CreateDisplaySnapshot(
           *drm, display_info.get(), static_cast<uint8_t>(device_index)));
@@ -256,6 +269,19 @@ bool DrmGpuDisplayManager::ShouldDisplayEventTriggerConfiguration(
     if (drm->device_path().value().find(event_dev_path) == std::string::npos)
       continue;
 
+    // Get the connector's ID and convert it to an int.
+    const std::string connector_id_str =
+        GetEventPropertyByKey("CONNECTOR", event_props);
+    if (connector_id_str.empty()) {
+      break;
+    }
+    uint32_t connector_id;
+    {
+      const bool conversion_success =
+          base::StringToUint(connector_id_str, &connector_id);
+      DCHECK(conversion_success);
+    }
+
     // Get the trigger property's ID and convert to an int.
     const std::string trigger_prop_id_str =
         GetEventPropertyByKey("PROPERTY", event_props);
@@ -263,15 +289,27 @@ bool DrmGpuDisplayManager::ShouldDisplayEventTriggerConfiguration(
       break;
 
     uint32_t trigger_prop_id;
-    const bool conversion_success =
-        base::StringToUint(trigger_prop_id_str, &trigger_prop_id);
-    DCHECK(conversion_success);
+    {
+      const bool conversion_success =
+          base::StringToUint(trigger_prop_id_str, &trigger_prop_id);
+      DCHECK(conversion_success);
+    }
+
+    ScopedDrmObjectPropertyPtr property_values(
+        drm->GetObjectProperties(connector_id, DRM_MODE_OBJECT_CONNECTOR));
+    DCHECK(property_values);
 
     // Fetch the name of the property from the device.
     ScopedDrmPropertyPtr drm_property(drm->GetProperty(trigger_prop_id));
     DCHECK(drm_property);
+    const std::string enum_value =
+        GetEnumNameForProperty(*drm_property, *property_values);
+    DCHECK(!enum_value.empty());
+
     trigger_prop_log =
-        "[trigger property: " + std::string(drm_property->name) + "] ";
+        "[CONNECTOR:" + connector_id_str +
+        "] trigger property: " + std::string(drm_property->name) + "=" +
+        enum_value + ", ";
     for (const char* blocked_prop : kBlockedEventsByTriggerProperty) {
       if (strcmp(drm_property->name, blocked_prop) == 0) {
         VLOG(1) << log_prefix << trigger_prop_log

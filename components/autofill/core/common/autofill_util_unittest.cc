@@ -14,67 +14,6 @@
 
 namespace autofill {
 
-// Tests for FieldIsSuggestionSubstringStartingOnTokenBoundary().
-struct FieldIsTokenBoundarySubstringCase {
-  const char* const field_suggestion;
-  const char* const field_contents;
-  const bool case_sensitive;
-  const bool expected_result;
-};
-
-class FieldIsTokenBoundarySubstringCaseTest
-    : public testing::TestWithParam<FieldIsTokenBoundarySubstringCase> {};
-
-TEST_P(FieldIsTokenBoundarySubstringCaseTest,
-       FieldIsSuggestionSubstringStartingOnTokenBoundary) {
-  {
-    base::test::ScopedFeatureList features_disabled;
-    features_disabled.InitAndDisableFeature(
-        features::kAutofillTokenPrefixMatching);
-
-    // FieldIsSuggestionSubstringStartingOnTokenBoundary should not work yet
-    // without a flag.
-    EXPECT_FALSE(FieldIsSuggestionSubstringStartingOnTokenBoundary(
-        u"ab@cd.b", u"b", false));
-  }
-
-  base::test::ScopedFeatureList features_enabled;
-  features_enabled.InitAndEnableFeature(features::kAutofillTokenPrefixMatching);
-
-  auto test_case = GetParam();
-  SCOPED_TRACE(testing::Message()
-               << "suggestion = " << test_case.field_suggestion
-               << ", contents = " << test_case.field_contents
-               << ", case_sensitive = " << test_case.case_sensitive);
-
-  EXPECT_EQ(test_case.expected_result,
-            FieldIsSuggestionSubstringStartingOnTokenBoundary(
-                base::ASCIIToUTF16(test_case.field_suggestion),
-                base::ASCIIToUTF16(test_case.field_contents),
-                test_case.case_sensitive));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    AutofillUtilTest,
-    FieldIsTokenBoundarySubstringCaseTest,
-    testing::Values(
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "a", false, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "b", false, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "Ab", false, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "Ab", true, false},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "cd", true, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "d", false, false},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "b@", true, false},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "ab", false, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "cd.b", true, true},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "b@cd", false, false},
-        FieldIsTokenBoundarySubstringCase{"ab@cd.b", "ab@c", false, true},
-        FieldIsTokenBoundarySubstringCase{"ba.a.ab", "a.a", false, true},
-        FieldIsTokenBoundarySubstringCase{"", "ab", false, false},
-        FieldIsTokenBoundarySubstringCase{"", "ab", true, false},
-        FieldIsTokenBoundarySubstringCase{"ab", "", false, true},
-        FieldIsTokenBoundarySubstringCase{"ab", "", true, true}));
-
 struct AtSignPrefixCase {
   const char* const field_suggestion;
   const char* const field_contents;
@@ -202,6 +141,34 @@ INSTANTIATE_TEST_SUITE_P(
                                                 std::vector<std::string>()},
         LowercaseAndTokenizeAttributeStringCase{"foO    baR bAz",
                                                 {"foo", "bar", "baz"}}));
+
+TEST(LevenshteinDistanceTest, WithoutMaxDistance) {
+  EXPECT_EQ(LevenshteinDistance(u"aa", u"aa"), 0u);
+  EXPECT_EQ(LevenshteinDistance(u"a", u"aa"), 1u);
+  EXPECT_EQ(LevenshteinDistance(u"aba", u"aa"), 1u);
+  EXPECT_EQ(LevenshteinDistance(u"", u"12"), 2u);
+  EXPECT_EQ(LevenshteinDistance(u"street", u"str."), 3u);
+  EXPECT_EQ(LevenshteinDistance(u"asdf", u"fdsa"), 4u);
+  EXPECT_EQ(
+      LevenshteinDistance(std::u16string(100, 'a'), std::u16string(200, 'a')),
+      100u);
+}
+
+TEST(LevenshteinDistanceTest, WithMaxDistance) {
+  EXPECT_EQ(LevenshteinDistance(u"aa", u"aa", 0), 0u);
+  EXPECT_EQ(LevenshteinDistance(u"a", u"aa", 1), 1u);
+  EXPECT_EQ(LevenshteinDistance(u"ab", u"aa", 2), 1u);
+  EXPECT_EQ(LevenshteinDistance(u"aba", u"aa", 3), 1u);
+
+  // In the case where k is less than the LevenshteinDistance() this should
+  // return k+1.
+  EXPECT_EQ(LevenshteinDistance(u"", u"12", 1), 2u);
+  EXPECT_EQ(LevenshteinDistance(u"street", u"str.", 1), 2u);
+  EXPECT_EQ(LevenshteinDistance(u"asdf", u"fdsa", 2), 3u);
+  EXPECT_EQ(LevenshteinDistance(std::u16string(100, 'a'),
+                                std::u16string(200, 'a'), 50),
+            51u);
+}
 
 TEST(StripAuthAndParamsTest, StripsAll) {
   GURL url = GURL("https://login:password@example.com/login/?param=value#ref");

@@ -11,7 +11,6 @@
 #include "base/values.h"
 #include "components/gcm_driver/instance_id/instance_id.h"
 #include "components/invalidation/impl/fcm_invalidation_listener.h"
-#include "components/invalidation/impl/invalidation_logger.h"
 #include "components/invalidation/impl/invalidator_registrar_with_memory.h"
 #include "components/invalidation/public/invalidation_handler.h"
 #include "components/invalidation/public/invalidation_service.h"
@@ -60,30 +59,25 @@ class FCMInvalidationServiceBase : public InvalidationService,
   virtual void Init() = 0;
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
+  static void ClearDeprecatedPrefs(PrefService* prefs);
 
   // InvalidationService implementation.
   // It is an error to have registered handlers when the service is destroyed.
   void RegisterInvalidationHandler(InvalidationHandler* handler) override;
   bool UpdateInterestedTopics(InvalidationHandler* handler,
                               const TopicSet& topics) override;
-  void UnsubscribeFromUnregisteredTopics(InvalidationHandler* handler) override;
   void UnregisterInvalidationHandler(InvalidationHandler* handler) override;
   InvalidatorState GetInvalidatorState() const override;
   std::string GetInvalidatorClientId() const override;
-  InvalidationLogger* GetInvalidationLogger() override;
-  void RequestDetailedStatus(
-      base::RepeatingCallback<void(base::Value::Dict)> caller) const override;
 
   // FCMInvalidationListener::Delegate implementation.
-  void OnInvalidate(const TopicInvalidationMap& invalidation_map) override;
+  void OnInvalidate(const Invalidation& invalidation) override;
   void OnInvalidatorStateChange(InvalidatorState state) override;
 
  protected:
   // Initializes with an injected listener.
   void InitForTest(
       std::unique_ptr<FCMInvalidationListener> invalidation_listener);
-
-  virtual base::Value::Dict CollectDebugData() const;
 
   // Returns true if the service is currently started and able to receive
   // invalidations.
@@ -119,10 +113,6 @@ class FCMInvalidationServiceBase : public InvalidationService,
 
   const std::string sender_id_;
   InvalidatorRegistrarWithMemory invalidator_registrar_;
-
-  // The invalidation logger object we use to record state changes
-  // and invalidations.
-  InvalidationLogger logger_;
 
   FCMNetworkHandlerCallback fcm_network_handler_callback_;
   PerUserTopicSubscriptionManagerCallback

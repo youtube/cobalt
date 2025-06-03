@@ -8,17 +8,12 @@
 #import "components/autofill/core/browser/field_types.h"
 #import "ios/chrome/browser/ui/autofill/autofill_ui_type.h"
 
-@class AutofillProfileEditTableViewController;
-
 // Delegate manages viewing/editing the profile data.
 @protocol AutofillProfileEditTableViewControllerDelegate
 
 // Notifies the class that conforms this delegate to open the country selection
 // view.
 - (void)willSelectCountryWithCurrentlySelectedCountry:(NSString*)country;
-
-// Notifies the class that conforms this delegate to update the profile.
-- (void)didEditAutofillProfile;
 
 // Notifies the class that conforms this delegate to save the profile.
 - (void)didSaveProfileFromModal;
@@ -35,6 +30,9 @@
 // Notifies the class that conforms this delegate that the view has moved out of
 // the view hierarchy.
 - (void)viewDidDisappear;
+
+// The selected country' country code
+- (NSString*)selectedCountryCode;
 
 @end
 

@@ -6,12 +6,16 @@
 
 #import "base/ios/ios_util.h"
 #import "base/metrics/field_trial_params.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
-#import "ios/chrome/browser/ui/content_suggestions/content_suggestions_feature.h"
+#import "components/variations/service/variations_service.h"
+#import "ios/chrome/browser/ntp/home/features.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#pragma mark - Constants
+
+// The default number of impressions for the top-of-feed sync promo before it
+// should be auto-dismissed.
+const int kFeedSyncPromoDefaultAutodismissImpressions = 6;
 
 #pragma mark - Feature declarations
 
@@ -31,21 +35,9 @@ BASE_FEATURE(kEnableDiscoverFeedTopSyncPromo,
              "EnableDiscoverFeedTopSyncPromo",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableFollowingFeedDefaultSortType,
-             "EnableFollowingFeedDefaultSortType",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableNTPViewHierarchyRepair,
              "NTPViewHierarchyRepair",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableCheckVisibilityOnAttentionLogStart,
-             "EnableCheckVisibilityOnAttentionLogStart",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableRefineDataSourceReloadReporting,
-             "EnableRefineDataSourceReloadReporting",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFeedHeaderSettings,
              "FeedHeaderSettings",
@@ -55,13 +47,9 @@ BASE_FEATURE(kOverrideFeedSettings,
              "OverrideFeedSettings",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableFeedImageCaching,
-             "EnableFeedImageCaching",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableFeedSyntheticCapabilities,
              "EnableFeedSyntheticCapabilities",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebFeedFeedbackReroute,
              "WebFeedFeedbackReroute",
@@ -70,6 +58,10 @@ BASE_FEATURE(kWebFeedFeedbackReroute,
 BASE_FEATURE(kEnableFollowManagementInstantReload,
              "EnableFollowManagementInstantReload",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableSignedOutViewDemotion,
+             "EnableSignedOutViewDemotion",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #pragma mark - Feature parameters
 
@@ -85,11 +77,6 @@ const char kDiscoverFeedTopSyncPromoAutodismissImpressions[] =
     "autodismissImpressions";
 const char kDiscoverFeedTopSyncPromoIgnoreEngagementCondition[] =
     "IgnoreFeedEngagementConditionForTopSyncPromo";
-
-// EnableFollowingFeedDefaultSortType parameters.
-const char kFollowingFeedDefaultSortTypeSortByLatest[] = "SortByLatest";
-const char kFollowingFeedDefaultSortTypeGroupedByPublisher[] =
-    "GroupedByPublisher";
 
 // Feature parameters for `kFeedHeaderSettings`.
 const char kEnableDotForNewFollowedContent[] =
@@ -121,37 +108,49 @@ bool IsNTPViewHierarchyRepairEnabled() {
 }
 
 bool IsDiscoverFeedTopSyncPromoEnabled() {
-  return base::FeatureList::IsEnabled(kEnableDiscoverFeedTopSyncPromo);
+  // Promo should not be shown on FRE, or for users in Great Britain for AADC
+  // compliance.
+  variations::VariationsService* variations_service =
+      GetApplicationContext()->GetVariationsService();
+  return variations_service &&
+         variations_service->GetStoredPermanentCountry() != "gb";
 }
 
 SigninPromoViewStyle GetTopOfFeedPromoStyle() {
   CHECK(IsDiscoverFeedTopSyncPromoEnabled());
-  // Defaults to Compact Titled (Unpersonalized).
-  return (SigninPromoViewStyle)base::GetFieldTrialParamByFeatureAsInt(
-      kEnableDiscoverFeedTopSyncPromo, kDiscoverFeedTopSyncPromoStyle, 1);
+  SigninPromoViewStyle promoStyle =
+      static_cast<SigninPromoViewStyle>(base::GetFieldTrialParamByFeatureAsInt(
+          kEnableDiscoverFeedTopSyncPromo, kDiscoverFeedTopSyncPromoStyle,
+          SigninPromoViewStyleCompactVertical));
+  // Don't handle default to force a compile-time failure if a value is added to
+  // the enum without being handled here.
+  switch (promoStyle) {
+    case SigninPromoViewStyleStandard:
+    case SigninPromoViewStyleCompactHorizontal:
+    case SigninPromoViewStyleCompactVertical:
+    case SigninPromoViewStyleOnlyButton:
+      return promoStyle;
+  }
+  // If no compile-time error was triggered above, it likely means that the
+  // value was incorrectly set through Finch. In this case, return the default
+  // vertical style.
+  return SigninPromoViewStyleCompactVertical;
 }
 
 bool ShouldIgnoreFeedEngagementConditionForTopSyncPromo() {
-  CHECK(IsDiscoverFeedTopSyncPromoEnabled());
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kEnableDiscoverFeedTopSyncPromo,
-      kDiscoverFeedTopSyncPromoIgnoreEngagementCondition, false);
+  if (IsDiscoverFeedTopSyncPromoEnabled()) {
+    return base::GetFieldTrialParamByFeatureAsBool(
+        kEnableDiscoverFeedTopSyncPromo,
+        kDiscoverFeedTopSyncPromoIgnoreEngagementCondition, false);
+  }
+  return true;
 }
 
 int FeedSyncPromoAutodismissCount() {
   return base::GetFieldTrialParamByFeatureAsInt(
       kEnableDiscoverFeedTopSyncPromo,
-      kDiscoverFeedTopSyncPromoAutodismissImpressions, 10);
-}
-
-bool IsFollowingFeedDefaultSortTypeEnabled() {
-  return base::FeatureList::IsEnabled(kEnableFollowingFeedDefaultSortType);
-}
-
-bool IsDefaultFollowingFeedSortTypeGroupedByPublisher() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kEnableFollowingFeedDefaultSortType,
-      kFollowingFeedDefaultSortTypeGroupedByPublisher, true);
+      kDiscoverFeedTopSyncPromoAutodismissImpressions,
+      kFeedSyncPromoDefaultAutodismissImpressions);
 }
 
 bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service) {
@@ -159,18 +158,9 @@ bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service) {
       prefs::kNTPContentSuggestionsForSupervisedUserEnabled);
 }
 
-bool IsCheckVisibilityOnAttentionLogStartEnabled() {
-  return base::FeatureList::IsEnabled(
-      kEnableCheckVisibilityOnAttentionLogStart);
-}
-
-bool IsRefineDataSourceReloadReportingEnabled() {
-  return base::FeatureList::IsEnabled(kEnableRefineDataSourceReloadReporting);
-}
-
 bool IsStickyHeaderDisabledForFollowingFeed() {
   return base::GetFieldTrialParamByFeatureAsBool(
-      kFeedHeaderSettings, kDisableStickyHeaderForFollowingFeed, false);
+      kFeedHeaderSettings, kDisableStickyHeaderForFollowingFeed, true);
 }
 
 bool IsDotEnabledForNewFollowedContent() {
@@ -178,16 +168,12 @@ bool IsDotEnabledForNewFollowedContent() {
       kFeedHeaderSettings, kEnableDotForNewFollowedContent, false);
 }
 
-bool IsFeedImageCachingEnabled() {
-  return base::FeatureList::IsEnabled(kEnableFeedImageCaching);
-}
-
 bool IsFeedSyntheticCapabilitiesEnabled() {
   return base::FeatureList::IsEnabled(kEnableFeedSyntheticCapabilities);
 }
 
 int FollowingFeedHeaderHeight() {
-  int defaultWebChannelsHeaderHeight = 52;
+  int defaultWebChannelsHeaderHeight = 30;
   return base::GetFieldTrialParamByFeatureAsInt(kFeedHeaderSettings,
                                                 kOverrideFeedHeaderHeight,
                                                 defaultWebChannelsHeaderHeight);
@@ -199,4 +185,8 @@ bool IsWebFeedFeedbackRerouteEnabled() {
 
 bool IsFollowManagementInstantReloadEnabled() {
   return base::FeatureList::IsEnabled(kEnableFollowManagementInstantReload);
+}
+
+bool IsSignedOutViewDemotionEnabled() {
+  return base::FeatureList::IsEnabled(kEnableSignedOutViewDemotion);
 }

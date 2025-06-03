@@ -40,6 +40,7 @@ extern const char kDlpRulesList[];
 extern const char kEnterpriseMDMManagementMac[];
 extern const char kScreenTimeEnabled[];
 #endif
+extern const char kFeedbackSurveysEnabled[];
 extern const char kLastPolicyStatisticsUpdate[];
 extern const char kNativeWindowOcclusionEnabled[];
 extern const char kSafeSitesFilterBehavior[];
@@ -52,6 +53,7 @@ extern const char kIntensiveWakeUpThrottlingEnabled[];
 extern const char kUserAgentClientHintsGREASEUpdateEnabled[];
 #if BUILDFLAG(IS_ANDROID)
 extern const char kBackForwardCacheEnabled[];
+extern const char kReadAloudEnabled[];
 #endif  // BUILDFLAG(IS_ANDROID)
 extern const char kIsolatedAppsDeveloperModeAllowed[];
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
@@ -60,16 +62,18 @@ extern const char kLastPolicyCheckTime[];
 #if BUILDFLAG(IS_IOS)
 extern const char kUserPolicyNotificationWasShown[];
 #endif
-extern const char kEventPathEnabled[];
 extern const char kOffsetParentNewSpecBehaviorEnabled[];
 extern const char kSendMouseEventsDisabledFormControlsEnabled[];
-extern const char kUseMojoVideoDecoderForPepperAllowed[];
-extern const char kPPAPISharedImagesSwapChainAllowed[];
-extern const char kForceEnablePepperVideoDecoderDevAPI[];
 extern const char kForceGoogleSafeSearch[];
 extern const char kForceYouTubeRestrict[];
 extern const char kHideWebStoreIcon[];
 extern const char kIncognitoModeAvailability[];
+extern const char kBeforeunloadEventCancelByPreventDefaultEnabled[];
+extern const char kPolicyTestPageEnabled[];
+extern const char kAllowBackForwardCacheForCacheControlNoStorePageEnabled[];
+extern const char kLocalTestPoliciesForNextStartup[];
+extern const char kForcePermissionPolicyUnloadDefaultEnabled[];
+extern const char kPPAPISharedImagesForVideoDecoderAllowed[];
 
 }  // namespace policy_prefs
 }  // namespace policy

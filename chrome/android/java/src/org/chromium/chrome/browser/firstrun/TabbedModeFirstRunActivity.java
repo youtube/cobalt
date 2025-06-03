@@ -15,6 +15,7 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.AnyRes;
 
+import org.chromium.base.BuildInfo;
 import org.chromium.chrome.R;
 
 /**
@@ -84,10 +85,19 @@ public class TabbedModeFirstRunActivity extends FirstRunActivity {
             // system DialogWhenLarge theme.
             // Note that we don't care about the return values, because onMeasure() handles null
             // constraints (and they will be null when the device is not considered "large").
-            safeGetResourceValue(R.dimen.dialog_fixed_width_minor, mFixedWidthMinor);
-            safeGetResourceValue(R.dimen.dialog_fixed_width_major, mFixedWidthMajor);
-            safeGetResourceValue(R.dimen.dialog_fixed_height_minor, mFixedHeightMinor);
-            safeGetResourceValue(R.dimen.dialog_fixed_height_major, mFixedHeightMajor);
+            if (BuildInfo.getInstance().isAutomotive) {
+                safeGetResourceValue(R.dimen.dialog_fixed_width_minor_automotive, mFixedWidthMinor);
+                safeGetResourceValue(R.dimen.dialog_fixed_width_major_automotive, mFixedWidthMajor);
+                safeGetResourceValue(
+                        R.dimen.dialog_fixed_height_minor_automotive, mFixedHeightMinor);
+                safeGetResourceValue(
+                        R.dimen.dialog_fixed_height_major_automotive, mFixedHeightMajor);
+            } else {
+                safeGetResourceValue(R.dimen.dialog_fixed_width_minor, mFixedWidthMinor);
+                safeGetResourceValue(R.dimen.dialog_fixed_width_major, mFixedWidthMajor);
+                safeGetResourceValue(R.dimen.dialog_fixed_height_minor, mFixedHeightMinor);
+                safeGetResourceValue(R.dimen.dialog_fixed_height_major, mFixedHeightMajor);
+            }
         }
 
         @Override
@@ -123,7 +133,14 @@ public class TabbedModeFirstRunActivity extends FirstRunActivity {
                 int heightSize = MeasureSpec.getSize(heightMeasureSpec);
                 if (tvh.type != TypedValue.TYPE_NULL) {
                     assert tvh.type == TypedValue.TYPE_FRACTION;
-                    int height = (int) tvh.getFraction(metrics.heightPixels, metrics.heightPixels);
+
+                    // Calculate height from the View's measureSpec to account for larger status
+                    // bar and back toolbar on automotive devices.
+                    int referenceHeight = BuildInfo.getInstance().isAutomotive
+                            ? heightSize
+                            : metrics.heightPixels;
+
+                    int height = (int) tvh.getFraction(referenceHeight, referenceHeight);
                     heightSize = Math.min(height, heightSize);
                 }
                 heightMeasureSpec = MeasureSpec.makeMeasureSpec(heightSize, MeasureSpec.EXACTLY);

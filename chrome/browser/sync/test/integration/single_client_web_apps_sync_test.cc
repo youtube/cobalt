@@ -5,6 +5,7 @@
 #include "base/test/bind.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/sync/test/integration/apps_helper.h"
+#include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/web_apps_sync_test_base.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
@@ -13,12 +14,13 @@
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/model_type.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service_impl.h"
-#include "components/sync/driver/sync_user_settings.h"
 #include "components/sync/protocol/app_specifics.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
+#include "components/sync/service/sync_service_impl.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/sync/test/fake_server_verifier.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
@@ -52,6 +54,17 @@ class SingleClientWebAppsSyncTest : public WebAppsSyncTestBase {
       return false;
     }
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+    // Apps sync is controlled by a dedicated preference on Lacros,
+    // corresponding to the Apps toggle in OS Sync settings. which
+    // need to be enabled for this test.
+    if (base::FeatureList::IsEnabled(syncer::kSyncChromeOSAppsToggleSharing)) {
+      syncer::SyncServiceImpl* service = GetSyncService(0);
+      syncer::SyncUserSettings* settings = service->GetUserSettings();
+      settings->SetAppsSyncEnabledByOs(true);
+    }
+#endif
+
     for (Profile* profile : GetAllProfiles()) {
       auto* web_app_provider = WebAppProvider::GetForTest(profile);
       base::RunLoop loop;
@@ -74,12 +87,11 @@ class SingleClientWebAppsSyncTest : public WebAppsSyncTestBase {
   void InjectWebAppEntityToFakeServer(
       const std::string& app_id,
       const GURL& url,
-      absl::optional<std::string> manifest_id = absl::nullopt) {
+      absl::optional<std::string> relative_manifest_id = absl::nullopt) {
     WebApp app(app_id);
     app.SetName(app_id);
     app.SetStartUrl(url);
     app.SetUserDisplayMode(mojom::UserDisplayMode::kBrowser);
-    app.SetManifestId(manifest_id);
 
     WebApp::SyncFallbackData sync_fallback_data;
     sync_fallback_data.name = app_id;
@@ -88,6 +100,12 @@ class SingleClientWebAppsSyncTest : public WebAppsSyncTestBase {
     sync_pb::EntitySpecifics entity_specifics;
 
     *(entity_specifics.mutable_web_app()) = WebAppToSyncProto(app);
+    if (relative_manifest_id) {
+      entity_specifics.mutable_web_app()->set_relative_manifest_id(
+          relative_manifest_id.value());
+    } else {
+      entity_specifics.mutable_web_app()->clear_relative_manifest_id();
+    }
 
     fake_server_->InjectEntity(
         syncer::PersistentUniqueClientEntity::CreateFromSpecificsForTesting(
@@ -117,7 +135,20 @@ IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
   ASSERT_TRUE(settings->GetSelectedTypes().Has(UserSelectableType::kApps));
   EXPECT_TRUE(service->GetActiveDataTypes().Has(syncer::WEB_APPS));
 
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  // Apps sync is controlled by a dedicated preference on Lacros,
+  // corresponding to the Apps toggle in OS Sync settings if
+  // kSyncChromeOSAppsToggleSharing is enabled. Disabling Apps sync requires
+  // disabling Apps toggle in OS.
+  if (base::FeatureList::IsEnabled(syncer::kSyncChromeOSAppsToggleSharing)) {
+    settings->SetAppsSyncEnabledByOs(false);
+  } else {
+    settings->SetSelectedTypes(false, UserSelectableTypeSet());
+  }
+#else
   settings->SetSelectedTypes(false, UserSelectableTypeSet());
+#endif
+
   ASSERT_FALSE(settings->GetSelectedTypes().Has(UserSelectableType::kApps));
   EXPECT_FALSE(service->GetActiveDataTypes().Has(syncer::WEB_APPS));
 #endif
@@ -152,11 +183,11 @@ IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
 
 IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
                        AppWithIdSpecifiedSyncInstalled) {
-  const absl::optional<std::string> manifest_id("explicit_id");
+  const std::string relative_manifest_id = "explicit_id";
   GURL url("https://example.com/start");
-  const std::string app_id = GenerateAppId(manifest_id, url);
+  const std::string app_id = GenerateAppId(relative_manifest_id, url);
 
-  InjectWebAppEntityToFakeServer(app_id, url, manifest_id);
+  InjectWebAppEntityToFakeServer(app_id, url, relative_manifest_id);
   ASSERT_TRUE(SetupSync());
   AwaitWebAppQuiescence();
 
@@ -171,8 +202,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
   info.description = u"Test description";
   info.start_url = url;
   info.scope = url;
-  info.manifest_id = manifest_id;
-  const AppId installed_app_id =
+  info.manifest_id = GenerateManifestId(relative_manifest_id, url);
+  const webapps::AppId installed_app_id =
       apps_helper::InstallWebApp(GetProfile(0), info);
 
   const std::string expected_app_id = GenerateAppId(
@@ -182,11 +213,11 @@ IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
 
 IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
                        AppWithIdSpecifiedAsEmptyStringSyncInstalled) {
-  const absl::optional<std::string> manifest_id("");
+  const std::string relative_manifest_id = "";
   GURL url("https://example.com/start");
-  const std::string app_id = GenerateAppId(manifest_id, url);
+  const std::string app_id = GenerateAppId(relative_manifest_id, url);
 
-  InjectWebAppEntityToFakeServer(app_id, url, manifest_id);
+  InjectWebAppEntityToFakeServer(app_id, url, relative_manifest_id);
   ASSERT_TRUE(SetupSync());
   AwaitWebAppQuiescence();
 
@@ -201,13 +232,14 @@ IN_PROC_BROWSER_TEST_F(SingleClientWebAppsSyncTest,
   info.description = u"Test description";
   info.start_url = url;
   info.scope = url;
-  info.manifest_id = manifest_id;
-  const AppId installed_app_id =
+  info.manifest_id = GenerateManifestId(relative_manifest_id, url);
+  const webapps::AppId installed_app_id =
       apps_helper::InstallWebApp(GetProfile(0), info);
 
   const std::string expected_app_id = GenerateAppId(
       /*manifest_id=*/absl::nullopt, GURL("https://example.com/"));
   EXPECT_EQ(expected_app_id, installed_app_id);
 }
+
 }  // namespace
 }  // namespace web_app

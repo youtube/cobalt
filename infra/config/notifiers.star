@@ -64,10 +64,10 @@ luci.notifier(
 )
 
 luci.notifier(
-    name = "chromium-3pp-packager",
-    on_new_status = ["FAILURE"],
+    name = "chromium-infra",
+    on_new_status = ["FAILURE", "INFRA_FAILURE"],
     notify_emails = [
-        "chromium-3pp-packager+failures@google.com",
+        "chromium-infra+failures@google.com",
     ],
 )
 
@@ -75,7 +75,7 @@ luci.notifier(
     name = "cr-fuchsia",
     on_status_change = True,
     notify_emails = [
-        "chrome-fuchsia-gardener@grotations.appspotmail.com",
+        "chrome-fuchsia-engprod+builder-notification@grotations.appspotmail.com",
     ],
 )
 
@@ -116,7 +116,7 @@ luci.notifier(
     name = "chrome-build-perf",
     on_new_status = ["FAILURE"],
     notify_emails = [
-        "chrome-buld-team+alert@google.com",
+        "chrome-build-team+alert@google.com",
     ],
 )
 
@@ -292,4 +292,25 @@ luci.notifier(
         "chrome-a11y-alerts@google.com",
     ],
     on_new_status = ["FAILURE"],
+)
+
+luci.notifier(
+    name = "chrometto-sheriff",
+    notify_emails = [
+        "chrometto-sheriff-oncall@google.com",
+    ],
+    on_new_status = ["FAILURE"],
+)
+
+luci.notifier(
+    name = "peeps-security-core-ssci",
+    notify_emails = [
+        "chops-security-core+ssci-alert@google.com",
+    ],
+    on_occurrence = ["FAILURE"],
+    on_new_status = ["SUCCESS", "INFRA_FAILURE"],
+    template = luci.notifier_template(
+        name = "build_with_step_summary_template",
+        body = io.read_file("templates/build_with_step_summary.template"),
+    ),
 )

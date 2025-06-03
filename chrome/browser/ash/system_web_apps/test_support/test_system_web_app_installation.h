@@ -36,7 +36,7 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
                                        const GURL&,
                                        const apps::AppLaunchParams&)>;
 
-  std::unique_ptr<WebAppInstallInfo> GetWebAppInfo() const override;
+  std::unique_ptr<web_app::WebAppInstallInfo> GetWebAppInfo() const override;
 
   std::vector<std::string> GetAppIdsToUninstallAndReplace() const override;
   gfx::Size GetMinimumWindowSize() const override;
@@ -51,6 +51,7 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool ShouldCaptureNavigations() const override;
   bool ShouldAllowResize() const override;
   bool ShouldAllowMaximize() const override;
+  bool ShouldAllowFullscreen() const override;
   bool ShouldHaveTabStrip() const override;
   bool ShouldHaveReloadButtonInMinimalUi() const override;
   bool ShouldAllowScriptsToCloseWindows() const override;
@@ -69,7 +70,7 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool ShouldAnimateThemeChanges() const override;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  void SetAppIdsToUninstallAndReplace(const std::vector<web_app::AppId>&);
+  void SetAppIdsToUninstallAndReplace(const std::vector<webapps::AppId>&);
   void SetMinimumWindowSize(const gfx::Size&);
   void SetShouldReuseExistingWindow(bool);
   void SetShouldShowNewWindowMenuOption(bool);
@@ -99,7 +100,7 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
  private:
   web_app::WebAppInstallInfoFactory info_factory_;
 
-  std::vector<web_app::AppId> uninstall_and_replace_;
+  std::vector<webapps::AppId> uninstall_and_replace_;
   gfx::Size minimum_window_size_;
   bool single_window_ = true;
   bool show_new_window_menu_option_ = false;
@@ -111,6 +112,7 @@ class UnittestingSystemAppDelegate : public SystemWebAppDelegate {
   bool capture_navigations_ = false;
   bool is_resizeable_ = true;
   bool is_maximizable_ = true;
+  bool is_fullscreenable_ = true;
   bool has_tab_strip_ = false;
   bool should_have_reload_button_in_minimal_ui_ = true;
   bool allow_scripts_to_close_windows_ = false;
@@ -223,7 +225,7 @@ class TestSystemWebAppInstallation {
 
   void WaitForAppInstall();
 
-  web_app::AppId GetAppId();
+  webapps::AppId GetAppId();
   const GURL& GetAppUrl();
   SystemWebAppDelegate* GetDelegate();
   SystemWebAppType GetType();

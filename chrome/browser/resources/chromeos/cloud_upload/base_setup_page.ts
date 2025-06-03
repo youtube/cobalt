@@ -9,7 +9,7 @@
  * to switch pages or exit.
  */
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {getTemplate} from './base_setup_page.html.js';
 
@@ -67,7 +67,8 @@ export class BaseSetupPageElement extends HTMLElement {
 
     const dotsElement =
         this.shadowRoot?.querySelector('#dots') as HTMLDivElement;
-    dotsElement.innerHTML = '';
+    assert(window.trustedTypes);
+    dotsElement.innerHTML = window.trustedTypes.emptyHTML;
     const pages = parseInt(this.getAttribute('total-pages')!) || 0;
     const curPage = parseInt(this.getAttribute('page-number')!) || 0;
 

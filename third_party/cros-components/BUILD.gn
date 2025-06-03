@@ -9,10 +9,22 @@ import("//tools/typescript/ts_library.gni")
 import("//ui/webui/resources/tools/generate_grd.gni")
 
 _cros_components_ts_files = [
+  "async_helpers/async_helpers.ts",
   "button/button.ts",
+  "card/card.ts",
   "checkbox/checkbox.ts",
+  "helpers/helpers.ts",
+  "lottie_renderer/lottie-renderer.ts",
+  "lottie_renderer/worker.ts",
+  "lottie_renderer/event_binders.ts",
   "radio/radio.ts",
+  "sidenav/sidenav.ts",
+  "sidenav/sidenav_item.ts",
+  "sidenav/sidenav_util.ts",
+  "slider/slider.ts",
   "switch/switch.ts",
+  "tag/tag.ts",
+  "textfield/textfield.ts",
 ]
 
 ts_library("cros_components__ts_library") {
@@ -20,7 +32,8 @@ ts_library("cros_components__ts_library") {
   visibility = [ ":*" ]
 
   root_dir = "src/"
-  out_dir = "$root_gen_dir/ui/webui/resources/tsc/cros_components/to_be_rewritten"
+  out_dir =
+      "$root_gen_dir/ui/webui/resources/tsc/cros_components/to_be_rewritten"
 
   in_files = _cros_components_ts_files
 
@@ -34,7 +47,10 @@ ts_library("cros_components__ts_library") {
   }
 
   composite = true
-  deps = [ "//third_party/material_web_components:library" ]
+  deps = [
+    "//third_party/material_web_components:library",
+    "//ui/webui/resources/cr_components/color_change_listener:build_ts",
+  ]
 }
 
 # Downstream ts_library targets that depend on `cros_components_ts` expect
@@ -48,7 +64,8 @@ copy("rename_tsconfig") {
 }
 
 rewrite_imports("cros_components_ts") {
-  base_dir = "$root_gen_dir/ui/webui/resources/tsc/cros_components/to_be_rewritten"
+  base_dir =
+      "$root_gen_dir/ui/webui/resources/tsc/cros_components/to_be_rewritten"
 
   # Rollup maps URLs like `chrome://resources/cros_components/*` to
   # files in
@@ -63,11 +80,15 @@ rewrite_imports("cros_components_ts") {
   import_mappings = [
     "lit|//resources/mwc/lit/index.js",
     "@material/|chrome://resources/mwc/@material/",
+
+    # Add js prefix's to any internal imports so they work at runtime.
+    "(?P<filepath>\.\.?/[\w/]+)\$|\g<filepath>.js",
   ]
 
   deps = [
     ":cros_components__ts_library",
     ":rename_tsconfig",
+    "//third_party/material_web_components:mwc_rewrite",
   ]
 }
 
@@ -78,8 +99,12 @@ generate_grd("cros_components_grdp") {
   manifest_files = []
 
   deps = [ ":cros_components_ts" ]
-  manifest_files +=
-      filter_include(get_target_outputs(":cros_components_ts"),
-                     [ "*.manifest" ])
+  manifest_files += filter_include(get_target_outputs(":cros_components_ts"),
+                                   [ "*.manifest" ])
   resource_path_prefix = "cros_components"
+  input_files_base_dir = rebase_path(".", "//")
+  input_files = [ "src/lottie_renderer/lottie_worker.js" ]
+  resource_path_rewrites = [
+    "src/lottie_renderer/lottie_worker.js|lottie_renderer/lottie_worker.js",
+  ]
 }

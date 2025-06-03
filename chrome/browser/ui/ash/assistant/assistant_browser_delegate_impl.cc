@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/assistant/assistant_interface_binder.h"
 #include "ash/public/cpp/assistant/controller/assistant_interaction_controller.h"
@@ -81,7 +82,7 @@ void AssistantBrowserDelegateImpl::MaybeInit(Profile* profile) {
 
   service_ = std::make_unique<ash::assistant::Service>(
       profile->GetURLLoaderFactory()->Clone(),
-      IdentityManagerFactory::GetForProfile(profile));
+      IdentityManagerFactory::GetForProfile(profile), profile->GetPrefs());
   service_->Init();
 
   assistant_setup_ = std::make_unique<AssistantSetup>();
@@ -156,7 +157,7 @@ void AssistantBrowserDelegateImpl::RequestNetworkConfig(
 }
 
 void AssistantBrowserDelegateImpl::OpenUrl(GURL url) {
-  if (crosapi::browser_util::IsLacrosPrimaryBrowser() &&
+  if (crosapi::browser_util::IsLacrosEnabled() &&
       ChromeWebUIControllerFactory::GetInstance()->CanHandleUrl(url)) {
     crosapi::UrlHandlerAsh().OpenUrl(url);
   } else {
@@ -201,6 +202,10 @@ void AssistantBrowserDelegateImpl::OnUserProfileLoaded(
 }
 
 void AssistantBrowserDelegateImpl::OnUserSessionStarted(bool is_primary_user) {
+  if (ash::features::IsOobeSkipAssistantEnabled()) {
+    return;
+  }
+
   // Disable the handling for browser tests to prevent the Assistant being
   // enabled unexpectedly.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();

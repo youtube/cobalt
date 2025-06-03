@@ -89,7 +89,7 @@ class ShareTabInsteadButton
   }
 
  private:
-  const raw_ptr<TabSharingUI, DanglingUntriaged> ui_;
+  const raw_ptr<TabSharingUI, AcrossTasksDanglingUntriaged> ui_;
   const TabSharingInfoBarDelegate::ButtonState button_state_;
   const TabSharingInfoBarDelegate::TabShareType capture_type_;
 };
@@ -123,7 +123,7 @@ class SwitchToTabButton
     DCHECK(web_contents);
 
     web_contents->GetDelegate()->ActivateContents(web_contents);
-    Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* const browser = chrome::FindBrowserWithTab(web_contents);
     if (browser && browser->window()) {
       browser->window()->Activate();
     }

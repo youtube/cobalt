@@ -10,9 +10,11 @@
 #include <set>
 #include <utility>
 
+#include "ash/constants/ash_switches.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/containers/cxx20_erase.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -23,6 +25,7 @@
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "components/crash/core/common/crash_key.h"
@@ -31,6 +34,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_manager/known_user.h"
 #include "components/user_manager/user_directory_integrity_manager.h"
+#include "components/user_manager/user_names.h"
 #include "components/user_manager/user_type.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -118,8 +122,6 @@ std::string UserTypeToString(UserType user_type) {
       return "arc-kiosk";
     case USER_TYPE_WEB_KIOSK_APP:
       return "web-kiosk";
-    case USER_TYPE_ACTIVE_DIRECTORY:
-      return "active-directory";
     case NUM_USER_TYPES:
       NOTREACHED();
       return "";
@@ -163,18 +165,7 @@ UserManagerBase::UserManagerBase(
   }
 }
 
-UserManagerBase::~UserManagerBase() {
-  // Can't use STLDeleteElements because of the private destructor of User.
-  for (UserList::iterator it = users_.begin(); it != users_.end();
-       it = users_.erase(it)) {
-    DeleteUser(*it);
-  }
-  // These are pointers to the same User instances that were in users_ list.
-  logged_in_users_.clear();
-  lru_logged_in_users_.clear();
-
-  DeleteUser(active_user_);
-}
+UserManagerBase::~UserManagerBase() = default;
 
 void UserManagerBase::Shutdown() {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
@@ -194,7 +185,19 @@ const UserList& UserManagerBase::GetLRULoggedInUsers() const {
 }
 
 const AccountId& UserManagerBase::GetOwnerAccountId() const {
-  return owner_account_id_;
+  if (!owner_account_id_.has_value()) {
+    return EmptyAccountId();
+  }
+  return *owner_account_id_;
+}
+
+void UserManagerBase::GetOwnerAccountIdAsync(
+    base::OnceCallback<void(const AccountId&)> callback) const {
+  if (owner_account_id_.has_value()) {
+    std::move(callback).Run(*owner_account_id_);
+    return;
+  }
+  pending_owner_callbacks_.AddUnsafe(std::move(callback));
 }
 
 const AccountId& UserManagerBase::GetLastSessionActiveAccountId() const {
@@ -231,9 +234,9 @@ void UserManagerBase::UserLoggedIn(const AccountId& account_id,
   }
 
   switch (user_type) {
-    case USER_TYPE_REGULAR:  // fallthrough
-    case USER_TYPE_CHILD:    // fallthrough
-    case USER_TYPE_ACTIVE_DIRECTORY:
+    case USER_TYPE_REGULAR:
+      [[fallthrough]];
+    case USER_TYPE_CHILD:
       if (account_id != GetOwnerAccountId() && !user &&
           (IsEphemeralAccountId(account_id) || browser_restart)) {
         RegularUserLoggedInAsEphemeral(account_id, user_type);
@@ -247,8 +250,11 @@ void UserManagerBase::UserLoggedIn(const AccountId& account_id,
       break;
 
     case USER_TYPE_PUBLIC_ACCOUNT:
-      PublicAccountUserLoggedIn(
-          user ? user : User::CreatePublicAccountUser(account_id));
+      if (!user) {
+        user = User::CreatePublicAccountUser(account_id);
+        user_storage_.emplace_back(user);
+      }
+      PublicAccountUserLoggedIn(user);
       break;
 
     case USER_TYPE_KIOSK_APP:
@@ -328,7 +334,7 @@ void UserManagerBase::SwitchActiveUser(const AccountId& account_id) {
   SetLRUUser(active_user_);
 
   NotifyActiveUserChanged(active_user_);
-  CallUpdateLoginState();
+  NotifyLoginStateUpdated();
 }
 
 void UserManagerBase::SwitchToLastActiveUser() {
@@ -347,7 +353,7 @@ void UserManagerBase::SwitchToLastActiveUser() {
 void UserManagerBase::OnSessionStarted() {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
 
-  CallUpdateLoginState();
+  NotifyLoginStateUpdated();
   local_state_->CommitPendingWrite();
 }
 
@@ -579,7 +585,9 @@ absl::optional<std::string> UserManagerBase::GetOwnerEmail() {
   }
 
   const std::string* email = owner.FindString(kOwnerAccountIdentity);
-  if (!email) {
+  // A valid email should not be empty, so return a nullopt if Chrome
+  // accidentally saved an empty string.
+  if (!email || email->empty()) {
     return absl::nullopt;
   }
   return *email;
@@ -645,8 +653,8 @@ void UserManagerBase::ParseUserList(const base::Value::List& users_list,
 
 bool UserManagerBase::IsOwnerUser(const User* user) const {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
-  return user && !owner_account_id_.empty() &&
-         user->GetAccountId() == owner_account_id_;
+  return user && owner_account_id_.has_value() &&
+         user->GetAccountId() == *owner_account_id_;
 }
 
 bool UserManagerBase::IsPrimaryUser(const User* user) const {
@@ -660,29 +668,22 @@ bool UserManagerBase::IsEphemeralUser(const User* user) const {
     return false;
   }
 
-  // Owner user is always persistent.
-  if (IsOwnerUser(user)) {
-    return false;
-  }
-
-  // Guest and public account is ephemeral.
-  if (auto user_type = user->GetType();
-      user_type == USER_TYPE_GUEST || user_type == USER_TYPE_PUBLIC_ACCOUNT) {
-    return true;
-  }
-
-  // Otherwise, check ephemeral policies.
   return IsEphemeralAccountId(user->GetAccountId());
 }
 
 bool UserManagerBase::IsCurrentUserOwner() const {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
-  return !owner_account_id_.empty() && active_user_ &&
-         active_user_->GetAccountId() == owner_account_id_;
+  return owner_account_id_.has_value() && active_user_ &&
+         active_user_->GetAccountId() == *owner_account_id_;
 }
 
 bool UserManagerBase::IsCurrentUserNew() const {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          ash::switches::kForceFirstRunUI)) {
+    return true;
+  }
+
   return is_current_user_new_;
 }
 
@@ -718,7 +719,7 @@ bool UserManagerBase::IsLoggedInAsChildUser() const {
   return IsUserLoggedIn() && active_user_->GetType() == USER_TYPE_CHILD;
 }
 
-bool UserManagerBase::IsLoggedInAsPublicAccount() const {
+bool UserManagerBase::IsLoggedInAsManagedGuestSession() const {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
   return IsUserLoggedIn() &&
          active_user_->GetType() == USER_TYPE_PUBLIC_ACCOUNT;
@@ -751,19 +752,27 @@ bool UserManagerBase::IsLoggedInAsAnyKioskApp() const {
 
 bool UserManagerBase::IsLoggedInAsStub() const {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
-  return IsUserLoggedIn() && IsStubAccountId(active_user_->GetAccountId());
+  return IsUserLoggedIn() && active_user_->GetAccountId() == StubAccountId();
 }
 
 bool UserManagerBase::IsUserNonCryptohomeDataEphemeral(
     const AccountId& account_id) const {
   // Data belonging to the guest and stub users is always ephemeral.
-  if (IsGuestAccountId(account_id) || IsStubAccountId(account_id))
+  if (account_id == GuestAccountId() || account_id == StubAccountId()) {
     return true;
+  }
 
   // Data belonging to the owner, anyone found on the user list and obsolete
   // device local accounts whose data has not been removed yet is not ephemeral.
   if (account_id == GetOwnerAccountId() || UserExistsInList(account_id) ||
       IsDeviceLocalAccountMarkedForRemoval(account_id)) {
+    return false;
+  }
+
+  // Even though device-local accounts might be ephemeral (e.g. kiosk accounts),
+  // non-cryptohome data of device-local accounts should be non-ephemeral.
+  if (const User* user = FindUser(account_id);
+      user && user->IsDeviceLocalAccount()) {
     return false;
   }
 
@@ -788,27 +797,33 @@ bool UserManagerBase::IsUserNonCryptohomeDataEphemeral(
 
 bool UserManagerBase::IsUserCryptohomeDataEphemeral(
     const AccountId& account_id) const {
-  // Don't consider stub users data as ephemeral.
-  if (IsStubAccountId(account_id))
+  return IsEphemeralAccountId(account_id);
+}
+
+bool UserManagerBase::IsEphemeralAccountId(const AccountId& account_id) const {
+  // Data belonging to the device owner is never ephemeral.
+  if (account_id == GetOwnerAccountId()) {
     return false;
+  }
 
-  // Data belonging to the guest users is always ephemeral.
-  if (IsGuestAccountId(account_id))
-    return true;
+  // Data belonging to the stub users is never ephemeral.
+  if (account_id == StubAccountId()) {
+    return false;
+  }
 
-  // Data belonging to the public accounts is always ephemeral.
-  const User* user = FindUser(account_id);
-  if (user && user->GetType() == USER_TYPE_PUBLIC_ACCOUNT)
-    return true;
-
-  // Ephemeral users.
-  if (IsEphemeralAccountId(account_id) && user &&
-      user->GetType() == USER_TYPE_REGULAR &&
-      FindUserInList(account_id) == nullptr) {
+  // Data belonging to the guest user is always ephemeral.
+  if (account_id == GuestAccountId()) {
     return true;
   }
 
-  return false;
+  // Data belonging to the public accounts (e.g. managed guest sessions) is
+  // always ephemeral.
+  if (const User* user = FindUser(account_id);
+      user && user->GetType() == USER_TYPE_PUBLIC_ACCOUNT) {
+    return true;
+  }
+
+  return IsEphemeralAccountIdByPolicy(account_id);
 }
 
 void UserManagerBase::AddObserver(UserManager::Observer* obs) {
@@ -894,6 +909,13 @@ void UserManagerBase::NotifyUserRemoved(const AccountId& account_id,
     observer.OnUserRemoved(account_id, reason);
 }
 
+void UserManagerBase::NotifyUserNotAllowed(const std::string& user_email) {
+  DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
+  for (auto& observer : observer_list_) {
+    observer.OnUserNotAllowed(user_email);
+  }
+}
+
 bool UserManagerBase::CanUserBeRemoved(const User* user) const {
   // Only regular users are allowed to be manually removed.
   if (!user || !(user->HasGaiaAccount() || user->IsActiveDirectoryUser()))
@@ -933,9 +955,14 @@ void UserManagerBase::SetIsCurrentUserNew(bool is_new) {
   is_current_user_new_ = is_new;
 }
 
+void UserManagerBase::ResetOwnerId() {
+  owner_account_id_ = absl::nullopt;
+}
+
 void UserManagerBase::SetOwnerId(const AccountId& owner_account_id) {
   owner_account_id_ = owner_account_id;
-  CallUpdateLoginState();
+  pending_owner_callbacks_.Notify(owner_account_id);
+  NotifyLoginStateUpdated();
 }
 
 const AccountId& UserManagerBase::GetPendingUserSwitchID() const {
@@ -1001,6 +1028,8 @@ void UserManagerBase::EnsureUsersLoaded() {
     user->set_force_online_signin(LoadForceOnlineSignin(*it));
     KnownUser known_user(local_state_.get());
     user->set_using_saml(known_user.IsUsingSAML(*it));
+
+    user_storage_.emplace_back(user);
     users_.push_back(user);
   }
 
@@ -1026,7 +1055,9 @@ void UserManagerBase::EnsureUsersLoaded() {
   }
   user_loading_stage_ = STAGE_LOADED;
 
-  PerformPostUserListLoadingActions();
+  for (auto& observer : observer_list_) {
+    observer.OnUserListLoaded();
+  }
 }
 
 UserList& UserManagerBase::GetUsersAndModify() {
@@ -1064,7 +1095,9 @@ User* UserManagerBase::FindUserInListAndModify(const AccountId& account_id) {
 
 void UserManagerBase::GuestUserLoggedIn() {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
-  active_user_ = User::CreateGuestUser(GetGuestAccountId());
+  auto* user = User::CreateGuestUser(GuestAccountId());
+  user_storage_.emplace_back(user);
+  active_user_ = user;
 }
 
 void UserManagerBase::AddUserRecord(User* user) {
@@ -1093,7 +1126,9 @@ void UserManagerBase::RegularUserLoggedIn(const AccountId& account_id,
   // If the user was not found on the user list, create a new user.
   SetIsCurrentUserNew(!active_user_);
   if (IsCurrentUserNew()) {
-    active_user_ = User::CreateRegularUser(account_id, user_type);
+    auto* user = User::CreateRegularUser(account_id, user_type);
+    user_storage_.emplace_back(user);
+    active_user_ = user;
     SaveUserType(active_user_);
 
     active_user_->set_oauth_token_status(LoadUserOAuthStatus(account_id));
@@ -1116,7 +1151,9 @@ void UserManagerBase::RegularUserLoggedInAsEphemeral(
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
   SetIsCurrentUserNew(true);
   is_current_user_ephemeral_regular_user_ = true;
-  active_user_ = User::CreateRegularUser(account_id, user_type);
+  auto* user = User::CreateRegularUser(account_id, user_type);
+  user_storage_.emplace_back(user);
+  active_user_ = user;
   KnownUser(local_state_.get())
       .SetIsEphemeralUser(active_user_->GetAccountId(), true);
 }
@@ -1127,11 +1164,22 @@ void UserManagerBase::NotifyActiveUserChanged(User* active_user) {
     observer.ActiveUserChanged(active_user);
 }
 
+void UserManagerBase::NotifyLoginStateUpdated() {
+  DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
+  bool is_current_user_owner = IsCurrentUserOwner();
+  for (auto& observer : session_state_observer_list_) {
+    observer.OnLoginStateUpdated(active_user_, is_current_user_owner);
+  }
+}
+
 void UserManagerBase::NotifyOnLogin() {
   DCHECK(!task_runner_ || task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(active_user_);
+
+  // TODO(b/278643115): Call Observer::OnUserLoggedIn() from here.
 
   NotifyActiveUserChanged(active_user_);
-  CallUpdateLoginState();
+  NotifyLoginStateUpdated();
 }
 
 User::OAuthTokenStatus UserManagerBase::LoadUserOAuthStatus(
@@ -1219,6 +1267,17 @@ PrefService* UserManagerBase::GetLocalState() const {
   return local_state_.get();
 }
 
+bool UserManagerBase::IsFirstExecAfterBoot() const {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      ash::switches::kFirstExecAfterBoot);
+}
+
+bool UserManagerBase::HasBrowserRestarted() const {
+  return base::SysInfo::IsRunningOnChromeOS() &&
+         base::CommandLine::ForCurrentProcess()->HasSwitch(
+             ash::switches::kLoginUser);
+}
+
 void UserManagerBase::Initialize() {
   UserManager::Initialize();
   if (!HasBrowserRestarted()) {
@@ -1229,11 +1288,17 @@ void UserManagerBase::Initialize() {
       known_user.CleanObsoletePrefs();
     }
   }
-  CallUpdateLoginState();
+  NotifyLoginStateUpdated();
 }
 
-void UserManagerBase::CallUpdateLoginState() {
-  UpdateLoginState(active_user_, primary_user_, IsCurrentUserOwner());
+const User* UserManagerBase::AddKioskAppUserForTesting(
+    const AccountId& account_id,
+    const std::string& username_hash) {
+  User* user = User::CreateKioskAppUser(account_id);
+  user->set_username_hash(username_hash);
+  user_storage_.emplace_back(user);
+  users_.push_back(user);
+  return user;
 }
 
 void UserManagerBase::SetLRUUser(User* user) {
@@ -1292,10 +1357,17 @@ void UserManagerBase::DoUpdateAccountLocale(
 }
 
 void UserManagerBase::DeleteUser(User* user) {
-  const bool is_active_user = (user == active_user_);
-  delete user;
-  if (is_active_user)
+  if (active_user_ == user) {
     active_user_ = nullptr;
+  }
+  if (primary_user_ == user) {
+    primary_user_ = nullptr;
+  }
+  base::Erase(users_, user);
+  base::Erase(logged_in_users_, user);
+  base::Erase(lru_logged_in_users_, user);
+
+  base::EraseIf(user_storage_, [user](auto& ptr) { return ptr.get() == user; });
 }
 
 // TODO(crbug/1189715): Remove dormant legacy supervised user cryptohomes. After

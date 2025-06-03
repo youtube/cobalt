@@ -4,6 +4,7 @@
 
 #include "ash/display/display_move_window_util.h"
 
+#include "ash/accelerators/accelerator_commands.h"
 #include "ash/accelerators/accelerator_controller_impl.h"
 #include "ash/accelerators/accelerator_table.h"
 #include "ash/accessibility/test_accessibility_controller_client.h"
@@ -61,7 +62,7 @@ views::Widget* CreateTestWidgetWithParent(views::Widget::InitParams::Type type,
 
 void PerformMoveWindowAccel() {
   Shell::Get()->accelerator_controller()->PerformActionIfEnabled(
-      MOVE_ACTIVE_WINDOW_BETWEEN_DISPLAYS, {});
+      AcceleratorAction::kMoveActiveWindowBetweenDisplays, {});
 }
 
 }  // namespace
@@ -131,7 +132,7 @@ TEST_F(DisplayMoveWindowUtilTest, WindowState) {
 
   // Set window to left snapped state.
   PerformMoveWindowAccel();
-  const WMEvent snap_left(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_left);
   EXPECT_EQ(display_manager()->GetDisplayAt(0).id(),
             screen->GetDisplayNearestWindow(window).id());
@@ -449,6 +450,68 @@ TEST_F(DisplayMoveWindowUtilTest, RestoreMaximizedWindowAfterMovement) {
             w->GetBoundsInScreen());
   window_state->Restore();
   EXPECT_EQ(gfx::Rect(410, 20, 200, 100), w->GetBoundsInScreen());
+}
+
+// Tests that the restore history stack will be updated correctly on the restore
+// bounds updates.
+TEST_F(DisplayMoveWindowUtilTest, RestoreHistoryOnUpdatedRestoreBounds) {
+  UpdateDisplay("400x300,400x300");
+  aura::Window* w =
+      CreateTestWindowInShellWithBounds(gfx::Rect(10, 20, 200, 100));
+  wm::ActivateWindow(w);
+
+  const gfx::Rect restore_bounds_in_second_display(410, 20, 200, 100);
+  WindowState* window_state = WindowState::Get(w);
+  window_state->Maximize();
+
+  using chromeos::WindowStateType;
+  const std::vector<chromeos::WindowStateType>& restore_stack =
+      window_state->window_state_restore_history();
+  EXPECT_EQ(gfx::Rect(10, 20, 200, 100),
+            window_state->GetRestoreBoundsInScreen());
+
+  // Moving the window to the second display through shortcut should update both
+  // the restore bounds and the restore history stack.
+  PerformMoveWindowAccel();
+  EXPECT_TRUE(window_state->IsMaximized());
+  EXPECT_EQ(restore_bounds_in_second_display,
+            window_state->GetRestoreBoundsInScreen());
+  EXPECT_EQ(1u, restore_stack.size());
+  EXPECT_EQ(restore_stack[0], WindowStateType::kDefault);
+
+  // Verify the restore bounds and restore history after toggling to fullscreen
+  // the window.
+  accelerators::ToggleFullscreen();
+  EXPECT_TRUE(window_state->IsFullscreen());
+  EXPECT_EQ(gfx::Rect(400, 0, 400, 300), w->GetBoundsInScreen());
+  EXPECT_EQ(restore_bounds_in_second_display,
+            window_state->GetRestoreBoundsInScreen());
+  EXPECT_EQ(2u, restore_stack.size());
+  EXPECT_EQ(restore_stack[0], WindowStateType::kDefault);
+  EXPECT_EQ(restore_stack[1], WindowStateType::kMaximized);
+
+  // Verify the restore bounds and restore history after toggling to
+  // restore the window to maxmized.
+  accelerators::ToggleFullscreen();
+  EXPECT_TRUE(window_state->IsMaximized());
+  EXPECT_EQ(restore_bounds_in_second_display,
+            window_state->GetRestoreBoundsInScreen());
+  EXPECT_EQ(gfx::Rect(400, 0, 400, 300 - ShelfConfig::Get()->shelf_size()),
+            w->GetBoundsInScreen());
+  EXPECT_EQ(1u, restore_stack.size());
+  EXPECT_EQ(restore_stack[0], WindowStateType::kDefault);
+
+  // Verify the restore bounds and restore history after toggling to fullscreen
+  // the window again. And the window should stay in the second display with
+  // correct restore bounds.
+  accelerators::ToggleFullscreen();
+  EXPECT_TRUE(window_state->IsFullscreen());
+  EXPECT_EQ(restore_bounds_in_second_display,
+            window_state->GetRestoreBoundsInScreen());
+  EXPECT_EQ(gfx::Rect(400, 0, 400, 300), w->GetBoundsInScreen());
+  EXPECT_EQ(2u, restore_stack.size());
+  EXPECT_EQ(restore_stack[0], WindowStateType::kDefault);
+  EXPECT_EQ(restore_stack[1], WindowStateType::kMaximized);
 }
 
 }  // namespace display_move_window_util

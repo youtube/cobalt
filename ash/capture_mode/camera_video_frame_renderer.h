@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "ash/capture_mode/camera_video_frame_handler.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
+#include "components/capture_mode/camera_video_frame_handler.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/quads/compositor_frame.h"
@@ -26,7 +26,6 @@ class VideoResourceUpdater;
 }  // namespace media
 
 namespace viz {
-class ContextProvider;
 class RasterContextProvider;
 }  // namespace viz
 
@@ -35,9 +34,10 @@ namespace ash {
 // Renders the video frames received from the camera video device by creating
 // independent compositor frames containing the video frames and submitting them
 // on a layer tree frame sink created on the `host_window_`.
-class CameraVideoFrameRenderer : public CameraVideoFrameHandler::Delegate,
-                                 public viz::BeginFrameObserverBase,
-                                 public cc::LayerTreeFrameSinkClient {
+class CameraVideoFrameRenderer
+    : public capture_mode::CameraVideoFrameHandler::Delegate,
+      public viz::BeginFrameObserverBase,
+      public cc::LayerTreeFrameSinkClient {
  public:
   CameraVideoFrameRenderer(
       mojo::Remote<video_capture::mojom::VideoSource> camera_video_source,
@@ -58,6 +58,7 @@ class CameraVideoFrameRenderer : public CameraVideoFrameHandler::Delegate,
 
   // CameraVideoFrameHandler::Delegate:
   void OnCameraVideoFrame(scoped_refptr<media::VideoFrame> frame) override;
+  void OnFatalErrorOrDisconnection() override;
 
   // viz::BeginFrameObserverBase:
   void OnBeginFrameSourcePausedChanged(bool paused) override;
@@ -94,7 +95,7 @@ class CameraVideoFrameRenderer : public CameraVideoFrameHandler::Delegate,
   aura::Window host_window_;
 
   // The handler that subscribes to the camera video device.
-  CameraVideoFrameHandler video_frame_handler_;
+  capture_mode::CameraVideoFrameHandler video_frame_handler_;
 
   // Used to identify gpu or software resources obtained from a video frame in
   // order for these resources to be given to the Viz display compositor.
@@ -112,8 +113,7 @@ class CameraVideoFrameRenderer : public CameraVideoFrameHandler::Delegate,
   gfx::Size last_compositor_frame_size_pixels_;
   float last_compositor_frame_dsf_ = 1.0f;
 
-  scoped_refptr<viz::ContextProvider> context_provider_;
-  scoped_refptr<viz::RasterContextProvider> raster_context_provider_;
+  scoped_refptr<viz::RasterContextProvider> context_provider_;
 
   // The layer tree frame sink created from `host_window_`, which is used to
   // submit compositor frames for the camera video frames.

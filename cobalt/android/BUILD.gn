@@ -2,6 +2,7 @@ import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/buildflags.gni")
 import("//third_party/icu/config.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
@@ -88,7 +89,6 @@ android_library("cobalt_shell_java") {
   deps = [
     ":cobalt_java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
     "//components/embedder_support/android:content_view_java",
@@ -100,17 +100,17 @@ android_library("cobalt_shell_java") {
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
     "//net/android:net_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//ui/base/cursor/mojom:cursor_type_java",
     "//url:gurl_java",
   ]
+  srcjar_deps = [ ":content_shell_jni_headers" ]
   sources = [
     "apk/app/src/org/chromium/content_shell/Shell.java",
     "apk/app/src/org/chromium/content_shell/ShellManager.java",
     "apk/app/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",
   ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 android_library("cobalt_main_java") {
@@ -122,7 +122,6 @@ android_library("cobalt_main_java") {
     ":content_shell_apk_java",
     ":jni_headers",
     "//base:base_java",
-    "//base:jni_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
     "//components/embedder_support/android:view_java",
@@ -138,6 +137,7 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
@@ -153,6 +153,7 @@ android_library("cobalt_main_java") {
     ]
   }
 
+  srcjar_deps = [ ":jni_headers" ]
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
@@ -214,8 +215,6 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 android_library("cobalt_apk_java") {

@@ -20,7 +20,7 @@
 #include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/profiles/profile.h"
@@ -40,43 +40,6 @@
 #include "url/gurl.h"
 
 namespace arc {
-
-// Script for clicking OK button on the selector.
-const char kScriptClickOk[] =
-    "(function() { document.querySelector('#ok-button').click(); })();";
-
-// Script for clicking Cancel button on the selector.
-const char kScriptClickCancel[] =
-    "(function() { document.querySelector('#cancel-button').click(); })();";
-
-// Script for clicking a directory element in the left pane of the selector.
-// %s should be replaced by the target directory name wrapped by double-quotes.
-const char kScriptClickDirectory[] =
-    "(function() {"
-    "  var dirs = document.querySelectorAll('#directory-tree .entry-name');"
-    "  Array.from(dirs).filter(a => a.innerText === %s)[0].click();"
-    "})();";
-
-// Script for clicking a file element in the right pane of the selector.
-// %s should be replaced by the target file name wrapped by double-quotes.
-const char kScriptClickFile[] =
-    "(function() {"
-    "  var evt = document.createEvent('MouseEvents');"
-    "  evt.initMouseEvent('mousedown', true, false);"
-    "  var files = document.querySelectorAll('#file-list .file');"
-    "  Array.from(files).filter(a => a.getAttribute('file-name') === %s)[0]"
-    "      .dispatchEvent(evt);"
-    "})();";
-
-// Script for querying UI elements (directories and files) shown on the selector.
-const char kScriptGetElements[] =
-    "(function() {"
-    "  var dirs = document.querySelectorAll('#directory-tree .entry-name');"
-    "  var files = document.querySelectorAll('#file-list .file');"
-    "  return {dirNames: Array.from(dirs, a => a.innerText),"
-    "          fileNames: Array.from(files, a => a.getAttribute('file-name'))};"
-    "})();";
-
 namespace {
 
 constexpr char kRecentAllFakePath[] = "/.fake-entry/recent/all";
@@ -414,7 +377,7 @@ bool SelectFileDialogHolder::SelectFile(
   owner.window = owner_window;
   owner.android_task_id = task_id;
   owner.dialog_caller =
-      policy::DlpFileDestination(policy::DlpRulesManager::Component::kArc);
+      policy::DlpFileDestination(data_controls::Component::kArc);
   select_file_dialog_->SelectFileWithFileManagerParams(
       type,
       /*title=*/std::u16string(), default_path, file_types,

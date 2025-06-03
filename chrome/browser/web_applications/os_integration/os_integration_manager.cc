@@ -23,6 +23,8 @@
 #include "base/task/task_traits.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/os_integration/file_handling_sub_manager.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
@@ -35,11 +37,13 @@
 #include "chrome/browser/web_applications/os_integration/web_app_uninstallation_via_os_settings_registration.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/common/chrome_features.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_thread.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -165,57 +169,41 @@ OsIntegrationManager::GetBarrierForSynchronize(
   return barrier_callback_for_synchronize;
 }
 
-void OsIntegrationManager::SetSubsystems(WebAppSyncBridge* sync_bridge,
-                                         WebAppRegistrar* registrar,
-                                         WebAppUiManager* ui_manager,
-                                         WebAppIconManager* icon_manager) {
+void OsIntegrationManager::SetProvider(base::PassKey<WebAppProvider>,
+                                       WebAppProvider& provider) {
   CHECK(!first_synchronize_called_);
 
-  // TODO(estade): fetch the registrar from `sync_bridge` instead of passing
-  // both as arguments.
-  registrar_ = registrar;
-  ui_manager_ = ui_manager;
-  sync_bridge_ = sync_bridge;
-  file_handler_manager_->SetSubsystems(sync_bridge);
-  shortcut_manager_->SetSubsystems(icon_manager, registrar);
+  provider_ = &provider;
+
+  base::PassKey<OsIntegrationManager> pass_key;
+  file_handler_manager_->SetProvider(pass_key, provider);
+  shortcut_manager_->SetProvider(pass_key, provider);
   if (protocol_handler_manager_)
-    protocol_handler_manager_->SetSubsystems(registrar);
-  if (url_handler_manager_)
-    url_handler_manager_->SetSubsystems(registrar);
+    protocol_handler_manager_->SetProvider(pass_key, provider);
 
   sub_managers_.clear();
-
-  auto shortcut_sub_manager = std::make_unique<ShortcutSubManager>(
-      *profile_, *icon_manager, *registrar);
-  auto file_handling_sub_manager = std::make_unique<FileHandlingSubManager>(
-      profile_->GetPath(), *registrar, *sync_bridge);
-  auto protocol_handling_sub_manager =
-      std::make_unique<ProtocolHandlingSubManager>(profile_->GetPath(),
-                                                   *registrar);
-  auto shortcut_menu_handling_sub_manager =
-      std::make_unique<ShortcutMenuHandlingSubManager>(
-          profile_->GetPath(), *icon_manager, *registrar);
-  auto run_on_os_login_sub_manager = std::make_unique<RunOnOsLoginSubManager>(
-      *profile_, *registrar, *sync_bridge, *icon_manager);
-  auto uninstallation_via_os_settings_sub_manager =
-      std::make_unique<UninstallationViaOsSettingsSubManager>(
-          profile_->GetPath(), *registrar);
-  sub_managers_.push_back(std::move(shortcut_sub_manager));
-  sub_managers_.push_back(std::move(file_handling_sub_manager));
-  sub_managers_.push_back(std::move(protocol_handling_sub_manager));
-  sub_managers_.push_back(std::move(shortcut_menu_handling_sub_manager));
-  sub_managers_.push_back(std::move(run_on_os_login_sub_manager));
   sub_managers_.push_back(
-      std::move(uninstallation_via_os_settings_sub_manager));
+      std::make_unique<ShortcutSubManager>(*profile_, provider));
+  sub_managers_.push_back(
+      std::make_unique<FileHandlingSubManager>(profile_->GetPath(), provider));
+  sub_managers_.push_back(std::make_unique<ProtocolHandlingSubManager>(
+      profile_->GetPath(), provider));
+  sub_managers_.push_back(std::make_unique<ShortcutMenuHandlingSubManager>(
+      profile_->GetPath(), provider));
+  sub_managers_.push_back(
+      std::make_unique<RunOnOsLoginSubManager>(*profile_, provider));
+  sub_managers_.push_back(
+      std::make_unique<UninstallationViaOsSettingsSubManager>(
+          profile_->GetPath(), provider));
 
-  set_subsystems_called_ = true;
+  set_provider_called_ = true;
 }
 
 void OsIntegrationManager::Start() {
-  CHECK(registrar_);
+  CHECK(provider_);
   CHECK(file_handler_manager_);
 
-  registrar_observation_.Observe(registrar_.get());
+  registrar_observation_.Observe(&provider_->registrar_unsafe());
   shortcut_manager_->Start();
   file_handler_manager_->Start();
   if (protocol_handler_manager_)
@@ -223,28 +211,31 @@ void OsIntegrationManager::Start() {
 }
 
 void OsIntegrationManager::Synchronize(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::OnceClosure callback,
     absl::optional<SynchronizeOsOptions> options) {
   first_synchronize_called_ = true;
 
-  // This is usually called whenever the app is missing in the web app registry,
-  // to clean up left over OS integration states.
-  if (options.has_value() && options.value().force_unregister_on_app_missing) {
-    ForceUnregisterOsIntegrationOnSubManager(app_id, /*index=*/0,
-                                             std::move(callback));
+  // This is usually called to clean up OS integration states on the OS,
+  // regardless of whether there are apps existing in the app registry or not.
+  if (AreSubManagersExecuteEnabled() && options.has_value() &&
+      options.value().force_unregister_os_integration) {
+    ForceUnregisterOsIntegrationOnSubManager(
+        app_id, /*index=*/0,
+        std::move(callback).Then(
+            base::BindOnce(force_unregister_callback_for_testing_, app_id)));
     return;
   }
 
   // If the app does not exist in the DB and an unregistration is required, it
   // should have been done in the past Synchronize call.
-  CHECK(registrar_->GetAppById(app_id))
+  CHECK(provider_->registrar_unsafe().GetAppById(app_id))
       << "Can't perform OS integration without the app existing in the "
          "registrar. If the use-case requires an app to not be installed, "
-         "consider setting the force_unregister_on_app_missing flag inside "
+         "consider setting the force_unregister_os_integration flag inside "
          "SynchronizeOsOptions";
 
-  CHECK(set_subsystems_called_);
+  CHECK(set_provider_called_);
 
   if (!AreOsIntegrationSubManagersEnabled()) {
     std::move(callback).Run();
@@ -279,7 +270,7 @@ void OsIntegrationManager::Synchronize(
 }
 
 void OsIntegrationManager::InstallOsHooks(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     InstallOsHooksCallback callback,
     std::unique_ptr<WebAppInstallInfo> web_app_info,
     InstallOsHooksOptions options) {
@@ -329,14 +320,14 @@ void OsIntegrationManager::InstallOsHooks(
 }
 
 void OsIntegrationManager::UninstallAllOsHooks(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     UninstallOsHooksCallback callback) {
   OsHooksOptions os_hooks;
   os_hooks.set();
   UninstallOsHooks(app_id, os_hooks, std::move(callback));
 }
 
-void OsIntegrationManager::UninstallOsHooks(const AppId& app_id,
+void OsIntegrationManager::UninstallOsHooks(const webapps::AppId& app_id,
                                             const OsHooksOptions& os_hooks,
                                             UninstallOsHooksCallback callback) {
   // If the "Execute" step is enabled for sub-managers, then the 'old' os
@@ -397,7 +388,7 @@ void OsIntegrationManager::UninstallOsHooks(const AppId& app_id,
 }
 
 void OsIntegrationManager::UpdateOsHooks(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::StringPiece old_name,
     FileHandlerUpdateAction file_handlers_need_os_update,
     const WebAppInstallInfo& web_app_info,
@@ -447,24 +438,25 @@ void OsIntegrationManager::GetAppExistingShortCutLocation(
 }
 
 void OsIntegrationManager::GetShortcutInfoForApp(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     WebAppShortcutManager::GetShortcutInfoCallback callback) {
   CHECK(shortcut_manager_);
   return shortcut_manager_->GetShortcutInfoForApp(app_id, std::move(callback));
 }
 
-bool OsIntegrationManager::IsFileHandlingAPIAvailable(const AppId& app_id) {
+bool OsIntegrationManager::IsFileHandlingAPIAvailable(
+    const webapps::AppId& app_id) {
   return true;
 }
 
 const apps::FileHandlers* OsIntegrationManager::GetEnabledFileHandlers(
-    const AppId& app_id) const {
+    const webapps::AppId& app_id) const {
   CHECK(file_handler_manager_);
   return file_handler_manager_->GetEnabledFileHandlers(app_id);
 }
 
 absl::optional<GURL> OsIntegrationManager::TranslateProtocolUrl(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const GURL& protocol_url) {
   if (!protocol_handler_manager_)
     return absl::optional<GURL>();
@@ -473,7 +465,7 @@ absl::optional<GURL> OsIntegrationManager::TranslateProtocolUrl(
 }
 
 std::vector<custom_handlers::ProtocolHandler>
-OsIntegrationManager::GetAppProtocolHandlers(const AppId& app_id) {
+OsIntegrationManager::GetAppProtocolHandlers(const webapps::AppId& app_id) {
   if (!protocol_handler_manager_)
     return std::vector<custom_handlers::ProtocolHandler>();
 
@@ -518,7 +510,7 @@ FakeOsIntegrationManager* OsIntegrationManager::AsTestOsIntegrationManager() {
   return nullptr;
 }
 
-void OsIntegrationManager::CreateShortcuts(const AppId& app_id,
+void OsIntegrationManager::CreateShortcuts(const webapps::AppId& app_id,
                                            bool add_to_desktop,
                                            ShortcutCreationReason reason,
                                            CreateShortcutsCallback callback) {
@@ -530,7 +522,7 @@ void OsIntegrationManager::CreateShortcuts(const AppId& app_id,
   }
 }
 
-void OsIntegrationManager::RegisterFileHandlers(const AppId& app_id,
+void OsIntegrationManager::RegisterFileHandlers(const webapps::AppId& app_id,
                                                 ResultCallback callback) {
   CHECK(file_handler_manager_);
   ResultCallback metrics_callback =
@@ -544,8 +536,9 @@ void OsIntegrationManager::RegisterFileHandlers(const AppId& app_id,
       app_id, std::move(metrics_callback));
 }
 
-void OsIntegrationManager::RegisterProtocolHandlers(const AppId& app_id,
-                                                    ResultCallback callback) {
+void OsIntegrationManager::RegisterProtocolHandlers(
+    const webapps::AppId& app_id,
+    ResultCallback callback) {
   if (!protocol_handler_manager_) {
     std::move(callback).Run(Result::kOk);
     return;
@@ -555,7 +548,7 @@ void OsIntegrationManager::RegisterProtocolHandlers(const AppId& app_id,
                                                         std::move(callback));
 }
 
-void OsIntegrationManager::RegisterUrlHandlers(const AppId& app_id,
+void OsIntegrationManager::RegisterUrlHandlers(const webapps::AppId& app_id,
                                                ResultCallback callback) {
   if (!url_handler_manager_) {
     std::move(callback).Run(Result::kOk);
@@ -566,11 +559,17 @@ void OsIntegrationManager::RegisterUrlHandlers(const AppId& app_id,
 }
 
 void OsIntegrationManager::RegisterShortcutsMenu(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::vector<WebAppShortcutsMenuItemInfo>& shortcuts_menu_item_infos,
     const ShortcutsMenuIconBitmaps& shortcuts_menu_icon_bitmaps,
     ResultCallback callback) {
   if (!ShouldRegisterShortcutsMenuWithOs()) {
+    std::move(callback).Run(Result::kOk);
+    return;
+  }
+
+  // Exit early if shortcuts_menu_item_infos are not populated.
+  if (shortcuts_menu_item_infos.size() < 1) {
     std::move(callback).Run(Result::kOk);
     return;
   }
@@ -589,9 +588,18 @@ void OsIntegrationManager::RegisterShortcutsMenu(
 }
 
 void OsIntegrationManager::ReadAllShortcutsMenuIconsAndRegisterShortcutsMenu(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     ResultCallback callback) {
   if (!ShouldRegisterShortcutsMenuWithOs()) {
+    std::move(callback).Run(Result::kOk);
+    return;
+  }
+
+  std::vector<WebAppShortcutsMenuItemInfo> shortcuts_menu_item_infos =
+      provider_->registrar_unsafe().GetAppShortcutsMenuItemInfos(app_id);
+
+  // Exit early if shortcuts_menu_item_infos are not populated.
+  if (shortcuts_menu_item_infos.size() < 1) {
     std::move(callback).Run(Result::kOk);
     return;
   }
@@ -604,10 +612,10 @@ void OsIntegrationManager::ReadAllShortcutsMenuIconsAndRegisterShortcutsMenu(
       }).Then(std::move(callback));
 
   shortcut_manager_->ReadAllShortcutsMenuIconsAndRegisterShortcutsMenu(
-      app_id, std::move(metrics_callback));
+      app_id, shortcuts_menu_item_infos, std::move(metrics_callback));
 }
 
-void OsIntegrationManager::RegisterRunOnOsLogin(const AppId& app_id,
+void OsIntegrationManager::RegisterRunOnOsLogin(const webapps::AppId& app_id,
                                                 ResultCallback callback) {
   ResultCallback metrics_callback =
       base::BindOnce([](Result result) {
@@ -624,21 +632,22 @@ void OsIntegrationManager::RegisterRunOnOsLogin(const AppId& app_id,
 }
 
 void OsIntegrationManager::MacAppShimOnAppInstalledForProfile(
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
 #if BUILDFLAG(IS_MAC)
   AppShimRegistry::Get()->OnAppInstalledForProfile(app_id, profile_->GetPath());
 #endif
 }
 
-void OsIntegrationManager::AddAppToQuickLaunchBar(const AppId& app_id) {
-  CHECK(ui_manager_);
-  if (ui_manager_->CanAddAppToQuickLaunchBar()) {
-    ui_manager_->AddAppToQuickLaunchBar(app_id);
+void OsIntegrationManager::AddAppToQuickLaunchBar(
+    const webapps::AppId& app_id) {
+  CHECK(provider_);
+  if (provider_->ui_manager().CanAddAppToQuickLaunchBar()) {
+    provider_->ui_manager().AddAppToQuickLaunchBar(app_id);
   }
 }
 
 void OsIntegrationManager::RegisterWebAppOsUninstallation(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& name) {
   if (ShouldRegisterUninstallationViaOsSettingsWithOs()) {
     RegisterUninstallationViaOsSettingsWithOs(app_id, name,
@@ -646,7 +655,7 @@ void OsIntegrationManager::RegisterWebAppOsUninstallation(
   }
 }
 
-bool OsIntegrationManager::UnregisterShortcutsMenu(const AppId& app_id,
+bool OsIntegrationManager::UnregisterShortcutsMenu(const webapps::AppId& app_id,
                                                    ResultCallback callback) {
   if (!ShouldRegisterShortcutsMenuWithOs()) {
     std::move(callback).Run(Result::kOk);
@@ -664,7 +673,7 @@ bool OsIntegrationManager::UnregisterShortcutsMenu(const AppId& app_id,
                                        std::move(metrics_callback));
 }
 
-void OsIntegrationManager::UnregisterRunOnOsLogin(const AppId& app_id,
+void OsIntegrationManager::UnregisterRunOnOsLogin(const webapps::AppId& app_id,
                                                   ResultCallback callback) {
   ResultCallback metrics_callback =
       base::BindOnce([](Result result) {
@@ -674,13 +683,13 @@ void OsIntegrationManager::UnregisterRunOnOsLogin(const AppId& app_id,
       }).Then(std::move(callback));
 
   ScheduleUnregisterRunOnOsLogin(
-      sync_bridge_, app_id, profile_->GetPath(),
-      base::UTF8ToUTF16(registrar_->GetAppShortName(app_id)),
+      *provider_, app_id, profile_->GetPath(),
+      base::UTF8ToUTF16(provider_->registrar_unsafe().GetAppShortName(app_id)),
       std::move(metrics_callback));
 }
 
 void OsIntegrationManager::DeleteShortcuts(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const base::FilePath& shortcuts_data_dir,
     std::unique_ptr<ShortcutInfo> shortcut_info,
     ResultCallback callback) {
@@ -697,7 +706,7 @@ void OsIntegrationManager::DeleteShortcuts(
   }
 }
 
-void OsIntegrationManager::UnregisterFileHandlers(const AppId& app_id,
+void OsIntegrationManager::UnregisterFileHandlers(const webapps::AppId& app_id,
                                                   ResultCallback callback) {
   CHECK(file_handler_manager_);
   ResultCallback metrics_callback =
@@ -710,8 +719,9 @@ void OsIntegrationManager::UnregisterFileHandlers(const AppId& app_id,
       app_id, std::move(metrics_callback));
 }
 
-void OsIntegrationManager::UnregisterProtocolHandlers(const AppId& app_id,
-                                                      ResultCallback callback) {
+void OsIntegrationManager::UnregisterProtocolHandlers(
+    const webapps::AppId& app_id,
+    ResultCallback callback) {
   if (!protocol_handler_manager_) {
     std::move(callback).Run(Result::kOk);
     return;
@@ -721,7 +731,7 @@ void OsIntegrationManager::UnregisterProtocolHandlers(const AppId& app_id,
                                                           std::move(callback));
 }
 
-void OsIntegrationManager::UnregisterUrlHandlers(const AppId& app_id) {
+void OsIntegrationManager::UnregisterUrlHandlers(const webapps::AppId& app_id) {
   if (!url_handler_manager_)
     return;
 
@@ -729,13 +739,13 @@ void OsIntegrationManager::UnregisterUrlHandlers(const AppId& app_id) {
 }
 
 void OsIntegrationManager::UnregisterWebAppOsUninstallation(
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
   if (ShouldRegisterUninstallationViaOsSettingsWithOs()) {
     UnregisterUninstallationViaOsSettingsWithOs(app_id, profile_->GetPath());
   }
 }
 
-void OsIntegrationManager::UpdateShortcuts(const AppId& app_id,
+void OsIntegrationManager::UpdateShortcuts(const webapps::AppId& app_id,
                                            base::StringPiece old_name,
                                            ResultCallback callback) {
   // If the "Execute" step is enabled for sub-managers, then the 'old' os
@@ -764,7 +774,7 @@ void OsIntegrationManager::UpdateShortcuts(const AppId& app_id,
 }
 
 void OsIntegrationManager::UpdateShortcutsMenu(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const WebAppInstallInfo& web_app_info,
     ResultCallback callback) {
   if (web_app_info.shortcuts_menu_item_infos.empty()) {
@@ -777,7 +787,7 @@ void OsIntegrationManager::UpdateShortcutsMenu(
 }
 
 void OsIntegrationManager::UpdateUrlHandlers(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::OnceCallback<void(bool success)> callback) {
   // If the "Execute" step is enabled for sub-managers, then the 'old' os
   // integration path needs to be turned off so that os integration doesn't get
@@ -794,7 +804,7 @@ void OsIntegrationManager::UpdateUrlHandlers(
 }
 
 void OsIntegrationManager::UpdateFileHandlers(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     FileHandlerUpdateAction file_handlers_need_os_update,
     ResultCallback finished_callback) {
   // If the "Execute" step is enabled for sub-managers, then the 'old' os
@@ -821,7 +831,7 @@ void OsIntegrationManager::UpdateFileHandlers(
   if (file_handlers_need_os_update == FileHandlerUpdateAction::kUpdate) {
     callback_after_removal = base::BindOnce(
         [](base::WeakPtr<OsIntegrationManager> os_integration_manager,
-           const AppId& app_id, ResultCallback finished_callback,
+           const webapps::AppId& app_id, ResultCallback finished_callback,
            Result result) {
           if (!os_integration_manager) {
             std::move(finished_callback).Run(Result::kError);
@@ -842,7 +852,7 @@ void OsIntegrationManager::UpdateFileHandlers(
 }
 
 void OsIntegrationManager::UpdateProtocolHandlers(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     bool force_shortcut_updates_if_needed,
     base::OnceClosure callback) {
   // If the "Execute" step is enabled for sub-managers, then the 'old' os
@@ -880,13 +890,13 @@ void OsIntegrationManager::UpdateProtocolHandlers(
 }
 
 void OsIntegrationManager::OnShortcutsUpdatedForProtocolHandlers(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     base::OnceClosure update_finished_callback) {
   // Update protocol handlers via complete uninstallation, then reinstallation.
   ResultCallback unregister_callback = base::BindOnce(
       [](base::WeakPtr<OsIntegrationManager> os_integration_manager,
-         const AppId& app_id, base::OnceClosure update_finished_callback,
-         Result result) {
+         const webapps::AppId& app_id,
+         base::OnceClosure update_finished_callback, Result result) {
         // Re-register protocol handlers regardless of `result`.
         // TODO(https://crbug.com/1250728): Report a UMA metric when
         // unregistering fails, either here, or at the point of failure. This
@@ -912,22 +922,49 @@ void OsIntegrationManager::OnShortcutsUpdatedForProtocolHandlers(
   UnregisterProtocolHandlers(app_id, std::move(unregister_callback));
 }
 
-void OsIntegrationManager::OnWebAppProfileWillBeDeleted(const AppId& app_id) {
-  UninstallAllOsHooks(app_id, base::DoNothing());
+void OsIntegrationManager::SubManagersUnregistered(
+    const webapps::AppId& app_id,
+    std::unique_ptr<ScopedProfileKeepAlive> keep_alive) {
+  force_unregister_callback_for_testing_.Run(app_id);
+  keep_alive.reset();
+}
+
+void OsIntegrationManager::OnWebAppProfileWillBeDeleted(
+    const webapps::AppId& app_id) {
+  if (AreSubManagersExecuteEnabled()) {
+    // This is used to keep the profile from being deleted while doing a
+    // ForceUnregister when profile deletion is started.
+    auto profile_keep_alive = std::make_unique<ScopedProfileKeepAlive>(
+        profile_, ProfileKeepAliveOrigin::kOsIntegrationForceUnregistration);
+    ForceUnregisterOsIntegrationOnSubManager(
+        app_id, 0,
+        base::BindOnce(&OsIntegrationManager::SubManagersUnregistered,
+                       weak_ptr_factory_.GetWeakPtr(), app_id,
+                       std::move(profile_keep_alive)));
+  } else {
+    UninstallAllOsHooks(app_id,
+                        base::IgnoreArgs<OsHooksErrors>(base::BindOnce(
+                            force_unregister_callback_for_testing_, app_id)));
+  }
 }
 
 void OsIntegrationManager::OnAppRegistrarDestroyed() {
   registrar_observation_.Reset();
 }
 
+void OsIntegrationManager::SetForceUnregisterCalledForTesting(
+    base::RepeatingCallback<void(const webapps::AppId&)> on_force_unregister) {
+  force_unregister_callback_for_testing_ = on_force_unregister;
+}
+
 std::unique_ptr<ShortcutInfo> OsIntegrationManager::BuildShortcutInfo(
-    const AppId& app_id) {
+    const webapps::AppId& app_id) {
   CHECK(shortcut_manager_);
   return shortcut_manager_->BuildShortcutInfo(app_id);
 }
 
 void OsIntegrationManager::StartSubManagerExecutionIfRequired(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     absl::optional<SynchronizeOsOptions> options,
     std::unique_ptr<proto::WebAppOsIntegrationState> desired_states,
     base::OnceClosure on_all_execution_done) {
@@ -943,7 +980,7 @@ void OsIntegrationManager::StartSubManagerExecutionIfRequired(
   // 3. Execution has been disabled by the feature parameters (see
   //    `AreSubManagersExecuteEnabled()`).
 
-  const WebApp* web_app = registrar_->GetAppById(app_id);
+  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
   if (!web_app) {
     std::move(on_all_execution_done).Run();
     return;
@@ -966,7 +1003,7 @@ void OsIntegrationManager::StartSubManagerExecutionIfRequired(
 }
 
 void OsIntegrationManager::ExecuteNextSubmanager(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     absl::optional<SynchronizeOsOptions> options,
     proto::WebAppOsIntegrationState* desired_state,
     const proto::WebAppOsIntegrationState current_state,
@@ -987,19 +1024,19 @@ void OsIntegrationManager::ExecuteNextSubmanager(
 }
 
 void OsIntegrationManager::WriteStateToDB(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     std::unique_ptr<proto::WebAppOsIntegrationState> desired_states,
     base::OnceClosure callback) {
   // Exit early if the app is scheduled to be uninstalled or is already
   // uninstalled.
-  const WebApp* existing_app = registrar_->GetAppById(app_id);
+  const WebApp* existing_app = provider_->registrar_unsafe().GetAppById(app_id);
   if (!existing_app || existing_app->is_uninstalling()) {
     std::move(callback).Run();
     return;
   }
 
   {
-    ScopedRegistryUpdate update(sync_bridge_);
+    ScopedRegistryUpdate update = provider_->sync_bridge_unsafe().BeginUpdate();
     WebApp* web_app = update->UpdateApp(app_id);
     CHECK(web_app);
     web_app->SetCurrentOsIntegrationStates(*desired_states.get());
@@ -1009,7 +1046,7 @@ void OsIntegrationManager::WriteStateToDB(
 }
 
 void OsIntegrationManager::ForceUnregisterOsIntegrationOnSubManager(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     size_t index,
     base::OnceClosure final_callback) {
   CHECK(index < sub_managers_.size());
@@ -1026,7 +1063,7 @@ void OsIntegrationManager::ForceUnregisterOsIntegrationOnSubManager(
 }
 
 void OsIntegrationManager::OnShortcutsCreated(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     std::unique_ptr<WebAppInstallInfo> web_app_info,
     InstallOsHooksOptions options,
     scoped_refptr<OsHooksBarrier> barrier,
@@ -1034,7 +1071,7 @@ void OsIntegrationManager::OnShortcutsCreated(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   CHECK(barrier);
 
-  if (registrar_ && !registrar_->GetAppById(app_id)) {
+  if (provider_ && !provider_->registrar_unsafe().GetAppById(app_id)) {
     return;
   }
 
@@ -1088,11 +1125,12 @@ void OsIntegrationManager::OnShortcutsCreated(
 
   if (options.os_hooks[OsHookType::kUninstallationViaOsSettings]) {
     RegisterWebAppOsUninstallation(
-        app_id, registrar_ ? registrar_->GetAppShortName(app_id) : "");
+        app_id,
+        provider_ ? provider_->registrar_unsafe().GetAppShortName(app_id) : "");
   }
 }
 
-void OsIntegrationManager::OnShortcutsDeleted(const AppId& app_id,
+void OsIntegrationManager::OnShortcutsDeleted(const webapps::AppId& app_id,
                                               ResultCallback callback,
                                               Result result) {
 #if BUILDFLAG(IS_MAC)
@@ -1111,8 +1149,8 @@ void OsIntegrationManager::OnShortcutsDeleted(const AppId& app_id,
 void OsIntegrationManager::OnShortcutInfoRetrievedRegisterRunOnOsLogin(
     ResultCallback callback,
     std::unique_ptr<ShortcutInfo> info) {
-  ScheduleRegisterRunOnOsLogin(sync_bridge_, std::move(info),
-                               std::move(callback));
+  ScheduleRegisterRunOnOsLogin(&provider_->sync_bridge_unsafe(),
+                               std::move(info), std::move(callback));
 }
 
 }  // namespace web_app

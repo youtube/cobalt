@@ -22,7 +22,6 @@ import android.view.View;
 import androidx.annotation.DrawableRes;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 
@@ -48,16 +47,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Instrumentation Render tests for default {@link CustomTabActivity} UI.
- */
+/** Instrumentation Render tests for default {@link CustomTabActivity} UI. */
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class CustomTabActivityRenderTest {
     @ParameterAnnotations.ClassParameter
     private static final List<ParameterSet> sClassParameter =
-            Arrays.asList(new ParameterSet().name("HTTPS").value(true),
+            Arrays.asList(
+                    new ParameterSet().name("HTTPS").value(true),
                     new ParameterSet().name("HTTP").value(false));
 
     private static final String TEST_PAGE = "/chrome/test/data/android/google.html";
@@ -76,13 +74,18 @@ public class CustomTabActivityRenderTest {
         public static void addMaxTopActionIconToIntent(Intent intent) {
             ArrayList<Bundle> toolbarItems = new ArrayList<>(2);
             PendingIntent pendingIntent =
-                    PendingIntent.getBroadcast(InstrumentationRegistry.getTargetContext(), 0,
-                            new Intent(), IntentUtils.getPendingIntentMutabilityFlag(true));
+                    PendingIntent.getBroadcast(
+                            ApplicationProvider.getApplicationContext(),
+                            0,
+                            new Intent(),
+                            IntentUtils.getPendingIntentMutabilityFlag(true));
 
-            toolbarItems.add(CustomTabsIntentTestUtils.makeToolbarItemBundle(
-                    ICON_CREDIT_CARD, "Top Action #1", pendingIntent, 1));
-            toolbarItems.add(CustomTabsIntentTestUtils.makeToolbarItemBundle(
-                    ICON_EMAIL, "Top Action #2", pendingIntent, 2));
+            toolbarItems.add(
+                    CustomTabsIntentTestUtils.makeToolbarItemBundle(
+                            ICON_CREDIT_CARD, "Top Action #1", pendingIntent, 1));
+            toolbarItems.add(
+                    CustomTabsIntentTestUtils.makeToolbarItemBundle(
+                            ICON_EMAIL, "Top Action #2", pendingIntent, 2));
             intent.putParcelableArrayListExtra(CustomTabsIntent.EXTRA_TOOLBAR_ITEMS, toolbarItems);
         }
     }
@@ -114,7 +117,7 @@ public class CustomTabActivityRenderTest {
 
     private static Bitmap createVectorDrawableBitmap(
             @DrawableRes int resId, int widthDp, int heightDp) {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = ApplicationProvider.getApplicationContext();
         Drawable vectorDrawable = AppCompatResources.getDrawable(context, resId);
         Bitmap bitmap = createTestBitmap(widthDp, heightDp);
         Canvas canvas = new Canvas(bitmap);
@@ -128,8 +131,9 @@ public class CustomTabActivityRenderTest {
 
     private void prepareCCTIntent() {
         mUrl = mEmbeddedTestServerRule.getServer().getURL(TEST_PAGE);
-        mIntent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(
-                ApplicationProvider.getApplicationContext(), mUrl);
+        mIntent =
+                CustomTabsIntentTestUtils.createMinimalCustomTabIntent(
+                        ApplicationProvider.getApplicationContext(), mUrl);
     }
 
     private void startActivityAndRenderToolbar(String renderTestId) throws IOException {
@@ -162,7 +166,7 @@ public class CustomTabActivityRenderTest {
         CustomTabTopActionIconHelper.addMaxTopActionIconToIntent(mIntent);
         startActivityAndRenderToolbar(
                 "cct_toolbar_with_default_close_button_and_max_top_action_icon_and_with_https_"
-                + mRunWithHttps);
+                        + mRunWithHttps);
     }
 
     @Test
@@ -174,7 +178,7 @@ public class CustomTabActivityRenderTest {
         CustomTabTopActionIconHelper.addMaxTopActionIconToIntent(mIntent);
         startActivityAndRenderToolbar(
                 "cct_toolbar_with_custom_close_button_and_max_top_action_icon_and_with_https_"
-                + mRunWithHttps);
+                        + mRunWithHttps);
     }
 
     @Test
@@ -191,8 +195,14 @@ public class CustomTabActivityRenderTest {
     @Feature("RenderTest")
     public void custom_color_red() throws IOException {
         Context context = ApplicationProvider.getApplicationContext();
-        mIntent = CustomTabsIntentTestUtils.createCustomTabIntent(
-                context, mUrl, true, builder -> { builder.setToolbarColor(Color.RED); });
+        mIntent =
+                CustomTabsIntentTestUtils.createCustomTabIntent(
+                        context,
+                        mUrl,
+                        true,
+                        builder -> {
+                            builder.setToolbarColor(Color.RED);
+                        });
 
         startActivityAndRenderToolbar("cct_red" + mRunWithHttps);
     }
@@ -202,8 +212,14 @@ public class CustomTabActivityRenderTest {
     @Feature("RenderTest")
     public void custom_color_black() throws IOException {
         Context context = ApplicationProvider.getApplicationContext();
-        mIntent = CustomTabsIntentTestUtils.createCustomTabIntent(
-                context, mUrl, true, builder -> { builder.setToolbarColor(Color.BLACK); });
+        mIntent =
+                CustomTabsIntentTestUtils.createCustomTabIntent(
+                        context,
+                        mUrl,
+                        true,
+                        builder -> {
+                            builder.setToolbarColor(Color.BLACK);
+                        });
 
         startActivityAndRenderToolbar("cct_black" + mRunWithHttps);
     }

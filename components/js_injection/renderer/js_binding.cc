@@ -25,8 +25,8 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
-#include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/public/web/web_frame.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_message_port_converter.h"
@@ -82,10 +82,10 @@ base::WeakPtr<JsBinding> JsBinding::Install(
   CHECK(!js_object_name.empty())
       << "JavaScript wrapper name shouldn't be empty";
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  blink::WebLocalFrame* web_frame = render_frame->GetWebFrame();
+  v8::Isolate* isolate = web_frame->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      render_frame->GetWebFrame()->MainWorldScriptContext();
+  v8::Local<v8::Context> context = web_frame->MainWorldScriptContext();
   if (context.IsEmpty())
     return nullptr;
 
@@ -131,12 +131,11 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
   if (!js_communication_)
     return;
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
-  v8::HandleScope handle_scope(isolate);
-
   blink::WebLocalFrame* web_frame = render_frame_->GetWebFrame();
   if (!web_frame)
     return;
+  v8::Isolate* isolate = web_frame->GetAgentGroupScheduler()->Isolate();
+  v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Context> context = web_frame->MainWorldScriptContext();
   if (context.IsEmpty())
@@ -180,7 +179,7 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
 
   // Copy the listeners so that if the listener modifies the list in some way
   // there isn't a UAF.
-  std::vector<v8::Local<v8::Function>> listeners_copy;
+  v8::LocalVector<v8::Function> listeners_copy(isolate);
   listeners_copy.reserve(listeners_.size());
   for (const auto& listener : listeners_) {
     listeners_copy.push_back(listener.Get(isolate));
@@ -230,7 +229,7 @@ void JsBinding::PostMessage(gin::Arguments* args) {
   }
 
   std::vector<blink::MessagePortChannel> ports;
-  std::vector<v8::Local<v8::Object>> objs;
+  v8::LocalVector<v8::Object> objs(args->isolate());
   // If we get more than two arguments and the second argument is not an array
   // of ports, we can't process.
   if (args->Length() >= 2 && !args->GetNext(&objs)) {

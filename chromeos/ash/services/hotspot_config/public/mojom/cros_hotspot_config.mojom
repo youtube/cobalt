@@ -53,6 +53,8 @@ enum SetHotspotConfigResult {
   kFailedNotLogin,
   // Failed for invalid hotspot configuration.
   kFailedInvalidConfiguration,
+  // Failed due to Shill operation failure.
+  kFailedShillOperation,
 };
 
 // Status about whether Hotspot is allowed or not.
@@ -86,16 +88,20 @@ enum HotspotControlResult {
   kInvalidConfiguration,
   // Upstream network is not available.
   kUpstreamNotAvailable,
-  // Network setup failure
+  // Failed to setup or tear down network layer for hotspot.
   kNetworkSetupFailure,
-  // Wifi driver setup failure.
-  kWifiDriverFailure,
-  // Cellular attach failure.
-  kCellularAttachFailure,
+  // Downstream WiFi operation failure.
+  kDownstreamWifiFailure,
+  // Upstream network operation failure.
+  kUpstreamFailure,
   // Failed due to Shill operation error.
   kShillOperationFailed,
   // The hotspot's current state is the same as the state requested.
   kAlreadyFulfilled,
+  // Hotspot enable request has been aborted.
+  kAborted,
+  // Invalid hotspot enable request.
+  kInvalid,
   kUnknownFailure,
 };
 
@@ -141,7 +147,8 @@ struct HotspotInfo {
 // CrosHotspotConfig interface provides methods to get current hotspot status,
 // configure, enable or disable hotspot.
 interface CrosHotspotConfig {
-  // Adds an observer that can listen to hotspot related events.
+  // Adds an observer that can listen to hotspot related events. Invokes
+  // OnHotspotInfoChange() when observer is added.
   AddObserver(pending_remote<CrosHotspotConfigObserver> observer);
 
   // Adds an observer to listen to hotspot turned on/off events.
@@ -174,9 +181,8 @@ interface CrosHotspotConfigObserver {
 // HotspotEnabledStateObserver is implemented by any module that needs
 // to observe changes to the hotspot enabled state.
 interface HotspotEnabledStateObserver {
-  // Called when Hotspot is successfully turned on. `wifi_turned_off`
-  // indicates that WiFi was disabled in order to turn on Hotspot.
-  OnHotspotTurnedOn(bool wifi_turned_off);
+  // Called when Hotspot is successfully turned on.
+  OnHotspotTurnedOn();
 
   // Called when Hotspot is successfully turned off. `disable_reason`
   // indicates the reason why Hotspot was turned off.

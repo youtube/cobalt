@@ -17,6 +17,9 @@ shared_library("fake_drv_video") {
 source_set("fake_libva_driver_internals") {
   visibility = [ ":fake_drv_video" ]
   sources = [
+    "context_delegate.h",
+    "fake_buffer.cc",
+    "fake_buffer.h",
     "fake_config.cc",
     "fake_config.h",
     "fake_context.cc",
@@ -26,9 +29,18 @@ source_set("fake_libva_driver_internals") {
     "fake_surface.cc",
     "fake_surface.h",
     "object_tracker.h",
+    "scoped_bo_mapping_factory.cc",
+    "scoped_bo_mapping_factory.h",
+    "vpx_decoder_delegate.cc",
+    "vpx_decoder_delegate.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//build/config/linux/libdrm",
+    "//third_party/libvpx",
+  ]
+  public_deps = [ "//third_party/minigbm" ]
 }
 
 test("fake_libva_driver_unittest") {
@@ -42,6 +54,7 @@ test("fake_libva_driver_unittest") {
     ":fake_drv_video",
     "//base",
     "//base/test:test_support",
+    "//build/config/linux/libdrm",
     "//media/gpu/vaapi:libva_stubs",
     "//testing/gtest",
   ]

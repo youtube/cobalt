@@ -15,7 +15,6 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -35,7 +34,6 @@
 #include "components/bookmarks/browser/url_and_title.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -166,7 +164,8 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, PRE_Persist) {
 
   const BookmarkNode* node = bookmarks::AddIfNotBookmarked(
       bookmark_model, GURL(kPersistBookmarkURL), kPersistBookmarkTitle);
-  bookmark_model->UpdateLastUsedTime(node, kPersistLastUsedTime);
+  bookmark_model->UpdateLastUsedTime(node, kPersistLastUsedTime,
+                                     /*just_opened=*/true);
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -180,8 +179,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, MAYBE_Persist) {
   BookmarkModel* bookmark_model = WaitForBookmarkModel(browser()->profile());
 
   GURL url(kPersistBookmarkURL);
-  std::vector<const BookmarkNode*> nodes;
-  bookmark_model->GetNodesByURL(url, &nodes);
+  std::vector<const BookmarkNode*> nodes = bookmark_model->GetNodesByURL(url);
 
   ASSERT_EQ(1u, nodes.size());
   ASSERT_EQ(url, nodes[0]->url());
@@ -210,11 +208,9 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, MultiProfile) {
 
   bookmarks::AddIfNotBookmarked(bookmark_model1, GURL(kPersistBookmarkURL),
                                 kPersistBookmarkTitle);
-  std::vector<UrlAndTitle> urls1, urls2;
-  bookmark_model1->GetBookmarks(&urls1);
-  bookmark_model2->GetBookmarks(&urls2);
-  ASSERT_EQ(1u, urls1.size());
-  ASSERT_TRUE(urls2.empty());
+
+  ASSERT_EQ(1u, bookmark_model1->GetUniqueUrls().size());
+  ASSERT_TRUE(bookmark_model2->GetUniqueUrls().empty());
 }
 
 #endif
@@ -229,23 +225,17 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, IncognitoPersistence) {
   bookmarks::AddIfNotBookmarked(bookmark_model, GURL(kPersistBookmarkURL),
                                 kPersistBookmarkTitle);
 
-  std::vector<UrlAndTitle> urls;
-  bookmark_model->GetBookmarks(&urls);
-  ASSERT_EQ(1u, urls.size());
+  ASSERT_EQ(1u, bookmark_model->GetUniqueUrls().size());
 
   // Restart Incognito, and check again.
   CloseBrowserSynchronously(incognito_browser);
   incognito_browser = CreateIncognitoBrowser();
   bookmark_model = WaitForBookmarkModel(incognito_browser->profile());
-  urls.clear();
-  bookmark_model->GetBookmarks(&urls);
-  ASSERT_EQ(1u, urls.size());
+  ASSERT_EQ(1u, bookmark_model->GetUniqueUrls().size());
 
   // Ensure it is also available in regular mode.
   bookmark_model = WaitForBookmarkModel(browser()->profile());
-  urls.clear();
-  bookmark_model->GetBookmarks(&urls);
-  ASSERT_EQ(1u, urls.size());
+  ASSERT_EQ(1u, bookmark_model->GetUniqueUrls().size());
 }
 
 // Regression for crash caused by opening folder as a group in an incognito
@@ -302,9 +292,9 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, OpenAllBookmarks) {
   auto close_all_tabs_except_first = [](Browser* browser) {
     int num_tabs = browser->tab_strip_model()->GetTabCount();
     for (int i = 0; i < num_tabs - 1; ++i) {
-      ASSERT_TRUE(
-          browser->tab_strip_model()->CloseWebContentsAt(num_tabs - 1 - i, 0));
+      browser->tab_strip_model()->CloseWebContentsAt(num_tabs - 1 - i, 0);
     }
+    EXPECT_EQ(1, browser->tab_strip_model()->count());
   };
 
   auto open_urls_and_test = [&regular_browser, &incognito_browser, &bbar,
@@ -613,11 +603,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, DragMultipleBookmarks) {
   run_loop->Run();
 }
 
-// ChromeOS initializes two profiles (Default and test-user) and it's impossible
-// to distinguish UMA samples separately.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-
-IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, PRE_EmitUmaForDuplicates) {
+IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, PRE_EmitUmaForTimeMetrics) {
   BookmarkModel* bookmark_model = WaitForBookmarkModel(browser()->profile());
   const BookmarkNode* parent = bookmarks::GetParentForNewNodes(bookmark_model);
   const BookmarkNode* other_parent =
@@ -641,7 +627,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, PRE_EmitUmaForDuplicates) {
                          u"title5", GURL("http://c.com"));
 }
 
-IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, EmitUmaForDuplicates) {
+IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, EmitUmaForTimeMetrics) {
   WaitForBookmarkModel(browser()->profile());
 
   // The total number of bookmarks is 7, but it gets rounded down due to
@@ -650,41 +636,66 @@ IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, EmitUmaForDuplicates) {
       histogram_tester()->GetAllSamples("Bookmarks.Count.OnProfileLoad3"),
       testing::ElementsAre(base::Bucket(/*min=*/6, /*count=*/1)));
 
-  // 2 bookmarks have URL http://b.com and 4 have http://c.com. This counts as 4
-  // duplicates.
-  EXPECT_THAT(histogram_tester()->GetAllSamples(
-                  "Bookmarks.Count.OnProfileLoad.DuplicateUrl3"),
-              testing::ElementsAre(base::Bucket(/*min=*/4, /*count=*/1)));
-  // 3 bookmarks have the pair (http://c.com, title5). This counts as 2
-  // duplicates when considering URLs and titles.
-  EXPECT_THAT(histogram_tester()->GetAllSamples(
-                  "Bookmarks.Count.OnProfileLoad.DuplicateUrlAndTitle3"),
-              testing::ElementsAre(base::Bucket(/*min=*/2, /*count=*/1)));
-  // Among the three above, only two have the same parent. This means only one
-  // counts as duplicate when considering all three attributes.
-  EXPECT_THAT(
-      histogram_tester()->GetAllSamples(
-          "Bookmarks.Count.OnProfileLoad.DuplicateUrlAndTitleAndParent3"),
-      testing::ElementsAre(base::Bucket(/*min=*/1, /*count=*/1)));
-
-  // The remaining histograms are the result of subtracting the number of
-  // duplicates from the total, which is 7 despite the bucket for the first
-  // histogram above suggesting 6.
-  EXPECT_THAT(histogram_tester()->GetAllSamples(
-                  "Bookmarks.Count.OnProfileLoad.UniqueUrl3"),
-              testing::ElementsAre(base::Bucket(/*min=*/3, /*count=*/1)));
-  EXPECT_THAT(histogram_tester()->GetAllSamples(
-                  "Bookmarks.Count.OnProfileLoad.UniqueUrlAndTitle3"),
-              testing::ElementsAre(base::Bucket(/*min=*/5, /*count=*/1)));
-  EXPECT_THAT(histogram_tester()->GetAllSamples(
-                  "Bookmarks.Count.OnProfileLoad.UniqueUrlAndTitleAndParent3"),
-              testing::ElementsAre(base::Bucket(/*min=*/6, /*count=*/1)));
   EXPECT_THAT(histogram_tester()->GetAllSamples(
                   "Bookmarks.Times.OnProfileLoad.TimeSinceAdded3"),
               testing::ElementsAre(base::Bucket(/*min=*/0, /*count=*/1)));
 }
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, PRE_EmitUmaForMostRecentlyUsed) {
+  BookmarkModel* bookmark_model = WaitForBookmarkModel(browser()->profile());
+  BookmarkNode* parent = const_cast<BookmarkNode*>(bookmark_model->AddFolder(
+      bookmarks::GetParentForNewNodes(bookmark_model), 0, u"Test Folder"));
+  parent->set_date_added(base::Time::Now() - base::Days(3));
+
+  BookmarkNode* node = const_cast<BookmarkNode*>(bookmark_model->AddURL(
+      parent, parent->children().size(), u"title1", GURL("http://a.com")));
+  node->set_date_added(base::Time::Now() - base::Days(2));
+  node->set_date_last_used(base::Time::Now() - base::Days(1));
+
+  // This shouldn't count towards metrics because there's another node which
+  // is more recently saved/used.
+  node = const_cast<BookmarkNode*>(bookmark_model->AddURL(
+      parent, parent->children().size(), u"title1", GURL("http://a.com")));
+  node->set_date_added(base::Time::Now() - base::Days(3));
+  node->set_date_last_used(base::Time::Now() - base::Days(3));
+}
+
+IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest, EmitUmaForMostRecentlyUsed) {
+  WaitForBookmarkModel(browser()->profile());
+
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlyUsedBookmarkInDays"),
+      testing::ElementsAre(base::Bucket(/*min=*/1, /*count=*/1)));
+
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlySavedBookmarkInDays"),
+      testing::ElementsAre(base::Bucket(/*min=*/2, /*count=*/1)));
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlyAddedFolderInDays"),
+      testing::ElementsAre(base::Bucket(/*min=*/3, /*count=*/1)));
+}
+
+IN_PROC_BROWSER_TEST_F(BookmarkBrowsertest,
+                       EmitUmaForMostRecentlyUsed_NoBookmarks) {
+  WaitForBookmarkModel(browser()->profile());
+
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlyUsedBookmarkInDays"),
+      testing::ElementsAre());
+
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlySavedBookmarkInDays"),
+      testing::ElementsAre());
+  EXPECT_THAT(
+      histogram_tester()->GetAllSamples(
+          "Bookmarks.Times.OnProfileLoad.MostRecentlyAddedFolderInDays"),
+      testing::ElementsAre());
+}
 
 // Test that the bookmark star state updates in response to same document
 // navigations that change the URL
@@ -787,7 +798,7 @@ class BookmarkPrerenderBrowsertest : public BookmarkBrowsertest {
       delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     BookmarkBrowsertest::SetUp();
   }
 

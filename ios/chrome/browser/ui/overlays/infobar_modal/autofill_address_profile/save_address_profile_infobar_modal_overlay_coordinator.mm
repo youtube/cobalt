@@ -9,11 +9,11 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
 #import "ios/chrome/browser/overlays/public/infobar_modal/save_address_profile_infobar_modal_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/public/overlay_callback_manager.h"
 #import "ios/chrome/browser/overlays/public/overlay_response.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/ui/autofill/autofill_country_selection_table_view_controller.h"
 #import "ios/chrome/browser/ui/autofill/autofill_profile_edit_mediator.h"
 #import "ios/chrome/browser/ui/autofill/autofill_profile_edit_mediator_delegate.h"
@@ -27,10 +27,6 @@
 #import "ios/chrome/browser/ui/overlays/infobar_modal/infobar_modal_overlay_coordinator+modal_configuration.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill_address_profile_infobar_overlays::
     SaveAddressProfileModalRequestConfig;
@@ -112,14 +108,14 @@ using autofill_address_profile_infobar_overlays::
     InfobarEditAddressProfileTableViewController* editModalViewController =
         [[InfobarEditAddressProfileTableViewController alloc]
             initWithModalDelegate:modalMediator];
-    self.sharedEditViewController = [[AutofillProfileEditTableViewController
-        alloc]
-        initWithDelegate:self.sharedEditViewMediator
-               userEmail:(self.config->syncing_user_email()
-                              ? base::SysUTF16ToNSString(
-                                    self.config->syncing_user_email().value())
-                              : nil)controller:editModalViewController
-            settingsView:NO];
+    self.sharedEditViewController =
+        [[AutofillProfileEditTableViewController alloc]
+            initWithDelegate:self.sharedEditViewMediator
+                   userEmail:(self.config->user_email()
+                                  ? base::SysUTF16ToNSString(
+                                        self.config->user_email().value())
+                                  : nil)controller:editModalViewController
+                settingsView:NO];
     self.sharedEditViewMediator.consumer = self.sharedEditViewController;
     editModalViewController.handler = self.sharedEditViewController;
 

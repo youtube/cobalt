@@ -138,16 +138,15 @@ OverlayProcessorInterface::CreateOverlayProcessor(
   }
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (features::IsDelegatedCompositingEnabled()) {
-    return std::make_unique<OverlayProcessorDelegated>(
-        std::move(overlay_candidates),
-        std::move(renderer_settings.overlay_strategies), sii);
-  }
-#endif
-
+  return std::make_unique<OverlayProcessorDelegated>(
+      std::move(overlay_candidates),
+      std::move(renderer_settings.overlay_strategies), sii);
+#else
   return std::make_unique<OverlayProcessorOzone>(
       std::move(overlay_candidates),
       std::move(renderer_settings.overlay_strategies), sii);
+#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+
 #elif BUILDFLAG(IS_ANDROID)
   DCHECK(display_controller);
 
@@ -217,6 +216,10 @@ void OverlayProcessorInterface::OverlayPresentationComplete() {}
 
 gfx::CALayerResult OverlayProcessorInterface::GetCALayerErrorCode() const {
   return gfx::kCALayerSuccess;
+}
+
+gfx::RectF OverlayProcessorInterface::GetUnassignedDamage() const {
+  return gfx::RectF();
 }
 
 }  // namespace viz

@@ -60,7 +60,7 @@ template <>
 struct BLINK_COMMON_EXPORT
     StructTraits<blink::mojom::SharedStorageBudgetMetadataDataView,
                  blink::FencedFrame::SharedStorageBudgetMetadata> {
-  static const url::Origin& origin(
+  static const net::SchemefulSite& site(
       const blink::FencedFrame::SharedStorageBudgetMetadata& input);
   static double budget_to_charge(
       const blink::FencedFrame::SharedStorageBudgetMetadata& input);
@@ -243,6 +243,12 @@ struct BLINK_COMMON_EXPORT
     return config.mode_;
   }
 
+  static const std::vector<blink::mojom::PermissionsPolicyFeature>&
+  effective_enabled_permissions(
+      const blink::FencedFrame::RedactedFencedFrameConfig& config) {
+    return config.effective_enabled_permissions_;
+  }
+
   static bool Read(blink::mojom::FencedFrameConfigDataView data,
                    blink::FencedFrame::RedactedFencedFrameConfig* out_config);
 };
@@ -289,6 +295,12 @@ struct BLINK_COMMON_EXPORT
   static const blink::FencedFrame::DeprecatedFencedFrameMode& mode(
       const blink::FencedFrame::RedactedFencedFrameProperties& properties) {
     return properties.mode_;
+  }
+
+  static const std::vector<blink::mojom::PermissionsPolicyFeature>&
+  effective_enabled_permissions(
+      const blink::FencedFrame::RedactedFencedFrameProperties& properties) {
+    return properties.effective_enabled_permissions_;
   }
 
   static bool Read(

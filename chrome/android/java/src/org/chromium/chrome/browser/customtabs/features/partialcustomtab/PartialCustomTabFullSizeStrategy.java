@@ -17,7 +17,10 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import androidx.annotation.Px;
+import androidx.annotation.StringRes;
 
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.ActivityLayoutState;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbar;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
@@ -28,12 +31,13 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
  */
 public class PartialCustomTabFullSizeStrategy extends PartialCustomTabBaseStrategy {
     public PartialCustomTabFullSizeStrategy(Activity activity,
+            BrowserServicesIntentDataProvider intentData,
             CustomTabHeightStrategy.OnResizedCallback onResizedCallback,
             CustomTabHeightStrategy.OnActivityLayoutCallback onActivityLayoutCallback,
-            FullscreenManager fullscreenManager, boolean isTablet, boolean interactWithBackground,
+            FullscreenManager fullscreenManager, boolean isTablet,
             PartialCustomTabHandleStrategyFactory handleStrategyFactory) {
-        super(activity, onResizedCallback, onActivityLayoutCallback, fullscreenManager, isTablet,
-                interactWithBackground, handleStrategyFactory);
+        super(activity, intentData, onResizedCallback, onActivityLayoutCallback, fullscreenManager,
+                isTablet, handleStrategyFactory);
 
         mPositionUpdater = this::updatePosition;
 
@@ -46,6 +50,11 @@ public class PartialCustomTabFullSizeStrategy extends PartialCustomTabBaseStrate
     }
 
     @Override
+    public @StringRes int getTypeStringId() {
+        return R.string.accessibility_partial_custom_tab_full_sheet;
+    }
+
+    @Override
     public void onToolbarInitialized(
             View coordinatorView, CustomTabToolbar toolbar, @Px int toolbarCornerRadius) {
         super.onToolbarInitialized(coordinatorView, toolbar, toolbarCornerRadius);
@@ -54,6 +63,7 @@ public class PartialCustomTabFullSizeStrategy extends PartialCustomTabBaseStrate
                 mHandleStrategyFactory.create(getStrategyType(), mActivity, this::isFullHeight,
                         () -> 0, null, this::handleCloseAnimation);
         toolbar.setHandleStrategy(handleStrategy);
+        toolbar.setMinimizeButtonEnabled(true);
         updateDragBarVisibility(/*dragHandlebarVisibility*/ View.GONE);
     }
 
@@ -104,8 +114,7 @@ public class PartialCustomTabFullSizeStrategy extends PartialCustomTabBaseStrate
     }
 
     @Override
-    @ActivityLayoutState
-    protected int getActivityLayoutState() {
+    protected @ActivityLayoutState int getActivityLayoutState() {
         return ACTIVITY_LAYOUT_STATE_FULL_SCREEN;
     }
 
@@ -123,6 +132,11 @@ public class PartialCustomTabFullSizeStrategy extends PartialCustomTabBaseStrate
         ViewGroup.MarginLayoutParams mlp =
                 (ViewGroup.MarginLayoutParams) mToolbarCoordinator.getLayoutParams();
         mlp.setMargins(0, 0, 0, 0);
+    }
+
+    @Override
+    protected int getCustomTabsElevation() {
+        return 0;
     }
 
     @Override

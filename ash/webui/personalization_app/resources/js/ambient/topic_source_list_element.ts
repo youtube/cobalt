@@ -11,14 +11,14 @@ import '../../css/common.css.js';
 import './topic_source_item_element.js';
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 
-import {AnimationTheme, TopicSource} from '../../personalization_app.mojom-webui.js';
+import {AmbientTheme, TopicSource} from '../../personalization_app.mojom-webui.js';
 import {isTimeOfDayScreenSaverEnabled} from '../load_time_booleans.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
 
 import {getTemplate} from './topic_source_list_element.html.js';
 import {isValidTopicSourceAndTheme} from './utils.js';
 
-export class TopicSourceList extends WithPersonalizationStore {
+export class TopicSourceListElement extends WithPersonalizationStore {
   static get is() {
     return 'topic-source-list';
   }
@@ -43,7 +43,7 @@ export class TopicSourceList extends WithPersonalizationStore {
         },
       },
 
-      selectedAnimationTheme: AnimationTheme,
+      selectedAmbientTheme: AmbientTheme,
 
       selectedTopicSource: TopicSource,
 
@@ -52,7 +52,7 @@ export class TopicSourceList extends WithPersonalizationStore {
   }
 
   topicSources: TopicSource[];
-  selectedAnimationTheme: AnimationTheme;
+  selectedAmbientTheme: AmbientTheme;
   selectedTopicSource: TopicSource;
   hasGooglePhotosAlbums: boolean;
 
@@ -65,9 +65,8 @@ export class TopicSourceList extends WithPersonalizationStore {
   }
 
   private isTopicSourceDisabled_(
-      topicSource: TopicSource,
-      selectedAnimationTheme: AnimationTheme): boolean {
-    return !isValidTopicSourceAndTheme(topicSource, selectedAnimationTheme);
+      topicSource: TopicSource, selectedAmbientTheme: AmbientTheme): boolean {
+    return !isValidTopicSourceAndTheme(topicSource, selectedAmbientTheme);
   }
 
   private isSelected_(
@@ -78,8 +77,8 @@ export class TopicSourceList extends WithPersonalizationStore {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'topic-source-list': TopicSourceList;
+    'topic-source-list': TopicSourceListElement;
   }
 }
 
-customElements.define(TopicSourceList.is, TopicSourceList);
+customElements.define(TopicSourceListElement.is, TopicSourceListElement);

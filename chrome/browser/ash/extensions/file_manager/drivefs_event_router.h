@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -15,8 +16,8 @@
 #include "base/values.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/extensions/file_manager/system_notification_manager.h"
-#include "chromeos/ash/components/drivefs/drivefs_host_observer.h"
-#include "chromeos/ash/components/drivefs/drivefs_pin_manager.h"
+#include "chromeos/ash/components/drivefs/drivefs_host.h"
+#include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom.h"
 #include "chromeos/ash/components/drivefs/sync_status_tracker.h"
 #include "extensions/browser/extension_event_histogram_value.h"
@@ -43,14 +44,17 @@ using IndividualFileTransferStatus =
     extensions::api::file_manager_private::SyncState;
 
 // Files app's event router handling DriveFS-related events.
-class DriveFsEventRouter : public drivefs::DriveFsHostObserver,
-                           public drive::DriveIntegrationServiceObserver {
+class DriveFsEventRouter : public drivefs::DriveFsHost::Observer,
+                           drive::DriveIntegrationService::Observer {
  public:
-  explicit DriveFsEventRouter(SystemNotificationManager* notification_manager);
-  DriveFsEventRouter(const DriveFsEventRouter&) = delete;
+  DriveFsEventRouter(Profile* profile,
+                     SystemNotificationManager* notification_manager);
+
   ~DriveFsEventRouter() override;
 
-  DriveFsEventRouter& operator=(const DriveFsEventRouter&) = delete;
+  void Observe(drive::DriveIntegrationService* const service);
+
+  void Reset();
 
   // Triggers an event in the UI to display a confirmation dialog.
   void DisplayConfirmDialog(
@@ -66,6 +70,19 @@ class DriveFsEventRouter : public drivefs::DriveFsHostObserver,
   // suppress and restore these notifications.
   void SuppressNotificationsForFilePath(const base::FilePath& path);
   void RestoreNotificationsForFilePath(const base::FilePath& path);
+
+  drivefs::SyncState GetDriveSyncStateForPath(const base::FilePath& drive_path);
+
+  // DriveFsHost::Observer implementation.
+  void OnUnmounted() override;
+  void OnSyncingStatusUpdate(
+      const drivefs::mojom::SyncingStatus& status) override;
+  void OnIndividualSyncingStatusesDelta(
+      const std::vector<const drivefs::SyncState>& sync_states) override;
+  void OnFilesChanged(
+      const std::vector<drivefs::mojom::FileChange>& changes) override;
+  void OnError(const drivefs::mojom::DriveError& error) override;
+  void OnItemProgress(const drivefs::mojom::ProgressEvent& event) override;
 
  protected:
   SystemNotificationManager* system_notification_manager() {
@@ -88,17 +105,8 @@ class DriveFsEventRouter : public drivefs::DriveFsHostObserver,
     int64_t queued_bytes = 0;
   };
 
-  // DriveFsHostObserver:
-  void OnUnmounted() override;
-  void OnSyncingStatusUpdate(
-      const drivefs::mojom::SyncingStatus& status) override;
-  void OnIndividualSyncingStatusesDelta(
-      const std::vector<const drivefs::SyncState>& sync_states) override;
-  void OnFilesChanged(
-      const std::vector<drivefs::mojom::FileChange>& changes) override;
-  void OnError(const drivefs::mojom::DriveError& error) override;
-
-  // DriveIntegrationServiceObserver:
+  // DriveIntegrationService::Observer implementation.
+  void OnDriveIntegrationServiceDestroyed() override;
   void OnBulkPinProgress(const drivefs::pinning::Progress& progress) override;
 
   virtual std::set<GURL> GetEventListenerURLs(
@@ -150,13 +158,17 @@ class DriveFsEventRouter : public drivefs::DriveFsHostObserver,
       const std::string& event_name);
 
   // This is owned by EventRouter and only shared with this class.
-  raw_ptr<SystemNotificationManager, ExperimentalAsh> notification_manager_;
+  const raw_ptr<Profile> profile_;
+  const raw_ptr<SystemNotificationManager, ExperimentalAsh>
+      notification_manager_;
 
   SyncingStatusState sync_status_state_;
   SyncingStatusState pin_status_state_;
   // Set of paths for which Drive transfer events are ignored.
   std::set<base::FilePath> ignored_file_paths_;
   base::OnceCallback<void(drivefs::mojom::DialogResult)> dialog_callback_;
+
+  std::map<std::string, drivefs::SyncState> path_to_sync_state_;
 
   base::WeakPtrFactory<DriveFsEventRouter> weak_ptr_factory_{this};
 };

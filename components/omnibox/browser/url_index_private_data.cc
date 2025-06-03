@@ -18,7 +18,6 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/stack.h"
 #include "base/feature_list.h"
-#include "base/i18n/break_iterator.h"
 #include "base/i18n/case_conversion.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -78,7 +77,7 @@ class UpdateRecentVisitsFromHistoryDBTask : public history::HistoryDBTask {
 
   // The URLIndexPrivateData that gets updated after the historyDB
   // task returns.
-  raw_ptr<URLIndexPrivateData, DanglingUntriaged> private_data_;
+  raw_ptr<URLIndexPrivateData, AcrossTasksDanglingUntriaged> private_data_;
   // The ID of the URL to get visits for and then update.
   history::URLID url_id_;
   // Whether fetching the recent visits for the URL succeeded.
@@ -201,7 +200,16 @@ ScoredHistoryMatches URLIndexPrivateData::HistoryItemsForTerms(
     std::partial_sort(
         scored_items.begin(), scored_items.begin() + first_pass_size,
         scored_items.end(), ScoredHistoryMatch::MatchScoreGreater);
-    scored_items.resize(first_pass_size);
+
+    // When ML scoring w/increased candidates is enabled, all candidates outside
+    // of some light filtering should be passed to the controller to be
+    // re-scored. Do not discard matches by resizing. These will have a zero
+    // relevance score, so it's ok to not sort anything past `first_pass_size`.
+    bool skip_resize =
+        OmniboxFieldTrial::IsMlUrlScoringUnlimitedNumCandidatesEnabled();
+    if (!skip_resize) {
+      scored_items.resize(first_pass_size);
+    }
 
     // Filter unique matches to maximize the use of the `max_matches` capacity.
     // It's possible this'll still end up with duplicates as having unique
@@ -213,8 +221,9 @@ ScoredHistoryMatches URLIndexPrivateData::HistoryItemsForTerms(
       seen_history_ids.insert(scored_item_id);
       return duplicate;
     });
-    if (scored_items.size() > max_matches)
+    if (!skip_resize && scored_items.size() > max_matches) {
       scored_items.resize(max_matches);
+    }
 
   } else {
     std::sort(scored_items.begin(), scored_items.end(),
@@ -662,28 +671,22 @@ void URLIndexPrivateData::HistoryIdsToScoredMatches(
   // matches. However, since HQP doesn't dedupe suggestions, this can be
   // problematic when there are multiple duplicate matches. Try counting the
   // unique hosts in the matches instead.
-  static bool count_unique_hosts = base::FeatureList::IsEnabled(
-      omnibox::kHistoryQuickProviderSpecificityScoreCountUniqueHosts);
   size_t num_unique_hosts;
-  if (count_unique_hosts) {
-    std::set<std::string> unique_hosts = {};
-    for (const auto& history_id : history_ids) {
-      DCHECK(history_info_map_.count(history_id));
-      unique_hosts.insert(
-          history_info_map_.find(history_id)->second.url_row.url().host());
-      // `ScoredHistoryMatch` assigns the same specificity to suggestions for
-      // counts 4 or larger.
-      // TODO(manukh) Should share `kMaxUniqueHosts` with `ScoredHistoryMatch`,
-      //  but doing so is complicated as it's derived from parsing the default
-      //  string value for the finch param `kHQPNumMatchesScoresRule`.
-      constexpr size_t kMaxUniqueHosts = 4;
-      if (unique_hosts.size() >= kMaxUniqueHosts)
-        break;
-    }
-    num_unique_hosts = unique_hosts.size();
-  } else {
-    num_unique_hosts = history_ids.size();
+  std::set<std::string> unique_hosts = {};
+  for (const auto& history_id : history_ids) {
+    DCHECK(history_info_map_.count(history_id));
+    unique_hosts.insert(
+        history_info_map_.find(history_id)->second.url_row.url().host());
+    // `ScoredHistoryMatch` assigns the same specificity to suggestions for
+    // counts 4 or larger.
+    // TODO(manukh) Should share `kMaxUniqueHosts` with `ScoredHistoryMatch`,
+    //  but doing so is complicated as it's derived from parsing the default
+    //  string value for the finch param `kHQPNumMatchesScoresRule`.
+    constexpr size_t kMaxUniqueHosts = 4;
+    if (unique_hosts.size() >= kMaxUniqueHosts)
+      break;
   }
+  num_unique_hosts = unique_hosts.size();
 
   for (HistoryID history_id : history_ids) {
     auto hist_pos = history_info_map_.find(history_id);
@@ -723,8 +726,7 @@ void URLIndexPrivateData::CalculateWordStartsOffsets(
   // starts at offset 1.
   lower_terms_to_word_starts_offsets->resize(lower_terms.size(), 0u);
   for (size_t i = 0; i < lower_terms.size(); ++i) {
-    TailoredWordBreakIterator iter(lower_terms[i],
-                                   base::i18n::BreakIterator::BREAK_WORD);
+    TailoredWordBreakIterator iter(lower_terms[i]);
     // If the iterator doesn't work, assume an offset of 0.
     if (!iter.Init())
       continue;

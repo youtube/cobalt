@@ -15,6 +15,7 @@
 
 #include "absl/types/optional.h"
 #include "api/video/encoded_frame.h"
+#include "api/video/video_frame_metadata.h"
 
 namespace webrtc {
 
@@ -52,6 +53,12 @@ class RtpFrameObject : public EncodedFrame {
   uint8_t* mutable_data() { return image_buffer_->data(); }
 
   const std::vector<uint32_t>& Csrcs() const { return csrcs_; }
+
+  void SetFirstSeqNum(uint16_t first_seq_num) {
+    first_seq_num_ = first_seq_num;
+  }
+  void SetLastSeqNum(uint16_t last_seq_num) { last_seq_num_ = last_seq_num; }
+  void SetHeaderFromMetadata(const VideoFrameMetadata& metadata);
 
  private:
   // Reference for mutable access.

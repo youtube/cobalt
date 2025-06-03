@@ -20,6 +20,8 @@ SYSTEM_WIDE_DESKTOP_ENTRIES_DIR = $(DESTDIR)/usr/share/applications
 
 CORE_LIBNAME = $(BUILD_DIR)/libremoting_core.so
 CORE_DEBUGFILE = $(CORE_LIBNAME).debug
+CRASH_UPLOADER_PROGNAME = $(BUILD_DIR)/remoting_crash_uploader
+CRASH_UPLOADER_DEBUGFILE = $(CRASH_UPLOADER_PROGNAME).debug
 ME2ME_PROGNAME = $(BUILD_DIR)/remoting_me2me_host
 ME2ME_DEBUGFILE = $(ME2ME_PROGNAME).debug
 START_PROGNAME = $(BUILD_DIR)/remoting_start_host
@@ -60,6 +62,19 @@ install:
 	  "$(INSTALL_DIR)/configure-url-forwarder"
 
 	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire.conf.template" \
+	  "$(INSTALL_DIR)/pipewire.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire-media-session.conf.template" \
+	  "$(INSTALL_DIR)/pipewire-media-session.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire-pulse.conf.template" \
+	  "$(INSTALL_DIR)/pipewire-pulse.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/wireplumber.conf.template" \
+	  "$(INSTALL_DIR)/wireplumber.conf.template"
+
+	install -m 0644 \
 	  "$(BUILD_DIR)/remoting/com.google.chrome.remote_desktop.json" \
 	  "$(CHROME_NATIVE_MESSAGING_DIR)/com.google.chrome.remote_desktop.json"
 	install -m 0644 \
@@ -78,6 +93,9 @@ install:
 
 	install "$(CORE_LIBNAME)" "$(INSTALL_DIR)/libremoting_core.so"
 	eu-strip -f "$(CORE_DEBUGFILE)" "$(INSTALL_DIR)/libremoting_core.so"
+
+	install "$(CRASH_UPLOADER_PROGNAME)" "$(INSTALL_DIR)/crash-uploader"
+	eu-strip -f "$(CRASH_UPLOADER_DEBUGFILE)" "$(INSTALL_DIR)/crash-uploader"
 
 	install "$(ME2ME_PROGNAME)" \
 	  "$(INSTALL_DIR)/chrome-remote-desktop-host"

@@ -108,8 +108,9 @@ void LogPendingMemoryAllocation(RendererVk *renderer, vk::MemoryLogSeverity seve
         renderer->getMemoryAllocationTracker()->getPendingMemoryAllocationType();
     VkDeviceSize allocSize =
         renderer->getMemoryAllocationTracker()->getPendingMemoryAllocationSize();
-    uint32_t memoryHeapIndex = renderer->getMemoryProperties().getHeapIndexForMemoryType(
-        renderer->getMemoryAllocationTracker()->getPendingMemoryTypeIndex());
+    uint32_t memoryTypeIndex = renderer->getMemoryAllocationTracker()->getPendingMemoryTypeIndex();
+    uint32_t memoryHeapIndex =
+        renderer->getMemoryProperties().getHeapIndexForMemoryType(memoryTypeIndex);
 
     if (allocSize != 0)
     {
@@ -117,7 +118,8 @@ void LogPendingMemoryAllocation(RendererVk *renderer, vk::MemoryLogSeverity seve
 
         outStream << "Pending allocation size for memory allocation type ("
                   << vk::kMemoryAllocationTypeMessage[ToUnderlying(allocInfo)]
-                  << ") for heap index " << memoryHeapIndex << ": " << allocSize;
+                  << ") for heap index " << memoryHeapIndex << " (type index " << memoryTypeIndex
+                  << "): " << allocSize;
 
         // Output the log stream based on the level of severity.
         OutputMemoryLogStream(outStream, severity);
@@ -149,7 +151,7 @@ void LogMemoryHeapStats(RendererVk *renderer, vk::MemoryLogSeverity severity)
         vk::AddToPNextChain(&memoryProperties, &memoryBudgetProperties);
     }
 
-    vkGetPhysicalDeviceMemoryProperties2KHR(renderer->getPhysicalDevice(), &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties2(renderer->getPhysicalDevice(), &memoryProperties);
 
     // Add memory heap information to the stream.
     outStream << "Memory heap info" << std::endl;
@@ -408,6 +410,30 @@ uint64_t MemoryAllocationTracker::getActiveHeapMemoryAllocationsCount(uint32_t a
     ASSERT(allocTypeIndex < vk::kMemoryAllocationTypeCount &&
            heapIndex < mRenderer->getMemoryProperties().getMemoryHeapCount());
     return mActivePerHeapMemoryAllocationsCount[allocTypeIndex][heapIndex];
+}
+
+void MemoryAllocationTracker::compareExpectedFlagsWithAllocatedFlags(
+    VkMemoryPropertyFlags requiredFlags,
+    VkMemoryPropertyFlags preferredFlags,
+    VkMemoryPropertyFlags allocatedFlags,
+    void *handle)
+{
+    if (!kTrackMemoryAllocationDebug)
+    {
+        return;
+    }
+
+    ASSERT((requiredFlags & ~allocatedFlags) == 0);
+    if (((preferredFlags | requiredFlags) & ~allocatedFlags) != 0)
+    {
+        INFO() << "Memory type index chosen for object " << handle
+               << " lacks some of the preferred property flags.";
+    }
+
+    if ((~allocatedFlags & preferredFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+    {
+        WARN() << "Device-local memory allocation fallback to system memory.";
+    }
 }
 
 VkDeviceSize MemoryAllocationTracker::getPendingMemoryAllocationSize() const

@@ -21,7 +21,6 @@
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/resource_coordinator/intervention_policy_database.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "chrome/browser/resource_coordinator/tab_helper.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_observer.h"
@@ -39,7 +38,6 @@
 #include "components/device_event_log/device_event_log.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/permissions/permission_manager.h"
-#include "components/permissions/permission_result.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -432,6 +430,11 @@ bool TabLifecycleUnitSource::TabLifecycleUnit::CanDiscard(
     decision_details->AddReason(DecisionFailureReason::LIVE_WEB_APP);
   }
 
+  if (web_contents()->HasPictureInPictureVideo() ||
+      web_contents()->HasPictureInPictureDocument()) {
+    decision_details->AddReason(DecisionFailureReason::LIVE_PICTURE_IN_PICTURE);
+  }
+
   if (decision_details->reasons().empty()) {
     decision_details->AddReason(
         DecisionSuccessReason::HEURISTIC_OBSERVED_TO_BE_SAFE);
@@ -512,11 +515,8 @@ void TabLifecycleUnitSource::TabLifecycleUnit::FinishDiscard(
                                                /* needs_reload */ false);
 
   // First try to fast-kill the process, if it's just running a single tab.
-  bool fast_shutdown_success =
-      GetRenderProcessHost()->FastShutdownIfPossible(1u, false);
-
 #if BUILDFLAG(IS_CHROMEOS)
-  if (!fast_shutdown_success &&
+  if (!GetRenderProcessHost()->FastShutdownIfPossible(1u, false) &&
       discard_reason == LifecycleUnitDiscardReason::URGENT) {
     content::RenderFrameHost* main_frame = old_contents->GetPrimaryMainFrame();
     // We avoid fast shutdown on tabs with beforeunload handlers on the main
@@ -525,16 +525,13 @@ void TabLifecycleUnitSource::TabLifecycleUnit::FinishDiscard(
     if (!main_frame->GetSuddenTerminationDisablerState(
             blink::mojom::SuddenTerminationDisablerType::
                 kBeforeUnloadHandler)) {
-      fast_shutdown_success = GetRenderProcessHost()->FastShutdownIfPossible(
+      GetRenderProcessHost()->FastShutdownIfPossible(
           1u, /* skip_unload_handlers */ true);
     }
-    UMA_HISTOGRAM_BOOLEAN(
-        "TabManager.Discarding.DiscardedTabCouldUnsafeFastShutdown",
-        fast_shutdown_success);
   }
+#else
+  GetRenderProcessHost()->FastShutdownIfPossible(1u, false);
 #endif
-  UMA_HISTOGRAM_BOOLEAN("TabManager.Discarding.DiscardedTabCouldFastShutdown",
-                        fast_shutdown_success);
 
   // Replace the discarded tab with the null version.
   const int index = tab_strip_model_->GetIndexOfWebContents(old_contents);
@@ -584,7 +581,7 @@ bool TabLifecycleUnitSource::TabLifecycleUnit::Discard(
   // here instead of in `CanDiscard` as not all calls to `Discard` check
   // `CanDiscard` and discarding a picture-in-picture WebContents leaves the
   // window in a bad state.
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents());
+  Browser* browser = chrome::FindBrowserWithTab(web_contents());
   if (browser && browser->is_type_picture_in_picture()) {
     return false;
   }

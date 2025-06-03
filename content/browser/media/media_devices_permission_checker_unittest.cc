@@ -55,8 +55,10 @@ class MediaDevicesPermissionCheckerTest : public RenderViewHostImplTestHarness {
     auto navigation = NavigationSimulator::CreateBrowserInitiated(
         origin_.GetURL(), web_contents());
     std::vector<blink::OriginWithPossibleWildcards> allowlist;
-    if (enabled)
-      allowlist.emplace_back(origin_, /*has_subdomain_wildcard=*/false);
+    if (enabled) {
+      allowlist.emplace_back(
+          *blink::OriginWithPossibleWildcards::FromOrigin(origin_));
+    }
     navigation->SetPermissionsPolicyHeader({{feature, allowlist,
                                              /*self_if_matches=*/absl::nullopt,
                                              /*matches_all_origins=*/false,
@@ -103,19 +105,19 @@ TEST_F(MediaDevicesPermissionCheckerTest,
        CheckPermissionWithPermissionsPolicy) {
   // Mic and Camera should be enabled by default for a frame (if permission is
   // granted).
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 
   RefreshPageAndSetHeaderPolicy(
       blink::mojom::PermissionsPolicyFeature::kMicrophone,
       /*enabled=*/false);
-  EXPECT_FALSE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  EXPECT_FALSE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 
   RefreshPageAndSetHeaderPolicy(blink::mojom::PermissionsPolicyFeature::kCamera,
                                 /*enabled=*/false);
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_FALSE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_FALSE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 }
 
 }  // namespace

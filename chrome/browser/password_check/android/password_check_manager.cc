@@ -13,11 +13,11 @@
 #include "components/password_manager/core/browser/affiliation/affiliation_utils.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/insecure_credentials_manager.h"
-#include "components/password_manager/core/browser/well_known_change_password_util.h"
+#include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
@@ -86,7 +86,7 @@ void PasswordCheckManager::StopCheck() {
 }
 
 base::Time PasswordCheckManager::GetLastCheckTimestamp() {
-  return base::Time::FromDoubleT(profile_->GetPrefs()->GetDouble(
+  return base::Time::FromSecondsSinceUnixEpoch(profile_->GetPrefs()->GetDouble(
       password_manager::prefs::kLastTimePasswordCheckCompleted));
 }
 
@@ -164,7 +164,8 @@ void PasswordCheckManager::PasswordCheckProgress::OnProcessed(
   remaining_in_queue_ -= num_matching;
 }
 
-void PasswordCheckManager::OnSavedPasswordsChanged() {
+void PasswordCheckManager::OnSavedPasswordsChanged(
+    const password_manager::PasswordStoreChangeList& changes) {
   size_t passwords_count =
       saved_passwords_presenter_.GetSavedPasswords().size();
 
@@ -195,7 +196,7 @@ void PasswordCheckManager::OnStateChanged(State state) {
     // Save the time at which the last successful check finished.
     profile_->GetPrefs()->SetDouble(
         password_manager::prefs::kLastTimePasswordCheckCompleted,
-        base::Time::Now().ToDoubleT());
+        base::Time::Now().InSecondsFSinceUnixEpoch());
     profile_->GetPrefs()->SetTime(
         password_manager::prefs::kSyncedLastTimePasswordCheckCompleted,
         base::Time::Now());
@@ -313,7 +314,7 @@ PasswordCheckUIStatus PasswordCheckManager::GetUIStatus(State state) const {
 }
 
 bool PasswordCheckManager::CanUseAccountCheck() const {
-  SyncState sync_state = password_manager_util::GetPasswordSyncState(
+  SyncState sync_state = password_manager::sync_util::GetPasswordSyncState(
       SyncServiceFactory::GetForProfile(profile_));
   switch (sync_state) {
     case SyncState::kNotSyncing:

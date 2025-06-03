@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Beweegt naar linksboven</translation>
 <translation id="3573890771273113519">Overschakelen naar scanmodus</translation>
 <translation id="3583444040776960729">Linkerbenedenhoek van document</translation>
+<translation id="3642192109456033823">Video verwerken…</translation>
 <translation id="3789724198583203151">90 graden linksom draaien</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Tekst kopiëren</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Opname onderbreken</translation>
 <translation id="4121305183798804752">Document waargenomen</translation>
 <translation id="414641094616694804">Deze camera kan de resolutie niet wijzigen</translation>
+<translation id="4176463684765177261">Uitgezet</translation>
 <translation id="4269820728363426813">Linkadres kopiëren</translation>
-<translation id="4281620174117014503">Gemiddelde resolutie</translation>
 <translation id="428234092390943511">Paginathumbnail</translation>
+<translation id="4349714250734879769">Frames schalen met Chrome</translation>
 <translation id="4383571725254449280">Prestatielogboeken afdrukken</translation>
 <translation id="4445542136948522167">Foto maken stoppen</translation>
 <translation id="4570032796877367747">Camera aan voorzijde</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Pagina <ph name="COUNT" /> scannen</translation>
 <translation id="5671277269877808209">Vierkant</translation>
+<translation id="574392208103952083">Gemiddeld</translation>
 <translation id="5746169159649715125">Opslaan als pdf</translation>
 <translation id="5753488212459587150">Expertmodus aanzetten</translation>
 <translation id="5759254179196327752">Document scannen</translation>
@@ -148,6 +151,7 @@ Als je feedback over de afbeeldings- of videokwaliteit gaat, voeg dan een voorbe
 <translation id="8145038249676204903">Naar foto maken</translation>
 <translation id="8167081290930651932">Opslaan als foto</translation>
 <translation id="8239780215768881278">Videomomentopname maken</translation>
+<translation id="8346544573713510785">Frames schalen met Camera HAL</translation>
 <translation id="8425673304802773841">Naar beneden kantelen</translation>
 <translation id="8428213095426709021">Instellingen</translation>
 <translation id="8629662593426079630">360p</translation>

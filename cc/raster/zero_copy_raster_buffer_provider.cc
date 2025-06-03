@@ -9,15 +9,17 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "cc/resources/resource_pool.h"
 #include "components/viz/client/client_resource_provider.h"
-#include "components/viz/common/gpu/context_provider.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/platform_color.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
@@ -28,6 +30,10 @@
 
 namespace cc {
 namespace {
+
+BASE_FEATURE(kAlwaysUseMappableSIForZeroCopyRaster,
+             "AlwaysUseMappableSIForZeroCopyRaster",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr static auto kBufferUsage = gfx::BufferUsage::GPU_READ_CPU_READ_WRITE;
 
@@ -49,10 +55,23 @@ class ZeroCopyGpuBacking : public ResourcePool::GpuBacking {
       const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
       uint64_t tracing_process_id,
       int importance) const override {
-    if (!gpu_memory_buffer)
-      return;
-    gpu_memory_buffer->OnMemoryDump(pmd, buffer_dump_guid, tracing_process_id,
-                                    importance);
+    if (base::FeatureList::IsEnabled(kAlwaysUseMappableSIForZeroCopyRaster)) {
+      if (mailbox.IsZero()) {
+        return;
+      }
+      auto mapping = shared_image_interface->MapSharedImage(mailbox);
+      if (!mapping) {
+        return;
+      }
+      mapping->OnMemoryDump(pmd, buffer_dump_guid, tracing_process_id,
+                            importance);
+    } else {
+      if (!gpu_memory_buffer) {
+        return;
+      }
+      gpu_memory_buffer->OnMemoryDump(pmd, buffer_dump_guid, tracing_process_id,
+                                      importance);
+    }
   }
 
   // The SharedImageInterface used to clean up the shared image.
@@ -81,12 +100,20 @@ class ZeroCopyRasterBufferImpl : public RasterBuffer {
   ZeroCopyRasterBufferImpl(const ZeroCopyRasterBufferImpl&) = delete;
 
   ~ZeroCopyRasterBufferImpl() override {
-    // If GpuMemoryBuffer allocation failed (https://crbug.com/554541), then
-    // we don't have anything to give to the display compositor, so we report a
-    // zero mailbox that will result in checkerboarding.
-    if (!gpu_memory_buffer_) {
-      DCHECK(backing_->mailbox.IsZero());
-      return;
+    // If MapSharedImage() or GpuMemoryBuffer allocation failed
+    // (https://crbug.com/554541), then we don't have anything to give to the
+    // display compositor, so we report a zero mailbox that will result in
+    // checkerboarding.
+    if (base::FeatureList::IsEnabled(kAlwaysUseMappableSIForZeroCopyRaster)) {
+      CHECK(!gpu_memory_buffer_);
+      if (backing_->mailbox.IsZero()) {
+        return;
+      }
+    } else {
+      if (!gpu_memory_buffer_) {
+        DCHECK(backing_->mailbox.IsZero());
+        return;
+      }
     }
 
     // This is destroyed on the compositor thread when raster is complete, but
@@ -96,14 +123,18 @@ class ZeroCopyRasterBufferImpl : public RasterBuffer {
     // we need to do things in IsResourceReadyToDraw() and OrderingBarrier then?
     gpu::SharedImageInterface* sii = backing_->shared_image_interface;
     if (backing_->mailbox.IsZero()) {
+      CHECK(
+          !base::FeatureList::IsEnabled(kAlwaysUseMappableSIForZeroCopyRaster));
       uint32_t usage = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
                        gpu::SHARED_IMAGE_USAGE_SCANOUT;
       // Make a mailbox for export of the GpuMemoryBuffer to the display
       // compositor.
-      backing_->mailbox = sii->CreateSharedImage(
-          gpu_memory_buffer_.get(), gpu_memory_buffer_manager_,
-          resource_color_space_, kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
-          usage, "ZeroCopyRasterTile");
+      auto client_shared_image = sii->CreateSharedImage(
+          format_, resource_size_, resource_color_space_,
+          kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage,
+          "ZeroCopyRasterTile", gpu_memory_buffer_->CloneHandle());
+      CHECK(client_shared_image);
+      backing_->mailbox = client_shared_image->mailbox();
     } else {
       sii->UpdateSharedImage(backing_->returned_sync_token, backing_->mailbox);
     }
@@ -124,31 +155,73 @@ class ZeroCopyRasterBufferImpl : public RasterBuffer {
                 const GURL& url) override {
     TRACE_EVENT0("cc", "ZeroCopyRasterBuffer::Playback");
 
-    if (!gpu_memory_buffer_) {
-      gpu_memory_buffer_ = gpu_memory_buffer_manager_->CreateGpuMemoryBuffer(
-          resource_size_, viz::BufferFormat(format_.resource_format()),
-          kBufferUsage, gpu::kNullSurfaceHandle, shutdown_event_);
-      // Note that GpuMemoryBuffer allocation can fail.
-      // https://crbug.com/554541
-      if (!gpu_memory_buffer_)
-        return;
-    }
+    std::unique_ptr<gpu::SharedImageInterface::ScopedMapping> mapping;
+    void* memory = nullptr;
+    size_t stride = 0;
 
-    DCHECK_EQ(1u, gfx::NumberOfPlanesForLinearBufferFormat(
-                      gpu_memory_buffer_->GetFormat()));
-    bool rv = gpu_memory_buffer_->Map();
-    DCHECK(rv);
-    DCHECK(gpu_memory_buffer_->memory(0));
-    // RasterBufferProvider::PlaybackToMemory only supports unsigned strides.
-    DCHECK_GE(gpu_memory_buffer_->stride(0), 0);
+    if (base::FeatureList::IsEnabled(kAlwaysUseMappableSIForZeroCopyRaster)) {
+      CHECK(!gpu_memory_buffer_);
+
+      gpu::SharedImageInterface* sii = backing_->shared_image_interface;
+
+      // Create a MappableSI if necessary.
+      if (backing_->mailbox.IsZero()) {
+        uint32_t usage = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
+                         gpu::SHARED_IMAGE_USAGE_SCANOUT;
+        auto client_shared_image = sii->CreateSharedImage(
+            format_, resource_size_, resource_color_space_,
+            kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage,
+            "ZeroCopyRasterTile", gpu::kNullSurfaceHandle, kBufferUsage);
+        if (!client_shared_image) {
+          LOG(ERROR) << "Creation of MappableSharedImage failed.";
+          return;
+        }
+        backing_->mailbox = client_shared_image->mailbox();
+      }
+
+      mapping = sii->MapSharedImage(backing_->mailbox);
+      if (!mapping) {
+        LOG(ERROR) << "MapSharedImage Failed.";
+        sii->DestroySharedImage(gpu::SyncToken(), backing_->mailbox);
+        backing_->mailbox.SetZero();
+        return;
+      }
+      memory = mapping->Memory(0);
+      stride = mapping->Stride(0);
+    } else {
+      if (!gpu_memory_buffer_) {
+        gpu_memory_buffer_ = gpu_memory_buffer_manager_->CreateGpuMemoryBuffer(
+            resource_size_,
+            viz::SinglePlaneSharedImageFormatToBufferFormat(format_),
+            kBufferUsage, gpu::kNullSurfaceHandle, shutdown_event_);
+        // Note that GpuMemoryBuffer allocation can fail.
+        // https://crbug.com/554541
+        if (!gpu_memory_buffer_) {
+          return;
+        }
+      }
+
+      CHECK_EQ(1u, gfx::NumberOfPlanesForLinearBufferFormat(
+                       gpu_memory_buffer_->GetFormat()));
+      bool rv = gpu_memory_buffer_->Map();
+      CHECK(rv);
+      CHECK(gpu_memory_buffer_->memory(0));
+      // RasterBufferProvider::PlaybackToMemory only supports unsigned strides.
+      CHECK_GE(gpu_memory_buffer_->stride(0), 0);
+
+      memory = gpu_memory_buffer_->memory(0);
+      stride = gpu_memory_buffer_->stride(0);
+    }
 
     // TODO(danakj): Implement partial raster with raster_dirty_rect.
     RasterBufferProvider::PlaybackToMemory(
-        gpu_memory_buffer_->memory(0), format_, resource_size_,
-        gpu_memory_buffer_->stride(0), raster_source, raster_full_rect,
-        raster_full_rect, transform, resource_color_space_,
+        memory, format_, resource_size_, stride, raster_source,
+        raster_full_rect, raster_full_rect, transform, resource_color_space_,
         /*gpu_compositing=*/true, playback_settings);
-    gpu_memory_buffer_->Unmap();
+
+    base::FeatureList::IsEnabled(kAlwaysUseMappableSIForZeroCopyRaster)
+        ? mapping.reset()
+        : gpu_memory_buffer_->Unmap();
   }
 
   bool SupportsBackgroundThreadPriority() const override { return true; }
@@ -170,11 +243,12 @@ class ZeroCopyRasterBufferImpl : public RasterBuffer {
 
 ZeroCopyRasterBufferProvider::ZeroCopyRasterBufferProvider(
     gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
-    viz::ContextProvider* compositor_context_provider,
-    viz::SharedImageFormat tile_format)
+    viz::RasterContextProvider* compositor_context_provider,
+    const RasterCapabilities& raster_caps)
     : gpu_memory_buffer_manager_(gpu_memory_buffer_manager),
       compositor_context_provider_(compositor_context_provider),
-      tile_format_(tile_format) {}
+      tile_format_(raster_caps.tile_format),
+      tile_texture_target_(raster_caps.tile_texture_target) {}
 
 ZeroCopyRasterBufferProvider::~ZeroCopyRasterBufferProvider() = default;
 
@@ -188,11 +262,8 @@ ZeroCopyRasterBufferProvider::AcquireBufferForRaster(
     bool depends_on_hardware_accelerated_webp_candidates) {
   if (!resource.gpu_backing()) {
     auto backing = std::make_unique<ZeroCopyGpuBacking>();
-    const gpu::Capabilities& caps =
-        compositor_context_provider_->ContextCapabilities();
-    backing->texture_target = gpu::GetBufferTextureTarget(
-        kBufferUsage, BufferFormat(resource.format().resource_format()), caps);
     backing->overlay_candidate = true;
+    backing->texture_target = tile_texture_target_;
     // This RasterBufferProvider will modify the resource outside of the
     // GL command stream. So resources should not become available for reuse
     // until they are not in use by the gpu anymore, which a fence is used
@@ -225,7 +296,7 @@ bool ZeroCopyRasterBufferProvider::CanPartialRasterIntoProvidedResource()
 }
 
 bool ZeroCopyRasterBufferProvider::IsResourceReadyToDraw(
-    const ResourcePool::InUsePoolResource& resource) const {
+    const ResourcePool::InUsePoolResource& resource) {
   // Zero-copy resources are immediately ready to draw.
   return true;
 }
@@ -233,7 +304,7 @@ bool ZeroCopyRasterBufferProvider::IsResourceReadyToDraw(
 uint64_t ZeroCopyRasterBufferProvider::SetReadyToDrawCallback(
     const std::vector<const ResourcePool::InUsePoolResource*>& resources,
     base::OnceClosure callback,
-    uint64_t pending_callback_id) const {
+    uint64_t pending_callback_id) {
   // Zero-copy resources are immediately ready to draw.
   return 0;
 }

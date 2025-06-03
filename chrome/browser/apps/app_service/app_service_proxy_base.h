@@ -77,7 +77,6 @@ struct IntentLaunchInfo {
 //
 // See components/services/app_service/README.md.
 class AppServiceProxyBase : public KeyedService,
-                            public IconLoader,
                             public PreferredAppsImpl::Host {
  public:
   explicit AppServiceProxyBase(Profile* profile);
@@ -112,22 +111,51 @@ class AppServiceProxyBase : public KeyedService,
   void OnSupportedLinksPreferenceChanged(const std::string& app_id,
                                          bool open_in_app) override;
 
-  // apps::IconLoader overrides.
-  absl::optional<IconKey> GetIconKey(const std::string& app_id) override;
-  std::unique_ptr<Releaser> LoadIconFromIconKey(
+  // Convenience method that calls app_icon_loader()->LoadIcon to load app icons
+  // with `app_id`. `callback` may be dispatched synchronously if it's possible
+  // to quickly return a result.
+  // TODO(crbug.com/1412708): Remove app_type from interface.
+  std::unique_ptr<IconLoader::Releaser> LoadIcon(
       AppType app_type,
       const std::string& app_id,
-      const IconKey& icon_key,
+      const IconType& icon_type,
+      int32_t size_hint_in_dip,
+      bool allow_placeholder_icon,
+      apps::LoadIconCallback callback);
+
+  // Get the default icon effects for the app represented by `app_id`,
+  // which will be used when calling `LoadIcon()` for that app.
+  uint32_t GetIconEffects(const std::string& app_id);
+
+  // Load the icon for app represented by `app_id`. `icon_effect` can be used to
+  // specify custom icon effect the caller wants to apply on the icon.
+  // `allow_placeholder_icon` indicate whether we allow loading placeholder icon
+  // from the in memory cache and do not attempt to retry to load the actual
+  // icon.
+  // TODO(crbug.com/1412708): Remove app_type from interface.
+  std::unique_ptr<IconLoader::Releaser> LoadIconWithIconEffects(
+      AppType app_type,
+      const std::string& app_id,
+      uint32_t icon_effects,
       IconType icon_type,
       int32_t size_hint_in_dip,
       bool allow_placeholder_icon,
-      LoadIconCallback callback) override;
+      LoadIconCallback callback);
 
-  // Launches the app for the given |app_id|. |event_flags| provides additional
-  // context about the action which launches the app (e.g. a middle click
-  // indicating opening a background tab). |launch_source| is the possible app
-  // launch sources, e.g. from Shelf, from the search box, etc. |window_info| is
-  // the window information to launch an app, e.g. display_id, window bounds.
+  // Return the most outer layer of the app icon loader that app service owns.
+  IconLoader* app_icon_loader() { return &app_outer_icon_loader_; }
+
+  // Launches the app for the given `app_id`.
+  //
+  // - `event_flags` is a bitset of ui::EventFlags providing additional context
+  // about the action which launches the app (e.g. a middle click indicating
+  // opening a background tab).
+  // - `launch_source` is the UI surface which is launching the app (e.g. shelf,
+  // search box).
+  // - `window_info` specifies the desired location of the new app window
+  // (e.g. window bounds, display ID). If `window_info` is nullptr, the app
+  // publisher will position the new app window using its default behavior (e.g.
+  // on the currently active display).
   //
   // Note: prefer using LaunchSystemWebAppAsync() for launching System Web Apps,
   // as that is robust to the choice of profile and avoids needing to specify an
@@ -146,11 +174,19 @@ class AppServiceProxyBase : public KeyedService,
                           LaunchSource launch_source,
                           std::vector<base::FilePath> file_paths);
 
-  // Launches an app for the given |app_id|, passing |intent| to the app.
-  // |event_flags| provides additional context about the action which launch the
-  // app (e.g. a middle click indicating opening a background tab).
-  // |launch_source| is the possible app launch sources. |window_info| is the
-  // window information to launch an app, e.g. display_id, window bounds.
+  // Launches an app for the given `app_id`, passing `intent` to the app.
+  //
+  // - `event_flags` is a bitset of ui::EventFlags providing additional context
+  // about the action which launches the app (e.g. a middle click indicating
+  // opening a background tab).
+  // - `launch_source` is the UI surface which is launching the app (e.g. shelf,
+  // search box).
+  // - `window_info` specifies the desired location of the new app window
+  // (e.g. window bounds, display ID). If `window_info` is nullptr, the app
+  // publisher will position the new app window using its default behavior (e.g.
+  // on the currently active display).
+  // - `callback` will be called with the result of the launch once it is
+  // complete.
   virtual void LaunchAppWithIntent(const std::string& app_id,
                                    int32_t event_flags,
                                    IntentPtr intent,
@@ -158,11 +194,19 @@ class AppServiceProxyBase : public KeyedService,
                                    WindowInfoPtr window_info,
                                    LaunchCallback callback);
 
-  // Launches an app for the given |app_id|, passing |url| to the app.
-  // |event_flags| provides additional context about the action which launch the
-  // app (e.g. a middle click indicating opening a background tab).
-  // |launch_source| is the possible app launch sources. |window_info| is the
-  // window information to launch an app, e.g. display_id, window bounds.
+  // Launches an app for the given `app_id`, passing `url` to the app.
+  //
+  // - `event_flags` is a bitset of ui::EventFlags providing additional context
+  // about the action which launches the app (e.g. a middle click indicating
+  // opening a background tab).
+  // - `launch_source` is the UI surface which is launching the app (e.g. shelf,
+  // search box).
+  // - `window_info` specifies the desired location of the new app window
+  // (e.g. window bounds, display ID). If `window_info` is nullptr, the app
+  // publisher will position the new app window using its default behavior (e.g.
+  // on the currently active display).
+  // - `callback` will be called with the result of the launch once it is
+  // complete.
   void LaunchAppWithUrl(const std::string& app_id,
                         int32_t event_flags,
                         GURL url,
@@ -170,7 +214,7 @@ class AppServiceProxyBase : public KeyedService,
                         WindowInfoPtr window_info = nullptr,
                         LaunchCallback callback = base::DoNothing());
 
-  // Launches an app for the given |params.app_id|. The |params| can also
+  // Launches an app for the given `params.app_id`. The `params` can also
   // contain other param such as launch container, window diposition, etc.
   // Currently the return value in the callback will only be filled up for
   // Chrome OS web apps and Chrome apps.
@@ -201,6 +245,12 @@ class AppServiceProxyBase : public KeyedService,
                     MenuType menu_type,
                     int64_t display_id,
                     base::OnceCallback<void(MenuItems)> callback);
+
+  // Requests the size of an app with |app_id|. Publishers are expected to
+  // calculate and update the size of the app and publish this to App Service.
+  // This allows app sizes to be requested on-demand and ensure up-to-date
+  // values.
+  void UpdateAppSize(const std::string& app_id);
 
   // Executes a shortcut menu |command_id| and |shortcut_id| for a menu item
   // previously built with GetMenuModel(). |app_id| is the menu app.
@@ -238,15 +288,6 @@ class AppServiceProxyBase : public KeyedService,
   // applied) which can handle |files|.
   std::vector<IntentLaunchInfo> GetAppsForFiles(
       std::vector<apps::IntentFilePtr> files);
-
-  // Adds a preferred app for |url|.
-  // Deprecated, prefer calling SetSupportedLinksPreference() instead.
-  // TODO(crbug.com/1416434): Migrate existing users.
-  void AddPreferredApp(const std::string& app_id, const GURL& url);
-  // Adds a preferred app for |intent|. Only supports link intents.
-  // Deprecated, prefer calling SetSupportedLinksPreference() instead.
-  // TODO(crbug.com/1416434): Migrate existing users.
-  void AddPreferredApp(const std::string& app_id, const IntentPtr& intent);
 
   // Sets |app_id| as the preferred app for all of its supported links ('view'
   // intent filters with a scheme and host). Any existing preferred apps for
@@ -288,17 +329,16 @@ class AppServiceProxyBase : public KeyedService,
   // An adapter, presenting an IconLoader interface based on the underlying
   // service (or on a fake implementation for testing).
   //
-  // Conceptually, the ASP (the AppServiceProxyBase) is itself such an adapter:
-  // UI clients call the IconLoader::LoadIconFromIconKey method (which the ASP
-  // implements) and the ASP translates (i.e. adapts) these to publisher's
-  // LoadIcon calls (or C++ calls to the Fake). This diagram shows control flow
-  // going left to right (with "=c=>" and "=> Publisher::LoadIcon" denoting C++
-  // and publisher's LoadIcon calls), and the responses (callbacks) then run
-  // right to left in LIFO order:
+  // UI clients call through ASP interface to call into the IconLoader owned
+  // by ASP, which will eventually call into this adapter. This adapter then
+  // calls into IconReader to read the icon from App Service Icon storage on
+  // disk. The publishers will install the icon to the App Service Icon storage
+  // if it is not present. This diagram shows control flow going left to right,
+  // and the responses (callbacks) then run right to left in LIFO order:
   //
-  //   UI =c=> ASP => Publisher::LoadIcon
-  //                |       or
-  //                +=c=> Fake
+  //   UI => ASP => IconLoader =>  IconReader
+  //                            |    or
+  //                            +=> Fake
   //
   // It is more complicated in practice, as we want to insert IconLoader
   // decorators (as in the classic "decorator" or "wrapper" design pattern) to
@@ -309,33 +349,31 @@ class AppServiceProxyBase : public KeyedService,
   // sub-components. Once again, control flow runs from left to right, and
   // inside the ASP, outer layers (wrappers) call into inner layers (wrappees):
   //
-  //           +------------------ ASP ------------------+
-  //           |                                         |
-  //   UI =c=> | Outer =c=> MoreDecorators... =c=> Inner | =>
-  //   Publisher::LoadIcon
-  //           |                                         |  |       or
-  //           +-----------------------------------------+  +=c=> Fake
+  //         +------------------ ASP ----------------+
+  //         |                                       |
+  //   UI => | Outer => MoreDecorators... => Inner   | => IconReader
+  //         |                                       |  |    or
+  //         +---------------------------------------+  +=> Fake
   //
-  // The inner_icon_loader_ field (of type InnerIconLoader) is the "Inner"
-  // component: the one that ultimately talks to the Mojo service.
+  // The app_inner_icon_loader_ field (of type AppInnerIconLoader) is the
+  // "Inner" component: the one that ultimately talks to the Mojo service.
   //
-  // The outer_icon_loader_ field (of type IconCache) is the "Outer" component:
-  // the entry point for calls into the AppServiceProxyBase.
+  // The app_outer_icon_loader_ field (of type IconCache) is the "Outer"
+  // component: the entry point for calls into the AppServiceProxyBase.
   //
   // Note that even if the ASP provides some icon caching, upstream UI clients
   // may want to introduce further icon caching. See the commentary where
   // IconCache::GarbageCollectionPolicy is defined.
   //
   // IPC coalescing would be one of the "MoreDecorators".
-  class InnerIconLoader : public apps::IconLoader {
+  class AppInnerIconLoader : public apps::IconLoader {
    public:
-    explicit InnerIconLoader(AppServiceProxyBase* host);
+    explicit AppInnerIconLoader(AppServiceProxyBase* host);
 
     // apps::IconLoader overrides.
-    absl::optional<IconKey> GetIconKey(const std::string& app_id) override;
+    absl::optional<IconKey> GetIconKey(const std::string& id) override;
     std::unique_ptr<Releaser> LoadIconFromIconKey(
-        AppType app_type,
-        const std::string& app_id,
+        const std::string& id,
         const IconKey& icon_key,
         IconType icon_type,
         int32_t size_hint_in_dip,
@@ -346,7 +384,8 @@ class AppServiceProxyBase : public KeyedService,
     // field.
     raw_ptr<AppServiceProxyBase> host_;
 
-    raw_ptr<apps::IconLoader> overriding_icon_loader_for_testing_;
+    raw_ptr<apps::IconLoader, DanglingUntriaged>
+        overriding_icon_loader_for_testing_;
   };
 
   virtual bool IsValidProfile();
@@ -410,9 +449,9 @@ class AppServiceProxyBase : public KeyedService,
   // inner. Fields are listed from inner to outer, the opposite of call order,
   // as each one depends on the previous one, and in the constructor,
   // initialization happens in field order.
-  InnerIconLoader inner_icon_loader_;
-  IconCoalescer icon_coalescer_;
-  IconCache outer_icon_loader_;
+  AppInnerIconLoader app_inner_icon_loader_;
+  IconCoalescer app_icon_coalescer_;
+  IconCache app_outer_icon_loader_;
 
   std::unique_ptr<apps::PreferredAppsImpl> preferred_apps_impl_;
 

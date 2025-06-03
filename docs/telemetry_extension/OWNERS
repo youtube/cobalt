@@ -1,2 +1,4 @@
+file://chromeos/ash/services/cros_healthd/OWNERS
+
+# Backup reviewers
 bkersting@google.com
-lamzin@google.com

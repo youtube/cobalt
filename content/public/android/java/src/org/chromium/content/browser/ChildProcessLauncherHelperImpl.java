@@ -11,9 +11,12 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 
-import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
@@ -26,12 +29,8 @@ import org.chromium.base.JavaExceptionReporter;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryLoader.MultiProcessMediator;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.process_launcher.ChildConnectionAllocator;
 import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.ChildProcessConstants;
@@ -43,12 +42,11 @@ import org.chromium.content.app.SandboxedProcessService;
 import org.chromium.content.common.ContentSwitchUtils;
 import org.chromium.content_public.browser.ChildProcessImportance;
 import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.content_public.common.ContentSwitches;
 
 import java.io.IOException;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -243,30 +241,6 @@ public final class ChildProcessLauncherHelperImpl {
                 }
             };
 
-    @IntDef({ZygoteChildState.FAILED_TO_CREATE_BUNDLE, ZygoteChildState.FIRST_USABLE_ZYGOTE,
-            ZygoteChildState.ZYGOTE_RESTARTED, ZygoteChildState.ZYGOTE_SEEN})
-    @Retention(RetentionPolicy.SOURCE)
-    private @interface ZygoteChildState {
-        // These values are persisted to logs. Entries should not be renumbered and numeric values
-        // should never be reused.
-        int FAILED_TO_CREATE_BUNDLE = 0;
-        int FIRST_USABLE_ZYGOTE = 1;
-        int ZYGOTE_RESTARTED = 2;
-        int ZYGOTE_SEEN = 3;
-        int COUNT = 4;
-    }
-
-    /**
-     * Records a histogram telling what is known about the App Zygote that the
-     * current isolated process was forked from. Must be called once per
-     * isolated process (but only if it comes from the app zygote (S+) and RELRO
-     * sharing with the app zygote is working.
-     */
-    private static void recordChildStateHistogram(@ZygoteChildState int state) {
-        RecordHistogram.recordEnumeratedHistogram(
-                "ChromiumAndroidLinker.ChildProcessZygoteState", state, ZygoteChildState.COUNT);
-    }
-
     /**
      * Called for every new child connection. Receives a possibly null bundle inherited from the App
      * Zygote. Sends the bundle to existing processes that did not have usable bundles or sends
@@ -290,7 +264,6 @@ public final class ChildProcessLauncherHelperImpl {
         // If the process was created from the app zygote, but failed to generate the the zygote
         // bundle - ignore it.
         if (zygoteBundle == null) {
-            recordChildStateHistogram(ZygoteChildState.FAILED_TO_CREATE_BUNDLE);
             return;
         }
 
@@ -301,7 +274,6 @@ public final class ChildProcessLauncherHelperImpl {
         }
 
         Log.d(TAG, "Encountered the first usable RELRO bundle.");
-        recordChildStateHistogram(ZygoteChildState.FIRST_USABLE_ZYGOTE);
         sZygotePid = connection.getZygotePid();
         sZygoteBundle = zygoteBundle;
 
@@ -318,10 +290,8 @@ public final class ChildProcessLauncherHelperImpl {
     private static void onObtainedUsableZygoteBundle(ChildProcessConnection connection) {
         if (sZygotePid != connection.getZygotePid()) {
             Log.d(TAG, "Zygote restarted.");
-            recordChildStateHistogram(ZygoteChildState.ZYGOTE_RESTARTED);
             return;
         }
-        recordChildStateHistogram(ZygoteChildState.ZYGOTE_SEEN);
         // TODO(pasko): To avoid accumulating open file descriptors close the received RELRO FD
         // if it cannot be used.
     }
@@ -396,7 +366,7 @@ public final class ChildProcessLauncherHelperImpl {
         if (!ContentSwitches.SWITCH_RENDERER_PROCESS.equals(processType)) {
             if (ContentSwitches.SWITCH_GPU_PROCESS.equals(processType)) {
                 sandboxed = false;
-                reducePriorityOnBackground = ContentFeatureList.isEnabled(
+                reducePriorityOnBackground = ContentFeatureMap.isEnabled(
                         ContentFeatures.REDUCE_GPU_PRIORITY_ON_BACKGROUND);
             } else {
                 // We only support sandboxed utility processes now.
@@ -463,9 +433,6 @@ public final class ChildProcessLauncherHelperImpl {
      */
     public static void startBindingManagement(final Context context) {
         assert ThreadUtils.runningOnUiThread();
-        final int maxConnections = ContentFeatureList.getFieldTrialParamByFeatureAsInt(
-                ContentFeatures.BINDING_MANAGER_CONNECTION_LIMIT, "max_connections",
-                BindingManager.NO_MAX_SIZE);
         LauncherThread.post(new Runnable() {
             @Override
             public void run() {
@@ -473,12 +440,9 @@ public final class ChildProcessLauncherHelperImpl {
                         getConnectionAllocator(context, true /* sandboxed */);
                 if (ChildProcessConnection.supportVariableConnections()) {
                     sBindingManager = new BindingManager(
-                            context, maxConnections, sSandboxedChildConnectionRanking);
+                            context, BindingManager.NO_MAX_SIZE, sSandboxedChildConnectionRanking);
                 } else {
-                    sBindingManager = new BindingManager(context,
-                            (maxConnections == BindingManager.NO_MAX_SIZE)
-                                    ? allocator.getNumberOfServices()
-                                    : Math.min(allocator.getNumberOfServices(), maxConnections),
+                    sBindingManager = new BindingManager(context, allocator.getNumberOfServices(),
                             sSandboxedChildConnectionRanking);
                 }
                 ChildProcessConnectionMetrics.getInstance().setBindingManager(sBindingManager);
@@ -539,7 +503,6 @@ public final class ChildProcessLauncherHelperImpl {
         });
     }
 
-    @VisibleForTesting
     public static void setSandboxServicesSettingsForTesting(
             ChildConnectionAllocator.ConnectionFactory factory, int serviceCount,
             String serviceName) {
@@ -548,7 +511,6 @@ public final class ChildProcessLauncherHelperImpl {
         sSandboxedServicesNameForTesting = serviceName;
     }
 
-    @VisibleForTesting
     public static void setSkipDelayForReducePriorityOnBackgroundForTesting() {
         sSkipDelayForReducePriorityOnBackgroundForTesting = true;
     }
@@ -725,7 +687,7 @@ public final class ChildProcessLauncherHelperImpl {
             boostForPendingViews = false;
         }
 
-        boolean mediaRendererHasModerate = ContentFeatureList.isEnabled(
+        boolean mediaRendererHasModerate = ContentFeatureMap.isEnabled(
                 ContentFeatureList.BACKGROUND_MEDIA_RENDERER_HAS_MODERATE_BINDING);
 
         @ChildProcessImportance
@@ -876,18 +838,15 @@ public final class ChildProcessLauncherHelperImpl {
 
     // Testing only related methods.
 
-    @VisibleForTesting
     int getPidForTesting() {
         assert LauncherThread.runningOnLauncherThread();
         return mLauncher.getPid();
     }
 
-    @VisibleForTesting
     public static Map<Integer, ChildProcessLauncherHelperImpl> getAllProcessesForTesting() {
         return sLauncherByPid;
     }
 
-    @VisibleForTesting
     public static ChildProcessLauncherHelperImpl createAndStartForTesting(String[] commandLine,
             FileDescriptorInfo[] filesToBeMapped, boolean sandboxed,
             boolean reducePriorityOnBackground, boolean canUseWarmUpConnection,
@@ -900,7 +859,6 @@ public final class ChildProcessLauncherHelperImpl {
     }
 
     /** @return the count of services set-up and working. */
-    @VisibleForTesting
     static int getConnectedServicesCountForTesting() {
         int count = sPrivilegedChildConnectionAllocator == null
                 ? 0
@@ -908,7 +866,6 @@ public final class ChildProcessLauncherHelperImpl {
         return count + getConnectedSandboxedServicesCountForTesting();
     }
 
-    @VisibleForTesting
     public static int getConnectedSandboxedServicesCountForTesting() {
         return sSandboxedChildConnectionAllocator == null
                 ? 0
@@ -920,12 +877,10 @@ public final class ChildProcessLauncherHelperImpl {
         return mLauncher.getConnection();
     }
 
-    @VisibleForTesting
     public ChildConnectionAllocator getChildConnectionAllocatorForTesting() {
         return mLauncher.getConnectionAllocator();
     }
 
-    @VisibleForTesting
     public static ChildProcessConnection getWarmUpConnectionForTesting(boolean sandboxed) {
         SpareChildConnection connection =
                 sandboxed ? sSpareSandboxedConnection : sSparePrivilegedConntection;

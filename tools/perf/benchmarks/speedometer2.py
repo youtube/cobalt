@@ -19,8 +19,8 @@ from telemetry.web_perf import timeline_based_measurement
 
 from page_sets import speedometer2_pages
 
-_SPEEDOMETER_DIR = os.path.join(path_util.GetChromiumSrcDir(),
-    'third_party', 'blink', 'perf_tests', 'speedometer')
+_PERF_TEST_DIR = os.path.join(path_util.GetChromiumSrcDir(), 'third_party',
+                              'blink', 'perf_tests')
 
 
 class _Speedometer2(press._PressBenchmark):  # pylint: disable=protected-access
@@ -47,7 +47,7 @@ class _Speedometer2(press._PressBenchmark):  # pylint: disable=protected-access
     filtered_suite_names = list(
         map(story_cls.GetFullSuiteName, story_cls.GetSuites(options.suite)))
 
-    story_set = story.StorySet(base_dir=_SPEEDOMETER_DIR)
+    story_set = story.StorySet(base_dir=self._SOURCE_DIR)
 
     # For a smoke test one iteration is sufficient
     if self.enable_smoke_test_mode and not self.iteration_count:
@@ -130,6 +130,9 @@ class _Speedometer2(press._PressBenchmark):  # pylint: disable=protected-access
 class Speedometer20(_Speedometer2):
   """Speedometer2.0 benchmark.
   Explicitly named version."""
+
+  _SOURCE_DIR = os.path.join(_PERF_TEST_DIR, 'speedometer20')
+
   @classmethod
   def GetStoryClass(cls):
     return speedometer2_pages.Speedometer20Story
@@ -145,6 +148,9 @@ class Speedometer20(_Speedometer2):
 class Speedometer21(_Speedometer2):
   """Speedometer2.1 benchmark.
   Explicitly named version."""
+
+  _SOURCE_DIR = os.path.join(_PERF_TEST_DIR, 'speedometer21')
+
   @classmethod
   def GetStoryClass(cls):
     return speedometer2_pages.Speedometer21Story
@@ -156,8 +162,8 @@ class Speedometer21(_Speedometer2):
 
 @benchmark.Info(emails=['cbruni@chromium.org', 'vahl@chromium.org'],
                 component='Blink>JavaScript',
-                documentation_url='https://browserbench.org/Speedometer2.0')
-class Speedometer2(_Speedometer2):
+                documentation_url='https://browserbench.org/Speedometer2.1')
+class Speedometer2(Speedometer21):
   """The latest version of the Speedometer2 benchmark."""
   @classmethod
   def GetStoryClass(cls):
@@ -170,7 +176,7 @@ class Speedometer2(_Speedometer2):
 
 @benchmark.Info(emails=['cbruni@chromium.org', 'vahl@chromium.org'],
                 component='Blink>JavaScript',
-                documentation_url='https://browserbench.org/Speedometer2.0')
+                documentation_url='https://browserbench.org/Speedometer2.1')
 class V8Speedometer2Future(Speedometer2):
   """The latest Speedometer2 benchmark with the V8 flag --future.
 
@@ -187,16 +193,16 @@ class V8Speedometer2Future(Speedometer2):
 
 @benchmark.Info(emails=['omerkatz@chromium.org'],
                 component='Blink>JavaScript>GarbageCollection',
-                documentation_url='https://browserbench.org/Speedometer2.0')
-class Speedometer2MinorMC(Speedometer2):
-  """The latest Speedometer2 benchmark with the MinorMC flag.
+                documentation_url='https://browserbench.org/Speedometer2.1')
+class Speedometer2NoMinorMS(Speedometer2):
+  """The latest Speedometer2 benchmark without the MinorMS flag.
 
-  Shows the performance of upcoming MinorMC young generation GC in V8.
+  Shows the performance of Scavenger young generation GC in V8.
   """
 
   @classmethod
   def Name(cls):
-    return 'speedometer2-minormc'
+    return 'speedometer2-nominorms'
 
   def SetExtraBrowserOptions(self, options):
-    options.AppendExtraBrowserArgs('--js-flags=--minor-mc')
+    options.AppendExtraBrowserArgs('--js-flags=--no-minor-ms')

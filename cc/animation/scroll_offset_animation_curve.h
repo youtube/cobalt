@@ -45,13 +45,13 @@ class CC_ANIMATION_EXPORT ScrollOffsetAnimationCurve
   // style scroll animation curves.
   enum class DurationBehavior {
     // Duration proportional to scroll delta; used for programmatic scrolls.
-    DELTA_BASED,
+    kDeltaBased,
     // Constant duration; used for keyboard scrolls.
-    CONSTANT,
+    kConstant,
     // Duration inversely proportional to scroll delta within certain bounds.
     // Used for mouse wheels, makes fast wheel flings feel "snappy" while
     // preserving smoothness of slow wheel movements.
-    INVERSE_DELTA
+    kInverseDelta
   };
 
   static const ScrollOffsetAnimationCurve* ToScrollOffsetAnimationCurve(
@@ -162,7 +162,7 @@ class CC_ANIMATION_EXPORT ScrollOffsetAnimationCurve
 
   static absl::optional<double> animation_duration_for_testing_;
 
-  raw_ptr<Target> target_ = nullptr;
+  raw_ptr<Target, DanglingUntriaged> target_ = nullptr;
 };
 
 }  // namespace cc

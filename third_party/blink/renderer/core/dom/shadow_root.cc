@@ -51,7 +51,7 @@ namespace blink {
 struct SameSizeAsShadowRoot : public DocumentFragment,
                               public TreeScope,
                               public ElementRareDataField {
-  Member<void*> member[3];
+  Member<void*> member[2];
   unsigned flags[1];
 };
 
@@ -66,7 +66,6 @@ ShadowRoot::ShadowRoot(Document& document, ShadowRootType type)
               &ShadowRoot::OnAdoptedStyleSheetSet),
           static_cast<V8ObservableArrayCSSStyleSheet::DeleteAlgorithmCallback>(
               &ShadowRoot::OnAdoptedStyleSheetDelete)),
-      style_sheet_list_(nullptr),
       child_shadow_root_count_(0),
       type_(static_cast<unsigned>(type)),
       registered_with_parent_shadow_root_(false),
@@ -101,7 +100,10 @@ void ShadowRoot::DidChangeHostChildSlotName(const AtomicString& old_value,
   slot_assignment_->DidChangeHostChildSlotName(old_value, new_value);
 }
 
-Node* ShadowRoot::Clone(Document&, CloneChildrenFlag) const {
+Node* ShadowRoot::Clone(Document&,
+                        NodeCloningData&,
+                        ContainerNode*,
+                        ExceptionState&) const {
   NOTREACHED() << "ShadowRoot nodes are not clonable.";
   return nullptr;
 }
@@ -151,11 +153,23 @@ String ShadowRoot::getInnerHTML(const GetInnerHTMLOptions* options) const {
 void ShadowRoot::setInnerHTML(const String& html,
                               ExceptionState& exception_state) {
   if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
-          html, &host(), kAllowScriptingContent, "innerHTML",
+          html, &host(), kAllowScriptingContent,
           /*include_shadow_roots=*/false, exception_state)) {
     ReplaceChildrenWithFragment(this, fragment, exception_state);
     if (auto* element = DynamicTo<HTMLElement>(host()))
       element->AdjustDirectionalityIfNeededAfterShadowRootChanged();
+  }
+}
+
+void ShadowRoot::setHTMLUnsafe(const String& html,
+                               ExceptionState& exception_state) {
+  if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
+          html, &host(), kAllowScriptingContent,
+          /*include_shadow_roots=*/true, exception_state)) {
+    ReplaceChildrenWithFragment(this, fragment, exception_state);
+    if (auto* element = DynamicTo<HTMLElement>(host())) {
+      element->AdjustDirectionalityIfNeededAfterShadowRootChanged();
+    }
   }
 }
 
@@ -247,21 +261,17 @@ void ShadowRoot::ChildrenChanged(const ChildrenChange& change) {
   }
 }
 
-StyleSheetList& ShadowRoot::StyleSheets() {
-  if (!style_sheet_list_)
-    SetStyleSheets(MakeGarbageCollected<StyleSheetList>(this));
-  return *style_sheet_list_;
-}
-
 void ShadowRoot::SetRegistry(CustomElementRegistry* registry) {
   DCHECK(!registry_);
   DCHECK(!registry ||
          RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
   registry_ = registry;
+  if (registry) {
+    registry->AssociatedWith(GetDocument());
+  }
 }
 
 void ShadowRoot::Trace(Visitor* visitor) const {
-  visitor->Trace(style_sheet_list_);
   visitor->Trace(slot_assignment_);
   visitor->Trace(registry_);
   ElementRareDataField::Trace(visitor);

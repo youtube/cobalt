@@ -22,6 +22,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
@@ -36,6 +37,7 @@
 #include "storage/browser/quota/quota_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/animation/animation_test_api.h"
 
 namespace base {
 class CommandLine;
@@ -45,6 +47,10 @@ class TimeDelta;
 
 namespace chromeos {
 class ScopedDisableCrosapiForTesting;
+}
+
+namespace ui {
+class ScopedAnimationDurationScaleMode;
 }
 
 namespace content {
@@ -228,6 +234,11 @@ class BrowserTestBase : public ::testing::Test {
   // Performs a bunch of setup, and then runs the browser test body.
   void ProxyRunTestOnMainThreadLoop();
 
+  // Sets `initialized_network_process_` to false and calls
+  // InitializeNetworkProcess(). Used when restarting the network service
+  // process.
+  void ForceInitializeNetworkProcess();
+
   // When using the network process, update the host resolver rules that were
   // added in SetUpOnMainThread.
   void InitializeNetworkProcess();
@@ -267,11 +278,16 @@ class BrowserTestBase : public ::testing::Test {
   // the --force-device-scale-factor flag in SetUp.
   float force_device_scale_factor_ = 0.f;
 
+  // When verifying pixel output, animations are disabled to reduce flakiness.
+  std::unique_ptr<ui::ScopedAnimationDurationScaleMode>
+      disable_layer_animations_;
+  gfx::AnimationTestApi::RenderModeResetter disable_rich_animations_;
+
   // When true, do compositing with the software backend instead of using GL.
   bool use_software_compositing_ = false;
 
   // Initial WebContents to watch for navigations during SetUpOnMainThread.
-  raw_ptr<WebContents, DanglingUntriaged> initial_web_contents_ = nullptr;
+  base::WeakPtr<WebContents> initial_web_contents_;
 
   // Whether SetUp was called. This value is checked in the destructor of this
   // class to ensure that SetUp was called. If it's not called, the test will
@@ -292,7 +308,8 @@ class BrowserTestBase : public ::testing::Test {
 
   bool allow_network_access_to_host_resolutions_ = false;
 
-  raw_ptr<BrowserMainParts, DanglingUntriaged> browser_main_parts_ = nullptr;
+  raw_ptr<BrowserMainParts, AcrossTasksDanglingUntriaged> browser_main_parts_ =
+      nullptr;
 
 #if BUILDFLAG(IS_POSIX)
   bool handle_sigterm_;

@@ -120,7 +120,7 @@ static const SSL_CIPHER *choose_tls13_cipher(
       cipher_suites,
       ssl->config->aes_hw_override ? ssl->config->aes_hw_override_value
                                    : EVP_has_aes_hardware(),
-      version, group_id, ssl->config->only_fips_cipher_suites_in_tls13);
+      version, group_id, ssl->config->tls13_cipher_policy);
 }
 
 static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
@@ -1051,7 +1051,11 @@ static enum ssl_hs_wait_t do_read_client_encrypted_extensions(
       return ssl_hs_error;
     }
 
-    SSLExtension application_settings(TLSEXT_TYPE_application_settings);
+    uint16_t extension_type = TLSEXT_TYPE_application_settings_old;
+    if (hs->config->alps_use_new_codepoint) {
+      extension_type = TLSEXT_TYPE_application_settings;
+    }
+    SSLExtension application_settings(extension_type);
     uint8_t alert = SSL_AD_DECODE_ERROR;
     if (!ssl_parse_extensions(&extensions, &alert, {&application_settings},
                               /*ignore_unknown=*/false)) {

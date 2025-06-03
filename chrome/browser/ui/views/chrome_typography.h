@@ -62,10 +62,6 @@ enum ChromeTextContext {
   //   - Error messages in password manager (manage_passwords_details_view.cc)
   CONTEXT_OMNIBOX_DEEMPHASIZED,
 
-  // Text for titles, body text and buttons that appear in dialogs attempting to
-  // mimic the native Windows 10 look and feel.
-  CONTEXT_WINDOWS10_NATIVE,
-
   // ToolbarButton label
   CONTEXT_TOOLBAR_BUTTON,
 
@@ -111,11 +107,6 @@ enum ChromeTextStyle {
 // |available_height|.
 int GetFontSizeDeltaBoundedByAvailableHeight(int available_height,
                                              int desired_font_size);
-
-// Takes a desired font size and returns the size delta to request from
-// ui::ResourceBundle that will result in exactly that font size, canceling
-// out any font size changes made to account for locale or user settings.
-int GetFontSizeDeltaIgnoringUserOrLocaleSettings(int desired_font_size);
 
 // Sets the |details| for text that should not be affected by the Harmony spec.
 void ApplyCommonFontStyles(int context,

@@ -26,7 +26,7 @@ import './site_details_permission.js';
 import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -128,11 +128,21 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
             loadTimeData.getBoolean('enableWebBluetoothNewPermissionsBackend'),
       },
 
+      autoPictureInPictureEnabled_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('autoPictureInPictureEnabled'),
+      },
+
       isPrivacySandboxSettings4_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('isPrivacySandboxSettings4');
         },
+      },
+
+      blockMidiByDefault_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('blockMidiByDefault'),
       },
 
       contentSettingsTypesEnum_: {
@@ -156,6 +166,8 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
   private fpsEnterprisePref_: chrome.settingsPrivate.PrefObject;
   private enableExperimentalWebPlatformFeatures_: boolean;
   private enableWebBluetoothNewPermissionsBackend_: boolean;
+  private autoPictureInPictureEnabled_: boolean;
+  private blockMidiByDefault_: boolean;
   private websiteUsageProxy_: WebsiteUsageBrowserProxy =
       WebsiteUsageBrowserProxyImpl.getInstance();
 
@@ -283,15 +295,6 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
           // exception.
           assert(exceptionList.length > 0);
           this.pageTitle = exceptionList[0].displayName;
-
-          // If the origin is an extension origin, use the extension name if
-          // available.
-          if (exceptionList[0].extensionNameWithId !== undefined) {
-            const url = this.toUrl(exceptionList[0].origin);
-            if (url !== null && url.protocol === 'chrome-extension:') {
-              this.pageTitle = exceptionList[0].extensionNameWithId;
-            }
-          }
         });
   }
 

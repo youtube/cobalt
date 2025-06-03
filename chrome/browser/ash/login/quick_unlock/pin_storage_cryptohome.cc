@@ -171,6 +171,7 @@ absl::optional<Key> PinStorageCryptohome::TransformPinKey(
 
 PinStorageCryptohome::PinStorageCryptohome()
     : pin_salt_storage_(std::make_unique<PinSaltStorage>()),
+      auth_factor_editor_(UserDataAuthClient::Get()),
       auth_performer_(UserDataAuthClient::Get()) {
   SystemSaltGetter::Get()->GetSystemSalt(base::BindOnce(
       &PinStorageCryptohome::OnSystemSaltObtained, weak_factory_.GetWeakPtr()));
@@ -309,7 +310,7 @@ void PinStorageCryptohome::TryAuthenticate(
 
   if (!user_context->GetAuthSessionId().empty()) {
     NOTREACHED() << "TryAuthenticate called with existing auth session";
-    user_context->SetAuthSessionId(std::string());
+    user_context->ResetAuthSessionIds();
   }
 
   // We need to start an auth session, which requires us to specify whether

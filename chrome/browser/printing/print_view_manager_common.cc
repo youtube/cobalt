@@ -4,6 +4,9 @@
 
 #include "chrome/browser/printing/print_view_manager_common.h"
 
+#include <utility>
+
+#include "build/chromeos_buildflags.h"
 #include "content/public/browser/render_frame_host.h"
 #include "extensions/buildflags/buildflags.h"
 #include "pdf/buildflags.h"
@@ -27,6 +30,12 @@ namespace printing {
 
 namespace {
 
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+using PrintViewManagerImpl = PrintViewManager;
+#else
+using PrintViewManagerImpl = PrintViewManagerBasic;
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
+
 // Pick the right RenderFrameHost based on the WebContents.
 content::RenderFrameHost* GetRenderFrameHostToUse(
     content::WebContents* contents) {
@@ -45,15 +54,11 @@ content::RenderFrameHost* GetRenderFrameHostToUse(
 
 void StartPrint(
     content::WebContents* contents,
+#if BUILDFLAG(IS_CHROMEOS_ASH)
     mojo::PendingAssociatedRemote<mojom::PrintRenderer> print_renderer,
+#endif
     bool print_preview_disabled,
     bool has_selection) {
-#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
-  using PrintViewManagerImpl = PrintViewManager;
-#else
-  using PrintViewManagerImpl = PrintViewManagerBasic;
-#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
-
   content::RenderFrameHost* rfh_to_use = GetRenderFrameHostToUse(contents);
   if (!rfh_to_use)
     return;
@@ -65,15 +70,17 @@ void StartPrint(
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   if (!print_preview_disabled) {
+#if BUILDFLAG(IS_CHROMEOS_ASH)
     if (print_renderer) {
       print_view_manager->PrintPreviewWithPrintRenderer(
           rfh_to_use, std::move(print_renderer));
-    } else {
-      print_view_manager->PrintPreviewNow(rfh_to_use, has_selection);
+      return;
     }
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+    print_view_manager->PrintPreviewNow(rfh_to_use, has_selection);
     return;
   }
-#endif  // ENABLE_PRINT_PREVIEW
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
 
   print_view_manager->PrintNow(rfh_to_use);
 }
@@ -91,6 +98,24 @@ void StartBasicPrint(content::WebContents* contents) {
 
   print_view_manager->BasicPrint(rfh_to_use);
 #endif  // ENABLE_PRINT_PREVIEW
+}
+
+void StartPrintNodeUnderContextMenu(content::RenderFrameHost* rfh,
+                                    bool print_preview_disabled) {
+  auto* print_view_manager = PrintViewManagerImpl::FromWebContents(
+      content::WebContents::FromRenderFrameHost(rfh));
+  if (!print_view_manager) {
+    return;
+  }
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  if (!print_preview_disabled) {
+    print_view_manager->PrintPreviewForNodeUnderContextMenu(rfh);
+    return;
+  }
+#endif
+
+  print_view_manager->PrintNodeUnderContextMenu(rfh);
 }
 
 content::RenderFrameHost* GetFrameToPrint(content::WebContents* contents) {

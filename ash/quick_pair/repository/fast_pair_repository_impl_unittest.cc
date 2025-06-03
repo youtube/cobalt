@@ -8,6 +8,7 @@
 #include "ash/quick_pair/common/fast_pair/fast_pair_metrics.h"
 #include "ash/quick_pair/common/mock_quick_pair_browser_delegate.h"
 #include "ash/quick_pair/common/protocol.h"
+#include "ash/quick_pair/common/quick_pair_browser_delegate.h"
 #include "ash/quick_pair/repository/fake_device_metadata_http_fetcher.h"
 #include "ash/quick_pair/repository/fast_pair/device_address_map.h"
 #include "ash/quick_pair/repository/fast_pair/device_image_store.h"
@@ -18,6 +19,7 @@
 #include "ash/quick_pair/repository/fast_pair/pending_write_store.h"
 #include "ash/quick_pair/repository/fast_pair/proto_conversions.h"
 #include "ash/quick_pair/repository/fast_pair/saved_device_registry.h"
+#include "ash/quick_pair/repository/fast_pair_repository.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "base/base64.h"
@@ -186,13 +188,7 @@ class FastPairRepositoryImplTest : public AshTestBase {
         std::move(footprints_fetcher), std::move(image_decoder),
         std::move(device_address_map), std::move(device_image_store),
         std::move(saved_device_registry), std::move(pending_write_store));
-
-    pref_service_ = std::make_unique<TestingPrefServiceSimple>();
-    ON_CALL(browser_delegate_, GetActivePrefService())
-        .WillByDefault(testing::Return(pref_service_.get()));
-    PendingWriteStore::RegisterProfilePrefs(pref_service_->registry());
-    SavedDeviceRegistry::RegisterProfilePrefs(pref_service_->registry());
-    DeviceAddressMap::RegisterLocalStatePrefs(pref_service_->registry());
+    FastPairRepository::SetInstanceForTesting(fast_pair_repository_.get());
   }
 
   void TearDown() override {
@@ -250,18 +246,23 @@ class FastPairRepositoryImplTest : public AshTestBase {
       &ble_bluetooth_device_, &classic_bluetooth_device_};
   scoped_refptr<Device> device_;
   gfx::Image test_image_;
-  std::unique_ptr<TestingPrefServiceSimple> pref_service_;
-  MockQuickPairBrowserDelegate browser_delegate_;
 
-  raw_ptr<DeviceMetadataFetcher, ExperimentalAsh> device_metadata_fetcher_;
-  raw_ptr<FakeDeviceMetadataHttpFetcher, ExperimentalAsh>
+  raw_ptr<DeviceMetadataFetcher, DanglingUntriaged | ExperimentalAsh>
+      device_metadata_fetcher_;
+  raw_ptr<FakeDeviceMetadataHttpFetcher, DanglingUntriaged | ExperimentalAsh>
       metadata_http_fetcher_;
-  raw_ptr<FakeFootprintsFetcher, ExperimentalAsh> footprints_fetcher_;
-  raw_ptr<MockFastPairImageDecoder, ExperimentalAsh> image_decoder_;
-  raw_ptr<DeviceAddressMap, ExperimentalAsh> device_address_map_;
-  raw_ptr<DeviceImageStore, ExperimentalAsh> device_image_store_;
-  raw_ptr<PendingWriteStore, ExperimentalAsh> pending_write_store_;
-  raw_ptr<SavedDeviceRegistry, ExperimentalAsh> saved_device_registry_;
+  raw_ptr<FakeFootprintsFetcher, DanglingUntriaged | ExperimentalAsh>
+      footprints_fetcher_;
+  raw_ptr<MockFastPairImageDecoder, DanglingUntriaged | ExperimentalAsh>
+      image_decoder_;
+  raw_ptr<DeviceAddressMap, DanglingUntriaged | ExperimentalAsh>
+      device_address_map_;
+  raw_ptr<DeviceImageStore, DanglingUntriaged | ExperimentalAsh>
+      device_image_store_;
+  raw_ptr<PendingWriteStore, DanglingUntriaged | ExperimentalAsh>
+      pending_write_store_;
+  raw_ptr<SavedDeviceRegistry, DanglingUntriaged | ExperimentalAsh>
+      saved_device_registry_;
 
   base::WeakPtrFactory<FastPairRepositoryImplTest> weak_ptr_factory_{this};
 };

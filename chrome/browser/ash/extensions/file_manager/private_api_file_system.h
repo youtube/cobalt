@@ -21,7 +21,8 @@
 #include "base/types/expected.h"
 #include "chrome/browser/ash/extensions/file_manager/logged_extension_function.h"
 #include "chrome/browser/ash/file_manager/trash_info_validator.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/fileapi/recent_source.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
 #include "chromeos/ash/components/drivefs/mojom/drivefs.mojom-forward.h"
 #include "components/drive/file_errors.h"
@@ -58,7 +59,7 @@ struct HashAndFilePath {
 };
 
 namespace policy {
-class DlpFilesController;
+class DlpFilesControllerAsh;
 }  // namespace policy
 
 }  // namespace drive
@@ -348,7 +349,7 @@ class FileManagerPrivateInternalGetDlpMetadataFunction
 
  private:
   void OnGetDlpMetadata(
-      std::vector<policy::DlpFilesController::DlpFileMetadata> dlp_metadata);
+      std::vector<policy::DlpFilesControllerAsh::DlpFileMetadata> dlp_metadata);
 
   std::vector<storage::FileSystemURL> source_urls_;
 };
@@ -474,6 +475,14 @@ class FileManagerPrivateSearchFilesByHashesFunction
 class FileManagerPrivateInternalSearchFilesFunction
     : public LoggedExtensionFunction {
  public:
+  // The type for matched files. The second element of the pair indicates if the
+  // path is that of a directory (true) or a plain file (false).
+  typedef std::vector<std::pair<base::FilePath, bool>> FileSearchResults;
+
+  // A callback on which the results are to be delivered. The results are
+  // expected to be delivered in a single invocation.
+  typedef base::OnceCallback<void(FileSearchResults)> OnResultsReadyCallback;
+
   FileManagerPrivateInternalSearchFilesFunction();
 
   DECLARE_EXTENSION_FUNCTION("fileManagerPrivateInternal.searchFiles",
@@ -483,11 +492,33 @@ class FileManagerPrivateInternalSearchFilesFunction
   ~FileManagerPrivateInternalSearchFilesFunction() override = default;
 
  private:
-  // ExtensionFunction overrides.
+  // ExtensionFunction overrides. The launch point of search by name
+  // and search image by keywords.
   ResponseAction Run() override;
 
-  void OnSearchByPatternDone(
-      const std::vector<std::pair<base::FilePath, bool>>& results);
+  // Runs the search files by file name task. Once done invokes the callback.
+  // The root_path is the path to the top level directory which is to be
+  // searched. Only results from this directory and nested directories are
+  // accepted.
+  void RunFileSearchByName(Profile* profile,
+                           base::FilePath root_path,
+                           const std::string& query,
+                           base::Time modified_time,
+                           ash::RecentSource::FileType file_type,
+                           size_t max_results,
+                           OnResultsReadyCallback callback);
+
+  // Runs the search images by query task. Once done invokes the callback.
+  // The root_path is the path to the top level directory which is to be
+  // searched. Only results from this directory and nested directories are
+  // accepted.
+  void RunImageSearchByQuery(base::FilePath root_path,
+                             const std::string& query,
+                             base::Time modified_time,
+                             size_t max_results,
+                             OnResultsReadyCallback callback);
+
+  void OnSearchByPatternDone(std::vector<FileSearchResults> results);
 };
 
 // Implements the chrome.fileManagerPrivate.getDirectorySize method.
@@ -546,6 +577,19 @@ class FileManagerPrivateResumeIOTaskFunction : public ExtensionFunction {
   ResponseAction Run() override;
 };
 
+// Implements the chrome.fileManagerPrivate.dismissIOTask method.
+class FileManagerPrivateDismissIOTaskFunction : public LoggedExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("fileManagerPrivate.dismissIOTask",
+                             FILEMANAGERPRIVATE_DISMISSIOTASK)
+
+ protected:
+  ~FileManagerPrivateDismissIOTaskFunction() override = default;
+
+  // ExtensionFunction overrides
+  ResponseAction Run() override;
+};
+
 // Implements the chrome.fileManagerPrivate.progressPausedTasks method.
 class FileManagerPrivateProgressPausedTasksFunction : public ExtensionFunction {
  public:
@@ -554,6 +598,20 @@ class FileManagerPrivateProgressPausedTasksFunction : public ExtensionFunction {
 
  protected:
   ~FileManagerPrivateProgressPausedTasksFunction() override = default;
+
+  // ExtensionFunction overrides
+  ResponseAction Run() override;
+};
+
+// Implements the chrome.fileManagerPrivate.showPolicyDialog method.
+class FileManagerPrivateShowPolicyDialogFunction
+    : public LoggedExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("fileManagerPrivate.showPolicyDialog",
+                             FILEMANAGERPRIVATE_SHOWPOLICYDIALOG)
+
+ protected:
+  ~FileManagerPrivateShowPolicyDialogFunction() override = default;
 
   // ExtensionFunction overrides
   ResponseAction Run() override;

@@ -95,19 +95,29 @@ PerformanceManagerTabHelper::PerformanceManagerTabHelper(
   DCHECK_EQ(1u, frame_count);
 #endif
 
+  PagePropertyFlags initial_property_flags;
+  if (web_contents->GetVisibility() == content::Visibility::VISIBLE) {
+    initial_property_flags.Put(PagePropertyFlag::kIsVisible);
+  }
+  if (web_contents->IsCurrentlyAudible()) {
+    initial_property_flags.Put(PagePropertyFlag::kIsAudible);
+  }
+  if (web_contents->HasPictureInPictureVideo() ||
+      web_contents->HasPictureInPictureDocument()) {
+    initial_property_flags.Put(PagePropertyFlag::kHasPictureInPicture);
+  }
+
   // Create the page node.
   std::unique_ptr<PageData> page = std::make_unique<PageData>();
   page->page_node = PerformanceManagerImpl::CreatePageNode(
       WebContentsProxy(weak_factory_.GetWeakPtr()),
       web_contents->GetBrowserContext()->UniqueId(),
-      web_contents->GetVisibleURL(),
-      web_contents->GetVisibility() == content::Visibility::VISIBLE,
-      web_contents->IsCurrentlyAudible(), web_contents->GetLastActiveTime(),
+      web_contents->GetVisibleURL(), initial_property_flags,
+      web_contents->GetLastActiveTime(),
       // TODO(crbug.com/1211368): Support MPArch fully!
       PageNode::PageState::kActive);
   content::RenderFrameHost* main_rfh = web_contents->GetPrimaryMainFrame();
   DCHECK(main_rfh);
-  page->main_frame_tree_node_id = main_rfh->GetFrameTreeNodeId();
   primary_page_ = page.get();
   auto result = pages_.insert(std::move(page));
   DCHECK(result.second);
@@ -478,6 +488,30 @@ void PerformanceManagerTabHelper::DidUpdateFaviconURL(
   PerformanceManagerImpl::CallOnGraphImpl(
       FROM_HERE, base::BindOnce(&PageNodeImpl::OnFaviconUpdated,
                                 base::Unretained(primary_page_node())));
+}
+
+void PerformanceManagerTabHelper::MediaPictureInPictureChanged(
+    bool is_picture_in_picture) {
+  PerformanceManagerImpl::CallOnGraphImpl(
+      FROM_HERE, base::BindOnce(&PageNodeImpl::SetHasPictureInPicture,
+                                base::Unretained(primary_page_node()),
+                                is_picture_in_picture));
+}
+
+void PerformanceManagerTabHelper::OnWebContentsFocused(
+    content::RenderWidgetHost* render_widget_host) {
+  PerformanceManagerImpl::CallOnGraphImpl(
+      FROM_HERE, base::BindOnce(&PageNodeImpl::SetIsFocused,
+                                base::Unretained(primary_page_node()),
+                                /*is_focused=*/true));
+}
+
+void PerformanceManagerTabHelper::OnWebContentsLostFocus(
+    content::RenderWidgetHost* render_widget_host) {
+  PerformanceManagerImpl::CallOnGraphImpl(
+      FROM_HERE, base::BindOnce(&PageNodeImpl::SetIsFocused,
+                                base::Unretained(primary_page_node()),
+                                /*is_focused=*/false));
 }
 
 void PerformanceManagerTabHelper::AboutToBeDiscarded(

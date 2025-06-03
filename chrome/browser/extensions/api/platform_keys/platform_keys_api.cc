@@ -21,6 +21,7 @@
 #include "chromeos/crosapi/mojom/keystore_error.mojom-shared.h"
 #include "chromeos/crosapi/mojom/keystore_service.mojom.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
+#include "net/base/net_errors.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/cert/x509_util.h"
@@ -104,7 +105,7 @@ std::string ValidateCrosapi(int min_version, content::BrowserContext* context) {
   if (!service || !service->IsAvailable<crosapi::mojom::KeystoreService>())
     return kUnsupportedByAsh;
 
-  int version = service->GetInterfaceVersion(KeystoreService::Uuid_);
+  int version = service->GetInterfaceVersion<KeystoreService>();
   if (version < min_version)
     return kUnsupportedByAsh;
 

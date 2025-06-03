@@ -16,6 +16,26 @@
 
 namespace user_education {
 
+namespace {
+
+// This function provides the list of allowed legal promos.
+// It is not to be modified except by the Frizzle team.
+bool IsAllowedLegalNotice(const base::Feature& promo_feature) {
+  // Add the text names of allowlisted critical promos here:
+  static const char* const kAllowedPromoNames[] = {
+      "IPH_TrackingProtectionOnboarding",
+      "IPH_TrackingProtectionOffboarding",
+  };
+  for (const auto* promo_name : kAllowedPromoNames) {
+    if (!strcmp(promo_feature.name, promo_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 FeaturePromoSpecification::AcceleratorInfo::AcceleratorInfo() = default;
 FeaturePromoSpecification::AcceleratorInfo::AcceleratorInfo(
     const AcceleratorInfo& other) = default;
@@ -94,6 +114,28 @@ FeaturePromoSpecification::~FeaturePromoSpecification() = default;
 
 FeaturePromoSpecification& FeaturePromoSpecification::operator=(
     FeaturePromoSpecification&& other) = default;
+
+std::u16string FeaturePromoSpecification::FormatString(
+    int string_id,
+    const FormatParameters& format_params) {
+  if (!string_id) {
+    CHECK(absl::holds_alternative<NoSubstitution>(format_params));
+    return std::u16string();
+  }
+  if (absl::holds_alternative<NoSubstitution>(format_params)) {
+    return l10n_util::GetStringUTF16(string_id);
+  }
+  if (const auto* substitutions =
+          absl::get_if<StringSubstitutions>(&format_params)) {
+    return l10n_util::GetStringFUTF16(string_id, *substitutions, nullptr);
+  }
+  if (const std::u16string* str =
+          absl::get_if<std::u16string>(&format_params)) {
+    return l10n_util::GetStringFUTF16(string_id, *str);
+  }
+  int number = absl::get<int>(format_params);
+  return l10n_util::GetPluralStringFUTF16(string_id, number);
+}
 
 // static
 FeaturePromoSpecification FeaturePromoSpecification::CreateForToastPromo(
@@ -181,7 +223,7 @@ FeaturePromoSpecification FeaturePromoSpecification::CreateForLegacyPromo(
 FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleTitleText(
     int title_text_string_id) {
   DCHECK_NE(promo_type_, PromoType::kUnspecified);
-  bubble_title_text_ = l10n_util::GetStringUTF16(title_text_string_id);
+  bubble_title_string_id_ = title_text_string_id;
   return *this;
 }
 
@@ -195,6 +237,19 @@ FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleIcon(
 FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleArrow(
     HelpBubbleArrow bubble_arrow) {
   bubble_arrow_ = bubble_arrow;
+  return *this;
+}
+
+FeaturePromoSpecification& FeaturePromoSpecification::SetPromoSubtype(
+    PromoSubtype promo_subtype) {
+  CHECK(promo_type_ != PromoType::kUnspecified);
+  CHECK(promo_type_ != PromoType::kSnooze)
+      << "Basic snooze is not compatible with other promo subtypes.";
+  if (promo_subtype == PromoSubtype::kLegalNotice) {
+    CHECK(feature_);
+    CHECK(IsAllowedLegalNotice(*feature_));
+  }
+  promo_subtype_ = promo_subtype;
   return *this;
 }
 
@@ -231,6 +286,12 @@ FeaturePromoSpecification::SetCustomActionDismissText(
   return *this;
 }
 
+FeaturePromoSpecification& FeaturePromoSpecification::SetHighlightedMenuItem(
+    const ui::ElementIdentifier highlighted_menu_identifier) {
+  highlighted_menu_identifier_ = highlighted_menu_identifier;
+  return *this;
+}
+
 ui::TrackedElement* FeaturePromoSpecification::GetAnchorElement(
     ui::ElementContext context) const {
   auto* const element_tracker = ui::ElementTracker::GetElementTracker();
@@ -246,6 +307,48 @@ ui::TrackedElement* FeaturePromoSpecification::GetAnchorElement(
                : element_tracker->GetFirstMatchingElement(anchor_element_id_,
                                                           context);
   }
+}
+
+std::ostream& operator<<(std::ostream& oss,
+                         FeaturePromoSpecification::PromoType promo_type) {
+  switch (promo_type) {
+    case FeaturePromoSpecification::PromoType::kLegacy:
+      oss << "kLegacy";
+      break;
+    case FeaturePromoSpecification::PromoType::kToast:
+      oss << "kToast";
+      break;
+    case FeaturePromoSpecification::PromoType::kSnooze:
+      oss << "kSnooze";
+      break;
+    case FeaturePromoSpecification::PromoType::kTutorial:
+      oss << "kTutorial";
+      break;
+    case FeaturePromoSpecification::PromoType::kCustomAction:
+      oss << "kCustomAction";
+      break;
+    case FeaturePromoSpecification::PromoType::kUnspecified:
+      oss << "kUnspecified";
+      break;
+  }
+  return oss;
+}
+
+std::ostream& operator<<(
+    std::ostream& oss,
+    FeaturePromoSpecification::PromoSubtype promo_subtype) {
+  switch (promo_subtype) {
+    case FeaturePromoSpecification::PromoSubtype::kNormal:
+      oss << "kNormal";
+      break;
+    case FeaturePromoSpecification::PromoSubtype::kPerApp:
+      oss << "kPerApp";
+      break;
+    case FeaturePromoSpecification::PromoSubtype::kLegalNotice:
+      oss << "kLegalNotice";
+      break;
+  }
+  return oss;
 }
 
 }  // namespace user_education

@@ -5,8 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ML_ML_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ML_ML_CONTEXT_H_
 
-#include "services/webnn/public/mojom/webnn_service.mojom-blink.h"
+#include "services/webnn/public/mojom/webnn_context_provider.mojom-blink.h"
+#include "services/webnn/public/mojom/webnn_graph.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_device_preference.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_device_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_model_format.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_power_preference.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -15,18 +17,23 @@
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
-#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
 
 class ML;
+class MLContextOptions;
 class MLModelLoader;
 
-class MODULES_EXPORT MLContext final : public ScriptWrappable {
+class MODULES_EXPORT MLContext : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static MLContext* ValidateAndCreateSync(MLContextOptions* options, ML* ml);
+
+  // The constructor shouldn't be called directly. The callers should use
+  // CreateAsync() or CreateSync() method instead.
   MLContext(const V8MLDevicePreference device_preference,
+            const V8MLDeviceType device_type,
             const V8MLPowerPreference power_preference,
             const V8MLModelFormat model_format,
             const unsigned int num_threads,
@@ -38,6 +45,7 @@ class MODULES_EXPORT MLContext final : public ScriptWrappable {
   ~MLContext() override;
 
   V8MLDevicePreference GetDevicePreference() const;
+  V8MLDeviceType GetDeviceType() const;
   V8MLPowerPreference GetPowerPreference() const;
   V8MLModelFormat GetModelFormat() const;
   unsigned int GetNumThreads() const;
@@ -62,17 +70,35 @@ class MODULES_EXPORT MLContext final : public ScriptWrappable {
                    const MLNamedArrayBufferViews& outputs,
                    ExceptionState& exception_state);
 
-  enum CreateWebNNGraphResult { kOk, kUnknownError, kNotSupported };
-  // Return `kNotSupported` with `mojo::NullRemote` if the input configuration
-  // of creating `WebNNContext` is not supported.
-  using CreateWebNNGraphCallback = base::OnceCallback<void(
-      CreateWebNNGraphResult result,
-      mojo::PendingRemote<webnn::mojom::blink::WebNNGraph>)>;
-  void CreateWebNNGraph(ScriptState* script_state,
-                        CreateWebNNGraphCallback callback);
+ protected:
+  // Create and initialize a MLContext object. Resolve the promise with
+  // this concrete object if the underlying context gets created
+  // successfully.
+  void CreateAsync(ScriptPromiseResolver* resolver, MLContextOptions* options);
+
+  // An MLContext backend should implement this method to create and initialize
+  // a platform specific context asynchronously.
+  virtual void CreateAsyncImpl(ScriptPromiseResolver* resolver,
+                               MLContextOptions* options);
+
+  // CreateSync() has the similar function as CreateAsync(). The difference is
+  // if there are no validation error, it calls CreateSyncImpl() implemented
+  // by a MLContext backend that initializes the context synchronously in the
+  // caller's thread. This method is called by ML to implement
+  // MLContext.createContextSync() method.
+  MLContext* CreateSync(ScriptState* script_state,
+                        MLContextOptions* options,
+                        ExceptionState& exception_state);
+
+  // An MLContext backend should implement this method to initialize the
+  // platform context synchronously in the caller's thread.
+  virtual MLContext* CreateSyncImpl(ScriptState* script_state,
+                                    MLContextOptions* options,
+                                    ExceptionState& exception_state);
 
  private:
   V8MLDevicePreference device_preference_;
+  V8MLDeviceType device_type_;
   V8MLPowerPreference power_preference_;
   V8MLModelFormat model_format_;
   unsigned int num_threads_;
@@ -80,18 +106,6 @@ class MODULES_EXPORT MLContext final : public ScriptWrappable {
   Member<ML> ml_;
   // WebNN uses this MLModelLoader to build a computational graph.
   Member<MLModelLoader> ml_model_loader_;
-
-  // The callback of creating context called from WebNN server side.
-  void OnCreateWebNNContext(
-      ScriptState* script_state,
-      CreateWebNNGraphCallback callback,
-      webnn::mojom::blink::CreateContextResult result,
-      mojo::PendingRemote<webnn::mojom::blink::WebNNContext>
-          pending_remote_context);
-  // WebNN support multiple types of neural network inference hardware
-  // acceleration, the context of WebNN in server side is used to map different
-  // device and represent a state of graph execution processes.
-  HeapMojoRemote<webnn::mojom::blink::WebNNContext> webnn_context_;
 };
 
 }  // namespace blink

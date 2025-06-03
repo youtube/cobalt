@@ -5,7 +5,7 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_INTERNALS_HANDLER_IMPL_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_INTERNALS_HANDLER_IMPL_H_
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "content/browser/attribution_reporting/attribution_internals.mojom.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
@@ -62,6 +62,7 @@ class AttributionInternalsHandlerImpl
   void OnReportsChanged() override;
   void OnSourceHandled(
       const StorableSource& source,
+      base::Time source_time,
       absl::optional<uint64_t> cleared_debug_key,
       attribution_reporting::mojom::StoreSourceResult) override;
   void OnReportSent(const AttributionReport& report,
@@ -73,25 +74,15 @@ class AttributionInternalsHandlerImpl
   void OnTriggerHandled(const AttributionTrigger& trigger,
                         absl::optional<uint64_t> cleared_debug_key,
                         const CreateReportResult& result) override;
-  void OnFailedSourceRegistration(
-      const std::string& header_value,
-      base::Time source_time,
-      const attribution_reporting::SuitableOrigin& source_origin,
-      const attribution_reporting::SuitableOrigin& reporting_origin,
-      attribution_reporting::mojom::SourceType,
-      attribution_reporting::mojom::SourceRegistrationError) override;
-
-#if BUILDFLAG(IS_ANDROID)
   void OnOsRegistration(
       base::Time time,
       const OsRegistration&,
       bool is_debug_key_allowed,
       attribution_reporting::mojom::OsRegistrationResult) override;
-#endif  // BUILDFLAG(IS_ANDROID)
 
   void OnObserverDisconnected();
 
-  raw_ptr<WebUI> web_ui_;
+  const raw_ref<WebUI> web_ui_;
 
   mojo::Remote<attribution_internals::mojom::Observer> observer_;
 

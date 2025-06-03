@@ -43,7 +43,7 @@ struct NGLayoutAlgorithmParams {
  public:
   NGLayoutAlgorithmParams(
       NGBlockNode node,
-      const NGFragmentGeometry& fragment_geometry,
+      const FragmentGeometry& fragment_geometry,
       const NGConstraintSpace& space,
       const NGBlockBreakToken* break_token = nullptr,
       const NGEarlyBreak* early_break = nullptr,
@@ -56,7 +56,7 @@ struct NGLayoutAlgorithmParams {
         additional_early_breaks(additional_early_breaks) {}
 
   NGBlockNode node;
-  const NGFragmentGeometry& fragment_geometry;
+  const FragmentGeometry& fragment_geometry;
   const NGConstraintSpace& space;
   const NGBlockBreakToken* break_token;
   const NGEarlyBreak* early_break;
@@ -73,7 +73,7 @@ class CORE_EXPORT NGLayoutAlgorithm : public NGLayoutAlgorithmOperations {
   STACK_ALLOCATED();
  public:
   NGLayoutAlgorithm(NGInputNodeType node,
-                    scoped_refptr<const ComputedStyle> style,
+                    const ComputedStyle* style,
                     const NGConstraintSpace& space,
                     TextDirection direction,
                     const NGBreakTokenType* break_token)
@@ -115,7 +115,7 @@ class CORE_EXPORT NGLayoutAlgorithm : public NGLayoutAlgorithmOperations {
 
   const ComputedStyle& Style() const { return node_.Style(); }
 
-  NGBfcOffset ContainerBfcOffset() const {
+  BfcOffset ContainerBfcOffset() const {
     DCHECK(container_builder_.BfcBlockOffset());
     return {container_builder_.BfcLineOffset(),
             *container_builder_.BfcBlockOffset()};
@@ -125,12 +125,12 @@ class CORE_EXPORT NGLayoutAlgorithm : public NGLayoutAlgorithmOperations {
 
   const NGBreakTokenType* BreakToken() const { return break_token_; }
 
-  const NGBoxStrut& Borders() const { return container_builder_.Borders(); }
-  const NGBoxStrut& Padding() const { return container_builder_.Padding(); }
-  const NGBoxStrut& BorderPadding() const {
+  const BoxStrut& Borders() const { return container_builder_.Borders(); }
+  const BoxStrut& Padding() const { return container_builder_.Padding(); }
+  const BoxStrut& BorderPadding() const {
     return container_builder_.BorderPadding();
   }
-  const NGBoxStrut& BorderScrollbarPadding() const {
+  const BoxStrut& BorderScrollbarPadding() const {
     return container_builder_.BorderScrollbarPadding();
   }
   LayoutUnit OriginalBorderScrollbarPaddingBlockStart() const {
@@ -140,8 +140,8 @@ class CORE_EXPORT NGLayoutAlgorithm : public NGLayoutAlgorithmOperations {
     return container_builder_.ChildAvailableSize();
   }
 
-  NGExclusionSpace& ExclusionSpace() {
-    return container_builder_.ExclusionSpace();
+  ExclusionSpace& GetExclusionSpace() {
+    return container_builder_.GetExclusionSpace();
   }
 
   // Lay out again, this time with a predefined good breakpoint that we

@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
@@ -31,7 +32,7 @@ TEST(ExtensionAPIPermissionTest, CheckEnums) {
             static_cast<size_t>(mojom::APIPermissionID::kMaxValue) + 1);
 
   base::FilePath src_root;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_root));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_root));
   base::FilePath permission_histogram_value =
       src_root.AppendASCII("extensions")
           .AppendASCII("common")
@@ -49,7 +50,7 @@ TEST(ExtensionAPIPermissionTest, CheckEnums) {
     // expecting to find the string "ENTRY = <value>" somewhere in the file.
     std::string expected_string =
         base::StringPrintf("%s = %d", entry.second.c_str(), entry.first);
-    EXPECT_NE(std::string::npos, file_contents.find(expected_string))
+    EXPECT_TRUE(base::Contains(file_contents, expected_string))
         << "Failed to find entry " << entry.second << " with value "
         << entry.first;
   }

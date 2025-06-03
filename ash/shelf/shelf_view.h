@@ -24,7 +24,6 @@
 #include "ash/shelf/shelf_tooltip_delegate.h"
 #include "ash/shell_observer.h"
 #include "base/cancelable_callback.h"
-#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
@@ -61,7 +60,6 @@ class Separator;
 
 namespace ash {
 class GhostImageView;
-class PartyingShelfItem;
 class ShelfAppButton;
 class ShelfButton;
 class ShelfModel;
@@ -151,7 +149,8 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
 
   // ShelfTooltipDelegate:
   bool ShouldShowTooltipForView(const views::View* view) const override;
-  bool ShouldHideTooltip(const gfx::Point& cursor_location) const override;
+  bool ShouldHideTooltip(const gfx::Point& cursor_location,
+                         views::View* delegate_view) const override;
   const std::vector<aura::Window*> GetOpenWindowsForView(
       views::View* view) override;
   std::u16string GetTitleForView(const views::View* view) const override;
@@ -163,6 +162,7 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
 
   // views::View:
   gfx::Size CalculatePreferredSize() const override;
+  gfx::Rect GetAnchorBoundsInScreen() const override;
   void OnThemeChanged() override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   FocusTraversable* GetPaneFocusTraversable() override;
@@ -314,6 +314,10 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
 
   void set_default_last_focusable_child(bool default_last_focusable_child) {
     default_last_focusable_child_ = default_last_focusable_child;
+  }
+
+  ui::LayerTreeOwner* drag_image_layer_for_test() {
+    return drag_image_layer_.get();
   }
 
   ShelfAppButton* drag_view() { return drag_view_; }
@@ -495,7 +499,6 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
   void ShelfItemStatusChanged(const ShelfID& id) override;
   void ShelfItemRippedOff() override;
   void ShelfItemReturnedFromRipOff(int index) override;
-  void ShelfPartyToggled(bool in_shelf_party) override;
 
   // Overridden from ShellObserver:
   void OnShelfAlignmentChanged(aura::Window* root_window,
@@ -568,32 +571,11 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
   // and on-going bounds animations on |child|.
   gfx::Rect GetChildViewTargetMirroredBounds(const views::View* child) const;
 
-  // Calls |UpdateShelfItemViewsVisibility| and updates the shelf for changes in
-  // visibility of items. Used when items may have joined or left shelf party,
-  // because partying items are hidden from the shelf. After the party ends,
-  // this function causes the items that were partying to reappear on the shelf.
-  void HandleShelfParty();
-
-  // Updates the visibility, position, and transform of
-  // `all_pinned_items_are_partying_label_`.
-  void UpdateAllPinnedItemsArePartyingLabel();
-
-  // Returns true if `all_pinned_items_are_partying_label_` should be visible.
-  bool ShouldShowAllPinnedItemsArePartyingLabel() const;
-
-  // Returns the space occupied by `all_pinned_items_are_partying_label_`,
-  // including the gap between that label and the first item, in DIPs.
-  int AllPinnedItemsArePartyingLabelSpace() const;
-
   // Removes and reset |current_ghost_view| and |last_ghost_view|.
   void RemoveGhostView();
 
   // Resets the data members related to the app item context menu model request.
   void ResetActiveMenuModelRequest();
-
-  // Return true if all pinned apps are hidden. This can be true only if the
-  // ShelfParty feature is enabled.
-  bool AreAllPinnedAppsHidden() const;
 
   // Calculate the drop target bounds in the screen for the current `drag_view_`
   // according to the target position in the shelf.
@@ -733,10 +715,6 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
   raw_ptr<views::View, ExperimentalAsh> announcement_view_ =
       nullptr;  // Owned by ShelfView
 
-  // A view used to indicate that all pinned items are partying.
-  raw_ptr<views::View, ExperimentalAsh> all_pinned_items_are_partying_label_ =
-      nullptr;  // Owned by ShelfView
-
   // For dragging: -1 if scrolling back, 1 if scrolling forward, 0 if neither.
   int drag_scroll_dir_ = 0;
 
@@ -798,9 +776,6 @@ class ASH_EXPORT ShelfView : public views::AccessiblePaneView,
   // The layer that contains the icon image for the item under the drag cursor.
   // Assigned before the dropping animation is scheduled.
   std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_;
-
-  // The shelf party animations.
-  base::flat_map<ShelfID, std::unique_ptr<PartyingShelfItem>> party_;
 
   base::WeakPtrFactory<ShelfView> weak_factory_{this};
 };

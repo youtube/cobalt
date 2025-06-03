@@ -8,6 +8,8 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
+#include "base/strings/strcat.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -150,14 +152,19 @@ void ReportPrintSettingsStats(const base::Value::Dict& print_settings,
       ReportPrintSettingHistogram(PrintSettingsBuckets::kFitToPaper);
   }
 
-  if (print_settings.FindInt(kSettingDpiHorizontal).value_or(0) > 0 &&
-      print_settings.FindInt(kSettingDpiVertical).value_or(0) > 0) {
+  int dpi_horizontal =
+      print_settings.FindInt(kSettingDpiHorizontal).value_or(0);
+  int dpi_vertical = print_settings.FindInt(kSettingDpiVertical).value_or(0);
+  if (dpi_horizontal > 0 && dpi_vertical > 0) {
     absl::optional<bool> is_default_opt =
         print_settings.FindBool(kSettingDpiDefault);
     if (is_default_opt.has_value()) {
       ReportPrintSettingHistogram(is_default_opt.value()
                                       ? PrintSettingsBuckets::kDefaultDpi
                                       : PrintSettingsBuckets::kNonDefaultDpi);
+    }
+    if (dpi_horizontal != dpi_vertical) {
+      ReportPrintSettingHistogram(PrintSettingsBuckets::kNonSquarePixels);
     }
   }
 
@@ -170,6 +177,30 @@ void ReportPrintSettingsStats(const base::Value::Dict& print_settings,
 void ReportUserActionHistogram(UserActionBuckets event) {
   // Use macro because this histogram is called multiple times in succession.
   UMA_HISTOGRAM_ENUMERATION("PrintPreview.UserAction", event);
+}
+
+void RecordGetPrintersTimeHistogram(mojom::PrinterType printer_type,
+                                    const base::TimeTicks& start_time) {
+  std::string printer_type_metric;
+  switch (printer_type) {
+    case mojom::PrinterType::kExtension:
+      printer_type_metric = "Extension";
+      break;
+    case mojom::PrinterType::kPdf:
+      printer_type_metric = "PDF";
+      break;
+    case mojom::PrinterType::kLocal:
+      printer_type_metric = "Local";
+      break;
+    case mojom::PrinterType::kPrivetDeprecated:
+    case mojom::PrinterType::kCloudDeprecated:
+      NOTREACHED_NORETURN();
+  }
+  base::UmaHistogramCustomTimes(
+      base::StrCat({"PrintPreview.GetPrintersTime.", printer_type_metric}),
+      /*sample=*/base::TimeTicks::Now() - start_time,
+      /*min=*/base::Milliseconds(1),
+      /*max=*/base::Minutes(1), /*buckets=*/50);
 }
 
 }  // namespace printing

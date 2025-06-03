@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ExtensionsTestRunner} from 'extensions_test_runner';
+import {PerformanceTestRunner} from 'performance_test_runner';
+
+import * as Timeline from 'devtools/panels/timeline/timeline.js';
+
 (async function() {
-  await TestRunner.loadTestModule('extensions_test_runner');
-  await TestRunner.loadLegacyModule('timeline'); await TestRunner.loadTestModule('performance_test_runner');
   await TestRunner.showPanel('timeline');
 
   TestRunner.enableTimelineExtensionAndStart = function(callback) {
     const traceProviders = Extensions.extensionServer.traceProviders();
     const provider = traceProviders[traceProviders.length - 1];
-    const timelinePanel = UI.panels.timeline;
-    const setting = Timeline.TimelinePanel.settingForTraceProvider(provider);
+    const timelinePanel = Timeline.TimelinePanel.TimelinePanel.instance();
+    const setting = Timeline.TimelinePanel.TimelinePanel.settingForTraceProvider(provider);
     setting.set(true);
     TestRunner.addResult(`Provider short display name: ${provider.shortDisplayName()}`);
     TestRunner.addResult(`Provider long display name: ${provider.longDisplayName()}`);

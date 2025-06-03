@@ -5,7 +5,9 @@
 #ifndef IOS_CHROME_BROWSER_UI_TAB_SWITCHER_TAB_UTILS_H_
 #define IOS_CHROME_BROWSER_UI_TAB_SWITCHER_TAB_UTILS_H_
 
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+
+#import "ios/web/public/web_state_id.h"
 
 @class TabSwitcherItem;
 @class TabItem;
@@ -28,7 +30,7 @@ struct WebStateSearchCriteria {
   };
 
   // Identifier of the webState.
-  NSString* identifier = nil;
+  web::WebStateID identifier;
   PinnedState pinned_state = PinnedState::kAny;
 };
 
@@ -37,14 +39,11 @@ struct WebStateSearchCriteria {
 int GetWebStateIndex(WebStateList* web_state_list,
                      WebStateSearchCriteria criteria);
 
-// Returns the index of the tab with `the given `criteria`.
-// Returns WebStateList::kInvalidIndex if the tab is not found.
-int GetTabIndex(WebStateList* web_state_list, WebStateSearchCriteria criteria);
-
 // Returns the identifier of the active tab in `web_state_list` with `the given
-// `criteria`. Returns `nil` if the tab is not found.
-NSString* GetActiveWebStateIdentifier(WebStateList* web_state_list,
-                                      WebStateSearchCriteria criteria);
+// `pinned_state`. Returns an invalid `WebStateID` if the tab is not found.
+web::WebStateID GetActiveWebStateIdentifier(
+    WebStateList* web_state_list,
+    WebStateSearchCriteria::PinnedState pinned_state);
 
 // Returns the WebState with `the given `criteria`.
 // Returns `nullptr` if not found.
@@ -56,12 +55,15 @@ web::WebState* GetWebState(WebStateList* web_state_list,
 TabItem* GetTabItem(WebStateList* web_state_list,
                     WebStateSearchCriteria criteria);
 
-// Pin or Unpin the the tab with `identifier` in `web_state_list` according to
+// Pins or unpins the tab with `identifier` in `web_state_list` according to
 // `pin_state` and returns the new index of the tab.
 // Returns WebStateList::kInvalidIndex if the pinned state of the tab is already
 // `pin_state` or if the tab is not found.
 int SetWebStatePinnedState(WebStateList* web_state_list,
-                           NSString* identifier,
-                           BOOL pin_state);
+                           web::WebStateID identifier,
+                           bool pin_state);
+
+// Returns whether `items` has items with the same identifier.
+bool HasDuplicateIdentifiers(NSArray<TabSwitcherItem*>* items);
 
 #endif  // IOS_CHROME_BROWSER_UI_TAB_SWITCHER_TAB_UTILS_H_

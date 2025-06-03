@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/css/css_function_value.h"
 #include "third_party/blink/renderer/core/css/css_grid_auto_repeat_value.h"
 #include "third_party/blink/renderer/core/css/css_grid_integer_repeat_value.h"
+#include "third_party/blink/renderer/core/css/css_grid_template_areas_value.h"
 #include "third_party/blink/renderer/core/css/css_initial_value.h"
 #include "third_party/blink/renderer/core/css/css_math_function_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
@@ -45,14 +46,15 @@
 #include "third_party/blink/renderer/core/css/cssom/css_unit_value.h"
 #include "third_party/blink/renderer/core/css/cssom/css_unparsed_value.h"
 #include "third_party/blink/renderer/core/css/cssom/css_unsupported_color.h"
+#include "third_party/blink/renderer/core/css/cssom_utils.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/properties/shorthands.h"
 #include "third_party/blink/renderer/core/css/style_color.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/layout/grid/layout_grid.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
-#include "third_party/blink/renderer/core/layout/ng/grid/layout_ng_grid.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_anchor_query.h"
 #include "third_party/blink/renderer/core/layout/svg/transform_helper.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/style_intrinsic_length.h"
@@ -61,6 +63,7 @@
 #include "third_party/blink/renderer/core/svg_element_type_helpers.h"
 #include "third_party/blink/renderer/platform/animation/timing_function.h"
 #include "third_party/blink/renderer/platform/fonts/font_optical_sizing.h"
+#include "third_party/blink/renderer/platform/fonts/font_palette.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/font_settings.h"
 #include "third_party/blink/renderer/platform/transforms/matrix_3d_transform_operation.h"
 #include "third_party/blink/renderer/platform/transforms/matrix_transform_operation.h"
@@ -68,6 +71,96 @@
 #include "third_party/blink/renderer/platform/transforms/skew_transform_operation.h"
 
 namespace blink {
+
+namespace {
+
+const double kFinalStatePercentage = 100.0;
+const double kMiddleStatePercentage = 50.0;
+
+CSSValue* ConvertFontPaletteToCSSValue(const blink::FontPalette* palette) {
+  switch (palette->GetPaletteNameKind()) {
+    case blink::FontPalette::kNormalPalette:
+      return CSSIdentifierValue::Create(CSSValueID::kNormal);
+    case blink::FontPalette::kLightPalette:
+      return CSSIdentifierValue::Create(CSSValueID::kLight);
+    case blink::FontPalette::kDarkPalette:
+      return CSSIdentifierValue::Create(CSSValueID::kDark);
+    case blink::FontPalette::kCustomPalette:
+      return MakeGarbageCollected<CSSCustomIdentValue>(
+          palette->GetPaletteValuesName());
+    case blink::FontPalette::kInterpolablePalette: {
+      // TODO(crbug.com/1400620): Change the serialization of palette-mix()
+      // function to match color-mix(), i.e.: palette-mix() =
+      // palette-mix(<color-interpolation-method> , [ [normal | light | dark |
+      // <palette-identifier> | <palette-mix()> ] && <percentage [0,100]>?
+      // ]#{2})
+      DCHECK(RuntimeEnabledFeatures::FontPaletteAnimationEnabled());
+      CSSFunctionValue* result =
+          MakeGarbageCollected<CSSFunctionValue>(CSSValueID::kPaletteMix);
+
+      CSSValueList* color_space_css_value_list =
+          CSSValueList::CreateSpaceSeparated();
+      color_space_css_value_list->Append(
+          *MakeGarbageCollected<CSSCustomIdentValue>(AtomicString("in")));
+      if (palette->GetHueInterpolationMethod().has_value()) {
+        color_space_css_value_list->Append(
+            *MakeGarbageCollected<CSSCustomIdentValue>(
+                AtomicString(Color::SerializeInterpolationSpace(
+                    palette->GetColorInterpolationSpace(),
+                    *palette->GetHueInterpolationMethod()))));
+      } else {
+        color_space_css_value_list->Append(
+            *MakeGarbageCollected<CSSCustomIdentValue>(
+                AtomicString(Color::SerializeInterpolationSpace(
+                    palette->GetColorInterpolationSpace()))));
+      }
+      result->Append(*color_space_css_value_list);
+
+      double start_percentage_ = palette->GetStartPercentage();
+      double end_percentage_ = palette->GetEndPercentage();
+
+      CSSValueList* start_palette_with_percentage =
+          CSSValueList::CreateSpaceSeparated();
+      CSSValue* start = ConvertFontPaletteToCSSValue(palette->GetStart().get());
+      start_palette_with_percentage->Append(*start);
+      // Percentages in the palette-mix() function should be serialized the same
+      // way they are serialized in color-mix() function. If the first
+      // percentage is equal 50% and the two specified percentages add to 100%,
+      // we should skip the first percentage in the serialization. Second
+      // percentage should be skipped if it equals to 50%, or the two specified
+      // percentages add to 100%. Compare:
+      // https://drafts.csswg.org/css-color-5/#serial-color-mix.
+      if (start_percentage_ + end_percentage_ != kFinalStatePercentage ||
+          start_percentage_ != kMiddleStatePercentage) {
+        CSSValue* param = CSSNumericLiteralValue::Create(
+            start_percentage_, CSSPrimitiveValue::UnitType::kPercentage);
+        start_palette_with_percentage->Append(*param);
+      }
+      result->Append(*start_palette_with_percentage);
+
+      CSSValueList* end_palette_with_percentage =
+          CSSValueList::CreateSpaceSeparated();
+      CSSValue* end = ConvertFontPaletteToCSSValue(palette->GetEnd().get());
+      if (*start == *end) {
+        return start;
+      }
+      end_palette_with_percentage->Append(*end);
+      if (start_percentage_ + end_percentage_ != kFinalStatePercentage) {
+        CSSValue* param = CSSNumericLiteralValue::Create(
+            end_percentage_, CSSPrimitiveValue::UnitType::kPercentage);
+        end_palette_with_percentage->Append(*param);
+      }
+      result->Append(*end_palette_with_percentage);
+
+      return result;
+    }
+    default:
+      NOTREACHED();
+  }
+  return CSSIdentifierValue::Create(CSSValueID::kNormal);
+}
+
+}  // namespace
 
 static Length Negate(const Length& length) {
   if (length.IsCalculated()) {
@@ -92,9 +185,11 @@ CSSValue* ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
 
 CSSValue* ComputedStyleUtils::ValueForPosition(const LengthPoint& position,
                                                const ComputedStyle& style) {
-  DCHECK_EQ(position.X().IsAuto(), position.Y().IsAuto());
   if (position.X().IsAuto()) {
     return CSSIdentifierValue::Create(CSSValueID::kAuto);
+  }
+  if (position.X().IsNone()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
 
   return MakeGarbageCollected<CSSValuePair>(
@@ -110,10 +205,11 @@ CSSValue* ComputedStyleUtils::ValueForOffset(const ComputedStyle& style,
   if (RuntimeEnabledFeatures::CSSOffsetPositionAnchorEnabled()) {
     CSSValue* position = ValueForPosition(style.OffsetPosition(), style);
     auto* position_identifier_value = DynamicTo<CSSIdentifierValue>(position);
-    if (!position_identifier_value) {
+    if (!position_identifier_value ||
+        position_identifier_value->GetValueID() == CSSValueID::kAuto) {
       list->Append(*position);
     } else {
-      DCHECK(position_identifier_value->GetValueID() == CSSValueID::kAuto);
+      DCHECK(position_identifier_value->GetValueID() == CSSValueID::kNormal);
     }
   }
 
@@ -229,6 +325,7 @@ const CSSValueList* ComputedStyleUtils::CreatePositionListForLayer(
   CSSValueList* position_list = CSSValueList::CreateSpaceSeparated();
   if (layer.IsBackgroundXOriginSet()) {
     DCHECK(property.IDEquals(CSSPropertyID::kBackgroundPosition) ||
+           property.IDEquals(CSSPropertyID::kMaskPosition) ||
            property.IDEquals(CSSPropertyID::kWebkitMaskPosition));
     position_list->Append(
         *CSSIdentifierValue::Create(layer.BackgroundXOrigin()));
@@ -237,6 +334,7 @@ const CSSValueList* ComputedStyleUtils::CreatePositionListForLayer(
       *ZoomAdjustedPixelValueForLength(layer.PositionX(), style));
   if (layer.IsBackgroundYOriginSet()) {
     DCHECK(property.IDEquals(CSSPropertyID::kBackgroundPosition) ||
+           property.IDEquals(CSSPropertyID::kMaskPosition) ||
            property.IDEquals(CSSPropertyID::kWebkitMaskPosition));
     position_list->Append(
         *CSSIdentifierValue::Create(layer.BackgroundYOrigin()));
@@ -246,26 +344,30 @@ const CSSValueList* ComputedStyleUtils::CreatePositionListForLayer(
   return position_list;
 }
 
-const CSSValue* ComputedStyleUtils::ValueForFillRepeat(EFillRepeat x_repeat,
-                                                       EFillRepeat y_repeat) {
-  // For backwards compatibility, if both values are equal, just return one of
-  // them. And if the two values are equivalent to repeat-x or repeat-y, just
-  // return the shorthand.
-  if (x_repeat == y_repeat) {
-    return CSSIdentifierValue::Create(x_repeat);
-  }
-  if (x_repeat == EFillRepeat::kRepeatFill &&
-      y_repeat == EFillRepeat::kNoRepeatFill) {
-    return CSSIdentifierValue::Create(CSSValueID::kRepeatX);
-  }
-  if (x_repeat == EFillRepeat::kNoRepeatFill &&
-      y_repeat == EFillRepeat::kRepeatFill) {
-    return CSSIdentifierValue::Create(CSSValueID::kRepeatY);
+const CSSValue* ComputedStyleUtils::ValueForFillRepeat(
+    const FillLayer* curr_layer) {
+  const auto& fill_repeat = curr_layer->Repeat();
+
+  return MakeGarbageCollected<CSSRepeatStyleValue>(
+      CSSIdentifierValue::Create(fill_repeat.x),
+      CSSIdentifierValue::Create(fill_repeat.y));
+}
+
+const CSSValue* ComputedStyleUtils::RepeatStyle(const FillLayer* curr_layer) {
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+
+  for (; curr_layer; curr_layer = curr_layer->Next()) {
+    list->Append(*ValueForFillRepeat(curr_layer));
   }
 
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  list->Append(*CSSIdentifierValue::Create(x_repeat));
-  list->Append(*CSSIdentifierValue::Create(y_repeat));
+  return list;
+}
+
+const CSSValue* ComputedStyleUtils::MaskMode(const FillLayer* curr_layer) {
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+  for (; curr_layer; curr_layer = curr_layer->Next()) {
+    list->Append(*CSSIdentifierValue::Create(curr_layer->MaskMode()));
+  }
   return list;
 }
 
@@ -289,8 +391,7 @@ const CSSValueList* ComputedStyleUtils::ValuesForBackgroundShorthand(
                              ? *curr_layer->GetImage()->ComputedCSSValue(
                                    style, allow_visited_style)
                              : *CSSIdentifierValue::Create(CSSValueID::kNone));
-    before_slash->Append(
-        *ValueForFillRepeat(curr_layer->RepeatX(), curr_layer->RepeatY()));
+    before_slash->Append(*ValueForFillRepeat(curr_layer));
     before_slash->Append(*CSSIdentifierValue::Create(curr_layer->Attachment()));
     before_slash->Append(*CreatePositionListForLayer(
         GetCSSPropertyBackgroundPosition(), *curr_layer, style));
@@ -305,14 +406,108 @@ const CSSValueList* ComputedStyleUtils::ValuesForBackgroundShorthand(
   return result;
 }
 
-const CSSValue* ComputedStyleUtils::BackgroundRepeatOrWebkitMaskRepeat(
-    const FillLayer* curr_layer) {
-  CSSValueList* list = CSSValueList::CreateCommaSeparated();
-  for (; curr_layer; curr_layer = curr_layer->Next()) {
-    list->Append(
-        *ValueForFillRepeat(curr_layer->RepeatX(), curr_layer->RepeatY()));
+namespace {
+
+// Append clip and origin vals (https://drafts.fxtf.org/css-masking/#the-mask):
+// * If one <geometry-box> value and the no-clip keyword are present then
+//   <geometry-box> sets mask-origin and no-clip sets mask-clip to that value.
+// * If one <geometry-box> value and no no-clip keyword are present then
+//   <geometry-box> sets both mask-origin and mask-clip to that value.
+// * If two <geometry-box> values are present, then the first sets mask-origin
+//   and the second mask-clip.
+// Additionally, simplifies when possible.
+void AppendValuesForMaskClipAndOrigin(CSSValueList* result_list,
+                                      EFillBox origin,
+                                      EFillBox clip) {
+  if (origin == clip) {
+    // If both values are border-box, omit everything as it is the default.
+    if (origin == EFillBox::kBorder) {
+      return;
+    }
+    // If the values are the same, only emit one value. Note that mask-origin
+    // does not support no-clip, so there is no need to consider no-clip
+    // special cases.
+    result_list->Append(*CSSIdentifierValue::Create(origin));
+  } else if (origin == EFillBox::kBorder && clip == EFillBox::kNoClip) {
+    // Mask-origin does not support no-clip, so mask-origin can be omitted if it
+    // is the default.
+    result_list->Append(*CSSIdentifierValue::Create(clip));
+  } else {
+    result_list->Append(*CSSIdentifierValue::Create(origin));
+    result_list->Append(*CSSIdentifierValue::Create(clip));
   }
-  return list;
+}
+
+}  // namespace
+
+const CSSValueList* ComputedStyleUtils::ValuesForMaskShorthand(
+    const StylePropertyShorthand&,
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style) {
+  CHECK(RuntimeEnabledFeatures::CSSMaskingInteropEnabled());
+  // Canonical order (https://drafts.fxtf.org/css-masking/#typedef-mask-layer):
+  //   <mask-reference>              ||
+  //   <position> [ / <bg-size> ]?   ||
+  //   <repeat-style>                ||
+  //   <geometry-box>                ||
+  //   [ <geometry-box> | no-clip ]  ||
+  //   <compositing-operator>        ||
+  //   <masking-mode>
+  // The logic below omits initial values due to the following spec:
+  // https://drafts.csswg.org/cssom/#serialize-a-css-value
+  // "If component values can be omitted or replaced with a shorter
+  // representation without changing the meaning of the value, omit/replace
+  // them".
+  CSSValueList* result = CSSValueList::CreateCommaSeparated();
+  const FillLayer* layer = &style.MaskLayers();
+  for (; layer; layer = layer->Next()) {
+    CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+    // <mask-reference>
+    if (layer->GetImage()) {
+      list->Append(
+          *layer->GetImage()->ComputedCSSValue(style, allow_visited_style));
+    }
+    // <position> [ / <bg-size> ]?
+    if (layer->PositionX() !=
+            FillLayer::InitialFillPositionX(EFillLayerType::kMask) ||
+        layer->PositionY() !=
+            FillLayer::InitialFillPositionY(EFillLayerType::kMask) ||
+        layer->Size() != FillLayer::InitialFillSize(EFillLayerType::kMask)) {
+      CSSValueList* position_size_list = CSSValueList::CreateSlashSeparated();
+      position_size_list->Append(*CreatePositionListForLayer(
+          GetCSSPropertyWebkitMaskPosition(), *layer, style));
+      if (layer->Size() != FillLayer::InitialFillSize(EFillLayerType::kMask)) {
+        position_size_list->Append(*ValueForFillSize(layer->Size(), style));
+      }
+      list->Append(*position_size_list);
+    }
+    // <repeat-style>
+    if (layer->Repeat() !=
+        FillLayer::InitialFillRepeat(EFillLayerType::kMask)) {
+      list->Append(*ValueForFillRepeat(layer));
+    }
+    // <geometry-box>
+    // [ <geometry-box> | no-clip ]
+    AppendValuesForMaskClipAndOrigin(list, layer->Origin(), layer->Clip());
+    // <compositing-operator>
+    if (layer->CompositingOperator() !=
+        FillLayer::InitialFillCompositingOperator(EFillLayerType::kMask)) {
+      list->Append(*CSSIdentifierValue::Create(layer->CompositingOperator()));
+    }
+    // <masking-mode>
+    if (layer->MaskMode() !=
+        FillLayer::InitialFillMaskMode(EFillLayerType::kMask)) {
+      list->Append(*CSSIdentifierValue::Create(layer->MaskMode()));
+    }
+
+    if (list->length()) {
+      result->Append(*list);
+    } else {
+      result->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+    }
+  }
+  return result;
 }
 
 const CSSValue* ComputedStyleUtils::BackgroundPositionOrWebkitMaskPosition(
@@ -574,27 +769,22 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     const LayoutObject* layout_object) {
   std::pair<const Length*, const Length*> positions;
   bool is_horizontal_property;
-  bool is_right_or_bottom;
   switch (property.PropertyID()) {
     case CSSPropertyID::kLeft:
       positions = std::make_pair(&style.UsedLeft(), &style.UsedRight());
       is_horizontal_property = true;
-      is_right_or_bottom = false;
       break;
     case CSSPropertyID::kRight:
       positions = std::make_pair(&style.UsedRight(), &style.UsedLeft());
       is_horizontal_property = true;
-      is_right_or_bottom = true;
       break;
     case CSSPropertyID::kTop:
       positions = std::make_pair(&style.UsedTop(), &style.UsedBottom());
       is_horizontal_property = false;
-      is_right_or_bottom = false;
       break;
     case CSSPropertyID::kBottom:
       positions = std::make_pair(&style.UsedBottom(), &style.UsedTop());
       is_horizontal_property = false;
-      is_right_or_bottom = true;
       break;
     default:
       NOTREACHED();
@@ -604,8 +794,40 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
 
   const Length& offset = *positions.first;
   const Length& opposite = *positions.second;
-
   const auto* box = DynamicTo<LayoutBox>(layout_object);
+
+  // In this case, the used value is the computed value, so we resolve directly.
+  if (offset.IsFixed() && !style.MayHavePositionFallbackList()) {
+    return ZoomAdjustedPixelValueForLength(offset, style);
+  }
+
+  if (RuntimeEnabledFeatures::GetComputedStyleOutOfFlowInsetsFixEnabled() &&
+      box && box->IsOutOfFlowPositioned()) {
+    // LayoutBox::OutOfFlowInsetsForGetComputedStyle() are relative to the
+    // container's writing direction. Convert it to physical.
+    const PhysicalBoxStrut& insets =
+        box->OutOfFlowInsetsForGetComputedStyle().ConvertToPhysical(
+            box->ContainingBlock()->StyleRef().GetWritingDirection());
+    LayoutUnit inset;
+    switch (property.PropertyID()) {
+      case CSSPropertyID::kLeft:
+        inset = insets.left;
+        break;
+      case CSSPropertyID::kTop:
+        inset = insets.top;
+        break;
+      case CSSPropertyID::kRight:
+        inset = insets.right;
+        break;
+      case CSSPropertyID::kBottom:
+        inset = insets.bottom;
+        break;
+      default:
+        NOTREACHED();
+    }
+    return ZoomAdjustedPixelValue(inset, style);
+  }
+
   if (offset.IsPercentOrCalc() && box && layout_object->IsPositioned()) {
     LayoutUnit containing_block_size;
     if (layout_object->IsStickyPositioned()) {
@@ -616,26 +838,22 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
       containing_block_size = use_inline_size
                                   ? scroll_container->ContentLogicalWidth()
                                   : scroll_container->ContentLogicalHeight();
+      UseCounter::Count(layout_object->GetDocument(),
+                        WebFeature::kPercentOrCalcStickyUsedOffset);
     } else {
       containing_block_size =
           is_horizontal_property ==
                   layout_object->ContainingBlock()->IsHorizontalWritingMode()
               ? box->ContainingBlockLogicalWidthForContent()
               : box->ContainingBlockLogicalHeightForGetComputedStyle();
+      if (layout_object->IsRelPositioned()) {
+        UseCounter::Count(layout_object->GetDocument(),
+                          WebFeature::kPercentOrCalcRelativeUsedOffset);
+      }
     }
 
-    absl::optional<NGAnchorEvaluatorImpl> anchor_evaluator_storage;
-    NGAnchorEvaluatorImpl* anchor_evaluator = nullptr;
-    if (offset.HasAnchorQueries() && layout_object->IsOutOfFlowPositioned()) {
-      anchor_evaluator_storage.emplace(
-          NGAnchorEvaluatorImpl::BuildFromLayoutResult(*layout_object));
-      anchor_evaluator = &anchor_evaluator_storage.value();
-      anchor_evaluator->SetAxis(!is_horizontal_property, is_right_or_bottom,
-                                containing_block_size);
-    }
-
-    return ZoomAdjustedPixelValue(
-        ValueForLength(offset, containing_block_size, anchor_evaluator), style);
+    return ZoomAdjustedPixelValue(ValueForLength(offset, containing_block_size),
+                                  style);
   }
 
   if (offset.IsAuto() && layout_object) {
@@ -645,6 +863,8 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     // auto when offset.isAuto() on a sticky position object:
     // https://crbug.com/703816.
     if (layout_object->IsRelPositioned()) {
+      UseCounter::Count(layout_object->GetDocument(),
+                        WebFeature::kAutoRelativeUsedOffset);
       // If e.g. left is auto and right is not auto, then left's computed value
       // is negative right. So we get the opposite length unit and see if it is
       // auto.
@@ -672,33 +892,36 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     }
 
     if (layout_object->IsOutOfFlowPositioned() && layout_object->IsBox()) {
+      CHECK(
+          !RuntimeEnabledFeatures::GetComputedStyleOutOfFlowInsetsFixEnabled());
       // For fixed and absolute positioned elements, the top, left, bottom, and
       // right are defined relative to the corresponding sides of the containing
       // block.
       LayoutBlock* container = layout_object->ContainingBlock();
 
-      // clientOffset is the distance from this object's border edge to the
+      // client_offset is the distance from this object's border edge to the
       // container's padding edge. Thus it includes margins which we subtract
       // below.
-      const LayoutSize client_offset =
-          box->LocationOffset() -
-          LayoutSize(container->ClientLeft(), container->ClientTop());
+      const PhysicalOffset client_offset =
+          box->PhysicalLocation() -
+          PhysicalOffset(container->ClientLeft(), container->ClientTop());
+
       LayoutUnit position;
 
       switch (property.PropertyID()) {
         case CSSPropertyID::kLeft:
-          position = client_offset.Width() - box->MarginLeft();
+          position = client_offset.left - box->MarginLeft();
           break;
         case CSSPropertyID::kTop:
-          position = client_offset.Height() - box->MarginTop();
+          position = client_offset.top - box->MarginTop();
           break;
         case CSSPropertyID::kRight:
           position = container->ClientWidth() - box->MarginRight() -
-                     (box->OffsetWidth() + client_offset.Width());
+                     (box->OffsetWidth() + client_offset.left);
           break;
         case CSSPropertyID::kBottom:
           position = container->ClientHeight() - box->MarginBottom() -
-                     (box->OffsetHeight() + client_offset.Height());
+                     (box->OffsetHeight() + client_offset.top);
           break;
         default:
           NOTREACHED();
@@ -711,6 +934,8 @@ CSSValue* ComputedStyleUtils::ValueForPositionOffset(
     return CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
 
+  // Fixed lengths must have been handled by previous branches.
+  CHECK(!offset.IsFixed());
   return ZoomAdjustedPixelValueForLength(offset, style);
 }
 
@@ -836,8 +1061,7 @@ CSSValueID IdentifierForFamily(const AtomicString& family) {
   if (family == font_family_names::kSystemUi) {
     return CSSValueID::kSystemUi;
   }
-  if (RuntimeEnabledFeatures::CSSFontFamilyMathEnabled() &&
-      family == font_family_names::kMath) {
+  if (family == font_family_names::kMath) {
     return CSSValueID::kMath;
   }
   // If family does not correspond to any of the above, then it was actually
@@ -877,6 +1101,27 @@ CSSPrimitiveValue* ComputedStyleUtils::ValueForFontSize(
                                 style);
 }
 
+CSSValue* ComputedStyleUtils::ValueForFontSizeAdjust(
+    const ComputedStyle& style) {
+  if (!style.HasFontSizeAdjust()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+
+  // A resolved value is to be returned. Compare CSS WG discussion.
+  // https://github.com/w3c/csswg-drafts/issues/9050
+  FontSizeAdjust font_size_adjust = style.FontSizeAdjust();
+  if (font_size_adjust.GetMetric() == FontSizeAdjust::Metric::kExHeight) {
+    return CSSNumericLiteralValue::Create(style.FontSizeAdjust().Value(),
+                                          CSSPrimitiveValue::UnitType::kNumber);
+  }
+
+  return MakeGarbageCollected<CSSValuePair>(
+      CSSIdentifierValue::Create(font_size_adjust.GetMetric()),
+      CSSNumericLiteralValue::Create(style.FontSizeAdjust().Value(),
+                                     CSSPrimitiveValue::UnitType::kNumber),
+      CSSValuePair::kKeepIdenticalValues);
+}
+
 CSSPrimitiveValue* ComputedStyleUtils::ValueForFontStretch(
     const ComputedStyle& style) {
   return CSSNumericLiteralValue::Create(
@@ -886,11 +1131,11 @@ CSSPrimitiveValue* ComputedStyleUtils::ValueForFontStretch(
 
 CSSValue* ComputedStyleUtils::ValueForFontStyle(const ComputedStyle& style) {
   FontSelectionValue angle = style.GetFontDescription().Style();
-  if (angle == NormalSlopeValue()) {
+  if (angle == kNormalSlopeValue) {
     return CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
 
-  if (angle == ItalicSlopeValue()) {
+  if (angle == kItalicSlopeValue) {
     return CSSIdentifierValue::Create(CSSValueID::kItalic);
   }
 
@@ -1040,8 +1285,6 @@ CSSValue* ComputedStyleUtils::ValueForFontVariantAlternates(
     return CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
 
-  DCHECK(RuntimeEnabledFeatures::FontVariantAlternatesEnabled());
-
   auto make_single_ident_list = [](const AtomicString& alias) {
     CSSValueList* aliases_list = CSSValueList::CreateCommaSeparated();
     aliases_list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(alias));
@@ -1146,34 +1389,34 @@ CSSIdentifierValue* ComputedStyleUtils::ValueForFontOpticalSizing(
 CSSIdentifierValue* ValueForFontStretchAsKeyword(const ComputedStyle& style) {
   FontSelectionValue stretch_value = style.GetFontDescription().Stretch();
   CSSValueID value_id = CSSValueID::kInvalid;
-  if (stretch_value == UltraCondensedWidthValue()) {
+  if (stretch_value == kUltraCondensedWidthValue) {
     value_id = CSSValueID::kUltraCondensed;
   }
-  if (stretch_value == UltraCondensedWidthValue()) {
+  if (stretch_value == kUltraCondensedWidthValue) {
     value_id = CSSValueID::kUltraCondensed;
   }
-  if (stretch_value == ExtraCondensedWidthValue()) {
+  if (stretch_value == kExtraCondensedWidthValue) {
     value_id = CSSValueID::kExtraCondensed;
   }
-  if (stretch_value == CondensedWidthValue()) {
+  if (stretch_value == kCondensedWidthValue) {
     value_id = CSSValueID::kCondensed;
   }
-  if (stretch_value == SemiCondensedWidthValue()) {
+  if (stretch_value == kSemiCondensedWidthValue) {
     value_id = CSSValueID::kSemiCondensed;
   }
-  if (stretch_value == NormalWidthValue()) {
+  if (stretch_value == kNormalWidthValue) {
     value_id = CSSValueID::kNormal;
   }
-  if (stretch_value == SemiExpandedWidthValue()) {
+  if (stretch_value == kSemiExpandedWidthValue) {
     value_id = CSSValueID::kSemiExpanded;
   }
-  if (stretch_value == ExpandedWidthValue()) {
+  if (stretch_value == kExpandedWidthValue) {
     value_id = CSSValueID::kExpanded;
   }
-  if (stretch_value == ExtraExpandedWidthValue()) {
+  if (stretch_value == kExtraExpandedWidthValue) {
     value_id = CSSValueID::kExtraExpanded;
   }
-  if (stretch_value == UltraExpandedWidthValue()) {
+  if (stretch_value == kUltraExpandedWidthValue) {
     value_id = CSSValueID::kUltraExpanded;
   }
 
@@ -1270,6 +1513,16 @@ CSSValue* ComputedStyleUtils::ValueForFontVariationSettings(
   return list;
 }
 
+CSSValue* ComputedStyleUtils::ValueForFontPalette(const ComputedStyle& style) {
+  blink::FontPalette* palette = style.GetFontDescription().GetFontPalette();
+
+  if (!palette) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
+  }
+
+  return ConvertFontPaletteToCSSValue(palette);
+}
+
 CSSValue* ComputedStyleUtils::ValueForFont(const ComputedStyle& style) {
   auto AppendIfNotNormal = [](CSSValueList* list, const CSSValue& value) {
     auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
@@ -1310,11 +1563,9 @@ CSSValue* ComputedStyleUtils::ValueForFont(const ComputedStyle& style) {
       !base::ValuesEquivalent(variation_settings,
                               static_cast<CSSValue*>(CSSIdentifierValue::Create(
                                   CSSValueID::kNormal))) ||
-      (RuntimeEnabledFeatures::FontVariantAlternatesEnabled() &&
-       !base::ValuesEquivalent(
-           variant_alternative,
-           static_cast<CSSValue*>(
-               CSSIdentifierValue::Create(CSSValueID::kNormal))))) {
+      !base::ValuesEquivalent(variant_alternative,
+                              static_cast<CSSValue*>(CSSIdentifierValue::Create(
+                                  CSSValueID::kNormal)))) {
     return nullptr;
   }
 
@@ -1345,7 +1596,7 @@ CSSValue* ComputedStyleUtils::ValueForFont(const ComputedStyle& style) {
 
   {
     CSSNumericLiteralValue* font_weight = ValueForFontWeight(style);
-    if (font_weight->DoubleValue() != NormalWeightValue()) {
+    if (font_weight->DoubleValue() != kNormalWeightValue) {
       list->Append(*font_weight);
     }
   }
@@ -1373,49 +1624,36 @@ CSSValue* ComputedStyleUtils::ValueForFont(const ComputedStyle& style) {
   return list;
 }
 
-CSSValue* SpecifiedValueForGridTrackBreadth(const GridLength& track_breadth,
-                                            const ComputedStyle& style) {
-  if (!track_breadth.IsLength()) {
-    return CSSNumericLiteralValue::Create(
-        track_breadth.Flex(), CSSPrimitiveValue::UnitType::kFraction);
-  }
-
-  const Length& track_breadth_length = track_breadth.length();
-  if (track_breadth_length.IsAuto()) {
-    return CSSIdentifierValue::Create(CSSValueID::kAuto);
-  }
-  return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
-      track_breadth_length, style);
-}
-
 CSSValue* ComputedStyleUtils::SpecifiedValueForGridTrackSize(
     const GridTrackSize& track_size,
     const ComputedStyle& style) {
   switch (track_size.GetType()) {
     case kLengthTrackSizing:
-      return SpecifiedValueForGridTrackBreadth(track_size.MinTrackBreadth(),
-                                               style);
+      return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
+          track_size.MinTrackBreadth(), style);
     case kMinMaxTrackSizing: {
       if (track_size.MinTrackBreadth().IsAuto() &&
           track_size.MaxTrackBreadth().IsFlex()) {
-        return CSSNumericLiteralValue::Create(
-            track_size.MaxTrackBreadth().Flex(),
-            CSSPrimitiveValue::UnitType::kFraction);
+        return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
+            track_size.MaxTrackBreadth(), style);
       }
 
       auto* min_max_track_breadths =
           MakeGarbageCollected<CSSFunctionValue>(CSSValueID::kMinmax);
-      min_max_track_breadths->Append(*SpecifiedValueForGridTrackBreadth(
-          track_size.MinTrackBreadth(), style));
-      min_max_track_breadths->Append(*SpecifiedValueForGridTrackBreadth(
-          track_size.MaxTrackBreadth(), style));
+      min_max_track_breadths->Append(
+          *ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
+              track_size.MinTrackBreadth(), style));
+      min_max_track_breadths->Append(
+          *ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
+              track_size.MaxTrackBreadth(), style));
       return min_max_track_breadths;
     }
     case kFitContentTrackSizing: {
       auto* fit_content_track_breadth =
           MakeGarbageCollected<CSSFunctionValue>(CSSValueID::kFitContent);
-      fit_content_track_breadth->Append(*SpecifiedValueForGridTrackBreadth(
-          track_size.FitContentTrackBreadth(), style));
+      fit_content_track_breadth->Append(
+          *ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
+              track_size.FitContentTrackBreadth(), style));
       return fit_content_track_breadth;
     }
   }
@@ -1640,36 +1878,27 @@ CSSValue* ComputedStyleUtils::ValueForGridAutoTrackList(
     GridTrackSizingDirection track_direction,
     const LayoutObject* layout_object,
     const ComputedStyle& style) {
-  const GridTrackList& grid_auto_track_list = track_direction == kForColumns
-                                                  ? style.GridAutoColumns()
-                                                  : style.GridAutoRows();
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-
-  if (layout_object && layout_object->IsLayoutNGGrid()) {
-    const NGGridTrackList& auto_track_list = grid_auto_track_list.NGTrackList();
-    if (auto_track_list.RepeaterCount() == 1) {
-      for (wtf_size_t i = 0; i < auto_track_list.RepeatSize(0); ++i) {
-        list->Append(*SpecifiedValueForGridTrackSize(
-            auto_track_list.RepeatTrackSize(0, i), style));
-      }
-    }
-  } else {
-    const Vector<GridTrackSize, 1>& auto_track_sizes =
-        grid_auto_track_list.LegacyTrackList();
-    for (auto& track_size : auto_track_sizes) {
-      list->Append(*SpecifiedValueForGridTrackSize(track_size, style));
+  const NGGridTrackList& auto_track_list = track_direction == kForColumns
+                                               ? style.GridAutoColumns()
+                                               : style.GridAutoRows();
+  if (auto_track_list.RepeaterCount() == 1) {
+    for (wtf_size_t i = 0; i < auto_track_list.RepeatSize(0); ++i) {
+      list->Append(*SpecifiedValueForGridTrackSize(
+          auto_track_list.RepeatTrackSize(0, i), style));
     }
   }
   return list;
 }
 
-void PopulateGridTrackList(CSSValueList* list,
-                           OrderedNamedLinesCollector& collector,
-                           const Vector<LayoutUnit, 1>& tracks,
-                           const ComputedStyle& style,
-                           wtf_size_t start,
-                           wtf_size_t end,
-                           int offset) {
+void PopulateGridTrackListUsedValues(CSSValueList* list,
+                                     OrderedNamedLinesCollector& collector,
+                                     const Vector<LayoutUnit, 1>& tracks,
+                                     const ComputedStyle& style,
+                                     wtf_size_t start,
+                                     wtf_size_t end,
+                                     int offset,
+                                     bool discard_line_names) {
   DCHECK_LE(start, end);
   if (collector.HasCollapsedAutoRepeatNamedLines()) {
     // If the collector has a collapsed auto-repeat track, we need to adjust
@@ -1681,7 +1910,8 @@ void PopulateGridTrackList(CSSValueList* list,
     }
   }
   for (wtf_size_t i = start; i < end; ++i) {
-    if (offset >= 0 || i >= static_cast<wtf_size_t>(-offset)) {
+    if (!discard_line_names &&
+        (offset >= 0 || i >= static_cast<wtf_size_t>(-offset))) {
       AddValuesForNamedGridLinesAtIndex(collector, i + offset, *list,
                                         NamedLinesType::kNamedLines);
     }
@@ -1694,7 +1924,8 @@ void PopulateGridTrackList(CSSValueList* list,
   // Subgrid track names are always relative to offset 0, so they can ignore the
   // tracks after the offset.
   if (!collector.IsSubgriddedAxis() &&
-      (offset >= 0 || end >= static_cast<wtf_size_t>(-offset))) {
+      (!discard_line_names &&
+       (offset >= 0 || end >= static_cast<wtf_size_t>(-offset)))) {
     AddValuesForNamedGridLinesAtIndex(collector, end + offset, *list,
                                       NamedLinesType::kNamedLines);
   }
@@ -1822,10 +2053,11 @@ wtf_size_t PopulateIntegerRepeater(CSSValueList* list,
   return repeat_size * number_of_repetitions;
 }
 
-void PopulateGridTrackListForNonGrid(CSSValueList* list,
-                                     OrderedNamedLinesCollector& collector,
-                                     const blink::NGGridTrackList& track_list,
-                                     const ComputedStyle& style) {
+void PopulateGridTrackListComputedValues(
+    CSSValueList* list,
+    OrderedNamedLinesCollector& collector,
+    const blink::NGGridTrackList& track_list,
+    const ComputedStyle& style) {
   const bool is_subgrid = collector.IsSubgriddedAxis();
   wtf_size_t track_index = 0;
 
@@ -1880,15 +2112,16 @@ void PopulateGridTrackListForNonGrid(CSSValueList* list,
 CSSValue* ComputedStyleUtils::ValueForGridTrackList(
     GridTrackSizingDirection direction,
     const LayoutObject* layout_object,
-    const ComputedStyle& style) {
+    const ComputedStyle& style,
+    bool force_computed_value) {
   const bool is_for_columns = direction == kForColumns;
   const ComputedGridTrackList& computed_grid_track_list =
       is_for_columns ? style.GridTemplateColumns() : style.GridTemplateRows();
-  const auto* grid = DynamicTo<LayoutNGGrid>(layout_object);
+  const auto* grid = DynamicTo<LayoutGrid>(layout_object);
 
   // Handle the 'none' case.
   bool is_track_list_empty =
-      !computed_grid_track_list.TrackList().RepeaterCount();
+      !computed_grid_track_list.track_list.RepeaterCount();
   if (grid && is_track_list_empty) {
     // For grids we should consider every listed track, whether implicitly or
     // explicitly created. Empty grids have a sole grid line per axis.
@@ -1897,31 +2130,52 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
     is_track_list_empty = positions.size() == 1;
   }
 
-  const bool is_subgrid = computed_grid_track_list.IsSubgriddedAxis();
+  const bool is_subgrid_specified = computed_grid_track_list.IsSubgriddedAxis();
+  const bool is_subgrid_valid =
+      (grid && grid->HasCachedPlacementData())
+          ? grid->CachedPlacementData().line_resolver.SubgridSpanSize(
+                direction) != kNotFound
+          : false;
+  const bool is_subgrid = is_subgrid_specified && is_subgrid_valid;
 
-  // Even if the track list is empty or it's not actually a grid/subgrid in
-  // layout, if the author specified `subgrid`, the computed value should always
-  // begin with `subgrid` and cannot be `none`.
+  // Standalone grids with empty track lists should compute to `none`, but
+  // this is not the case for subgrids. Subgrids need to account for the
+  // following: "If there is no parent grid, this value is equivalent to the
+  // initial value, `none`, and the grid container is not a subgrid."
+  // https://www.w3.org/TR/css-grid-2/#subgrid-listing
+  //
+  // Interestingly, specifying `subgrid` on a non-grid *will* compute to
+  // `subgrid` syntax.
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (is_subgrid) {
+  if (is_subgrid || (is_subgrid_specified && !grid)) {
     list->Append(
         *MakeGarbageCollected<CSSIdentifierValue>(CSSValueID::kSubgrid));
-  } else if (is_track_list_empty) {
+  } else if (!is_subgrid_specified && is_track_list_empty) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
 
   wtf_size_t auto_repeat_insertion_point =
       computed_grid_track_list.auto_repeat_insertion_point;
-  const NGGridTrackList& ng_track_list = computed_grid_track_list.TrackList();
+  const NGGridTrackList& ng_track_list = computed_grid_track_list.track_list;
 
-  if (grid) {
+  // "Note: In general, resolved values are the computed values, except for a
+  // small list of legacy 2.1 properties. However, compatibility with early
+  // implementations of this module requires us to define grid-template-rows and
+  // grid-template-columns as returning used values."
+  //
+  // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+  //
+  // Default to the used value if it's a layout grid, unless
+  // `force_computed_value` is set (which is used for `grid-template`). Non
+  // layout-grids will always report the computed value.
+  if (grid && !force_computed_value) {
     // The number of auto repeat tracks. For 'repeat(auto-fill, [x][y])' this
     // will be 2, regardless of what auto-fill computes to. For subgrids, use
     // the number of grid line names specified on the track definition. For
     // standalone grids, this will be the number of track sizes, as this can
     // can differ from the count on the track definition.
     wtf_size_t auto_repeat_track_list_length =
-        computed_grid_track_list.TrackList().AutoRepeatTrackCount();
+        ng_track_list.AutoRepeatTrackCount();
 
     // Standalone grids will report the track sizes in the computed style
     // string, so base the start and end indices on it.
@@ -1951,17 +2205,24 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
     int offset = -base::checked_cast<int>(
         grid->ExplicitGridStartForDirection(direction));
 
-    PopulateGridTrackList(list, collector, track_sizes, style, start_index,
-                          end_index, offset);
+    // If `subgrid` is specified in `grid-template-rows/columns`, but the
+    // element is not a valid subgrid, computed style should behave as if it's a
+    // standalone grid. It should also drop any line names specified in the
+    // invalid subgrid rows/column definitions. See
+    // https://github.com/w3c/csswg-drafts/issues/9015.
+    const bool discard_line_names =
+        grid && is_subgrid_specified && !is_subgrid_valid;
+    PopulateGridTrackListUsedValues(list, collector, track_sizes, style,
+                                    start_index, end_index, offset,
+                                    discard_line_names);
     return list;
   }
 
-  // Otherwise, the resolved value is the computed value, preserving repeat().
   OrderedNamedLinesCollector collector(
       computed_grid_track_list.ordered_named_grid_lines,
-      computed_grid_track_list.auto_repeat_ordered_named_grid_lines, is_subgrid,
-      !!grid);
-  PopulateGridTrackListForNonGrid(list, collector, ng_track_list, style);
+      computed_grid_track_list.auto_repeat_ordered_named_grid_lines,
+      is_subgrid_specified, !!grid);
+  PopulateGridTrackListComputedValues(list, collector, ng_track_list, style);
   return list;
 }
 
@@ -1976,16 +2237,21 @@ CSSValue* ComputedStyleUtils::ValueForGridPosition(
   }
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  const bool has_named_line = !position.NamedGridLine().IsNull();
   if (position.IsSpan()) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kSpan));
-    list->Append(*CSSNumericLiteralValue::Create(
-        position.SpanPosition(), CSSPrimitiveValue::UnitType::kNumber));
+
+    // Do not include the numeric value of 1 if followed by a line name.
+    if (position.SpanPosition() != 1 || !has_named_line) {
+      list->Append(*CSSNumericLiteralValue::Create(
+          position.SpanPosition(), CSSPrimitiveValue::UnitType::kNumber));
+    }
   } else {
     list->Append(*CSSNumericLiteralValue::Create(
         position.IntegerPosition(), CSSPrimitiveValue::UnitType::kNumber));
   }
 
-  if (!position.NamedGridLine().IsNull()) {
+  if (has_named_line) {
     list->Append(
         *MakeGarbageCollected<CSSCustomIdentValue>(position.NamedGridLine()));
   }
@@ -2013,8 +2279,8 @@ gfx::SizeF ComputedStyleUtils::UsedBoxSize(const LayoutObject& layout_object) {
   }
   const auto& box = To<LayoutBox>(layout_object);
   return gfx::SizeF(box.StyleRef().BoxSizing() == EBoxSizing::kBorderBox
-                        ? box.BorderBoxRect().Size()
-                        : box.ComputedCSSContentBoxRect().Size());
+                        ? box.PhysicalBorderBoxRect().size
+                        : box.ComputedCSSContentBoxRect().size);
 }
 
 CSSValue* ComputedStyleUtils::RenderTextDecorationFlagsToCSSValue(
@@ -2200,21 +2466,39 @@ CSSValue* ComputedStyleUtils::ValueForAnimationDirectionList(
 }
 
 CSSValue* ComputedStyleUtils::ValueForAnimationDuration(
-    const absl::optional<double>& duration) {
-  if (!duration.has_value()) {
+    const absl::optional<double>& duration,
+    bool resolve_auto_to_zero) {
+  absl::optional<double> resolved_duration =
+      (!duration.has_value() && resolve_auto_to_zero) ? 0 : duration;
+  if (!resolved_duration.has_value()) {
     return CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
-  return CSSNumericLiteralValue::Create(duration.value(),
+  return CSSNumericLiteralValue::Create(resolved_duration.value(),
                                         CSSPrimitiveValue::UnitType::kSeconds);
 }
 
 CSSValue* ComputedStyleUtils::ValueForAnimationDurationList(
-    const CSSTimingData* timing_data) {
+    const CSSAnimationData* animation_data,
+    CSSValuePhase phase) {
+  bool resolve_auto_to_zero =
+      (phase == CSSValuePhase::kUsedValue) &&
+      (!animation_data || animation_data->HasSingleInitialTimeline());
   return CreateAnimationValueList(
-      timing_data
-          ? timing_data->DurationList()
-          : Vector<absl::optional<double>>{CSSTimingData::InitialDuration()},
-      &ValueForAnimationDuration);
+      animation_data
+          ? animation_data->DurationList()
+          : Vector<absl::optional<double>>{CSSAnimationData::InitialDuration()},
+      ValueForAnimationDuration, resolve_auto_to_zero);
+}
+
+CSSValue* ComputedStyleUtils::ValueForAnimationDurationList(
+    const CSSTransitionData* transition_data) {
+  return CreateAnimationValueList(
+      transition_data
+          ? transition_data->DurationList()
+          : Vector<
+                absl::optional<double>>{CSSTransitionData::InitialDuration()},
+      ValueForAnimationDuration,
+      /* resolve_auto_to_zero */ false);
 }
 
 CSSValue* ComputedStyleUtils::ValueForAnimationFillMode(
@@ -2455,17 +2739,29 @@ CSSValue* ComputedStyleUtils::ValueForAnimationTimelineList(
       &ValueForAnimationTimeline);
 }
 
+CSSValue* ComputedStyleUtils::ValueForTimelineInset(
+    const TimelineInset& inset,
+    const ComputedStyle& style) {
+  return MakeGarbageCollected<CSSValuePair>(
+      ComputedStyleUtils::ZoomAdjustedPixelValueForLength(inset.GetStart(),
+                                                          style),
+      ComputedStyleUtils::ZoomAdjustedPixelValueForLength(inset.GetEnd(),
+                                                          style),
+      CSSValuePair::kDropIdenticalValues);
+}
+
 CSSValue* ComputedStyleUtils::SingleValueForTimelineShorthand(
     const ScopedCSSName* name,
     TimelineAxis axis,
-    TimelineAttachment attachment) {
+    absl::optional<TimelineInset> inset,
+    const ComputedStyle& style) {
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   list->Append(*ValueForCustomIdentOrNone(name));
   if (axis != TimelineAxis::kBlock) {
     list->Append(*CSSIdentifierValue::Create(axis));
   }
-  if (attachment != TimelineAttachment::kLocal) {
-    list->Append(*CSSIdentifierValue::Create(attachment));
+  if (inset.value_or(TimelineInset()) != TimelineInset()) {
+    list->Append(*ValueForTimelineInset(inset.value(), style));
   }
   return list;
 }
@@ -2744,6 +3040,13 @@ CSSValue* ComputedStyleUtils::ValueForTransformList(
   return components;
 }
 
+CSSValue* ComputedStyleUtils::ValueForTransformFunction(
+    const TransformOperations& transform_list) {
+  CHECK_EQ(transform_list.Operations().size(), 1u);
+  return ValueForTransformOperation(*transform_list.Operations()[0], 1,
+                                    gfx::SizeF());
+}
+
 gfx::RectF ComputedStyleUtils::ReferenceBoxForTransform(
     const LayoutObject& layout_object,
     UsePixelSnappedBox pixel_snap_box) {
@@ -2755,7 +3058,7 @@ gfx::RectF ComputedStyleUtils::ReferenceBoxForTransform(
     if (pixel_snap_box == kUsePixelSnappedBox) {
       return gfx::RectF(layout_box.PixelSnappedBorderBoxRect());
     }
-    return gfx::RectF(layout_box.BorderBoxRect());
+    return gfx::RectF(layout_box.PhysicalBorderBoxRect());
   }
   return gfx::RectF();
 }
@@ -2816,6 +3119,18 @@ CSSValue* ComputedStyleUtils::CreateTransitionPropertyValue(
           .GetPropertyNameAtomicString());
 }
 
+CSSValue* ComputedStyleUtils::CreateTransitionBehaviorValue(
+    const CSSTransitionData::TransitionBehavior& type) {
+  switch (type) {
+    case CSSTransitionData::TransitionBehavior::kNormal:
+      return CSSIdentifierValue::Create(CSSValueID::kNormal);
+    case CSSTransitionData::TransitionBehavior::kAllowDiscrete:
+      return CSSIdentifierValue::Create(CSSValueID::kAllowDiscrete);
+  }
+  NOTREACHED() << " Unrecognized type: " << static_cast<unsigned>(type);
+  return nullptr;
+}
+
 CSSValue* ComputedStyleUtils::ValueForTransitionProperty(
     const CSSTransitionData* transition_data) {
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
@@ -2826,6 +3141,19 @@ CSSValue* ComputedStyleUtils::ValueForTransitionProperty(
     }
   } else {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kAll));
+  }
+  return list;
+}
+
+CSSValue* ComputedStyleUtils::ValueForTransitionBehavior(
+    const CSSTransitionData* transition_data) {
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+  if (transition_data) {
+    for (const auto& mode : transition_data->BehaviorList()) {
+      list->Append(*CreateTransitionBehaviorValue(mode));
+    }
+  } else {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNormal));
   }
   return list;
 }
@@ -3068,8 +3396,8 @@ CSSValue* ComputedStyleUtils::ValueForSVGPaint(const SVGPaint& paint,
     case SVGPaintType::kUriNone:
     case SVGPaintType::kUriColor: {
       CSSValueList* values = CSSValueList::CreateSpaceSeparated();
-      values->Append(
-          *MakeGarbageCollected<cssvalue::CSSURIValue>(paint.GetUrl()));
+      values->Append(*MakeGarbageCollected<cssvalue::CSSURIValue>(
+          CSSUrlData(paint.GetUrl())));
       values->Append(
           paint.type == SVGPaintType::kUriNone
               ? *CSSIdentifierValue::Create(CSSValueID::kNone)
@@ -3078,14 +3406,16 @@ CSSValue* ComputedStyleUtils::ValueForSVGPaint(const SVGPaint& paint,
       return values;
     }
     case SVGPaintType::kUri:
-      return MakeGarbageCollected<cssvalue::CSSURIValue>(paint.GetUrl());
+      return MakeGarbageCollected<cssvalue::CSSURIValue>(
+          CSSUrlData(paint.GetUrl()));
   }
 }
 
 CSSValue* ComputedStyleUtils::ValueForSVGResource(
     const StyleSVGResource* resource) {
   if (resource) {
-    return MakeGarbageCollected<cssvalue::CSSURIValue>(resource->Url());
+    return MakeGarbageCollected<cssvalue::CSSURIValue>(
+        CSSUrlData(resource->Url()));
   }
   return CSSIdentifierValue::Create(CSSValueID::kNone);
 }
@@ -3141,8 +3471,9 @@ CSSValue* ComputedStyleUtils::ValueForFilter(
     FilterOperation* filter_operation = operation.Get();
     switch (filter_operation->GetType()) {
       case FilterOperation::OperationType::kReference:
-        list->Append(*MakeGarbageCollected<cssvalue::CSSURIValue>(AtomicString(
-            To<ReferenceFilterOperation>(filter_operation)->Url())));
+        list->Append(*MakeGarbageCollected<cssvalue::CSSURIValue>(
+            CSSUrlData(AtomicString(
+                To<ReferenceFilterOperation>(filter_operation)->Url()))));
         continue;
       case FilterOperation::OperationType::kGrayscale:
         filter_value =
@@ -3390,8 +3721,22 @@ CSSValueList* ComputedStyleUtils::ValuesForGridShorthand(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style) {
+  // Trailing non-initial values should be dropped.
+  unsigned last_index = shorthand.length();
+  // Work backwards to determine the final non-initial index. For grid
+  // shorthands, we can drop all trailing `none` and `auto` values.
+  for (; last_index > 1; --last_index) {
+    const CSSValue* value =
+        shorthand.properties()[last_index - 1]->CSSValueFromComputedStyle(
+            style, layout_object, allow_visited_style);
+    if ((!IsA<CSSIdentifierValue>(value) ||
+         (To<CSSIdentifierValue>(value)->GetValueID() != CSSValueID::kNone))) {
+      break;
+    }
+  }
+
   CSSValueList* list = CSSValueList::CreateSlashSeparated();
-  for (unsigned i = 0; i < shorthand.length(); ++i) {
+  for (unsigned i = 0; i < last_index; ++i) {
     const CSSValue* value =
         shorthand.properties()[i]->CSSValueFromComputedStyle(
             style, layout_object, allow_visited_style);
@@ -3399,6 +3744,132 @@ CSSValueList* ComputedStyleUtils::ValuesForGridShorthand(
     list->Append(*value);
   }
   return list;
+}
+
+CSSValueList* ComputedStyleUtils::ValuesForGridAreaShorthand(
+    const StylePropertyShorthand& shorthand,
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style) {
+  DCHECK_EQ(shorthand.length(), 4u);
+
+  const CSSValue* grid_row_start =
+      shorthand.properties()[0]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* grid_column_start =
+      shorthand.properties()[1]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* grid_row_end =
+      shorthand.properties()[2]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* grid_column_end =
+      shorthand.properties()[3]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+
+  // `grid-row-end` depends on `grid-row-start`, and `grid-column-end` depends
+  // on on `grid-column-start`, but what's not consistent is that
+  // `grid-column-start` has a dependency on `grid-row-start`. For more details,
+  // see https://www.w3.org/TR/css-grid-2/#placement-shorthands
+  const bool include_column_start =
+      CSSOMUtils::IncludeDependentGridLineEndValue(grid_row_start,
+                                                   grid_column_start);
+  const bool include_row_end = CSSOMUtils::IncludeDependentGridLineEndValue(
+      grid_row_start, grid_row_end);
+  const bool include_column_end = CSSOMUtils::IncludeDependentGridLineEndValue(
+      grid_column_start, grid_column_end);
+
+  CSSValueList* list = CSSValueList::CreateSlashSeparated();
+
+  // `grid-row-start` is always included.
+  list->Append(*grid_row_start);
+
+  // If `IncludeDependentGridLineEndValue` returns true for a property,
+  // all preceding values must be included.
+  if (include_column_start || include_row_end || include_column_end) {
+    list->Append(*grid_column_start);
+  }
+  if (include_row_end || include_column_end) {
+    list->Append(*grid_row_end);
+  }
+  if (include_column_end) {
+    list->Append(*grid_column_end);
+  }
+
+  return list;
+}
+
+CSSValueList* ComputedStyleUtils::ValuesForGridLineShorthand(
+    const StylePropertyShorthand& shorthand,
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style) {
+  DCHECK_EQ(shorthand.length(), 2u);
+
+  const CSSValue* line_start =
+      shorthand.properties()[0]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* line_end =
+      shorthand.properties()[1]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  CSSValueList* list = CSSValueList::CreateSlashSeparated();
+
+  // `grid-line-start` is always included.
+  list->Append(*line_start);
+  if (CSSOMUtils::IncludeDependentGridLineEndValue(line_start, line_end)) {
+    list->Append(*line_end);
+  }
+
+  return list;
+}
+
+CSSValueList* ComputedStyleUtils::ValuesForGridTemplateShorthand(
+    const StylePropertyShorthand& shorthand,
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style) {
+  DCHECK_EQ(shorthand.length(), 3u);
+
+  // "Note: In general, resolved values are the computed values, except for a
+  // small list of legacy 2.1 properties. However, compatibility with early
+  // implementations of this module requires us to define grid-template-rows and
+  // grid-template-columns as returning used values."
+  //
+  // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+  //
+  // For `grid-template`, this doesn't apply, so we shouldn't be returning used
+  // values. The following method mostly mirrors
+  // `StylePropertySerializer::GetShorthandValueForGridTemplate`, except it
+  // produces a `CSSValueList` instead of a String.
+  const CSSValue* template_rows_computed =
+      ValueForGridTrackList(kForRows, layout_object, style,
+                            /* force_computed_values */ true);
+  const CSSValue* template_columns_computed =
+      ValueForGridTrackList(kForColumns, layout_object, style,
+                            /* force_computed_values */ true);
+
+  const CSSValue* template_row_values =
+      shorthand.properties()[0]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* template_column_values =
+      shorthand.properties()[1]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+  const CSSValue* template_area_values =
+      shorthand.properties()[2]->CSSValueFromComputedStyle(style, layout_object,
+                                                           allow_visited_style);
+
+  // Implicit tracks will generate an empty list from `ValueForGridTrackList`,
+  // as they don't create repeaters. In this case, they will already be
+  // equivalent to the expected computed value (since implicit tracks don't
+  // generate repeaters and are always fixed sizes). So in that case, we can
+  // simply use the values directly from the shorthand.
+  return CSSOMUtils::ComputedValueForGridTemplateShorthand(
+      CSSOMUtils::IsEmptyValueList(template_rows_computed)
+          ? template_row_values
+          : template_rows_computed,
+      CSSOMUtils::IsEmptyValueList(template_columns_computed)
+          ? template_column_values
+          : template_columns_computed,
+      template_area_values);
 }
 
 CSSValueList* ComputedStyleUtils::ValuesForSidesShorthand(
@@ -3500,7 +3971,8 @@ CSSValue* ComputedStyleUtils::ValuesForFontVariantProperty(
   enum VariantShorthandCases {
     kAllNormal,
     kNoneLigatures,
-    kConcatenateNonNormal
+    kConcatenateNonNormal,
+    kEmptyString
   };
   StylePropertyShorthand shorthand = fontVariantShorthand();
   VariantShorthandCases shorthand_case = kAllNormal;
@@ -3517,7 +3989,8 @@ CSSValue* ComputedStyleUtils::ValuesForFontVariantProperty(
       shorthand_case = kNoneLigatures;
     } else if (!(identifier_value &&
                  identifier_value->GetValueID() == CSSValueID::kNormal)) {
-      shorthand_case = kConcatenateNonNormal;
+      shorthand_case = shorthand_case == kNoneLigatures ? kEmptyString
+                                                        : kConcatenateNonNormal;
       break;
     }
   }
@@ -3545,6 +4018,8 @@ CSSValue* ComputedStyleUtils::ValuesForFontVariantProperty(
       }
       return list;
     }
+    case kEmptyString:
+      return nullptr;
     default:
       NOTREACHED();
       return nullptr;
@@ -3634,48 +4109,11 @@ CSSValueList* ComputedStyleUtils::ValuesForContainerShorthand(
 
   list->Append(*name);
 
-  if (!(IsA<CSSIdentifierValue>(type) &&
-        To<CSSIdentifierValue>(*type).GetValueID() == CSSValueID::kNormal)) {
+  if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(*type);
+      !ident_value || ident_value->GetValueID() != CSSValueID::kNormal) {
     list->Append(*type);
   }
 
-  return list;
-}
-
-// Returns up to two values for 'scroll-customization' property. The values
-// correspond to the customization values for 'x' and 'y' axes.
-CSSValue* ComputedStyleUtils::ScrollCustomizationFlagsToCSSValue(
-    scroll_customization::ScrollDirection scroll_customization) {
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (scroll_customization == scroll_customization::kScrollDirectionAuto) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
-  } else if (scroll_customization ==
-             scroll_customization::kScrollDirectionNone) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
-  } else {
-    if ((scroll_customization & scroll_customization::kScrollDirectionPanX) ==
-        scroll_customization::kScrollDirectionPanX) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanX));
-    } else if (scroll_customization &
-               scroll_customization::kScrollDirectionPanLeft) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanLeft));
-    } else if (scroll_customization &
-               scroll_customization::kScrollDirectionPanRight) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanRight));
-    }
-    if ((scroll_customization & scroll_customization::kScrollDirectionPanY) ==
-        scroll_customization::kScrollDirectionPanY) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanY));
-    } else if (scroll_customization &
-               scroll_customization::kScrollDirectionPanUp) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanUp));
-    } else if (scroll_customization &
-               scroll_customization::kScrollDirectionPanDown) {
-      list->Append(*CSSIdentifierValue::Create(CSSValueID::kPanDown));
-    }
-  }
-
-  DCHECK(list->length());
   return list;
 }
 
@@ -3730,22 +4168,31 @@ const CSSValue* ComputedStyleUtils::ValueForStyleAutoColor(
 
 CSSValue* ComputedStyleUtils::ValueForIntrinsicLength(
     const ComputedStyle& style,
-    const absl::optional<StyleIntrinsicLength>& intrinsic_length) {
-  CSSValue* length = nullptr;
-  if (intrinsic_length) {
-    length = ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
-        intrinsic_length->GetLength(), style);
-  }
-
-  if (!intrinsic_length) {
+    const StyleIntrinsicLength& intrinsic_length) {
+  if (intrinsic_length.IsNoOp()) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
+
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (intrinsic_length->HasAuto()) {
+  if (intrinsic_length.HasAuto()) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
   }
-  list->Append(*length);
+
+  if (const absl::optional<Length>& length = intrinsic_length.GetLength()) {
+    list->Append(*ZoomAdjustedPixelValueForLength(*length, style));
+  } else {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+  }
   return list;
+}
+
+CSSValue* ComputedStyleUtils::ValueForScrollStart(const ComputedStyle& style,
+                                                  const ScrollStartData& data) {
+  if (data.value_type == ScrollStartValueType::kLengthOrPercentage) {
+    return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(data.value,
+                                                               style);
+  }
+  return CSSIdentifierValue::Create(data.value_type);
 }
 
 std::unique_ptr<CrossThreadStyleValue>
@@ -3776,6 +4223,9 @@ const CSSValue* ComputedStyleUtils::ComputedPropertyValue(
     const ComputedStyle& style,
     const LayoutObject* layout_object) {
   switch (property.PropertyID()) {
+    case CSSPropertyID::kAnimationDuration:
+      return ComputedStyleUtils::ValueForAnimationDurationList(
+          style.Animations(), CSSValuePhase::kComputedValue);
     // Computed value is usually relative so that multiple fonts in child
     // elements work properly, but resolved value is always a pixel length.
     case CSSPropertyID::kLineHeight:

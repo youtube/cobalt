@@ -5,16 +5,20 @@
 #import "ios/chrome/browser/ui/infobars/coordinators/infobar_coordinator.h"
 #import "ios/chrome/browser/ui/infobars/coordinators/infobar_coordinator+subclassing.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/timer/timer.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/shared/ui/util/named_guide.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/ui/fullscreen/animated_scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/ui/fullscreen/fullscreen_controller.h"
 #import "ios/chrome/browser/ui/infobars/banners/infobar_banner_accessibility_util.h"
 #import "ios/chrome/browser/ui/infobars/banners/infobar_banner_presentation_state.h"
+#import "ios/chrome/browser/ui/infobars/coordinators/features.h"
 #import "ios/chrome/browser/ui/infobars/coordinators/infobar_coordinator_implementation.h"
 #import "ios/chrome/browser/ui/infobars/infobar_constants.h"
 #import "ios/chrome/browser/ui/infobars/modals/infobar_modal_constants.h"
@@ -22,10 +26,6 @@
 #import "ios/chrome/browser/ui/infobars/presentation/infobar_banner_transition_driver.h"
 #import "ios/chrome/browser/ui/infobars/presentation/infobar_modal_positioner.h"
 #import "ios/chrome/browser/ui/infobars/presentation/infobar_modal_transition_driver.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface InfobarCoordinator () <InfobarCoordinatorImplementation,
                                   InfobarBannerPositioner,
@@ -112,7 +112,8 @@
   if ([self.bannerViewController
           conformsToProtocol:@protocol(InfobarBannerInteractable)]) {
     UIViewController<InfobarBannerInteractable>* interactableBanner =
-        base::mac::ObjCCastStrict<UIViewController<InfobarBannerInteractable>>(
+        base::apple::ObjCCastStrict<
+            UIViewController<InfobarBannerInteractable>>(
             self.bannerViewController);
     interactableBanner.interactionDelegate = self.bannerTransitionDriver;
   }
@@ -142,15 +143,11 @@
 
   // Dismisses the presented banner after a certain number of seconds.
   if (!UIAccessibilityIsVoiceOverRunning() && self.shouldUseDefaultDismissal) {
-    const base::TimeDelta timeDelta =
-        self.highPriorityPresentation
-            ? kInfobarBannerLongPresentationDuration
-            : kInfobarBannerDefaultPresentationDuration;
-
     // Calling base::OneShotTimer::Start() will cancel any previously scheduled
     // timer, so there is no need to call base::OneShotTimer::Stop() first.
     __weak InfobarCoordinator* weakSelf = self;
-    _autoDismissBannerTimer.Start(FROM_HERE, timeDelta, base::BindOnce(^{
+    _autoDismissBannerTimer.Start(FROM_HERE, [self infobarPresentationDuration],
+                                  base::BindOnce(^{
                                     [weakSelf dismissInfobarBannerIfReady];
                                   }));
   }
@@ -230,13 +227,24 @@
 #pragma mark InfobarBannerPositioner
 
 - (CGFloat)bannerYPosition {
-  NamedGuide* omniboxGuide =
-      [NamedGuide guideWithName:kOmniboxGuide
-                           view:self.baseViewController.view];
-  UIView* omniboxView = omniboxGuide.owningView;
-  CGRect omniboxFrame = [omniboxView convertRect:omniboxGuide.layoutFrame
-                                          toView:omniboxView.window];
-  return CGRectGetMaxY(omniboxFrame);
+  LayoutGuideCenter* layoutGuideCenter =
+      LayoutGuideCenterForBrowser(self.browser);
+  UIView* topOmnibox =
+      [layoutGuideCenter referencedViewUnderName:kTopOmniboxGuide];
+  CGRect omniboxFrame = [topOmnibox convertRect:topOmnibox.bounds toView:nil];
+  CGFloat omniboxMaxY = CGRectGetMaxY(omniboxFrame);
+
+  // Use the top toolbar's layout guide when the omnibox is at the bottom.
+  if (IsBottomOmniboxSteadyStateEnabled() && topOmnibox.hidden) {
+    UIView* topToolbar =
+        [layoutGuideCenter referencedViewUnderName:kPrimaryToolbarGuide];
+    CGRect topToolbarFrame = [topToolbar convertRect:topToolbar.bounds
+                                              toView:nil];
+    CGFloat topToolbarMaxY =
+        CGRectGetMaxY(topToolbarFrame) + kInfobarTopPaddingBottomOmnibox;
+    return topToolbarMaxY;
+  }
+  return omniboxMaxY;
 }
 
 - (UIView*)bannerView {
@@ -375,6 +383,32 @@
   } else {
     UpdateBannerAccessibilityForDismissal(presentingViewController);
   }
+}
+
+// Determines the length for which to show the infobar based on its priority and
+// its type.
+- (base::TimeDelta)infobarPresentationDuration {
+  // Experiments with longer infobar duration for passwords, cards and
+  // addresses.
+  InfobarType type = self.infobarType;
+  if (type == InfobarType::kInfobarTypePasswordSave ||
+      type == InfobarType::kInfobarTypePasswordUpdate) {
+    if (base::FeatureList::IsEnabled(kPasswordInfobarDisplayLength)) {
+      return base::Seconds(kPasswordInfobarDisplayLengthParam.Get());
+    }
+  } else if (type == InfobarType::kInfobarTypeSaveCard) {
+    if (base::FeatureList::IsEnabled(kCreditCardInfobarDisplayLength)) {
+      return base::Seconds(kCreditCardInfobarDisplayLengthParam.Get());
+    }
+  } else if (type == InfobarType::kInfobarTypeSaveAutofillAddressProfile) {
+    if (base::FeatureList::IsEnabled(kAddressInfobarDisplayLength)) {
+      return base::Seconds(kAddressInfobarDisplayLengthParam.Get());
+    }
+  }
+
+  return self.highPriorityPresentation
+             ? kInfobarBannerLongPresentationDuration
+             : kInfobarBannerDefaultPresentationDuration;
 }
 
 #pragma mark - Dismissal Helpers

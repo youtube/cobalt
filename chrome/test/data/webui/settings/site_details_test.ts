@@ -52,6 +52,9 @@ suite('SiteDetails', function() {
 
   // Initialize a site-details before each test.
   setup(function() {
+    loadTimeData.overrideValues({
+      blockMidiByDefault: true,
+    });
     prefs = createSiteSettingsPrefs(
         [],
         [
@@ -91,13 +94,16 @@ suite('SiteDetails', function() {
               ContentSettingsTypes.CAMERA,
               [createRawSiteException('https://foo.com:443')]),
           createContentSettingTypeToValuePair(
+              ContentSettingsTypes.AUTO_PICTURE_IN_PICTURE,
+              [createRawSiteException('https://foo.com:443')]),
+          createContentSettingTypeToValuePair(
               ContentSettingsTypes.AUTOMATIC_DOWNLOADS,
               [createRawSiteException('https://foo.com:443')]),
           createContentSettingTypeToValuePair(
               ContentSettingsTypes.BACKGROUND_SYNC,
               [createRawSiteException('https://foo.com:443')]),
           createContentSettingTypeToValuePair(
-              ContentSettingsTypes.MIDI_DEVICES,
+              ContentSettingsTypes.MIDI,
               [createRawSiteException('https://foo.com:443')]),
           createContentSettingTypeToValuePair(
               ContentSettingsTypes.PROTECTED_CONTENT,

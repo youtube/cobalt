@@ -255,15 +255,12 @@ double WebSourceBufferImpl::GetWriteHead(
 
 WebMediaPlayer::TrackType mediaTrackTypeToBlink(media::MediaTrack::Type type) {
   switch (type) {
-    case media::MediaTrack::Audio:
+    case media::MediaTrack::Type::kAudio:
       return WebMediaPlayer::kAudioTrack;
-    case media::MediaTrack::Text:
-      return WebMediaPlayer::kTextTrack;
-    case media::MediaTrack::Video:
+    case media::MediaTrack::Type::kVideo:
       return WebMediaPlayer::kVideoTrack;
   }
-  NOTREACHED();
-  return WebMediaPlayer::kAudioTrack;
+  NOTREACHED_NORETURN();
 }
 
 void WebSourceBufferImpl::InitSegmentReceived(

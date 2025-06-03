@@ -38,7 +38,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       os_ << "{\"id\":" << index.id() << ",";
       os_ << "\"title\":\"" << OpcodeName(op.opcode) << "\",";
       os_ << "\"block_id\":" << block.index().id() << ",";
-      os_ << "\"op_properties_type\":\"" << op.Properties() << "\"";
+      os_ << "\"op_effects\":\"" << op.Effects() << "\"";
       if (origins_) {
         NodeOrigin origin = origins_->GetNodeOrigin(index.id());
         if (origin.IsKnown()) {
@@ -65,7 +65,8 @@ void JSONTurboshaftGraphWriter::PrintEdges() {
       if (auto* store = op.TryCast<StoreOp>()) {
         if (store->index().valid()) {
           DCHECK_EQ(store->input_count, 3);
-          inputs = {store->base(), store->index(), store->value()};
+          inputs = {store->base(), store->index().value_or_invalid(),
+                    store->value()};
         }
       }
       for (OpIndex input : inputs) {

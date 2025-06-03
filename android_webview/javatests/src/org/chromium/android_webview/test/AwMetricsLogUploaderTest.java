@@ -19,6 +19,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.common.PlatformServiceBridge;
+import org.chromium.android_webview.common.services.IMetricsUploadService;
 import org.chromium.android_webview.metrics.AwMetricsLogUploader;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
@@ -27,10 +28,7 @@ import org.chromium.components.metrics.ChromeUserMetricsExtensionProtos.ChromeUs
 
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Instrumentation tests MetricsUploadService. These tests are not batched to make sure all unbinded
@@ -51,16 +49,18 @@ public class AwMetricsLogUploaderTest {
     public void setUp() {
         mPlatformServiceBridge = new MetricsTestPlatformServiceBridge();
         PlatformServiceBridge.injectInstance(mPlatformServiceBridge);
-        ThreadUtils.runOnUiThread(() -> {
-            AwBrowserProcess.setWebViewPackageName(
-                    ContextUtils.getApplicationContext().getPackageName());
-        });
+        ThreadUtils.runOnUiThread(
+                () -> {
+                    AwBrowserProcess.setWebViewPackageName(
+                            ContextUtils.getApplicationContext().getPackageName());
+                });
     }
 
     @Test
     public void testSendingData_withPreBinding() throws Throwable {
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
         uploader.initialize();
         int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray());
         Assert.assertEquals(HttpURLConnection.HTTP_OK, status);
@@ -71,8 +71,9 @@ public class AwMetricsLogUploaderTest {
 
     @Test
     public void testSendingData_withoutPreBinding() throws Throwable {
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
         int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray());
         Assert.assertEquals(HttpURLConnection.HTTP_OK, status);
         ChromeUserMetricsExtension receivedLog = mPlatformServiceBridge.waitForNextMetricsLog();
@@ -86,17 +87,13 @@ public class AwMetricsLogUploaderTest {
     }
 
     private void testDefaultUploadQosFlag(boolean expectedValue) throws Throwable {
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ true, /* useDefaultUploadQos= */ expectedValue);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ expectedValue);
         uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray());
         mPlatformServiceBridge.waitForNextMetricsLog();
 
         Assert.assertEquals(expectedValue, mPlatformServiceBridge.isLastLogUsingDefaultUploadQos());
-    }
-
-    @Test
-    public void testSendingDataException_whenCancellationException() throws Throwable {
-        testSendingDataException(new CancellationException(), HttpURLConnection.HTTP_GONE);
     }
 
     @Test
@@ -105,28 +102,37 @@ public class AwMetricsLogUploaderTest {
     }
 
     @Test
-    public void testSendingDataException_whenExecutionException() throws Throwable {
-        testSendingDataException(
-                new ExecutionException("", null), HttpURLConnection.HTTP_BAD_REQUEST);
-    }
-
-    @Test
     public void testSendingDataException_whenTimesOut() throws Throwable {
-        testSendingDataException(new TimeoutException(), HttpURLConnection.HTTP_CLIENT_TIMEOUT);
+        // When the AwMetricsLogUploader attempts to wait for log results, an exception of our
+        // choosing will be thrown.
+        final LinkedBlockingQueue<IMetricsUploadService> mockedResultsQueue =
+                mock(LinkedBlockingQueue.class);
+        when(mockedResultsQueue.poll(anyLong(), any())).thenReturn(null);
+
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
+        int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray(), mockedResultsQueue);
+
+        Assert.assertEquals(HttpURLConnection.HTTP_CLIENT_TIMEOUT, status);
     }
 
     private void testSendingDataException(Throwable exceptionThrown, int expectedStatus)
             throws Throwable {
         // When the AwMetricsLogUploader attempts to wait for log results, an exception of our
         // choosing will be thrown.
-        final CompletableFuture<Integer> mockedResultsFuture = mock(CompletableFuture.class);
-        when(mockedResultsFuture.get(anyLong(), any())).thenAnswer(invocation -> {
-            throw exceptionThrown;
-        });
+        final LinkedBlockingQueue<IMetricsUploadService> mockedResultsQueue =
+                mock(LinkedBlockingQueue.class);
+        when(mockedResultsQueue.poll(anyLong(), any()))
+                .thenAnswer(
+                        invocation -> {
+                            throw exceptionThrown;
+                        });
 
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
-        int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray(), mockedResultsFuture);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
+        int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray(), mockedResultsQueue);
 
         Assert.assertEquals(expectedStatus, status);
     }
@@ -138,16 +144,18 @@ public class AwMetricsLogUploaderTest {
         // We should still get a success code since this code is not waiting for this.
         mPlatformServiceBridge.setLogMetricsBlockingStatus(1);
 
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ false, /* useDefaultUploadQos= */ false);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ false, /* useDefaultUploadQos= */ false);
         int status = uploader.log(SAMPLE_TEST_METRICS_LOG.toByteArray());
         Assert.assertEquals(HttpURLConnection.HTTP_OK, status);
     }
 
     @Test
     public void testSendingMultipleLogs() throws Throwable {
-        AwMetricsLogUploader uploader = new AwMetricsLogUploader(
-                /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
+        AwMetricsLogUploader uploader =
+                new AwMetricsLogUploader(
+                        /* waitForResults= */ true, /* useDefaultUploadQos= */ false);
         uploader.initialize();
 
         final int numberOfLogs = 5;

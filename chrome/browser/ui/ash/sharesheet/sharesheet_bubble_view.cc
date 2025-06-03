@@ -12,6 +12,8 @@
 #include "ash/public/cpp/ash_typography.h"
 #include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/typography.h"
+#include "base/check_op.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -29,12 +31,14 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/components/sharesheet/constants.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/app_window_registry.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/closure_animation_observer.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
@@ -159,13 +163,26 @@ SharesheetBubbleView::SharesheetBubbleView(
     gfx::NativeWindow native_window,
     ::sharesheet::SharesheetServiceDelegator* delegator)
     : delegator_(delegator) {
-  PerformLoggingAndChecks(native_window);
+  CHECK(native_window);
+  CHECK(delegator_);
 
-  SetUpDialog();
+  SetID(SHARESHEET_BUBBLE_VIEW_ID);
+  // We set the dialog role because views::BubbleDialogDelegate defaults this to
+  // an alert dialog. This would make screen readers announce all of this dialog
+  // which is undesirable.
+  SetAccessibleWindowRole(ax::mojom::Role::kDialog);
+  SetAccessibleTitle(l10n_util::GetStringUTF16(IDS_SHARESHEET_TITLE_LABEL));
+  AddAccelerator(ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE));
 
-  SetUpParentWindow(native_window);
+  set_parent_window(native_window);
+  views::Widget* const widget =
+      views::Widget::GetWidgetForNativeWindow(native_window);
+  CHECK(widget);
+  parent_view_ = widget->GetRootView();
+  parent_widget_observer_ =
+      std::make_unique<SharesheetParentWidgetObserver>(this, widget);
 
-  CreateBubble();
+  InitBubble();
 }
 
 SharesheetBubbleView::~SharesheetBubbleView() {
@@ -187,11 +204,9 @@ void SharesheetBubbleView::ShowBubble(
 
   main_view_->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
-  // When there are no targets, don't show any previews.
-  bool show_content_previews = !targets.empty();
   header_view_ =
       main_view_->AddChildView(std::make_unique<SharesheetHeaderView>(
-          intent_->Clone(), delegator_->GetProfile(), show_content_previews));
+          intent_->Clone(), delegator_->GetProfile()));
   body_view_ = main_view_->AddChildView(std::make_unique<views::View>());
   body_view_->SetID(BODY_VIEW_ID);
   body_view_->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -207,63 +222,38 @@ void SharesheetBubbleView::ShowBubble(
   footer_layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
 
-  if (targets.empty()) {
-    auto* image =
-        body_view_->AddChildView(std::make_unique<views::ImageView>());
-    image->SetImage(
-        ui::ResourceBundle::GetSharedInstance().GetThemedLottieImageNamed(
-            IDR_SHARESHEET_EMPTY_STATE_IMAGE));
-    image->SetProperty(views::kMarginsKey,
-                       gfx::Insets::TLBR(0, 0, kSpacing, 0));
-    auto* color_provider = AshColorProvider::Get();
-    body_view_->AddChildView(CreateShareLabel(
-        l10n_util::GetStringUTF16(IDS_SHARESHEET_ZERO_STATE_PRIMARY_LABEL),
-        CONTEXT_SHARESHEET_BUBBLE_BODY, kPrimaryTextLineHeight,
-        color_provider->GetContentLayerColor(
-            AshColorProvider::ContentLayerType::kTextColorPrimary),
-        gfx::ALIGN_CENTER));
-    body_view_->AddChildView(CreateShareLabel(
-        l10n_util::GetStringUTF16(IDS_SHARESHEET_ZERO_STATE_SECONDARY_LABEL),
-        CONTEXT_SHARESHEET_BUBBLE_BODY_SECONDARY, kPrimaryTextLineHeight,
-        color_provider->GetContentLayerColor(
-            AshColorProvider::ContentLayerType::kTextColorSecondary),
-        gfx::ALIGN_CENTER, views::style::STYLE_PRIMARY));
-  } else {
-    if (show_content_previews) {
-      header_body_separator_ =
-          body_view_->AddChildView(std::make_unique<views::Separator>());
-    }
-
-    const size_t targets_size = targets.size();
-    auto scroll_view = std::make_unique<views::ScrollView>();
-    scroll_view->SetContents(MakeScrollableTargetView(std::move(targets)));
-    scroll_view->ClipHeightTo(kTargetViewHeight, kTargetViewExpandedHeight);
-    body_view_->AddChildView(std::move(scroll_view));
-
-    if (expanded_view_) {
-      body_footer_separator_ =
-          body_view_->AddChildView(std::make_unique<views::Separator>());
-      expand_button_ =
-          footer_view_->AddChildView(std::make_unique<SharesheetExpandButton>(
-              base::BindRepeating(&SharesheetBubbleView::ExpandButtonPressed,
-                                  base::Unretained(this))));
-    } else if (targets_size <= kMaxTargetsPerRow * kMaxRowsForDefaultView) {
-      // When we have between 1 and 8 targets inclusive. Update |footer_layout|
-      // padding.
-      footer_layout->set_inside_border_insets(
-          gfx::Insets::VH(kFooterNoExtensionVerticalPadding, 0));
-    }
+  // There is always at least 1 target as Copy To Clipboard is always visible.
+  CHECK_GT(targets.size(), 0u);
+  header_body_separator_ =
+      body_view_->AddChildView(std::make_unique<views::Separator>());
+  if (chromeos::features::IsJellyEnabled()) {
+    header_body_separator_->SetColorId(cros_tokens::kCrosSysSeparator);
   }
 
-  main_view_->SetFocusBehavior(View::FocusBehavior::NEVER);
-  views::BubbleDialogDelegateView::CreateBubble(base::WrapUnique(this));
-  GetWidget()->GetRootView()->Layout();
-  RecordFormFactorMetric();
-  RecordMimeTypeMetric(intent_);
-  ShowWidgetWithAnimateFadeIn();
+  const size_t targets_size = targets.size();
+  auto scroll_view = std::make_unique<views::ScrollView>();
+  scroll_view->SetContents(MakeScrollableTargetView(std::move(targets)));
+  scroll_view->ClipHeightTo(kTargetViewHeight, kTargetViewExpandedHeight);
+  body_view_->AddChildView(std::move(scroll_view));
 
-  UpdateAnchorPosition();
-  tablet_mode_observation_.Observe(TabletMode::Get());
+  if (expanded_view_) {
+    body_footer_separator_ =
+        body_view_->AddChildView(std::make_unique<views::Separator>());
+    if (chromeos::features::IsJellyEnabled()) {
+      body_footer_separator_->SetColorId(cros_tokens::kCrosSysSeparator);
+    }
+    expand_button_ =
+        footer_view_->AddChildView(std::make_unique<SharesheetExpandButton>(
+            base::BindRepeating(&SharesheetBubbleView::ExpandButtonPressed,
+                                base::Unretained(this))));
+  } else if (targets_size <= kMaxTargetsPerRow * kMaxRowsForDefaultView) {
+    // When we have between 1 and 8 targets inclusive. Update |footer_layout|
+    // padding.
+    footer_layout->set_inside_border_insets(
+        gfx::Insets::VH(kFooterNoExtensionVerticalPadding, 0));
+  }
+
+  SetUpAndShowBubble();
 }
 
 void SharesheetBubbleView::ShowNearbyShareBubbleForArc(
@@ -272,12 +262,32 @@ void SharesheetBubbleView::ShowNearbyShareBubbleForArc(
     ::sharesheet::CloseCallback close_callback) {
   // Disable close when clicking outside bubble for Nearby Share.
   close_on_deactivate_ = false;
-  ShowBubble({}, std::move(intent), std::move(delivered_callback),
-             std::move(close_callback));
-  if (delivered_callback_) {
-    std::move(delivered_callback_)
-        .Run(::sharesheet::SharesheetResult::kSuccess);
+  close_callback_ = std::move(close_callback);
+  intent_ = std::move(intent);
+
+  // Set up the bubble so that the nearby share dialog can be triggered within
+  // the sharesheet.
+  SetUpAndShowBubble();
+
+  if (delivered_callback) {
+    std::move(delivered_callback).Run(::sharesheet::SharesheetResult::kSuccess);
   }
+
+  // When the Nearby Share target is shown, it will transform from the original
+  // sharesheet bubble to the nearby share dialog. This animation requires an
+  // original rectangle to transform from, so the size of the bubble cannot be
+  // 0. In this instance, we have not populated the sharesheet with anything, as
+  // it'll never be shown, so the dynamic sizing will set the height to 0. To
+  // get around that, we set the height to 1, so there is a starting rectangle
+  // to transform from.
+  //
+  // Having a height of "1" means that the animation for showing Nearby Share
+  // from ARC++ is mostly a vertical expansion, instead of how it looks in a
+  // normal sharesheet where there's a slight vertical and slight horizontal
+  // change. We could try calculate the correct "empty" size of the sharesheet
+  // and use that instead for a more consistent UI experience.
+  height_ = 1;
+
   delegator_->OnTargetSelected(
       l10n_util::GetStringUTF16(IDS_NEARBY_SHARE_FEATURE_NAME),
       ::sharesheet::TargetType::kAction, std::move(intent_),
@@ -302,12 +312,19 @@ std::unique_ptr<views::View> SharesheetBubbleView::MakeScrollableTargetView(
         views::BoxLayout::Orientation::kVertical);
 
     expanded_view_container
-        ->AddChildView(CreateShareLabel(
-            l10n_util::GetStringUTF16(IDS_SHARESHEET_APPS_LIST_LABEL),
-            CONTEXT_SHARESHEET_BUBBLE_BODY, kSubtitleTextLineHeight,
-            AshColorProvider::Get()->GetContentLayerColor(
-                AshColorProvider::ContentLayerType::kTextColorPrimary),
-            gfx::ALIGN_CENTER))
+        ->AddChildView(
+            chromeos::features::IsJellyEnabled()
+                ? CreateShareLabel(
+                      l10n_util::GetStringUTF16(IDS_SHARESHEET_APPS_LIST_LABEL),
+                      TypographyToken::kCrosHeadline1,
+                      cros_tokens::kCrosSysOnSurface, gfx::ALIGN_CENTER)
+                : CreateShareLabel(
+                      l10n_util::GetStringUTF16(IDS_SHARESHEET_APPS_LIST_LABEL),
+                      CONTEXT_SHARESHEET_BUBBLE_BODY, kSubtitleTextLineHeight,
+                      AshColorProvider::Get()->GetContentLayerColor(
+                          AshColorProvider::ContentLayerType::
+                              kTextColorPrimary),
+                      gfx::ALIGN_CENTER))
         ->SetProperty(views::kMarginsKey,
                       gfx::Insets::TLBR(kExpandViewPaddingTop, 0,
                                         kExpandViewPaddingBottom, 0));
@@ -331,6 +348,9 @@ std::unique_ptr<views::View> SharesheetBubbleView::MakeScrollableTargetView(
   if (expanded_view_container) {
     expanded_view_separator_ =
         scrollable_view->AddChildView(std::make_unique<views::Separator>());
+    if (chromeos::features::IsJellyEnabled()) {
+      expanded_view_separator_->SetColorId(cros_tokens::kCrosSysSeparator);
+    }
     expanded_view_separator_->SetProperty(views::kMarginsKey,
                                           gfx::Insets::VH(0, kSpacing));
     expanded_view_ =
@@ -380,9 +400,6 @@ void SharesheetBubbleView::PopulateLayoutsWithTargets(
 }
 
 void SharesheetBubbleView::ShowActionView() {
-  // TODO(melzhang) This should be a separate function on sharesheet controller
-  // called by Nearby. Disable close when clicking outside bubble for Nearby
-  // Share.
   close_on_deactivate_ = false;
   constexpr float kShareActionScaleUpFactor = 0.9f;
 
@@ -460,48 +477,6 @@ void SharesheetBubbleView::ResizeBubble(const int& width, const int& height) {
 void SharesheetBubbleView::CloseBubble(views::Widget::ClosedReason reason) {
   CloseWidgetWithAnimateFadeOut(reason);
 }
-
-// --- Added for debugging purposes. Remove after bug fixed.
-
-void SharesheetBubbleView::PerformLoggingAndChecks(
-    gfx::NativeWindow native_window) {
-  if (!native_window) {
-    LOG(ERROR) << "Native_window value is null";
-  }
-  CHECK(native_window);
-  if (!delegator_) {
-    LOG(ERROR) << "Delegator value is null";
-  }
-  CHECK(delegator_);
-}
-
-void SharesheetBubbleView::SetUpDialog() {
-  SetID(SHARESHEET_BUBBLE_VIEW_ID);
-  // We set the dialog role because views::BubbleDialogDelegate defaults this to
-  // an alert dialog. This would make screen readers announce all of this dialog
-  // which is undesirable.
-  SetAccessibleWindowRole(ax::mojom::Role::kDialog);
-  SetAccessibleTitle(l10n_util::GetStringUTF16(IDS_SHARESHEET_TITLE_LABEL));
-  AddAccelerator(ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE));
-}
-
-void SharesheetBubbleView::SetUpParentWindow(gfx::NativeWindow native_window) {
-  set_parent_window(native_window);
-  views::Widget* const widget =
-      views::Widget::GetWidgetForNativeWindow(native_window);
-  if (!widget) {
-    LOG(ERROR) << "Widget value is null";
-  }
-  if (!widget->GetRootView()) {
-    LOG(ERROR) << "Widget RootView value is null";
-  }
-  CHECK(widget);
-  parent_view_ = widget->GetRootView();
-  parent_widget_observer_ =
-      std::make_unique<SharesheetParentWidgetObserver>(this, widget);
-}
-
-// --- End of functions added for debugging.
 
 bool SharesheetBubbleView::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
@@ -633,7 +608,7 @@ void SharesheetBubbleView::OnTabletControllerDestroyed() {
   tablet_mode_observation_.Reset();
 }
 
-void SharesheetBubbleView::CreateBubble() {
+void SharesheetBubbleView::InitBubble() {
   // This disables the default deactivation behaviour in
   // BubbleDialogDelegateView. Close on deactivation behaviour is managed by the
   // SharesheetBubbleView with the |close_on_deactivate_| member.
@@ -655,6 +630,18 @@ void SharesheetBubbleView::CreateBubble() {
   share_action_view_ = AddChildView(std::move(share_action_view));
   share_action_view_->SetID(SHARE_ACTION_VIEW_ID);
   share_action_view_->SetVisible(false);
+}
+
+void SharesheetBubbleView::SetUpAndShowBubble() {
+  main_view_->SetFocusBehavior(View::FocusBehavior::NEVER);
+  views::BubbleDialogDelegateView::CreateBubble(base::WrapUnique(this));
+  GetWidget()->GetRootView()->Layout();
+  RecordFormFactorMetric();
+  RecordMimeTypeMetric(intent_);
+  ShowWidgetWithAnimateFadeIn();
+
+  UpdateAnchorPosition();
+  tablet_mode_observation_.Observe(TabletMode::Get());
 }
 
 void SharesheetBubbleView::ExpandButtonPressed() {

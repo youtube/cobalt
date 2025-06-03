@@ -94,31 +94,50 @@ URLLoaderThrottleProviderImpl::URLLoaderThrottleProviderImpl(
     ChromeContentRendererClient* chrome_content_renderer_client)
     : type_(type),
       chrome_content_renderer_client_(chrome_content_renderer_client) {
-  DETACH_FROM_THREAD(thread_checker_);
-  broker->GetInterface(safe_browsing_remote_.InitWithNewPipeAndPassReceiver());
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+  broker->GetInterface(pending_safe_browsing_.InitWithNewPipeAndPassReceiver());
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  broker->GetInterface(
+      pending_extension_web_request_reporter_.InitWithNewPipeAndPassReceiver());
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
 URLLoaderThrottleProviderImpl::~URLLoaderThrottleProviderImpl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 URLLoaderThrottleProviderImpl::URLLoaderThrottleProviderImpl(
     const URLLoaderThrottleProviderImpl& other)
     : type_(other.type_),
       chrome_content_renderer_client_(other.chrome_content_renderer_client_) {
-  DETACH_FROM_THREAD(thread_checker_);
+  DETACH_FROM_SEQUENCE(sequence_checker_);
   if (other.safe_browsing_) {
     other.safe_browsing_->Clone(
-        safe_browsing_remote_.InitWithNewPipeAndPassReceiver());
+        pending_safe_browsing_.InitWithNewPipeAndPassReceiver());
   }
-  // An ad_delay_factory_ is created, rather than cloning the existing one.
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (other.extension_web_request_reporter_) {
+    other.extension_web_request_reporter_->Clone(
+        pending_extension_web_request_reporter_
+            .InitWithNewPipeAndPassReceiver());
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
 std::unique_ptr<blink::URLLoaderThrottleProvider>
 URLLoaderThrottleProviderImpl::Clone() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (safe_browsing_remote_)
-    safe_browsing_.Bind(std::move(safe_browsing_remote_));
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (pending_safe_browsing_) {
+    safe_browsing_.Bind(std::move(pending_safe_browsing_));
+  }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (pending_extension_web_request_reporter_) {
+    extension_web_request_reporter_.Bind(
+        std::move(pending_extension_web_request_reporter_));
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   return base::WrapUnique(new URLLoaderThrottleProviderImpl(*this));
 }
 
@@ -126,7 +145,7 @@ blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>>
 URLLoaderThrottleProviderImpl::CreateThrottles(
     int render_frame_id,
     const blink::WebURLRequest& request) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
 
@@ -142,11 +161,24 @@ URLLoaderThrottleProviderImpl::CreateThrottles(
          type_ == blink::URLLoaderThrottleProviderType::kFrame);
 
   if (!is_frame_resource) {
-    if (safe_browsing_remote_)
-      safe_browsing_.Bind(std::move(safe_browsing_remote_));
-    throttles.emplace_back(
-        std::make_unique<safe_browsing::RendererURLLoaderThrottle>(
-            safe_browsing_.get(), render_frame_id));
+    if (pending_safe_browsing_) {
+      safe_browsing_.Bind(std::move(pending_safe_browsing_));
+    }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    if (pending_extension_web_request_reporter_) {
+      extension_web_request_reporter_.Bind(
+          std::move(pending_extension_web_request_reporter_));
+    }
+
+    auto throttle = std::make_unique<safe_browsing::RendererURLLoaderThrottle>(
+        safe_browsing_.get(), render_frame_id,
+        extension_web_request_reporter_.get());
+#else
+    auto throttle = std::make_unique<safe_browsing::RendererURLLoaderThrottle>(
+        safe_browsing_.get(), render_frame_id);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+    throttles.emplace_back(std::move(throttle));
   }
 
   if (type_ == blink::URLLoaderThrottleProviderType::kFrame &&
@@ -173,7 +205,8 @@ URLLoaderThrottleProviderImpl::CreateThrottles(
       throttles.emplace_back(std::move(throttle));
   }
   std::unique_ptr<blink::URLLoaderThrottle> localization_throttle =
-      extensions::ExtensionLocalizationThrottle::MaybeCreate(request.Url());
+      extensions::ExtensionLocalizationThrottle::MaybeCreate(render_frame_id,
+                                                             request.Url());
   if (localization_throttle) {
     throttles.emplace_back(std::move(localization_throttle));
   }
@@ -192,7 +225,8 @@ URLLoaderThrottleProviderImpl::CreateThrottles(
       client_data_header,
 #endif
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      /*bound_session_request_throttled_listener=*/nullptr,
+      chrome_content_renderer_client_->GetChromeObserver()
+          ->CreateBoundSessionRequestThrottledListener(),
 #endif
       chrome_content_renderer_client_->GetChromeObserver()
           ->GetDynamicParams()));

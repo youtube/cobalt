@@ -114,6 +114,7 @@ public class Snackbar {
     public static final int UMA_CREATOR_UNFOLLOW_SUCCESS = 58;
     public static final int UMA_CREATOR_UNFOLLOW_FAILURE = 59;
     public static final int UMA_QUICK_DELETE = 60;
+    public static final int UMA_AUTO_TRANSLATE = 61;
 
     private @Nullable SnackbarController mController;
     private CharSequence mText;
@@ -128,8 +129,7 @@ public class Snackbar {
     private Drawable mProfileImage;
     private int mType;
     private int mIdentifier = UMA_UNKNOWN;
-    @Theme
-    private int mTheme = Theme.BASIC;
+    private @Theme int mTheme = Theme.BASIC;
 
     @IntDef({Theme.BASIC, Theme.GOOGLE})
     @Retention(RetentionPolicy.SOURCE)
@@ -340,17 +340,14 @@ public class Snackbar {
     }
 
     /** So tests can trigger a press on a Snackbar. */
-    @VisibleForTesting
     public Object getActionDataForTesting() {
         return mActionData;
     }
 
-    @VisibleForTesting
     public int getIdentifierForTesting() {
         return mIdentifier;
     }
 
-    @VisibleForTesting
     public CharSequence getTextForTesting() {
         return mText;
     }

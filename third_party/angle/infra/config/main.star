@@ -142,7 +142,6 @@ _DEFAULT_BUILDERLESS_OS_CATEGORIES = [os_category.LINUX, os_category.WINDOWS]
 _GOMA_RBE_PROD = {
     "server_host": "goma.chromium.org",
     "rpc_extra_params": "?prod",
-    "use_luci_auth": True,
 }
 
 def _recipe_for_package(cipd_package):
@@ -228,14 +227,16 @@ def angle_builder(name, cpu):
         category = "trace"
 
         # Trace tests are only run on CQ if files in the capture folders change.
-        location_filters = [
-            cq.location_filter(path_regexp = "DEPS"),
-            cq.location_filter(path_regexp = "src/libANGLE/capture/.+"),
-            cq.location_filter(path_regexp = "src/tests/angle_end2end_tests_expectations.txt"),
-            cq.location_filter(path_regexp = "src/tests/capture.+"),
-            cq.location_filter(path_regexp = "src/tests/egl_tests/.+"),
-            cq.location_filter(path_regexp = "src/tests/gl_tests/.+"),
-        ]
+        # Temporarily disabled until goma->reclient switch anglebug.com/8309
+        # location_filters = [
+        #     cq.location_filter(path_regexp = "DEPS"),
+        #     cq.location_filter(path_regexp = "src/libANGLE/capture/.+"),
+        #     cq.location_filter(path_regexp = "src/tests/angle_end2end_tests_expectations.txt"),
+        #     cq.location_filter(path_regexp = "src/tests/capture.+"),
+        #     cq.location_filter(path_regexp = "src/tests/egl_tests/.+"),
+        #     cq.location_filter(path_regexp = "src/tests/gl_tests/.+"),
+        # ]
+
     elif is_perf:
         test_mode = "compile_and_test"
         category = "perf"
@@ -258,8 +259,12 @@ def angle_builder(name, cpu):
         short_name = get_gpu_type_from_builder_name(name)
     elif is_asan:
         short_name = "asan"
+        if is_exp:
+            short_name = "asan-exp"
     elif is_tsan:
         short_name = "tsan"
+        if is_exp:
+            short_name = "tsan-exp"
     elif is_debug:
         short_name = "dbg"
     elif is_exp:
@@ -270,6 +275,11 @@ def angle_builder(name, cpu):
     properties = {
         "builder_group": "angle",
         "$build/goma": goma_props,
+        "$build/reclient": {
+            "instance": "rbe-chromium-untrusted",
+            "metrics_project": "chromium-reclient-metrics",
+            "scandeps_server": True,
+        },
         "platform": config_os.console_name,
         "toolchain": toolchain,
         "test_mode": test_mode,
@@ -278,6 +288,11 @@ def angle_builder(name, cpu):
     ci_properties = {
         "builder_group": "angle",
         "$build/goma": goma_props,
+        "$build/reclient": {
+            "instance": "rbe-chromium-trusted",
+            "metrics_project": "chromium-reclient-metrics",
+            "scandeps_server": True,
+        },
         "platform": config_os.console_name,
         "toolchain": toolchain,
         "test_mode": test_mode,
@@ -312,12 +327,22 @@ def angle_builder(name, cpu):
         execution_timeout = timeout_hours * time.hour,
     )
 
-    luci.console_view_entry(
-        console_view = "ci",
-        builder = "ci/" + name,
-        category = category + "|" + os_toolchain_name + "|" + cpu,
-        short_name = short_name,
-    )
+    active_experimental_builders = [
+        "android-arm64-exp-test",
+    ]
+
+    if (not is_exp) or (name in active_experimental_builders):
+        luci.console_view_entry(
+            console_view = "ci",
+            builder = "ci/" + name,
+            category = category + "|" + os_toolchain_name + "|" + cpu,
+            short_name = short_name,
+        )
+    else:
+        luci.list_view_entry(
+            list_view = "exp",
+            builder = "ci/" + name,
+        )
 
     # Do not include perf tests in "try".
     if not is_perf:
@@ -343,7 +368,9 @@ def angle_builder(name, cpu):
         )
 
         # Don't add experimental bots to CQ.
-        if not is_exp:
+        # Temporarily don't add trace bots to CQ,
+        # until goma->reclient switch anglebug.com/8309
+        if not (is_exp or is_trace):
             luci.cq_tryjob_verifier(
                 cq_group = "main",
                 builder = "angle:try/" + name,
@@ -413,7 +440,9 @@ angle_builder("android-arm64-dbg-compile", cpu = "arm64")
 angle_builder("android-arm64-exp-test", cpu = "arm64")
 angle_builder("android-arm64-test", cpu = "arm64")
 angle_builder("linux-asan-test", cpu = "x64")
+angle_builder("linux-exp-asan-test", cpu = "x64")
 angle_builder("linux-exp-test", cpu = "x64")
+angle_builder("linux-exp-tsan-test", cpu = "x64")
 angle_builder("linux-tsan-test", cpu = "x64")
 angle_builder("linux-dbg-compile", cpu = "x64")
 angle_builder("linux-test", cpu = "x64")
@@ -449,6 +478,11 @@ luci.console_view(
     name = "ci",
     title = "ANGLE CI Builders",
     repo = "https://chromium.googlesource.com/angle/angle",
+)
+
+luci.list_view(
+    name = "exp",
+    title = "ANGLE Experimental CI Builders",
 )
 
 luci.list_view(

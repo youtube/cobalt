@@ -14,12 +14,13 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchPanelInterface;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchInternalStateController.InternalState;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchSelectionController.SelectionType;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchUma.ContextualSearchPreference;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -65,7 +66,7 @@ class ContextualSearchPolicy {
      */
     public ContextualSearchPolicy(ContextualSearchSelectionController selectionController,
             ContextualSearchNetworkCommunicator networkCommunicator) {
-        mPreferencesManager = SharedPreferencesManager.getInstance();
+        mPreferencesManager = ChromeSharedPreferences.getInstance();
 
         mSelectionController = selectionController;
         mNetworkCommunicator = networkCommunicator;
@@ -464,7 +465,6 @@ class ContextualSearchPolicy {
      * @param decidedState Whether the user has decided to opt-in to sending page content or not.
      * @return whether the previous decided state was fully enabled or not.
      */
-    @VisibleForTesting
     boolean overrideDecidedStateForTesting(boolean decidedState) {
         boolean wasEnabled = mFullyEnabledForTesting;
         mDidOverrideFullyEnabledForTesting = true;
@@ -476,7 +476,6 @@ class ContextualSearchPolicy {
      * Overrides the user preference for sending the page URL to Google.
      * @param doAllowSendingPageUrl Whether to allow sending the page URL or not, for tests.
      */
-    @VisibleForTesting
     void overrideAllowSendingPageUrlForTesting(boolean doAllowSendingPageUrl) {
         mDidOverrideAllowSendingPageUrlForTesting = true;
         mAllowSendingPageUrlForTesting = doAllowSendingPageUrl;

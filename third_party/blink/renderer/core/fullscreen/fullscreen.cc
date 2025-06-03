@@ -30,6 +30,8 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 
 #include "base/containers/adapters.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -46,6 +48,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
+#include "third_party/blink/renderer/core/fullscreen/fullscreen_request_type.h"
 #include "third_party/blink/renderer/core/fullscreen/scoped_allow_fullscreen.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
@@ -65,6 +68,13 @@ namespace blink {
 
 namespace {
 
+// UMA keys for tracking the duration of a fullscreen request based on
+// the initiation source.
+static constexpr char kFullscreenDurationMetricKeyPopup[] =
+    "Blink.Element.Fullscreen.DurationUpTo1H.Popup";
+static constexpr char kFullscreenDurationMetricKeyRequestFullscreen[] =
+    "Blink.Element.Fullscreen.DurationUpTo1H.RequestFullscreen";
+
 void FullscreenElementChanged(Document& document,
                               Element* old_element,
                               Element* new_element,
@@ -72,7 +82,7 @@ void FullscreenElementChanged(Document& document,
                               const FullscreenOptions* new_options) {
   DCHECK_NE(old_element, new_element);
 
-  document.GetStyleEngine().EnsureUAStyleForFullscreen();
+  document.GetStyleEngine().EnsureUAStyleForFullscreen(*new_element);
 
   if (old_element) {
     DCHECK_NE(old_element, Fullscreen::FullscreenElementFrom(document));
@@ -141,8 +151,11 @@ class MetaParams : public GarbageCollected<MetaParams> {
  public:
   MetaParams() = default;
   MetaParams(FullscreenRequestType request_type,
-             const FullscreenOptions* options)
-      : request_type_(request_type), options_(options) {}
+             const FullscreenOptions* options,
+             const base::TimeTicks& fullscreen_enter_time)
+      : request_type_(request_type),
+        options_(options),
+        fullscreen_enter_time_(fullscreen_enter_time) {}
   MetaParams(const MetaParams&) = delete;
   MetaParams& operator=(const MetaParams&) = delete;
 
@@ -151,11 +164,15 @@ class MetaParams : public GarbageCollected<MetaParams> {
   virtual void Trace(Visitor* visitor) const { visitor->Trace(options_); }
 
   FullscreenRequestType request_type() const { return request_type_; }
-  const FullscreenOptions* options() const { return options_; }
+  const FullscreenOptions* options() const { return options_.Get(); }
+  const base::TimeTicks& fullscreen_enter_time() const {
+    return fullscreen_enter_time_;
+  }
 
  private:
   FullscreenRequestType request_type_;
   Member<const FullscreenOptions> options_;
+  const base::TimeTicks fullscreen_enter_time_;
 };
 
 using ElementMetaParamsMap =
@@ -175,7 +192,8 @@ void SetFullscreenFlag(const Element& element,
                        FullscreenRequestType request_type,
                        const FullscreenOptions* options) {
   FullscreenParamsMap().insert(
-      &element, MakeGarbageCollected<MetaParams>(request_type, options));
+      &element, MakeGarbageCollected<MetaParams>(request_type, options,
+                                                 base::TimeTicks::Now()));
 }
 
 void UnsetFullscreenFlag(const Element& element) {
@@ -187,7 +205,7 @@ FullscreenRequestType GetRequestType(const Element& element) {
 }
 
 const MetaParams* GetParams(Element& element) {
-  return FullscreenParamsMap().find(&element)->value;
+  return FullscreenParamsMap().find(&element)->value.Get();
 }
 
 // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
@@ -206,13 +224,10 @@ void GoFullscreen(Element& element,
   }
 
   // If there are any open popovers, close them.
-  if (RuntimeEnabledFeatures::HTMLPopoverAttributeEnabled(
-          document.GetExecutionContext())) {
-    HTMLElement::HideAllPopoversUntil(
-        nullptr, document, HidePopoverFocusBehavior::kNone,
-        HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
-        HidePopoverIndependence::kHideUnrelated);
-  }
+  HTMLElement::HideAllPopoversUntil(
+      nullptr, document, HidePopoverFocusBehavior::kNone,
+      HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
+      HidePopoverIndependence::kHideUnrelated);
 
   // To fullscreen an |element| within a |document|, set the |element|'s
   // fullscreen flag and add it to |document|'s top layer.
@@ -235,7 +250,8 @@ void Unfullscreen(Element& element) {
   DCHECK(element.IsInTopLayer());
   DCHECK(HasFullscreenFlag(element));
   UnsetFullscreenFlag(element);
-  document.ScheduleForTopLayerRemoval(&element);
+  document.ScheduleForTopLayerRemoval(&element,
+                                      Document::TopLayerReason::kFullscreen);
 
   // WebXR DOM Overlay mode doesn't allow changing the fullscreen element, this
   // is enforced in AllowedToRequestFullscreen. In this mode, unfullscreening
@@ -420,8 +436,6 @@ const char* FullscreenElementNotReady(const Element& element,
 
   if (auto* html_element = DynamicTo<HTMLElement>(element);
       html_element &&
-      RuntimeEnabledFeatures::HTMLPopoverAttributeEnabled(
-          element.GetDocument().GetExecutionContext()) &&
       html_element->HasPopoverAttribute() && html_element->popoverOpen()) {
     return "The element is already open as a Popover, and therefore cannot be "
            "opened via the fullscreen API.";
@@ -645,7 +659,7 @@ Element* Fullscreen::FullscreenElementFrom(Document& document) {
   const auto& elements = document.TopLayerElements();
   for (const auto& element : base::Reversed(elements)) {
     if (HasFullscreenFlag(*element))
-      return element;
+      return element.Get();
   }
 
   return nullptr;
@@ -982,11 +996,33 @@ ScriptPromise Fullscreen::ExitFullscreen(Document& doc,
     resize = true;
   }
 
-  // 7. If |doc|'s fullscreen element is not connected.
   Element* element = FullscreenElementFrom(doc);
-  if (!element->isConnected()) {
-    FullscreenRequestType request_type = GetRequestType(*element);
 
+  // Log fullscreen session duration UMA for certain request types.
+  const MetaParams* element_params = GetParams(*element);
+  FullscreenRequestType request_type = element_params
+                                           ? element_params->request_type()
+                                           : FullscreenRequestType::kUnprefixed;
+  if (element_params) {
+    // Track fullscreen popup requests without any other flags.
+    if (request_type == FullscreenRequestType::kForWindowOpen) {
+      UMA_HISTOGRAM_LONG_TIMES(
+          kFullscreenDurationMetricKeyPopup,
+          base::TimeTicks::Now() - element_params->fullscreen_enter_time());
+    }
+    // Track traditional HTML requests without any other flags (e.g. XR).
+    // ForCrossProcessDescendant is excluded here to ensure the counter is only
+    // incremented when this function is invoked for the top frame.
+    if (request_type == FullscreenRequestType::kUnprefixed ||
+        request_type == FullscreenRequestType::kPrefixed) {
+      UMA_HISTOGRAM_LONG_TIMES(
+          kFullscreenDurationMetricKeyRequestFullscreen,
+          base::TimeTicks::Now() - element_params->fullscreen_enter_time());
+    }
+  }
+
+  // 7. If |doc|'s fullscreen element is not connected.
+  if (!element->isConnected()) {
     // 7.1. Append (fullscreenchange, |doc|'s fullscreen element) to
     // |doc|'s list of pending fullscreen events.
     EnqueueEvent(event_type_names::kFullscreenchange, *element, doc,
@@ -1121,11 +1157,12 @@ void Fullscreen::ContinueExitFullscreen(Document* doc,
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenenabled
-bool Fullscreen::FullscreenEnabled(Document& document) {
+bool Fullscreen::FullscreenEnabled(Document& document,
+                                   ReportOptions report_on_failure) {
   // The fullscreenEnabled attribute's getter must return true if the context
   // object is allowed to use the feature indicated by attribute name
   // allowfullscreen and fullscreen is supported, and false otherwise.
-  return AllowedToUseFullscreen(document, ReportOptions::kDoNotReport) &&
+  return AllowedToUseFullscreen(document, report_on_failure) &&
          FullscreenIsSupported(document);
 }
 

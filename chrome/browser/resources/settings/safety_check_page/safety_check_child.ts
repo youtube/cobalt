@@ -17,7 +17,7 @@ import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import '../settings_shared.css.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -33,6 +33,7 @@ export enum SafetyCheckIconStatus {
   WARNING = 3,
   NOTIFICATION_PERMISSIONS = 4,
   UNUSED_SITE_PERMISSIONS = 5,
+  EXTENSIONS_REVIEW = 6,
 }
 
 const SettingsSafetyCheckChildElementBase = I18nMixin(PolymerElement);
@@ -72,6 +73,9 @@ export class SettingsSafetyCheckChildElement extends
       // Classes of the right hand button.
       buttonClass: String,
 
+      // Icon for the right hand button.
+      buttonIcon: String,
+
       // Should the entire row be clickable.
       rowClickable: {
         type: Boolean,
@@ -101,6 +105,7 @@ export class SettingsSafetyCheckChildElement extends
   subLabel: string;
   buttonLabel: string;
   buttonAriaLabel: string;
+  buttonIcon: string;
   buttonClass: string;
   rowClickable: boolean;
   external: boolean;
@@ -122,6 +127,8 @@ export class SettingsSafetyCheckChildElement extends
         return 'settings:notifications-none';
       case SafetyCheckIconStatus.UNUSED_SITE_PERMISSIONS:
         return 'cr:info-outline';
+      case SafetyCheckIconStatus.EXTENSIONS_REVIEW:
+        return 'cr:extension';
       default:
         assertNotReached();
     }
@@ -161,6 +168,7 @@ export class SettingsSafetyCheckChildElement extends
         return this.i18n('safetyCheckIconWarningAriaLabel');
       case SafetyCheckIconStatus.NOTIFICATION_PERMISSIONS:
       case SafetyCheckIconStatus.UNUSED_SITE_PERMISSIONS:
+      case SafetyCheckIconStatus.EXTENSIONS_REVIEW:
         return undefined;
       default:
         assertNotReached();
@@ -180,6 +188,11 @@ export class SettingsSafetyCheckChildElement extends
   /** @return Whether the right-hand side managed icon should be shown. */
   private showManagedIcon_(): boolean {
     return !!this.managedIcon;
+  }
+
+  /** @return Whether the right-hand side button icon should be shown. */
+  private showButtonIcon_(): boolean {
+    return !!this.buttonIcon;
   }
 
   /** @return The icon to show when the row is clickable. */

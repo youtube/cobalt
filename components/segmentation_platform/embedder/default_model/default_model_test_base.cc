@@ -13,7 +13,7 @@
 namespace segmentation_platform {
 
 DefaultModelTestBase::DefaultModelTestBase(
-    std::unique_ptr<ModelProvider> model_provider)
+    std::unique_ptr<DefaultModelProvider> model_provider)
     : model_(std::move(model_provider)) {}
 
 DefaultModelTestBase::~DefaultModelTestBase() = default;
@@ -25,22 +25,11 @@ void DefaultModelTestBase::TearDown() {
 }
 
 void DefaultModelTestBase::ExpectInitAndFetchModel() {
-  base::RunLoop loop;
-  model_->InitAndFetchModel(
-      base::BindRepeating(&DefaultModelTestBase::OnInitFinishedCallback,
-                          base::Unretained(this), loop.QuitClosure()));
-  loop.Run();
-}
-
-void DefaultModelTestBase::OnInitFinishedCallback(
-    base::RepeatingClosure closure,
-    proto::SegmentId target,
-    proto::SegmentationModelMetadata metadata,
-    int64_t) {
-  EXPECT_EQ(metadata_utils::ValidateMetadataAndFeatures(metadata),
+  std::unique_ptr<DefaultModelProvider::ModelConfig> config =
+      model_->GetModelConfig();
+  EXPECT_EQ(metadata_utils::ValidateMetadataAndFeatures(config->metadata),
             metadata_utils::ValidationResult::kValidationSuccess);
-  fetched_metadata_ = metadata;
-  std::move(closure).Run();
+  fetched_metadata_ = std::move(config->metadata);
 }
 
 void DefaultModelTestBase::ExpectExecutionWithInput(
@@ -64,7 +53,7 @@ void DefaultModelTestBase::OnFinishedExpectExecutionWithInput(
   if (expected_error) {
     EXPECT_FALSE(result.has_value());
   } else {
-    EXPECT_TRUE(result.has_value());
+    ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result.value(), expected_result);
   }
   std::move(closure).Run();
@@ -85,12 +74,16 @@ absl::optional<ModelProvider::Response> DefaultModelTestBase::ExecuteWithInput(
 void DefaultModelTestBase::ExpectClassifierResults(
     const ModelProvider::Request& input,
     const std::vector<std::string>& expected_ordered_labels) {
+  ASSERT_TRUE(fetched_metadata_)
+      << "Please call ExpectInitAndFetchModel() in each test";
   auto result = ExecuteWithInput(input);
   EXPECT_TRUE(result.has_value());
 
+  EXPECT_TRUE(fetched_metadata_);
   EXPECT_TRUE(fetched_metadata_->has_output_config());
   auto prediction_result = metadata_utils::CreatePredictionResult(
-      result.value(), fetched_metadata_->output_config(), base::Time::Now());
+      result.value(), fetched_metadata_->output_config(), base::Time::Now(),
+      /*model_version=*/1);
 
   auto winning_labels = PostProcessor().GetClassifierResults(prediction_result);
   EXPECT_EQ(expected_ordered_labels, winning_labels);

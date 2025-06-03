@@ -7,6 +7,8 @@
 
 #include <optional>
 
+#include "RawPtrCastingUnsafeChecker.h"
+#include "StackAllocatedChecker.h"
 #include "Util.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchersMacros.h"
@@ -61,57 +63,96 @@ class FilterFile {
   mutable std::optional<llvm::Regex> exclusion_substring_regex_;
 };
 
+// Represents an exclusion rules for raw pointers/references errors.
+// See |PtrAndRefExclusions| for details.
+struct RawPtrAndRefExclusionsOptions {
+  FilterFile* fields_to_exclude;
+  FilterFile* paths_to_exclude;
+  bool should_exclude_stack_allocated_records;
+  chrome_checker::StackAllocatedPredicate* stack_allocated_predicate;
+};
+
 AST_MATCHER(clang::Type, anyCharType) {
   return Node.isAnyCharacterType();
 }
 
-AST_MATCHER(clang::FieldDecl, isInScratchSpace) {
+AST_POLYMORPHIC_MATCHER(isNotSpelledInSource,
+                        AST_POLYMORPHIC_SUPPORTED_TYPES(clang::Decl,
+                                                        clang::Stmt,
+                                                        clang::TypeLoc)) {
   const clang::SourceManager& source_manager =
       Finder->getASTContext().getSourceManager();
-  clang::SourceLocation location = Node.getSourceRange().getBegin();
-  if (location.isInvalid())
-    return false;
-  clang::SourceLocation spelling_location =
-      source_manager.getSpellingLoc(location);
-  return source_manager.isWrittenInScratchSpace(spelling_location);
+  const auto loc =
+      source_manager.getSpellingLoc(getRepresentativeLocation(Node));
+  // Returns true if `loc` is inside either one of followings:
+  // - "<built-in>"
+  // - "<command line>"
+  // - "<scratch space>"
+  return source_manager.isWrittenInBuiltinFile(loc) ||
+         source_manager.isWrittenInCommandLineFile(loc) ||
+         source_manager.isWrittenInScratchSpace(loc);
 }
 
-AST_MATCHER(clang::FieldDecl, isInThirdPartyLocation) {
+AST_POLYMORPHIC_MATCHER(isInThirdPartyLocation,
+                        AST_POLYMORPHIC_SUPPORTED_TYPES(clang::Decl,
+                                                        clang::Stmt,
+                                                        clang::TypeLoc)) {
   std::string filename = GetFilename(Finder->getASTContext().getSourceManager(),
-                                     Node.getSourceRange().getBegin());
+                                     getRepresentativeLocation(Node));
 
   // Blink is part of the Chromium git repo, even though it contains
   // "third_party" in its path.
-  if (filename.find("/third_party/blink/") != std::string::npos)
+  if (filename.find("/third_party/blink/") != std::string::npos) {
     return false;
+  }
   // Otherwise, just check if the paths contains the "third_party" substring.
   // We don't want to rewrite content of such paths even if they are in the main
   // Chromium git repository.
   return filename.find("/third_party/") != std::string::npos;
 }
 
-AST_MATCHER(clang::FieldDecl, isInGeneratedLocation) {
+AST_MATCHER(clang::Stmt, isInStdBitCastHeader) {
   std::string filename = GetFilename(Finder->getASTContext().getSourceManager(),
                                      Node.getSourceRange().getBegin());
+  return filename.find("__bit/bit_cast.h") != std::string::npos;
+}
+
+AST_MATCHER(clang::Stmt, isInRawPtrCastHeader) {
+  std::string filename = GetFilename(Finder->getASTContext().getSourceManager(),
+                                     Node.getSourceRange().getBegin());
+  return filename.find(
+             "base/allocator/partition_allocator/src/partition_alloc/pointers/"
+             "raw_ptr_cast.h") != std::string::npos;
+}
+
+AST_POLYMORPHIC_MATCHER(isInGeneratedLocation,
+                        AST_POLYMORPHIC_SUPPORTED_TYPES(clang::Decl,
+                                                        clang::Stmt,
+                                                        clang::TypeLoc)) {
+  std::string filename = GetFilename(Finder->getASTContext().getSourceManager(),
+                                     getRepresentativeLocation(Node));
 
   return filename.find("/gen/") != std::string::npos ||
          filename.rfind("gen/", 0) == 0;
 }
 
-AST_MATCHER_P(clang::FieldDecl,
+AST_MATCHER_P(clang::NamedDecl,
               isFieldDeclListedInFilterFile,
               const FilterFile*,
               Filter) {
   return Filter->ContainsLine(Node.getQualifiedNameAsString());
 }
 
-AST_MATCHER_P(clang::FieldDecl,
-              isInLocationListedInFilterFile,
-              const FilterFile*,
-              Filter) {
-  clang::SourceLocation loc = Node.getSourceRange().getBegin();
-  if (loc.isInvalid())
+AST_POLYMORPHIC_MATCHER_P(isInLocationListedInFilterFile,
+                          AST_POLYMORPHIC_SUPPORTED_TYPES(clang::Decl,
+                                                          clang::Stmt,
+                                                          clang::TypeLoc),
+                          const FilterFile*,
+                          Filter) {
+  clang::SourceLocation loc = getRepresentativeLocation(Node);
+  if (loc.isInvalid()) {
     return false;
+  }
   std::string file_path =
       GetFilename(Finder->getASTContext().getSourceManager(), loc);
   return Filter->ContainsSubstringOf(file_path);
@@ -187,26 +228,40 @@ AST_MATCHER(clang::FunctionDecl, isImplicitFunctionTemplateSpecialization) {
   }
 }
 
+// Matches Objective-C @synthesize field declaration.
+AST_MATCHER(clang::Decl, isObjCSynthesize) {
+  const auto* ivar_decl = clang::dyn_cast<clang::ObjCIvarDecl>(&Node);
+  return ivar_decl && ivar_decl->getSynthesize();
+}
+
 // Matches field declarations that do not explicitly appear in the source
 // code:
 // 1. fields of classes generated by the compiler to back capturing lambdas,
 // 2. fields within an implicit class or function template specialization
 //    (e.g. when a template is instantiated by a bit of code and there's no
 //    explicit specialization for it).
-clang::ast_matchers::internal::Matcher<clang::FieldDecl>
-ImplicitFieldDeclaration();
+clang::ast_matchers::internal::Matcher<clang::Decl> ImplicitFieldDeclaration();
 
 // Matches raw pointer field declarations that is a candidate for raw_ptr<T>
 // conversion.
 clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawPtrFieldDecl(
-    const FilterFile* paths_to_exclude,
-    const FilterFile* fields_to_exclude);
+    const RawPtrAndRefExclusionsOptions& options);
 
 // Matches raw reference field declarations that are candidates for raw_ref<T>
 // conversion.
 clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawRefFieldDecl(
-    const FilterFile* paths_to_exclude,
-    const FilterFile* fields_to_exclude);
+    const RawPtrAndRefExclusionsOptions& options);
+
+// Matches (raw_ptr|raw_ref) (variable|field) declarations pointing to
+// |STACK_ALLOCATED| object.
+clang::ast_matchers::internal::Matcher<clang::TypeLoc>
+RawPtrToStackAllocatedTypeLoc(
+    const chrome_checker::StackAllocatedPredicate* predicate);
+
+clang::ast_matchers::internal::Matcher<clang::Stmt> BadRawPtrCastExpr(
+    const CastingUnsafePredicate& casting_unsafe_predicate,
+    const FilterFile& exclude_files,
+    const FilterFile& exclude_functions);
 
 // If `field_decl` declares a field in an implicit template specialization, then
 // finds and returns the corresponding FieldDecl from the template definition.
@@ -309,11 +364,7 @@ AST_MATCHER_P2(clang::InitListExpr,
         break;
       }
       expr = designated_init_expr->getInit();
-#if defined(LLVM_FORCE_HEAD_REVISION)
       field_decl = designated_init_expr->getDesignator(0)->getFieldDecl();
-#else
-      field_decl = designated_init_expr->getDesignator(0)->getField();
-#endif
     } else {
       if (i >= field_decls.size()) {
         break;
@@ -342,6 +393,84 @@ AST_POLYMORPHIC_MATCHER(isInMacroLocation,
                                                         clang::Stmt,
                                                         clang::TypeLoc)) {
   return Node.getBeginLoc().isMacroID();
+}
+
+// Matches AST nodes that were spelled within system-header-files.
+// Unlike clang's `isExpansionInSystemHeader`, this is based on:
+// - spelling location
+// - `getRepresentativeLocation(Node)`, not `Node.getBeginLoc()`
+AST_POLYMORPHIC_MATCHER(isSpellingInSystemHeader,
+                        AST_POLYMORPHIC_SUPPORTED_TYPES(clang::Decl,
+                                                        clang::Stmt,
+                                                        clang::TypeLoc)) {
+  auto& source_manager = Finder->getASTContext().getSourceManager();
+  auto spelling_loc =
+      source_manager.getSpellingLoc(getRepresentativeLocation(Node));
+  if (spelling_loc.isInvalid()) {
+    return false;
+  }
+  return source_manager.isInSystemHeader(spelling_loc);
+}
+
+AST_MATCHER_P(clang::CXXRecordDecl,
+              isStackAllocated,
+              chrome_checker::StackAllocatedPredicate,
+              checker) {
+  return checker.IsStackAllocated(&Node);
+}
+
+AST_MATCHER_P(clang::Decl,
+              isDeclaredInStackAllocated,
+              chrome_checker::StackAllocatedPredicate,
+              checker) {
+  const auto* ctx = llvm::dyn_cast<clang::CXXRecordDecl>(Node.getDeclContext());
+  if (ctx == nullptr) {
+    return false;
+  }
+  return checker.IsStackAllocated(ctx);
+}
+
+AST_MATCHER_P(clang::Type, isCastingUnsafe, CastingUnsafePredicate, checker) {
+  return checker.Matches(&Node);
+}
+
+// Matches outermost explicit cast, traversing ancestors.
+//
+// (void*) static_cast<void*>(&v);
+// ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CStyleCastExpr    'void *' <NoOp>
+//         ^~~~~~~~~~~~~~~~~~~~~~ CXXStaticCastExpr 'void *' <NoOp>
+//                            ^~  ImplicitCastExpr  'void *' <BitCast>
+//                                [part_of_explicit_cast = true]
+//
+// This won't match neither |CStyleCastExpr| nor |CXXStaticCastExpr|
+// as they are explicit casts.
+// Given |ImplicitCastExpr|, this runs |InnerMatcher| to |CXXStaticCastExpr|.
+AST_MATCHER_P(clang::CastExpr,
+              hasEnclosingExplicitCastExpr,
+              clang::ast_matchers::internal::Matcher<clang::ExplicitCastExpr>,
+              InnerMatcher) {
+  auto* cast_expr = &Node;
+  auto& context = Finder->getASTContext();
+  while (true) {
+    const auto* implicit_cast =
+        llvm::dyn_cast<clang::ImplicitCastExpr>(cast_expr);
+    if (!implicit_cast || !implicit_cast->isPartOfExplicitCast()) {
+      break;
+    }
+    const auto parents = context.getParents(*implicit_cast);
+    // AST is a tree and |ASTContext::getParents| returns exactly one node,
+    // at least for |clang::CastExpr|.
+    assert(parents.size() == 1);
+    cast_expr = parents[0].get<clang::CastExpr>();
+    assert(cast_expr);
+  }
+  const auto* explicit_cast_expr =
+      llvm::dyn_cast<clang::ExplicitCastExpr>(cast_expr);
+  if (cast_expr == &Node || !explicit_cast_expr) {
+    // No enclosing explicit cast.
+    return false;
+  }
+  return InnerMatcher.matches(*explicit_cast_expr, Finder, Builder);
 }
 
 #endif  // TOOLS_CLANG_PLUGINS_RAWPTRHELPERS_H_

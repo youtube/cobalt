@@ -14,11 +14,7 @@ namespace ash::auth {
 
 class AuthFactorConfig;
 
-// The implementation of the PinFactorEditor service.
-// TODO(crbug.com/1327627): This is currently a fake and only flips a boolean
-// corresponding to the current state. No changes are sent to cryptohome.
-// Clients may use this API only if the CryptohomeRecoverySetup feature flag is
-// enabled.
+// The implementation of the PinFactorEditor mojo service.
 class PinFactorEditor : public mojom::PinFactorEditor {
  public:
   PinFactorEditor(AuthFactorConfig*,
@@ -40,9 +36,32 @@ class PinFactorEditor : public mojom::PinFactorEditor {
   void BindReceiver(mojo::PendingReceiver<mojom::PinFactorEditor> receiver);
 
  private:
+  void ObtainContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(std::unique_ptr<UserContext>)> callback);
+  void RemovePinWithContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      std::unique_ptr<UserContext> context);
   void OnPinConfigured(
+      const std::string& auth_token,
       base::OnceCallback<void(mojom::ConfigureResult)> callback,
       bool success);
+  void OnPinConfiguredWithContext(
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      bool success,
+      std::unique_ptr<UserContext> context);
+  void SetPinWithContext(
+      const std::string& auth_token,
+      const std::string& pin,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      std::unique_ptr<UserContext> context);
+  void OnIsPinConfiguredForRemove(
+      const AccountId account_id,
+      const std::string& auth_token,
+      base::OnceCallback<void(mojom::ConfigureResult)> callback,
+      bool is_pin_configured);
 
   raw_ptr<AuthFactorConfig> auth_factor_config_;
   raw_ptr<PinBackendDelegate> pin_backend_;

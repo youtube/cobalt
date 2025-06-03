@@ -16,8 +16,10 @@
 #include "content/browser/webid/test/delegated_idp_network_request_manager.h"
 #include "content/browser/webid/test/mock_api_permission_delegate.h"
 #include "content/browser/webid/test/mock_auto_reauthn_permission_delegate.h"
+#include "content/browser/webid/test/mock_identity_registry.h"
 #include "content/browser/webid/test/mock_identity_request_dialog_controller.h"
 #include "content/browser/webid/test/mock_idp_network_request_manager.h"
+#include "content/browser/webid/test/mock_modal_dialog_view_delegate.h"
 #include "content/browser/webid/test/mock_permission_delegate.h"
 #include "content/public/common/content_features.h"
 #include "content/test/test_render_view_host.h"
@@ -45,6 +47,7 @@ namespace content {
 namespace {
 
 constexpr char kRpUrl[] = "https://rp.example/";
+constexpr char kIdpUrl[] = "https://idp.example/";
 
 // Helper class for receiving the Logout method callback.
 class LogoutRpsRequestCallbackHelper {
@@ -123,9 +126,7 @@ class FederatedAuthRequestImplLogoutTest
   ~FederatedAuthRequestImplLogoutTest() override = default;
 
   void SetUp() override {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        features::kFedCm,
-        {{features::kFedCmIdpSignoutFieldTrialParamName, "true"}});
+    feature_list_.InitAndEnableFeature(features::kFedCmLogoutRps);
 
     RenderViewHostImplTestHarness::SetUp();
     test_api_permission_delegate_ =
@@ -134,6 +135,9 @@ class FederatedAuthRequestImplLogoutTest
         std::make_unique<NiceMock<MockAutoReauthnPermissionDelegate>>();
     mock_permission_delegate_ =
         std::make_unique<NiceMock<MockPermissionDelegate>>();
+    mock_identity_registry_ = std::make_unique<NiceMock<MockIdentityRegistry>>(
+        web_contents(), /*delegate=*/nullptr,
+        url::Origin::Create(GURL(kIdpUrl)));
 
     static_cast<TestWebContents*>(web_contents())
         ->NavigateAndCommit(GURL(kRpUrl), ui::PAGE_TRANSITION_LINK);
@@ -141,7 +145,7 @@ class FederatedAuthRequestImplLogoutTest
     federated_auth_request_impl_ = &FederatedAuthRequestImpl::CreateForTesting(
         *main_test_rfh(), test_api_permission_delegate_.get(),
         mock_auto_reauthn_permission_delegate_.get(),
-        mock_permission_delegate_.get(),
+        mock_permission_delegate_.get(), mock_identity_registry_.get(),
         request_remote_.BindNewPipeAndPassReceiver());
     auto mock_dialog_controller =
         std::make_unique<NiceMock<MockIdentityRequestDialogController>>();
@@ -158,6 +162,11 @@ class FederatedAuthRequestImplLogoutTest
 
     federated_auth_request_impl_->SetTokenRequestDelayForTests(
         base::TimeDelta());
+  }
+
+  void TearDown() override {
+    federated_auth_request_impl_ = nullptr;
+    RenderViewHostImplTestHarness::TearDown();
   }
 
   LogoutRpsStatus PerformLogoutRequest(
@@ -181,6 +190,7 @@ class FederatedAuthRequestImplLogoutTest
   std::unique_ptr<NiceMock<MockAutoReauthnPermissionDelegate>>
       mock_auto_reauthn_permission_delegate_;
   std::unique_ptr<NiceMock<MockPermissionDelegate>> mock_permission_delegate_;
+  std::unique_ptr<NiceMock<MockIdentityRegistry>> mock_identity_registry_;
 };
 
 // Test Logout method success with multiple relying parties.

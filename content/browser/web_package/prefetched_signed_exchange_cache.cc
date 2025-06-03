@@ -555,6 +555,7 @@ class PrefetchedNavigationLoaderInterceptor
         request.url, request.trusted_params->isolation_info.site_for_cookies(),
         *request.trusted_params->isolation_info.top_frame_origin(),
         request.has_storage_access, std::move(match_options),
+        request.is_ad_tagged,
         base::BindOnce(&PrefetchedNavigationLoaderInterceptor::OnGetCookies,
                        weak_factory_.GetWeakPtr(), std::move(callback),
                        std::move(fallback_callback)));
@@ -568,7 +569,9 @@ class PrefetchedNavigationLoaderInterceptor
       signed_exchange_utils::RecordLoadResultHistogram(
           SignedExchangeLoadResult::kHadCookieForCookielessOnlySXG);
       std::move(fallback_callback)
-          .Run(true /* reset_subresource_loader_params */);
+          .Run(true /* reset_subresource_loader_params */,
+               // TODO(crbug.com/1441384) test workerStart in SXG scenarios
+               this->exchange_->outer_response()->load_timing);
       return;
     }
     state_ = State::kInnerResponseRequested;

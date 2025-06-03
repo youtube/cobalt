@@ -30,7 +30,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/gpu/content_gpu_client.h"
-#include "gpu/command_buffer/common/activity_flags.h"
+#include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_init.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
@@ -57,6 +57,10 @@
 #include "components/services/font/public/mojom/font_service.mojom.h"  // nogncheck
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/ports/SkFontConfigInterface.h"
+#endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "content/child/sandboxed_process_thread_type_handler.h"
 #endif
 
 namespace content {
@@ -138,6 +142,10 @@ void GpuChildThread::Init(const base::TimeTicks& process_start_time) {
     mojo::SetDefaultProcessErrorHandler(base::BindRepeating(&HandleBadMessage));
 
   viz_main_.gpu_service()->set_start_time(process_start_time);
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  SandboxedProcessThreadTypeHandler::NotifyMainChildThreadCreated();
+#endif
 
   // When running in in-process mode, this has been set in the browser at
   // ChromeBrowserMainPartsAndroid::PreMainMessageLoopRun().

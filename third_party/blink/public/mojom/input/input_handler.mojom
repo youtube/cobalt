@@ -52,8 +52,8 @@ struct KeyData {
 struct PointerData {
   int32 pointer_id;
   float force;
-  int32 tilt_x;
-  int32 tilt_y;
+  double tilt_x;
+  double tilt_y;
   float tangential_pressure;
   int32 twist;
   blink.mojom.Button button;
@@ -131,6 +131,10 @@ struct TapData {
   bool needs_wheel_event;
 };
 
+struct TapDownData {
+  int32 tap_down_count;
+};
+
 struct GestureData {
   gfx.mojom.PointF screen_position;
   gfx.mojom.PointF widget_position;
@@ -145,6 +149,7 @@ struct GestureData {
   PinchUpdateData? pinch_update_data;
   PinchEndData? pinch_end_data;
   TapData? tap_data;
+  TapDownData? tap_down_data;
   FlingData? fling_data;
 };
 
@@ -257,7 +262,8 @@ interface WidgetInputHandlerHost {
   // Sends the character bounds after every composition change
   // to always have correct bound info.
   ImeCompositionRangeChanged(gfx.mojom.Range range,
-                             array<gfx.mojom.Rect> bounds);
+                             array<gfx.mojom.Rect>? character_bounds,
+                             array<gfx.mojom.Rect>? line_bounds);
 
   // Updates the mouse capture state of this widget. While capture is enabled,
   // all mouse events, including those that don't hittest to this widget, will
@@ -309,6 +315,12 @@ interface FrameWidgetInputHandler {
   // Deletes the current selection plus the specified number of characters
   // before and after the selection or caret.
   ExtendSelectionAndDelete(int32 before, int32 after);
+
+  // Deletes the current selection plus the specified number of characters
+  // before and after the selection or caret.
+  ExtendSelectionAndReplace(uint32 before,
+                            uint32 after,
+                            mojo_base.mojom.String16 replacement_text);
 
   // Deletes text before and after the current cursor position, excluding the
   // selection. The lengths are supplied in Java chars (UTF-16 Code Unit),

@@ -6,22 +6,18 @@
 
 #import "components/favicon/core/favicon_service.h"
 #import "components/keyed_service/core/service_access_type.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service.h"
-#import "ios/chrome/browser/bring_android_tabs/bring_android_tabs_to_ios_service_factory.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
+#import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service_factory.h"
 #import "ios/chrome/browser/favicon/favicon_service_factory.h"
 #import "ios/chrome/browser/favicon/ios_chrome_favicon_loader_factory.h"
-#import "ios/chrome/browser/main/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/public/commands/bring_android_tabs_commands.h"
 #import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_controller.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/tab_list_from_android_mediator.h"
 #import "ios/chrome/browser/ui/bring_android_tabs/tab_list_from_android_view_controller.h"
-#import "ios/chrome/browser/url_loading/url_loading_browser_agent.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 
 @implementation TabListFromAndroidCoordinator {
   // Main mediator for this coordinator.

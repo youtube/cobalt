@@ -27,17 +27,17 @@ namespace global_media_controls {
 
 namespace {
 
-MediaSessionNotificationItem::Source GetSource(const std::string& name) {
+media_message_center::Source GetSourceFromName(const std::string& name) {
   if (name == "web")
-    return MediaSessionNotificationItem::Source::kWeb;
+    return media_message_center::Source::kWeb;
 
   if (name == "arc")
-    return MediaSessionNotificationItem::Source::kArc;
+    return media_message_center::Source::kArc;
 
   if (name == "assistant")
-    return MediaSessionNotificationItem::Source::kAssistant;
+    return media_message_center::Source::kAssistant;
 
-  return MediaSessionNotificationItem::Source::kUnknown;
+  return media_message_center::Source::kUnknown;
 }
 
 bool GetRemotePlaybackStarted(
@@ -63,7 +63,7 @@ MediaSessionNotificationItem::MediaSessionNotificationItem(
     media_session::mojom::MediaSessionInfoPtr session_info)
     : delegate_(delegate),
       request_id_(request_id),
-      source_(GetSource(source_name)),
+      source_(GetSourceFromName(source_name)),
       source_id_(source_id) {
   DCHECK(delegate_);
 
@@ -220,10 +220,6 @@ void MediaSessionNotificationItem::Dismiss() {
   delegate_->RemoveItem(request_id_);
 }
 
-media_message_center::SourceType MediaSessionNotificationItem::SourceType() {
-  return media_message_center::SourceType::kLocalMediaSession;
-}
-
 void MediaSessionNotificationItem::Stop() {
   if (media_controller_remote_.is_bound())
     media_controller_remote_->Stop();
@@ -246,6 +242,15 @@ bool MediaSessionNotificationItem::RequestMediaRemoting() {
     return false;
   media_controller_remote_->RequestMediaRemoting();
   return true;
+}
+
+media_message_center::Source MediaSessionNotificationItem::GetSource() const {
+  return source_;
+}
+
+media_message_center::SourceType MediaSessionNotificationItem::GetSourceType()
+    const {
+  return media_message_center::SourceType::kLocalMediaSession;
 }
 
 absl::optional<base::UnguessableToken>
@@ -366,14 +371,20 @@ MediaSessionNotificationItem::GetMediaSessionActions() const {
 }
 
 bool MediaSessionNotificationItem::ShouldShowNotification() const {
-  // If the |is_controllable| bit is set in MediaSessionInfo then we should show
-  // a media notification.
-  if (!session_info_ || !session_info_->is_controllable)
+  // Hide the media notification if it is not controllable or the notification
+  // title is missing.
+  if (!session_info_ || !session_info_->is_controllable ||
+      session_metadata_.title.empty()) {
     return false;
+  }
 
-  // If we do not have a title then we should hide the notification.
-  if (session_metadata_.title.empty())
+  // Hide the media notification if there exists a cast media notification item
+  // for the Cast presentation. However, show the media notification if the
+  // presentation is for a Remote Playback media source.
+  if (session_info_->has_presentation &&
+      !GetRemotePlaybackStarted(session_info_)) {
     return false;
+  }
 
   return true;
 }
@@ -487,8 +498,6 @@ void MediaSessionNotificationItem::MaybeHideOrShowNotification() {
     return;
 
   delegate_->ActivateItem(request_id_);
-
-  UMA_HISTOGRAM_ENUMERATION(kSourceHistogramName, source_);
 }
 
 void MediaSessionNotificationItem::UpdateViewCommon() {

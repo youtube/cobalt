@@ -55,8 +55,8 @@
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/layout/flex/layout_flexible_box.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
-#include "third_party/blink/renderer/core/layout/ng/flex/layout_ng_flexible_box.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -96,10 +96,6 @@ InputType::ValueMode RangeInputType::GetValueMode() const {
 
 void RangeInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeRange);
-}
-
-const AtomicString& RangeInputType::FormControlType() const {
-  return input_type_names::kRange;
 }
 
 double RangeInputType::ValueAsDouble() const {
@@ -167,7 +163,7 @@ void RangeInputType::HandleMouseDownEvent(MouseEvent& event) {
   SliderThumbElement* thumb = GetSliderThumbElement();
   if (target_node == thumb)
     return;
-  thumb->DragFrom(LayoutPoint(event.AbsoluteLocation()));
+  thumb->DragFrom(PhysicalOffset::FromPointFFloor(event.AbsoluteLocation()));
 }
 
 void RangeInputType::HandleKeydownEvent(KeyboardEvent& event) {
@@ -249,7 +245,7 @@ void RangeInputType::CreateShadowSubtree() {
 
 LayoutObject* RangeInputType::CreateLayoutObject(const ComputedStyle&) const {
   // TODO(crbug.com/1131352): input[type=range] should not use flexbox.
-  return MakeGarbageCollected<LayoutNGFlexibleBox>(&GetElement());
+  return MakeGarbageCollected<LayoutFlexibleBox>(&GetElement());
 }
 
 Decimal RangeInputType::ParseToNumber(const String& src,
@@ -324,6 +320,13 @@ String RangeInputType::RangeOverflowText(const Decimal& maximum) const {
 String RangeInputType::RangeUnderflowText(const Decimal& minimum) const {
   return GetLocale().QueryString(IDS_FORM_VALIDATION_RANGE_UNDERFLOW,
                                  LocalizeValue(Serialize(minimum)));
+}
+
+String RangeInputType::RangeInvalidText(const Decimal& minimum,
+                                        const Decimal& maximum) const {
+  return GetLocale().QueryString(IDS_FORM_VALIDATION_RANGE_REVERSED,
+                                 LocalizeValue(Serialize(minimum)),
+                                 LocalizeValue(Serialize(maximum)));
 }
 
 void RangeInputType::DisabledAttributeChanged() {

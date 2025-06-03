@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_MEMORY_MANAGED_PAINT_RECORDER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_MEMORY_MANAGED_PAINT_RECORDER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_canvas.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
@@ -33,7 +34,13 @@ namespace blink {
 
 class PLATFORM_EXPORT MemoryManagedPaintRecorder {
  public:
-  explicit MemoryManagedPaintRecorder(MemoryManagedPaintCanvas::Client* client);
+  class Client {
+   public:
+    virtual void InitializeForRecording(cc::PaintCanvas* canvas) const = 0;
+  };
+
+  // `client` can't be nullptr and must outlive this object.
+  explicit MemoryManagedPaintRecorder(Client* client);
   ~MemoryManagedPaintRecorder();
 
   cc::PaintCanvas* beginRecording(const gfx::Size& size);
@@ -51,6 +58,9 @@ class PLATFORM_EXPORT MemoryManagedPaintRecorder {
     DCHECK(canvas_);
     return canvas_->OpBytesUsed();
   }
+  size_t ImageBytesUsed() const {
+    return canvas_ == nullptr ? 0 : canvas_->ImageBytesUsed();
+  }
 
   // Only valid while recording.
   cc::PaintCanvas* getRecordingCanvas() const {
@@ -59,7 +69,8 @@ class PLATFORM_EXPORT MemoryManagedPaintRecorder {
   }
 
  private:
-  MemoryManagedPaintCanvas::Client* client_;
+  // Unowned, must not be nullptr.
+  raw_ptr<MemoryManagedPaintRecorder::Client, ExperimentalRenderer> client_;
   bool is_recording_ = false;
   gfx::Size size_;
   std::unique_ptr<MemoryManagedPaintCanvas> canvas_;

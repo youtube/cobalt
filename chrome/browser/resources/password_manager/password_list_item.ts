@@ -14,7 +14,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {getTemplate} from './password_list_item.html.js';
 import {PasswordManagerImpl, PasswordViewPageInteractions} from './password_manager_proxy.js';
-import {Page, Router} from './router.js';
+import {Page, Router, UrlParam} from './router.js';
 
 export interface PasswordListItemElement {
   $: {
@@ -88,11 +88,19 @@ export class PasswordListItemElement extends PasswordListItemElementBase {
           this.dispatchEvent(new CustomEvent(
               'password-details-shown',
               {bubbles: true, composed: true, detail: this}));
-          Router.getInstance().navigateTo(Page.PASSWORD_DETAILS, group);
+          // Keep current search query.
+          Router.getInstance().navigateTo(
+              Page.PASSWORD_DETAILS, group,
+              Router.getInstance().currentRoute.queryParameters);
         })
         .catch(() => {});
     PasswordManagerImpl.getInstance().recordPasswordViewInteraction(
         PasswordViewPageInteractions.CREDENTIAL_ROW_CLICKED);
+
+    const searchTerm = Router.getInstance().currentRoute.queryParameters.get(
+                           UrlParam.SEARCH_TERM) || '';
+    chrome.metricsPrivate.recordBoolean(
+        'PasswordManager.UI.OpenedPasswordDetailsWhileSearching', !!searchTerm);
   }
 
   private async onItemChanged_() {

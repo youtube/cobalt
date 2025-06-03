@@ -23,10 +23,11 @@ import {IronSelectorElement} from 'chrome://resources/polymer/v3_0/iron-selector
 
 import {GooglePhotosAlbum, TopicSource, WallpaperCollection} from './../personalization_app.mojom-webui.js';
 import {getTemplate} from './personalization_breadcrumb_element.html.js';
-import {isPathValid, Paths, PersonalizationRouter} from './personalization_router_element.js';
+import {isPathValid, Paths, PersonalizationRouterElement} from './personalization_router_element.js';
 import {WithPersonalizationStore} from './personalization_store.js';
 import {inBetween, isNonEmptyArray} from './utils.js';
-import {findAlbumById} from './wallpaper/utils.js';
+import {SeaPenTemplate} from './wallpaper/sea_pen/sea_pen_collection_element.js';
+import {findAlbumById, getSampleSeaPenTemplates, QUERY} from './wallpaper/utils.js';
 
 /** Event interface for dom-repeat. */
 interface RepeaterEvent extends CustomEvent {
@@ -44,7 +45,7 @@ export function stringToTopicSource(x: string): TopicSource|null {
   return null;
 }
 
-export interface PersonalizationBreadcrumb {
+export interface PersonalizationBreadcrumbElement {
   $: {
     container: HTMLElement,
     keys: IronA11yKeysElement,
@@ -52,7 +53,7 @@ export interface PersonalizationBreadcrumb {
   };
 }
 
-export class PersonalizationBreadcrumb extends WithPersonalizationStore {
+export class PersonalizationBreadcrumbElement extends WithPersonalizationStore {
   static get is() {
     return 'personalization-breadcrumb';
   }
@@ -76,6 +77,9 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
       /** The topic source of the selected album(s) for screensaver. */
       topicSource: String,
 
+      /** The current SeaPen template id to display. */
+      seaPenTemplateId: String,
+
       /**
        * The current path of the page.
        */
@@ -86,7 +90,7 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
       breadcrumbs_: {
         type: Array,
         computed:
-            'computeBreadcrumbs_(path, collections_, collectionId, albums_, albumsShared_, googlePhotosAlbumId, topicSource)',
+            'computeBreadcrumbs_(path, collections_, collectionId, albums_, albumsShared_, googlePhotosAlbumId, seaPenTemplates_, seaPenTemplateId, topicSource)',
       },
 
       collections_: {
@@ -99,6 +103,12 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
       /** The list of shared Google Photos albums. */
       albumsShared_: Array,
 
+      /** The list of SeaPen templates. */
+      seaPenTemplates_: {
+        type: Array,
+        computed: 'computeSeaPenTemplates_()',
+      },
+
       /** The breadcrumb being highlighted by keyboard navigation. */
       selectedBreadcrumb_: {
         type: Object,
@@ -110,11 +120,13 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
   collectionId: string;
   googlePhotosAlbumId: string;
   topicSource: string;
+  seaPenTemplateId: string;
   path: string;
   private breadcrumbs_: string[];
   private collections_: WallpaperCollection[]|null;
   private albums_: GooglePhotosAlbum[]|null;
   private albumsShared_: GooglePhotosAlbum[]|null;
+  private seaPenTemplates_: SeaPenTemplate[]|null;
   private selectedBreadcrumb_: HTMLElement;
 
   override ready() {
@@ -204,6 +216,20 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
         breadcrumbs.push(this.i18n('wallpaperLabel'));
         breadcrumbs.push(this.i18n('myImagesLabel'));
         break;
+      case Paths.SEA_PEN_COLLECTION:
+        breadcrumbs.push(this.i18n('wallpaperLabel'));
+        breadcrumbs.push('Sea Pen');
+        if (this.seaPenTemplateId === QUERY) {
+          breadcrumbs.push(QUERY);
+        } else if (
+            this.seaPenTemplateId && isNonEmptyArray(this.seaPenTemplates_)) {
+          const template = this.seaPenTemplates_.find(
+              template => template.id === this.seaPenTemplateId);
+          if (template) {
+            breadcrumbs.push(template.text);
+          }
+        }
+        break;
       case Paths.USER:
         breadcrumbs.push(this.i18n('avatarLabel'));
         break;
@@ -227,6 +253,10 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
     return breadcrumbs;
   }
 
+  private computeSeaPenTemplates_(): SeaPenTemplate[] {
+    return getSampleSeaPenTemplates();
+  }
+
   private getBackButtonAriaLabel_(): string {
     return this.i18n('back', this.i18n('wallpaperLabel'));
   }
@@ -247,14 +277,15 @@ export class PersonalizationBreadcrumb extends WithPersonalizationStore {
         // with new path.
         const breadcrumb = e.target as HTMLElement;
         breadcrumb.blur();
-        PersonalizationRouter.instance().goToRoute(newPath as Paths);
+        PersonalizationRouterElement.instance().goToRoute(newPath as Paths);
       }
     }
   }
 
   private onHomeIconClick_() {
-    PersonalizationRouter.instance().goToRoute(Paths.ROOT);
+    PersonalizationRouterElement.instance().goToRoute(Paths.ROOT);
   }
 }
 
-customElements.define(PersonalizationBreadcrumb.is, PersonalizationBreadcrumb);
+customElements.define(
+    PersonalizationBreadcrumbElement.is, PersonalizationBreadcrumbElement);

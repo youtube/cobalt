@@ -27,16 +27,19 @@ class AutofillPrivateEventRouter :
     public EventRouter::Observer,
     public autofill::PersonalDataManagerObserver {
  public:
-  static AutofillPrivateEventRouter* Create(
-      content::BrowserContext* browser_context);
+  // Uses AutofillPrivateEventRouterFactory instead.
+  explicit AutofillPrivateEventRouter(content::BrowserContext* context);
   AutofillPrivateEventRouter(const AutofillPrivateEventRouter&) = delete;
   AutofillPrivateEventRouter& operator=(const AutofillPrivateEventRouter&) =
       delete;
   ~AutofillPrivateEventRouter() override = default;
 
- protected:
-  explicit AutofillPrivateEventRouter(content::BrowserContext* context);
+  // Rebind and Unbind test PDM when using `TestContentAutofillClient`.
+  void RebindPersonalDataManagerForTesting(
+      autofill::PersonalDataManager* personal_data);
+  void UnbindPersonalDataManagerForTesting();
 
+ protected:
   // KeyedService overrides:
   void Shutdown() override;
 

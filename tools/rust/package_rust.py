@@ -4,9 +4,11 @@
 # found in the LICENSE file.
 
 import argparse
+import lzma
 import os
 import platform
 import shutil
+import subprocess
 import sys
 import tarfile
 
@@ -15,13 +17,13 @@ sys.path.append(
     os.path.join(os.path.dirname(THIS_DIR), '..', 'clang', 'scripts'))
 
 from build_rust import (RUST_TOOLCHAIN_OUT_DIR, THIRD_PARTY_DIR)
-from update_rust import (GetLatestRevision)
-from package import (MaybeUpload, TeeCmd)
+from update_rust import (GetRustClangRevision)
+from package import (MaybeUpload, TeeCmd, DEFAULT_GCS_BUCKET)
 from update import (CHROMIUM_DIR)
 
-PACKAGE_VERSION = GetLatestRevision()
+PACKAGE_VERSION = GetRustClangRevision()
 BUILDLOG_NAME = f'rust-buildlog-{PACKAGE_VERSION}.txt'
-RUST_TOOLCHAIN_PACKAGE_NAME = f'rust-toolchain-{PACKAGE_VERSION}.tgz'
+RUST_TOOLCHAIN_PACKAGE_NAME = f'rust-toolchain-{PACKAGE_VERSION}.tar.xz'
 
 
 def BuildCrubit(build_mac_arm):
@@ -43,6 +45,11 @@ def main():
     parser.add_argument('--upload',
                         action='store_true',
                         help='upload package to GCS')
+    parser.add_argument(
+        '--bucket',
+        default=DEFAULT_GCS_BUCKET,
+        help='Google Cloud Storage bucket where the target archive is uploaded'
+    )
     parser.add_argument('--build-mac-arm',
                         action='store_true',
                         help='Build arm binaries. Only valid on macOS.')
@@ -90,14 +97,24 @@ def main():
 
     BuildCrubit(args.build_mac_arm)
 
-    with tarfile.open(
-            os.path.join(THIRD_PARTY_DIR, RUST_TOOLCHAIN_PACKAGE_NAME),
-            'w:gz') as tar:
+    # Strip everything in bin/ to reduce the package size.
+    bin_dir_path = os.path.join(RUST_TOOLCHAIN_OUT_DIR, 'bin')
+    if sys.platform != 'win32' and os.path.exists(bin_dir_path):
+        for f in os.listdir(bin_dir_path):
+            file_path = os.path.join(bin_dir_path, f)
+            if not os.path.islink(file_path):
+                subprocess.call(['strip', file_path])
+
+    with tarfile.open(os.path.join(THIRD_PARTY_DIR,
+                                   RUST_TOOLCHAIN_PACKAGE_NAME),
+                      'w:xz',
+                      preset=9 | lzma.PRESET_EXTREME) as tar:
         tar.add(RUST_TOOLCHAIN_OUT_DIR, arcname='rust-toolchain')
 
     os.chdir(THIRD_PARTY_DIR)
-    MaybeUpload(args.upload, RUST_TOOLCHAIN_PACKAGE_NAME, gcs_platform)
-    MaybeUpload(args.upload, BUILDLOG_NAME, gcs_platform)
+    MaybeUpload(args.upload, args.bucket, RUST_TOOLCHAIN_PACKAGE_NAME,
+                gcs_platform)
+    MaybeUpload(args.upload, args.bucket, BUILDLOG_NAME, gcs_platform)
 
     return 0
 

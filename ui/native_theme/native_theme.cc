@@ -18,20 +18,26 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_metrics.h"
 #include "ui/color/color_provider.h"
-#include "ui/color/color_provider_manager.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_utils.h"
 #include "ui/native_theme/common_theme.h"
 #include "ui/native_theme/native_theme_utils.h"
 
 namespace ui {
 
-NativeTheme::ExtraParams::ExtraParams() {
-  memset(this, 0, sizeof(*this));
-}
+NativeTheme::MenuListExtraParams::MenuListExtraParams() = default;
+NativeTheme::TextFieldExtraParams::TextFieldExtraParams() = default;
 
-NativeTheme::ExtraParams::ExtraParams(const ExtraParams& other) {
-  memcpy(this, &other, sizeof(*this));
-}
+NativeTheme::MenuListExtraParams::MenuListExtraParams(
+    const NativeTheme::MenuListExtraParams&) = default;
+
+NativeTheme::TextFieldExtraParams::TextFieldExtraParams(
+    const NativeTheme::TextFieldExtraParams&) = default;
+
+NativeTheme::MenuListExtraParams& NativeTheme::MenuListExtraParams::operator=(
+    const NativeTheme::MenuListExtraParams&) = default;
+NativeTheme::TextFieldExtraParams& NativeTheme::TextFieldExtraParams::operator=(
+    const NativeTheme::TextFieldExtraParams&) = default;
 
 #if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_APPLE)
 // static
@@ -40,19 +46,58 @@ bool NativeTheme::SystemDarkModeSupported() {
 }
 #endif
 
-ColorProviderManager::Key NativeTheme::GetColorProviderKey(
-    scoped_refptr<ColorProviderManager::ThemeInitializerSupplier> custom_theme,
+ColorProviderKey NativeTheme::GetColorProviderKey(
+    scoped_refptr<ColorProviderKey::ThemeInitializerSupplier> custom_theme,
     bool use_custom_frame) const {
-  return ColorProviderManager::Key(
-      (GetDefaultSystemColorScheme() == ColorScheme::kDark)
-          ? ColorProviderManager::ColorMode::kDark
-          : ColorProviderManager::ColorMode::kLight,
-      UserHasContrastPreference() ? ColorProviderManager::ContrastMode::kHigh
-                                  : ColorProviderManager::ContrastMode::kNormal,
-      system_theme_,
-      use_custom_frame ? ui::ColorProviderManager::FrameType::kChromium
-                       : ui::ColorProviderManager::FrameType::kNative,
-      user_color_, scheme_variant_, std::move(custom_theme));
+  const auto get_forced_colors_key = [](bool forced_colors,
+                                        PageColors page_colors) {
+    if (!forced_colors) {
+      return ColorProviderKey::ForcedColors::kNone;
+    }
+    static constexpr auto kForcedColorsMap =
+        base::MakeFixedFlatMap<PageColors, ColorProviderKey::ForcedColors>(
+            {{PageColors::kOff, ColorProviderKey::ForcedColors::kNone},
+             {PageColors::kDusk, ColorProviderKey::ForcedColors::kDusk},
+             {PageColors::kDesert, ColorProviderKey::ForcedColors::kDesert},
+             {PageColors::kBlack, ColorProviderKey::ForcedColors::kBlack},
+             {PageColors::kWhite, ColorProviderKey::ForcedColors::kWhite},
+             {PageColors::kHighContrast,
+              ColorProviderKey::ForcedColors::kActive}});
+
+    return kForcedColorsMap.at(page_colors);
+  };
+
+  ui::ColorProviderKey key;
+  switch (GetDefaultSystemColorScheme()) {
+    case ColorScheme::kDark:
+      key.color_mode = ColorProviderKey::ColorMode::kDark;
+      break;
+    case ColorScheme::kLight:
+      key.color_mode = ColorProviderKey::ColorMode::kLight;
+      break;
+    case ColorScheme::kPlatformHighContrast:
+      key.color_mode = GetPreferredColorScheme() == PreferredColorScheme::kDark
+                           ? ColorProviderKey::ColorMode::kDark
+                           : ColorProviderKey::ColorMode::kLight;
+      break;
+    default:
+      NOTREACHED_NORETURN();
+  }
+  key.contrast_mode = UserHasContrastPreference()
+                          ? ColorProviderKey::ContrastMode::kHigh
+                          : ColorProviderKey::ContrastMode::kNormal;
+  key.forced_colors = get_forced_colors_key(InForcedColorsMode(), page_colors_);
+  key.system_theme = system_theme_;
+  key.frame_type = use_custom_frame ? ColorProviderKey::FrameType::kChromium
+                                    : ColorProviderKey::FrameType::kNative;
+  key.user_color_source = should_use_system_accent_color_
+                              ? ColorProviderKey::UserColorSource::kAccent
+                              : ColorProviderKey::UserColorSource::kBaseline;
+  key.user_color = user_color_;
+  key.scheme_variant = scheme_variant_;
+  key.custom_theme = std::move(custom_theme);
+
+  return key;
 }
 
 SkColor NativeTheme::GetSystemButtonPressedColor(SkColor base_color) const {
@@ -138,6 +183,8 @@ NativeTheme::NativeTheme(bool should_use_dark_colors,
     : should_use_dark_colors_(should_use_dark_colors || IsForcedDarkMode()),
       system_theme_(system_theme),
       forced_colors_(IsForcedHighContrast()),
+      prefers_reduced_transparency_(false),
+      inverted_colors_(false),
       preferred_color_scheme_(CalculatePreferredColorScheme()),
       preferred_contrast_(CalculatePreferredContrast()) {}
 
@@ -171,6 +218,14 @@ NativeTheme::PageColors NativeTheme::GetPageColors() const {
 
 NativeTheme::PreferredColorScheme NativeTheme::GetPreferredColorScheme() const {
   return preferred_color_scheme_;
+}
+
+bool NativeTheme::GetPrefersReducedTransparency() const {
+  return prefers_reduced_transparency_;
+}
+
+bool NativeTheme::GetInvertedColors() const {
+  return inverted_colors_;
 }
 
 NativeTheme::PreferredContrast NativeTheme::GetPreferredContrast() const {
@@ -271,11 +326,19 @@ void NativeTheme::ColorSchemeNativeThemeObserver::OnNativeThemeUpdated(
     ui::NativeTheme* observed_theme) {
   bool should_use_dark_colors = observed_theme->ShouldUseDarkColors();
   bool forced_colors = observed_theme->InForcedColorsMode();
+  PageColors page_colors = observed_theme->GetPageColors();
+  bool prefers_reduced_transparency =
+      observed_theme->GetPrefersReducedTransparency();
   PreferredColorScheme preferred_color_scheme =
       observed_theme->GetPreferredColorScheme();
   PreferredContrast preferred_contrast = observed_theme->GetPreferredContrast();
+  bool inverted_colors = observed_theme->GetInvertedColors();
   bool notify_observers = false;
 
+  if (theme_to_update_->GetPageColors() != page_colors) {
+    theme_to_update_->set_page_colors(page_colors);
+    notify_observers = true;
+  }
   if (theme_to_update_->ShouldUseDarkColors() != should_use_dark_colors) {
     theme_to_update_->set_use_dark_colors(should_use_dark_colors);
     notify_observers = true;
@@ -290,6 +353,16 @@ void NativeTheme::ColorSchemeNativeThemeObserver::OnNativeThemeUpdated(
   }
   if (theme_to_update_->GetPreferredContrast() != preferred_contrast) {
     theme_to_update_->SetPreferredContrast(preferred_contrast);
+    notify_observers = true;
+  }
+  if (theme_to_update_->GetPrefersReducedTransparency() !=
+      prefers_reduced_transparency) {
+    theme_to_update_->set_prefers_reduced_transparency(
+        prefers_reduced_transparency);
+    notify_observers = true;
+  }
+  if (theme_to_update_->GetInvertedColors() != inverted_colors) {
+    theme_to_update_->set_inverted_colors(inverted_colors);
     notify_observers = true;
   }
 
@@ -310,4 +383,7 @@ NativeTheme::ColorScheme NativeTheme::GetDefaultSystemColorScheme() const {
   return ShouldUseDarkColors() ? ColorScheme::kDark : ColorScheme::kLight;
 }
 
+int NativeTheme::GetPaintedScrollbarTrackInset() const {
+  return 0;
+}
 }  // namespace ui

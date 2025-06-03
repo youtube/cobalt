@@ -39,7 +39,6 @@
 #include "third_party/blink/renderer/core/editing/drag_caret.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
 #include "third_party/blink/renderer/core/frame/browser_controls.h"
-#include "third_party/blink/renderer/core/frame/dom_timer.h"
 #include "third_party/blink/renderer/core/frame/event_handler_registry.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -73,13 +72,14 @@
 #include "third_party/blink/renderer/core/page/plugin_data.h"
 #include "third_party/blink/renderer/core/page/plugins_changed_observer.h"
 #include "third_party/blink/renderer/core/page/pointer_lock_controller.h"
+#include "third_party/blink/renderer/core/page/scoped_browsing_context_group_pauser.h"
 #include "third_party/blink/renderer/core/page/scoped_page_pauser.h"
-#include "third_party/blink/renderer/core/page/scrolling/overscroll_controller.h"
 #include "third_party/blink/renderer/core/page/scrolling/scrolling_coordinator.h"
 #include "third_party/blink/renderer/core/page/scrolling/top_document_root_scroller_controller.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation_controller.h"
 #include "third_party/blink/renderer/core/page/validation_message_client_impl.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
+#include "third_party/blink/renderer/core/preferences/preference_overrides.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme_overlay_mobile.h"
@@ -147,17 +147,19 @@ HeapVector<Member<Page>> Page::RelatedPages() {
 
 Page* Page::CreateNonOrdinary(ChromeClient& chrome_client,
                               AgentGroupScheduler& agent_group_scheduler) {
-  return MakeGarbageCollected<Page>(base::PassKey<Page>(), chrome_client,
-                                    agent_group_scheduler,
-                                    /*is_ordinary=*/false);
+  return MakeGarbageCollected<Page>(
+      base::PassKey<Page>(), chrome_client, agent_group_scheduler,
+      BrowsingContextGroupInfo::CreateUnique(), /*is_ordinary=*/false);
 }
 
-Page* Page::CreateOrdinary(ChromeClient& chrome_client,
-                           Page* opener,
-                           AgentGroupScheduler& agent_group_scheduler) {
-  Page* page = MakeGarbageCollected<Page>(base::PassKey<Page>(), chrome_client,
-                                          agent_group_scheduler,
-                                          /*is_ordinary=*/true);
+Page* Page::CreateOrdinary(
+    ChromeClient& chrome_client,
+    Page* opener,
+    AgentGroupScheduler& agent_group_scheduler,
+    const BrowsingContextGroupInfo& browsing_context_group_info) {
+  Page* page = MakeGarbageCollected<Page>(
+      base::PassKey<Page>(), chrome_client, agent_group_scheduler,
+      browsing_context_group_info, /*is_ordinary=*/true);
 
   if (opener) {
     // Before: ... -> opener -> next -> ...
@@ -170,14 +172,25 @@ Page* Page::CreateOrdinary(ChromeClient& chrome_client,
   }
 
   OrdinaryPages().insert(page);
-  if (ScopedPagePauser::IsActive())
+
+  bool should_pause = false;
+  if (base::FeatureList::IsEnabled(
+          features::kPausePagesPerBrowsingContextGroup)) {
+    should_pause = ScopedBrowsingContextGroupPauser::IsActive(*page);
+  } else {
+    should_pause = ScopedPagePauser::IsActive();
+  }
+  if (should_pause) {
     page->SetPaused(true);
+  }
+
   return page;
 }
 
 Page::Page(base::PassKey<Page>,
            ChromeClient& chrome_client,
            AgentGroupScheduler& agent_group_scheduler,
+           const BrowsingContextGroupInfo& browsing_context_group_info,
            bool is_ordinary)
     : SettingsDelegate(std::make_unique<Settings>()),
       main_frame_(nullptr),
@@ -199,9 +212,6 @@ Page::Page(base::PassKey<Page>,
       global_root_scroller_controller_(
           MakeGarbageCollected<TopDocumentRootScrollerController>(*this)),
       visual_viewport_(MakeGarbageCollected<VisualViewport>(*this)),
-      overscroll_controller_(
-          MakeGarbageCollected<OverscrollController>(GetVisualViewport(),
-                                                     GetChromeClient())),
       link_highlight_(MakeGarbageCollected<LinkHighlight>(*this)),
       plugin_data_(nullptr),
       // TODO(pdr): Initialize |validation_message_client_| lazily.
@@ -218,8 +228,13 @@ Page::Page(base::PassKey<Page>,
       prev_related_page_(this),
       autoplay_flags_(0),
       web_text_autosizer_page_info_({0, 0, 1.f}),
-      v8_compile_hints_(
-          MakeGarbageCollected<V8CrowdsourcedCompileHintsProducer>(this)) {
+      v8_compile_hints_producer_(
+          MakeGarbageCollected<
+              v8_compile_hints::V8CrowdsourcedCompileHintsProducer>(this)),
+      v8_compile_hints_consumer_(
+          MakeGarbageCollected<
+              v8_compile_hints::V8CrowdsourcedCompileHintsConsumer>()),
+      browsing_context_group_info_(browsing_context_group_info) {
   DCHECK(!AllPages().Contains(this));
   AllPages().insert(this);
 
@@ -312,14 +327,6 @@ const VisualViewport& Page::GetVisualViewport() const {
   return *visual_viewport_;
 }
 
-OverscrollController& Page::GetOverscrollController() {
-  return *overscroll_controller_;
-}
-
-const OverscrollController& Page::GetOverscrollController() const {
-  return *overscroll_controller_;
-}
-
 LinkHighlight& Page::GetLinkHighlight() {
   return *link_highlight_;
 }
@@ -330,12 +337,6 @@ void Page::SetMainFrame(Frame* main_frame) {
   main_frame_ = main_frame;
 
   page_scheduler_->SetIsMainFrameLocal(main_frame->IsLocalFrame());
-}
-
-Frame* Page::TakePreviousMainFrameForLocalSwap() {
-  Frame* frame = previous_main_frame_for_local_swap_;
-  previous_main_frame_for_local_swap_ = nullptr;
-  return frame;
 }
 
 LocalFrame* Page::DeprecatedLocalMainFrame() const {
@@ -536,6 +537,14 @@ void Page::SetVisibilityState(
     bool is_initial_state) {
   if (lifecycle_state_->visibility == visibility_state)
     return;
+
+  // Are we entering / leaving a state that would map to the "visible" state, in
+  // the `document.visibilityState` sense?
+  const bool was_visible = lifecycle_state_->visibility ==
+                           mojom::blink::PageVisibilityState::kVisible;
+  const bool is_visible =
+      visibility_state == mojom::blink::PageVisibilityState::kVisible;
+
   lifecycle_state_->visibility = visibility_state;
 
   if (is_initial_state)
@@ -547,9 +556,24 @@ void Page::SetVisibilityState(
 
   if (main_frame_) {
     if (lifecycle_state_->visibility ==
-        mojom::blink::PageVisibilityState::kVisible)
+        mojom::blink::PageVisibilityState::kVisible) {
       RestoreSVGImageAnimations();
-    main_frame_->DidChangeVisibilityState();
+    }
+    // If we're eliding visibility transitions between the two `kHidden*`
+    // states, then we never get here unless one state was `kVisible` and the
+    // other was not.  However, if we aren't eliding those transitions, then we
+    // need to do so now; from the Frame's point of view, nothing is changing if
+    // this is a change between the two `kHidden*` states.  Both map to "hidden"
+    // in the sense of `document.visibilityState`, and dispatching an event when
+    // the web-exposed state hasn't changed is confusing.
+    //
+    // This check could be enabled for both cases, and the result in the
+    // "eliding" case shouldn't change.  It's not, just to be safe, since this
+    // is intended as a fall-back to previous behavior.
+    if (!RuntimeEnabledFeatures::DispatchHiddenVisibilityTransitionsEnabled() ||
+        was_visible || is_visible) {
+      main_frame_->DidChangeVisibilityState();
+    }
   }
 }
 
@@ -944,7 +968,6 @@ void Page::Trace(Visitor* visitor) const {
   visitor->Trace(console_message_storage_);
   visitor->Trace(global_root_scroller_controller_);
   visitor->Trace(visual_viewport_);
-  visitor->Trace(overscroll_controller_);
   visitor->Trace(link_highlight_);
   visitor->Trace(spatial_navigation_controller_);
   visitor->Trace(main_frame_);
@@ -955,7 +978,8 @@ void Page::Trace(Visitor* visitor) const {
   visitor->Trace(next_related_page_);
   visitor->Trace(prev_related_page_);
   visitor->Trace(agent_group_scheduler_);
-  visitor->Trace(v8_compile_hints_);
+  visitor->Trace(v8_compile_hints_producer_);
+  visitor->Trace(v8_compile_hints_consumer_);
   Supplementable<Page>::Trace(visitor);
 }
 
@@ -1116,6 +1140,28 @@ void Page::ClearMediaFeatureOverrides() {
   SettingsChanged(ChangeType::kColorScheme);
 }
 
+void Page::SetPreferenceOverride(const AtomicString& media_feature,
+                                 const String& value) {
+  if (!preference_overrides_) {
+    if (value.empty()) {
+      return;
+    }
+    preference_overrides_ = std::make_unique<PreferenceOverrides>();
+  }
+  preference_overrides_->SetOverride(media_feature, value);
+  if (media_feature == "prefers-color-scheme") {
+    SettingsChanged(ChangeType::kColorScheme);
+  } else {
+    SettingsChanged(ChangeType::kMediaQuery);
+  }
+}
+
+void Page::ClearPreferenceOverrides() {
+  preference_overrides_.reset();
+  SettingsChanged(ChangeType::kMediaQuery);
+  SettingsChanged(ChangeType::kColorScheme);
+}
+
 void Page::SetVisionDeficiency(VisionDeficiency new_vision_deficiency) {
   if (new_vision_deficiency != vision_deficiency_) {
     vision_deficiency_ = new_vision_deficiency;
@@ -1145,6 +1191,41 @@ void Page::UpdateLifecycle(LocalFrame& root,
   }
 }
 
+const base::UnguessableToken& Page::BrowsingContextGroupToken() {
+  return browsing_context_group_info_.browsing_context_group_token;
+}
+
+const base::UnguessableToken& Page::CoopRelatedGroupToken() {
+  return browsing_context_group_info_.coop_related_group_token;
+}
+
+void Page::UpdateBrowsingContextGroup(
+    const blink::BrowsingContextGroupInfo& browsing_context_group_info) {
+  if (browsing_context_group_info_ == browsing_context_group_info) {
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kPausePagesPerBrowsingContextGroup) &&
+      ScopedBrowsingContextGroupPauser::IsActive(*this)) {
+    CHECK(paused_);
+    SetPaused(false);
+  }
+
+  browsing_context_group_info_ = browsing_context_group_info;
+
+  if (base::FeatureList::IsEnabled(
+          features::kPausePagesPerBrowsingContextGroup) &&
+      ScopedBrowsingContextGroupPauser::IsActive(*this)) {
+    SetPaused(true);
+  }
+}
+
+void Page::SetAttributionSupport(
+    network::mojom::AttributionSupport attribution_support) {
+  attribution_support_ = attribution_support;
+}
+
 template class CORE_TEMPLATE_EXPORT Supplement<Page>;
 
 const char InternalSettingsPageSupplementBase::kSupplementName[] =
@@ -1156,8 +1237,13 @@ void Page::PrepareForLeakDetection() {
   // depending on whether the garbage collector(s) are able to find the settings
   // object through the Page supplement. Prepares for leak detection by removing
   // all InternalSetting objects from Pages.
-  for (Page* page : OrdinaryPages())
+  for (Page* page : OrdinaryPages()) {
     page->RemoveSupplement<InternalSettingsPageSupplementBase>();
+
+    // V8CrowdsourcedCompileHintsProducer keeps v8::Script objects alive until
+    // the page becomes interactive. Give it a chance to clean up.
+    page->v8_compile_hints_producer_->ClearData();
+  }
 }
 
 // Ensure the 10 bits reserved for connected frame count in NodeRareData are

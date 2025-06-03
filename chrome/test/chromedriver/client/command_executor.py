@@ -216,11 +216,43 @@ class Command(object):
   SET_RPH_REGISTRATION_MODE = (
       _Method.POST,
       '/session/:sessionId/custom-handlers/set-mode')
+  CREATE_VIRTUAL_SENSOR = (
+      _Method.POST, '/session/:sessionId/sensor')
+  UPDATE_VIRTUAL_SENSOR = (
+      _Method.POST, '/session/:sessionId/sensor/:type')
+  REMOVE_VIRTUAL_SENSOR = (
+      _Method.DELETE, '/session/:sessionId/sensor/:type')
+  GET_VIRTUAL_SENSOR_INFORMATION = (
+      _Method.GET, '/session/:sessionId/sensor/:type')
   SET_PERMISSION = (
       _Method.POST, '/session/:sessionId/permissions')
   GET_CAST_SINKS = (
       _Method.GET,
       '/session/:sessionId/:vendorId/cast/get_sinks')
+  CANCEL_FEDCM_DIALOG = (
+      _Method.POST,
+      '/session/:sessionId/fedcm/canceldialog')
+  SELECT_ACCOUNT = (
+      _Method.POST,
+      '/session/:sessionId/fedcm/selectaccount')
+  CONFIRM_IDP_LOGIN = (
+      _Method.POST,
+      '/session/:sessionId/:vendorId/fedcm/confirmidplogin')
+  GET_ACCOUNTS = (
+      _Method.GET,
+      '/session/:sessionId/fedcm/accountlist')
+  GET_FEDCM_TITLE = (
+      _Method.GET,
+      '/session/:sessionId/fedcm/gettitle')
+  GET_DIALOG_TYPE = (
+      _Method.GET,
+      '/session/:sessionId/fedcm/getdialogtype')
+  SET_DELAY_ENABLED = (
+      _Method.POST,
+      '/session/:sessionId/fedcm/setdelayenabled')
+  RESET_COOLDOWN = (
+      _Method.POST,
+      '/session/:sessionId/fedcm/resetcooldown')
 
   # Custom Chrome commands.
   IS_LOADING = (_Method.GET, '/session/:sessionId/is_loading')

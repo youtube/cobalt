@@ -19,18 +19,19 @@ import './toolbar.js';
 
 import {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {SettingsPrefsElement} from 'chrome://resources/cr_components/settings_prefs/prefs.js';
 import {CrContainerShadowMixin} from 'chrome://resources/cr_elements/cr_container_shadow_mixin.js';
 import {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
 import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {getDeepActiveElement, listenOnce} from 'chrome://resources/js/util_ts.js';
+import {getDeepActiveElement, listenOnce} from 'chrome://resources/js/util.js';
 import {IronPagesElement} from 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
 import {DomIf, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {CheckupSectionElement} from './checkup_section.js';
+import {PasswordRemovedEvent} from './credential_details/password_details_card.js';
 import {FocusConfig} from './focus_config.js';
-import {PasswordRemovedEvent} from './password_details_card.js';
 import {getTemplate} from './password_manager_app.html.js';
 import {PasswordManagerImpl} from './password_manager_proxy.js';
 import {PasswordsSectionElement} from './passwords_section.js';
@@ -104,6 +105,11 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
       toastMessage_: String,
 
       /**
+       * Whether to show an "undo" button on the removal toast.
+       */
+      showUndo_: Boolean,
+
+      /**
        * A Map specifying which element should be focused when exiting a
        * subpage. The key of the map holds a Route path, and the value holds
        * either a query selector that identifies the desired element, an element
@@ -122,10 +128,37 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
   private selectedPage_: Page;
   private narrow_: boolean;
   private toastMessage_: string;
+  private showUndo_: boolean;
   private focusConfig_: FocusConfig;
 
   override ready() {
     super.ready();
+
+    window.CrPolicyStrings = {
+      controlledSettingExtension:
+          loadTimeData.getString('controlledSettingExtension'),
+      controlledSettingExtensionWithoutName:
+          loadTimeData.getString('controlledSettingExtensionWithoutName'),
+      controlledSettingPolicy:
+          loadTimeData.getString('controlledSettingPolicy'),
+      controlledSettingRecommendedMatches:
+          loadTimeData.getString('controlledSettingRecommendedMatches'),
+      controlledSettingRecommendedDiffers:
+          loadTimeData.getString('controlledSettingRecommendedDiffers'),
+      controlledSettingChildRestriction:
+          loadTimeData.getString('controlledSettingChildRestriction'),
+      controlledSettingParent:
+          loadTimeData.getString('controlledSettingParent'),
+
+      // <if expr="chromeos_ash">
+      controlledSettingShared:
+          loadTimeData.getString('controlledSettingShared'),
+      controlledSettingWithOwner:
+          loadTimeData.getString('controlledSettingWithOwner'),
+      controlledSettingNoOwner:
+          loadTimeData.getString('controlledSettingNoOwner'),
+      // </if>
+    };
 
     document.addEventListener('keydown', e => {
       // <if expr="is_macosx">
@@ -145,7 +178,8 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
       this.$.drawerTemplate.if = true;
     });
 
-    this.addEventListener('cr-toolbar-menu-tap', this.onMenuButtonTap_);
+    this.addEventListener('cr-toolbar-menu-click', this.onMenuButtonClick_);
+    this.addEventListener('close-drawer', this.closeDrawer_);
   }
 
   override currentRouteChanged(route: Route): void {
@@ -165,8 +199,12 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
     if (modalContextOpen) {
       return false;
     }
-    this.$.toolbar.searchField.showAndFocus();
-    return true;
+    // Redirect to Password Manager search on Passwords page.
+    if (Router.getInstance().currentRoute.page === Page.PASSWORDS) {
+      this.$.toolbar.searchField.showAndFocus();
+      return true;
+    }
+    return false;
   }
 
   // Override FindShortcutMixin methods.
@@ -180,8 +218,14 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
     }
   }
 
-  private onMenuButtonTap_() {
+  private onMenuButtonClick_() {
     this.$.drawer.toggle();
+  }
+
+  private closeDrawer_() {
+    if (this.$.drawer && this.$.drawer.open) {
+      this.$.drawer.close();
+    }
   }
 
   setNarrowForTesting(state: boolean) {
@@ -211,7 +255,14 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
 
   private onPasswordRemoved_(_event: PasswordRemovedEvent) {
     // TODO(crbug.com/1350947): Show different message if account store user.
+    this.showUndo_ = true;
     this.toastMessage_ = this.i18n('passwordDeleted');
+    this.$.removalToast.show();
+  }
+
+  private onPasskeyRemoved_() {
+    this.showUndo_ = false;
+    this.toastMessage_ = this.i18n('passkeyDeleted');
     this.$.removalToast.show();
   }
 

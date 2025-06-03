@@ -11,7 +11,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/json/json_writer.h"
 #include "base/notreached.h"
-#include "chrome/browser/ash/file_manager/file_tasks.h"
+#include "chrome/browser/ash/file_manager/office_file_tasks.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -58,21 +58,16 @@ void GetDialogTextIds(
       reason_message_id = IDS_OFFICE_FALLBACK_REASON_OFFLINE;
       instructions_message_id = IDS_OFFICE_FALLBACK_INSTRUCTIONS_OFFLINE;
       break;
-    case ash::office_fallback::FallbackReason::kDriveUnavailable:
+    case ash::office_fallback::FallbackReason::kDriveDisabled:
+    case ash::office_fallback::FallbackReason::kNoDriveService:
+    case ash::office_fallback::FallbackReason::kDriveAuthenticationNotReady:
+    case ash::office_fallback::FallbackReason::kDriveFsInterfaceError:
+    case ash::office_fallback::FallbackReason::kMeteredConnection:
       title_id = IDS_OFFICE_FALLBACK_TITLE_DRIVE_UNAVAILABLE;
       reason_message_id = IDS_OFFICE_FALLBACK_REASON_DRIVE_UNAVAILABLE;
+      instructions_message_id =
+          IDS_OFFICE_FALLBACK_INSTRUCTIONS_DRIVE_UNAVAILABLE;
       break;
-    case ash::office_fallback::FallbackReason::kOneDriveUnavailable:
-      title_id = IDS_OFFICE_FALLBACK_TITLE_ONEDRIVE_UNAVAILABLE;
-      reason_message_id = IDS_OFFICE_FALLBACK_REASON_ONEDRIVE_UNAVAILABLE;
-      break;
-    case ash::office_fallback::FallbackReason::kErrorOpeningWeb:
-      title_id = IDS_OFFICE_FALLBACK_TITLE_ERROR_OPENING_WEB;
-      reason_message_id = IDS_OFFICE_FALLBACK_REASON_ERROR_OPENING_WEB;
-      break;
-    case ash::office_fallback::FallbackReason::kInvalidGoogleDocsURL:
-      title_id = IDS_OFFICE_FALLBACK_TITLE_INVALID_GOOGLE_DOCS_URL;
-      reason_message_id = IDS_OFFICE_FALLBACK_REASON_INVALID_GOOGLE_DOCS_URL;
   }
 }
 }  // namespace
@@ -82,7 +77,7 @@ namespace ash::office_fallback {
 // static
 bool OfficeFallbackDialog::Show(
     const std::vector<storage::FileSystemURL>& file_urls,
-    const FallbackReason fallback_reason,
+    FallbackReason fallback_reason,
     const std::string& action_id,
     DialogChoiceCallback callback) {
   // Allow no more than one office fallback dialog at a time. In the case of
@@ -128,9 +123,9 @@ bool OfficeFallbackDialog::Show(
 
   // The pointer is managed by an instance of `views::WebDialogView` and removed
   // in `SystemWebDialogDelegate::OnDialogClosed`.
-  OfficeFallbackDialog* dialog =
-      new OfficeFallbackDialog(file_urls, title_text, reason_message,
-                               instructions_message, std::move(callback));
+  OfficeFallbackDialog* dialog = new OfficeFallbackDialog(
+      file_urls, fallback_reason, title_text, reason_message,
+      instructions_message, std::move(callback));
 
   dialog->ShowSystemDialog();
   return true;
@@ -140,15 +135,17 @@ void OfficeFallbackDialog::OnDialogClosed(const std::string& choice) {
   // Save callback as local variable before member variables are deleted during
   // dialog close.
   DialogChoiceCallback callback = std::move(callback_);
+  FallbackReason fallback_reason = fallback_reason_;
   // Delete class.
   SystemWebDialogDelegate::OnDialogClosed(choice);
   // Run callback after dialog closed.
   if (callback)
-    std::move(callback).Run(choice);
+    std::move(callback).Run(choice, fallback_reason);
 }
 
 OfficeFallbackDialog::OfficeFallbackDialog(
     const std::vector<storage::FileSystemURL>& file_urls,
+    FallbackReason fallback_reason,
     const std::string& title_text,
     const std::string& reason_message,
     const std::string& instructions_message,
@@ -156,6 +153,7 @@ OfficeFallbackDialog::OfficeFallbackDialog(
     : SystemWebDialogDelegate(GURL(chrome::kChromeUIOfficeFallbackURL),
                               std::u16string() /* title */),
       file_urls_(file_urls),
+      fallback_reason_(fallback_reason),
       title_text_(title_text),
       reason_message_(reason_message),
       instructions_message_(instructions_message),

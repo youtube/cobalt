@@ -19,6 +19,7 @@
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_conversions.h"
+#include "third_party/blink/renderer/modules/webgpu/gpu.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_adapter.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_bind_group.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_bind_group_layout.h"
@@ -124,7 +125,8 @@ GPUDevice::GPUDevice(ExecutionContext* execution_context,
                      scoped_refptr<DawnControlClientHolder> dawn_control_client,
                      GPUAdapter* adapter,
                      WGPUDevice dawn_device,
-                     const GPUDeviceDescriptor* descriptor)
+                     const GPUDeviceDescriptor* descriptor,
+                     GPUDeviceLostInfo* lost_info)
     : ExecutionContextClient(execution_context),
       DawnObject(dawn_control_client, dawn_device),
       adapter_(adapter),
@@ -149,6 +151,14 @@ GPUDevice::GPUDevice(ExecutionContext* execution_context,
   DCHECK(dawn_device);
 
   WGPUSupportedLimits limits = {};
+  // Chain to get experimental subgroup limits, if device has experimental
+  // subgroups feature.
+  WGPUDawnExperimentalSubgroupLimits subgroupLimits = {};
+  subgroupLimits.chain.sType = WGPUSType_DawnExperimentalSubgroupLimits;
+  if (features_->has(V8GPUFeatureName::Enum::kChromiumExperimentalSubgroups)) {
+    limits.nextInChain = &subgroupLimits.chain;
+  }
+
   GetProcs().deviceGetLimits(GetHandle(), &limits);
   limits_ = MakeGarbageCollected<GPUSupportedLimits>(limits);
 
@@ -169,6 +179,12 @@ GPUDevice::GPUDevice(ExecutionContext* execution_context,
     queue_->setLabel(descriptor->defaultQueue()->label());
 
   external_texture_cache_ = MakeGarbageCollected<ExternalTextureCache>(this);
+
+  // If lost_info is supplied it means the device should be treated as being
+  // lost at creation time.
+  if (lost_info) {
+    lost_property_->Resolve(lost_info);
+  }
 }
 
 GPUDevice::~GPUDevice() {
@@ -187,12 +203,15 @@ void GPUDevice::InjectError(WGPUErrorType type, const char* message) {
 }
 
 void GPUDevice::AddConsoleWarning(const char* message) {
+  AddConsoleWarning(StringFromASCIIAndUTF8(message));
+}
+
+void GPUDevice::AddConsoleWarning(const String& message) {
   ExecutionContext* execution_context = GetExecutionContext();
   if (execution_context && allowed_console_warnings_remaining_ > 0) {
     auto* console_message = MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kRendering,
-        mojom::blink::ConsoleMessageLevel::kWarning,
-        StringFromASCIIAndUTF8(message));
+        mojom::blink::ConsoleMessageLevel::kWarning, message);
     execution_context->AddConsoleMessage(console_message);
 
     allowed_console_warnings_remaining_--;
@@ -203,6 +222,41 @@ void GPUDevice::AddConsoleWarning(const char* message) {
           "WebGPU: too many warnings, no more warnings will be reported to the "
           "console for this GPUDevice.");
       execution_context->AddConsoleMessage(final_message);
+    }
+  }
+}
+
+void GPUDevice::AddSingletonWarning(GPUSingletonWarning type) {
+  size_t index = static_cast<size_t>(type);
+  if (UNLIKELY(!singleton_warning_fired_[index])) {
+    singleton_warning_fired_[index] = true;
+
+    std::string message;
+    switch (type) {
+      case GPUSingletonWarning::kNonPreferredFormat:
+        message =
+            "WebGPU canvas configured with a different format than is "
+            "preferred by this device (\"" +
+            std::string(FromDawnEnum(GPU::preferred_canvas_format())) +
+            "\"). This requires an extra copy, which may impact performance.";
+        break;
+      case GPUSingletonWarning::kDepthKey:
+        message =
+            "The key \"depth\" was included in a GPUExtent3D dictionary, which "
+            "has no effect. It is likely that \"depthOrArrayLayers\" was "
+            "intended instead.";
+        break;
+      case GPUSingletonWarning::kCount:
+        NOTREACHED();
+    }
+
+    ExecutionContext* execution_context = GetExecutionContext();
+    if (execution_context) {
+      auto* console_message = MakeGarbageCollected<ConsoleMessage>(
+          mojom::blink::ConsoleMessageSource::kRendering,
+          mojom::blink::ConsoleMessageLevel::kWarning,
+          StringFromASCIIAndUTF8(message.c_str()));
+      execution_context->AddConsoleMessage(console_message);
     }
   }
 }
@@ -401,11 +455,11 @@ void GPUDevice::OnCreateComputePipelineAsyncCallback(
 }
 
 GPUAdapter* GPUDevice::adapter() const {
-  return adapter_;
+  return adapter_.Get();
 }
 
 GPUSupportedFeatures* GPUDevice::features() const {
-  return features_;
+  return features_.Get();
 }
 
 ScriptPromise GPUDevice::lost(ScriptState* script_state) {
@@ -413,7 +467,7 @@ ScriptPromise GPUDevice::lost(ScriptState* script_state) {
 }
 
 GPUQueue* GPUDevice::queue() {
-  return queue_;
+  return queue_.Get();
 }
 
 bool GPUDevice::destroyed() const {
@@ -446,11 +500,9 @@ GPUSampler* GPUDevice::createSampler(const GPUSamplerDescriptor* descriptor) {
 }
 
 GPUExternalTexture* GPUDevice::importExternalTexture(
-    ScriptState* script_state,
     const GPUExternalTextureDescriptor* descriptor,
     ExceptionState& exception_state) {
-  return external_texture_cache_->Import(ExecutionContext::From(script_state),
-                                         descriptor, exception_state);
+  return external_texture_cache_->Import(descriptor, exception_state);
 }
 
 GPUBindGroup* GPUDevice::createBindGroup(
@@ -495,7 +547,8 @@ ScriptPromise GPUDevice::createRenderPipelineAsync(
   ScriptPromise promise = resolver->Promise();
 
   v8::Isolate* isolate = script_state->GetIsolate();
-  ExceptionState exception_state(isolate, ExceptionState::kExecutionContext,
+  ExceptionState exception_state(isolate,
+                                 ExceptionContextType::kOperationInvoke,
                                  "GPUDevice", "createRenderPipelineAsync");
   OwnedRenderPipelineDescriptor dawn_desc_info;
   ConvertToDawnType(isolate, this, descriptor, &dawn_desc_info,
@@ -563,14 +616,19 @@ GPURenderBundleEncoder* GPUDevice::createRenderBundleEncoder(
 
 GPUQuerySet* GPUDevice::createQuerySet(const GPUQuerySetDescriptor* descriptor,
                                        ExceptionState& exception_state) {
+  const V8GPUFeatureName::Enum kTimestampQuery =
+      V8GPUFeatureName::Enum::kTimestampQuery;
+  const V8GPUFeatureName::Enum kTimestampQueryInsidePasses =
+      V8GPUFeatureName::Enum::kChromiumExperimentalTimestampQueryInsidePasses;
   if (descriptor->type() == V8GPUQueryType::Enum::kTimestamp &&
-      !features_->has(V8GPUFeatureName::Enum::kTimestampQuery) &&
-      !features_->has(V8GPUFeatureName::Enum::kTimestampQueryInsidePasses)) {
-    exception_state.ThrowTypeError(String::Format(
-        "Use of 'timestamp' queries requires the 'timestamp-query' or "
-        "'timestamp-query-inside-passes' feature to "
-        "be enabled on %s.",
-        formattedLabel().c_str()));
+      !features_->has(kTimestampQuery) &&
+      !features_->has(kTimestampQueryInsidePasses)) {
+    exception_state.ThrowTypeError(
+        String::Format("Use of timestamp queries requires the '%s' or '%s' "
+                       "feature to be enabled on %s.",
+                       V8GPUFeatureName(kTimestampQuery).AsCStr(),
+                       V8GPUFeatureName(kTimestampQueryInsidePasses).AsCStr(),
+                       formattedLabel().c_str()));
     return nullptr;
   }
   return GPUQuerySet::Create(this, descriptor);
@@ -646,7 +704,7 @@ void GPUDevice::Trace(Visitor* visitor) const {
   visitor->Trace(textures_with_mailbox_);
   visitor->Trace(mappable_buffers_);
   ExecutionContextClient::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void GPUDevice::Dispose() {

@@ -5,16 +5,15 @@
 package org.chromium.chrome.browser;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PackageUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.directactions.DirectActionCoordinator;
-import org.chromium.chrome.browser.feedback.FeedbackReporter;
 import org.chromium.chrome.browser.gsa.GSAHelper;
 import org.chromium.chrome.browser.historyreport.AppIndexingReporter;
 import org.chromium.chrome.browser.init.ChromeStartupDelegate;
@@ -28,13 +27,10 @@ import org.chromium.chrome.browser.partnerbookmarks.PartnerBookmarksProviderIter
 import org.chromium.chrome.browser.password_manager.GooglePasswordManagerUIProvider;
 import org.chromium.chrome.browser.policy.PolicyAuditor;
 import org.chromium.chrome.browser.rlz.RevenueStats;
-import org.chromium.chrome.browser.survey.SurveyController;
 import org.chromium.chrome.browser.sync.TrustedVaultClient;
 import org.chromium.chrome.browser.ui.signin.GoogleActivityController;
 import org.chromium.chrome.browser.usage_stats.DigitalWellbeingClient;
 import org.chromium.chrome.browser.webapps.GooglePlayWebApkInstallDelegate;
-import org.chromium.chrome.browser.xsurface.ProcessScope;
-import org.chromium.chrome.browser.xsurface.ProcessScopeDependencyProvider;
 import org.chromium.chrome.modules.image_editor.ImageEditorModuleProvider;
 import org.chromium.components.policy.AppRestrictionsProvider;
 import org.chromium.components.policy.CombinedPolicyProvider;
@@ -59,9 +55,9 @@ public abstract class AppHooks {
     /**
      * Sets a mocked instance for testing.
      */
-    @VisibleForTesting
     public static void setInstanceForTesting(AppHooksImpl instance) {
         sInstanceForTesting = instance;
+        ResettersForTesting.register(() -> sInstanceForTesting = null);
     }
 
     public static AppHooks get() {
@@ -105,24 +101,8 @@ public abstract class AppHooks {
     /**
      * Returns a new {@link DirectActionCoordinator} instance, if available.
      */
-    @Nullable
-    public DirectActionCoordinator createDirectActionCoordinator() {
+    public @Nullable DirectActionCoordinator createDirectActionCoordinator() {
         return null;
-    }
-
-    /**
-     * Creates a new {@link SurveyController}.
-     * @return The created {@link SurveyController}.
-     */
-    public SurveyController createSurveyController() {
-        return new SurveyController();
-    }
-
-    /**
-     * @return An instance of {@link FeedbackReporter} to report feedback.
-     */
-    public FeedbackReporter createFeedbackReporter() {
-        return new FeedbackReporter() {};
     }
 
     /**
@@ -247,14 +227,6 @@ public abstract class AppHooks {
      */
     public TrustedVaultClient.Backend createSyncTrustedVaultClientBackend() {
         return new TrustedVaultClient.EmptyBackend();
-    }
-
-    /**
-     * This is deprecated, and should not be called. Use FeedHooks instead.
-     */
-    public @Nullable ProcessScope getExternalSurfaceProcessScope(
-            ProcessScopeDependencyProvider dependencies) {
-        return null;
     }
 
     /**

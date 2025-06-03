@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import {createChild} from '../../common/js/dom_utils.js';
-import {metrics} from '../../common/js/metrics.js';
-import {str, strf, util} from '../../common/js/util.js';
+import {isSameEntry} from '../../common/js/entry_utils.js';
+import {recordEnum} from '../../common/js/metrics.js';
+import {str, strf} from '../../common/js/translations.js';
 import {DirectoryChangeEvent} from '../../externs/directory_change_event.js';
 import {FakeEntry} from '../../externs/files_app_entry_interfaces.js';
 import {State} from '../../externs/ts/state.js';
@@ -26,7 +27,7 @@ export class FileTypeFiltersController {
    */
   constructor(fileTypeFilterContainer, directoryModel, recentEntry, a11y) {
     /**
-     * @private {Map<chrome.fileManagerPrivate.FileCategory, string>}
+     * @private @type {Map<chrome.fileManagerPrivate.FileCategory, string>}
      * @const
      */
     this.filterTypeToTranslationKeyMap_ = new Map([
@@ -53,59 +54,59 @@ export class FileTypeFiltersController {
     ]);
 
     /**
-     * @private {!HTMLElement}
+     * @private @type {!HTMLElement}
      * @const
      */
     this.container_ = fileTypeFilterContainer;
 
     /**
-     * @private {!DirectoryModel}
+     * @private @type {!DirectoryModel}
      * @const
      */
     this.directoryModel_ = directoryModel;
 
     /**
-     * @private {!FakeEntry}
+     * @private @type {!FakeEntry}
      * @const
      */
     this.recentEntry_ = recentEntry;
 
     /**
-     * @private {!A11yAnnounce}
+     * @private @type {!A11yAnnounce}
      * @const
      */
     this.a11y_ = a11y;
 
     /**
-     * @private {!HTMLElement}
+     * @private @type {!HTMLElement}
      * @const
      */
     this.allFilterButton_ =
         this.createFilterButton_(chrome.fileManagerPrivate.FileCategory.ALL);
 
     /**
-     * @private {!HTMLElement}
+     * @private @type {!HTMLElement}
      * @const
      */
     this.audioFilterButton_ =
         this.createFilterButton_(chrome.fileManagerPrivate.FileCategory.AUDIO);
 
     /**
-     * @private {!HTMLElement|null}
+     * @private @type {!HTMLElement|null}
      * @const
      */
     this.documentFilterButton_ = this.createFilterButton_(
         chrome.fileManagerPrivate.FileCategory.DOCUMENT);
 
     /**
-     * @private {!HTMLElement}
+     * @private @type {!HTMLElement}
      * @const
      */
     this.imageFilterButton_ =
         this.createFilterButton_(chrome.fileManagerPrivate.FileCategory.IMAGE);
 
     /**
-     * @private {!HTMLElement}
+     * @private @type {!HTMLElement}
      * @const
      */
     this.videoFilterButton_ =
@@ -117,23 +118,19 @@ export class FileTypeFiltersController {
     this.updateButtonActiveStates_();
 
     /**
-     * @private {boolean}
+     * @private @type {boolean}
      */
     this.inRecent_ = false;
 
-    if (util.isSearchV2Enabled()) {
-      getStore().subscribe(this);
-    }
+    getStore().subscribe(this);
   }
 
 
   /** @param {!State} state latest state from the store. */
   onStateChanged(state) {
-    if (util.isSearchV2Enabled()) {
-      if (this.inRecent_) {
-        const search = state.search;
-        this.container_.hidden = !!(search?.query);
-      }
+    if (this.inRecent_) {
+      const search = state.search;
+      this.container_.hidden = !!(search?.query);
     }
   }
 
@@ -159,8 +156,7 @@ export class FileTypeFiltersController {
           chrome.fileManagerPrivate.FileCategory.DOCUMENT,  // 4
         ]);
     Object.freeze(FileTypeFiltersForUMA);
-    metrics.recordEnum(
-        'Recent.FilterByType', fileCategory, FileTypeFiltersForUMA);
+    recordEnum('Recent.FilterByType', fileCategory, FileTypeFiltersForUMA);
   }
 
   /**
@@ -186,9 +182,13 @@ export class FileTypeFiltersController {
         newFilter === chrome.fileManagerPrivate.FileCategory.ALL;
     let offMessage = strf(
         'RECENT_VIEW_FILTER_OFF',
+        // @ts-ignore: error TS2345: Argument of type 'string | undefined' is
+        // not assignable to parameter of type 'string'.
         str(this.filterTypeToTranslationKeyMap_.get(currentFilter)));
     let onMessage = strf(
         'RECENT_VIEW_FILTER_ON',
+        // @ts-ignore: error TS2345: Argument of type 'string | undefined' is
+        // not assignable to parameter of type 'string'.
         str(this.filterTypeToTranslationKeyMap_.get(newFilter)));
     if (isFromAllToOthers) {
       offMessage = '';
@@ -208,6 +208,8 @@ export class FileTypeFiltersController {
    * @private
    */
   createFilterButton_(fileCategory) {
+    // @ts-ignore: error TS2345: Argument of type 'string | undefined' is not
+    // assignable to parameter of type 'string'.
     const label = str(this.filterTypeToTranslationKeyMap_.get(fileCategory));
     const button =
         createChild(this.container_, 'file-type-filter-button', 'cr-button');
@@ -230,10 +232,9 @@ export class FileTypeFiltersController {
   onCurrentDirectoryChanged_(event) {
     const directoryChangeEvent = /** @type {!DirectoryChangeEvent} */ (event);
     const isEnteringRecentEntry =
-        util.isSameEntry(directoryChangeEvent.newDirEntry, this.recentEntry_);
+        isSameEntry(directoryChangeEvent.newDirEntry, this.recentEntry_);
     const isLeavingRecentEntry = !isEnteringRecentEntry &&
-        util.isSameEntry(
-            directoryChangeEvent.previousDirEntry, this.recentEntry_);
+        isSameEntry(directoryChangeEvent.previousDirEntry, this.recentEntry_);
     // We show filter buttons only in Recents view at this moment.
     this.container_.hidden = !isEnteringRecentEntry;
     // Reset the filter back to "All" on leaving Recents view.

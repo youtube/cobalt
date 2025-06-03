@@ -31,13 +31,13 @@
 #include "chrome/browser/prefs/profile_pref_store_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/glue/sync_start_util.h"
-#include "chrome/browser/ui/profile_error_dialog.h"
+#include "chrome/browser/ui/profiles/profile_error_dialog.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/component_updater/pref_names.h"
 #include "components/policy/core/browser/configuration_policy_pref_store.h"
@@ -56,6 +56,7 @@
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/supervised_user/core/common/buildflags.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/model_type.h"
 #include "components/sync/base/pref_names.h"
 #include "components/sync_preferences/pref_model_associator.h"
@@ -70,6 +71,10 @@
 #include "services/preferences/public/cpp/tracked/pref_names.h"
 #include "sql/error_delegate_util.h"
 #include "ui/base/resource/resource_bundle.h"
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "base/files/file_util.h"
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/browser/pref_names.h"
@@ -125,8 +130,9 @@ const prefs::TrackedPreferenceMetadata kTrackedPrefs[] = {
     {5, extensions::pref_names::kExtensions, EnforcementLevel::NO_ENFORCEMENT,
      PrefTrackingStrategy::SPLIT, ValueType::IMPERSONAL},
 #endif
-    {6, prefs::kGoogleServicesLastUsername, EnforcementLevel::ENFORCE_ON_LOAD,
-     PrefTrackingStrategy::ATOMIC, ValueType::PERSONAL},
+    {6, prefs::kGoogleServicesLastSyncingUsername,
+     EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
+     ValueType::PERSONAL},
     {7, prefs::kSearchProviderOverrides, EnforcementLevel::ENFORCE_ON_LOAD,
      PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
 #if !BUILDFLAG(IS_ANDROID)
@@ -152,36 +158,14 @@ const prefs::TrackedPreferenceMetadata kTrackedPrefs[] = {
     // releases after M50.
     {18, prefs::kSafeBrowsingIncidentsSent, EnforcementLevel::ENFORCE_ON_LOAD,
      PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
-#if BUILDFLAG(IS_WIN)
-    {19, prefs::kSwReporterPromptVersion, EnforcementLevel::ENFORCE_ON_LOAD,
-     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
-#endif
-#if BUILDFLAG(IS_WIN)
-    {22, prefs::kSwReporterPromptSeed, EnforcementLevel::ENFORCE_ON_LOAD,
-     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
-#endif
     {23, prefs::kGoogleServicesAccountId, EnforcementLevel::ENFORCE_ON_LOAD,
      PrefTrackingStrategy::ATOMIC, ValueType::PERSONAL},
-    // This is being migrated to `kGoogleServicesLastGaiaId` since 2022/10, and
-    // should move to `CleanupDeprecatedTrackedPreferences()` in
+    // This is being migrated to `kGoogleServicesLastSyncingGaiaId` since
+    // 2022/10, and should move to `CleanupDeprecatedTrackedPreferences()` in
     // pref_hash_filter.cc when that migration completes.
-    {24, prefs::kGoogleServicesLastAccountIdDeprecated,
+    {24, prefs::kGoogleServicesLastSyncingAccountIdDeprecated,
      EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
      ValueType::PERSONAL},
-#if BUILDFLAG(IS_WIN)
-    {25, prefs::kSettingsResetPromptPromptWave,
-     EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
-     ValueType::IMPERSONAL},
-    {26, prefs::kSettingsResetPromptLastTriggeredForDefaultSearch,
-     EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
-     ValueType::IMPERSONAL},
-    {27, prefs::kSettingsResetPromptLastTriggeredForStartupUrls,
-     EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
-     ValueType::IMPERSONAL},
-    {28, prefs::kSettingsResetPromptLastTriggeredForHomepage,
-     EnforcementLevel::ENFORCE_ON_LOAD, PrefTrackingStrategy::ATOMIC,
-     ValueType::IMPERSONAL},
-#endif  // BUILDFLAG(IS_WIN)
     {29, prefs::kMediaStorageIdSalt, EnforcementLevel::ENFORCE_ON_LOAD,
      PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -190,8 +174,6 @@ const prefs::TrackedPreferenceMetadata kTrackedPrefs[] = {
      ValueType::IMPERSONAL},
 #endif
 #if BUILDFLAG(IS_WIN)
-    {31, prefs::kSwReporterReportingEnabled, EnforcementLevel::ENFORCE_ON_LOAD,
-     PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
     {32, prefs::kMediaCdmOriginData, EnforcementLevel::ENFORCE_ON_LOAD,
      PrefTrackingStrategy::ATOMIC, ValueType::IMPERSONAL},
 #endif  // BUILDFLAG(IS_WIN)
@@ -221,13 +203,7 @@ enum SettingsEnforcementGroup {
 SettingsEnforcementGroup GetSettingsEnforcementGroup() {
 #if BUILDFLAG(IS_WIN)
   if (!g_disable_domain_check_for_testing) {
-    static bool first_call = true;
     static const bool is_domain_joined = base::IsEnterpriseDevice();
-    if (first_call) {
-      UMA_HISTOGRAM_BOOLEAN("Settings.TrackedPreferencesNoEnforcementOnDomain",
-                            is_domain_joined);
-      first_call = false;
-    }
     if (is_domain_joined)
       return GROUP_NO_ENFORCEMENT;
   }
@@ -298,6 +274,35 @@ std::unique_ptr<ProfilePrefStoreManager> CreateProfilePrefStoreManager(
                                                    legacy_device_id);
 }
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// The initial implementation of the standalone browser store
+// saved the preferences associated with a user under /home/chronos, which made
+// the prefs available for all users which subsequently log in on the device.
+// Currently the preferences are stored under the user profile directory. This
+// method cleans up the standalone browser preferences file under /home/chronos.
+// Note that the standalone browser preferences can't be migrated from the
+// /home/chronos directory to the profile directory because it's not possible to
+// know which profile has configured the settings. Once the user signs into the
+// user session and starts the Lacros browser, the standalone browser settings
+// will be restored in Ash and saved to the correct location.
+// TODO(b/304685319): Remove this cleanup method.
+void CleanupObsoleteStandaloneBrowserPrefsFile() {
+  base::FilePath user_data_dir;
+  CHECK(base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir));
+
+  base::FilePath obsolete_standalone_browser_file = user_data_dir.Append(
+      FILE_PATH_LITERAL("standalone_browser_preferences.json"));
+
+  if (!base::PathExists(obsolete_standalone_browser_file)) {
+    return;
+  }
+
+  LOG(WARNING) << "Removing obsolete " << obsolete_standalone_browser_file
+               << " file: "
+               << base::DeleteFile(obsolete_standalone_browser_file);
+}
+#endif
+
 void PrepareFactory(
     sync_preferences::PrefServiceSyncableFactory* factory,
     const base::FilePath& pref_filename,
@@ -333,7 +338,7 @@ void PrepareFactory(
       &chrome_prefs::HandlePersistentPrefStoreReadError, pref_filename));
   factory->set_user_prefs(std::move(user_pref_store));
   factory->SetPrefModelAssociatorClient(
-      ChromePrefModelAssociatorClient::GetInstance());
+      base::MakeRefCounted<ChromePrefModelAssociatorClient>());
 }
 
 class ResetOnLoadObserverImpl : public prefs::mojom::ResetOnLoadObserver {
@@ -412,20 +417,31 @@ std::unique_ptr<sync_preferences::PrefServiceSyncable> CreateProfilePrefs(
   // contains data about prefs set by extensions in lacros where the feature
   // lives in ash (for example, screen magnifier). The values are persisted in
   // ash so they can be loaded on startup or when lacros is not running.
-  base::FilePath user_data_dir;
-  const bool success =
-      base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
-  DCHECK(success);
   standalone_browser_prefs = base::MakeRefCounted<JsonPrefStore>(
-      user_data_dir.Append(
+      profile_path.Append(
           FILE_PATH_LITERAL("standalone_browser_preferences.json")),
       std::unique_ptr<PrefFilter>(), io_task_runner);
+
+  io_task_runner->PostTask(
+      FROM_HERE, base::BindOnce(&CleanupObsoleteStandaloneBrowserPrefsFile));
 #endif
 
   PrepareFactory(&factory, profile_path, policy_service,
                  supervised_user_settings, std::move(user_pref_store),
                  std::move(extension_prefs),
                  std::move(standalone_browser_prefs), async, connector);
+
+  if (base::FeatureList::IsEnabled(syncer::kEnablePreferencesAccountStorage)) {
+    // Note: Only mobile platforms are targeted as part of the experiment,
+    // which do not require preference protection. Hence pref filters and
+    // ProfilePrefStoreManager::CreateProfilePrefStore() can be avoided.
+    factory.SetAccountPrefStore(base::MakeRefCounted<JsonPrefStore>(
+        /*pref_filename=*/profile_path.Append(
+            chrome::kAccountPreferencesFilename),
+        /*pref_filter=*/nullptr,
+        /*file_task_runner=*/io_task_runner));
+  }
+
   return factory.CreateSyncable(std::move(pref_registry));
 }
 

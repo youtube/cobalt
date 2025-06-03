@@ -9,6 +9,7 @@
 
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/strong_alias.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -92,7 +93,7 @@ class AllConstraintSets {
       }
       // The advanced constraint sets.
       wtf_size_t advanced_index = index_ - 1u;
-      return constraints_->advanced()[advanced_index];
+      return constraints_->advanced()[advanced_index].Get();
     }
     ForwardIterator& operator++() {
       ++index_;
@@ -132,33 +133,6 @@ class AllConstraintSets {
 
  private:
   Persistent<const MediaTrackConstraints> constraints_;
-};
-
-// This adapter simplifies iteration over supported basic and advanced
-// MediaTrackConstraintSets in a MediaTrackConstraints.
-// A MediaTrackConstraints is itself a (basic) MediaTrackConstraintSet and it
-// may contain advanced MediaTrackConstraintSets. So far, only the basic
-// MediaTrackConstraintSet and the first advanced MediaTrackConstraintSet are
-// supported by this implementation.
-// TODO(crbug.com/1408091): Add support for advanced constraint sets beyond
-// the first one and remove this helper class.
-class AllSupportedConstraintSets {
- public:
-  using ForwardIterator = AllConstraintSets::ForwardIterator;
-
-  explicit AllSupportedConstraintSets(const MediaTrackConstraints* constraints)
-      : all_constraint_sets_(constraints) {}
-  ForwardIterator begin() const { return all_constraint_sets_.begin(); }
-  ForwardIterator end() const {
-    const auto* constraints = all_constraint_sets_.GetConstraints();
-    return ForwardIterator(constraints, constraints->hasAdvanced() &&
-                                                !constraints->advanced().empty()
-                                            ? 2u
-                                            : 1u);
-  }
-
- private:
-  AllConstraintSets all_constraint_sets_;
 };
 
 using CopyPanTiltZoom = base::StrongAlias<class CopyPanTiltZoomTag, bool>;
@@ -223,6 +197,9 @@ void CopyCommonMembers(const T* source,
   if (source->hasBackgroundBlur()) {
     destination->setBackgroundBlur(source->backgroundBlur());
   }
+  if (source->hasFaceFraming()) {
+    destination->setFaceFraming(source->faceFraming());
+  }
 }
 
 void CopyCapabilities(const MediaTrackCapabilities* source,
@@ -247,7 +224,10 @@ void CopyConstraintSet(const MediaTrackConstraintSet* source,
 void CopyConstraints(const MediaTrackConstraints* source,
                      MediaTrackConstraints* destination) {
   HeapVector<Member<MediaTrackConstraintSet>> destination_constraint_sets;
-  for (const auto* source_constraint_set : AllSupportedConstraintSets(source)) {
+  if (source->hasAdvanced() && !source->advanced().empty()) {
+    destination_constraint_sets.reserve(source->advanced().size());
+  }
+  for (const auto* source_constraint_set : AllConstraintSets(source)) {
     if (source_constraint_set == source) {
       CopyConstraintSet(source_constraint_set, destination);
     } else {
@@ -526,11 +506,16 @@ bool MayRejectWithOverconstrainedError(
 bool TrackIsInactive(const MediaStreamTrack& track) {
   // Spec instructs to return an exception if the Track's readyState() is not
   // "live". Also reject if the track is disabled or muted.
-  return track.readyState() != "live" || !track.enabled() || track.muted();
+  // TODO(https://crbug.com/1462012): Do not consider muted tracks inactive.
+  return track.readyState() != "live" || !track.enabled();
 }
 
 BackgroundBlurMode ParseBackgroundBlur(bool blink_mode) {
   return blink_mode ? BackgroundBlurMode::BLUR : BackgroundBlurMode::OFF;
+}
+
+MeteringMode ParseFaceFraming(bool blink_mode) {
+  return blink_mode ? MeteringMode::CONTINUOUS : MeteringMode::NONE;
 }
 
 MeteringMode ParseMeteringMode(const String& blink_mode) {
@@ -1592,7 +1577,8 @@ ScriptPromise ImageCapture::grabFrame(ScriptState* script_state) {
   frame_grabber_->GrabFrame(stream_track_->Component(),
                             std::move(resolver_callback_adapter),
                             ExecutionContext::From(script_state)
-                                ->GetTaskRunner(TaskType::kDOMManipulation));
+                                ->GetTaskRunner(TaskType::kDOMManipulation),
+                            grab_frame_timeout_);
 
   return promise;
 }
@@ -1641,7 +1627,7 @@ bool ImageCapture::CheckAndApplyMediaTrackConstraintsToSettings(
     ScriptPromiseResolver* resolver) const {
   if (!IsPageVisible()) {
     for (const MediaTrackConstraintSet* constraint_set :
-         AllSupportedConstraintSets(constraints)) {
+         AllConstraintSets(constraints)) {
       if ((constraint_set->hasPan() &&
            !IsBooleanFalseConstraint(constraint_set->pan())) ||
           (constraint_set->hasTilt() &&
@@ -1676,7 +1662,7 @@ bool ImageCapture::CheckAndApplyMediaTrackConstraintsToSettings(
   auto* effective_settings = MediaTrackSettings::Create();
 
   for (const MediaTrackConstraintSet* constraint_set :
-       AllSupportedConstraintSets(constraints)) {
+       AllConstraintSets(constraints)) {
     const MediaTrackConstraintSetType constraint_set_type =
         GetMediaTrackConstraintSetType(constraint_set, constraints);
     const bool may_reject =
@@ -1711,7 +1697,7 @@ void ImageCapture::SetMediaTrackConstraints(
 
   ExecutionContext* context = GetExecutionContext();
   for (const MediaTrackConstraintSet* constraint_set :
-       AllSupportedConstraintSets(constraints)) {
+       AllConstraintSets(constraints)) {
     if (constraint_set->hasWhiteBalanceMode()) {
       UseCounter::Count(context, WebFeature::kImageCaptureWhiteBalanceMode);
     }
@@ -1873,7 +1859,7 @@ void ImageCapture::OnSetPanTiltZoomSettingsFromTrack(
 }
 
 MediaTrackConstraints* ImageCapture::GetMediaTrackConstraints() const {
-  return current_constraints_;
+  return current_constraints_.Get();
 }
 
 void ImageCapture::ClearMediaTrackConstraints() {
@@ -1893,7 +1879,8 @@ void ImageCapture::GetMediaTrackSettings(MediaTrackSettings* settings) const {
 ImageCapture::ImageCapture(ExecutionContext* context,
                            MediaStreamTrack* track,
                            bool pan_tilt_zoom_allowed,
-                           base::OnceClosure initialized_callback)
+                           base::OnceClosure initialized_callback,
+                           base::TimeDelta grab_frame_timeout)
     : ExecutionContextLifecycleObserver(context),
       stream_track_(track),
       service_(context),
@@ -1904,7 +1891,8 @@ ImageCapture::ImageCapture(ExecutionContext* context,
       permission_observer_receiver_(this, context),
       capabilities_(MediaTrackCapabilities::Create()),
       settings_(MediaTrackSettings::Create()),
-      photo_settings_(PhotoSettings::Create()) {
+      photo_settings_(PhotoSettings::Create()),
+      grab_frame_timeout_(grab_frame_timeout) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                "ImageCapture::CreateImageCapture");
   DCHECK(stream_track_);
@@ -2093,6 +2081,18 @@ void ImageCapture::ApplyMediaTrackConstraintSetToSettings(
       settings->background_blur_mode = ParseBackgroundBlur(setting);
     }
   }
+  if (constraint_set->hasFaceFraming() &&
+      effective_capabilities->hasFaceFraming()) {
+    bool has_setting = false;
+    bool setting;
+    effective_capabilities->setFaceFraming(ApplyValueConstraint(
+        &has_setting, &setting, effective_capabilities->faceFraming(),
+        constraint_set->faceFraming(), constraint_set_type));
+    if (has_setting) {
+      settings->has_face_framing_mode = true;
+      settings->face_framing_mode = ParseFaceFraming(setting);
+    }
+  }
 }
 
 // TODO(crbug.com/708723): Integrate image capture constraints processing with
@@ -2263,6 +2263,15 @@ bool ImageCapture::CheckMediaTrackConstraintSet(
     MaybeRejectWithOverconstrainedError(
         resolver, "backgroundBlur",
         "backgroundBlur setting value not supported");
+    return false;
+  }
+  if (constraint_set->hasFaceFraming() &&
+      effective_capabilities->hasFaceFraming() &&
+      !CheckValueConstraint(effective_capabilities->faceFraming(),
+                            constraint_set->faceFraming(),
+                            constraint_set_type)) {
+    MaybeRejectWithOverconstrainedError(
+        resolver, "faceFraming", "faceFraming setting value not supported");
     return false;
   }
 
@@ -2541,6 +2550,23 @@ void ImageCapture::UpdateMediaTrackSettingsAndCapabilities(
         ToBooleanMode(photo_state->background_blur_mode));
   }
 
+  if (photo_state->supported_face_framing_modes &&
+      !photo_state->supported_face_framing_modes->empty()) {
+    Vector<bool> supported_face_framing_modes;
+    for (auto mode : *photo_state->supported_face_framing_modes) {
+      if (mode == MeteringMode::CONTINUOUS) {
+        supported_face_framing_modes.push_back(true);
+      } else if (mode == MeteringMode::NONE) {
+        supported_face_framing_modes.push_back(false);
+      }
+    }
+    if (!supported_face_framing_modes.empty()) {
+      capabilities_->setFaceFraming(supported_face_framing_modes);
+      settings_->setFaceFraming(photo_state->current_face_framing_mode !=
+                                MeteringMode::NONE);
+    }
+  }
+
   std::move(initialized_callback).Run();
 }
 
@@ -2713,6 +2739,13 @@ ImageCapture::GetConstraintWithCapabilityExistenceMismatch(
           CapabilityExists(capabilities_->hasBackgroundBlur()),
           constraint_set_type)) {
     return "backgroundBlur";
+  }
+  if (constraint_set->hasFaceFraming() &&
+      !CheckIfCapabilityExistenceSatisfiesConstraint(
+          constraint_set->faceFraming(),
+          CapabilityExists(capabilities_->hasFaceFraming()),
+          constraint_set_type)) {
+    return "faceFraming";
   }
   return absl::nullopt;
 }

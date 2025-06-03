@@ -39,7 +39,6 @@
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/process_type.h"
 #include "content/public/common/url_constants.h"
@@ -179,25 +178,6 @@ base::OnceClosure GetDeferredQuitTaskForRunLoop(base::RunLoop* run_loop) {
                         kNumQuitDeferrals);
 }
 
-base::Value ExecuteScriptAndGetValue(RenderFrameHost* render_frame_host,
-                                     const std::string& script) {
-  base::RunLoop run_loop;
-  base::Value result;
-
-  render_frame_host->ExecuteJavaScriptForTests(
-      base::UTF8ToUTF16(script),
-      base::BindOnce(
-          [](base::OnceClosure quit_closure, base::Value* out_result,
-             base::Value value) {
-            *out_result = std::move(value);
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitWhenIdleClosure(), &result));
-  run_loop.Run();
-
-  return result;
-}
-
 bool AreAllSitesIsolatedForTesting() {
   return SiteIsolationPolicy::UseDedicatedProcessesForAllSites();
 }
@@ -238,17 +218,23 @@ void IsolateAllSitesForTesting(base::CommandLine* command_line) {
 }
 
 bool CanSameSiteMainFrameNavigationsChangeRenderFrameHosts() {
-  return ShouldCreateNewHostForAllFrames() ||
+  return ShouldCreateNewRenderFrameHostOnSameSiteNavigation(
+             /*is_main_frame=*/true, /*is_local_root=*/true) ||
          CanSameSiteMainFrameNavigationsChangeSiteInstances();
 }
 
-bool WillSameSiteNavigationsChangeRenderFrameHosts() {
-  return ShouldCreateNewHostForAllFrames();
+bool WillSameSiteNavigationChangeRenderFrameHosts(bool is_main_frame,
+                                                  bool is_local_root) {
+  return ShouldCreateNewRenderFrameHostOnSameSiteNavigation(is_main_frame,
+                                                            is_local_root);
 }
 
 bool CanSameSiteMainFrameNavigationsChangeSiteInstances() {
-  return IsProactivelySwapBrowsingInstanceOnSameSiteNavigationEnabled() ||
-         IsBackForwardCacheEnabled();
+  return IsBackForwardCacheEnabled();
+}
+
+bool IsNavigationQueueingEnabled() {
+  return ShouldQueueNavigationsWhenPendingCommitRFHExists();
 }
 
 void DisableProactiveBrowsingInstanceSwapFor(RenderFrameHost* rfh) {
@@ -505,8 +491,9 @@ bool RenderFrameDeletedObserver::WaitUntilDeleted() {
 }
 
 RenderFrameHostWrapper::RenderFrameHostWrapper(RenderFrameHost* rfh)
-    : rfh_id_(rfh->GetGlobalId()),
-      deleted_observer_(std::make_unique<RenderFrameDeletedObserver>(rfh)) {}
+    : rfh_id_(rfh ? rfh->GetGlobalId() : GlobalRenderFrameHostId()),
+      deleted_observer_(rfh ? std::make_unique<RenderFrameDeletedObserver>(rfh)
+                            : nullptr) {}
 
 RenderFrameHostWrapper::RenderFrameHostWrapper(RenderFrameHostWrapper&& rfhft) =
     default;
@@ -523,10 +510,12 @@ bool RenderFrameHostWrapper::IsDestroyed() const {
 // See RenderFrameDeletedObserver for notes on the difference between
 // RenderFrame being deleted and RenderFrameHost being destroyed.
 bool RenderFrameHostWrapper::WaitUntilRenderFrameDeleted() const {
+  CHECK(deleted_observer_);
   return deleted_observer_->WaitUntilDeleted();
 }
 
 bool RenderFrameHostWrapper::IsRenderFrameDeleted() const {
+  CHECK(deleted_observer_);
   return deleted_observer_->deleted();
 }
 

@@ -61,7 +61,6 @@
 #include "cc/trees/target_property.h"
 #include "cc/trees/viewport_layers.h"
 #include "cc/trees/viewport_property_ids.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -385,6 +384,10 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   // LayerTreeHostImpl on the compositor thread. Must be dereferenced only on
   // the input handling thread.
   const base::WeakPtr<CompositorDelegateForInput>& GetDelegateForInput() const;
+
+  // Detaches the InputDelegateForCompositor (InputHandler) and
+  // RenderFrameMetadataObserver bound on the compositor thread synchronously.p
+  void DetachInputDelegateAndRenderFrameObserver();
 
   // Debugging and benchmarks ---------------------------------
   void SetDebugState(const LayerTreeDebugState& debug_state);
@@ -896,7 +899,9 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
     return base::AutoReset<bool>(&syncing_deltas_for_test_, true);
   }
 
-  void IncrementVisualUpdateDuration(base::TimeDelta visual_update_duration);
+  bool WaitedForCommitForTesting() const {
+    return waited_for_protected_sequence_;
+  }
 
  protected:
   LayerTreeHost(InitParams params, CompositorMode mode);

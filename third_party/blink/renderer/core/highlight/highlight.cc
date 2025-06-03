@@ -25,7 +25,7 @@ Highlight::~Highlight() = default;
 void Highlight::Trace(blink::Visitor* visitor) const {
   visitor->Trace(highlight_ranges_);
   visitor->Trace(containing_highlight_registries_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void Highlight::ScheduleRepaintsInContainingHighlightRegistries() const {
@@ -39,8 +39,9 @@ void Highlight::ScheduleRepaintsInContainingHighlightRegistries() const {
 Highlight* Highlight::addForBinding(ScriptState*,
                                     AbstractRange* range,
                                     ExceptionState&) {
-  if (highlight_ranges_.insert(range).is_new_entry)
+  if (highlight_ranges_.insert(range).is_new_entry) {
     ScheduleRepaintsInContainingHighlightRegistries();
+  }
   return this;
 }
 

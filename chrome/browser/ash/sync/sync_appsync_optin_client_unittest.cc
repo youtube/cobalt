@@ -16,10 +16,10 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/progress_marker_map.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
 #include "components/sync/engine/cycle/sync_cycle_snapshot.h"
 #include "components/sync/protocol/sync_enums.pb.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -72,8 +72,7 @@ class FakeSyncService : public syncer::TestSyncService {
   void SetAppsyncOptin(bool opted_in) {
     if (opted_in) {
       GetUserSettings()->SetSelectedOsTypes(
-          false, syncer::UserSelectableOsTypeSet(
-                     syncer::UserSelectableOsType::kOsApps));
+          false, {syncer::UserSelectableOsType::kOsApps});
     } else {
       GetUserSettings()->SetSelectedOsTypes(false,
                                             syncer::UserSelectableOsTypeSet());

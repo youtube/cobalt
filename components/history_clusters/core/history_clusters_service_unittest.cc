@@ -329,8 +329,10 @@ class HistoryClustersServiceTestBase : public testing::Test {
                     bool expect_clustering_backend_call = true) {
     std::vector<history::Cluster> clusters;
     base::RunLoop loop;
+    QueryClustersFilterParams filter_params;
+    filter_params.include_synced_visits = GetConfig().include_synced_visits;
     const auto task = history_clusters_service_->QueryClusters(
-        ClusteringRequestSource::kJourneysPage, QueryClustersFilterParams(),
+        ClusteringRequestSource::kJourneysPage, filter_params,
         /*begin_time=*/base::Time(), continuation_params, /*recluster=*/false,
         base::BindLambdaForTesting(
             [&](std::vector<history::Cluster> clusters_temp,
@@ -1250,6 +1252,17 @@ TEST_P(HistoryClustersServiceTest, DoesQueryMatchAnyCluster) {
                        },
                        {{u"singlevisit", history::ClusterKeywordData()}},
                        /*should_show_on_prominent_ui_surfaces=*/true));
+  auto hidden_visit = GetHardcodedClusterVisit(5);
+  hidden_visit.interaction_state =
+      history::ClusterVisit::InteractionState::kHidden;
+  clusters.push_back(
+      history::Cluster(0,
+                       {
+                           hidden_visit,
+                           hidden_visit,
+                       },
+                       {{u"hiddenvisit", history::ClusterKeywordData()}},
+                       /*should_show_on_prominent_ui_surfaces=*/true));
 
   // Hardcoded test visits span 3 days (1-day-old, 2-days-old, and 60-day-old).
   FlushKeywordRequests(clusters, 3);
@@ -1271,6 +1284,10 @@ TEST_P(HistoryClustersServiceTest, DoesQueryMatchAnyCluster) {
   // Ignore clusters with fewer than two visits.
   EXPECT_FALSE(
       history_clusters_service_->DoesQueryMatchAnyCluster("singlevisit"));
+
+  // Ignore clusters with all hidden visits.
+  EXPECT_FALSE(
+      history_clusters_service_->DoesQueryMatchAnyCluster("hiddenvisit"));
 
   // Too-short prefix queries rejected.
   EXPECT_FALSE(history_clusters_service_->DoesQueryMatchAnyCluster("ap"));

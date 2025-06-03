@@ -97,17 +97,14 @@ class MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter
 
   void OnVideoFrameOnIO(
       scoped_refptr<media::VideoFrame> frame,
-      std::vector<scoped_refptr<media::VideoFrame>> scaled_frames,
       base::TimeTicks estimated_capture_time);
 
-  void OnNotifyVideoFrameDroppedOnIO();
+  void OnNotifyVideoFrameDroppedOnIO(media::VideoCaptureFrameDropReason);
 
  private:
   friend class WTF::ThreadSafeRefCounted<WebRtcVideoSourceAdapter>;
 
-  void OnVideoFrameOnNetworkThread(
-      scoped_refptr<media::VideoFrame> frame,
-      std::vector<scoped_refptr<media::VideoFrame>> scaled_frames);
+  void OnVideoFrameOnNetworkThread(scoped_refptr<media::VideoFrame> frame);
 
   void OnNotifyVideoFrameDroppedOnNetworkThread();
 
@@ -169,18 +166,17 @@ void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::
 
 void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::OnVideoFrameOnIO(
     scoped_refptr<media::VideoFrame> frame,
-    std::vector<scoped_refptr<media::VideoFrame>> scaled_frames,
     base::TimeTicks estimated_capture_time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(io_sequence_checker_);
   PostCrossThreadTask(
       *libjingle_network_task_runner_.get(), FROM_HERE,
       CrossThreadBindOnce(
           &WebRtcVideoSourceAdapter::OnVideoFrameOnNetworkThread,
-          WrapRefCounted(this), std::move(frame), std::move(scaled_frames)));
+          WrapRefCounted(this), std::move(frame)));
 }
 
 void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::
-    OnNotifyVideoFrameDroppedOnIO() {
+    OnNotifyVideoFrameDroppedOnIO(media::VideoCaptureFrameDropReason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(io_sequence_checker_);
   DVLOG(1) << __func__;
   PostCrossThreadTask(
@@ -191,13 +187,11 @@ void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::
 }
 
 void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::
-    OnVideoFrameOnNetworkThread(
-        scoped_refptr<media::VideoFrame> frame,
-        std::vector<scoped_refptr<media::VideoFrame>> scaled_frames) {
+    OnVideoFrameOnNetworkThread(scoped_refptr<media::VideoFrame> frame) {
   DCHECK(libjingle_network_task_runner_->BelongsToCurrentThread());
   base::AutoLock auto_lock(video_source_stop_lock_);
   if (video_source_)
-    video_source_->OnFrameCaptured(std::move(frame), std::move(scaled_frames));
+    video_source_->OnFrameCaptured(std::move(frame));
 }
 
 void MediaStreamVideoWebRtcSink::WebRtcVideoSourceAdapter::

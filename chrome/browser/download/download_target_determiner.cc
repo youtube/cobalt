@@ -17,7 +17,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_confirmation_reason.h"
 #include "chrome/browser/download/download_crx_util.h"
@@ -68,7 +67,8 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/ash/policy/dlp/dlp_files_controller_ash.h"
+#include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
 #endif
@@ -1085,15 +1085,13 @@ DownloadTargetDeterminer::Result
 
   // Dangerous downloads receive a random intermediate name that looks like:
   // 'Unconfirmed <random>.crdownload'.
-  const char kUnconfirmedFormatSuffix[] = " %d.crdownload";
+  static constexpr char kUnconfirmedFormatSuffix[] = " %d.crdownload";
   // Range of the <random> uniquifier.
-  const int kUnconfirmedUniquifierRange = 1000000;
-  std::string unconfirmed_format =
-      l10n_util::GetStringUTF8(IDS_DOWNLOAD_UNCONFIRMED_PREFIX);
-  unconfirmed_format.append(kUnconfirmedFormatSuffix);
+  constexpr int kUnconfirmedUniquifierRange = 1000000;
 
   std::string file_name =
-      base::StringPrintf(unconfirmed_format.c_str(),
+      l10n_util::GetStringUTF8(IDS_DOWNLOAD_UNCONFIRMED_PREFIX) +
+      base::StringPrintf(kUnconfirmedFormatSuffix,
                          base::RandInt(0, kUnconfirmedUniquifierRange));
   intermediate_path_ =
       local_path_.DirName().Append(base::FilePath::FromUTF8Unsafe(file_name));
@@ -1228,14 +1226,18 @@ bool DownloadTargetDeterminer::IsDownloadDlpBlocked(
       policy::DlpRulesManagerFactory::GetForPrimaryProfile();
   if (!rules_manager)
     return false;
-  policy::DlpFilesController* files_controller =
-      rules_manager->GetDlpFilesController();
+  policy::DlpFilesControllerAsh* files_controller =
+      static_cast<policy::DlpFilesControllerAsh*>(
+          rules_manager->GetDlpFilesController());
   if (!files_controller)
     return false;
   const GURL authority_url = download::BaseFile::GetEffectiveAuthorityURL(
       download_->GetURL(), download_->GetReferrerUrl());
+  if (!authority_url.is_valid()) {
+    return true;
+  }
   return files_controller->ShouldPromptBeforeDownload(
-      policy::DlpFileDestination(authority_url.spec()), download_path);
+      policy::DlpFileDestination(authority_url), download_path);
 #else
   return false;
 #endif

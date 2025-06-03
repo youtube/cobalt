@@ -6,8 +6,10 @@ package org.chromium.chrome.browser.touch_to_fill;
 
 import androidx.annotation.Nullable;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.chrome.browser.password_manager.GetLoginMatchType;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.chrome.browser.touch_to_fill.data.Credential;
 import org.chromium.chrome.browser.touch_to_fill.data.WebAuthnCredential;
@@ -55,11 +57,10 @@ class TouchToFillBridge implements TouchToFillComponent.Delegate {
 
     @CalledByNative
     private static void insertCredential(Credential[] credentials, int index, String username,
-            String password, String formattedUsername, String originUrl,
-            boolean isPublicSuffixMatch, boolean isAffiliationBasedMatch,
-            long lastUsedMsSinceEpoch) {
+            String password, String formattedUsername, String originUrl, String displayName,
+            @GetLoginMatchType int mMatchType, long lastUsedMsSinceEpoch) {
         credentials[index] = new Credential(username, password, formattedUsername, originUrl,
-                isPublicSuffixMatch, isAffiliationBasedMatch, lastUsedMsSinceEpoch);
+                displayName, mMatchType, lastUsedMsSinceEpoch);
     }
 
     @CalledByNative
@@ -74,12 +75,24 @@ class TouchToFillBridge implements TouchToFillComponent.Delegate {
     }
 
     @CalledByNative
-    private void showCredentials(GURL url, boolean isOriginSecure,
-            WebAuthnCredential[] webAuthnCredentials, Credential[] credentials,
-            boolean submitCredential, boolean managePasskeysHidesPasswords) {
-        mTouchToFillComponent.showCredentials(url, isOriginSecure,
-                Arrays.asList(webAuthnCredentials), Arrays.asList(credentials), submitCredential,
-                managePasskeysHidesPasswords);
+    private void showCredentials(
+            GURL url,
+            boolean isOriginSecure,
+            WebAuthnCredential[] webAuthnCredentials,
+            Credential[] credentials,
+            boolean submitCredential,
+            boolean managePasskeysHidesPasswords,
+            boolean showHybridPasskeyOption,
+            boolean showCredManEntry) {
+        mTouchToFillComponent.showCredentials(
+                url,
+                isOriginSecure,
+                Arrays.asList(webAuthnCredentials),
+                Arrays.asList(credentials),
+                submitCredential,
+                managePasskeysHidesPasswords,
+                showHybridPasskeyOption,
+                showCredManEntry);
     }
 
     @Override
@@ -91,6 +104,13 @@ class TouchToFillBridge implements TouchToFillComponent.Delegate {
     public void onManagePasswordsSelected(boolean passkeysShown) {
         if (mNativeView != 0) {
             TouchToFillBridgeJni.get().onManagePasswordsSelected(mNativeView, passkeysShown);
+        }
+    }
+
+    @Override
+    public void onHybridSignInSelected() {
+        if (mNativeView != 0) {
+            TouchToFillBridgeJni.get().onHybridSignInSelected(mNativeView);
         }
     }
 
@@ -108,12 +128,22 @@ class TouchToFillBridge implements TouchToFillComponent.Delegate {
         }
     }
 
+    @Override
+    public void onShowMorePasskeysSelected() {
+        if (mNativeView == 0) return;
+        TouchToFillBridgeJni.get().onShowCredManSelected(mNativeView);
+    }
+
     @NativeMethods
     interface Natives {
         void onCredentialSelected(long nativeTouchToFillViewImpl, Credential credential);
         void onWebAuthnCredentialSelected(
                 long nativeTouchToFillViewImpl, WebAuthnCredential credential);
         void onManagePasswordsSelected(long nativeTouchToFillViewImpl, boolean passkeysShown);
+        void onHybridSignInSelected(long nativeTouchToFillViewImpl);
+
+        void onShowCredManSelected(long nativeTouchToFillViewImpl);
+
         void onDismiss(long nativeTouchToFillViewImpl);
     }
 }

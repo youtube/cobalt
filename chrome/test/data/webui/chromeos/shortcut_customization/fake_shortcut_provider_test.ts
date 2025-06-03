@@ -6,8 +6,8 @@ import 'chrome://webui-test/mojo_webui_test_support.js';
 
 import {fakeAcceleratorConfig, fakeLayoutInfo} from 'chrome://shortcut-customization/js/fake_data.js';
 import {FakeShortcutProvider} from 'chrome://shortcut-customization/js/fake_shortcut_provider.js';
-import {Accelerator, AcceleratorConfig, AcceleratorConfigResult, AcceleratorSource, MojoAcceleratorConfig, MojoLayoutInfo} from 'chrome://shortcut-customization/js/shortcut_types.js';
-import {AcceleratorResultData, AcceleratorsUpdatedObserverRemote} from 'chrome://shortcut-customization/mojom-webui/ash/webui/shortcut_customization_ui/mojom/shortcut_customization.mojom-webui.js';
+import {Accelerator, AcceleratorConfigResult, AcceleratorSource, MojoAcceleratorConfig, MojoLayoutInfo} from 'chrome://shortcut-customization/js/shortcut_types.js';
+import {AcceleratorResultData, AcceleratorsUpdatedObserverRemote, PolicyUpdatedObserverRemote} from 'chrome://shortcut-customization/mojom-webui/ash/webui/shortcut_customization_ui/mojom/shortcut_customization.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('fakeShortcutProviderTest', function() {
@@ -26,9 +26,16 @@ suite('fakeShortcutProviderTest', function() {
   // the data received.
   class FakeAcceleratorsUpdatedRemote extends
       AcceleratorsUpdatedObserverRemote {
-    public override onAcceleratorsUpdated(config: MojoAcceleratorConfig) {
+    override onAcceleratorsUpdated(config: MojoAcceleratorConfig) {
       assertDeepEquals(fakeAcceleratorConfig, config);
     }
+  }
+
+  // Fake class that overrides the `onCustomizationPolicyUpdated` function. This
+  // allows us to intercept the request send from the remote and validate
+  // the data received.
+  class FakePolicyUpdatedRemote extends PolicyUpdatedObserverRemote {
+    override onCustomizationPolicyUpdated() {}
   }
 
   function getProvider(): FakeShortcutProvider {
@@ -71,12 +78,23 @@ suite('fakeShortcutProviderTest', function() {
     // Set the expected value to be returned when `onAcceleratorsUpdated()` is
     // called.
     getProvider().setFakeAcceleratorsUpdated(
-        [fakeAcceleratorConfig as AcceleratorConfig]);
+        [fakeAcceleratorConfig as MojoAcceleratorConfig]);
 
     const remote = new FakeAcceleratorsUpdatedRemote();
     getProvider().addObserver(remote);
     // Simulate `onAcceleratorsUpdated()` being called by an observer.
     return getProvider().getAcceleratorsUpdatedPromiseForTesting();
+  });
+
+  test('ObservePolicyUpdated', () => {
+    // Set the expected value to be returned when
+    // `onCustomizationPolicyUpdated()` is called.
+    getProvider().setFakePolicyUpdated();
+
+    const remote = new FakePolicyUpdatedRemote();
+    getProvider().addPolicyObserver(remote);
+    // Simulate `onCustomizationPolicyUpdated()` being called by an observer.
+    return getProvider().getPolicyUpdatedPromiseForTesting();
   });
 
   test('IsMutableDefaultFake', () => {
@@ -130,7 +148,13 @@ suite('fakeShortcutProviderTest', function() {
   });
 
   test('RemoveAcceleratorFake', () => {
-    // TODO(jimmyxgong): Remove this test once real data is ready.
+    const fakeResult: AcceleratorResultData = {
+      result: AcceleratorConfigResult.kSuccess,
+      shortcutName: undefined,
+    };
+
+    getProvider().setFakeRemoveAcceleratorResult(fakeResult);
+
     return getProvider().removeAccelerator().then(({result}) => {
       assertEquals(AcceleratorConfigResult.kSuccess, result.result);
     });
@@ -143,6 +167,13 @@ suite('fakeShortcutProviderTest', function() {
   });
 
   test('RestoreDefaultFake', () => {
+    const fakeResult: AcceleratorResultData = {
+      result: AcceleratorConfigResult.kSuccess,
+      shortcutName: undefined,
+    };
+
+    getProvider().setFakeRestoreDefaultResult(fakeResult);
+
     return getProvider()
         .restoreDefault(AcceleratorSource.kAsh, 0)
         .then(({result}) => {

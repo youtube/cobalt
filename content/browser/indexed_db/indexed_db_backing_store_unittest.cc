@@ -30,6 +30,7 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/default_clock.h"
 #include "base/uuid.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
@@ -38,13 +39,12 @@
 #include "components/services/storage/indexed_db/transactional_leveldb/transactional_leveldb_database.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom-test-utils.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "content/browser/indexed_db/indexed_db_bucket_state.h"
+#include "content/browser/indexed_db/indexed_db_bucket_context.h"
 #include "content/browser/indexed_db/indexed_db_class_factory.h"
 #include "content/browser/indexed_db/indexed_db_context_impl.h"
 #include "content/browser/indexed_db/indexed_db_factory.h"
 #include "content/browser/indexed_db/indexed_db_leveldb_coding.h"
 #include "content/browser/indexed_db/indexed_db_leveldb_operations.h"
-#include "content/browser/indexed_db/indexed_db_metadata_coding.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/features.h"
@@ -55,7 +55,6 @@
 #include "storage/browser/test/mock_quota_manager_proxy.h"
 #include "storage/browser/test/mock_special_storage_policy.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/indexeddb/web_idb_types.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h"
 
@@ -75,23 +74,17 @@ class TestableIndexedDBBackingStore : public IndexedDBBackingStore {
  public:
   TestableIndexedDBBackingStore(
       IndexedDBBackingStore::Mode backing_store_mode,
-      TransactionalLevelDBFactory* leveldb_factory,
       const storage::BucketLocator& bucket_locator,
       const base::FilePath& blob_path,
       std::unique_ptr<TransactionalLevelDBDatabase> db,
-      storage::mojom::BlobStorageContext* blob_storage_context,
-      storage::mojom::FileSystemAccessContext* file_system_access_context,
       std::unique_ptr<storage::FilesystemProxy> filesystem_proxy,
       BlobFilesCleanedCallback blob_files_cleaned,
       ReportOutstandingBlobsCallback report_outstanding_blobs,
       scoped_refptr<base::SequencedTaskRunner> idb_task_runner)
       : IndexedDBBackingStore(backing_store_mode,
-                              leveldb_factory,
                               bucket_locator,
                               blob_path,
                               std::move(db),
-                              blob_storage_context,
-                              file_system_access_context,
                               std::move(filesystem_proxy),
                               std::move(blob_files_cleaned),
                               std::move(report_outstanding_blobs),
@@ -126,15 +119,9 @@ class TestableIndexedDBBackingStore : public IndexedDBBackingStore {
 // TestableIndexedDBBackingStore subclass.
 class TestIDBFactory : public IndexedDBFactory {
  public:
-  explicit TestIDBFactory(
-      IndexedDBContextImpl* idb_context,
-      storage::mojom::BlobStorageContext* blob_storage_context,
-      storage::mojom::FileSystemAccessContext* file_system_access_context)
+  explicit TestIDBFactory(IndexedDBContextImpl* idb_context)
       : IndexedDBFactory(idb_context,
-                         IndexedDBClassFactory::Get(),
-                         base::DefaultClock::GetInstance()),
-        blob_storage_context_(blob_storage_context),
-        file_system_access_context_(file_system_access_context) {}
+                         base::DefaultClock::GetInstance()) {}
 
   TestIDBFactory(const TestIDBFactory&) = delete;
   TestIDBFactory& operator=(const TestIDBFactory&) = delete;
@@ -144,12 +131,9 @@ class TestIDBFactory : public IndexedDBFactory {
  protected:
   std::unique_ptr<IndexedDBBackingStore> CreateBackingStore(
       IndexedDBBackingStore::Mode backing_store_mode,
-      TransactionalLevelDBFactory* leveldb_factory,
       const storage::BucketLocator& bucket_locator,
       const base::FilePath& blob_path,
       std::unique_ptr<TransactionalLevelDBDatabase> db,
-      storage::mojom::BlobStorageContext*,
-      storage::mojom::FileSystemAccessContext*,
       std::unique_ptr<storage::FilesystemProxy> filesystem_proxy,
       IndexedDBBackingStore::BlobFilesCleanedCallback blob_files_cleaned,
       IndexedDBBackingStore::ReportOutstandingBlobsCallback
@@ -159,15 +143,10 @@ class TestIDBFactory : public IndexedDBFactory {
     // than the versions that were passed in to this method. This way tests can
     // use a different context from what is stored in the IndexedDBContext.
     return std::make_unique<TestableIndexedDBBackingStore>(
-        backing_store_mode, leveldb_factory, bucket_locator, blob_path,
-        std::move(db), blob_storage_context_, file_system_access_context_,
+        backing_store_mode, bucket_locator, blob_path, std::move(db),
         std::move(filesystem_proxy), std::move(blob_files_cleaned),
         std::move(report_outstanding_blobs), std::move(idb_task_runner));
   }
-
- private:
-  raw_ptr<storage::mojom::BlobStorageContext> blob_storage_context_;
-  raw_ptr<storage::mojom::FileSystemAccessContext> file_system_access_context_;
 };
 
 struct BlobWrite {
@@ -222,6 +201,10 @@ class MockBlobStorageContext : public ::storage::mojom::BlobStorageContext {
         base::BindOnce(std::move(callback),
                        storage::mojom::WriteBlobToFileResult::kSuccess));
   }
+  void Clone(mojo::PendingReceiver<::storage::mojom::BlobStorageContext>
+                 receiver) override {
+    receivers_.Add(this, std::move(receiver));
+  }
 
   const std::vector<BlobWrite>& writes() { return writes_; }
   void ClearWrites() { writes_.clear(); }
@@ -233,6 +216,7 @@ class MockBlobStorageContext : public ::storage::mojom::BlobStorageContext {
  private:
   std::vector<BlobWrite> writes_;
   bool write_files_to_disk_ = false;
+  mojo::ReceiverSet<::storage::mojom::BlobStorageContext> receivers_;
 };
 
 class FakeFileSystemAccessTransferToken
@@ -281,6 +265,11 @@ class MockFileSystemAccessContext
     NOTREACHED();
   }
 
+  void Clone(mojo::PendingReceiver<::storage::mojom::FileSystemAccessContext>
+                 receiver) override {
+    receivers_.Add(this, std::move(receiver));
+  }
+
   const std::vector<
       mojo::Remote<::blink::mojom::FileSystemAccessTransferToken>>&
   writes() {
@@ -291,6 +280,7 @@ class MockFileSystemAccessContext
  private:
   std::vector<mojo::Remote<::blink::mojom::FileSystemAccessTransferToken>>
       writes_;
+  mojo::ReceiverSet<::storage::mojom::FileSystemAccessContext> receivers_;
 };
 
 class IndexedDBBackingStoreTest : public testing::Test {
@@ -314,12 +304,18 @@ class IndexedDBBackingStoreTest : public testing::Test {
         quota_manager_.get(),
         base::SingleThreadTaskRunner::GetCurrentDefault());
 
+    mojo::PendingRemote<storage::mojom::BlobStorageContext>
+        blob_storage_context;
+    blob_context_->Clone(blob_storage_context.InitWithNewPipeAndPassReceiver());
+
+    mojo::PendingRemote<storage::mojom::FileSystemAccessContext> fsa_context;
+    file_system_access_context_->Clone(
+        fsa_context.InitWithNewPipeAndPassReceiver());
+
     idb_context_ = base::MakeRefCounted<IndexedDBContextImpl>(
         temp_dir_.GetPath(), quota_manager_proxy_,
-        base::DefaultClock::GetInstance(),
-        /*blob_storage_context=*/mojo::NullRemote(),
-        /*file_system_access_context=*/mojo::NullRemote(),
-        base::SequencedTaskRunner::GetCurrentDefault(),
+        base::DefaultClock::GetInstance(), std::move(blob_storage_context),
+        std::move(fsa_context), base::SequencedTaskRunner::GetCurrentDefault(),
         base::SequencedTaskRunner::GetCurrentDefault());
 
     // Needed to get the QuotaClient bound.
@@ -343,26 +339,27 @@ class IndexedDBBackingStoreTest : public testing::Test {
   void CreateFactoryAndBackingStore() {
     const blink::StorageKey storage_key =
         blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
-    auto bucket_locator = storage::BucketLocator();
-    bucket_locator.storage_key = storage_key;
-    bucket_locator.is_default = true;
-    idb_factory_ = std::make_unique<TestIDBFactory>(
-        idb_context_.get(), blob_context_.get(),
-        file_system_access_context_.get());
+    auto bucket_info = storage::BucketInfo();
+    bucket_info.id = storage::BucketId::FromUnsafeValue(1);
+    bucket_info.storage_key = storage_key;
+    bucket_info.name = storage::kDefaultBucketName;
+    auto bucket_locator = bucket_info.ToBucketLocator();
+
+    idb_factory_ = std::make_unique<TestIDBFactory>(idb_context_.get());
 
     leveldb::Status s;
-    std::tie(bucket_state_handle_, s, std::ignore, data_loss_info_,
+    std::tie(bucket_context_handle_, s, std::ignore, data_loss_info_,
              std::ignore) =
-        idb_factory_->GetOrOpenBucketFactory(
-            bucket_locator, idb_context_->GetDataPath(bucket_locator),
+        idb_factory_->GetOrCreateBucketContext(
+            bucket_info, idb_context_->GetDataPath(bucket_locator),
             /*create_if_missing=*/true);
-    if (!bucket_state_handle_.IsHeld()) {
+    if (!bucket_context_handle_.IsHeld()) {
       backing_store_ = nullptr;
       return;
     }
     backing_store_ = static_cast<TestableIndexedDBBackingStore*>(
-        bucket_state_handle_.bucket_state()->backing_store());
-    lock_manager_ = bucket_state_handle_.bucket_state()->lock_manager();
+        bucket_context_handle_->backing_store());
+    lock_manager_ = bucket_context_handle_->lock_manager();
   }
 
   std::vector<PartitionedLock> CreateDummyLock() {
@@ -377,9 +374,10 @@ class IndexedDBBackingStoreTest : public testing::Test {
   }
 
   void DestroyFactoryAndBackingStore() {
-    bucket_state_handle_.Release();
-    idb_factory_.reset();
+    lock_manager_ = nullptr;
     backing_store_ = nullptr;
+    bucket_context_handle_.Release();
+    idb_factory_.reset();
   }
 
   void TearDown() override {
@@ -393,8 +391,8 @@ class IndexedDBBackingStoreTest : public testing::Test {
 
       for (const auto& bucket_id : factory->GetOpenBuckets()) {
         base::RunLoop loop;
-        IndexedDBBucketState* per_bucket_factory =
-            factory->GetBucketFactory(bucket_id);
+        IndexedDBBucketContext* per_bucket_factory =
+            factory->GetBucketContext(bucket_id);
 
         auto* leveldb_state =
             per_bucket_factory->backing_store()->db()->leveldb_state();
@@ -422,10 +420,10 @@ class IndexedDBBackingStoreTest : public testing::Test {
       }
       // All leveldb databases are closed, and they can be deleted.
       for (auto bucket_locator : idb_context_->GetAllBuckets()) {
-        bool success = false;
-        storage::mojom::IndexedDBControlAsyncWaiter waiter(idb_context_.get());
-        waiter.DeleteForStorageKey(bucket_locator.storage_key, &success);
-        EXPECT_TRUE(success);
+        base::test::TestFuture<bool> success;
+        idb_context_->DeleteForStorageKey(bucket_locator.storage_key,
+                                          success.GetCallback());
+        EXPECT_TRUE(success.Get());
       }
     }
     if (temp_dir_.IsValid())
@@ -465,9 +463,9 @@ class IndexedDBBackingStoreTest : public testing::Test {
   scoped_refptr<storage::MockQuotaManagerProxy> quota_manager_proxy_;
   scoped_refptr<IndexedDBContextImpl> idb_context_;
   std::unique_ptr<TestIDBFactory> idb_factory_;
-  raw_ptr<PartitionedLockManager> lock_manager_;
+  raw_ptr<PartitionedLockManager> lock_manager_ = nullptr;
 
-  IndexedDBBucketStateHandle bucket_state_handle_;
+  IndexedDBBucketContextHandle bucket_context_handle_;
   raw_ptr<TestableIndexedDBBackingStore> backing_store_ = nullptr;
   IndexedDBDataLossInfo data_loss_info_;
 
@@ -648,8 +646,8 @@ class IndexedDBBackingStoreTestWithExternalObjects
           }
           break;
         case IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle:
-          if (b.file_system_access_token().empty()) {
-            EXPECT_FALSE(b.file_system_access_token().empty());
+          if (b.serialized_file_system_access_handle().empty()) {
+            EXPECT_FALSE(b.serialized_file_system_access_handle().empty());
             return false;
           }
           break;
@@ -680,8 +678,8 @@ class IndexedDBBackingStoreTestWithExternalObjects
             return false;
           break;
         case IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle:
-          if (read.file_system_access_token().size() != 1 ||
-              read.file_system_access_token()[0] >
+          if (read.serialized_file_system_access_handle().size() != 1 ||
+              read.serialized_file_system_access_handle()[0] >
                   file_system_access_context_->writes().size()) {
             return false;
           }
@@ -1547,13 +1545,11 @@ TEST_F(IndexedDBBackingStoreTest, CreateDatabase) {
         const bool multi_entry = true;
         const IndexedDBKeyPath index_key_path(u"index_key");
 
-        IndexedDBMetadataCoding metadata_coding;
-
         {
           IndexedDBDatabaseMetadata database;
-          leveldb::Status s = metadata_coding.CreateDatabase(
-              backing_store()->db(), backing_store()->origin_identifier(),
-              database_name, version, &database);
+          database.name = database_name;
+          database.version = version;
+          leveldb::Status s = backing_store()->CreateDatabase(database);
           EXPECT_TRUE(s.ok());
           EXPECT_GT(database.id, 0);
           database_id = database.id;
@@ -1565,16 +1561,15 @@ TEST_F(IndexedDBBackingStoreTest, CreateDatabase) {
           transaction.Begin(CreateDummyLock());
 
           IndexedDBObjectStoreMetadata object_store;
-          s = metadata_coding.CreateObjectStore(
-              transaction.transaction(), database.id, object_store_id,
-              object_store_name, object_store_key_path, auto_increment,
-              &object_store);
+          s = backing_store()->CreateObjectStore(
+              &transaction, database.id, object_store_id, object_store_name,
+              object_store_key_path, auto_increment, &object_store);
           EXPECT_TRUE(s.ok());
 
           IndexedDBIndexMetadata index;
-          s = metadata_coding.CreateIndex(
-              transaction.transaction(), database.id, object_store.id, index_id,
-              index_name, index_key_path, unique, multi_entry, &index);
+          s = backing_store()->CreateIndex(
+              &transaction, database.id, object_store.id, index_id, index_name,
+              index_key_path, unique, multi_entry, &index);
           EXPECT_TRUE(s.ok());
 
           bool succeeded = false;
@@ -1588,8 +1583,7 @@ TEST_F(IndexedDBBackingStoreTest, CreateDatabase) {
         {
           IndexedDBDatabaseMetadata database;
           bool found;
-          leveldb::Status s = metadata_coding.ReadMetadataForDatabaseName(
-              backing_store()->db(), backing_store()->origin_identifier(),
+          leveldb::Status s = backing_store()->ReadMetadataForDatabaseName(
               database_name, &database, &found);
           EXPECT_TRUE(s.ok());
           EXPECT_TRUE(found);
@@ -1633,25 +1627,25 @@ TEST_F(IndexedDBBackingStoreTest, GetDatabaseNames) {
   // stale data, and should not be enumerated.
   const std::u16string db2_name(u"db2");
   const int64_t db2_version = IndexedDBDatabaseMetadata::DEFAULT_VERSION;
-  IndexedDBMetadataCoding metadata_coding;
 
   IndexedDBDatabaseMetadata db1;
-  leveldb::Status s = metadata_coding.CreateDatabase(
-      backing_store()->db(), backing_store()->origin_identifier(), db1_name,
-      db1_version, &db1);
+  db1.name = db1_name;
+  db1.version = db1_version;
+  leveldb::Status s = backing_store()->CreateDatabase(db1);
+
   EXPECT_TRUE(s.ok());
   EXPECT_GT(db1.id, 0LL);
 
   IndexedDBDatabaseMetadata db2;
-  s = metadata_coding.CreateDatabase(backing_store()->db(),
-                                     backing_store()->origin_identifier(),
-                                     db2_name, db2_version, &db2);
+  db2.name = db2_name;
+  db2.version = db2_version;
+  s = backing_store()->CreateDatabase(db2);
+
   EXPECT_TRUE(s.ok());
   EXPECT_GT(db2.id, db1.id);
 
   std::vector<std::u16string> names;
-  s = metadata_coding.ReadDatabaseNames(
-      backing_store()->db(), backing_store()->origin_identifier(), &names);
+  s = backing_store()->GetDatabaseNames(&names);
   EXPECT_TRUE(s.ok());
   ASSERT_EQ(1U, names.size());
   EXPECT_EQ(db1_name, names[0]);
@@ -1862,13 +1856,11 @@ TEST_F(IndexedDBBackingStoreTest, SchemaUpgradeWithoutBlobsSurvives) {
   const bool auto_increment = true;
   const IndexedDBKeyPath object_store_key_path(u"object_store_key");
 
-  IndexedDBMetadataCoding metadata_coding;
-
   {
     IndexedDBDatabaseMetadata database;
-    leveldb::Status s = metadata_coding.CreateDatabase(
-        backing_store()->db(), backing_store()->origin_identifier(),
-        database_name, version, &database);
+    database.name = database_name;
+    database.version = version;
+    leveldb::Status s = backing_store()->CreateDatabase(database);
     EXPECT_TRUE(s.ok());
     EXPECT_GT(database.id, 0);
     database_id = database.id;
@@ -1880,10 +1872,9 @@ TEST_F(IndexedDBBackingStoreTest, SchemaUpgradeWithoutBlobsSurvives) {
     transaction.Begin(CreateDummyLock());
 
     IndexedDBObjectStoreMetadata object_store;
-    s = metadata_coding.CreateObjectStore(
-        transaction.transaction(), database.id, object_store_id,
-        object_store_name, object_store_key_path, auto_increment,
-        &object_store);
+    s = backing_store()->CreateObjectStore(
+        &transaction, database.id, object_store_id, object_store_name,
+        object_store_key_path, auto_increment, &object_store);
     EXPECT_TRUE(s.ok());
 
     bool succeeded = false;
@@ -1968,13 +1959,11 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeWithBlobsCorrupt) {
   const bool auto_increment = true;
   const IndexedDBKeyPath object_store_key_path(u"object_store_key");
 
-  IndexedDBMetadataCoding metadata_coding;
-
   {
     IndexedDBDatabaseMetadata database;
-    leveldb::Status s = metadata_coding.CreateDatabase(
-        backing_store()->db(), backing_store()->origin_identifier(),
-        database_name, version, &database);
+    database.name = database_name;
+    database.version = version;
+    leveldb::Status s = backing_store()->CreateDatabase(database);
     EXPECT_TRUE(s.ok());
     EXPECT_GT(database.id, 0);
     database_id = database.id;
@@ -1986,10 +1975,9 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeWithBlobsCorrupt) {
     transaction.Begin(CreateDummyLock());
 
     IndexedDBObjectStoreMetadata object_store;
-    s = metadata_coding.CreateObjectStore(
-        transaction.transaction(), database.id, object_store_id,
-        object_store_name, object_store_key_path, auto_increment,
-        &object_store);
+    s = backing_store()->CreateObjectStore(
+        &transaction, database.id, object_store_id, object_store_name,
+        object_store_key_path, auto_increment, &object_store);
     EXPECT_TRUE(s.ok());
 
     bool succeeded = false;
@@ -2085,13 +2073,11 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeV3ToV4) {
   const bool auto_increment = true;
   const IndexedDBKeyPath object_store_key_path(u"object_store_key");
 
-  IndexedDBMetadataCoding metadata_coding;
-
   {
     IndexedDBDatabaseMetadata database;
-    leveldb::Status s = metadata_coding.CreateDatabase(
-        backing_store()->db(), backing_store()->origin_identifier(),
-        database_name, version, &database);
+    database.name = database_name;
+    database.version = version;
+    leveldb::Status s = backing_store()->CreateDatabase(database);
     EXPECT_TRUE(s.ok());
     EXPECT_GT(database.id, 0);
     database_id = database.id;
@@ -2103,10 +2089,9 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeV3ToV4) {
     transaction.Begin(CreateDummyLock());
 
     IndexedDBObjectStoreMetadata object_store;
-    s = metadata_coding.CreateObjectStore(
-        transaction.transaction(), database.id, object_store_id,
-        object_store_name, object_store_key_path, auto_increment,
-        &object_store);
+    s = backing_store()->CreateObjectStore(
+        &transaction, database.id, object_store_id, object_store_name,
+        object_store_key_path, auto_increment, &object_store);
     EXPECT_TRUE(s.ok());
 
     bool succeeded = false;
@@ -2239,13 +2224,11 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeV4ToV5) {
   // context writes something there to check.
   blob_context_->SetWriteFilesToDisk(true);
 
-  IndexedDBMetadataCoding metadata_coding;
-
   {
     IndexedDBDatabaseMetadata database;
-    leveldb::Status s = metadata_coding.CreateDatabase(
-        backing_store()->db(), backing_store()->origin_identifier(),
-        database_name, version, &database);
+    database.name = database_name;
+    database.version = version;
+    leveldb::Status s = backing_store()->CreateDatabase(database);
     EXPECT_TRUE(s.ok());
     EXPECT_GT(database.id, 0);
     database_id = database.id;
@@ -2257,10 +2240,9 @@ TEST_F(IndexedDBBackingStoreTestWithBlobs, SchemaUpgradeV4ToV5) {
     transaction.Begin(CreateDummyLock());
 
     IndexedDBObjectStoreMetadata object_store;
-    s = metadata_coding.CreateObjectStore(
-        transaction.transaction(), database.id, object_store_id,
-        object_store_name, object_store_key_path, auto_increment,
-        &object_store);
+    s = backing_store()->CreateObjectStore(
+        &transaction, database.id, object_store_id, object_store_name,
+        object_store_key_path, auto_increment, &object_store);
     EXPECT_TRUE(s.ok());
 
     bool succeeded = false;

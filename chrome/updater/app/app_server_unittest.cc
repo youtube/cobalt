@@ -10,8 +10,10 @@
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "chrome/updater/constants.h"
 #include "chrome/updater/prefs.h"
 #include "chrome/updater/test_scope.h"
 #include "chrome/updater/update_service.h"
@@ -36,6 +38,8 @@ class AppServerTest : public AppServer {
   AppServerTest() {
     ON_CALL(*this, ActiveDuty)
         .WillByDefault(Invoke(this, &AppServerTest::Shutdown0));
+    ON_CALL(*this, ActiveDutyInternal)
+        .WillByDefault(Invoke(this, &AppServerTest::Shutdown0));
   }
 
   MOCK_METHOD(void, ActiveDuty, (scoped_refptr<UpdateService>), (override));
@@ -49,6 +53,8 @@ class AppServerTest : public AppServer {
               (base::RepeatingCallback<void(const RegistrationRequest&)>),
               (override));
   MOCK_METHOD(void, UninstallSelf, (), (override));
+  MOCK_METHOD(bool, ShutdownIfIdleAfterTask, (), (override));
+  MOCK_METHOD(void, OnDelayedTaskComplete, (), (override));
 
  protected:
   ~AppServerTest() override = default;
@@ -73,7 +79,7 @@ void ClearPrefs() {
 class AppServerTestCase : public testing::Test {
  public:
   void SetUp() override {
-// TODO(crbug.com/1428653): Fix these test cases to work for mac system scope.
+// TODO(crbug.com/1428653): Fix these test cases to work for macOS system scope.
 #if BUILDFLAG(IS_MAC)
     if (GetTestScope() == UpdaterScope::kSystem) {
       GTEST_SKIP();
@@ -89,6 +95,9 @@ class AppServerTestCase : public testing::Test {
 }  // namespace
 
 TEST_F(AppServerTestCase, SelfUninstall) {
+  base::test::ScopedCommandLine command_line;
+  command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      kServerServiceSwitch, kServerUpdateServiceInternalSwitchValue);
   {
     scoped_refptr<GlobalPrefs> global_prefs = CreateGlobalPrefs(GetTestScope());
     global_prefs->SetActiveVersion("9999999");
@@ -99,8 +108,9 @@ TEST_F(AppServerTestCase, SelfUninstall) {
   }
   auto app = base::MakeRefCounted<AppServerTest>();
 
-  // Expect the app to ActiveDuty then SelfUninstall.
-  EXPECT_CALL(*app, ActiveDuty).Times(1);
+  // Expect the app to ActiveDutyInternal then SelfUninstall.
+  EXPECT_CALL(*app, ActiveDuty).Times(0);
+  EXPECT_CALL(*app, ActiveDutyInternal).Times(1);
   EXPECT_CALL(*app, SwapInNewVersion).Times(0);
   EXPECT_CALL(*app, MigrateLegacyUpdaters).Times(0);
   EXPECT_CALL(*app, UninstallSelf).Times(1);

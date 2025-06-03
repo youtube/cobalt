@@ -14,7 +14,6 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 -webkit-box-pack: start
 -webkit-box-reflect: none
 -webkit-font-smoothing: auto
--webkit-highlight: none
 -webkit-line-break: auto
 -webkit-line-clamp: none
 -webkit-locale: auto
@@ -24,15 +23,8 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 -webkit-mask-box-image-slice: 0 fill
 -webkit-mask-box-image-source: none
 -webkit-mask-box-image-width: auto
--webkit-mask-clip: border-box
--webkit-mask-composite: source-over
--webkit-mask-image: none
--webkit-mask-origin: border-box
--webkit-mask-position: 0% 0%
 -webkit-mask-position-x: 0%
 -webkit-mask-position-y: 0%
--webkit-mask-repeat: repeat
--webkit-mask-size: auto
 -webkit-print-color-adjust: economy
 -webkit-rtl-ordering: logical
 -webkit-text-combine: none
@@ -52,10 +44,8 @@ align-self: auto
 alignment-baseline: auto
 anchor-default: implicit
 anchor-name: none
-anchor-scroll: none
 animation-composition: replace
-animation-delay-end: 0s
-animation-delay-start: 0s
+animation-delay: 0s
 animation-direction: normal
 animation-duration: 0s
 animation-fill-mode: none
@@ -162,7 +152,9 @@ d: none
 direction: ltr
 display: inline
 dominant-baseline: auto
+dynamic-range-limit: high
 empty-cells: show
+field-sizing: fixed
 fill: rgb(0, 128, 0)
 fill-opacity: 1
 fill-rule: nonzero
@@ -238,6 +230,14 @@ margin-top: 0px
 marker-end: none
 marker-mid: none
 marker-start: none
+mask-clip: border-box
+mask-composite: add
+mask-image: none
+mask-mode: match-source
+mask-origin: border-box
+mask-position: 0% 0%
+mask-repeat: repeat
+mask-size: auto
 mask-type: luminance
 math-depth: 0
 math-shift: normal
@@ -257,7 +257,7 @@ object-view-box: none
 offset-anchor: auto
 offset-distance: 0px
 offset-path: none
-offset-position: auto
+offset-position: normal
 offset-rotate: auto 0deg
 opacity: 1
 order: 0
@@ -289,8 +289,11 @@ paint-order: normal
 perspective: none
 perspective-origin: 0px 0px
 pointer-events: auto
+popover-hide-delay: infinity * 1s
+popover-show-delay: 0.5s
 position: static
 position-fallback: none
+position-fallback-bounds: normal
 r: 0px
 resize: none
 right: auto
@@ -309,9 +312,17 @@ scroll-padding-block-end: auto
 scroll-padding-block-start: auto
 scroll-padding-inline-end: auto
 scroll-padding-inline-start: auto
-scroll-timeline-attachment: local
+scroll-start-block: auto
+scroll-start-inline: auto
+scroll-start-target-block: none
+scroll-start-target-inline: none
+scroll-start-target-x: none
+scroll-start-target-y: none
+scroll-start-x: auto
+scroll-start-y: auto
 scroll-timeline-axis: block
 scroll-timeline-name: none
+scrollbar-color: auto
 scrollbar-gutter: auto
 scrollbar-width: auto
 shape-image-threshold: 0
@@ -334,6 +345,7 @@ table-layout: auto
 text-align: start
 text-align-last: auto
 text-anchor: start
+text-autospace: normal
 text-box-trim: none
 text-decoration: none solid rgb(0, 0, 0)
 text-decoration-color: rgb(0, 0, 0)
@@ -351,15 +363,13 @@ text-size-adjust: auto
 text-transform: none
 text-underline-position: auto
 text-wrap: wrap
-toggle-group: none
-toggle-root: none
-toggle-trigger: none
-toggle-visibility: normal
+timeline-scope: none
 top: auto
 touch-action: auto
 transform: none
 transform-origin: 0px 0px
 transform-style: flat
+transition-behavior: normal
 transition-delay: 0s
 transition-duration: 0s
 transition-property: all
@@ -369,9 +379,8 @@ unicode-bidi: normal
 user-select: auto
 vector-effect: none
 vertical-align: baseline
-view-timeline-attachment: local
 view-timeline-axis: block
-view-timeline-inset: 0px
+view-timeline-inset: auto
 view-timeline-name: none
 view-transition-name: none
 visibility: visible

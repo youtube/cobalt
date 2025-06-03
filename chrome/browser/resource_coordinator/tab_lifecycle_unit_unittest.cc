@@ -21,7 +21,6 @@
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_tracker.h"
 #include "chrome/browser/notifications/notification_permission_context.h"
-#include "chrome/browser/resource_coordinator/intervention_policy_database.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_observer.h"
 #include "chrome/browser/resource_coordinator/tab_helper.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_observer.h"
@@ -167,7 +166,8 @@ class TabLifecycleUnitTest : public ChromeRenderViewHostTestHarness {
 
   ::testing::StrictMock<MockTabLifecycleObserver> observer_;
   base::ObserverList<TabLifecycleObserver>::Unchecked observers_;
-  raw_ptr<content::WebContents> web_contents_;  // Owned by tab_strip_model_.
+  raw_ptr<content::WebContents, DanglingUntriaged>
+      web_contents_;  // Owned by tab_strip_model_.
   std::unique_ptr<TabStripModel> tab_strip_model_;
   base::SimpleTestTickClock test_clock_;
   std::unique_ptr<UsageClock> usage_clock_;

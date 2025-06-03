@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/target_device_connection_broker.h"
 
-#include "base/base64url.h"
 #include "base/hash/sha1.h"
 #include "base/strings/string_number_conversions.h"
 
@@ -21,8 +20,9 @@ void TargetDeviceConnectionBroker::GetFeatureSupportStatusAsync(
 
 void TargetDeviceConnectionBroker::MaybeNotifyFeatureStatus() {
   FeatureSupportStatus status = GetFeatureSupportStatus();
-  if (status == FeatureSupportStatus::kUndetermined)
+  if (status == FeatureSupportStatus::kUndetermined) {
     return;
+  }
 
   auto callbacks = std::exchange(feature_status_callbacks_, {});
 
@@ -38,19 +38,10 @@ void TargetDeviceConnectionBroker::OnConnectionAuthenticated(
       authenticated_connection);
 }
 
-std::vector<uint8_t> TargetDeviceConnectionBroker::GetQrCodeData(
-    const RandomSessionId& random_session_id,
-    const SharedSecret shared_secret) const {
-  std::string shared_secret_str(shared_secret.begin(), shared_secret.end());
-  std::string shared_secret_base64;
-  base::Base64UrlEncode(shared_secret_str,
-                        base::Base64UrlEncodePolicy::OMIT_PADDING,
-                        &shared_secret_base64);
-
-  std::string url = "https://signin.google/qs/" + random_session_id.ToString() +
-                    "?key=" + shared_secret_base64;
-
-  return std::vector<uint8_t>(url.begin(), url.end());
+void TargetDeviceConnectionBroker::OnConnectionClosed(
+    ConnectionClosedReason reason) {
+  CHECK(connection_lifecycle_listener_);
+  connection_lifecycle_listener_->OnConnectionClosed(reason);
 }
 
 std::string TargetDeviceConnectionBroker::DerivePin(

@@ -25,7 +25,7 @@ GAIAInfoUpdateServiceFactory::GAIAInfoUpdateServiceFactory()
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
-GAIAInfoUpdateServiceFactory::~GAIAInfoUpdateServiceFactory() {}
+GAIAInfoUpdateServiceFactory::~GAIAInfoUpdateServiceFactory() = default;
 
 // static
 GAIAInfoUpdateService* GAIAInfoUpdateServiceFactory::GetForProfile(
@@ -36,17 +36,19 @@ GAIAInfoUpdateService* GAIAInfoUpdateServiceFactory::GetForProfile(
 
 // static
 GAIAInfoUpdateServiceFactory* GAIAInfoUpdateServiceFactory::GetInstance() {
-  return base::Singleton<GAIAInfoUpdateServiceFactory>::get();
+  static base::NoDestructor<GAIAInfoUpdateServiceFactory> instance;
+  return instance.get();
 }
 
-KeyedService* GAIAInfoUpdateServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+GAIAInfoUpdateServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
   if (!g_browser_process->profile_manager())
     return nullptr;  // Some tests don't have a profile manager.
 
-  return new GAIAInfoUpdateService(
+  return std::make_unique<GAIAInfoUpdateService>(
       IdentityManagerFactory::GetForProfile(profile),
       &g_browser_process->profile_manager()->GetProfileAttributesStorage(),
       profile->GetPath());

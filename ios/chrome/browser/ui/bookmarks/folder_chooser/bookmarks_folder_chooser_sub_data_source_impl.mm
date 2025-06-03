@@ -5,12 +5,8 @@
 #import "ios/chrome/browser/ui/bookmarks/folder_chooser/bookmarks_folder_chooser_sub_data_source_impl.h"
 
 #import "components/bookmarks/browser/bookmark_model.h"
-#import "ios/chrome/browser/bookmarks/bookmark_model_bridge_observer.h"
+#import "ios/chrome/browser/bookmarks/model/bookmark_model_bridge_observer.h"
 #import "ios/chrome/browser/ui/bookmarks/bookmark_utils_ios.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
@@ -49,6 +45,10 @@ using bookmarks::BookmarkNode;
   _bookmarkModel = nullptr;
   _bookmarkModelBridge = nil;
   _parentDataSource = nil;
+}
+
+- (void)dealloc {
+  DCHECK(!_bookmarkModel);
 }
 
 #pragma mark - BookmarksFolderChooserSubDataSource

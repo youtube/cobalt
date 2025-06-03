@@ -11,12 +11,11 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
-class WebAppRegistrar;
-class WebAppSyncBridge;
+class WebAppProvider;
 
 std::set<std::string> GetFileExtensionsFromFileHandlingProto(
     const proto::FileHandling& file_handling);
@@ -28,34 +27,32 @@ std::set<std::string> GetMimeTypesFromFileHandlingProto(
 class FileHandlingSubManager : public OsIntegrationSubManager {
  public:
   FileHandlingSubManager(const base::FilePath& profile_path,
-                         WebAppRegistrar& registrar,
-                         WebAppSyncBridge& sync_bridge);
+                         WebAppProvider& provider);
   ~FileHandlingSubManager() override;
 
-  void Configure(const AppId& app_id,
+  void Configure(const webapps::AppId& app_id,
                  proto::WebAppOsIntegrationState& desired_state,
                  base::OnceClosure configure_done) override;
-  void Execute(const AppId& app_id,
+  void Execute(const webapps::AppId& app_id,
                const absl::optional<SynchronizeOsOptions>& synchronize_options,
                const proto::WebAppOsIntegrationState& desired_state,
                const proto::WebAppOsIntegrationState& current_state,
                base::OnceClosure callback) override;
-  void ForceUnregister(const AppId& app_id,
+  void ForceUnregister(const webapps::AppId& app_id,
                        base::OnceClosure callback) override;
 
  private:
-  void Unregister(const AppId& app_id,
+  void Unregister(const webapps::AppId& app_id,
                   const proto::WebAppOsIntegrationState& desired_state,
                   const proto::WebAppOsIntegrationState& current_state,
                   base::OnceClosure callback);
 
-  void Register(const AppId& app_id,
+  void Register(const webapps::AppId& app_id,
                 const proto::WebAppOsIntegrationState& desired_state,
                 base::OnceClosure callback);
 
   const base::FilePath profile_path_;
-  const raw_ref<WebAppRegistrar> registrar_;
-  const raw_ref<WebAppSyncBridge> sync_bridge_;
+  const raw_ref<WebAppProvider> provider_;
 
   base::WeakPtrFactory<FileHandlingSubManager> weak_ptr_factory_{this};
 };

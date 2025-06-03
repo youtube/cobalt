@@ -13,38 +13,42 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/prefs/pref_service.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
-const char kTestWebUIAppManifestId[] = "";
+const char kTestWebUIManifestId[] = "chrome://password-manager/";
 const char kTestWebUIAppURL[] = "chrome://password-manager/?source=pwa";
 
-std::unique_ptr<WebAppInstallInfo> GetTestWebAppInstallInfo() {
-  auto web_app_info = std::make_unique<WebAppInstallInfo>();
+std::unique_ptr<web_app::WebAppInstallInfo> GetTestWebAppInstallInfo() {
+  auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
   web_app_info->start_url = GURL(kTestWebUIAppURL);
   web_app_info->title = u"Test app";
-  web_app_info->manifest_id = kTestWebUIAppManifestId;
+  web_app_info->manifest_id = GURL(kTestWebUIManifestId);
   return web_app_info;
 }
 
-web_app::AppId GetTestWebAppId() {
-  return web_app::GenerateAppId(kTestWebUIAppManifestId,
-                                GURL(kTestWebUIAppURL));
+webapps::AppId GetTestWebAppId() {
+  return web_app::GenerateAppIdFromManifestId(GURL(kTestWebUIManifestId));
 }
 
 Profile* CreateAdditionalProfile() {
@@ -61,8 +65,9 @@ Profile* CreateAdditionalProfile() {
   return &profile;
 }
 
-void InstallAppForProfile(Profile* profile,
-                          std::unique_ptr<WebAppInstallInfo> app_info) {
+void InstallAppForProfile(
+    Profile* profile,
+    std::unique_ptr<web_app::WebAppInstallInfo> app_info) {
   GURL app_url(app_info->start_url);
   web_app::test::InstallWebApp(profile, std::move(app_info));
   ASSERT_TRUE(web_app::FindInstalledAppWithUrlInScope(profile, app_url));
@@ -71,12 +76,7 @@ void InstallAppForProfile(Profile* profile,
 }  // namespace
 
 class WebAppProfileSwitcherBrowserTest
-    : public web_app::WebAppControllerBrowserTest {
- private:
-  // TODO(https://github.com/llvm/llvm-project/issues/61334): Explicit
-  // [[maybe_unused]] attribute shouuld not be necessary here.
-  [[maybe_unused]] base::ScopedAllowBlockingForTesting allow_blocking_;
-};
+    : public web_app::WebAppControllerBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(WebAppProfileSwitcherBrowserTest,
                        SwitchWebAppProfileRequiresInstall) {
@@ -107,8 +107,16 @@ IN_PROC_BROWSER_TEST_F(WebAppProfileSwitcherBrowserTest,
   EXPECT_EQ(new_browser->tab_strip_model()->GetActiveWebContents(),
             new_web_contents);
 
-  ASSERT_TRUE(web_app::FindInstalledAppWithUrlInScope(second_profile,
-                                                      GURL(kTestWebUIAppURL)));
+  absl::optional<webapps::AppId> app_id =
+      web_app::FindInstalledAppWithUrlInScope(second_profile,
+                                              GURL(kTestWebUIAppURL));
+  ASSERT_TRUE(app_id);
+  EXPECT_TRUE(web_app::AppBrowserController::IsWebApp(new_browser));
+  web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForTest(second_profile);
+  EXPECT_EQ(provider->registrar_unsafe().GetAppUserDisplayMode(app_id.value()),
+            web_app::mojom::UserDisplayMode::kStandalone);
+
   EXPECT_TRUE(profile_switch_complete.Wait());
 }
 
@@ -129,15 +137,15 @@ IN_PROC_BROWSER_TEST_F(WebAppProfileSwitcherBrowserTest,
                                          profile_switch_complete.GetCallback());
   profile_switcher.SwitchToProfile(second_profile->GetPath());
 
-  content::WebContents* new_web_contents = waiter.Wait();
-  ASSERT_TRUE(new_web_contents);
-  EXPECT_EQ(new_web_contents->GetVisibleURL(), GURL(kTestWebUIAppURL));
+  Browser* new_browser = ui_test_utils::WaitForBrowserToOpen();
 
-  // Check that the new WebContents belong to the second profile.
-  Browser* new_browser = chrome::FindBrowserWithProfile(second_profile);
+  // Check that the new Browser belong to the second profile and Password
+  // Manager is opened.
   ASSERT_TRUE(new_browser);
-  EXPECT_EQ(new_browser->tab_strip_model()->GetActiveWebContents(),
-            new_web_contents);
+  EXPECT_EQ(chrome::FindBrowserWithProfile(second_profile), new_browser);
+  EXPECT_EQ(
+      GURL(kTestWebUIAppURL),
+      new_browser->tab_strip_model()->GetActiveWebContents()->GetVisibleURL());
 
   EXPECT_TRUE(profile_switch_complete.Wait());
 }
@@ -149,8 +157,7 @@ IN_PROC_BROWSER_TEST_F(WebAppProfileSwitcherBrowserTest,
   InstallAppForProfile(first_profile, GetTestWebAppInstallInfo());
 
   // Launch the app for the first profile.
-  web_app::LaunchWebAppBrowserAndWait(first_profile,
-                                      web_app::kPasswordManagerAppId);
+  web_app::LaunchWebAppBrowser(first_profile, web_app::kPasswordManagerAppId);
   Browser* first_profile_app_browser =
       web_app::AppBrowserController::FindForWebApp(
           *first_profile, web_app::kPasswordManagerAppId);
@@ -161,8 +168,7 @@ IN_PROC_BROWSER_TEST_F(WebAppProfileSwitcherBrowserTest,
   Profile* second_profile = CreateAdditionalProfile();
   InstallAppForProfile(second_profile, GetTestWebAppInstallInfo());
   // Launch the app.
-  web_app::LaunchWebAppBrowserAndWait(second_profile,
-                                      web_app::kPasswordManagerAppId);
+  web_app::LaunchWebAppBrowser(second_profile, web_app::kPasswordManagerAppId);
   Browser* second_profile_app_browser =
       web_app::AppBrowserController::FindForWebApp(
           *second_profile, web_app::kPasswordManagerAppId);

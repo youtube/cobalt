@@ -14,7 +14,6 @@
 #include "chromeos/ui/frame/caption_buttons/frame_size_button_delegate.h"
 #include "chromeos/ui/frame/caption_buttons/snap_controller.h"
 #include "chromeos/ui/frame/multitask_menu/multitask_menu_nudge_controller.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/animation/animation_delegate_views.h"
 #include "ui/views/layout/box_layout_view.h"
@@ -52,6 +51,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCaptionButtonContainerView
   // left-most caption button (in LTR mode).
   FrameCaptionButtonContainerView(
       views::Widget* frame,
+      bool is_close_button_enabled = true,
       std::unique_ptr<views::FrameCaptionButton> custom_button = nullptr);
   FrameCaptionButtonContainerView(const FrameCaptionButtonContainerView&) =
       delete;
@@ -90,7 +90,6 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCaptionButtonContainerView
     }
 
     views::FrameCaptionButton* float_button() const {
-      CHECK(chromeos::wm::features::IsWindowLayoutMenuEnabled());
       return container_view_->float_button_;
     }
 
@@ -103,6 +102,9 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCaptionButtonContainerView
   };
 
   views::FrameCaptionButton* size_button() { return size_button_; }
+  bool window_controls_overlay_enabled() const {
+    return window_controls_overlay_enabled_;
+  }
 
   // Sets whether the buttons should be painted as active. Does not schedule
   // a repaint.
@@ -116,7 +118,11 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCaptionButtonContainerView
 
   // Sets the background frame color that buttons should compute their color
   // respective to.
-  void SetBackgroundColor(SkColor background_color);
+  void SetButtonBackgroundColor(SkColor background_color);
+
+  // Set the color token which should be used to resolve the button's icon color
+  // directly.
+  void SetButtonIconColor(ui::ColorId icon_color_id);
 
   // Tell the window controls to reset themselves to the normal state.
   void ResetWindowControls();
@@ -186,6 +192,9 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCaptionButtonContainerView
   void CloseButtonPressed();
   void MenuButtonPressed();
   void FloatButtonPressed();
+
+  bool SizeButtonShouldBeVisible() const;
+  void LayoutButtonsFromAnimation(int x_slide, int alpha);
 
   // FrameSizeButtonDelegate:
   bool IsMinimizeButtonVisible() const override;

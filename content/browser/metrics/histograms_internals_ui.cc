@@ -25,6 +25,7 @@
 #include "content/public/browser/web_ui_message_handler.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/url_constants.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace content {
 namespace {
@@ -43,6 +44,9 @@ struct JsParams {
 void CreateAndAddHistogramsHTMLSource(BrowserContext* browser_context) {
   WebUIDataSource* source =
       WebUIDataSource::CreateAndAdd(browser_context, kChromeUIHistogramHost);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 
   source->AddResourcePaths(
       base::make_span(kHistogramsResources, kHistogramsResourcesSize));
@@ -79,9 +83,9 @@ class HistogramsMessageHandler : public WebUIMessageHandler {
   HistogramsMonitor histogram_monitor_;
 };
 
-HistogramsMessageHandler::HistogramsMessageHandler() {}
+HistogramsMessageHandler::HistogramsMessageHandler() = default;
 
-HistogramsMessageHandler::~HistogramsMessageHandler() {}
+HistogramsMessageHandler::~HistogramsMessageHandler() = default;
 
 JsParams HistogramsMessageHandler::AllowJavascriptAndUnpackParams(
     const base::Value::List& args_list) {
@@ -97,9 +101,14 @@ JsParams HistogramsMessageHandler::AllowJavascriptAndUnpackParams(
 }
 
 void HistogramsMessageHandler::ImportHistograms(bool include_subprocesses) {
-  base::StatisticsRecorder::ImportProvidedHistograms();
-  if (include_subprocesses)
+  if (include_subprocesses) {
+    // Synchronously fetch subprocess histograms that live in shared memory.
+    base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+    // Asynchronously fetch subprocess histograms that do not live in shared
+    // memory (e.g., they were emitted before the shared memory was set up).
     HistogramSynchronizer::FetchHistograms();
+  }
 }
 
 void HistogramsMessageHandler::HandleRequestHistograms(

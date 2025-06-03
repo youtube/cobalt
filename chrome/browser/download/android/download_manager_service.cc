@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "chrome/android/chrome_jni_headers/DownloadItem_jni.h"
 #include "chrome/android/chrome_jni_headers/DownloadManagerService_jni.h"
+#include "chrome/browser/android/flags/chrome_cached_flags.h"
 #include "chrome/browser/android/profile_key_startup_accessor.h"
 #include "chrome/browser/download/android/download_controller.h"
 #include "chrome/browser/download/android/download_startup_utils.h"
@@ -28,7 +29,6 @@
 #include "chrome/browser/download/android/service/download_task_scheduler.h"
 #include "chrome/browser/download/offline_item_utils.h"
 #include "chrome/browser/download/simple_download_manager_coordinator_factory.h"
-#include "chrome/browser/flags/android/cached_feature_flags.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile_android.h"
 #include "chrome/browser/profiles/profile_key.h"
@@ -80,7 +80,8 @@ ScopedJavaLocalRef<jobject> JNI_DownloadManagerService_CreateJavaDownloadItem(
   DCHECK(!item->IsTransient());
   return Java_DownloadItem_createDownloadItem(
       env, DownloadManagerService::CreateJavaDownloadInfo(env, item),
-      item->GetStartTime().ToJavaTime(), item->GetEndTime().ToJavaTime(),
+      item->GetStartTime().InMillisecondsSinceUnixEpoch(),
+      item->GetEndTime().InMillisecondsSinceUnixEpoch(),
       item->GetFileExternallyRemoved());
 }
 
@@ -171,7 +172,8 @@ ScopedJavaLocalRef<jobject> DownloadManagerService::CreateJavaDownloadInfo(
       url::GURLAndroid::FromNativeGURL(env, item->GetReferrerUrl()),
       time_remaining_known ? time_delta.InMilliseconds()
                            : kUnknownRemainingTime,
-      item->GetLastAccessTime().ToJavaTime(), item->IsDangerous(),
+      item->GetLastAccessTime().InMillisecondsSinceUnixEpoch(),
+      item->IsDangerous(),
       static_cast<int>(
           OfflineItemUtils::ConvertDownloadInterruptReasonToFailState(
               item->GetLastReason())));

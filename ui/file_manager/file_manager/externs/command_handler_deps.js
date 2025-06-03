@@ -15,7 +15,6 @@ import {NamingController} from '../foreground/js/naming_controller.js';
 import {ProvidersModel} from '../foreground/js/providers_model.js';
 import {SpinnerController} from '../foreground/js/spinner_controller.js';
 import {TaskController} from '../foreground/js/task_controller.js';
-import {DirectoryTree} from '../foreground/js/ui/directory_tree.js';
 import {FileManagerUI} from '../foreground/js/ui/file_manager_ui.js';
 
 import {Crostini} from './background/crostini.js';
@@ -39,9 +38,6 @@ export class CommandHandlerDeps {
 
     /** @type {DirectoryModel} */
     this.directoryModel;
-
-    /** @type {DirectoryTree} */
-    this.directoryTree;
 
     /** @type {DirectoryTreeNamingController} */
     this.directoryTreeNamingController;
@@ -95,12 +91,18 @@ export class CommandHandlerDeps {
     this.trashEnabled;
   }
 
+  // @ts-ignore: error TS2355: A function whose declared type is neither 'void'
+  // nor 'any' must return a value.
   /** @return {DirectoryEntry|FilesAppEntry} */
   getCurrentDirectoryEntry() {}
 
+  // @ts-ignore: error TS2355: A function whose declared type is neither 'void'
+  // nor 'any' must return a value.
   /** @return {FileSelection} */
   getSelection() {}
 
   /** @param {!FilesAppState=} appState App state. */
+  // @ts-ignore: error TS6133: 'appState' is declared but its value is never
+  // read.
   launchFileManager(appState) {}
 }

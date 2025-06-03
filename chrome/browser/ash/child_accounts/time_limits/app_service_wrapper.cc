@@ -20,7 +20,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_update.h"
-#include "components/services/app_service/public/cpp/icon_types.h"
+#include "components/services/app_service/public/cpp/icon_effects.h"
 #include "components/services/app_service/public/cpp/instance_update.h"
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "extensions/browser/extension_registry.h"
@@ -71,8 +71,8 @@ apps::PauseData PauseAppInfoToPauseData(const PauseAppInfo& pause_info) {
 }  // namespace
 
 AppServiceWrapper::AppServiceWrapper(Profile* profile) : profile_(profile) {
-  apps::AppRegistryCache::Observer::Observe(&GetAppCache());
-  apps::InstanceRegistry::Observer::Observe(&GetInstanceRegistry());
+  app_registry_cache_observer_.Observe(&GetAppCache());
+  instance_registry_observation_.Observe(&GetInstanceRegistry());
 }
 
 AppServiceWrapper::~AppServiceWrapper() = default;
@@ -173,8 +173,8 @@ void AppServiceWrapper::GetAppIcon(
   const std::string app_service_id = AppServiceIdFromAppId(app_id, profile_);
   DCHECK(!app_service_id.empty());
 
-  GetAppProxy()->LoadIconFromIconKey(
-      app_id.app_type(), app_service_id, apps::IconKey(),
+  GetAppProxy()->LoadIconWithIconEffects(
+      app_id.app_type(), app_service_id, apps::IconEffects::kNone,
       apps::IconType::kStandard, size_hint_in_dp,
       /* allow_placeholder_icon */ false,
       base::BindOnce(
@@ -258,7 +258,7 @@ void AppServiceWrapper::OnAppUpdate(const apps::AppUpdate& update) {
 
 void AppServiceWrapper::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  apps::AppRegistryCache::Observer::Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void AppServiceWrapper::OnInstanceUpdate(const apps::InstanceUpdate& update) {
@@ -294,7 +294,7 @@ void AppServiceWrapper::OnInstanceUpdate(const apps::InstanceUpdate& update) {
 
 void AppServiceWrapper::OnInstanceRegistryWillBeDestroyed(
     apps::InstanceRegistry* cache) {
-  apps::InstanceRegistry::Observer::Observe(nullptr);
+  instance_registry_observation_.Reset();
 }
 
 apps::AppServiceProxy* AppServiceWrapper::GetAppProxy() const {

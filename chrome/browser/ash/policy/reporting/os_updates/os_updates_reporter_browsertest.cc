@@ -7,12 +7,12 @@
 #include "ash/constants/ash_switches.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/login/session/user_session_manager_test_api.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/test/user_policy_mixin.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chrome/browser/policy/messaging_layer/proto/synced/os_events.pb.h"
@@ -49,7 +49,6 @@ namespace {
 constexpr char kTestUserEmail[] = "test@example.com";
 constexpr char kTestAffiliationId[] = "test_affiliation_id";
 constexpr char kNewPlatformVersion[] = "1235.0.0";
-constexpr int kCommandId = 1;
 static const AccountId kTestAccountId = AccountId::FromUserEmailGaiaId(
     kTestUserEmail,
     signin::GetTestGaiaIdForEmail(kTestUserEmail));
@@ -121,8 +120,8 @@ class OsUpdatesReporterBrowserTest
 
   ScopedTestingCrosSettings scoped_testing_cros_settings_;
 
-  raw_ptr<FakeUpdateEngineClient, ExperimentalAsh> fake_update_engine_client_ =
-      nullptr;
+  raw_ptr<FakeUpdateEngineClient, DanglingUntriaged | ExperimentalAsh>
+      fake_update_engine_client_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(OsUpdatesReporterBrowserTest, ReportUpdateSuccessEvent) {
@@ -133,6 +132,9 @@ IN_PROC_BROWSER_TEST_F(OsUpdatesReporterBrowserTest, ReportUpdateSuccessEvent) {
       /*current_operation=*/update_engine::Operation::UPDATED_NEED_REBOOT);
 
   const Record& update_record = GetNextOsEventsRecord(&observer);
+  ASSERT_TRUE(update_record.has_source_info());
+  EXPECT_THAT(update_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
   OsEventsRecord update_record_data;
   ASSERT_TRUE(update_record_data.ParseFromString(update_record.data()));
 
@@ -160,6 +162,9 @@ IN_PROC_BROWSER_TEST_P(OsUpdatesReporterBrowserErrorTest, ReportErrorEvent) {
       /*current_operation=*/test_case.operation);
 
   const Record& update_record = GetNextOsEventsRecord(&observer);
+  ASSERT_TRUE(update_record.has_source_info());
+  EXPECT_THAT(update_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
   OsEventsRecord update_record_data;
   ASSERT_TRUE(update_record_data.ParseFromString(update_record.data()));
 
@@ -228,8 +233,8 @@ class OsUpdatesReporterPowerwashBrowserTest
     return result;
   }
 
-  void AddPendingRemoteCommand(const em::RemoteCommand& command) {
-    policy_test_server_mixin_.server()
+  int64_t AddPendingRemoteCommand(em::RemoteCommand& command) {
+    return policy_test_server_mixin_.server()
         ->remote_commands_state()
         ->AddPendingRemoteCommand(command);
   }
@@ -237,7 +242,9 @@ class OsUpdatesReporterPowerwashBrowserTest
  private:
   ash::EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
 
-  ::policy::DeviceCloudPolicyManagerAsh* policy_manager_;
+  raw_ptr<::policy::DeviceCloudPolicyManagerAsh,
+          DanglingUntriaged | ExperimentalAsh>
+      policy_manager_;
 };
 
 IN_PROC_BROWSER_TEST_F(OsUpdatesReporterPowerwashBrowserTest, RemotePowerwash) {
@@ -245,15 +252,17 @@ IN_PROC_BROWSER_TEST_F(OsUpdatesReporterPowerwashBrowserTest, RemotePowerwash) {
 
   em::RemoteCommand command;
   command.set_type(em::RemoteCommand_Type_DEVICE_REMOTE_POWERWASH);
-  command.set_command_id(kCommandId);
-  AddPendingRemoteCommand(command);
+  int64_t command_id = AddPendingRemoteCommand(command);
 
   InitializePolicyManager();
   TriggerRemoteCommandsFetch();
-  em::RemoteCommandResult result = WaitForResult(kCommandId);
+  em::RemoteCommandResult result = WaitForResult(command_id);
 
   EXPECT_EQ(result.result(), em::RemoteCommandResult_ResultType_RESULT_SUCCESS);
   const Record& update_record = GetNextOsEventsRecord(&observer);
+  ASSERT_TRUE(update_record.has_source_info());
+  EXPECT_THAT(update_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
   OsEventsRecord update_record_data;
   ASSERT_TRUE(update_record_data.ParseFromString(update_record.data()));
 

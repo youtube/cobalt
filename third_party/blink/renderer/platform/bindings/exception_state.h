@@ -52,37 +52,6 @@ class PLATFORM_EXPORT ExceptionState {
   STACK_ALLOCATED();
 
  public:
-  // TODO(peria): Replace following enum aliases.
-  using ContextType = ExceptionContext::Context;
-  static constexpr ContextType kConstructionContext =
-      ExceptionContext::Context::kConstructorOperationInvoke;
-  static constexpr ContextType kExecutionContext =
-      ExceptionContext::Context::kOperationInvoke;
-  static constexpr ContextType kDeletionContext =
-      ExceptionContext::Context::kNamedPropertyDelete;
-  static constexpr ContextType kGetterContext =
-      ExceptionContext::Context::kAttributeGet;
-  static constexpr ContextType kSetterContext =
-      ExceptionContext::Context::kAttributeSet;
-  static constexpr ContextType kEnumerationContext =
-      ExceptionContext::Context::kNamedPropertyEnumerate;
-  static constexpr ContextType kQueryContext =
-      ExceptionContext::Context::kNamedPropertyQuery;
-  static constexpr ContextType kIndexedGetterContext =
-      ExceptionContext::Context::kIndexedPropertyGet;
-  static constexpr ContextType kIndexedSetterContext =
-      ExceptionContext::Context::kIndexedPropertySet;
-  static constexpr ContextType kIndexedDeletionContext =
-      ExceptionContext::Context::kIndexedPropertyDelete;
-  static constexpr ContextType kNamedGetterContext =
-      ExceptionContext::Context::kNamedPropertyGet;
-  static constexpr ContextType kNamedSetterContext =
-      ExceptionContext::Context::kNamedPropertySet;
-  static constexpr ContextType kNamedDeletionContext =
-      ExceptionContext::Context::kNamedPropertyDelete;
-  static constexpr ContextType kUnknownContext =
-      ExceptionContext::Context::kUnknown;
-
   // ContextScope represents a stack of ExceptionContext in order to represent
   // nested exception contexts such like an IDL dictionary in another IDL
   // dictionary.
@@ -136,7 +105,7 @@ class PLATFORM_EXPORT ExceptionState {
       : main_context_(std::move(context)), isolate_(isolate) {}
 
   ExceptionState(v8::Isolate* isolate,
-                 ContextType context_type,
+                 ExceptionContextType context_type,
                  const char* interface_name,
                  const char* property_name)
       : ExceptionState(
@@ -144,10 +113,22 @@ class PLATFORM_EXPORT ExceptionState {
             ExceptionContext(context_type, interface_name, property_name)) {}
 
   ExceptionState(v8::Isolate* isolate,
-                 ContextType context_type,
+                 ExceptionContextType context_type,
                  const char* interface_name)
       : ExceptionState(isolate,
                        ExceptionContext(context_type, interface_name)) {}
+
+  // This constructor opts in to special handling for a dynamic `property_name`,
+  // which is only needed for named and indexed interceptors.
+  enum ForInterceptor { kForInterceptor };
+  ExceptionState(v8::Isolate* isolate,
+                 ExceptionContextType context_type,
+                 const char* interface_name,
+                 const AtomicString& property_name,
+                 ExceptionState::ForInterceptor)
+      : ExceptionState(
+            isolate,
+            ExceptionContext(context_type, interface_name, property_name)) {}
 
   ExceptionState(const ExceptionState&) = delete;
   ExceptionState& operator=(const ExceptionState&) = delete;
@@ -304,7 +285,7 @@ class PLATFORM_EXPORT DummyExceptionStateForTesting final
  public:
   DummyExceptionStateForTesting()
       : ExceptionState(nullptr,
-                       ExceptionState::kUnknownContext,
+                       ExceptionContextType::kUnknown,
                        nullptr,
                        nullptr) {}
   ~DummyExceptionStateForTesting() {

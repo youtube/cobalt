@@ -7,9 +7,10 @@ package org.chromium.chrome.browser.ntp;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelFilter;
@@ -86,7 +87,7 @@ public class RecentlyClosedBridge implements RecentlyClosedTabManager {
         assert mTabModelSelector.getModel(tabModel.isIncognito()) == tabModel;
         TabModelFilter filter = mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
                 tabModel.isIncognito());
-        if (!(filter instanceof TabGroupModelFilter)) return;
+        assert filter instanceof TabGroupModelFilter;
 
         TabGroupModelFilter groupFilter = (TabGroupModelFilter) filter;
         for (int id : tabIds) {

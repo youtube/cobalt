@@ -9,16 +9,20 @@
 #include "base/debug/stack_trace.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/ash/arc/input_overlay/ui/action_view.h"
+#include "chrome/browser/ash/arc/input_overlay/util.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/focus_ring.h"
+#include "ui/views/widget/widget.h"
 
 namespace arc::input_overlay {
 
@@ -58,9 +62,9 @@ constexpr SkColor kCenterColorDrag30White =
 
 // Draw the cross shape path with round corner. It starts from bottom to up on
 // line #0 and draws clock-wisely.
-// |overall_length| is the total length of one side excluding the stroke
-// thickness. |mid_length| is the length of the middle part which is close to
-// the one third of |overall_length|.
+// `overall_length` is the total length of one side excluding the stroke
+// thickness. `mid_length` is the length of the middle part which is close to
+// the one third of `overall_length`.
 //      __
 //   _0^  |__
 //  |__    __|
@@ -117,23 +121,17 @@ SkPath DrawCrossPath(SkScalar overall_length,
   return path;
 }
 
-SkPath DrawCrossCenter(gfx::Canvas* canvas) {
+SkPath DrawCrossCenter() {
   return DrawCrossPath(
       /*overall_length=*/SkIntToScalar(kCrossCenterLength),
       /*mid_length=*/SkIntToScalar(kCrossCenterMiddleLength),
       /*corner_radius=*/SkIntToScalar(kCrossCornerRadius),
-      /*out_stroke_thickness=*/SkIntToScalar(0));
+      /*out_stroke_thickness=*/
+      SkIntToScalar(kCrossOutsideStrokeThickness +
+                    kCrossInsideStrokeThickness));
 }
 
-SkPath DrawCrossInsideStroke(gfx::Canvas* canvas) {
-  return DrawCrossPath(
-      /*overall_length=*/SkIntToScalar(kCrossCenterLength),
-      /*mid_length=*/SkIntToScalar(kCrossCenterMiddleLength),
-      /*corner_radius=*/SkIntToScalar(kCrossCornerRadius),
-      /*out_stroke_thickness=*/SkIntToScalar(kCrossInsideStrokeThickness));
-}
-
-SkPath DrawCrossOutsideStroke(gfx::Canvas* canvas) {
+SkPath DrawCrossOutsideStroke() {
   return DrawCrossPath(
       /*overall_length=*/SkIntToScalar(kCrossCenterLength +
                                        2 * kCrossInsideStrokeThickness),
@@ -143,306 +141,6 @@ SkPath DrawCrossOutsideStroke(gfx::Canvas* canvas) {
       /*out_stroke_thickness=*/SkIntToScalar(kCrossOutsideStrokeThickness));
 }
 
-class Background : public views::Background {
- public:
-  explicit Background(SkColor color) { SetNativeControlColor(color); }
-  ~Background() override = default;
-};
-
-class CrossCenterBackground : public Background {
- public:
-  explicit CrossCenterBackground(SkColor color) : Background(color) {}
-  ~CrossCenterBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kFill_Style);
-    flags.setColor(get_color());
-    canvas->DrawPath(DrawCrossCenter(canvas), flags);
-  }
-};
-
-class DotCenterBackground : public Background {
- public:
-  explicit DotCenterBackground(SkColor color) : Background(color) {}
-  ~DotCenterBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kFill_Style);
-    flags.setColor(get_color());
-    int radius = kDotCenterDiameter / 2;
-    canvas->DrawCircle(gfx::Point(radius, radius), radius, flags);
-  }
-};
-
-class CrossInsideStrokeBackground : public Background {
- public:
-  explicit CrossInsideStrokeBackground(SkColor color) : Background(color) {}
-  ~CrossInsideStrokeBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(kCrossInsideStrokeThickness);
-    flags.setColor(get_color());
-    canvas->DrawPath(DrawCrossInsideStroke(canvas), flags);
-  }
-};
-
-class DotInsideStrokeBackground : public Background {
- public:
-  explicit DotInsideStrokeBackground(SkColor color) : Background(color) {}
-  ~DotInsideStrokeBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(kDotInsideStrokeThickness);
-    flags.setColor(get_color());
-    int radius = kDotCenterDiameter / 2;
-    int center = radius + kDotInsideStrokeThickness;
-    canvas->DrawCircle(gfx::Point(center, center), radius, flags);
-  }
-};
-
-class CrossOutsideStrokeBackground : public Background {
- public:
-  explicit CrossOutsideStrokeBackground(SkColor color) : Background(color) {}
-  ~CrossOutsideStrokeBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(kCrossOutsideStrokeThickness);
-    flags.setColor(kOutsideStrokeColor);
-    canvas->DrawPath(DrawCrossOutsideStroke(canvas), flags);
-  }
-};
-
-class DotOutsideStrokeBackground : public Background {
- public:
-  explicit DotOutsideStrokeBackground(SkColor color) : Background(color) {}
-  ~DotOutsideStrokeBackground() override = default;
-
-  void Paint(gfx::Canvas* canvas, views::View* view) const override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setStyle(cc::PaintFlags::kStroke_Style);
-    flags.setStrokeWidth(kDotOutsideStrokeThickness);
-    flags.setColor(get_color());
-    int radius = kDotCenterDiameter / 2 + kDotInsideStrokeThickness;
-    int center = radius + kDotOutsideStrokeThickness;
-    canvas->DrawCircle(gfx::Point(center, center), radius, flags);
-  }
-};
-
-class CrossCenter : public TouchPointElement {
- public:
-  CrossCenter() {
-    SetToDefault();
-    int temp = kCrossInsideStrokeThickness + kCrossOutsideStrokeThickness;
-    SetPosition(gfx::Point(temp, temp));
-    SetSize(gfx::Size(kCrossCenterLength, kCrossCenterLength));
-  }
-  ~CrossCenter() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(std::make_unique<CrossCenterBackground>(kCenterColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(std::make_unique<CrossCenterBackground>(
-        color_utils::GetResultingPaintColor(kCenterColorHover20White,
-                                            kCenterColor)));
-  }
-
-  void SetToDrag() override {
-    SetBackground(std::make_unique<CrossCenterBackground>(
-        color_utils::GetResultingPaintColor(kCenterColorDrag30White,
-                                            kCenterColor)));
-  }
-};
-
-class DotCenter : public TouchPointElement {
- public:
-  DotCenter() {
-    SetToDefault();
-    int temp = kDotOutsideStrokeThickness + kDotInsideStrokeThickness;
-    SetPosition(gfx::Point(temp, temp));
-    SetSize(gfx::Size(kDotCenterDiameter, kDotCenterDiameter));
-  }
-  ~DotCenter() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(std::make_unique<DotCenterBackground>(kCenterColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(std::make_unique<DotCenterBackground>(
-        color_utils::GetResultingPaintColor(kCenterColorHover20White,
-                                            kCenterColor)));
-  }
-
-  void SetToDrag() override {
-    SetBackground(std::make_unique<DotCenterBackground>(
-        color_utils::GetResultingPaintColor(kCenterColorDrag30White,
-                                            kCenterColor)));
-  }
-};
-
-// Because inside stroke is on top of the touch point. Use the inside stroke to
-// forward the mouse and gesture events to its parent which is touch point.
-class InsideStroke : public TouchPointElement {
- public:
-  InsideStroke() = default;
-  ~InsideStroke() override = default;
-
-  // views::View:
-  void OnMouseEntered(const ui::MouseEvent& event) override {
-    static_cast<TouchPoint*>(parent())->ApplyMouseEntered(event);
-  }
-
-  void OnMouseExited(const ui::MouseEvent& event) override {
-    static_cast<TouchPoint*>(parent())->ApplyMouseExited(event);
-  }
-
-  bool OnMousePressed(const ui::MouseEvent& event) override {
-    return static_cast<TouchPoint*>(parent())->ApplyMousePressed(event);
-  }
-
-  bool OnMouseDragged(const ui::MouseEvent& event) override {
-    return static_cast<TouchPoint*>(parent())->ApplyMouseDragged(event);
-  }
-
-  void OnMouseReleased(const ui::MouseEvent& event) override {
-    static_cast<TouchPoint*>(parent())->ApplyMouseReleased(event);
-  }
-
-  void OnGestureEvent(ui::GestureEvent* event) override {
-    return static_cast<TouchPoint*>(parent())->ApplyGestureEvent(event);
-  }
-};
-
-class CrossInsideStroke : public InsideStroke {
- public:
-  CrossInsideStroke() {
-    SetToDefault();
-    int temp = kCrossOutsideStrokeThickness;
-    SetPosition(gfx::Point(temp, temp));
-    temp = kCrossCenterLength + 2 * kCrossInsideStrokeThickness;
-    SetSize(gfx::Size(temp, temp));
-  }
-  ~CrossInsideStroke() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(
-        std::make_unique<CrossInsideStrokeBackground>(kInsideStrokeColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(
-        std::make_unique<CrossInsideStrokeBackground>(kInsideStrokeColorHover));
-  }
-
-  void SetToDrag() override {
-    SetBackground(
-        std::make_unique<CrossInsideStrokeBackground>(kInsideStrokeColorDrag));
-  }
-};
-
-class DotInsideStroke : public InsideStroke {
- public:
-  DotInsideStroke() {
-    SetToDefault();
-    int temp = kDotOutsideStrokeThickness;
-    SetPosition(gfx::Point(temp, temp));
-    temp = kDotCenterDiameter + 2 * kDotInsideStrokeThickness;
-    SetSize(gfx::Size(temp, temp));
-  }
-  ~DotInsideStroke() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(
-        std::make_unique<DotInsideStrokeBackground>(kInsideStrokeColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(
-        std::make_unique<DotInsideStrokeBackground>(kInsideStrokeColorHover));
-  }
-
-  void SetToDrag() override {
-    SetBackground(
-        std::make_unique<DotInsideStrokeBackground>(kInsideStrokeColorDrag));
-  }
-};
-
-class CrossOutsideStroke : public TouchPointElement {
- public:
-  CrossOutsideStroke() {
-    SetToDefault();
-    SetPosition(gfx::Point(0, 0));
-    int temp = kCrossCenterLength + 2 * kCrossInsideStrokeThickness +
-               2 * kCrossOutsideStrokeThickness;
-    SetSize(gfx::Size(temp, temp));
-  }
-  ~CrossOutsideStroke() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(
-        std::make_unique<CrossOutsideStrokeBackground>(kOutsideStrokeColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(std::make_unique<CrossOutsideStrokeBackground>(
-        kOutsideStrokeColorHover));
-  }
-
-  void SetToDrag() override {
-    SetBackground(std::make_unique<CrossOutsideStrokeBackground>(
-        kOutsideStrokeColorDrag));
-  }
-};
-
-class DotOutsideStroke : public TouchPointElement {
- public:
-  DotOutsideStroke() {
-    SetToDefault();
-    SetPosition(gfx::Point(0, 0));
-    int temp = kDotCenterDiameter + 2 * kDotInsideStrokeThickness +
-               2 * kDotOutsideStrokeThickness;
-    SetSize(gfx::Size(temp, temp));
-  }
-  ~DotOutsideStroke() override = default;
-
-  // TouchPointElement:
-  void SetToDefault() override {
-    SetBackground(
-        std::make_unique<DotOutsideStrokeBackground>(kOutsideStrokeColor));
-  }
-
-  void SetToHover() override {
-    SetBackground(
-        std::make_unique<DotOutsideStrokeBackground>(kOutsideStrokeColorHover));
-  }
-
-  void SetToDrag() override {
-    SetBackground(
-        std::make_unique<DotOutsideStrokeBackground>(kOutsideStrokeColorDrag));
-  }
-};
-
 class CrossTouchPoint : public TouchPoint {
  public:
   explicit CrossTouchPoint(const gfx::Point& center_pos)
@@ -451,12 +149,6 @@ class CrossTouchPoint : public TouchPoint {
 
   // TouchPoint:
   void Init() override {
-    touch_outside_stroke_ =
-        AddChildView(std::make_unique<CrossOutsideStroke>());
-    touch_center_ = AddChildView(std::make_unique<CrossCenter>());
-    // Put the inside stroke on top purposely because the thickness is only 1
-    // and it doesn't show up obviously probably due to the round issue.
-    touch_inside_stroke_ = AddChildView(std::make_unique<CrossInsideStroke>());
     SetAccessibilityProperties(
         ax::mojom::Role::kGroup,
         l10n_util::GetStringUTF16(
@@ -471,6 +163,26 @@ class CrossTouchPoint : public TouchPoint {
                2 * kCrossOutsideStrokeThickness;
     return gfx::Size(size, size);
   }
+
+  void OnPaintBackground(gfx::Canvas* canvas) override {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+
+    // Draw outside stroke.
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(kCrossOutsideStrokeThickness);
+    flags.setColor(GetOutsideStrokeColor());
+    canvas->DrawPath(DrawCrossOutsideStroke(), flags);
+    // Draw center.
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(GetCenterColor());
+    canvas->DrawPath(DrawCrossCenter(), flags);
+    // Draw inside stroke.
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(kCrossInsideStrokeThickness);
+    flags.setColor(GetInsideStrokeColor());
+    canvas->DrawPath(DrawCrossCenter(), flags);
+  }
 };
 
 class DotTouchPoint : public TouchPoint {
@@ -481,11 +193,6 @@ class DotTouchPoint : public TouchPoint {
 
   // TouchPoint:
   void Init() override {
-    touch_outside_stroke_ = AddChildView(std::make_unique<DotOutsideStroke>());
-    touch_center_ = AddChildView(std::make_unique<DotCenter>());
-    // Put the inside stroke on top purposely because the thickness is only 1
-    // and it doesn't show up obviously probably due to the round issue.
-    touch_inside_stroke_ = AddChildView(std::make_unique<DotInsideStroke>());
     SetAccessibilityProperties(
         ax::mojom::Role::kGroup,
         l10n_util::GetStringUTF16(
@@ -500,16 +207,33 @@ class DotTouchPoint : public TouchPoint {
                2 * kDotOutsideStrokeThickness;
     return gfx::Size(size, size);
   }
+
+  void OnPaintBackground(gfx::Canvas* canvas) override {
+    cc::PaintFlags flags;
+    flags.setAntiAlias(true);
+    int radius = kDotCenterDiameter / 2;
+    int center =
+        radius + kDotInsideStrokeThickness + kDotOutsideStrokeThickness;
+
+    // Draw outside stroke.
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(kDotOutsideStrokeThickness);
+    flags.setColor(GetOutsideStrokeColor());
+    canvas->DrawCircle(gfx::Point(center, center),
+                       radius + kDotInsideStrokeThickness, flags);
+    // Draw center.
+    flags.setStyle(cc::PaintFlags::kFill_Style);
+    flags.setColor(GetCenterColor());
+    canvas->DrawCircle(gfx::Point(center, center), radius, flags);
+    // Draw inside stroke.
+    flags.setStyle(cc::PaintFlags::kStroke_Style);
+    flags.setStrokeWidth(kDotInsideStrokeThickness);
+    flags.setColor(GetInsideStrokeColor());
+    canvas->DrawCircle(gfx::Point(center, center), radius, flags);
+  }
 };
 
 }  // namespace
-
-TouchPointElement::TouchPointElement() = default;
-TouchPointElement::~TouchPointElement() = default;
-
-ui::Cursor TouchPointElement::GetCursor(const ui::MouseEvent& event) {
-  return ui::mojom::CursorType::kHand;
-}
 
 // static
 TouchPoint* TouchPoint::Show(views::View* parent,
@@ -574,47 +298,35 @@ void TouchPoint::OnCenterPositionChanged(const gfx::Point& point) {
                          std::max(0, center_pos_.y() - size().height() / 2)));
 }
 
-void TouchPoint::SetToDefault() {
-  touch_outside_stroke_->SetToDefault();
-  touch_inside_stroke_->SetToDefault();
-  touch_center_->SetToDefault();
+ui::Cursor TouchPoint::GetCursor(const ui::MouseEvent& event) {
+  return ui::mojom::CursorType::kHand;
 }
 
-void TouchPoint::SetToHover() {
-  touch_outside_stroke_->SetToHover();
-  touch_inside_stroke_->SetToHover();
-  touch_center_->SetToHover();
-}
-
-void TouchPoint::SetToDrag() {
-  touch_outside_stroke_->SetToDrag();
-  touch_inside_stroke_->SetToDrag();
-  touch_center_->SetToDrag();
-}
-
-void TouchPoint::ApplyMouseEntered(const ui::MouseEvent& event) {
+void TouchPoint::OnMouseEntered(const ui::MouseEvent& event) {
   SetToHover();
 }
 
-void TouchPoint::ApplyMouseExited(const ui::MouseEvent& event) {
+void TouchPoint::OnMouseExited(const ui::MouseEvent& event) {
   SetToDefault();
 }
 
-bool TouchPoint::ApplyMousePressed(const ui::MouseEvent& event) {
-  return static_cast<ActionView*>(parent())->ApplyMousePressed(event);
+bool TouchPoint::OnMousePressed(const ui::MouseEvent& event) {
+  static_cast<ActionView*>(parent())->ApplyMousePressed(event);
+  return true;
 }
 
-bool TouchPoint::ApplyMouseDragged(const ui::MouseEvent& event) {
+bool TouchPoint::OnMouseDragged(const ui::MouseEvent& event) {
   auto* widget = GetWidget();
   // widget is null for test.
   if (widget) {
     widget->SetCursor(ui::mojom::CursorType::kGrabbing);
   }
   SetToDrag();
-  return static_cast<ActionView*>(parent())->ApplyMouseDragged(event);
+  static_cast<ActionView*>(parent())->ApplyMouseDragged(event);
+  return true;
 }
 
-void TouchPoint::ApplyMouseReleased(const ui::MouseEvent& event) {
+void TouchPoint::OnMouseReleased(const ui::MouseEvent& event) {
   auto* widget = GetWidget();
   // widget is null for test.
   if (widget) {
@@ -624,7 +336,7 @@ void TouchPoint::ApplyMouseReleased(const ui::MouseEvent& event) {
   static_cast<ActionView*>(parent())->ApplyMouseReleased(event);
 }
 
-void TouchPoint::ApplyGestureEvent(ui::GestureEvent* event) {
+void TouchPoint::OnGestureEvent(ui::GestureEvent* event) {
   switch (event->type()) {
     case ui::ET_GESTURE_SCROLL_BEGIN:
       SetToDrag();
@@ -660,6 +372,97 @@ void TouchPoint::OnFocus() {
 void TouchPoint::OnBlur() {
   static_cast<ActionView*>(parent())->RemoveMessage();
 }
+
+SkColor TouchPoint::GetCenterColor() {
+  ui::ColorProvider* color_provider = GetColorProvider();
+  switch (ui_state_) {
+    case UIState::kDefault:
+      return IsBeta() ? color_provider->GetColor(cros_tokens::kCrosRefPrimary70)
+                      : kCenterColor;
+    case UIState::kHover:
+      return IsBeta() ? color_provider->GetColor(cros_tokens::kCrosRefPrimary80)
+                      : color_utils::GetResultingPaintColor(
+                            kCenterColorHover20White, kCenterColor);
+    case UIState::kDrag:
+      return IsBeta() ? color_provider->GetColor(cros_tokens::kCrosRefPrimary60)
+                      : color_utils::GetResultingPaintColor(
+                            kCenterColorDrag30White, kCenterColor);
+    default:
+      NOTREACHED();
+  }
+}
+
+SkColor TouchPoint::GetInsideStrokeColor() {
+  ui::ColorProvider* color_provider = GetColorProvider();
+  switch (ui_state_) {
+    case UIState::kDefault:
+      return IsBeta() ? SkColorSetA(color_provider->GetColor(
+                                        cros_tokens::kCrosRefNeutral100),
+                                    0x99 /*60%*/)
+                      : kInsideStrokeColor;
+    case UIState::kHover:
+      return IsBeta() ? SkColorSetA(color_provider->GetColor(
+                                        cros_tokens::kCrosRefNeutral100),
+                                    0x99 /*60%*/)
+                      : kInsideStrokeColorHover;
+    case UIState::kDrag:
+      return IsBeta() ? color_provider->GetColor(cros_tokens::kCrosRefNeutral90)
+                      : kInsideStrokeColorDrag;
+    default:
+      NOTREACHED();
+  }
+}
+
+SkColor TouchPoint::GetOutsideStrokeColor() {
+  ui::ColorProvider* color_provider = GetColorProvider();
+  switch (ui_state_) {
+    case UIState::kDefault:
+      return IsBeta()
+                 ? SkColorSetA(
+                       color_provider->GetColor(cros_tokens::kCrosSysSurface5),
+                       0xB3 /*70%*/)
+                 : kOutsideStrokeColor;
+    case UIState::kHover:
+      return IsBeta()
+                 ? SkColorSetA(
+                       color_provider->GetColor(cros_tokens::kCrosSysSurface5),
+                       0xB3 /*70%*/)
+                 : kOutsideStrokeColorHover;
+    case UIState::kDrag:
+      return IsBeta()
+                 ? SkColorSetA(
+                       color_provider->GetColor(cros_tokens::kCrosRefPrimary30),
+                       0x99 /*60%*/)
+                 : kOutsideStrokeColorDrag;
+    default:
+      NOTREACHED();
+  }
+}
+
+void TouchPoint::SetToDefault() {
+  if (ui_state_ == UIState::kDefault) {
+    return;
+  }
+  ui_state_ = UIState::kDefault;
+  SchedulePaint();
+}
+
+void TouchPoint::SetToHover() {
+  if (ui_state_ == UIState::kHover) {
+    return;
+  }
+  ui_state_ = UIState::kHover;
+  SchedulePaint();
+}
+
+void TouchPoint::SetToDrag() {
+  if (ui_state_ == UIState::kDrag) {
+    return;
+  }
+  ui_state_ = UIState::kDrag;
+  SchedulePaint();
+}
+
 BEGIN_METADATA(TouchPoint, views::View)
 END_METADATA
 

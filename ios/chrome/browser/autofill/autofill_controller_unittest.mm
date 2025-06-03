@@ -7,20 +7,20 @@
 
 #import <UIKit/UIKit.h>
 
-#import "base/guid.h"
+#import "base/apple/foundation_util.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/memory/ptr_util.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/task/thread_pool/thread_pool_instance.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/histogram_tester.h"
+#import "base/uuid.h"
 #import "components/autofill/core/browser/browser_autofill_manager.h"
 #import "components/autofill/core/browser/form_structure.h"
 #import "components/autofill/core/browser/metrics/autofill_metrics.h"
 #import "components/autofill/core/browser/personal_data_manager.h"
 #import "components/autofill/core/browser/test_autofill_manager_waiter.h"
-#import "components/autofill/core/browser/webdata/autofill_entry.h"
+#import "components/autofill/core/browser/webdata/autocomplete_entry.h"
 #import "components/autofill/core/common/autofill_clock.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/ios/browser/autofill_agent.h"
@@ -38,15 +38,15 @@
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
 #import "ios/chrome/browser/autofill/form_suggestion_controller.h"
 #import "ios/chrome/browser/autofill/personal_data_manager_factory.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/infobars/infobar_manager_impl.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/passwords/password_controller.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/password_controller.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/ui/autofill/chrome_autofill_client_ios.h"
 #import "ios/chrome/browser/ui/autofill/form_input_accessory/form_input_accessory_mediator.h"
 #import "ios/chrome/browser/ui/settings/personal_data_manager_finished_profile_tasks_waiter.h"
 #import "ios/chrome/browser/web/chrome_web_client.h"
-#import "ios/chrome/browser/webdata_services/web_data_service_factory.h"
+#import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
@@ -59,10 +59,6 @@
 #import "ios/web/public/web_state.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Real FormSuggestionController is wrapped to register the addition of
 // suggestions.
@@ -169,9 +165,9 @@ void CheckField(const FormStructure& form,
   FAIL() << "Missing field " << name;
 }
 
-AutofillEntry CreateAutofillEntry(const std::u16string& value) {
+AutocompleteEntry CreateAutocompleteEntry(const std::u16string& value) {
   const base::Time kNow = AutofillClock::Now();
-  return AutofillEntry(AutofillKey(u"Name", value), kNow, kNow);
+  return AutocompleteEntry(AutocompleteKey(u"Name", value), kNow, kNow);
 }
 
 // Forces rendering of a UIView. This is used in tests to make sure that UIKit
@@ -199,10 +195,11 @@ class TestConsumer : public WebDataServiceConsumer {
       WebDataServiceBase::Handle handle,
       std::unique_ptr<WDTypedResult> result) override {
     DCHECK_EQ(result->GetType(), AUTOFILL_VALUE_RESULT);
-    result_ = static_cast<WDResult<std::vector<AutofillEntry>>*>(result.get())
-                  ->GetValue();
+    result_ =
+        static_cast<WDResult<std::vector<AutocompleteEntry>>*>(result.get())
+            ->GetValue();
   }
-  std::vector<AutofillEntry> result_;
+  std::vector<AutocompleteEntry> result_;
 };
 
 // Text fixture to test autofill.
@@ -211,7 +208,7 @@ class AutofillControllerTest : public PlatformTest {
   AutofillControllerTest() : web_client_(std::make_unique<ChromeWebClient>()) {
     TestChromeBrowserState::Builder builder;
     builder.AddTestingFactory(
-        IOSChromePasswordStoreFactory::GetInstance(),
+        IOSChromeProfilePasswordStoreFactory::GetInstance(),
         base::BindRepeating(&password_manager::BuildPasswordStoreInterface<
                             web::BrowserState,
                             password_manager::MockPasswordStoreInterface>));
@@ -336,16 +333,12 @@ void AutofillControllerTest::SetUp() {
   infobars::InfoBarManager* infobar_manager =
       InfoBarManagerImpl::FromWebState(web_state());
   autofill_client_ = std::make_unique<TestAutofillClient>(
-      browser_state_.get(), web_state(), infobar_manager, autofill_agent_,
-      /*password_generation_manager=*/nullptr);
+      browser_state_.get(), web_state(), infobar_manager, autofill_agent_);
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillUseAlternativeStateNameMap)) {
-    autofill_client_->GetPersonalDataManager()
-        ->personal_data_manager_cleaner_for_testing()
-        ->alternative_state_name_map_updater_for_testing()
-        ->set_local_state_for_testing(local_state_.Get());
-  }
+  autofill_client_->GetPersonalDataManager()
+      ->personal_data_manager_cleaner_for_testing()
+      ->alternative_state_name_map_updater_for_testing()
+      ->set_local_state_for_testing(local_state_.Get());
 
   std::string locale("en");
   autofill::AutofillDriverIOSFactory::CreateForWebState(
@@ -368,10 +361,11 @@ void AutofillControllerTest::SetUp() {
   [accessory_mediator_ injectWebState:web_state()];
   [accessory_mediator_ injectProvider:suggestion_controller_];
 
-  histogram_tester_.reset(new base::HistogramTester());
+  histogram_tester_ = std::make_unique<base::HistogramTester>();
 }
 
 void AutofillControllerTest::TearDown() {
+  [accessory_mediator_ disconnect];
   [suggestion_controller_ detachFromWebState];
 
   web::test::WaitForBackgroundTasks();
@@ -418,7 +412,8 @@ void AutofillControllerTest::ExpectHappinessMetric(
 }
 
 void AutofillControllerTest::WaitForCondition(ConditionBlock condition) {
-  base::test::ios::WaitUntilCondition(condition, true, base::Seconds(1000));
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(1000),
+                                                           true, condition));
 }
 
 // Checks that viewing an HTML page containing a form results in the form being
@@ -429,10 +424,10 @@ TEST_F(AutofillControllerTest, ReadForm) {
       AutofillJavaScriptFeature::GetInstance()->GetWebFramesManager(
           web_state());
   web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
-  BrowserAutofillManager* autofill_manager =
+  BrowserAutofillManager& autofill_manager =
       AutofillDriverIOS::FromWebStateAndWebFrame(web_state(), main_frame)
-          ->autofill_manager();
-  const auto& forms = autofill_manager->form_structures();
+          ->GetAutofillManager();
+  const auto& forms = autofill_manager.form_structures();
   const auto& form = *(forms.begin()->second);
   CheckField(form, NAME_FULL, "name");
   CheckField(form, ADDRESS_HOME_LINE1, "address");
@@ -452,10 +447,10 @@ TEST_F(AutofillControllerTest, ReadFormName) {
       AutofillJavaScriptFeature::GetInstance()->GetWebFramesManager(
           web_state());
   web::WebFrame* main_frame = frames_manager->GetMainWebFrame();
-  BrowserAutofillManager* autofill_manager =
+  BrowserAutofillManager& autofill_manager =
       AutofillDriverIOS::FromWebStateAndWebFrame(web_state(), main_frame)
-          ->autofill_manager();
-  const auto& forms = autofill_manager->form_structures();
+          ->GetAutofillManager();
+  const auto& forms = autofill_manager.form_structures();
   const auto& form = *(forms.begin()->second);
   EXPECT_EQ(u"form1", form.ToFormData().name);
 }
@@ -506,14 +501,16 @@ void AutofillControllerTest::SetUpForSuggestions(
   PersonalDataManager* personal_data_manager =
       PersonalDataManagerFactory::GetForBrowserState(
           ChromeBrowserState::FromBrowserState(browser_state_.get()));
-  AutofillProfile profile(base::GenerateGUID(), "https://www.example.com/");
+  AutofillProfile profile;
   profile.SetRawInfo(NAME_FULL, u"Homer Simpson");
   profile.SetRawInfo(ADDRESS_HOME_LINE1, u"123 Main Street");
   profile.SetRawInfo(ADDRESS_HOME_CITY, u"Springfield");
   profile.SetRawInfo(ADDRESS_HOME_STATE, u"IL");
   profile.SetRawInfo(ADDRESS_HOME_ZIP, u"55123");
   EXPECT_EQ(0U, personal_data_manager->GetProfiles().size());
-  personal_data_manager->SaveImportedProfile(profile);
+  PersonalDataManagerFinishedProfileTasksWaiter waiter(personal_data_manager);
+  personal_data_manager->AddProfile(profile);
+  waiter.Wait();
   EXPECT_EQ(1U, personal_data_manager->GetProfiles().size());
 
   ASSERT_TRUE(LoadHtmlAndWaitForFormFetched(data, expected_number_of_forms));
@@ -524,6 +521,11 @@ void AutofillControllerTest::SetUpForSuggestions(
 // suggestions being sent to the AutofillAgent, once data has been loaded into a
 // test data manager.
 TEST_F(AutofillControllerTest, ProfileSuggestions) {
+  if (@available(iOS 16.3, *)) {
+    // TODO(crbug.com/1442607): Re-enable when fixed on iOS16.3+.
+    return;
+  }
+
   SetUpForSuggestions(kProfileFormHtml, 1);
   ForceViewRendering(web_state()->GetView());
   ResetWaitForSuggestionRetrieval();
@@ -539,6 +541,11 @@ TEST_F(AutofillControllerTest, ProfileSuggestions) {
 // Tests that the system is able to offer suggestions for an anonymous form when
 // there is another anonymous form on the page.
 TEST_F(AutofillControllerTest, ProfileSuggestionsTwoAnonymousForms) {
+  if (@available(iOS 16.3, *)) {
+    // TODO(crbug.com/1442607): Re-enable when fixed on iOS16.3+.
+    return;
+  }
+
   SetUpForSuggestions(
       [NSString stringWithFormat:@"%@%@", kProfileFormHtml, kProfileFormHtml],
       2);
@@ -557,6 +564,11 @@ TEST_F(AutofillControllerTest, ProfileSuggestionsTwoAnonymousForms) {
 // in suggestions being sent to the AutofillAgent, once data has been loaded
 // into a test data manager.
 TEST_F(AutofillControllerTest, ProfileSuggestionsFromSelectField) {
+  if (@available(iOS 16.3, *)) {
+    // TODO(crbug.com/1442607): Re-enable when fixed on iOS16.3+.
+    return;
+  }
+
   SetUpForSuggestions(kProfileFormHtml, 1);
   ForceViewRendering(web_state()->GetView());
   ResetWaitForSuggestionRetrieval();
@@ -571,32 +583,37 @@ TEST_F(AutofillControllerTest, ProfileSuggestionsFromSelectField) {
 
 // Checks that multiple profiles will offer a matching number of suggestions.
 TEST_F(AutofillControllerTest, MultipleProfileSuggestions) {
+  if (@available(iOS 16.3, *)) {
+    // TODO(crbug.com/1442607): Re-enable when fixed on iOS16.3+.
+    return;
+  }
+
   PersonalDataManager* personal_data_manager =
       PersonalDataManagerFactory::GetForBrowserState(
           ChromeBrowserState::FromBrowserState(browser_state_.get()));
   personal_data_manager->SetSyncServiceForTest(nullptr);
-  PersonalDataManagerFinishedProfileTasksWaiter waiter(personal_data_manager);
 
-  AutofillProfile profile(base::GenerateGUID(), "https://www.example.com/");
+  AutofillProfile profile;
   profile.SetRawInfo(NAME_FULL, u"Homer Simpson");
   profile.SetRawInfo(ADDRESS_HOME_LINE1, u"123 Main Street");
   profile.SetRawInfo(ADDRESS_HOME_CITY, u"Springfield");
   profile.SetRawInfo(ADDRESS_HOME_STATE, u"IL");
   profile.SetRawInfo(ADDRESS_HOME_ZIP, u"55123");
-  EXPECT_EQ(0U, personal_data_manager->GetProfiles().size());
 
-  personal_data_manager->SaveImportedProfile(profile);
-  waiter.Wait();
-
-  EXPECT_EQ(1U, personal_data_manager->GetProfiles().size());
-  AutofillProfile profile2(base::GenerateGUID(), "https://www.example.com/");
+  AutofillProfile profile2;
   profile2.SetRawInfo(NAME_FULL, u"Larry Page");
   profile2.SetRawInfo(ADDRESS_HOME_LINE1, u"1600 Amphitheatre Parkway");
   profile2.SetRawInfo(ADDRESS_HOME_CITY, u"Mountain View");
   profile2.SetRawInfo(ADDRESS_HOME_STATE, u"CA");
   profile2.SetRawInfo(ADDRESS_HOME_ZIP, u"94043");
-  personal_data_manager->SaveImportedProfile(profile2);
+
+  EXPECT_EQ(0U, personal_data_manager->GetProfiles().size());
+  PersonalDataManagerFinishedProfileTasksWaiter waiter(personal_data_manager);
+  personal_data_manager->AddProfile(profile);
+  personal_data_manager->AddProfile(profile2);
+  waiter.Wait();
   EXPECT_EQ(2U, personal_data_manager->GetProfiles().size());
+
   EXPECT_TRUE(LoadHtmlAndWaitForFormFetched(kProfileFormHtml, 1));
   ForceViewRendering(web_state()->GetView());
   ResetWaitForSuggestionRetrieval();
@@ -619,9 +636,9 @@ TEST_F(AutofillControllerTest, KeyValueImport) {
           browser_state_.get(), ServiceAccessType::EXPLICIT_ACCESS);
   TestConsumer consumer;
   const int limit = 1;
-  consumer.result_ = {CreateAutofillEntry(u"Should"),
-                      CreateAutofillEntry(u"get"),
-                      CreateAutofillEntry(u"overwritten")};
+  consumer.result_ = {CreateAutocompleteEntry(u"Should"),
+                      CreateAutocompleteEntry(u"get"),
+                      CreateAutocompleteEntry(u"overwritten")};
   web_data_service->GetFormValuesForElementName(u"greeting", std::u16string(),
                                                 limit, &consumer);
   base::ThreadPoolInstance::Get()->FlushForTesting();
@@ -785,13 +802,13 @@ TEST_F(AutofillControllerTest, CreditCardImport) {
   infobars::InfoBarManager* infobar_manager =
       InfoBarManagerImpl::FromWebState(web_state());
   WaitForCondition(^bool() {
-    return infobar_manager->infobar_count();
+    return infobar_manager->infobars().size();
   });
   ExpectMetric("Autofill.CreditCardInfoBar.Local",
                AutofillMetrics::INFOBAR_SHOWN);
-  ASSERT_EQ(1U, infobar_manager->infobar_count());
+  ASSERT_EQ(1U, infobar_manager->infobars().size());
   infobars::InfoBarDelegate* infobar =
-      infobar_manager->infobar_at(0)->delegate();
+      infobar_manager->infobars()[0]->delegate();
   ConfirmInfoBarDelegate* confirm_infobar = infobar->AsConfirmInfoBarDelegate();
 
   // This call cause a modification of the PersonalDataManager, so wait until

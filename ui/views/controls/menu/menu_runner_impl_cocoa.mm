@@ -8,7 +8,7 @@
 
 #include "base/i18n/rtl.h"
 #include "base/mac/mac_util.h"
-#import "base/message_loop/message_pump_mac.h"
+#import "base/message_loop/message_pump_apple.h"
 #include "base/numerics/safe_conversions.h"
 #import "skia/ext/skia_utils_mac.h"
 #import "ui/base/cocoa/menu_controller.h"
@@ -56,12 +56,11 @@ NSMenuItem* FirstCheckedItem(MenuControllerCocoa* menu_controller) {
 // with -[NSMenu popUpMenuPositioningItem:atLocation:inView:] to position the
 // menu for a combobox. The caller must remove the returned NSView from its
 // superview when the menu is closed.
-base::scoped_nsobject<NSView> CreateMenuAnchorView(
-    NSWindow* window,
-    const gfx::Rect& screen_bounds,
-    NSMenuItem* checked_item,
-    CGFloat actual_menu_width,
-    MenuAnchorPosition position) {
+NSView* CreateMenuAnchorView(NSWindow* window,
+                             const gfx::Rect& screen_bounds,
+                             NSMenuItem* checked_item,
+                             CGFloat actual_menu_width,
+                             MenuAnchorPosition position) {
   NSRect rect = gfx::ScreenRectToNSRect(screen_bounds);
   rect = [window convertRectFromScreen:rect];
   rect = [[window contentView] convertRect:rect fromView:nil];
@@ -100,10 +99,9 @@ base::scoped_nsobject<NSView> CreateMenuAnchorView(
     rect.origin.x -= width_diff;
   }
   // A plain NSView will anchor below rather than "over", so use an NSButton.
-  base::scoped_nsobject<NSView> anchor_view(
-      [[NSButton alloc] initWithFrame:rect]);
-  [anchor_view setHidden:YES];
-  [[window contentView] addSubview:anchor_view];
+  NSView* anchor_view = [[NSButton alloc] initWithFrame:rect];
+  anchor_view.hidden = YES;
+  [window.contentView addSubview:anchor_view];
   return anchor_view;
 }
 
@@ -112,8 +110,8 @@ base::scoped_nsobject<NSView> CreateMenuAnchorView(
 // otherwise creates an autoreleased dummy event located at |anchor|.
 NSEvent* EventForPositioningContextMenu(const gfx::Rect& anchor,
                                         NSWindow* window) {
-  NSEvent* event = [NSApp currentEvent];
-  switch ([event type]) {
+  NSEvent* event = NSApp.currentEvent;
+  switch (event.type) {
     case NSEventTypeLeftMouseDown:
     case NSEventTypeLeftMouseUp:
     case NSEventTypeRightMouseDown:
@@ -130,7 +128,7 @@ NSEvent* EventForPositioningContextMenu(const gfx::Rect& anchor,
                             location:location_in_window
                        modifierFlags:0
                            timestamp:0
-                        windowNumber:[window windowNumber]
+                        windowNumber:window.windowNumber
                              context:nil
                          eventNumber:0
                           clickCount:1
@@ -154,14 +152,13 @@ MenuRunnerImplInterface* MenuRunnerImplInterface::Create(
 }
 
 MenuRunnerImplCocoa::MenuRunnerImplCocoa(
-    ui::MenuModel* menu,
+    ui::MenuModel* menu_model,
     base::RepeatingClosure on_menu_closed_callback)
     : on_menu_closed_callback_(std::move(on_menu_closed_callback)) {
-  menu_delegate_.reset([[MenuControllerCocoaDelegateImpl alloc] init]);
-  menu_controller_.reset([[MenuControllerCocoa alloc]
-               initWithModel:menu
-                    delegate:menu_delegate_.get()
-      useWithPopUpButtonCell:NO]);
+  menu_delegate_ = [[MenuControllerCocoaDelegateImpl alloc] init];
+  menu_controller_ = [[MenuControllerCocoa alloc] initWithModel:menu_model
+                                                       delegate:menu_delegate_
+                                         useWithPopUpButtonCell:NO];
 }
 
 bool MenuRunnerImplCocoa::IsRunning() const {
@@ -180,7 +177,7 @@ void MenuRunnerImplCocoa::Release() {
     // it holds (which is not owned by |this|). Toolkit-views menus use
     // MenuRunnerImpl::empty_delegate_ to handle this case.
     [menu_controller_ cancel];
-    menu_controller_.reset();
+    menu_controller_ = nil;
   } else {
     delete this;
   }
@@ -196,9 +193,28 @@ void MenuRunnerImplCocoa::RunMenuAt(
     absl::optional<gfx::RoundedCornersF> corners) {
   DCHECK(!IsRunning());
   DCHECK(parent);
+
+  // If you call this method to present a menu and in your model's
+  // MenuWillShow() method you Cancel the menu, the cancel executes
+  // before the menu appears. If you immediately call RunMenuAt() again,
+  // -popUpContextMenu:withEvent:forView: will hang waiting for a menu
+  // tracking event. This occurs as of macOS 14, and this particular sequence
+  // occurs in the Views unittest "MenuRunnerCocoaTest.ComboboxAnchoring".
+  // Creating a fresh menu controller (with its fresh NSMenu) avoids the
+  // problem, and is the most natural fix for the test (vs. creating a
+  // MenuRunnerImplCocoa::CancelWithoutAnimation method that would be called
+  // in the test but never in production). Rebuilding the controller is
+  // harmless, and even though you would never cancel a menu before it appears
+  // in production code, the rebuild ensures there won't be any weirdness if
+  // the MenuRunner is reused.
+  BOOL useWithPopUpButtonCell = menu_controller_.useWithPopUpButtonCell;
+  menu_controller_ =
+      [[MenuControllerCocoa alloc] initWithModel:[menu_controller_ model]
+                                        delegate:menu_delegate_
+                          useWithPopUpButtonCell:useWithPopUpButtonCell];
+
   closing_event_time_ = base::TimeTicks();
   running_ = true;
-  [menu_delegate_ setAnchorRect:bounds];
 
   // Ensure the UI can update while the menu is fading out.
   base::ScopedPumpMessagesInPrivateModes pump_private;
@@ -220,8 +236,8 @@ void MenuRunnerImplCocoa::RunMenuAt(
   } else {
     CHECK(run_types & MenuRunner::COMBOBOX);
     NSMenuItem* const checked_item = FirstCheckedItem(menu_controller_);
-    base::scoped_nsobject<NSView> anchor_view(CreateMenuAnchorView(
-        window, bounds, checked_item, menu.size.width, anchor));
+    NSView* anchor_view = CreateMenuAnchorView(window, bounds, checked_item,
+                                               menu.size.width, anchor);
     [menu setMinimumWidth:bounds.width() + kNativeCheckmarkWidth];
     [menu popUpMenuPositioningItem:checked_item
                         atLocation:NSZeroPoint

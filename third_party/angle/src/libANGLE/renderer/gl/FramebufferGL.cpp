@@ -26,8 +26,8 @@
 #include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/formatutilsgl.h"
 #include "libANGLE/renderer/gl/renderergl_utils.h"
-#include "platform/FeaturesGL_autogen.h"
 #include "platform/PlatformMethods.h"
+#include "platform/autogen/FeaturesGL_autogen.h"
 
 using namespace gl;
 using angle::CheckedNumeric;
@@ -1372,8 +1372,8 @@ angle::Result FramebufferGL::syncState(const gl::Context *context,
 
     if (attachment && mState.id() == context->getState().getDrawFramebuffer()->id())
     {
-        stateManager->updateMultiviewBaseViewLayerIndexUniform(context->getState().getProgram(),
-                                                               getState());
+        stateManager->updateMultiviewBaseViewLayerIndexUniform(
+            context->getState().getProgramExecutable(), getState());
     }
 
     return angle::Result::Continue;

@@ -7,8 +7,8 @@
 
 #include "ash/webui/eche_app_ui/launch_app_helper.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image.h"
@@ -103,7 +103,8 @@ class LaunchedAppInfo {
   absl::optional<int64_t> user_id_;
   gfx::Image icon_;
   std::u16string phone_name_;
-  raw_ptr<AppsLaunchInfoProvider, ExperimentalAsh> apps_launch_info_provider_;
+  raw_ptr<AppsLaunchInfoProvider, DanglingUntriaged | ExperimentalAsh>
+      apps_launch_info_provider_;
 };
 
 // Factory to create a single EcheAppManager.
@@ -137,8 +138,10 @@ class EcheAppManagerFactory : public ProfileKeyedServiceFactory {
   EcheAppManagerFactory(const EcheAppManagerFactory&) = delete;
   EcheAppManagerFactory& operator=(const EcheAppManagerFactory&) = delete;
 
+  std::unique_ptr<SystemInfo> GetSystemInfo(Profile* profile) const;
+
  private:
-  friend struct base::DefaultSingletonTraits<EcheAppManagerFactory>;
+  friend base::NoDestructor<EcheAppManagerFactory>;
   friend class EcheAppManagerFactoryTest;
 
   EcheAppManagerFactory();
@@ -149,8 +152,6 @@ class EcheAppManagerFactory : public ProfileKeyedServiceFactory {
       content::BrowserContext* context) const override;
   void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* registry) override;
-
-  std::unique_ptr<SystemInfo> GetSystemInfo(Profile* profile) const;
 
   std::unique_ptr<LaunchedAppInfo> last_launched_app_info_;
 

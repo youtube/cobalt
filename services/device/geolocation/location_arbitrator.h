@@ -19,6 +19,7 @@
 #include "services/device/geolocation/network_location_provider.h"
 #include "services/device/geolocation/position_cache.h"
 #include "services/device/public/cpp/geolocation/location_provider.h"
+#include "services/device/public/mojom/geolocation_internals.mojom.h"
 #include "services/device/public/mojom/geoposition.mojom.h"
 #include "url/gurl.h"
 
@@ -52,7 +53,11 @@ class LocationArbitrator : public LocationProvider {
       const scoped_refptr<base::SingleThreadTaskRunner>& main_task_runner,
       const scoped_refptr<network::SharedURLLoaderFactory>& url_loader_factory,
       const std::string& api_key,
-      std::unique_ptr<PositionCache> position_cache);
+      std::unique_ptr<PositionCache> position_cache,
+      base::RepeatingClosure internals_updated_closure,
+      NetworkLocationProvider::NetworkRequestCallback network_request_callback,
+      NetworkLocationProvider::NetworkResponseCallback
+          network_response_callback);
   LocationArbitrator(const LocationArbitrator&) = delete;
   LocationArbitrator& operator=(const LocationArbitrator&) = delete;
   ~LocationArbitrator() override;
@@ -61,6 +66,7 @@ class LocationArbitrator : public LocationProvider {
   bool HasPermissionBeenGrantedForTest() const;
 
   // LocationProvider implementation.
+  void FillDiagnostics(mojom::GeolocationDiagnostics& diagnostics) override;
   void SetUpdateCallback(
       const LocationProviderUpdateCallback& callback) override;
   void StartProvider(bool enable_high_accuracy) override;
@@ -119,6 +125,12 @@ class LocationArbitrator : public LocationProvider {
   // The current best estimate of our position, or `nullptr` if no estimate has
   // been received.
   mojom::GeopositionResultPtr result_;
+  // To be called when a provider's internal diagnostics have changed.
+  base::RepeatingClosure internals_updated_closure_;
+  // Callbacks to be called by NetworkLocationProvider when network requests are
+  // sent and received.
+  NetworkLocationProvider::NetworkRequestCallback network_request_callback_;
+  NetworkLocationProvider::NetworkResponseCallback network_response_callback_;
 };
 
 // Factory functions for the various types of location provider to abstract

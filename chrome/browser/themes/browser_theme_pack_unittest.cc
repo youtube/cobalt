@@ -25,6 +25,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/color/color_mixer.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/color/color_recipe.h"
 #include "ui/color/color_test_ids.h"
 #include "ui/gfx/color_utils.h"
@@ -34,7 +35,7 @@
 
 using extensions::Extension;
 using TP = ThemeProperties;
-using ThemeType = ui::ColorProviderManager::ThemeInitializerSupplier::ThemeType;
+using ThemeType = ui::ColorProviderKey::ThemeInitializerSupplier::ThemeType;
 
 // Maps scale factors (enum values) to file path.
 // A similar typedef in BrowserThemePack is private.
@@ -116,9 +117,6 @@ class BrowserThemePackTest : public ::testing::Test {
   }
 
  private:
-  using ScopedSetSupportedScaleFactors =
-      std::unique_ptr<ui::test::ScopedSetSupportedResourceScaleFactors>;
-
   // Transformation for link underline colors.
   static SkColor BuildThirdOpacity(SkColor color_link);
 
@@ -130,7 +128,8 @@ class BrowserThemePackTest : public ::testing::Test {
                                         int tint,
                                         bool otr);
 
-  ScopedSetSupportedScaleFactors scoped_set_supported_scale_factors_;
+  ui::test::ScopedSetSupportedResourceScaleFactors
+      scoped_set_supported_scale_factors_{{ui::k100Percent, ui::k200Percent}};
 
   base::ScopedTempDir dir_;
   content::BrowserTaskEnvironment task_environment_;
@@ -139,12 +138,6 @@ class BrowserThemePackTest : public ::testing::Test {
 
 BrowserThemePackTest::BrowserThemePackTest()
     : theme_pack_(new BrowserThemePack(ThemeType::kExtension)) {
-  std::vector<ui::ResourceScaleFactor> scale_factors;
-  scale_factors.push_back(ui::k100Percent);
-  scale_factors.push_back(ui::k200Percent);
-  scoped_set_supported_scale_factors_ =
-      std::make_unique<ui::test::ScopedSetSupportedResourceScaleFactors>(
-          scale_factors);
   theme_pack_->InitEmptyPack();
 }
 
@@ -373,7 +366,6 @@ void BrowserThemePackTest::VerifyHiDpiTheme(BrowserThemePack* pack) {
 #if !BUILDFLAG(IS_MAC)
   EXPECT_FALSE(pack->HasCustomImage(IDR_THEME_TAB_BACKGROUND_INCOGNITO));
 #endif
-  EXPECT_FALSE(pack->HasCustomImage(IDR_THEME_TAB_BACKGROUND_V));
   EXPECT_FALSE(pack->HasCustomImage(IDR_THEME_NTP_BACKGROUND));
   EXPECT_FALSE(pack->HasCustomImage(IDR_THEME_FRAME_OVERLAY));
   EXPECT_FALSE(pack->HasCustomImage(IDR_THEME_FRAME_OVERLAY_INACTIVE));
@@ -756,7 +748,7 @@ TEST_F(BrowserThemePackTest, TestCreateColorMixersOmniboxAllValues) {
                                 "omnibox_text": [60, 80, 100],
                                 "omnibox_background": [120, 140, 160] })";
   LoadColorJSON(color_json);
-  theme_pack().AddColorMixers(&provider, ui::ColorProviderManager::Key());
+  theme_pack().AddColorMixers(&provider, ui::ColorProviderKey());
   provider.GenerateColorMap();
   EXPECT_EQ(SkColorSetRGB(0, 20, 40), provider.GetColor(kColorToolbar));
   EXPECT_EQ(SkColorSetRGB(60, 80, 100), provider.GetColor(kColorOmniboxText));
@@ -851,9 +843,9 @@ TEST_F(BrowserThemePackTest, TestWindowControlButtonBGColor_ButtonBGColor) {
   ASSERT_TRUE(has_button_bg_color);
   SkAlpha button_bg_alpha = SkColorGetA(button_bg_color);
 
-  // Account for the alpha modification that happens in Windows10CaptionButton.
+  // Account for the alpha modification that happens in WindowsCaptionButton.
   button_bg_alpha =
-      WindowFrameUtil::CalculateWindows10GlassCaptionButtonBackgroundAlpha(
+      WindowFrameUtil::CalculateWindowsCaptionButtonBackgroundAlpha(
           button_bg_alpha);
 
   struct CaptionButtonColorPair {

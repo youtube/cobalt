@@ -33,6 +33,10 @@ class ResourceManagerAsh : public mojom::ResourceManager,
   // crosapi::mojom::ResourceManager:
   void AddMemoryPressureObserver(
       mojo::PendingRemote<mojom::MemoryPressureObserver> observer) override;
+  void DEPRECATED_ReportBackgroundProcesses(
+      const std::vector<int32_t>& pids) override;
+  void ReportPageProcesses(
+      std::vector<mojom::PageProcessPtr> processes) override;
 
  private:
   // Support any number of connections.

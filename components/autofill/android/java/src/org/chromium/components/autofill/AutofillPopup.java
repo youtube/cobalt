@@ -83,8 +83,8 @@ public class AutofillPopup extends DropdownPopupWindow
         List<DropdownItem> cleanedData = new ArrayList<>();
         HashSet<Integer> separators = new HashSet<Integer>();
         for (int i = 0; i < suggestions.length; i++) {
-            int itemId = suggestions[i].getSuggestionId();
-            if (itemId == PopupItemId.ITEM_ID_SEPARATOR) {
+            int itemId = suggestions[i].getPopupItemId();
+            if (itemId == PopupItemId.SEPARATOR) {
                 separators.add(cleanedData.size());
             } else {
                 cleanedData.add(suggestions[i]);

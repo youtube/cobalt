@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,8 +45,14 @@ bool ConsecutiveSimilarFieldType(ServerFieldType current_type,
                                  ServerFieldType previous_type) {
   if (previous_type == current_type)
     return true;
-  if (AutofillType(current_type).group() == FieldTypeGroup::kName &&
-      AutofillType(previous_type).group() == FieldTypeGroup::kName) {
+  if (GroupTypeOfServerFieldType(current_type) == FieldTypeGroup::kName &&
+      GroupTypeOfServerFieldType(previous_type) == FieldTypeGroup::kName) {
+    return true;
+  }
+  if (ServerFieldTypeSet({ADDRESS_HOME_ZIP, ADDRESS_HOME_DEPENDENT_LOCALITY,
+                          ADDRESS_HOME_CITY, ADDRESS_HOME_ADMIN_LEVEL2,
+                          ADDRESS_HOME_STATE, ADDRESS_HOME_COUNTRY})
+          .contains_all({previous_type, current_type})) {
     return true;
   }
   return false;
@@ -55,9 +61,11 @@ bool ConsecutiveSimilarFieldType(ServerFieldType current_type,
 // Sectionable fields are all the fields that are in a non-default section.
 // Generally, only focusable fields are assigned a section. As an exception,
 // unfocusable <select> elements get a section, as hidden <select> elements are
-// common in custom select elements.
+// common in custom select elements. To confine the impact of hidden <select>
+// elements, this exception only applies if their type is actually autofillable.
 bool IsSectionable(const AutofillField& field) {
-  return field.IsFocusable() || field.form_control_type == "select-one";
+  return field.IsFocusable() ||
+         (field.IsSelectElement() && field.IsFieldFillable());
 }
 
 // Assign all credit card fields without a valid autocomplete attribute section
@@ -105,8 +113,7 @@ void AssignFieldIdentifierSections(
   }
 }
 
-void ExpandSections(base::span<const std::unique_ptr<AutofillField>> fields,
-                    bool overwrite_non_sectionable_fields) {
+void ExpandSections(base::span<const std::unique_ptr<AutofillField>> fields) {
   auto HasSection = [](auto& field) {
     return IsSectionable(*field) && field->section;
   };
@@ -115,7 +122,7 @@ void ExpandSections(base::span<const std::unique_ptr<AutofillField>> fields,
     auto end = base::ranges::find_if(it + 1, fields.end(), HasSection);
     if (end != fields.end() && (*it)->section == (*end)->section) {
       for (auto& field : base::make_span(it + 1, end)) {
-        if (overwrite_non_sectionable_fields || IsSectionable(*field)) {
+        if (IsSectionable(*field)) {
           field->section = (*it)->section;
         }
       }
@@ -144,8 +151,9 @@ bool BelongsToCurrentSection(const ServerFieldTypeSet& seen_types,
   // There are many phone number field types and their classification is
   // generally a little bit off. Furthermore, forms often ask for multiple phone
   // numbers, e.g. both a daytime and evening phone number.
-  if (AutofillType(current_type).group() == FieldTypeGroup::kPhoneHome)
+  if (GroupTypeOfServerFieldType(current_type) == FieldTypeGroup::kPhone) {
     return true;
+  }
 
   return !HaveSeenSimilarType(current_type, seen_types);
 }
@@ -206,7 +214,7 @@ void AssignSections(base::span<const std::unique_ptr<AutofillField>> fields) {
     AssignAutocompleteSections(fields);
   AssignCreditCardSections(fields, frame_token_ids);
   if (features::kAutofillSectioningModeExpand.Get()) {
-    ExpandSections(fields, /*overwrite_non_sectionable_fields=*/false);
+    ExpandSections(fields);
   }
 
   auto begin = fields.begin();
@@ -217,10 +225,6 @@ void AssignSections(base::span<const std::unique_ptr<AutofillField>> fields) {
     AssignFieldIdentifierSections({begin, end}, frame_token_ids);
     begin = end;
   }
-
-  if (features::kAutofillSectioningModeExpandOverUnfocusableFields.Get()) {
-    ExpandSections(fields, /*overwrite_non_sectionable_fields=*/true);
-  }
 }
 
 void LogSectioningMetrics(
@@ -229,8 +233,12 @@ void LogSectioningMetrics(
     AutofillMetrics::FormInteractionsUkmLogger* form_interactions_ukm_logger) {
   // UMA:
   base::flat_map<Section, size_t> fields_per_section;
-  for (auto& field : fields)
+  for (auto& field : fields) {
+    if (!IsSectionable(*field) || !field->IsFieldFillable()) {
+      continue;
+    }
     ++fields_per_section[field->section];
+  }
   AutofillMetrics::LogSectioningMetrics(fields_per_section);
   // UKM:
   if (form_interactions_ukm_logger) {
@@ -246,6 +254,9 @@ uint32_t ComputeSectioningSignature(
   std::stringstream signature;
   base::flat_map<Section, size_t> section_ids;
   for (auto& field : fields) {
+    if (!IsSectionable(*field) || !field->IsFieldFillable()) {
+      continue;
+    }
     size_t section_id =
         section_ids.emplace(field->section, section_ids.size()).first->second;
     signature << section_id;

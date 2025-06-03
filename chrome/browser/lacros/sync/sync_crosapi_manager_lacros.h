@@ -12,7 +12,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chromeos/crosapi/mojom/sync.mojom.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 class SyncExplicitPassphraseClientLacros;
@@ -51,7 +51,7 @@ class SyncCrosapiManagerLacros : public syncer::SyncServiceObserver,
   void OnCreateSyncedSessionClient(
       mojo::PendingRemote<crosapi::mojom::SyncedSessionClient> pending_remote);
 
-  base::raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
+  raw_ptr<Profile> profile_ = nullptr;
 
   // The objects below are created for main profile PostProfileInit() and
   // destroyed upon main profile SyncService shutdown.

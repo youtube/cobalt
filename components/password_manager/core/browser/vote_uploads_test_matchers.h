@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_VOTE_UPLOADS_TEST_MATCHERS_H_
 #define COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_VOTE_UPLOADS_TEST_MATCHERS_H_
 
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/test_utils/vote_uploads_test_matchers.h"
 #include "components/autofill/core/common/signatures.h"
@@ -46,7 +47,7 @@ inline auto VoteTypesAre(VoteTypeMap expected) {
     VoteTypeMap vote_types;
     for (const auto& field : actual) {
       if (field->vote_type() != kNoInformation) {
-        vote_types[field->name] = field->vote_type();
+        vote_types[field->unique_renderer_id] = field->vote_type();
       }
     }
     return vote_types;
@@ -73,27 +74,84 @@ MATCHER_P(UploadedSingleUsernameVoteTypeIs, expected_type, "") {
   return true;
 }
 
-inline auto UploadedSingleUsernameDataIs(
-    const autofill::AutofillUploadContents::SingleUsernameData& expected) {
+MATCHER_P(UploadedSingleUsernameVoteIsMostRecentCandidate,
+          is_most_recent_single_username_candidate,
+          "") {
+  if (is_most_recent_single_username_candidate ==
+      autofill::IsMostRecentSingleUsernameCandidate::
+          kNotPartOfUsernameFirstFlow) {
+    // Variable not set - don't check if the flag is set.
+    return true;
+  }
+  for (const auto& field : arg) {
+    autofill::ServerFieldType vote = field->possible_types().empty()
+                                         ? autofill::UNKNOWN_TYPE
+                                         : *field->possible_types().begin();
+    if (vote == autofill::SINGLE_USERNAME || vote == autofill::NOT_USERNAME) {
+      // `is_most_recent_single_username_candidate` is not set.
+      if (field->is_most_recent_single_username_candidate() ==
+          autofill::IsMostRecentSingleUsernameCandidate::
+              kNotPartOfUsernameFirstFlow) {
+        *result_listener
+            << "Expected vote is_most_recent_single_username_candidate for the "
+               "field "
+            << field->name << " is "
+            << static_cast<int>(is_most_recent_single_username_candidate)
+            << ", but it was not set.";
+        return false;
+      }
+      // `is_most_recent_single_username_candidate` is incorrect.
+      if (field->is_most_recent_single_username_candidate() !=
+          is_most_recent_single_username_candidate) {
+        *result_listener
+            << "Expected vote is_most_recent_single_username_candidate for the "
+               "field "
+            << field->name << " is "
+            << static_cast<int>(is_most_recent_single_username_candidate)
+            << ", but found "
+            << static_cast<int>(
+                   field->is_most_recent_single_username_candidate());
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+inline auto EqualsSingleUsernameDataVector(
+    std::vector<autofill::AutofillUploadContents::SingleUsernameData>
+        expected_data) {
   using SingleUsernameData =
       autofill::AutofillUploadContents::SingleUsernameData;
-  return Property(
-      "single_username_data", &autofill::FormStructure::single_username_data,
-      Optional(AllOf(Property("username_form_signature",
-                              &SingleUsernameData::username_form_signature,
-                              expected.username_form_signature()),
-                     Property("username_field_signature",
-                              &SingleUsernameData::username_field_signature,
-                              expected.username_field_signature()),
-                     Property("value_type", &SingleUsernameData::value_type,
-                              expected.value_type()),
-                     Property("prompt_edit", &SingleUsernameData::prompt_edit,
-                              expected.prompt_edit()))));
+  std::vector<testing::Matcher<SingleUsernameData>> matchers;
+  for (auto& expected_form : expected_data) {
+    matchers.push_back(
+        AllOf(Property("username_form_signature",
+                       &SingleUsernameData::username_form_signature,
+                       expected_form.username_form_signature()),
+              Property("username_field_signature",
+                       &SingleUsernameData::username_field_signature,
+                       expected_form.username_field_signature()),
+              Property("value_type", &SingleUsernameData::value_type,
+                       expected_form.value_type()),
+              Property("prompt_edit", &SingleUsernameData::prompt_edit,
+                       expected_form.prompt_edit())));
+  }
+  return testing::ElementsAreArray(matchers);
+}
+
+inline auto UploadedSingleUsernameDataIs(
+    std::vector<autofill::AutofillUploadContents::SingleUsernameData>
+        expected_data) {
+  return Property("single_username_data",
+                  &autofill::FormStructure::single_username_data,
+                  EqualsSingleUsernameDataVector(expected_data));
 }
 
 inline auto SingleUsernameDataNotUploaded() {
   return Property("single_username_data",
-                  &autofill::FormStructure::single_username_data, IsFalse());
+                  &autofill::FormStructure::single_username_data,
+                  testing::IsEmpty());
 }
 
 inline auto PasswordsWereRevealed(bool passwords_were_revealed) {

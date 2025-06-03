@@ -294,7 +294,7 @@ class NotificationViewTest : public views::ViewObserver,
     ink_drop_stopped_ = true;
   }
 
-  raw_ptr<NotificationView> notification_view_ = nullptr;
+  raw_ptr<NotificationView, DanglingUntriaged> notification_view_ = nullptr;
   bool delete_on_notification_removed_ = false;
   bool ink_drop_stopped_ = false;
   std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;
@@ -601,7 +601,8 @@ TEST_F(NotificationViewTest, AppIconWebAppNotification) {
 
   const GURL web_app_url(kWebAppUrl);
 
-  NotifierId notifier_id(web_app_url, /*title=*/u"web app title");
+  NotifierId notifier_id(web_app_url, /*title=*/u"web app title",
+                         /*web_app_id=*/absl::nullopt);
 
   SkBitmap small_bitmap = CreateSolidColorBitmap(16, 16, SK_ColorYELLOW);
   // Makes the center area transparent.

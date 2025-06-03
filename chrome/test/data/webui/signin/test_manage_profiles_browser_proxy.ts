@@ -17,10 +17,10 @@ export class TestManageProfilesBrowserProxy extends TestBrowserProxy implements
       'openManageProfileSettingsSubPage', 'launchSelectedProfile',
       'askOnStartupChanged', 'getNewProfileSuggestedThemeInfo',
       'getProfileThemeInfo', 'removeProfile', 'getProfileStatistics',
-      'selectNewAccount', 'createProfile',
+      'closeProfileStatistics', 'selectNewAccount',
       'createProfileAndOpenCustomizationDialog', 'setProfileName',
       'recordSignInPromoImpression', 'getAvailableIcons', 'getSwitchProfile',
-      'confirmProfileSwitch', 'cancelProfileSwitch',
+      'confirmProfileSwitch', 'cancelProfileSwitch', 'updateProfileOrder',
       // <if expr="chromeos_lacros">
       'getAvailableAccounts', 'openAshAccountSettingsPage',
       'selectExistingAccountLacros', 'openDeviceGuestLinkLacros',
@@ -102,16 +102,12 @@ export class TestManageProfilesBrowserProxy extends TestBrowserProxy implements
     this.methodCalled('getProfileStatistics', profilePath);
   }
 
-  selectNewAccount(profileColor: number|null) {
-    this.methodCalled('selectNewAccount', [profileColor]);
+  closeProfileStatistics() {
+    this.methodCalled('closeProfileStatistics');
   }
 
-  createProfile(
-      profileName: string, profileColor: number, avatarIndex: number,
-      createShortcut: boolean) {
-    this.methodCalled(
-        'createProfile',
-        [profileName, profileColor, avatarIndex, createShortcut]);
+  selectNewAccount(profileColor: number|null) {
+    this.methodCalled('selectNewAccount', [profileColor]);
   }
 
   createProfileAndOpenCustomizationDialog(profileColor: number) {
@@ -165,6 +161,10 @@ export class TestManageProfilesBrowserProxy extends TestBrowserProxy implements
 
   cancelProfileSwitch() {
     this.methodCalled('cancelProfileSwitch');
+  }
+
+  updateProfileOrder(fromIndex: number, toIndex: number) {
+    this.methodCalled('updateProfileOrder', [fromIndex, toIndex]);
   }
 
   // <if expr="chromeos_lacros">

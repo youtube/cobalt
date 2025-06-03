@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <bitset>
+#include <functional>
 #include <map>
 #include <memory>
 #include <unordered_map>
@@ -233,6 +234,10 @@ struct RasterizerState final
     CullFaceMode cullMode;
     GLenum frontFace;
 
+    PolygonMode polygonMode;
+
+    bool polygonOffsetPoint;
+    bool polygonOffsetLine;
     bool polygonOffsetFill;
     GLfloat polygonOffsetFactor;
     GLfloat polygonOffsetUnits;
@@ -247,6 +252,15 @@ struct RasterizerState final
     bool rasterizerDiscard;
 
     bool dither;
+
+    bool isPolygonOffsetEnabled() const
+    {
+        static_assert(static_cast<int>(PolygonMode::Point) == 0, "PolygonMode::Point");
+        static_assert(static_cast<int>(PolygonMode::Line) == 1, "PolygonMode::Line");
+        static_assert(static_cast<int>(PolygonMode::Fill) == 2, "PolygonMode::Fill");
+        return (1 << static_cast<int>(polygonMode)) &
+               ((polygonOffsetPoint << 0) | (polygonOffsetLine << 1) | (polygonOffsetFill << 2));
+    }
 };
 
 bool operator==(const RasterizerState &a, const RasterizerState &b);
@@ -493,6 +507,9 @@ struct PixelPackState : PixelStoreStateBase
     bool reverseRowOrder = false;
 };
 
+// Used in VertexArray.
+using VertexArrayBufferBindingMask = angle::BitSet<MAX_VERTEX_ATTRIB_BINDINGS>;
+
 // Used in Program and VertexArray.
 using AttributesMask = angle::BitSet<MAX_VERTEX_ATTRIBS>;
 
@@ -712,6 +729,7 @@ class BlendStateExt final
     ///////// Blend Factors /////////
 
     FactorStorage::Type expandFactorValue(const GLenum func) const;
+    FactorStorage::Type expandFactorValue(const gl::BlendFactorType func) const;
     FactorStorage::Type expandSrcColorIndexed(const size_t index) const;
     FactorStorage::Type expandDstColorIndexed(const size_t index) const;
     FactorStorage::Type expandSrcAlphaIndexed(const size_t index) const;
@@ -758,6 +776,11 @@ class BlendStateExt final
         return mUsesAdvancedBlendEquationMask;
     }
 
+    constexpr DrawBufferMask getUsesExtendedBlendFactorMask() const
+    {
+        return mUsesExtendedBlendFactorMask;
+    }
+
     constexpr uint8_t getDrawBufferCount() const { return mDrawBufferCount; }
 
     constexpr void setSrcColorBits(const FactorStorage::Type srcColor) { mSrcColor = srcColor; }
@@ -802,17 +825,20 @@ class BlendStateExt final
     // Cache of whether the blend equation for each index is from KHR_blend_equation_advanced.
     DrawBufferMask mUsesAdvancedBlendEquationMask;
 
+    // Cache of whether the blend factor for each index is from EXT_blend_func_extended.
+    DrawBufferMask mUsesExtendedBlendFactorMask;
+
     uint8_t mDrawBufferCount;
 
-    ANGLE_MAYBE_UNUSED_PRIVATE_FIELD uint32_t kUnused = 0;
+    ANGLE_MAYBE_UNUSED_PRIVATE_FIELD uint8_t kUnused[3] = {};
 };
 
 static_assert(sizeof(BlendStateExt) == sizeof(uint64_t) +
                                            (sizeof(BlendStateExt::FactorStorage::Type) * 4 +
                                             sizeof(BlendStateExt::EquationStorage::Type) * 2 +
                                             sizeof(BlendStateExt::ColorMaskStorage::Type) * 2 +
-                                            sizeof(DrawBufferMask) * 3 + sizeof(uint8_t)) +
-                                           sizeof(uint32_t),
+                                            sizeof(DrawBufferMask) * 4 + sizeof(uint8_t)) +
+                                           sizeof(uint8_t) * 3,
               "The BlendStateExt class must not contain gaps.");
 
 // Used in StateCache
@@ -923,6 +949,9 @@ using RenderToTextureImageMap = angle::PackedEnumMap<RenderToTextureImageIndex, 
 constexpr size_t kCubeFaceCount = 6;
 
 template <typename T>
+using CubeFaceArray = std::array<T, kCubeFaceCount>;
+
+template <typename T>
 using TextureTypeMap = angle::PackedEnumMap<TextureType, T>;
 using TextureMap     = TextureTypeMap<BindingPointer<Texture>>;
 
@@ -972,6 +1001,8 @@ using SupportedSampleSet = std::set<GLuint>;
 template <typename T>
 using TransformFeedbackBuffersArray =
     std::array<T, gl::IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS>;
+
+using ClipDistanceEnableBits = angle::BitSet32<IMPLEMENTATION_MAX_CLIP_DISTANCES>;
 
 template <typename T>
 using QueryTypeMap = angle::PackedEnumMap<QueryType, T>;
@@ -1122,6 +1153,52 @@ inline DestT *SafeGetImplAs(SrcT *src)
 
 namespace angle
 {
+// Under certain circumstances, such as for increased parallelism, the backend may defer an
+// operation to be done at the end of a call after the locks have been unlocked.  The entry point
+// function passes an |UnlockedTailCall| through the frontend to the backend.  If it is set, the
+// entry point would execute it at the end of the call.
+//
+// Since the function is called without any locks, care must be taken to minimize the amount of work
+// in such calls and ensure thread safety (for example by using fine grained locks inside the call
+// itself).
+//
+// Some entry points pass a void pointer argument to UnlockedTailCall::run method intended to
+// contain the return value filled by the backend, the rest of the entry points pass in a
+// nullptr.  Regardless, Display::terminate runs pending tail calls passing in a nullptr, so
+// the tail calls that return a value in the argument still have to guard against a nullptr
+// parameter.
+class UnlockedTailCall final : angle::NonCopyable
+{
+  public:
+    using CallType = std::function<void(void *)>;
+
+    UnlockedTailCall();
+    ~UnlockedTailCall();
+
+    void add(CallType &&call);
+    ANGLE_INLINE void run(void *resultOut)
+    {
+        if (!mCalls.empty())
+        {
+            runImpl(resultOut);
+        }
+    }
+
+    bool any() const { return !mCalls.empty(); }
+
+  private:
+    void runImpl(void *resultOut);
+
+    // Typically, there is only one tail call.  It is possible to end up with 2 tail calls currently
+    // with unMakeCurrent destroying both the read and draw surfaces, each adding a tail call in the
+    // Vulkan backend.
+    //
+    // The max count can be increased as necessary.  An assertion would fire inside FixedVector if
+    // the max count is surpassed.
+    static constexpr size_t kMaxCallCount = 2;
+    angle::FixedVector<CallType, kMaxCallCount> mCalls;
+};
+
 // Zero-based for better array indexing
 enum FramebufferBinding
 {

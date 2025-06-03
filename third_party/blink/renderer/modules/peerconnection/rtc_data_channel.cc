@@ -212,12 +212,17 @@ RTCDataChannel::Observer::Observer(
 }
 
 RTCDataChannel::Observer::~Observer() {
-  DCHECK(!blink_channel_) << "Reference to blink channel hasn't been released.";
+  CHECK(!is_registered()) << "Reference to blink channel hasn't been released.";
 }
 
 const rtc::scoped_refptr<webrtc::DataChannelInterface>&
 RTCDataChannel::Observer::channel() const {
   return webrtc_channel_;
+}
+
+bool RTCDataChannel::Observer::is_registered() const {
+  DCHECK(main_thread_->BelongsToCurrentThread());
+  return blink_channel_ != nullptr;
 }
 
 void RTCDataChannel::Observer::Unregister() {
@@ -303,7 +308,10 @@ RTCDataChannel::RTCDataChannel(
   IncrementCounters(*channel().get());
 }
 
-RTCDataChannel::~RTCDataChannel() = default;
+RTCDataChannel::~RTCDataChannel() {
+  // `Dispose()` must have been called to clear up webrtc references.
+  CHECK(!observer_->is_registered());
+}
 
 String RTCDataChannel::label() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -402,13 +410,16 @@ String RTCDataChannel::binaryType() const {
 
 void RTCDataChannel::setBinaryType(const String& binary_type,
                                    ExceptionState& exception_state) {
-  if (binary_type == "blob")
-    ThrowNoBlobSupportException(&exception_state);
-  else if (binary_type == "arraybuffer")
+  if (binary_type == "arraybuffer") {
     binary_type_ = kBinaryTypeArrayBuffer;
-  else
-    exception_state.ThrowDOMException(DOMExceptionCode::kTypeMismatchError,
-                                      "Unknown binary type : " + binary_type);
+    return;
+  }
+  if (binary_type == "blob") {
+    // TODO(crbug.com/webrtc/2276): the default is specified as "blob".
+    ThrowNoBlobSupportException(&exception_state);
+    return;
+  }
+  NOTREACHED();
 }
 
 bool RTCDataChannel::ValidateSendLength(size_t length,
@@ -551,7 +562,7 @@ bool RTCDataChannel::HasPendingActivity() const {
 void RTCDataChannel::Trace(Visitor* visitor) const {
   visitor->Trace(scheduled_events_);
   visitor->Trace(scheduled_event_timer_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

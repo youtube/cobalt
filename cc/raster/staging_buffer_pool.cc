@@ -178,7 +178,7 @@ bool StagingBufferPool::OnMemoryDump(
     base::trace_event::ProcessMemoryDump* pmd) {
   base::AutoLock lock(lock_);
 
-  if (args.level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND) {
+  if (args.level_of_detail == MemoryDumpLevelOfDetail::kBackground) {
     std::string dump_name("cc/one_copy/staging_memory");
     MemoryAllocatorDump* dump = pmd->CreateAllocatorDump(dump_name);
     dump->AddScalar(MemoryAllocatorDump::kNameSize,
@@ -197,7 +197,7 @@ bool StagingBufferPool::OnMemoryDump(
 
 void StagingBufferPool::AddStagingBuffer(const StagingBuffer* staging_buffer,
                                          viz::SharedImageFormat format) {
-  DCHECK(buffers_.find(staging_buffer) == buffers_.end());
+  DCHECK(!base::Contains(buffers_, staging_buffer));
   buffers_.insert(staging_buffer);
   int buffer_usage_in_bytes = format.EstimatedSizeInBytes(staging_buffer->size);
   staging_buffer_usage_in_bytes_ += buffer_usage_in_bytes;
@@ -205,7 +205,7 @@ void StagingBufferPool::AddStagingBuffer(const StagingBuffer* staging_buffer,
 
 void StagingBufferPool::RemoveStagingBuffer(
     const StagingBuffer* staging_buffer) {
-  DCHECK(buffers_.find(staging_buffer) != buffers_.end());
+  DCHECK(base::Contains(buffers_, staging_buffer));
   buffers_.erase(staging_buffer);
   int buffer_usage_in_bytes =
       staging_buffer->format.EstimatedSizeInBytes(staging_buffer->size);

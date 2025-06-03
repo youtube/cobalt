@@ -6,8 +6,9 @@
 
 #include "base/functional/bind.h"
 #include "components/attribution_reporting/event_trigger_data.h"
-#include "components/attribution_reporting/registration_type.mojom.h"
+#include "components/attribution_reporting/registration_eligibility.mojom.h"
 #include "components/attribution_reporting/test_utils.h"
+#include "components/attribution_reporting/trigger_registration.h"
 #include "content/browser/attribution_reporting/attribution_manager_impl.h"
 #include "content/browser/attribution_reporting/attribution_test_utils.h"
 #include "content/browser/attribution_reporting/test/mock_attribution_host.h"
@@ -18,8 +19,8 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
+#include "content/public/test/resource_load_observer.h"
 #include "content/shell/browser/shell.h"
-#include "content/test/resource_load_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/default_handlers.h"
@@ -32,10 +33,9 @@ namespace content {
 
 namespace {
 
-using ::attribution_reporting::mojom::RegistrationType;
+using ::attribution_reporting::mojom::RegistrationEligibility;
 using ::testing::ElementsAre;
 using ::testing::Field;
-using ::testing::Pointee;
 
 }  // namespace
 
@@ -94,7 +94,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_CALL(mock_attribution_host(), RegisterDataHost)
       .WillRepeatedly(
           [&](mojo::PendingReceiver<blink::mojom::AttributionDataHost> host,
-              RegistrationType) {
+              RegistrationEligibility) {
             data_hosts.push_back(GetRegisteredDataHost(std::move(host)));
             if (data_hosts.size() == 2) {
               loop.Quit();
@@ -114,18 +114,20 @@ IN_PROC_BROWSER_TEST_F(
   data_hosts.front()->WaitForTriggerData(/*num_trigger_data=*/1);
   const auto& trigger_data1 = data_hosts.front()->trigger_data();
 
-  EXPECT_EQ(trigger_data1.size(), 1u);
-  EXPECT_THAT(trigger_data1.front().event_triggers,
-              ElementsAre(EventTriggerDataMatches(
-                  EventTriggerDataMatcherConfig(/*data=*/5))));
+  EXPECT_THAT(trigger_data1,
+              ElementsAre(Field(
+                  &attribution_reporting::TriggerRegistration::event_triggers,
+                  ElementsAre(Field(
+                      &attribution_reporting::EventTriggerData::data, 5)))));
 
   data_hosts.back()->WaitForTriggerData(/*num_trigger_data=*/1);
   const auto& trigger_data2 = data_hosts.back()->trigger_data();
 
-  EXPECT_EQ(trigger_data2.size(), 1u);
-  EXPECT_THAT(trigger_data2.front().event_triggers,
-              ElementsAre(EventTriggerDataMatches(
-                  EventTriggerDataMatcherConfig(/*data=*/7))));
+  EXPECT_THAT(trigger_data2,
+              ElementsAre(Field(
+                  &attribution_reporting::TriggerRegistration::event_triggers,
+                  ElementsAre(Field(
+                      &attribution_reporting::EventTriggerData::data, 7)))));
 }
 
 }  // namespace content

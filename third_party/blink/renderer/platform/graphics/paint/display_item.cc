@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 
 #include <cinttypes>
+#include "base/memory/raw_ptr.h"
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/foreign_layer_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_artifact.h"
@@ -14,7 +15,7 @@
 namespace blink {
 
 struct SameSizeAsDisplayItem {
-  void* pointer;
+  raw_ptr<void, ExperimentalRenderer> pointer;
   gfx::Rect rect;
   uint32_t i1;
   uint32_t i2;
@@ -180,6 +181,7 @@ WTF::String DisplayItem::TypeAsDebugString(Type type) {
 
   switch (type) {
     DEBUG_STRING_CASE(HitTest);
+    DEBUG_STRING_CASE(WebPluginHitTest);
     DEBUG_STRING_CASE(RegionCapture);
     DEBUG_STRING_CASE(ScrollHitTest);
     DEBUG_STRING_CASE(ResizerScrollHitTest);

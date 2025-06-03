@@ -6,16 +6,12 @@
 
 #import "base/test/task_environment.h"
 #import "base/values.h"
-#import "ios/chrome/browser/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/signin/fake_system_identity.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/signin_util.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Test fixture for testing ResizedAvatarCache class.
 class ResizedAvatarCacheTest : public PlatformTest {

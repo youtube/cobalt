@@ -19,6 +19,7 @@
 namespace autofill {
 
 class AutofillOfferData;
+struct OfferNotificationOptions;
 
 // Implementation of per-tab class to control the offer notification bubble and
 // Omnibox icon.
@@ -51,17 +52,19 @@ class OfferNotificationBubbleControllerImpl
   const CreditCard* GetLinkedCard() const override;
   const AutofillOfferData* GetOffer() const override;
   bool IsIconVisible() const override;
+  bool ShouldIconExpand() const override;
+  void OnIconExpanded() override;
   void OnBubbleClosed(PaymentsBubbleClosedReason closed_reason) override;
   void OnPromoCodeButtonClicked() override;
 
-  // Displays an offer notification for the given |offer| on the current page.
-  // The information of the |card|, if present, will be displayed in the bubble
-  // for a card-linked offer. |should_show_icon_only| indicates whether client
-  // should just show the offer omnibox icon instead of the icon and the bubble
-  // on this merchant website.
-  void ShowOfferNotificationIfApplicable(const AutofillOfferData* offer,
-                                         const CreditCard* card,
-                                         bool should_show_icon_only);
+  // Displays an offer notification for the given `offer` on the current page.
+  // The information of the `card`, if present, will be displayed in the bubble
+  // for a card-linked offer. `options` contains information on how the offer
+  // notification should show.
+  void ShowOfferNotificationIfApplicable(
+      const AutofillOfferData* offer,
+      const CreditCard* card,
+      const OfferNotificationOptions& options);
 
   // Called when user clicks on omnibox icon.
   void ReshowBubble();
@@ -92,7 +95,7 @@ class OfferNotificationBubbleControllerImpl
   friend class OfferNotificationBubbleViewsTestBase;
 
   // Hides the bubble if it is visible and resets the bubble shown timestamp.
-  // |should_show_icon| decides whether the icon should be visible after the
+  // `should_show_icon` decides whether the icon should be visible after the
   // bubble is dismissed.
   void HideBubbleAndClearTimestamp(bool should_show_icon);
 
@@ -128,6 +131,9 @@ class OfferNotificationBubbleControllerImpl
   BubbleState bubble_state_ = BubbleState::kHidden;
 
   raw_ptr<ObserverForTest> observer_for_testing_ = nullptr;
+
+  // Denotes whether the icon should expand in the omnibox.
+  bool icon_should_expand_ = false;
 
   base::ScopedObservation<CouponService, CouponServiceObserver>
       coupon_service_observation_{this};

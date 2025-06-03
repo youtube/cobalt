@@ -19,15 +19,19 @@
 #include "chrome/browser/download/background_download_service_factory.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/optimization_guide/chrome_hints_manager.h"
+#include "chrome/browser/optimization_guide/model_execution/chrome_on_device_model_service_controller.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/component_updater/pref_names.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/optimization_guide/core/command_line_top_host_provider.h"
 #include "components/optimization_guide/core/hints_processing_util.h"
+#include "components/optimization_guide/core/model_execution/model_execution_manager.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -44,7 +48,6 @@
 #include "components/variations/synthetic_trials.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -159,6 +162,7 @@ void OptimizationGuideKeyedService::Initialize() {
   base::WeakPtr<optimization_guide::OptimizationGuideStore> hint_store;
   base::WeakPtr<optimization_guide::OptimizationGuideStore>
       prediction_model_and_features_store;
+  base::FilePath model_downloads_dir;
   if (profile->IsOffTheRecord()) {
     OptimizationGuideKeyedService* original_ogks =
         OptimizationGuideKeyedServiceFactory::GetForProfile(
@@ -211,12 +215,20 @@ void OptimizationGuideKeyedService::Initialize() {
     hint_store = hint_store_ ? hint_store_->AsWeakPtr() : nullptr;
 
     if (!optimization_guide::features::IsInstallWideModelStoreEnabled()) {
+      // Do not explicitly hand off the model downloads directory to
+      // off-the-record profiles. Underneath the hood, this variable is only
+      // used in non off-the-record profiles to know where to download the model
+      // files to. Off-the-record profiles read the model locations from the
+      // original profiles they are associated with.
+      model_downloads_dir = profile_path.Append(
+          optimization_guide::kOptimizationGuidePredictionModelDownloads);
       prediction_model_and_features_store_ =
           std::make_unique<optimization_guide::OptimizationGuideStore>(
               proto_db_provider,
               profile_path.Append(
                   optimization_guide::
                       kOptimizationGuidePredictionModelMetadataStore),
+              model_downloads_dir,
               base::ThreadPool::CreateSequencedTaskRunner(
                   {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
               profile->GetPrefs());
@@ -230,18 +242,8 @@ void OptimizationGuideKeyedService::Initialize() {
       profile, profile->GetPrefs(), hint_store, top_host_provider_.get(),
       tab_url_provider_.get(), url_loader_factory,
       MaybeCreatePushNotificationManager(profile),
+      IdentityManagerFactory::GetForProfile(profile),
       optimization_guide_logger_.get());
-  base::FilePath model_downloads_dir;
-  if (!optimization_guide::features::IsInstallWideModelStoreEnabled() &&
-      !profile->IsOffTheRecord()) {
-    // Do not explicitly hand off the model downloads directory to
-    // off-the-record profiles. Underneath the hood, this variable is only used
-    // in non off-the-record profiles to know where to download the model files
-    // to. Off-the-record profiles read the model locations from the original
-    // profiles they are associated with.
-    model_downloads_dir = profile_path.Append(
-        optimization_guide::kOptimizationGuidePredictionModelDownloads);
-  }
 
   prediction_manager_ = std::make_unique<optimization_guide::PredictionManager>(
       prediction_model_and_features_store,
@@ -261,6 +263,17 @@ void OptimizationGuideKeyedService::Initialize() {
           // It's safe to use |base::Unretained(this)| here because
           // |this| owns |prediction_manager_|.
           base::Unretained(this)));
+
+  if (!profile->IsOffTheRecord() &&
+      base::FeatureList::IsEnabled(
+          optimization_guide::features::kOptimizationGuideModelExecution)) {
+    model_execution_manager_ =
+        std::make_unique<optimization_guide::ModelExecutionManager>(
+            url_loader_factory, IdentityManagerFactory::GetForProfile(profile),
+            std::make_unique<
+                optimization_guide::ChromeOnDeviceModelServiceController>(),
+            optimization_guide_logger_.get());
+  }
 
   // Register for profile initialization event to initialize the model
   // downloads.
@@ -357,26 +370,12 @@ OptimizationGuideKeyedService::CanApplyOptimization(
           optimization_type_decision);
 }
 
-// WARNING: This API is not quite ready for general use. Use
-// CanApplyOptimizationAsync or CanApplyOptimization using NavigationHandle
-// instead.
 void OptimizationGuideKeyedService::CanApplyOptimization(
     const GURL& url,
     optimization_guide::proto::OptimizationType optimization_type,
     optimization_guide::OptimizationGuideDecisionCallback callback) {
   hints_manager_->CanApplyOptimization(url, optimization_type,
                                        std::move(callback));
-}
-
-void OptimizationGuideKeyedService::CanApplyOptimizationAsync(
-    content::NavigationHandle* navigation_handle,
-    optimization_guide::proto::OptimizationType optimization_type,
-    optimization_guide::OptimizationGuideDecisionCallback callback) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DCHECK(navigation_handle->IsInMainFrame());
-
-  hints_manager_->CanApplyOptimizationAsync(
-      navigation_handle->GetURL(), optimization_type, std::move(callback));
 }
 
 void OptimizationGuideKeyedService::CanApplyOptimizationOnDemand(
@@ -392,6 +391,24 @@ void OptimizationGuideKeyedService::CanApplyOptimizationOnDemand(
 
   hints_manager_->CanApplyOptimizationOnDemand(urls, optimization_types,
                                                request_context, callback);
+}
+
+void OptimizationGuideKeyedService::ExecuteModel(
+    optimization_guide::proto::ModelExecutionFeature feature,
+    const google::protobuf::MessageLite& request_metadata,
+    optimization_guide::OptimizationGuideModelExecutionResultCallback
+        callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!model_execution_manager_) {
+    std::move(callback).Run(base::unexpected(
+        optimization_guide::OptimizationGuideModelExecutionError::
+            FromModelExecutionError(
+                optimization_guide::OptimizationGuideModelExecutionError::
+                    ModelExecutionError::kGenericFailure)));
+    return;
+  }
+  model_execution_manager_->ExecuteModel(feature, request_metadata,
+                                         std::move(callback));
 }
 
 void OptimizationGuideKeyedService::OnProfileInitializationComplete(

@@ -51,13 +51,6 @@ void CheckDisplaysEqual(const Display& input, const Display& output) {
   EXPECT_EQ(input.is_monochrome(), output.is_monochrome());
   EXPECT_EQ(input.display_frequency(), output.display_frequency());
   EXPECT_EQ(input.label(), output.label());
-
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(input.GetDRMFormatsAndModifiers(),
-            output.GetDRMFormatsAndModifiers());
-#else
-  EXPECT_EQ(output.GetDRMFormatsAndModifiers(), DrmFormatsAndModifiers());
-#endif
 }
 
 void CheckDisplayLayoutsEqual(const DisplayLayout& input,
@@ -76,9 +69,7 @@ void CheckDisplayModesEqual(const DisplayMode* input,
     return;
 
   EXPECT_NE(input, output);  // Make sure they aren't the same object.
-  EXPECT_EQ(input->size(), output->size());
-  EXPECT_EQ(input->is_interlaced(), output->is_interlaced());
-  EXPECT_EQ(input->refresh_rate(), output->refresh_rate());
+  EXPECT_EQ(*input, *output);
 }
 
 void CheckDisplaySnapShotMojoEqual(const DisplaySnapshot& input,
@@ -120,13 +111,9 @@ void CheckDisplaySnapShotMojoEqual(const DisplaySnapshot& input,
   EXPECT_EQ(input.color_space(), output.color_space());
   EXPECT_EQ(input.bits_per_channel(), output.bits_per_channel());
   EXPECT_EQ(input.hdr_static_metadata(), output.hdr_static_metadata());
-
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(input.GetDRMFormatsAndModifiers(),
-            output.GetDRMFormatsAndModifiers());
-#else
-  EXPECT_EQ(output.GetDRMFormatsAndModifiers(), DrmFormatsAndModifiers());
-#endif
+  EXPECT_EQ(input.variable_refresh_rate_state(),
+            output.variable_refresh_rate_state());
+  EXPECT_EQ(input.vsync_rate_min(), output.vsync_rate_min());
 }
 
 // Test StructTrait serialization and deserialization for copyable type. |input|
@@ -142,6 +129,14 @@ template <class MojomType, class Type>
 void SerializeAndDeserialize(Type&& input, Type* output) {
   MojomType::Deserialize(MojomType::Serialize(&input), output);
 }
+
+DisplayMode CreateDisplayModeForTest(const gfx::Size& size,
+                                     bool interlaced,
+                                     float refresh_rate) {
+  return DisplayMode(size, interlaced, refresh_rate, size.width(),
+                     size.height(), size.GetArea() * refresh_rate);
+}
+
 }  // namespace
 
 TEST(DisplayStructTraitsTest, DefaultDisplayValues) {
@@ -171,11 +166,6 @@ TEST(DisplayStructTraitsTest, SetAllDisplayValues) {
   input.set_display_frequency(input.display_frequency() + 1);
   input.set_label("Internal Display");
 
-  DrmFormatsAndModifiers drm_formats_and_modifiers;
-  drm_formats_and_modifiers.emplace(
-      DRM_FORMAT_ARGB8888, std::vector<uint64_t>({DRM_FORMAT_MOD_INVALID}));
-  input.SetDRMFormatsAndModifiers(drm_formats_and_modifiers);
-
   Display output;
   SerializeAndDeserialize<mojom::Display>(input, &output);
 
@@ -183,13 +173,12 @@ TEST(DisplayStructTraitsTest, SetAllDisplayValues) {
 }
 
 TEST(DisplayStructTraitsTest, DefaultDisplayMode) {
-  std::unique_ptr<DisplayMode> input =
-      std::make_unique<DisplayMode>(gfx::Size(1024, 768), true, 61.0);
+  DisplayMode input = CreateDisplayModeForTest({1024, 768}, true, 61.0);
 
   std::unique_ptr<DisplayMode> output;
-  SerializeAndDeserialize<mojom::DisplayMode>(input->Clone(), &output);
+  SerializeAndDeserialize<mojom::DisplayMode>(input.Clone(), &output);
 
-  CheckDisplayModesEqual(input.get(), output.get());
+  CheckDisplayModesEqual(&input, output.get());
 }
 
 TEST(DisplayStructTraitsTest, DisplayPlacementFlushAtTop) {
@@ -297,7 +286,10 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotCurrentAndNativeModesNull) {
   const bool color_correction_in_linear_space = true;
   const gfx::ColorSpace display_color_space = gfx::ColorSpace::CreateREC709();
   const int32_t bits_per_channel = 8;
-  const gfx::HDRStaticMetadata hdr_static_metadata(100.0, 80.0, 0.0);
+  const gfx::HDRStaticMetadata hdr_static_metadata(
+      100.0, 80.0, 0.0,
+      gfx::HDRStaticMetadata::EotfMask(
+          {gfx::HDRStaticMetadata::Eotf::kGammaSdrRange}));
   const std::string display_name("whatever display_name");
   const base::FilePath sys_path = base::FilePath::FromUTF8Unsafe("a/cb");
   const int64_t product_code = 19;
@@ -305,7 +297,8 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotCurrentAndNativeModesNull) {
   const VariableRefreshRateState variable_refresh_rate_state = kVrrEnabled;
   const uint16_t vsync_rate_min = 48;
 
-  const DisplayMode display_mode(gfx::Size(13, 11), true, 40.0f);
+  const DisplayMode display_mode =
+      CreateDisplayModeForTest({13, 11}, true, 40.0f);
 
   DisplaySnapshot::DisplayModeList modes;
   modes.push_back(display_mode.Clone());
@@ -355,7 +348,10 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotCurrentModeNull) {
   const bool color_correction_in_linear_space = true;
   const gfx::ColorSpace display_color_space = gfx::ColorSpace::CreateREC709();
   const uint32_t bits_per_channel = 8u;
-  const gfx::HDRStaticMetadata hdr_static_metadata(100.0, 80.0, 0.0);
+  const gfx::HDRStaticMetadata hdr_static_metadata(
+      100.0, 80.0, 0.0,
+      gfx::HDRStaticMetadata::EotfMask(
+          {gfx::HDRStaticMetadata::Eotf::kGammaSdrRange}));
   const std::string display_name("whatever display_name");
   const base::FilePath sys_path = base::FilePath::FromUTF8Unsafe("z/b");
   const int64_t product_code = 9;
@@ -363,7 +359,8 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotCurrentModeNull) {
   const VariableRefreshRateState variable_refresh_rate_state = kVrrEnabled;
   const uint16_t vsync_rate_min = 48;
 
-  const DisplayMode display_mode(gfx::Size(13, 11), true, 50.0f);
+  const DisplayMode display_mode =
+      CreateDisplayModeForTest({13, 11}, true, 50.0f);
 
   DisplaySnapshot::DisplayModeList modes;
   modes.push_back(display_mode.Clone());
@@ -414,16 +411,22 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotExternal) {
   const std::string display_name("HP Z24i");
   const gfx::ColorSpace display_color_space = gfx::ColorSpace::CreateSRGB();
   const uint32_t bits_per_channel = 8u;
-  const gfx::HDRStaticMetadata hdr_static_metadata(100.0, 80.0, 0.0);
+  const gfx::HDRStaticMetadata hdr_static_metadata(
+      100.0, 80.0, 0.0,
+      gfx::HDRStaticMetadata::EotfMask(
+          {gfx::HDRStaticMetadata::Eotf::kGammaSdrRange}));
   const base::FilePath sys_path = base::FilePath::FromUTF8Unsafe("a/cb");
   const int64_t product_code = 139;
   const int32_t year_of_manufacture = 2018;
   const VariableRefreshRateState variable_refresh_rate_state = kVrrDisabled;
   const uint16_t vsync_rate_min = 40;
 
-  const DisplayMode display_mode(gfx::Size(1024, 768), false, 60.0f);
-  const DisplayMode display_current_mode(gfx::Size(1440, 900), false, 59.89f);
-  const DisplayMode display_native_mode(gfx::Size(1920, 1200), false, 59.89f);
+  const DisplayMode display_mode =
+      CreateDisplayModeForTest({1024, 768}, false, 60.0f);
+  const DisplayMode display_current_mode =
+      CreateDisplayModeForTest({1440, 900}, false, 59.89f);
+  const DisplayMode display_native_mode =
+      CreateDisplayModeForTest({1920, 1200}, false, 59.89f);
 
   DisplaySnapshot::DisplayModeList modes;
   modes.push_back(display_mode.Clone());
@@ -475,14 +478,20 @@ TEST(DisplayStructTraitsTest, DisplaySnapshotInternal) {
   const gfx::ColorSpace display_color_space =
       gfx::ColorSpace::CreateDisplayP3D65();
   const uint32_t bits_per_channel = 9u;
-  const gfx::HDRStaticMetadata hdr_static_metadata(200.0, 100.0, 0.0);
+  const gfx::HDRStaticMetadata hdr_static_metadata(
+      200.0, 100.0, 0.0,
+      gfx::HDRStaticMetadata::EotfMask({
+          gfx::HDRStaticMetadata::Eotf::kGammaSdrRange,
+          gfx::HDRStaticMetadata::Eotf::kPq,
+      }));
   const std::string display_name("");
   const base::FilePath sys_path;
   const int64_t product_code = 139;
   const int32_t year_of_manufacture = 2018;
   const VariableRefreshRateState variable_refresh_rate_state = kVrrNotCapable;
 
-  const DisplayMode display_mode(gfx::Size(2560, 1700), false, 95.96f);
+  const DisplayMode display_mode =
+      CreateDisplayModeForTest({2560, 1700}, false, 95.96f);
 
   DisplaySnapshot::DisplayModeList modes;
   modes.push_back(display_mode.Clone());

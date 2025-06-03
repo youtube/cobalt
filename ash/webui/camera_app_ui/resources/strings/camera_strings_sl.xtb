@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Premikanje proti zgornjemu levemu kotu</translation>
 <translation id="3573890771273113519">Preklop na način iskanja</translation>
 <translation id="3583444040776960729">Spodnji levi kot dokumenta</translation>
+<translation id="3642192109456033823">Obdelava videoposnetka …</translation>
 <translation id="3789724198583203151">Zavrti za 90 stopinj v levo</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Kopiraj besedilo</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Začasna zaustavitev snemanja</translation>
 <translation id="4121305183798804752">Dokument je zaznan</translation>
 <translation id="414641094616694804">Za ta fotoaparat ni mogoče spremeniti ločljivosti</translation>
+<translation id="4176463684765177261">Onemogočeno</translation>
 <translation id="4269820728363426813">Kopiraj naslov povezave</translation>
-<translation id="4281620174117014503">Srednja ločljivost</translation>
 <translation id="428234092390943511">Sličica strani</translation>
+<translation id="4349714250734879769">Prilagajanje velikosti okvirov v Chromu</translation>
 <translation id="4383571725254449280">Tiskanje dnevnikov delovanja</translation>
 <translation id="4445542136948522167">Ustavitev fotografiranja</translation>
 <translation id="4570032796877367747">Sprednji fotoaparat</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Optično branje <ph name="COUNT" />. strani</translation>
 <translation id="5671277269877808209">Kvadratno</translation>
+<translation id="574392208103952083">Srednji</translation>
 <translation id="5746169159649715125">Shrani kot PDF</translation>
 <translation id="5753488212459587150">Omogoči poznavalski način</translation>
 <translation id="5759254179196327752">Optično branje dokumenta</translation>
@@ -120,7 +123,7 @@
 <translation id="6888362557094394345">Premikanje proti dnu</translation>
 <translation id="695140971690006676">Ponastavi vse</translation>
 <translation id="6965382102122355670">V redu</translation>
-<translation id="6965830616442491568">Portret</translation>
+<translation id="6965830616442491568">Portretni način</translation>
 <translation id="698156982839284926">3 sekunde</translation>
 <translation id="7134221860976209830">10-sekundni časovnik</translation>
 <translation id="7191890674911603392">Vrsta zapisa</translation>
@@ -148,6 +151,7 @@
 <translation id="8145038249676204903">Preklop na fotografiranje</translation>
 <translation id="8167081290930651932">Shrani kot fotografijo</translation>
 <translation id="8239780215768881278">Posnetek videa</translation>
+<translation id="8346544573713510785">Prilagodi okvire glede na HAL kamere</translation>
 <translation id="8425673304802773841">Nagni navzdol</translation>
 <translation id="8428213095426709021">Nastavitve</translation>
 <translation id="8629662593426079630">360p</translation>

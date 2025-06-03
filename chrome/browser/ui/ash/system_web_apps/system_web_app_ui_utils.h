@@ -11,8 +11,8 @@
 #include "base/files/file_path.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
@@ -23,10 +23,10 @@ namespace ash {
 // Returns the system app type for the given App ID.
 absl::optional<SystemWebAppType> GetSystemWebAppTypeForAppId(
     Profile* profile,
-    const web_app::AppId& app_id);
+    const webapps::AppId& app_id);
 
 // Returns the PWA system App ID for the given system app type.
-absl::optional<web_app::AppId> GetAppIdForSystemWebApp(
+absl::optional<webapps::AppId> GetAppIdForSystemWebApp(
     Profile* profile,
     SystemWebAppType app_type);
 
@@ -38,6 +38,7 @@ absl::optional<apps::AppLaunchParams> CreateSystemWebAppLaunchParams(
 // Additional parameters to control LaunchSystemAppAsync behaviors.
 struct SystemAppLaunchParams {
   SystemAppLaunchParams();
+  SystemAppLaunchParams(const SystemAppLaunchParams& params);
   ~SystemAppLaunchParams();
 
   // If provided launches System Apps into |url|, instead of its start_url (as
@@ -70,8 +71,12 @@ struct SystemAppLaunchParams {
 //   - Other unsuitable profiles (e.g. Sign-in profile): Don't launch, and send
 //     a crash report
 //
-// In tests, remember to use content::TestNavigationObserver to wait the
+// In tests, remember to use content::TestNavigationObserver to wait for the
 // navigation.
+//
+// NOTE: LaunchSystemWebAppAsync waits for the initial registration of system
+// web apps to complete (the ash::SystemWebAppManager::on_apps_synchronized
+// event).
 void LaunchSystemWebAppAsync(
     Profile* profile,
     SystemWebAppType type,

@@ -8,6 +8,7 @@
 
 #include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
@@ -17,7 +18,9 @@
 #include "google_apis/common/test_util.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/gaia_urls_overrider_for_testing.h"
+#include "google_apis/tasks/tasks_api_request_types.h"
 #include "google_apis/tasks/tasks_api_response_types.h"
+#include "google_apis/tasks/tasks_api_task_status.h"
 #include "google_apis/tasks/tasks_api_url_generator_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -133,8 +136,7 @@ TEST_F(TasksApiRequestsTest, ListTaskListsRequestHandlesError) {
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
 
-  EXPECT_FALSE(future.Get().has_value());
-  EXPECT_EQ(future.Get().error(), HTTP_NOT_FOUND);
+  EXPECT_THAT(future.Get(), base::test::ErrorIs(HTTP_NOT_FOUND));
 }
 
 TEST_F(TasksApiRequestsTest, ListTasksRequest) {
@@ -188,8 +190,7 @@ TEST_F(TasksApiRequestsTest, ListTasksRequestHandlesError) {
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
 
-  EXPECT_FALSE(future.Get().has_value());
-  EXPECT_EQ(future.Get().error(), HTTP_NOT_FOUND);
+  EXPECT_THAT(future.Get(), base::test::ErrorIs(HTTP_NOT_FOUND));
 }
 
 TEST_F(TasksApiRequestsTest, PatchTaskRequest) {
@@ -198,7 +199,7 @@ TEST_F(TasksApiRequestsTest, PatchTaskRequest) {
   base::test::TestFuture<ApiErrorCode> future;
   auto request = std::make_unique<PatchTaskRequest>(
       request_sender(), future.GetCallback(), kTaskListId, kTaskId,
-      Task::Status::kCompleted);
+      TaskRequestPayload{.status = TaskStatus::kCompleted});
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
 
@@ -216,11 +217,52 @@ TEST_F(TasksApiRequestsTest, PatchTaskRequestHandlesError) {
   base::test::TestFuture<ApiErrorCode> future;
   auto request = std::make_unique<PatchTaskRequest>(
       request_sender(), future.GetCallback(), kTaskListId, kTaskId,
-      Task::Status::kCompleted);
+      TaskRequestPayload{.status = TaskStatus::kCompleted});
   request_sender()->StartRequestWithAuthRetry(std::move(request));
   ASSERT_TRUE(future.Wait());
 
   EXPECT_EQ(future.Get(), HTTP_NOT_FOUND);
+}
+
+TEST_F(TasksApiRequestsTest, InsertTaskRequest) {
+  set_test_file_path("tasks/task.json");
+
+  base::test::TestFuture<base::expected<std::unique_ptr<Task>, ApiErrorCode>>
+      future;
+  auto request = std::make_unique<InsertTaskRequest>(
+      request_sender(), kTaskListId, /*previous_task_id=*/"",
+      TaskRequestPayload{.title = "New task",
+                         .status = TaskStatus::kNeedsAction},
+      future.GetCallback());
+  request_sender()->StartRequestWithAuthRetry(std::move(request));
+  ASSERT_TRUE(future.Wait());
+
+  EXPECT_EQ(last_request().method, net::test_server::METHOD_POST);
+  EXPECT_EQ(last_request().GetURL(),
+            GetInsertTaskUrl(kTaskListId, /*previous_task_id=*/""));
+  EXPECT_EQ(last_request().headers.at("Content-Type"),
+            "application/json; charset=utf-8");
+  EXPECT_EQ(last_request().content,
+            "{\"status\":\"needsAction\",\"title\":\"New task\"}");
+
+  ASSERT_TRUE(future.Get().has_value());
+  EXPECT_EQ(future.Get().value()->id(), "qwe");
+}
+
+TEST_F(TasksApiRequestsTest, InsertTaskRequestHandlesError) {
+  set_test_file_path("tasks/invalid_file_to_simulate_404_error.json");
+
+  base::test::TestFuture<base::expected<std::unique_ptr<Task>, ApiErrorCode>>
+      future;
+  auto request = std::make_unique<InsertTaskRequest>(
+      request_sender(), kTaskListId, /*previous_task_id=*/"",
+      TaskRequestPayload{.title = "New task",
+                         .status = TaskStatus::kNeedsAction},
+      future.GetCallback());
+  request_sender()->StartRequestWithAuthRetry(std::move(request));
+  ASSERT_TRUE(future.Wait());
+
+  EXPECT_THAT(future.Get(), base::test::ErrorIs(HTTP_NOT_FOUND));
 }
 
 }  // namespace google_apis::tasks

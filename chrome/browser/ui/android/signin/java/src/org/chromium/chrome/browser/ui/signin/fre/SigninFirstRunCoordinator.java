@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.signin.fre;
 
+import android.accounts.Account;
 import android.content.Context;
 
 import androidx.annotation.MainThread;
@@ -14,6 +15,7 @@ import org.chromium.base.Promise;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.chrome.browser.firstrun.MobileFreProgress;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManager;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -40,7 +42,7 @@ public class SigninFirstRunCoordinator {
         void advanceToNextPage();
 
         /** Called to display the device lock page  */
-        void displayDeviceLockPage();
+        void displayDeviceLockPage(Account selectedAccount);
 
         /**
          * Records the FRE progress histogram MobileFre.Progress.*.
@@ -59,6 +61,9 @@ public class SigninFirstRunCoordinator {
          * @param url Resource id for the URL of the web page.
          */
         void showInfoPage(@StringRes int url);
+
+        /** Returns the supplier that provides the Profile (when available). */
+        OneshotSupplier<Profile> getProfileSupplier();
 
         /**
          * The supplier that supplies whether reading policy value is necessary.
@@ -139,10 +144,16 @@ public class SigninFirstRunCoordinator {
         mMediator.onAccountSelected(accountName);
     }
 
+    /**
+     * Continue the sign-in process with the currently selected account.
+     */
     public void continueSignIn() {
         mMediator.proceedWithSignIn();
     }
 
+    /**
+     * Abandon the sign-in process and dismiss the sign-in page.
+     */
     public void cancelSignInAndDismiss() {
         mMediator.dismiss();
     }

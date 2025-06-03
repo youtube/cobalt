@@ -5,18 +5,18 @@
 import 'chrome://resources/mojo/mojo/public/mojom/base/big_buffer.mojom-lite.js';
 import 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-lite.js';
 
-import {fakeEmptyFeedbackContext, fakeFeedbackContext, fakeInternalUserFeedbackContext} from 'chrome://os-feedback/fake_data.js';
+import {fakeEmptyFeedbackContext, fakeFeedbackContext, fakeInternalUserFeedbackContext, fakeLoginFlowFeedbackContext} from 'chrome://os-feedback/fake_data.js';
 import {FakeFeedbackServiceProvider} from 'chrome://os-feedback/fake_feedback_service_provider.js';
 import {FeedbackFlowState} from 'chrome://os-feedback/feedback_flow.js';
 import {FeedbackAppPreSubmitAction, FeedbackContext} from 'chrome://os-feedback/feedback_types.js';
 import {setFeedbackServiceProviderForTesting} from 'chrome://os-feedback/mojo_interface_provider.js';
 import {ShareDataPageElement} from 'chrome://os-feedback/share_data_page.js';
-import {mojoString16ToString, stringToMojoString16} from 'chrome://resources/ash/common/mojo_utils.js';
 import {getDeepActiveElement} from 'chrome://resources/ash/common/util.js';
+import {mojoString16ToString, stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assertArrayEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
-import {assertArrayEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 import {eventToPromise, isVisible} from '../test_util.js';
 
 /** @type {string} */
@@ -33,7 +33,7 @@ export function shareDataPageTestSuite() {
   let feedbackServiceProvider;
 
   setup(() => {
-    document.body.innerHTML = '';
+    document.body.innerHTML = trustedTypes.emptyHTML;
 
     feedbackServiceProvider = new FakeFeedbackServiceProvider();
     setFeedbackServiceProviderForTesting(feedbackServiceProvider);
@@ -122,14 +122,6 @@ export function shareDataPageTestSuite() {
     assertEquals('Send', getElementContent('#buttonSend'));
     assertTrue(page.i18nExists('sendButtonLabel'));
 
-    // Verify the attach files label is in the page.
-    assertTrue(page.i18nExists('attachFilesLabel'));
-    assertEquals('Attach files', getElementContent('#attachFilesLabel'));
-
-    // Verify the add files Icon is in the page.
-    const addFilesIcon = getElement('#attachFilesIcon');
-    assertTrue(!!addFilesIcon);
-
     // Verify the user email label is in the page.
     assertTrue(page.i18nExists('userEmailLabel'));
     assertEquals('Email', getElementContent('#userEmailLabel'));
@@ -188,12 +180,56 @@ export function shareDataPageTestSuite() {
     // Privacy note is a long localized string in HTML format.
     assertTrue(page.i18nExists('privacyNote'));
     assertEquals(
-        'Go to the Legal Help page to request content changes for ' +
-            'legal reasons. Some account and system information ' +
-            'may be sent to Google. We will use the information you ' +
-            'give us to help address technical issues and to improve our ' +
-            'services, subject to our Privacy Policy and Terms of Service.',
+        'Some account and system information may be sent to Google. We use ' +
+            'this information to help address technical issues and improve ' +
+            'our services, subject to our Privacy Policy and Terms of ' +
+            'Service. To request content changes, go to Legal Help.',
         getElementContent('#privacyNote'));
+  });
+
+  // Test the privacy note displayed to logged out users.
+  test('privacyNote_loggedOut_users', async () => {
+    await initializePage();
+    page.feedbackContext = fakeLoginFlowFeedbackContext;
+    assertEquals(
+        'Some account and system information may be sent to Google. We use ' +
+            'this information to help address technical issues and improve ' +
+            'our services, subject to our Privacy Policy ' +
+            '(https://policies.google.com/privacy) and Terms of Service ' +
+            '(https://policies.google.com/terms). To request content changes,' +
+            ' go to Legal Help ' +
+            '(https://support.google.com/legal/answer/3110420).',
+        getElementContent('#privacyNote'));
+  });
+
+  // Test the add file section is visible to logged in users.
+  test('addFileVisible_loggedIn_users', async () => {
+    await initializePage();
+    page.feedbackContext = fakeFeedbackContext;
+    assertNotEquals('Login', page.feedbackContext.categoryTag);
+
+    assertTrue(page.i18nExists('attachFilesLabelLoggedIn'));
+    // Add file section is visible.
+    assertTrue(isVisible(getElement('#addFileContainer')));
+    // Attach files Icon should be visible.
+    assertTrue(isVisible(getElement('#attachFilesIcon')));
+    // Attach files label should be "Attach files".
+    assertEquals('Attach files', getElementContent('#attachFilesLabel'));
+  });
+
+  // Test the add file section is invisible to logged out users.
+  test('addFileInvisible_loggedOut_users', async () => {
+    await initializePage();
+    page.feedbackContext = fakeLoginFlowFeedbackContext;
+    assertEquals('Login', page.feedbackContext.categoryTag);
+
+    assertTrue(page.i18nExists('attachFilesLabelLoggedOut'));
+    // Add file section is invisible.
+    assertFalse(isVisible(getElement('#addFileContainer')));
+    // Attach files Icon should be invisible.
+    assertFalse(isVisible(getElement('#attachFilesIcon')));
+    // Attach files label should be "Add screenshot".
+    assertEquals('Add screenshot', getElementContent('#attachFilesLabel'));
   });
 
   // Test that the email drop down is populated with two options.
@@ -790,12 +826,20 @@ export function shareDataPageTestSuite() {
   });
 
   /**
-   * Test that when feedback context contains category_tag matching value
+   * Test that when feedback context contains categoryTag matching value
    * is set on report.
    */
-  test('AdditionalContext_CategoryTag', async () => {
+  test('AdditionalContext_CategoryTag_Bluetooth', async () => {
     await initializePage();
-    page.feedbackContext = fakeFeedbackContext;
+    page.feedbackContext = fakeEmptyFeedbackContext;
+
+    // Uncheck the "Link Cross Device Dogfood Feedback" checkbox so that only
+    // the Bluetooth-specific categoryTag is added to the report.
+    const linkCrossDeviceDogfoodFeedbackCheckbox =
+        getElement('#linkCrossDeviceDogfoodFeedbackCheckbox');
+    assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+    linkCrossDeviceDogfoodFeedbackCheckbox.checked = false;
+    assertFalse(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
 
     // Uncheck the bluetooth logs checkbox.
     const bluetoothLogsCheckbox = getElement('#bluetoothLogsCheckbox');
@@ -817,7 +861,7 @@ export function shareDataPageTestSuite() {
         fakeFeedbackContextWithCategoryTag.categoryTag,
         reportWithCategoryTag.feedbackContext.categoryTag);
 
-    // Check the bluetooth logs checkbox. The category tag
+    // Check the bluetooth logs checkbox. The categoryTag
     // should be BluetoothReportWithLogs, not the tag from url.
     page.reEnableSendReportButton();
     bluetoothLogsCheckbox.checked = true;
@@ -831,6 +875,97 @@ export function shareDataPageTestSuite() {
         'BluetoothReportWithLogs',
         reportWithCategoryTagAndBluetoothFlag.feedbackContext.categoryTag);
   });
+
+  /**
+   * Test that when feedback context contains categoryTag matching value
+   * is set on report.
+   */
+  test(
+      'AdditionalContext_CategoryTag_LinkCrossDeviceDogfoodFeedback',
+      async () => {
+        await initializePage();
+        page.feedbackContext = fakeEmptyFeedbackContext;
+
+        // Uncheck the bluetooth logs checkbox so that only the "Link Cross
+        // Device Dogfood Feedback"-specific categoryTag is added to the report.
+        const bluetoothLogsCheckbox = getElement('#bluetoothLogsCheckbox');
+        assertTrue(!!bluetoothLogsCheckbox);
+        bluetoothLogsCheckbox.checked = false;
+        assertFalse(bluetoothLogsCheckbox.checked);
+
+        // Uncheck the "Link Cross Device Dogfood Feedback" checkbox.
+        const linkCrossDeviceDogfoodFeedbackCheckbox =
+            getElement('#linkCrossDeviceDogfoodFeedbackCheckbox');
+        assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+        linkCrossDeviceDogfoodFeedbackCheckbox.checked = false;
+        assertFalse(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
+
+        const reportWithoutCategoryTag = (await clickSendAndWait(page)).report;
+        assertFalse(!!reportWithoutCategoryTag.feedbackContext.categoryTag);
+
+        page.reEnableSendReportButton();
+        const fakeFeedbackContextWithCategoryTag =
+            /** @type {!FeedbackContext} */ (
+                {categoryTag: 'some category tag'});
+        page.feedbackContext = fakeFeedbackContextWithCategoryTag;
+        await flushTasks();
+
+        const reportWithCategoryTag = (await clickSendAndWait(page)).report;
+        assertEquals(
+            fakeFeedbackContextWithCategoryTag.categoryTag,
+            reportWithCategoryTag.feedbackContext.categoryTag);
+
+        // Check the Link Cross Device Dogfood Feedback checkbox. The
+        // categoryTag should be
+        // 'linkCrossDeviceDogfoodFeedbackWithoutBluetoothLogs'.
+        page.reEnableSendReportButton();
+        assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+        linkCrossDeviceDogfoodFeedbackCheckbox.checked = true;
+        assertTrue(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
+
+        page.reEnableSendReportButton();
+
+        const reportWithCrossDeviceWithoutBluetoothLogsTag =
+            (await clickSendAndWait(page)).report;
+        assertEquals(
+            'linkCrossDeviceDogfoodFeedbackWithoutBluetoothLogs',
+            reportWithCrossDeviceWithoutBluetoothLogsTag.feedbackContext
+                .categoryTag);
+      });
+
+  /**
+   * Test that when feedback context contains categoryTag matching value
+   * is set on report.
+   */
+  test(
+      'AdditionalContext_CategoryTag_BluetoothLogsAndLinkCrossDeviceDogfoodFeedback',
+      async () => {
+        await initializePage();
+        page.feedbackContext = fakeFeedbackContext;
+
+        // Check both the "Link Cross Device Dogfood Feedback" and Bluetooth
+        // logs checkboxes. The categoryTag should then be
+        // 'linkCrossDeviceDogfoodFeedbackWithBluetoothLogs'.
+        const linkCrossDeviceDogfoodFeedbackCheckbox =
+            getElement('#linkCrossDeviceDogfoodFeedbackCheckbox');
+        assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+        linkCrossDeviceDogfoodFeedbackCheckbox.checked = true;
+        assertTrue(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
+
+        const bluetoothLogsCheckbox = getElement('#bluetoothLogsCheckbox');
+        assertTrue(!!bluetoothLogsCheckbox);
+        bluetoothLogsCheckbox.checked = true;
+        assertTrue(bluetoothLogsCheckbox.checked);
+
+        await flushTasks();
+
+        const reportWithCrossDeviceWithBluetoothLogsTag =
+            (await clickSendAndWait(page)).report;
+        assertEquals(
+            'linkCrossDeviceDogfoodFeedbackWithBluetoothLogs',
+            reportWithCrossDeviceWithBluetoothLogsTag.feedbackContext
+                .categoryTag);
+      });
 
   /**
    * Test that openMetricsDialog and recordPreSubmitAction are called when
@@ -872,9 +1007,12 @@ export function shareDataPageTestSuite() {
    * Test that openAutofillDialog and recordPreSubmitAction are called when
    * #autofillMetadataUrl ("autofill metadata") link is clicked.
    */
-  // TODO(crbug.com/1401615): Flaky.
-  test.skip('openAutofillDialog', async () => {
+  test('openAutofillDialog', async () => {
     await initializePage();
+
+    page.feedbackContext = fakeInternalUserFeedbackContext;
+    page.feedbackContext.fromAutofill = true;
+    page.feedbackContext.autofillMetadata = '{}';
 
     assertEquals(0, feedbackServiceProvider.getOpenAutofillDialogCallCount());
     verifyRecordPreSubmitActionCallCount(
@@ -901,6 +1039,37 @@ export function shareDataPageTestSuite() {
 
     // After clicking the #bluetoothLogsLink, the dialog pops up.
     getElement('#bluetoothLogsInfoLink').click();
+    assertTrue(isVisible(closeDialogButton));
+
+    // The preview dialog's close icon button is focused.
+    assertEquals(closeDialogButton, getDeepActiveElement());
+
+    // Press enter should close the preview dialog.
+    closeDialogButton.dispatchEvent(
+        new KeyboardEvent('keydown', {key: 'Enter'}));
+    await flushTasks();
+
+    // The preview dialog's close icon button is not visible now.
+    assertFalse(isVisible(closeDialogButton));
+  });
+
+  /**
+   * Test that clicking the #linkCrossDeviceDogfoodFeedbackInfoLink will open
+   * the dialog and set the focus on the close dialog icon button.
+   */
+  test('openLinkCrossDeviceDogfoodFeedbackDialog', async () => {
+    await initializePage();
+    page.feedbackContext = fakeFeedbackContext;
+
+    // The "Link Cross Device Dogfood Feedback" dialog is not visible as
+    // default.
+    const closeDialogButton =
+        getElement('#linkCrossDeviceDogfoodFeedbackDialogDoneButton');
+    assertFalse(isVisible(closeDialogButton));
+
+    // After clicking the #linkCrossDeviceDogfoodFeedbackLink, the dialog pops
+    // up.
+    getElement('#linkCrossDeviceDogfoodFeedbackInfoLink').click();
     assertTrue(isVisible(closeDialogButton));
 
     // The preview dialog's close icon button is focused.
@@ -959,10 +1128,18 @@ export function shareDataPageTestSuite() {
     getElement('#bluetoothCheckboxContainer').hidden = false;
 
     const bluetoothLogsCheckbox = getElement('#bluetoothLogsCheckbox');
+    const linkCrossDeviceDogfoodFeedbackCheckbox =
+        getElement('#linkCrossDeviceDogfoodFeedbackCheckbox');
 
     // Check the bluetoothLogs checkbox, it is default to be checked.
     assertTrue(!!bluetoothLogsCheckbox);
     assertTrue(bluetoothLogsCheckbox.checked);
+
+    // Uncheck the "Link Cross Device Dogfood Feedback" checkbox so that only
+    // the Bluetooth-specific categoryTag is added to the report.
+    assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+    linkCrossDeviceDogfoodFeedbackCheckbox.checked = false;
+    assertFalse(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
 
     // Report should have sendBluetoothLogs flag true, and category marked as
     // "BluetoothReportWithLogs".
@@ -994,6 +1171,14 @@ export function shareDataPageTestSuite() {
     const bluetoothLogsCheckbox = getElement('#bluetoothLogsCheckbox');
     assertTrue(!!bluetoothLogsCheckbox);
     assertTrue(bluetoothLogsCheckbox.checked);
+
+    // Uncheck the "Link Cross Device Dogfood Feedback" checkbox so that only
+    // the Bluetooth-specific categoryTag is added to the report.
+    const linkCrossDeviceDogfoodFeedbackCheckbox =
+        getElement('#linkCrossDeviceDogfoodFeedbackCheckbox');
+    assertTrue(!!linkCrossDeviceDogfoodFeedbackCheckbox);
+    linkCrossDeviceDogfoodFeedbackCheckbox.checked = false;
+    assertFalse(linkCrossDeviceDogfoodFeedbackCheckbox.checked);
 
     // Verify that unchecking the checkbox will remove the flag in the report.
     bluetoothLogsCheckbox.click();

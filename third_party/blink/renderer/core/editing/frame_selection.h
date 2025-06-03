@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/editing/set_selection_options.h"
+#include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/scroll/scroll_alignment.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -51,8 +52,8 @@ class LocalFrame;
 class FrameCaret;
 class GranularityStrategy;
 class GraphicsContext;
-class NGInlineCursor;
-class NGInlineCursorPosition;
+class InlineCursor;
+class InlineCursorPosition;
 class NGPhysicalBoxFragment;
 class Range;
 class SelectionEditor;
@@ -76,7 +77,7 @@ enum class SelectSoftLineBreak { kNotSelected, kSelected };
 // This is return type of ComputeLayoutSelectionStatus(cursor).
 // This structure represents how the fragment is selected.
 // |start|, |end| : Selection start/end offset. This offset is based on
-//   the text of NGInlineNode of a parent block thus
+//   the text of InlineNode of a parent block thus
 //   |fragemnt.StartOffset <= start <= end <= fragment.EndOffset|.
 // |start| == |end| means this fragment is not selected.
 // |line_break| : This value represents If this fragment is selected and
@@ -139,7 +140,7 @@ class CORE_EXPORT FrameSelection final
   bool IsAvailable() const;
   // You should not call |document()| when |!isAvailable()|.
   Document& GetDocument() const;
-  LocalFrame* GetFrame() const { return frame_; }
+  LocalFrame* GetFrame() const { return frame_.Get(); }
   Element* RootEditableElementOrDocumentElement() const;
   wtf_size_t CharacterIndexForPoint(const gfx::Point&) const;
 
@@ -225,7 +226,7 @@ class CORE_EXPORT FrameSelection final
   void CommitAppearanceIfNeeded();
   void SetCaretEnabled(bool caret_is_visible);
   void ScheduleVisualUpdate() const;
-  void ScheduleVisualUpdateForPaintInvalidationIfNeeded() const;
+  void ScheduleVisualUpdateForVisualOverflowIfNeeded() const;
 
   // Paint invalidation methods delegating to FrameCaret.
   void LayoutBlockWillBeDestroyed(const LayoutBlock&);
@@ -311,9 +312,9 @@ class CORE_EXPORT FrameSelection final
   LayoutTextSelectionStatus ComputeLayoutSelectionStatus(
       const LayoutText& text) const;
   LayoutSelectionStatus ComputeLayoutSelectionStatus(
-      const NGInlineCursor& cursor) const;
+      const InlineCursor& cursor) const;
   SelectionState ComputePaintingSelectionStateForCursor(
-      const NGInlineCursorPosition& position) const;
+      const InlineCursorPosition& position) const;
 
   void Trace(Visitor*) const override;
 
@@ -348,6 +349,10 @@ class CORE_EXPORT FrameSelection final
   // could not be made.
   EphemeralRange GetSelectionRangeAroundCaret(
       TextGranularity text_granularity) const;
+  EphemeralRange GetSelectionRangeAroundPosition(
+      TextGranularity text_granularity,
+      Position position,
+      WordSide word_side) const;
 
   Member<LocalFrame> frame_;
   const Member<LayoutSelection> layout_selection_;

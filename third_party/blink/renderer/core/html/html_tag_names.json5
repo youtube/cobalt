@@ -286,6 +286,12 @@
       constructorNeedsCreateElementFlags: true,
     },
     {
+      name: "listbox",
+      interfaceName: "HTMLListboxElement",
+      runtimeEnabled: "HTMLSelectListElement",
+      interfaceHeaderDir: "third_party/blink/renderer/core/html/forms",
+    },
+    {
       name: "listing",
       interfaceName: "HTMLPreElement",
     },
@@ -356,6 +362,11 @@
     },
     "param",
     {
+      name: "permission",
+      interfaceName: "HTMLPermissionElement",
+      runtimeEnabled: "PermissionElement",
+    },
+    {
       name: "picture",
       interfaceName: "HTMLPictureElement",
     },
@@ -416,6 +427,11 @@
       constructorNeedsCreateElementFlags: true,
     },
     {
+      name: "search",
+      interfaceName: "HTMLElement",
+      runtimeEnabled: "HTMLSearchElement",
+    },
+    {
       name: "section",
       interfaceName: "HTMLElement",
     },
@@ -424,9 +440,14 @@
       interfaceHeaderDir: "third_party/blink/renderer/core/html/forms",
     },
     {
-      name: "selectmenu",
-      interfaceName: "HTMLSelectMenuElement",
-      runtimeEnabled: "HTMLSelectMenuElement",
+      name: "selectedoption",
+      interfaceName: "HTMLElement",
+      runtimeEnabled: "HTMLSelectListElement",
+    },
+    {
+      name: "selectlist",
+      interfaceName: "HTMLSelectListElement",
+      runtimeEnabled: "HTMLSelectListElement",
       interfaceHeaderDir: "third_party/blink/renderer/core/html/forms",
     },
     {

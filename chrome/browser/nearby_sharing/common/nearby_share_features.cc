@@ -7,6 +7,10 @@
 
 namespace features {
 
+BASE_FEATURE(kIsNameEnabled,
+             "IsNameEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables Nearby Sharing functionality.
 BASE_FEATURE(kNearbySharing, "NearbySharing", base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -23,15 +27,10 @@ BASE_FEATURE(kNearbySharingOnePageOnboarding,
              "NearbySharingOnePageOnboarding",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables auto-accept functionality when sharing between a user's own devices.
-BASE_FEATURE(kNearbySharingSelfShareAutoAccept,
-             "NearbySharingSelfShareAutoAccept",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables UI features for Self Share, to allow seamless sharing between a
-// user's own devices.
-BASE_FEATURE(kNearbySharingSelfShareUI,
-             "NearbySharingSelfShareUI",
+// Enables UI features for Self Share to allow seamless sharing between a user's
+// own devices.
+BASE_FEATURE(kNearbySharingSelfShare,
+             "NearbySharingSelfShare",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables use of WebRTC in Nearby Share.
@@ -43,5 +42,13 @@ BASE_FEATURE(kNearbySharingWebRtc,
 BASE_FEATURE(kNearbySharingWifiLan,
              "NearbySharingWifiLan",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsNameEnabled() {
+  return base::FeatureList::IsEnabled(kIsNameEnabled);
+}
+
+bool IsSelfShareEnabled() {
+  return base::FeatureList::IsEnabled(kNearbySharingSelfShare);
+}
 
 }  // namespace features

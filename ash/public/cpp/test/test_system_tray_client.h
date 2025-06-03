@@ -25,6 +25,7 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
 
   // SystemTrayClient:
   void ShowSettings(int64_t display_id) override;
+  void ShowAccountSettings() override;
   void ShowBluetoothSettings() override;
   void ShowBluetoothSettings(const std::string& device_id) override;
   void ShowBluetoothPairingDialog(
@@ -44,20 +45,24 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
   void ShowAboutChromeOSDetails() override;
   void ShowAccessibilityHelp() override;
   void ShowAccessibilitySettings() override;
+  void ShowColorCorrectionSettings() override;
   void ShowGestureEducationHelp() override;
   void ShowPaletteHelp() override;
   void ShowPaletteSettings() override;
   void ShowPrivacyAndSecuritySettings() override;
   void ShowPrivacyHubSettings() override;
+  void ShowSpeakOnMuteDetectionSettings() override;
   void ShowSmartPrivacySettings() override;
   void ShowEnterpriseInfo() override;
   void ShowNetworkConfigure(const std::string& network_id) override;
   void ShowNetworkCreate(const std::string& type) override;
   void ShowSettingsCellularSetup(bool show_psim_flow) override;
   void ShowSettingsSimUnlock() override;
+  void ShowApnSubpage(const std::string& network_id) override;
   void ShowThirdPartyVpnCreate(const std::string& extension_id) override;
   void ShowArcVpnCreate(const std::string& app_id) override;
   void ShowNetworkSettings(const std::string& network_id) override;
+  void ShowHotspotSubpage() override;
   void ShowMultiDeviceSetup() override;
   void ShowFirmwareUpdate() override;
   void SetLocaleAndExit(const std::string& locale_iso_code) override;
@@ -74,6 +79,12 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
   bool IsUserFeedbackEnabled() override;
   void ShowEolInfoPage() override;
   void RecordEolNoticeShown() override;
+  void ShowTouchpadSettings() override;
+  void ShowRemapKeysSubpage(int device_id) override;
+
+  int show_account_settings_count() const {
+    return show_account_settings_count_;
+  }
 
   int show_bluetooth_settings_count() const {
     return show_bluetooth_settings_count_;
@@ -86,6 +97,8 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
   int show_bluetooth_pairing_dialog_count() const {
     return show_bluetooth_pairing_dialog_count_;
   }
+
+  int show_hotspot_subpage_count() const { return show_hotspot_subpage_count_; }
 
   int show_multi_device_setup_count() const {
     return show_multi_device_setup_count_;
@@ -103,6 +116,10 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
     return show_os_settings_privacy_hub_count_;
   }
 
+  int show_speak_on_mute_detection_count() const {
+    return show_speak_on_mute_detection_count_;
+  }
+
   int show_os_smart_privacy_settings_count() const {
     return show_os_smart_privacy_settings_count_;
   }
@@ -113,6 +130,12 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
 
   int show_sim_unlock_settings_count() const {
     return show_sim_unlock_settings_count_;
+  }
+
+  int show_apn_subpage_count() const { return show_apn_subpage_count_; }
+
+  const std::string& last_apn_subpage_network_id() const {
+    return last_apn_subpage_network_id_;
   }
 
   int show_third_party_vpn_create_count() const {
@@ -169,17 +192,33 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
 
   int show_eol_info_count() const { return show_eol_info_count_; }
 
+  int show_color_correction_settings_count() const {
+    return show_color_correction_settings_count_;
+  }
+
+  int show_touchpad_settings_count() const {
+    return show_touchpad_settings_count_;
+  }
+
+  int show_remap_keys_subpage_count() const {
+    return show_remap_keys_subpage_count_;
+  }
+
  private:
+  int show_account_settings_count_ = 0;
   int show_network_settings_count_ = 0;
   int show_bluetooth_settings_count_ = 0;
   int show_bluetooth_pairing_dialog_count_ = 0;
+  int show_hotspot_subpage_count_ = 0;
   int show_multi_device_setup_count_ = 0;
   int show_connected_devices_settings_count_ = 0;
   int show_os_settings_privacy_and_security_count_ = 0;
   int show_os_settings_privacy_hub_count_ = 0;
+  int show_speak_on_mute_detection_count_ = 0;
   int show_os_smart_privacy_settings_count_ = 0;
   int show_wifi_sync_settings_count_ = 0;
   int show_sim_unlock_settings_count_ = 0;
+  int show_apn_subpage_count_ = 0;
   int show_third_party_vpn_create_count_ = 0;
   std::string last_third_party_vpn_extension_id_;
   int show_arc_vpn_create_count_ = 0;
@@ -190,6 +229,7 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
   int show_calendar_event_count_ = 0;
   int show_video_conference_count_ = 0;
   std::string last_bluetooth_settings_device_id_;
+  std::string last_apn_subpage_network_id_;
   std::string last_network_settings_network_id_;
   std::string last_network_type_;
   int show_channel_info_additional_details_count_ = 0;
@@ -197,6 +237,9 @@ class ASH_PUBLIC_EXPORT TestSystemTrayClient : public SystemTrayClient {
   int show_audio_settings_count_ = 0;
   bool user_feedback_enabled_ = false;
   int show_eol_info_count_ = 0;
+  int show_color_correction_settings_count_ = 0;
+  int show_touchpad_settings_count_ = 0;
+  int show_remap_keys_subpage_count_ = 0;
 };
 
 }  // namespace ash

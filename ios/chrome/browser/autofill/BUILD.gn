@@ -3,12 +3,15 @@
 # found in the LICENSE file.
 
 source_set("autofill") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "address_normalizer_factory.h",
     "address_normalizer_factory.mm",
     "autocomplete_history_manager_factory.h",
     "autocomplete_history_manager_factory.mm",
+    "autofill_image_fetcher_factory.h",
+    "autofill_image_fetcher_factory.mm",
+    "autofill_image_fetcher_impl.h",
+    "autofill_image_fetcher_impl.mm",
     "autofill_log_router_factory.cc",
     "autofill_log_router_factory.h",
     "form_input_suggestions_provider.h",
@@ -46,22 +49,25 @@ source_set("autofill") {
     "//components/autofill/core/browser",
     "//components/autofill/ios/browser",
     "//components/autofill/ios/form_util",
+    "//components/image_fetcher/core",
+    "//components/image_fetcher/ios",
     "//components/keyed_service/core",
     "//components/keyed_service/ios",
     "//components/leveldb_proto",
     "//components/prefs",
-    "//components/sync/driver",
+    "//components/sync/service",
     "//components/variations/service",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/history",
-    "//ios/chrome/browser/paths",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/ui/util:util_swift",
     "//ios/chrome/browser/shared/ui/util/image",
     "//ios/chrome/browser/signin",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/webdata_services",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/webdata_services/model",
+    "//ios/chrome/common/ui/colors:colors",
     "//ios/web/common",
     "//ios/web/public/js_messaging",
     "//third_party/leveldatabase",
@@ -74,7 +80,6 @@ source_set("autofill") {
 }
 
 source_set("autofill_shared") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "form_input_accessory_view_handler.h",
     "form_input_accessory_view_handler.mm",
@@ -94,7 +99,6 @@ source_set("autofill_shared") {
 }
 
 source_set("autofill_internal") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "autofill_tab_helper.h",
     "autofill_tab_helper.mm",
@@ -108,9 +112,9 @@ source_set("autofill_internal") {
     "//components/infobars/core",
     "//components/pref_registry",
     "//components/prefs",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/infobars",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/ui/autofill",
     "//third_party/leveldatabase",
@@ -121,7 +125,6 @@ source_set("autofill_internal") {
 }
 
 source_set("constants") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "form_suggestion_constants.h",
     "form_suggestion_constants.mm",
@@ -146,13 +149,14 @@ write_file(
                 "."))
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   sources = [
     "autofill_controller_js_unittest.mm",
     "autofill_controller_unittest.mm",
+    "autofill_image_fetcher_impl_unittest.mm",
     "autofill_java_script_feature_unittest.mm",
+    "child_frame_registration_java_script_feature_unittest.mm",
     "form_input_accessory_view_handler_unittest.mm",
     "form_structure_browsertest.mm",
     "form_suggestion_controller_unittest.mm",
@@ -183,18 +187,18 @@ source_set("unit_tests") {
     "//components/security_state/ios",
     "//components/sync_user_events:test_support",
     "//ios/chrome/app/application_delegate:app_state_header",
-    "//ios/chrome/browser/browser_state:test_support",
     "//ios/chrome/browser/infobars",
-    "//ios/chrome/browser/passwords",
-    "//ios/chrome/browser/paths",
+    "//ios/chrome/browser/passwords/model",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
-    "//ios/chrome/browser/ssl",
-    "//ios/chrome/browser/sync:sync",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/ssl/model",
+    "//ios/chrome/browser/sync/model:model",
     "//ios/chrome/browser/ui/autofill",
     "//ios/chrome/browser/ui/autofill/form_input_accessory",
     "//ios/chrome/browser/ui/settings:test_support",
     "//ios/chrome/browser/web:web_internal",
-    "//ios/chrome/browser/webdata_services",
+    "//ios/chrome/browser/webdata_services/model",
     "//ios/chrome/test:test_support",
     "//ios/testing:block_swizzler",
     "//ios/web/public/js_messaging",
@@ -204,6 +208,7 @@ source_set("unit_tests") {
     "//third_party/leveldatabase",
     "//third_party/ocmock",
     "//ui/base:test_support",
+    "//ui/gfx:test_support",
   ]
 }
 
@@ -221,10 +226,7 @@ bundle_data("unit_tests_bundle_data_list") {
 }
 
 source_set("eg2_tests") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "form_input_egtest.mm" ]
   deps = [

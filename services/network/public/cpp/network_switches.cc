@@ -50,11 +50,17 @@ const char kLogNetLog[] = "log-net-log";
 // description of their meanings.
 const char kNetLogCaptureMode[] = "net-log-capture-mode";
 
+// Sets the maximum size, in megabytes. The log file can grow to before older
+// data is overwritten. Do not use this flag if you want an unlimited file size.
+const char kNetLogMaxSizeMb[] = "net-log-max-size-mb";
+
 // Causes SSL key material to be logged to the specified file for debugging
 // purposes. See
 // https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format
 // for the format.
 const char kSSLKeyLogFile[] = "ssl-key-log-file";
+
+const char kTestThirdPartyCookiePhaseout[] = "test-third-party-cookie-phaseout";
 
 // Treat given (insecure) origins as secure origins. Multiple origins can be
 // supplied as a comma-separated list. For the definition of secure contexts,
@@ -86,7 +92,15 @@ const char kAdditionalTrustTokenKeyCommitments[] =
 // Allows the manual specification of a First-Party Set, as a comma-separated
 // list of origins. The first origin in the list is treated as the owner of the
 // set.
+// DEPRECATED(crbug.com/1486689): This switch is under deprecation due to
+// renaming "First-Party Set" to "Related Website Set". Please use
+// `kUseRelatedWebsiteSet` instead.
 const char kUseFirstPartySet[] = "use-first-party-set";
+
+// Allows the manual specification of a Related Website Set, as a
+// comma-separated list of origins. The first origin in the list is treated as
+// the primary site of the set.
+const char kUseRelatedWebsiteSet[] = "use-related-website-set";
 
 // Specifies manual overrides to the IP endpoint -> IP address space mapping.
 // This allows running local tests against "public" and "private" IP addresses.

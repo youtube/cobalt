@@ -4,32 +4,31 @@
 
 #import "ios/chrome/browser/ui/ntp/metrics/feed_metrics_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 const int kMinScrollThreshold = 140;
 const int kGoodVisitTimeInFeedSeconds = 60;
 const int kNonShortClickSeconds = 10;
 const int kMinutesBetweenSessions = 5;
 const int kMaxCardsInFeed = 50;
 
-NSString* const kArticleVisitTimestampKey = @"ShortClickInteractionTimestamp";
-NSString* const kLongFeedVisitTimeAggregateKey =
-    @"LongFeedInteractionTimeDelta";
-NSString* const kLongDiscoverFeedVisitTimeAggregateKey =
-    @"LongDiscoverFeedInteractionTimeDelta";
-NSString* const kLongFollowingFeedVisitTimeAggregateKey =
-    @"LongFollowingFeedInteractionTimeDelta";
-NSString* const kLastUsedFeedForGoodVisitsKey = @"LastUsedFeedForGoodVisits";
-NSString* const kLastInteractionTimeForGoodVisits =
-    @"LastInteractionTimeForGoodVisits";
-NSString* const kLastInteractionTimeForDiscoverGoodVisits =
-    @"LastInteractionTimeForGoodVisitsDiscover";
-NSString* const kLastInteractionTimeForFollowingGoodVisits =
-    @"LastInteractionTimeForGoodVisitsFollowing";
-NSString* const kLastDayTimeInFeedReportedKey = @"LastDayTimeInFeedReported";
-NSString* const kTimeSpentInFeedAggregateKey = @"TimeSpentInFeedAggregate";
+const char kArticleVisitTimestampKey[] = "ShortClickInteractionTimestamp";
+const char kLongFeedVisitTimeAggregateKey[] = "LongFeedInteractionTimeDelta";
+const char kLongDiscoverFeedVisitTimeAggregateKey[] =
+    "LongDiscoverFeedInteractionTimeDelta";
+const char kLongFollowingFeedVisitTimeAggregateKey[] =
+    "LongFollowingFeedInteractionTimeDelta";
+const char kLastUsedFeedForGoodVisitsKey[] = "LastUsedFeedForGoodVisits";
+const char kLastInteractionTimeForGoodVisits[] =
+    "LastInteractionTimeForGoodVisits";
+const char kLastInteractionTimeForDiscoverGoodVisits[] =
+    "LastInteractionTimeForGoodVisitsDiscover";
+const char kLastInteractionTimeForFollowingGoodVisits[] =
+    "LastInteractionTimeForGoodVisitsFollowing";
+const char kLastDayTimeInFeedReportedKey[] = "LastDayTimeInFeedReported";
+const char kTimeSpentInFeedAggregateKey[] = "TimeSpentInFeedAggregate";
+const char kActivityBucketLastReportedDateKey[] =
+    "ActivityBucketLastReportedDate";
+const char kActivityBucketLastReportedDateArrayKey[] =
+    "ActivityBucketLastReportedDateArray";
 
 #pragma mark - Histograms
 
@@ -49,6 +48,8 @@ const char kDiscoverFeedCardShownAtIndex[] =
     "NewTabPage.ContentSuggestions.Shown";
 const char kFollowingFeedCardShownAtIndex[] =
     "ContentSuggestions.Feed.WebFeed.Shown";
+const char kAllFeedsActivityBucketsHistogram[] =
+    "ContentSuggestions.Feed.AllFeeds.Activity";
 const char kDiscoverFeedNoticeCardFulfilled[] =
     "ContentSuggestions.Feed.NoticeCardFulfilled2";
 const char kDiscoverFeedArticlesFetchNetworkDurationSuccess[] =

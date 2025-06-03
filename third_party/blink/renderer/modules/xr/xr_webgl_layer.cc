@@ -193,7 +193,10 @@ bool XRWebGLLayer::antialias() const {
   if (drawing_buffer_) {
     return drawing_buffer_->antialias();
   }
-  return webgl_context_->GetDrawingBuffer()->Multisample();
+  if (!webgl_context_->isContextLost()) {
+    return webgl_context_->GetDrawingBuffer()->Multisample();
+  }
+  return false;
 }
 
 XRViewport* XRWebGLLayer::getViewport(XRView* view) {
@@ -231,10 +234,10 @@ XRViewport* XRWebGLLayer::GetViewportForEye(device::mojom::blink::XREye eye) {
     UpdateViewports();
 
   if (eye == device::mojom::blink::XREye::kRight)
-    return right_viewport_;
+    return right_viewport_.Get();
 
   // This code path also handles an eye of "none".
-  return left_viewport_;
+  return left_viewport_.Get();
 }
 
 double XRWebGLLayer::getNativeFramebufferScaleFactor(XRSession* session) {
@@ -244,9 +247,12 @@ double XRWebGLLayer::getNativeFramebufferScaleFactor(XRSession* session) {
 void XRWebGLLayer::UpdateViewports() {
   uint32_t framebuffer_width = framebufferWidth();
   uint32_t framebuffer_height = framebufferHeight();
-  // Framebuffer width and height are assumed to be nonzero.
-  DCHECK_NE(framebuffer_width, 0U);
-  DCHECK_NE(framebuffer_height, 0U);
+  if (framebuffer_width == 0U || framebuffer_height == 0U) {
+    LOG_IF(ERROR, !webgl_context_->isContextLost())
+        << __func__ << " Received width=" << framebuffer_width
+        << " height=" << framebuffer_height << " without having lost context";
+    return;
+  }
 
   viewports_dirty_ = false;
 
@@ -308,7 +314,7 @@ WebGLTexture* XRWebGLLayer::GetCameraTexture() {
 
   // We already have a WebGL texture for the camera image - return it:
   if (camera_image_texture_) {
-    return camera_image_texture_;
+    return camera_image_texture_.Get();
   }
 
   // We don't have a WebGL texture, and we cannot create it - return null:
@@ -321,7 +327,7 @@ WebGLTexture* XRWebGLLayer::GetCameraTexture() {
   camera_image_texture_ = MakeGarbageCollected<WebGLUnownedTexture>(
       webgl_context_, camera_image_texture_id_, GL_TEXTURE_2D);
 
-  return camera_image_texture_;
+  return camera_image_texture_.Get();
 }
 
 void XRWebGLLayer::OnFrameStart(

@@ -9,6 +9,7 @@
 
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_lottie/cr_lottie.js';
+import 'chrome://resources/cros_components/lottie_renderer/lottie-renderer.js';
 import 'chrome://resources/polymer/v3_0/iron-media-query/iron-media-query.js';
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import '/shared/nearby_device.js';
@@ -19,7 +20,9 @@ import './strings.m.js';
 import {NearbyDeviceElement} from '/shared/nearby_device.js';
 import {ConfirmationManagerInterface, DiscoveryObserverReceiver, PayloadPreview, SelectShareTargetResult, ShareTarget, ShareTargetListenerCallbackRouter, StartDiscoveryResult, TransferUpdateListenerPendingReceiver} from '/shared/nearby_share.mojom-webui.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {ArraySelector, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -40,6 +43,8 @@ function tokensEqual(a: UnguessableToken, b: UnguessableToken): boolean {
   return a.high === b.high && a.low === b.low;
 }
 
+// TODO(TODO(b/279623883): Remove dark mode handling.
+
 /**
  * The pulse animation asset URL for light mode.
  */
@@ -51,6 +56,12 @@ const PULSE_ANIMATION_URL_LIGHT: string =
  */
 const PULSE_ANIMATION_URL_DARK: string =
     'nearby_share_pulse_animation_dark.json';
+
+/**
+ * The pulse animation asset URL for jelly mode.
+ */
+const PULSE_ANIMATION_URL_JELLY: string =
+    'nearby_share_pulse_animation_jelly.json';
 
 
 const NearbyDiscoveryPageElementBase = I18nMixin(PolymerElement);
@@ -112,6 +123,26 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
       },
 
       /**
+       * A list of all discovered nearby self-share targets.
+       * Used only if isSelfShareEnabled is true, otherwise only |shareTargets_|
+       * is used.
+       */
+      selfShareTargets_: {
+        type: Array,
+        value: () => [],
+      },
+
+      /**
+       * A list of all discovered nearby non-self-share targets.
+       * Used only if isSelfShareEnabled is true, otherwise only |shareTargets_|
+       * is used.
+       */
+      nonSelfShareTargets_: {
+        type: Array,
+        value: () => [],
+      },
+
+      /**
        * Header text for error. The error section is not displayed if this is
        * falsey.
        */
@@ -135,6 +166,30 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
         type: Boolean,
         value: false,
       },
+
+      /**
+       * Return true if the Jelly feature flag is enabled.
+       */
+      isJellyEnabled_: {
+        type: Boolean,
+        readOnly: true,
+        value() {
+          return loadTimeData.valueExists('isJellyEnabled') &&
+              loadTimeData.getBoolean('isJellyEnabled');
+        },
+      },
+
+      /**
+       * Return true if the Nearby Share Self Share feature flag is enabled.
+       */
+      isSelfShareEnabled: {
+        type: Boolean,
+        readOnly: true,
+        value() {
+          return loadTimeData.valueExists('isSelfShareEnabled') &&
+              loadTimeData.getBoolean('isSelfShareEnabled');
+        },
+      },
     };
   }
 
@@ -142,11 +197,15 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
   confirmationManager: ConfirmationManagerInterface|null;
   transferUpdateListener: TransferUpdateListenerPendingReceiver|null;
   selectedShareTarget: ShareTarget|null;
+  isSelfShareEnabled: boolean;
 
   private shareTargets_: ShareTarget[];
+  private selfShareTargets_: ShareTarget[];
+  private nonSelfShareTargets_: ShareTarget[];
   private errorTitle_: string|null;
   private errorDescription_: string|null;
   private isDarkModeActive_: boolean;
+  private isJellyEnabled_: boolean;
 
   private mojoEventTarget_: ShareTargetListenerCallbackRouter|null = null;
   private listenerIds_: number[]|null = null;
@@ -285,6 +344,8 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
       this.shareTargetMap_.clear();
     }
     this.shareTargets_ = [];
+    this.selfShareTargets_ = [];
+    this.nonSelfShareTargets_ = [];
   }
 
   /**
@@ -322,7 +383,12 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
    * @param index in |shareTargets_| and also the dom-repeat list.
    */
   private focusShareTarget_(index: number) {
-    const container = this.shadowRoot!.querySelector('.device-list-container');
+    let container;
+    if (this.isSelfShareEnabled) {
+      container = this.shadowRoot!.querySelector('#deviceLists');
+    } else {
+      container = this.shadowRoot!.querySelector('.device-list-container');
+    }
     assert(container);
     const nearbyDeviceElements = container.querySelectorAll('nearby-device');
 
@@ -352,7 +418,7 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
     }
 
     this.selectedShareTarget = shareTarget;
-    const selector = this.shadowRoot!.querySelector<ArraySelector>('#selector');
+    const selector = this.shadowRoot!.querySelector<ArraySelector>('.selector');
     assert(selector);
     selector.select(this.selectedShareTarget);
   }
@@ -366,25 +432,66 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
   }
 
   private onShareTargetDiscovered_(shareTarget: ShareTarget) {
-    const shareTargetId = tokenToString(shareTarget.id);
     assert(this.shareTargetMap_);
-    if (!this.shareTargetMap_.has(shareTargetId)) {
-      this.push('shareTargets_', shareTarget);
+    if (this.isSelfShareEnabled) {
+      if (shareTarget.forSelfShare) {
+        this.updateShareTargetList_(
+            this.selfShareTargets_, 'selfShareTargets_', shareTarget);
+      } else {
+        this.updateShareTargetList_(
+            this.nonSelfShareTargets_, 'nonSelfShareTargets_', shareTarget);
+      }
+      this.shareTargets_ =
+          this.selfShareTargets_.concat(this.nonSelfShareTargets_);
     } else {
-      const index = this.shareTargets_.findIndex(
+      this.updateShareTargetList_(
+          this.shareTargets_, 'shareTargets_', shareTarget);
+    }
+    this.shareTargetMap_.set(tokenToString(shareTarget.id), shareTarget);
+  }
+
+  private updateShareTargetList_(
+      shareTargetList: ShareTarget[], shareTargetListString: string,
+      shareTarget: ShareTarget) {
+    assert(this.shareTargetMap_);
+    if (this.shareTargetMap_.has(tokenToString(shareTarget.id))) {
+      const index = shareTargetList.findIndex(
           (target) => tokensEqual(target.id, shareTarget.id));
       assert(index !== -1);
-      this.splice('shareTargets_', index, 1, shareTarget);
+      this.splice(shareTargetListString, index, 1, shareTarget);
       this.updateSelectedShareTarget_(shareTarget.id, shareTarget);
+    } else {
+      this.push(shareTargetListString, shareTarget);
     }
-    this.shareTargetMap_.set(shareTargetId, shareTarget);
   }
 
   private onShareTargetLost_(shareTarget: ShareTarget) {
-    const index = this.shareTargets_.findIndex(
-        (target) => tokensEqual(target.id, shareTarget.id));
-    assert(index !== -1);
-    this.splice('shareTargets_', index, 1);
+    if (this.isSelfShareEnabled) {
+      if (shareTarget.forSelfShare) {
+        // Remove target from `selfShareTargets_`.
+        const index = this.selfShareTargets_.findIndex(
+            (target) => tokensEqual(target.id, shareTarget.id));
+        assert(index !== -1);
+        this.splice('selfShareTargets_', index, 1);
+      } else {
+        // Remove target from `nonSelfShareTargets_`.
+        const index = this.nonSelfShareTargets_.findIndex(
+            (target) => tokensEqual(target.id, shareTarget.id));
+        assert(index !== -1);
+        this.splice('nonSelfShareTargets_', index, 1);
+      }
+
+      this.set(
+          'shareTargets_',
+          this.selfShareTargets_.concat(this.nonSelfShareTargets_));
+    } else {
+      // Remove target from `shareTargets_`.
+      const shareTargetsIdx = this.shareTargets_.findIndex(
+          (target) => tokensEqual(target.id, shareTarget.id));
+      assert(shareTargetsIdx !== -1);
+      this.splice('shareTargets_', shareTargetsIdx, 1);
+    }
+
     assert(this.shareTargetMap_);
     this.shareTargetMap_.delete(tokenToString(shareTarget.id));
     this.updateSelectedShareTarget_(shareTarget.id, /*shareTarget=*/ null);
@@ -423,7 +530,7 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
       return;
     }
 
-    const selector = this.shadowRoot!.querySelector<ArraySelector>('#selector');
+    const selector = this.shadowRoot!.querySelector<ArraySelector>('.selector');
     assert(selector);
     this.selectedShareTarget = selector.selectedItem as (ShareTarget | null);
   }
@@ -445,7 +552,7 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
         tokensEqual(this.selectedShareTarget.id, id)) {
       this.selectedShareTarget = shareTarget;
       const selector =
-          this.shadowRoot!.querySelector<ArraySelector>('#selector');
+          this.shadowRoot!.querySelector<ArraySelector>('.selector');
       assert(selector);
       selector.select(this.selectedShareTarget);
     }
@@ -459,10 +566,28 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
    * so users will not navigate to by tab.
    */
   private getTabIndexOfShareTarget_(shareTarget: ShareTarget|null): string {
-    if ((!this.selectedShareTarget && shareTarget === this.shareTargets_[0]) ||
-        (shareTarget === this.selectedShareTarget)) {
+    if (this.selectedShareTarget && shareTarget === this.selectedShareTarget) {
       return '0';
     }
+
+    if (this.isSelfShareEnabled) {
+      if (this.selfShareTargets_.length !== 0 &&
+          shareTarget === this.selfShareTargets_[0]) {
+        return '0';
+      }
+
+      if (this.nonSelfShareTargets_.length !== 0 &&
+          shareTarget === this.nonSelfShareTargets_[0]) {
+        return '0';
+      }
+
+      return '-1';
+    }
+
+    if (shareTarget === this.shareTargets_[0]) {
+      return '0';
+    }
+
     return '-1';
   }
 
@@ -473,7 +598,7 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
    * can't be used directly because this isn't part of settings.
    * TODO(crbug.com/1170849): Extract this logic into a general method.
    */
-  private getAriaLabelledHelpText_(): string {
+  private getAriaLabelledHelpText_(): TrustedHTML {
     const tempEl = document.createElement('div');
     const localizedString = this.i18nAdvanced('nearbyShareDiscoveryPageInfo');
     const linkUrl = this.i18n('nearbyShareLearnMoreLink');
@@ -509,7 +634,7 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
     // In the event the localizedString contains only text nodes, populate the
     // contents with the localizedString.
     if (anchorTags.length === 0) {
-      return localizedString.toString();
+      return localizedString;
     }
 
     assert(
@@ -520,7 +645,8 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
     anchorTag.href = linkUrl;
     anchorTag.target = '_blank';
 
-    return tempEl.innerHTML;
+    return sanitizeInnerHtml(
+        tempEl.innerHTML, {attrs: ['id', 'aria-hidden', 'aria-labelledby']});
   }
 
   /**
@@ -528,8 +654,21 @@ export class NearbyDiscoveryPageElement extends NearbyDiscoveryPageElementBase {
    * pulsing background animation
    */
   private getAnimationUrl_(): string {
+    if (this.isJellyEnabled_) {
+      return PULSE_ANIMATION_URL_JELLY;
+    }
+
+    // TODO(b/279623883): Clean up dark mode logic and duplicate assets after
+    // Jelly is launched.
     return this.isDarkModeActive_ ? PULSE_ANIMATION_URL_DARK :
                                     PULSE_ANIMATION_URL_LIGHT;
+  }
+
+  /**
+   * Returns a boolean indicating whether to show Self Share UI.
+   */
+  private showSelfShareUi_(): boolean {
+    return this.isSelfShareEnabled;
   }
 }
 

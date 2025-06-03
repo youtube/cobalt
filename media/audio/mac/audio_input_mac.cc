@@ -8,9 +8,9 @@
 
 #include <memory>
 
+#include "base/apple/osstatus_logging.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/mac/mac_logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/time/time.h"
@@ -168,17 +168,34 @@ double PCMQueueInAudioInputStream::GetMaxVolume() {
 }
 
 void PCMQueueInAudioInputStream::SetVolume(double volume) {
+#if BUILDFLAG(IS_MAC)
   NOTIMPLEMENTED();
+#else
+  auto* manager = static_cast<AudioManagerIOS*>(client_);
+  if (manager) {
+    manager->SetInputGain(volume);
+  }
+#endif
 }
 
 double PCMQueueInAudioInputStream::GetVolume() {
+#if BUILDFLAG(IS_MAC)
   NOTIMPLEMENTED();
   return 1.0;
+#else
+  auto* manager = static_cast<AudioManagerIOS*>(client_);
+  return manager ? manager->GetInputGain() : 1.0;
+#endif
 }
 
 bool PCMQueueInAudioInputStream::IsMuted() {
+#if BUILDFLAG(IS_MAC)
   NOTIMPLEMENTED();
   return false;
+#else
+  auto* manager = static_cast<AudioManagerIOS*>(client_);
+  return manager ? manager->IsInputMuted() : false;
+#endif
 }
 
 bool PCMQueueInAudioInputStream::SetAutomaticGainControl(bool enabled) {

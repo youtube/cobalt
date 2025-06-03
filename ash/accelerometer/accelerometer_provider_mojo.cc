@@ -405,7 +405,10 @@ void AccelerometerProviderMojo::RegisterAccelerometerWithId(int32_t id) {
     return;
   }
 
-  DCHECK(!accelerometer.remote.is_bound());
+  if (accelerometer.remote.is_bound()) {
+    // Has already been registered.
+    return;
+  }
   DCHECK(!accelerometer.samples_observer.get());
 
   if (!sensor_service_remote_.is_bound()) {
@@ -585,11 +588,10 @@ void AccelerometerProviderMojo::CreateAccelerometerSamplesObserver(int32_t id) {
     return;
   }
 
-  accelerometer.samples_observer =
-      std::make_unique<AccelerometerSamplesObserver>(
-          id, std::move(accelerometer.remote), accelerometer.scale.value(),
-          base::BindRepeating(
-              &AccelerometerProviderMojo::OnSampleUpdatedCallback, this));
+  accelerometer.samples_observer = std::make_unique<AccelGryoSamplesObserver>(
+      id, std::move(accelerometer.remote), accelerometer.scale.value(),
+      base::BindRepeating(&AccelerometerProviderMojo::OnSampleUpdatedCallback,
+                          this));
 
   if (initialization_state_ == MojoState::BASE) {
     DCHECK_EQ(accelerometer.location.value(),

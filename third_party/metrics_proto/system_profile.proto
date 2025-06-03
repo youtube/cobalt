@@ -17,7 +17,7 @@ import "extension_install.proto";
 // Almost all the fields should be populated on every upload. (The only
 // exception is some fields in the stability section that are only uploaded
 // once per browsing session, usually shortly after startup.)
-// Next tag: 44
+// Next tag: 46
 message SystemProfileProto {
   // The time when the client was compiled/linked, in seconds since the epoch.
   optional int64 build_timestamp = 1;
@@ -54,8 +54,7 @@ message SystemProfileProto {
   optional string log_written_by_app_version = 40;
 
   // The brand code or distribution tag assigned to a partner, if available.
-  // Brand codes are only available on Windows.  Not every Windows install
-  // though will have a brand code.
+  // Windows, Mac, iOS, and CrOS clients may have a brand code.
   optional string brand_code = 12;
 
   // The possible channels for an installation, from least to most stable.
@@ -267,7 +266,7 @@ message SystemProfileProto {
   optional OS os = 5;
 
   // Information on the user's hardware.
-  // Next tag: 27
+  // Next tag: 28
   message Hardware {
     // OS CPU architecture. Common options are: x86, x86_64, arm64, armv7,
     // armv7l, armv8l and aarch64.
@@ -334,10 +333,10 @@ message SystemProfileProto {
     optional float max_dpi_x = 9;
     optional float max_dpi_y = 10;
 
-    // The form factor of the device. Added in M101.
-    // Android devices can be phone, tablet, or TV. iOS devices can be phone or
-    // tablet. For Windows, Mac, ChromeOS, Lacros, and Linux, the desktop form
-    // factor is always used.
+    // The form factor of the device. Added in M101, foldable added in M120.
+    // Android devices can be phone, tablet, TV, automotive or foldable. iOS
+    // devices can be phone or tablet. For Windows, Mac, ChromeOS, Lacros, and
+    // Linux, the desktop form factor is always used.
     enum FormFactor {
       FORM_FACTOR_UNKNOWN = 0;
       FORM_FACTOR_DESKTOP = 1;
@@ -346,6 +345,7 @@ message SystemProfileProto {
       FORM_FACTOR_TV = 4;
       FORM_FACTOR_MEET_DEVICE = 5;
       FORM_FACTOR_AUTOMOTIVE = 6;
+      FORM_FACTOR_FOLDABLE = 7;
     }
     optional FormFactor form_factor = 22;
 
@@ -498,6 +498,10 @@ message SystemProfileProto {
     // Firmware version of the TPM on the device. This field is only filled in
     // on ChromeOS devices (both CrOS and LaCrOS platforms).
     optional uint64 tpm_firmware_version = 26;
+
+    // RW Firmware version of the TPM on the device. This field is only filled
+    // in on ChromeOS devices.
+    optional string tpm_rw_firmware_version = 27;
   }
   optional Hardware hardware = 6;
 
@@ -995,7 +999,9 @@ message SystemProfileProto {
     STATE_EXPIRED = 3;
   }
 
-  // Information about AntiVirus products installed.
+  // Information about installed antivirus products. Windows only. See
+  // https://cs.chromium.org/chromium/src/chrome/browser/metrics/antivirus_metrics_provider_win.cc.
+  //
   // Next Tag: 6
   message AntiVirusProduct {
     // The product name e.g. "System Center Endpoint Protection". This might not
@@ -1088,6 +1094,7 @@ message SystemProfileProto {
     SODA_JA_JP = 60;
     THIRD_PARTY_MODULE_LIST = 61;
     TRUST_TOKEN_KEY_COMMITMENTS = 62;
+    THIRD_PARTY_COOKIE_DEPRECATION_METADATA = 63;
   }
 
   // Information about what Chrome components are registered and at which
@@ -1142,12 +1149,13 @@ message SystemProfileProto {
     SERVER_SIDE_FILTER_UNSPECIFIED = 0;
     // Indicates the package name filtering should occur on the server-side
     SERVER_SIDE_FILTER_REQUIRED = 1;
-    // Indicates the `app_package_name` does not need filtering since filtering
-    // occurred on the client-side.
-    NO_SERVER_SIDE_FILTER_REQUIRED_DUE_TO_CLIENT_FILTERING = 2;
     // Indicates the `app_package_name` does not need filtering since it is
     // a system app.
     NO_SERVER_SIDE_FILTER_REQUIRED_FOR_SYSTEM_APPS = 3;
+
+    // Removed in cl/567086405:
+    reserved 2;
+    reserved "NO_SERVER_SIDE_FILTER_REQUIRED_DUE_TO_CLIENT_FILTERING";
   }
 
   optional AppPackageNameAllowlistFilter app_package_name_allowlist_filter = 42;
@@ -1164,6 +1172,23 @@ message SystemProfileProto {
   // Specifies whether sampling was applied on the client. Older clients will
   // not set this field, which will result in the default value of UNKNOWN.
   optional ClientSideSamplingStatus client_side_sampling_status = 43;
+
+  enum MetricsFilteringStatus {
+    // Not expected to be reported explicitly, used when the field was not set.
+    METRICS_UNKNOWN = 0;
+    // Client is reporting all recorded histograms and user actions.
+    METRICS_ALL = 1;
+    // Client is reporting only a chosen set of histogrms and user actions.
+    // The semantics of METRICS_ONLY_CRITICAL may vary by platform and evolve
+    // over time.
+    METRICS_ONLY_CRITICAL = 2;
+  }
+
+  // Specifies whether metrics filtering was applied on the client. Metrics
+  // filtering applies to both histograms and user actions. The chosen metrics
+  // to filter may vary by platform and evolve over time. Older clients will not
+  // set this field, which will result in the default value of METRICS_UNKNOWN.
+  optional MetricsFilteringStatus metrics_filtering_status = 44;
 
   // The package which installed Chrome, as reported by
   // PackageManager.getInstallerPackageName().
@@ -1197,7 +1222,8 @@ message SystemProfileProto {
     optional bool is_instant_tethering_enabled = 3;
 
     // True if Messages integration is enabled on this Chromebook.
-    optional bool is_messages_enabled = 4;
+    // Deprecated 10/23.
+    optional bool is_messages_enabled = 4 [deprecated = true];
   }
   optional LinkedAndroidPhoneData linked_android_phone_data = 29;
 
@@ -1217,8 +1243,29 @@ message SystemProfileProto {
     enum CustomizationFacet {
       UNDEFINED = 0;
       CLOUD_GAMING_DEVICE = 1;
+      FEATURE_AWARE_DEVICE = 2;
     }
     repeated CustomizationFacet customization_facet = 3 [packed = true];
   }
   optional DemoModeDimensions demo_mode_dimensions = 41;
+
+  // LTSChannel indicates whether ChromeOS is running an lts channel.
+  // https://chromium.googlesource.com/chromiumos/docs/+/HEAD/releases.md#channels
+  enum LTSChannel {
+    // This field was not set.
+    LTS_CHANNEL_UNKNOWN = 0;
+    // ChromeOS is running stable-channel and not lts.
+    LTS_CHANNEL_STABLE = 1;
+    // ChromeOS is running ltc-channel.
+    LTS_CHANNEL_LTC = 2;
+    // ChromeOS is running lts-channel.
+    LTS_CHANNEL_LTS = 3;
+  }
+
+  // Report whether ChromeOS is running ltc or lts channel.
+  // Instead of extending the Channel enum, we report stable-channel and use
+  // this separate field to filter out for ltc or lts. Most UMA users are not
+  // aware of the existence of lts and we would lose monitoring for many Chrome
+  // features.
+  optional LTSChannel lts_channel = 45;
 }

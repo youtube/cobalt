@@ -15,7 +15,7 @@
 #include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/android/preferences/autofill/autofill_profile_bridge.h"
+#include "chrome/browser/android/preferences/autofill/settings_launcher_helper.h"
 #include "chrome/browser/autofill/manual_filling_controller.h"
 #include "chrome/browser/autofill/manual_filling_utils.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
@@ -25,6 +25,7 @@
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
+#include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/strings/grit/components_strings.h"
@@ -35,11 +36,13 @@ namespace autofill {
 namespace {
 
 // Return the card art url to displayed in the autofill suggestions. The card
-// art is only supported for virtual cards. For other cards, we show the default
-// network icon.
+// art is only supported for Capital One virtual cards. For other cards, we show
+// the default network icon.
 GURL GetCardArtUrl(const CreditCard& card) {
-  return card.record_type() == CreditCard::VIRTUAL_CARD ? card.card_art_url()
-                                                        : GURL();
+  return card.record_type() == CreditCard::RecordType::kVirtualCard &&
+                 card.card_art_url().spec() == kCapitalOneCardArtUrl
+             ? card.card_art_url()
+             : GURL();
 }
 
 std::u16string GetTitle(bool has_suggestions) {
@@ -110,7 +113,8 @@ UserInfo TranslateCachedCard(const CachedServerCardInfo* data, bool enabled) {
 }
 
 bool ShouldCreateVirtualCard(const CreditCard* card) {
-  return card->virtual_card_enrollment_state() == CreditCard::ENROLLED;
+  return card->virtual_card_enrollment_state() ==
+         CreditCard::VirtualCardEnrollmentState::kEnrolled;
 }
 
 const CreditCard* UnwrapCardOrVirtualCard(
@@ -193,11 +197,8 @@ CreditCardAccessoryControllerImpl::GetSheetData() const {
       AccessoryTabType::CREDIT_CARDS, GetTitle(has_suggestions),
       std::move(info_to_add), std::move(footer_commands));
 
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillFillMerchantPromoCodeFields)) {
-    for (auto* offer : GetPromoCodeOffers()) {
-      data.add_promo_code_info(TranslateOffer(offer));
-    }
+  for (auto* offer : GetPromoCodeOffers()) {
+    data.add_promo_code_info(TranslateOffer(offer));
   }
 
   if (has_suggestions && !allow_filling && autofill_manager) {
@@ -223,8 +224,9 @@ void CreditCardAccessoryControllerImpl::OnFillingTriggered(
   // Credit card number fields have a GUID populated to allow deobfuscation
   // before filling.
   if (selection.id().empty()) {
-    GetDriver()->RendererShouldFillFieldWithValue(focused_field_id,
-                                                  selection.text_to_fill());
+    GetDriver()->ApplyFieldAction(mojom::ActionPersistence::kFill,
+                                  mojom::TextReplacement::kReplaceAll,
+                                  focused_field_id, selection.text_to_fill());
     return;
   }
 
@@ -243,6 +245,12 @@ void CreditCardAccessoryControllerImpl::OnFillingTriggered(
   last_focused_field_id_ = focused_field_id;
   GetManager()->GetCreditCardAccessManager()->FetchCreditCard(
       UnwrapCardOrVirtualCard(*card_iter), AsWeakPtr());
+}
+
+void CreditCardAccessoryControllerImpl::OnPasskeySelected(
+    const std::vector<uint8_t>& passkey_id) {
+  NOTIMPLEMENTED()
+      << "Passkey support not available in credit card controller.";
 }
 
 void CreditCardAccessoryControllerImpl::OnOptionSelected(
@@ -271,14 +279,13 @@ bool CreditCardAccessoryController::AllowedForWebContents(
     Profile* profile =
         Profile::FromBrowserContext(web_contents->GetBrowserContext());
     PersonalDataManager* personal_data_manager =
-        PersonalDataManagerFactory::GetForProfile(
-            profile->GetOriginalProfile());
+        PersonalDataManagerFactory::GetForProfile(profile);
     if (personal_data_manager) {
       std::vector<CreditCard*> cards =
           personal_data_manager->GetCreditCardsToSuggest();
       bool has_virtual_card = base::ranges::any_of(cards, [](const auto& card) {
         return card->virtual_card_enrollment_state() ==
-               CreditCard::VirtualCardEnrollmentState::ENROLLED;
+               CreditCard::VirtualCardEnrollmentState::kEnrolled;
       });
       if (has_virtual_card) {
         // Virtual cards are available. We should always show manual fallback
@@ -288,9 +295,7 @@ bool CreditCardAccessoryController::AllowedForWebContents(
     }
   }
 
-  // For non-virtual cards show the credit card accessory sheet only
-  // when both keyboard accessory and manual fallback flags are enabled.
-  return features::IsAutofillManualFallbackEnabled();
+  return true;
 }
 
 // static
@@ -330,8 +335,7 @@ void CreditCardAccessoryControllerImpl::OnPersonalDataChanged() {
 
 void CreditCardAccessoryControllerImpl::OnCreditCardFetched(
     CreditCardFetchResult result,
-    const CreditCard* credit_card,
-    const std::u16string& cvc) {
+    const CreditCard* credit_card) {
   if (result != CreditCardFetchResult::kSuccess)
     return;
   content::RenderFrameHost* rfh = GetWebContents().GetFocusedFrame();
@@ -344,8 +348,9 @@ void CreditCardAccessoryControllerImpl::OnCreditCardFetched(
   DCHECK(credit_card);
   DCHECK(GetDriver());
 
-  GetDriver()->RendererShouldFillFieldWithValue(last_focused_field_id_,
-                                                credit_card->number());
+  GetDriver()->ApplyFieldAction(mojom::ActionPersistence::kFill,
+                                mojom::TextReplacement::kReplaceAll,
+                                last_focused_field_id_, credit_card->number());
   last_focused_field_id_ = {};
 }
 
@@ -419,16 +424,11 @@ CreditCardAccessoryControllerImpl::GetUnmaskedCreditCards() const {
     return std::vector<const CachedServerCardInfo*>();
   std::vector<const CachedServerCardInfo*> unmasked_cards =
       autofill_manager->GetCreditCardAccessManager()->GetCachedUnmaskedCards();
-  // If the feature to show unmasked cards in manual filling view is
-  // enabled, show all cards in the view. Even if not, still show
-  // virtual cards in the manual filling view if they exist. All other cards
-  // are dropped.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowUnmaskedCachedCardInManualFillingView)) {
-    return unmasked_cards;
-  }
+  // Show unmasked virtual cards in the manual filling view if they exist. All
+  // other cards are dropped.
   auto not_virtual_card = [](const CachedServerCardInfo* card_info) {
-    return card_info->card.record_type() != CreditCard::VIRTUAL_CARD;
+    return card_info->card.record_type() !=
+           CreditCard::RecordType::kVirtualCard;
   };
   base::EraseIf(unmasked_cards, not_virtual_card);
   return unmasked_cards;
@@ -443,7 +443,7 @@ CreditCardAccessoryControllerImpl::GetPromoCodeOffers() const {
 
   return personal_data_manager_->GetActiveAutofillPromoCodeOffersForOrigin(
       autofill_manager->client()
-          ->GetLastCommittedPrimaryMainFrameURL()
+          .GetLastCommittedPrimaryMainFrameURL()
           .DeprecatedGetOriginAsURL());
 }
 
@@ -468,7 +468,7 @@ AutofillManager* CreditCardAccessoryControllerImpl::GetManager() const {
     return af_manager_for_testing_;
   ContentAutofillDriver* driver = ContentAutofillDriver::GetForRenderFrameHost(
       GetWebContents().GetFocusedFrame());
-  return driver ? driver->autofill_manager() : nullptr;
+  return driver ? &driver->GetAutofillManager() : nullptr;
 }
 
 content::WebContents& CreditCardAccessoryControllerImpl::GetWebContents()

@@ -58,11 +58,6 @@ bool ShouldBlockNavigationToPlatformAppResource(
   if (view_type == mojom::ViewType::kExtensionBackgroundPage)
     return false;
 
-  // Navigation within an extension dialog, e.g. this is used by ChromeOS file
-  // manager.
-  if (view_type == mojom::ViewType::kExtensionDialog)
-    return false;
-
   // Navigation within an app window. The app window must belong to the
   // |platform_app|.
   if (view_type == mojom::ViewType::kAppWindow) {
@@ -331,7 +326,7 @@ ExtensionNavigationThrottle::WillStartOrRedirectRequest() {
   // Cross-origin-initiator navigations require that the |url| is in the
   // manifest's "web_accessible_resources" section.
   if (!WebAccessibleResourcesInfo::IsResourceWebAccessible(
-          target_extension, url.path(), initiator_origin)) {
+          target_extension, url.path(), &initiator_origin)) {
     RecordExtensionResourceAccessResult(
         source_id, url, ExtensionResourceAccessResult::kFailure);
     return content::NavigationThrottle::BLOCK_REQUEST;

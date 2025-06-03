@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <string>
 
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
@@ -280,11 +282,19 @@ RenderWidgetHostView* GetRenderWidgetHostViewFromFrameTreeNode(
   if (!frame_tree_node || !frame_tree_node->current_frame_host())
     return nullptr;
 
-  return frame_tree_node->current_frame_host()->GetView();
+  return frame_tree_node->current_frame_host()->GetMainFrame()->GetView();
 }
 
 gfx::Size GetViewportSize(FrameTreeNode* frame_tree_node,
                           ClientHintsControllerDelegate* delegate) {
+#if DCHECK_IS_ON()
+  // In some tests we need to force an empty viewport size.
+  if (delegate->ShouldForceEmptyViewportSize()) {
+    CHECK_IS_TEST();
+    return gfx::Size();
+  }
+#endif
+
   // If possible, return the current viewport size.
   RenderWidgetHostView* view =
       GetRenderWidgetHostViewFromFrameTreeNode(frame_tree_node);
@@ -300,12 +310,13 @@ gfx::Size GetViewportSize(FrameTreeNode* frame_tree_node,
     return cached_viewport_size;
   }
 
-  // Finally, use the display size if neither of the above methods work. Applies
-  // the device scale factor in this case, which is implicitly applied to other
+  // We used to return the display size here as a last resort if above methods
+  // didn't work, but this was so inaccurate as to be useless. Short of trying
+  // to build a more extensive caching method or restructuring the calculation
+  // path to make the estimated size available here, we simply return 0.
+  // Further context can be found in crbug.com/1430903.
   // viewport sizes already.
-  return ScaleToRoundedSize(
-      display::Screen::GetScreen()->GetPrimaryDisplay().GetSizeInPixel(),
-      1.0 / GetDeviceScaleFactor());
+  return gfx::Size();
 }
 
 gfx::Size GetScaledViewportSize(BrowserContext* context,
@@ -353,8 +364,9 @@ void AddViewportWidthHeader(net::HttpRequestHeaders* headers,
   gfx::Size viewport_size =
       GetScaledViewportSize(context, url, frame_tree_node, delegate);
 
-  DCHECK_LT(0, viewport_size.width());
-  // TODO(yoav): Find out why this 0 check is needed...
+  // The width cannot be less than 0, but if it is zero that means we could not
+  // determine the width and should omit the header.
+  DCHECK_LE(0, viewport_size.width());
   if (viewport_size.width() > 0) {
     SetHeaderToInt(headers,
                    use_deprecated_version
@@ -375,9 +387,13 @@ void AddViewportHeightHeader(net::HttpRequestHeaders* headers,
   gfx::Size viewport_size =
       GetScaledViewportSize(context, url, frame_tree_node, delegate);
 
-  DCHECK_LT(0, viewport_size.height());
-  SetHeaderToInt(headers, network::mojom::WebClientHintsType::kViewportHeight,
-                 viewport_size.height());
+  // The height cannot be less than 0, but if it is zero that means we could not
+  // determine the height and should omit the header.
+  DCHECK_LE(0, viewport_size.height());
+  if (viewport_size.height() > 0) {
+    SetHeaderToInt(headers, network::mojom::WebClientHintsType::kViewportHeight,
+                   viewport_size.height());
+  }
 }
 
 void AddRttHeader(net::HttpRequestHeaders* headers,
@@ -485,6 +501,21 @@ void AddPrefersReducedMotionHeader(net::HttpRequestHeaders* headers,
                         : network::kPrefersReducedMotionNoPreference);
 }
 
+void AddPrefersReducedTransparencyHeader(net::HttpRequestHeaders* headers,
+                                         FrameTreeNode* frame_tree_node) {
+  if (!frame_tree_node) {
+    return;
+  }
+  bool prefers_reduced_transparency =
+      WebContents::FromRenderFrameHost(frame_tree_node->current_frame_host())
+          ->GetOrCreateWebPreferences()
+          .prefers_reduced_transparency;
+  SetHeaderToString(headers, WebClientHintsType::kPrefersReducedTransparency,
+                    prefers_reduced_transparency
+                        ? network::kPrefersReducedTransparencyReduce
+                        : network::kPrefersReducedTransparencyNoPreference);
+}
+
 bool IsValidURLForClientHints(const url::Origin& origin) {
   return network::IsOriginPotentiallyTrustworthy(origin);
 }
@@ -509,80 +540,6 @@ const std::string SerializeHeaderString(const T& value) {
       .value_or(std::string());
 }
 
-// Returns true iff the `url` is embedded inside a frame that has the
-// corresponding Sec-CH-UA-Reduced or Sec-CH-UA-Full client hint and thus, is
-// enrolled in the UserAgentReduction or SendFullUserAgentAfterReduction
-// Origin Trial.
-//
-// TODO(crbug.com/1258063): Remove when the UserAgentReduction and
-// SendFullUserAgentAfterReduction Origin Trial is finished.
-bool IsOriginTrialHintEnabledForFrame(const url::Origin& origin,
-                                      const url::Origin& main_frame_origin,
-                                      FrameTreeNode* frame_tree_node,
-                                      ClientHintsControllerDelegate* delegate,
-                                      WebClientHintsType hint_type) {
-  // TODO(crbug.com/1300194): Refactor away from the use of FrameTreeNode
-  RenderFrameHostImpl* current = frame_tree_node->current_frame_host();
-  while (current) {
-    const url::Origin& current_origin =
-        (current == frame_tree_node->current_frame_host())
-            ? origin
-            : current->GetLastCommittedOrigin();
-
-    // Don't use Sec-CH-UA-Reduced or Sec-CH-UA-Full from third-party origins if
-    // third-party cookies are blocked, so that we don't reveal any more user
-    // data than is allowed by the cookie settings.
-    if (main_frame_origin.IsSameOriginWith(current_origin) ||
-        !delegate->AreThirdPartyCookiesBlocked(current_origin.GetURL(),
-                                               current)) {
-      blink::EnabledClientHints current_url_hints;
-      delegate->GetAllowedClientHintsFromSource(current_origin,
-                                                &current_url_hints);
-      if (base::Contains(current_url_hints.GetEnabledHints(), hint_type))
-        return true;
-    }
-
-    current = current->GetParent();
-  }
-  return false;
-}
-
-// TODO(crbug.com/1258063): Delete this function when the UserAgentReduction and
-// SendFullUserAgentAfterReduction Origin Trial is finished.
-void RemoveAllClientHintsExceptOriginTrialHints(
-    const url::Origin& origin,
-    FrameTreeNode* frame_tree_node,
-    ClientHintsControllerDelegate* delegate,
-    std::vector<WebClientHintsType>* accept_ch,
-    url::Origin* outermost_main_frame_origin,
-    absl::optional<url::Origin>* third_party_origin) {
-  RenderFrameHostImpl* main_frame =
-      frame_tree_node->frame_tree().GetMainFrame()->GetOutermostMainFrame();
-
-  for (auto it = accept_ch->begin(); it != accept_ch->end();) {
-    if (*it == WebClientHintsType::kUAReduced ||
-        *it == WebClientHintsType::kFullUserAgent) {
-      ++it;
-    } else {
-      it = accept_ch->erase(it);
-    }
-  }
-
-  if (!main_frame->GetLastCommittedOrigin().IsSameOriginWith(origin)) {
-    // If third-party cookeis are blocked, we will not persist the
-    // Sec-CH-UA-Reduced client hint in a third-party context.
-    if (delegate->AreThirdPartyCookiesBlocked(
-            origin.GetURL(), frame_tree_node->current_frame_host())) {
-      accept_ch->clear();
-      return;
-    }
-    // Third-party contexts need the correct main frame URL and third-party
-    // URL in order to validate the Origin Trial token correctly, if present.
-    *outermost_main_frame_origin = main_frame->GetLastCommittedOrigin();
-    *third_party_origin = absl::make_optional(origin);
-  }
-}
-
 // Captures the state used in applying client hints.
 struct ClientHintsExtendedData {
   ClientHintsExtendedData(const url::Origin& origin,
@@ -604,11 +561,23 @@ struct ClientHintsExtendedData {
       // TODO(https://crbug.com/1430508) Add WPT tests and specify the behavior
       // of client hints delegation for subframes inside
       // FencedFrames/Portals/etc...
+      // Test cases should cover this 3 layers nested frames case, from top to
+      // bottom:
+      // 1. Fenced frame.
+      // 2. Urn iframe.
+      // 3. Iframe.
+      // `GetFencedFrameProperties()` called from the iframe returns the
+      // fenced frame properties from the urn iframe because it does a bottom
+      // up traversal.
+      // See crbug.com/1470634.
+      const absl::optional<FencedFrameProperties>& fenced_frame_properties =
+          frame_tree_node->GetFencedFrameProperties();
+      base::span<const blink::mojom::PermissionsPolicyFeature> permissions;
+      if (fenced_frame_properties) {
+        permissions = fenced_frame_properties->effective_enabled_permissions;
+      }
       permissions_policy = blink::PermissionsPolicy::CreateForFencedFrame(
-          resource_origin,
-          /*is_opaque_ads_mode=*/frame_tree_node
-                  ->GetDeprecatedFencedFrameMode() ==
-              blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds);
+          resource_origin, permissions);
     } else {
       RenderFrameHostImpl* main_frame =
           frame_tree_node->frame_tree().GetMainFrame();
@@ -624,30 +593,11 @@ struct ClientHintsExtendedData {
     // If this is a prerender tree, also capture prerender local setting. The
     // setting was given by navigation requests on the prerendering page, and
     // has not been used as a global setting.
-    if (frame_tree_node && frame_tree_node->frame_tree().is_prerendering()) {
-      // If prerender host is nullptr, it means prerender has been canceled and
-      // the host will be discarded soon, so we do not need to continue.
-      if (auto* host = PrerenderHost::GetPrerenderHostFromFrameTreeNode(
-              *frame_tree_node))
+    if (frame_tree_node) {
+      if (auto* host = PrerenderHost::GetFromFrameTreeNodeIfPrerendering(
+              *frame_tree_node)) {
         host->GetAllowedClientHintsOnPage(main_frame_origin, &hints);
-    }
-    const base::TimeTicks prerender_host_time = base::TimeTicks::Now();
-
-    // If this is not a top-level frame, then check if any of the ancestors
-    // in the path that led to this request have Sec-CH-UA-Reduced set.
-    // TODO(crbug.com/1258063): Remove once the UserAgentReduction Origin Trial
-    // is finished.
-    if (frame_tree_node && !is_outermost_main_frame) {
-      url::Origin trial_origin =
-          maybe_request_url ? url::Origin::Create(maybe_request_url.value())
-                            : origin;
-
-      is_embedder_ua_reduced = IsOriginTrialHintEnabledForFrame(
-          trial_origin, main_frame_origin, frame_tree_node, delegate,
-          WebClientHintsType::kUAReduced);
-      is_embedder_ua_full = IsOriginTrialHintEnabledForFrame(
-          trial_origin, main_frame_origin, frame_tree_node, delegate,
-          WebClientHintsType::kFullUserAgent);
+      }
     }
 
     // Record the time spent getting the client hints.
@@ -655,50 +605,21 @@ struct ClientHintsExtendedData {
     base::UmaHistogramMicrosecondsTimes("ClientHints.FetchLatency_PrefRead",
                                         pref_read_time - start_time);
     base::UmaHistogramMicrosecondsTimes(
-        "ClientHints.FetchLatency_PrerenderHost",
-        prerender_host_time - pref_read_time);
-    base::UmaHistogramMicrosecondsTimes(
-        "ClientHints.FetchLatency_OriginTrialCheck",
-        end_time - prerender_host_time);
+        "ClientHints.FetchLatency_PrerenderHost", end_time - pref_read_time);
     base::UmaHistogramMicrosecondsTimes("ClientHints.FetchLatency_Total",
                                         end_time - start_time);
   }
 
   blink::EnabledClientHints hints;
-  // If true, one of the ancestor requests in the path to this request had
-  // Sec-CH-UA-Reduced in their Accept-CH cache.  Only applies to embedded
-  // requests (top-level requests will always set this to false).
-  //
-  // If an embedder of a request has Sec-CH-UA-Reduced, it means it will
-  // receive the reduced User-Agent header, so we want to also send the reduced
-  // User-Agent for the embedded request as well.
-  bool is_embedder_ua_reduced = false;
-  // If true, one of the ancestor requests in the path to this request had
-  // Sec-CH-UA-Full in their Accept-CH cache.  Only applies to embedded
-  // requests (top-level requests will always set this to false).
-  //
-  // If an embedder of a request has Sec-CH-UA-Full, it means it will
-  // receive the full User-Agent header, so we want to also send the full
-  // User-Agent for the embedded request as well.
-  bool is_embedder_ua_full = false;
   url::Origin resource_origin;
   bool is_outermost_main_frame = false;
   url::Origin main_frame_origin;
   std::unique_ptr<blink::PermissionsPolicy> permissions_policy;
 };
 
-bool SkipPermissionPolicyCheck(WebClientHintsType type) {
-  return type == WebClientHintsType::kUAReduced ||
-         type == WebClientHintsType::kFullUserAgent;
-}
-
 bool IsClientHintEnabled(const ClientHintsExtendedData& data,
                          WebClientHintsType type) {
-  return blink::IsClientHintSentByDefault(type) || data.hints.IsEnabled(type) ||
-         (type == WebClientHintsType::kUAReduced &&
-          data.is_embedder_ua_reduced) ||
-         (type == WebClientHintsType::kFullUserAgent &&
-          data.is_embedder_ua_full);
+  return blink::IsClientHintSentByDefault(type) || data.hints.IsEnabled(type);
 }
 
 bool IsClientHintAllowed(const ClientHintsExtendedData& data,
@@ -706,10 +627,8 @@ bool IsClientHintAllowed(const ClientHintsExtendedData& data,
   if (data.is_outermost_main_frame) {
     return true;
   }
-  return SkipPermissionPolicyCheck(type) ||
-         (data.permissions_policy->IsFeatureEnabledForOrigin(
-             blink::GetClientHintToPolicyFeatureMap().at(type),
-             data.resource_origin));
+  return (data.permissions_policy->IsFeatureEnabledForOrigin(
+      blink::GetClientHintToPolicyFeatureMap().at(type), data.resource_origin));
 }
 
 bool ShouldAddClientHint(const ClientHintsExtendedData& data,
@@ -860,17 +779,13 @@ void UpdateNavigationRequestClientUaHeadersImpl(
       AddUAHeader(headers, WebClientHintsType::kUAWoW64,
                   SerializeHeaderString(ua_metadata->wow64));
     }
-    if (ShouldAddClientHint(data, WebClientHintsType::kUAReduced)) {
-      AddUAHeader(headers, WebClientHintsType::kUAReduced,
-                  SerializeHeaderString(true));
-    }
     if (ShouldAddClientHint(data, WebClientHintsType::kUAFullVersionList)) {
       AddUAHeader(headers, WebClientHintsType::kUAFullVersionList,
                   ua_metadata->SerializeBrandFullVersionList());
     }
-    if (ShouldAddClientHint(data, WebClientHintsType::kFullUserAgent)) {
-      AddUAHeader(headers, WebClientHintsType::kFullUserAgent,
-                  SerializeHeaderString(true));
+    if (ShouldAddClientHint(data, WebClientHintsType::kUAFormFactor)) {
+      AddUAHeader(headers, WebClientHintsType::kUAFormFactor,
+                  SerializeHeaderString(ua_metadata->form_factor));
     }
   } else if (call_type == ClientUaHeaderCallType::kAfterCreated) {
     RemoveClientHintHeader(WebClientHintsType::kUA, headers);
@@ -881,10 +796,9 @@ void UpdateNavigationRequestClientUaHeadersImpl(
     RemoveClientHintHeader(WebClientHintsType::kUAPlatformVersion, headers);
     RemoveClientHintHeader(WebClientHintsType::kUAModel, headers);
     RemoveClientHintHeader(WebClientHintsType::kUABitness, headers);
-    RemoveClientHintHeader(WebClientHintsType::kUAReduced, headers);
     RemoveClientHintHeader(WebClientHintsType::kUAFullVersionList, headers);
     RemoveClientHintHeader(WebClientHintsType::kUAWoW64, headers);
-    RemoveClientHintHeader(WebClientHintsType::kFullUserAgent, headers);
+    RemoveClientHintHeader(WebClientHintsType::kUAFormFactor, headers);
   }
 }
 
@@ -1008,6 +922,11 @@ void AddRequestClientHintsHeaders(
     AddPrefersReducedMotionHeader(headers, frame_tree_node);
   }
 
+  if (ShouldAddClientHint(data,
+                          WebClientHintsType::kPrefersReducedTransparency)) {
+    AddPrefersReducedTransparencyHeader(headers, frame_tree_node);
+  }
+
   if (ShouldAddClientHint(data, WebClientHintsType::kSaveData))
     AddSaveDataHeader(headers, context);
 
@@ -1016,7 +935,7 @@ void AddRequestClientHintsHeaders(
   // If possible, logic should be added above so that the request headers for
   // the newly added client hint can be added to the request.
   static_assert(
-      network::mojom::WebClientHintsType::kPrefersReducedMotion ==
+      network::mojom::WebClientHintsType::kPrefersReducedTransparency ==
           network::mojom::WebClientHintsType::kMaxValue,
       "Consider adding client hint request headers from the browser process");
 
@@ -1108,42 +1027,15 @@ ParseAndPersistAcceptCHForNavigation(
     return absl::nullopt;
   }
 
-  std::vector<WebClientHintsType> accept_ch = parsed_headers->accept_ch.value();
-  url::Origin main_frame_origin = origin;
-  absl::optional<url::Origin> third_party_origin;
-  // Only the main frame should parse accept-CH, except for the temporary
-  // Sec-CH-UA-Reduced client hint (used for the User-Agent reduction origin
-  // trial).
-  //
-  // Note that if Sec-CH-UA-Reduced is persisted for an embedded frame, it
-  // means a subsequent top-level navigation will read Sec-CH-UA-Reduced from
-  // the Accept-CH cache and send a reduced User-Agent string.
-  //
-  // TODO(crbug.com/1258063): Delete this call when the UserAgentReduction
-  // Origin Trial is finished.
-  // TODO(crbug.com/1433353): fix this caller to actually send the outermost
-  // frame.
+  // Only the main frame should parse accept-CH.
   if (!frame_tree_node->IsMainFrame()) {
-    RemoveAllClientHintsExceptOriginTrialHints(
-        origin, frame_tree_node, delegate, &accept_ch, &main_frame_origin,
-        &third_party_origin);
-    if (accept_ch.empty()) {
-      // There are is no Sec-CH-UA-Reduced in Accept-CH for the embedded frame,
-      // so nothing should be persisted.
-      return absl::nullopt;
-    }
+    return absl::nullopt;
   }
-
-  absl::optional<GURL> third_party_url = absl::nullopt;
-  if (third_party_origin)
-    third_party_url = third_party_origin->GetURL();
 
   blink::EnabledClientHints enabled_hints;
-  for (const WebClientHintsType type : accept_ch) {
-    enabled_hints.SetIsEnabled(main_frame_origin.GetURL(), third_party_url,
-                               response_headers, type, true);
+  for (const WebClientHintsType type : parsed_headers->accept_ch.value()) {
+    enabled_hints.SetIsEnabled(type, true);
   }
-
   const std::vector<WebClientHintsType> persisted_hints =
       enabled_hints.GetEnabledHints();
   DCHECK(frame_tree_node);
@@ -1157,25 +1049,14 @@ void PersistAcceptCH(const url::Origin& origin,
                      const std::vector<WebClientHintsType>& hints) {
   DCHECK(delegate);
 
-  // TODO(https://crbug.com/1355279): Moving the if condition from the caller
-  // into this function after PrerenderHost becomes a FrameTreeDelegate. A
-  // clearer pattern should be to check whether it is in a prerendering tree
-  // and return a nullptr if it isn't. However, the current prerender
-  // implementation returns a nullptr in two cases: not prerendered or
-  // prerender is canceled, and the callers cannot distinguish between the two
-  // reasons and have to have another if condition.
-  if (frame_tree_node.frame_tree().is_prerendering()) {
-    // For prerendering headers, it should not persist the client header until
-    // activation, considering user has not visited the page and allowed it to
-    // change content setting yet. The client hints should apply to navigations
-    // in the prerendering page, and propagate to the global setting upon user
-    // navigation.
-    // If host is nullptr, it means prerender has been canceled and will be
-    // deleted soon, so we do not need to persist anything.
-    if (auto* host =
-            PrerenderHost::GetPrerenderHostFromFrameTreeNode(frame_tree_node)) {
-      host->OnAcceptClientHintChanged(origin, hints);
-    }
+  // For prerendering headers, it should not persist the client header until
+  // activation, considering user has not visited the page and allowed it to
+  // change content setting yet. The client hints should apply to navigations
+  // in the prerendering page, and propagate to the global setting upon user
+  // navigation.
+  if (auto* host =
+          PrerenderHost::GetFromFrameTreeNodeIfPrerendering(frame_tree_node)) {
+    host->OnAcceptClientHintChanged(origin, hints);
     return;
   }
 
@@ -1195,16 +1076,7 @@ std::vector<WebClientHintsType> LookupAcceptCHForCommit(
 
   const ClientHintsExtendedData data(origin, frame_tree_node, delegate,
                                      request_url);
-  std::vector<WebClientHintsType> hints = data.hints.GetEnabledHints();
-  if (data.is_embedder_ua_reduced &&
-      !base::Contains(hints, WebClientHintsType::kUAReduced)) {
-    hints.push_back(WebClientHintsType::kUAReduced);
-  }
-  if (data.is_embedder_ua_full &&
-      !base::Contains(hints, WebClientHintsType::kFullUserAgent)) {
-    hints.push_back(WebClientHintsType::kFullUserAgent);
-  }
-  return hints;
+  return data.hints.GetEnabledHints();
 }
 
 bool AreCriticalHintsMissing(

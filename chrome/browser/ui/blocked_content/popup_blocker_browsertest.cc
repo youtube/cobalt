@@ -53,7 +53,6 @@
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -62,6 +61,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/input/native_web_keyboard_event.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
@@ -137,7 +137,8 @@ class PopupBlockerBrowserTest : public InProcessBrowserTest {
     // Do a round trip to the renderer first to flush any in-flight IPCs to
     // create a to-be-blocked window.
     WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
-    if (!content::ExecuteScriptWithoutUserGesture(tab, std::string())) {
+    if (!content::ExecJs(tab, std::string(),
+                         content::EXECUTE_SCRIPT_NO_USER_GESTURE)) {
       ADD_FAILURE() << "Failed to execute script in active tab.";
       return -1;
     }
@@ -825,7 +826,8 @@ IN_PROC_BROWSER_TEST_F(PopupBlockerBrowserTest,
   // before we perform the checks further down. Since we have no control over
   // that script we just run some more (that we do control) and wait for it to
   // finish.
-  EXPECT_TRUE(content::ExecuteScriptWithoutUserGesture(tab_2, ""));
+  EXPECT_TRUE(
+      content::ExecJs(tab_2, "", content::EXECUTE_SCRIPT_NO_USER_GESTURE));
 
   EXPECT_FALSE(content_settings::PageSpecificContentSettings::GetForFrame(
                    tab_1->GetPrimaryMainFrame())

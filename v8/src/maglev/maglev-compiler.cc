@@ -22,7 +22,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/deoptimizer/translation-array.h"
+#include "src/deoptimizer/frame-translation-builder.h"
 #include "src/execution/frames.h"
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -73,7 +73,9 @@ class DecompressedUseMarkingProcessor {
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+#ifdef V8_COMPRESS_POINTERS
     node->MarkTaggedInputsAsDecompressing();
+#endif
     return ProcessResult::kContinue;
   }
 };
@@ -132,10 +134,16 @@ class MaxCallDepthProcessor {
             deopt_frame->as_interpreted().unit().register_count());
         return info.frame_size_in_bytes();
       }
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
+        return FastConstructStubFrameInfo::Conservative().frame_size_in_bytes();
+      }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-        return static_cast<int>(
-            deopt_frame->as_inlined_arguments().arguments().size() -
-            deopt_frame->as_inlined_arguments().unit().parameter_count());
+        return std::max(
+            0,
+            static_cast<int>(
+                deopt_frame->as_inlined_arguments().arguments().size() -
+                deopt_frame->as_inlined_arguments().unit().parameter_count()) *
+                kSystemPointerSize);
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context
@@ -157,9 +165,70 @@ class MaxCallDepthProcessor {
   const MaglevCompilationUnit* last_seen_unit_ = nullptr;
 };
 
-class UseMarkingProcessor {
+thread_local MaglevGraphLabeller* labeller_;
+
+class AnyUseMarkingProcessor {
  public:
-  explicit UseMarkingProcessor(MaglevCompilationInfo* compilation_info)
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
+                  !NodeT::kProperties.is_required_when_unused()) {
+      if (!node->is_used()) {
+        if (!node->unused_inputs_were_visited()) {
+          DropInputUses(node);
+        }
+        return ProcessResult::kRemove;
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  void DropInputUses(ValueNode* node) {
+    for (Input& input : *node) {
+      ValueNode* input_node = input.node();
+      if (input_node->properties().is_required_when_unused()) continue;
+      input_node->remove_use();
+      if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
+        DropInputUses(input_node);
+      }
+    }
+    DCHECK(!node->properties().can_eager_deopt());
+    DCHECK(!node->properties().can_lazy_deopt());
+    node->mark_unused_inputs_visited();
+  }
+};
+
+class DeadNodeSweepingProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(ValueNode* node, const ProcessingState& state) {
+    if (!node->is_used() && !node->properties().is_required_when_unused()) {
+      // The UseMarkingProcessor will clear dead forward jump Phis eagerly, so
+      // the only dead phis that should remain are loop and exception phis.
+      DCHECK_IMPLIES(node->Is<Phi>(),
+                     node->Cast<Phi>()->is_loop_phi() ||
+                         node->Cast<Phi>()->is_exception_phi());
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+};
+
+class LiveRangeAndNextUseProcessor {
+ public:
+  explicit LiveRangeAndNextUseProcessor(MaglevCompilationInfo* compilation_info)
       : compilation_info_(compilation_info) {}
 
   void PreProcessGraph(Graph* graph) {}
@@ -227,6 +296,7 @@ class UseMarkingProcessor {
 
     if (target->has_phi()) {
       for (Phi* phi : *target->phis()) {
+        DCHECK(phi->is_used());
         ValueNode* input = phi->input(i).node();
         MarkUse(input, use, &phi->input(i), outer_loop_used_nodes);
       }
@@ -264,7 +334,7 @@ class UseMarkingProcessor {
       // TODO(leszeks): We only need to extend the lifetime in one outermost
       // loop, allow nodes to be "moved" between lifetime extensions.
       base::Vector<Input> used_node_inputs =
-          compilation_info_->zone()->NewVector<Input>(
+          compilation_info_->zone()->AllocateVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
       for (auto& [used_node, info] : loop_used_nodes.used_nodes) {
@@ -280,9 +350,20 @@ class UseMarkingProcessor {
     if (!target->has_phi()) return;
     uint32_t use = node->id();
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
-    for (Phi* phi : *target->phis()) {
-      ValueNode* input = phi->input(i).node();
-      MarkUse(input, use, &phi->input(i), loop_used_nodes);
+    Phi::List& phis = *target->phis();
+    for (auto it = phis.begin(); it != phis.end();) {
+      Phi* phi = *it;
+      if (!phi->is_used()) {
+        // Skip unused phis -- we're processing phis out of order with the dead
+        // node sweeping processor, so we will still observe unused phis here.
+        // We can eagerly remove them while we're at it so that the dead node
+        // sweeping processor doesn't have to revisit them.
+        it = phis.RemoveAt(it);
+      } else {
+        ValueNode* input = phi->input(i).node();
+        MarkUse(input, use, &phi->input(i), loop_used_nodes);
+        ++it;
+      }
     }
   }
 
@@ -307,7 +388,7 @@ class UseMarkingProcessor {
 
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
-    node->mark_use(use_id, input);
+    node->record_next_use(use_id, input);
 
     // If we are in a loop, loop_used_nodes is non-null. In this case, check if
     // the incoming node is from outside the loop, and make sure to extend its
@@ -363,20 +444,23 @@ class UseMarkingProcessor {
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
-  Graph* graph = Graph::New(compilation_info->zone());
+  Graph* graph =
+      Graph::New(compilation_info->zone(),
+                 compilation_info->toplevel_compilation_unit()->is_osr());
 
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
-      v8_flags.print_maglev_graph || v8_flags.trace_maglev_graph_building ||
+      v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
+      v8_flags.trace_maglev_graph_building ||
       v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
-    compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+    compilation_info->set_graph_labeller(labeller_ = new MaglevGraphLabeller());
   }
 
   {
-    UnparkedScope unparked_scope(local_isolate->heap());
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
 
     if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-        v8_flags.trace_maglev_graph_building ||
+        v8_flags.print_maglev_graphs || v8_flags.trace_maglev_graph_building ||
         v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
       MaglevCompilationUnit* top_level_unit =
           compilation_info->toplevel_compilation_unit();
@@ -384,25 +468,34 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                 << " with Maglev\n";
       BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
                                  std::cout);
-      top_level_unit->feedback().object()->Print(std::cout);
+      if (v8_flags.maglev_print_feedback) {
+        Print(*top_level_unit->feedback().object(), std::cout);
+      }
     }
 
     MaglevGraphBuilder graph_builder(
         local_isolate, compilation_info->toplevel_compilation_unit(), graph);
 
-    graph_builder.Build();
+    {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.Maglev.GraphBuilding");
+      graph_builder.Build();
 
-    if (v8_flags.print_maglev_graph) {
-      std::cout << "\nAfter graph buiding" << std::endl;
-      PrintGraph(std::cout, compilation_info, graph);
+      if (v8_flags.print_maglev_graphs) {
+        std::cout << "\nAfter graph buiding" << std::endl;
+        PrintGraph(std::cout, compilation_info, graph);
+      }
     }
 
     if (v8_flags.maglev_untagged_phis) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.Maglev.PhiUntagging");
+
       GraphProcessor<MaglevPhiRepresentationSelector> representation_selector(
           &graph_builder);
       representation_selector.ProcessGraph(graph);
 
-      if (v8_flags.print_maglev_graph) {
+      if (v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter Phi untagging" << std::endl;
         PrintGraph(std::cout, compilation_info, graph);
       }
@@ -417,36 +510,74 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 #endif
 
   {
-    // Preprocessing for register allocation and code gen:
-    //   - Collect input/output location constraints
-    //   - Find the maximum number of stack arguments passed to calls
-    //   - Collect use information, for SSA liveness and next-use distance.
-    GraphMultiProcessor<ValueLocationConstraintProcessor, MaxCallDepthProcessor,
-                        UseMarkingProcessor, DecompressedUseMarkingProcessor>
-        processor(UseMarkingProcessor{compilation_info});
+    // Post-hoc optimisation:
+    //   - Dead node marking
+    //   - Cleaning up identity nodes
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.DeadCodeMarking");
+    GraphMultiProcessor<AnyUseMarkingProcessor> processor;
     processor.ProcessGraph(graph);
   }
 
-  if (v8_flags.print_maglev_graph) {
-    UnparkedScope unparked_scope(local_isolate->heap());
+  if (v8_flags.print_maglev_graphs) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+    std::cout << "After use marking" << std::endl;
+    PrintGraph(std::cout, compilation_info, graph);
+  }
+
+#ifdef DEBUG
+  {
+    GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
+    verifier.ProcessGraph(graph);
+  }
+#endif
+
+  {
+    // Preprocessing for register allocation and code gen:
+    //   - Remove dead nodes
+    //   - Collect input/output location constraints
+    //   - Find the maximum number of stack arguments passed to calls
+    //   - Collect use information, for SSA liveness and next-use distance.
+    //   - Mark
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.NodeProcessing");
+    GraphMultiProcessor<DeadNodeSweepingProcessor,
+                        ValueLocationConstraintProcessor, MaxCallDepthProcessor,
+                        LiveRangeAndNextUseProcessor,
+                        DecompressedUseMarkingProcessor>
+        processor(LiveRangeAndNextUseProcessor{compilation_info});
+    processor.ProcessGraph(graph);
+  }
+
+  if (v8_flags.print_maglev_graphs) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::cout << "After register allocation pre-processing" << std::endl;
     PrintGraph(std::cout, compilation_info, graph);
   }
 
-  StraightForwardRegisterAllocator allocator(compilation_info, graph);
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.RegisterAllocation");
+    StraightForwardRegisterAllocator allocator(compilation_info, graph);
 
-  if (v8_flags.print_maglev_graph) {
-    UnparkedScope unparked_scope(local_isolate->heap());
-    std::cout << "After register allocation" << std::endl;
-    PrintGraph(std::cout, compilation_info, graph);
+    if (v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs) {
+      UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+      std::cout << "After register allocation" << std::endl;
+      PrintGraph(std::cout, compilation_info, graph);
+    }
   }
 
   {
-    UnparkedScope unparked_scope(local_isolate->heap());
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.CodeAssembly");
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::unique_ptr<MaglevCodeGenerator> code_generator =
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
-    code_generator->Assemble();
+    bool success = code_generator->Assemble();
+    if (!success) {
+      return false;
+    }
 
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
@@ -464,23 +595,33 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
   DCHECK_NOT_NULL(code_generator);
 
   Handle<Code> code;
-  if (!code_generator->Generate(isolate).ToHandle(&code)) {
-    compilation_info->toplevel_compilation_unit()
-        ->shared_function_info()
-        .object()
-        ->set_maglev_compilation_failed(true);
-    return {};
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.CodeGeneration");
+    if (compilation_info->is_detached() ||
+        !code_generator->Generate(isolate).ToHandle(&code)) {
+      compilation_info->toplevel_compilation_unit()
+          ->shared_function_info()
+          .object()
+          ->set_maglev_compilation_failed(true);
+      return {};
+    }
   }
 
-  if (!compilation_info->broker()->dependencies()->Commit(code)) {
-    // Don't `set_maglev_compilation_failed` s.t. we may reattempt compilation.
-    // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly,
-    // and possibly attempt to recompile as early as possible.
-    return {};
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.CommittingDependencies");
+    if (!compilation_info->broker()->dependencies()->Commit(code)) {
+      // Don't `set_maglev_compilation_failed` s.t. we may reattempt
+      // compilation.
+      // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly,
+      // and possibly attempt to recompile as early as possible.
+      return {};
+    }
   }
 
   if (v8_flags.print_maglev_code) {
-    code->Print();
+    Print(*code);
   }
 
   return code;

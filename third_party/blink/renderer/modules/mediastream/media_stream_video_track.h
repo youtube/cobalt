@@ -83,16 +83,18 @@ class MODULES_EXPORT MediaStreamVideoTrack : public MediaStreamTrackPlatform {
       const MediaStreamComponent* component,
       const String& id) override;
 
-  // MediaStreamTrack overrides.
+  // MediaStreamTrackPlatform overrides.
   void SetEnabled(bool enabled) override;
   void SetContentHint(
       WebMediaStreamTrack::ContentHintType content_hint) override;
   void StopAndNotify(base::OnceClosure callback) override;
   void GetSettings(MediaStreamTrackPlatform::Settings& settings) const override;
+  MediaStreamTrackPlatform::VideoFrameStats GetVideoFrameStats() const override;
   MediaStreamTrackPlatform::CaptureHandle GetCaptureHandle() override;
-  void AddCropVersionCallback(uint32_t crop_version,
-                              base::OnceClosure callback) override;
-  void RemoveCropVersionCallback(uint32_t crop_version) override;
+  void AddSubCaptureTargetVersionCallback(uint32_t sub_capture_target_version,
+                                          base::OnceClosure callback) override;
+  void RemoveSubCaptureTargetVersionCallback(
+      uint32_t sub_capture_target_version) override;
 
   // Add |sink| to receive state changes on the main render thread and video
   // frames in the |callback| method on the video task runner.
@@ -180,7 +182,9 @@ class MODULES_EXPORT MediaStreamVideoTrack : public MediaStreamTrackPlatform {
 
   MediaStreamVideoSource* source() const { return source_.get(); }
 
-  void OnFrameDropped(media::VideoCaptureFrameDropReason reason);
+  // Sink dropping frames affects logging and UMAs, but not the MediaStreamTrack
+  // Statistics API since such frames were delivered to the sink before drop.
+  void OnSinkDroppedFrame(media::VideoCaptureFrameDropReason reason);
 
   bool IsRefreshFrameTimerRunningForTesting() {
     return refresh_timer_.IsRunning();
@@ -195,6 +199,20 @@ class MODULES_EXPORT MediaStreamVideoTrack : public MediaStreamTrackPlatform {
   }
 
   bool UsingAlpha();
+
+  // After this many frame drops of the same reason, we skip logging
+  // Media.VideoCapture.Track.FrameDrop UMAs.
+  static constexpr int kMaxConsecutiveFrameDropForSameReasonCount = 10;
+
+  // After this many frame drops of the same reason, we suppress
+  // EmitLogMessage(), which is wired to MediaStreamVideoSource::OnLog() and
+  // ultimately WebRTC logging in the browser process.
+  static constexpr int kMaxEmittedLogsForDroppedFramesBeforeSuppressing = 3;
+  // Suppressed logs for dropped frames will still be emitted this often.
+  static constexpr int kFrequencyForSuppressedLogs = 100;
+
+  void SetEmitLogMessageForTesting(
+      base::RepeatingCallback<void(const std::string&)> emit_log_message);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(MediaStreamRemoteVideoSourceTest, StartTrack);

@@ -18,16 +18,12 @@
 #import "components/metrics/unsent_log_store.h"
 #import "components/prefs/testing_pref_service.h"
 #import "components/ukm/ukm_service.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state_manager.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state_manager.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_chrome_browser_state_manager.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ukm {
 class UkmService;
@@ -96,7 +92,7 @@ TEST_F(IOSChromeMetricsServiceClientTest, TestRegisterMetricsServiceProviders) {
 
   // This is the number of metrics providers that are registered inside
   // IOSChromeMetricsServiceClient::Initialize().
-  expected_providers += 18;
+  expected_providers += 20;
 
   std::unique_ptr<IOSChromeMetricsServiceClient> chrome_metrics_service_client =
       IOSChromeMetricsServiceClient::Create(metrics_state_manager_.get());

@@ -30,9 +30,11 @@
 
 #include "third_party/blink/renderer/core/css/css_grouping_rule.h"
 
+#include "third_party/blink/renderer/core/css/css_position_fallback_rule.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/css_style_rule.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
+#include "third_party/blink/renderer/core/css/css_try_rule.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -69,14 +71,35 @@ StyleRuleBase* ParseRuleForInsert(const ExecutionContext* execution_context,
   auto* context = MakeGarbageCollected<CSSParserContext>(
       parent_rule.ParserContext(execution_context->GetSecureContextMode()),
       style_sheet);
-  StyleRule* parent_rule_for_nesting =
-      FindClosestParentStyleRuleOrNull(&parent_rule);
-  CSSNestingType nesting_type = parent_rule_for_nesting
-                                    ? CSSNestingType::kNesting
-                                    : CSSNestingType::kNone;
-  StyleRuleBase* new_rule = CSSParser::ParseRule(
-      context, style_sheet ? style_sheet->Contents() : nullptr, nesting_type,
-      parent_rule_for_nesting, rule_string);
+  StyleRuleBase* new_rule = nullptr;
+  if (IsA<CSSPositionFallbackRule>(parent_rule)) {
+    new_rule = CSSParser::ParseTryRule(context, rule_string);
+    if (!new_rule) {
+      // Try reparse `new_rule` as other rules to decide if we should throw a
+      // SyntaxError (`new_rule` doesn't parse) or HierarchyRequestError
+      // (`new_rule` can parse but isn't a @try rule).
+      if (CSSParser::ParseRule(
+              context, style_sheet ? style_sheet->Contents() : nullptr,
+              CSSNestingType::kNone, /*parent_rule_for_nesting=*/nullptr,
+              rule_string)) {
+        exception_state.ThrowDOMException(
+            DOMExceptionCode::kHierarchyRequestError,
+            "only '@try' rules can be inserted into '@position-fallback' "
+            "rule.");
+        return nullptr;
+      }
+    }
+  } else {
+    StyleRule* parent_rule_for_nesting =
+        FindClosestParentStyleRuleOrNull(&parent_rule);
+    CSSNestingType nesting_type = parent_rule_for_nesting
+                                      ? CSSNestingType::kNesting
+                                      : CSSNestingType::kNone;
+    new_rule = CSSParser::ParseRule(
+        context, style_sheet ? style_sheet->Contents() : nullptr, nesting_type,
+        parent_rule_for_nesting, rule_string);
+  }
+
   if (!new_rule) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
@@ -143,7 +166,7 @@ unsigned CSSGroupingRule::insertRule(const ExecutionContext* execution_context,
     return 0;
   } else {
     CSSStyleSheet::RuleMutationScope mutation_scope(this);
-    group_rule_->WrapperInsertRule(index, new_rule);
+    group_rule_->WrapperInsertRule(parentStyleSheet(), index, new_rule);
     child_rule_cssom_wrappers_.insert(index, Member<CSSRule>(nullptr));
     return index;
   }
@@ -164,7 +187,7 @@ void CSSGroupingRule::deleteRule(unsigned index,
 
   CSSStyleSheet::RuleMutationScope mutation_scope(this);
 
-  group_rule_->WrapperRemoveRule(index);
+  group_rule_->WrapperRemoveRule(parentStyleSheet(), index);
 
   if (child_rule_cssom_wrappers_[index]) {
     child_rule_cssom_wrappers_[index]->SetParentRule(nullptr);

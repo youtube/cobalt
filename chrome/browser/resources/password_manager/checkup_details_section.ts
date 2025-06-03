@@ -11,7 +11,7 @@ import './checkup_list_item.js';
 import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
 import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -157,6 +157,16 @@ export class CheckupDetailsSectionElement extends
         cred => cred.compromisedInfo!.compromiseTypes.some(type => {
           return this.getInsecurityType_().includes(type);
         }));
+    const insuecureCredentialsSorter =
+        (lhs: chrome.passwordsPrivate.PasswordUiEntry,
+         rhs: chrome.passwordsPrivate.PasswordUiEntry) => {
+          if ((this.getCurrentGroup_(lhs.id)?.name || '') >
+              (this.getCurrentGroup_(rhs.id)?.name || '')) {
+            return 1;
+          }
+          return -1;
+        };
+
     if (this.isCompromisedType()) {
       // Compromised credentials can be muted. Show muted credentials
       // separately.
@@ -165,6 +175,7 @@ export class CheckupDetailsSectionElement extends
       this.shownInsecureCredentials_ = insecureCredentialsForThisType.filter(
           cred => !cred.compromisedInfo!.isMuted);
     } else {
+      insecureCredentialsForThisType.sort(insuecureCredentialsSorter);
       this.shownInsecureCredentials_ = insecureCredentialsForThisType;
     }
 
@@ -174,7 +185,8 @@ export class CheckupDetailsSectionElement extends
       this.credentialsWithReusedPassword_ =
           await Promise.all(allReusedCredentials.map(
               async(credentials): Promise<ReusedPasswordInfo> => {
-                const reuseInfo = new ReusedPasswordInfo(credentials.entries);
+                const reuseInfo = new ReusedPasswordInfo(
+                    credentials.entries.sort(insuecureCredentialsSorter));
                 await reuseInfo.init();
                 return reuseInfo;
               }));

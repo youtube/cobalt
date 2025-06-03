@@ -9,6 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/version.h"
 #include "chrome/browser/ash/crosapi/lacros_selection_loader.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -31,19 +32,20 @@ class RootfsLacrosLoader : public LacrosSelectionLoader {
   ~RootfsLacrosLoader() override;
 
   // LacrosSelectionLoader:
-  void Load(LoadCompletionCallback callback) override;
+  void Load(LoadCompletionCallback callback, bool forced) override;
   void Unload() override;
   void Reset() override;
-  void GetVersion(base::OnceCallback<void(base::Version)> callback) override;
+  void GetVersion(
+      base::OnceCallback<void(const base::Version&)> callback) override;
 
  private:
   // Called after GetVersion.
-  void OnGetVersion(base::OnceCallback<void(base::Version)> callback,
+  void OnGetVersion(base::OnceCallback<void(const base::Version&)> callback,
                     base::Version version);
 
   // Called when `version_` is calculated and set during Load() sequence.
   void OnVersionReadyToLoad(LoadCompletionCallback callback,
-                            base::Version version);
+                            const base::Version& version);
 
   // Called on checking rootfs lacros-chrome is already maounted or not during
   // Load() sequence.
@@ -68,6 +70,9 @@ class RootfsLacrosLoader : public LacrosSelectionLoader {
   // This is always the same for production code, but may be overridden on
   // testing.
   base::FilePath metadata_path_;
+
+  // Used for DCHECKs to ensure method calls executed in the correct thread.
+  SEQUENCE_CHECKER(sequence_checker_);
 
   base::WeakPtrFactory<RootfsLacrosLoader> weak_factory_{this};
 };

@@ -18,7 +18,6 @@
 #include "ash/constants/ash_switches.h"
 #include "ash/controls/contextual_tooltip.h"
 #include "ash/display/screen_orientation_controller.h"
-#include "ash/drag_drop/scoped_drag_drop_observer.h"
 #include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/cpp/shelf_config.h"
@@ -27,6 +26,7 @@
 #include "ash/root_window_controller.h"
 #include "ash/screen_util.h"
 #include "ash/session/session_controller_impl.h"
+#include "ash/shelf/desk_button_widget.h"
 #include "ash/shelf/drag_handle.h"
 #include "ash/shelf/home_to_overview_nudge_controller.h"
 #include "ash/shelf/hotseat_widget.h"
@@ -529,7 +529,7 @@ void ShelfLayoutManager::InitObservers() {
   shell->activation_client()->AddObserver(this);
   shell->locale_update_controller()->AddObserver(this);
   state_.session_state = shell->session_controller()->GetSessionState();
-  shelf_background_type_ = GetShelfBackgroundType();
+  shelf_background_type_ = ComputeShelfBackgroundType();
   wallpaper_controller_observation_.Observe(shell->wallpaper_controller());
 
   // DesksController could be null when virtual desks feature is not enabled.
@@ -939,6 +939,13 @@ bool ShelfLayoutManager::ProcessGestureEvent(
     return false;
   }
 
+  // In certain edge cases, SHOW_PRESS gesture may come just as scroll starts.
+  // Ignore it, as it's not actoinable, and should not cancel drag and drop.
+  // See b/277846859 for more details.
+  if (event_in_screen.type() == ui::ET_GESTURE_SHOW_PRESS) {
+    return true;
+  }
+
   if (event_in_screen.type() == ui::ET_GESTURE_SCROLL_UPDATE) {
     UpdateGestureDrag(event_in_screen);
     return true;
@@ -1011,8 +1018,7 @@ void ShelfLayoutManager::ProcessScrollOffset(int offset,
     return;
   }
 
-  if (app_list_features::IsQuickActionShowBubbleLauncherEnabled() &&
-      !IsLocationInBubbleLauncherShowBounds(event.root_location())) {
+  if (!IsLocationInBubbleLauncherShowBounds(event.root_location())) {
     return;
   }
 
@@ -1037,9 +1043,6 @@ void ShelfLayoutManager::ProcessScrollEventFromShelf(ui::ScrollEvent* event) {
 }
 
 bool ShelfLayoutManager::IsBubbleLauncherShowOnGestureScrollAvailable() {
-  if (!app_list_features::IsQuickActionShowBubbleLauncherEnabled())
-    return false;
-
   if (!state_.IsShelfVisible())
     return false;
 
@@ -1129,7 +1132,7 @@ void ShelfLayoutManager::ProcessMouseWheelEventFromShelf(
   ProcessScrollOffset(y_offset, *event);
 }
 
-ShelfBackgroundType ShelfLayoutManager::GetShelfBackgroundType() const {
+ShelfBackgroundType ShelfLayoutManager::ComputeShelfBackgroundType() const {
   if (state_.pre_lock_screen_animation_active)
     return ShelfBackgroundType::kDefaultBg;
 
@@ -1193,10 +1196,10 @@ ShelfBackgroundType ShelfLayoutManager::GetShelfBackgroundType() const {
 }
 
 void ShelfLayoutManager::MaybeUpdateShelfBackground(AnimationChangeType type) {
-  const ShelfBackgroundType new_background_type(GetShelfBackgroundType());
-
-  if (new_background_type == shelf_background_type_)
+  const ShelfBackgroundType new_background_type = ComputeShelfBackgroundType();
+  if (new_background_type == shelf_background_type_) {
     return;
+  }
 
   shelf_background_type_ = new_background_type;
   for (auto& observer : observers_)
@@ -1304,6 +1307,13 @@ void ShelfLayoutManager::OnSplitViewStateChanged(
 }
 
 void ShelfLayoutManager::OnOverviewModeWillStart() {
+  // If a shelf window is active before overview starts, deactivate it to avoid
+  // overview window activation issues.
+  // TODO(b/289287310): Consolidate behavior: shelf and overview.
+  auto* active_window = window_util::GetActiveWindow();
+  if (active_window && IsShelfWindow(active_window)) {
+    wm::DeactivateWindow(active_window);
+  }
   overview_mode_will_start_ = true;
 }
 
@@ -1441,6 +1451,9 @@ void ShelfLayoutManager::OnLocaleChanged() {
     shelf_->shelf_widget()->HandleLocaleChange();
   shelf_->status_area_widget()->HandleLocaleChange();
   shelf_->navigation_widget()->HandleLocaleChange();
+  if (features::IsDeskButtonEnabled()) {
+    shelf_widget_->desk_button_widget()->HandleLocaleChange();
+  }
 
   // Layout update is needed when language changes between LTR and RTL.
   LayoutShelf();
@@ -1453,8 +1466,11 @@ void ShelfLayoutManager::OnDeskSwitchAnimationLaunching() {
 void ShelfLayoutManager::OnDeskSwitchAnimationFinished() {
   --suspend_visibility_update_;
   DCHECK_GE(suspend_visibility_update_, 0);
-  if (!suspend_visibility_update_)
-    UpdateVisibilityState(/*force_layout=*/false);
+  if (!suspend_visibility_update_) {
+    // Force layout so the desk button will show after a desk switch from
+    // overview.
+    UpdateVisibilityState(/*force_layout=*/true);
+  }
 }
 
 float ShelfLayoutManager::GetOpacity() const {
@@ -1898,6 +1914,9 @@ void ShelfLayoutManager::UpdateBoundsAndOpacity(bool animate) {
   hotseat_widget->UpdateLayout(animate);
   status_widget->UpdateLayout(animate);
   nav_widget->UpdateLayout(animate);
+  if (features::IsDeskButtonEnabled()) {
+    shelf_widget_->desk_button_widget()->UpdateLayout(animate);
+  }
   if (features::IsUseLoginShelfWidgetEnabled()) {
     shelf_->login_shelf_widget()->UpdateLayout(animate);
   }
@@ -1932,7 +1951,25 @@ void ShelfLayoutManager::UpdateTargetBounds(const State& state,
   shelf_->shelf_widget()->CalculateTargetBounds();
   shelf_->status_area_widget()->CalculateTargetBounds();
   shelf_->navigation_widget()->CalculateTargetBounds();
+  // If the desk button should be on the shelf, reserve space for it in the
+  // hotseat before drawing the hotseat.
+  DeskButtonWidget* desk_button = shelf_->desk_button_widget();
+  if (features::IsDeskButtonEnabled() && desk_button->ShouldBeVisible()) {
+    shelf_->hotseat_widget()->ReserveSpaceForAdjacentWidgets(
+        shelf_->IsHorizontalAlignment()
+            ? (base::i18n::IsRTL()
+                   ? gfx::Insets::TLBR(0, 0, 0,
+                                       desk_button->GetPreferredLength())
+                   : gfx::Insets::TLBR(0, desk_button->GetPreferredLength(), 0,
+                                       0))
+            : gfx::Insets::TLBR(desk_button->GetPreferredLength(), 0, 0, 0));
+  } else {
+    shelf_->hotseat_widget()->ReserveSpaceForAdjacentWidgets(gfx::Insets());
+  }
   shelf_->hotseat_widget()->CalculateTargetBounds();
+  if (features::IsDeskButtonEnabled()) {
+    desk_button->CalculateTargetBounds();
+  }
   if (features::IsUseLoginShelfWidgetEnabled())
     shelf_->login_shelf_widget()->CalculateTargetBounds();
 
@@ -1973,6 +2010,36 @@ void ShelfLayoutManager::UpdateWorkAreaInsetsAndNotifyObservers(
   Shell::Get()
       ->window_tree_host_manager()
       ->UpdateWorkAreaOfDisplayNearestWindow(shelf_native_window, shelf_insets);
+}
+
+void ShelfLayoutManager::HandleScrollableShelfContainerBoundsChange() const {
+  DeskButtonWidget* desk_button = shelf_widget_->desk_button_widget();
+  if (desk_button && desk_button->IsVisible()) {
+    // The desk button widget bounds depend on the scrollable shelf container
+    // bounds.
+    ScrollableShelfView* scrollable_shelf_view =
+        shelf_->hotseat_widget()->scrollable_shelf_view();
+
+    // In horizontal shelf we shrink the button if it causes shelf overflow when
+    // expanded. We calculate this hypothetically before we recalculate target
+    // bounds because we want to avoid a cycle where the button shrinks, the
+    // shelf is no longer overflown, the button expands because the shelf is no
+    // longer overflown, the shelf is overflown again, etc.
+    bool should_expand =
+        shelf_->IsHorizontalAlignment() &&
+        !scrollable_shelf_view->CalculateShelfOverflowForAvailableLength(
+            scrollable_shelf_view->GetLocalBounds().width() +
+            desk_button->GetPreferredLength() -
+            desk_button->GetPreferredExpandedWidth());
+    if (desk_button->is_expanded() != should_expand) {
+      desk_button->SetExpanded(should_expand);
+    } else {
+      // `SetExpanded` already calculates and sets the target bounds, so we only
+      // have to do this when the shelf is vertical.
+      desk_button->CalculateTargetBounds();
+      desk_button->UpdateLayout(true);
+    }
+  }
 }
 
 void ShelfLayoutManager::UpdateTargetBoundsForGesture(
@@ -2069,9 +2136,10 @@ void ShelfLayoutManager::UpdateTargetBoundsForGesture(
 }
 
 void ShelfLayoutManager::UpdateAutoHideForDragDrop(
+    ScopedDragDropObserver::EventType event_type,
     const ui::DropTargetEvent* event) {
   DCHECK_EQ(visibility_state(), SHELF_AUTO_HIDE);
-  if (!event) {
+  if (event_type != ScopedDragDropObserver::EventType::kDragUpdated) {
     if (!in_mouse_drag_ && in_drag_drop_ &&
         shelf_->shelf_widget()->GetVisibleShelfBounds().Contains(
             last_drag_drop_position_in_screen_)) {
@@ -2358,13 +2426,22 @@ bool ShelfLayoutManager::IsShelfWindow(aura::Window* window) {
         (login_shelf_window && login_shelf_window->Contains(window));
   }
 
+  // Calculate whether `window` is contained by the desk button widget.
+  bool window_in_desk_button_widget = false;
+  if (features::IsDeskButtonEnabled()) {
+    const aura::Window* desk_button_window =
+        shelf_->desk_button_widget()->GetNativeWindow();
+    window_in_desk_button_widget =
+        (desk_button_window && desk_button_window->Contains(window));
+  }
+
   return (shelf_window && shelf_window->Contains(window)) ||
          (navigation_window && navigation_window->Contains(window)) ||
          (hotseat_window && hotseat_window->Contains(window)) ||
          (status_area_window && status_area_window->Contains(window)) ||
          (drag_handle_nudge_window &&
           drag_handle_nudge_window->Contains(window)) ||
-         window_in_login_shelf_widget;
+         window_in_login_shelf_widget || window_in_desk_button_widget;
 }
 
 bool ShelfLayoutManager::IsStatusAreaWindow(aura::Window* window) {
@@ -2393,7 +2470,7 @@ float ShelfLayoutManager::ComputeTargetOpacity(const State& state) const {
   float opacity_when_visible = kDefaultShelfOpacity;
   if (dimmed_for_inactivity_) {
     opacity_when_visible =
-        (GetShelfBackgroundType() == ShelfBackgroundType::kMaximized)
+        (ComputeShelfBackgroundType() == ShelfBackgroundType::kMaximized)
             ? kMaximizedShelfDimOpacity
             : kFloatingShelfDimOpacity;
   }
@@ -3086,6 +3163,14 @@ void ShelfLayoutManager::UpdateVisibilityStateForTrayBubbleChange(
 void ShelfLayoutManager::HandleShelfAlignmentChange() {
   base::AutoReset<bool> immediate_transition(&state_change_animation_disabled_,
                                              true);
+
+  // The desk button widget needs to know that the alignment is changing early
+  // so that it can calculate the correct preferred length.
+  if (features::IsDeskButtonEnabled()) {
+    shelf_->desk_button_widget()->PrepareForAlignmentChange(
+        shelf_->alignment());
+  }
+
   UpdateVisibilityState(/*force_layout=*/true);
 }
 

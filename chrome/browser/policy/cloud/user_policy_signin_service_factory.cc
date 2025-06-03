@@ -45,7 +45,7 @@ UserPolicySigninServiceFactory::UserPolicySigninServiceFactory()
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
-UserPolicySigninServiceFactory::~UserPolicySigninServiceFactory() {}
+UserPolicySigninServiceFactory::~UserPolicySigninServiceFactory() = default;
 
 // static
 UserPolicySigninService* UserPolicySigninServiceFactory::GetForProfile(
@@ -56,7 +56,8 @@ UserPolicySigninService* UserPolicySigninServiceFactory::GetForProfile(
 
 // static
 UserPolicySigninServiceFactory* UserPolicySigninServiceFactory::GetInstance() {
-  return base::Singleton<UserPolicySigninServiceFactory>::get();
+  static base::NoDestructor<UserPolicySigninServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -65,7 +66,8 @@ void UserPolicySigninServiceFactory::SetDeviceManagementServiceForTesting(
   g_device_management_service = device_management_service;
 }
 
-KeyedService* UserPolicySigninServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+UserPolicySigninServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = static_cast<Profile*>(context);
   BrowserPolicyConnector* connector =
@@ -74,12 +76,11 @@ KeyedService* UserPolicySigninServiceFactory::BuildServiceInstanceFor(
       g_device_management_service ? g_device_management_service
                                   : connector->device_management_service();
 
-  UserPolicySigninService* service = new UserPolicySigninService(
+  return std::make_unique<UserPolicySigninService>(
       profile, g_browser_process->local_state(), device_management_service,
       profile->GetUserCloudPolicyManager(),
       IdentityManagerFactory::GetForProfile(profile),
       g_browser_process->shared_url_loader_factory());
-  return service;
 }
 
 bool

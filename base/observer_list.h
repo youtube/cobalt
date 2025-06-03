@@ -17,6 +17,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/cxx20_erase_vector.h"
 #include "base/dcheck_is_on.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/notreached.h"
@@ -134,15 +135,9 @@ class ObserverList {
                          ? std::numeric_limits<size_t>::max()
                          : list->observers_.size()) {
       DCHECK(list);
-      if (!allow_reentrancy) {
-        // TODO(crbug.com/1423093): Turn DCHECK + DumpWithoutCrashing() below
-        // into a CHECK once very prevalent failures are weeded out.
-        DCHECK(list_.IsOnlyRemainingNode());
-        if (!DCHECK_IS_ON() && !list_.IsOnlyRemainingNode()) {
-          base::debug::DumpWithoutCrashing();
-        }
-      }
-      DCHECK(allow_reentrancy || list_.IsOnlyRemainingNode());
+      // TODO(crbug.com/1423093): Turn into CHECK once very prevalent failures
+      // are weeded out.
+      DUMP_WILL_BE_CHECK(allow_reentrancy || list_.IsOnlyRemainingNode());
       // Bind to this sequence when creating the first iterator.
       DCHECK_CALLED_ON_VALID_SEQUENCE(list_->iteration_sequence_checker_);
       EnsureValidIndex();
@@ -270,12 +265,11 @@ class ObserverList {
       live_iterators_.head()->value()->Invalidate();
     if (check_empty) {
       Compact();
-      // TODO(crbug.com/1423093): Turn DCHECK + DumpWithoutCrashing() below into
-      // a CHECK once very prevalent failures are weeded out.
-      DCHECK(observers_.empty()) << "\n" << GetObserversCreationStackString();
-      if (!DCHECK_IS_ON() && !observers_.empty()) {
-        base::debug::DumpWithoutCrashing();
-      }
+      // TODO(crbug.com/1423093): Turn into a CHECK once very prevalent failures
+      // are weeded out.
+      DUMP_WILL_BE_CHECK(observers_.empty())
+          << "\n"
+          << GetObserversCreationStackString();
     }
   }
 
@@ -349,10 +343,8 @@ class ObserverList {
     // Compact() is only ever called when the last iterator is destroyed.
     DETACH_FROM_SEQUENCE(iteration_sequence_checker_);
 
-    observers_.erase(
-        std::remove_if(observers_.begin(), observers_.end(),
-                       [](const auto& o) { return o.IsMarkedForRemoval(); }),
-        observers_.end());
+    base::EraseIf(observers_,
+                  [](const auto& o) { return o.IsMarkedForRemoval(); });
   }
 
   std::string GetObserversCreationStackString() const {

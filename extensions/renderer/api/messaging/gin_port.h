@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "extensions/common/api/messaging/port_id.h"
 #include "extensions/renderer/bindings/api_binding_util.h"
@@ -114,7 +115,7 @@ class GinPort final : public gin::Wrappable<GinPort> {
 
   // Helper method to dispatch an event.
   void DispatchEvent(v8::Local<v8::Context> context,
-                     std::vector<v8::Local<v8::Value>>* args,
+                     v8::LocalVector<v8::Value>* args,
                      base::StringPiece event_name);
 
   // Invalidates the port (due to the context being removed). Any further calls
@@ -141,11 +142,11 @@ class GinPort final : public gin::Wrappable<GinPort> {
   const std::string name_;
 
   // The associated APIEventHandler. Guaranteed to outlive this object.
-  APIEventHandler* const event_handler_;
+  const raw_ptr<APIEventHandler, ExperimentalRenderer> event_handler_;
 
   // The delegate for handling the message passing between ports. Guaranteed to
   // outlive this object.
-  Delegate* const delegate_;
+  const raw_ptr<Delegate, DanglingUntriaged> delegate_;
 
   // Whether the `sender` property has been accessed, and thus set on the
   // port JS object.

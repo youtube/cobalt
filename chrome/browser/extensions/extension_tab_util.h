@@ -14,6 +14,7 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/common/extensions/api/tabs.h"
+#include "components/tab_groups/tab_group_id.h"
 #include "extensions/common/features/feature.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -201,7 +202,7 @@ class ExtensionTabUtil {
   static GURL ResolvePossiblyRelativeURL(const std::string& url_string,
                                          const Extension* extension);
 
-  // Returns true if navigating to |url| would kill a page or the browser
+  // Returns true if navigating to |url| could kill a page or the browser
   // itself, whether by simulating a crash, browser quit, thread hang, or
   // equivalent. Extensions should be prevented from navigating to such URLs.
   //
@@ -262,6 +263,9 @@ class ExtensionTabUtil {
 
   // Retrieve a TabStripModel only if every browser is editable.
   static TabStripModel* GetEditableTabStripModel(Browser* browser);
+
+  static bool TabIsInSavedTabGroup(content::WebContents* contents,
+                                   TabStripModel* tab_strip_model);
 };
 
 }  // namespace extensions

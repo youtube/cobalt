@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Introduce un enderezo de correo electrónico que non estea baleiro.</translation>
 <translation id="1758486001363313524">Outras...</translation>
 <translation id="1787192514241997742">tempo total: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Permitir cámara</translation>
 <translation id="1822429046913737220">a.m./p.m.</translation>
 <translation id="1832974991323546415">reproducir no dispositivo remoto</translation>
 <translation id="1921819250265091946">dd</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">Cambiouse á proxección</translation>
 <translation id="2031987842108996681">Canle vermella</translation>
 <translation id="2060505056492490888">"<ph name="DOT" />" utilízase nunha posición incorrecta en "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">O valor mínimo (<ph name="MINIMUM" />) debe ser inferior ao máximo (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Hoxe</translation>
 <translation id="2226276347425096477">Acurta este texto a <ph name="MAX_CHARACTERS" /> caracteres como máximo (actualmente estás utilizando <ph name="CURRENT_LENGTH" /> caracteres).</translation>
-<translation id="2246498165605549352">Ficheiro local</translation>
 <translation id="2247351761944213033">Semana <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Pista <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Valor hexadecimal da cor</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Marca esta caixa se queres continuar.</translation>
 <translation id="2908441821576996758">Introduce unha lista de enderezos de correo electrónico separados por comas.</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">mostrar o menú de audiodescricións</translation>
 <translation id="3075154866155599887">Insire un valor válido. O campo está incompleto ou contén unha data non válida.</translation>
 <translation id="310520048233152454">Introduce un URL.</translation>
 <translation id="3220661731597678625">paso actual</translation>
 <translation id="3321030238473337787">Velocidade de reprodución</translation>
 <translation id="3329013043687509092">Saturación</translation>
+<translation id="3377518164566272702">Permitir micrófono e cámara</translation>
 <translation id="3450233048674729344">O valor debe ser inferior ou igual a <ph name="MAXIMUM" />.</translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Saír do modo de pantalla superposta</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Reproducindo no modo de pantalla superposta</translation>
 <translation id="4748357248530471599">activa ou desactiva a pantalla completa no recorte de pantalla</translation>
 <translation id="4763480195061959176">vídeo</translation>
+<translation id="4792862212177489858">Compartir localización</translation>
 <translation id="4812940957355064477">Introduce un número.</translation>
 <translation id="4912200001568447310">elemento actual</translation>
 <translation id="4915360478455618802">Mostrar o selector da hora</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> seleccionados</translation>
 <translation id="4992066212339426712">Activar o son</translation>
 <translation id="49969490063480558">Introduce texto despois de "<ph name="ATSIGN" />". O enderezo electrónico "<ph name="INVALIDADDRESS" />" está incompleto.</translation>
+<translation id="5037575921016181960">Contrasinal seguro</translation>
 <translation id="5090250355906949916">barra de reprodución do vídeo</translation>
 <translation id="509897012892853729">Canle azul</translation>
 <translation id="5117590920725113268">Mostrar mes seguinte</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">data actual</translation>
 <translation id="5466621249238537318">Selecciona un ou máis ficheiros.</translation>
 <translation id="5468998798572797635">sae da pantalla completa</translation>
+<translation id="5514612371225420585">Ficheiro no teu dispositivo</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Emitir</translation>
 <translation id="5546461542133609677">activar o son</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Mostra o panel de selección do mes</translation>
 <translation id="6404546809543547843">barra de reprodución do audio</translation>
 <translation id="6443871981718447451">mostra o menú de subtítulos</translation>
+<translation id="6484738902856791350">Dar formato</translation>
 <translation id="6550675742724504774">Opcións</translation>
 <translation id="6572309429103589720">A gramática non é válida</translation>
 <translation id="658823671542763450">acceder á pantalla completa</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Outras...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, a partir do <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Pantalla superposta</translation>
+<translation id="918430632320614861">Permitir micrófono</translation>
 <translation id="945780513535800434">Marcada parcialmente</translation>
 <translation id="954003015749068518">accede ao modo de pantalla superposta</translation>
 </translationbundle>

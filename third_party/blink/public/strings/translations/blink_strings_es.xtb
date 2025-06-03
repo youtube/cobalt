@@ -16,6 +16,7 @@
 <translation id="1729654308190250600">Introduce una dirección de correo electrónico que no esté vacía.</translation>
 <translation id="1758486001363313524">Otra...</translation>
 <translation id="1787192514241997742">Tiempo total: <ph name="REMAINING_TIME" /></translation>
+<translation id="1800494066469288780">Permitir cámara</translation>
 <translation id="1822429046913737220">A.M./P.M.</translation>
 <translation id="1832974991323546415">reproducir en dispositivo remoto</translation>
 <translation id="1921819250265091946">dd</translation>
@@ -24,9 +25,9 @@
 <translation id="1993104285338243655">Se ha cambiado a proyección</translation>
 <translation id="2031987842108996681">Canal rojo</translation>
 <translation id="2060505056492490888">El signo "<ph name="DOT" />" está colocado en una posición incorrecta en la dirección "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">El valor mínimo (<ph name="MINIMUM" />) debe ser inferior al valor máximo (<ph name="MAXIMUM" />).</translation>
 <translation id="2148716181193084225">Hoy</translation>
 <translation id="2226276347425096477">Reduce la longitud de este texto a <ph name="MAX_CHARACTERS" /> caracteres o menos (actualmente, el texto tiene <ph name="CURRENT_LENGTH" /> caracteres)</translation>
-<translation id="2246498165605549352">Archivo local</translation>
 <translation id="2247351761944213033">Semana <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
 <translation id="2277199496770840904">Pista <ph name="NUMBER" /></translation>
 <translation id="2393030564806080191">Valor hexadecimal del color</translation>
@@ -45,11 +46,13 @@
 <translation id="2761667185364618470">Selecciona esta casilla de verificación si quieres continuar</translation>
 <translation id="2908441821576996758">Introduce una lista de direcciones de correo electrónico separada por comas</translation>
 <translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3053226512517284904">mostrar menú de audiodescripciones</translation>
 <translation id="3075154866155599887">Debes introducir un valor válido. El campo está incompleto o incluye una fecha no válida.</translation>
 <translation id="310520048233152454">Introduce una URL</translation>
 <translation id="3220661731597678625">paso actual</translation>
 <translation id="3321030238473337787">Velocidad de reproducción</translation>
 <translation id="3329013043687509092">Saturación</translation>
+<translation id="3377518164566272702">Permitir micrófono y cámara</translation>
 <translation id="3450233048674729344">El valor debe ser inferior o igual a <ph name="MAXIMUM" /></translation>
 <translation id="3732799496749320381">mm</translation>
 <translation id="3754210790023674521">Salir del modo imagen en imagen</translation>
@@ -65,6 +68,7 @@
 <translation id="4718048029184481307">Reproduciendo en modo imagen en imagen</translation>
 <translation id="4748357248530471599">activar pantalla completa en el recorte de la pantalla</translation>
 <translation id="4763480195061959176">vídeo</translation>
+<translation id="4792862212177489858">Compartir ubicación</translation>
 <translation id="4812940957355064477">Debes introducir un número</translation>
 <translation id="4912200001568447310">elemento actual</translation>
 <translation id="4915360478455618802">Mostrar selector de hora</translation>
@@ -74,6 +78,7 @@
 <translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> seleccionados</translation>
 <translation id="4992066212339426712">Activar sonido</translation>
 <translation id="49969490063480558">Introduce texto detrás del signo "<ph name="ATSIGN" />". La dirección "<ph name="INVALIDADDRESS" />" está incompleta.</translation>
+<translation id="5037575921016181960">Contraseña segura</translation>
 <translation id="5090250355906949916">control deslizante de duración de vídeo</translation>
 <translation id="509897012892853729">Canal azul</translation>
 <translation id="5117590920725113268">Mostrar mes siguiente</translation>
@@ -89,6 +94,7 @@
 <translation id="5425179576310518467">fecha actual</translation>
 <translation id="5466621249238537318">Selecciona uno o varios archivos</translation>
 <translation id="5468998798572797635">salir de pantalla completa</translation>
+<translation id="5514612371225420585">Archivo en tu dispositivo</translation>
 <translation id="5516235301412634559">0,75</translation>
 <translation id="5537725057119320332">Enviar</translation>
 <translation id="5546461542133609677">activar sonido</translation>
@@ -113,6 +119,7 @@
 <translation id="6398862346408813489">Mostrar panel para seleccionar el mes</translation>
 <translation id="6404546809543547843">control deslizante de duración de audio</translation>
 <translation id="6443871981718447451">mostrar menú de subtítulos</translation>
+<translation id="6484738902856791350">Dar formato al texto</translation>
 <translation id="6550675742724504774">Opciones</translation>
 <translation id="6572309429103589720">La gramática no es válida</translation>
 <translation id="658823671542763450">activar pantalla completa</translation>
@@ -176,6 +183,7 @@
 <translation id="9132465097189459683">Otra...</translation>
 <translation id="9155987714137265666"><ph name="WEEK" />, a partir del <ph name="WEEK_START_DATE" /></translation>
 <translation id="916607977885256133">Imagen en imagen</translation>
+<translation id="918430632320614861">Permitir micrófono</translation>
 <translation id="945780513535800434">Marcada parcialmente</translation>
 <translation id="954003015749068518">abrir el modo imagen en imagen</translation>
 </translationbundle>

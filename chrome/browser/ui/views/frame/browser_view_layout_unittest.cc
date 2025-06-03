@@ -39,8 +39,8 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
 
   ~MockBrowserViewLayoutDelegate() override = default;
 
-  void set_tab_strip_visible(bool visible) {
-    tab_strip_visible_ = visible;
+  void set_should_draw_tab_strip(bool visible) {
+    should_draw_tab_strip_ = visible;
   }
   void set_toolbar_visible(bool visible) {
     toolbar_visible_ = visible;
@@ -59,7 +59,7 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   }
 
   // BrowserViewLayout::Delegate overrides:
-  bool IsTabStripVisible() const override { return tab_strip_visible_; }
+  bool ShouldDrawTabStrip() const override { return should_draw_tab_strip_; }
   bool GetBorderlessModeEnabled() const override { return false; }
   gfx::Rect GetBoundsForTabStripRegionInBrowserView() const override {
     return gfx::Rect();
@@ -71,7 +71,6 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
       const gfx::Rect& available_space,
       views::Label& window_title_label) const override {}
   int GetTopInsetInBrowserView() const override { return 0; }
-  int GetThemeBackgroundXInset() const override { return 0; }
   bool IsToolbarVisible() const override { return toolbar_visible_; }
   bool IsBookmarkBarVisible() const override { return bookmark_bar_visible_; }
   bool IsContentsSeparatorEnabled() const override {
@@ -97,7 +96,10 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
         }};
     return base::Contains(*supported_features, feature);
   }
-  gfx::NativeView GetHostView() const override { return nullptr; }
+  gfx::NativeView GetHostView() const override { return gfx::NativeView(); }
+  gfx::NativeView GetHostViewForAnchoring() const override {
+    return gfx::NativeView();
+  }
   bool BrowserIsSystemWebApp() const override { return false; }
   bool BrowserIsWebApp() const override { return false; }
   bool BrowserIsTypeApp() const override { return false; }
@@ -107,9 +109,10 @@ class MockBrowserViewLayoutDelegate : public BrowserViewLayoutDelegate {
   bool IsWindowControlsOverlayEnabled() const override { return false; }
   void UpdateWindowControlsOverlay(const gfx::Rect& rect) const override {}
   bool ShouldLayoutTabStrip() const override { return true; }
+  int GetExtraInfobarOffset() const override { return 0; }
 
  private:
-  bool tab_strip_visible_ = true;
+  bool should_draw_tab_strip_ = true;
   bool toolbar_visible_ = true;
   bool bookmark_bar_visible_ = true;
   bool content_separator_enabled_ = true;
@@ -148,6 +151,8 @@ class MockImmersiveModeController : public ImmersiveModeController {
       const gfx::Rect& new_visible_bounds) override {}
   bool ShouldStayImmersiveAfterExitingFullscreen() override { return true; }
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override {}
+  int GetMinimumContentOffset() const override { return 0; }
+  int GetExtraInfobarOffset() const override { return 0; }
 };
 
 }  // anonymous namespace
@@ -230,7 +235,8 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         /*left_aligned_side_panel_separator=*/nullptr,
         /*unified_side_panel=*/nullptr,
         /*right_aligned_side_panel_separator=*/nullptr,
-        immersive_mode_controller_.get(), separator_);
+        /*side_panel_rounded_corner=*/nullptr, immersive_mode_controller_.get(),
+        separator_);
     layout->set_webui_tab_strip(webui_tab_strip());
     layout_ = layout.get();
     browser_view_->SetLayoutManager(std::move(layout));
@@ -246,8 +252,9 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
   }
 
  private:
-  raw_ptr<BrowserViewLayout> layout_;
-  raw_ptr<MockBrowserViewLayoutDelegate> delegate_;  // Owned by |layout_|.
+  raw_ptr<BrowserViewLayout, DanglingUntriaged> layout_;
+  raw_ptr<MockBrowserViewLayoutDelegate, DanglingUntriaged>
+      delegate_;  // Owned by |layout_|.
   std::unique_ptr<views::View> browser_view_;
 
   // Views owned by |browser_view_|.
@@ -273,7 +280,7 @@ TEST_F(BrowserViewLayoutTest, BrowserViewLayout) {
 // Test the core layout functions.
 TEST_F(BrowserViewLayoutTest, Layout) {
   // Simulate a window with no interesting UI.
-  delegate()->set_tab_strip_visible(false);
+  delegate()->set_should_draw_tab_strip(false);
   delegate()->set_toolbar_visible(false);
   delegate()->set_bookmark_bar_visible(false);
   InvalidateAndRunScheduledLayoutOnBrowserView();
@@ -331,7 +338,7 @@ TEST_F(BrowserViewLayoutTest, LayoutDownloadShelf) {
 
 TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {
   // Top controls are fully shown.
-  delegate()->set_tab_strip_visible(false);
+  delegate()->set_should_draw_tab_strip(false);
   delegate()->set_toolbar_visible(true);
   delegate()->set_top_controls_slide_enabled(true);
   delegate()->set_top_controls_shown_ratio(1.f);
@@ -363,7 +370,7 @@ TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {
 }
 
 TEST_F(BrowserViewLayoutTest, WebUITabStripPushesDownContents) {
-  delegate()->set_tab_strip_visible(false);
+  delegate()->set_should_draw_tab_strip(false);
   delegate()->set_toolbar_visible(true);
   webui_tab_strip()->SetVisible(false);
   InvalidateAndRunScheduledLayoutOnBrowserView();

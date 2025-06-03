@@ -12,7 +12,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "components/autofill/core/browser/autofill_data_util.h"
-#include "components/autofill/core/browser/autofill_trigger_source.h"
+#include "components/autofill/core/browser/autofill_trigger_details.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -36,14 +36,12 @@ void AddressFormEventLogger::OnDidFillSuggestion(
     const AutofillProfile& profile,
     const FormStructure& form,
     const AutofillField& field,
-    AutofillSyncSigninState sync_state,
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
     const AutofillTriggerSource trigger_source) {
   AutofillProfile::RecordType record_type = profile.record_type();
-  sync_state_ = sync_state;
+  signin_state_for_metrics_ = signin_state_for_metrics;
 
-  form_interactions_ukm_logger_->LogDidFillSuggestion(
-      record_type,
-      /*is_for_credit_card=*/false, form, field);
+  form_interactions_ukm_logger_->LogDidFillSuggestion(record_type, form, field);
 
   if (record_type == AutofillProfile::SERVER_PROFILE) {
     Log(FORM_EVENT_SERVER_SUGGESTION_FILLED, form);
@@ -69,29 +67,27 @@ void AddressFormEventLogger::OnDidFillSuggestion(
   }
   UpdateFlowId();
 
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillAccountProfilesUnionView)) {
-    profile_categories_filled_.insert(GetCategoryOfProfile(profile));
-  }
+  profile_categories_filled_.insert(GetCategoryOfProfile(profile));
 }
 
 void AddressFormEventLogger::OnDidSeeFillableDynamicForm(
-    AutofillSyncSigninState sync_state,
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
     const FormStructure& form) {
-  sync_state_ = sync_state;
+  signin_state_for_metrics_ = signin_state_for_metrics;
   Log(FORM_EVENT_DID_SEE_FILLABLE_DYNAMIC_FORM, form);
 }
 
-void AddressFormEventLogger::OnDidRefill(AutofillSyncSigninState sync_state,
-                                         const FormStructure& form) {
-  sync_state_ = sync_state;
+void AddressFormEventLogger::OnDidRefill(
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
+    const FormStructure& form) {
+  signin_state_for_metrics_ = signin_state_for_metrics;
   Log(FORM_EVENT_DID_DYNAMIC_REFILL, form);
 }
 
 void AddressFormEventLogger::OnSubsequentRefillAttempt(
-    AutofillSyncSigninState sync_state,
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
     const FormStructure& form) {
-  sync_state_ = sync_state;
+  signin_state_for_metrics_ = signin_state_for_metrics;
   Log(FORM_EVENT_DYNAMIC_CHANGE_AFTER_REFILL, form);
 }
 
@@ -125,10 +121,6 @@ void AddressFormEventLogger::RecordShowSuggestions() {
 
 void AddressFormEventLogger::RecordFillingAssistance(LogBuffer& logs) const {
   FormEventLoggerBase::RecordFillingAssistance(logs);
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillAccountProfilesUnionView)) {
-    return;
-  }
   // Log the origin-resolved filling assistance metric by converting the
   // `profile_categories_filled` to an CategoryResolvedFillingAssistanceBucket.
   auto filled_categories_to_bucket = [&] {
@@ -153,10 +145,6 @@ void AddressFormEventLogger::RecordFillingAssistance(LogBuffer& logs) const {
 
 void AddressFormEventLogger::RecordFillingCorrectness(LogBuffer& logs) const {
   FormEventLoggerBase::RecordFillingCorrectness(logs);
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillAccountProfilesUnionView)) {
-    return;
-  }
   // Non-empty because correctness is only logged when an Autofill
   // suggestion was accepted.
   DCHECK(!profile_categories_filled_.empty());

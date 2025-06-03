@@ -28,9 +28,7 @@ namespace network {
 namespace {
 
 base::Value::Dict CreateLogValue(base::StringPiece outcome) {
-  base::Value::Dict ret;
-  ret.Set("outcome", outcome);
-  return ret;
+  return base::Value::Dict().Set("outcome", outcome);
 }
 
 // Define convenience aliases for the NetLogEventTypes for brevity.
@@ -141,7 +139,7 @@ void TrustTokenRequestRedemptionHelper::OnGotKeyCommitment(
   if (!commitment_result) {
     LogOutcome(net_log_, kBegin, "No keys for issuer");
     std::move(done).Run(absl::nullopt,
-                        mojom::TrustTokenOperationStatus::kFailedPrecondition);
+                        mojom::TrustTokenOperationStatus::kMissingIssuerKeys);
     return;
   }
 

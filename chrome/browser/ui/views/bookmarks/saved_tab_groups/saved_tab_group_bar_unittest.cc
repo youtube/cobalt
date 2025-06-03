@@ -6,9 +6,11 @@
 
 #include <memory>
 
+#include "base/test/scoped_feature_list.h"
 #include "base/uuid.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_button.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_overflow_button.h"
 #include "chrome/test/base/test_browser_window.h"
@@ -20,37 +22,42 @@
 
 namespace {
 
-SavedTabGroup kSavedTabGroup1(std::u16string(u"test_title_1"),
-                              tab_groups::TabGroupColorId::kGrey,
-                              {});
+const SavedTabGroup kSavedTabGroup1(std::u16string(u"test_title_1"),
+                                    tab_groups::TabGroupColorId::kGrey,
+                                    {},
+                                    absl::nullopt);
 
-SavedTabGroup kSavedTabGroup2(std::u16string(u"test_title_2"),
-                              tab_groups::TabGroupColorId::kGrey,
-                              {});
-SavedTabGroup kSavedTabGroup3(std::u16string(u"test_title_3"),
-                              tab_groups::TabGroupColorId::kGrey,
-                              {});
+const SavedTabGroup kSavedTabGroup2(std::u16string(u"test_title_2"),
+                                    tab_groups::TabGroupColorId::kGrey,
+                                    {},
+                                    absl::nullopt);
+const SavedTabGroup kSavedTabGroup3(std::u16string(u"test_title_3"),
+                                    tab_groups::TabGroupColorId::kGrey,
+                                    {},
+                                    absl::nullopt);
 
-SavedTabGroup kSavedTabGroup4(std::u16string(u"test_title_4"),
-                              tab_groups::TabGroupColorId::kGrey,
-                              {});
+const SavedTabGroup kSavedTabGroup4(std::u16string(u"test_title_4"),
+                                    tab_groups::TabGroupColorId::kGrey,
+                                    {},
+                                    absl::nullopt);
 
-SavedTabGroup kSavedTabGroup5(std::u16string(u"test_title_5"),
-                              tab_groups::TabGroupColorId::kGrey,
-                              {});
+const SavedTabGroup kSavedTabGroup5(std::u16string(u"test_title_5"),
+                                    tab_groups::TabGroupColorId::kGrey,
+                                    {},
+                                    absl::nullopt);
 
-std::u16string kNewTitle(u"kNewTitle");
+const std::u16string kNewTitle(u"kNewTitle");
 
-tab_groups::TabGroupColorId kNewColor = tab_groups::TabGroupColorId::kRed;
+const tab_groups::TabGroupColorId kNewColor = tab_groups::TabGroupColorId::kRed;
 
 }  // anonymous namespace
 
 class SavedTabGroupBarUnitTest : public ChromeViewsTestBase {
  public:
   SavedTabGroupBarUnitTest()
-      : saved_tab_group_model_(std::make_unique<SavedTabGroupModel>()),
-        button_padding_(GetLayoutConstant(TOOLBAR_ELEMENT_PADDING)),
-        button_height_(GetLayoutConstant(BOOKMARK_BAR_BUTTON_HEIGHT)) {}
+      : saved_tab_group_model_(std::make_unique<SavedTabGroupModel>()) {
+    feature_list_.InitAndEnableFeature(features::kTabGroupsSave);
+  }
 
   SavedTabGroupBar* saved_tab_group_bar() { return saved_tab_group_bar_.get(); }
   SavedTabGroupModel* saved_tab_group_model() {
@@ -88,9 +95,10 @@ class SavedTabGroupBarUnitTest : public ChromeViewsTestBase {
   }
 
   int GetWidthOfButtonsAndPadding() {
-    // iterate through bubble getting size plus button padding
-    // calculated button_sizes + extra_padding
     int size = 0;
+
+    // Iterate through bubble getting size plus button padding calculated
+    // button_sizes + extra_padding
     for (const auto* const button : saved_tab_group_bar_->children()) {
       size += button->GetVisible()
                   ? button->GetPreferredSize().width() + button_padding_
@@ -116,12 +124,13 @@ class SavedTabGroupBarUnitTest : public ChromeViewsTestBase {
   std::unique_ptr<SavedTabGroupBar> saved_tab_group_bar_;
   std::unique_ptr<SavedTabGroupModel> saved_tab_group_model_;
 
+  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<TestBrowserWindow> browser_window_;
   std::unique_ptr<Browser> browser_;
 
-  const int button_padding_;
-  const int button_height_;
+  static constexpr int button_padding_ = 8;
+  static constexpr int button_height_ = 20;
 };
 
 TEST_F(SavedTabGroupBarUnitTest, AddsButtonFromModelAdd) {
@@ -133,7 +142,9 @@ TEST_F(SavedTabGroupBarUnitTest, AddsButtonFromModelAdd) {
   saved_tab_group_model()->Add(kSavedTabGroup1);
   EXPECT_EQ(2u, saved_tab_group_bar()->children().size());
 
-  saved_tab_group_model()->AddedFromSync(kSavedTabGroup2);
+  SavedTabGroup group_2_with_position = kSavedTabGroup2;
+  group_2_with_position.SetPosition(1);
+  saved_tab_group_model()->AddedFromSync(group_2_with_position);
   EXPECT_EQ(3u, saved_tab_group_bar()->children().size());
 }
 
@@ -152,6 +163,11 @@ TEST_F(SavedTabGroupBarUnitTest, OverflowMenuVisibleWhenFifthButtonAdded) {
   // Verify that the overflow button is visible when a 5th button is added and
   // that the 5th button is not visible.
   saved_tab_group_model()->Add(kSavedTabGroup5);
+
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
+
   EXPECT_TRUE(overflow_button->GetVisible());
   EXPECT_FALSE(saved_tab_group_bar()->children()[4]->GetVisible());
   EXPECT_EQ(6u, saved_tab_group_bar()->children().size());
@@ -170,11 +186,20 @@ TEST_F(SavedTabGroupBarUnitTest, OverflowMenuHiddenWhenFifthButtonRemoved) {
   // that the 5th button is not visible.
   Add4Groups();
   saved_tab_group_model()->Add(kSavedTabGroup5);
+
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
+
   EXPECT_TRUE(overflow_button->GetVisible());
   EXPECT_FALSE(saved_tab_group_bar()->children()[4]->GetVisible());
   EXPECT_EQ(6u, saved_tab_group_bar()->children().size());
 
   saved_tab_group_model()->Remove(kSavedTabGroup5.saved_guid());
+
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
 
   EXPECT_FALSE(overflow_button->GetVisible());
   EXPECT_EQ(5u, saved_tab_group_bar()->children().size());
@@ -193,11 +218,20 @@ TEST_F(SavedTabGroupBarUnitTest, OverflowMenuHiddenWhenFirstButtonRemoved) {
   // that the 5th button is not visible.
   Add4Groups();
   saved_tab_group_model()->Add(kSavedTabGroup5);
+
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
+
   EXPECT_TRUE(overflow_button->GetVisible());
   EXPECT_FALSE(saved_tab_group_bar()->children()[4]->GetVisible());
   EXPECT_EQ(6u, saved_tab_group_bar()->children().size());
 
   saved_tab_group_model()->Remove(kSavedTabGroup5.saved_guid());
+
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
 
   EXPECT_FALSE(overflow_button->GetVisible());
   EXPECT_TRUE(saved_tab_group_bar()->children()[3]->GetVisible());
@@ -223,7 +257,9 @@ TEST_F(SavedTabGroupBarUnitTest, RemoveButtonFromModelRemove) {
   EXPECT_TRUE(views::IsViewClass<SavedTabGroupOverflowButton>(
       saved_tab_group_bar()->children()[0]));
 
-  saved_tab_group_model()->AddedFromSync(kSavedTabGroup1);
+  SavedTabGroup group_1_with_position = kSavedTabGroup1;
+  group_1_with_position.SetPosition(1);
+  saved_tab_group_model()->AddedFromSync(group_1_with_position);
 
   // Remove the group and expect no buttons.
   saved_tab_group_model()->RemovedFromSync(kSavedTabGroup1.saved_guid());
@@ -234,7 +270,10 @@ TEST_F(SavedTabGroupBarUnitTest, RemoveButtonFromModelRemove) {
 
 TEST_F(SavedTabGroupBarUnitTest, UpdatedVisualDataMakesChangeToSpecificView) {
   saved_tab_group_model()->Add(kSavedTabGroup1);
-  saved_tab_group_model()->AddedFromSync(kSavedTabGroup2);
+
+  SavedTabGroup group_2_with_position = kSavedTabGroup2;
+  group_2_with_position.SetPosition(1);
+  saved_tab_group_model()->AddedFromSync(group_2_with_position);
 
   tab_groups::TabGroupVisualData saved_tab_group_visual_data(kNewTitle,
                                                              kNewColor);
@@ -293,11 +332,11 @@ TEST_F(SavedTabGroupBarUnitTest, MoveButtonFromModelMove) {
   saved_tab_group_model()->Add(kSavedTabGroup3);
 
   ASSERT_THAT(get_button_guids(), testing::ElementsAre(guid_1, guid_2, guid_3));
-  saved_tab_group_model()->Reorder(kSavedTabGroup2.saved_guid(), 2);
+  saved_tab_group_model()->ReorderGroupLocally(kSavedTabGroup2.saved_guid(), 2);
   EXPECT_THAT(get_button_guids(), testing::ElementsAre(guid_1, guid_3, guid_2));
-  saved_tab_group_model()->Reorder(kSavedTabGroup2.saved_guid(), 0);
+  saved_tab_group_model()->ReorderGroupLocally(kSavedTabGroup2.saved_guid(), 0);
   EXPECT_THAT(get_button_guids(), testing::ElementsAre(guid_2, guid_1, guid_3));
-  saved_tab_group_model()->Reorder(kSavedTabGroup2.saved_guid(), 1);
+  saved_tab_group_model()->ReorderGroupLocally(kSavedTabGroup2.saved_guid(), 1);
   EXPECT_THAT(get_button_guids(), testing::ElementsAre(guid_1, guid_2, guid_3));
 }
 
@@ -306,22 +345,26 @@ TEST_F(SavedTabGroupBarUnitTest, CalculatePreferredWidthRestrictedByExactSize) {
   Add4Groups();
 
   int exact_width = GetWidthOfButtonsAndPadding();
-
-  EXPECT_EQ(
-      exact_width,
-      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(exact_width));
+  int calculated_width =
+      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(exact_width);
+  EXPECT_EQ(exact_width, calculated_width);
 
   // After 4 buttons have been added (excluding the invisible overflow), all
   // subsequent buttons will be hidden. Instead an overflow menu will appear
   // which will house the hidden buttons.
   saved_tab_group_model()->Add(kSavedTabGroup5);
 
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
+
+  // Update the `new_width` to take the buttons into account.
   int new_width = GetWidthOfButtonsAndPadding();
+  calculated_width =
+      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(new_width);
 
   EXPECT_LT(exact_width, new_width);
-  EXPECT_EQ(
-      new_width,
-      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(new_width));
+  EXPECT_EQ(new_width, calculated_width);
 }
 
 // If the restriction is more than the expected size all should be visible
@@ -339,12 +382,15 @@ TEST_F(SavedTabGroupBarUnitTest,
   // which will house the hidden buttons.
   saved_tab_group_model()->Add(kSavedTabGroup5);
 
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
   int new_width = GetWidthOfButtonsAndPadding();
+  int actual_width =
+      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(new_width + 1);
 
   EXPECT_LT(exact_width, new_width);
-  EXPECT_EQ(new_width,
-            saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(
-                new_width + 1));
+  EXPECT_EQ(new_width, actual_width);
 }
 
 // If the restriction is 1 less than the size the last button should not be
@@ -363,10 +409,13 @@ TEST_F(SavedTabGroupBarUnitTest,
   // which will house the hidden buttons.
   saved_tab_group_model()->Add(kSavedTabGroup5);
 
+  // Layout the buttons.
+  saved_tab_group_bar()->SetBounds(
+      0, 2, saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(400), 2);
   int new_width = GetWidthOfButtonsAndPadding();
+  int actual_width =
+      saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(new_width - 1);
 
   EXPECT_LT(exact_width, new_width);
-  EXPECT_GT(new_width,
-            saved_tab_group_bar()->CalculatePreferredWidthRestrictedBy(
-                new_width - 1));
+  EXPECT_GT(new_width, actual_width);
 }

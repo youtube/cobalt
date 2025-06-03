@@ -20,8 +20,8 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "content/public/browser/web_contents_observer.h"
 
 class LoginUIService;
@@ -233,7 +233,7 @@ class PeopleHandler : public SettingsPageUIHandler,
   void InitializeSyncBlocker();
 
   // Weak pointer.
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // Prevents Sync from running until configuration is complete.
   std::unique_ptr<syncer::SyncSetupInProgressHandle> sync_blocker_;

@@ -1,5 +1,5 @@
 diff --git a/source/common/uposixdefs.h b/source/common/uposixdefs.h
-index 23c3f6d4..3770a335 100644
+index 826c9bb4..7c008fdd 100644
 --- a/source/common/uposixdefs.h
 +++ b/source/common/uposixdefs.h
 @@ -33,7 +33,7 @@

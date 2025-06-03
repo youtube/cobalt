@@ -44,14 +44,13 @@
 namespace arc::input_overlay {
 
 namespace {
-// If the parent's width smaller than |kParentWidthThreshold|, it uses smaller
+// If the parent's width smaller than `kParentWidthThreshold`, it uses smaller
 // specs.
 constexpr int kParentWidthThreshold = 376;
 // Whole Menu measurements.
 constexpr int kMenuWidth = 328;
 constexpr int kMenuWidthSmall = 280;
 constexpr int kMenuHeight = 244;
-constexpr int kMenuMarginRight = 32;
 constexpr int kMenuMarginSmall = 24;
 
 // Individual entries and header.
@@ -90,7 +89,7 @@ constexpr char kGamePackageName[] = "entry.435412983";
 constexpr char kBoardName[] = "entry.1492517074";
 constexpr char kOsVersion[] = "entry.1961594320";
 
-// Pass |package_name| by value because the focus will be changed to the
+// Pass `package_name` by value because the focus will be changed to the
 // browser.
 GURL GetAssembleUrl(std::string package_name) {
   GURL url(kFeedbackUrl);
@@ -104,11 +103,6 @@ GURL GetAssembleUrl(std::string package_name) {
 
 int GetMenuWidth(int parent_width) {
   return parent_width < kParentWidthThreshold ? kMenuWidthSmall : kMenuWidth;
-}
-
-int GetMenuMarginRight(int parent_width) {
-  return parent_width < kParentWidthThreshold ? kMenuMarginSmall
-                                              : kMenuMarginRight;
 }
 
 int GetTitleFontSize(int parent_width) {
@@ -194,7 +188,7 @@ void InputMenuView::OnThemeChanged() {
 
 void InputMenuView::CloseMenu() {
   if (display_overlay_controller_) {
-    display_overlay_controller_->SetDisplayMode(DisplayMode::kView);
+    display_overlay_controller_->SetDisplayModeAlpha(DisplayMode::kView);
   }
 }
 
@@ -228,7 +222,7 @@ void InputMenuView::Init(const gfx::Size& parent_size) {
         ash::login_views_utils::CreateThemedBubbleLabel(
             l10n_util::GetStringUTF16(IDS_INPUT_OVERLAY_RELEASE_ALPHA),
             /*view_defining_max_width=*/nullptr,
-            /*enabled_color_type=*/cros_tokens::kColorSelection,
+            /*enabled_color_type=*/cros_tokens::kCrosSysPrimary,
             gfx::FontList({ash::login_views_utils::kGoogleSansFont},
                           gfx::Font::FontStyle::NORMAL, kAlphaFontSize,
                           gfx::Font::Weight::MEDIUM)));
@@ -237,7 +231,7 @@ void InputMenuView::Init(const gfx::Size& parent_size) {
         alpha_label->GetPreferredSize().width() + 2 * kAlphaSidePadding,
         kAlphaHeight));
     alpha_label->SetBackground(views::CreateThemedRoundedRectBackground(
-        cros_tokens::kHighlightColor, kAlphaCornerRadius));
+        cros_tokens::kCrosSysHighlightShape, kAlphaCornerRadius));
 
     game_control_toggle_ =
         header_view->AddChildView(std::make_unique<views::ToggleButton>(
@@ -359,32 +353,22 @@ void InputMenuView::Init(const gfx::Size& parent_size) {
   int x;
   int y = entry_view_->y();
 
-  if (AllowReposition()) {
-    x = entry_view_->x();
-    // If the menu entry view is on the right side of the screen, bias toward
-    // the center.
-    if (x > parent_size.width() / 2) {
-      x -= width() - entry_view_->width();
-    }
-    // Set the menu at the middle if there is not enough margin on the right
-    // or left side.
-    if (x + width() > parent_size.width() || x < 0) {
-      x = std::max(0, parent_size.width() - width() - kMenuMarginSmall);
-    }
+  x = entry_view_->x();
+  // If the menu entry view is on the right side of the screen, bias toward
+  // the center.
+  if (x > parent_size.width() / 2) {
+    x -= width() - entry_view_->width();
+  }
+  // Set the menu at the middle if there is not enough margin on the right
+  // or left side.
+  if (x + width() > parent_size.width() || x < 0) {
+    x = std::max(0, parent_size.width() - width() - kMenuMarginSmall);
+  }
 
-    // If the menu entry is at the bottom side of the screen, bias towards the
-    // center.
-    if (y > parent_size.height() / 2) {
-      y -= height() - entry_view_->height();
-    }
-  } else {
-    int menu_margin_right = GetMenuMarginRight(parent_size.width());
-    x = std::max(0, parent_size.width() - width() - menu_margin_right);
-    // Set the menu in the middle if there is not enough margin on the left
-    // side.
-    if (x < menu_margin_right) {
-      x = std::max(0, (parent_size.width() - width()) / 2);
-    }
+  // If the menu entry is at the bottom side of the screen, bias towards the
+  // center.
+  if (y > parent_size.height() / 2) {
+    y -= height() - entry_view_->height();
   }
 
   // Set the menu at the bottom if there is not enough margin on the bottom
@@ -410,7 +394,7 @@ void InputMenuView::OnToggleGameControlPressed() {
   }
   const bool enabled = game_control_toggle_->GetIsOn();
   display_overlay_controller_->SetTouchInjectorEnable(enabled);
-  // Adjust |enabled_| and |visible_| properties to match |Game controls|.
+  // Adjust `enabled_` and `visible_` properties to match `Game controls`.
   show_mapping_toggle_->SetIsOn(enabled);
   display_overlay_controller_->SetInputMappingVisible(enabled);
   show_mapping_toggle_->SetEnabled(enabled);
@@ -439,7 +423,7 @@ void InputMenuView::OnEditButtonPressed() {
   // Change display mode, load edit UI per action and overall edit buttons; make
   // sure the following line is at the bottom because edit mode will kill this
   // view.
-  display_overlay_controller_->SetDisplayMode(DisplayMode::kEdit);
+  display_overlay_controller_->SetDisplayModeAlpha(DisplayMode::kEdit);
 }
 
 void InputMenuView::OnButtonSendFeedbackPressed() {

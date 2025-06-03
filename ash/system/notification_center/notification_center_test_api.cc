@@ -11,6 +11,7 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
 #include "ash/system/message_center/ash_message_popup_collection.h"
+#include "ash/system/message_center/message_center_utils.h"
 #include "ash/system/message_center/unified_message_center_bubble.h"
 #include "ash/system/notification_center/notification_center_bubble.h"
 #include "ash/system/notification_center/notification_center_tray.h"
@@ -19,12 +20,14 @@
 #include "ash/system/notification_center/stacked_notification_bar.h"
 #include "ash/system/unified/notification_counter_view.h"
 #include "ash/system/unified/unified_system_tray.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/layer_animator.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/message_center/message_center.h"
-#include "ui/message_center/public/cpp/message_center_constants.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_types.h"
 #include "ui/message_center/public/cpp/notifier_id.h"
@@ -124,6 +127,54 @@ std::string NotificationCenterTestApi::AddSystemNotification() {
       GURL(), notifier_id, optional_fields);
 }
 
+std::string NotificationCenterTestApi::AddCriticalWarningSystemNotification() {
+  const auto id = GenerateNotificationId();
+  message_center::NotifierId notifier_id;
+  notifier_id.type = message_center::NotifierType::SYSTEM_COMPONENT;
+  auto notification =
+      CreateNotification(id, u"test_title", u"test_message", ui::ImageModel(),
+                         base::EmptyString16(), GURL(), notifier_id,
+                         message_center::RichNotificationData());
+  notification->set_system_notification_warning_level(
+      message_center::SystemNotificationWarningLevel::CRITICAL_WARNING);
+  message_center::MessageCenter::Get()->AddNotification(
+      std::move(notification));
+  return id;
+}
+
+std::string NotificationCenterTestApi::AddProgressNotification() {
+  const auto id = GenerateNotificationId();
+  message_center::RichNotificationData optional_fields;
+  optional_fields.progress = 50;
+  auto notification = std::make_unique<message_center::Notification>(
+      message_center::NOTIFICATION_TYPE_PROGRESS, id, u"test_title",
+      u"test_message", /*icon=*/ui::ImageModel(),
+      /*display_source=*/base::EmptyString16(), GURL(),
+      message_center::NotifierId(), optional_fields,
+      new message_center::NotificationDelegate());
+  message_center::MessageCenter::Get()->AddNotification(
+      std::move(notification));
+  return id;
+}
+
+std::string NotificationCenterTestApi::AddNotificationWithSettingsButton() {
+  const auto id = GenerateNotificationId();
+  auto notification = std::make_unique<message_center::Notification>(
+      message_center::NOTIFICATION_TYPE_SIMPLE, id, u"test_title",
+      u"test_message", /*icon=*/ui::ImageModel(),
+      /*display_source=*/base::EmptyString16(), GURL(),
+      message_center::NotifierId(), message_center::RichNotificationData(),
+      new message_center::NotificationDelegate());
+  // Setting this to a value other than the default
+  // `message_center::SettingsButtonHandler::NONE` makes the settings control
+  // button visible.
+  notification->set_settings_button_handler(
+      message_center::SettingsButtonHandler::DELEGATE);
+  message_center::MessageCenter::Get()->AddNotification(
+      std::move(notification));
+  return id;
+}
+
 void NotificationCenterTestApi::RemoveNotification(const std::string& id) {
   message_center::MessageCenter::Get()->RemoveNotification(id,
                                                            /*by_user=*/true);
@@ -137,10 +188,27 @@ bool NotificationCenterTestApi::IsBubbleShown() {
   return notification_center_tray_->is_active() && GetWidget()->IsVisible();
 }
 
-bool NotificationCenterTestApi::IsPinnedIconShown() {
-  return notification_center_tray_->notification_icons_controller_->tray_items()
-      .back()
-      ->GetVisible();
+bool NotificationCenterTestApi::IsNotificationCounterShown() {
+  return IsNotificationCounterShownOnDisplay(primary_display_id_);
+}
+
+bool NotificationCenterTestApi::IsNotificationCounterShownOnDisplay(
+    int64_t display_id) {
+  return GetNotificationCounterOnDisplay(display_id)->GetVisible();
+}
+
+bool NotificationCenterTestApi::IsNotificationIconShown() {
+  return IsNotificationIconShownOnDisplay(primary_display_id_);
+}
+
+bool NotificationCenterTestApi::IsNotificationIconShownOnDisplay(
+    int64_t display_id) {
+  auto* notification_center_tray = GetTrayOnDisplay(display_id);
+  CHECK(notification_center_tray);
+  auto tray_items =
+      notification_center_tray->notification_icons_controller_->tray_items();
+  CHECK(!tray_items.empty());
+  return tray_items.back()->GetVisible();
 }
 
 bool NotificationCenterTestApi::IsPopupShown(const std::string& id) {
@@ -151,10 +219,58 @@ bool NotificationCenterTestApi::IsTrayShown() {
   return notification_center_tray_->GetVisible();
 }
 
+bool NotificationCenterTestApi::IsTrayShownOnDisplay(int64_t display_id) {
+  auto* notification_center_tray = GetTrayOnDisplay(display_id);
+  CHECK(notification_center_tray);
+  return notification_center_tray->GetVisible();
+}
+
+bool NotificationCenterTestApi::IsTrayAnimating() {
+  return notification_center_tray_->layer()->GetAnimator()->is_animating();
+}
+
+bool NotificationCenterTestApi::IsTrayAnimatingOnDisplay(int64_t display_id) {
+  auto* notification_center_tray = GetTrayOnDisplay(display_id);
+  CHECK(notification_center_tray);
+  return notification_center_tray->layer()->GetAnimator()->is_animating();
+}
+
+bool NotificationCenterTestApi::IsNotificationCounterAnimating() {
+  return IsNotificationCounterAnimatingOnDisplay(primary_display_id_);
+}
+
+bool NotificationCenterTestApi::IsNotificationCounterAnimatingOnDisplay(
+    int64_t display_id) {
+  return GetNotificationCounterOnDisplay(display_id)->IsAnimating();
+}
+
 bool NotificationCenterTestApi::IsDoNotDisturbIconShown() {
   return notification_center_tray_->notification_icons_controller_
       ->quiet_mode_view()
       ->GetVisible();
+}
+
+NotificationIconTrayItemView*
+NotificationCenterTestApi::GetNotificationIconForId(const std::string& id) {
+  auto tray_items =
+      notification_center_tray_->notification_icons_controller_->tray_items();
+  auto tray_item_iter = base::ranges::find_if(
+      tray_items, [&id](NotificationIconTrayItemView* tray_item) {
+        return tray_item->GetNotificationId() == id;
+      });
+  return tray_item_iter == tray_items.end() ? nullptr : *tray_item_iter;
+}
+
+NotificationCounterView* NotificationCenterTestApi::GetNotificationCounter() {
+  return GetNotificationCounterOnDisplay(primary_display_id_);
+}
+
+NotificationCounterView*
+NotificationCenterTestApi::GetNotificationCounterOnDisplay(int64_t display_id) {
+  auto* notification_center_tray = GetTrayOnDisplay(display_id);
+  CHECK(notification_center_tray);
+  return notification_center_tray->notification_icons_controller_
+      ->notification_counter_view();
 }
 
 message_center::MessageView*
@@ -188,7 +304,19 @@ message_center::MessagePopupView* NotificationCenterTestApi::GetPopupViewForId(
 }
 
 NotificationCenterTray* NotificationCenterTestApi::GetTray() {
-  return notification_center_tray_;
+  return features::IsQsRevampEnabled() ? notification_center_tray_ : nullptr;
+}
+
+NotificationCenterTray* NotificationCenterTestApi::GetTrayOnDisplay(
+    int64_t display_id) {
+  auto* root_window_controller =
+      Shell::Get()->GetRootWindowControllerWithDisplayId(display_id);
+  if (!root_window_controller || !features::IsQsRevampEnabled()) {
+    return nullptr;
+  }
+  return root_window_controller->shelf()
+      ->status_area_widget()
+      ->notification_center_tray();
 }
 
 views::Widget* NotificationCenterTestApi::GetWidget() {
@@ -199,10 +327,15 @@ NotificationCenterBubble* NotificationCenterTestApi::GetBubble() {
   return notification_center_tray_->bubble_.get();
 }
 
-NotificationCenterView* NotificationCenterTestApi::GetNotificationCenterView() {
+NotificationCenterView*
+NotificationCenterTestApi::GetNotificationCenterViewOnDisplay(
+    int64_t display_id) {
+  if (!Shell::Get()->GetRootWindowControllerWithDisplayId(display_id)) {
+    return nullptr;
+  }
   auto* status_area_widget =
       Shell::Get()
-          ->GetRootWindowControllerWithDisplayId(primary_display_id_)
+          ->GetRootWindowControllerWithDisplayId(display_id)
           ->shelf()
           ->status_area_widget();
   return features::IsQsRevampEnabled()
@@ -211,6 +344,10 @@ NotificationCenterView* NotificationCenterTestApi::GetNotificationCenterView() {
              : status_area_widget->unified_system_tray()
                    ->message_center_bubble()
                    ->notification_center_view();
+}
+
+NotificationCenterView* NotificationCenterTestApi::GetNotificationCenterView() {
+  return GetNotificationCenterViewOnDisplay(primary_display_id_);
 }
 
 NotificationListView* NotificationCenterTestApi::GetNotificationListView() {
@@ -230,7 +367,10 @@ views::View* NotificationCenterTestApi::GetClearAllButton() {
 
 std::string NotificationCenterTestApi::NotificationIdToParentNotificationId(
     const std::string& id) {
-  return id + message_center::kIdSuffixForGroupContainerNotification;
+  return id + message_center_utils::GenerateGroupParentNotificationIdSuffix(
+                  message_center::MessageCenter::Get()
+                      ->FindNotificationById(id)
+                      ->notifier_id());
 }
 
 views::FocusRing* NotificationCenterTestApi::GetFocusRing() const {

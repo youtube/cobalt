@@ -8,6 +8,8 @@
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
+#include "src/compiler/turboshaft/pretenuring-propagation-reducer.h"
+#include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/structural-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -15,18 +17,17 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void OptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker(),
+void OptimizePhase::Run(Zone* temp_zone) {
+  UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::OptimizationPhase<
-      turboshaft::StructuralOptimizationReducer,
+      turboshaft::StructuralOptimizationReducer, turboshaft::VariableReducer,
       turboshaft::LateEscapeAnalysisReducer,
-      turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible,
-      turboshaft::ValueNumberingReducer>::
-      Run(data->isolate(), &data->graph(), temp_zone, data->node_origins(),
-          std::tuple{
-              turboshaft::MemoryOptimizationReducerArgs{data->isolate()}});
+      turboshaft::PretenuringPropagationReducer,
+      turboshaft::MemoryOptimizationReducer,
+      turboshaft::MachineOptimizationReducer,
+      turboshaft::RequiredOptimizationReducer,
+      turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

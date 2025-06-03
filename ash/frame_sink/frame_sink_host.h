@@ -10,6 +10,7 @@
 #include "ash/ash_export.h"
 #include "ash/frame_sink/ui_resource_manager.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
@@ -45,6 +46,7 @@ class ASH_EXPORT FrameSinkHost : public aura::WindowObserver {
   ~FrameSinkHost() override;
 
   aura::Window* host_window() { return host_window_; }
+  const aura::Window* host_window() const { return host_window_; }
 
   void SetPresentationCallback(PresentationCallback callback);
 
@@ -94,6 +96,11 @@ class ASH_EXPORT FrameSinkHost : public aura::WindowObserver {
       const gfx::Size& last_submitted_frame_size,
       float last_submitted_frame_dsf) = 0;
 
+  // Callback invoked when underlying frame sink holder gets the first begin
+  // frame from viz. This signifies that the gpu process has been fully
+  // initialized.
+  virtual void OnFirstFrameRequested();
+
   const gfx::Rect& GetTotalDamage() const { return total_damage_rect_; }
 
   void UnionDamage(const gfx::Rect& rect) { total_damage_rect_.Union(rect); }
@@ -117,8 +124,12 @@ class ASH_EXPORT FrameSinkHost : public aura::WindowObserver {
       aura::Window* host_window,
       std::unique_ptr<cc::LayerTreeFrameSink> layer_tree_frame_sink);
 
+  // Observation to track the lifetime of `host_window_`.
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      host_window_observation_{this};
+
   // The window on which LayerTreeFrameSink is created on.
-  base::raw_ptr<aura::Window> host_window_ = nullptr;
+  raw_ptr<aura::Window> host_window_ = nullptr;
 
   // The bounds of the content to be displayed in host window coordinates.
   gfx::Rect content_rect_;

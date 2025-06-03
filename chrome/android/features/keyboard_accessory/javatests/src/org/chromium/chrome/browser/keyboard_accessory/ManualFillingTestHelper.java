@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.keyboard_accessory;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
 
 import static org.hamcrest.core.AllOf.allOf;
 
@@ -34,12 +33,12 @@ import android.widget.TextView;
 
 import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.espresso.PerformException;
 import androidx.test.espresso.UiController;
 import androidx.test.espresso.ViewAction;
 import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.matcher.BoundedMatcher;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.google.android.material.tabs.TabLayout;
 
@@ -51,10 +50,11 @@ import org.junit.Assert;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.test.util.Criteria;
+import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.chrome.browser.ChromeKeyboardVisibilityDelegate;
 import org.chromium.chrome.browser.ChromeWindow;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
@@ -65,6 +65,7 @@ import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.CreditCardAcces
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.PasswordAccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.tab_layout_component.KeyboardAccessoryButtonGroupView;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.content_public.browser.ImeAdapter;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
@@ -73,6 +74,7 @@ import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.ServerCertificate;
 import org.chromium.ui.DropdownPopupWindowInterface;
+import org.chromium.ui.test.util.ViewUtils;
 import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.concurrent.TimeoutException;
@@ -92,6 +94,8 @@ public class ManualFillingTestHelper {
     private TestInputMethodManagerWrapper mInputMethodManagerWrapper;
 
     private EmbeddedTestServer mEmbeddedTestServer;
+
+    private RecyclerView mKeyboardAccessoryBarItems;
 
     public FakeKeyboard getKeyboard() {
         return (FakeKeyboard) mActivityTestRule.getKeyboardDelegate();
@@ -133,6 +137,11 @@ public class ManualFillingTestHelper {
         if (waitForNode) DOMUtils.waitForNonZeroNodeBounds(mWebContentsRef.get(), PASSWORD_NODE_ID);
     }
 
+    public void loadUrl(String url) {
+        mActivityTestRule.loadUrl(mActivityTestRule.getTestServer().getURL(url));
+        mWebContentsRef.set(mActivityTestRule.getWebContents());
+    }
+
     public void updateWebContentsDependentState() {
         TestThreadUtils.runOnUiThreadBlocking(() -> {
             ChromeActivity activity = mActivityTestRule.getActivity();
@@ -146,7 +155,6 @@ public class ManualFillingTestHelper {
     }
 
     public void clear() {
-        if (mEmbeddedTestServer != null) mEmbeddedTestServer.stopAndDestroyServer();
         ChromeWindow.resetKeyboardVisibilityDelegateFactory();
     }
 
@@ -178,10 +186,21 @@ public class ManualFillingTestHelper {
     }
 
     public void focusPasswordField() throws TimeoutException {
+        focusPasswordField(true);
+    }
+
+    public void focusPasswordField(boolean useFakeKeyboard) throws TimeoutException {
         DOMUtils.focusNode(mActivityTestRule.getWebContents(), PASSWORD_NODE_ID);
         TestThreadUtils.runOnUiThreadBlocking(
                 () -> { mActivityTestRule.getWebContents().scrollFocusedEditableNodeIntoView(); });
-        getKeyboard().showKeyboard(mActivityTestRule.getActivity().getCurrentFocus());
+
+        ChromeKeyboardVisibilityDelegate keyboard;
+        if (useFakeKeyboard) {
+            keyboard = getKeyboard();
+        } else {
+            keyboard = (ChromeKeyboardVisibilityDelegate) mActivityTestRule.getKeyboardDelegate();
+        }
+        keyboard.showKeyboard(mActivityTestRule.getActivity().getCurrentFocus());
     }
 
     public String getPasswordText() throws TimeoutException {
@@ -254,7 +273,16 @@ public class ManualFillingTestHelper {
     }
 
     public void waitForKeyboardAccessoryToBeShown() {
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         waitForKeyboardAccessoryToBeShown(false);
+    }
+
+    public void waitForKeyboardToShow() {
+        CriteriaHelper.pollUiThread(() -> {
+            boolean isKeyboardShowing = mActivityTestRule.getKeyboardDelegate().isKeyboardShowing(
+                    mActivityTestRule.getActivity(), mActivityTestRule.getActivity().getTabsView());
+            Criteria.checkThat(isKeyboardShowing, Matchers.is(true));
+        });
     }
 
     public void waitForKeyboardAccessoryToBeShown(boolean waitForSuggestionsToLoad) {
@@ -356,18 +384,42 @@ public class ManualFillingTestHelper {
     }
 
     public static void createAutofillTestProfiles() throws TimeoutException {
-        new AutofillTestHelper().setProfile(new AutofillProfile("", "https://www.example.com",
-                "" /* honorific prefix */, "Johnathan Smithonian-Jackson", "Acme Inc",
-                "1 Main\nApt A", "CA", "San Francisco", "", "94102", "", "US", "(415) 888-9999",
-                "john.sj@acme-mail.inc", "en"));
-        new AutofillTestHelper().setProfile(new AutofillProfile("", "https://www.example.com",
-                "" /* honorific prefix */, "Jane Erika Donovanova", "Acme Inc", "1 Main\nApt A",
-                "CA", "San Francisco", "", "94102", "", "US", "(415) 999-0000",
-                "donovanova.j@acme-mail.inc", "en"));
-        new AutofillTestHelper().setProfile(new AutofillProfile("", "https://www.example.com",
-                "" /* honorific prefix */, "Marcus McSpartangregor", "Acme Inc", "1 Main\nApt A",
-                "CA", "San Francisco", "", "94102", "", "US", "(415) 999-0000",
-                "marc@acme-mail.inc", "en"));
+        new AutofillTestHelper().setProfile(AutofillProfile.builder()
+                                                    .setFullName("Johnathan Smithonian-Jackson")
+                                                    .setCompanyName("Acme Inc")
+                                                    .setStreetAddress("1 Main\nApt A")
+                                                    .setRegion("CA")
+                                                    .setLocality("San Francisco")
+                                                    .setPostalCode("94102")
+                                                    .setCountryCode("US")
+                                                    .setPhoneNumber("(415) 888-9999")
+                                                    .setEmailAddress("john.sj@acme-mail.inc")
+                                                    .setLanguageCode("en")
+                                                    .build());
+        new AutofillTestHelper().setProfile(AutofillProfile.builder()
+                                                    .setFullName("Jane Erika Donovanova")
+                                                    .setCompanyName("Acme Inc")
+                                                    .setStreetAddress("1 Main\nApt A")
+                                                    .setRegion("CA")
+                                                    .setLocality("San Francisco")
+                                                    .setPostalCode("94102")
+                                                    .setCountryCode("US")
+                                                    .setPhoneNumber("(415) 999-0000")
+                                                    .setEmailAddress("donovanova.j@acme-mail.inc")
+                                                    .setLanguageCode("en")
+                                                    .build());
+        new AutofillTestHelper().setProfile(AutofillProfile.builder()
+                                                    .setFullName("Marcus McSpartangregor")
+                                                    .setCompanyName("Acme Inc")
+                                                    .setStreetAddress("1 Main\nApt A")
+                                                    .setRegion("CA")
+                                                    .setLocality("San Francisco")
+                                                    .setPostalCode("94102")
+                                                    .setCountryCode("US")
+                                                    .setPhoneNumber("(415) 999-0000")
+                                                    .setEmailAddress("marc@acme-mail.inc")
+                                                    .setLanguageCode("en")
+                                                    .build());
     }
 
     public static void disableServerPredictions() {
@@ -449,17 +501,22 @@ public class ManualFillingTestHelper {
                 String descriptionToMatch = view.getContext().getString(descriptionResId);
                 if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_KEYBOARD_ACCESSORY)) {
                     KeyboardAccessoryButtonGroupView buttonGroupView =
-                        (KeyboardAccessoryButtonGroupView) view;
-                    for (int buttonIndex = 0; buttonIndex < buttonGroupView.getButtons().size(); buttonIndex++) {
-                        final ChromeImageButton button = buttonGroupView.getButtons().get(buttonIndex);
+                            (KeyboardAccessoryButtonGroupView) view;
+                    for (int buttonIndex = 0;
+                            buttonIndex < buttonGroupView.getButtons().size();
+                            buttonIndex++) {
+                        final ChromeImageButton button =
+                                buttonGroupView.getButtons().get(buttonIndex);
                         if (descriptionToMatch.equals(button.getContentDescription())) {
                             PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, button::performClick);
                             return;
                         }
                     }
                     throw new PerformException.Builder()
-                        .withCause(new Throwable("No button with description: " + descriptionToMatch))
-                        .build();
+                            .withCause(
+                                    new Throwable(
+                                            "No button with description: " + descriptionToMatch))
+                            .build();
                 }
                 TabLayout tabLayout = (TabLayout) view;
                 for (int tabIndex = 0; tabIndex < tabLayout.getTabCount(); tabIndex++) {
@@ -546,7 +603,7 @@ public class ManualFillingTestHelper {
     }
 
     public static void waitToBeHidden(Matcher<View> matcher) {
-        onView(isRoot()).check(waitForView(matcher, VIEW_INVISIBLE | VIEW_NULL | VIEW_GONE));
+        ViewUtils.waitForViewCheckingState(matcher, VIEW_INVISIBLE | VIEW_NULL | VIEW_GONE);
     }
 
     public String getAttribute(String node, String attribute)
@@ -564,11 +621,14 @@ public class ManualFillingTestHelper {
                 new PropertyProvider<>(AccessoryAction.GENERATE_PASSWORD_AUTOMATIC);
         getManualFillingCoordinator().registerActionProvider(
                 mWebContentsRef.get(), generationActionProvider);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            generationActionProvider.notifyObservers(new KeyboardAccessoryData.Action[] {
-                    new KeyboardAccessoryData.Action("Generate Password",
-                            AccessoryAction.GENERATE_PASSWORD_AUTOMATIC, result -> {})});
-        });
+        TestThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    generationActionProvider.notifyObservers(
+                            new KeyboardAccessoryData.Action[] {
+                                new KeyboardAccessoryData.Action(
+                                        AccessoryAction.GENERATE_PASSWORD_AUTOMATIC, result -> {})
+                            });
+                });
     }
 
     public void signalAutoGenerationStatus(boolean available) {

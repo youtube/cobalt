@@ -14,6 +14,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -48,7 +49,6 @@ public class TabSuggestionsOrchestrator implements TabSuggestions, DestroyObserv
 
     private static final int MIN_TIME_BETWEEN_PREFETCHES_DEFAULT_MS = 30000;
 
-    protected TabContextObserver mTabContextObserver;
     protected TabSuggestionFeedback mTabSuggestionFeedback;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final SharedPreferences mSharedPreferences;
@@ -76,20 +76,6 @@ public class TabSuggestionsOrchestrator implements TabSuggestions, DestroyObserv
         mTabSuggestionsFetchers = new LinkedList<>();
         mTabSuggestionsFetchers.add(new TabSuggestionsClientFetcher());
         mTabSuggestionsObservers = new ObserverList<>();
-        mTabContextObserver = new TabContextObserver(selector) {
-            @Override
-            public void onTabContextChanged(@TabContextChangeReason int changeReason) {
-                synchronized (mPrefetchedResults) {
-                    if (mPrefetchedTabContext != null) {
-                        for (TabSuggestionsObserver tabSuggestionsObserver :
-                                mTabSuggestionsObservers) {
-                            tabSuggestionsObserver.onTabSuggestionInvalidated();
-                        }
-                    }
-                }
-                prefetchSuggestions();
-            }
-        };
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         activityLifecycleDispatcher.register(this);
         mSharedPreferences = sharedPreferences;
@@ -98,7 +84,6 @@ public class TabSuggestionsOrchestrator implements TabSuggestions, DestroyObserv
     protected void setFetchersForTesting() {
         mTabSuggestionsFetchers = new LinkedList<>();
         TabSuggestionsClientFetcher testingFetcher = new TabSuggestionsClientFetcher();
-        testingFetcher.setUseBaselineTabSuggestionsForTesting();
         mTabSuggestionsFetchers.add(testingFetcher);
     }
 
@@ -130,7 +115,6 @@ public class TabSuggestionsOrchestrator implements TabSuggestions, DestroyObserv
 
     @Override
     public void onDestroy() {
-        mTabContextObserver.destroy();
         mActivityLifecycleDispatcher.unregister(this);
     }
 
@@ -169,14 +153,10 @@ public class TabSuggestionsOrchestrator implements TabSuggestions, DestroyObserv
         }
     }
 
-    @VisibleForTesting
     protected void setMinTimeBetweenPreFetchesForTesting(int minTimeBetweenPrefetchesMs) {
+        var oldValue = mMinTimeBetweenPrefetchesMs;
         mMinTimeBetweenPrefetchesMs = minTimeBetweenPrefetchesMs;
-    }
-
-    @VisibleForTesting
-    protected void restoreMinTimeBetweenPrefetchesForTesting() {
-        mMinTimeBetweenPrefetchesMs = MIN_TIME_BETWEEN_PREFETCHES_DEFAULT_MS;
+        ResettersForTesting.register(() -> mMinTimeBetweenPrefetchesMs = oldValue);
     }
 
     private boolean isBackoffEnabled() {

@@ -26,8 +26,8 @@
 #include "remoting/protocol/socket_util.h"
 #include "remoting/protocol/stream_packet_socket.h"
 #include "third_party/webrtc/media/base/rtp_utils.h"
+#include "third_party/webrtc/rtc_base/async_dns_resolver.h"
 #include "third_party/webrtc/rtc_base/async_packet_socket.h"
-#include "third_party/webrtc/rtc_base/async_resolver.h"
 #include "third_party/webrtc/rtc_base/net_helpers.h"
 #include "third_party/webrtc/rtc_base/socket.h"
 
@@ -316,7 +316,7 @@ void UdpPacketSocket::DoSend() {
 
   PendingPacket& packet = send_queue_.front();
   cricket::ApplyPacketOptions(
-      reinterpret_cast<uint8_t*>(packet.data->data()), packet.data->size(),
+      packet.data->bytes(), packet.data->size(),
       packet.options.packet_time_params,
       (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds());
   int result =
@@ -445,13 +445,6 @@ rtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateClientTcpSocket(
     const rtc::ProxyInfo& proxy_info,
     const std::string& user_agent,
     const rtc::PacketSocketTcpOptions& opts) {
-  if (session_options_provider_ &&
-      session_options_provider_->session_options().GetBoolValue(
-          "Disable-TCP")) {
-    HOST_LOG << "Disable-TCP experiment is enabled. Client TCP socket won't be "
-             << "created.";
-    return nullptr;
-  }
   auto socket = std::make_unique<StreamPacketSocket>();
   if (!socket->InitClientTcp(local_address, remote_address, proxy_info,
                              user_agent, opts)) {
@@ -460,9 +453,9 @@ rtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateClientTcpSocket(
   return socket.release();
 }
 
-rtc::AsyncResolverInterface*
-ChromiumPacketSocketFactory::CreateAsyncResolver() {
-  return new rtc::AsyncResolver();
+std::unique_ptr<webrtc::AsyncDnsResolverInterface>
+ChromiumPacketSocketFactory::CreateAsyncDnsResolver() {
+  return std::make_unique<webrtc::AsyncDnsResolver>();
 }
 
 }  // namespace remoting::protocol

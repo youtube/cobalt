@@ -4,8 +4,9 @@
 
 package org.chromium.chrome.browser.offlinepages;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.components.browser_ui.share.ShareParams;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -17,7 +18,6 @@ public class PublishPageCallback implements Callback<String> {
     private Callback<ShareParams> mShareCallback;
     OfflinePageItem mPage;
     private WindowAndroid mWindow;
-    private static final String TAG = "PublishPageCallback";
 
     /** Create a callback for use when page publishing is completed. */
     public PublishPageCallback(

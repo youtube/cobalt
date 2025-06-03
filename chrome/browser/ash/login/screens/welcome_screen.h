@@ -9,13 +9,12 @@
 #include <string>
 
 #include "ash/public/cpp/locale_update_controller.h"
-#include "ash/public/cpp/system_tray_observer.h"
+#include "ash/system/tray/system_tray_observer.h"
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
-#include "chrome/browser/ash/login/oobe_quick_start/target_device_bootstrap_controller.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/screens/chromevox_hint/chromevox_hint_detector.h"
 #include "chrome/browser/ash/login/wizard_context.h"
@@ -141,8 +140,7 @@ class WelcomeScreen : public BaseScreen,
                           Profile* profile,
                           bool show_message) override;
 
-  void OnFeatureSupportStatusDetermined(
-      quick_start::TargetDeviceConnectionBroker::FeatureSupportStatus status);
+  void SetQuickStartButtonVisibility(bool visible);
 
   // Handlers for various user actions:
   // Proceed with common user flow.
@@ -175,11 +173,6 @@ class WelcomeScreen : public BaseScreen,
   void NotifyLocaleChange();
   void OnLocaleChangeResult(LocaleNotificationResult result);
 
-  // Updates the local variable according to the existence of the Chromad
-  // migration flag file. Then, simulates a user action, if the flag is set and
-  // the screen is not hidden.
-  void UpdateChromadMigrationOobeFlow(bool exists);
-
   void OnAccessibilityStatusChanged(
       const AccessibilityStatusEventDetails& details);
   void UpdateA11yState();
@@ -201,14 +194,7 @@ class WelcomeScreen : public BaseScreen,
 
   base::ObserverList<Observer>::Unchecked observers_;
 
-  // This local flag should be true if the OOBE flow is operating as part of the
-  // Chromad to cloud device migration. If so, this screen should be skipped.
-  bool is_chromad_migration_oobe_flow_ = false;
-
   base::CallbackListSubscription accessibility_subscription_;
-
-  base::WeakPtr<quick_start::TargetDeviceBootstrapController>
-      bootstrap_controller_;
 
   // WeakPtrFactory used to schedule and cancel tasks related to language update
   // in this object.

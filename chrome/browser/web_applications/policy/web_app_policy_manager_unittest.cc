@@ -8,26 +8,32 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/extend.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/web_applications/app_registrar_observer.h"
 #include "chrome/browser/web_applications/external_install_options.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_constants.h"
 #include "chrome/browser/web_applications/test/fake_externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
+#include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
+#include "chrome/browser/web_applications/test/web_app_test.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
@@ -35,6 +41,7 @@
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_registrar_observer.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
@@ -47,17 +54,29 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_features.h"
+#include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_manager.h"
+#include "chromeos/ash/components/standalone_browser/feature_refs.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_names.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_WIN)
+#include "base/base_paths_win.h"
+#include "base/test/scoped_path_override.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace web_app {
 
@@ -97,15 +116,14 @@ constexpr char kDefaultCustomIconUrl[] = "https://windowed.example/icon.png";
 constexpr char kUnsecureIconUrl[] = "http://windowed.example/icon.png";
 constexpr char kDefaultCustomIconHash[] = "abcdef";
 
-base::Value GetWindowedItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kWindowedUrl));
-  item.SetKey(kDefaultLaunchContainerKey,
-              base::Value(kDefaultLaunchContainerWindowValue));
-  return item;
+base::Value::Dict GetWindowedItem() {
+  return base::Value::Dict()
+      .Set(kUrlKey, kWindowedUrl)
+      .Set(kDefaultLaunchContainerKey, kDefaultLaunchContainerWindowValue);
 }
 
-ExternalInstallOptions GetWindowedInstallOptions() {
+ExternalInstallOptions GetWindowedInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kWindowedUrl),
                                  mojom::UserDisplayMode::kStandalone,
                                  ExternalInstallSource::kExternalPolicy);
@@ -113,20 +131,18 @@ ExternalInstallOptions GetWindowedInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-base::Value GetTabbedItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kTabbedUrl));
-  item.SetKey(kDefaultLaunchContainerKey,
-              base::Value(kDefaultLaunchContainerTabValue));
-  return item;
+base::Value::Dict GetTabbedItem() {
+  return base::Value::Dict()
+      .Set(kUrlKey, kTabbedUrl)
+      .Set(kDefaultLaunchContainerKey, kDefaultLaunchContainerTabValue);
 }
 
-ExternalInstallOptions GetTabbedInstallOptions() {
+ExternalInstallOptions GetTabbedInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kTabbedUrl),
                                  mojom::UserDisplayMode::kBrowser,
                                  ExternalInstallSource::kExternalPolicy);
@@ -134,18 +150,16 @@ ExternalInstallOptions GetTabbedInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-base::Value GetNoContainerItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kNoContainerUrl));
-  return item;
+base::Value::Dict GetNoContainerItem() {
+  return base::Value::Dict().Set(kUrlKey, kNoContainerUrl);
 }
 
-ExternalInstallOptions GetNoContainerInstallOptions() {
+ExternalInstallOptions GetNoContainerInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kNoContainerUrl),
                                  mojom::UserDisplayMode::kBrowser,
                                  ExternalInstallSource::kExternalPolicy);
@@ -153,18 +167,16 @@ ExternalInstallOptions GetNoContainerInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-base::Value GetCreateDesktopShortcutDefaultItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kNoContainerUrl));
-  return item;
+base::Value::Dict GetCreateDesktopShortcutDefaultItem() {
+  return base::Value::Dict().Set(kUrlKey, kNoContainerUrl);
 }
 
-ExternalInstallOptions GetCreateDesktopShortcutDefaultInstallOptions() {
+ExternalInstallOptions GetCreateDesktopShortcutDefaultInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kNoContainerUrl),
                                  mojom::UserDisplayMode::kBrowser,
                                  ExternalInstallSource::kExternalPolicy);
@@ -172,19 +184,18 @@ ExternalInstallOptions GetCreateDesktopShortcutDefaultInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-base::Value GetCreateDesktopShortcutFalseItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kNoContainerUrl));
-  item.SetKey(kCreateDesktopShortcutKey, base::Value(false));
-  return item;
+base::Value::Dict GetCreateDesktopShortcutFalseItem() {
+  return base::Value::Dict()
+      .Set(kUrlKey, kNoContainerUrl)
+      .Set(kCreateDesktopShortcutKey, false);
 }
 
-ExternalInstallOptions GetCreateDesktopShortcutFalseInstallOptions() {
+ExternalInstallOptions GetCreateDesktopShortcutFalseInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kNoContainerUrl),
                                  mojom::UserDisplayMode::kBrowser,
                                  ExternalInstallSource::kExternalPolicy);
@@ -192,19 +203,18 @@ ExternalInstallOptions GetCreateDesktopShortcutFalseInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-base::Value GetCreateDesktopShortcutTrueItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kNoContainerUrl));
-  item.SetKey(kCreateDesktopShortcutKey, base::Value(true));
-  return item;
+base::Value::Dict GetCreateDesktopShortcutTrueItem() {
+  return base::Value::Dict()
+      .Set(kUrlKey, kNoContainerUrl)
+      .Set(kCreateDesktopShortcutKey, true);
 }
 
-ExternalInstallOptions GetCreateDesktopShortcutTrueInstallOptions() {
+ExternalInstallOptions GetCreateDesktopShortcutTrueInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kNoContainerUrl),
                                  mojom::UserDisplayMode::kBrowser,
                                  ExternalInstallSource::kExternalPolicy);
@@ -212,12 +222,11 @@ ExternalInstallOptions GetCreateDesktopShortcutTrueInstallOptions() {
   options.add_to_desktop = true;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   return options;
 }
 
-class MockAppRegistrarObserver : public AppRegistrarObserver {
+class MockAppRegistrarObserver : public WebAppRegistrarObserver {
  public:
   void OnWebAppSettingsPolicyChanged() override {
     on_policy_changed_call_count++;
@@ -233,16 +242,15 @@ class MockAppRegistrarObserver : public AppRegistrarObserver {
   int on_policy_changed_call_count = 0;
 };
 
-base::Value GetFallbackAppNameItem() {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kWindowedUrl));
-  item.SetKey(kDefaultLaunchContainerKey,
-              base::Value(kDefaultLaunchContainerWindowValue));
-  item.SetKey(kFallbackAppNameKey, base::Value(kDefaultFallbackAppName));
-  return item;
+base::Value::Dict GetFallbackAppNameItem() {
+  return base::Value::Dict()
+      .Set(kUrlKey, kWindowedUrl)
+      .Set(kDefaultLaunchContainerKey, kDefaultLaunchContainerWindowValue)
+      .Set(kFallbackAppNameKey, kDefaultFallbackAppName);
 }
 
-ExternalInstallOptions GetFallbackAppNameInstallOptions() {
+ExternalInstallOptions GetFallbackAppNameInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kWindowedUrl),
                                  mojom::UserDisplayMode::kStandalone,
                                  ExternalInstallSource::kExternalPolicy);
@@ -250,22 +258,21 @@ ExternalInstallOptions GetFallbackAppNameInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   options.fallback_app_name = kDefaultFallbackAppName;
   return options;
 }
 
-base::Value GetCustomAppNameItem(std::string name) {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kWindowedUrl));
-  item.SetKey(kDefaultLaunchContainerKey,
-              base::Value(kDefaultLaunchContainerWindowValue));
-  item.SetKey(kCustomNameKey, base::Value(std::move(name)));
-  return item;
+base::Value::Dict GetCustomAppNameItem(std::string name) {
+  return base::Value::Dict()
+      .Set(kUrlKey, kWindowedUrl)
+      .Set(kDefaultLaunchContainerKey, kDefaultLaunchContainerWindowValue)
+      .Set(kCustomNameKey, std::move(name));
 }
 
-ExternalInstallOptions GetCustomAppNameInstallOptions(std::string name) {
+ExternalInstallOptions GetCustomAppNameInstallOptions(
+    std::string name,
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kWindowedUrl),
                                  mojom::UserDisplayMode::kStandalone,
                                  ExternalInstallSource::kExternalPolicy);
@@ -273,26 +280,24 @@ ExternalInstallOptions GetCustomAppNameInstallOptions(std::string name) {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   options.override_name = std::move(name);
   return options;
 }
 
-base::Value GetCustomAppIconItem(bool secure = true) {
-  base::Value item(base::Value::Type::DICT);
-  item.SetKey(kUrlKey, base::Value(kWindowedUrl));
-  item.SetKey(kDefaultLaunchContainerKey,
-              base::Value(kDefaultLaunchContainerWindowValue));
-  base::Value sub_item(base::Value::Type::DICT);
-  sub_item.SetKey(kCustomIconURLKey, base::Value(secure ? kDefaultCustomIconUrl
-                                                        : kUnsecureIconUrl));
-  sub_item.SetKey(kCustomIconHashKey, base::Value(kDefaultCustomIconHash));
-  item.SetKey(kCustomIconKey, std::move(sub_item));
-  return item;
+base::Value::Dict GetCustomAppIconItem(bool secure = true) {
+  return base::Value::Dict()
+      .Set(kUrlKey, kWindowedUrl)
+      .Set(kDefaultLaunchContainerKey, kDefaultLaunchContainerWindowValue)
+      .Set(kCustomIconKey,
+           base::Value::Dict()
+               .Set(kCustomIconURLKey,
+                    secure ? kDefaultCustomIconUrl : kUnsecureIconUrl)
+               .Set(kCustomIconHashKey, kDefaultCustomIconHash));
 }
 
-ExternalInstallOptions GetCustomAppIconInstallOptions() {
+ExternalInstallOptions GetCustomAppIconInstallOptions(
+    bool wait_for_windows_closed = false) {
   ExternalInstallOptions options(GURL(kWindowedUrl),
                                  mojom::UserDisplayMode::kStandalone,
                                  ExternalInstallSource::kExternalPolicy);
@@ -300,20 +305,33 @@ ExternalInstallOptions GetCustomAppIconInstallOptions() {
   options.add_to_desktop = false;
   options.add_to_quick_launch_bar = false;
   options.install_placeholder = true;
-  options.reinstall_placeholder = true;
-  options.wait_for_windows_closed = true;
+  options.wait_for_windows_closed = wait_for_windows_closed;
   options.override_icon_url = GURL(kDefaultCustomIconUrl);
   return options;
+}
+
+void SetWebAppSettingsListPref(Profile* profile, const base::StringPiece pref) {
+  ASSERT_OK_AND_ASSIGN(
+      auto result,
+      base::JSONReader::ReadAndReturnValueWithError(
+          pref, base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS));
+  ASSERT_TRUE(result.is_list());
+  profile->GetPrefs()->Set(prefs::kWebAppSettings, std::move(result));
 }
 
 }  // namespace
 
 enum class TestLacrosParam { kLacrosDisabled, kLacrosEnabled };
 
+enum class PreventCloseStatus {
+  kPreventCloseEnabled,
+  kPreventCloseDisabled,
+  kPreventCloseDefault
+};
+
 struct TestParam {
   TestLacrosParam lacros_params;
-  test::ExternalPrefMigrationTestCases pref_migration_test_param;
-  bool prevent_close_enabled;
+  PreventCloseStatus prevent_close_status;
 };
 
 class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
@@ -327,8 +345,26 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
 
   void SetUp() override {
     BuildAndInitFeatureList();
-    ChromeRenderViewHostTestHarness::SetUp();
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    // Set up user manager to so that Lacros mode can be enabled.
+    // Need to run the ChromeRenderViewHostTestHarness::SetUp() after the fake
+    // user manager set up so that the scoped_user_manager can be destructed in
+    // the correct order.
+    // TODO(crbug.com/1463865): Consider setting up a fake user in all Ash web
+    // app tests.
+    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
+    auto* fake_user_manager = user_manager.get();
+    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
+        std::move(user_manager));
+    auto* user = fake_user_manager->AddUser(user_manager::StubAccountId());
+    fake_user_manager->UserLoggedIn(user_manager::StubAccountId(),
+                                    user->username_hash(),
+                                    /*browser_restart=*/false,
+                                    /*is_child=*/false);
+#endif
+
+    ChromeRenderViewHostTestHarness::SetUp();
     provider_ = FakeWebAppProvider::Get(profile());
 
     auto fake_externally_managed_app_manager =
@@ -351,7 +387,7 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
         base::BindLambdaForTesting(
             [this](const ExternalInstallOptions& install_options) {
               const GURL& install_url = install_options.install_url;
-              const AppId app_id = GenerateAppId(
+              const webapps::AppId app_id = GenerateAppId(
                   /*manifest_id=*/absl::nullopt, install_url);
               if (app_registrar().GetAppById(app_id) &&
                   install_options.force_reinstall) {
@@ -376,7 +412,7 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
         base::BindLambdaForTesting(
             [this](const GURL& app_url,
                    ExternalInstallSource install_source) -> bool {
-              absl::optional<AppId> app_id =
+              absl::optional<webapps::AppId> app_id =
                   app_registrar().LookupExternalAppId(app_url);
               if (app_id) {
                 UnregisterApp(*app_id);
@@ -390,6 +426,11 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
 #endif
 
     test::AwaitStartWebAppProviderAndSubsystems(profile());
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    ASSERT_EQ(GetParam().lacros_params == TestLacrosParam::kLacrosEnabled,
+              crosapi::browser_util::IsLacrosEnabled());
+#endif
   }
 
   void TearDown() override {
@@ -424,41 +465,23 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
     enabled_features.push_back(
         features::kDesktopPWAsEnforceWebAppSettingsPolicy);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
+    std::vector<base::test::FeatureRef> lacros_flags =
+        ash::standalone_browser::GetFeatureRefs();
     if (GetParam().lacros_params == TestLacrosParam::kLacrosEnabled) {
-      enabled_features.push_back(features::kWebAppsCrosapi);
+      base::Extend(enabled_features, lacros_flags);
     } else if (GetParam().lacros_params == TestLacrosParam::kLacrosDisabled) {
-      disabled_features.push_back(features::kWebAppsCrosapi);
-      disabled_features.push_back(ash::features::kLacrosPrimary);
+      base::Extend(disabled_features, lacros_flags);
     }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-    switch (GetParam().pref_migration_test_param) {
-      case test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref:
-        disabled_features.push_back(features::kMigrateExternalPrefsToWebAppDB);
-        disabled_features.push_back(
-            features::kUseWebAppDBInsteadOfExternalPrefs);
-        break;
-      case test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB:
-        disabled_features.push_back(features::kMigrateExternalPrefsToWebAppDB);
-        enabled_features.push_back(
-            features::kUseWebAppDBInsteadOfExternalPrefs);
-        break;
-      case test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref:
-        enabled_features.push_back(features::kMigrateExternalPrefsToWebAppDB);
-        disabled_features.push_back(
-            features::kUseWebAppDBInsteadOfExternalPrefs);
-        break;
-      case test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB:
-        enabled_features.push_back(features::kMigrateExternalPrefsToWebAppDB);
-        enabled_features.push_back(
-            features::kUseWebAppDBInsteadOfExternalPrefs);
-        break;
-    }
-
-    if (GetParam().prevent_close_enabled) {
-      enabled_features.push_back(
-          features::kDesktopPWAsEnforceWebAppSettingsPolicy);
+    enabled_features.push_back(
+        features::kDesktopPWAsEnforceWebAppSettingsPolicy);
+    if (GetParam().prevent_close_status ==
+        PreventCloseStatus::kPreventCloseEnabled) {
       enabled_features.push_back(features::kDesktopPWAsPreventClose);
+    } else if (GetParam().prevent_close_status ==
+               PreventCloseStatus::kPreventCloseDisabled) {
+      disabled_features.push_back(features::kDesktopPWAsPreventClose);
     }
 
     scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
@@ -466,9 +489,9 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
 
   void InstallPwa(const std::string& url) {
     std::unique_ptr<WebAppInstallInfo> web_app_info =
-        std::make_unique<WebAppInstallInfo>();
+        std::make_unique<WebAppInstallInfo>(
+            GenerateManifestIdFromStartUrlOnly(GURL(url)));
     web_app_info->start_url = GURL(url);
-    web_app_info->manifest_id = "";
     web_app::test::InstallWebApp(profile(), std::move(web_app_info));
   }
 
@@ -500,14 +523,6 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
 
   ScopedTestingLocalState testing_local_state_;
 
-  void SetWebAppSettingsListPref(const base::StringPiece pref) {
-    auto result = base::JSONReader::ReadAndReturnValueWithError(
-        pref, base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS);
-    ASSERT_TRUE(result.has_value()) << result.error().message;
-    ASSERT_TRUE(result->is_list());
-    profile()->GetPrefs()->Set(prefs::kWebAppSettings, std::move(*result));
-  }
-
   void ValidateEmptyWebAppSettingsPolicy() {
     EXPECT_TRUE(policy_manager().settings_by_url_.empty());
     ASSERT_TRUE(policy_manager().default_settings_);
@@ -518,12 +533,12 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
   }
 
   void RegisterApp(std::unique_ptr<web_app::WebApp> web_app) {
-    ScopedRegistryUpdate update(&sync_bridge());
+    ScopedRegistryUpdate update = sync_bridge().BeginUpdate();
     update->CreateApp(std::move(web_app));
   }
 
-  void UnregisterApp(const AppId& app_id) {
-    ScopedRegistryUpdate update(&sync_bridge());
+  void UnregisterApp(const webapps::AppId& app_id) {
+    ScopedRegistryUpdate update = sync_bridge().BeginUpdate();
     update->DeleteApp(app_id);
   }
 
@@ -531,15 +546,13 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
     install_result_code_ = result_code;
   }
 
-  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(
-      const std::string& unhashed_app_id) {
-    return policy_manager().GetUrlRunOnOsLoginPolicyByUnhashedAppId(
-        unhashed_app_id);
+  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(const std::string& manifest_id) {
+    return policy_manager().GetUrlRunOnOsLoginPolicyByManifestId(manifest_id);
   }
 
-  bool IsPreventCloseEnabled(const std::string& unhashed_app_id) {
+  bool IsPreventCloseEnabled(const std::string& manifest_id) {
     return policy_manager().IsPreventCloseEnabled(
-        web_app::GenerateAppIdFromUnhashed(unhashed_app_id));
+        web_app::GenerateAppIdFromManifestId(GURL(manifest_id)));
   }
 
   void WaitForAppsToSynchronize() {
@@ -553,12 +566,20 @@ class WebAppPolicyManagerTest : public ChromeRenderViewHostTestHarness,
   webapps::InstallResultCode install_result_code_ =
       webapps::InstallResultCode::kSuccessNewInstall;
 
-  raw_ptr<FakeWebAppProvider> provider_;
-  raw_ptr<FakeExternallyManagedAppManager> fake_externally_managed_app_manager_;
-  raw_ptr<WebAppPolicyManager> web_app_policy_manager_;
+  raw_ptr<FakeWebAppProvider, DanglingUntriaged> provider_ = nullptr;
+  raw_ptr<FakeExternallyManagedAppManager, DanglingUntriaged>
+      fake_externally_managed_app_manager_ = nullptr;
+  raw_ptr<WebAppPolicyManager, DanglingUntriaged> web_app_policy_manager_ =
+      nullptr;
+
+#if BUILDFLAG(IS_WIN)
+  // This is used to prevent creating shortcuts in the start menu dir.
+  base::ScopedPathOverride override_start_dir_{base::DIR_START_MENU};
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   std::unique_ptr<ash::TestSystemWebAppManager> test_system_app_manager_;
+  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
 #endif
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -616,7 +637,8 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsInvalidDefaultConfiguration) {
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingInvalidDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(),
+                            kWebAppSettingInvalidDefaultConfiguration);
   loop.Run();
 
   ValidateEmptyWebAppSettingsPolicy();
@@ -641,7 +663,8 @@ TEST_P(WebAppPolicyManagerTest,
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingInvalidDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(),
+                            kWebAppSettingInvalidDefaultConfiguration);
   loop.Run();
 
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
@@ -679,7 +702,7 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsNoDefaultConfiguration) {
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingNoDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingNoDefaultConfiguration);
   loop.Run();
 
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
@@ -699,7 +722,7 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsWithDefaultConfiguration) {
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingWithDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingWithDefaultConfiguration);
   loop.Run();
 
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
@@ -921,7 +944,7 @@ TEST_P(WebAppPolicyManagerTest, ForceInstallAppWithCustomAppNameRefresh) {
 
   EXPECT_EQ(install_requests, expected_install_options_list);
 
-  base::flat_map<AppId, base::flat_set<GURL>> apps =
+  base::flat_map<webapps::AppId, base::flat_set<GURL>> apps =
       app_registrar().GetExternallyInstalledApps(
           ExternalInstallSource::kExternalPolicy);
   EXPECT_EQ(1u, apps.size());
@@ -1062,10 +1085,9 @@ TEST_P(WebAppPolicyManagerTest, ReinstallPlaceholderAppSuccess) {
   EXPECT_EQ(future.Get<1>().code,
             webapps::InstallResultCode::kSuccessNewInstall);
 
-  auto reinstall_options = GetWindowedInstallOptions();
+  auto reinstall_options =
+      GetWindowedInstallOptions(/*wait_for_windows_closed=*/true);
   reinstall_options.install_placeholder = false;
-  reinstall_options.reinstall_placeholder = true;
-  reinstall_options.wait_for_windows_closed = true;
   expected_options_list.push_back(std::move(reinstall_options));
 
   EXPECT_EQ(expected_options_list, install_options_list);
@@ -1132,10 +1154,9 @@ TEST_P(WebAppPolicyManagerTest, ReinstallPlaceholderAppWithFallbackAppName) {
   EXPECT_EQ(future.Get<1>().code,
             webapps::InstallResultCode::kSuccessNewInstall);
 
-  auto reinstall_options = GetFallbackAppNameInstallOptions();
+  auto reinstall_options =
+      GetFallbackAppNameInstallOptions(/*wait_for_windows_closed=*/true);
   reinstall_options.install_placeholder = false;
-  reinstall_options.reinstall_placeholder = true;
-  reinstall_options.wait_for_windows_closed = true;
   expected_options_list.push_back(std::move(reinstall_options));
 
   EXPECT_EQ(expected_options_list, install_options_list);
@@ -1206,7 +1227,7 @@ TEST_P(WebAppPolicyManagerTest, SayRefreshTwoTimesQuickly) {
             externally_managed_app_manager().uninstall_requests());
 
   // There should be exactly 1 app remaining.
-  base::flat_map<AppId, base::flat_set<GURL>> apps =
+  base::flat_map<webapps::AppId, base::flat_set<GURL>> apps =
       app_registrar().GetExternallyInstalledApps(
           ExternalInstallSource::kExternalPolicy);
   EXPECT_EQ(1u, apps.size());
@@ -1262,16 +1283,24 @@ TEST_P(WebAppPolicyManagerTest, DisableSystemWebApps) {
   auto disabled_apps = policy_manager().GetDisabledSystemWebApps();
   EXPECT_TRUE(disabled_apps.empty());
 
-  // Add camera to system features disable list policy.
-  base::Value::List disabled_apps_list;
-  disabled_apps_list.Append(static_cast<int>(policy::SystemFeature::kCamera));
+  // Add supported system web apps to system features disable list policy.
   testing_local_state_.Get()->SetUserPref(
       policy::policy_prefs::kSystemFeaturesDisableList,
-      std::move(disabled_apps_list));
+      base::Value::List()
+          .Append(static_cast<int>(policy::SystemFeature::kCamera))
+          .Append(static_cast<int>(policy::SystemFeature::kOsSettings))
+          .Append(static_cast<int>(policy::SystemFeature::kScanning))
+          .Append(static_cast<int>(policy::SystemFeature::kExplore))
+          .Append(static_cast<int>(policy::SystemFeature::kCrosh))
+          .Append(static_cast<int>(policy::SystemFeature::kTerminal))
+          .Append(static_cast<int>(policy::SystemFeature::kGallery)));
   base::RunLoop().RunUntilIdle();
 
-  std::set<ash::SystemWebAppType> expected_disabled_apps;
-  expected_disabled_apps.insert(ash::SystemWebAppType::CAMERA);
+  const std::set<ash::SystemWebAppType> expected_disabled_apps{
+      ash::SystemWebAppType::CAMERA,   ash::SystemWebAppType::SETTINGS,
+      ash::SystemWebAppType::SCANNING, ash::SystemWebAppType::HELP,
+      ash::SystemWebAppType::CROSH,    ash::SystemWebAppType::TERMINAL,
+      ash::SystemWebAppType::MEDIA};
 
   disabled_apps = policy_manager().GetDisabledSystemWebApps();
   EXPECT_EQ(disabled_apps, expected_disabled_apps);
@@ -1304,7 +1333,7 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsDynamicRefresh) {
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingInitialConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingInitialConfiguration);
   loop.Run();
 
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
@@ -1314,7 +1343,7 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsDynamicRefresh) {
             RunOnOsLoginPolicy::kAllowed);
   EXPECT_EQ(1, mock_observer.GetOnWebAppSettingsPolicyChangedCalledCount());
 
-  SetWebAppSettingsListPref(kWebAppSettingWithDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingWithDefaultConfiguration);
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
             RunOnOsLoginPolicy::kRunWindowed);
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kTabbedUrl), RunOnOsLoginPolicy::kAllowed);
@@ -1356,7 +1385,7 @@ TEST_P(WebAppPolicyManagerTest,
             RunOnOsLoginPolicy::kAllowed);
 
   // Now apply WebSettings policy
-  SetWebAppSettingsListPref(kWebAppSettingWithDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingWithDefaultConfiguration);
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kWindowedUrl),
             RunOnOsLoginPolicy::kRunWindowed);
   EXPECT_EQ(GetUrlRunOnOsLoginPolicy(kTabbedUrl), RunOnOsLoginPolicy::kAllowed);
@@ -1377,7 +1406,7 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsForceInstallNewApps) {
   base::RunLoop settings_loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       settings_loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingWithDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingWithDefaultConfiguration);
   settings_loop.Run();
 
   EXPECT_EQ(1, mock_observer.GetOnWebAppSettingsPolicyChangedCalledCount());
@@ -1420,26 +1449,26 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsPreventClose) {
     {
       "manifest_id": "https://windowed.example/",
       "run_on_os_login": "run_windowed",
-      "prevent_close": true
+      "prevent_close_after_run_on_os_login": true
     },
     {
       "manifest_id": "https://tabbed.example/",
       "run_on_os_login": "blocked",
-      "prevent_close": true
+      "prevent_close_after_run_on_os_login": true
     },
     {
       "manifest_id": "https://no-container.example/",
       "run_on_os_login": "unsupported_value",
-      "prevent_close": true
+      "prevent_close_after_run_on_os_login": true
     },
     {
       "manifest_id": "bad.uri",
       "run_on_os_login": "allowed",
-      "prevent_close": true
+      "prevent_close_after_run_on_os_login": true
     }
   ])";
 
-  // Make sure that WebAppRegistrar::GetComputedUnhashedAppId does not fail.
+  // Make sure that WebAppRegistrar::GetComputedManifestId does not fail.
   InstallPwa(kWindowedUrl);
   InstallPwa(kTabbedUrl);
   InstallPwa(kNoContainerUrl);
@@ -1447,11 +1476,14 @@ TEST_P(WebAppPolicyManagerTest, WebAppSettingsPreventClose) {
   base::RunLoop loop;
   policy_manager().SetRefreshPolicySettingsCompletedCallbackForTesting(
       loop.QuitClosure());
-  SetWebAppSettingsListPref(kWebAppSettingNoDefaultConfiguration);
+  SetWebAppSettingsListPref(profile(), kWebAppSettingNoDefaultConfiguration);
   loop.Run();
 
 #if BUILDFLAG(IS_CHROMEOS)
-  if (GetParam().prevent_close_enabled) {
+  if (GetParam().prevent_close_status ==
+          PreventCloseStatus::kPreventCloseEnabled ||
+      GetParam().prevent_close_status ==
+          PreventCloseStatus::kPreventCloseDefault) {
     EXPECT_TRUE(IsPreventCloseEnabled(kWindowedUrl));
     EXPECT_FALSE(IsPreventCloseEnabled(kTabbedUrl));
     EXPECT_FALSE(IsPreventCloseEnabled(kNoContainerUrl));
@@ -1472,69 +1504,25 @@ INSTANTIATE_TEST_SUITE_P(
     WebAppPolicyManagerTest,
     testing::Values(
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref,
-             /*prevent_close_enabled=*/false}),
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB,
-             /*prevent_close_enabled=*/false}),
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref,
-             /*prevent_close_enabled=*/false}),
         TestParam({TestLacrosParam::kLacrosDisabled,
-                   test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB,
-                   /*prevent_close_enabled=*/false}),
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref,
-             /*prevent_close_enabled=*/false}),
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB,
-             /*prevent_close_enabled=*/false}),
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref,
-             /*prevent_close_enabled=*/false}),
-        TestParam({TestLacrosParam::kLacrosEnabled,
-                   test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB,
-                   /*prevent_close_enabled=*/false}),
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref,
-             /*prevent_close_enabled=*/true}),
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB,
-             /*prevent_close_enabled=*/true}),
-        TestParam(
-            {TestLacrosParam::kLacrosDisabled,
-             test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref,
-             /*prevent_close_enabled=*/true}),
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseDisabled}),
         TestParam({TestLacrosParam::kLacrosDisabled,
-                   test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB,
-                   /*prevent_close_enabled=*/true}),
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseEnabled}),
+        TestParam({TestLacrosParam::kLacrosDisabled,
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseDefault}),
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref,
-             /*prevent_close_enabled=*/true}),
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB,
-             /*prevent_close_enabled=*/true}),
-        TestParam(
-            {TestLacrosParam::kLacrosEnabled,
-             test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref,
-             /*prevent_close_enabled=*/true}),
         TestParam({TestLacrosParam::kLacrosEnabled,
-                   test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB,
-                   /*prevent_close_enabled=*/true})),
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseDisabled}),
+        TestParam({TestLacrosParam::kLacrosEnabled,
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseEnabled}),
+        TestParam({TestLacrosParam::kLacrosEnabled,
+                   /*prevent_close_status=*/PreventCloseStatus::
+                       kPreventCloseDefault})),
     [](const ::testing::TestParamInfo<TestParam>& info) {
       std::string test_name = "Test_";
       if (info.param.lacros_params == TestLacrosParam::kLacrosEnabled)
@@ -1542,27 +1530,395 @@ INSTANTIATE_TEST_SUITE_P(
       else
         test_name.append("LacrosDisabled_");
 
-      switch (info.param.pref_migration_test_param) {
-        case test::ExternalPrefMigrationTestCases::kDisableMigrationReadPref:
-          test_name.append("DisableMigration_ReadFromPrefs");
-          break;
-        case test::ExternalPrefMigrationTestCases::kDisableMigrationReadDB:
-          test_name.append("DisableMigration_ReadFromDB");
-          break;
-        case test::ExternalPrefMigrationTestCases::kEnableMigrationReadPref:
-          test_name.append("EnableMigration_ReadFromPrefs");
-          break;
-        case test::ExternalPrefMigrationTestCases::kEnableMigrationReadDB:
-          test_name.append("EnableMigration_ReadFromDB");
-          break;
-      }
-
-      if (info.param.prevent_close_enabled) {
+      if (info.param.prevent_close_status ==
+          PreventCloseStatus::kPreventCloseEnabled) {
         test_name.append("PreventCloseEnabled");
-      } else {
+      } else if (info.param.prevent_close_status ==
+                 PreventCloseStatus::kPreventCloseDisabled) {
         test_name.append("PreventCloseDisabled");
+      } else {
+        test_name.append("PreventCloseDefault");
       }
       return test_name;
     });
 
+class WebAppPolicyForceUnregistrationTest : public WebAppTest {
+ public:
+  WebAppPolicyForceUnregistrationTest() = default;
+  ~WebAppPolicyForceUnregistrationTest() override = default;
+
+  void SetUp() override {
+    WebAppTest::SetUp();
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kOsIntegrationSubManagers,
+          {{"stage", "execute_and_write_config"}}},
+         {web_app::kDesktopPWAsForceUnregisterOSIntegration, {}}},
+        /*disabled_features=*/{});
+
+    {
+      base::ScopedAllowBlockingForTesting allow_blocking;
+      test_override_ =
+          OsIntegrationTestOverrideImpl::OverrideForTesting(base::GetHomeDir());
+    }
+    provider_ = FakeWebAppProvider::Get(profile());
+
+    auto file_handler_manager =
+        std::make_unique<WebAppFileHandlerManager>(profile());
+    auto protocol_handler_manager =
+        std::make_unique<WebAppProtocolHandlerManager>(profile());
+    auto shortcut_manager = std::make_unique<WebAppShortcutManager>(
+        profile(), file_handler_manager.get(), protocol_handler_manager.get());
+    auto os_integration_manager = std::make_unique<OsIntegrationManager>(
+        profile(), std::move(shortcut_manager), std::move(file_handler_manager),
+        std::move(protocol_handler_manager), /*url_handler_manager=*/nullptr);
+
+    provider_->SetOsIntegrationManager(std::move(os_integration_manager));
+    test::AwaitStartWebAppProviderAndSubsystems(profile());
+  }
+
+  void TearDown() override {
+    // Blocking required due to file operations in the shortcut override
+    // destructor.
+    test::UninstallAllWebApps(profile());
+    {
+      base::ScopedAllowBlockingForTesting allow_blocking;
+      test_override_.reset();
+    }
+    provider_ = nullptr;
+    WebAppTest::TearDown();
+  }
+
+ protected:
+  WebAppProvider& provider() { return *provider_; }
+
+  SkBitmap CreateSolidColorIcon(int size, SkColor color) {
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(size, size);
+    bitmap.eraseColor(color);
+    return bitmap;
+  }
+
+  webapps::AppId InstallWebAppWithShortcuts(
+      std::map<SquareSizePx, SkBitmap> icon_map,
+      const GURL manifest_id) {
+    std::unique_ptr<WebAppInstallInfo> info =
+        std::make_unique<WebAppInstallInfo>();
+    info->start_url = manifest_id;
+    // The name of the app should also change, otherwise on Mac and Windows, the
+    // shortcuts are stored as name(1) and gets wiped out with name.
+    info->title = base::UTF8ToUTF16(manifest_id.host());
+    info->user_display_mode = web_app::mojom::UserDisplayMode::kStandalone;
+    info->icon_bitmaps.any = std::move(icon_map);
+    info->manifest_id = manifest_id;
+    base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
+        result;
+    provider().scheduler().InstallFromInfoWithParams(
+        std::move(info), /*overwrite_existing_manifest_fields=*/true,
+        webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
+        result.GetCallback(), WebAppInstallParams());
+    bool success = result.Wait();
+    EXPECT_TRUE(success);
+    if (!success) {
+      return webapps::AppId();
+    }
+    EXPECT_EQ(result.Get<webapps::InstallResultCode>(),
+              webapps::InstallResultCode::kSuccessNewInstall);
+    return result.Get<webapps::AppId>();
+  }
+
+  bool IsOsIntegrationAllowed() {
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+    return true;
+#else
+    return false;
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  }
+
+  const GURL kWebAppUrl = GURL("https://example.com/path/index.html");
+
+ private:
+  raw_ptr<FakeWebAppProvider> provider_ = nullptr;
+  std::unique_ptr<OsIntegrationTestOverrideImpl::BlockingRegistration>
+      test_override_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       RefreshPolicyTrueRemovesOsIntegration) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+
+  std::map<SquareSizePx, SkBitmap> icon_map;
+  icon_map[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id =
+      InstallWebAppWithShortcuts(std::move(icon_map), kWebAppUrl);
+  const std::string& app_name =
+      provider().registrar_unsafe().GetAppShortName(app_id);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://example.com/path/index.html",
+      "force_unregister_os_integration": true
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_FALSE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+}
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       RefreshPolicyFalseDoesNotRemovesOsIntegration) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+  std::map<SquareSizePx, SkBitmap> icon_map;
+  icon_map[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id =
+      InstallWebAppWithShortcuts(std::move(icon_map), kWebAppUrl);
+  const std::string& app_name =
+      provider().registrar_unsafe().GetAppShortName(app_id);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://example.com/path/index.html",
+      "force_unregister_os_integration": false
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+}
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       OtherPoliciesDoNotAffectOsIntegration) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+  std::map<SquareSizePx, SkBitmap> icon_map;
+  icon_map[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id =
+      InstallWebAppWithShortcuts(std::move(icon_map), kWebAppUrl);
+  const std::string& app_name =
+      provider().registrar_unsafe().GetAppShortName(app_id);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://example.com/path/index.html",
+      "run_on_os_login": "allowed"
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+}
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       ManifestWildcardDoNotAffectOsIntegration) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+  std::map<SquareSizePx, SkBitmap> icon_map;
+  icon_map[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id =
+      InstallWebAppWithShortcuts(std::move(icon_map), kWebAppUrl);
+  const std::string& app_name =
+      provider().registrar_unsafe().GetAppShortName(app_id);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "*",
+      "force_unregister_os_integration": true
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id, app_name));
+}
+
+// Do not call GTEST_SKIP() explicitly here since we do not perform any OS
+// integration in this test, and we just verify that the policy itself does not
+// work gracefully instead of crashing.
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       ManifestIdDoesNotExistDoesNotCrash) {
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://unknown.app/",
+      "force_unregister_os_integration": true
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+}
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       MultiAppOsIntegrationRemovalBothCorrect) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+  std::map<SquareSizePx, SkBitmap> icon_map1;
+  icon_map1[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map1[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id1 =
+      InstallWebAppWithShortcuts(std::move(icon_map1), kWebAppUrl);
+  const std::string& app_name1 =
+      provider().registrar_unsafe().GetAppShortName(app_id1);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id1, app_name1));
+
+  const GURL manifest_id2 = GURL("https://example_2.com/index.html");
+  std::map<SquareSizePx, SkBitmap> icon_map2;
+  icon_map2[icon_size::k24] =
+      CreateSolidColorIcon(icon_size::k24, SK_ColorGREEN);
+  icon_map2[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorCYAN);
+  const webapps::AppId& app_id2 =
+      InstallWebAppWithShortcuts(std::move(icon_map2), manifest_id2);
+  const std::string& app_name2 =
+      provider().registrar_unsafe().GetAppShortName(app_id2);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id2, app_name2));
+
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://example.com/path/index.html",
+      "force_unregister_os_integration": true
+    },
+    {
+      "manifest_id": "https://example_2.com/index.html",
+      "force_unregister_os_integration": true
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_FALSE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id1, app_name1));
+  ASSERT_FALSE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id2, app_name2));
+}
+
+TEST_F(WebAppPolicyForceUnregistrationTest,
+       MultiAppOsIntegrationRemovalOneCorrect) {
+  if (!IsOsIntegrationAllowed()) {
+    GTEST_SKIP() << "OS integration execution does not work on this OS";
+  }
+  std::map<SquareSizePx, SkBitmap> icon_map1;
+  icon_map1[icon_size::k24] = CreateSolidColorIcon(icon_size::k24, SK_ColorRED);
+  icon_map1[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorGREEN);
+  const webapps::AppId& app_id1 =
+      InstallWebAppWithShortcuts(std::move(icon_map1), kWebAppUrl);
+  const std::string& app_name1 =
+      provider().registrar_unsafe().GetAppShortName(app_id1);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id1, app_name1));
+
+  const GURL manifest_id2 = GURL("https://example_2.com/index.html");
+  std::map<SquareSizePx, SkBitmap> icon_map2;
+  icon_map2[icon_size::k24] =
+      CreateSolidColorIcon(icon_size::k24, SK_ColorGREEN);
+  icon_map2[icon_size::k128] =
+      CreateSolidColorIcon(icon_size::k128, SK_ColorCYAN);
+  const webapps::AppId& app_id2 =
+      InstallWebAppWithShortcuts(std::move(icon_map2), manifest_id2);
+  const std::string& app_name2 =
+      provider().registrar_unsafe().GetAppShortName(app_id2);
+
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id2, app_name2));
+
+  // Have a typo in one for manifest_id of 2nd app, or have it be non-existent.
+  const char kWebAppSettingForceUnregisterApp[] = R"([
+    {
+      "manifest_id": "https://example.com/path/index.html",
+      "force_unregister_os_integration": true
+    },
+    {
+      "manifest_id": "https://example_2.com/invalid_index.html",
+      "force_unregister_os_integration": true
+    }
+  ])";
+
+  base::test::TestFuture<void> test_future;
+  provider()
+      .policy_manager()
+      .SetRefreshPolicySettingsCompletedCallbackForTesting(
+          test_future.GetCallback());
+  SetWebAppSettingsListPref(profile(), kWebAppSettingForceUnregisterApp);
+  EXPECT_TRUE(test_future.Wait());
+
+  ASSERT_FALSE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id1, app_name1));
+  ASSERT_TRUE(OsIntegrationTestOverrideImpl::Get()->IsShortcutCreated(
+      profile(), app_id2, app_name2));
+}
 }  // namespace web_app

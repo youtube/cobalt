@@ -123,7 +123,7 @@ history::VisitContextAnnotations::BrowserType GetBrowserType(
       return history::VisitContextAnnotations::BrowserType::kUnknown;
   }
 #else
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return history::VisitContextAnnotations::BrowserType::kUnknown;
   }
@@ -260,8 +260,9 @@ history::HistoryAddPageArgs HistoryTabHelper::CreateHistoryAddPageArgs(
   history::HistoryAddPageArgs add_page_args(
       navigation_handle->GetURL(), timestamp,
       history::ContextIDForWebContents(web_contents()), nav_entry_id,
-      referrer_url, navigation_handle->GetRedirectChain(), page_transition,
-      hidden, history::SOURCE_BROWSED, navigation_handle->DidReplaceEntry(),
+      navigation_handle->GetNavigationId(), referrer_url,
+      navigation_handle->GetRedirectChain(), page_transition, hidden,
+      history::SOURCE_BROWSED, navigation_handle->DidReplaceEntry(),
       ShouldConsiderForNtpMostVisited(*web_contents(), navigation_handle),
       // Reloads do not result in calling TitleWasSet() (which normally sets
       // the title), so a reload needs to set the title. This is important for
@@ -271,6 +272,8 @@ history::HistoryAddPageArgs HistoryTabHelper::CreateHistoryAddPageArgs(
           ? absl::optional<std::u16string>(
                 navigation_handle->GetWebContents()->GetTitle())
           : absl::nullopt,
+      // Our top-level site is the previous primary main frame.
+      navigation_handle->GetPreviousPrimaryMainFrameURL(),
       // Only compute the opener page if it's the first committed page for this
       // WebContents.
       navigation_handle->GetPreviousPrimaryMainFrameURL().is_empty()
@@ -397,11 +400,16 @@ void HistoryTabHelper::DidActivatePortal(
       last_committed_entry->GetTimestamp(),
       history::ContextIDForWebContents(web_contents()),
       last_committed_entry->GetUniqueID(),
+      /*local_navigation_id=*/absl::nullopt,
       last_committed_entry->GetReferrer().url,
       /* redirects */ {}, ui::PAGE_TRANSITION_LINK,
       /* hidden */ false, history::SOURCE_BROWSED, did_replace_entry,
       /* consider_for_ntp_most_visited */ true,
-      last_committed_entry->GetTitle());
+      last_committed_entry->GetTitle(),
+      // TODO(crbug.com/1475670): Investigate portal activation and determine if
+      // we need to populate top_level_url correctly to record this navigation
+      // in the VisitedLinkDatabase.
+      /*top_level_url=*/absl::nullopt);
   // TODO(crbug.com/1347012): Add on-visit ContextAnnotation fields here.
   hs->AddPage(add_page_args);
 }
@@ -519,7 +527,7 @@ bool HistoryTabHelper::IsEligibleTab(
   return true;
 #else
   // Don't update history if this web contents isn't associated with a tab.
-  return chrome::FindBrowserWithWebContents(web_contents()) != nullptr;
+  return chrome::FindBrowserWithTab(web_contents()) != nullptr;
 #endif
 }
 

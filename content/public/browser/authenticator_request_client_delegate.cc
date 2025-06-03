@@ -76,6 +76,10 @@ bool WebAuthenticationDelegate::SupportsResidentKeys(
   return false;
 }
 
+bool WebAuthenticationDelegate::SupportsPasskeyMetadataSyncing() {
+  return false;
+}
+
 bool WebAuthenticationDelegate::IsFocused(WebContents* web_contents) {
   return true;
 }
@@ -121,10 +125,6 @@ base::android::ScopedJavaLocalRef<jobject>
 WebAuthenticationDelegate::GetIntentSender(WebContents* web_contents) {
   return nullptr;
 }
-
-int WebAuthenticationDelegate::GetSupportLevel(WebContents* web_contents) {
-  return 2 /* browser-like support */;
-}
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -143,6 +143,11 @@ bool AuthenticatorRequestClientDelegate::DoesBlockRequestOnFailure(
   return false;
 }
 
+void AuthenticatorRequestClientDelegate::OnTransactionSuccessful(
+    RequestSource request_source,
+    device::FidoRequestType request_type,
+    device::AuthenticatorType authenticator_type) {}
+
 void AuthenticatorRequestClientDelegate::RegisterActionCallbacks(
     base::OnceClosure cancel_callback,
     base::RepeatingClosure start_over_callback,
@@ -158,8 +163,10 @@ void AuthenticatorRequestClientDelegate::ShouldReturnAttestation(
   std::move(callback).Run(!is_enterprise_attestation);
 }
 
-void AuthenticatorRequestClientDelegate::ConfigureCable(
+void AuthenticatorRequestClientDelegate::ConfigureDiscoveries(
     const url::Origin& origin,
+    const std::string& rp_id,
+    RequestSource request_source,
     device::FidoRequestType request_type,
     absl::optional<device::ResidentKeyRequirement> resident_key_requirement,
     base::span<const device::CableDiscoveryData> pairings_from_extension,

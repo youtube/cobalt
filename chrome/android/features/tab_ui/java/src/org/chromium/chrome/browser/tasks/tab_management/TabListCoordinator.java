@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -17,7 +18,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnLayoutChangeListener;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 
 import androidx.annotation.IntDef;
@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.RecyclerView.OnItemTouchListener;
 
 import org.chromium.base.Callback;
 import org.chromium.base.TraceEvent;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabUtils;
@@ -38,10 +39,9 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.ReturnToChromeUtil;
 import org.chromium.chrome.browser.tasks.pseudotab.PseudoTab;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType;
-import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView.RecyclerViewPosition;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -82,28 +82,37 @@ public class TabListCoordinator
     static final int GRID_LAYOUT_SPAN_COUNT_LARGE = 4;
     static final int MAX_SCREEN_WIDTH_COMPACT_DP = 600;
     static final int MAX_SCREEN_WIDTH_MEDIUM_DP = 800;
+
     private final TabListMediator mMediator;
     private final TabListRecyclerView mRecyclerView;
     private final SimpleRecyclerViewAdapter mAdapter;
     private final @TabListMode int mMode;
     private final Rect mThumbnailLocationOfCurrentTab = new Rect();
     private final Context mContext;
+    private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final TabListModel mModel;
     private final @UiType int mItemType;
     private final ViewGroup mRootView;
 
     private boolean mIsInitialized;
-    private ViewTreeObserver.OnGlobalLayoutListener mGlobalLayoutListener;
     private OnLayoutChangeListener mListLayoutListener;
     private boolean mLayoutListenerRegistered;
     private @Nullable TabStripSnapshotter mTabStripSnapshotter;
     private ItemTouchHelper mItemTouchHelper;
     private OnItemTouchListener mOnItemTouchListener;
+    private TabListEmptyCoordinator mTabListEmptyCoordinator;
+    private boolean mHasEmptyView;
+    private int mEmptyStateImageResId;
+    private int mEmptyStateHeadingResId;
+    private int mEmptyStateSubheadingResId;
+    private boolean mIsEmptyViewInitialized;
 
     /**
      * Construct a coordinator for UI that shows a list of tabs.
      * @param mode Modes of showing the list of tabs. Can be used in GRID or STRIP.
      * @param context The context to use for accessing {@link android.content.res.Resources}.
+     * @param browserControlsStateProvider The {@link BrowserControlsStateProvider} for top
+     *                                     controls.
      * @param tabModelSelector {@link TabModelSelector} that will provide and receive signals about
      *                              the tabs concerned.
      * @param thumbnailProvider Provider to provide screenshot related details.
@@ -125,9 +134,12 @@ public class TabListCoordinator
      * @param rootView The root view of the app.
      * @param onModelTokenChange Callback to invoke whenever a model changes. Only currently
      *                           respected in TabListMode.STRIP mode.
+     * @param hasEmptyView A boolean to determine if we should show empty view in tab switcher.
+     *                      Currently only valid for TabListMode.GRID and TabListMode.LIST.
      */
-    TabListCoordinator(@TabListMode int mode, Context context, TabModelSelector tabModelSelector,
-            @Nullable TabListMediator.ThumbnailProvider thumbnailProvider,
+    TabListCoordinator(@TabListMode int mode, Context context,
+            @NonNull BrowserControlsStateProvider browserControlsStateProvider,
+            TabModelSelector tabModelSelector, @Nullable ThumbnailProvider thumbnailProvider,
             @Nullable PseudoTab.TitleProvider titleProvider, boolean actionOnRelatedTabs,
             @Nullable TabListMediator
                     .GridCardOnClickListenerProvider gridCardOnClickListenerProvider,
@@ -137,12 +149,34 @@ public class TabListCoordinator
                     .PriceWelcomeMessageController priceWelcomeMessageController,
             @NonNull ViewGroup parentView, boolean attachToParent, String componentName,
             @NonNull ViewGroup rootView, @Nullable Callback<Object> onModelTokenChange) {
+        this(mode, context, browserControlsStateProvider, tabModelSelector, thumbnailProvider,
+                titleProvider, actionOnRelatedTabs, gridCardOnClickListenerProvider, dialogHandler,
+                itemType, selectionDelegateProvider, priceWelcomeMessageController, parentView,
+                attachToParent, componentName, rootView, onModelTokenChange, false, 0, 0, 0);
+    }
+
+    TabListCoordinator(@TabListMode int mode, Context context,
+            @NonNull BrowserControlsStateProvider browserControlsStateProvider,
+            TabModelSelector tabModelSelector, @Nullable ThumbnailProvider thumbnailProvider,
+            @Nullable PseudoTab.TitleProvider titleProvider, boolean actionOnRelatedTabs,
+            @Nullable TabListMediator
+                    .GridCardOnClickListenerProvider gridCardOnClickListenerProvider,
+            @Nullable TabListMediator.TabGridDialogHandler dialogHandler, @UiType int itemType,
+            @Nullable TabListMediator.SelectionDelegateProvider selectionDelegateProvider,
+            @Nullable TabSwitcherMediator
+                    .PriceWelcomeMessageController priceWelcomeMessageController,
+            @NonNull ViewGroup parentView, boolean attachToParent, String componentName,
+            @NonNull ViewGroup rootView, @Nullable Callback<Object> onModelTokenChange,
+            boolean hasEmptyView, int emptyImageResId, int emptyHeadingStringResId,
+            int emptySubheadingStringResId) {
         mMode = mode;
         mItemType = itemType;
         mContext = context;
+        mBrowserControlsStateProvider = browserControlsStateProvider;
         mModel = new TabListModel();
         mAdapter = new SimpleRecyclerViewAdapter(mModel);
         mRootView = rootView;
+
         RecyclerView.RecyclerListener recyclerListener = null;
         if (mMode == TabListMode.GRID || mMode == TabListMode.CAROUSEL) {
             mAdapter.registerType(UiType.SELECTABLE, parent -> {
@@ -156,11 +190,6 @@ public class TabListCoordinator
             mAdapter.registerType(UiType.CLOSABLE, parent -> {
                 ViewGroup group = (ViewGroup) LayoutInflater.from(context).inflate(
                         R.layout.closable_tab_grid_card_item, parentView, false);
-                if (mMode == TabListMode.CAROUSEL) {
-                    group.getLayoutParams().width = context.getResources().getDimensionPixelSize(
-                            R.dimen.tab_carousel_card_width);
-                }
-
                 group.setClickable(true);
                 return group;
             }, TabGridViewBinder::bindClosableTab);
@@ -218,8 +247,8 @@ public class TabListCoordinator
         // TODO (https://crbug.com/1048632): Use the current profile (i.e., regular profile or
         // incognito profile) instead of always using regular profile. It works correctly now, but
         // it is not safe.
-        TabListFaviconProvider tabListFaviconProvider =
-                new TabListFaviconProvider(mContext, mMode == TabListMode.STRIP);
+        TabListFaviconProvider tabListFaviconProvider = new TabListFaviconProvider(
+                mContext, mMode == TabListMode.STRIP, R.dimen.default_favicon_corner_radius);
 
         mMediator = new TabListMediator(context, mModel, mMode, tabModelSelector, thumbnailProvider,
                 titleProvider, tabListFaviconProvider, actionOnRelatedTabs,
@@ -227,19 +256,25 @@ public class TabListCoordinator
                 priceWelcomeMessageController, componentName, itemType);
 
         try (TraceEvent e = TraceEvent.scoped("TabListCoordinator.setupRecyclerView")) {
-            if (!attachToParent) {
-                mRecyclerView = (TabListRecyclerView) LayoutInflater.from(context).inflate(
-                        R.layout.tab_list_recycler_view_layout, parentView, false);
-            } else {
-                LayoutInflater.from(context).inflate(
-                        R.layout.tab_list_recycler_view_layout, parentView, true);
-                mRecyclerView = parentView.findViewById(R.id.tab_list_view);
+            // Ignore attachToParent initially. In some contexts multiple TabListCoordinators are
+            // created with the same parentView. Using attachToParent and subsequently trying to
+            // locate the View with findViewById could then resolve to the wrong view. Instead use
+            // LayoutInflater to return the inflated view and addView to circumvent the issue.
+            mRecyclerView = (TabListRecyclerView) LayoutInflater.from(context).inflate(
+                    R.layout.tab_list_recycler_view_layout, parentView, /*attachToParent=*/false);
+            if (attachToParent) {
+                parentView.addView(mRecyclerView);
             }
 
             if (mode == TabListMode.CAROUSEL) {
                 ViewGroup.LayoutParams layoutParams = mRecyclerView.getLayoutParams();
                 layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 mRecyclerView.setLayoutParams(layoutParams);
+                final int cardWidthPx = context.getResources().getDimensionPixelSize(
+                        R.dimen.tab_carousel_card_width);
+                final int cardHeightPx = TabUtils.deriveGridCardHeight(
+                        cardWidthPx, mContext, mBrowserControlsStateProvider);
+                mMediator.setDefaultGridCardSize(new Size(cardWidthPx, cardHeightPx));
             }
 
             mRecyclerView.setAdapter(mAdapter);
@@ -251,10 +286,15 @@ public class TabListCoordinator
                         new GridLayoutManager(context, GRID_LAYOUT_SPAN_COUNT_COMPACT);
                 mRecyclerView.setLayoutManager(gridLayoutManager);
                 mMediator.registerOrientationListener(gridLayoutManager);
-                mMediator.updateSpanCount(gridLayoutManager,
-                        context.getResources().getConfiguration().orientation,
-                        context.getResources().getConfiguration().screenWidthDp);
+                mMediator.updateSpanCount(
+                        gridLayoutManager, context.getResources().getConfiguration().screenWidthDp);
                 mMediator.setupAccessibilityDelegate(mRecyclerView);
+                Rect frame = new Rect();
+                ((Activity) mRecyclerView.getContext())
+                        .getWindow()
+                        .getDecorView()
+                        .getWindowVisibleDisplayFrame(frame);
+                updateGridCardLayout(frame.width());
             } else if (mMode == TabListMode.STRIP || mMode == TabListMode.CAROUSEL
                     || mMode == TabListMode.LIST) {
                 mRecyclerView.setLayoutManager(new LinearLayoutManager(context,
@@ -262,17 +302,24 @@ public class TabListCoordinator
                                                   : LinearLayoutManager.HORIZONTAL,
                         false));
             }
+            mMediator.setRecyclerViewItemAnimationToggle(mRecyclerView::setDisableItemAnimations);
         }
 
         if (mMode == TabListMode.GRID) {
-            mGlobalLayoutListener = this::updateThumbnailLocation;
-            if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)) {
-                mListLayoutListener = (view, left, top, right, bottom, oldLeft, oldTop, oldRight,
-                        oldBottom) -> updateGridCardLayout(right - left);
-            }
+            mListLayoutListener = (view, left, top, right, bottom, oldLeft, oldTop, oldRight,
+                    oldBottom) -> updateGridCardLayout(right - left);
         } else if (mMode == TabListMode.STRIP) {
             mTabStripSnapshotter =
                     new TabStripSnapshotter(onModelTokenChange, mModel, mRecyclerView);
+        }
+
+        mHasEmptyView = hasEmptyView;
+        if (mHasEmptyView) {
+            mTabListEmptyCoordinator =
+                    new TabListEmptyCoordinator(parentView, mModel, browserControlsStateProvider);
+            mEmptyStateHeadingResId = emptyHeadingStringResId;
+            mEmptyStateSubheadingResId = emptySubheadingStringResId;
+            mEmptyStateImageResId = emptyImageResId;
         }
     }
 
@@ -290,6 +337,12 @@ public class TabListCoordinator
     Rect getThumbnailLocationOfCurrentTab() {
         // TODO(crbug.com/964406): calculate the location before the real one is ready.
         return mThumbnailLocationOfCurrentTab;
+    }
+
+    @NonNull
+    Size getThumbnailSize() {
+        Size size = mMediator.getDefaultGridCardSize();
+        return TabUtils.deriveThumbnailSize(size, mContext);
     }
 
     @NonNull
@@ -386,6 +439,7 @@ public class TabListCoordinator
             }
         }
     }
+
     /**
      * Update the location of the selected thumbnail.
      * @return Whether a valid {@link Rect} is obtained.
@@ -403,12 +457,24 @@ public class TabListCoordinator
         // Determine and set span count
         final GridLayoutManager layoutManager =
                 (GridLayoutManager) mRecyclerView.getLayoutManager();
-        mMediator.updateSpanCount(layoutManager,
-                mContext.getResources().getConfiguration().orientation,
-                mContext.getResources().getConfiguration().screenWidthDp);
+        boolean updatedSpan = mMediator.updateSpanCount(
+                layoutManager, mContext.getResources().getConfiguration().screenWidthDp);
+        if (updatedSpan) {
+            // Update the cards for the span change.
+            ViewUtils.requestLayout(mRecyclerView, "TabListCoordinator#updateGridCardLayout");
+        }
         // Determine grid card width and account for margins on left and right.
-        final int cardWidthPx = (viewWidth / layoutManager.getSpanCount());
-        final int cardHeightPx = TabUtils.deriveGridCardHeight(cardWidthPx, mContext);
+        final int cardWidthPx =
+                ((viewWidth - mRecyclerView.getPaddingStart() - mRecyclerView.getPaddingEnd())
+                        / layoutManager.getSpanCount());
+        final int cardHeightPx =
+                TabUtils.deriveGridCardHeight(cardWidthPx, mContext, mBrowserControlsStateProvider);
+
+        final Size oldDefaultSize = mMediator.getDefaultGridCardSize();
+        final Size newDefaultSize = new Size(cardWidthPx, cardHeightPx);
+        if (oldDefaultSize != null && newDefaultSize.equals(oldDefaultSize)) return;
+
+        mMediator.setDefaultGridCardSize(newDefaultSize);
         for (int i = 0; i < mModel.size(); i++) {
             PropertyModel tabPropertyModel = mModel.get(i).model;
             // Other GTS items might intentionally have different dimensions. For example, the
@@ -430,7 +496,7 @@ public class TabListCoordinator
         Rect tabListRect = getRecyclerViewLocation();
         Rect parentRect = new Rect();
         mRootView.getGlobalVisibleRect(parentRect);
-        // Offset by CompositeViewHolder top offset and top toolbar height.
+        // Offset by CompositorViewHolder top offset and top toolbar height.
         tabListRect.offset(0,
                 -parentRect.top
                         - (int) mContext.getResources().getDimension(
@@ -486,7 +552,15 @@ public class TabListCoordinator
 
     private void registerLayoutChangeListener() {
         if (mListLayoutListener != null) {
-            assert !mLayoutListenerRegistered;
+            assert !mLayoutListenerRegistered
+                    || !ReturnToChromeUtil.isStartSurfaceRefactorEnabled(mContext);
+
+            // TODO(crbug/1478720): Early out if already registered. This is possible as this may
+            // be called repeatedly when Start Surface Refactor is disabled, and the transition
+            // animation to the Tab Switcher is skipped. Remove this if check once Start Surface
+            // Refactor is enabled everywhere.
+            if (mLayoutListenerRegistered) return;
+
             mLayoutListenerRegistered = true;
             mRecyclerView.addOnLayoutChangeListener(mListLayoutListener);
         }
@@ -494,19 +568,29 @@ public class TabListCoordinator
 
     private void unregisterLayoutChangeListener() {
         if (mListLayoutListener != null) {
+            if (!mLayoutListenerRegistered) return;
+
             mRecyclerView.removeOnLayoutChangeListener(mListLayoutListener);
             mLayoutListenerRegistered = false;
         }
     }
 
     void prepareTabSwitcherView() {
-        if (mGlobalLayoutListener != null) {
-            mRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(mGlobalLayoutListener);
-        }
         registerLayoutChangeListener();
         mRecyclerView.prepareTabSwitcherView();
-        mMediator.prepareTabSwitcherView();
         mMediator.registerOnScrolledListener(mRecyclerView);
+    }
+
+    private void initializeEmptyStateView() {
+        if (mIsEmptyViewInitialized) {
+            return;
+        }
+        if (mHasEmptyView && mTabListEmptyCoordinator != null) {
+            mTabListEmptyCoordinator.initializeEmptyStateView(
+                    mEmptyStateImageResId, mEmptyStateHeadingResId, mEmptyStateSubheadingResId);
+            mTabListEmptyCoordinator.attachEmptyView();
+            mIsEmptyViewInitialized = true;
+        }
     }
 
     public void prepareTabGridView() {
@@ -517,10 +601,23 @@ public class TabListCoordinator
         unregisterLayoutChangeListener();
     }
 
-    void postHiding() {
-        if (mGlobalLayoutListener != null) {
-            mRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(mGlobalLayoutListener);
+    public void destroyEmptyView() {
+        if (mHasEmptyView && mTabListEmptyCoordinator != null) {
+            mTabListEmptyCoordinator.destroyEmptyView();
+            mIsEmptyViewInitialized = false;
         }
+    }
+
+    public void attachEmptyView() {
+        if (!mIsEmptyViewInitialized) {
+            initializeEmptyStateView();
+        }
+        if (mHasEmptyView && mTabListEmptyCoordinator != null) {
+            mTabListEmptyCoordinator.setIsTabSwitcherShowing(true);
+        }
+    }
+
+    void postHiding() {
         unregisterLayoutChangeListener();
         mRecyclerView.postHiding();
         mMediator.postHiding();
@@ -532,8 +629,8 @@ public class TabListCoordinator
     @Override
     public void onDestroy() {
         mMediator.destroy();
-        if (mGlobalLayoutListener != null) {
-            mRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(mGlobalLayoutListener);
+        if (mTabListEmptyCoordinator != null) {
+            mTabListEmptyCoordinator.removeListObserver();
         }
         if (mListLayoutListener != null) {
             mRecyclerView.removeOnLayoutChangeListener(mListLayoutListener);
@@ -553,10 +650,6 @@ public class TabListCoordinator
 
     int getResourceId() {
         return mRecyclerView.getResourceId();
-    }
-
-    long getLastDirtyTime() {
-        return mRecyclerView.getLastDirtyTime();
     }
 
     /**
@@ -614,5 +707,9 @@ public class TabListCoordinator
 
     void runAnimationOnNextLayout(Runnable runnable) {
         mRecyclerView.runAnimationOnNextLayout(runnable);
+    }
+
+    int getTabListModelSize() {
+        return mModel.size();
     }
 }

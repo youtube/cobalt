@@ -36,8 +36,10 @@ std::ostream& operator<<(std::ostream& os, ObservedUiEvents event) {
       return os << "kPreviewFormData";
     case ObservedUiEvents::kFormDataFilled:
       return os << "kFormDataFilled";
-    case ObservedUiEvents::kSuggestionShown:
-      return os << "kSuggestionShown";
+    case ObservedUiEvents::kSuggestionsShown:
+      return os << "kSuggestionsShown";
+    case ObservedUiEvents::kSuggestionsHidden:
+      return os << "kSuggestionsHidden";
     case ObservedUiEvents::kNoEvent:
       return os << "kNoEvent";
     default:
@@ -104,10 +106,12 @@ void BrowserAutofillManagerTestDelegateImpl::DidFillFormData() {
 }
 
 void BrowserAutofillManagerTestDelegateImpl::DidShowSuggestions() {
-  FireEvent(ObservedUiEvents::kSuggestionShown);
+  FireEvent(ObservedUiEvents::kSuggestionsShown);
 }
 
-void BrowserAutofillManagerTestDelegateImpl::OnTextFieldChanged() {}
+void BrowserAutofillManagerTestDelegateImpl::DidHideSuggestions() {
+  FireEvent(ObservedUiEvents::kSuggestionsHidden);
+}
 
 void BrowserAutofillManagerTestDelegateImpl::SetExpectations(
     std::list<ObservedUiEvents> expected_events,
@@ -160,7 +164,7 @@ void AutofillUiTest::TearDownOnMainThread() {
   // Make sure to close any showing popups prior to tearing down the UI.
   BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager();
   if (autofill_manager)
-    autofill_manager->client()->HideAutofillPopup(PopupHidingReason::kTabGone);
+    autofill_manager->client().HideAutofillPopup(PopupHidingReason::kTabGone);
   current_main_rfh_ = nullptr;
   InProcessBrowserTest::TearDownOnMainThread();
 }
@@ -286,7 +290,7 @@ BrowserAutofillManager* AutofillUiTest::GetBrowserAutofillManager() {
   // when there is a web page popup during teardown
   if (!driver)
     return nullptr;
-  return static_cast<BrowserAutofillManager*>(driver->autofill_manager());
+  return static_cast<BrowserAutofillManager*>(&driver->GetAutofillManager());
 }
 
 void AutofillUiTest::RenderFrameHostChanged(
@@ -295,9 +299,9 @@ void AutofillUiTest::RenderFrameHostChanged(
   if (current_main_rfh_ != old_frame)
     return;
   current_main_rfh_ = new_frame;
-  BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager();
-  if (autofill_manager)
-    autofill_manager->SetTestDelegate(test_delegate());
+  if (BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager()) {
+    test_delegate()->Observe(*autofill_manager);
+  }
 }
 
 }  // namespace autofill

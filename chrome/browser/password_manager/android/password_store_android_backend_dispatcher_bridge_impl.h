@@ -45,6 +45,9 @@ class PasswordStoreAndroidBackendDispatcherBridgeImpl
   void GetLoginsForSignonRealm(JobId job_id,
                                const std::string& signon_realm,
                                Account account) override;
+  void GetAffiliatedLoginsForSignonRealm(JobId job_id,
+                                         const std::string& signon_realm,
+                                         Account account) override;
   void AddLogin(JobId job_id,
                 const password_manager::PasswordForm& form,
                 Account account) override;
@@ -54,8 +57,6 @@ class PasswordStoreAndroidBackendDispatcherBridgeImpl
   void RemoveLogin(JobId job_id,
                    const password_manager::PasswordForm& form,
                    Account account) override;
-
-  void ShowErrorNotification() override;
 
   // This member stores the unique ID last used for an API request.
   JobId last_job_id_{0};

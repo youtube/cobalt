@@ -18,10 +18,10 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   CHECK_EQ(CcTest::isolate(), info.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(info.GetIsolate(), returnValue.GetIsolate());
-  CHECK((*returnObjectSlot).IsTheHole(isolate) ||
-        (*returnObjectSlot).IsUndefined(isolate));
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // Verify reset
-  bool is_runtime = (*returnObjectSlot).IsTheHole(isolate);
+  bool is_runtime = IsTheHole(*returnObjectSlot, isolate);
   if (is_runtime) {
     CHECK(returnValue.Get()->IsUndefined());
   } else {
@@ -31,8 +31,8 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   returnValue.Set(true);
   CHECK_EQ(*returnObjectSlot, i::ReadOnlyRoots(isolate).true_value());
   returnValue.Set(v8::Local<v8::Object>());
-  CHECK((*returnObjectSlot).IsTheHole(isolate) ||
-        (*returnObjectSlot).IsUndefined(isolate));
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {
@@ -46,9 +46,11 @@ template <typename T>
 static void CheckInternalFieldsAreZero(v8::Local<T> value) {
   CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
   for (int i = 0; i < value->InternalFieldCount(); i++) {
-    CHECK_EQ(0, value->GetInternalField(i)
-                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
-                    .FromJust());
+    v8::Local<v8::Value> field =
+        value->GetInternalField(i).template As<v8::Value>();
+    CHECK_EQ(
+        0,
+        field->Int32Value(CcTest::isolate()->GetCurrentContext()).FromJust());
   }
 }
 

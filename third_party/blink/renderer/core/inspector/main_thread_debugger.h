@@ -65,7 +65,7 @@ class CORE_EXPORT MainThreadDebugger final : public ThreadDebuggerCommonImpl {
   MainThreadDebugger& operator=(const MainThreadDebugger&) = delete;
   ~MainThreadDebugger() override;
 
-  static MainThreadDebugger* Instance();
+  static MainThreadDebugger* Instance(v8::Isolate*);
 
   bool IsWorker() override { return false; }
   bool IsPaused() const { return paused_; }
@@ -81,6 +81,8 @@ class CORE_EXPORT MainThreadDebugger final : public ThreadDebuggerCommonImpl {
   void ExceptionThrown(ExecutionContext*, ErrorEvent*);
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(MainThreadDebuggerMultipleMainFramesTest, Allow);
+
   void ReportConsoleMessage(ExecutionContext*,
                             mojom::ConsoleMessageSource,
                             mojom::ConsoleMessageLevel,

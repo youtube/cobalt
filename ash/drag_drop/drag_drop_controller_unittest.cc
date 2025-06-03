@@ -27,7 +27,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
-#include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/client/capture_client.h"
@@ -333,7 +332,7 @@ class EventTargetTestDelegate : public aura::client::DragDropDelegate {
     output_drag_op = DragOperation::kMove;
   }
 
-  const raw_ptr<aura::Window, ExperimentalAsh> window_;
+  const raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh> window_;
   State state_{State::kNotInvoked};
 };
 
@@ -538,8 +537,8 @@ class DragDropControllerTest : public AshTestBase {
   }
 
   std::unique_ptr<TestDragDropController> drag_drop_controller_;
-  raw_ptr<NiceMock<MockShellDelegate>, ExperimentalAsh> mock_shell_delegate_ =
-      nullptr;
+  raw_ptr<NiceMock<MockShellDelegate>, DanglingUntriaged | ExperimentalAsh>
+      mock_shell_delegate_ = nullptr;
 
   std::unique_ptr<TestNewWindowDelegateProvider>
       test_new_window_delegate_provider_;
@@ -1346,9 +1345,6 @@ TEST_F(DragDropControllerTest, EventTarget) {
 
 // Verifies that a tab drag changes the drag operation to a move.
 TEST_F(DragDropControllerTest, DragTabChangesDragOperationToMove) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWebUITabStripTabDragIntegration);
-
   EXPECT_CALL(*mock_shell_delegate(), IsTabDrag(_))
       .Times(1)
       .WillOnce(Return(true));
@@ -1383,9 +1379,6 @@ TEST_F(DragDropControllerTest, DragTabChangesDragOperationToMove) {
 
 // Verifies that a tab drag does not crash (UAF) on source window destruction.
 TEST_F(DragDropControllerTest, DragTabDoesNotCrashOnSourceWindowDestruction) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWebUITabStripTabDragIntegration);
-
   EXPECT_CALL(*mock_shell_delegate(), IsTabDrag(_))
       .Times(1)
       .WillOnce(Return(true));
@@ -1630,9 +1623,6 @@ TEST_F(DragDropControllerTest, ToplevelWindowDragDelegateWithTouch2) {
 }
 
 TEST_F(DragDropControllerTest, DragWithChromeTabDelegateTakesCapture) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWebUITabStripTabDragIntegration);
-
   EXPECT_CALL(*mock_shell_delegate(), IsTabDrag(_))
       .Times(1)
       .WillOnce(Return(true));
@@ -1658,9 +1648,6 @@ TEST_F(DragDropControllerTest, DragWithChromeTabDelegateTakesCapture) {
 // overview (or any other window) on the other, touch and hold a desk mini view
 // (or that other window) and drag a browser tab simultaneously.
 TEST_F(DragDropControllerTest, TabletSplitViewDragTwoBrowserTabs) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWebUITabStripTabDragIntegration);
-
   // Enter tablet mode. Avoid TabletModeController::OnGetSwitchStates() from
   // disabling tablet mode.
   base::RunLoop().RunUntilIdle();

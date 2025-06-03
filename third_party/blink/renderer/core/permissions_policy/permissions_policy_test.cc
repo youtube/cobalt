@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/ranges/algorithm.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
@@ -16,7 +17,6 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
-#include "third_party/blink/renderer/platform/testing/histogram_tester.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -120,6 +120,7 @@ struct ParsedPolicyDeclarationForTest {
   bool matches_all_origins;
   bool matches_opaque_src;
   std::vector<OriginWithPossibleWildcardsForTest> allowed_origins;
+  absl::optional<std::string> reporting_endpoint;
 };
 
 using ParsedPolicyForTest = std::vector<ParsedPolicyDeclarationForTest>;
@@ -195,23 +196,29 @@ class PermissionsPolicyParserParsingTest
                 expected_declaration.matches_all_origins);
       EXPECT_EQ(actual_declaration.matches_opaque_src,
                 expected_declaration.matches_opaque_src);
+      EXPECT_EQ(actual_declaration.reporting_endpoint,
+                expected_declaration.reporting_endpoint);
 
       ASSERT_EQ(actual_declaration.allowed_origins.size(),
                 expected_declaration.allowed_origins.size());
       for (size_t j = 0; j < actual_declaration.allowed_origins.size(); ++j) {
         const url::Origin origin = url::Origin::Create(
             GURL(expected_declaration.allowed_origins[j].origin));
-        EXPECT_EQ(actual_declaration.allowed_origins[j].csp_source.scheme,
-                  origin.scheme());
-        EXPECT_EQ(actual_declaration.allowed_origins[j].csp_source.host,
+        EXPECT_EQ(
+            actual_declaration.allowed_origins[j].CSPSourceForTest().scheme,
+            origin.scheme());
+        EXPECT_EQ(actual_declaration.allowed_origins[j].CSPSourceForTest().host,
                   origin.host());
-        if (actual_declaration.allowed_origins[j].csp_source.port !=
+        if (actual_declaration.allowed_origins[j].CSPSourceForTest().port !=
             url::PORT_UNSPECIFIED) {
-          EXPECT_EQ(actual_declaration.allowed_origins[j].csp_source.port,
-                    origin.port());
+          EXPECT_EQ(
+              actual_declaration.allowed_origins[j].CSPSourceForTest().port,
+              origin.port());
         }
         EXPECT_EQ(
-            actual_declaration.allowed_origins[j].csp_source.is_host_wildcard,
+            actual_declaration.allowed_origins[j]
+                .CSPSourceForTest()
+                .is_host_wildcard,
             expected_declaration.allowed_origins[j].has_subdomain_wildcard);
       }
     }
@@ -610,10 +617,10 @@ const PermissionsPolicyParserTestCase
             /* test_name */ "ImproperWildcardsIncluded",
             /* feature_policy_string */
             "fullscreen *://example.com https://foo.*.example.com "
-            "https://*.*.example.com https://example.com:*",
+            "https://*.*.example.com",
             /* permissions_policy_string */
             "fullscreen=(\"*://example.com\" \"https://foo.*.example.com\" "
-            "\"https://*.*.example.com\"  \"https://example.com:*\")",
+            "\"https://*.*.example.com\")",
             /* self_origin */ ORIGIN_A,
             /* src_origin */ ORIGIN_B,
             /* expected_parse_result */
@@ -624,6 +631,212 @@ const PermissionsPolicyParserTestCase
                     /* matches_all_origins */ false,
                     /* matches_opaque_src */ false,
                     {},
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointWithStar",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=*;report-to=endpoint",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ true,
+                    /* matches_opaque_src */ true,
+                    {},
+                    "endpoint",
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointWithList",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=(\"" ORIGIN_B "\" \"" ORIGIN_C "\");report-to=endpoint",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_B, /*has_subdomain_wildcard=*/false},
+                     {ORIGIN_C, /*has_subdomain_wildcard=*/false}},
+                    "endpoint",
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointWithNone",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=();report-to=endpoint",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {},
+                    "endpoint",
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointWithSelf",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=self;report-to=endpoint",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ ORIGIN_A,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {},
+                    "endpoint",
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointWithSingleOrigin",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=\"" ORIGIN_C "\";report-to=endpoint",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_C, /*has_subdomain_wildcard=*/false}},
+                    "endpoint",
+                },
+            },
+        },
+        {
+            /* test_name */ "InvalidReportingEndpointInList",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            // Note: The reporting endpoint parameter needs to apply to the
+            // entire value for the dictionary entry. In this example, it is
+            // placed on a single inner list item, and should therefore be
+            // ignored.
+            /* permissions_policy_string */
+            "fullscreen=(\"" ORIGIN_C "\";report-to=endpoint)",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_C, /*has_subdomain_wildcard=*/false}},
+                    /* reporting_endpoint */ absl::nullopt,
+                },
+            },
+        },
+        {
+            /* test_name */ "ReportingEndpointsInsideAndOutsideList",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=(\"" ORIGIN_C
+            "\";report-to=endpoint1);report-to=endpoint2",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_C, /*has_subdomain_wildcard=*/false}},
+                    /* reporting_endpoint */ "endpoint2",
+                },
+            },
+        },
+        // DifferentReportingEndpoints
+        {
+            /* test_name */ "DifferentReportingEndpoints",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=\"" ORIGIN_B "\";report-to=endpoint1,"
+            "geolocation=\"" ORIGIN_C "\";report-to=endpoint2",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_B, /*has_subdomain_wildcard=*/false}},
+                    "endpoint1",
+                },
+                {
+                    mojom::blink::PermissionsPolicyFeature::kGeolocation,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ false,
+                    /* matches_opaque_src */ false,
+                    {{ORIGIN_C, /*has_subdomain_wildcard=*/false}},
+                    "endpoint2",
+                },
+            },
+        },
+        {
+            /* test_name */ "InvalidReportingEndpointsBool",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=*;report-to",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ true,
+                    /* matches_opaque_src */ true,
+                    {},
+                    /* reporting_endpoint */ absl::nullopt,
+                },
+            },
+        },
+        {
+            /* test_name */ "InvalidReportingEndpointsNumber",
+            /* feature_policy_string */ NOT_APPLICABLE,
+            /* permissions_policy_string */
+            "fullscreen=*;report-to=7",
+            /* self_origin */ ORIGIN_A,
+            /* src_origin */ ORIGIN_B,
+            /* expected_parse_result */
+            {
+                {
+                    mojom::blink::PermissionsPolicyFeature::kFullscreen,
+                    /* self_if_matches */ absl::nullopt,
+                    /* matches_all_origins */ true,
+                    /* matches_opaque_src */ true,
+                    {},
+                    /* reporting_endpoint */ absl::nullopt,
                 },
             },
         },
@@ -905,7 +1118,7 @@ TEST_F(PermissionsPolicyParserTest, ParseTooLongPolicy) {
 // Test histogram counting the use of permissions policies in header.
 TEST_F(PermissionsPolicyParserTest, HeaderHistogram) {
   const char* histogram_name = "Blink.UseCounter.FeaturePolicy.Header";
-  HistogramTester tester;
+  base::HistogramTester tester;
   PolicyParserMessageBuffer logger;
 
   PermissionsPolicyParser::ParseFeaturePolicyForTest(
@@ -926,7 +1139,7 @@ TEST_F(PermissionsPolicyParserTest, HeaderHistogram) {
 // Test counting the use of each permissions policy only once per header.
 TEST_F(PermissionsPolicyParserTest, HistogramMultiple) {
   const char* histogram_name = "Blink.UseCounter.FeaturePolicy.Header";
-  HistogramTester tester;
+  base::HistogramTester tester;
   PolicyParserMessageBuffer logger;
 
   // If the same feature is listed multiple times, it should only be counted
@@ -1042,17 +1255,14 @@ class FeaturePolicyMutationTest : public testing::Test {
   ParsedPermissionsPolicy test_policy = {
       {mojom::blink::PermissionsPolicyFeature::kFullscreen,
        /*allowed_origins=*/
-       {blink::OriginWithPossibleWildcards(url_origin_a_,
-                                           /*has_subdomain_wildcard=*/false),
-        blink::OriginWithPossibleWildcards(url_origin_b_,
-                                           /*has_subdomain_wildcard=*/false)},
+       {*blink::OriginWithPossibleWildcards::FromOrigin(url_origin_a_),
+        *blink::OriginWithPossibleWildcards::FromOrigin(url_origin_b_)},
        /*self_if_matches=*/absl::nullopt,
        /*matches_all_origins=*/false,
        /*matches_opaque_src=*/false},
       {mojom::blink::PermissionsPolicyFeature::kGeolocation,
        /*=allowed_origins*/
-       {blink::OriginWithPossibleWildcards(url_origin_a_,
-                                           /*has_subdomain_wildcard=*/false)},
+       {*blink::OriginWithPossibleWildcards::FromOrigin(url_origin_a_)},
        /*self_if_matches=*/absl::nullopt,
        /*matches_all_origins=*/false,
        /*matches_opaque_src=*/false}};

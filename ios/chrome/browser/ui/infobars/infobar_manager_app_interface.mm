@@ -7,15 +7,12 @@
 #import "components/infobars/core/infobar_manager.h"
 #import "ios/chrome/app/main_controller.h"
 #import "ios/chrome/browser/infobars/infobar_manager_impl.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/ui/infobars/test_infobar_delegate.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @implementation InfobarManagerAppInterface
 
@@ -27,7 +24,7 @@
       interface.browser->GetWebStateList()->GetActiveWebState();
   infobars::InfoBarManager* manager =
       InfoBarManagerImpl::FromWebState(webState);
-  return totalInfobars == (NSInteger)manager->infobar_count();
+  return totalInfobars == (NSInteger)manager->infobars().size();
 }
 
 + (BOOL)addTestInfoBarToCurrentTabWithMessage:(NSString*)message {

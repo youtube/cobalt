@@ -78,6 +78,10 @@ class RendererStartupHelper : public KeyedService,
                                  const GURL& url,
                                  const std::u16string& url_title,
                                  int32_t call_type) override;
+  void WakeEventPage(const std::string& extension_id,
+                     WakeEventPageCallback callback) override;
+  void GetMessageBundle(const std::string& extension_id,
+                        GetMessageBundleCallback callback) override;
 
   // Sends a message to the specified |process| activating the given extension
   // once the process is initialized. OnExtensionLoaded should have already been
@@ -95,10 +99,11 @@ class RendererStartupHelper : public KeyedService,
   // Sends a message to all renderers to update the developer mode.
   void OnDeveloperModeChanged(bool in_developer_mode);
 
-  // Sets the user script world CSP for the given `extension` in all applicable
-  // renderers.
-  void SetUserScriptWorldCsp(const Extension& extension,
-                             const std::string& csp);
+  // Sets properties for the user script world CSP for the given `extension`
+  // in all applicable renderers.
+  void SetUserScriptWorldProperties(const Extension& extension,
+                                    absl::optional<std::string> csp,
+                                    bool enable_messaging);
 
   // Returns mojom::Renderer* corresponding to |process|. This would return
   // nullptr when it's called before |process| is inserted to
@@ -174,7 +179,7 @@ class RendererStartupHelperFactory : public BrowserContextKeyedServiceFactory {
   ~RendererStartupHelperFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
   content::BrowserContext* GetBrowserContextToUse(
       content::BrowserContext* context) const override;

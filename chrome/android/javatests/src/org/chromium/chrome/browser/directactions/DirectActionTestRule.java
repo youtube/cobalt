@@ -16,9 +16,7 @@ import org.chromium.chrome.test.ChromeActivityTestRule;
 
 import java.util.function.Consumer;
 
-/**
- * Enables direct actions in an activity started by a {@link ChromeActivityTestRule}.
- */
+/** Enables direct actions in an activity started by a {@link ChromeActivityTestRule}. */
 public class DirectActionTestRule implements TestRule {
     /**
      * A concrete implementation of DirectActionCoordinator, based on {@link
@@ -27,8 +25,7 @@ public class DirectActionTestRule implements TestRule {
     private DirectActionCoordinator mCoordinator;
 
     /** Returns the coordinator created by the rule. */
-    @Nullable
-    public DirectActionCoordinator getCoordinator() {
+    public @Nullable DirectActionCoordinator getCoordinator() {
         return mCoordinator;
     }
 
@@ -44,18 +41,20 @@ public class DirectActionTestRule implements TestRule {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                mCoordinator = new DirectActionCoordinator() {
-                    @Override
-                    protected DirectActionReporter createReporter(Consumer callback) {
-                        return new FakeDirectActionReporter(callback);
-                    }
-                };
-                AppHooks.setInstanceForTesting(new AppHooksImpl() {
-                    @Override
-                    public DirectActionCoordinator createDirectActionCoordinator() {
-                        return mCoordinator;
-                    }
-                });
+                mCoordinator =
+                        new DirectActionCoordinator() {
+                            @Override
+                            protected DirectActionReporter createReporter(Consumer callback) {
+                                return new FakeDirectActionReporter(callback);
+                            }
+                        };
+                AppHooks.setInstanceForTesting(
+                        new AppHooksImpl() {
+                            @Override
+                            public DirectActionCoordinator createDirectActionCoordinator() {
+                                return mCoordinator;
+                            }
+                        });
                 try {
                     base.evaluate();
                 } finally {

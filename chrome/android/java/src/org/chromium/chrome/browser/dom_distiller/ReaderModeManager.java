@@ -229,7 +229,7 @@ public class ReaderModeManager extends EmptyTabObserver implements UserData {
         mCustomTabNavigationDelegate = new InterceptNavigationDelegate() {
             @Override
             public boolean shouldIgnoreNavigation(NavigationHandle navigationHandle,
-                    GURL escapedUrl, boolean crossFrame, boolean isSandboxedFrame) {
+                    GURL escapedUrl, boolean hiddenCrossFrame, boolean isSandboxedFrame) {
                 if (DomDistillerUrlUtils.isDistilledPage(navigationHandle.getUrl())
                         || navigationHandle.isExternalProtocol()) {
                     return false;
@@ -373,8 +373,7 @@ public class ReaderModeManager extends EmptyTabObserver implements UserData {
     public void recordDismissalConditions(@DismissReason int dismissReason) {
         if (mTab == null) return;
 
-        Profile profile = Profile.fromWebContents(mTab.getWebContents());
-        if (profile == null) return;
+        Profile profile = mTab.getProfile();
         boolean a11ySettingSelected =
                 UserPrefs.get(profile).getBoolean(Pref.READER_FOR_ACCESSIBILITY);
 
@@ -495,7 +494,7 @@ public class ReaderModeManager extends EmptyTabObserver implements UserData {
         if (mTab == null || mTab.getWebContents() == null) return;
 
         // If a reader mode button will be shown on the toolbar then don't show a message.
-        if (AdaptiveToolbarFeatures.isReaderModePageActionEnabled()) return;
+        if (AdaptiveToolbarFeatures.isReaderModePageActionEnabled() && !mTab.isCustomTab()) return;
 
         // Test if the user is requesting the desktop site. Ignore this if distiller is set to
         // ALWAYS_TRUE.
@@ -667,8 +666,7 @@ public class ReaderModeManager extends EmptyTabObserver implements UserData {
         // Add the parent ID as an intent extra for back button functionality.
         customTabsIntent.intent.putExtra(EXTRA_READER_MODE_PARENT, mTab.getId());
 
-        // Use Incognito CCT if the source page is in Incognito mode. This is gated by
-        // flag ChromeFeatureList.CCT_INCOGNITO.
+        // Use Incognito CCT if the source page is in Incognito mode.
         if (mTab.isIncognito()) {
             IncognitoCustomTabIntentDataProvider.addIncognitoExtrasForChromeFeatures(
                     customTabsIntent.intent, IntentHandler.IncognitoCCTCallerId.READER_MODE);
@@ -713,12 +711,10 @@ public class ReaderModeManager extends EmptyTabObserver implements UserData {
         return mDistillationStatus;
     }
 
-    @VisibleForTesting
     void muteSiteForTesting(GURL url) {
         sMutedSites.add(urlToHash(url));
     }
 
-    @VisibleForTesting
     void clearSavedSitesForTesting() {
         sMutedSites.clear();
     }

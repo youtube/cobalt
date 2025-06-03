@@ -26,6 +26,10 @@ dictionary AuctionAdInterestGroup {
   required USVString owner;
   required USVString name;
 
+  // TODO(crbug.com/1451034): Make required once support for old
+  // joinAdInterestGroup() duration parameter can be removed.
+  double lifetimeMs;
+
   double priority;
   boolean enableBiddingSignalsPrioritization;
   record<DOMString, double> priorityVector;
@@ -36,12 +40,24 @@ dictionary AuctionAdInterestGroup {
   // API users.
   record<USVString, sequence<DOMString>> sellerCapabilities;
   DOMString executionMode;
+  USVString biddingLogicURL;
+
+  [ImplementedAs=biddingLogicUrlDeprecated]
   USVString biddingLogicUrl;
+  USVString biddingWasmHelperURL;
+
+  [ImplementedAs=biddingWasmHelperUrlDeprecated]
   USVString biddingWasmHelperUrl;
+  USVString updateURL;
+
+  [ImplementedAs=updateUrlDeprecated]
   USVString updateUrl;
   // TODO(https://crbug.com/1420080): Remove this deprecated field, in favor of
   // `updateUrl` above.
-  [DeprecateAs=InterestGroupDailyUpdateUrl] USVString dailyUpdateUrl;
+  [DeprecateAs=DeprecatedInterestGroupDailyUpdateUrl] USVString dailyUpdateUrl;
+  USVString trustedBiddingSignalsURL;
+
+  [ImplementedAs=trustedBiddingSignalsUrlDeprecated]
   USVString trustedBiddingSignalsUrl;
   sequence<USVString> trustedBiddingSignalsKeys;
   any userBiddingSignals;
@@ -49,4 +65,10 @@ dictionary AuctionAdInterestGroup {
   sequence<AuctionAd> adComponents;
   record<DOMString, AuctionAdInterestGroupSize> adSizes;
   record<DOMString, sequence<DOMString>> sizeGroups;
+
+  sequence<DOMString> auctionServerRequestFlags;
+
+  DOMString additionalBidKey;
+
+  ProtectedAudiencePrivateAggregationConfig privateAggregationConfig;
 };

@@ -11,6 +11,7 @@
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/keep_alive_handle.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/keep_alive_handle_factory.mojom-blink.h"
+#include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_fetcher.h"
@@ -40,7 +41,7 @@ class CORE_EXPORT LoaderFactoryForFrame final
       scoped_refptr<base::SingleThreadTaskRunner>,
       scoped_refptr<base::SingleThreadTaskRunner>,
       BackForwardCacheLoaderHelper*) override;
-  std::unique_ptr<WebCodeCacheLoader> CreateCodeCacheLoader() override;
+  CodeCacheHost* GetCodeCacheHost() override;
 
  private:
   void IssueKeepAliveHandleIfRequested(
@@ -52,6 +53,7 @@ class CORE_EXPORT LoaderFactoryForFrame final
   const Member<LocalDOMWindow> window_;
   const Member<PrefetchedSignedExchangeManager>
       prefetched_signed_exchange_manager_;
+  std::unique_ptr<WebURLLoaderThrottleProviderForFrame> throttle_provider_;
   HeapMojoRemote<mojom::blink::KeepAliveHandleFactory>
       keep_alive_handle_factory_;
 };

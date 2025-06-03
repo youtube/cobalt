@@ -7,7 +7,6 @@
 
 #include <vector>
 
-#import "base/mac/scoped_nsobject.h"
 #include "base/memory/weak_ptr.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "gpu/ipc/service/image_transport_surface.h"
@@ -16,6 +15,13 @@
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/presenter.h"
+
+// Put ui/display/mac/display_link_mac.h after ui/gl/gl_xxx.h. There is a
+// conflict between macOS sdk gltypes.h and third_party/mesa_headers/GL/glext.h.
+#if BUILDFLAG(IS_MAC)
+#include "ui/display/mac/display_link_mac.h"
+#include "ui/display/types/display_constants.h"
+#endif
 
 @class CAContext;
 @class CALayer;
@@ -33,9 +39,6 @@ namespace gpu {
 
 class ImageTransportSurfaceOverlayMacEGL : public gl::Presenter {
  public:
-  using VSyncCallback =
-      base::RepeatingCallback<void(base::TimeTicks, base::TimeDelta)>;
-
   ImageTransportSurfaceOverlayMacEGL(
       base::WeakPtr<ImageTransportSurfaceDelegate> delegate);
 
@@ -56,10 +59,12 @@ class ImageTransportSurfaceOverlayMacEGL : public gl::Presenter {
 
   void SetCALayerErrorCode(gfx::CALayerResult ca_layer_error_code) override;
 
+#if BUILDFLAG(IS_MAC)
   // GLSurface override
-  bool SupportsGpuVSync() const override;
-  void SetGpuVSyncEnabled(bool enabled) override;
   void SetVSyncDisplayID(int64_t display_id) override;
+
+  void OnVSyncPresentation(ui::VSyncParamsMac params);
+#endif
 
  private:
   ~ImageTransportSurfaceOverlayMacEGL() override;
@@ -70,11 +75,12 @@ class ImageTransportSurfaceOverlayMacEGL : public gl::Presenter {
   void ApplyBackpressure();
   void BufferPresented(gl::GLSurface::PresentationCallback callback,
                        const gfx::PresentationFeedback& feedback);
+  void PopulateCALayerParameters();
 
   base::WeakPtr<ImageTransportSurfaceDelegate> delegate_;
 
   const bool use_remote_layer_api_;
-  base::scoped_nsobject<CAContext> ca_context_;
+  CAContext* __strong ca_context_;
   std::unique_ptr<ui::CALayerTreeCoordinator> ca_layer_tree_coordinator_;
 
   gfx::Size pixel_size_;
@@ -85,8 +91,19 @@ class ImageTransportSurfaceOverlayMacEGL : public gl::Presenter {
   // backpressure.
   uint64_t previous_frame_fence_ = 0;
 
-  const VSyncCallback vsync_callback_;
-  bool gpu_vsync_enabled_ = false;
+#if BUILDFLAG(IS_MAC)
+  // CGDirectDisplayID of the current monitor used for Creating CVDisplayLink.
+  int64_t display_id_ = display::kInvalidDisplayId;
+  scoped_refptr<ui::DisplayLinkMac> display_link_mac_;
+  std::unique_ptr<ui::VSyncCallbackMac> vsync_callback_mac_;
+#endif
+
+  SwapCompletionCallback completion_callback_;
+  PresentationCallback presentation_callback_;
+  // The number of CALayerTree that is committed but not yet populated. This
+  // number is increased in Present() and decreased in
+  // PopulateCALayerParameters();
+  int num_committed_ca_layer_trees_ = 0;
 
   base::WeakPtrFactory<ImageTransportSurfaceOverlayMacEGL> weak_ptr_factory_;
 };

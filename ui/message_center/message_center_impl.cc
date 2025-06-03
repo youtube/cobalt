@@ -78,6 +78,7 @@ void MessageCenterImpl::AddNotificationBlocker(NotificationBlocker* blocker) {
 
   blocker->AddObserver(this);
   blockers_.push_back(blocker);
+  OnBlockingStateChanged(blocker);
 }
 
 void MessageCenterImpl::RemoveNotificationBlocker(
@@ -89,6 +90,7 @@ void MessageCenterImpl::RemoveNotificationBlocker(
   }
   blocker->RemoveObserver(this);
   blockers_.erase(iter);
+  OnBlockingStateChanged(blocker);
 }
 
 void MessageCenterImpl::OnBlockingStateChanged(NotificationBlocker* blocker) {
@@ -152,6 +154,15 @@ void MessageCenterImpl::SetNotificationExpandState(
   notification_list_->SetNotificationExpandState(id, expand_state);
 }
 
+void MessageCenterImpl::OnSetExpanded(const std::string& id, bool expanded) {
+  scoped_refptr<NotificationDelegate> delegate =
+      notification_list_->GetNotificationDelegate(id);
+
+  if (delegate) {
+    delegate->ExpandStateChanged(expanded);
+  }
+}
+
 void MessageCenterImpl::SetHasMessageCenterView(bool has_message_center_view) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   has_message_center_view_ = has_message_center_view;
@@ -193,21 +204,53 @@ Notification* MessageCenterImpl::FindParentNotification(
   // the same website for the same user. Also make sure to only group
   // notifications from web pages with valid origin urls. For system
   // notifications, currently we only group privacy indicators notification.
+  // For ARC notifications, only group them when the flag
+  // IsRenderArcNotificationsByChromeEnabled() is enabled.
   bool is_privacy_indicators_notification = false;
+  bool render_arc_notifications_by_chrome = false;
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   is_privacy_indicators_notification =
       notification->notifier_id().id == ash::kPrivacyIndicatorsNotifierId;
+  render_arc_notifications_by_chrome =
+      ash::features::IsRenderArcNotificationsByChromeEnabled();
 #endif
 
   if (!is_privacy_indicators_notification &&
       (notification->origin_url().is_empty() ||
-       notification->notifier_id().type != NotifierType::WEB_PAGE)) {
+       notification->notifier_id().type != NotifierType::WEB_PAGE) &&
+      notification->notifier_id().type != NotifierType::ARC_APPLICATION) {
     return nullptr;
   }
 
   NotificationList::Notifications notifications =
       notification_list_->GetNotificationsByNotifierId(
           notification->notifier_id());
+
+  // Handle ARC notification grouping in Chrome
+  if (notification->notifier_id().type == NotifierType::ARC_APPLICATION) {
+    // If render_arc_notifications_by_chrome flag is not enabled,
+    // use Android grouping and do not apply grouping rules from the chrome
+    // side.
+    if (!render_arc_notifications_by_chrome) {
+      return nullptr;
+    }
+
+    // To stay consistent with Android, ARC notifications with group key
+    // are grouped using notifier_id() where id and group keys are checked.
+    // For ARC notifications without a group key,
+    // only group them when there are more than 4 notifications
+    if (!notification->notifier_id().group_key.has_value()) {
+      if (notifications.size() < 4) {
+        return nullptr;
+      }
+      for (auto* n : notifications) {
+        if (n->group_parent() || n->group_child()) {
+          continue;
+        }
+        n->SetGroupChild();
+      }
+    }
+  }
 
   auto parent_notification_it = base::ranges::find_if(
       notifications,
@@ -331,9 +374,8 @@ void MessageCenterImpl::UpdateNotification(
   }
 
   auto* old_notification = notification_list_->GetNotificationById(old_id);
-  if (old_notification) {
-    DCHECK(old_notification->notifier_id() == new_notification->notifier_id());
-
+  if (old_notification &&
+      old_notification->notifier_id() == new_notification->notifier_id()) {
     // Copy grouping metadata to the new notification.
     if (old_notification->group_parent()) {
       new_notification->SetGroupParent();
@@ -562,6 +604,17 @@ void MessageCenterImpl::ClickOnSettingsButton(const std::string& id) {
   }
 }
 
+void MessageCenterImpl::ClickOnSnoozeButton(const std::string& id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  Notification* notification = notification_list_->GetNotificationById(id);
+
+  bool handled_by_delegate =
+      notification && notification_list_->GetNotificationDelegate(id);
+  if (handled_by_delegate) {
+    notification->delegate()->SnoozeButtonClicked();
+  }
+}
+
 void MessageCenterImpl::DisableNotification(const std::string& id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Notification* notification = notification_list_->GetNotificationById(id);
@@ -575,7 +628,7 @@ void MessageCenterImpl::DisableNotification(const std::string& id) {
 void MessageCenterImpl::MarkSinglePopupAsShown(const std::string& id,
                                                bool mark_notification_as_read) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (!FindVisibleNotificationById(id)) {
+  if (!FindNotificationById(id)) {
     return;
   }
 
@@ -627,15 +680,22 @@ void MessageCenterImpl::DisplayedNotification(const std::string& id,
   }
 }
 
-void MessageCenterImpl::SetQuietMode(bool in_quiet_mode) {
+void MessageCenterImpl::SetQuietMode(bool in_quiet_mode,
+                                     QuietModeSourceType type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (in_quiet_mode != notification_list_->quiet_mode()) {
+    last_quiet_mode_change_source_type_ = type;
     notification_list_->SetQuietMode(in_quiet_mode);
     for (MessageCenterObserver& observer : observer_list_) {
       observer.OnQuietModeChanged(in_quiet_mode);
     }
   }
   quiet_mode_timer_.Stop();
+}
+
+QuietModeSourceType MessageCenterImpl::GetLastQuietModeChangeSourceType()
+    const {
+  return last_quiet_mode_change_source_type_;
 }
 
 void MessageCenterImpl::SetSpokenFeedbackEnabled(bool enabled) {
@@ -654,9 +714,10 @@ void MessageCenterImpl::EnterQuietModeWithExpire(
   }
 
   // This will restart the timer if it is already running.
-  quiet_mode_timer_.Start(FROM_HERE, expires_in,
-                          base::BindOnce(&MessageCenterImpl::SetQuietMode,
-                                         base::Unretained(this), false));
+  quiet_mode_timer_.Start(
+      FROM_HERE, expires_in,
+      base::BindOnce(&MessageCenterImpl::SetQuietMode, base::Unretained(this),
+                     false, QuietModeSourceType::kUserAction));
 }
 
 void MessageCenterImpl::RestartPopupTimers() {

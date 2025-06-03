@@ -9,58 +9,37 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
+#include "components/android_autofill/browser/android_autofill_bridge_factory.h"
+#include "components/android_autofill/browser/android_autofill_features.h"
 #include "components/android_autofill/browser/android_autofill_manager.h"
+#include "components/android_autofill/browser/autofill_provider_android_bridge.h"
 #include "components/android_autofill/browser/form_data_android.h"
-#include "components/android_autofill/browser/jni_headers/AutofillProvider_jni.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 #include "ui/gfx/geometry/rect_f.h"
 
-using base::android::AttachCurrentThread;
-using base::android::ConvertJavaStringToUTF16;
-using base::android::ConvertUTF16ToJavaString;
-using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
-using base::android::JavaRef;
-using base::android::ScopedJavaLocalRef;
-using base::android::ToJavaArrayOfStrings;
-using content::BrowserThread;
-using content::WebContents;
-using gfx::RectF;
-
 namespace autofill {
 
+using base::android::JavaRef;
+using content::BrowserThread;
 using mojom::SubmissionSource;
+using FieldInfo = AutofillProviderAndroidBridge::FieldInfo;
 
-static jlong JNI_AutofillProvider_Init(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
-    const JavaParamRef<jobject>& jweb_contents) {
-  auto* web_contents = content::WebContents::FromJavaWebContents(jweb_contents);
-  DCHECK(web_contents);
-  auto* provider = AutofillProvider::FromWebContents(web_contents);
-  if (provider) {
-    static_cast<AutofillProviderAndroid*>(provider)
-        ->AttachToJavaAutofillProvider(env, jcaller);
-    return reinterpret_cast<intptr_t>(provider);
-  }
-  return reinterpret_cast<intptr_t>(
-      AutofillProviderAndroid::Create(env, jcaller, web_contents));
-}
-
-// Static
-AutofillProviderAndroid* AutofillProviderAndroid::Create(
-    JNIEnv* env,
-    const JavaRef<jobject>& jcaller,
+// static
+void AutofillProviderAndroid::CreateForWebContents(
     content::WebContents* web_contents) {
-  DCHECK(!FromWebContents(web_contents));
-  // This object is owned by WebContents.
-  return new AutofillProviderAndroid(env, jcaller, web_contents);
+  if (!FromWebContents(web_contents)) {
+    web_contents->SetUserData(
+        UserDataKey(),
+        base::WrapUnique(new AutofillProviderAndroid(web_contents)));
+  }
 }
 
 AutofillProviderAndroid* AutofillProviderAndroid::FromWebContents(
@@ -70,33 +49,49 @@ AutofillProviderAndroid* AutofillProviderAndroid::FromWebContents(
 }
 
 AutofillProviderAndroid::AutofillProviderAndroid(
-    JNIEnv* env,
-    const JavaRef<jobject>& jcaller,
     content::WebContents* web_contents)
     : AutofillProvider(web_contents),
-      java_ref_(JavaObjectWeakGlobalRef(env, jcaller)),
-      check_submission_(false) {}
+      content::WebContentsObserver(web_contents),
+      bridge_(AndroidAutofillBridgeFactory::GetInstance()
+                  .CreateAutofillProviderAndroidBridge(/*delegate=*/this)) {}
 
-AutofillProviderAndroid::~AutofillProviderAndroid() {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
-  // Remove the reference to this object on the Java side.
-  Java_AutofillProvider_setNativeAutofillProvider(env, obj, 0);
-}
+AutofillProviderAndroid::~AutofillProviderAndroid() = default;
 
 void AutofillProviderAndroid::AttachToJavaAutofillProvider(
     JNIEnv* env,
     const JavaRef<jobject>& jcaller) {
-  DCHECK(java_ref_.get(env).is_null());
-  java_ref_ = JavaObjectWeakGlobalRef(env, jcaller);
+  bridge_->AttachToJavaAutofillProvider(env, jcaller);
 }
 
-void AutofillProviderAndroid::DetachFromJavaAutofillProvider(JNIEnv* env) {
-  // Reset the reference to Java peer.
-  java_ref_.reset();
+void AutofillProviderAndroid::RenderFrameDeleted(
+    content::RenderFrameHost* rfh) {
+  // If the popup menu has been triggered from within an iframe and that frame
+  // is deleted, hide the popup. This is necessary because the popup may
+  // actually be shown by the AutofillExternalDelegate of an ancestor frame,
+  // which is not notified about `rfh`'s destruction and therefore won't close
+  // the popup.
+  if (manager_ && last_queried_field_rfh_id_ == rfh->GetGlobalId()) {
+    OnHidePopup(manager_.get());
+    last_queried_field_rfh_id_ = {};
+  }
+}
+
+void AutofillProviderAndroid::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (manager_ &&
+      last_queried_field_rfh_id_ ==
+          navigation_handle->GetPreviousRenderFrameHostId() &&
+      !navigation_handle->IsSameDocument()) {
+    OnHidePopup(manager_.get());
+    last_queried_field_rfh_id_ = {};
+  }
+}
+
+void AutofillProviderAndroid::OnVisibilityChanged(
+    content::Visibility visibility) {
+  if (visibility == content::Visibility::HIDDEN && manager_) {
+    OnHidePopup(manager_.get());
+  }
 }
 
 void AutofillProviderAndroid::OnAskForValuesToFill(
@@ -104,117 +99,84 @@ void AutofillProviderAndroid::OnAskForValuesToFill(
     const FormData& form,
     const FormFieldData& field,
     const gfx::RectF& bounding_box,
-    AutoselectFirstSuggestion /*unused_autoselect_first_suggestion*/,
-    FormElementWasClicked /*unused_form_element_was_clicked*/) {
+    AutofillSuggestionTriggerSource /*unused_trigger_source*/) {
   // The id isn't passed to Java side because Android API guarantees the
   // response is always for current session, so we just use the current id
   // in response, see OnAutofillAvailable.
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
+  static_cast<ContentAutofillDriver&>(manager->driver())
+      .render_frame_host()
+      ->ForEachRenderFrameHost([this, &field](content::RenderFrameHost* rfh) {
+        LocalFrameToken frame_token(rfh->GetFrameToken().value());
+        if (frame_token == field.host_frame) {
+          last_queried_field_rfh_id_ = rfh->GetGlobalId();
+        }
+      });
+
   // Focus or field value change will also trigger the query, so it should be
   // ignored if the form is same.
-  if (ShouldStartNewSession(manager, form))
+  if (!IsCurrentlyLinkedForm(form)) {
     StartNewSession(manager, form, field, bounding_box);
-
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
-  if (!field.datalist_values.empty()) {
-    ScopedJavaLocalRef<jobjectArray> jdatalist_values =
-        ToJavaArrayOfStrings(env, field.datalist_values);
-    ScopedJavaLocalRef<jobjectArray> jdatalist_labels =
-        ToJavaArrayOfStrings(env, field.datalist_labels);
-    Java_AutofillProvider_showDatalistPopup(
-        env, obj, jdatalist_values, jdatalist_labels,
-        field.text_direction == base::i18n::RIGHT_TO_LEFT);
   }
-}
 
-bool AutofillProviderAndroid::ShouldStartNewSession(
-    AndroidAutofillManager* manager,
-    const FormData& form) {
-  // Only start a new session when form or manager is changed, the change of
-  // manager indicates query from other frame and a new session is needed.
-  return !IsCurrentlyLinkedForm(form) || !IsCurrentlyLinkedManager(manager);
+  if (field.datalist_options.empty()) {
+    return;
+  }
+  bridge_->ShowDatalistPopup(field.datalist_options,
+                             field.text_direction == base::i18n::RIGHT_TO_LEFT);
 }
 
 void AutofillProviderAndroid::StartNewSession(AndroidAutofillManager* manager,
                                               const FormData& form,
                                               const FormFieldData& field,
                                               const gfx::RectF& bounding_box) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
   form_ = std::make_unique<FormDataAndroid>(form);
+  FieldInfo field_info;
+  if (!form_->GetFieldIndex(field, &field_info.index)) {
+    Reset();
+    return;
+  }
+
   field_id_ = field.global_id();
   field_type_group_ = manager->ComputeFieldTypeGroupForField(form, field);
   triggered_origin_ = field.origin;
-
-  size_t index;
-  if (!form_->GetFieldIndex(field, &index)) {
-    form_.reset();
-    field_id_ = {};
-    field_type_group_ = FieldTypeGroup::kNoGroup;
-    triggered_origin_ = {};
-    return;
-  }
-
-  FormStructure* form_structure = nullptr;
-  AutofillField* autofill_field = nullptr;
-  if (!manager->GetCachedFormAndField(form, field, &form_structure,
-                                      &autofill_field)) {
-    form_structure = nullptr;
-  }
-  gfx::RectF transformed_bounding = ToClientAreaBound(bounding_box);
-
-  ScopedJavaLocalRef<jobject> form_obj = form_->GetJavaPeer(form_structure);
+  check_submission_ = false;
   manager_ = manager->GetWeakPtrToLeafClass();
-  Java_AutofillProvider_startAutofillSession(
-      env, obj, form_obj, index, transformed_bounding.x(),
-      transformed_bounding.y(), transformed_bounding.width(),
-      transformed_bounding.height(), manager->has_server_prediction());
+
+  // Set the field type predictions in `form_`.
+  if (FormStructure* form_structure =
+          manager->FindCachedFormById(form.global_id())) {
+    form_->UpdateFieldTypes(*form_structure);
+  }
+  field_info.bounds = ToClientAreaBound(bounding_box);
+  bridge_->StartAutofillSession(
+      *form_, field_info, manager->has_server_prediction(form.global_id()));
 }
 
-void AutofillProviderAndroid::OnAutofillAvailable(JNIEnv* env,
-                                                  jobject jcaller,
-                                                  jobject formData) {
+void AutofillProviderAndroid::OnAutofillAvailable() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (manager_ && form_) {
     form_->UpdateFromJava();
-    const FormData& form = form_->form();
-
-    FillOrPreviewForm(manager_.get(), form, field_type_group_,
+    FillOrPreviewForm(manager_.get(), form_->form(), field_type_group_,
                       triggered_origin_);
   }
 }
 
-void AutofillProviderAndroid::OnAcceptDataListSuggestion(JNIEnv* env,
-                                                         jobject jcaller,
-                                                         jstring value) {
+void AutofillProviderAndroid::OnAcceptDatalistSuggestion(
+    const std::u16string& value) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (auto* manager = manager_.get()) {
-    RendererShouldAcceptDataListSuggestion(
-        manager, field_id_, ConvertJavaStringToUTF16(env, value));
+    RendererShouldAcceptDataListSuggestion(manager, field_id_, value);
   }
 }
 
-void AutofillProviderAndroid::SetAnchorViewRect(JNIEnv* env,
-                                                jobject jcaller,
-                                                jobject anchor_view,
-                                                jfloat x,
-                                                jfloat y,
-                                                jfloat width,
-                                                jfloat height) {
-  ui::ViewAndroid* view_android = web_contents()->GetNativeView();
-  if (!view_android)
-    return;
-
-  view_android->SetAnchorRect(ScopedJavaLocalRef<jobject>(env, anchor_view),
-                              gfx::RectF(x, y, width, height));
+void AutofillProviderAndroid::SetAnchorViewRect(
+    const base::android::JavaRef<jobject>& anchor,
+    const gfx::RectF& bounds) {
+  if (ui::ViewAndroid* view_android = web_contents()->GetNativeView()) {
+    view_android->SetAnchorRect(anchor, bounds);
+  }
 }
 
 void AutofillProviderAndroid::OnTextFieldDidChange(
@@ -223,7 +185,7 @@ void AutofillProviderAndroid::OnTextFieldDidChange(
     const FormFieldData& field,
     const gfx::RectF& bounding_box,
     const base::TimeTicks timestamp) {
-  FireFormFieldDidChanged(manager, form, field, bounding_box);
+  MaybeFireFormFieldDidChange(manager, form, field, bounding_box);
 }
 
 void AutofillProviderAndroid::OnTextFieldDidScroll(
@@ -232,21 +194,18 @@ void AutofillProviderAndroid::OnTextFieldDidScroll(
     const FormFieldData& field,
     const gfx::RectF& bounding_box) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  size_t index;
-  if (!IsCurrentlyLinkedManager(manager) || !IsCurrentlyLinkedForm(form) ||
-      !form_->GetSimilarFieldIndex(field, &index))
+  FieldInfo field_info;
+  if (!IsCurrentlyLinkedForm(form) ||
+      !form_->GetSimilarFieldIndex(field, &field_info.index)) {
     return;
+  }
 
-  form_->OnFormFieldDidChange(index, field.value);
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
+  // TODO(crbug.com/1478934): Investigate whether the update of the value
+  // is needed - why would it have changed?
+  form_->OnFormFieldDidChange(field_info.index, field.value);
 
-  gfx::RectF transformed_bounding = ToClientAreaBound(bounding_box);
-  Java_AutofillProvider_onTextFieldDidScroll(
-      env, obj, index, transformed_bounding.x(), transformed_bounding.y(),
-      transformed_bounding.width(), transformed_bounding.height());
+  field_info.bounds = ToClientAreaBound(bounding_box);
+  bridge_->OnTextFieldDidScroll(field_info);
 }
 
 void AutofillProviderAndroid::OnSelectControlDidChange(
@@ -254,19 +213,16 @@ void AutofillProviderAndroid::OnSelectControlDidChange(
     const FormData& form,
     const FormFieldData& field,
     const gfx::RectF& bounding_box) {
-  if (ShouldStartNewSession(manager, form))
+  if (!IsCurrentlyLinkedForm(form)) {
     StartNewSession(manager, form, field, bounding_box);
-  FireFormFieldDidChanged(manager, form, field, bounding_box);
+    // TODO(crbug.com/1478934): Return early at this point?
+  }
+  MaybeFireFormFieldDidChange(manager, form, field, bounding_box);
 }
 
 void AutofillProviderAndroid::FireSuccessfulSubmission(
     SubmissionSource source) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
-  Java_AutofillProvider_onFormSubmitted(env, obj, (int)source);
+  bridge_->OnFormSubmitted(source);
   Reset();
 }
 
@@ -275,8 +231,25 @@ void AutofillProviderAndroid::OnFormSubmitted(AndroidAutofillManager* manager,
                                               bool known_success,
                                               SubmissionSource source) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!IsCurrentlyLinkedManager(manager) || !IsCurrentlyLinkedForm(form))
+  if (!IsCurrentlyLinkedManager(manager) || !form_) {
     return;
+  }
+
+  // In the case of form submissions, we want to perform less strict form
+  // comparisons than for other form events (focus change, scroll change, etc.):
+  // Even if the page modifies the form between the user interaction and the
+  // form submission, we want to inform `AutofillManager` about the submission.
+  // Otherwise no saving prompt can be offered.
+  if (base::FeatureList::IsEnabled(
+          features::kAndroidAutofillFormSubmissionCheckById)) {
+    if (form_->form().global_id() != form.global_id()) {
+      return;
+    }
+  } else {
+    if (!form_->SimilarFormAs(form)) {
+      return;
+    }
+  }
 
   if (known_success || source == SubmissionSource::FORM_SUBMISSION) {
     FireSuccessfulSubmission(source);
@@ -291,10 +264,11 @@ void AutofillProviderAndroid::OnFocusNoLongerOnForm(
     AndroidAutofillManager* manager,
     bool had_interacted_form) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!IsCurrentlyLinkedManager(manager))
+  if (!IsCurrentlyLinkedManager(manager)) {
     return;
+  }
 
-  OnFocusChanged(false, 0, RectF());
+  bridge_->OnFocusChanged(absl::nullopt);
 }
 
 void AutofillProviderAndroid::OnFocusOnFormField(
@@ -304,49 +278,49 @@ void AutofillProviderAndroid::OnFocusOnFormField(
     const gfx::RectF& bounding_box) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  size_t index;
-  if (!IsCurrentlyLinkedManager(manager) || !IsCurrentlyLinkedForm(form) ||
-      !form_->GetSimilarFieldIndex(field, &index))
+  FieldInfo field_info;
+  if (!IsCurrentlyLinkedForm(form) ||
+      !form_->GetSimilarFieldIndex(field, &field_info.index)) {
     return;
+  }
 
-  OnFocusChanged(true, index, ToClientAreaBound(bounding_box));
+  field_info.bounds = ToClientAreaBound(bounding_box);
+  MaybeFireFormFieldVisibilitiesDidChange(manager, form);
+  bridge_->OnFocusChanged(field_info);
 }
 
-void AutofillProviderAndroid::OnFocusChanged(bool focus_on_form,
-                                             size_t index,
-                                             const gfx::RectF& bounding_box) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
-  Java_AutofillProvider_onFocusChanged(
-      env, obj, focus_on_form, index, bounding_box.x(), bounding_box.y(),
-      bounding_box.width(), bounding_box.height());
-}
-
-void AutofillProviderAndroid::FireFormFieldDidChanged(
+void AutofillProviderAndroid::MaybeFireFormFieldDidChange(
     AndroidAutofillManager* manager,
     const FormData& form,
     const FormFieldData& field,
     const gfx::RectF& bounding_box) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  size_t index;
-  if (!IsCurrentlyLinkedManager(manager) || !IsCurrentlyLinkedForm(form) ||
-      !form_->GetSimilarFieldIndex(field, &index))
+  FieldInfo field_info;
+  if (!IsCurrentlyLinkedForm(form) ||
+      !form_->GetSimilarFieldIndex(field, &field_info.index)) {
     return;
+  }
+  // Propagate the changed values to Java.
+  form_->OnFormFieldDidChange(field_info.index, field.value);
+  field_info.bounds = ToClientAreaBound(bounding_box);
+  bridge_->OnFormFieldDidChange(field_info);
+}
 
-  form_->OnFormFieldDidChange(index, field.value);
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
+void AutofillProviderAndroid::MaybeFireFormFieldVisibilitiesDidChange(
+    AndroidAutofillManager* manager,
+    const FormData& form) {
+  if (!IsCurrentlyLinkedForm(form) ||
+      !base::FeatureList::IsEnabled(
+          features::kAndroidAutofillSupportVisibilityChanges)) {
     return;
+  }
 
-  gfx::RectF transformed_bounding = ToClientAreaBound(bounding_box);
-  Java_AutofillProvider_onFormFieldDidChange(
-      env, obj, index, transformed_bounding.x(), transformed_bounding.y(),
-      transformed_bounding.width(), transformed_bounding.height());
+  std::vector<int> field_indices_with_change =
+      form_->UpdateFieldVisibilities(form);
+  if (field_indices_with_change.empty()) {
+    return;
+  }
+  bridge_->OnFormFieldVisibilitiesDidChange(field_indices_with_change);
 }
 
 void AutofillProviderAndroid::OnDidFillAutofillFormData(
@@ -354,46 +328,47 @@ void AutofillProviderAndroid::OnDidFillAutofillFormData(
     const FormData& form,
     base::TimeTicks timestamp) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (manager != manager_.get() || !IsCurrentlyLinkedForm(form))
+  if (manager != manager_.get() || !IsCurrentlyLinkedForm(form)) {
     return;
-
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-  if (obj.is_null())
-    return;
-
-  Java_AutofillProvider_onDidFillAutofillFormData(env, obj);
+  }
+  bridge_->OnDidFillAutofillFormData();
 }
 
 void AutofillProviderAndroid::OnHidePopup(AndroidAutofillManager* manager) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (manager == manager_.get()) {
-    JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-    if (obj.is_null())
-      return;
-
-    Java_AutofillProvider_hidePopup(env, obj);
+    bridge_->HideDatalistPopup();
   }
 }
 
 void AutofillProviderAndroid::OnServerPredictionsAvailable(
-    AndroidAutofillManager* manager) {
+    AndroidAutofillManager* manager_for_debugging,
+    FormGlobalId form) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (manager != manager_.get() || !form_.get())
+  if (!form_ || form_->form().global_id() != form) {
     return;
-
-  if (auto* form_structure =
-          manager_->FindCachedFormById(form_->form().global_id())) {
-    form_->UpdateFieldTypes(*form_structure);
-
-    JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-    if (obj.is_null())
-      return;
-
-    Java_AutofillProvider_onQueryDone(env, obj, /*success=*/true);
   }
+
+  if (!manager_) {
+    // TODO(crbug.com/1479006): This should never be reachable. Remove once it
+    // is clear how it can happen.
+    SCOPED_CRASH_KEY_STRING32("crbug1479006", "form_ token",
+                              form_->form().global_id().frame_token.ToString());
+    SCOPED_CRASH_KEY_STRING32("crbug1479006", "form token",
+                              form.frame_token.ToString());
+    SCOPED_CRASH_KEY_STRING32(
+        "crbug1479006", "manager token",
+        manager_for_debugging->driver().GetFrameToken().ToString());
+    base::debug::DumpWithoutCrashing();
+    return;
+  }
+
+  const FormStructure* form_structure = manager_->FindCachedFormById(form);
+  if (!form_structure) {
+    return;
+  }
+  form_->UpdateFieldTypes(*form_structure);
+  bridge_->OnServerPredictionQueryDone(/*success=*/true);
 }
 
 void AutofillProviderAndroid::OnServerQueryRequestError(
@@ -404,36 +379,29 @@ void AutofillProviderAndroid::OnServerQueryRequestError(
 
   if (auto* form_structure =
           manager_->FindCachedFormById(form_->form().global_id())) {
-    if (form_structure->form_signature() != form_signature)
+    if (form_structure->form_signature() != form_signature) {
       return;
+    }
 
-    JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-    if (obj.is_null())
-      return;
-
-    Java_AutofillProvider_onQueryDone(env, obj, /*success=*/false);
+    bridge_->OnServerPredictionQueryDone(/*success=*/false);
   }
 }
 
-void AutofillProviderAndroid::Reset(AndroidAutofillManager* manager) {
+void AutofillProviderAndroid::OnManagerResetOrDestroyed(
+    AndroidAutofillManager* manager) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (manager == manager_.get()) {
-    // If we previously received a notification from the renderer that the form
-    // was likely submitted and no event caused a reset of state in the interim,
-    // we consider this navigation to be resulting from the submission.
-    if (check_submission_ && form_.get())
-      FireSuccessfulSubmission(pending_submission_source_);
-
-    Reset();
-
-    JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
-    if (obj.is_null())
-      return;
-
-    Java_AutofillProvider_reset(env, obj);
+  if (!IsCurrentlyLinkedManager(manager)) {
+    return;
   }
+
+  // If we previously received a notification from the renderer that the form
+  // was likely submitted and no event caused a reset of state in the interim,
+  // we consider this navigation to be resulting from the submission.
+  if (check_submission_ && form_.get()) {
+    FireSuccessfulSubmission(pending_submission_source_);
+  }
+
+  Reset();
 }
 
 bool AutofillProviderAndroid::GetCachedIsAutofilled(
@@ -459,11 +427,17 @@ gfx::RectF AutofillProviderAndroid::ToClientAreaBound(
 }
 
 void AutofillProviderAndroid::Reset() {
-  form_.reset(nullptr);
+  manager_ = nullptr;
+  form_.reset();
   field_id_ = {};
   field_type_group_ = FieldTypeGroup::kNoGroup;
   triggered_origin_ = {};
   check_submission_ = false;
+
+  // This is a no-op if there is no datalist popup.
+  bridge_->HideDatalistPopup();
+  // TODO(crbug.com/1488233): Also send an unfocus event to make sure that the
+  // Autofill session is truly terminated.
 }
 
 }  // namespace autofill

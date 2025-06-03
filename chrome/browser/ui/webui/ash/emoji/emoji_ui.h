@@ -19,8 +19,11 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/webui/mojo_bubble_web_ui_controller.h"
+#include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 
-class Profile;
+namespace ui {
+class ColorChangeHandler;
+}  // namespace ui
 
 namespace ash {
 
@@ -43,7 +46,13 @@ class EmojiUI : public ui::MojoBubbleWebUIController,
   ~EmojiUI() override;
 
   static bool ShouldShow(const ui::TextInputClient* input_client);
-  static void Show(Profile* profile);
+  static void Show();
+
+  // Instantiates the implementor of the mojom::PageHandler mojo interface
+  // passing the pending receiver that will be internally bound.
+  void BindInterface(
+      mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
+          receiver);
 
   // Instantiates the implementor of the mojom::PageHandlerFactory mojo
   // interface passing the pending receiver that will be internally bound.
@@ -55,12 +64,13 @@ class EmojiUI : public ui::MojoBubbleWebUIController,
                              receiver) override;
 
  private:
+  std::unique_ptr<ui::ColorChangeHandler> color_provider_handler_;
   std::unique_ptr<EmojiPageHandler> page_handler_;
 
   mojo::Receiver<emoji_picker::mojom::PageHandlerFactory>
       page_factory_receiver_{this};
-  bool incognito_mode_;
-  bool no_text_field_;
+  bool incognito_mode_ = false;
+  bool no_text_field_ = false;
 
   WEB_UI_CONTROLLER_TYPE_DECL();
 };

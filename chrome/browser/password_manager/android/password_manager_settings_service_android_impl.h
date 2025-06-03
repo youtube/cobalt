@@ -15,7 +15,7 @@
 #include "chrome/browser/password_manager/android/password_settings_updater_android_receiver_bridge.h"
 #include "components/password_manager/core/browser/password_manager_settings_service.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 
 class PrefService;
 
@@ -32,7 +32,7 @@ class PasswordManagerSettingsServiceAndroidImpl
   PasswordManagerSettingsServiceAndroidImpl(PrefService* pref_service,
                                             syncer::SyncService* sync_service);
   PasswordManagerSettingsServiceAndroidImpl(
-      base::PassKey<class PasswordManagerSettingsServiceAndroidImplTest>,
+      base::PassKey<class PasswordManagerSettingsServiceAndroidImplBaseTest>,
       PrefService* pref_service,
       syncer::SyncService* sync_service,
       std::unique_ptr<
@@ -70,14 +70,12 @@ class PasswordManagerSettingsServiceAndroidImpl
   void OnSettingValueAbsent(
       password_manager::PasswordManagerSetting setting) override;
 
-  // Updates the non syncable, android-only prefs with the values of the
-  // syncable cross-platform prefs as the latter won't be used when UPM
-  // is up and running. There is no need to migrate the values until sync turns
-  // on, because UPM is not running until then. When sync turns on, this
-  // will be handled as part of the sync state change rather than migration.
-  // If a migration was already performed, there is no need
-  // to migrate again.
-  void MigratePrefsIfNeeded();
+  // Stores the given `value` of the `setting` into the android-only GMS prefs.
+  // Stores the same `value` in the old prefs are not being synced.
+  // If the `value` is not given, the prefs will be set to default.
+  void WriteToTheCacheAndRegularPref(
+      password_manager::PasswordManagerSetting setting,
+      absl::optional<bool> value);
 
   // syncer::SyncServiceObserver implementation
   void OnStateChanged(syncer::SyncService* sync) override;
@@ -89,10 +87,6 @@ class PasswordManagerSettingsServiceAndroidImpl
 
   // Asynchronously fetches settings from backend regardless of sync status.
   void FetchSettings();
-
-  // Copies the values of chrome prefs that have user-set values into the
-  // GMS prefs.
-  void DumpChromePrefsIntoGMSPrefs();
 
   // Migrates settings to GMS Core if the user is reenrolled into the UPM
   // in the middle of the browser session.
@@ -123,7 +117,7 @@ class PasswordManagerSettingsServiceAndroidImpl
   // setting was changed, and the fetch is still in progress.
   bool fetch_after_sync_status_change_in_progress_ = false;
 
-  // Settings requested from the backend after a sunc status change, but not
+  // Settings requested from the backend after a sync status change, but not
   // fetched yet.
   base::flat_set<password_manager::PasswordManagerSetting> awaited_settings_;
 

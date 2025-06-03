@@ -21,7 +21,9 @@ struct macroblockd;
 
 /* Encoder forward decls */
 struct macroblock;
-struct vp9_variance_vtable;
+struct macroblock_plane;
+struct vp9_sad_table;
+struct ScanOrder;
 struct search_site_config;
 struct mv;
 union int_mv;
@@ -77,7 +79,7 @@ int vp9_diamond_search_sad_c(const struct macroblock* x,
                              int search_param,
                              int sad_per_bit,
                              int* num00,
-                             const struct vp9_variance_vtable* fn_ptr,
+                             const struct vp9_sad_table* sad_fn_ptr,
                              const struct mv* center_mv);
 int vp9_diamond_search_sad_neon(const struct macroblock* x,
                                 const struct search_site_config* cfg,
@@ -87,7 +89,7 @@ int vp9_diamond_search_sad_neon(const struct macroblock* x,
                                 int search_param,
                                 int sad_per_bit,
                                 int* num00,
-                                const struct vp9_variance_vtable* fn_ptr,
+                                const struct vp9_sad_table* sad_fn_ptr,
                                 const struct mv* center_mv);
 #define vp9_diamond_search_sad vp9_diamond_search_sad_neon
 
@@ -170,46 +172,38 @@ void vp9_iht8x8_64_add_neon(const tran_low_t* input,
 
 void vp9_quantize_fp_c(const tran_low_t* coeff_ptr,
                        intptr_t n_coeffs,
-                       const int16_t* round_ptr,
-                       const int16_t* quant_ptr,
+                       const struct macroblock_plane* const mb_plane,
                        tran_low_t* qcoeff_ptr,
                        tran_low_t* dqcoeff_ptr,
                        const int16_t* dequant_ptr,
                        uint16_t* eob_ptr,
-                       const int16_t* scan,
-                       const int16_t* iscan);
+                       const struct ScanOrder* const scan_order);
 void vp9_quantize_fp_neon(const tran_low_t* coeff_ptr,
                           intptr_t n_coeffs,
-                          const int16_t* round_ptr,
-                          const int16_t* quant_ptr,
+                          const struct macroblock_plane* const mb_plane,
                           tran_low_t* qcoeff_ptr,
                           tran_low_t* dqcoeff_ptr,
                           const int16_t* dequant_ptr,
                           uint16_t* eob_ptr,
-                          const int16_t* scan,
-                          const int16_t* iscan);
+                          const struct ScanOrder* const scan_order);
 #define vp9_quantize_fp vp9_quantize_fp_neon
 
 void vp9_quantize_fp_32x32_c(const tran_low_t* coeff_ptr,
                              intptr_t n_coeffs,
-                             const int16_t* round_ptr,
-                             const int16_t* quant_ptr,
+                             const struct macroblock_plane* const mb_plane,
                              tran_low_t* qcoeff_ptr,
                              tran_low_t* dqcoeff_ptr,
                              const int16_t* dequant_ptr,
                              uint16_t* eob_ptr,
-                             const int16_t* scan,
-                             const int16_t* iscan);
+                             const struct ScanOrder* const scan_order);
 void vp9_quantize_fp_32x32_neon(const tran_low_t* coeff_ptr,
                                 intptr_t n_coeffs,
-                                const int16_t* round_ptr,
-                                const int16_t* quant_ptr,
+                                const struct macroblock_plane* const mb_plane,
                                 tran_low_t* qcoeff_ptr,
                                 tran_low_t* dqcoeff_ptr,
                                 const int16_t* dequant_ptr,
                                 uint16_t* eob_ptr,
-                                const int16_t* scan,
-                                const int16_t* iscan);
+                                const struct ScanOrder* const scan_order);
 #define vp9_quantize_fp_32x32 vp9_quantize_fp_32x32_neon
 
 void vp9_scale_and_extend_frame_c(const struct yv12_buffer_config* src,

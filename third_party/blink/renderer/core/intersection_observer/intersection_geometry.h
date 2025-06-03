@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/geometry/transform.h"
+#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
 
@@ -27,19 +28,25 @@ class Node;
 // of the target with the top-level frame viewport (AKA the "implicit root").
 class CORE_EXPORT IntersectionGeometry {
  public:
+  // See comment of IntersectionObserver::kMinimumThreshold.
+  static constexpr float kMinimumThreshold = std::numeric_limits<float>::min();
+
+  static constexpr gfx::Vector2dF kInfiniteScrollDelta{
+      std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+
   enum Flags {
     // These flags should passed to the constructor
     kShouldReportRootBounds = 1 << 0,
     kShouldComputeVisibility = 1 << 1,
     kShouldTrackFractionOfRoot = 1 << 2,
-    kShouldUseReplacedContentRect = 1 << 3,
+    kForFrameViewportIntersection = 1 << 3,
     kShouldConvertToCSSPixels = 1 << 4,
-    kShouldUseCachedRects = 1 << 5,
     // Applies to boxes. If true, OverflowClipRect() is used if necessary
     // instead of BorderBoundingBox().
-    kUseOverflowClipEdge = 1 << 6,
+    kUseOverflowClipEdge = 1 << 5,
 
     // These flags will be computed
+    kShouldUseCachedRects = 1 << 6,
     kRootIsImplicit = 1 << 7,
     kDidComputeGeometry = 1 << 8,
     kIsVisible = 1 << 9
@@ -50,8 +57,9 @@ class CORE_EXPORT IntersectionGeometry {
 
    public:
     RootGeometry(const LayoutObject* root, const Vector<Length>& margin);
+    bool operator==(const RootGeometry&) const;
 
-    float zoom;
+    float zoom = 1.0f;
     // The root object's content rect in the root object's own coordinate system
     PhysicalRect local_root_rect;
     gfx::Transform root_to_document_transform;
@@ -63,34 +71,32 @@ class CORE_EXPORT IntersectionGeometry {
     // Target rect mapped up to the root's space, with intermediate clips
     // applied, but without applying the root's clip or scroll offset.
     PhysicalRect unscrolled_unclipped_intersection_rect;
+    // We only need to update intersection geometry on future scroll if
+    // the scroll delta >= this value in either direction.
+    gfx::Vector2dF min_scroll_delta_to_update;
     // True iff unscrolled_unclipped_intersection_rect actually intersects the
     // root, as defined by edge-inclusive intersection rules.
-    bool does_intersect;
+    bool does_intersect = false;
     // True iff the target rect before any margins were applied was empty
-    bool pre_margin_target_rect_is_empty;
+    bool pre_margin_target_rect_is_empty = false;
     // Invalidation flag
-    bool valid;
+    bool valid = false;
   };
 
-  static const LayoutObject* GetRootLayoutObjectForTarget(
-      const Node* root_node,
-      LayoutObject* target,
-      bool check_containing_block_chain);
+  static const LayoutObject* GetExplicitRootLayoutObject(const Node& root_node);
 
+  // If `root_geometry` is nullopt, it will be emplaced with `root` and
+  // `root_margin`. The caller can call this constructor again with the same
+  // `root_geometry` as long as `root` and `root_margin` are the same as the
+  // first call.
   IntersectionGeometry(const Node* root,
                        const Element& target,
                        const Vector<Length>& root_margin,
                        const Vector<float>& thresholds,
                        const Vector<Length>& target_margin,
+                       const Vector<Length>& scroll_margin,
                        unsigned flags,
-                       CachedRects* cached_rects = nullptr);
-
-  IntersectionGeometry(const RootGeometry& root_geometry,
-                       const Node& explicit_root,
-                       const Element& target,
-                       const Vector<float>& thresholds,
-                       const Vector<Length>& target_margin,
-                       unsigned flags,
+                       absl::optional<RootGeometry>& root_geometry,
                        CachedRects* cached_rects = nullptr);
 
   IntersectionGeometry(const IntersectionGeometry&) = default;
@@ -124,19 +130,64 @@ class CORE_EXPORT IntersectionGeometry {
   double IntersectionRatio() const { return intersection_ratio_; }
   unsigned ThresholdIndex() const { return threshold_index_; }
 
-  bool RootIsImplicit() const { return flags_ & kRootIsImplicit; }
   bool DidComputeGeometry() const { return flags_ & kDidComputeGeometry; }
   bool IsIntersecting() const { return threshold_index_ > 0; }
   bool IsVisible() const { return flags_ & kIsVisible; }
 
+  gfx::Vector2dF MinScrollDeltaToUpdate() const {
+    return min_scroll_delta_to_update_;
+  }
+
+  bool CanUseCachedRectsForTesting() const { return ShouldUseCachedRects(); }
+
  private:
+  bool RootIsImplicit() const { return flags_ & kRootIsImplicit; }
   bool ShouldUseCachedRects() const { return flags_ & kShouldUseCachedRects; }
+  bool IsForFrameViewportIntersection() const {
+    return flags_ & kForFrameViewportIntersection;
+  }
+
+  struct RootAndTarget {
+    STACK_ALLOCATED();
+
+   public:
+    RootAndTarget(const Node* root_node, const Element& target_element);
+    const LayoutObject* target;
+    const LayoutObject* root;
+    enum Relationship {
+      kInvalid,
+      // The target is in a sub-frame of the implicit root.
+      kTargetInSubFrame,
+      // The target can't be scrolled in the root by any scroller.
+      kNotScrollable,
+      // The target can be scrolled in the root by the root only, without any
+      // intermediate clippers (scroll containers or not).
+      kScrollableByRootOnly,
+      // The target can be scrolled in the root, with intermediate clippers
+      // (scroll containers or not).
+      kScrollableWithIntermediateClippers,
+    };
+    Relationship relationship = kInvalid;
+    // This is used only when relationship is kScrollable*.
+    bool has_filter = false;
+
+   private:
+    static const LayoutObject* GetTargetLayoutObject(
+        const Element& target_element);
+    const LayoutObject* GetRootLayoutObject(const Node* root_node) const;
+    void ComputeRelationship(bool root_is_implicit);
+  };
+  RootAndTarget PrepareComputeGeometry(const Node* root_node,
+                                       const Element& target_element,
+                                       CachedRects* cached_rects);
+
   void ComputeGeometry(const RootGeometry& root_geometry,
-                       const LayoutObject* root,
-                       const LayoutObject* target,
+                       const RootAndTarget& root_and_target,
                        const Vector<float>& thresholds,
                        const Vector<Length>& target_margin,
+                       const Vector<Length>& scroll_margin,
                        CachedRects* cached_rects);
+
   // Map intersection_rect from the coordinate system of the target to the
   // coordinate system of the root, applying intervening clips.
   bool ClipToRoot(const LayoutObject* root,
@@ -144,17 +195,26 @@ class CORE_EXPORT IntersectionGeometry {
                   const PhysicalRect& root_rect,
                   PhysicalRect& unclipped_intersection_rect,
                   PhysicalRect& intersection_rect,
+                  const Vector<Length>& scroll_margin,
                   CachedRects* cached_rects = nullptr);
   unsigned FirstThresholdGreaterThan(float ratio,
                                      const Vector<float>& thresholds) const;
+
+  gfx::Vector2dF ComputeMinScrollDeltaToUpdate(
+      const RootAndTarget& root_and_target,
+      const gfx::Transform& target_to_document_transform,
+      const gfx::Transform& root_to_document_transform,
+      const Vector<float>& thresholds,
+      const Vector<Length>& scroll_margin) const;
 
   PhysicalRect target_rect_;
   PhysicalRect intersection_rect_;
   PhysicalRect unclipped_intersection_rect_;
   PhysicalRect root_rect_;
+  gfx::Vector2dF min_scroll_delta_to_update_;
   unsigned flags_;
-  double intersection_ratio_;
-  unsigned threshold_index_;
+  double intersection_ratio_ = 0;
+  unsigned threshold_index_ = 0;
 };
 
 }  // namespace blink

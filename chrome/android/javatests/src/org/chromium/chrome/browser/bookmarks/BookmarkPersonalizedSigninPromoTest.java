@@ -39,7 +39,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.signin.SyncConsentActivityLauncherImpl;
 import org.chromium.chrome.browser.ui.signin.SyncConsentActivityLauncher;
 import org.chromium.chrome.browser.ui.signin.SyncPromoController.SyncPromoState;
@@ -53,9 +53,7 @@ import org.chromium.components.browser_ui.widget.RecyclerViewTestUtils;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 
-/**
- * Tests for the personalized signin promo on the Bookmarks page.
- */
+/** Tests for the personalized signin promo on the Bookmarks page. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
@@ -83,8 +81,7 @@ public class BookmarkPersonalizedSigninPromoTest {
     public final RuleChain chain =
             RuleChain.outerRule(mAccountManagerTestRule).around(mBookmarkTestRule);
 
-    @Mock
-    private SyncConsentActivityLauncher mMockSyncConsentActivityLauncher;
+    @Mock private SyncConsentActivityLauncher mMockSyncConsentActivityLauncher;
 
     @Before
     public void setUp() {
@@ -95,9 +92,8 @@ public class BookmarkPersonalizedSigninPromoTest {
 
     @After
     public void tearDown() {
-        SharedPreferencesManager.getInstance().removeKey(
-                ChromePreferenceKeys.SYNC_PROMO_TOTAL_SHOW_COUNT);
-        SyncConsentActivityLauncherImpl.setLauncherForTest(null);
+        ChromeSharedPreferences.getInstance()
+                .removeKey(ChromePreferenceKeys.SYNC_PROMO_TOTAL_SHOW_COUNT);
         BookmarkPromoHeader.forcePromoStateForTesting(null);
     }
 
@@ -117,8 +113,10 @@ public class BookmarkPersonalizedSigninPromoTest {
         Assert.assertEquals(
                 mMockSyncConsentActivityLauncher, SyncConsentActivityLauncherImpl.get());
         verify(mMockSyncConsentActivityLauncher)
-                .launchActivityForPromoDefaultFlow(any(Activity.class),
-                        eq(SigninAccessPoint.BOOKMARK_MANAGER), eq(accountInfo.getEmail()));
+                .launchActivityForPromoDefaultFlow(
+                        any(Activity.class),
+                        eq(SigninAccessPoint.BOOKMARK_MANAGER),
+                        eq(accountInfo.getEmail()));
     }
 
     @Test
@@ -136,8 +134,10 @@ public class BookmarkPersonalizedSigninPromoTest {
         Assert.assertEquals(
                 mMockSyncConsentActivityLauncher, SyncConsentActivityLauncherImpl.get());
         verify(mMockSyncConsentActivityLauncher)
-                .launchActivityForPromoChooseAccountFlow(any(Activity.class),
-                        eq(SigninAccessPoint.BOOKMARK_MANAGER), eq(accountInfo.getEmail()));
+                .launchActivityForPromoChooseAccountFlow(
+                        any(Activity.class),
+                        eq(SigninAccessPoint.BOOKMARK_MANAGER),
+                        eq(accountInfo.getEmail()));
     }
 
     @Test
@@ -164,8 +164,10 @@ public class BookmarkPersonalizedSigninPromoTest {
 
         // TODO(https://cbug.com/1383638): If this stops the flakes, consider removing
         // activeInRecyclerView.
-        RecyclerView recyclerView = mBookmarkTestRule.getBookmarkActivity().findViewById(
-                R.id.selectable_list_recycler_view);
+        RecyclerView recyclerView =
+                mBookmarkTestRule
+                        .getBookmarkActivity()
+                        .findViewById(R.id.selectable_list_recycler_view);
         Assert.assertNotNull(recyclerView);
         RecyclerViewTestUtils.waitForStableRecyclerView(recyclerView);
 

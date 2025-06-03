@@ -7,11 +7,12 @@ import {dispatchSimpleEvent} from 'chrome://resources/ash/common/cr_deprecated.j
 
 import {RateLimiter} from '../../../common/js/async_util.js';
 import {maybeShowTooltip} from '../../../common/js/dom_utils.js';
+import {entriesToURLs, isTeamDriveRoot} from '../../../common/js/entry_utils.js';
 import {FileType} from '../../../common/js/file_type.js';
-import {str, strf, util} from '../../../common/js/util.js';
+import {isDlpEnabled, isDriveShortcutsEnabled, isInlineSyncStatusEnabled, isJellyEnabled} from '../../../common/js/flags.js';
+import {getEntryLabel, str, strf} from '../../../common/js/translations.js';
 import {FilesAppEntry} from '../../../externs/files_app_entry_interfaces.js';
 import {VolumeManager} from '../../../externs/volume_manager.js';
-import {FilesTooltip} from '../../elements/files_tooltip.js';
 import {FileListModel, GROUP_BY_FIELD_MODIFICATION_TIME} from '../file_list_model.js';
 import {ListThumbnailLoader} from '../list_thumbnail_loader.js';
 import {MetadataModel} from '../metadata/metadata_model.js';
@@ -34,7 +35,7 @@ export class FileTableColumnModel extends TableColumnModel {
   constructor(tableColumns) {
     super(tableColumns);
 
-    /** @private {?FileTableColumnModel.ColumnSnapshot} */
+    /** @private @type {?FileTableColumnModel.ColumnSnapshot} */
     this.snapshot_ = null;
   }
 
@@ -49,27 +50,41 @@ export class FileTableColumnModel extends TableColumnModel {
   applyColumnPositions_(newPos) {
     // Check the minimum width and adjust the positions.
     for (let i = 0; i < newPos.length - 2; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       if (!this.columns_[i].visible) {
+        // @ts-ignore: error TS2322: Type 'number | undefined' is not assignable
+        // to type 'number'.
         newPos[i + 1] = newPos[i];
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       } else if (newPos[i + 1] - newPos[i] < FileTableColumnModel.MIN_WIDTH_) {
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         newPos[i + 1] = newPos[i] + FileTableColumnModel.MIN_WIDTH_;
       }
     }
     for (let i = newPos.length - 1; i >= 2; i--) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       if (!this.columns_[i - 1].visible) {
+        // @ts-ignore: error TS2322: Type 'number | undefined' is not assignable
+        // to type 'number'.
         newPos[i - 1] = newPos[i];
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       } else if (newPos[i] - newPos[i - 1] < FileTableColumnModel.MIN_WIDTH_) {
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         newPos[i - 1] = newPos[i] - FileTableColumnModel.MIN_WIDTH_;
       }
     }
     // Set the new width of columns
     for (let i = 0; i < this.columns_.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       if (!this.columns_[i].visible) {
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         this.columns_[i].width = 0;
       } else {
         // Make sure each cell has the minimum width. This is necessary when the
         // window size is too small to contain all the columns.
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         this.columns_[i].width = Math.max(
+            // @ts-ignore: error TS2532: Object is possibly 'undefined'.
             FileTableColumnModel.MIN_WIDTH_, newPos[i + 1] - newPos[i]);
       }
     }
@@ -86,12 +101,14 @@ export class FileTableColumnModel extends TableColumnModel {
     let totalWidth = 0;
     // Some columns have fixed width.
     for (let i = 0; i < this.columns_.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       totalWidth += this.columns_[i].width;
     }
     const positions = [0];
     let sum = 0;
     for (let i = 0; i < this.columns_.length; i++) {
       const column = this.columns_[i];
+      // @ts-ignore: error TS18048: 'column' is possibly 'undefined'.
       sum += column.width;
       // Faster alternative to Math.floor for non-negative numbers.
       positions[i + 1] = ~~(contentWidth * sum / totalWidth);
@@ -136,7 +153,10 @@ export class FileTableColumnModel extends TableColumnModel {
    */
   setWidthAndKeepTotal(columnIndex, columnWidth) {
     columnWidth = Math.max(columnWidth, FileTableColumnModel.MIN_WIDTH_);
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     this.snapshot_.setWidth(columnIndex, columnWidth);
+    // @ts-ignore: error TS2341: Property 'newPos' is private and only
+    // accessible within class 'ColumnSnapshot'.
     this.applyColumnPositions_(this.snapshot_.newPos);
 
     // Notify about resizing
@@ -151,22 +171,29 @@ export class FileTableColumnModel extends TableColumnModel {
    */
   getHitColumn(x) {
     let i = 0;
+    // @ts-ignore: error TS2532: Object is possibly 'undefined'.
     for (; i < this.columns_.length && x >= this.columns_[i].width; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       x -= this.columns_[i].width;
     }
     if (i >= this.columns_.length) {
+      // @ts-ignore: error TS2322: Type 'null' is not assignable to type
+      // 'Object'.
       return null;
     }
+    // @ts-ignore: error TS2532: Object is possibly 'undefined'.
     return {index: i, hitPosition: x, width: this.columns_[i].width};
   }
 
   /** @override */
+  // @ts-ignore: error TS7006: Parameter 'visible' implicitly has an 'any' type.
   setVisible(index, visible) {
     if (index < 0 || index > this.columns_.length - 1) {
       return;
     }
 
     const column = this.columns_[index];
+    // @ts-ignore: error TS18048: 'column' is possibly 'undefined'.
     if (column.visible === visible) {
       return;
     }
@@ -175,11 +202,15 @@ export class FileTableColumnModel extends TableColumnModel {
     // the parent class.
     const snapshot = new FileTableColumnModel.ColumnSnapshot(this.columns_);
 
+    // @ts-ignore: error TS18048: 'column' is possibly 'undefined'.
     column.visible = visible;
 
     // Keep the current column width, but adjust the other columns to
     // accommodate the new column.
+    // @ts-ignore: error TS18048: 'column' is possibly 'undefined'.
     snapshot.setWidth(index, column.width);
+    // @ts-ignore: error TS2341: Property 'newPos' is private and only
+    // accessible within class 'ColumnSnapshot'.
     this.applyColumnPositions_(snapshot.newPos);
   }
 
@@ -188,7 +219,7 @@ export class FileTableColumnModel extends TableColumnModel {
    * two methods instead of manually saving and setting column widths, because
    * doing the latter will not correctly save/restore column widths for hidden
    * columns.
-   * @see #restoreColumnWidths
+   * see #restoreColumnWidths
    * @return {!Object} config
    */
   exportColumnConfig() {
@@ -196,14 +227,19 @@ export class FileTableColumnModel extends TableColumnModel {
     // columns are visible.
     const snapshot = new FileTableColumnModel.ColumnSnapshot(this.columns_);
     for (let i = 0; i < this.columns_.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       if (!this.columns_[i].visible) {
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         snapshot.setWidth(i, this.columns_[i].absoluteWidth);
       }
     }
     // Export the column widths.
     const config = {};
     for (let i = 0; i < this.columns_.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       config[this.columns_[i].id] = {
+        // @ts-ignore: error TS2341: Property 'newPos' is private and only
+        // accessible within class 'ColumnSnapshot'.
         width: snapshot.newPos[i + 1] - snapshot.newPos[i],
       };
     }
@@ -213,16 +249,20 @@ export class FileTableColumnModel extends TableColumnModel {
   /**
    * Restores a set of column widths previously created by calling
    * #exportColumnConfig.
-   * @see #exportColumnConfig
+   * see #exportColumnConfig
    * @param {!Object} config
    */
   restoreColumnConfig(config) {
     // Convert old-style raw column widths into new-style config objects.
     if (Array.isArray(config)) {
       const tmpConfig = {};
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       tmpConfig[this.columns_[0].id] = config[0];
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       tmpConfig[this.columns_[1].id] = config[1];
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       tmpConfig[this.columns_[3].id] = config[2];
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       tmpConfig[this.columns_[4].id] = config[3];
       config = tmpConfig;
     }
@@ -231,7 +271,9 @@ export class FileTableColumnModel extends TableColumnModel {
     // current visibility so it can be restored after.
     const visibility = [];
     for (let i = 0; i < this.columns_.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       visibility[i] = this.columns_[i].visible;
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       this.columns_[i].visible = true;
     }
 
@@ -242,6 +284,9 @@ export class FileTableColumnModel extends TableColumnModel {
       const column = this.columns_[this.indexOf(columnId)];
       if (column) {
         // Set column width.  Ignore invalid widths.
+        // @ts-ignore: error TS7053: Element implicitly has an 'any' type
+        // because expression of type 'string' can't be used to index type
+        // 'Object'.
         const width = ~~config[columnId].width;
         if (width > 0) {
           column.width = width;
@@ -274,6 +319,8 @@ export function renderHeader_(table) {
   const textElement = table.ownerDocument.createElement('span');
   textElement.setAttribute('id', `column-${column.id}`);
   textElement.textContent = column.name;
+  // @ts-ignore: error TS2339: Property 'dataModel' does not exist on type
+  // 'Element'.
   const dm = table.dataModel;
 
   let sortOrder = column.defaultOrder;
@@ -318,7 +365,7 @@ export function renderHeader_(table) {
 /**
  * Minimum width of column. Note that is not marked private as it is used in the
  * unit tests.
- * @const {number}
+ * @const @type {number}
  */
 FileTableColumnModel.MIN_WIDTH_ = 40;
 
@@ -330,15 +377,16 @@ FileTableColumnModel.ColumnSnapshot = class {
    * @param {!Array<!TableColumn>} columns
    */
   constructor(columns) {
-    /** @private {!Array<number>} */
+    /** @private @type {!Array<number>} */
     this.columnPos_ = [0];
     for (let i = 0; i < columns.length; i++) {
+      // @ts-ignore: error TS2532: Object is possibly 'undefined'.
       this.columnPos_[i + 1] = columns[i].width + this.columnPos_[i];
     }
 
     /**
      * Starts off as a copy of the current column positions, but gets modified.
-     * @private {!Array<number>}
+     * @private @type {!Array<number>}
      */
     this.newPos = this.columnPos_.slice(0);
   }
@@ -357,23 +405,35 @@ FileTableColumnModel.ColumnSnapshot = class {
 
     // Round up if the column is shrinking, and down if the column is expanding.
     // This prevents off-by-one drift.
+    // @ts-ignore: error TS2532: Object is possibly 'undefined'.
     const currentWidth = this.columnPos_[index + 1] - this.columnPos_[index];
     const round = width < currentWidth ? Math.ceil : Math.floor;
 
     // Calculate new positions of column splitters.
+    // @ts-ignore: error TS2532: Object is possibly 'undefined'.
     const newPosStart = this.columnPos_[index] + width;
     const posEnd = this.columnPos_[this.columnPos_.length - 1];
     for (let i = 0; i < index + 1; i++) {
+      // @ts-ignore: error TS2322: Type 'number | undefined' is not assignable
+      // to type 'number'.
       this.newPos[i] = this.columnPos_[i];
     }
     for (let i = index + 1; i < this.columnPos_.length - 1; i++) {
       const posStart = this.columnPos_[index + 1];
+      // @ts-ignore: error TS18048: 'posEnd' is possibly 'undefined'.
       this.newPos[i] = (posEnd - newPosStart) *
+              // @ts-ignore: error TS18048: 'posStart' is possibly 'undefined'.
               (this.columnPos_[i] - posStart) / (posEnd - posStart) +
           newPosStart;
+      // @ts-ignore: error TS2345: Argument of type 'number | undefined' is not
+      // assignable to parameter of type 'number'.
       this.newPos[i] = round(this.newPos[i]);
     }
+    // @ts-ignore: error TS2322: Type 'number | undefined' is not assignable to
+    // type 'number'.
     this.newPos[index] = this.columnPos_[index];
+    // @ts-ignore: error TS2322: Type 'number | undefined' is not assignable to
+    // type 'number'.
     this.newPos[this.columnPos_.length - 1] = posEnd;
   }
 };
@@ -381,41 +441,47 @@ FileTableColumnModel.ColumnSnapshot = class {
 /**
  * File list Table View.
  */
+// @ts-ignore: error TS2415: Class 'FileTable' incorrectly extends base class
+// 'Table'.
 export class FileTable extends Table {
   constructor() {
     super();
 
-    /** @private {number} */
+    /** @private @type {number} */
     this.beginIndex_ = 0;
 
-    /** @private {number} */
+    /** @private @type {number} */
     this.endIndex_ = 0;
 
-    /** @private {?ListThumbnailLoader} */
+    /** @private @type {?ListThumbnailLoader} */
     this.listThumbnailLoader_ = null;
 
-    /** @private {?RateLimiter} */
+    /** @private @type {?RateLimiter} */
     this.relayoutRateLimiter_ = null;
 
-    /** @private {?MetadataModel} */
+    /** @private @type {?MetadataModel} */
     this.metadataModel_ = null;
 
-    /** @private {?FileMetadataFormatter} */
+    /** @private @type {?FileMetadataFormatter} */
     this.formatter_ = null;
 
-    /** @private {boolean} */
+    /** @private @type {boolean} */
     this.useModificationByMeTime_ = false;
 
-    /** @private {?VolumeManager} */
+    /** @private @type {?VolumeManager} */
     this.volumeManager_ = null;
 
-    /** @private {!Array} */
+    // @ts-ignore: error TS2314: Generic type 'Array<T>' requires 1 type
+    // argument(s).
+    /** @private @type {!Array} */
     this.lastSelection_ = [];
 
-    /** @private {?function(!Event)} */
+    // @ts-ignore: error TS7014: Function type, which lacks return-type
+    // annotation, implicitly has an 'any' return type.
+    /** @private @type {?function(!Event)} */
     this.onThumbnailLoadedBound_ = null;
 
-    /** @public {?A11yAnnounce} */
+    /** @public @type {?A11yAnnounce} */
     this.a11y = null;
 
     throw new Error('Designed to decorate elements');
@@ -433,13 +499,27 @@ export class FileTable extends Table {
    * @suppress {checkPrototypalTypes} Closure was failing because the signature
    * of this decorate() doesn't match the base class.
    */
+  // @ts-ignore: error TS4119: This member must have a JSDoc comment with an
+  // '@override' tag because it overrides a member in the base class 'Table'.
   static decorate(self, metadataModel, volumeManager, a11y, fullPage) {
     Table.decorate(self);
+    // @ts-ignore: error TS2339: Property '__proto__' does not exist on type
+    // 'Element'.
     self.__proto__ = FileTable.prototype;
+    // @ts-ignore: error TS2339: Property 'list' does not exist on type
+    // 'Element'.
     FileTableList.decorate(self.list);
+    // @ts-ignore: error TS2339: Property 'updateHighPriorityRange_' does not
+    // exist on type 'Element'.
     self.list.setOnMergeItems(self.updateHighPriorityRange_.bind(self));
+    // @ts-ignore: error TS2339: Property 'metadataModel_' does not exist on
+    // type 'Element'.
     self.metadataModel_ = metadataModel;
+    // @ts-ignore: error TS2339: Property 'volumeManager_' does not exist on
+    // type 'Element'.
     self.volumeManager_ = volumeManager;
+    // @ts-ignore: error TS2339: Property 'a11y' does not exist on type
+    // 'Element'.
     self.a11y = a11y;
 
     // Force the list's ending spacer to be tall enough to allow overscroll.
@@ -448,40 +528,59 @@ export class FileTable extends Table {
       endSpacer.classList.add('signals-overscroll');
     }
 
-    /** @private {ListThumbnailLoader} */
+    /** @private @type {ListThumbnailLoader} */
+    // @ts-ignore: error TS2339: Property 'listThumbnailLoader_' does not exist
+    // on type 'Element'.
     self.listThumbnailLoader_ = null;
 
-    /** @private {number} */
+    /** @private @type {number} */
+    // @ts-ignore: error TS2339: Property 'beginIndex_' does not exist on type
+    // 'Element'.
     self.beginIndex_ = 0;
 
-    /** @private {number} */
+    /** @private @type {number} */
+    // @ts-ignore: error TS2339: Property 'endIndex_' does not exist on type
+    // 'Element'.
     self.endIndex_ = 0;
 
-    /** @private {function(!Event)} */
+    // @ts-ignore: error TS7014: Function type, which lacks return-type
+    // annotation, implicitly has an 'any' return type.
+    /** @private @type {function(!Event)} */
+    // @ts-ignore: error TS2339: Property 'onThumbnailLoaded_' does not exist on
+    // type 'Element'.
     self.onThumbnailLoadedBound_ = self.onThumbnailLoaded_.bind(self);
 
-    /** @private {boolean} */
+    /** @private @type {boolean} */
+    // @ts-ignore: error TS2339: Property 'useModificationByMeTime_' does not
+    // exist on type 'Element'.
     self.useModificationByMeTime_ = false;
 
     const nameColumn =
         new TableColumn('name', str('NAME_COLUMN_LABEL'), fullPage ? 386 : 324);
+    // @ts-ignore: error TS2339: Property 'renderName_' does not exist on type
+    // 'Element'.
     nameColumn.renderFunction = self.renderName_.bind(self);
     nameColumn.headerRenderFunction = renderHeader_;
 
     const sizeColumn = new TableColumn(
-        'size', str('SIZE_COLUMN_LABEL'), 110,
-        util.isJellyEnabled() ? false : true);
+        'size', str('SIZE_COLUMN_LABEL'), 110, isJellyEnabled() ? false : true);
+    // @ts-ignore: error TS2339: Property 'renderSize_' does not exist on type
+    // 'Element'.
     sizeColumn.renderFunction = self.renderSize_.bind(self);
     sizeColumn.defaultOrder = 'desc';
     sizeColumn.headerRenderFunction = renderHeader_;
 
     const typeColumn =
         new TableColumn('type', str('TYPE_COLUMN_LABEL'), fullPage ? 110 : 110);
+    // @ts-ignore: error TS2339: Property 'renderType_' does not exist on type
+    // 'Element'.
     typeColumn.renderFunction = self.renderType_.bind(self);
     typeColumn.headerRenderFunction = renderHeader_;
 
     const modTimeColumn = new TableColumn(
         'modificationTime', str('DATE_COLUMN_LABEL'), fullPage ? 150 : 210);
+    // @ts-ignore: error TS2339: Property 'renderDate_' does not exist on type
+    // 'Element'.
     modTimeColumn.renderFunction = self.renderDate_.bind(self);
     modTimeColumn.defaultOrder = 'desc';
     modTimeColumn.headerRenderFunction = renderHeader_;
@@ -490,41 +589,84 @@ export class FileTable extends Table {
 
     const columnModel = new FileTableColumnModel(columns);
 
+    // @ts-ignore: error TS2339: Property 'columnModel' does not exist on type
+    // 'Element'.
     self.columnModel = columnModel;
 
+    // @ts-ignore: error TS2339: Property 'formatter_' does not exist on type
+    // 'Element'.
     self.formatter_ = new FileMetadataFormatter();
 
+    // @ts-ignore: error TS2352: Conversion of type 'Element' to type 'Table'
+    // may be a mistake because neither type sufficiently overlaps with the
+    // other. If this was intentional, convert the expression to 'unknown'
+    // first.
     const selfAsTable = /** @type {!Table} */ (self);
     selfAsTable.setRenderFunction(
+        // @ts-ignore: error TS2339: Property 'renderTableRow_' does not exist
+        // on type 'Element'.
         self.renderTableRow_.bind(self, selfAsTable.getRenderFunction()));
 
     // Keep focus on the file list when clicking on the header.
     selfAsTable.header.addEventListener('mousedown', e => {
+      // @ts-ignore: error TS2339: Property 'list' does not exist on type
+      // 'Element'.
       self.list.focus();
       e.preventDefault();
     });
 
+    // @ts-ignore: error TS2339: Property 'relayoutRateLimiter_' does not exist
+    // on type 'Element'.
     self.relayoutRateLimiter_ =
+        // @ts-ignore: error TS2339: Property 'relayoutImmediately_' does not
+        // exist on type 'Element'.
         new RateLimiter(self.relayoutImmediately_.bind(self));
 
     // Save the last selection. This is used by shouldStartDragSelection.
+    // @ts-ignore: error TS7006: Parameter 'e' implicitly has an 'any' type.
     self.list.addEventListener('mousedown', function(e) {
+      // @ts-ignore: error TS2339: Property 'selectionModel' does not exist on
+      // type '(Anonymous function)'.
       this.lastSelection_ = this.selectionModel.selectedIndexes;
     }.bind(self), true);
+    // @ts-ignore: error TS7006: Parameter 'e' implicitly has an 'any' type.
     self.list.addEventListener('touchstart', function(e) {
+      // @ts-ignore: error TS2339: Property 'selectionModel' does not exist on
+      // type '(Anonymous function)'.
       this.lastSelection_ = this.selectionModel.selectedIndexes;
     }.bind(self), true);
+    // @ts-ignore: error TS2339: Property 'list' does not exist on type
+    // 'Element'.
     self.list.shouldStartDragSelection =
+        // @ts-ignore: error TS2339: Property 'shouldStartDragSelection_' does
+        // not exist on type 'Element'.
         self.shouldStartDragSelection_.bind(self);
 
+    // @ts-ignore: error TS2339: Property 'list' does not exist on type
+    // 'Element'.
     self.list.addEventListener(
+        // @ts-ignore: error TS2339: Property 'onMouseOver_' does not exist on
+        // type 'Element'.
         'mouseover', self.onMouseOver_.bind(self), {passive: true});
+
+    // Update the item's inline status when it's restored from List's cache.
+    // @ts-ignore: error TS2339: Property 'list' does not exist on type
+    // 'Element'.
+    self.list.addEventListener(
+        'cachedItemRestored',
+        // @ts-ignore: error TS7006: Parameter 'e' implicitly has an 'any' type.
+        (e) => filelist.updateCacheItemInlineStatus(
+            // @ts-ignore: error TS2339: Property 'metadataModel_' does not
+            // exist on type 'Element'.
+            e.detail, self.dataModel, self.metadataModel_));
   }
 
+  // @ts-ignore: error TS7006: Parameter 'event' implicitly has an 'any' type.
   onMouseOver_(event) {
     this.maybeShowToolTip(event);
   }
 
+  // @ts-ignore: error TS7006: Parameter 'event' implicitly has an 'any' type.
   maybeShowToolTip(event) {
     const target = event.composedPath()[0];
     if (!target) {
@@ -556,9 +698,13 @@ export class FileTable extends Table {
     const sortStatus = this.dataModel.sortStatus;
 
     let sortDirection = cm.getDefaultOrder(index);
+    // @ts-ignore: error TS2339: Property 'field' does not exist on type
+    // 'Object'.
     if (sortStatus.field === fieldName) {
       // If it's sorting the column that's already sorted, we need to flip the
       // sorting order.
+      // @ts-ignore: error TS2339: Property 'direction' does not exist on type
+      // 'Object'.
       sortDirection = sortStatus.direction === 'desc' ? 'asc' : 'desc';
     }
 
@@ -568,6 +714,7 @@ export class FileTable extends Table {
 
     // Delegate to parent to sort.
     super.sort(index);
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     this.a11y.speakA11yMessage(msg);
   }
 
@@ -582,6 +729,8 @@ export class FileTable extends Table {
     // is triggered, thus no redraw is triggered. In this scenario, we need to
     // manually trigger a redraw to remove/add the group heading.
     if (hasGroupHeadingAfterSort !== fileListModel.hasGroupHeadingBeforeSort) {
+      // @ts-ignore: error TS2339: Property 'redraw' does not exist on type
+      // 'List'.
       this.list.redraw();
     }
   }
@@ -594,6 +743,8 @@ export class FileTable extends Table {
    * @param {number} endIndex End index.
    * @private
    */
+  // @ts-ignore: error TS6133: 'updateHighPriorityRange_' is declared but its
+  // value is never read.
   updateHighPriorityRange_(beginIndex, endIndex) {
     // Keep these values to set range when a new list thumbnail loader is set.
     this.beginIndex_ = beginIndex;
@@ -649,18 +800,28 @@ export class FileTable extends Table {
    * @param {!Event} event An event.
    * @private
    */
+  // @ts-ignore: error TS6133: 'onThumbnailLoaded_' is declared but its value is
+  // never read.
   onThumbnailLoaded_(event) {
+    // @ts-ignore: error TS2339: Property 'index' does not exist on type
+    // 'Event'.
     const listItem = this.getListItemByIndex(event.index);
     if (listItem) {
       const box = listItem.querySelector('.detail-thumbnail');
       if (box) {
+        // @ts-ignore: error TS2339: Property 'dataUrl' does not exist on type
+        // 'Event'.
         if (event.dataUrl) {
           this.setThumbnailImage_(
+              // @ts-ignore: error TS2339: Property 'dataUrl' does not exist on
+              // type 'Event'.
               assertInstanceof(box, HTMLDivElement), event.dataUrl);
         } else {
           this.clearThumbnailImage_(assertInstanceof(box, HTMLDivElement));
         }
         const icon = listItem.querySelector('.detail-icon');
+        // @ts-ignore: error TS2339: Property 'dataUrl' does not exist on type
+        // 'Event'.
         icon.classList.toggle('has-thumbnail', !!event.dataUrl);
       }
     }
@@ -677,6 +838,8 @@ export class FileTable extends Table {
 
     // Create a temporaty list item, put all cells into it and measure its
     // width. Then remove the item. It fits "list > *" CSS rules.
+    // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on type
+    // 'FileTable'.
     const container = this.ownerDocument.createElement('li');
     container.style.display = 'inline-block';
     container.style.textAlign = 'start';
@@ -684,6 +847,8 @@ export class FileTable extends Table {
     container.style.webkitBoxOrient = 'vertical';
 
     // Select at most MAXIMUM_ROWS_TO_MEASURE items around visible area.
+    // @ts-ignore: error TS2339: Property 'getItemsInViewPort' does not exist on
+    // type 'List'.
     const items = this.list.getItemsInViewPort(
         this.list.scrollTop, this.list.clientHeight);
     const firstIndex = Math.floor(
@@ -692,8 +857,12 @@ export class FileTable extends Table {
         Math.min(this.dataModel.length, firstIndex + MAXIMUM_ROWS_TO_MEASURE);
     for (let i = firstIndex; i < lastIndex; i++) {
       const item = this.dataModel.item(i);
+      // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+      // type 'FileTable'.
       const div = this.ownerDocument.createElement('div');
       div.className = 'table-row-cell';
+      // @ts-ignore: error TS2345: Argument of type 'this' is not assignable to
+      // parameter of type 'Element'.
       div.appendChild(render(item, this.columnModel.getId(index), this));
       container.appendChild(div);
     }
@@ -701,8 +870,14 @@ export class FileTable extends Table {
     const width = parseFloat(window.getComputedStyle(container).width);
     this.list.removeChild(container);
 
+    // @ts-ignore: error TS2339: Property 'initializeColumnPos' does not exist
+    // on type 'TableColumnModel'.
     this.columnModel.initializeColumnPos();
+    // @ts-ignore: error TS2339: Property 'setWidthAndKeepTotal' does not exist
+    // on type 'TableColumnModel'.
     this.columnModel.setWidthAndKeepTotal(index, Math.ceil(width));
+    // @ts-ignore: error TS2339: Property 'destroyColumnPos' does not exist on
+    // type 'TableColumnModel'.
     this.columnModel.destroyColumnPos();
   }
 
@@ -711,6 +886,7 @@ export class FileTable extends Table {
    * @param {boolean} use12hourClock True if 12 hours clock, False if 24 hours.
    */
   setDateTimeFormat(use12hourClock) {
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     this.formatter_.setDateTimeFormat(use12hourClock);
   }
 
@@ -731,6 +907,8 @@ export class FileTable extends Table {
    * selection.
    * @private
    */
+  // @ts-ignore: error TS6133: 'shouldStartDragSelection_' is declared but its
+  // value is never read.
   shouldStartDragSelection_(event) {
     // If the shift key is pressed, it should starts drag selection.
     if (event.shiftKey) {
@@ -738,7 +916,7 @@ export class FileTable extends Table {
     }
 
     // If we're outside of the element list, start the drag selection.
-    if (!this.list.hasDragHitElement(event)) {
+    if (!/** @type {FileTableList} */ (this.list).hasDragHitElement(event)) {
       return true;
     }
 
@@ -747,15 +925,20 @@ export class FileTable extends Table {
     if (!pos) {
       return false;
     }
+    // @ts-ignore: error TS2339: Property 'y' does not exist on type 'Object'.
     if (pos.x < 0 || pos.y < 0) {
       return true;
     }
 
     // If the item index is out of range, it should start the drag selection.
+    // @ts-ignore: error TS2339: Property 'measureItem' does not exist on type
+    // 'List'.
     const itemHeight = this.list.measureItem().height;
     // Faster alternative to Math.floor for non-negative numbers.
+    // @ts-ignore: error TS2339: Property 'y' does not exist on type 'Object'.
     const itemIndex = ~~(pos.y / itemHeight);
-    if (itemIndex >= this.list.dataModel.length) {
+    const length = this.dataModel?.length ?? 0;
+    if (itemIndex >= length) {
       return true;
     }
 
@@ -767,12 +950,14 @@ export class FileTable extends Table {
 
     // If the horizontal value is not hit to column, it should start the drag
     // selection.
+    // @ts-ignore: error TS2339: Property 'x' does not exist on type 'Object'.
     const hitColumn = this.columnModel.getHitColumn(pos.x);
     if (!hitColumn) {
       return true;
     }
 
     // Check if the point is on the column contents or not.
+    // @ts-ignore: error TS2532: Object is possibly 'undefined'.
     switch (this.columnModel.columns_[hitColumn.index].id) {
       case 'name':
         const item = this.list.getListItemByIndex(itemIndex);
@@ -781,13 +966,17 @@ export class FileTable extends Table {
         }
 
         const spanElement = item.querySelector('.filename-label span');
-        const spanRect = spanElement.getBoundingClientRect();
+        const spanRect = spanElement && spanElement.getBoundingClientRect();
         // The this.list.cachedBounds_ object is set by
         // DragSelector.getScrolledPosition.
+        // @ts-ignore: error TS2339: Property 'cachedBounds' does not exist on
+        // type 'List'.
         if (!this.list.cachedBounds) {
           return true;
         }
         const textRight =
+            // @ts-ignore: error TS2339: Property 'cachedBounds' does not exist
+            // on type 'List'.
             spanRect.left - this.list.cachedBounds.left + spanRect.width;
         return textRight <= hitColumn.hitPosition;
       default:
@@ -806,15 +995,23 @@ export class FileTable extends Table {
    * @return {!HTMLDivElement} Created element.
    * @private
    */
+  // @ts-ignore: error TS6133: 'table' is declared but its value is never read.
   renderName_(entry, columnId, table) {
     const label = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
 
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     const metadata = this.metadataModel_.getCache(
         [entry], ['contentMimeType', 'isDlpRestricted'])[0];
+    // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
     const mimeType = metadata.contentMimeType;
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     const locationInfo = this.volumeManager_.getLocationInfo(entry);
     const icon = filelist.renderFileTypeIcon(
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         this.ownerDocument, entry, locationInfo, mimeType);
     if (FileType.isImage(entry, mimeType) ||
         FileType.isVideo(entry, mimeType) ||
@@ -823,19 +1020,36 @@ export class FileTable extends Table {
     }
     icon.appendChild(this.renderCheckmark_());
     label.appendChild(icon);
-
+    if (isDriveShortcutsEnabled()) {
+      // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+      // type 'FileTable'.
+      label.appendChild(filelist.renderIconBadge(this.ownerDocument));
+    }
+    // @ts-ignore: error TS2339: Property 'entry' does not exist on type
+    // 'HTMLDivElement'.
     label.entry = entry;
     label.className = 'detail-name';
     label.appendChild(
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         filelist.renderFileNameLabel(this.ownerDocument, entry, locationInfo));
     if (locationInfo && locationInfo.isDriveBased) {
-      label.appendChild(filelist.renderEncryptionStatus(this.ownerDocument));
-      label.appendChild(filelist.renderInlineStatus(this.ownerDocument));
+      // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+      // type 'FileTable'.
+      const inlineStatus = this.ownerDocument.createElement('xf-inline-status');
+      inlineStatus.classList.add('tast-inline-status');
+      label.appendChild(inlineStatus);
     }
-    if (!util.isJellyEnabled() && !util.isInlineSyncStatusEnabled()) {
-      const isDlpRestricted = !!metadata.isDlpRestricted;
-      if (isDlpRestricted) {
-        label.appendChild(this.renderDlpManagedIcon_());
+    if (!isJellyEnabled() && !isInlineSyncStatusEnabled()) {
+      // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
+      const isEncrypted = FileType.isEncrypted(entry, metadata.contentMimeType);
+      if (isEncrypted) {
+        label.appendChild(this.renderEncryptedIcon_());
+      }
+      if (isDlpEnabled()) {
+        label.appendChild(
+            // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
+            this.renderDlpManagedIcon_(!!metadata.isDlpRestricted));
       }
     }
     return label;
@@ -856,8 +1070,8 @@ export class FileTable extends Table {
       return '';
     }
 
-    const locationInfo = this.volumeManager_.getLocationInfo(entry);
-    return util.getEntryLabel(locationInfo, entry);
+    const locationInfo = this.volumeManager_?.getLocationInfo(entry) || null;
+    return getEntryLabel(locationInfo, entry);
   }
 
   /**
@@ -869,8 +1083,11 @@ export class FileTable extends Table {
    * @return {!HTMLDivElement} Created element.
    * @private
    */
+  // @ts-ignore: error TS6133: 'table' is declared but its value is never read.
   renderSize_(entry, columnId, table) {
     const div = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
     div.className = 'size';
     this.updateSize_(div, entry);
@@ -886,11 +1103,16 @@ export class FileTable extends Table {
    * @private
    */
   updateSize_(div, entry) {
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     const metadata = this.metadataModel_.getCache(
         [entry], ['size', 'hosted', 'contentMimeType'])[0];
+    // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
     const size = metadata.size;
+    // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
     const special = metadata.hosted ||
+        // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
         FileType.isEncrypted(entry, metadata.contentMimeType);
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     div.textContent = this.formatter_.formatSize(size, special);
   }
 
@@ -903,12 +1125,16 @@ export class FileTable extends Table {
    * @return {!HTMLDivElement} Created element.
    * @private
    */
+  // @ts-ignore: error TS6133: 'table' is declared but its value is never read.
   renderType_(entry, columnId, table) {
     const div = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
     div.className = 'type';
 
     const mimeType =
+        // @ts-ignore: error TS2532: Object is possibly 'undefined'.
         this.metadataModel_.getCache([entry], ['contentMimeType'])[0]
             .contentMimeType;
     div.textContent =
@@ -925,22 +1151,33 @@ export class FileTable extends Table {
    * @return {HTMLDivElement} Created element.
    * @private
    */
+  // @ts-ignore: error TS6133: 'table' is declared but its value is never read.
   renderDate_(entry, columnId, table) {
     const div = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
 
-    if (util.isJellyEnabled() || util.isInlineSyncStatusEnabled()) {
+    if (isJellyEnabled() || isInlineSyncStatusEnabled()) {
       div.className = 'dateholder';
       const label = /** @type {!HTMLDivElement} */
+          // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist
+          // on type 'FileTable'.
           (this.ownerDocument.createElement('div'));
       div.appendChild(label);
       label.className = 'date';
       this.updateDate_(label, entry);
-      const metadata =
-          this.metadataModel_.getCache([entry], ['isDlpRestricted'])[0];
-      const isDlpRestricted = !!metadata.isDlpRestricted;
-      if (isDlpRestricted) {
-        div.appendChild(this.renderDlpManagedIcon_());
+      // @ts-ignore: error TS2531: Object is possibly 'null'.
+      const metadata = this.metadataModel_.getCache(
+          [entry], ['contentMimeType', 'isDlpRestricted'])[0];
+      // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
+      const isEncrypted = FileType.isEncrypted(entry, metadata.contentMimeType);
+      if (isEncrypted) {
+        div.appendChild(this.renderEncryptedIcon_());
+      }
+      if (isDlpEnabled()) {
+        // @ts-ignore: error TS18048: 'metadata' is possibly 'undefined'.
+        div.appendChild(this.renderDlpManagedIcon_(!!metadata.isDlpRestricted));
       }
     } else {
       div.className = 'date';
@@ -957,12 +1194,16 @@ export class FileTable extends Table {
    * @private
    */
   updateDate_(div, entry) {
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     const item = this.metadataModel_.getCache(
         [entry], ['modificationTime', 'modificationByMeTime'])[0];
     const modTime = this.useModificationByMeTime_ ?
+        // @ts-ignore: error TS18048: 'item' is possibly 'undefined'.
         item.modificationByMeTime || item.modificationTime :
+        // @ts-ignore: error TS18048: 'item' is possibly 'undefined'.
         item.modificationTime;
 
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     div.textContent = this.formatter_.formatModDate(modTime);
   }
 
@@ -994,31 +1235,50 @@ export class FileTable extends Table {
    * @param {Array<Entry>} entries Entries to update.
    */
   updateListItemsMetadata(type, entries) {
-    const urls = util.entriesToURLs(entries);
+    const urls = entriesToURLs(entries);
+    // @ts-ignore: error TS7006: Parameter 'callback' implicitly has an 'any'
+    // type.
     const forEachCell = (selector, callback) => {
+      // @ts-ignore: error TS2339: Property 'querySelectorAll' does not exist on
+      // type 'FileTable'.
       const cells = this.querySelectorAll(selector);
       for (let i = 0; i < cells.length; i++) {
         const cell = /** @type {HTMLElement} */ (cells[i]);
+        // @ts-ignore: error TS2551: Property 'list_' does not exist on type
+        // 'FileTable'. Did you mean 'list'?
         const listItem = this.list_.getListItemAncestor(cell);
-        const entry = this.dataModel.item(listItem.listIndex);
+        const index = listItem?.listIndex ?? 0;
+        const entry = this.dataModel.item(index);
         if (entry && urls.indexOf(entry.toURL()) !== -1) {
           callback.call(this, cell, entry, listItem);
         }
       }
     };
     if (type === 'filesystem') {
+      // @ts-ignore: error TS7006: Parameter 'unused' implicitly has an 'any'
+      // type.
       forEachCell('.table-row-cell .date', function(item, entry, unused) {
+        // @ts-ignore: error TS2683: 'this' implicitly has type 'any' because it
+        // does not have a type annotation.
         this.updateDate_(item, entry);
       });
+      // @ts-ignore: error TS7006: Parameter 'unused' implicitly has an 'any'
+      // type.
       forEachCell('.table-row-cell > .size', function(item, entry, unused) {
+        // @ts-ignore: error TS2683: 'this' implicitly has type 'any' because it
+        // does not have a type annotation.
         this.updateSize_(item, entry);
       });
       this.updateGroupHeading_();
     } else if (type === 'external') {
       // The cell name does not matter as the entire list item is needed.
+      // @ts-ignore: error TS7006: Parameter 'listItem' implicitly has an 'any'
+      // type.
       forEachCell('.table-row-cell .date', function(item, entry, listItem) {
         filelist.updateListItemExternalProps(
             listItem, entry,
+            // @ts-ignore: error TS2683: 'this' implicitly has type 'any'
+            // because it does not have a type annotation.
             this.metadataModel_.getCache(
                 [entry],
                 [
@@ -1031,12 +1291,20 @@ export class FileTable extends Table {
                   'pinned',
                   'syncStatus',
                   'progress',
+                  'syncCompletedTime',
+                  'shortcut',
+                  'canPin',
+                  'isDlpRestricted',
                 ])[0],
-            util.isTeamDriveRoot(entry));
+            isTeamDriveRoot(entry));
         listItem.toggleAttribute(
             'disabled',
             filelist.isDlpBlocked(
+                // @ts-ignore: error TS2683: 'this' implicitly has type 'any'
+                // because it does not have a type annotation.
                 entry, assert(this.metadataModel_),
+                // @ts-ignore: error TS2683: 'this' implicitly has type 'any'
+                // because it does not have a type annotation.
                 assert(this.volumeManager_)));
       });
     }
@@ -1044,37 +1312,77 @@ export class FileTable extends Table {
 
   /**
    * Renders table row.
-   * @param {function(Entry, Table)} baseRenderFunction Base renderer.
+   * @param {function(Entry, Table):void} baseRenderFunction Base renderer.
    * @param {Entry} entry Corresponding entry.
    * @return {HTMLLIElement} Created element.
    * @private
    */
+  // @ts-ignore: error TS6133: 'renderTableRow_' is declared but its value is
+  // never read.
   renderTableRow_(baseRenderFunction, entry) {
+    // @ts-ignore: error TS2345: Argument of type 'this' is not assignable to
+    // parameter of type 'Table'.
     const item = baseRenderFunction(entry, this);
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
     const nameId = item.id + '-entry-name';
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
     const sizeId = item.id + '-size';
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
     const typeId = item.id + '-type';
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
     const dateId = item.id + '-date';
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
     const dlpId = item.id + '-dlp-managed-icon';
+    // @ts-ignore: error TS2339: Property 'id' does not exist on type 'void'.
+    const encryptedId = item.id + '-encrypted-icon';
     filelist.decorateListItem(
+        // @ts-ignore: error TS2345: Argument of type 'void' is not assignable
+        // to parameter of type 'ListItem'.
         item, entry, assert(this.metadataModel_), assert(this.volumeManager_));
+    // @ts-ignore: error TS2339: Property 'setAttribute' does not exist on type
+    // 'void'.
     item.setAttribute('file-name', entry.name);
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
     item.querySelector('.detail-name').setAttribute('id', nameId);
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
     item.querySelector('.size').setAttribute('id', sizeId);
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
     item.querySelector('.type').setAttribute('id', typeId);
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
     item.querySelector('.date').setAttribute('id', dateId);
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
     const dlpManagedIcon = item.querySelector('.dlp-managed-icon');
     if (dlpManagedIcon) {
       dlpManagedIcon.setAttribute('id', dlpId);
+      // @ts-ignore: error TS2304: Cannot find name 'FilesTooltip'.
       /** @type {!FilesTooltip} */ (
+          // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist
+          // on type 'FileTable'.
           this.ownerDocument.querySelector('files-tooltip'))
+          // @ts-ignore: error TS2339: Property 'querySelectorAll' does not
+          // exist on type 'void'.
           .addTargets(item.querySelectorAll('.dlp-managed-icon'));
     }
+    // @ts-ignore: error TS2339: Property 'querySelector' does not exist on type
+    // 'void'.
+    const encryptedIcon = item.querySelector('.encrypted-icon');
+    if (encryptedIcon) {
+      encryptedIcon.setAttribute('id', encryptedId);
+    }
 
+    // @ts-ignore: error TS2339: Property 'setAttribute' does not exist on type
+    // 'void'.
     item.setAttribute(
         'aria-labelledby',
         `${nameId} column-size ${sizeId} column-type ${
-            typeId} column-modificationTime ${dateId}`);
+            typeId} column-modificationTime ${dateId} ${encryptedId}`);
+    // @ts-ignore: error TS2322: Type 'void' is not assignable to type
+    // 'HTMLLIElement'.
     return item;
   }
 
@@ -1087,6 +1395,8 @@ export class FileTable extends Table {
    */
   renderThumbnail_(entry, parent) {
     const box = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
     box.className = 'detail-thumbnail';
 
@@ -1115,6 +1425,8 @@ export class FileTable extends Table {
     const oldThumbnails = box.querySelectorAll('.thumbnail');
 
     for (let i = 0; i < oldThumbnails.length; i++) {
+      // @ts-ignore: error TS2345: Argument of type 'Element | undefined' is not
+      // assignable to parameter of type 'Node'.
       box.removeChild(oldThumbnails[i]);
     }
 
@@ -1130,6 +1442,8 @@ export class FileTable extends Table {
     const oldThumbnails = box.querySelectorAll('.thumbnail');
 
     for (let i = 0; i < oldThumbnails.length; i++) {
+      // @ts-ignore: error TS2345: Argument of type 'Element | undefined' is not
+      // assignable to parameter of type 'Node'.
       box.removeChild(oldThumbnails[i]);
     }
   }
@@ -1141,6 +1455,8 @@ export class FileTable extends Table {
    */
   renderCheckmark_() {
     const checkmark = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
     checkmark.className = 'detail-checkmark';
     return checkmark;
@@ -1148,20 +1464,43 @@ export class FileTable extends Table {
 
   /**
    * Renders the DLP managed icon in the detail table.
+   * @param {!boolean} isDlpRestricted Whether the icon should be shown.
    * @return {!HTMLDivElement} Created element.
    * @private
    */
-  renderDlpManagedIcon_() {
+  renderDlpManagedIcon_(isDlpRestricted) {
     const icon = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
         (this.ownerDocument.createElement('div'));
     icon.className = 'dlp-managed-icon';
     icon.toggleAttribute('has-tooltip');
-    icon.dataset['tooltipLinkHref'] =
-        'https://support.google.com/chrome/a/?p=chromeos_datacontrols';
+    icon.dataset['tooltipLinkHref'] = str('DLP_HELP_URL');
     icon.dataset['tooltipLinkAriaLabel'] = str('DLP_MANAGED_ICON_TOOLTIP_DESC');
     icon.dataset['tooltipLinkText'] = str('DLP_MANAGED_ICON_TOOLTIP_LINK');
     icon.setAttribute('aria-label', str('DLP_MANAGED_ICON_TOOLTIP'));
     icon.toggleAttribute('show-card-tooltip');
+    icon.classList.toggle('is-dlp-restricted', isDlpRestricted);
+    icon.toggleAttribute('aria-hidden', isDlpRestricted);
+    return icon;
+  }
+
+  /**
+   * Renders the encrypted icon in the detail table, used to mark Google Drive
+   * CSE files.
+   * @return {!HTMLDivElement} Created element.
+   * @private
+   */
+  renderEncryptedIcon_() {
+    const icon = /** @type {!HTMLDivElement} */
+        // @ts-ignore: error TS2339: Property 'ownerDocument' does not exist on
+        // type 'FileTable'.
+        (this.ownerDocument.createElement('div'));
+    icon.className = 'encrypted-icon';
+    icon.setAttribute('aria-label', str('ENCRYPTED_ICON_TOOLTIP'));
+    // @ts-ignore: error TS2304: Cannot find name 'FilesTooltip'.
+    /** @type {!FilesTooltip} */ (document.querySelector('files-tooltip'))
+        .addTarget(icon);
     return icon;
   }
 
@@ -1169,6 +1508,7 @@ export class FileTable extends Table {
    * Redraws the UI. Skips multiple consecutive calls.
    */
   relayout() {
+    // @ts-ignore: error TS2531: Object is possibly 'null'.
     this.relayoutRateLimiter_.run();
   }
 
@@ -1176,7 +1516,11 @@ export class FileTable extends Table {
    * Redraws the UI immediately.
    * @private
    */
+  // @ts-ignore: error TS6133: 'relayoutImmediately_' is declared but its value
+  // is never read.
   relayoutImmediately_() {
+    // @ts-ignore: error TS2339: Property 'clientWidth' does not exist on type
+    // 'FileTable'.
     if (this.clientWidth > 0) {
       this.normalizeColumns();
     }

@@ -27,7 +27,7 @@ import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.prefs.PrefService;
-import org.chromium.components.subresource_filter.SubresourceFilterFeatureList;
+import org.chromium.components.subresource_filter.SubresourceFilterFeatureMap;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.ui.text.SpanApplier;
@@ -40,14 +40,41 @@ import java.lang.annotation.RetentionPolicy;
  * A base class for dealing with website settings categories.
  */
 public class SiteSettingsCategory {
-    @IntDef({Type.ALL_SITES, Type.ADS, Type.AUGMENTED_REALITY, Type.AUTOMATIC_DOWNLOADS,
-            Type.BACKGROUND_SYNC, Type.BLUETOOTH, Type.BLUETOOTH_SCANNING, Type.CAMERA,
-            Type.CLIPBOARD, Type.COOKIES, Type.IDLE_DETECTION, Type.DEVICE_LOCATION,
-            Type.JAVASCRIPT, Type.MICROPHONE, Type.NFC, Type.NOTIFICATIONS, Type.POPUPS,
-            Type.PROTECTED_MEDIA, Type.SENSORS, Type.SOUND, Type.USB, Type.VIRTUAL_REALITY,
-            Type.USE_STORAGE, Type.AUTO_DARK_WEB_CONTENT, Type.REQUEST_DESKTOP_SITE,
-            Type.FEDERATED_IDENTITY_API, Type.THIRD_PARTY_COOKIES, Type.SITE_DATA, Type.ANTI_ABUSE,
-            Type.NUM_ENTRIES})
+    @IntDef({
+        Type.ALL_SITES,
+        Type.ADS,
+        Type.AUGMENTED_REALITY,
+        Type.AUTOMATIC_DOWNLOADS,
+        Type.BACKGROUND_SYNC,
+        Type.BLUETOOTH,
+        Type.BLUETOOTH_SCANNING,
+        Type.CAMERA,
+        Type.CLIPBOARD,
+        Type.COOKIES,
+        Type.IDLE_DETECTION,
+        Type.DEVICE_LOCATION,
+        Type.JAVASCRIPT,
+        Type.MICROPHONE,
+        Type.NFC,
+        Type.NOTIFICATIONS,
+        Type.POPUPS,
+        Type.PROTECTED_MEDIA,
+        Type.SENSORS,
+        Type.SOUND,
+        Type.USB,
+        Type.VIRTUAL_REALITY,
+        Type.USE_STORAGE,
+        Type.AUTO_DARK_WEB_CONTENT,
+        Type.REQUEST_DESKTOP_SITE,
+        Type.FEDERATED_IDENTITY_API,
+        Type.THIRD_PARTY_COOKIES,
+        Type.SITE_DATA,
+        Type.ANTI_ABUSE,
+        Type.ZOOM,
+        Type.STORAGE_ACCESS,
+        Type.TRACKING_PROTECTION,
+        Type.NUM_ENTRIES
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Type {
         // All updates here must also be reflected in {@link #preferenceKey(int)
@@ -81,10 +108,12 @@ public class SiteSettingsCategory {
         int THIRD_PARTY_COOKIES = 26;
         int SITE_DATA = 27;
         int ANTI_ABUSE = 28;
-        /**
-         * Number of handled categories used for calculating array sizes.
-         */
-        int NUM_ENTRIES = 29;
+        int ZOOM = 29;
+        int STORAGE_ACCESS = 30;
+        int TRACKING_PROTECTION = 31;
+
+        /** Number of handled categories used for calculating array sizes. */
+        int NUM_ENTRIES = 32;
     }
 
     private final BrowserContextHandle mBrowserContextHandle;
@@ -207,6 +236,8 @@ public class SiteSettingsCategory {
                 return ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER;
             case Type.SENSORS:
                 return ContentSettingsType.SENSORS;
+            case Type.STORAGE_ACCESS:
+                return ContentSettingsType.STORAGE_ACCESS;
             case Type.SOUND:
                 return ContentSettingsType.SOUND;
             case Type.USB:
@@ -215,6 +246,8 @@ public class SiteSettingsCategory {
                 return ContentSettingsType.VR;
             case Type.ALL_SITES:
             case Type.USE_STORAGE:
+            case Type.ZOOM:
+            case Type.TRACKING_PROTECTION:
                 return ContentSettingsType.DEFAULT; // Conversion unavailable.
         }
         assert false;
@@ -288,6 +321,8 @@ public class SiteSettingsCategory {
                 return "protected_content";
             case Type.SENSORS:
                 return "sensors";
+            case Type.STORAGE_ACCESS:
+                return "storage_access";
             case Type.SOUND:
                 return "sound";
             case Type.USB:
@@ -300,6 +335,10 @@ public class SiteSettingsCategory {
                 return "site_data";
             case Type.THIRD_PARTY_COOKIES:
                 return "third_party_cookies";
+            case Type.TRACKING_PROTECTION:
+                return "tracking_protection";
+            case Type.ZOOM:
+                return "zoom";
             default:
                 assert false;
                 return "";
@@ -332,8 +371,7 @@ public class SiteSettingsCategory {
      * Returns whether the Ads category is enabled via an experiment flag.
      */
     public static boolean adsCategoryEnabled() {
-        return SubresourceFilterFeatureList.isEnabled(
-                SubresourceFilterFeatureList.SUBRESOURCE_FILTER);
+        return SubresourceFilterFeatureMap.isSubresourceFilterEnabled();
     }
 
     /**

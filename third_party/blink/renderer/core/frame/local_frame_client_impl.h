@@ -41,6 +41,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/common/performance/performance_timeline_constants.h"
 #include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
 #include "third_party/blink/public/common/subresource_load_metrics.h"
 #include "third_party/blink/public/mojom/devtools/devtools_agent.mojom-blink-forward.h"
@@ -151,15 +152,17 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
           soft_navigation_heuristics_task_id) const override;
   void DidDispatchPingLoader(const KURL&) override;
   void DidChangePerformanceTiming() override;
-  void DidObserveInputDelay(base::TimeDelta) override;
-  void DidObserveUserInteraction(base::TimeDelta max_event_duration,
+  void DidObserveUserInteraction(base::TimeTicks max_event_start,
+                                 base::TimeTicks max_event_end,
                                  UserInteractionType interaction_type) override;
   void DidChangeCpuTiming(base::TimeDelta) override;
   void DidObserveLoadingBehavior(LoadingBehaviorFlag) override;
+  void DidObserveJavaScriptFrameworks(
+      const JavaScriptFrameworkDetectionResult&) override;
   void DidObserveSubresourceLoad(
       const SubresourceLoadMetrics& subresource_load_metrics) override;
   void DidObserveNewFeatureUsage(const UseCounterFeature&) override;
-  void DidObserveSoftNavigation(uint32_t count) override;
+  void DidObserveSoftNavigation(SoftNavigationMetrics metrics) override;
   void DidObserveLayoutShift(double score, bool after_input_or_scroll) override;
   void PreloadSubresourceOptimizationsForOrigins(
       const WTF::HashSet<scoped_refptr<const SecurityOrigin>>& origins)
@@ -171,8 +174,6 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
 
   String UserAgentOverride() override;
   WTF::String UserAgent() override;
-  WTF::String FullUserAgent() override;
-  WTF::String ReducedUserAgent() override;
   absl::optional<blink::UserAgentMetadata> UserAgentMetadata() override;
   WTF::String DoNotTrackValue() override;
   void TransitionToCommittedForNewPage() override;
@@ -229,6 +230,11 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
 
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
   std::unique_ptr<URLLoader> CreateURLLoaderForTesting() override;
+
+  blink::ChildURLLoaderFactoryBundle* GetLoaderFactoryBundle() override;
+
+  scoped_refptr<WebBackgroundResourceFetchAssets>
+  MaybeGetBackgroundResourceFetchAssets() override;
 
   blink::BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() override;
 
@@ -291,10 +297,6 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
       mojo::PendingAssociatedReceiver<mojom::blink::DevToolsAgent> receiver)
       override;
 
-  void UpdateSubresourceFactory(
-      std::unique_ptr<blink::PendingURLLoaderFactoryBundle> pending_factory)
-      override;
-
  private:
   bool IsLocalFrameClientImpl() const override { return true; }
   WebDevToolsAgentImpl* DevToolsAgent();
@@ -304,8 +306,6 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
   Member<WebLocalFrameImpl> web_frame_;
 
   String user_agent_;
-  String full_user_agent_;
-  String reduced_user_agent_;
 };
 
 template <>

@@ -13,7 +13,9 @@
 #include <set>
 #include <tuple>
 
+#include "base/command_line.h"
 #include "base/format_macros.h"
+#include "base/i18n/base_i18n_switches.h"
 #include "base/i18n/break_iterator.h"
 #include "base/i18n/char_iterator.h"
 #include "base/logging.h"
@@ -52,8 +54,8 @@
 #include "ui/gfx/range/range_f.h"
 #include "ui/gfx/render_text_harfbuzz.h"
 #include "ui/gfx/render_text_test_api.h"
-#include "ui/gfx/switches.h"
 #include "ui/gfx/test/scoped_default_font_description.h"
+#include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/text_utils.h"
 
@@ -201,6 +203,9 @@ DecoratedText::RangedAttribute CreateRangedAttribute(
     font_style |= Font::ITALIC;
   if (style_mask & UNDERLINE_MASK)
     font_style |= Font::UNDERLINE;
+  if (style_mask & STRIKE_MASK) {
+    font_style |= Font::STRIKE_THROUGH;
+  }
 
   const Font font_with_style = font.Derive(0, font_style, weight);
   DecoratedText::RangedAttribute attributes(Range(index, index + 1),
@@ -415,7 +420,7 @@ class TestRectangleBuffer {
 
  private:
   const char* string_;
-  raw_ptr<const SkColor> buffer_;
+  raw_ptr<const SkColor, AllowPtrArithmetic> buffer_;
   int stride_;
   int row_count_;
 };
@@ -675,7 +680,8 @@ TEST_F(RenderTextTest, DefaultStyles) {
   const char16_t* const cases[] = {kWeak, kLtr, u"Hello", kRtl, u"", u""};
   for (size_t i = 0; i < std::size(cases); ++i) {
     EXPECT_TRUE(test_api()->colors().EqualsValueForTesting(kPlaceholderColor));
-    EXPECT_TRUE(test_api()->baselines().EqualsValueForTesting(NORMAL_BASELINE));
+    EXPECT_TRUE(test_api()->baselines().EqualsValueForTesting(
+        BaselineStyle::kNormalBaseline));
     EXPECT_TRUE(test_api()->font_size_overrides().EqualsValueForTesting(0));
     for (size_t style = 0; style < static_cast<int>(TEXT_STYLE_COUNT); ++style)
       EXPECT_TRUE(test_api()->styles()[style].EqualsValueForTesting(false));
@@ -688,13 +694,14 @@ TEST_F(RenderTextTest, SetStyles) {
   RenderText* render_text = GetRenderText();
   const SkColor color = SK_ColorGREEN;
   render_text->SetColor(color);
-  render_text->SetBaselineStyle(SUPERSCRIPT);
+  render_text->SetBaselineStyle(BaselineStyle::kSuperscript);
   render_text->SetWeight(Font::Weight::BOLD);
   render_text->SetStyle(TEXT_STYLE_UNDERLINE, false);
   const char16_t* const cases[] = {kWeak, kLtr, u"Hello", kRtl, u"", u""};
   for (size_t i = 0; i < std::size(cases); ++i) {
     EXPECT_TRUE(test_api()->colors().EqualsValueForTesting(color));
-    EXPECT_TRUE(test_api()->baselines().EqualsValueForTesting(SUPERSCRIPT));
+    EXPECT_TRUE(test_api()->baselines().EqualsValueForTesting(
+        BaselineStyle::kSuperscript));
     EXPECT_TRUE(
         test_api()->weights().EqualsValueForTesting(Font::Weight::BOLD));
     EXPECT_TRUE(
@@ -719,7 +726,7 @@ TEST_F(RenderTextTest, ApplyStyles) {
 
   // Apply a ranged color and style and check the resulting breaks.
   render_text->ApplyColor(SK_ColorGREEN, Range(1, 4));
-  render_text->ApplyBaselineStyle(SUPERIOR, Range(2, 4));
+  render_text->ApplyBaselineStyle(BaselineStyle::kSuperior, Range(2, 4));
   render_text->ApplyWeight(Font::Weight::BOLD, Range(2, 5));
   render_text->ApplyFontSizeOverride(kTestFontSizeOverride, Range(5, 7));
 
@@ -727,7 +734,9 @@ TEST_F(RenderTextTest, ApplyStyles) {
       {{0, kPlaceholderColor}, {1, SK_ColorGREEN}, {4, kPlaceholderColor}}));
 
   EXPECT_TRUE(test_api()->baselines().EqualsForTesting(
-      {{0, NORMAL_BASELINE}, {2, SUPERIOR}, {4, NORMAL_BASELINE}}));
+      {{0, BaselineStyle::kNormalBaseline},
+       {2, BaselineStyle::kSuperior},
+       {4, BaselineStyle::kNormalBaseline}}));
 
   EXPECT_TRUE(test_api()->font_size_overrides().EqualsForTesting(
       {{0, 0}, {5, kTestFontSizeOverride}, {7, 0}}));
@@ -740,8 +749,9 @@ TEST_F(RenderTextTest, ApplyStyles) {
   // Ensure that setting a value overrides the ranged values.
   render_text->SetColor(SK_ColorBLUE);
   EXPECT_TRUE(test_api()->colors().EqualsValueForTesting(SK_ColorBLUE));
-  render_text->SetBaselineStyle(SUBSCRIPT);
-  EXPECT_TRUE(test_api()->baselines().EqualsValueForTesting(SUBSCRIPT));
+  render_text->SetBaselineStyle(BaselineStyle::kSubscript);
+  EXPECT_TRUE(
+      test_api()->baselines().EqualsValueForTesting(BaselineStyle::kSubscript));
   render_text->SetWeight(Font::Weight::NORMAL);
   EXPECT_TRUE(
       test_api()->weights().EqualsValueForTesting(Font::Weight::NORMAL));
@@ -750,11 +760,13 @@ TEST_F(RenderTextTest, ApplyStyles) {
   // should be used instead of the text length for the range end)
   const size_t text_length = render_text->text().length();
   render_text->ApplyColor(SK_ColorGREEN, Range(0, text_length));
-  render_text->ApplyBaselineStyle(SUPERIOR, Range(0, text_length));
+  render_text->ApplyBaselineStyle(BaselineStyle::kSuperior,
+                                  Range(0, text_length));
   render_text->ApplyWeight(Font::Weight::BOLD, Range(2, text_length));
 
   EXPECT_TRUE(test_api()->colors().EqualsForTesting({{0, SK_ColorGREEN}}));
-  EXPECT_TRUE(test_api()->baselines().EqualsForTesting({{0, SUPERIOR}}));
+  EXPECT_TRUE(test_api()->baselines().EqualsForTesting(
+      {{0, BaselineStyle::kSuperior}}));
   EXPECT_TRUE(test_api()->weights().EqualsForTesting(
       {{0, Font::Weight::NORMAL}, {2, Font::Weight::BOLD}}));
 
@@ -980,12 +992,62 @@ TEST_F(RenderTextTest, ApplyColorArabicLigature) {
   EXPECT_EQ(SK_ColorBLACK, text_log()[1].color());
 }
 
+TEST_F(RenderTextTest, ApplyEliding) {
+  RenderText* render_text = GetRenderText();
+  render_text->SetText(u"abcd");
+
+  render_text->SetEliding(false);
+  EXPECT_EQ(u"abcd", test_api()->GetLayoutText());
+  render_text->ApplyEliding(true, Range(0, 1));
+  EXPECT_EQ(u"\u2026bcd", test_api()->GetLayoutText());
+  render_text->ApplyEliding(true, Range(1, 2));
+  EXPECT_EQ(u"\u2026cd", test_api()->GetLayoutText());
+  render_text->ApplyEliding(true, Range(3, 4));
+  EXPECT_EQ(u"\u2026c\u2026", test_api()->GetLayoutText());
+
+  render_text->SetEliding(false);
+  render_text->ApplyEliding(true, Range(1, 3));
+  EXPECT_EQ(u"a\u2026d", test_api()->GetLayoutText());
+}
+
+TEST_F(RenderTextTest, ApplyElidingGrapheme) {
+  RenderText* render_text = GetRenderText();
+  render_text->SetText(u"a\U0001F628\u0065\u0301b");
+
+  render_text->ApplyEliding(true, Range(1, 2));
+  EXPECT_EQ(u"a\u2026\u0065\u0301b", test_api()->GetLayoutText());
+  render_text->ApplyEliding(true, Range(3, 5));
+  EXPECT_EQ(u"a\u2026b", test_api()->GetLayoutText());
+
+  // Obscure the text.
+  render_text->SetObscured(true);
+
+  render_text->SetEliding(false);
+  render_text->ApplyEliding(true, Range(1, 2));
+  EXPECT_EQ(u"\u2022\u2026\u2022\u2022", test_api()->GetLayoutText());
+
+  render_text->SetEliding(false);
+  render_text->ApplyEliding(true, Range(3, 6));
+  EXPECT_EQ(u"\u2022\u2022\u2026", test_api()->GetLayoutText());
+}
+
+TEST_F(RenderTextTest, ApplyElidingAndTruncate) {
+  RenderText* render_text = GetRenderText();
+  render_text->set_truncate_length(3);
+  render_text->SetText(u"abcde");
+  render_text->ApplyEliding(true, Range(1, 4));
+
+  // The truncate text has an ellipsis at the end that should be merge with the
+  // eliding ellipsis to avoid double elispsis.
+  EXPECT_EQ(u"a\u2026", test_api()->GetLayoutText());
+}
+
 TEST_F(RenderTextTest, AppendTextKeepsStyles) {
   RenderText* render_text = GetRenderText();
   // Setup basic functionality.
   render_text->SetText(u"abcd");
   render_text->ApplyColor(SK_ColorGREEN, Range(0, 1));
-  render_text->ApplyBaselineStyle(SUPERSCRIPT, Range(1, 2));
+  render_text->ApplyBaselineStyle(BaselineStyle::kSuperscript, Range(1, 2));
   render_text->ApplyStyle(TEXT_STYLE_UNDERLINE, true, Range(2, 3));
   render_text->ApplyFontSizeOverride(20, Range(3, 4));
   // Verify basic functionality.
@@ -993,7 +1055,9 @@ TEST_F(RenderTextTest, AppendTextKeepsStyles) {
       {0, SK_ColorGREEN}, {1, kPlaceholderColor}};
   EXPECT_TRUE(test_api()->colors().EqualsForTesting(expected_color));
   const std::vector<std::pair<size_t, BaselineStyle>> expected_baseline = {
-      {0, NORMAL_BASELINE}, {1, SUPERSCRIPT}, {2, NORMAL_BASELINE}};
+      {0, BaselineStyle::kNormalBaseline},
+      {1, BaselineStyle::kSuperscript},
+      {2, BaselineStyle::kNormalBaseline}};
   EXPECT_TRUE(test_api()->baselines().EqualsForTesting(expected_baseline));
   const std::vector<std::pair<size_t, bool>> expected_style = {
       {0, false}, {2, true}, {3, false}};
@@ -2667,16 +2731,27 @@ TEST_F(RenderTextTest, TruncatedObscuredText) {
 
 TEST_F(RenderTextTest, TruncatedObscuredTextWithGraphemes) {
   RenderText* render_text = GetRenderText();
-  render_text->set_truncate_length(3);
-  render_text->SetText(u"e\u0301\U0001F468\u200D\u2708\uFE0F\U0001D11E");
+  render_text->set_truncate_length(5);
+  // Set text to the following 4 glyphs: e-acute, x, pilot emoji, musical sign
+  // [é][x][👨‍✈️][𝄞]
+  render_text->SetText(u"e\u0301x\U0001F468\u200D\u2708\uFE0F\U0001D11E");
   render_text->SetObscured(true);
-  EXPECT_EQ(GetObscuredString(3), render_text->GetDisplayText());
+  EXPECT_EQ(u"\u2022\u2022\u2026", render_text->GetDisplayText());
 
   render_text->SetObscuredRevealIndex(0);
-  EXPECT_EQ(u"e\u0301…", render_text->GetDisplayText());
+  EXPECT_EQ(u"e\u0301\u2022\u2026", render_text->GetDisplayText());
+
+  // TODO: Check if this is a bug.
+  // Setting reveal index of 1 maps to the acute unicode codepoint and not the
+  // letter e. Display text however will show both: é.
+  render_text->SetObscuredRevealIndex(1);
+  EXPECT_EQ(u"e\u0301\u2022\u2026", render_text->GetDisplayText());
 
   render_text->SetObscuredRevealIndex(2);
-  EXPECT_EQ(u"\u2022…", render_text->GetDisplayText());
+  EXPECT_EQ(u"\u2022x\u2026", render_text->GetDisplayText());
+
+  render_text->SetObscuredRevealIndex(3);
+  EXPECT_EQ(u"\u2022\u2022\u2026", render_text->GetDisplayText());
 
   render_text->SetObscuredRevealIndex(7);
   EXPECT_EQ(u"\u2022\u2022…", render_text->GetDisplayText());
@@ -3446,8 +3521,6 @@ TEST_F(RenderTextTest, GetDisplayTextDirection) {
   for (size_t i = 0; i < 2; ++i) {
     // Toggle the application default text direction (to try each direction).
     SetRTL(!base::i18n::IsRTL());
-    const base::i18n::TextDirection ui_direction = base::i18n::IsRTL() ?
-        base::i18n::RIGHT_TO_LEFT : base::i18n::LEFT_TO_RIGHT;
 
     // Ensure that directionality modes yield the correct text directions.
     for (size_t j = 0; j < std::size(cases); j++) {
@@ -3455,8 +3528,6 @@ TEST_F(RenderTextTest, GetDisplayTextDirection) {
       render_text->SetDirectionalityMode(DIRECTIONALITY_FROM_TEXT);
       EXPECT_EQ(render_text->GetDisplayTextDirection(),
                 cases[j].text_direction);
-      render_text->SetDirectionalityMode(DIRECTIONALITY_FROM_UI);
-      EXPECT_EQ(render_text->GetDisplayTextDirection(), ui_direction);
       render_text->SetDirectionalityMode(DIRECTIONALITY_FORCE_LTR);
       EXPECT_EQ(render_text->GetDisplayTextDirection(),
                 base::i18n::LEFT_TO_RIGHT);
@@ -4964,8 +5035,10 @@ TEST_F(RenderTextTest, DefaultLineHeights) {
   RenderText* render_text = GetRenderText();
   render_text->SetText(u"A quick brown fox jumped over the lazy dog!");
 
-#if BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_MAC)
   const FontList body2_font = FontList().DeriveWithSizeDelta(-1);
+#elif BUILDFLAG(IS_IOS)
+  const FontList body2_font = FontList().DeriveWithSizeDelta(-2);
 #else
   const FontList body2_font;
 #endif
@@ -6429,7 +6502,7 @@ TEST_F(RenderTextTest, AppleSpecificPrivateUseCharacterReplacement) {
   // see: http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT
   RenderText* render_text = GetRenderText();
   render_text->SetText(u"\uf8ff");
-#if BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_MAC)
   EXPECT_EQ(u"\uf8ff", render_text->GetDisplayText());
 #else
   EXPECT_EQ(u"\ufffd", render_text->GetDisplayText());
@@ -7020,8 +7093,8 @@ TEST_F(RenderTextTest, StringFitsOwnWidth) {
 // falling back to other fonts.
 TEST_F(RenderTextTest, HarfBuzz_FontListFallback) {
   // Double-check that the requested fonts are present.
-  std::string format = std::string(kTestFontName) + ", %s, 12px";
-  FontList font_list(base::StringPrintf(format.c_str(), kSymbolFontName));
+  FontList font_list(
+      base::StringPrintf("%s, %s, 12px", kTestFontName, kSymbolFontName));
   const std::vector<Font>& fonts = font_list.GetFonts();
   ASSERT_EQ(2u, fonts.size());
   ASSERT_EQ(base::ToLowerASCII(kTestFontName),
@@ -7429,10 +7502,10 @@ TEST_F(RenderTextTest, DISABLED_TextDoesntClip) {
   for (auto* string : kTestStrings) {
     paint_canvas.clear(SkColors::kWhite);
     render_text->SetText(base::UTF8ToUTF16(string));
-    render_text->ApplyBaselineStyle(SUPERSCRIPT, Range(1, 2));
-    render_text->ApplyBaselineStyle(SUPERIOR, Range(3, 4));
-    render_text->ApplyBaselineStyle(INFERIOR, Range(5, 6));
-    render_text->ApplyBaselineStyle(SUBSCRIPT, Range(7, 8));
+    render_text->ApplyBaselineStyle(BaselineStyle::kSuperscript, Range(1, 2));
+    render_text->ApplyBaselineStyle(BaselineStyle::kSuperior, Range(3, 4));
+    render_text->ApplyBaselineStyle(BaselineStyle::kInferior, Range(5, 6));
+    render_text->ApplyBaselineStyle(BaselineStyle::kSubscript, Range(7, 8));
     const Size string_size = render_text->GetStringSize();
     render_text->SetWeight(Font::Weight::BOLD);
     render_text->SetDisplayRect(
@@ -8583,7 +8656,6 @@ TEST_F(RenderTextTest, Clusterfuzz_Issue_1298286) {
   RenderText* render_text = GetRenderText();
   render_text->SetFontList(font_list);
   render_text->SetHorizontalAlignment(ALIGN_RIGHT);
-  render_text->SetDirectionalityMode(DIRECTIONALITY_FROM_UI);
   render_text->SetText(u"t:");
   render_text->SetDisplayRect(field);
   render_text->SetCursorEnabled(true);
@@ -8644,6 +8716,70 @@ TEST_F(RenderTextTest, Clusterfuzz_Issue_1193815) {
   render_text->SetMaxLines(1);
   render_text->SetMultiline(true);
   render_text->Draw(canvas());
+}
+
+class RenderTextDirectionTest
+    : public testing::Test,
+      public testing::WithParamInterface<std::string> {
+ public:
+  RenderTextDirectionTest() = default;
+  RenderTextDirectionTest(const RenderTextDirectionTest&) = delete;
+  RenderTextDirectionTest& operator=(const RenderTextDirectionTest&) = delete;
+  ~RenderTextDirectionTest() override = default;
+
+  HorizontalAlignment GetCurrentHorizontalAlignment() {
+    return test_api_->GetCurrentHorizontalAlignment();
+  }
+
+  RenderText* render_text() { return render_text_.get(); }
+
+ private:
+  void SetUp() override {
+    // Set default locale to a LTR language.
+    base::i18n::SetICUDefaultLocale("en");
+
+    if (!GetParam().empty()) {
+      base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+          switches::kForceUIDirection, GetParam());
+    }
+
+    render_text_ = std::make_unique<RenderTextHarfBuzz>();
+    test_api_ = std::make_unique<test::RenderTextTestApi>(render_text_.get());
+  }
+
+  std::unique_ptr<RenderTextHarfBuzz> render_text_;
+  std::unique_ptr<test::RenderTextTestApi> test_api_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         RenderTextDirectionTest,
+                         testing::Values(std::string(),
+                                         switches::kForceDirectionRTL,
+                                         switches::kForceDirectionLTR));
+
+TEST_P(RenderTextDirectionTest, GetCurrentHorizontalAlignment) {
+  // Default alignment:
+  if (GetParam() == switches::kForceDirectionRTL) {
+    EXPECT_EQ(ALIGN_RIGHT, GetCurrentHorizontalAlignment());
+  } else {
+    EXPECT_EQ(ALIGN_LEFT, GetCurrentHorizontalAlignment());
+  }
+
+  render_text()->SetHorizontalAlignment(ALIGN_RIGHT);
+  EXPECT_EQ(ALIGN_RIGHT, GetCurrentHorizontalAlignment());
+
+  render_text()->SetHorizontalAlignment(ALIGN_CENTER);
+  EXPECT_EQ(ALIGN_CENTER, GetCurrentHorizontalAlignment());
+
+  render_text()->SetHorizontalAlignment(ALIGN_TO_HEAD);
+  if (GetParam() == switches::kForceDirectionRTL) {
+    EXPECT_EQ(ALIGN_RIGHT, GetCurrentHorizontalAlignment());
+  } else {
+    EXPECT_EQ(ALIGN_LEFT, GetCurrentHorizontalAlignment());
+  }
+
+  render_text()->SetDirectionalityMode(DIRECTIONALITY_AS_URL);
+  EXPECT_EQ(ALIGN_LEFT, GetCurrentHorizontalAlignment());
 }
 
 }  // namespace gfx

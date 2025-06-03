@@ -719,32 +719,6 @@ IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
   VerifyPopupWindowGetUserMedia(opener_contents, blob_popup_contents);
 }
 
-IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
-                       EmbedIframeFileSystem) {
-  // TODO(https://crbug.com/1332598): Remove this test when removing filesystem:
-  // navigation for good.
-  if (!base::FeatureList::IsEnabled(blink::features::kFileSystemUrlNavigation))
-    GTEST_SKIP();
-
-  ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL url(embedded_test_server()->GetURL("/empty.html"));
-  content::RenderFrameHost* main_rfh =
-      ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(browser(), url,
-                                                                1);
-  ASSERT_TRUE(main_rfh);
-  content::WebContents* embedder_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(embedder_contents);
-
-  content::RenderFrameHost* embedded_iframe_rfh =
-      CreateIframe(main_rfh, CreateFilesystemURL(main_rfh));
-  ASSERT_TRUE(embedded_iframe_rfh);
-
-  VerifyPermissionsExceptGetUserMedia(embedder_contents, embedded_iframe_rfh);
-  VerifyPermission(embedder_contents, embedded_iframe_rfh, kRequestCamera,
-                   kCheckCamera);
-}
-
 // Renderer navigation for "filesystem:" is not allowed.
 IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
                        WindowOpenFileSystemRendererNavigationNotAllowed) {
@@ -788,8 +762,7 @@ IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
 
   content::RenderFrameHost* popup_rfh =
       ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(
-          chrome::FindBrowserWithWebContents(popup_iframe_web_contents), fs_url,
-          1);
+          chrome::FindBrowserWithTab(popup_iframe_web_contents), fs_url, 1);
 
   EXPECT_TRUE(popup_rfh->GetLastCommittedURL().SchemeIsFileSystem());
 
@@ -1649,7 +1622,7 @@ class PermissionRequestWithPrerendererTest
       const PermissionRequestWithPrerendererTest&) = delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     PermissionsSecurityModelInteractiveUITest::SetUp();
   }
 
@@ -2438,6 +2411,29 @@ IN_PROC_BROWSER_TEST_F(PermissionRequestFromExtension,
       "permissions_test/request_from_options_v3/has_permissions_negative",
       /*shown_prompts=*/2,
       permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+}
+
+IN_PROC_BROWSER_TEST_F(PermissionRequestFromExtension,
+                       ExtensionAccessToCSPSandboxedFrameTest) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  GURL url = embedded_test_server()->GetURL(
+      "example.com", "/extensions/page_with_sandbox_csp.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  extensions::ResultCatcher catcher;
+  const extensions::Extension* extension =
+      LoadExtension(test_data_dir_.AppendASCII("sandbox_csp"));
+
+  ASSERT_TRUE(extension);
+
+  // Open a popup with the extension.
+  content::WebContents* extension_popup = OpenPopupViaToolbar(extension->id());
+  ASSERT_TRUE(extension_popup);
+
+  // Wait for all JS tests to resolve their promises.
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
 }  // anonymous namespace

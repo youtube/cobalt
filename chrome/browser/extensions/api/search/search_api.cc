@@ -75,7 +75,7 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
     // find the associated browser.
     web_contents = GetSenderWebContents();
     if (web_contents) {
-      browser = chrome::FindBrowserWithWebContents(web_contents);
+      browser = chrome::FindBrowserWithTab(web_contents);
     }
     // Otherwise (e.g. when the extension calls the API from the background
     // page or service worker), fall back to the last active browser.
@@ -110,7 +110,7 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
       web_contents->GetController().LoadURL(
           url, content::Referrer(),
           ui::PageTransition::PAGE_TRANSITION_FROM_API,
-          /*extra_header=*/std::string());
+          /*extra_headers=*/std::string());
       break;
     case Disposition::DISPOSITION_NEW_TAB:
       NavigateToURL(WindowOpenDisposition::NEW_FOREGROUND_TAB, browser, url);

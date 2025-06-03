@@ -303,7 +303,7 @@ ScopedTestRoot EmbeddedTestServer::RegisterTestCerts() {
   auto root = ImportCertFromFile(GetRootCertPemPath());
   if (!root)
     return ScopedTestRoot();
-  return ScopedTestRoot(root.get());
+  return ScopedTestRoot(root);
 }
 
 void EmbeddedTestServer::SetConnectionListener(
@@ -318,14 +318,15 @@ EmbeddedTestServerHandle EmbeddedTestServer::StartAndReturnHandle(int port) {
   return result ? EmbeddedTestServerHandle(this) : EmbeddedTestServerHandle();
 }
 
-bool EmbeddedTestServer::Start(int port) {
-  bool success = InitializeAndListen(port);
+bool EmbeddedTestServer::Start(int port, base::StringPiece address) {
+  bool success = InitializeAndListen(port, address);
   if (success)
     StartAcceptingConnections();
   return success;
 }
 
-bool EmbeddedTestServer::InitializeAndListen(int port) {
+bool EmbeddedTestServer::InitializeAndListen(int port,
+                                             base::StringPiece address) {
   DCHECK(!Started());
 
   const int max_tries = 5;
@@ -343,7 +344,7 @@ bool EmbeddedTestServer::InitializeAndListen(int port) {
     listen_socket_ = std::make_unique<TCPServerSocket>(nullptr, NetLogSource());
 
     int result =
-        listen_socket_->ListenWithAddressAndPort("127.0.0.1", port, 10);
+        listen_socket_->ListenWithAddressAndPort(address.data(), port, 10);
     if (result) {
       LOG(ERROR) << "Listen failed: " << ErrorToString(result);
       listen_socket_.reset();
@@ -428,16 +429,6 @@ bool EmbeddedTestServer::GenerateCertAndKey() {
 
     leaf = CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"),
                                  intermediate.get());
-    // Workaround for weird CertVerifyProcWin issue where if too many
-    // intermediates with the same key are fetched by AIA any further
-    // verifications using that key will fail. See
-    // https://crbug.com/1328060. Since generating ECDSA keys is cheap, just do
-    // this on all configurations rather than restricting to Windows, though
-    // this hack can be removed once we delete CertVerifyProcWin.
-    if (cert_config_.intermediate == IntermediateType::kByAIA) {
-      intermediate->GenerateECKey();
-      leaf->SetSignatureAlgorithm(SignatureAlgorithm::kEcdsaSha256);
-    }
   } else {
     leaf = CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"),
                                  static_root.get());
@@ -458,6 +449,10 @@ bool EmbeddedTestServer::GenerateCertAndKey() {
 
   if (!cert_config_.dns_names.empty() || !cert_config_.ip_addresses.empty()) {
     leaf->SetSubjectAltNames(cert_config_.dns_names, cert_config_.ip_addresses);
+  }
+
+  if (!cert_config_.key_usages.empty()) {
+    leaf->SetKeyUsages(cert_config_.key_usages);
   }
 
   const std::string leaf_serial_text =
@@ -596,6 +591,7 @@ bool EmbeddedTestServer::InitializeSSLServerContext() {
 
 EmbeddedTestServerHandle
 EmbeddedTestServer::StartAcceptingConnectionsAndReturnHandle() {
+  StartAcceptingConnections();
   return EmbeddedTestServerHandle(this);
 }
 
@@ -824,7 +820,7 @@ void EmbeddedTestServer::ServeFilesFromDirectory(
 void EmbeddedTestServer::ServeFilesFromSourceDirectory(
     base::StringPiece relative) {
   base::FilePath test_data_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
   ServeFilesFromDirectory(test_data_dir.AppendASCII(relative));
 }
 
@@ -845,7 +841,7 @@ void EmbeddedTestServer::AddDefaultHandlers() {
 base::FilePath EmbeddedTestServer::GetFullPathFromSourceDirectory(
     const base::FilePath& relative) {
   base::FilePath test_data_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
   return test_data_dir.Append(relative);
 }
 

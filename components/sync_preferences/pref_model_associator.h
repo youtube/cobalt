@@ -19,6 +19,7 @@
 #include "components/sync/base/model_type.h"
 #include "components/sync/model/sync_data.h"
 #include "components/sync/model/syncable_service.h"
+#include "components/sync_preferences/pref_model_associator_client.h"
 #include "components/sync_preferences/synced_pref_observer.h"
 
 namespace base {
@@ -49,7 +50,7 @@ class PrefModelAssociator : public syncer::SyncableService,
  public:
   // The |client| is not owned and must outlive this object.
   // |user_prefs| is the PrefStore to be hooked up to Sync.
-  PrefModelAssociator(const PrefModelAssociatorClient* client,
+  PrefModelAssociator(scoped_refptr<PrefModelAssociatorClient> client,
                       scoped_refptr<WriteablePrefStore> user_prefs,
                       syncer::ModelType type);
 
@@ -58,7 +59,7 @@ class PrefModelAssociator : public syncer::SyncableService,
   // Note: This must be called iff EnablePreferencesAccountStorage feature is
   // enabled.
   PrefModelAssociator(
-      const PrefModelAssociatorClient* client,
+      scoped_refptr<PrefModelAssociatorClient> client,
       scoped_refptr<DualLayerUserPrefStore> dual_layer_user_prefs,
       syncer::ModelType type);
 
@@ -102,9 +103,6 @@ class PrefModelAssociator : public syncer::SyncableService,
   // begins).
   void RegisterPref(const std::string& name);
 
-  // See |legacy_model_type_preferences_|.
-  void RegisterPrefWithLegacyModelType(const std::string& name);
-
   // Fills |sync_data| with a sync representation of the preference data
   // provided.
   // Exposed for testing.
@@ -115,10 +113,6 @@ class PrefModelAssociator : public syncer::SyncableService,
   // Returns true if the specified preference is registered for syncing.
   bool IsPrefRegistered(const std::string& name) const;
 
-  // See |legacy_model_type_preferences_|.
-  // Exposed for testing.
-  bool IsLegacyModelTypePref(const std::string& name) const;
-
   // Adds a SyncedPrefObserver to watch for changes to a specific pref.
   void AddSyncedPrefObserver(const std::string& name,
                              SyncedPrefObserver* observer);
@@ -128,7 +122,7 @@ class PrefModelAssociator : public syncer::SyncableService,
                                 SyncedPrefObserver* observer);
 
   // Returns the PrefModelAssociatorClient for this object.
-  const PrefModelAssociatorClient* client() const { return client_; }
+  scoped_refptr<PrefModelAssociatorClient> client() const { return client_; }
 
   // Returns true if the pref under the given name is pulled down from sync.
   // Note this does not refer to SYNCABLE_PREF.
@@ -166,7 +160,7 @@ class PrefModelAssociator : public syncer::SyncableService,
   // PRIORITY_PREFERENCES or OS_PREFERENCES or OS_PRIORITY_PREFERENCES.
   const syncer::ModelType type_;
 
-  const raw_ptr<const PrefModelAssociatorClient> client_;
+  scoped_refptr<PrefModelAssociatorClient> client_;
 
   // The PrefStore we are syncing to.
   scoped_refptr<WriteablePrefStore> user_prefs_;
@@ -198,13 +192,6 @@ class PrefModelAssociator : public syncer::SyncableService,
   // synced. It determines whether a preference change should update an existing
   // sync node or create a new sync node.
   std::set<std::string> synced_preferences_;
-
-  // Preferences that have migrated to a new ModelType. They are included here
-  // so updates can be sent back to older clients with this old ModelType.
-  // Updates received from older clients will be ignored. The common case is
-  // migration from PREFERENCES to OS_PREFERENCES. This field can be removed
-  // after 06/2023 (see crbug.com/1255724).
-  std::set<std::string> legacy_model_type_preferences_;
 
   // Sync's handler for outgoing changes. Non-null between
   // MergeDataAndStartSyncing() and StopSyncing().

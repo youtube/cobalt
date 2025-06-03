@@ -10,7 +10,8 @@ namespace reporting {
 
 ManualTestHeartbeatEventFactory*
 ManualTestHeartbeatEventFactory::GetInstance() {
-  return base::Singleton<ManualTestHeartbeatEventFactory>::get();
+  static base::NoDestructor<ManualTestHeartbeatEventFactory> instance;
+  return instance.get();
 }
 
 ManualTestHeartbeatEventFactory::ManualTestHeartbeatEventFactory()
@@ -25,9 +26,10 @@ ManualTestHeartbeatEventFactory::ManualTestHeartbeatEventFactory()
 
 ManualTestHeartbeatEventFactory::~ManualTestHeartbeatEventFactory() = default;
 
-KeyedService* ManualTestHeartbeatEventFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ManualTestHeartbeatEventFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ManualTestHeartbeatEvent();
+  return std::make_unique<ManualTestHeartbeatEvent>();
 }
 
 bool ManualTestHeartbeatEventFactory::ServiceIsCreatedWithBrowserContext()

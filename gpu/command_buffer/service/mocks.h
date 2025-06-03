@@ -63,7 +63,8 @@ class AsyncAPIMock : public AsyncAPIInterface {
 
    private:
     unsigned int arg_count_;
-    raw_ptr<volatile CommandBufferEntry> args_;
+    raw_ptr<volatile CommandBufferEntry, DanglingUntriaged | AllowPtrArithmetic>
+        args_;
   };
 
   void BeginDecoding() override {}
@@ -89,7 +90,7 @@ class AsyncAPIMock : public AsyncAPIInterface {
 
  private:
   raw_ptr<CommandBufferDirect> command_buffer_;
-  raw_ptr<CommandBufferServiceBase> command_buffer_service_;
+  raw_ptr<CommandBufferServiceBase, DanglingUntriaged> command_buffer_service_;
 };
 
 class MockDecoderClient : public DecoderClient {

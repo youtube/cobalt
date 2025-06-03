@@ -8,6 +8,7 @@
 #include <string>
 
 #include "build/build_config.h"
+#include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/account_capabilities.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "google_apis/gaia/core_account_id.h"
@@ -38,6 +39,10 @@ struct CoreAccountInfo {
 
   CoreAccountId account_id;
   std::string gaia;
+
+  // Displaying the `email` in display fields (e.g. Android View) can be
+  // restricted. Please verify displayability using
+  // `AccountInfo::CanHaveEmailAddressDisplayed()`.
   std::string email;
 
   bool is_under_advanced_protection = false;
@@ -66,6 +71,11 @@ struct AccountInfo : public CoreAccountInfo {
   std::string last_downloaded_image_url_with_size;
   gfx::Image account_image;
 
+  // For metrics. This field is not consistently set on all platforms.
+  // Not persisted to disk. Resets to `ACCESS_POINT_UNKNOWN` on restart.
+  signin_metrics::AccessPoint access_point =
+      signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN;
+
   AccountCapabilities capabilities;
   signin::Tribool is_child_account = signin::Tribool::kUnknown;
 
@@ -73,8 +83,8 @@ struct AccountInfo : public CoreAccountInfo {
   bool IsEmpty() const;
 
   // Returns true if all non-optional fields in this account info are filled.
-  // Note: IsValid() does not check if `is_child_account` or `capabilities` are
-  // filled.
+  // Note: IsValid() does not check if `access_point`, `is_child_account` or
+  // `capabilities` are filled.
   bool IsValid() const;
 
   // Updates the empty fields of |this| with |other|. Returns whether at least
@@ -92,6 +102,11 @@ struct AccountInfo : public CoreAccountInfo {
   bool IsMemberOfFlexOrg() const;
 
   bool IsManaged() const;
+
+  // Returns true if the account email can be used in display fields.
+  // If `capabilities.can_have_email_address_displayed()` is unknown at the time
+  // this function is called, the email address will be considered displayable.
+  bool CanHaveEmailAddressDisplayed() const;
 };
 
 bool operator==(const CoreAccountInfo& l, const CoreAccountInfo& r);

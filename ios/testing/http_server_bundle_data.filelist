@@ -6,12 +6,14 @@
 #       instructions on how to regenerate. Otherwise, do not edit.
 data/http_server_files/autofill_smoke_test.html
 data/http_server_files/browsing_prevent_default_test_page.html
+data/http_server_files/bundle.pkpasses
 data/http_server_files/chromium_logo.png
 data/http_server_files/chromium_logo_page.html
 data/http_server_files/complex_document.pdf
 data/http_server_files/console.html
 data/http_server_files/console_with_iframe.html
 data/http_server_files/context_menu.html
+data/http_server_files/credit_card.html
 data/http_server_files/destination.html
 data/http_server_files/download_test_page.html
 data/http_server_files/fullscreen.html
@@ -39,7 +41,9 @@ data/http_server_files/redchair.usdz
 data/http_server_files/redirect_refresh.html
 data/http_server_files/sample.ics
 data/http_server_files/sample.mobileconfig
+data/http_server_files/semi_bundle.pkpasses
 data/http_server_files/simple_login_form.html
+data/http_server_files/simple_login_form_empty.html
 data/http_server_files/simple_signup_form.html
 data/http_server_files/single_page_wide.pdf
 data/http_server_files/state_operations.html
@@ -47,6 +51,7 @@ data/http_server_files/state_operations.js
 data/http_server_files/tall_page.html
 data/http_server_files/testpage.pdf
 data/http_server_files/two_pages.pdf
+data/http_server_files/uff_login_forms.html
 data/http_server_files/user_agent_test_page.html
 data/http_server_files/username_password_field_form.html
 data/http_server_files/vcard.vcf

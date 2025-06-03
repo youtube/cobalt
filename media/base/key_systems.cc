@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
 #include <unordered_map>
 
 #include "base/callback_list.h"
-#include "base/cxx17_backports.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -81,6 +81,8 @@ EmeCodec ToAudioEmeCodec(AudioCodec codec) {
       return EME_CODEC_EAC3;
     case AudioCodec::kAC3:
       return EME_CODEC_AC3;
+    case AudioCodec::kAC4:
+      return EME_CODEC_AC4;
     case AudioCodec::kMpegHAudio:
       return EME_CODEC_MPEG_H_AUDIO;
     case AudioCodec::kDTS:
@@ -165,8 +167,7 @@ class ClearKeyKeySystemInfo : public KeySystemInfo {
       case EncryptionScheme::kUnencrypted:
         break;
     }
-    NOTREACHED();
-    return EmeConfig::UnsupportedRule();
+    NOTREACHED_NORETURN();
   }
 
   SupportedCodecs GetSupportedCodecs() const final {
@@ -585,10 +586,7 @@ bool KeySystemsImpl::IsSupportedInitDataType(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return false;
-  }
+  CHECK(key_system_info);
 
   return key_system_info->IsSupportedInitDataType(init_data_type);
 }
@@ -599,10 +597,7 @@ EmeConfig::Rule KeySystemsImpl::GetEncryptionSchemeConfigRule(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return EmeConfig::UnsupportedRule();
-  }
+  CHECK(key_system_info);
 
   return key_system_info->GetEncryptionSchemeConfigRule(encryption_scheme);
 }
@@ -789,10 +784,7 @@ EmeConfig::Rule KeySystemsImpl::GetRobustnessConfigRule(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return EmeConfig::UnsupportedRule();
-  }
+  CHECK(key_system_info);
 
   return key_system_info->GetRobustnessConfigRule(
       key_system, media_type, requested_robustness, hw_secure_requirement);
@@ -803,10 +795,7 @@ EmeConfig::Rule KeySystemsImpl::GetPersistentLicenseSessionSupport(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return EmeConfig::UnsupportedRule();
-  }
+  CHECK(key_system_info);
 
   return key_system_info->GetPersistentLicenseSessionSupport();
 }
@@ -816,10 +805,7 @@ EmeFeatureSupport KeySystemsImpl::GetPersistentStateSupport(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return EmeFeatureSupport::INVALID;
-  }
+  CHECK(key_system_info);
 
   return key_system_info->GetPersistentStateSupport();
 }
@@ -829,10 +815,7 @@ EmeFeatureSupport KeySystemsImpl::GetDistinctiveIdentifierSupport(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto* key_system_info = GetKeySystemInfo(key_system);
-  if (!key_system_info) {
-    NOTREACHED();
-    return EmeFeatureSupport::INVALID;
-  }
+  CHECK(key_system_info);
 
   return key_system_info->GetDistinctiveIdentifierSupport();
 }

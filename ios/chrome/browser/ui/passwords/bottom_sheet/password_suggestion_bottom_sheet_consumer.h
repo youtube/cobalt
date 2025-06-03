@@ -12,9 +12,15 @@
 // Suggestions consumer for the passwords bottom sheet.
 @protocol PasswordSuggestionBottomSheetConsumer
 
-// Sends the list of suggestions to be presented to the user on the bottom
-// sheet.
-- (void)setSuggestions:(NSArray<FormSuggestion*>*)suggestions;
+// Sends the list of suggestions to be presented to the user on the bottom sheet
+// and the current page's domain.
+- (void)setSuggestions:(NSArray<FormSuggestion*>*)suggestions
+             andDomain:(NSString*)domain;
+
+// Sends title and subtitle to be presented to the user on the bottom sheet.
+// Might not be called for every consumer, in which case they might set their
+// own defaults or not display those at all.
+- (void)setTitle:(NSString*)title subtitle:(NSString*)subtitle;
 
 // Request to dismiss the bottom sheet.
 - (void)dismiss;

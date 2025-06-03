@@ -7,8 +7,9 @@
 
 #include <ostream>
 
-#include "chrome/browser/apps/app_service/package_id.h"
+#include "components/services/app_service/public/cpp/package_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 
 namespace apps {
 
@@ -17,6 +18,8 @@ enum class PromiseStatus {
   kUnknown,
   kPending,     // Waiting for the installation process to start.
   kInstalling,  // Installing app package.
+  kSuccess,     // Installation successfully completed.
+  kCancelled,   // Installation failed or was cancelled.
 };
 
 std::string EnumToString(PromiseStatus);
@@ -30,12 +33,26 @@ struct PromiseApp {
   explicit PromiseApp(const apps::PackageId& package_id);
   ~PromiseApp();
 
+  bool operator==(const PromiseApp&) const;
+
   PackageId package_id;
 
+  // Used for the accessibility label in Launcher/ Shelf. Not used for the main
+  // icon label as it is typically more verbose than just the official app name.
   absl::optional<std::string> name;
+
   absl::optional<float> progress;
   PromiseStatus status = PromiseStatus::kUnknown;
-  bool should_show = true;
+
+  // Set when an app from the package associated with the promise app gets
+  // installed, and the promise app status changes to `kSuccess`. The ID of the
+  // app that was installed.
+  absl::optional<std::string> installed_app_id;
+
+  // Hide the promise app from the Launcher/ Shelf by default. Only show
+  // it when we have enough information about the installing package (e.g. name,
+  // icon).
+  absl::optional<bool> should_show;
 
   std::unique_ptr<PromiseApp> Clone() const;
 };
@@ -43,6 +60,21 @@ struct PromiseApp {
 std::ostream& operator<<(std::ostream& out, const PromiseApp& promise_app);
 
 using PromiseAppPtr = std::unique_ptr<PromiseApp>;
+
+class PromiseAppIcon {
+ public:
+  PromiseAppIcon();
+  ~PromiseAppIcon();
+  PromiseAppIcon(const PromiseAppIcon&) = delete;
+  PromiseAppIcon& operator=(const PromiseAppIcon&) = delete;
+
+  // Store the icon as a SkBitmap, which will form one of the several
+  // representations of an ImageSkia for a DIP size.
+  SkBitmap icon;
+  int width_in_pixels;
+};
+
+using PromiseAppIconPtr = std::unique_ptr<PromiseAppIcon>;
 
 }  // namespace apps
 

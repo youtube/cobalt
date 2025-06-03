@@ -7,7 +7,6 @@
         "args": [
           "--gs-results-bucket=chromium-result-details"
         ],
-        "isolate_name": "foo_test",
         "merge": {
           "args": [
             "--bucket",
@@ -19,7 +18,6 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
           },
@@ -33,7 +31,8 @@
               "name": "shard #${SHARD_INDEX} logcats"
             }
           ]
-        }
+        },
+        "test": "foo_test"
       }
     ]
   }

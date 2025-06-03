@@ -4,6 +4,9 @@
 
 #include "content/shell/browser/shell_federated_permission_context.h"
 
+#include <algorithm>
+
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "content/public/common/content_features.h"
 #include "content/shell/common/shell_switches.h"
@@ -25,6 +28,10 @@ ShellFederatedPermissionContext::GetApiPermissionStatus(
     return PermissionStatus::BLOCKED_EMBARGO;
   }
 
+  if (third_party_cookies_blocked_) {
+    return PermissionStatus::BLOCKED_THIRD_PARTY_COOKIES_BLOCKED;
+  }
+
   return PermissionStatus::GRANTED;
 }
 
@@ -44,7 +51,7 @@ bool ShellFederatedPermissionContext::ShouldCompleteRequestImmediately() const {
 }
 
 // FederatedIdentityAutoReauthnPermissionContextDelegate
-bool ShellFederatedPermissionContext::HasAutoReauthnContentSetting() {
+bool ShellFederatedPermissionContext::IsAutoReauthnSettingEnabled() {
   return auto_reauthn_permission_;
 }
 
@@ -53,27 +60,51 @@ bool ShellFederatedPermissionContext::IsAutoReauthnEmbargoed(
   return false;
 }
 
+void ShellFederatedPermissionContext::SetRequiresUserMediation(
+    const GURL& rp_url,
+    bool requires_user_mediation) {
+  if (requires_user_mediation) {
+    require_user_mediation_sites_.insert(rp_url);
+  } else {
+    require_user_mediation_sites_.erase(rp_url);
+  }
+}
+
+bool ShellFederatedPermissionContext::RequiresUserMediation(
+    const GURL& rp_url) {
+  return require_user_mediation_sites_.contains(rp_url);
+}
+
 base::Time ShellFederatedPermissionContext::GetAutoReauthnEmbargoStartTime(
     const url::Origin& relying_party_embedder) {
   return base::Time();
 }
 
-void ShellFederatedPermissionContext::RecordDisplayAndEmbargo(
+void ShellFederatedPermissionContext::RecordEmbargoForAutoReauthn(
+    const url::Origin& relying_party_embedder) {}
+
+void ShellFederatedPermissionContext::RemoveEmbargoForAutoReauthn(
     const url::Origin& relying_party_embedder) {}
 
 void ShellFederatedPermissionContext::AddIdpSigninStatusObserver(
-    IdpSigninStatusObserver* observer) {}
+    IdpSigninStatusObserver* observer) {
+  idp_signin_status_observer_list_.AddObserver(observer);
+}
+
 void ShellFederatedPermissionContext::RemoveIdpSigninStatusObserver(
-    IdpSigninStatusObserver* observer) {}
+    IdpSigninStatusObserver* observer) {
+  idp_signin_status_observer_list_.RemoveObserver(observer);
+}
 
 // FederatedIdentityActiveSessionPermissionContextDelegate
 bool ShellFederatedPermissionContext::HasActiveSession(
     const url::Origin& relying_party_requester,
     const url::Origin& identity_provider,
     const std::string& account_identifier) {
-  return active_sessions_.find(std::tuple(
-             relying_party_requester.Serialize(), identity_provider.Serialize(),
-             account_identifier)) != active_sessions_.end();
+  return base::Contains(
+      active_sessions_,
+      std::tuple(relying_party_requester.Serialize(),
+                 identity_provider.Serialize(), account_identifier));
 }
 
 void ShellFederatedPermissionContext::GrantActiveSession(
@@ -98,11 +129,28 @@ bool ShellFederatedPermissionContext::HasSharingPermission(
     const url::Origin& relying_party_requester,
     const url::Origin& relying_party_embedder,
     const url::Origin& identity_provider,
-    const std::string& account_id) {
-  return sharing_permissions_.find(std::tuple(
-             relying_party_requester.Serialize(),
-             relying_party_embedder.Serialize(), identity_provider.Serialize(),
-             account_id)) != sharing_permissions_.end();
+    const absl::optional<std::string>& account_id) {
+  bool skip_account_check = !account_id;
+  return std::find_if(sharing_permissions_.begin(), sharing_permissions_.end(),
+                      [&](const auto& entry) {
+                        return relying_party_requester.Serialize() ==
+                                   std::get<0>(entry) &&
+                               relying_party_embedder.Serialize() ==
+                                   std::get<1>(entry) &&
+                               identity_provider.Serialize() ==
+                                   std::get<2>(entry) &&
+                               (skip_account_check ||
+                                account_id.value() == std::get<3>(entry));
+                      }) != sharing_permissions_.end();
+}
+
+bool ShellFederatedPermissionContext::HasSharingPermission(
+    const url::Origin& relying_party_requester) {
+  return std::find_if(sharing_permissions_.begin(), sharing_permissions_.end(),
+                      [&](const auto& entry) {
+                        return relying_party_requester.Serialize() ==
+                               std::get<0>(entry);
+                      }) != sharing_permissions_.end();
 }
 
 void ShellFederatedPermissionContext::GrantSharingPermission(
@@ -129,8 +177,11 @@ void ShellFederatedPermissionContext::SetIdpSigninStatus(
     const url::Origin& idp_origin,
     bool idp_signin_status) {
   idp_signin_status_[idp_origin.Serialize()] = idp_signin_status;
-  // TODO(crbug.com/1382989): Find a better way to do this than adding
-  // explicit helper code to signal completion.
+  for (IdpSigninStatusObserver& observer : idp_signin_status_observer_list_) {
+    observer.OnIdpSigninStatusChanged(idp_origin, idp_signin_status);
+  }
+
+  // TODO(crbug.com/1382989): Replace this with AddIdpSigninStatusObserver.
   if (idp_signin_status_closure_)
     idp_signin_status_closure_.Run();
 }

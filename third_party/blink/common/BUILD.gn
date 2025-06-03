@@ -19,9 +19,9 @@ blink_python_runner("make_generated_permissions_policy_features") {
   inputs = scripts_for_json5_files + [
              "../renderer/build/scripts/make_permissions_policy_features.py",
              "../renderer/core/permissions_policy/permissions_policy_features.json5",
-             "../renderer/build/scripts/templates/permissions_policy_features.cc.tmpl",
+             "../renderer/build/scripts/templates/permissions_policy_features_generated.cc.tmpl",
            ]
-  outputs = [ "$root_gen_dir/third_party/blink/common/permissions_policy/permissions_policy_features.cc" ]
+  outputs = [ "$root_gen_dir/third_party/blink/common/permissions_policy/permissions_policy_features_generated.cc" ]
 
   args = [
     rebase_path(
@@ -197,6 +197,7 @@ source_set("common") {
     "interest_group/interest_group_mojom_traits.cc",
     "link_to_text/link_to_text_mojom_traits.cc",
     "loader/inter_process_time_ticks_converter.cc",
+    "loader/lcp_critical_path_predictor_util.cc",
     "loader/loader_constants.cc",
     "loader/mime_sniffing_throttle.cc",
     "loader/mime_sniffing_url_loader.cc",
@@ -242,10 +243,13 @@ source_set("common") {
     "notifications/platform_notification_data.cc",
     "origin_trials/manual_completion_origin_trial_features.cc",
     "origin_trials/navigation_origin_trial_features.cc",
+    "origin_trials/origin_trials_settings_provider.cc",
     "origin_trials/persistent_origin_trials.cc",
     "origin_trials/trial_token.cc",
     "origin_trials/trial_token_result.cc",
     "origin_trials/trial_token_validator.cc",
+    "page/browsing_context_group_info.cc",
+    "page/browsing_context_group_info_mojom_traits.cc",
     "page/content_to_visible_time_reporter.cc",
     "page/drag_mojom_traits.cc",
     "page/drag_operation.cc",
@@ -258,14 +262,22 @@ source_set("common") {
     "permissions_policy/origin_with_possible_wildcards.cc",
     "permissions_policy/permissions_policy.cc",
     "permissions_policy/permissions_policy_declaration.cc",
+    "permissions_policy/permissions_policy_features.cc",
+    "permissions_policy/permissions_policy_features_generated.h",
+    "permissions_policy/permissions_policy_features_internal.cc",
+    "permissions_policy/permissions_policy_features_internal.h",
     "permissions_policy/permissions_policy_mojom_traits.cc",
     "permissions_policy/policy_value.cc",
     "renderer_preferences/renderer_preferences.cc",
     "renderer_preferences/renderer_preferences_mojom_traits.cc",
+    "safe_url_pattern.cc",
+    "safe_url_pattern_mojom_traits.cc",
     "scheduler/web_scheduler_tracked_feature.cc",
     "scheme_registry.cc",
     "security/address_space_feature.cc",
     "service_worker/service_worker_loader_helpers.cc",
+    "service_worker/service_worker_router_rule.cc",
+    "service_worker/service_worker_router_rule_mojom_traits.cc",
     "service_worker/service_worker_scope_match.cc",
     "service_worker/service_worker_status_code.cc",
     "service_worker/service_worker_type_converters.cc",
@@ -277,8 +289,6 @@ source_set("common") {
     "switches.cc",
     "thread_safe_browser_interface_broker_proxy.cc",
     "unique_name/unique_name_helper.cc",
-    "url_pattern.cc",
-    "url_pattern_mojom_traits.cc",
     "use_counter/use_counter_feature.cc",
     "use_counter/use_counter_feature_tracker.cc",
     "user_agent/user_agent_metadata.cc",
@@ -322,8 +332,10 @@ source_set("common") {
     "//services/metrics/public/mojom:mojom",
     "//services/network/public/cpp:cpp",
     "//third_party/blink/public/common:buildflags",
+    "//third_party/re2",
     "//ui/base:base",
     "//ui/base/dragdrop/mojom:mojom_shared",
+    "//ui/base/mojom",
     "//ui/display",
     "//ui/display/mojom",
     "//ui/events:events_base",
@@ -331,7 +343,7 @@ source_set("common") {
     "//ui/latency/mojom:shared_mojom_traits",
   ]
 
-  if (build_rust_crash) {
+  if (enable_rust_crash) {
     deps += [ "//third_party/blink/common/rust_crash" ]
   }
 
@@ -376,11 +388,9 @@ test("blink_common_unittests") {
   if (is_ios) {
     bundle_deps = [ ":blink_common_unittests_pak_bundle_data" ]
   }
-
   if (is_fuchsia) {
-    # TODO(https://crbug.com/1185811): Investigate removing the requirement for
-    # job_policy_ambient_mark_vmo_exec for the sake of V8's allocator in tests.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
+    additional_manifest_fragments =
+        [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
   }
 
   data_deps = [ ":common_unittests_data" ]
@@ -406,6 +416,7 @@ source_set("common_unittests_sources") {
     "interest_group/ad_display_size_utils_unittest.cc",
     "interest_group/auction_config_mojom_traits_test.cc",
     "interest_group/interest_group_mojom_traits_test.cc",
+    "interest_group/interest_group_unittest.cc",
     "loader/inter_process_time_ticks_converter_unittest.cc",
     "loader/mime_sniffing_throttle_unittest.cc",
     "loader/referrer_utils_unittest.cc",
@@ -419,18 +430,23 @@ source_set("common_unittests_sources") {
     "mime_util/mime_util_unittest.cc",
     "notifications/notification_mojom_traits_unittest.cc",
     "notifications/platform_notification_data_unittest.cc",
+    "origin_trials/origin_trials_settings_provider_unittest.cc",
     "origin_trials/origin_trials_test.cc",
     "origin_trials/trial_token_unittest.cc",
     "origin_trials/trial_token_validator_unittest.cc",
+    "page/browsing_context_group_info_mojom_traits_test.cc",
+    "page/browsing_context_group_info_unittest.cc",
     "page/content_to_visible_time_reporter_unittest.cc",
     "page_state/page_state_serialization_unittest.cc",
     "permissions_policy/document_policy_unittest.cc",
     "permissions_policy/origin_with_possible_wildcards_unittest.cc",
     "permissions_policy/permissions_policy_declaration_unittest.cc",
+    "permissions_policy/permissions_policy_features_internal.h",
     "permissions_policy/permissions_policy_unittest.cc",
     "permissions_policy/policy_value_unittest.cc",
     "scheduler/web_scheduler_tracked_feature_unittest.cc",
     "security/address_space_feature_unittest.cc",
+    "service_worker/service_worker_router_rule_mojom_traits_unittest.cc",
     "service_worker/service_worker_scope_match_unittest.cc",
     "shared_storage/module_script_downloader_unittest.cc",
     "shared_storage/shared_storage_mojom_traits_unittest.cc",
@@ -532,8 +548,8 @@ if (use_fuzzing_engine_with_lpm) {
     seed_corpus = "//third_party/blink/common/storage_key/storage_key_corpus"
   }
 
-  fuzzer_test("interest_group_parse_size_fuzzer") {
-    sources = [ "interest_group/interest_group_parse_size_fuzzer.cc" ]
+  fuzzer_test("ad_display_size_parser_fuzzer") {
+    sources = [ "interest_group/ad_display_size_parser_fuzzer.cc" ]
     deps = [
       ":common",
       "//content/public/common",

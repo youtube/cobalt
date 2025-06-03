@@ -18,14 +18,31 @@ source_set("color_headers") {
     "color_provider.h",
     "color_provider_manager.h",
     "color_provider_utils.h",
-    "system_theme.h",
   ]
 
   public_deps = [
+    ":color_provider_key",
     ":mojom",
     "//base",
     "//skia",
     "//ui/gfx:color_utils",
+  ]
+}
+
+# Keep the deps on this target to a minimum so that chromeos/crosapi can depend on it.
+component("color_provider_key") {
+  sources = [
+    "color_provider_key.cc",
+    "color_provider_key.h",
+    "system_theme.h",
+  ]
+
+  defines = [ "IS_COLOR_PROVIDER_KEY_IMPL" ]
+
+  deps = [
+    "//base",
+    "//skia",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 
@@ -44,8 +61,6 @@ component("color") {
     "color_recipe.h",
     "color_transform.cc",
     "color_transform.h",
-    "temp_palette.cc",
-    "temp_palette.h",
   ]
 
   configs += [ "//build/config/compiler:prevent_unsafe_narrowing" ]
@@ -61,12 +76,12 @@ component("color") {
   ]
 
   if (is_mac) {
-    frameworks = [ "AppKit.framework" ]
     sources += [
       "mac/native_color_transform.mm",
       "mac/system_color_utils.h",
       "mac/system_color_utils.mm",
     ]
+    frameworks = [ "AppKit.framework" ]
   }
 }
 
@@ -78,7 +93,7 @@ source_set("test_support") {
   deps = [ ":color_headers" ]
 }
 
-test("color_unittests") {
+source_set("unit_tests") {
   testonly = true
 
   sources = [
@@ -89,7 +104,7 @@ test("color_unittests") {
     "color_provider_utils_unittest.cc",
     "color_recipe_unittest.cc",
     "color_transform_unittest.cc",
-    "run_all_unittests.cc",
+    "sys_color_mixer_unittest.cc",
   ]
 
   deps = [
@@ -130,6 +145,8 @@ component("mixers") {
     "color_provider_manager.h",
     "core_default_color_mixer.cc",
     "core_default_color_mixer.h",
+    "forced_colors_mixer.cc",
+    "forced_colors_mixer.h",
     "material_ui_color_mixer.cc",
     "material_ui_color_mixer.h",
     "native_color_mixers.cc",
@@ -147,6 +164,7 @@ component("mixers") {
   deps = [
     ":color",
     ":color_headers",
+    ":color_provider_key",
     "//skia",
     "//third_party/material_color_utilities",
     "//ui/base:features",
@@ -159,10 +177,14 @@ component("mixers") {
   if (is_chromeos) {
     sources += [ "chromeos/native_color_mixers_chromeos.cc" ]
   } else if (is_mac) {
-    frameworks = [ "AppKit.framework" ]
     sources += [ "mac/native_color_mixers_mac.mm" ]
+    frameworks = [ "AppKit.framework" ]
   } else if (is_win) {
-    sources += [ "win/native_color_mixers_win.cc" ]
+    sources += [
+      "win/forced_colors_mixer_win.cc",
+      "win/forced_colors_mixer_win.h",
+      "win/native_color_mixers_win.cc",
+    ]
     deps += [
       ":accent_color_observer",
       "//ui/native_theme:features",
@@ -171,5 +193,8 @@ component("mixers") {
 }
 
 mojom("mojom") {
-  sources = [ "color_id.mojom" ]
+  sources = [
+    "color_id.mojom",
+    "scheme_variant.mojom",
+  ]
 }

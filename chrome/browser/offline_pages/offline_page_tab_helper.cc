@@ -16,7 +16,6 @@
 #include "chrome/browser/offline_pages/offline_page_model_factory.h"
 #include "chrome/browser/offline_pages/offline_page_request_handler.h"
 #include "chrome/browser/offline_pages/offline_page_utils.h"
-#include "chrome/browser/offline_pages/prefetch/prefetch_service_factory.h"
 #include "chrome/browser/offline_pages/request_coordinator_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
@@ -106,13 +105,6 @@ OfflinePageTabHelper::OfflinePageTabHelper(content::WebContents* web_contents)
       content::WebContentsUserData<OfflinePageTabHelper>(*web_contents),
       mhtml_page_notifier_receivers_(web_contents, this) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents->GetBrowserContext());
-
-  // TODO(crbug.com/1424920): PrefetchServiceFactory is being removed, but
-  // temporarily we need to keep creating the service. See the bug for more
-  // info.
-  PrefetchServiceFactory::GetForKey(profile->GetProfileKey());
 }
 
 OfflinePageTabHelper::~OfflinePageTabHelper() {}
@@ -121,8 +113,20 @@ void OfflinePageTabHelper::NotifyMhtmlPageLoadAttempted(
     MHTMLLoadResult load_result,
     const GURL& main_frame_url,
     base::Time date) {
-  if (!mhtml_page_notifier_receivers_.GetCurrentTargetFrame()
-           ->IsInPrimaryMainFrame()) {
+  auto* current_target_frame =
+      mhtml_page_notifier_receivers_.GetCurrentTargetFrame();
+  if (current_target_frame != current_target_frame->GetOutermostMainFrame()) {
+    // Only handle loads from outermost main frames.
+    return;
+  }
+  if (!current_target_frame->IsInPrimaryMainFrame() &&
+      !current_target_frame->IsInLifecycleState(
+          content::RenderFrameHost::LifecycleState::kPendingCommit)) {
+    // The MHTML load notification attempt is sent in the middle of committing
+    // the MHTML document in the renderer. The RenderFrameHost that hosts that
+    // document can be the primary main RFH (if it's already used to host the
+    // previous document), or a pending commit RFH (if it's newly created for
+    // this document). Return early if the RFH is neither of those.
     return;
   }
 

@@ -11,6 +11,7 @@
 #include "chrome/browser/ssl/security_state_tab_helper.h"
 #include "components/security_state/content/content_utils.h"
 #include "content/public/browser/web_contents.h"
+#include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/ssl/ssl_cipher_suite_names.h"
@@ -99,8 +100,8 @@ CreateCertificateSecurityState(
   if (state.certificate) {
     subject_name = state.certificate->subject().common_name;
     issuer_name = state.certificate->issuer().common_name;
-    valid_from = state.certificate->valid_start().ToDoubleT();
-    valid_to = state.certificate->valid_expiry().ToDoubleT();
+    valid_from = state.certificate->valid_start().InSecondsFSinceUnixEpoch();
+    valid_to = state.certificate->valid_expiry().InSecondsFSinceUnixEpoch();
   }
 
   bool certificate_has_weak_signature =

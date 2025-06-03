@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Flyttes opad og mod venstre</translation>
 <translation id="3573890771273113519">Skift til scanningstilstand</translation>
 <translation id="3583444040776960729">Dokumentets nederste venstre hjørne</translation>
+<translation id="3642192109456033823">Videoen behandles…</translation>
 <translation id="3789724198583203151">Roter 90 grader mod uret</translation>
 <translation id="3810838688059735925">Video</translation>
 <translation id="3892148308691398805">Kopiér tekst</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Sæt optagelsen på pause</translation>
 <translation id="4121305183798804752">Et dokument blev registreret</translation>
 <translation id="414641094616694804">Dette kamera kan ikke ændre opløsning</translation>
+<translation id="4176463684765177261">Deaktiveret</translation>
 <translation id="4269820728363426813">Kopiér linkadresse</translation>
-<translation id="4281620174117014503">Medium opløsning</translation>
 <translation id="428234092390943511">Miniature for side</translation>
+<translation id="4349714250734879769">Skaler rammer i Chrome</translation>
 <translation id="4383571725254449280">Effektivitetslogfiler for udskrivning</translation>
 <translation id="4445542136948522167">Stop med at tage billedet</translation>
 <translation id="4570032796877367747">Frontkamera</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Scanner side <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Kvadrat</translation>
+<translation id="574392208103952083">Mellem</translation>
 <translation id="5746169159649715125">Gem som PDF</translation>
 <translation id="5753488212459587150">Aktivér eksperttilstand</translation>
 <translation id="5759254179196327752">Dokumentscanning</translation>
@@ -149,6 +152,7 @@ Hvis din feedback omhandler billed- eller videokvalitet, bedes du vedhæfte et b
 <translation id="8145038249676204903">Skift for at tage et billede</translation>
 <translation id="8167081290930651932">Gem som billede</translation>
 <translation id="8239780215768881278">Tag et videoøjebliksbillede</translation>
+<translation id="8346544573713510785">Skaler billeder med kamera-HAL</translation>
 <translation id="8425673304802773841">Drej nedad</translation>
 <translation id="8428213095426709021">Indstillinger</translation>
 <translation id="8629662593426079630">360p</translation>

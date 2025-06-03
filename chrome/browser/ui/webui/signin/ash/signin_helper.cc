@@ -10,7 +10,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ash/account_manager/account_apps_availability.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_addition_result.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/user_manager/user_manager.h"
@@ -104,12 +104,12 @@ void SigninHelper::OnClientOAuthFailure(const GoogleServiceAuthError& error) {
   LOG(ERROR) << "SigninHelper::OnClientOAuthFailure: couldn't fetch OAuth2 "
                 "token, the error was "
              << error.ToString();
-  // TODO(sinhak): Display an error.
+  // TODO(http://b/279733142): Display an error.
 
   // Notify `AccountManagerMojoService` about account addition failure and send
   // `error`.
-  account_manager_mojo_service_->OnAccountAdditionFinished(
-      account_manager::AccountAdditionResult::FromError(error));
+  account_manager_mojo_service_->OnAccountUpsertionFinished(
+      account_manager::AccountUpsertionResult::FromError(error));
   CloseDialogAndExit();
 }
 
@@ -135,8 +135,8 @@ void SigninHelper::UpsertAccount(const std::string& refresh_token) {
   }
   // Notify `AccountManagerMojoService` about successful account addition and
   // send the account.
-  account_manager_mojo_service_->OnAccountAdditionFinished(
-      account_manager::AccountAdditionResult::FromAccount(
+  account_manager_mojo_service_->OnAccountUpsertionFinished(
+      account_manager::AccountUpsertionResult::FromAccount(
           account_manager::Account{account_key_, email_}));
 }
 
@@ -180,9 +180,9 @@ void SigninHelper::OnGetSecondaryGoogleAccountUsage(
     // The sign-in is blocked by SecondaryGoogleAccountUsage policy.
     // Notify `AccountManagerMojoService` about account addition failure and
     // send `error`.
-    account_manager_mojo_service_->OnAccountAdditionFinished(
-        account_manager::AccountAdditionResult::FromStatus(
-            account_manager::AccountAdditionResult::Status::kBlockedByPolicy));
+    account_manager_mojo_service_->OnAccountUpsertionFinished(
+        account_manager::AccountUpsertionResult::FromStatus(
+            account_manager::AccountUpsertionResult::Status::kBlockedByPolicy));
     ShowSigninBlockedErrorPageAndExit(hosted_domain);
     return;
   }

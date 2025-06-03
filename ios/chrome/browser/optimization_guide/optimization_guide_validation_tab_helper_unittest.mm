@@ -11,19 +11,15 @@
 #import "components/optimization_guide/core/optimization_guide_features.h"
 #import "components/optimization_guide/core/optimization_guide_switches.h"
 #import "components/optimization_guide/core/optimization_guide_test_util.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_test_utils.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 constexpr char kHintsHost[] = "hints.com";
@@ -104,7 +100,7 @@ TEST_F(OptimizationGuideValidationTabHelperTest,
   histogram_tester_.ExpectUniqueSample(
       "OptimizationGuide.MetadataFetchValidation.Result", true, 1);
   histogram_tester_.ExpectUniqueSample(
-      "OptimizationGuide.ApplyDecisionAsync.MetadataFetchValidation",
+      "OptimizationGuide.ApplyDecision.MetadataFetchValidation",
       optimization_guide::OptimizationTypeDecision::kAllowedByHint, 1);
 }
 
@@ -127,7 +123,7 @@ TEST_F(OptimizationGuideValidationTabHelperTest,
   histogram_tester_.ExpectUniqueSample(
       "OptimizationGuide.MetadataFetchValidation.Result", true, 1);
   histogram_tester_.ExpectUniqueSample(
-      "OptimizationGuide.ApplyDecisionAsync.MetadataFetchValidation",
+      "OptimizationGuide.ApplyDecision.MetadataFetchValidation",
       optimization_guide::OptimizationTypeDecision::kAllowedByHint, 1);
 }
 
@@ -145,6 +141,6 @@ TEST_F(OptimizationGuideValidationTabHelperTest, TestInvalidMetadataFetch) {
   histogram_tester_.ExpectUniqueSample(
       "OptimizationGuide.MetadataFetchValidation.Result", false, 1);
   histogram_tester_.ExpectUniqueSample(
-      "OptimizationGuide.ApplyDecisionAsync.MetadataFetchValidation",
+      "OptimizationGuide.ApplyDecision.MetadataFetchValidation",
       optimization_guide::OptimizationTypeDecision::kAllowedByHint, 1);
 }

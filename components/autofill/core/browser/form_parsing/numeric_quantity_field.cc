@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,10 +14,11 @@ namespace autofill {
 // static
 std::unique_ptr<FormField> NumericQuantityField::Parse(
     AutofillScanner* scanner,
+    const GeoIpCountryCode& client_country,
     const LanguageCode& page_language,
     PatternSource pattern_source,
     LogManager* log_manager) {
-  AutofillField* field;
+  raw_ptr<AutofillField> field;
   base::span<const MatchPatternRef> quantity_patterns =
       GetMatchPatterns("NUMERIC_QUANTITY", page_language, pattern_source);
 

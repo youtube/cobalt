@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/feature_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
@@ -29,14 +30,15 @@ class SequencedTaskRunner;
 
 namespace media {
 class GpuVideoAcceleratorFactories;
+class MojoVideoEncoderMetricsProviderFactory;
 struct VideoEncoderInfo;
 }  // namespace media
 
 namespace blink {
 
 namespace features {
-PLATFORM_EXPORT BASE_DECLARE_FEATURE(kWebRtcInitializeOnFirstFrame);
 PLATFORM_EXPORT BASE_DECLARE_FEATURE(kWebRtcScreenshareSwEncoding);
+PLATFORM_EXPORT BASE_DECLARE_FEATURE(kForcingSoftwareIncludes360);
 }
 
 // RTCVideoEncoder uses a media::VideoEncodeAccelerator to implement a
@@ -50,7 +52,9 @@ class PLATFORM_EXPORT RTCVideoEncoder : public webrtc::VideoEncoder {
  public:
   RTCVideoEncoder(media::VideoCodecProfile profile,
                   bool is_constrained_h264,
-                  media::GpuVideoAcceleratorFactories* gpu_factories);
+                  media::GpuVideoAcceleratorFactories* gpu_factories,
+                  scoped_refptr<media::MojoVideoEncoderMetricsProviderFactory>
+                      encoder_metrics_provider_factory);
   RTCVideoEncoder(const RTCVideoEncoder&) = delete;
   RTCVideoEncoder& operator=(const RTCVideoEncoder&) = delete;
   ~RTCVideoEncoder() override;
@@ -98,7 +102,11 @@ class PLATFORM_EXPORT RTCVideoEncoder : public webrtc::VideoEncoder {
   const bool is_constrained_h264_;
 
   // Factory for creating VEAs, shared memory buffers, etc.
-  media::GpuVideoAcceleratorFactories* gpu_factories_;
+  const raw_ptr<media::GpuVideoAcceleratorFactories, ExperimentalRenderer>
+      gpu_factories_;
+
+  scoped_refptr<media::MojoVideoEncoderMetricsProviderFactory>
+      encoder_metrics_provider_factory_;
 
   // Task runner that the video accelerator runs on.
   const scoped_refptr<base::SequencedTaskRunner> gpu_task_runner_;

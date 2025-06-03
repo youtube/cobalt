@@ -10,6 +10,7 @@
 #include "components/autofill/core/browser/contact_info_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/sync/base/features.h"
+#include "components/sync/base/model_type.h"
 #include "components/sync/model/client_tag_based_model_type_processor.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/sync_metadata_store_change_list.h"
@@ -28,10 +29,8 @@ ContactInfoSyncBridge::ContactInfoSyncBridge(
     AutofillWebDataBackend* backend)
     : ModelTypeSyncBridge(std::move(change_processor)),
       web_data_backend_(backend) {
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncEnableContactInfoDataTypeEarlyReturnNoDatabase) &&
-      (!web_data_backend_ || !web_data_backend_->GetDatabase() ||
-       !GetAutofillTable())) {
+  if (!web_data_backend_ || !web_data_backend_->GetDatabase() ||
+      !GetAutofillTable()) {
     ModelTypeSyncBridge::change_processor()->ReportError(
         {FROM_HERE, "Failed to load AutofillWebDatabase."});
     return;
@@ -40,9 +39,7 @@ ContactInfoSyncBridge::ContactInfoSyncBridge(
   LoadMetadata();
 }
 
-ContactInfoSyncBridge::~ContactInfoSyncBridge() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-}
+ContactInfoSyncBridge::~ContactInfoSyncBridge() = default;
 
 // static
 void ContactInfoSyncBridge::CreateForWebDataServiceAndBackend(
@@ -67,7 +64,7 @@ syncer::ModelTypeSyncBridge* ContactInfoSyncBridge::FromWebDataService(
 
 std::unique_ptr<syncer::MetadataChangeList>
 ContactInfoSyncBridge::CreateMetadataChangeList() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::make_unique<syncer::SyncMetadataStoreChangeList>(
       GetAutofillTable(), syncer::CONTACT_INFO,
       base::BindRepeating(&syncer::ModelTypeChangeProcessor::ReportError,
@@ -84,7 +81,6 @@ absl::optional<syncer::ModelError> ContactInfoSyncBridge::MergeFullSyncData(
                                                std::move(entity_data))) {
     return error;
   }
-  web_data_backend_->NotifyThatSyncHasStarted(syncer::CONTACT_INFO);
   return absl::nullopt;
 }
 
@@ -136,13 +132,14 @@ ContactInfoSyncBridge::ApplyIncrementalSyncChanges(
   // Since such false positives are fine, and since AutofillTable's API
   // currently doesn't provide a way to detect such cases, we don't distinguish.
   if (!entity_changes.empty())
-    web_data_backend_->NotifyOfMultipleAutofillChanges();
+    web_data_backend_->NotifyOnAutofillChangedBySync(syncer::CONTACT_INFO);
+
   return absl::nullopt;
 }
 
 void ContactInfoSyncBridge::GetData(StorageKeyList storage_keys,
                                     DataCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::ranges::sort(storage_keys);
   auto filter_by_keys = base::BindRepeating(
       [](const StorageKeyList& storage_keys, const std::string& guid) {
@@ -156,7 +153,7 @@ void ContactInfoSyncBridge::GetData(StorageKeyList storage_keys,
 }
 
 void ContactInfoSyncBridge::GetAllDataForDebugging(DataCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (std::unique_ptr<syncer::MutableDataBatch> batch = GetDataAndFilter(
           base::BindRepeating([](const std::string& guid) { return true; }))) {
     std::move(callback).Run(std::move(batch));
@@ -182,10 +179,9 @@ std::string ContactInfoSyncBridge::GetStorageKey(
 
 void ContactInfoSyncBridge::AutofillProfileChanged(
     const AutofillProfileChange& change) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(change.data_model());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!change_processor()->IsTrackingMetadata() ||
-      change.data_model()->source() != AutofillProfile::Source::kAccount) {
+      change.data_model().source() != AutofillProfile::Source::kAccount) {
     return;
   }
 
@@ -197,17 +193,13 @@ void ContactInfoSyncBridge::AutofillProfileChanged(
       change_processor()->Put(
           change.key(),
           CreateContactInfoEntityDataFromAutofillProfile(
-              *change.data_model(),
+              change.data_model(),
               GetPossiblyTrimmedContactInfoSpecificsDataFromProcessor(
                   change.key())),
           metadata_change_list.get());
       break;
     case AutofillProfileChange::REMOVE:
       change_processor()->Delete(change.key(), metadata_change_list.get());
-      break;
-    case AutofillProfileChange::EXPIRE:
-      // EXPIRE changes are not issued for profiles.
-      NOTREACHED();
       break;
   }
 
@@ -226,7 +218,7 @@ void ContactInfoSyncBridge::ApplyDisableSyncChanges(
   }
   web_data_backend_->CommitChanges();
   // False positives can occur here if there were no profiles to begin with.
-  web_data_backend_->NotifyOfMultipleAutofillChanges();
+  web_data_backend_->NotifyOnAutofillChangedBySync(syncer::CONTACT_INFO);
 }
 
 sync_pb::EntitySpecifics
@@ -290,7 +282,7 @@ ContactInfoSyncBridge::GetDataAndFilter(
     base::RepeatingCallback<bool(const std::string&)> filter) {
   std::vector<std::unique_ptr<AutofillProfile>> profiles;
   if (!GetAutofillTable()->GetAutofillProfiles(
-          &profiles, AutofillProfile::Source::kAccount)) {
+          AutofillProfile::Source::kAccount, &profiles)) {
     change_processor()->ReportError(
         {FROM_HERE, "Failed to load profiles from table."});
     return nullptr;
@@ -316,9 +308,7 @@ void ContactInfoSyncBridge::LoadMetadata() {
     change_processor()->ReportError(
         {FROM_HERE, "Failed reading CONTACT_INFO metadata from WebDatabase."});
     return;
-  } else if (base::FeatureList::IsEnabled(
-                 syncer::kCacheBaseEntitySpecificsInMetadata) &&
-             SyncMetadataCacheContainsSupportedFields(
+  } else if (SyncMetadataCacheContainsSupportedFields(
                  batch->GetAllMetadata())) {
     // Caching entity specifics is meant to preserve fields not supported in a
     // given browser version during commits to the server. If the cache

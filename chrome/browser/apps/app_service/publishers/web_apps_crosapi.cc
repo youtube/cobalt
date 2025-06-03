@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_menu_constants.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/menu_util.h"
+#include "chrome/browser/apps/app_service/promise_apps/promise_app_web_apps_utils.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/services/app_service/public/cpp/crosapi_utils.h"
@@ -45,35 +47,6 @@ void WebAppsCrosapi::RegisterWebAppsCrosapiHost(
   receiver_.Bind(std::move(receiver));
   receiver_.set_disconnect_handler(base::BindOnce(
       &WebAppsCrosapi::OnCrosapiDisconnected, base::Unretained(this)));
-}
-
-void WebAppsCrosapi::LoadIcon(const std::string& app_id,
-                              const IconKey& icon_key,
-                              IconType icon_type,
-                              int32_t size_hint_in_dip,
-                              bool allow_placeholder_icon,
-                              apps::LoadIconCallback callback) {
-  if (!LogIfNotConnected(FROM_HERE)) {
-    std::move(callback).Run(std::make_unique<IconValue>());
-    return;
-  }
-
-  const uint32_t icon_effects = icon_key.icon_effects;
-
-  IconType crosapi_icon_type = icon_type;
-  IconKeyPtr crosapi_icon_key = icon_key.Clone();
-  if (crosapi_icon_type == apps::IconType::kCompressed) {
-    // The effects are applied here in Ash.
-    crosapi_icon_type = apps::IconType::kUncompressed;
-    crosapi_icon_key->icon_effects = apps::IconEffects::kNone;
-  }
-
-  controller_->LoadIcon(
-      app_id, std::move(crosapi_icon_key), crosapi_icon_type, size_hint_in_dip,
-      base::BindOnce(&WebAppsCrosapi::OnLoadIcon, weak_factory_.GetWeakPtr(),
-                     icon_type, size_hint_in_dip,
-                     static_cast<apps::IconEffects>(icon_effects),
-                     std::move(callback)));
 }
 
 void WebAppsCrosapi::GetCompressedIconData(const std::string& app_id,
@@ -402,43 +375,23 @@ void WebAppsCrosapi::OnCrosapiDisconnected() {
 
 void WebAppsCrosapi::OnControllerDisconnected() {
   controller_.reset();
-}
 
-void WebAppsCrosapi::OnLoadIcon(IconType icon_type,
-                                int size_hint_in_dip,
-                                apps::IconEffects icon_effects,
-                                apps::LoadIconCallback callback,
-                                IconValuePtr icon_value) {
-  if (!icon_value) {
-    std::move(callback).Run(IconValuePtr());
-    return;
-  }
-  if (icon_value->is_maskable_icon) {
-    icon_effects &= ~apps::IconEffects::kCrOsStandardIcon;
-    icon_effects |= apps::IconEffects::kCrOsStandardBackground;
-    icon_effects |= apps::IconEffects::kCrOsStandardMask;
-  }
-  // We apply the masking effect here, as masking is not implemented in Lacros.
-  // (There is no resource file in the Lacros side to apply the icon effects.)
-  ApplyIconEffects(icon_effects, size_hint_in_dip, std::move(icon_value),
-                   base::BindOnce(&WebAppsCrosapi::OnApplyIconEffects,
-                                  weak_factory_.GetWeakPtr(), icon_type,
-                                  std::move(callback)));
-}
-
-void WebAppsCrosapi::OnApplyIconEffects(IconType icon_type,
-                                        apps::LoadIconCallback callback,
-                                        IconValuePtr icon_value) {
-  if (icon_type == apps::IconType::kCompressed) {
-    ConvertUncompressedIconToCompressedIcon(std::move(icon_value),
-                                            std::move(callback));
-    return;
-  }
-
-  std::move(callback).Run(std::move(icon_value));
+  // If Lacros stops running (e.g. due to a crash/update), all apps will no
+  // longer be accessing capabilities.
+  ResetCapabilityAccess(AppType::kWeb);
 }
 
 void WebAppsCrosapi::PublishImpl(std::vector<AppPtr> deltas) {
+  // This is for prototyping and testing only. It is to provide an easy way to
+  // simulate web app promise icon behaviour for the UI/ client development of
+  // web app promise icons.
+  // TODO(b/261907269): Remove this code snippet and use real listeners for web
+  // app installation events.
+  if (ash::features::ArePromiseIconsForWebAppsEnabled()) {
+    for (auto& delta : deltas) {
+      apps::MaybeSimulatePromiseAppInstallationEvents(proxy(), delta.get());
+    }
+  }
   apps::AppPublisher::Publish(std::move(deltas), AppType::kWeb,
                               should_notify_initialized_);
   should_notify_initialized_ = false;

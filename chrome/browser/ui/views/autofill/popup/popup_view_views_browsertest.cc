@@ -34,14 +34,15 @@ using CellType = PopupRowView::CellType;
 
 std::vector<Suggestion> CreateAutofillProfileSuggestions() {
   std::vector<Suggestion> suggestions;
-  suggestions.emplace_back("123 Apple St.", "Charles", "accountIcon", 1);
+  suggestions.emplace_back("123 Apple St.", "Charles", "accountIcon",
+                           PopupItemId::kAddressEntry);
   suggestions.emplace_back("3734 Elvis Presley Blvd.", "Elvis", "accountIcon",
-                           2);
+                           PopupItemId::kAddressEntry);
 
-  suggestions.emplace_back(POPUP_ITEM_ID_SEPARATOR);
+  suggestions.emplace_back(PopupItemId::kSeparator);
 
   Suggestion settings(l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_ADDRESSES));
-  settings.frontend_id = POPUP_ITEM_ID_AUTOFILL_OPTIONS;
+  settings.popup_item_id = PopupItemId::kAutofillOptions;
   settings.icon = "settingsIcon";
   suggestions.push_back(std::move(settings));
 
@@ -49,8 +50,10 @@ std::vector<Suggestion> CreateAutofillProfileSuggestions() {
 }
 
 std::vector<Suggestion> CreateAutocompleteSuggestions() {
-  return {Suggestion("Autocomplete entry 1", "", "", 0),
-          Suggestion("Autocomplete entry 2", "", "", 0)};
+  return {Suggestion("Autocomplete entry 1", "", "",
+                     PopupItemId::kAutocompleteEntry),
+          Suggestion("Autocomplete entry 2", "", "",
+                     PopupItemId::kAutocompleteEntry)};
 }
 
 }  // namespace
@@ -71,8 +74,14 @@ class PopupViewViewsBrowsertestBase
     PopupPixelTest::ShowUi(name);
     view()->Show(AutoselectFirstSuggestion(false));
     if (selected_cell_) {
-      view()->SetSelectedCell(selected_cell_);
+      view()->SetSelectedCell(selected_cell_,
+                              PopupCellSelectionSource::kNonUserInput);
     }
+  }
+
+ protected:
+  PopupViewViews* CreateView(MockAutofillPopupController& controller) override {
+    return new PopupViewViews(controller.GetWeakPtr());
   }
 
  private:
@@ -110,6 +119,26 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
 }
 
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
+                       InvokeUi_Autofill_Profile_Selected_Content_WithSubpoup) {
+  std::vector<Suggestion> suggestions = CreateAutofillProfileSuggestions();
+  suggestions[0].children = CreateAutofillProfileSuggestions();
+
+  PrepareSuggestions(std::move(suggestions));
+  PrepareSelectedCell(CellIndex{0, CellType::kContent});
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
+                       InvokeUi_Autofill_Profile_Selected_Control_WithSubpoup) {
+  std::vector<Suggestion> suggestions = CreateAutofillProfileSuggestions();
+  suggestions[0].children = CreateAutofillProfileSuggestions();
+
+  PrepareSuggestions(std::move(suggestions));
+  PrepareSelectedCell(CellIndex{0, CellType::kControl});
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
                        InvokeUi_Autofill_Profile_Selected_Footer) {
   PrepareSuggestions(CreateAutofillProfileSuggestions());
   PrepareSelectedCell(CellIndex{3, CellType::kContent});
@@ -124,7 +153,7 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
   entry1.main_text.is_primary = Suggestion::Text::IsPrimary(true);
   entry1.additional_label =
       std::u16string(10, gfx::RenderText::kPasswordReplacementChar);
-  entry1.frontend_id = POPUP_ITEM_ID_ACCOUNT_STORAGE_PASSWORD_ENTRY;
+  entry1.popup_item_id = PopupItemId::kAccountStoragePasswordEntry;
   entry1.icon = "globeIcon";
   entry1.trailing_icon = "google";
   suggestions.push_back(std::move(entry1));
@@ -134,17 +163,17 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
   entry2.main_text.is_primary = Suggestion::Text::IsPrimary(true);
   entry2.additional_label =
       std::u16string(6, gfx::RenderText::kPasswordReplacementChar);
-  entry2.frontend_id = POPUP_ITEM_ID_PASSWORD_ENTRY;
+  entry2.popup_item_id = PopupItemId::kPasswordEntry;
   entry2.icon = "globeIcon";
   entry2.trailing_icon = "";
   suggestions.push_back(std::move(entry2));
 
-  suggestions.emplace_back(POPUP_ITEM_ID_SEPARATOR);
+  suggestions.emplace_back(PopupItemId::kSeparator);
 
   // The entry to open settings.
   Suggestion settings(
       l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MANAGE_PASSWORDS));
-  settings.frontend_id = POPUP_ITEM_ID_ALL_SAVED_PASSWORDS_ENTRY;
+  settings.popup_item_id = PopupItemId::kAllSavedPasswordsEntry;
   settings.icon = "settingsIcon";
   settings.trailing_icon = "googlePasswordManager";
   suggestions.push_back(std::move(settings));
@@ -157,7 +186,7 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
                        InvokeUi_InsecureContext_PaymentDisabled) {
   Suggestion warning(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_WARNING_INSECURE_CONNECTION));
-  warning.frontend_id = POPUP_ITEM_ID_INSECURE_CONTEXT_PAYMENT_DISABLED_MESSAGE;
+  warning.popup_item_id = PopupItemId::kInsecureContextPaymentDisabledMessage;
   PrepareSuggestions({std::move(warning)});
   ShowAndVerifyUi();
 }

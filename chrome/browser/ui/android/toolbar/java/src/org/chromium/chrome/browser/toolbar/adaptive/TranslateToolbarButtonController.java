@@ -15,6 +15,7 @@ import org.chromium.chrome.browser.toolbar.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.translate.TranslateBridge;
 import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -37,7 +38,8 @@ public class TranslateToolbarButtonController extends BaseButtonDataProvider {
             Drawable buttonDrawable, String contentDescription, Supplier<Tracker> trackerSupplier) {
         super(activeTabSupplier, /* modalDialogManager = */ null, buttonDrawable,
                 contentDescription, Resources.ID_NULL, /* supportsTinting = */ true, null,
-                AdaptiveToolbarButtonVariant.TRANSLATE);
+                AdaptiveToolbarButtonVariant.TRANSLATE, /*tooltipTextResId*/ Resources.ID_NULL,
+                /*showHoverHighlight*/ true);
         mTrackerSupplier = trackerSupplier;
     }
 
@@ -60,5 +62,12 @@ public class TranslateToolbarButtonController extends BaseButtonDataProvider {
         }
 
         TranslateBridge.translateTabWhenReady(mActiveTabSupplier.get());
+    }
+
+    @Override
+    protected boolean shouldShowButton(Tab tab) {
+        if (!super.shouldShowButton(tab)) return false;
+
+        return UrlUtilities.isHttpOrHttps(tab.getUrl());
     }
 }

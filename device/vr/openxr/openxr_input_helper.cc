@@ -5,8 +5,10 @@
 #include "device/vr/openxr/openxr_input_helper.h"
 
 #include "device/gamepad/public/cpp/gamepad.h"
+#include "device/vr/openxr/openxr_extension_helper.h"
 #include "device/vr/openxr/openxr_util.h"
 #include "device/vr/util/xr_standard_gamepad_builder.h"
+#include "third_party/openxr/src/include/openxr/openxr.h"
 
 namespace device {
 
@@ -184,6 +186,14 @@ std::vector<mojom::XRInputSourceStatePtr> OpenXRInputHelper::GetInputState(
 
   for (uint32_t i = 0; i < controller_states_.size(); i++) {
     device::OpenXrController* controller = &controller_states_[i].controller;
+
+    absl::optional<GamepadButton> menu_button =
+        controller->GetButton(OpenXrButtonType::kMenu);
+
+    // Pressing a menu buttons is treated as a signal to exit the WebXR session.
+    if (menu_button && menu_button.value().pressed) {
+      OnExitGesture();
+    }
 
     absl::optional<GamepadButton> primary_button =
         controller->GetButton(OpenXrButtonType::kTrigger);

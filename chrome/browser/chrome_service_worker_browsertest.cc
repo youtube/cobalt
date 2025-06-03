@@ -9,6 +9,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -533,6 +534,9 @@ class ChromeServiceWorkerFetchTest : public ChromeServiceWorkerTest {
     WriteServiceWorkerFetchTestFiles();
     embedded_test_server()->ServeFilesFromDirectory(
         service_worker_dir_.GetPath());
+    base::FilePath test_data_dir;
+    ASSERT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_data_dir));
+    embedded_test_server()->ServeFilesFromDirectory(test_data_dir);
     ASSERT_TRUE(embedded_test_server()->Start());
     InitializeServiceWorkerFetchTestPage();
   }
@@ -580,36 +584,39 @@ class ChromeServiceWorkerFetchTest : public ChromeServiceWorkerTest {
         "          return fetch(event.request);"
         "        }));"
         "};");
-    WriteFile(FILE_PATH_LITERAL("test.html"),
-              "<script>"
-              "navigator.serviceWorker.register('./sw.js', {scope: './'})"
-              "  .then(function(reg) {"
-              "      reg.addEventListener('updatefound', function() {"
-              "          var worker = reg.installing;"
-              "          worker.addEventListener('statechange', function() {"
-              "              if (worker.state == 'activated')"
-              "                document.title = 'READY';"
-              "            });"
-              "        });"
-              "    });"
-              "var reportOnFetch = true;"
-              "var issuedRequests = [];"
-              "function reportRequests() {"
-              "  var str = '';"
-              "  issuedRequests.forEach(function(data) {"
-              "      str += data + '\\n';"
-              "    });"
-              "  window.domAutomationController.send(str);"
-              "}"
-              "navigator.serviceWorker.addEventListener("
-              "    'message',"
-              "    function(event) {"
-              "      issuedRequests.push(event.data);"
-              "      if (reportOnFetch) {"
-              "        reportRequests();"
-              "      }"
-              "    }, false);"
-              "</script>");
+    WriteFile(FILE_PATH_LITERAL("test.html"), R"(
+              <script src='/result_queue.js'></script>
+              <script>
+              navigator.serviceWorker.register('./sw.js', {scope: './'})
+                .then(function(reg) {
+                    reg.addEventListener('updatefound', function() {
+                        var worker = reg.installing;
+                        worker.addEventListener('statechange', function() {
+                            if (worker.state == 'activated')
+                              document.title = 'READY';
+                          });
+                      });
+                  });
+              var reportOnFetch = true;
+              var issuedRequests = [];
+              var reports = new ResultQueue();
+              function reportRequests() {
+                var str = '';
+                issuedRequests.forEach(function(data) {
+                  str += data + '\n';
+                });
+                reports.push(str);
+              }
+              navigator.serviceWorker.addEventListener(
+                  'message',
+                  function(event) {
+                    issuedRequests.push(event.data);
+                    if (reportOnFetch) {
+                      reportRequests();
+                    }
+                  }, false);
+              </script>
+              )");
   }
 
   void InitializeServiceWorkerFetchTestPage() {
@@ -708,7 +715,7 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
     ExecuteJavaScriptForTests(js);
     waiter.Wait();
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                  "reportRequests();", content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
+                  "reportRequests(); reports.pop();")
         .ExtractString();
   }
 
@@ -748,8 +755,8 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
     run_loop.Run();
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                   "if (issuedRequests.length != 0) reportRequests();"
-                  "else reportOnFetch = true;",
-                  content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
+                  "else reportOnFetch = true;"
+                  "reports.pop();")
         .ExtractString();
   }
 
@@ -850,17 +857,23 @@ class ChromeServiceWorkerFetchPPAPITest : public ChromeServiceWorkerFetchTest {
   }
 
   std::string ExecutePNACLUrlLoaderTest(const std::string& mode) {
-    std::string result(
-        EvalJs(
-            browser()->tab_strip_model()->GetActiveWebContents(),
-            base::StringPrintf("reportOnFetch = false;"
-                               "var iframe = document.createElement('iframe');"
-                               "iframe.src='%s#%s';"
-                               "document.body.appendChild(iframe);",
-                               test_page_url_.c_str(), mode.c_str()),
-            content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
-            .ExtractString());
-    EXPECT_EQ(base::StringPrintf("OnOpen%s", mode.c_str()), result);
+    content::DOMMessageQueue message_queue;
+    EXPECT_TRUE(content::ExecJs(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        base::StringPrintf("reportOnFetch = false;"
+                           "var iframe = document.createElement('iframe');"
+                           "iframe.src='%s#%s';"
+                           "document.body.appendChild(iframe);",
+                           test_page_url_.c_str(), mode.c_str())));
+
+    std::string json;
+    EXPECT_TRUE(message_queue.WaitForMessage(&json));
+
+    base::Value result =
+        base::JSONReader::Read(json, base::JSON_ALLOW_TRAILING_COMMAS).value();
+
+    EXPECT_TRUE(result.is_string());
+    EXPECT_EQ(base::StringPrintf("OnOpen%s", mode.c_str()), result.GetString());
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                   "reportRequests();")
         .ExtractString();

@@ -36,10 +36,11 @@ void NavigationClient::CommitNavigation(
     blink::mojom::ControllerServiceWorkerInfoPtr controller_service_worker_info,
     blink::mojom::ServiceWorkerContainerInfoForClientPtr container_info,
     mojo::PendingRemote<network::mojom::URLLoaderFactory>
-        prefetch_loader_factory,
-    mojo::PendingRemote<network::mojom::URLLoaderFactory> topics_loader_factory,
+        subresource_proxying_loader_factory,
     mojo::PendingRemote<network::mojom::URLLoaderFactory>
         keep_alive_loader_factory,
+    mojo::PendingAssociatedRemote<blink::mojom::FetchLaterLoaderFactory>
+        fetch_later_loader_factory,
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token,
     const absl::optional<blink::ParsedPermissionsPolicy>& permissions_policy,
@@ -51,10 +52,11 @@ void NavigationClient::CommitNavigation(
     CommitNavigationCallback callback) {
   DCHECK(blink::IsRequestDestinationFrame(common_params->request_destination));
 
-  // TODO(ahemery): The reset should be done when the navigation did commit
-  // (meaning at a later stage). This is not currently possible because of
-  // race conditions leading to the early deletion of NavigationRequest would
-  // unexpectedly abort the ongoing navigation. Remove when the races are fixed.
+  // TODO(https://crbug.com/1467502): The reset should be done when the
+  // navigation did commit (meaning at a later stage). This is not currently
+  // possible because of race conditions leading to the early deletion of
+  // NavigationRequest would unexpectedly abort the ongoing navigation. Remove
+  // when the races are fixed.
   ResetDisconnectionHandler();
   render_frame_->CommitNavigation(
       std::move(common_params), std::move(commit_params),
@@ -62,8 +64,9 @@ void NavigationClient::CommitNavigation(
       std::move(url_loader_client_endpoints), std::move(subresource_loaders),
       std::move(subresource_overrides),
       std::move(controller_service_worker_info), std::move(container_info),
-      std::move(prefetch_loader_factory), std::move(topics_loader_factory),
-      std::move(keep_alive_loader_factory), document_token,
+      std::move(subresource_proxying_loader_factory),
+      std::move(keep_alive_loader_factory),
+      std::move(fetch_later_loader_factory), document_token,
       devtools_navigation_token, permissions_policy,
       std::move(policy_container), std::move(code_cache_host),
       std::move(resource_cache), std::move(cookie_manager_info),

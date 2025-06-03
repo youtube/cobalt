@@ -95,10 +95,9 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // [0, FixedArray::kMaxLength].
   Type const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The WeakFixedArray::length property always containts a smi in the range
-  // [0, WeakFixedArray::kMaxLength].
+  // The WeakFixedArray::length property always containts a smi in the range:
   Type const kWeakFixedArrayLengthType =
-      CreateRange(0.0, WeakFixedArray::kMaxLength);
+      CreateRange(0.0, WeakFixedArray::kMaxCapacity);
 
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].
@@ -124,9 +123,9 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kJSArrayBufferViewByteOffsetType = kJSArrayBufferByteLengthType;
 
   // The JSTypedArray::length property always contains an untagged number in
-  // the range [0, JSTypedArray::kMaxLength].
+  // the range [0, JSTypedArray::kMaxByteLength].
   Type const kJSTypedArrayLengthType =
-      CreateRange(0.0, JSTypedArray::kMaxLength);
+      CreateRange(0.0, JSTypedArray::kMaxByteLength);
 
   // The String::length property always contains a smi in the range
   // [0, String::kMaxLength].

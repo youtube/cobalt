@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+
+import * as Host from 'devtools/core/host/host.js';
+
 (async function() {
   TestRunner.addResult(
       `Tests that adopted portal is rendered inline correctly.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
 
   // Save time on style updates.
@@ -21,7 +25,7 @@
         TestRunner
             .waitForEvent(
                 Host.InspectorFrontendHostAPI.Events.ReattachRootTarget,
-                Host.InspectorFrontendHost.events)
+                Host.InspectorFrontendHost.InspectorFrontendHostInstance.events)
             .then(next);
       });
     },

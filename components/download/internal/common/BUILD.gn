@@ -7,6 +7,7 @@ import("//components/safe_browsing/buildflags.gni")
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 source_set("internal") {
@@ -84,6 +85,8 @@ source_set("internal") {
     "//services/service_manager/public/cpp:cpp",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   # TODO(crbug/1056278): Enable this on Fuchsia
   if (safe_browsing_mode > 0 && !is_fuchsia) {
     deps += [ "//components/safe_browsing/content/common:file_type_policies" ]
@@ -109,6 +112,7 @@ source_set("internal") {
 
 if (is_android) {
   android_library("internal_java") {
+    srcjar_deps = [ ":jni_headers" ]
     sources = [
       "android/java/src/org/chromium/components/download/DownloadCollectionBridge.java",
       "android/java/src/org/chromium/components/download/DownloadDelegate.java",
@@ -116,12 +120,11 @@ if (is_android) {
 
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//build/android:build_java",
       "//third_party/android_provider:android_provider_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   }
 
   generate_jni("jni_headers") {
@@ -165,7 +168,6 @@ source_set("unit_tests") {
   deps = [
     ":for_tests",
     "//base/test:test_support",
-    "//build:chromeos_buildflags",
     "//build:chromeos_buildflags",
     "//components/download/database",
     "//components/download/public/common:test_support",

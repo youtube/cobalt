@@ -23,9 +23,6 @@ namespace updater {
 // daylight savings time changes happen in between.
 class UpdatesSuppressedTimes {
  public:
-  UpdatesSuppressedTimes();
-  ~UpdatesSuppressedTimes();
-
   bool operator==(const UpdatesSuppressedTimes& other) const;
   bool operator!=(const UpdatesSuppressedTimes& other) const;
 
@@ -66,8 +63,7 @@ class PolicyManagerInterface
       const = 0;
 
   // Returns the policy for the download preference.
-  virtual absl::optional<std::string> GetDownloadPreferenceGroupPolicy()
-      const = 0;
+  virtual absl::optional<std::string> GetDownloadPreference() const = 0;
 
   // Returns the policy for the package cache size limit in megabytes.
   virtual absl::optional<int> GetPackageCacheSizeLimitMBytes() const = 0;

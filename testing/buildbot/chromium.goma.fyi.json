@@ -12,10 +12,9 @@
         },
         "name": "base_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-10.13"
+            "os": "Mac-13"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -28,49 +27,9 @@
         },
         "name": "content_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-10.13"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "content_unittests",
-        "test_id_prefix": "ninja://content/test:content_unittests/"
-      }
-    ]
-  },
-  "Mac Builder (dbg) Goma RBE Latest Client (clobber)": {
-    "additional_compile_targets": [
-      "all"
-    ],
-    "gtest_tests": [
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "base_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Mac-10.13"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "base_unittests",
-        "test_id_prefix": "ninja://base:base_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "content_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Mac-10.13"
+            "os": "Mac-13"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -90,7 +49,6 @@
         },
         "name": "base_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "arm-64",
             "os": "Mac-11"
@@ -106,7 +64,6 @@
         },
         "name": "content_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "arm-64",
             "os": "Mac-11"
@@ -118,42 +75,12 @@
       }
     ]
   },
-  "android-archive-dbg-goma-rbe-ats-canary": {
-    "additional_compile_targets": [
-      "chromedriver_webview_shell_apk"
-    ]
-  },
-  "android-archive-dbg-goma-rbe-ats-latest": {
-    "additional_compile_targets": [
-      "chromedriver_webview_shell_apk"
-    ]
-  },
-  "android-archive-dbg-goma-rbe-canary": {
-    "additional_compile_targets": [
-      "chromedriver_webview_shell_apk"
-    ]
-  },
-  "android-archive-dbg-goma-rbe-latest": {
-    "additional_compile_targets": [
-      "chromedriver_webview_shell_apk"
-    ]
-  },
   "chromeos-amd64-generic-rel-goma-rbe-canary": {
     "additional_compile_targets": [
       "chromiumos_preflight"
     ]
   },
-  "chromeos-amd64-generic-rel-goma-rbe-latest": {
-    "additional_compile_targets": [
-      "chromiumos_preflight"
-    ]
-  },
   "ios-device-goma-rbe-canary-clobber": {
-    "additional_compile_targets": [
-      "all"
-    ]
-  },
-  "ios-device-goma-rbe-latest-clobber": {
     "additional_compile_targets": [
       "all"
     ]
@@ -169,9 +96,8 @@
         },
         "name": "base_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
-            "os": "Ubuntu-18.04"
+            "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -184,46 +110,8 @@
         },
         "name": "content_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
-            "os": "Ubuntu-18.04"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "content_unittests",
-        "test_id_prefix": "ninja://content/test:content_unittests/"
-      }
-    ]
-  },
-  "linux-archive-rel-goma-rbe-ats-latest": {
-    "additional_compile_targets": [
-      "all"
-    ],
-    "gtest_tests": [
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "base_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "os": "Ubuntu-18.04"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "base_unittests",
-        "test_id_prefix": "ninja://base:base_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "content_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "os": "Ubuntu-18.04"
+            "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -243,9 +131,8 @@
         },
         "name": "base_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
-            "os": "Ubuntu-18.04"
+            "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -258,46 +145,8 @@
         },
         "name": "content_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
-            "os": "Ubuntu-18.04"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "content_unittests",
-        "test_id_prefix": "ninja://content/test:content_unittests/"
-      }
-    ]
-  },
-  "linux-archive-rel-goma-rbe-latest": {
-    "additional_compile_targets": [
-      "all"
-    ],
-    "gtest_tests": [
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "base_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "os": "Ubuntu-18.04"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "base_unittests",
-        "test_id_prefix": "ninja://base:base_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "content_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "os": "Ubuntu-18.04"
+            "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -317,10 +166,9 @@
         },
         "name": "base_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-10.13"
+            "os": "Mac-13"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
@@ -333,49 +181,9 @@
         },
         "name": "content_unittests",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-10.13"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "content_unittests",
-        "test_id_prefix": "ninja://content/test:content_unittests/"
-      }
-    ]
-  },
-  "mac-archive-rel-goma-rbe-latest": {
-    "additional_compile_targets": [
-      "chrome"
-    ],
-    "gtest_tests": [
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "base_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Mac-10.13"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "base_unittests",
-        "test_id_prefix": "ninja://base:base_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "name": "content_unittests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "dimensions": {
-            "cpu": "x86-64",
-            "os": "Mac-10.13"
+            "os": "Mac-13"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },

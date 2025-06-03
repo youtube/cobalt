@@ -15,8 +15,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/task/task_traits.h"
-#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_client.h"
@@ -24,11 +22,15 @@
 #include "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
+#include "components/autofill/core/browser/form_data_importer.h"
 #include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
 #include "components/autofill/core/browser/metrics/payments/better_auth_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_unmask_flow_metrics.h"
+#include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
 #include "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
 #include "components/autofill/core/browser/payments/autofill_payments_feature_availability.h"
+#include "components/autofill/core/browser/payments/credit_card_risk_based_authenticator.h"
+#include "components/autofill/core/browser/payments/mandatory_reauth_manager.h"
 #include "components/autofill/core/browser/payments/payments_client.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/payments/webauthn_callback_types.h"
@@ -36,7 +38,6 @@
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_tick_clock.h"
-#include "components/device_reauth/device_authenticator.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -68,7 +69,19 @@ CreditCardAccessManager::CreditCardAccessManager(
       personal_data_manager_(personal_data_manager),
       form_event_logger_(form_event_logger) {}
 
-CreditCardAccessManager::~CreditCardAccessManager() = default;
+CreditCardAccessManager::~CreditCardAccessManager() {
+  // This clears the record type of the most recently autofilled card with no
+  // interactive authentication flow upon page navigation, as page navigation
+  // results in us destroying the current CreditCardAccessManager and creating a
+  // new one.
+  if (client_) {
+    if (auto* form_data_importer = client_->GetFormDataImporter()) {
+      form_data_importer
+          ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+              absl::nullopt);
+    }
+  }
+}
 
 void CreditCardAccessManager::UpdateCreditCardFormEventLogger() {
   std::vector<CreditCard*> credit_cards =
@@ -77,10 +90,11 @@ void CreditCardAccessManager::UpdateCreditCardFormEventLogger() {
   size_t server_record_type_count = 0;
   size_t local_record_type_count = 0;
   for (CreditCard* credit_card : credit_cards) {
-    if (credit_card->record_type() == CreditCard::LOCAL_CARD)
+    if (credit_card->record_type() == CreditCard::RecordType::kLocalCard) {
       local_record_type_count++;
-    else
+    } else {
       server_record_type_count++;
+    }
   }
   form_event_logger_->set_server_record_type_count(server_record_type_count);
   form_event_logger_->set_local_record_type_count(local_record_type_count);
@@ -122,7 +136,7 @@ bool CreditCardAccessManager::GetDeletionConfirmationText(
     return false;
 
   if (title)
-    title->assign(card->CardIdentifierStringForAutofillDisplay());
+    title->assign(card->CardNameAndLastFourDigits());
   if (body) {
     body->assign(l10n_util::GetStringUTF16(
         IDS_AUTOFILL_DELETE_CREDIT_CARD_SUGGESTION_CONFIRMATION_BODY));
@@ -219,8 +233,8 @@ void CreditCardAccessManager::OnDidGetUnmaskDetails(
 
   // TODO(crbug.com/1409151): Rename `offer_fido_opt_in`, and check that the
   // user is off the record separately.
-  unmask_details_.offer_fido_opt_in = unmask_details_.offer_fido_opt_in &&
-                                      !payments_client_->is_off_the_record();
+  unmask_details_.offer_fido_opt_in =
+      unmask_details_.offer_fido_opt_in && !client_->IsOffTheRecord();
 
   // Set delay as fido request timeout if available, otherwise set to default.
   int delay_ms = kDelayForGetUnmaskDetails;
@@ -250,18 +264,25 @@ void CreditCardAccessManager::OnDidGetUnmaskDetails(
 void CreditCardAccessManager::FetchCreditCard(
     const CreditCard* card,
     base::WeakPtr<Accessor> accessor) {
+  // Reset the variable in FormDataImporter that denotes if non-interactive
+  // authentication happened. This variable will be set to a value if a payments
+  // autofill non-interactive flow successfully completes.
+  client_->GetFormDataImporter()
+      ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+          absl::nullopt);
+
   // Return error if authentication is already in progress, but don't reset
   // status.
   if (is_authentication_in_progress_) {
     accessor->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                  nullptr, u"");
+                                  nullptr);
     return;
   }
 
   // If card is nullptr we reset all states and return error.
   if (!card) {
     accessor->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                  nullptr, u"");
+                                  nullptr);
     Reset();
     return;
   }
@@ -273,7 +294,7 @@ void CreditCardAccessManager::FetchCreditCard(
   // card or virtual card.
   if (ShouldLogServerCardUnmaskAttemptMetrics(record_type)) {
     autofill_metrics::LogServerCardUnmaskAttempt(
-        record_type == CreditCard::VIRTUAL_CARD
+        record_type == CreditCard::RecordType::kVirtualCard
             ? AutofillClient::PaymentsRpcCardType::kVirtualCard
             : AutofillClient::PaymentsRpcCardType::kServerCard);
   }
@@ -282,14 +303,15 @@ void CreditCardAccessManager::FetchCreditCard(
   std::unordered_map<std::string, CachedServerCardInfo>::iterator it =
       unmasked_card_cache_.find(GetKeyForUnmaskedCardsCache(*card));
   if (it != unmasked_card_cache_.end()) {  // key is in cache
+    it->second.card.set_cvc(it->second.cvc);
     accessor->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
-                                  /*credit_card=*/&it->second.card,
-                                  /*cvc=*/it->second.cvc);
-    std::string metrics_name = record_type == CreditCard::VIRTUAL_CARD
-                                   ? "Autofill.UsedCachedVirtualCard"
-                                   : "Autofill.UsedCachedServerCard";
+                                  /*credit_card=*/&it->second.card);
+    std::string metrics_name =
+        record_type == CreditCard::RecordType::kVirtualCard
+            ? "Autofill.UsedCachedVirtualCard"
+            : "Autofill.UsedCachedServerCard";
     base::UmaHistogramCounts1000(metrics_name, ++it->second.cache_uses);
-    if (record_type == CreditCard::VIRTUAL_CARD) {
+    if (record_type == CreditCard::RecordType::kVirtualCard) {
       autofill_metrics::LogServerCardUnmaskResult(
           autofill_metrics::ServerCardUnmaskResult::kLocalCacheHit,
           AutofillClient::PaymentsRpcCardType::kVirtualCard,
@@ -304,14 +326,19 @@ void CreditCardAccessManager::FetchCreditCard(
   accessor_ = accessor;
 
   switch (record_type) {
-    case CreditCard::VIRTUAL_CARD:
+    case CreditCard::RecordType::kVirtualCard:
       return FetchVirtualCard();
-    case CreditCard::MASKED_SERVER_CARD:
+    case CreditCard::RecordType::kMaskedServerCard:
       return FetchMaskedServerCard();
-    case CreditCard::LOCAL_CARD:
-    case CreditCard::FULL_SERVER_CARD:
+    case CreditCard::RecordType::kLocalCard:
+    case CreditCard::RecordType::kFullServerCard:
       return FetchLocalOrFullServerCard();
   }
+}
+
+bool CreditCardAccessManager::IsMaskedServerCardRiskBasedAuthAvailable() const {
+  return base::FeatureList::IsEnabled(
+      features::kAutofillEnableFpanRiskBasedAuthentication);
 }
 
 void CreditCardAccessManager::FIDOAuthOptChange(bool opt_in) {
@@ -326,15 +353,17 @@ void CreditCardAccessManager::FIDOAuthOptChange(bool opt_in) {
     // to add the maximum amount of strikes to the FIDO auth strike database, as
     // strike databases are not present in incognito mode and should not be
     // used.
-    if (personal_data_manager_->IsOffTheRecord()) {
+    if (client_->IsOffTheRecord()) {
       return;
     }
 
     GetOrCreateFidoAuthenticator()->OptOut();
-    GetOrCreateFidoAuthenticator()
-        ->GetOrCreateFidoAuthenticationStrikeDatabase()
-        ->AddStrikes(
-            FidoAuthenticationStrikeDatabase::kStrikesToAddWhenUserOptsOut);
+    if (auto* strike_database =
+            GetOrCreateFidoAuthenticator()
+                ->GetOrCreateFidoAuthenticationStrikeDatabase()) {
+      strike_database->AddStrikes(
+          FidoAuthenticationStrikeDatabase::kStrikesToAddWhenUserOptsOut);
+    }
   }
 #endif
 }
@@ -354,29 +383,31 @@ void CreditCardAccessManager::SignalCanFetchUnmaskDetails() {
 
 void CreditCardAccessManager::CacheUnmaskedCardInfo(const CreditCard& card,
                                                     const std::u16string& cvc) {
-  DCHECK(card.record_type() == CreditCard::FULL_SERVER_CARD ||
-         card.record_type() == CreditCard::VIRTUAL_CARD);
-  std::string identifier = card.record_type() == CreditCard::VIRTUAL_CARD
-                               ? card.server_id() + kVirtualCardIdentifier
-                               : card.server_id();
+  DCHECK(card.record_type() == CreditCard::RecordType::kFullServerCard ||
+         card.record_type() == CreditCard::RecordType::kVirtualCard);
+  std::string identifier =
+      card.record_type() == CreditCard::RecordType::kVirtualCard
+          ? card.server_id() + kVirtualCardIdentifier
+          : card.server_id();
   CachedServerCardInfo card_info = {card, cvc, /*cache_uses=*/0};
   unmasked_card_cache_[identifier] = card_info;
 }
 
-void CreditCardAccessManager::GetAuthenticationType(bool fido_auth_enabled) {
+void CreditCardAccessManager::StartAuthenticationFlow(bool fido_auth_enabled) {
 #if BUILDFLAG(IS_IOS)
   // There is no FIDO auth available on iOS and there are no virtual cards on
   // iOS either, so offer CVC auth immediately.
   Authenticate(UnmaskAuthFlowType::kCvc);
 #else
-  if (card_->record_type() == CreditCard::VIRTUAL_CARD)
-    GetAuthenticationTypeForVirtualCard(fido_auth_enabled);
-  else
-    GetAuthenticationTypeForMaskedServerCard(fido_auth_enabled);
+  if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
+    StartAuthenticationFlowForVirtualCard(fido_auth_enabled);
+  } else {
+    StartAuthenticationFlowForMaskedServerCard(fido_auth_enabled);
+  }
 #endif
 }
 
-void CreditCardAccessManager::GetAuthenticationTypeForVirtualCard(
+void CreditCardAccessManager::StartAuthenticationFlowForVirtualCard(
     bool fido_auth_enabled) {
   // TODO(crbug.com/1243475): Currently if the card is a virtual card and FIDO
   // auth was provided by issuer, we prefer FIDO auth. Remove FIDO preference
@@ -395,9 +426,9 @@ void CreditCardAccessManager::GetAuthenticationTypeForVirtualCard(
       virtual_card_unmask_response_details_.card_unmask_challenge_options;
   if (challenge_options.empty()) {
     accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                   nullptr, u"");
-    client_->ShowVirtualCardErrorDialog(
-        AutofillErrorDialogContext::WithPermanentOrTemporaryError(
+                                   nullptr);
+    client_->ShowAutofillErrorDialog(
+        AutofillErrorDialogContext::WithVirtualCardPermanentOrTemporaryError(
             /*is_permanent_error=*/true));
     Reset();
     autofill_metrics::LogServerCardUnmaskResult(
@@ -423,7 +454,7 @@ void CreditCardAccessManager::GetAuthenticationTypeForVirtualCard(
   ShowUnmaskAuthenticatorSelectionDialog();
 }
 
-void CreditCardAccessManager::GetAuthenticationTypeForMaskedServerCard(
+void CreditCardAccessManager::StartAuthenticationFlowForMaskedServerCard(
     bool fido_auth_enabled) {
   UnmaskAuthFlowType flow_type;
 #if BUILDFLAG(IS_IOS)
@@ -485,7 +516,7 @@ void CreditCardAccessManager::Authenticate(
       // UnmaskDetails.
       base::Value::Dict fido_request_options;
       absl::optional<std::string> context_token;
-      if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
+      if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
         context_token = virtual_card_unmask_response_details_.context_token;
         fido_request_options = std::move(
             virtual_card_unmask_response_details_.fido_request_options.value());
@@ -494,7 +525,7 @@ void CreditCardAccessManager::Authenticate(
             std::move(unmask_details_.fido_request_options.value());
       }
       GetOrCreateFidoAuthenticator()->Authenticate(
-          card_.get(), weak_ptr_factory_.GetWeakPtr(),
+          *card_, weak_ptr_factory_.GetWeakPtr(),
           std::move(fido_request_options), context_token);
 #endif
       break;
@@ -514,7 +545,7 @@ void CreditCardAccessManager::Authenticate(
       // Delegate the task to CreditCardCvcAuthenticator.
       // If we are in the virtual card CVC auth case, we must also pass in
       // the vcn context token and the selected challenge option.
-      if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
+      if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
         DCHECK(selected_challenge_option_);
         client_->GetCvcAuthenticator()->Authenticate(
             card_.get(), weak_ptr_factory_.GetWeakPtr(), personal_data_manager_,
@@ -561,6 +592,17 @@ void CreditCardAccessManager::OnCvcAuthenticationComplete(
   is_authentication_in_progress_ = false;
   can_fetch_unmask_details_ = true;
 
+  // Save credit card for caching purpose. CVC is also saved if response
+  // contains CVC. `response.card` can be nullptr in the case of an error in the
+  // response. If the response has an error, the `ShouldRespondImmediately()`
+  // call below will return true and we will safely pass nullptr and that it is
+  // an error into `accessor_->OnCreditCardFetched()`, and end the flow.
+  if (response.card) {
+    // TODO(crbug/1478392): Deprecate `response.cvc` and `response.card.cvc`.
+    card_ = std::make_unique<CreditCard>(*response.card);
+    card_->set_cvc(response.cvc);
+  }
+
   // Log completed CVC authentication if auth was successful. Do not log for
   // kCvcThenFido flow since that is yet to be completed.
   if (response.did_succeed &&
@@ -577,7 +619,7 @@ void CreditCardAccessManager::OnCvcAuthenticationComplete(
     accessor_->OnCreditCardFetched(response.did_succeed
                                        ? CreditCardFetchResult::kSuccess
                                        : CreditCardFetchResult::kTransientError,
-                                   response.card, response.cvc);
+                                   card_.get());
     unmask_auth_flow_type_ = UnmaskAuthFlowType::kNone;
   } else if (should_register_card_with_fido) {
 #if !BUILDFLAG(IS_IOS)
@@ -591,10 +633,6 @@ void CreditCardAccessManager::OnCvcAuthenticationComplete(
       // user has chosen to opt-in.
       request_options = response.request_options->Clone();
     }
-
-    // Save credit card for after authorization.
-    card_ = std::make_unique<CreditCard>(*(response.card));
-    cvc_ = response.cvc;
 
     // Additionally authorizes the card with FIDO. It also delays the form
     // filling.
@@ -648,7 +686,7 @@ bool CreditCardAccessManager::ShouldOfferFidoAuth() const {
     return false;
   }
 
-  if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
+  if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
     // We should not offer FIDO opt-in for virtual cards.
     autofill_metrics::LogWebauthnOptInPromoNotOfferedReason(
         autofill_metrics::WebauthnOptInPromoNotOfferedReason::kVirtualCard);
@@ -686,18 +724,21 @@ void CreditCardAccessManager::OnFIDOAuthenticationComplete(
 #endif
 
   if (response.did_succeed) {
-    accessor_->OnCreditCardFetched(response.did_succeed
-                                       ? CreditCardFetchResult::kSuccess
-                                       : CreditCardFetchResult::kTransientError,
-                                   response.card, response.cvc);
     form_event_logger_->LogCardUnmaskAuthenticationPromptCompleted(
         unmask_auth_flow_type_);
-    if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
+    if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
       autofill_metrics::LogServerCardUnmaskResult(
           autofill_metrics::ServerCardUnmaskResult::kAuthenticationUnmasked,
           AutofillClient::PaymentsRpcCardType::kVirtualCard,
           autofill_metrics::VirtualCardUnmaskFlowType::kFidoOnly);
     }
+
+    // Save credit card for caching purpose.
+    if (response.card) {
+      card_ = std::make_unique<CreditCard>(*response.card);
+    }
+    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
+                                   card_.get());
     Reset();
   } else if (
       response.failure_type ==
@@ -712,14 +753,14 @@ void CreditCardAccessManager::OnFIDOAuthenticationComplete(
     // If it is an virtual card retrieval error, we don't want to invoke the CVC
     // authentication afterwards. Instead reset all states, notify accessor and
     // invoke the error dialog.
-    client_->ShowVirtualCardErrorDialog(
-        AutofillErrorDialogContext::WithPermanentOrTemporaryError(
+    client_->ShowAutofillErrorDialog(
+        AutofillErrorDialogContext::WithVirtualCardPermanentOrTemporaryError(
             /*is_permanent_error=*/response.failure_type ==
             payments::FullCardRequest::
                 VIRTUAL_CARD_RETRIEVAL_PERMANENT_FAILURE));
-    accessor_->OnCreditCardFetched(result, nullptr, u"");
+    accessor_->OnCreditCardFetched(result, nullptr);
 
-    if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
+    if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
       autofill_metrics::LogServerCardUnmaskResult(
           autofill_metrics::ServerCardUnmaskResult::kVirtualCardRetrievalError,
           AutofillClient::PaymentsRpcCardType::kVirtualCard,
@@ -730,8 +771,8 @@ void CreditCardAccessManager::OnFIDOAuthenticationComplete(
     // If it is an authentication error, start the CVC authentication process
     // for masked server cards or the virtual card authentication process for
     // virtual cards.
-    if (card_->record_type() == CreditCard::VIRTUAL_CARD) {
-      GetAuthenticationTypeForVirtualCard(/*fido_auth_enabled=*/false);
+    if (card_->record_type() == CreditCard::RecordType::kVirtualCard) {
+      StartAuthenticationFlowForVirtualCard(/*fido_auth_enabled=*/false);
     } else {
       Authenticate(UnmaskAuthFlowType::kCvcFallbackFromFido);
     }
@@ -740,8 +781,8 @@ void CreditCardAccessManager::OnFIDOAuthenticationComplete(
 
 void CreditCardAccessManager::OnFidoAuthorizationComplete(bool did_succeed) {
   if (did_succeed) {
-    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess, card_.get(),
-                                   cvc_);
+    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
+                                   card_.get());
     form_event_logger_->LogCardUnmaskAuthenticationPromptCompleted(
         unmask_auth_flow_type_);
   }
@@ -751,12 +792,21 @@ void CreditCardAccessManager::OnFidoAuthorizationComplete(bool did_succeed) {
 
 void CreditCardAccessManager::OnOtpAuthenticationComplete(
     const CreditCardOtpAuthenticator::OtpAuthenticationResponse& response) {
+  // Save credit card for caching purpose. CVC is also saved if response
+  // contains CVC. `response.card` can be nullptr in the case of an error in the
+  // response. If the response has an error, we will safely pass nullptr and
+  // that it is an error into `accessor_->OnCreditCardFetched()`, and end the
+  // flow.
+  if (response.card) {
+    card_ = std::make_unique<CreditCard>(*response.card);
+    card_->set_cvc(response.cvc);
+  }
   accessor_->OnCreditCardFetched(
       response.result == CreditCardOtpAuthenticator::OtpAuthenticationResponse::
                              Result::kSuccess
           ? CreditCardFetchResult::kSuccess
           : CreditCardFetchResult::kTransientError,
-      response.card, response.cvc);
+      card_.get());
 
   autofill_metrics::ServerCardUnmaskResult result;
   switch (response.result) {
@@ -913,9 +963,10 @@ bool CreditCardAccessManager::ShouldOfferFidoOptInDialog(
 
   // If the strike limit was reached for the FIDO opt-in dialog, we should not
   // offer it.
-  if (GetOrCreateFidoAuthenticator()
-          ->GetOrCreateFidoAuthenticationStrikeDatabase()
-          ->ShouldBlockFeature()) {
+  if (auto* strike_database =
+          GetOrCreateFidoAuthenticator()
+              ->GetOrCreateFidoAuthenticationStrikeDatabase();
+      strike_database && strike_database->ShouldBlockFeature()) {
     autofill_metrics::LogWebauthnOptInPromoNotOfferedReason(
         autofill_metrics::WebauthnOptInPromoNotOfferedReason::
             kBlockedByStrikeDatabase);
@@ -923,7 +974,7 @@ bool CreditCardAccessManager::ShouldOfferFidoOptInDialog(
   }
 
   // We should not offer FIDO opt-in for virtual cards.
-  if (!card_ || card_->record_type() == CreditCard::VIRTUAL_CARD) {
+  if (!card_ || card_->record_type() == CreditCard::RecordType::kVirtualCard) {
     autofill_metrics::LogWebauthnOptInPromoNotOfferedReason(
         autofill_metrics::WebauthnOptInPromoNotOfferedReason::kVirtualCard);
     return false;
@@ -986,13 +1037,29 @@ void CreditCardAccessManager::HandleDialogUserResponse(
 std::string CreditCardAccessManager::GetKeyForUnmaskedCardsCache(
     const CreditCard& card) const {
   std::string key = card.server_id();
-  if (card.record_type() == CreditCard::VIRTUAL_CARD)
+  if (card.record_type() == CreditCard::RecordType::kVirtualCard) {
     key += kVirtualCardIdentifier;
+  }
   return key;
 }
 
 void CreditCardAccessManager::FetchMaskedServerCard() {
   is_authentication_in_progress_ = true;
+
+  if (IsMaskedServerCardRiskBasedAuthAvailable()) {
+    client_->ShowAutofillProgressDialog(
+        AutofillProgressDialogType::kServerCardUnmaskProgressDialog,
+        /*cancel_callback=*/base::BindOnce(
+            &CreditCardAccessManager::OnRiskBasedAuthenticationCancelled,
+            weak_ptr_factory_.GetWeakPtr()));
+
+    client_->GetRiskBasedAuthenticator()->Authenticate(
+        *card_, weak_ptr_factory_.GetWeakPtr());
+    // Risk-based authentication is handled in CreditCardRiskBasedAuthenticator.
+    // Further delegation will be handled in
+    // CreditCardAccessManager::OnRiskBasedAuthenticationResponseReceived.
+    return;
+  }
 
   bool get_unmask_details_returned =
       ready_to_start_authentication_.IsSignaled();
@@ -1033,7 +1100,7 @@ void CreditCardAccessManager::FetchMaskedServerCard() {
                        weak_ptr_factory_.GetWeakPtr()),
         base::Milliseconds(kUnmaskDetailsResponseTimeoutMs));
   } else {
-    GetAuthenticationType(
+    StartAuthenticationFlow(
         IsFidoAuthEnabled(get_unmask_details_returned &&
                           unmask_details_.unmask_auth_method ==
                               AutofillClient::UnmaskAuthMethod::kFido));
@@ -1046,36 +1113,8 @@ void CreditCardAccessManager::FetchVirtualCard() {
       AutofillProgressDialogType::kVirtualCardUnmaskProgressDialog,
       base::BindOnce(&CreditCardAccessManager::OnVirtualCardUnmaskCancelled,
                      weak_ptr_factory_.GetWeakPtr()));
-
-  // Send a risk-based unmasking request to server to attempt to fetch the card.
-  absl::optional<GURL> last_committed_primary_main_frame_origin =
-      client_->GetLastCommittedPrimaryMainFrameURL().DeprecatedGetOriginAsURL();
-  if (!last_committed_primary_main_frame_origin.has_value()) {
-    accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                   nullptr, u"");
-    autofill_metrics::LogServerCardUnmaskResult(
-        autofill_metrics::ServerCardUnmaskResult::kUnexpectedError,
-        AutofillClient::PaymentsRpcCardType::kVirtualCard,
-        autofill_metrics::VirtualCardUnmaskFlowType::kUnspecified);
-    Reset();
-    return;
-  }
-
-  virtual_card_unmask_request_details_
-      .last_committed_primary_main_frame_origin =
-      last_committed_primary_main_frame_origin;
-  virtual_card_unmask_request_details_.card = *card_;
-  if (ShouldShowCardMetadata(*card_)) {
-    virtual_card_unmask_request_details_.client_behavior_signals.push_back(
-        ClientBehaviorConstants::kShowingCardArtImageAndCardProductName);
-  }
-  virtual_card_unmask_request_details_.billing_customer_number =
-      payments::GetBillingCustomerId(personal_data_manager_);
-
-  payments_client_->Prepare();
-  client_->LoadRiskData(
-      base::BindOnce(&CreditCardAccessManager::OnDidGetUnmaskRiskData,
-                     weak_ptr_factory_.GetWeakPtr()));
+  client_->GetRiskBasedAuthenticator()->Authenticate(
+      *card_, weak_ptr_factory_.GetWeakPtr());
 }
 
 void CreditCardAccessManager::FetchLocalOrFullServerCard() {
@@ -1090,17 +1129,23 @@ void CreditCardAccessManager::FetchLocalOrFullServerCard() {
 
   // Check if we need to authenticate the user before filling the local card
   // or full server card.
-  if (personal_data_manager_
-          ->IsAutofillPaymentMethodsMandatoryReauthEnabled()) {
+  if (personal_data_manager_->IsPaymentMethodsMandatoryReauthEnabled()) {
     // `StartDeviceAuthenticationForFilling()` will asynchronously trigger
     // the re-authentication flow, so we should avoid calling `Reset()`
     // until the re-authentication flow is complete.
     StartDeviceAuthenticationForFilling(accessor_, card_.get(), /*cvc=*/u"");
   } else {
-    // Fill immediately if local card, and we do not need to authenticate
-    // the user.
-    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess, card_.get(),
-                                   /*cvc=*/u"");
+    // Fill immediately if local card or full server card, as we do not need to
+    // authenticate the user.
+    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
+                                   card_.get());
+
+    // This local or full server card autofill flow did not have any interactive
+    // authentication, so notify the FormDataImporter of this.
+    client_->GetFormDataImporter()
+        ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+            card_->record_type());
+
     // `accessor_->OnCreditCardFetched()` makes a copy of `card` and `cvc`
     // before it asynchronously fills them into the form. Thus we can safely
     // call `Reset()` here, and we should as from this class' point of view the
@@ -1109,45 +1154,126 @@ void CreditCardAccessManager::FetchLocalOrFullServerCard() {
   }
 }
 
-void CreditCardAccessManager::OnDidGetUnmaskRiskData(
-    const std::string& risk_data) {
-  virtual_card_unmask_request_details_.risk_data = risk_data;
-  payments_client_->UnmaskCard(
-      virtual_card_unmask_request_details_,
-      base::BindOnce(
-          &CreditCardAccessManager::OnVirtualCardUnmaskResponseReceived,
-          weak_ptr_factory_.GetWeakPtr()));
+void CreditCardAccessManager::OnRiskBasedAuthenticationResponseReceived(
+    const CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse&
+        response) {
+  if (!response.did_succeed) {
+    client_->CloseAutofillProgressDialog(
+        /*show_confirmation_before_closing=*/false);
+    accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
+                                   nullptr);
+    client_->ShowAutofillErrorDialog(response.error_dialog_context);
+    Reset();
+    return;
+  }
+
+  // If the card is not empty, then complete card information has been
+  // fetched from the server (this is ensured in PaymentsClient). Pass the
+  // unmasked card to `accessor_` and end the session.
+  CHECK(response.card.has_value());
+  card_ = std::make_unique<CreditCard>(response.card.value());
+  // Check if the user needs to be authenticated before filling the card.
+  if (personal_data_manager_->IsPaymentMethodsMandatoryReauthEnabled()) {
+    // On some operating systems (for example, macOS and Windows), the
+    // device authentication prompt freezes Chrome. Thus the prompt will only
+    // be triggered after the progress dialog has been closed, which can be
+    // done by using the `no_interactive_authentication_callback` parameter in
+    // `AutofillClient::CloseAutofillProgressDialog()`.
+    client_->CloseAutofillProgressDialog(
+        /*show_confirmation_before_closing=*/false,
+        /*no_interactive_authentication_callback=*/base::BindOnce(
+            // `StartDeviceAuthenticationForFilling()` will asynchronously
+            // trigger the re-authentication flow, so calling `Reset()` should
+            // be avoided until the re-authentication flow is complete.
+            &CreditCardAccessManager::StartDeviceAuthenticationForFilling,
+            weak_ptr_factory_.GetWeakPtr(), accessor_, card_.get(),
+            card_->cvc()));
+  } else {
+    client_->CloseAutofillProgressDialog(
+        /*show_confirmation_before_closing=*/true);
+    accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
+                                   card_.get());
+
+    // If the server returned a successful response along with the card's real
+    // PAN without requiring interactive authentication, set the
+    // `card_record_type_if_non_interactive_authentication_flow_completed_`
+    // field in FormDataImporter so that MandatoryReauthManager can decide
+    // whether to offer mandatory re-auth opt-in for this user.
+    client_->GetFormDataImporter()
+        ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+            CreditCard::RecordType::kMaskedServerCard);
+
+    // TODO(crbug.com/1470933): Log the unmask result.
+    Reset();
+  }
 }
 
-void CreditCardAccessManager::OnVirtualCardUnmaskResponseReceived(
-    AutofillClient::PaymentsRpcResult result,
-    payments::PaymentsClient::UnmaskResponseDetails& response_details) {
+void CreditCardAccessManager::
+    OnVirtualCardRiskBasedAuthenticationResponseReceived(
+        AutofillClient::PaymentsRpcResult result,
+        payments::PaymentsClient::UnmaskResponseDetails& response_details) {
+  selected_challenge_option_ = nullptr;
   virtual_card_unmask_response_details_ = response_details;
   if (result == AutofillClient::PaymentsRpcResult::kSuccess) {
     if (!response_details.real_pan.empty()) {
-      // Show confirmation on the progress dialog and then dismiss it.
-      client_->CloseAutofillProgressDialog(
-          /*show_confirmation_before_closing=*/true);
-
       // If the real pan is not empty, then complete card information has been
-      // fetched from the server (this is ensured in Payments Client). Pass the
-      // unmasked card to |accessor_| and end the session.
-      CreditCard card = *card_;
-      DCHECK_EQ(response_details.card_type,
-                AutofillClient::PaymentsRpcCardType::kVirtualCard);
-      card.SetNumber(base::UTF8ToUTF16(response_details.real_pan));
-      card.SetExpirationMonthFromString(
+      // fetched from the server (this is ensured in PaymentsClient). Pass the
+      // unmasked card to `accessor_` and end the session.
+      CHECK_EQ(response_details.card_type,
+               AutofillClient::PaymentsRpcCardType::kVirtualCard);
+      card_->SetNumber(base::UTF8ToUTF16(response_details.real_pan));
+      card_->SetExpirationMonthFromString(
           base::UTF8ToUTF16(response_details.expiration_month),
           /*app_locale=*/std::string());
-      card.SetExpirationYearFromString(
+      card_->SetExpirationYearFromString(
           base::UTF8ToUTF16(response_details.expiration_year));
-      accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess, &card,
-                                     base::UTF8ToUTF16(response_details.dcvv));
-      autofill_metrics::LogServerCardUnmaskResult(
-          autofill_metrics::ServerCardUnmaskResult::kRiskBasedUnmasked,
-          AutofillClient::PaymentsRpcCardType::kVirtualCard,
-          autofill_metrics::VirtualCardUnmaskFlowType::kUnspecified);
-      Reset();
+      // Check if we need to authenticate the user before filling the virtual
+      // card.
+      if (personal_data_manager_->IsPaymentMethodsMandatoryReauthEnabled()) {
+        // On some operating systems (for example, macOS and Windows), the
+        // device authentication prompt freezes Chrome. Thus we can only trigger
+        // the prompt after the progress dialog has been closed, which we can do
+        // by using the `no_interactive_authentication_callback` parameter in
+        // `AutofillClient::CloseAutofillProgressDialog()`.
+        // TODO(crbug.com/1427216): Implement this flow for Android as well.
+        client_->CloseAutofillProgressDialog(
+            /*show_confirmation_before_closing=*/false,
+            /*no_interactive_authentication_callback=*/base::BindOnce(
+                // `StartDeviceAuthenticationForFilling()` will asynchronously
+                // trigger the re-authentication flow, so we should avoid
+                // calling `Reset()` until the re-authentication flow is
+                // complete.
+                &CreditCardAccessManager::StartDeviceAuthenticationForFilling,
+                weak_ptr_factory_.GetWeakPtr(), accessor_, card_.get(),
+                base::UTF8ToUTF16(response_details.dcvv)));
+      } else {
+        client_->CloseAutofillProgressDialog(
+            /*show_confirmation_before_closing=*/true);
+        card_->set_cvc(base::UTF8ToUTF16(response_details.dcvv));
+        accessor_->OnCreditCardFetched(CreditCardFetchResult::kSuccess,
+                                       card_.get());
+
+        // If the server returned a successful response along with the card's
+        // real PAN without requiring interactive authentication, set the
+        // `card_record_type_if_non_interactive_authentication_flow_completed_`
+        // field in FormDataImporter so that MandatoryReauthManager can decide
+        // whether to offer mandatory re-auth opt-in for this user. It's also
+        // possible that the server does not provide the real PAN but requests
+        // an authentication which is handled below.
+        client_->GetFormDataImporter()
+            ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+                card_->record_type());
+
+        autofill_metrics::LogServerCardUnmaskResult(
+            autofill_metrics::ServerCardUnmaskResult::kRiskBasedUnmasked,
+            AutofillClient::PaymentsRpcCardType::kVirtualCard,
+            autofill_metrics::VirtualCardUnmaskFlowType::kUnspecified);
+        // `accessor_->OnCreditCardFetched()` makes a copy of `card` and `cvc`
+        // before it asynchronously fills them into the form. Thus we can safely
+        // call `Reset()` here, and we should as from this class' point of view
+        // the authentication flow is complete.
+        Reset();
+      }
       return;
     }
 
@@ -1156,7 +1282,7 @@ void CreditCardAccessManager::OnVirtualCardUnmaskResponseReceived(
     // Close the progress dialog without showing the confirmation.
     client_->CloseAutofillProgressDialog(
         /*show_confirmation_before_closing=*/false);
-    GetAuthenticationType(
+    StartAuthenticationFlow(
         IsFidoAuthEnabled(response_details.fido_request_options.has_value()));
     return;
   }
@@ -1169,7 +1295,7 @@ void CreditCardAccessManager::OnVirtualCardUnmaskResponseReceived(
   client_->CloseAutofillProgressDialog(
       /*show_confirmation_before_closing=*/false);
   accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                 nullptr, u"");
+                                 nullptr);
 
   autofill_metrics::ServerCardUnmaskResult unmask_result;
   if (result ==
@@ -1195,11 +1321,11 @@ void CreditCardAccessManager::OnVirtualCardUnmaskResponseReceived(
     // Error fields returned in the server response are more detailed than the
     // virtual card temporary/permanent error messages stored on the client, so
     // prefer the server-returned fields if they exist.
-    client_->ShowVirtualCardErrorDialog(
+    client_->ShowAutofillErrorDialog(
         *response_details.autofill_error_dialog_context);
   } else {
-    client_->ShowVirtualCardErrorDialog(
-        AutofillErrorDialogContext::WithPermanentOrTemporaryError(
+    client_->ShowAutofillErrorDialog(
+        AutofillErrorDialogContext::WithVirtualCardPermanentOrTemporaryError(
             /*is_permanent_error=*/result ==
             AutofillClient::PaymentsRpcResult::kVcnRetrievalPermanentFailure));
   }
@@ -1219,7 +1345,7 @@ void CreditCardAccessManager::OnStopWaitingForUnmaskDetails(
   }
 
   // Start the authentication after the wait ends.
-  GetAuthenticationType(
+  StartAuthenticationFlow(
       IsFidoAuthEnabled(get_unmask_details_returned &&
                         unmask_details_.unmask_auth_method ==
                             AutofillClient::UnmaskAuthMethod::kFido));
@@ -1241,9 +1367,9 @@ void CreditCardAccessManager::OnUserAcceptedAuthenticationSelectionDialog(
       virtual_card_unmask_response_details_.context_token.empty()) {
     NOTREACHED();
     accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                   nullptr, u"");
-    client_->ShowVirtualCardErrorDialog(
-        AutofillErrorDialogContext::WithPermanentOrTemporaryError(
+                                   nullptr);
+    client_->ShowAutofillErrorDialog(
+        AutofillErrorDialogContext::WithVirtualCardPermanentOrTemporaryError(
             /*is_permanent_error=*/false));
     Reset();
     return;
@@ -1270,7 +1396,7 @@ void CreditCardAccessManager::OnUserAcceptedAuthenticationSelectionDialog(
 
 void CreditCardAccessManager::OnVirtualCardUnmaskCancelled() {
   accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
-                                 nullptr, u"");
+                                 nullptr);
 
   if (unmask_auth_flow_type_ == UnmaskAuthFlowType::kOtp ||
       unmask_auth_flow_type_ == UnmaskAuthFlowType::kOtpFallbackFromFido) {
@@ -1309,6 +1435,14 @@ void CreditCardAccessManager::OnVirtualCardUnmaskCancelled() {
   Reset();
 }
 
+void CreditCardAccessManager::OnRiskBasedAuthenticationCancelled() {
+  accessor_->OnCreditCardFetched(CreditCardFetchResult::kTransientError,
+                                 nullptr);
+
+  // TODO(crbug.com/1470933): Log the cancel metrics.
+  Reset();
+}
+
 void CreditCardAccessManager::Reset() {
   weak_ptr_factory_.InvalidateWeakPtrs();
   unmask_auth_flow_type_ = UnmaskAuthFlowType::kNone;
@@ -1322,12 +1456,12 @@ void CreditCardAccessManager::Reset() {
   unmask_details_ = payments::PaymentsClient::UnmaskDetails();
   virtual_card_unmask_request_details_ =
       payments::PaymentsClient::UnmaskRequestDetails();
+  selected_challenge_option_ = nullptr;
   virtual_card_unmask_response_details_ =
       payments::PaymentsClient::UnmaskResponseDetails();
   ready_to_start_authentication_.Reset();
   can_fetch_unmask_details_ = true;
-  card_ = nullptr;
-  cvc_ = std::u16string();
+  card_.reset();
   unmask_details_request_in_progress_ = false;
 }
 
@@ -1370,8 +1504,9 @@ CreditCardAccessManager::GetCardUnmaskChallengeOptionForChallengeId(
 bool CreditCardAccessManager::ShouldLogServerCardUnmaskAttemptMetrics(
     CreditCard::RecordType record_type) {
   // We always want to log virtual card unmask attempts.
-  if (record_type == CreditCard::VIRTUAL_CARD)
+  if (record_type == CreditCard::RecordType::kVirtualCard) {
     return true;
+  }
 
   // We only want to log masked server card or full server card unmask
   // attempts if the `kAutofillEnableRemadeDownstreamMetrics` feature flag is
@@ -1379,8 +1514,8 @@ bool CreditCardAccessManager::ShouldLogServerCardUnmaskAttemptMetrics(
   // slowly to ensure that it works properly.
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnableRemadeDownstreamMetrics)) {
-    return record_type == CreditCard::MASKED_SERVER_CARD ||
-           record_type == CreditCard::FULL_SERVER_CARD;
+    return record_type == CreditCard::RecordType::kMaskedServerCard ||
+           record_type == CreditCard::RecordType::kFullServerCard;
   }
 
   // No conditions were met to log a server card unmasking attempt, so return
@@ -1392,33 +1527,32 @@ void CreditCardAccessManager::StartDeviceAuthenticationForFilling(
     base::WeakPtr<Accessor> accessor,
     const CreditCard* card,
     const std::u16string& cvc) {
-  scoped_refptr<device_reauth::DeviceAuthenticator> device_authenticator =
-      client_->GetDeviceAuthenticator();
-
-  // Since this function should only be called on platforms where the
-  // DeviceAuthenticator is present, we should always have a
-  // DeviceAuthenticator.
-  CHECK(device_authenticator);
-
   is_authentication_in_progress_ = true;
 
+  payments::MandatoryReauthAuthenticationMethod authentication_method =
+      client_->GetOrCreatePaymentsMandatoryReauthManager()
+          ->GetAuthenticationMethod();
+
+  autofill_metrics::LogMandatoryReauthCheckoutFlowUsageEvent(
+      card->record_type(), authentication_method,
+      autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted);
   // TODO(crbug.com/1427216): Add the iOS branching logic as well.
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  device_authenticator->AuthenticateWithMessage(
+  client_->GetOrCreatePaymentsMandatoryReauthManager()->AuthenticateWithMessage(
       l10n_util::GetStringUTF16(IDS_PAYMENTS_AUTOFILL_FILLING_MANDATORY_REAUTH),
       base::BindOnce(
           &CreditCardAccessManager::OnDeviceAuthenticationResponseForFilling,
-          weak_ptr_factory_.GetWeakPtr(), accessor, card, cvc));
+          weak_ptr_factory_.GetWeakPtr(), accessor, authentication_method, card,
+          cvc));
 #elif BUILDFLAG(IS_ANDROID)
   // TODO(crbug.com/1427216): Convert this to
-  // DeviceAuthenticator::AuthenticateWithMessage() with the correct message
+  // MandatoryReauthManager::AuthenticateWithMessage() with the correct message
   // once it is supported. Currently, the message is "Verify it's you".
-  device_authenticator->Authenticate(
-      device_reauth::DeviceAuthRequester::kLocalCardAutofill,
+  client_->GetOrCreatePaymentsMandatoryReauthManager()->Authenticate(
       base::BindOnce(
           &CreditCardAccessManager::OnDeviceAuthenticationResponseForFilling,
-          weak_ptr_factory_.GetWeakPtr(), accessor, card, cvc),
-      /*use_last_valid_auth=*/true);
+          weak_ptr_factory_.GetWeakPtr(), accessor, authentication_method, card,
+          cvc));
 #else
   NOTREACHED_NORETURN();
 #endif
@@ -1426,13 +1560,24 @@ void CreditCardAccessManager::StartDeviceAuthenticationForFilling(
 
 void CreditCardAccessManager::OnDeviceAuthenticationResponseForFilling(
     base::WeakPtr<Accessor> accessor,
+    payments::MandatoryReauthAuthenticationMethod authentication_method,
     const CreditCard* card,
     const std::u16string& cvc,
     bool successful_auth) {
+  autofill_metrics::LogMandatoryReauthCheckoutFlowUsageEvent(
+      card->record_type(), authentication_method,
+      successful_auth
+          ? autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                kFlowSucceeded
+          : autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                kFlowFailed);
+  CHECK(card);
+  CreditCard card_with_cvc = *card;
+  card_with_cvc.set_cvc(cvc);
   accessor->OnCreditCardFetched(successful_auth
                                     ? CreditCardFetchResult::kSuccess
                                     : CreditCardFetchResult::kTransientError,
-                                card, cvc);
+                                &card_with_cvc);
   // TODO(crbug.com/1427216): Add logging for the payments autofill device
   // authentication flow.
   // `accessor->OnCreditCardFetched()` makes a copy of `card` and `cvc` before

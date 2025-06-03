@@ -8,16 +8,12 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/base/signin_pref_names.h"
-#import "ios/chrome/browser/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/resized_avatar_cache.h"
 #import "ios/chrome/browser/signin/system_identity_manager.h"
 #import "ios/public/provider/chrome/browser/signin/signin_identity_api.h"
 #import "ios/public/provider/chrome/browser/signin/signin_resources_api.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -249,6 +245,9 @@ bool ChromeAccountManagerService::IsServiceSupported() const {
 }
 
 void ChromeAccountManagerService::Shutdown() {
+  for (auto& observer : observer_list_) {
+    observer.OnChromeAccountManagerServiceShutdown(this);
+  }
   if (pref_service_) {
     registrar_.RemoveAll();
     pref_service_ = nullptr;

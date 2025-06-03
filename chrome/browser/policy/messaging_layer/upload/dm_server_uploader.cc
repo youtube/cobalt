@@ -8,9 +8,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
+#include "base/types/expected.h"
 #include "chrome/browser/policy/messaging_layer/upload/record_handler_impl.h"
 #include "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #include "components/reporting/proto/synced/record.pb.h"
@@ -27,6 +30,7 @@ namespace reporting {
 
 DmServerUploader::DmServerUploader(
     bool need_encryption_key,
+    int config_file_version,
     std::vector<EncryptedRecord> records,
     ScopedReservation scoped_reservation,
     RecordHandler* handler,
@@ -37,6 +41,7 @@ DmServerUploader::DmServerUploader(
     : TaskRunnerContext<CompletionResponse>(std::move(completion_cb),
                                             sequenced_task_runner),
       need_encryption_key_(need_encryption_key),
+      config_file_version_(config_file_version),
       encrypted_records_(std::move(records)),
       scoped_reservation_(std::move(scoped_reservation)),
       report_success_upload_cb_(std::move(report_success_upload_cb)),
@@ -50,20 +55,21 @@ DmServerUploader::~DmServerUploader() = default;
 void DmServerUploader::OnStart() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (handler_ == nullptr) {
-    Complete(Status(error::INVALID_ARGUMENT, "handler was null"));
+    Finalize(
+        base::unexpected(Status(error::INVALID_ARGUMENT, "handler was null")));
     return;
   }
   // Early exit if we don't have any records and do not need encryption key.
   if (encrypted_records_.empty() && !need_encryption_key_) {
-    Complete(
-        Status(error::INVALID_ARGUMENT, "No records received for upload."));
+    Finalize(base::unexpected(
+        Status(error::INVALID_ARGUMENT, "No records received for upload.")));
     return;
   }
 
   if (!encrypted_records_.empty()) {
     const auto process_status = ProcessRecords();
     if (!process_status.ok()) {
-      Complete(process_status);
+      Finalize(base::unexpected(process_status));
       return;
     }
   }
@@ -106,29 +112,35 @@ Status DmServerUploader::ProcessRecords() {
 void DmServerUploader::HandleRecords() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   handler_->HandleRecords(
-      need_encryption_key_, std::move(encrypted_records_),
+      need_encryption_key_, config_file_version_, std::move(encrypted_records_),
       std::move(scoped_reservation_),
-      base::BindOnce(&DmServerUploader::Complete, base::Unretained(this)),
+      base::BindPostTaskToCurrentDefault(
+          base::BindOnce(&DmServerUploader::Finalize, base::Unretained(this))),
       std::move(encryption_key_attached_cb_));
 }
 
 void DmServerUploader::Finalize(CompletionResponse upload_result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (upload_result.ok()) {
+  if (upload_result.has_value()) {
     std::move(report_success_upload_cb_)
-        .Run(upload_result.ValueOrDie().sequence_information,
-             upload_result.ValueOrDie().force_confirm);
+        .Run(upload_result.value().sequence_information,
+             upload_result.value().force_confirm);
   } else {
-    // Log any error except NOT_FOUND, which is a transient state for managed
-    // device, and an uninteresting one for unmanaged ones.
-    LOG_IF(WARNING, upload_result.status().code() != error::NOT_FOUND)
-        << upload_result.status();
+    // Log any error except those listed below:
+    static constexpr std::array<error::Code, 2> kIgnoredCodes = {
+        // a transient state for managed device and an uninteresting one for
+        // unmanaged ones
+        error::NOT_FOUND,
+        // too many upload requests, tripped rate limiting and rejecting the
+        // upload (it will be resent later, so it does not cause any loss of
+        // data)
+        error::OUT_OF_RANGE,
+    };
+    LOG_IF(WARNING,
+           !base::Contains(kIgnoredCodes, upload_result.error().code()))
+        << upload_result.error();
   }
   Response(upload_result);
-}
-
-void DmServerUploader::Complete(CompletionResponse upload_result) {
-  Schedule(&DmServerUploader::Finalize, base::Unretained(this), upload_result);
 }
 
 Status DmServerUploader::IsRecordValid(

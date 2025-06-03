@@ -41,7 +41,6 @@
 #include "base/win/windows_version.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/install_static/install_details.h"
 #include "chrome/install_static/install_modes.h"
 #include "chrome/install_static/install_util.h"
@@ -322,12 +321,15 @@ bool DeleteFileFromTempProcess(const base::FilePath& path,
   return ok != FALSE;
 }
 
-bool AdjustProcessPriority() {
-  DWORD priority_class = ::GetPriorityClass(::GetCurrentProcess());
+bool AdjustThreadPriority() {
+  const DWORD priority_class = ::GetPriorityClass(::GetCurrentProcess());
   if (priority_class == BELOW_NORMAL_PRIORITY_CLASS ||
       priority_class == IDLE_PRIORITY_CLASS) {
-    BOOL result = ::SetPriorityClass(::GetCurrentProcess(),
-                                     PROCESS_MODE_BACKGROUND_BEGIN);
+    // Don't use SetPriorityClass with PROCESS_MODE_BACKGROUND_BEGIN because it
+    // will cap the process working set to 32 MiB. See
+    // https://crbug.com/1475179.
+    const BOOL result =
+        ::SetThreadPriority(::GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
     PLOG_IF(WARNING, !result) << "Failed to enter background mode.";
     return !!result;
   }
@@ -756,7 +758,7 @@ bool DeleteDMToken() {
 
     base::win::RegKey key;
     auto result = key.Open(HKEY_LOCAL_MACHINE, key_path.c_str(),
-                           KEY_SET_VALUE | wow_access);
+                           KEY_QUERY_VALUE | KEY_SET_VALUE | wow_access);
     if (result == ERROR_FILE_NOT_FOUND) {
       // The registry key which stores the DMToken value was not found, so
       // deletion is not necessary.
@@ -780,9 +782,10 @@ bool DeleteDMToken() {
       continue;
     }  // Else ignore the failure to write to the best-effort location.
 
-    // Delete the key if no other values are present.
-    base::win::RegKey(HKEY_LOCAL_MACHINE, L"", KEY_QUERY_VALUE | wow_access)
-        .DeleteEmptyKey(key_path.c_str());
+    // Delete the key if no other values or keys are present.
+    if (key.GetValueCount().value_or(1) == 0) {
+      key.DeleteKey(L"", base::win::RegKey::RecursiveDelete(false));
+    }
   }
 
   VLOG(1) << "Successfully deleted DMToken from the registry.";

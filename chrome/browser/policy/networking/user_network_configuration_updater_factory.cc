@@ -4,7 +4,7 @@
 
 #include "chrome/browser/policy/networking/user_network_configuration_updater_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/net/nss_service_factory.h"
 #include "chrome/browser/policy/networking/user_network_configuration_updater.h"
@@ -33,7 +33,8 @@ UserNetworkConfigurationUpdaterFactory::GetForBrowserContext(
 // static
 UserNetworkConfigurationUpdaterFactory*
 UserNetworkConfigurationUpdaterFactory::GetInstance() {
-  return base::Singleton<UserNetworkConfigurationUpdaterFactory>::get();
+  static base::NoDestructor<UserNetworkConfigurationUpdaterFactory> instance;
+  return instance.get();
 }
 
 UserNetworkConfigurationUpdaterFactory::UserNetworkConfigurationUpdaterFactory()
@@ -50,7 +51,7 @@ UserNetworkConfigurationUpdaterFactory::UserNetworkConfigurationUpdaterFactory()
 }
 
 UserNetworkConfigurationUpdaterFactory::
-    ~UserNetworkConfigurationUpdaterFactory() {}
+    ~UserNetworkConfigurationUpdaterFactory() = default;
 
 bool UserNetworkConfigurationUpdaterFactory::
     ServiceIsCreatedWithBrowserContext() const {
@@ -62,7 +63,8 @@ bool UserNetworkConfigurationUpdaterFactory::ServiceIsNULLWhileTesting() const {
 }
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-KeyedService* UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   const user_manager::User* user =
@@ -80,16 +82,14 @@ KeyedService* UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceFor(
   // TODO(https://crbug.com/1001490): Evaluate if this is can be solved in a
   // more elegant way.
   return UserNetworkConfigurationUpdaterAsh::CreateForUserPolicy(
-             profile, *user,
-             profile->GetProfilePolicyConnector()->policy_service(),
-             ash::NetworkHandler::Get()
-                 ->managed_network_configuration_handler())
-      .release();
+      profile, *user, profile->GetProfilePolicyConnector()->policy_service(),
+      ash::NetworkHandler::Get()->managed_network_configuration_handler());
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
-KeyedService* UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+  UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   // Lacros only handles CA certificates from the ONC policy and it is only
   // supported for the main profile.
@@ -108,8 +108,7 @@ KeyedService* UserNetworkConfigurationUpdaterFactory::BuildServiceInstanceFor(
   // TODO(https://crbug.com/1001490): Evaluate if this is can be solved in a
   // more elegant way.
   return UserNetworkConfigurationUpdater::CreateForUserPolicy(
-             profile->GetProfilePolicyConnector()->policy_service())
-      .release();
+      profile->GetProfilePolicyConnector()->policy_service());
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 

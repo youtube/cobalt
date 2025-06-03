@@ -19,7 +19,6 @@
 #include <memory>
 #include <mutex>
 #include <thread>
-#include <unordered_set>
 #include <vector>
 
 #include "common/FixedVector.h"
@@ -80,6 +79,8 @@ class CommandQueue final : public WrappedObject<id<MTLCommandQueue>>, angle::Non
     AutoObjCPtr<id<MTLCommandBuffer>> makeMetalCommandBuffer(uint64_t *queueSerialOut);
     void onCommandBufferCommitted(id<MTLCommandBuffer> buf, uint64_t serial);
 
+    uint64_t getNextRenderEncoderSerial();
+
     uint64_t allocateTimeElapsedEntry();
     bool deleteTimeElapsedEntry(uint64_t id);
     void setActiveTimeElapsedEntry(uint64_t id);
@@ -102,6 +103,7 @@ class CommandQueue final : public WrappedObject<id<MTLCommandQueue>>, angle::Non
     uint64_t mQueueSerialCounter = 1;
     std::atomic<uint64_t> mCommittedBufferSerial{0};
     std::atomic<uint64_t> mCompletedBufferSerial{0};
+    uint64_t mRenderEncoderCounter = 1;
 
     // The bookkeeping for TIME_ELAPSED queries must be managed under
     // the cover of a lock because it's accessed by multiple threads:
@@ -196,7 +198,7 @@ class CommandBuffer final : public WrappedObject<id<MTLCommandBuffer>>, angle::N
     std::vector<std::pair<mtl::SharedEventRef, uint64_t>> mPendingSignalEvents;
     std::vector<std::string> mDebugGroups;
 
-    std::unordered_set<id> mResourceList;
+    angle::HashSet<id> mResourceList;
     size_t mWorkingResourceSize              = 0;
     bool mCommitted                          = false;
     CommandBufferFinishOperation mLastWaitOp = mtl::NoWait;
@@ -537,6 +539,8 @@ class RenderCommandEncoder final : public CommandEncoder
     const RenderPassDesc &renderPassDesc() const { return mRenderPassDesc; }
     bool hasDrawCalls() const { return mHasDrawCalls; }
 
+    uint64_t getSerial() const { return mSerial; }
+
   private:
     // Override CommandEncoder
     id<MTLRenderCommandEncoder> get()
@@ -581,6 +585,7 @@ class RenderCommandEncoder final : public CommandEncoder
     RenderCommandEncoderStates mStateCache = {};
 
     bool mPipelineStateSet = false;
+    const uint64_t mSerial = 0;
 };
 
 class BlitCommandEncoder final : public CommandEncoder

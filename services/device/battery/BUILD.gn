@@ -57,6 +57,12 @@ if (!is_android) {
         "battery_status_manager_win.cc",
         "battery_status_manager_win.h",
       ]
+    } else if (is_ios) {
+      sources += [ "battery_status_manager_ios.mm" ]
+      frameworks = [
+        "CoreFoundation.framework",
+        "IOKit.framework",
+      ]
     } else {
       sources += [ "battery_status_manager_default.cc" ]
     }

@@ -31,6 +31,7 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/page_state/page_state.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-forward.h"
+#include "third_party/blink/public/mojom/navigation/system_entropy.mojom-forward.h"
 #include "url/origin.h"
 
 namespace blink {
@@ -45,7 +46,6 @@ namespace content {
 class FrameTreeNode;
 class NavigationEntryRestoreContext;
 class NavigationEntryRestoreContextImpl;
-class SubresourceWebBundleNavigationInfo;
 
 class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
  public:
@@ -222,6 +222,7 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       int current_length_to_send,
       const blink::FramePolicy& frame_policy,
       bool ancestor_or_self_has_cspee,
+      blink::mojom::SystemEntropy system_entropy_at_navigation_start,
       absl::optional<blink::scheduler::TaskAttributionId>
           soft_navigation_heuristics_task_id);
 
@@ -265,8 +266,6 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
       const std::string& method,
       int64_t post_id,
       scoped_refptr<network::SharedURLLoaderFactory> blob_url_loader_factory,
-      std::unique_ptr<SubresourceWebBundleNavigationInfo>
-          subresource_web_bundle_navigation_info,
       std::unique_ptr<PolicyContainerPolicies> policy_container_policies);
 
   // Returns the FrameNavigationEntry corresponding to |frame_tree_node|, if
@@ -333,7 +332,6 @@ class CONTENT_EXPORT NavigationEntryImpl : public NavigationEntry {
   // Note that the SiteInstance should usually not be changed after it is set,
   // but this may happen if the NavigationEntry was cloned and needs to use a
   // different SiteInstance.
-  void set_site_instance(scoped_refptr<SiteInstanceImpl> site_instance);
   SiteInstanceImpl* site_instance() const {
     return frame_tree_->frame_entry->site_instance();
   }

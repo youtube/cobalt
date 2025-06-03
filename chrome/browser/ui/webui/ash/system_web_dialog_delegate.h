@@ -74,8 +74,6 @@ class SystemWebDialogDelegate : public ui::WebDialogDelegate {
   ui::ModalType GetDialogModalType() const override;
   std::u16string GetDialogTitle() const override;
   GURL GetDialogContentURL() const override;
-  void GetWebUIMessageHandlers(
-      std::vector<content::WebUIMessageHandler*>* handlers) const override;
   void GetDialogSize(gfx::Size* size) const override;
   FrameKind GetWebDialogFrameKind() const override;
   std::string GetDialogArgs() const override;
@@ -95,11 +93,12 @@ class SystemWebDialogDelegate : public ui::WebDialogDelegate {
   // TODO(https://crbug.com/1268547): Passing a non-null |parent| here or to
   // ShowSystemDialog() seems to prevent the dialog from properly repositioning
   // on screen size changes (i.e. when the docked screen magnifier is enabled).
-  void ShowSystemDialogForBrowserContext(content::BrowserContext* context,
-                                         gfx::NativeWindow parent = nullptr);
+  void ShowSystemDialogForBrowserContext(
+      content::BrowserContext* context,
+      gfx::NativeWindow parent = gfx::NativeWindow());
   // Same as previous but shows a system dialog using the current active
   // profile.
-  void ShowSystemDialog(gfx::NativeWindow parent = nullptr);
+  void ShowSystemDialog(gfx::NativeWindow parent = gfx::NativeWindow());
 
   content::WebUI* GetWebUIForTest() { return webui_; }
 
@@ -122,9 +121,9 @@ class SystemWebDialogDelegate : public ui::WebDialogDelegate {
  private:
   GURL gurl_;
   std::u16string title_;
-  raw_ptr<content::WebUI, ExperimentalAsh> webui_ = nullptr;
+  raw_ptr<content::WebUI, DanglingUntriaged | ExperimentalAsh> webui_ = nullptr;
   ui::ModalType modal_type_;
-  gfx::NativeWindow dialog_window_ = nullptr;
+  gfx::NativeWindow dialog_window_ = gfx::NativeWindow();
 };
 
 }  // namespace ash

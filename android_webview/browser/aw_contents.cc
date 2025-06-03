@@ -35,6 +35,7 @@
 #include "android_webview/browser/permission/simple_permission_request.h"
 #include "android_webview/browser/state_serializer.h"
 #include "android_webview/browser_jni_headers/AwContents_jni.h"
+#include "android_webview/browser_jni_headers/StartupJavascriptInfo_jni.h"
 #include "android_webview/common/aw_switches.h"
 #include "android_webview/common/devtools_instrumentation.h"
 #include "android_webview/common/mojom/frame.mojom.h"
@@ -59,6 +60,8 @@
 #include "base/supports_user_data.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 #include "components/android_autofill/browser/android_autofill_manager.h"
 #include "components/android_autofill/browser/autofill_provider_android.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
@@ -67,6 +70,7 @@
 #include "components/autofill/core/browser/browser_autofill_manager.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/js_injection/browser/js_communication_host.h"
 #include "components/navigation_interception/intercept_navigation_delegate.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
@@ -225,6 +229,8 @@ AwContents::AwContents(std::unique_ptr<WebContents> web_contents)
     : content::WebContentsObserver(web_contents.get()),
       browser_view_renderer_(this, content::GetUIThreadTaskRunner({})),
       web_contents_(std::move(web_contents)) {
+  TRACE_EVENT_BEGIN("android_webview.timeline", "WebView Instance",
+                    perfetto::Track::FromPointer(this));
   base::subtle::NoBarrier_AtomicIncrement(&g_instance_count, 1);
   icon_helper_ = std::make_unique<IconHelper>(web_contents_.get());
   icon_helper_->SetListener(this);
@@ -368,6 +374,11 @@ AwContents::~AwContents() {
   WebContentsObserver::Observe(nullptr);
   AwBrowserProcess::GetInstance()->visibility_metrics_logger()->RemoveClient(
       this);
+  // Corresponds to "WebView Instance" in AwContents's constructor.
+  TRACE_EVENT_END("android_webview.timeline",
+                  perfetto::Track::FromPointer(this));
+  // TODO(crbug.com/1021571): Remove this once fixed.
+  PERFETTO_INTERNAL_ADD_EMPTY_EVENT();
 }
 
 base::android::ScopedJavaLocalRef<jobject> AwContents::GetWebContents(
@@ -1361,7 +1372,8 @@ void AwContents::RemoveWebMessageListener(
       ConvertJavaStringToUTF16(env, js_object_name));
 }
 
-base::android::ScopedJavaLocalRef<jobjectArray> AwContents::GetJsObjectsInfo(
+base::android::ScopedJavaLocalRef<jobjectArray>
+AwContents::GetWebMessageListenerInfos(
     JNIEnv* env,
     const base::android::JavaParamRef<jclass>& clazz) {
   if (js_communication_host_.get()) {
@@ -1369,6 +1381,31 @@ base::android::ScopedJavaLocalRef<jobjectArray> AwContents::GetJsObjectsInfo(
         GetJsCommunicationHost(), env, clazz);
   }
   return nullptr;
+}
+
+base::android::ScopedJavaLocalRef<jobjectArray>
+AwContents::GetDocumentStartupJavascripts(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jclass>& clazz) {
+  if (!js_communication_host_.get()) {
+    return nullptr;
+  }
+
+  const std::vector<js_injection::DocumentStartJavaScript>& scripts =
+      GetJsCommunicationHost()->GetDocumentStartJavascripts();
+
+  std::vector<ScopedJavaLocalRef<jobject>> script_objects;
+  for (const auto& script : scripts) {
+    const std::vector<std::string> rules =
+        script.allowed_origin_rules_.Serialize();
+    script_objects.push_back(Java_StartupJavascriptInfo_create(
+        env, base::android::ConvertUTF16ToJavaString(env, script.script_),
+        base::android::ToJavaArrayOfStrings(env, rules)));
+  }
+
+  ScopedJavaLocalRef<jclass> clazz_ref(clazz);
+  return base::android::ToTypedJavaArrayOfObjects(env, script_objects,
+                                                  clazz_ref);
 }
 
 void AwContents::ClearView(JNIEnv* env) {

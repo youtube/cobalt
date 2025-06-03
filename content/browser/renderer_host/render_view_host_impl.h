@@ -32,7 +32,6 @@
 #include "content/common/content_export.h"
 #include "content/common/render_message_filter.mojom.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/browser/notification_observer.h"
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/render_view_host.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -68,6 +67,10 @@ using WillEnterBackForwardCacheCallbackForTesting =
 // RendererPreferences information to the renderer.
 using WillSendRendererPreferencesCallbackForTesting =
     base::RepeatingCallback<void(const blink::RendererPreferences&)>;
+
+// A callback which will be called immediately before sending the WebPreferences
+// information to the renderer.
+using WillSendWebPreferencesCallbackForTesting = base::RepeatingClosure;
 
 // This implements the RenderViewHost interface that is exposed to
 // embedders of content, and adds things only visible to content.
@@ -288,6 +291,9 @@ class CONTENT_EXPORT RenderViewHostImpl
   void SetWillSendRendererPreferencesCallbackForTesting(
       const WillSendRendererPreferencesCallbackForTesting& callback);
 
+  void SetWillSendWebPreferencesCallbackForTesting(
+      const WillSendWebPreferencesCallbackForTesting& callback);
+
   void BindPageBroadcast(
       mojo::PendingAssociatedRemote<blink::mojom::PageBroadcast>
           page_broadcast);
@@ -419,6 +425,9 @@ class CONTENT_EXPORT RenderViewHostImpl
 
   WillSendRendererPreferencesCallbackForTesting
       will_send_renderer_preferences_callback_for_testing_;
+
+  WillSendWebPreferencesCallbackForTesting
+      will_send_web_preferences_callback_for_testing_;
 
   mojo::AssociatedRemote<blink::mojom::PageBroadcast> page_broadcast_;
 

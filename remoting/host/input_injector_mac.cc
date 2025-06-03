@@ -12,12 +12,12 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/i18n/break_iterator.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_piece.h"
@@ -44,7 +44,7 @@ void CreateAndPostKeyEvent(int keycode,
                            bool pressed,
                            uint64_t flags,
                            const std::u16string& unicode) {
-  base::ScopedCFTypeRef<CGEventRef> eventRef(
+  base::apple::ScopedCFTypeRef<CGEventRef> eventRef(
       CGEventCreateKeyboardEvent(nullptr, keycode, pressed));
   if (eventRef) {
     CGEventSetFlags(eventRef, static_cast<CGEventFlags>(flags));
@@ -53,6 +53,7 @@ void CreateAndPostKeyEvent(int keycode,
           eventRef, unicode.size(),
           reinterpret_cast<const UniChar*>(unicode.data()));
     }
+    VLOG(3) << "Injecting key " << (pressed ? "down" : "up") << " event.";
     CGEventPost(kCGSessionEventTap, eventRef);
   }
 }
@@ -85,8 +86,9 @@ void PostMouseEvent(int32_t x,
 
 // Must be called on UI thread.
 void CreateAndPostScrollWheelEvent(int32_t delta_x, int32_t delta_y) {
-  base::ScopedCFTypeRef<CGEventRef> eventRef(CGEventCreateScrollWheelEvent(
-      nullptr, kCGScrollEventUnitPixel, 2, delta_y, delta_x));
+  base::apple::ScopedCFTypeRef<CGEventRef> eventRef(
+      CGEventCreateScrollWheelEvent(nullptr, kCGScrollEventUnitPixel, 2,
+                                    delta_y, delta_x));
   if (eventRef) {
     CGEventPost(kCGSessionEventTap, eventRef);
   }
@@ -254,9 +256,6 @@ void InputInjectorMac::Core::InjectKeyEvent(const KeyEvent& event) {
 
   int keycode =
       ui::KeycodeConverter::UsbKeycodeToNativeKeycode(event.usb_keycode());
-
-  VLOG(3) << "Converting USB keycode: " << std::hex << event.usb_keycode()
-          << " to keycode: " << keycode << std::dec;
 
   // If we couldn't determine the Mac virtual key code then ignore the event.
   if (keycode == ui::KeycodeConverter::InvalidNativeKeycode()) {

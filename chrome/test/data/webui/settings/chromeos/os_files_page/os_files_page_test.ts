@@ -2,101 +2,105 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://os-settings/chromeos/lazy_load.js';
+import 'chrome://os-settings/lazy_load.js';
 
-import {OsSettingsFilesPageElement} from 'chrome://os-settings/chromeos/lazy_load.js';
-import {Router, routes, SettingsToggleButtonElement} from 'chrome://os-settings/chromeos/os_settings.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {OsSettingsFilesPageElement, SmbBrowserProxyImpl} from 'chrome://os-settings/lazy_load.js';
+import {CrSettingsPrefs, Router, routes, SettingsPrefsElement} from 'chrome://os-settings/os_settings.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {getDeepActiveElement} from 'chrome://resources/js/util_ts.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
+import {assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {FakeSettingsPrivate} from 'chrome://webui-test/fake_settings_private.js';
+import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
+
+import {TestSmbBrowserProxy} from './test_smb_browser_proxy.js';
 
 suite('<os-settings-files-page>', () => {
   let filesPage: OsSettingsFilesPageElement;
+  let prefElement: SettingsPrefsElement;
+  let smbBrowserProxy: TestSmbBrowserProxy;
+
+  /**
+   * Returns a list of fake preferences that are used at some point in any test,
+   * if another element is added that requires a new pref ensure to add it here.
+   */
+  function getFakePrefs() {
+    return [
+      {
+        key: 'gdata.disabled',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+      {
+        key: 'gdata.cellular.disabled',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+      {
+        key: 'drivefs.bulk_pinning_enabled',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+      // The OneDrive preferences that are required when navigating to the
+      // officeFiles page route.
+      {
+        key: 'filebrowser.office.always_move_to_onedrive',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+      {
+        key: 'filebrowser.office.always_move_to_drive',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+      {
+        key: 'network_file_shares.allowed.value',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: true,
+      },
+    ];
+  }
+
+  async function createFilesPage() {
+    prefElement = document.createElement('settings-prefs');
+    const fakeSettingsPrivate = new FakeSettingsPrivate(getFakePrefs());
+    prefElement.initialize(
+        fakeSettingsPrivate as unknown as typeof chrome.settingsPrivate);
+    await CrSettingsPrefs.initialized;
+
+    filesPage = document.createElement('os-settings-files-page');
+    filesPage.prefs = prefElement.prefs;
+    document.body.appendChild(filesPage);
+    await flushTasks();
+  }
+
+  suiteSetup(() => {
+    smbBrowserProxy = new TestSmbBrowserProxy();
+    SmbBrowserProxyImpl.setInstance(smbBrowserProxy);
+
+    CrSettingsPrefs.deferInitialization = true;
+  });
 
   setup(() => {
     loadTimeData.overrideValues({
       showOfficeSettings: false,
+      enableDriveFsBulkPinning: false,
+      showGoogleDriveSettingsPage: false,
     });
-    filesPage = document.createElement('os-settings-files-page');
-    document.body.appendChild(filesPage);
-    flush();
   });
 
   teardown(() => {
     filesPage.remove();
+    prefElement.remove();
+    smbBrowserProxy.reset();
     Router.getInstance().resetRouteForTesting();
   });
 
-  test('Disconnect Google Drive account,pref disabled/enabled', async () => {
-    // The default state of the pref is disabled.
-    const disconnectGoogleDrive =
-        filesPage.shadowRoot!.querySelector<SettingsToggleButtonElement>(
-            '#disconnectGoogleDriveAccount');
-    assert(disconnectGoogleDrive);
-    assertFalse(disconnectGoogleDrive.checked);
+  test('Files settings card is visible', async () => {
+    Router.getInstance().navigateTo(routes.FILES);
+    await createFilesPage();
 
-    disconnectGoogleDrive.shadowRoot!.querySelector('cr-toggle')!.click();
-    flush();
-    assertTrue(disconnectGoogleDrive.checked);
-  });
-
-  test('Smb Shares, Navigates to SMB_SHARES route on click', async () => {
-    const smbShares =
-        filesPage.shadowRoot!.querySelector<HTMLElement>('#smbShares');
-    assert(smbShares);
-
-    smbShares.click();
-    flush();
-    assertEquals(Router.getInstance().currentRoute, routes.SMB_SHARES);
-  });
-
-  test('Office row is hidden when showOfficeSettings is false', async () => {
-    assertEquals(null, filesPage.shadowRoot!.querySelector('#office'));
-  });
-
-  test('Deep link to disconnect Google Drive', async () => {
-    const params = new URLSearchParams();
-    params.append('settingId', '1300');
-    Router.getInstance().navigateTo(routes.FILES, params);
-
-    flush();
-
-    const deepLinkElement =
-        filesPage.shadowRoot!.querySelector('#disconnectGoogleDriveAccount')!
-            .shadowRoot!.querySelector('cr-toggle');
-    assert(deepLinkElement);
-    await waitAfterNextRender(deepLinkElement);
-    assertEquals(
-        deepLinkElement, getDeepActiveElement(),
-        'Disconnect Drive toggle should be focused for settingId=1300.');
-  });
-
-  suite('with showOfficeSettings enabled', () => {
-    setup(() => {
-      loadTimeData.overrideValues({
-        showOfficeSettings: true,
-      });
-      filesPage = document.createElement('os-settings-files-page');
-      document.body.appendChild(filesPage);
-      flush();
-    });
-
-    teardown(() => {
-      filesPage.remove();
-      Router.getInstance().resetRouteForTesting();
-    });
-
-    test('Navigates to OFFICE route on click', async () => {
-      const officeRow =
-          filesPage.shadowRoot!.querySelector<HTMLElement>('#office');
-      assert(officeRow);
-
-      officeRow.click();
-      flush();
-      assertEquals(Router.getInstance().currentRoute, routes.OFFICE);
-    });
+    const filesSettingsCard =
+        filesPage.shadowRoot!.querySelector('files-settings-card');
+    assertTrue(isVisible(filesSettingsCard));
   });
 });

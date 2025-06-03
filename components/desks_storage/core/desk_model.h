@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 class DeskTemplate;
@@ -173,7 +175,7 @@ class DeskModel {
   // Returns a vector of desk template UUIDs.
   // This method assumes each implementation has a cache and can return the
   // UUIDs synchronously.
-  virtual std::vector<base::Uuid> GetAllEntryUuids() const = 0;
+  virtual std::set<base::Uuid> GetAllEntryUuids() const = 0;
 
   // Whether this model is ready for saving and reading desk templates.
   virtual bool IsReady() const = 0;
@@ -188,6 +190,8 @@ class DeskModel {
       const std::u16string& name,
       ash::DeskTemplateType type,
       const base::Uuid& uuid) const = 0;
+
+  virtual std::string GetCacheGuid() = 0;
 
   // Observer registration methods. The model will remove all observers upon
   // destruction automatically.

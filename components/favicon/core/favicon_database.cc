@@ -32,7 +32,7 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/backup_util.h"
+#include "base/apple/backup_util.h"
 #endif
 
 namespace favicon {
@@ -1030,9 +1030,11 @@ sql::InitStatus FaviconDatabase::InitImpl(const base::FilePath& db_name) {
 
   // Clear databases which are too old to process.
   DCHECK_LT(kDeprecatedVersionNumber, kCurrentVersionNumber);
-  sql::MetaTable::RazeIfIncompatible(
-      &db_, /*lowest_supported_version=*/kDeprecatedVersionNumber + 1,
-      kCurrentVersionNumber);
+  if (!sql::MetaTable::RazeIfIncompatible(
+          &db_, /*lowest_supported_version=*/kDeprecatedVersionNumber + 1,
+          kCurrentVersionNumber)) {
+    return sql::INIT_FAILURE;
+  }
 
   // TODO(shess): Sqlite.Version.Thumbnail shows versions 22, 23, and
   // 25.  Future versions are not destroyed because that could lead to
@@ -1049,7 +1051,7 @@ sql::InitStatus FaviconDatabase::InitImpl(const base::FilePath& db_name) {
 
 #if BUILDFLAG(IS_APPLE)
   // Exclude the favicons file from backups.
-  base::mac::SetBackupExclusion(db_name);
+  base::apple::SetBackupExclusion(db_name);
 #endif
 
   // thumbnails table has been obsolete for a long time, remove any detritus.

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "ash/constants/ash_features.h"
+#include "base/check.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
@@ -18,6 +19,7 @@
 #include "chromeos/ash/components/network/cellular_esim_profile.h"
 #include "chromeos/ash/components/network/cellular_inhibitor.h"
 #include "chromeos/ash/components/network/hermes_metrics_util.h"
+#include "chromeos/ash/components/network/metrics/cellular_network_metrics_logger.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
@@ -61,6 +63,27 @@ Euicc::RequestPendingProfilesCallback CreateTimedRequestPendingProfilesCallback(
       std::move(callback), base::Time::Now());
 }
 
+CellularNetworkMetricsLogger::ESimUserInstallMethod ProfileInstallMethodToEnum(
+    mojom::ProfileInstallMethod install_method) {
+  using mojom::ProfileInstallMethod;
+  switch (install_method) {
+    case ProfileInstallMethod::kViaSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::kViaSmds;
+    case ProfileInstallMethod::kViaQrCodeAfterSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaQrCodeAfterSmds;
+    case ProfileInstallMethod::kViaQrCodeSkippedSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaQrCodeSkippedSmds;
+    case ProfileInstallMethod::kViaActivationCodeAfterSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaActivationCodeAfterSmds;
+    case ProfileInstallMethod::kViaActivationCodeSkippedSmds:
+      return CellularNetworkMetricsLogger::ESimUserInstallMethod::
+          kViaActivationCodeSkippedSmds;
+  };
+}
+
 }  // namespace
 
 // static
@@ -94,32 +117,39 @@ void Euicc::GetProfileList(GetProfileListCallback callback) {
 void Euicc::InstallProfileFromActivationCode(
     const std::string& activation_code,
     const std::string& confirmation_code,
-    bool is_install_via_qr_code,
+    mojom::ProfileInstallMethod install_method,
     InstallProfileFromActivationCodeCallback callback) {
-  ESimProfile* profile_info = nullptr;
-  mojom::ProfileInstallResult status =
-      GetPendingProfileInfoFromActivationCode(activation_code, &profile_info);
+  if (!ash::features::IsSmdsSupportEnabled()) {
+    ESimProfile* profile_info = nullptr;
+    mojom::ProfileInstallResult status =
+        GetPendingProfileInfoFromActivationCode(activation_code, &profile_info);
 
-  // Return early if profile was found but not in the correct state.
-  if (profile_info && status != mojom::ProfileInstallResult::kSuccess) {
-    NET_LOG(ERROR) << "EUICC could not install profile: " << status;
-    std::move(callback).Run(status, mojo::NullRemote());
-    return;
+    // Return early if profile was found but not in the correct state.
+    if (profile_info && status != mojom::ProfileInstallResult::kSuccess) {
+      NET_LOG(ERROR) << "EUICC could not install profile: " << status;
+      std::move(callback).Run(status, mojo::NullRemote());
+      return;
+    }
+
+    if (profile_info) {
+      NET_LOG(USER) << "Installing profile with path "
+                    << profile_info->path().value();
+      profile_info->InstallProfile(
+          confirmation_code,
+          base::BindOnce(
+              [](InstallProfileFromActivationCodeCallback callback,
+                 ESimProfile* esim_profile,
+                 mojom::ProfileInstallResult status) -> void {
+                std::move(callback).Run(status, esim_profile->CreateRemote());
+              },
+              std::move(callback), profile_info));
+      return;
+    }
   }
 
-  if (profile_info) {
-    NET_LOG(USER) << "Installing profile with path "
-                  << profile_info->path().value();
-    profile_info->InstallProfile(
-        confirmation_code,
-        base::BindOnce(
-            [](InstallProfileFromActivationCodeCallback callback,
-               ESimProfile* esim_profile,
-               mojom::ProfileInstallResult status) -> void {
-              std::move(callback).Run(status, esim_profile->CreateRemote());
-            },
-            std::move(callback), profile_info));
-    return;
+  if (ash::features::IsSmdsSupportEnabled()) {
+    CellularNetworkMetricsLogger::LogESimUserInstallMethod(
+        ProfileInstallMethodToEnum(install_method));
   }
 
   esim_manager_->cellular_esim_installer()->InstallProfileFromActivationCode(
@@ -127,7 +157,7 @@ void Euicc::InstallProfileFromActivationCode(
       /*new_shill_properties=*/base::Value::Dict(),
       base::BindOnce(&Euicc::OnESimInstallProfileResult,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-      /*is_initial_install=*/true, is_install_via_qr_code);
+      /*is_initial_install=*/true, install_method);
 }
 
 void Euicc::OnESimInstallProfileResult(
@@ -156,6 +186,15 @@ void Euicc::OnESimInstallProfileResult(
                           esim_profile->CreateRemote());
 }
 
+void Euicc::RequestAvailableProfiles(
+    RequestAvailableProfilesCallback callback) {
+  DCHECK(ash::features::IsSmdsSupportEnabled());
+  esim_manager_->cellular_esim_profile_handler()->RequestAvailableProfiles(
+      path_,
+      base::BindOnce(&Euicc::OnRequestAvailableProfiles,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
 void Euicc::RequestPendingProfiles(RequestPendingProfilesCallback callback) {
   // Before requesting pending profiles, we also request installed profiles.
   // This ensures that if an error occurs and Chrome's installed profile cache
@@ -173,8 +212,8 @@ void Euicc::GetEidQRCode(GetEidQRCodeCallback callback) {
   // Format EID to string that should be encoded in the QRCode.
   std::string qr_code_string =
       base::StrCat({kEidQrCodePrefix, properties_->eid});
-  QRCodeGenerator qr_generator;
-  absl::optional<QRCodeGenerator::GeneratedCode> qr_data =
+  qr_code_generator::QRCodeGenerator qr_generator;
+  absl::optional<qr_code_generator::QRCodeGenerator::GeneratedCode> qr_data =
       qr_generator.Generate(base::as_bytes(
           base::make_span(qr_code_string.data(), qr_code_string.size())));
   if (!qr_data || qr_data->data.data() == nullptr ||
@@ -281,6 +320,28 @@ void Euicc::PerformRequestPendingProfiles(
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                        std::move(inhibit_lock)));
   }
+}
+
+void Euicc::OnRequestAvailableProfiles(
+    RequestAvailableProfilesCallback callback,
+    mojom::ESimOperationResult result,
+    std::vector<CellularESimProfile> profile_list) {
+  DCHECK(ash::features::IsSmdsSupportEnabled());
+
+  std::vector<mojom::ESimProfilePropertiesPtr> profile_properties_list;
+  for (const auto& profile : profile_list) {
+    mojom::ESimProfilePropertiesPtr properties =
+        mojom::ESimProfileProperties::New();
+    properties->eid = profile.eid();
+    properties->iccid = profile.iccid();
+    properties->name = profile.name();
+    properties->nickname = profile.nickname();
+    properties->service_provider = profile.service_provider();
+    properties->state = ProfileStateToMojo(profile.state());
+    properties->activation_code = profile.activation_code();
+    profile_properties_list.push_back(std::move(properties));
+  }
+  std::move(callback).Run(result, std::move(profile_properties_list));
 }
 
 void Euicc::OnRefreshSmdxProfilesResult(

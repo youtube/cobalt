@@ -54,6 +54,10 @@ using VoidCrasAudioHandlerCallback = base::OnceCallback<void(bool result)>;
 // supported by the board.
 using OnNoiseCancellationSupportedCallback = base::OnceCallback<void()>;
 
+// Callback to handle the dbus message for whether hfp_mic_sr is
+// supported by the board.
+using OnHfpMicSrSupportedCallback = base::OnceCallback<void()>;
+
 // This class is not thread safe. The public functions should be called on
 // browser main thread.
 class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
@@ -68,6 +72,15 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
           AudioDevicePriorityQueue;
   typedef std::vector<uint64_t> NodeIdList;
 
+  enum class SurveyType {
+    kGeneral,
+    kBluetooth,
+  };
+
+  static constexpr char kSurveyNameKey[] = "SurveyName";
+  static constexpr char kSurveyNameGeneral[] = "GENERAL";
+  static constexpr char kSurveyNameBluetooth[] = "BLUETOOTH";
+
   // Key-value mapping type for audio survey specific data.
   // For audio satisfaction survey, it contains
   //  - StreamType: Usage of the stream, e.g., multimedia.
@@ -75,6 +88,27 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   //  - NodeType: Pair of the active input/output device types, e.g., USB_USB.
   // The content can be extended when other types of survey is added.
   typedef base::flat_map<std::string, std::string> AudioSurveyData;
+  class AudioSurvey {
+   public:
+    AudioSurvey();
+    ~AudioSurvey();
+    AudioSurvey(const AudioSurvey&) = delete;
+    AudioSurvey& operator=(const AudioSurvey&) = delete;
+
+    SurveyType type() const { return type_; }
+    AudioSurveyData data() const { return data_; }
+
+    void set_type(SurveyType type) { type_ = type; }
+    void clear_data() { data_.clear(); }
+    void AddData(std::string key, std::string value) {
+      data_.emplace(key, value);
+    }
+
+   private:
+    SurveyType type_;
+    AudioSurveyData data_;
+  };
+
   static constexpr int32_t kSystemAecGroupIdNotAvailable = -1;
 
   enum class InputMuteChangeMethod {
@@ -96,8 +130,12 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
 
   static constexpr base::TimeDelta kMetricsDelayTimerInterval =
       base::Seconds(2);
+  static constexpr char kForceRespectUiGainsHistogramName[] =
+      "Cras.ForceRespectUiGains";
   static constexpr char kInputGainChangedSourceHistogramName[] =
       "Cras.InputGainChangedSource";
+  static constexpr char kInputGainChangedHistogramName[] =
+      "Cras.InputGainChanged";
   static constexpr char kInputGainMuteSourceHistogramName[] =
       "Cras.InputGainMutedSource";
   static constexpr char kOutputVolumeChangedSourceHistogramName[] =
@@ -142,6 +180,12 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
     // Called when noise cancellation state changed.
     virtual void OnNoiseCancellationStateChanged();
 
+    // Called when force respect ui gains state changed.
+    virtual void OnForceRespectUiGainsStateChanged();
+
+    // Called when hfp_mic_sr state changed.
+    virtual void OnHfpMicSrStateChanged();
+
     // Called when hotword is detected.
     virtual void OnHotwordTriggered(uint64_t tv_sec, uint64_t tv_nsec);
 
@@ -177,12 +221,16 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
     // for >= 30 seconds is closed.
     // CRAS also has full control on what data to send to Chrome. These survey
     // specific data will be attached with each survey response for analysis.
-    // Currently this only supports one general audio satisfaction survey and
-    // should be modified and extended when other types of survey is added.
-    virtual void OnSurveyTriggered(const AudioSurveyData& survey_specific_data);
+    // Currently this supports general audio and Bluetooth audio surveys.
+    // The survey to trigger is determined by the type of the `AudioSurvey`
+    // passed in.
+    virtual void OnSurveyTriggered(const AudioSurvey& survey);
 
     // Called when a speak-on-mute is detected.
     virtual void OnSpeakOnMuteDetected();
+
+    // Called when num-stream-ignore-ui-gains state is changed.
+    virtual void OnNumStreamIgnoreUiGainsChanged(int32_t num);
 
    protected:
     AudioObserver();
@@ -276,6 +324,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Returns true if audio input is muted.
   bool IsInputMuted();
 
+  // Returns true if audio input is muted for the system by security curtain.
+  bool IsInputMutedBySecurityCurtain();
+
   // Returns true if audio input is muted for a device.
   bool IsInputMutedForDevice(uint64_t device_id);
 
@@ -355,6 +406,35 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Simulate noise cancellation support in a test.
   void SetNoiseCancellationSupportedForTesting(bool supported);
 
+  // Gets the state of input force respect ui gains state.
+  bool GetForceRespectUiGainsState() const;
+
+  // Refreshes the input device force respect ui gains state.
+  void RefreshForceRespectUiGainsState();
+
+  // Makes a DBus call to set the state of input force respect ui gains.
+  void SetForceRespectUiGainsState(bool state);
+
+  // Returns hfp_mic_sr supported.
+  bool IsHfpMicSrSupportedForDevice(uint64_t device_id);
+
+  // Gets if hfp_mic_sr is supported by the board.
+  void RequestHfpMicSrSupported(OnHfpMicSrSupportedCallback callback);
+
+  // Simulates hfp_mic_sr support in a test.
+  void SetHfpMicSrSupportedForTesting(bool supported);
+
+  // Gets the pref state of hfp_mic_sr.
+  bool GetHfpMicSrState() const;
+
+  // Refreshes the input device hfp_mic_sr state.
+  void RefreshHfpMicSrState();
+
+  // Updates hfp_mic_sr state in `CrasAudioClient` and
+  // `AudioDevicesPrefHandler` to the provided value. `source` records to
+  // metrics who changed the hfp_mic_sr state.
+  void SetHfpMicSrState(bool hfp_mic_sr_on, AudioSettingsChangeSource source);
+
   // Whether there is alternative input/output audio device.
   bool has_alternative_input() const;
   bool has_alternative_output() const;
@@ -405,6 +485,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
                     InputMuteChangeMethod method,
                     CrasAudioHandler::AudioSettingsChangeSource source);
 
+  // Mutes or unmutes audio input device by security curtain
+  void SetInputMuteLockedBySecurityCurtain(bool mute);
+
   // Switches active audio device to |device|. |activate_by| indicates why
   // the device is switched to active: by user's manual choice, by priority,
   // or by restoring to its previous active state.
@@ -425,6 +508,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
 
   // Activates or deactivates keyboard mic if there's one.
   void SetKeyboardMicActive(bool active);
+
+  // Enables or disables the speak-on-mute detection.
+  void SetSpeakOnMuteDetection(bool som_on);
 
   // Changes the active nodes to the nodes specified by |new_active_ids|.
   // The caller can pass in the "complete" active node list of either input
@@ -509,6 +595,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Returns if noise cancellation is supported in CRAS or not.
   bool noise_cancellation_supported() const;
 
+  // Returns if hfp_mic_sr is supported in CRAS or not.
+  bool hfp_mic_sr_supported() const;
+
   // Returns the system AEC group ID. If no group ID is specified, -1 is
   // returned.
   int32_t system_aec_group_id() const;
@@ -519,6 +608,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Returns if system AGC is supported in CRAS or not.
   bool system_agc_supported() const;
 
+  // Returns number of streams ignoring UI gains.
+  int32_t num_stream_ignore_ui_gains() const;
+
   // Asks  CRAS to resend BluetoothBatteryChanged signal, used in cases when
   // Chrome cleans up the stored battery information but still has the device
   // connected afterward. For example: User logout.
@@ -526,6 +618,9 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
 
   void SetPrefHandlerForTesting(
       scoped_refptr<AudioDevicesPrefHandler> audio_pref_handler);
+
+  int32_t NumberOfNonChromeOutputStreams() const;
+  int32_t NumberOfChromeOutputStreams() const;
 
  protected:
   CrasAudioHandler(
@@ -554,6 +649,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
                            survey_specific_data) override;
   void SpeakOnMuteDetected() override;
   void NumberOfNonChromeOutputStreamsChanged() override;
+  void NumStreamIgnoreUiGains(int32_t num) override;
 
   // AudioPrefObserver overrides.
   void OnAudioPolicyPrefChanged() override;
@@ -607,8 +703,8 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // change notification is received.
   void ApplyAudioPolicy();
 
-  // Helper method to apply the conditional audio mute change.
-  void UpdateAudioMute();
+  // Helper method to apply the conditional audio output mute change.
+  void UpdateAudioOutputMute();
 
   // Sets output volume of |node_id| to |volume|.
   void SetOutputNodeVolume(uint64_t node_id, int volume);
@@ -783,6 +879,10 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
       OnNoiseCancellationSupportedCallback callback,
       absl::optional<bool> system_noise_cancellation_supported);
 
+  // Handle dbus callback for IsHfpMicSrSupported.
+  void HandleGetHfpMicSrSupported(OnHfpMicSrSupportedCallback callback,
+                                  absl::optional<bool> hfp_mic_sr_supported);
+
   // Handle dbus callback for GetSpeakOnMuteDetectionEnabled.
   void HandleGetSpeakOnMuteDetectionEnabled(
       absl::optional<bool> speak_on_mute_detection_enabled);
@@ -825,6 +925,18 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Handle null Metadata from MediaSession.
   void HandleMediaSessionMetadataReset();
 
+  // Calls CRAS over D-Bus to get the number of streams ignoring Ui Gains.
+  void GetNumStreamIgnoreUiGains();
+
+  // Handle dbus callback for GetNumStreamIgnoreUiGains.
+  void HandleGetNumStreamIgnoreUiGains(
+      absl::optional<int32_t> num_stream_ignore_ui_gains);
+
+  // Static helper function to abstract the |AudioSurvey| from input
+  // |survey_specific_data|.
+  static std::unique_ptr<CrasAudioHandler::AudioSurvey> AbstractAudioSurvey(
+      const base::flat_map<std::string, std::string>& survey_specific_data);
+
   mojo::Remote<media_session::mojom::MediaControllerManager>
       media_controller_manager_;
 
@@ -854,6 +966,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
 
   bool output_mute_forced_by_policy_ = false;
   bool output_mute_forced_by_security_curtain_ = false;
+  bool input_mute_forced_by_security_curtain_ = false;
 
   // Audio output channel counts.
   int32_t output_channels_ = 2;
@@ -884,6 +997,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   int32_t system_aec_group_id_ = kSystemAecGroupIdNotAvailable;
   bool system_ns_supported_ = false;
   bool system_agc_supported_ = false;
+  bool hfp_mic_sr_supported_ = false;
 
   int num_active_output_streams_ = 0;
   int32_t num_active_nonchrome_output_streams_ = 0;
@@ -903,11 +1017,16 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   bool input_device_selected_by_user_ = false;
   bool output_device_selected_by_user_ = false;
 
+  // Whether the speak-on-mute detection is enabled in CRAS.
+  bool speak_on_mute_detection_on_ = false;
+
   // Task runner of browser main thread. All member variables should be accessed
   // on this thread.
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
 
   cras::DisplayRotation display_rotation_ = cras::DisplayRotation::ROTATE_0;
+
+  int num_stream_ignore_ui_gains_ = 0;
 
   base::WeakPtrFactory<CrasAudioHandler> weak_ptr_factory_{this};
 };

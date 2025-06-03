@@ -63,7 +63,10 @@ enum class SubjectMessage
 
     // Indicates a separable program's textures or images changed in the ProgramExecutable.
     ProgramTextureOrImageBindingChanged,
-    // Indicates a separable program was successfully re-linked.
+    // Indicates a program or pipeline is being re-linked.  This is used to make sure the Context or
+    // ProgramPipeline that reference the program/pipeline wait for it to finish linking.
+    ProgramUnlinked,
+    // Indicates a program or pipeline was successfully re-linked.
     ProgramRelinked,
     // Indicates a separable program's sampler uniforms were updated.
     SamplerUniformsUpdated,
@@ -72,6 +75,11 @@ enum class SubjectMessage
 
     // Indicates a Storage of back-end in gl::Texture has been released.
     StorageReleased,
+
+    // Sent when the GLuint ID for a gl::Texture is being deleted via glDeleteTextures. The
+    // texture may stay alive due to orphaning, but will no longer be directly accessible by the GL
+    // API.
+    TextureIDDeleted,
 
     // Indicates that all pending updates are complete in the subject.
     InitializationComplete,

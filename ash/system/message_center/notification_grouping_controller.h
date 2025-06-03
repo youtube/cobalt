@@ -5,6 +5,7 @@
 #ifndef ASH_SYSTEM_MESSAGE_CENTER_NOTIFICATION_GROUPING_CONTROLLER_H_
 #define ASH_SYSTEM_MESSAGE_CENTER_NOTIFICATION_GROUPING_CONTROLLER_H_
 
+#include "ash/ash_export.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "ui/message_center/message_center.h"
@@ -25,7 +26,7 @@ class UnifiedSystemTray;
 
 // A controller class to manage adding, removing and updating group
 // notifications.
-class NotificationGroupingController
+class ASH_EXPORT NotificationGroupingController
     : public message_center::MessageCenterObserver {
  public:
   NotificationGroupingController(UnifiedSystemTray* system_tray,
@@ -54,7 +55,8 @@ class NotificationGroupingController
       std::string& parent_id,
       message_center::Notification* parent_notification);
 
-  message_center::NotificationViewController*
+  // Virtual for testing.
+  virtual message_center::NotificationViewController*
   GetActiveNotificationViewController();
 
  protected:
@@ -95,6 +97,11 @@ class NotificationGroupingController
   // Update the pinned state for the parent notification. It should be pinned if
   // at least one of its child is pinned.
   void UpdateParentNotificationPinnedState(const std::string& parent_id);
+
+  // Check if `notification` had it's parent change. Subsequently, update the
+  // `grouped_notification_list_` to reflect any change in relationship.
+  void ReparentNotificationIfNecessary(
+      message_center::Notification* notification);
 
   // Whether a grouped parent notification is being added to MessageCenter. Used
   // to prevent an infinite loop.

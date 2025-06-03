@@ -206,10 +206,10 @@ bool TraceStartupConfig::EnableFromCommandLine() {
           base::trace_event::MemoryDumpManager::kTraceCategory)) {
     base::trace_event::TraceConfig::MemoryDumpConfig memory_config;
     memory_config.triggers.push_back(
-        {10000, base::trace_event::MemoryDumpLevelOfDetail::DETAILED,
-         base::trace_event::MemoryDumpType::PERIODIC_INTERVAL});
+        {10000, base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
+         base::trace_event::MemoryDumpType::kPeriodicInterval});
     memory_config.allowed_dump_modes.insert(
-        base::trace_event::MemoryDumpLevelOfDetail::DETAILED);
+        base::trace_event::MemoryDumpLevelOfDetail::kDetailed);
     trace_config_.ResetMemoryDumpConfig(memory_config);
   }
 
@@ -304,7 +304,7 @@ bool TraceStartupConfig::ParseTraceConfigFileContent(
     result_file_ = base::FilePath::FromUTF8Unsafe(*result_dir);
     // Java time to get an int instead of a double.
     result_file_ = result_file_.AppendASCII(
-        base::NumberToString(base::Time::Now().ToJavaTime()) +
+        base::NumberToString(base::Time::Now().InMillisecondsSinceUnixEpoch()) +
         "_chrometrace.log");
   }
 

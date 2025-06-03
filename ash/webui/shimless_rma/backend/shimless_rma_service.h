@@ -9,13 +9,17 @@
 #include <string>
 #include <vector>
 
+#include "ash/webui/shimless_rma/backend/shimless_rma_delegate.h"
 #include "ash/webui/shimless_rma/backend/version_updater.h"
 #include "ash/webui/shimless_rma/mojom/shimless_rma.mojom.h"
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/dbus/rmad/rmad.pb.h"
 #include "chromeos/ash/components/dbus/rmad/rmad_client.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine.pb.h"
+#include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
+#include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
@@ -23,8 +27,6 @@
 
 namespace ash {
 namespace shimless_rma {
-
-class ShimlessRmaDelegate;
 
 class ShimlessRmaService : public mojom::ShimlessRmaService,
                            public RmadClient::Observer {
@@ -84,19 +86,24 @@ class ShimlessRmaService : public mojom::ShimlessRmaService,
       ContinueFinalizationAfterRestockCallback callback) override;
   void GetRegionList(GetRegionListCallback callback) override;
   void GetSkuList(GetSkuListCallback callback) override;
-  void GetWhiteLabelList(GetWhiteLabelListCallback callback) override;
+  void GetCustomLabelList(GetCustomLabelListCallback callback) override;
+  void GetSkuDescriptionList(GetSkuDescriptionListCallback callback) override;
   void GetOriginalSerialNumber(
       GetOriginalSerialNumberCallback callback) override;
   void GetOriginalRegion(GetOriginalRegionCallback callback) override;
   void GetOriginalSku(GetOriginalSkuCallback callback) override;
-  void GetOriginalWhiteLabel(GetOriginalWhiteLabelCallback callback) override;
+  void GetOriginalCustomLabel(GetOriginalCustomLabelCallback callback) override;
   void GetOriginalDramPartNumber(
       GetOriginalDramPartNumberCallback callback) override;
+  void GetOriginalFeatureLevel(
+      GetOriginalFeatureLevelCallback callback) override;
   void SetDeviceInformation(const std::string& serial_number,
                             int32_t region_index,
                             int32_t sku_index,
-                            int32_t white_label_index,
+                            int32_t custom_label_index,
                             const std::string& dram_part_number,
+                            bool is_chassis_branded,
+                            int32_t hw_compliance_version,
                             SetDeviceInformationCallback callback) override;
   void GetCalibrationComponentList(
       GetCalibrationComponentListCallback callback) override;
@@ -124,6 +131,16 @@ class ShimlessRmaService : public mojom::ShimlessRmaService,
       CriticalErrorExitToLoginCallback callback) override;
   void CriticalErrorReboot(CriticalErrorRebootCallback callback) override;
   void ShutDownAfterHardwareError() override;
+  void Get3pDiagnosticsProvider(
+      Get3pDiagnosticsProviderCallback callback) override;
+  void GetInstallable3pDiagnosticsAppPath(
+      GetInstallable3pDiagnosticsAppPathCallback callback) override;
+  void InstallLastFound3pDiagnosticsApp(
+      InstallLastFound3pDiagnosticsAppCallback callback) override;
+  void CompleteLast3pDiagnosticsInstallation(
+      bool is_approved,
+      CompleteLast3pDiagnosticsInstallationCallback callback) override;
+  void Show3pDiagnosticsApp(Show3pDiagnosticsAppCallback callback) override;
   void ObserveError(
       ::mojo::PendingRemote<mojom::ErrorObserver> observer) override;
   void ObserveOsUpdateProgress(
@@ -263,6 +280,36 @@ class ShimlessRmaService : public mojom::ShimlessRmaService,
       GetRsuDisableWriteProtectChallengeQrCodeCallback callback,
       const std::string& qr_code_image);
 
+  // Handles the response from cros_healthd for 3p diag provider.
+  void OnGetSystemInfoFor3pDiag(
+      Get3pDiagnosticsProviderCallback callback,
+      ash::cros_healthd::mojom::TelemetryInfoPtr telemetry_info);
+
+  // Handles the response from rmad when the 3p diag app is extracted.
+  void OnExtractExternalDiagnosticsApp(
+      GetInstallable3pDiagnosticsAppPathCallback callback,
+      absl::optional<rmad::ExtractExternalDiagnosticsAppReply> response);
+
+  // Handles the response from rmad for getting the installed 3p diag app.
+  void GetInstalledDiagnosticsApp(
+      Show3pDiagnosticsAppCallback callback,
+      absl::optional<rmad::GetInstalledDiagnosticsAppReply> response);
+
+  // Handles the response when the 3p diag app is loaded for show.
+  void On3pDiagnosticsAppLoadForShow(
+      Show3pDiagnosticsAppCallback callback,
+      base::expected<
+          ShimlessRmaDelegate::PrepareDiagnosticsAppBrowserContextResult,
+          std::string> result);
+
+  // Handles the response when a new 3p diag app is loaded for a pending
+  // installation.
+  void On3pDiagnosticsAppLoadForInstallation(
+      InstallLastFound3pDiagnosticsAppCallback callback,
+      base::expected<
+          ShimlessRmaDelegate::PrepareDiagnosticsAppBrowserContextResult,
+          std::string> result);
+
   // Remote for sending requests to the CrosNetworkConfig service.
   mojo::Remote<chromeos::network_config::mojom::CrosNetworkConfig>
       remote_cros_network_config_;
@@ -332,6 +379,15 @@ class ShimlessRmaService : public mojom::ShimlessRmaService,
   // It is used to allow abort requests to reboot or exit to login, even if the
   // request fails.
   bool critical_error_occurred_ = false;
+
+  // Paths of the last extracted 3p diag app files.
+  base::FilePath extracted_3p_diag_swbn_path_;
+  base::FilePath extracted_3p_diag_crx_path_;
+  // The browser context for showing the 3p diagnostics app.
+  raw_ptr<content::BrowserContext> shimless_app_browser_context_ = nullptr;
+  // The 3p diagnostics app info.
+  absl::optional<web_package::SignedWebBundleId> shimless_3p_diag_iwa_id_;
+  std::string shimless_3p_diag_app_name_;
 
   // Task runner for tasks posted by the Shimless service. Used to ensure
   // posted tasks are handled while this service is in scope to stop

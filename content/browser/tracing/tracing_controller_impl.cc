@@ -15,10 +15,11 @@
 #include "base/files/file_tracing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
@@ -52,6 +53,7 @@
 #include "services/tracing/public/cpp/tracing_features.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 #include "third_party/perfetto/include/perfetto/protozero/message.h"
 #include "third_party/perfetto/protos/perfetto/trace/extension_descriptor.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/trace_packet.pbzero.h"
@@ -159,10 +161,16 @@ std::string GetClockOffsetSinceEpoch() {
   clock_gettime(CLOCK_REALTIME, &realtime_before);
   clock_gettime(CLOCK_MONOTONIC, &monotonic);
   clock_gettime(CLOCK_REALTIME, &realtime_after);
-  return base::StringPrintf("%" PRId64,
-                            ConvertTimespecToMicros(realtime_before) / 2 +
-                                ConvertTimespecToMicros(realtime_after) / 2 -
-                                ConvertTimespecToMicros(monotonic));
+  return base::NumberToString(ConvertTimespecToMicros(realtime_before) / 2 +
+                              ConvertTimespecToMicros(realtime_after) / 2 -
+                              ConvertTimespecToMicros(monotonic));
+}
+#endif
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+bool IsSpecialCategory(const std::string& name) {
+  return name == "__metadata" || name == "tracing_already_shutdown" ||
+         name == "tracing_categories_exhausted._must_increase_kMaxCategories";
 }
 #endif
 
@@ -255,14 +263,13 @@ void TracingControllerImpl::GenerateMetadataPacket(
 absl::optional<base::Value::Dict>
 TracingControllerImpl::GenerateMetadataDict() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  base::Value::Dict metadata_dict;
 
-  metadata_dict.Set("network-type", GetNetworkTypeString());
-  metadata_dict.Set("product-version",
-                    GetContentClient()->browser()->GetProduct());
-  metadata_dict.Set("v8-version", V8_VERSION_STRING);
-  metadata_dict.Set("user-agent",
-                    GetContentClient()->browser()->GetUserAgent());
+  auto metadata_dict =
+      base::Value::Dict()
+          .Set("network-type", GetNetworkTypeString())
+          .Set("product-version", GetContentClient()->browser()->GetProduct())
+          .Set("v8-version", V8_VERSION_STRING)
+          .Set("user-agent", GetContentClient()->browser()->GetUserAgent());
 
 #if BUILDFLAG(IS_ANDROID)
   // The library name is used for symbolizing heap profiles. This cannot be
@@ -354,12 +361,10 @@ TracingControllerImpl::GenerateMetadataDict() {
   metadata_dict.Set("command_line", command_line);
 #endif
 
-  base::Time::Exploded ctime;
-  TRACE_TIME_NOW().UTCExplode(&ctime);
-  std::string time_string = base::StringPrintf(
-      "%u-%u-%u %d:%d:%d", ctime.year, ctime.month, ctime.day_of_month,
-      ctime.hour, ctime.minute, ctime.second);
-  metadata_dict.Set("trace-capture-datetime", time_string);
+  metadata_dict.Set(
+      "trace-capture-datetime",
+      base::UnlocalizedTimeFormatWithPattern(TRACE_TIME_NOW(), "y-M-d H:m:s",
+                                             icu::TimeZone::getGMT()));
 
   // TODO(crbug.com/737049): The central controller doesn't know about
   // metadata filters, so we temporarily filter here as the controller is
@@ -388,7 +393,20 @@ TracingControllerImpl* TracingControllerImpl::GetInstance() {
 
 bool TracingControllerImpl::GetCategories(GetCategoriesDoneCallback callback) {
   std::set<std::string> category_set;
+
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+  using base::perfetto_track_event::internal::kCategoryRegistry;
+  for (size_t i = 0; i < kCategoryRegistry.category_count(); ++i) {
+    std::string category_name = kCategoryRegistry.GetCategory(i)->name;
+    // Only add single categories, not groups. Also exclude special categories.
+    if (category_name.find(',') == std::string::npos &&
+        !IsSpecialCategory(category_name)) {
+      category_set.insert(category_name);
+    }
+  }
+#else   // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   tracing::TracedProcessImpl::GetInstance()->GetCategories(&category_set);
+#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
   std::move(callback).Run(category_set);
   return true;

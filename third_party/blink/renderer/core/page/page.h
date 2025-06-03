@@ -32,6 +32,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/fenced_frame/redacted_fenced_frame_config.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/common/page/browsing_context_group_info.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom-blink.h"
@@ -41,7 +42,8 @@
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/web/web_lifecycle_update.h"
 #include "third_party/blink/public/web/web_window_features.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_consumer.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_compile_hints_producer.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/vision_deficiency.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
@@ -55,7 +57,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/scheduler/public/agent_group_scheduler.h"
-#include "third_party/blink/renderer/platform/scheduler/public/page_lifecycle_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -80,13 +81,13 @@ class LinkHighlight;
 class LocalFrame;
 class LocalFrameView;
 class MediaFeatureOverrides;
-class OverscrollController;
 class PageAnimator;
 struct PageScaleConstraints;
 class PageScaleConstraintsSet;
 class PluginData;
 class PluginsChangedObserver;
 class PointerLockController;
+class PreferenceOverrides;
 class ScopedPagePauser;
 class ScrollingCoordinator;
 class ScrollbarTheme;
@@ -114,13 +115,16 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
                                  AgentGroupScheduler& agent_group_scheduler);
 
   // An "ordinary" page is a fully-featured page owned by a web view.
-  static Page* CreateOrdinary(ChromeClient& chrome_client,
-                              Page* opener,
-                              AgentGroupScheduler& agent_group_scheduler);
+  static Page* CreateOrdinary(
+      ChromeClient& chrome_client,
+      Page* opener,
+      AgentGroupScheduler& agent_group_scheduler,
+      const BrowsingContextGroupInfo& browsing_context_group_info);
 
   Page(base::PassKey<Page>,
        ChromeClient& chrome_client,
        AgentGroupScheduler& agent_group_scheduler,
+       const BrowsingContextGroupInfo& browsing_context_group_info,
        bool is_ordinary);
   Page(const Page&) = delete;
   Page& operator=(const Page&) = delete;
@@ -141,7 +145,7 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   // Returns pages related to the current browsing context (excluding the
   // current page).  See also
-  // https://html.spec.whatwg.org/C/#unit-of-related-browsing-contexts
+  // https://html.spec.whatwg.org/C/#nested-browsing-contexts
   HeapVector<Member<Page>> RelatedPages();
 
   // Should be called when |GetScrollbarTheme().UsesOverlayScrollbars()|
@@ -167,13 +171,16 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // also be called to update accordingly.
   // TODO(npm): update the |page_scheduler_| directly in this method.
   void SetMainFrame(Frame*);
-  Frame* MainFrame() const { return main_frame_; }
+  Frame* MainFrame() const { return main_frame_.Get(); }
 
   void SetPreviousMainFrameForLocalSwap(
       LocalFrame* previous_main_frame_for_local_swap) {
     previous_main_frame_for_local_swap_ = previous_main_frame_for_local_swap;
   }
-  Frame* TakePreviousMainFrameForLocalSwap();
+
+  LocalFrame* GetPreviousMainFrameForLocalSwap() {
+    return previous_main_frame_for_local_swap_.Get();
+  }
 
   // Escape hatch for existing code that assumes that the root frame is
   // always a LocalFrame. With OOPI, this is not always the case. Code that
@@ -249,9 +256,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   const VisualViewport& GetVisualViewport() const;
 
   LinkHighlight& GetLinkHighlight();
-
-  OverscrollController& GetOverscrollController();
-  const OverscrollController& GetOverscrollController() const;
 
   void SetTabKeyCyclesThroughElements(bool b) {
     tab_key_cycles_through_elements_ = b;
@@ -367,6 +371,13 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   }
   void ClearMediaFeatureOverrides();
 
+  void SetPreferenceOverride(const AtomicString& media_feature,
+                             const String& value);
+  const PreferenceOverrides* GetPreferenceOverrides() const {
+    return preference_overrides_.get();
+  }
+  void ClearPreferenceOverrides();
+
   void SetVisionDeficiency(VisionDeficiency new_vision_deficiency);
   VisionDeficiency GetVisionDeficiency() const { return vision_deficiency_; }
 
@@ -416,8 +427,37 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
     return fenced_frame_mode_;
   }
 
-  V8CrowdsourcedCompileHintsProducer& GetV8CrowdsourcedCompileHintsProducer() {
-    return *v8_compile_hints_;
+  v8_compile_hints::V8CrowdsourcedCompileHintsProducer&
+  GetV8CrowdsourcedCompileHintsProducer() {
+    return *v8_compile_hints_producer_;
+  }
+
+  v8_compile_hints::V8CrowdsourcedCompileHintsConsumer&
+  GetV8CrowdsourcedCompileHintsConsumer() {
+    return *v8_compile_hints_consumer_;
+  }
+
+  // Returns the token uniquely identifying the browsing context group this page
+  // lives in.
+  const base::UnguessableToken& BrowsingContextGroupToken();
+
+  // Returns the token uniquely identifying the CoopRelatedGroup this page lives
+  // in.
+  const base::UnguessableToken& CoopRelatedGroupToken();
+
+  // Update this Page's browsing context group after a navigation has taken
+  // place.
+  void UpdateBrowsingContextGroup(const blink::BrowsingContextGroupInfo&);
+
+  // Attribution Reporting API ------------------------------------
+  // Sets whether web or OS-level Attribution Reporting is supported
+  void SetAttributionSupport(
+      network::mojom::AttributionSupport attribution_support);
+
+  // Returns whether web or OS-level Attribution Reporting is supported. See
+  // https://github.com/WICG/attribution-reporting-api/blob/main/app_to_web.md.
+  network::mojom::AttributionSupport GetAttributionSupport() {
+    return attribution_support_;
   }
 
  private:
@@ -481,7 +521,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   const Member<TopDocumentRootScrollerController>
       global_root_scroller_controller_;
   const Member<VisualViewport> visual_viewport_;
-  const Member<OverscrollController> overscroll_controller_;
   const Member<LinkHighlight> link_highlight_;
   Member<SpatialNavigationController> spatial_navigation_controller_;
 
@@ -542,6 +581,9 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // Overrides for various media features, set from DevTools.
   std::unique_ptr<MediaFeatureOverrides> media_feature_overrides_;
 
+  // Overrides for user preference media features, set from Web Preferences API.
+  std::unique_ptr<PreferenceOverrides> preference_overrides_;
+
   // Emulated vision deficiency, set from DevTools.
   VisionDeficiency vision_deficiency_ = VisionDeficiency::kNoVisionDeficiency;
 
@@ -571,7 +613,16 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   WebScopedVirtualTimePauser history_navigation_virtual_time_pauser_;
 
-  Member<V8CrowdsourcedCompileHintsProducer> v8_compile_hints_;
+  Member<v8_compile_hints::V8CrowdsourcedCompileHintsProducer>
+      v8_compile_hints_producer_;
+
+  Member<v8_compile_hints::V8CrowdsourcedCompileHintsConsumer>
+      v8_compile_hints_consumer_;
+
+  // The information determining the browsing context group this page lives in.
+  BrowsingContextGroupInfo browsing_context_group_info_;
+
+  network::mojom::AttributionSupport attribution_support_;
 };
 
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<Page>;

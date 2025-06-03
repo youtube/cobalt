@@ -12,6 +12,7 @@
 #include "ui/gfx/canvas.h"
 #include "ui/views/background.h"
 #include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
 
 TabGroupHighlight::TabGroupHighlight(TabGroupViews* tab_group_views,
                                      const tab_groups::TabGroupId& group,
@@ -34,15 +35,9 @@ void TabGroupHighlight::OnPaint(gfx::Canvas* canvas) {
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
   flags.setStyle(cc::PaintFlags::kFill_Style);
-
-  // Draw two layers to simulate the color of other non-active selected tabs,
-  // which use a similar drawing strategy (see GM2TabStyle::PaintTab()).
-  // This is needed because the group background color alone would be slightly
-  // transparent, so instead it's drawn over the inactive background color.
-  flags.setColor(tab_group_views_->GetTabBackgroundColor());
-  canvas->DrawPath(path, flags);
-
-  flags.setColor(tab_group_views_->GetGroupBackgroundColor());
+  flags.setColor(TabStyle::Get()->GetTabBackgroundColor(
+      TabStyle::TabSelectionState::kSelected, /*hovered=*/false,
+      GetWidget()->ShouldPaintAsActive(), *GetColorProvider()));
   canvas->DrawPath(path, flags);
 }
 
@@ -60,19 +55,20 @@ SkPath TabGroupHighlight::GetPath() const {
   // the tabs around it, so there are no special cases needed when determining
   // its shape.
   const int corner_radius = TabStyle::Get()->GetBottomCornerRadius();
+  const int top = GetLayoutConstant(TAB_STRIP_PADDING);
 
   SkPath path;
   path.moveTo(0, bounds().height());
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
              SkPathDirection::kCCW, corner_radius,
              bounds().height() - corner_radius);
-  path.lineTo(corner_radius, corner_radius);
+  path.lineTo(corner_radius, top + corner_radius);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
-             SkPathDirection::kCW, 2 * corner_radius, 0);
-  path.lineTo(bounds().width() - 2 * corner_radius, 0);
+             SkPathDirection::kCW, 2 * corner_radius, top);
+  path.lineTo(bounds().width() - 2 * corner_radius, top);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
              SkPathDirection::kCW, bounds().width() - corner_radius,
-             corner_radius);
+             top + corner_radius);
   path.lineTo(bounds().width() - corner_radius,
               bounds().height() - corner_radius);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,

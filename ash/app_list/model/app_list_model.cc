@@ -103,6 +103,19 @@ void AppListModel::SetItemMetadata(const std::string& id,
     SetItemName(item, data->name);
   }
 
+  if (data->accessible_name != item->accessible_name()) {
+    SetItemAccessibleName(item, data->accessible_name);
+  }
+
+  if (data->progress > item->progress() ||
+      data->app_status != item->app_status()) {
+    item->SetProgress(data->progress);
+    DVLOG(2) << "AppListModel::SetProgress: " << item->ToDebugString();
+    for (auto& observer : observers_) {
+      observer.OnAppListItemUpdated(item);
+    }
+  }
+
   if (data->icon.isNull()) {
     // Folder icons are generated on ash side so the icon of the metadata passed
     // from chrome side is null. Do not alter `item` default icon in this case.
@@ -230,6 +243,14 @@ void AppListModel::SetItemName(AppListItem* item, const std::string& name) {
   DVLOG(2) << "AppListModel::SetItemName: " << item->ToDebugString();
   for (auto& observer : observers_)
     observer.OnAppListItemUpdated(item);
+}
+
+void AppListModel::SetItemAccessibleName(AppListItem* item,
+                                         const std::string& name) {
+  item->SetAccessibleName(name);
+  for (auto& observer : observers_) {
+    observer.OnAppListItemUpdated(item);
+  }
 }
 
 void AppListModel::DeleteItem(const std::string& id) {

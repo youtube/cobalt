@@ -536,7 +536,6 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
       false_start_allowed_without_alpn(false),
       handoff(false),
       enable_early_data(false),
-      only_fips_cipher_suites_in_tls13(false),
       aes_hw_override(false),
       aes_hw_override_value(false) {
   CRYPTO_MUTEX_init(&lock);
@@ -658,10 +657,9 @@ SSL *SSL_new(SSL_CTX *ctx) {
   ssl->config->retain_only_sha256_of_client_certs =
       ctx->retain_only_sha256_of_client_certs;
   ssl->config->permute_extensions = ctx->permute_extensions;
-  ssl->config->only_fips_cipher_suites_in_tls13 =
-      ctx->only_fips_cipher_suites_in_tls13;
   ssl->config->aes_hw_override = ctx->aes_hw_override;
   ssl->config->aes_hw_override_value = ctx->aes_hw_override_value;
+  ssl->config->tls13_cipher_policy = ctx->tls13_cipher_policy;
 
   if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
       !ssl->config->alpn_client_proto_list.CopyFrom(
@@ -709,7 +707,8 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
       shed_handshake_config(false),
       jdk11_workaround(false),
       quic_use_legacy_codepoint(false),
-      permute_extensions(false) {
+      permute_extensions(false),
+      alps_use_new_codepoint(false) {
   assert(ssl);
 }
 
@@ -1597,6 +1596,7 @@ int SSL_get_wfd(const SSL *ssl) {
   return ret;
 }
 
+#if !defined(OPENSSL_NO_SOCK)
 int SSL_set_fd(SSL *ssl, int fd) {
   BIO *bio = BIO_new(BIO_s_socket());
   if (bio == NULL) {
@@ -1646,6 +1646,7 @@ int SSL_set_rfd(SSL *ssl, int fd) {
   }
   return 1;
 }
+#endif  // !OPENSSL_NO_SOCK
 
 static size_t copy_finished(void *out, size_t out_len, const uint8_t *in,
                             size_t in_len) {
@@ -1941,53 +1942,126 @@ int SSL_CTX_set_tlsext_ticket_key_cb(
   return 1;
 }
 
-int SSL_CTX_set1_curves(SSL_CTX *ctx, const int *curves, size_t curves_len) {
-  return tls1_set_curves(&ctx->supported_group_list,
-                         MakeConstSpan(curves, curves_len));
+static bool check_group_ids(Span<const uint16_t> group_ids) {
+  for (uint16_t group_id : group_ids) {
+    if (ssl_group_id_to_nid(group_id) == NID_undef) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
+      return false;
+    }
+  }
+  return true;
 }
 
-int SSL_set1_curves(SSL *ssl, const int *curves, size_t curves_len) {
+int SSL_CTX_set1_group_ids(SSL_CTX *ctx, const uint16_t *group_ids,
+                           size_t num_group_ids) {
+  auto span = MakeConstSpan(group_ids, num_group_ids);
+  return check_group_ids(span) && ctx->supported_group_list.CopyFrom(span);
+}
+
+int SSL_set1_group_ids(SSL *ssl, const uint16_t *group_ids,
+                       size_t num_group_ids) {
   if (!ssl->config) {
     return 0;
   }
-  return tls1_set_curves(&ssl->config->supported_group_list,
-                         MakeConstSpan(curves, curves_len));
+  auto span = MakeConstSpan(group_ids, num_group_ids);
+  return check_group_ids(span) &&
+         ssl->config->supported_group_list.CopyFrom(span);
 }
 
-int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves) {
-  return tls1_set_curves_list(&ctx->supported_group_list, curves);
+static bool ssl_nids_to_group_ids(Array<uint16_t> *out_group_ids,
+                                  Span<const int> nids) {
+  Array<uint16_t> group_ids;
+  if (!group_ids.Init(nids.size())) {
+    return false;
+  }
+
+  for (size_t i = 0; i < nids.size(); i++) {
+    if (!ssl_nid_to_group_id(&group_ids[i], nids[i])) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
+      return false;
+    }
+  }
+
+  *out_group_ids = std::move(group_ids);
+  return true;
 }
 
-int SSL_set1_curves_list(SSL *ssl, const char *curves) {
+int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups, size_t num_groups) {
+  return ssl_nids_to_group_ids(&ctx->supported_group_list,
+                               MakeConstSpan(groups, num_groups));
+}
+
+int SSL_set1_groups(SSL *ssl, const int *groups, size_t num_groups) {
   if (!ssl->config) {
     return 0;
   }
-  return tls1_set_curves_list(&ssl->config->supported_group_list, curves);
+  return ssl_nids_to_group_ids(&ssl->config->supported_group_list,
+                               MakeConstSpan(groups, num_groups));
 }
 
-int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups, size_t groups_len) {
-  return SSL_CTX_set1_curves(ctx, groups, groups_len);
-}
+static bool ssl_str_to_group_ids(Array<uint16_t> *out_group_ids,
+                                 const char *str) {
+  // Count the number of groups in the list.
+  size_t count = 0;
+  const char *ptr = str, *col;
+  do {
+    col = strchr(ptr, ':');
+    count++;
+    if (col) {
+      ptr = col + 1;
+    }
+  } while (col);
 
-int SSL_set1_groups(SSL *ssl, const int *groups, size_t groups_len) {
-  return SSL_set1_curves(ssl, groups, groups_len);
+  Array<uint16_t> group_ids;
+  if (!group_ids.Init(count)) {
+    return false;
+  }
+
+  size_t i = 0;
+  ptr = str;
+  do {
+    col = strchr(ptr, ':');
+    if (!ssl_name_to_group_id(&group_ids[i++], ptr,
+                              col ? (size_t)(col - ptr) : strlen(ptr))) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
+      return false;
+    }
+    if (col) {
+      ptr = col + 1;
+    }
+  } while (col);
+
+  assert(i == count);
+  *out_group_ids = std::move(group_ids);
+  return true;
 }
 
 int SSL_CTX_set1_groups_list(SSL_CTX *ctx, const char *groups) {
-  return SSL_CTX_set1_curves_list(ctx, groups);
+  return ssl_str_to_group_ids(&ctx->supported_group_list, groups);
 }
 
 int SSL_set1_groups_list(SSL *ssl, const char *groups) {
-  return SSL_set1_curves_list(ssl, groups);
+  if (!ssl->config) {
+    return 0;
+  }
+  return ssl_str_to_group_ids(&ssl->config->supported_group_list, groups);
 }
 
-uint16_t SSL_get_curve_id(const SSL *ssl) {
+uint16_t SSL_get_group_id(const SSL *ssl) {
   SSL_SESSION *session = SSL_get_session(ssl);
   if (session == NULL) {
     return 0;
   }
 
   return session->group_id;
+}
+
+int SSL_get_negotiated_group(const SSL *ssl) {
+  uint16_t group_id = SSL_get_group_id(ssl);
+  if (group_id == 0) {
+    return NID_undef;
+  }
+  return ssl_group_id_to_nid(group_id);
 }
 
 int SSL_CTX_set_tmp_dh(SSL_CTX *ctx, const DH *dh) {
@@ -2327,6 +2401,13 @@ void SSL_get0_peer_application_settings(const SSL *ssl,
 int SSL_has_application_settings(const SSL *ssl) {
   const SSL_SESSION *session = SSL_get_session(ssl);
   return session && session->has_application_settings;
+}
+
+void SSL_set_alps_use_new_codepoint(SSL *ssl, int use_new) {
+  if (!ssl->config) {
+    return;
+  }
+  ssl->config->alps_use_new_codepoint = !!use_new;
 }
 
 int SSL_CTX_add_cert_compression_alg(SSL_CTX *ctx, uint16_t alg_id,
@@ -3042,7 +3123,7 @@ int SSL_CTX_set_tmp_ecdh(SSL_CTX *ctx, const EC_KEY *ec_key) {
     return 0;
   }
   int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec_key));
-  return SSL_CTX_set1_curves(ctx, &nid, 1);
+  return SSL_CTX_set1_groups(ctx, &nid, 1);
 }
 
 int SSL_set_tmp_ecdh(SSL *ssl, const EC_KEY *ec_key) {
@@ -3051,7 +3132,7 @@ int SSL_set_tmp_ecdh(SSL *ssl, const EC_KEY *ec_key) {
     return 0;
   }
   int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec_key));
-  return SSL_set1_curves(ssl, &nid, 1);
+  return SSL_set1_groups(ssl, &nid, 1);
 }
 
 void SSL_CTX_set_ticket_aead_method(SSL_CTX *ctx,
@@ -3142,6 +3223,32 @@ int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
   return 1;
 }
 
+uint16_t SSL_get_curve_id(const SSL *ssl) { return SSL_get_group_id(ssl); }
+
+const char *SSL_get_curve_name(uint16_t curve_id) {
+  return SSL_get_group_name(curve_id);
+}
+
+size_t SSL_get_all_curve_names(const char **out, size_t max_out) {
+  return SSL_get_all_group_names(out, max_out);
+}
+
+int SSL_CTX_set1_curves(SSL_CTX *ctx, const int *curves, size_t num_curves) {
+  return SSL_CTX_set1_groups(ctx, curves, num_curves);
+}
+
+int SSL_set1_curves(SSL *ssl, const int *curves, size_t num_curves) {
+  return SSL_set1_groups(ssl, curves, num_curves);
+}
+
+int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves) {
+  return SSL_CTX_set1_groups_list(ctx, curves);
+}
+
+int SSL_set1_curves_list(SSL *ssl, const char *curves) {
+  return SSL_set1_groups_list(ssl, curves);
+}
+
 namespace fips202205 {
 
 // (References are to SP 800-52r2):
@@ -3153,7 +3260,7 @@ namespace fips202205 {
 // Section 3.3.1
 // "The server shall be configured to only use cipher suites that are
 // composed entirely of NIST approved algorithms"
-static const int kCurves[] = {NID_X9_62_prime256v1, NID_secp384r1};
+static const uint16_t kGroups[] = {SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
 
 static const uint16_t kSigAlgs[] = {
     SSL_SIGN_RSA_PKCS1_SHA256,
@@ -3175,7 +3282,7 @@ static const char kTLS12Ciphers[] =
     "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
 
 static int Configure(SSL_CTX *ctx) {
-  ctx->only_fips_cipher_suites_in_tls13 = true;
+  ctx->tls13_cipher_policy = ssl_compliance_policy_fips_202205;
 
   return
       // Section 3.1:
@@ -3190,7 +3297,7 @@ static int Configure(SSL_CTX *ctx) {
       // Encrypt-then-MAC extension is required for all CBC cipher suites and so
       // it's easier to drop them.
       SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
-      SSL_CTX_set1_curves(ctx, kCurves, OPENSSL_ARRAY_SIZE(kCurves)) &&
+      SSL_CTX_set1_group_ids(ctx, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
       SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
                                           OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
       SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs,
@@ -3198,13 +3305,13 @@ static int Configure(SSL_CTX *ctx) {
 }
 
 static int Configure(SSL *ssl) {
-  ssl->config->only_fips_cipher_suites_in_tls13 = true;
+  ssl->config->tls13_cipher_policy = ssl_compliance_policy_fips_202205;
 
   // See |Configure(SSL_CTX)|, above, for reasoning.
   return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
          SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
          SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
-         SSL_set1_curves(ssl, kCurves, OPENSSL_ARRAY_SIZE(kCurves)) &&
+         SSL_set1_group_ids(ssl, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
          SSL_set_signing_algorithm_prefs(ssl, kSigAlgs,
                                          OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
          SSL_set_verify_algorithm_prefs(ssl, kSigAlgs,
@@ -3213,11 +3320,59 @@ static int Configure(SSL *ssl) {
 
 }  // namespace fips202205
 
+namespace wpa202304 {
+
+// See WPA version 3.1, section 3.5.
+
+static const uint16_t kGroups[] = {SSL_GROUP_SECP384R1};
+
+static const uint16_t kSigAlgs[] = {
+    SSL_SIGN_RSA_PKCS1_SHA384,        //
+    SSL_SIGN_RSA_PKCS1_SHA512,        //
+    SSL_SIGN_ECDSA_SECP384R1_SHA384,  //
+    SSL_SIGN_RSA_PSS_RSAE_SHA384,     //
+    SSL_SIGN_RSA_PSS_RSAE_SHA512,     //
+};
+
+static const char kTLS12Ciphers[] =
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:"
+    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+
+static int Configure(SSL_CTX *ctx) {
+  ctx->tls13_cipher_policy = ssl_compliance_policy_wpa3_192_202304;
+
+  return SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) &&
+         SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) &&
+         SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
+         SSL_CTX_set1_group_ids(ctx, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
+         SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
+                                             OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
+         SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs,
+                                            OPENSSL_ARRAY_SIZE(kSigAlgs));
+}
+
+static int Configure(SSL *ssl) {
+  ssl->config->tls13_cipher_policy = ssl_compliance_policy_wpa3_192_202304;
+
+  return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
+         SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
+         SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
+         SSL_set1_group_ids(ssl, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs,
+                                         OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs,
+                                        OPENSSL_ARRAY_SIZE(kSigAlgs));
+}
+
+}  // namespace wpa202304
+
 int SSL_CTX_set_compliance_policy(SSL_CTX *ctx,
                                   enum ssl_compliance_policy_t policy) {
   switch (policy) {
     case ssl_compliance_policy_fips_202205:
       return fips202205::Configure(ctx);
+    case ssl_compliance_policy_wpa3_192_202304:
+      return wpa202304::Configure(ctx);
     default:
       return 0;
   }
@@ -3227,6 +3382,8 @@ int SSL_set_compliance_policy(SSL *ssl, enum ssl_compliance_policy_t policy) {
   switch (policy) {
     case ssl_compliance_policy_fips_202205:
       return fips202205::Configure(ssl);
+    case ssl_compliance_policy_wpa3_192_202304:
+      return wpa202304::Configure(ssl);
     default:
       return 0;
   }

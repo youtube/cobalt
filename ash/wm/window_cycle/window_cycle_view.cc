@@ -5,6 +5,7 @@
 #include "ash/wm/window_cycle/window_cycle_view.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "ash/accessibility/accessibility_controller_impl.h"
 #include "ash/public/cpp/metrics_util.h"
@@ -15,15 +16,18 @@
 #include "ash/style/system_shadow.h"
 #include "ash/style/tab_slider.h"
 #include "ash/style/tab_slider_button.h"
+#include "ash/utility/occlusion_tracker_pauser.h"
+#include "ash/wm/snap_group/snap_group.h"
+#include "ash/wm/snap_group/snap_group_controller.h"
 #include "ash/wm/window_cycle/window_cycle_controller.h"
 #include "ash/wm/window_cycle/window_cycle_item_view.h"
+#include "ash/wm/window_cycle/window_cycle_list.h"
+#include "ash/wm/window_mini_view.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/skia/include/core/SkColor.h"
 #include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -57,7 +61,7 @@ namespace {
 constexpr int kBackgroundCornerRadius = 16;
 
 // Shield horizontal inset.
-constexpr int kBackgroundHorizontalInsetDp = 8;
+constexpr int kBackgroundHorizontalInsetDp = 40;
 
 // Vertical padding between the alt-tab bandshield and the window previews.
 constexpr int kInsideBorderVerticalPaddingDp = 60;
@@ -66,13 +70,7 @@ constexpr int kInsideBorderVerticalPaddingDp = 60;
 constexpr int kMirrorContainerVerticalPaddingDp = 24;
 
 // Padding between the window previews within the alt-tab bandshield.
-constexpr int kBetweenChildPaddingDp = 10;
-
-// Padding between the window previews within the alt-tab bandshield when
-// feature flag Jellyroll is enabled.
-// TODO(conniekxu): Rename this to `kBetweenChildPaddingDp`, and remove
-// `kBetweenChildPaddingDp` above.
-constexpr int kBetweenChildPaddingDpCrOSNext = 12;
+constexpr int kBetweenChildPaddingDp = 12;
 
 // Padding between the tab slider button and the tab slider container.
 constexpr int kTabSliderContainerVerticalPaddingDp = 32;
@@ -99,11 +97,48 @@ constexpr base::TimeDelta kContainerSlideDuration = base::Milliseconds(120);
 // modes.
 constexpr base::TimeDelta kToggleModeScaleDuration = base::Milliseconds(150);
 
+// Builds the item view for window cycling for the given `window` with the
+// correct parent. If the given `window` is a free-form window, the direct
+// parent will be `mirror_container`. For `window` that belongs to a snap group,
+// however, a `GroupContainerCycleView` will be added. If `same_app_only` is
+// true, `GroupContainerCycleView` will only be created if both the windows in
+// snap group belongs to the same app.
+WindowMiniViewBase* BuildAndConfigureCycleView(
+    aura::Window* window,
+    views::View* mirror_container,
+    std::vector<WindowMiniViewBase*>& cycle_views,
+    const std::vector<aura::Window*>& windows,
+    const bool same_app_only) {
+  if (auto* snap_group_controller = SnapGroupController::Get()) {
+    if (auto* snap_group =
+            snap_group_controller->GetSnapGroupForGivenWindow(window)) {
+      if (!same_app_only ||
+          (same_app_only && base::Contains(windows, snap_group->window1()) &&
+           base::Contains(windows, snap_group->window2()))) {
+        // Create `GroupContainerCycleView` if `window` is primary snapped,
+        // which adds two child views subsequently. Skip adding
+        // `GroupContainerCycleView` if `window` is secondary snapped since the
+        // corresponding container view has been built.
+        return window == snap_group->window1()
+                   ? mirror_container->AddChildView(
+                         std::make_unique<GroupContainerCycleView>(snap_group))
+                   : nullptr;
+      }
+    }
+  }
+
+  // `mirror_container_` owns `view`. The `preview_view_` in `view` will use
+  // trilinear filtering in InitLayerOwner().
+  return mirror_container->AddChildView(
+      std::make_unique<WindowCycleItemView>(window));
+}
+
 }  // namespace
 
 WindowCycleView::WindowCycleView(aura::Window* root_window,
-                                 const WindowList& windows)
-    : root_window_(root_window) {
+                                 const WindowList& windows,
+                                 const bool same_app_only)
+    : root_window_(root_window), same_app_only_(same_app_only) {
   const bool is_interactive_alt_tab_mode_allowed =
       Shell::Get()->window_cycle_controller()->IsInteractiveAltTabModeAllowed();
 
@@ -111,30 +146,27 @@ WindowCycleView::WindowCycleView(aura::Window* root_window,
   // Start the occlusion tracker pauser. It's used to increase smoothness for
   // the fade in but we also create windows here which may occlude other
   // windows.
-  occlusion_tracker_pauser_ =
-      std::make_unique<aura::WindowOcclusionTracker::ScopedPause>();
+  Shell::Get()->occlusion_tracker_pauser()->PauseUntilAnimationsEnd(
+      /*timeout*/ base::Seconds(2));
 
   // The layer for `this` is responsible for showing background blur and fade
   // and clip animations.
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
-  layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
-  layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
   layer()->SetName("WindowCycleView");
   layer()->SetMasksToBounds(true);
+  if (features::IsBackgroundBlurEnabled()) {
+    layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
+    layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+  }
 
-  const bool is_jellyroll_enabled = chromeos::features::IsJellyrollEnabled();
   SetBackground(views::CreateThemedRoundedRectBackground(
-      is_jellyroll_enabled ? cros_tokens::kCrosSysScrim2
-                           : static_cast<ui::ColorId>(kColorAshShieldAndBase80),
-      kBackgroundCornerRadius));
+      cros_tokens::kCrosSysScrim2, kBackgroundCornerRadius));
   SetBorder(std::make_unique<views::HighlightBorder>(
       kBackgroundCornerRadius,
-      is_jellyroll_enabled
-          ? views::HighlightBorder::Type::kHighlightBorderOnShadow
-          : views::HighlightBorder::Type::kHighlightBorder1));
+      views::HighlightBorder::Type::kHighlightBorderOnShadow));
 
-  // |mirror_container_| may be larger than |this|. In this case, it will be
+  // `mirror_container_` may be larger than `this`. In this case, it will be
   // shifted along the x-axis when the user tabs through. It is a container
   // for the previews and has no rendered content.
   mirror_container_ = AddChildView(std::make_unique<views::View>());
@@ -149,13 +181,12 @@ WindowCycleView::WindowCycleView(aura::Window* root_window,
                             WindowCycleView::kInsideBorderHorizontalPaddingDp,
                             kInsideBorderVerticalPaddingDp,
                             WindowCycleView::kInsideBorderHorizontalPaddingDp),
-          is_jellyroll_enabled ? kBetweenChildPaddingDpCrOSNext
-                               : kBetweenChildPaddingDp));
+          kBetweenChildPaddingDp));
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStart);
 
   if (is_interactive_alt_tab_mode_allowed) {
-    tab_slider_ = AddChildView(std::make_unique<TabSlider>());
+    tab_slider_ = AddChildView(std::make_unique<TabSlider>(/*max_tab_num=*/2));
     all_desks_tab_slider_button_ =
         tab_slider_->AddButton(std::make_unique<LabelSliderButton>(
             base::BindRepeating(
@@ -177,16 +208,18 @@ WindowCycleView::WindowCycleView(aura::Window* root_window,
     // Configure the focus ring for the tab slider selector view.
     views::FocusRing::Install(tab_slider_selector_view);
     auto* focus_ring = views::FocusRing::Get(tab_slider_selector_view);
-    focus_ring->SetColorId(is_jellyroll_enabled ? cros_tokens::kCrosSysFocusRing
-                                                : static_cast<ui::ColorId>(
-                                                      ui::kColorAshFocusRing));
+    focus_ring->SetOutsetFocusRingDisabled(true);
+    focus_ring->SetColorId(cros_tokens::kCrosSysFocusRing);
     const float halo_inset = focus_ring->GetHaloThickness() / 2.f + 2;
     focus_ring->SetHaloInset(-halo_inset);
     // Set a pill shaped (fully rounded rect) highlight path to focus ring.
     focus_ring->SetPathGenerator(
         std::make_unique<views::PillHighlightPathGenerator>());
-    focus_ring->SetHasFocusPredicate(
-        [&](views::View* view) { return IsTabSliderFocused(); });
+    focus_ring->SetHasFocusPredicate(base::BindRepeating(
+        [](const WindowCycleView* cycle_view, const views::View* view) {
+          return cycle_view->IsTabSliderFocused();
+        },
+        base::Unretained(this)));
 
     const bool per_desk =
         Shell::Get()->window_cycle_controller()->IsAltTabPerActiveDesk();
@@ -216,22 +249,19 @@ WindowCycleView::WindowCycleView(aura::Window* root_window,
   }
 
   for (auto* window : windows) {
-    // |mirror_container_| owns |view|. The |preview_view_| in |view| will
-    // use trilinear filtering in InitLayerOwner().
-    auto* view = mirror_container_->AddChildView(
-        std::make_unique<WindowCycleItemView>(window));
-    window_view_map_[window] = view;
-
-    no_previews_set_.insert(view);
+    if (auto* view = BuildAndConfigureCycleView(
+            window, mirror_container_, cycle_views_, windows, same_app_only)) {
+      cycle_views_.push_back(view);
+      no_previews_list_.push_back(view);
+    }
   }
 
-  // The insets in the WindowCycleItemView are coming from its border, which
-  // paints the focus ring around the view when it is highlighted. Exclude the
+  // The insets in the `WindowCycleItemView` are coming from its border, which
+  // paints the focus ring around the view when it is focused. Exclude the
   // insets such that the spacing between the contents of the views rather
-  // than the views themselves is |kBetweenChildPaddingDp|.
+  // than the views themselves is `kBetweenChildPaddingDp`.
   const gfx::Insets cycle_item_insets =
-      window_view_map_.empty() ? gfx::Insets()
-                               : window_view_map_.begin()->second->GetInsets();
+      cycle_views_.empty() ? gfx::Insets() : cycle_views_.front()->GetInsets();
   layout->set_between_child_spacing(kBetweenChildPaddingDp -
                                     cycle_item_insets.width());
 
@@ -247,13 +277,13 @@ void WindowCycleView::ScaleCycleView(const gfx::Rect& screen_bounds) {
   if (layer_animator->is_animating()) {
     // There is an existing scaling animation occurring. To accurately get the
     // new bounds for the next layout, we must abort the ongoing animation so
-    // |this| will set the previous bounds of the widget and clear the clip
+    // `this` will set the previous bounds of the widget and clear the clip
     // rect.
     layer_animator->AbortAllAnimations();
   }
 
-  // |screen_bounds| is in screen coords so store it in local coordinates in
-  // |new_bounds|.
+  // `screen_bounds` is in screen coords so store it in local coordinates in
+  // `new_bounds`.
   gfx::Rect old_bounds = GetLocalBounds();
   gfx::Rect new_bounds = gfx::Rect(screen_bounds.size());
 
@@ -263,7 +293,7 @@ void WindowCycleView::ScaleCycleView(const gfx::Rect& screen_bounds) {
   if (new_bounds.width() >= old_bounds.width()) {
     // In this case, the cycle view is growing. To achieve the scaling
     // animation we set the widget bounds immediately and scale the clipping
-    // rect of |this|'s layer from where the |old_bounds| would be in the
+    // rect of `this`'s layer from where the `old_bounds` would be in the
     // new local coordinates.
     GetWidget()->SetBounds(screen_bounds);
     old_bounds +=
@@ -296,7 +326,7 @@ void WindowCycleView::ScaleCycleView(const gfx::Rect& screen_bounds) {
 gfx::Rect WindowCycleView::GetTargetBounds() const {
   // The widget is sized clamped to the screen bounds. Its child, the mirror
   // container which is parent to all the previews may be larger than the
-  // widget as some previews will be offscreen. In Layout() of |cycle_view_|
+  // widget as some previews will be offscreen. In `Layout()` of `cycle_view_`
   // the mirror container will be slid back and forth depending on the target
   // window.
   gfx::Rect widget_rect = root_window_->GetBoundsInScreen();
@@ -318,15 +348,15 @@ void WindowCycleView::UpdateWindows(const WindowList& windows) {
     return;
 
   for (auto* window : windows) {
-    auto* view = mirror_container_->AddChildView(
-        std::make_unique<WindowCycleItemView>(window));
-    window_view_map_[window] = view;
-
-    no_previews_set_.insert(view);
+    if (auto* view = BuildAndConfigureCycleView(
+            window, mirror_container_, cycle_views_, windows, same_app_only_)) {
+      cycle_views_.push_back(view);
+      no_previews_list_.push_back(view);
+    }
   }
 
   // If there was an ongoing drag session, it's now been completed so reset
-  // |horizontal_distance_dragged_|.
+  // `horizontal_distance_dragged_`.
   horizontal_distance_dragged_ = 0.f;
 
   gfx::Rect widget_rect = GetTargetBounds();
@@ -349,7 +379,7 @@ void WindowCycleView::FadeInLayer() {
   settings.CacheRenderSurface();
   ui::AnimationThroughputReporter reporter(
       settings.GetAnimator(),
-      metrics_util::ForSmoothness(base::BindRepeating([](int smoothness) {
+      metrics_util::ForSmoothnessV3(base::BindRepeating([](int smoothness) {
         UMA_HISTOGRAM_PERCENTAGE(kShowAnimationSmoothness, smoothness);
       })));
 
@@ -360,25 +390,26 @@ void WindowCycleView::ScrollToWindow(aura::Window* target) {
   current_window_ = target;
 
   // If there was an ongoing drag session, it's now been completed so reset
-  // |horizontal_distance_dragged_|.
+  // |`horizontal_distance_dragged_`.
   horizontal_distance_dragged_ = 0.f;
 
   if (GetWidget())
     Layout();
 }
 
-void WindowCycleView::SetTargetWindow(aura::Window* target) {
+void WindowCycleView::SetTargetWindow(aura::Window* new_target) {
   // Hide the focus border of the previous target window and show the focus
   // border of the new one.
   if (target_window_) {
-    auto target_it = window_view_map_.find(target_window_);
-    if (target_it != window_view_map_.end())
-      target_it->second->UpdateFocusState(/*focus=*/false);
+    if (auto* view = GetCycleViewForWindow(target_window_)) {
+      view->UpdateFocusState(/*focus=*/false);
+    }
   }
-  target_window_ = target;
-  auto target_it = window_view_map_.find(target_window_);
-  if (target_it != window_view_map_.end())
-    target_it->second->UpdateFocusState(/*focus=*/true);
+
+  target_window_ = new_target;
+  if (auto* view = GetCycleViewForWindow(target_window_)) {
+    view->UpdateFocusState(/*focus=*/true);
+  }
 
   // Focus the target window if the user is not currently switching the mode
   // while ChromeVox is on.
@@ -390,13 +421,16 @@ void WindowCycleView::SetTargetWindow(aura::Window* target) {
   auto* window_cycle_controller = Shell::Get()->window_cycle_controller();
   const bool chromevox_enabled = a11y_controller->spoken_feedback().enabled();
   const bool is_switching_mode = window_cycle_controller->IsSwitchingMode();
-  if (!target_window_ || (chromevox_enabled && is_switching_mode))
+  if (!target_window_ || (chromevox_enabled && is_switching_mode)) {
     return;
+  }
 
+  auto* cycle_view = GetCycleViewForWindow(target_window_);
+  CHECK(cycle_view);
   if (GetWidget()) {
-    window_view_map_[target_window_]->RequestFocus();
+    cycle_view->RequestFocus();
   } else {
-    SetInitiallyFocusedView(window_view_map_[target_window_]);
+    SetInitiallyFocusedView(cycle_view);
     // When alt-tab mode selection is available, announce via ChromeVox the
     // current mode and the directional cue for mode switching.
     if (window_cycle_controller->IsInteractiveAltTabModeAllowed()) {
@@ -411,16 +445,21 @@ void WindowCycleView::SetTargetWindow(aura::Window* target) {
 
 void WindowCycleView::HandleWindowDestruction(aura::Window* destroying_window,
                                               aura::Window* new_target) {
-  auto view_iter = window_view_map_.find(destroying_window);
-  WindowCycleItemView* preview = view_iter->second;
+  WindowMiniViewBase* preview = GetCycleViewForWindow(destroying_window);
+  CHECK(preview);
   views::View* parent = preview->parent();
-  DCHECK_EQ(mirror_container_, parent);
-  window_view_map_.erase(view_iter);
-  no_previews_set_.erase(preview);
-  delete preview;
+  CHECK_EQ(mirror_container_, parent);
 
-  // With one of its children now gone, we must re-layout |mirror_container_|.
-  // This must happen before ScrollToWindow() to make sure our own Layout()
+  if (preview->TryRemovingChildItem(destroying_window) == 0) {
+    // With no remaining child mini views contained in `preview`, we need to
+    // remove `preview` and clean up the `preview` in `cycle_views_` and
+    // `no_previews_list_`.
+    base::Erase(cycle_views_, preview);
+    base::Erase(no_previews_list_, preview);
+    parent->RemoveChildViewT(preview);
+  }
+  // With one of its children now gone, we must re-layout `mirror_container_`.
+  // This must happen before `ScrollToWindow()` to make sure our own `Layout()`
   // works correctly when it's calculating highlight bounds.
   parent->Layout();
   SetTargetWindow(new_target);
@@ -429,9 +468,8 @@ void WindowCycleView::HandleWindowDestruction(aura::Window* destroying_window,
 
 void WindowCycleView::DestroyContents() {
   is_destroying_ = true;
-
-  window_view_map_.clear();
-  no_previews_set_.clear();
+  cycle_views_.clear();
+  no_previews_list_.clear();
   target_window_ = nullptr;
   current_window_ = nullptr;
   defer_widget_bounds_update_ = false;
@@ -482,9 +520,10 @@ bool WindowCycleView::IsTabSliderFocused() const {
 
 aura::Window* WindowCycleView::GetWindowAtPoint(
     const gfx::Point& screen_point) {
-  for (const auto& entry : window_view_map_) {
-    if (entry.second->GetBoundsInScreen().Contains(screen_point))
-      return entry.first;
+  for (const auto* view : cycle_views_) {
+    if (auto* window = view->GetWindowAtPoint(screen_point)) {
+      return window;
+    }
   }
   return nullptr;
 }
@@ -497,9 +536,19 @@ void WindowCycleView::OnModePrefsChanged() {
   all_desks_tab_slider_button_->SetSelected(!per_desk);
 }
 
+bool WindowCycleView::IsEventInTabSliderContainer(
+    const gfx::Point& screen_point) const {
+  return tab_slider_ && tab_slider_->GetBoundsInScreen().Contains(screen_point);
+}
+
+int WindowCycleView::CalculateMaxWidth() const {
+  return root_window_->GetBoundsInScreen().size().width() -
+         2 * kBackgroundHorizontalInsetDp;
+}
+
 gfx::Size WindowCycleView::CalculatePreferredSize() const {
   gfx::Size size = GetContentContainerBounds().size();
-  // |mirror_container_| can have window list that overflow out of the
+  // `mirror_container_` can have window list that overflow out of the
   // screen, but the window cycle view with a bandshield, cropping the
   // overflow window list, should remain within the specified horizontal
   // insets of the screen width.
@@ -508,8 +557,8 @@ gfx::Size WindowCycleView::CalculatePreferredSize() const {
   if (Shell::Get()
           ->window_cycle_controller()
           ->IsInteractiveAltTabModeAllowed()) {
-    DCHECK(tab_slider_);
-    // |mirror_container_| can have window list with width smaller the tab
+    CHECK(tab_slider_);
+    // `mirror_container_` can have window list with width smaller the tab
     // slider's width. The padding should be 64px from the tab slider.
     const int min_width = tab_slider_->GetPreferredSize().width() +
                           2 * WindowCycleView::kInsideBorderHorizontalPaddingDp;
@@ -532,8 +581,8 @@ void WindowCycleView::Layout() {
   }
 
   const bool first_layout = mirror_container_->bounds().IsEmpty();
-  // If |mirror_container_| has not yet been laid out, we must lay it and
-  // its descendants out so that the calculations based on |target_view|
+  // If `mirror_container_` has not yet been laid out, we must lay it and
+  // its descendants out so that the calculations based on `target_view`
   // work properly.
   if (first_layout) {
     mirror_container_->SizeToPreferredSize();
@@ -543,12 +592,12 @@ void WindowCycleView::Layout() {
 
   gfx::RectF target_bounds;
   if (current_window_ || !is_interactive_alt_tab_mode_allowed) {
-    views::View* target_view = window_view_map_[current_window_];
+    views::View* target_view = GetCycleViewForWindow(current_window_);
     target_bounds = gfx::RectF(target_view->GetLocalBounds());
     views::View::ConvertRectToTarget(target_view, mirror_container_,
                                      &target_bounds);
   } else {
-    DCHECK(no_recent_items_label_);
+    CHECK(no_recent_items_label_);
     target_bounds = gfx::RectF(no_recent_items_label_->bounds());
   }
 
@@ -572,7 +621,7 @@ void WindowCycleView::Layout() {
     x_offset = std::clamp(x_offset, minimum_x, 0);
 
     // If the user has dragged, offset the container based on how much they
-    // have dragged. Cap |horizontal_distance_dragged_| based on the available
+    // have dragged. Cap `horizontal_distance_dragged_` based on the available
     // distance from the container to the left and right boundaries.
     float clamped_horizontal_distance_dragged = std::clamp(
         horizontal_distance_dragged_, static_cast<float>(minimum_x - x_offset),
@@ -609,8 +658,8 @@ void WindowCycleView::Layout() {
     no_recent_items_label_->SetBoundsRect(no_recent_item_bounds_);
   }
 
-  // Enable animations only after the first Layout() pass. If |this| is
-  // animating or |defer_widget_bounds_update_|, don't animate as well since
+  // Enable animations only after the first `Layout()` pass. If `this` is
+  // animating or `defer_widget_bounds_update_`, don't animate as well since
   // the cycle view is already being animated or just finished animating for
   // mode switch.
   std::unique_ptr<ui::ScopedLayerAnimationSettings> settings;
@@ -623,7 +672,7 @@ void WindowCycleView::Layout() {
     settings->SetTransitionDuration(kContainerSlideDuration);
     reporter.emplace(
         settings->GetAnimator(),
-        metrics_util::ForSmoothness(base::BindRepeating([](int smoothness) {
+        metrics_util::ForSmoothnessV3(base::BindRepeating([](int smoothness) {
           // Reports animation metrics when the mirror container, which holds
           // all the preview views slides along the x-axis. This can happen
           // while tabbing through windows, if the window cycle ui spans the
@@ -633,17 +682,18 @@ void WindowCycleView::Layout() {
   }
   mirror_container_->SetBoundsRect(content_container_bounds);
 
-  // If an element in |no_previews_set_| is no onscreen (its bounds in |this|
-  // coordinates intersects |this|), create the rest of its elements and
+  // If an element in `no_previews_list_` is no onscreen (its bounds in `this`
+  // coordinates intersects `this`), create the rest of its elements and
   // remove it from the set.
   const gfx::RectF local_bounds(GetLocalBounds());
-  for (auto it = no_previews_set_.begin(); it != no_previews_set_.end();) {
-    WindowCycleItemView* view = *it;
+  for (auto it = no_previews_list_.begin(); it != no_previews_list_.end();) {
+    WindowMiniViewBase* view = *it;
     gfx::RectF bounds(view->GetLocalBounds());
     views::View::ConvertRectToTarget(view, this, &bounds);
     if (bounds.Intersects(local_bounds)) {
-      view->ShowPreview();
-      it = no_previews_set_.erase(it);
+      view->SetShowPreview(/*show=*/true);
+      view->RefreshItemVisuals();
+      it = no_previews_list_.erase(it);
     } else {
       ++it;
     }
@@ -651,11 +701,10 @@ void WindowCycleView::Layout() {
 }
 
 void WindowCycleView::OnImplicitAnimationsCompleted() {
-  occlusion_tracker_pauser_.reset();
   layer()->SetClipRect(gfx::Rect());
   if (defer_widget_bounds_update_) {
-    // This triggers a Layout() so reset |defer_widget_bounds_update_| after
-    // calling SetBounds() to prevent the mirror container from animating.
+    // This triggers a `Layout()` so reset `defer_widget_bounds_update_` after
+    // calling `SetBounds()` to prevent the mirror container from animating.
     GetWidget()->SetBounds(GetTargetBounds());
     defer_widget_bounds_update_ = false;
   }
@@ -663,21 +712,21 @@ void WindowCycleView::OnImplicitAnimationsCompleted() {
   shadow_->GetLayer()->SetVisible(true);
 }
 
-bool WindowCycleView::IsEventInTabSliderContainer(
-    const gfx::Point& screen_point) {
-  return tab_slider_ && tab_slider_->GetBoundsInScreen().Contains(screen_point);
-}
-
-int WindowCycleView::CalculateMaxWidth() const {
-  return root_window_->GetBoundsInScreen().size().width() -
-         2 * kBackgroundHorizontalInsetDp;
-}
-
 gfx::Rect WindowCycleView::GetContentContainerBounds() const {
   const bool empty_mirror_container = mirror_container_->children().empty();
   if (empty_mirror_container && no_recent_items_label_)
     return gfx::Rect(no_recent_items_label_->GetPreferredSize());
   return gfx::Rect(mirror_container_->GetPreferredSize());
+}
+
+WindowMiniViewBase* WindowCycleView::GetCycleViewForWindow(
+    aura::Window* window) const {
+  for (auto* view : cycle_views_) {
+    if (view->Contains(window)) {
+      return view;
+    }
+  }
+  return nullptr;
 }
 
 BEGIN_METADATA(WindowCycleView, views::WidgetDelegateView)

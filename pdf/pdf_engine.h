@@ -78,7 +78,11 @@ enum class DocumentPermission {
 // Do one time initialization of the SDK.
 // If `enable_v8` is false, then the PDFEngine will not be able to run
 // JavaScript.
-void InitializeSDK(bool enable_v8, FontMappingMode font_mapping_mode);
+// When `use_skia` is true, the PDFEngine will use Skia renderer. Otherwise, it
+// will use AGG renderer.
+void InitializeSDK(bool enable_v8,
+                   bool use_skia,
+                   FontMappingMode font_mapping_mode);
 // Tells the SDK that we're shutting down.
 void ShutdownSDK();
 
@@ -404,6 +408,8 @@ class PDFEngine {
   virtual std::vector<AccessibilityImageInfo> GetImageInfo(
       int page_index,
       uint32_t text_run_count) = 0;
+  // Returns the image as a 32-bit bitmap format for OCR.
+  virtual SkBitmap GetImageForOcr(int page_index, int image_index) = 0;
   // For all the highlights in page `page_index`, get their underlying text
   // ranges and bounding boxes.
   virtual std::vector<AccessibilityHighlightInfo> GetHighlightInfo(

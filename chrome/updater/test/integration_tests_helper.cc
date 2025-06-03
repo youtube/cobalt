@@ -32,7 +32,7 @@
 #include "chrome/updater/ipc/ipc_support.h"
 #include "chrome/updater/test/integration_tests_impl.h"
 #include "chrome/updater/updater_scope.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/util/unit_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
@@ -148,6 +148,40 @@ base::RepeatingCallback<bool(Args...)> WithSwitch(
       }));
 }
 
+// Overload for Time switches.
+template <typename... Args>
+base::RepeatingCallback<bool(Args...)> WithSwitch(
+    const std::string& flag,
+    base::RepeatingCallback<bool(const base::Time&, Args...)> callback) {
+  return WithSwitch(
+      flag,
+      base::BindLambdaForTesting([=](const std::string& flag, Args... args) {
+        double flag_value;
+        if (base::StringToDouble(flag, &flag_value)) {
+          return callback.Run(
+              base::Time::FromMillisecondsSinceUnixEpoch(flag_value),
+              std::move(args)...);
+        }
+        return false;
+      }));
+}
+
+// Overload for TimeDelta switches.
+template <typename... Args>
+base::RepeatingCallback<bool(Args...)> WithSwitch(
+    const std::string& flag,
+    base::RepeatingCallback<bool(const base::TimeDelta&, Args...)> callback) {
+  return WithSwitch(
+      flag,
+      base::BindLambdaForTesting([=](const std::string& flag, Args... args) {
+        int flag_value;
+        if (base::StringToInt(flag, &flag_value)) {
+          return callback.Run(base::Seconds(flag_value), std::move(args)...);
+        }
+        return false;
+      }));
+}
+
 // Overload for base::Value::Dict switches.
 template <typename... Args>
 base::RepeatingCallback<bool(Args...)> WithSwitch(
@@ -255,17 +289,24 @@ void AppTestHelper::FirstTaskRun() {
     // then use the With* helper functions to provide its arguments.
     {"clean", WithSystemScope(Wrap(&Clean))},
     {"enter_test_mode",
-     WithSwitch("device_management_url",
-                WithSwitch("crash_upload_url",
-                           WithSwitch("update_url", Wrap(&EnterTestMode))))},
+     WithSwitch("idle_timeout",
+                WithSwitch("device_management_url",
+                           WithSwitch("crash_upload_url",
+                                      WithSwitch("update_url",
+                                                 Wrap(&EnterTestMode)))))},
     {"exit_test_mode", WithSystemScope(Wrap(&ExitTestMode))},
     {"set_group_policies", WithSwitch("values", Wrap(&SetGroupPolicies))},
+    {"set_platform_policies", WithSwitch("values", Wrap(&SetPlatformPolicies))},
+    {"set_machine_managed", WithSwitch("managed", Wrap(&SetMachineManaged))},
     {"fill_log", WithSystemScope(Wrap(&FillLog))},
     {"expect_log_rotated", WithSystemScope(Wrap(&ExpectLogRotated))},
     {"expect_registered",
      WithSwitch("app_id", WithSystemScope(Wrap(&ExpectRegistered)))},
     {"expect_not_registered",
      WithSwitch("app_id", WithSystemScope(Wrap(&ExpectNotRegistered)))},
+    {"expect_app_tag",
+     WithSwitch("tag",
+                WithSwitch("app_id", WithSystemScope(Wrap(&ExpectAppTag))))},
     {"expect_app_version",
      WithSwitch("version", WithSwitch("app_id", WithSystemScope(
                                                     Wrap(&ExpectAppVersion))))},
@@ -310,22 +351,42 @@ void AppTestHelper::FirstTaskRun() {
      WithSwitch("version", WithSystemScope(Wrap(&ExpectVersionNotActive)))},
     {"install", WithSystemScope(Wrap(&Install))},
     {"install_updater_and_app",
-     WithSwitch("app_id", WithSystemScope(Wrap(&InstallUpdaterAndApp)))},
+     WithSwitch(
+         "child_window_text_to_find",
+         WithSwitch(
+             "tag",
+             WithSwitch("is_silent_install",
+                        WithSwitch("app_id", WithSystemScope(Wrap(
+                                                 &InstallUpdaterAndApp))))))},
     {"print_log", WithSystemScope(Wrap(&PrintLog))},
     {"run_wake", WithSwitch("exit_code", WithSystemScope(Wrap(&RunWake)))},
     {"run_wake_all", WithSystemScope(Wrap(&RunWakeAll))},
     {"run_wake_active",
      WithSwitch("exit_code", WithSystemScope(Wrap(&RunWakeActive)))},
     {"run_crash_me", WithSystemScope(Wrap(&RunCrashMe))},
+    {"run_server",
+     WithSwitch("internal",
+                WithSwitch("exit_code", WithSystemScope(Wrap(&RunServer))))},
     {"update",
      WithSwitch("install_data_index",
                 (WithSwitch("app_id", WithSystemScope(Wrap(&Update)))))},
     {"check_for_update",
      (WithSwitch("app_id", WithSystemScope(Wrap(&CheckForUpdate))))},
     {"update_all", WithSystemScope(Wrap(&UpdateAll))},
+    {"get_app_states",
+     WithSwitch("expected_app_states", WithSystemScope(Wrap(&GetAppStates)))},
     {"delete_updater_directory",
      WithSystemScope(Wrap(&DeleteUpdaterDirectory))},
-    {"install_app", WithSwitch("app_id", WithSystemScope(Wrap(&InstallApp)))},
+    {"delete_active_updater_executable",
+     WithSystemScope(Wrap(&DeleteActiveUpdaterExecutable))},
+    {"delete_file", (WithSwitch("path", WithSystemScope(Wrap(&DeleteFile))))},
+    {"install_app",
+     WithSwitch("version",
+                WithSwitch("app_id", WithSystemScope(Wrap(&InstallApp))))},
+    {"install_app_via_service",
+     WithSwitch(
+         "expected_final_values",
+         WithSwitch("app_id", WithSystemScope(Wrap(&InstallAppViaService))))},
     {"uninstall_app",
      WithSwitch("app_id", WithSystemScope(Wrap(&UninstallApp)))},
     {"set_existence_checker_path",
@@ -352,17 +413,31 @@ void AppTestHelper::FirstTaskRun() {
 #if BUILDFLAG(IS_WIN)
     {"run_fake_legacy_updater", WithSystemScope(Wrap(&RunFakeLegacyUpdater))},
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC)
+    {"privileged_helper_install",
+     WithSystemScope(Wrap(&PrivilegedHelperInstall))},
+#endif  // BUILDFLAG(IS_MAC)
     {"expect_legacy_updater_migrated",
      WithSystemScope(Wrap(&ExpectLegacyUpdaterMigrated))},
     {"run_recovery_component",
      WithSwitch("version", WithSwitch("app_id", WithSystemScope(Wrap(
                                                     &RunRecoveryComponent))))},
+    {"set_last_checked",
+     WithSwitch("time", WithSystemScope(Wrap(&SetLastChecked)))},
     {"expect_last_checked", WithSystemScope(Wrap(&ExpectLastChecked))},
     {"expect_last_started", WithSystemScope(Wrap(&ExpectLastStarted))},
     {"run_offline_install",
      WithSwitch("silent",
                 WithSwitch("legacy_install",
                            WithSystemScope(Wrap(&RunOfflineInstall))))},
+    {"run_offline_install_os_not_supported",
+     WithSwitch("silent", WithSwitch("legacy_install",
+                                     WithSystemScope(Wrap(
+                                         &RunOfflineInstallOsNotSupported))))},
+    {"dm_push_enrollment_token",
+     WithSwitch("enrollment_token", Wrap(DMPushEnrollmentToken))},
+    {"dm_deregister_device", WithSystemScope(Wrap(&DMDeregisterDevice))},
+    {"dm_cleanup", WithSystemScope(Wrap(&DMCleanup))},
   };
 
   const base::CommandLine* command_line =

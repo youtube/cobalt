@@ -11,10 +11,11 @@ import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.metrics.LowEntropySource;
 import org.chromium.components.variations.NormalizedMurmurHashEntropyProvider;
 import org.chromium.components.version_info.Channel;
@@ -29,7 +30,7 @@ import java.lang.annotation.RetentionPolicy;
  * client controlled because this experiment runs on First Run Experience when native code is not
  * initialized and variation seed in not available.
  *
- * After creating a field trial the group information is saved in {@link SharedPreferencesManager}
+ * After creating a field trial the group information is saved in {@link ChromeSharedPreferences}
  * so that it's available in subsequent runs of Chrome.
  */
 public class FREMobileIdentityConsistencyFieldTrial {
@@ -104,10 +105,9 @@ public class FREMobileIdentityConsistencyFieldTrial {
     }
 
     @AnyThread
-    @VariationsGroup
-    private static int getFirstRunTrialGroup() {
+    private static @VariationsGroup int getFirstRunTrialGroup() {
         synchronized (LOCK) {
-            return SharedPreferencesManager.getInstance().readInt(
+            return ChromeSharedPreferences.getInstance().readInt(
                     ChromePreferenceKeys.FIRST_RUN_VARIATIONS_FIELD_TRIAL_GROUP,
                     VariationsGroup.DEFAULT);
         }
@@ -175,8 +175,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
     @CalledByNative
     @AnyThread
     public static String getFirstRunVariationsTrialGroupName() {
-        @VariationsGroup
-        final int group = getFirstRunTrialGroup();
+        final @VariationsGroup int group = getFirstRunTrialGroup();
         switch (group) {
             case VariationsGroup.WELCOME_TO_CHROME:
                 return "Control";
@@ -203,8 +202,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
      */
     @MainThread
     public static Pair<Integer, Integer> getVariationTitleAndSubtitle() {
-        @VariationsGroup
-        final int group = getFirstRunTrialGroup();
+        final @VariationsGroup int group = getFirstRunTrialGroup();
         switch (group) {
             case VariationsGroup.WELCOME_TO_CHROME:
                 return new Pair(R.string.fre_welcome, 0);
@@ -224,18 +222,19 @@ public class FREMobileIdentityConsistencyFieldTrial {
         }
     }
 
-    @VariationsGroup
-    private static int generateFirstRunStringVariationsGroup(
+    private static @VariationsGroup int generateFirstRunStringVariationsGroup(
             int lowEntropyValue, int lowEntropySize) {
-        int variationsPercentage = 0;
+        double variationsPercentage = 0;
         switch (VersionConstants.CHANNEL) {
             case Channel.DEFAULT:
             case Channel.CANARY:
             case Channel.DEV:
+            case Channel.BETA:
                 variationsPercentage = 10;
                 break;
-            case Channel.BETA:
             case Channel.STABLE:
+                variationsPercentage = 0.5;
+                break;
         }
         // For A/B testing all experiment groups should have the same percentages.
         assert variationsPercentage * VariationsGroup.MAX_VALUE <= 100;
@@ -258,8 +257,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
      */
     @MainThread
     public static boolean shouldHideTitleUntilPoliciesAreLoaded() {
-        @VariationsGroup
-        final int group = getFirstRunTrialGroup();
+        final @VariationsGroup int group = getFirstRunTrialGroup();
         return group != VariationsGroup.DEFAULT && group != VariationsGroup.WELCOME_TO_CHROME;
     }
 
@@ -278,7 +276,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
             // Don't create a new group if the user was already assigned a group. Can
             // happen when the user dismisses FRE without finishing the flow and starts chrome
             // again.
-            if (SharedPreferencesManager.getInstance().readInt(
+            if (ChromeSharedPreferences.getInstance().readInt(
                         ChromePreferenceKeys.FIRST_RUN_VARIATIONS_FIELD_TRIAL_GROUP, -2)
                     != -2) {
                 return;
@@ -288,7 +286,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
                 LowEntropySource.generateLowEntropySourceForFirstRunTrial(),
                 LowEntropySource.MAX_LOW_ENTROPY_SIZE);
         synchronized (LOCK) {
-            SharedPreferencesManager.getInstance().writeInt(
+            ChromeSharedPreferences.getInstance().writeInt(
                     ChromePreferenceKeys.FIRST_RUN_VARIATIONS_FIELD_TRIAL_GROUP, group);
         }
     }
@@ -296,7 +294,7 @@ public class FREMobileIdentityConsistencyFieldTrial {
     @AnyThread
     public static void setFirstRunVariationsTrialGroupForTesting(@VariationsGroup int group) {
         synchronized (LOCK) {
-            SharedPreferencesManager.getInstance().writeInt(
+            ChromeSharedPreferences.getInstance().writeInt(
                     ChromePreferenceKeys.FIRST_RUN_VARIATIONS_FIELD_TRIAL_GROUP, group);
         }
     }

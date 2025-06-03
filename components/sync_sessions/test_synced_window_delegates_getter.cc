@@ -4,8 +4,6 @@
 
 #include "components/sync_sessions/test_synced_window_delegates_getter.h"
 
-#include <utility>
-
 #include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "components/sessions/core/serialized_navigation_entry_test_helper.h"
@@ -116,6 +114,10 @@ bool TestSyncedTabDelegate::IsBeingDestroyed() const {
   return false;
 }
 
+base::Time TestSyncedTabDelegate::GetLastActiveTime() const {
+  return base::Time::UnixEpoch();
+}
+
 std::string TestSyncedTabDelegate::GetExtensionAppId() const {
   return std::string();
 }
@@ -173,6 +175,12 @@ int64_t TestSyncedTabDelegate::GetRootTaskIdForNavigationId(int nav_id) const {
   return -1;
 }
 
+std::unique_ptr<SyncedTabDelegate>
+TestSyncedTabDelegate::CreatePlaceholderTabSyncedTabDelegate() {
+  NOTREACHED();
+  return nullptr;
+}
+
 PlaceholderTabDelegate::PlaceholderTabDelegate(SessionID tab_id)
     : tab_id_(tab_id) {}
 
@@ -186,6 +194,17 @@ bool PlaceholderTabDelegate::IsPlaceholderTab() const {
   return true;
 }
 
+void PlaceholderTabDelegate::SetPlaceholderTabSyncedTabDelegate(
+    std::unique_ptr<SyncedTabDelegate> delegate) {
+  placeholder_tab_synced_tab_delegate_ = std::move(delegate);
+}
+
+std::unique_ptr<SyncedTabDelegate>
+PlaceholderTabDelegate::CreatePlaceholderTabSyncedTabDelegate() {
+  CHECK(placeholder_tab_synced_tab_delegate_);
+  return std::move(placeholder_tab_synced_tab_delegate_);
+}
+
 SessionID PlaceholderTabDelegate::GetWindowId() const {
   NOTREACHED();
   return SessionID::InvalidValue();
@@ -194,6 +213,11 @@ SessionID PlaceholderTabDelegate::GetWindowId() const {
 bool PlaceholderTabDelegate::IsBeingDestroyed() const {
   NOTREACHED();
   return false;
+}
+
+base::Time PlaceholderTabDelegate::GetLastActiveTime() const {
+  NOTREACHED();
+  return base::Time::UnixEpoch();
 }
 
 std::string PlaceholderTabDelegate::GetExtensionAppId() const {
@@ -308,10 +332,6 @@ SessionID TestSyncedWindowDelegate::GetSessionId() const {
 
 int TestSyncedWindowDelegate::GetTabCount() const {
   return tab_delegates_.size();
-}
-
-int TestSyncedWindowDelegate::GetActiveIndex() const {
-  return 0;
 }
 
 bool TestSyncedWindowDelegate::IsTypeNormal() const {

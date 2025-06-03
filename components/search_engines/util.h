@@ -147,17 +147,29 @@ void ApplyActionsFromCurrentData(
     TemplateURL* default_search_provider,
     std::set<std::string>* removed_keyword_guids);
 
+// Returns the GUID of the default search provider.
+// Migrates `kSyncedDefaultSearchProviderGUID` to `kDefaultSearchProviderGUID`
+// if the latter is empty and the search engine choice feature is enabled.
+// Gets the value of the corresponding preference based on the search engine
+// choice feature flag.
+const std::string& GetDefaultSearchProviderPrefValue(PrefService& prefs);
+
+// Sets the corresponding default search provider preference based on the search
+// engine choice feature flag.
+void SetDefaultSearchProviderPrefValue(PrefService& prefs,
+                                       const std::string& value);
+
 // Processes the results of KeywordWebDataService::GetKeywords, combining it
 // with prepopulated search providers to result in:
 //  * a set of template_urls (search providers). The caller owns the
 //    TemplateURL* returned in template_urls.
-//  * whether there is a new resource keyword version (and the value).
-//    |*new_resource_keyword_version| is set to 0 if no new value. Otherwise,
-//    it is the new value.
+//  * whether the resource keyword data was updated.
+//    `*new_resource_keyword_version` is set to 0 if the data was not updated.
+//    Otherwise, it is the new version number from the prepopulated data.
 // Only pass in a non-NULL value for service if the KeywordWebDataService should
-// be updated. If |removed_keyword_guids| is not NULL, any TemplateURLs removed
+// be updated. If `removed_keyword_guids` is not NULL, any TemplateURLs removed
 // from the keyword table in the KeywordWebDataService will have their Sync
-// GUIDs added to it. |default_search_provider| will be used to prevent removing
+// GUIDs added to it. `default_search_provider` will be used to prevent removing
 // the current user-selected DSE, regardless of changes in prepopulate data.
 void GetSearchProvidersUsingKeywordResult(
     const WDTypedResult& result,

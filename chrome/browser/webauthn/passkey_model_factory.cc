@@ -19,24 +19,31 @@ PasskeyModelFactory* PasskeyModelFactory::GetInstance() {
   return instance.get();
 }
 
-PasskeyModel* PasskeyModelFactory::GetForProfile(Profile* profile) {
-  return static_cast<PasskeyModel*>(
+webauthn::PasskeyModel* PasskeyModelFactory::GetForProfile(Profile* profile) {
+  return static_cast<webauthn::PasskeyModel*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
 
 PasskeyModelFactory::PasskeyModelFactory()
     : ProfileKeyedServiceFactory(
           "PasskeyModel",
-          ProfileSelections::BuildRedirectedToOriginal()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ModelTypeStoreServiceFactory::GetInstance());
 }
 
 PasskeyModelFactory::~PasskeyModelFactory() = default;
 
-KeyedService* PasskeyModelFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PasskeyModelFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   DCHECK(base::FeatureList::IsEnabled(syncer::kSyncWebauthnCredentials));
-  return new PasskeySyncBridge(ModelTypeStoreServiceFactory::GetForProfile(
-                                   Profile::FromBrowserContext(context))
-                                   ->GetStoreFactory());
+  return std::make_unique<webauthn::PasskeySyncBridge>(
+      ModelTypeStoreServiceFactory::GetForProfile(
+          Profile::FromBrowserContext(context))
+          ->GetStoreFactory());
 }

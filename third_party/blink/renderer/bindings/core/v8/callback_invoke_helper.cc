@@ -38,7 +38,8 @@ bool CallbackInvokeHelper<CallbackBase, mode, return_type_is_promise>::
   if constexpr (mode == CallbackInvokeHelperMode::kConstructorCall) {
     // step 3. If ! IsConstructor(F) is false, throw a TypeError exception.
     if (!callback_->IsConstructor()) {
-      ExceptionState exception_state(isolate, ExceptionState::kExecutionContext,
+      ExceptionState exception_state(isolate,
+                                     ExceptionContextType::kOperationInvoke,
                                      class_like_name_, property_name_);
       exception_state.ThrowTypeError(
           "The provided callback is not a constructor.");
@@ -112,16 +113,16 @@ bool CallbackInvokeHelper<CallbackBase, mode, return_type_is_promise>::
       //   1) If there's a current running task, no need to create a new scope.
       //   2) If there is no current running task, set the parent to
       //   absl::nullopt, making the current callback a root task.
-      absl::optional<scheduler::TaskAttributionId> parent_id;
+      scheduler::TaskAttributionInfo* parent_task = nullptr;
       if constexpr (std::is_same<
                         CallbackBase,
                         CallbackFunctionWithTaskAttributionBase>::value) {
-        parent_id = callback_->GetParentTaskId();
+        parent_task = callback_->GetParentTask();
       }
-      if (parent_id || !tracker->RunningTaskAttributionId(
-                           callback_->CallbackRelevantScriptState())) {
+      if (parent_task ||
+          !tracker->RunningTask(callback_->CallbackRelevantScriptState())) {
         task_attribution_scope_ = tracker->CreateTaskScope(
-            callback_->CallbackRelevantScriptState(), parent_id,
+            callback_->CallbackRelevantScriptState(), parent_task,
             scheduler::TaskAttributionTracker::TaskScopeType::kCallback);
       }
     }

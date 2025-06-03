@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
@@ -36,8 +37,10 @@ struct SpellcheckTestCase {
 
 base::FilePath GetHunspellDirectory() {
   base::FilePath hunspell_directory;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &hunspell_directory))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
+                              &hunspell_directory)) {
     return base::FilePath();
+  }
 
   hunspell_directory = hunspell_directory.AppendASCII("third_party");
   hunspell_directory = hunspell_directory.AppendASCII("hunspell_dictionaries");
@@ -117,7 +120,7 @@ class MultilingualSpellCheckTest : public testing::Test {
   spellcheck::EmptyLocalInterfaceProvider embedder_provider_;
 
   // Owned by |provider_|.
-  SpellCheck* spellcheck_;
+  raw_ptr<SpellCheck, DanglingUntriaged> spellcheck_;
   std::unique_ptr<TestingSpellCheckProvider> provider_;
 };
 

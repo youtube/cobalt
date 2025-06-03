@@ -25,7 +25,10 @@ class CORE_EXPORT CSSAnimation : public Animation {
   bool IsCSSAnimation() const final { return true; }
 
   void ClearOwningElement() final { owning_element_ = nullptr; }
-  Element* OwningElement() const override { return owning_element_; }
+  Element* OwningElement() const override { return owning_element_.Get(); }
+
+  // Animation effect owner implementation.
+  bool IsEventDispatchAllowed() const override;
 
   const String& animationName() const { return animation_name_; }
   wtf_size_t AnimationIndex() const { return animation_index_; }

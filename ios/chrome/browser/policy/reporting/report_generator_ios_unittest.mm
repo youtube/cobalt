@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import <vector>
 
 #import "base/files/file_path.h"
@@ -17,11 +13,11 @@
 #import "components/policy/core/common/mock_policy_service.h"
 #import "components/policy/core/common/policy_map.h"
 #import "components/policy/core/common/schema_registry.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state_manager.h"
 #import "ios/chrome/browser/policy/browser_state_policy_connector_mock.h"
 #import "ios/chrome/browser/policy/reporting/reporting_delegate_factory_ios.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state_manager.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_chrome_browser_state_manager.h"
@@ -155,10 +151,6 @@ TEST_F(ReportGeneratorIOSTest, GenerateBasicReport) {
   EXPECT_NE(std::string(), os_report.name());
   EXPECT_NE(std::string(), os_report.arch());
   EXPECT_NE(std::string(), os_report.version());
-
-  // Ensure there are no partial reports
-  EXPECT_EQ(
-      0, basic_request->GetDeviceReportRequest().partial_report_types_size());
 
   // Verify the browser report
   EXPECT_TRUE(basic_request->GetDeviceReportRequest().has_browser_report());

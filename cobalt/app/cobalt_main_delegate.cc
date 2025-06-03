@@ -14,6 +14,7 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include "base/functional/overloaded.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
@@ -72,7 +73,11 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
-  InitializeHangWatcher();
+  InitializeHangWatcher(invoked_in);
+
+  const std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
@@ -88,7 +93,8 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
   return absl::nullopt;
@@ -127,7 +133,7 @@ void CobaltMainDelegate::Shutdown() {
   main_runner_->Shutdown();
 }
 
-void CobaltMainDelegate::InitializeHangWatcher() {
+void CobaltMainDelegate::InitializeHangWatcher(InvokedIn invoked_in) {
   const base::CommandLine* const command_line =
       base::CommandLine::ForCurrentProcess();
   std::string process_type =
@@ -147,7 +153,15 @@ void CobaltMainDelegate::InitializeHangWatcher() {
   } else {
     hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
   }
-
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
+  bool is_zygote_child = absl::visit(
+      base::Overloaded{[](const InvokedInBrowserProcess& invoked_in_browser) {
+                         return false;
+                       },
+                       [](const InvokedInChildProcess& invoked_in_child) {
+                         return invoked_in_child.is_zygote_child;
+                       }},
+      invoked_in);
+  base::HangWatcher::InitializeOnMainThread(
+      hang_watcher_process_type, /*is_zygote_child=*/is_zygote_child);
 }
 }  // namespace cobalt

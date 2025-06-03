@@ -88,7 +88,9 @@ void ConnectOnUIThread(
 
 }  // namespace
 
-void CastSocket::Observer::OnReadyStateChanged(const CastSocket& socket) {}
+CastSocket::Observer::~Observer() {
+  CHECK(!IsInObserverList());
+}
 
 CastSocketImpl::CastSocketImpl(NetworkContextGetter network_context_getter,
                                const CastSocketOpenParams& open_params,
@@ -626,8 +628,8 @@ void CastSocketImpl::CloseInternal() {
   delegate_.reset();
   transport_.reset();
   mojo_data_pump_.reset();
-  tcp_socket_.reset();
   socket_.reset();
+  tcp_socket_.reset();
   if (GetTimer()) {
     GetTimer()->Stop();
   }

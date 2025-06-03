@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/i18n/char_iterator.h"
 #include "content/browser/accessibility/browser_accessibility_android.h"
 #include "content/browser/accessibility/web_ax_platform_tree_manager_delegate.h"
@@ -387,6 +388,7 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
     case ui::AXEventGenerator::Event::MULTILINE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::MULTISELECTABLE_STATE_CHANGED:
     case ui::AXEventGenerator::Event::OBJECT_ATTRIBUTE_CHANGED:
+    case ui::AXEventGenerator::Event::ORIENTATION_CHANGED:
     case ui::AXEventGenerator::Event::OTHER_ATTRIBUTE_CHANGED:
     case ui::AXEventGenerator::Event::PARENT_CHANGED:
     case ui::AXEventGenerator::Event::PLACEHOLDER_CHANGED:
@@ -531,8 +533,9 @@ void BrowserAccessibilityManagerAndroid::ClearNodeInfoCacheForGivenId(
     return;
 
   // We do not need to clear a node more than once per atomic update.
-  if (nodes_already_cleared_.find(unique_id) != nodes_already_cleared_.end())
+  if (base::Contains(nodes_already_cleared_, unique_id)) {
     return;
+  }
 
   nodes_already_cleared_.emplace(unique_id);
   wcax->ClearNodeInfoCacheForGivenId(unique_id);
@@ -609,40 +612,6 @@ void BrowserAccessibilityManagerAndroid::OnAtomicUpdateFinished(
 
   // Update the maximum number of nodes in the cache after each atomic update.
   wcax->UpdateMaxNodesInCache();
-}
-
-void BrowserAccessibilityManagerAndroid::OnNodeCreated(ui::AXTree* tree,
-                                                       ui::AXNode* node) {
-  BrowserAccessibilityManager::OnNodeCreated(tree, node);
-  if (node->data().GetBoolAttribute(
-          ax::mojom::BoolAttribute::kTouchPassthrough)) {
-    auto* root = static_cast<BrowserAccessibilityManagerAndroid*>(
-        GetManagerForRootFrame());
-    if (root)
-      root->EnableTouchPassthrough();
-    else
-      EnableTouchPassthrough();
-  }
-}
-
-void BrowserAccessibilityManagerAndroid::OnBoolAttributeChanged(
-    ui::AXTree* tree,
-    ui::AXNode* node,
-    ax::mojom::BoolAttribute attr,
-    bool new_value) {
-  BrowserAccessibilityManager::OnBoolAttributeChanged(tree, node, attr,
-                                                      new_value);
-  if (new_value && attr == ax::mojom::BoolAttribute::kTouchPassthrough) {
-    // TODO(accessibility): there's a tiny chance we could get this
-    // called on an iframe before it's attached to the root frame manager.
-    // If this ever becomes an issue in practice, make this more robust.
-    auto* root = static_cast<BrowserAccessibilityManagerAndroid*>(
-        GetManagerForRootFrame());
-    if (root)
-      root->EnableTouchPassthrough();
-    else
-      EnableTouchPassthrough();
-  }
 }
 
 WebContentsAccessibilityAndroid*

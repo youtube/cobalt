@@ -38,6 +38,7 @@
 
 #include "exslt.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
@@ -51,6 +52,12 @@
 #endif
 
 #include <time.h>
+
+#if defined(_MSC_VER) && _MSC_VER >= 1400 || \
+    defined(_WIN32) && \
+    defined(__MINGW64_VERSION_MAJOR) && __MINGW64_VERSION_MAJOR >= 4
+  #define HAVE_MSVCRT
+#endif
 
 /*
  * types of date and/or time (from schema datatypes)
@@ -238,12 +245,14 @@ _exsltDateParseGYear (exsltDateValPtr dt, const xmlChar **str)
 static void
 exsltFormatGYear(xmlChar **cur, xmlChar *end, long yr)
 {
+    long year;
+    xmlChar tmp_buf[100], *tmp = tmp_buf, *tmp_end = tmp_buf + 99;
+
     if (yr <= 0 && *cur < end) {
         *(*cur)++ = '-';
     }
 
-    long year = (yr <= 0) ? -yr + 1 : yr;
-    xmlChar tmp_buf[100], *tmp = tmp_buf, *tmp_end = tmp_buf + 99;
+    year = (yr <= 0) ? -yr + 1 : yr;
     /* result is in reverse-order */
     while (year > 0 && tmp < tmp_end) {
         *tmp++ = '0' + (xmlChar)(year % 10);
@@ -670,7 +679,7 @@ static exsltDateValPtr
 exsltDateCurrent (void)
 {
     struct tm localTm, gmTm;
-#if !defined(HAVE_GMTIME_R) && !defined(_WIN32)
+#if !defined(HAVE_GMTIME_R) && !defined(HAVE_MSVCRT)
     struct tm *tb = NULL;
 #endif
     time_t secs;
@@ -692,7 +701,7 @@ exsltDateCurrent (void)
         errno = 0;
 	secs = (time_t) strtol (source_date_epoch, NULL, 10);
 	if (errno == 0) {
-#ifdef _WIN32
+#ifdef HAVE_MSVCRT
 	    struct tm *gm = gmtime_s(&localTm, &secs) ? NULL : &localTm;
 	    if (gm != NULL)
 	        override = 1;
@@ -713,7 +722,7 @@ exsltDateCurrent (void)
     /* get current time */
 	secs    = time(NULL);
 
-#ifdef _WIN32
+#ifdef HAVE_MSVCRT
 	localtime_s(&localTm, &secs);
 #elif HAVE_LOCALTIME_R
 	localtime_r(&secs, &localTm);
@@ -734,7 +743,7 @@ exsltDateCurrent (void)
     ret->sec  = (double) localTm.tm_sec;
 
     /* determine the time zone offset from local to gm time */
-#ifdef _WIN32
+#ifdef HAVE_MSVCRT
     gmtime_s(&gmTm, &secs);
 #elif HAVE_GMTIME_R
     gmtime_r(&secs, &gmTm);

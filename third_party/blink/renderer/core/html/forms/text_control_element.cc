@@ -49,16 +49,17 @@
 #include "third_party/blink/renderer/core/editing/text_affinity.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_inner_elements.h"
 #include "third_party/blink/renderer/core/html/html_br_element.h"
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/layout/inline/fragment_items.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_fragment_items.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
@@ -71,17 +72,16 @@ namespace blink {
 
 namespace {
 
-Position GetNextSoftBreak(const NGOffsetMapping& mapping,
-                          NGInlineCursor& cursor) {
+Position GetNextSoftBreak(const OffsetMapping& mapping, InlineCursor& cursor) {
   while (cursor) {
     DCHECK(cursor.Current().IsLineBox()) << cursor;
-    const auto* break_token = cursor.Current().InlineBreakToken();
+    const auto* break_token = cursor.Current().GetInlineBreakToken();
     cursor.MoveToNextLine();
     // We don't need to emit a LF for the last line.
     if (!cursor)
       return Position();
     if (break_token && !break_token->IsForcedBreak())
-      return mapping.GetFirstPosition(break_token->TextOffset());
+      return mapping.GetFirstPosition(break_token->StartTextOffset());
   }
   return Position();
 }
@@ -183,19 +183,10 @@ String TextControlElement::StrippedPlaceholder() const {
   return stripped.ToString();
 }
 
-static bool IsNotLineBreak(UChar ch) {
-  return ch != kNewlineCharacter && ch != kCarriageReturnCharacter;
-}
-
-bool TextControlElement::IsPlaceholderEmpty() const {
-  const AtomicString& attribute_value =
-      FastGetAttribute(html_names::kPlaceholderAttr);
-  return attribute_value.GetString().Find(IsNotLineBreak) == kNotFound;
-}
-
 bool TextControlElement::PlaceholderShouldBeVisible() const {
   return SupportsPlaceholder() && InnerEditorValue().empty() &&
-         !IsPlaceholderEmpty() && SuggestedValue().empty();
+         FastHasAttribute(html_names::kPlaceholderAttr) &&
+         SuggestedValue().empty();
 }
 
 HTMLElement* TextControlElement::PlaceholderElement() const {
@@ -211,21 +202,28 @@ HTMLElement* TextControlElement::PlaceholderElement() const {
 }
 
 void TextControlElement::UpdatePlaceholderVisibility() {
+  bool place_holder_was_visible = IsPlaceholderVisible();
   HTMLElement* placeholder = PlaceholderElement();
   if (!placeholder) {
     UpdatePlaceholderText();
-    SetPlaceholderVisibility(PlaceholderShouldBeVisible());
-    return;
+    placeholder = PlaceholderElement();
   }
-
-  bool place_holder_was_visible = IsPlaceholderVisible();
   SetPlaceholderVisibility(PlaceholderShouldBeVisible());
 
-  placeholder->SetInlineStyleProperty(
-      CSSPropertyID::kDisplay,
-      IsPlaceholderVisible() || !SuggestedValue().empty() ? CSSValueID::kBlock
-                                                          : CSSValueID::kNone,
-      true);
+  if (placeholder) {
+    placeholder->SetInlineStyleProperty(
+        CSSPropertyID::kDisplay,
+        // The placeholder "element" is used to display both the placeholder
+        // "value" and the suggested value. Which is why even if the placeholder
+        // value is not visible, we still show the placeholder element during a
+        // preview state so that the suggested value becomes visible. This
+        // mechanism will change, since Autofill previews are expected to move
+        // to the browser process (as per crbug.com/1474969).
+        IsPlaceholderVisible() || !SuggestedValue().IsNull()
+            ? CSSValueID::kBlock
+            : CSSValueID::kNone,
+        true);
+  }
 
   // If there was a visibility change not caused by the suggested value, set
   // that the pseudo state changed.
@@ -255,7 +253,7 @@ void TextControlElement::select() {
   // the selection.
   Focus(FocusParams(SelectionBehaviorOnFocus::kNone,
                     mojom::blink::FocusType::kScript, nullptr,
-                    FocusOptions::Create(), /*gate_on_user_activation=*/true));
+                    FocusOptions::Create()));
   RestoreCachedSelection();
 }
 
@@ -294,6 +292,7 @@ void TextControlElement::DispatchFormControlChangeEvent() {
       !EqualIgnoringNullity(value_before_first_user_edit_, Value())) {
     ClearValueBeforeFirstUserEdit();
     DispatchChangeEvent();
+    SetInteractedSinceLastFormSubmit(true);
   } else {
     ClearValueBeforeFirstUserEdit();
   }
@@ -924,10 +923,10 @@ String TextControlElement::ValueWithHardLineBreaks() const {
     return Value();
 
   if (layout_object->IsLayoutNGObject()) {
-    NGInlineCursor cursor(*layout_object);
+    InlineCursor cursor(*layout_object);
     if (!cursor)
       return Value();
-    const auto* mapping = NGInlineNode::GetOffsetMapping(layout_object);
+    const auto* mapping = InlineNode::GetOffsetMapping(layout_object);
     if (!mapping)
       return Value();
     Position break_position = GetNextSoftBreak(*mapping, cursor);
@@ -994,8 +993,13 @@ String TextControlElement::DirectionForFormData() const {
        element = Traversal<HTMLElement>::FirstAncestor(*element)) {
     const AtomicString& dir_attribute_value =
         element->FastGetAttribute(html_names::kDirAttr);
-    if (dir_attribute_value.IsNull())
+    if (dir_attribute_value.IsNull()) {
+      auto* input_element = DynamicTo<HTMLInputElement>(*this);
+      if (input_element && input_element->IsTelephone()) {
+        break;
+      }
       continue;
+    }
 
     if (EqualIgnoringASCIICase(dir_attribute_value, "rtl") ||
         EqualIgnoringASCIICase(dir_attribute_value, "ltr"))
@@ -1020,22 +1024,21 @@ void TextControlElement::SetAutofillValue(const String& value,
            value.empty() ? WebAutofillState::kNotFilled : autofill_state);
 }
 
-// TODO(crbug.com/772433): Create and use a new suggested-value element instead.
 void TextControlElement::SetSuggestedValue(const String& value) {
   // Avoid calling maxLength() if possible as it's non-trivial.
   const String new_suggested_value =
       value.empty() ? value : value.Substring(0, maxLength());
-  if (new_suggested_value == suggested_value_)
+  if (new_suggested_value == suggested_value_) {
     return;
+  }
   suggested_value_ = new_suggested_value;
 
-  if (!suggested_value_.empty() && !InnerEditorValue().empty()) {
-    // If there is an inner editor value, hide it so the suggested value can be
-    // shown to the user.
+  // A null value indicates that the inner editor value should be shown, and a
+  // non-null one indicates it should be hidden so that the suggested value can
+  // be shown.
+  if (!value.IsNull() && !InnerEditorValue().empty()) {
     InnerEditorElement()->SetVisibility(false);
-  } else if (suggested_value_.empty() && InnerEditorElement()) {
-    // If there is no suggested value and there is an InnerEditorElement, reset
-    // its visibility.
+  } else if (value.IsNull() && InnerEditorElement()) {
     InnerEditorElement()->SetVisibility(true);
   }
 
@@ -1062,7 +1065,7 @@ HTMLElement* TextControlElement::CreateInnerEditorElement() {
   DCHECK(!inner_editor_);
   inner_editor_ =
       MakeGarbageCollected<TextControlInnerEditorElement>(GetDocument());
-  return inner_editor_;
+  return inner_editor_.Get();
 }
 
 const String& TextControlElement::SuggestedValue() const {
@@ -1076,12 +1079,12 @@ void TextControlElement::Trace(Visitor* visitor) const {
 
 void TextControlElement::CloneNonAttributePropertiesFrom(
     const Element& source,
-    CloneChildrenFlag flag) {
+    NodeCloningData& data) {
   const TextControlElement& source_element =
       static_cast<const TextControlElement&>(source);
   last_change_was_user_edit_ = source_element.last_change_was_user_edit_;
   user_has_edited_the_field_ = source_element.user_has_edited_the_field_;
-  HTMLFormControlElement::CloneNonAttributePropertiesFrom(source, flag);
+  HTMLFormControlElement::CloneNonAttributePropertiesFrom(source, data);
 }
 
 ETextOverflow TextControlElement::ValueForTextOverflow() const {

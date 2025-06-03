@@ -19,8 +19,7 @@
 namespace blink {
 
 class CanvasResourceProvider;
-class Font;
-class TextMetrics;
+class ExceptionState;
 
 class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     : public CanvasRenderingContext,
@@ -57,12 +56,10 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   // CanvasRenderingContext implementation
   ~OffscreenCanvasRenderingContext2D() override;
   bool IsComposited() const override { return false; }
-  bool IsAccelerated() const override;
   NoAllocDirectCallHost* AsNoAllocDirectCallHost() final;
   V8RenderingContext* AsV8RenderingContext() final;
   V8OffscreenRenderingContext* AsV8OffscreenRenderingContext() final;
-  void SetIsInHiddenPage(bool) final { NOTREACHED(); }
-  void SetIsBeingDisplayed(bool) final { NOTREACHED(); }
+  void PageVisibilityChanged() override {}
   void Stop() final { NOTREACHED(); }
   void ClearRect(double x, double y, double width, double height) override {
     BaseRenderingContext2D::clearRect(x, y, width, height);
@@ -70,8 +67,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   SkColorInfo CanvasRenderingContextSkColorInfo() const override {
     return color_params_.GetSkColorInfo();
   }
-  scoped_refptr<StaticBitmapImage> GetImage(
-      CanvasResourceProvider::FlushReason) final;
+  scoped_refptr<StaticBitmapImage> GetImage(FlushReason) final;
   void Reset() override;
   void RestoreCanvasMatrixClipStack(cc::PaintCanvas* c) const override {
     RestoreMatrixClipStack(c);
@@ -87,29 +83,9 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
            !dirty_rect_for_commit_.isEmpty();
   }
 
-  String font() const;
-  void setFont(const String&) override;
-
-  String direction() const;
-  void setDirection(const String&);
-
-  void setLetterSpacing(const String&);
-  void setWordSpacing(const String&);
-  void setTextRendering(const String&);
-  void setFontKerning(const String&);
-  void setFontStretch(const String&);
-  void setFontVariantCaps(const String&);
-
-  void fillText(const String& text, double x, double y);
-  void fillText(const String& text, double x, double y, double max_width);
-  void strokeText(const String& text, double x, double y);
-  void strokeText(const String& text, double x, double y, double max_width);
-  TextMetrics* measureText(const String& text);
-
   // BaseRenderingContext2D implementation
   bool OriginClean() const final;
   void SetOriginTainted() final;
-  bool WouldTaintOrigin(CanvasImageSource*) final;
 
   int Width() const final;
   int Height() const final;
@@ -131,9 +107,6 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
                 CanvasPerformanceMonitor::DrawType) final;
 
   sk_sp<PaintFilter> StateGetFilter() final;
-  void SnapshotStateForFilter() final;
-
-  void ValidateStateStackWithCanvas(const cc::PaintCanvas*) const final;
 
   bool HasAlpha() const final { return CreationAttributes().alpha; }
   bool IsDesynchronized() const final {
@@ -144,13 +117,14 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   }
   void LoseContext(LostContextMode) override;
 
-  ImageBitmap* TransferToImageBitmap(ScriptState*) final;
+  ImageBitmap* TransferToImageBitmap(ScriptState* script_state,
+                                     ExceptionState& exception_state) final;
 
   void Trace(Visitor*) const override;
 
   bool PushFrame() override;
 
-  CanvasRenderingContextHost* GetCanvasRenderingContextHost() override;
+  CanvasRenderingContextHost* GetCanvasRenderingContextHost() const override;
   ExecutionContext* GetTopExecutionContext() const override;
 
   IdentifiableToken IdentifiableTextToken() const override {
@@ -169,9 +143,12 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     return identifiability_study_helper_.encountered_partially_digested_image();
   }
 
-  void FlushCanvas(CanvasResourceProvider::FlushReason) override;
+  void FlushCanvas(FlushReason) override;
 
  protected:
+  OffscreenCanvas* HostAsOffscreenCanvas() const final;
+  FontSelector* GetFontSelector() const final;
+
   PredefinedColorSpace GetDefaultImageDataColorSpace() const final {
     return color_params_.ColorSpace();
   }
@@ -184,22 +161,16 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   void DispatchContextLostEvent(TimerBase*) override;
   void TryRestoreContextEvent(TimerBase*) override;
 
+  bool ResolveFont(const String& new_font) override;
+
  private:
-  void FinalizeFrame(CanvasResourceProvider::FlushReason) final;
-  void FlushRecording(CanvasResourceProvider::FlushReason);
+  void FinalizeFrame(FlushReason) final;
+  void FlushRecording(FlushReason);
 
   bool IsPaintable() const final;
   bool IsCanvas2DBufferValid() const override;
 
-  void DrawTextInternal(const String&,
-                        double,
-                        double,
-                        CanvasRenderingContext2DState::PaintType,
-                        double* max_width = nullptr);
-  const Font& AccessFont();
-
-  scoped_refptr<CanvasResource> ProduceCanvasResource(
-      CanvasResourceProvider::FlushReason);
+  scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason);
 
   SkIRect dirty_rect_for_commit_;
 

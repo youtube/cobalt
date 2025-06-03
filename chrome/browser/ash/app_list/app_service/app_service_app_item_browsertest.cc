@@ -21,16 +21,18 @@
 #include "chrome/browser/ash/app_list/app_service/app_service_app_item.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_process.h"
 #include "chrome/browser/web_applications/test/with_crosapi_param.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/account_id/account_id.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "ui/events/event_constants.h"
@@ -52,10 +54,9 @@ void UpdateAppRegistryCache(Profile* profile,
 
   std::vector<apps::AppPtr> apps;
   apps.push_back(std::move(app));
-  apps::AppServiceProxyFactory::GetForProfile(profile)
-      ->AppRegistryCache()
-      .OnApps(std::move(apps), apps::AppType::kChromeApp,
-              false /* should_notify_initialized */);
+  apps::AppServiceProxyFactory::GetForProfile(profile)->OnApps(
+      std::move(apps), apps::AppType::kChromeApp,
+      false /* should_notify_initialized */);
 }
 
 void UpdateAppNameInRegistryCache(Profile* profile,
@@ -67,10 +68,9 @@ void UpdateAppNameInRegistryCache(Profile* profile,
 
   std::vector<apps::AppPtr> apps;
   apps.push_back(std::move(app));
-  apps::AppServiceProxyFactory::GetForProfile(profile)
-      ->AppRegistryCache()
-      .OnApps(std::move(apps), apps::AppType::kChromeApp,
-              false /* should_notify_initialized */);
+  apps::AppServiceProxyFactory::GetForProfile(profile)->OnApps(
+      std::move(apps), apps::AppType::kChromeApp,
+      false /* should_notify_initialized */);
 }
 
 ash::AppListItem* GetAppListItem(const std::string& id) {
@@ -197,7 +197,7 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest, UpdateAppNameInLauncher) {
   ASSERT_TRUE(extension_app);
 
   ash::AcceleratorController::Get()->PerformActionIfEnabled(
-      ash::TOGGLE_APP_LIST, {});
+      ash::AcceleratorAction::kToggleAppList, {});
   ash::AppListTestApi app_list_test_api;
   app_list_test_api.WaitForBubbleWindow(/*wait_for_opening_animation=*/false);
 
@@ -244,12 +244,24 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest,
 
 class AppServiceSystemWebAppItemBrowserTest
     : public AppServiceAppItemBrowserTest,
-      public WithCrosapiParam {};
+      public WithCrosapiParam {
+  void SetUpOnMainThread() override {
+    AppServiceAppItemBrowserTest::SetUpOnMainThread();
+    if (browser() == nullptr) {
+      // Create a new Ash browser window so test code using browser() can work
+      // even when Lacros is the only browser.
+      // TODO(crbug.com/1450158): Remove uses of browser() from such tests.
+      chrome::NewEmptyWindow(ProfileManager::GetActiveUserProfile());
+      SelectFirstBrowser();
+    }
+    VerifyLacrosStatus();
+  }
+};
 
 IN_PROC_BROWSER_TEST_P(AppServiceSystemWebAppItemBrowserTest, Activate) {
   Profile* const profile = browser()->profile();
   ash::SystemWebAppManager::GetForTest(profile)->InstallSystemAppsForTesting();
-  const web_app::AppId app_id = web_app::kHelpAppId;
+  const webapps::AppId app_id = web_app::kHelpAppId;
 
   auto help_app = std::make_unique<apps::App>(apps::AppType::kWeb, app_id);
   apps::AppUpdate app_update(/*state=*/nullptr, /*delta=*/help_app.get(),

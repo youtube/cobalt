@@ -88,13 +88,12 @@ void ExtensionTestingProfile::AddExtension(std::string extension_id,
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder()
           .SetID(extension_id)
-          .SetManifest(extensions::DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", extension_name)
                            .Set("version", version)
                            .Set("manifest_version", 2)
                            .Set("description", description)
-                           .Set("update_url", update_url)
-                           .Build())
+                           .Set("update_url", update_url))
           .Build();
 
   // Install the extension on the faked extension service.
@@ -257,7 +256,8 @@ TEST_F(ExtensionDataCollectionTest, CollectExtensionDataWithExtension) {
 
   ASSERT_EQ(extension_info.id(), extension_id);
   ASSERT_EQ(extension_info.name(), extension_name);
-  ASSERT_EQ(extension_info.install_time_msec(), install_time.ToJavaTime());
+  ASSERT_EQ(extension_info.install_time_msec(),
+            install_time.InMillisecondsSinceUnixEpoch());
   ASSERT_EQ(extension_info.version(), version);
   ASSERT_EQ(extension_info.description(), description);
   ASSERT_EQ(extension_info.update_url(), update_url);
@@ -293,7 +293,8 @@ TEST_F(ExtensionDataCollectionTest, CollectsLastInstalledExtension) {
 
   ASSERT_EQ(extension_info.id(), extension_id);
   ASSERT_EQ(extension_info.name(), extension_name);
-  ASSERT_EQ(extension_info.install_time_msec(), install_time.ToJavaTime());
+  ASSERT_EQ(extension_info.install_time_msec(),
+            install_time.InMillisecondsSinceUnixEpoch());
 }
 
 TEST_F(ExtensionDataCollectionTest, IgnoresExtensionsIfNoExtendedSafeBrowsing) {

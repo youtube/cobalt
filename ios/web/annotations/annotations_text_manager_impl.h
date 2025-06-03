@@ -34,12 +34,14 @@ class AnnotationsTextManagerImpl : public AnnotationsTextManager,
                            base::Value& annotations,
                            int seq_id) override;
   void RemoveDecorations() override;
+  void RemoveDecorationsWithType(const std::string& type) override;
   void RemoveHighlight() override;
 
   // JS callback methods.
   void OnTextExtracted(WebState* web_state,
                        const std::string& text,
-                       int seq_id);
+                       int seq_id,
+                       const base::Value::Dict& metadata);
   void OnDecorated(WebState* web_state, int successes, int annotations);
   void OnClick(WebState* web_state,
                const std::string& text,
@@ -63,6 +65,9 @@ class AnnotationsTextManagerImpl : public AnnotationsTextManager,
   // Id passed on to some callbacks and checked on followup calls to make
   // sure it matches with current manager's state.
   int seq_id_;
+
+  // Must be last member to ensure it is destroyed last.
+  base::WeakPtrFactory<AnnotationsTextManagerImpl> weak_factory_{this};
 };
 
 }  // namespace web

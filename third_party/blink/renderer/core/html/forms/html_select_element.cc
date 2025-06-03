@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/events/scoped_event_queue.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
+#include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
@@ -58,10 +59,10 @@
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
+#include "third_party/blink/renderer/core/layout/flex/layout_flexible_box.h"
 #include "third_party/blink/renderer/core/layout/hit_test_request.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
-#include "third_party/blink/renderer/core/layout/ng/flex/layout_ng_flexible_box.h"
 #include "third_party/blink/renderer/core/layout/ng/layout_ng_block_flow.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -73,6 +74,8 @@
 #include "ui/base/ui_base_features.h"
 
 namespace blink {
+
+using mojom::blink::FormControlType;
 
 namespace {
 
@@ -111,7 +114,12 @@ HTMLSelectElement::HTMLSelectElement(Document& document)
 
 HTMLSelectElement::~HTMLSelectElement() = default;
 
-const AtomicString& HTMLSelectElement::FormControlType() const {
+FormControlType HTMLSelectElement::FormControlType() const {
+  return is_multiple_ ? FormControlType::kSelectMultiple
+                      : FormControlType::kSelectOne;
+}
+
+const AtomicString& HTMLSelectElement::FormControlTypeAsString() const {
   DEFINE_STATIC_LOCAL(const AtomicString, select_multiple, ("select-multiple"));
   DEFINE_STATIC_LOCAL(const AtomicString, select_one, ("select-one"));
   return is_multiple_ ? select_multiple : select_one;
@@ -254,6 +262,7 @@ void HTMLSelectElement::add(
   }
 
   HTMLElement* before_element = nullptr;
+  ContainerNode* target_container = this;
   if (before) {
     switch (before->GetContentType()) {
       case V8UnionHTMLElementOrLong::ContentType::kHTMLElement:
@@ -261,11 +270,15 @@ void HTMLSelectElement::add(
         break;
       case V8UnionHTMLElementOrLong::ContentType::kLong:
         before_element = options()->item(before->GetAsLong());
+        if (before_element && before_element->parentNode()) {
+          target_container = before_element->parentNode();
+        }
         break;
     }
   }
 
-  InsertBefore(element_to_insert, before_element, exception_state);
+  target_container->InsertBefore(element_to_insert, before_element,
+                                 exception_state);
   SetNeedsValidityCheck();
 }
 
@@ -281,7 +294,7 @@ String HTMLSelectElement::Value() const {
 }
 
 void HTMLSelectElement::setValueForBinding(const String& value) {
-  if (GetAutofillState() != WebAutofillState::kAutofilled) {
+  if (!IsAutofilled()) {
     SetValue(value);
   } else {
     String old_value = this->Value();
@@ -321,7 +334,9 @@ void HTMLSelectElement::SetValue(const String& value,
 
 void HTMLSelectElement::SetAutofillValue(const String& value,
                                          WebAutofillState autofill_state) {
+  bool user_has_edited_the_field = user_has_edited_the_field_;
   SetValue(value, true, autofill_state);
+  SetUserHasEditedTheField(user_has_edited_the_field);
 }
 
 String HTMLSelectElement::SuggestedValue() const {
@@ -398,7 +413,7 @@ bool HTMLSelectElement::CanSelectAll() const {
 LayoutObject* HTMLSelectElement::CreateLayoutObject(
     const ComputedStyle& style) {
   if (UsesMenuList()) {
-    return MakeGarbageCollected<LayoutNGFlexibleBox>(this);
+    return MakeGarbageCollected<LayoutFlexibleBox>(this);
   }
   return MakeGarbageCollected<LayoutNGBlockFlow>(this);
 }
@@ -426,12 +441,12 @@ void HTMLSelectElement::OptionElementChildrenChanged(
 
 void HTMLSelectElement::AccessKeyAction(
     SimulatedClickCreationScope creation_scope) {
-  Focus();
+  Focus(FocusParams(FocusTrigger::kUserGesture));
   DispatchSimulatedClick(nullptr, creation_scope);
 }
 
-Element* HTMLSelectElement::namedItem(const AtomicString& name) {
-  return options()->namedItem(name);
+HTMLOptionElement* HTMLSelectElement::namedItem(const AtomicString& name) {
+  return To<HTMLOptionElement>(options()->namedItem(name));
 }
 
 HTMLOptionElement* HTMLSelectElement::item(unsigned index) {
@@ -788,7 +803,7 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
       .GetFrame()
       ->GetPage()
       ->GetChromeClient()
-      .SelectFieldOptionsChanged(*this);
+      .SelectOrSelectListFieldOptionsChanged(*this);
 }
 
 void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
@@ -815,7 +830,7 @@ void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
       .GetFrame()
       ->GetPage()
       ->GetChromeClient()
-      .SelectFieldOptionsChanged(*this);
+      .SelectOrSelectListFieldOptionsChanged(*this);
 }
 
 void HTMLSelectElement::OptGroupInsertedOrRemoved(
@@ -1419,12 +1434,11 @@ void HTMLSelectElement::ResetTypeAheadSessionForTesting() {
   type_ahead_.ResetSession();
 }
 
-void HTMLSelectElement::CloneNonAttributePropertiesFrom(
-    const Element& source,
-    CloneChildrenFlag flag) {
+void HTMLSelectElement::CloneNonAttributePropertiesFrom(const Element& source,
+                                                        NodeCloningData& data) {
   const auto& source_element = static_cast<const HTMLSelectElement&>(source);
   user_has_edited_the_field_ = source_element.user_has_edited_the_field_;
-  HTMLFormControlElement::CloneNonAttributePropertiesFrom(source, flag);
+  HTMLFormControlElement::CloneNonAttributePropertiesFrom(source, data);
 }
 
 void HTMLSelectElement::ChangeRendering() {
@@ -1442,6 +1456,36 @@ void HTMLSelectElement::ChangeRendering() {
 
 const ComputedStyle* HTMLSelectElement::OptionStyle() const {
   return select_type_->OptionStyle();
+}
+
+// Show the option list for this select element.
+// https://github.com/whatwg/html/pull/9754
+void HTMLSelectElement::showPicker(ExceptionState& exception_state) {
+  Document& document = GetDocument();
+  LocalFrame* frame = document.GetFrame();
+  // In cross-origin iframes it should throw a "SecurityError" DOMException
+  if (frame) {
+    if (!frame->IsSameOrigin()) {
+      exception_state.ThrowSecurityError(
+          "showPicker() called from cross-origin iframe.");
+      return;
+    }
+  }
+
+  if (IsDisabledFormControl()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "showPicker() cannot "
+                                      "be used on immutable controls.");
+    return;
+  }
+
+  if (!LocalFrame::HasTransientUserActivation(frame)) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      "showPicker() requires a user gesture.");
+    return;
+  }
+
+  select_type_->ShowPicker();
 }
 
 }  // namespace blink

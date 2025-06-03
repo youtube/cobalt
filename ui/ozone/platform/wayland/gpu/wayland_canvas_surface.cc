@@ -67,8 +67,8 @@ class WaylandCanvasSurface::SharedMemoryBuffer {
 
     // The format can either be RGBA_8888 or RGBX_8888 but either way it's 4
     // bytes per pixel.
-    size_t size_in_bytes =
-        viz::ResourceSizes::CheckedSizeInBytes<size_t>(size, viz::RGBA_8888);
+    size_t size_in_bytes = viz::ResourceSizes::CheckedSizeInBytes<size_t>(
+        size, viz::SinglePlaneFormat::kRGBA_8888);
 
     base::UnsafeSharedMemoryRegion shm_region =
         base::UnsafeSharedMemoryRegion::Create(size_in_bytes);
@@ -89,7 +89,7 @@ class WaylandCanvasSurface::SharedMemoryBuffer {
                                           size, buffer_id_);
 
     SkSurfaceProps props = skia::LegacyDisplayGlobals::GetSkSurfaceProps();
-    sk_surface_ = SkSurface::MakeRasterDirect(
+    sk_surface_ = SkSurfaces::WrapPixels(
         SkImageInfo::MakeN32Premul(size.width(), size.height()),
         shm_mapping_.memory(), CalculateStride(size.width()), &props);
     DCHECK(sk_surface_);

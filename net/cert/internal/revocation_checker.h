@@ -65,31 +65,31 @@ struct NET_EXPORT_PRIVATE RevocationPolicy {
   //
   // The other properties of RevocationPolicy place further constraints on how
   // revocation checking may proceed.
-  bool check_revocation : 1 = true;
+  bool check_revocation = true;
 
   // If |networking_allowed| is true then revocation checking is allowed to
   // issue network requests in order to fetch fresh OCSP/CRL. Otherwise
   // networking is not permitted in the course of revocation checking.
-  bool networking_allowed : 1 = false;
+  bool networking_allowed = false;
 
   // If |crl_allowed| is true then CRLs will be checked as a fallback when an
   // OCSP URL is not present or OCSP results are indeterminate.
-  bool crl_allowed : 1 = true;
+  bool crl_allowed = true;
 
   // If set to true, considers certificates lacking URLs for OCSP/CRL to be
   // unrevoked. Otherwise will fail for certificates lacking revocation
   // mechanisms.
-  bool allow_missing_info : 1 = false;
+  bool allow_missing_info = false;
 
   // If set to true, other failure to perform revocation checks (e.g. due to a
   // network level failure, OCSP response error status, failure parsing or
   // evaluating the OCSP/CRL response, etc) is considered equivalent to a
   // successful revocation check.
-  bool allow_unable_to_check : 1 = false;
+  bool allow_unable_to_check = false;
 
   // If set to true, enforce requirements specified in the Baseline
   // Requirements such as maximum age of revocation responses.
-  bool enforce_baseline_requirements : 1 = true;
+  bool enforce_baseline_requirements = true;
 };
 
 // Checks the revocation status of |certs| according to |policy|, and adds

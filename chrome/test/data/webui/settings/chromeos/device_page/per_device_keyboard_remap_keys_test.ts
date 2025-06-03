@@ -2,20 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {FakeInputDeviceSettingsProvider, fakeKeyboards, Keyboard, KeyboardRemapModifierKeyRowElement, MetaKey, ModifierKey, Router, routes, setInputDeviceSettingsProviderForTesting, SettingsPerDeviceKeyboardRemapKeysElement} from 'chrome://os-settings/chromeos/os_settings.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {FakeInputDeviceSettingsProvider, fakeKeyboards, Keyboard, KeyboardRemapModifierKeyRowElement, MetaKey, ModifierKey, Router, routes, setInputDeviceSettingsProviderForTesting, SettingsPerDeviceKeyboardRemapKeysElement} from 'chrome://os-settings/os_settings.js';
+import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {isVisible} from 'chrome://webui-test/test_util.js';
 
 suite('<settings-per-device-keyboard-remap-keys>', () => {
   let page: SettingsPerDeviceKeyboardRemapKeysElement;
   let provider: FakeInputDeviceSettingsProvider;
 
-  setup(async () => {
+  teardown(() => {
+    page.remove();
+  });
+
+  async function initializePerDeviceKeyboardRemapKeys(): Promise<void> {
     provider = new FakeInputDeviceSettingsProvider();
     provider.setFakeKeyboards(fakeKeyboards);
     setInputDeviceSettingsProviderForTesting(provider);
-
     page = document.createElement('settings-per-device-keyboard-remap-keys');
     page.set('keyboards', fakeKeyboards);
     assertFalse(page.get('isInitialized'));
@@ -28,12 +33,21 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
         /* dynamicParams= */ url, /* removeSearch= */ true);
 
     document.body.appendChild(page);
-    await flushTasks();
-  });
+    provider.observeKeyboardSettings(page);
+    return flushTasks();
+  }
 
-  teardown(() => {
-    page.remove();
-  });
+  function changeKeyboardExternalState(isExternal: boolean): Promise<void> {
+    page.keyboard = {...page.keyboard, isExternal};
+    return flushTasks();
+  }
+
+  function getPageDescription(): string {
+    const description =
+        page.shadowRoot!.querySelector('#description')!.textContent;
+    assert(description);
+    return description;
+  }
 
   /**
    * Check that all the prefs are set to default keyboard value.
@@ -60,6 +74,7 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
    * Verify that the remap subpage is correctly loaded with keyboard data.
    */
   test('keyboard remap subpage loaded', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
     assert(page.get('keyboard'));
 
     // Verify that the dropdown menu for unremapped key is displayed as default.
@@ -114,6 +129,7 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
    * keyboardId is passed through the query url.
    */
   test('keyboard remap subpage updated for different keyboard', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
     // Update the subpage with a new keyboard.
     const url = new URLSearchParams(
         'keyboardId=' + encodeURIComponent(fakeKeyboards[2]!.id));
@@ -156,13 +172,14 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
     // Verify that the remapped key icon is highlighted.
     assertEquals('modifier-remapped', altKeyRow.keyState);
 
-    // Verify that the label for meta key is empty and the key icon is
+    // Verify that the label for meta key is search and the key icon is
     // displayed as launcher.
     const metaKeyRow =
         page.shadowRoot!.querySelector<KeyboardRemapModifierKeyRowElement>(
             '#metaKey');
     assert(metaKeyRow);
-    assertEquals('', metaKeyRow.get('keyLabel'));
+    assertEquals(
+        page.i18n('perDeviceKeyboardKeySearch'), metaKeyRow.get('keyLabel'));
     assertEquals('os-settings:launcher', metaKeyRow.get('keyIcon'));
 
     const launcherKeyIcon = metaKeyRow.shadowRoot!.querySelector('iron-icon');
@@ -186,6 +203,7 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
    * Verify that the restore defaults button will restore the remapping keys.
    */
   test('keyboard remap subpage restore defaults', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
     page.restoreDefaults();
     await flushTasks();
 
@@ -251,6 +269,7 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
    * the remapping page, it will switch back to per device keyboard page.
    */
   test('re-route to back page when keyboard disconnected', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
     // Check it's currently in the modifier remapping page.
     assertEquals(
         routes.PER_DEVICE_KEYBOARD_REMAP_KEYS,
@@ -266,6 +285,7 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
    * prefs settings change.
    */
   test('Update keyboard settings', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
     assertTrue(page.get('isInitialized'));
     // Set the modifier remappings to default stage.
     page.restoreDefaults();
@@ -281,10 +301,43 @@ suite('<settings-per-device-keyboard-remap-keys>', () => {
     assert(keyboards);
     const updatedRemapping = keyboards[0]!.settings.modifierRemappings;
     assert(updatedRemapping);
-    assertEquals(3, Object.keys(updatedRemapping).length);
+    assertEquals(5, Object.keys(updatedRemapping).length);
     assertEquals(ModifierKey.kAssistant, updatedRemapping[ModifierKey.kAlt]);
     assertEquals(
         ModifierKey.kControl, updatedRemapping[ModifierKey.kBackspace]);
     assertEquals(ModifierKey.kVoid, updatedRemapping[ModifierKey.kEscape]);
+    assertEquals(ModifierKey.kControl, updatedRemapping[ModifierKey.kMeta]);
+    assertEquals(ModifierKey.kMeta, updatedRemapping[ModifierKey.kControl]);
+  });
+
+  test('Keyboard description populated correctly', async () => {
+    await initializePerDeviceKeyboardRemapKeys();
+    assertTrue(page.get('isInitialized'));
+    assertEquals('ERGO K860', getPageDescription());
+    await changeKeyboardExternalState(/* isExternal= */ false);
+    assertEquals('Built-in Keyboard', getPageDescription());
+  });
+
+  test(
+      'Keys grouped under Modifier/Other sections when alt flag enabled',
+      async () => {
+        loadTimeData.overrideValues({
+          enableAltClickAndSixPackCustomization: true,
+        });
+        await initializePerDeviceKeyboardRemapKeys();
+        assertTrue(
+            isVisible(page.shadowRoot!.querySelector('#modifierKeysHeader')));
+        assertTrue(
+            isVisible(page.shadowRoot!.querySelector('#otherKeysHeader')));
+      });
+
+  test('Six pack keys displayed when alt flag enabled', async () => {
+    loadTimeData.overrideValues({
+      enableAltClickAndSixPackCustomization: true,
+    });
+    await initializePerDeviceKeyboardRemapKeys();
+    const sixPackKeyRows =
+        page.shadowRoot!.querySelectorAll('keyboard-six-pack-key-row');
+    assertEquals(6, sixPackKeyRows.length);
   });
 });

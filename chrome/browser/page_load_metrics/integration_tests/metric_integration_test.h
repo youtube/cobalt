@@ -90,12 +90,16 @@ class MetricIntegrationTest : public InProcessBrowserTest {
   ukm::TestAutoSetUkmRecorder& ukm_recorder() { return *ukm_recorder_; }
   base::HistogramTester& histogram_tester() { return *histogram_tester_; }
 
+  std::vector<double> GetPageLoadMetricsAsList(base::StringPiece metric_name);
+
   // Checks for a single UKM entry under the PageLoad event with the specified
   // metric name and value.
   void ExpectUKMPageLoadMetric(base::StringPiece metric_name,
                                int64_t expected_value);
 
   void ExpectUKMPageLoadMetricNonExistence(base::StringPiece metric_name);
+
+  void ExpectUkmEventNotRecorded(base::StringPiece event_name);
 
   void ExpectUKMPageLoadMetricNonExistenceWithExpectedPageLoadMetricsNum(
       unsigned long expected_num_page_load_metrics,

@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_platform_data.h"
 #include "third_party/blink/renderer/platform/fonts/font_vertical_position_type.h"
 #include "third_party/blink/renderer/platform/fonts/glyph.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/han_kerning.h"
 #include "third_party/blink/renderer/platform/fonts/typesetting_features.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -82,6 +83,7 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
 
   SimpleFontData(const SimpleFontData&) = delete;
   SimpleFontData(SimpleFontData&&) = delete;
+  ~SimpleFontData() override;
   SimpleFontData& operator=(const SimpleFontData&) = delete;
   SimpleFontData& operator=(const SimpleFontData&&) = delete;
 
@@ -123,6 +125,9 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
   void SetAvgCharWidth(float avg_char_width) {
     avg_char_width_ = avg_char_width;
   }
+
+  const HanKerning::FontData& HanKerningData(const LayoutLocale& locale,
+                                             bool is_horizontal) const;
 
   gfx::RectF BoundsForGlyph(Glyph) const;
   void BoundsForGlyphs(const Vector<Glyph, 256>&, Vector<SkRect, 256>*) const;
@@ -211,6 +216,16 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
   mutable std::unique_ptr<DerivedFontData> derived_font_data_;
 
   const scoped_refptr<CustomFontData> custom_font_data_;
+
+  // Simple LRU cache for `HanKerning::FontData`. The cache has 2 entries
+  // because one additional language or horizontal/vertical mixed document is
+  // possible, but more than that are very unlikely.
+  struct HanKerningCacheEntry {
+    scoped_refptr<const LayoutLocale> locale;
+    bool is_horizontal;
+    HanKerning::FontData data;
+  };
+  mutable HanKerningCacheEntry han_kerning_cache_[2];
 
   // These are set to non-zero when ascent or descent is rounded or shifted
   // to be smaller than the actual ascent or descent. When calculating visual

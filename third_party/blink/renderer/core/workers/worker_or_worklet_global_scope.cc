@@ -315,7 +315,7 @@ ResourceFetcher* WorkerOrWorkletGlobalScope::Fetcher() {
 
   // Check if the fetcher has already been initialized, otherwise initialize it.
   if (inside_settings_resource_fetcher_)
-    return inside_settings_resource_fetcher_;
+    return inside_settings_resource_fetcher_.Get();
 
   // Because CSP is initialized inside the WorkerGlobalScope or
   // WorkletGlobalScope constructor, GetContentSecurityPolicy() should be
@@ -327,7 +327,7 @@ ResourceFetcher* WorkerOrWorkletGlobalScope::Fetcher() {
   inside_settings_resource_fetcher_ = CreateFetcherInternal(
       *MakeGarbageCollected<FetchClientSettingsObjectImpl>(*this),
       *GetContentSecurityPolicy(), *resource_timing_notifier);
-  return inside_settings_resource_fetcher_;
+  return inside_settings_resource_fetcher_.Get();
 }
 
 ResourceFetcher* WorkerOrWorkletGlobalScope::CreateFetcherInternal(
@@ -578,7 +578,7 @@ void WorkerOrWorkletGlobalScope::Trace(Visitor* visitor) const {
   visitor->Trace(resource_fetchers_);
   visitor->Trace(subresource_filter_);
   visitor->Trace(script_controller_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContext::Trace(visitor);
 }
 

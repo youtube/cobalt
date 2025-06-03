@@ -87,7 +87,7 @@ media::VideoDecodeAccelerator::Config CreateVdaConfig(
     bool uses_vd) {
   media::VideoDecodeAccelerator::Config vda_config(profile);
   vda_config.output_mode =
-      media::VideoDecodeAccelerator::Config::OutputMode::IMPORT;
+      media::VideoDecodeAccelerator::Config::OutputMode::kImport;
   vda_config.is_deferred_initialization_allowed = uses_vd;
   return vda_config;
 }
@@ -454,9 +454,16 @@ void GpuArcVideoDecodeAccelerator::OnInitializeDone(
   if (result != mojom::VideoDecodeAccelerator::Result::SUCCESS)
     error_state_ = true;
 
-  // Report initialization status to UMA.
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.GpuArcVideoDecodeAccelerator.InitializeResult", result);
+  // Report initialization status to UMAs.
+  if (result == mojom::VideoDecodeAccelerator::Result::SUCCESS) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.GpuArcVideoDecodeAccelerator.InitializeSucceeded", profile_,
+        media::VIDEO_CODEC_PROFILE_MAX + 1);
+  } else {
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.GpuArcVideoDecodeAccelerator.InitializeFailed", profile_,
+        media::VIDEO_CODEC_PROFILE_MAX + 1);
+  }
   std::move(pending_init_callback_).Run(result);
   RunPendingRequests();
 }

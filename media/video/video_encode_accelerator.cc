@@ -11,6 +11,7 @@
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "media/base/video_frame.h"
 
 namespace media {
 
@@ -72,7 +73,7 @@ VideoEncodeAccelerator::Config::Config(
     absl::optional<StorageType> storage_type,
     ContentType content_type,
     const std::vector<SpatialLayer>& spatial_layers,
-    InterLayerPredMode inter_layer_pred)
+    SVCInterLayerPredMode inter_layer_pred)
     : input_format(input_format),
       input_visible_size(input_visible_size),
       output_profile(output_profile),
@@ -125,6 +126,16 @@ std::string VideoEncodeAccelerator::Config::AsHumanReadableString() const {
       break;
   }
 
+  str += ", content_type: ";
+  switch (content_type) {
+    case ContentType::kCamera:
+      str += "camera";
+      break;
+    case ContentType::kDisplay:
+      str += "display";
+      break;
+  }
+
   if (spatial_layers.empty())
     return str;
 
@@ -140,13 +151,13 @@ std::string VideoEncodeAccelerator::Config::AsHumanReadableString() const {
 
   str += ", InterLayerPredMode::";
   switch (inter_layer_pred) {
-    case Config::InterLayerPredMode::kOff:
+    case SVCInterLayerPredMode::kOff:
       str += "kOff";
       break;
-    case Config::InterLayerPredMode::kOn:
+    case SVCInterLayerPredMode::kOn:
       str += "kOn";
       break;
-    case Config::InterLayerPredMode::kOnKeyPic:
+    case SVCInterLayerPredMode::kOnKeyPic:
       str += "kOnKeyPic";
       break;
   }
@@ -162,16 +173,6 @@ bool VideoEncodeAccelerator::Config::HasTemporalLayer() const {
 
 bool VideoEncodeAccelerator::Config::HasSpatialLayer() const {
   return spatial_layers.size() > 1u;
-}
-
-void VideoEncodeAccelerator::Client::NotifyError(Error error) {
-  NOTREACHED() << "NotifyError() must be implemented if it doesn't "
-               << "implement NotifyErrorStatus()";
-}
-
-void VideoEncodeAccelerator::Client::NotifyErrorStatus(
-    const EncoderStatus& status) {
-  NotifyError(ConvertStatusToVideoEncodeAcceleratorError(status));
 }
 
 void VideoEncodeAccelerator::Client::NotifyEncoderInfoChange(
@@ -202,6 +203,12 @@ VideoEncodeAccelerator::SupportedProfile::SupportedProfile(
     const SupportedProfile& other) = default;
 
 VideoEncodeAccelerator::SupportedProfile::~SupportedProfile() = default;
+
+void VideoEncodeAccelerator::Encode(
+    scoped_refptr<VideoFrame> frame,
+    const VideoEncoder::EncodeOptions& options) {
+  Encode(std::move(frame), options.key_frame);
+}
 
 void VideoEncodeAccelerator::Flush(FlushCallback flush_callback) {
   // TODO(owenlin): implements this https://crbug.com/755889.
@@ -297,38 +304,6 @@ bool operator==(const VideoEncodeAccelerator::Config& l,
          l.storage_type == r.storage_type && l.content_type == r.content_type &&
          l.spatial_layers == r.spatial_layers &&
          l.inter_layer_pred == r.inter_layer_pred;
-}
-
-VideoEncodeAccelerator::Error ConvertStatusToVideoEncodeAcceleratorError(
-    const EncoderStatus& status) {
-  CHECK(!status.is_ok());
-  switch (status.code()) {
-    case EncoderStatus::Codes::kOk:
-      NOTREACHED();
-      break;
-    case EncoderStatus::Codes::kEncoderInitializeNeverCompleted:
-    case EncoderStatus::Codes::kEncoderInitializeTwice:
-    case EncoderStatus::Codes::kEncoderIllegalState:
-      return VideoEncodeAccelerator::Error::kIllegalStateError;
-    case EncoderStatus::Codes::kEncoderUnsupportedProfile:
-    case EncoderStatus::Codes::kEncoderUnsupportedCodec:
-    case EncoderStatus::Codes::kEncoderUnsupportedConfig:
-    case EncoderStatus::Codes::kEncoderInitializationError:
-    case EncoderStatus::Codes::kUnsupportedFrameFormat:
-    case EncoderStatus::Codes::kInvalidInputFrame:
-    case EncoderStatus::Codes::kInvalidOutputBuffer:
-      return VideoEncodeAccelerator::Error::kInvalidArgumentError;
-    case EncoderStatus::Codes::kEncoderFailedEncode:
-    case EncoderStatus::Codes::kEncoderFailedFlush:
-    case EncoderStatus::Codes::kEncoderMojoConnectionError:
-    case EncoderStatus::Codes::kScalingError:
-    case EncoderStatus::Codes::kFormatConversionError:
-    case EncoderStatus::Codes::kEncoderHardwareDriverError:
-    case EncoderStatus::Codes::kSystemAPICallError:
-      return VideoEncodeAccelerator::Error::kPlatformFailureError;
-  }
-  NOTREACHED();
-  return VideoEncodeAccelerator::Error::kPlatformFailureError;
 }
 }  // namespace media
 

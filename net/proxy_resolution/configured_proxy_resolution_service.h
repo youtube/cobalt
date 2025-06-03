@@ -306,11 +306,13 @@ class NET_EXPORT ConfiguredProxyResolutionService
   // Called when proxy resolution has completed (either synchronously or
   // asynchronously). Handles logging the result, and cleaning out
   // bad entries from the results list.
-  int DidFinishResolvingProxy(const GURL& url,
-                              const std::string& method,
-                              ProxyInfo* result,
-                              int result_code,
-                              const NetLogWithSource& net_log);
+  int DidFinishResolvingProxy(
+      const GURL& url,
+      const NetworkAnonymizationKey& network_anonymization_key,
+      const std::string& method,
+      ProxyInfo* result,
+      int result_code,
+      const NetLogWithSource& net_log);
 
   // Start initialization using |fetched_config_|.
   void InitializeUsingLastFetchedConfig();
@@ -403,7 +405,7 @@ class NET_EXPORT ConfiguredProxyResolutionService
 
   THREAD_CHECKER(thread_checker_);
 
-  raw_ptr<ProxyDelegate> proxy_delegate_ = nullptr;
+  raw_ptr<ProxyDelegate, DanglingUntriaged> proxy_delegate_ = nullptr;
 
   // Flag used by |SetReady()| to check if |this| has been deleted by a
   // synchronous callback.

@@ -126,10 +126,13 @@ class MenuButtonTest : public ViewsTestBase {
   }
 
  private:
-  raw_ptr<Widget> widget_ = nullptr;          // Owned by self.
-  raw_ptr<TestMenuButton> button_ = nullptr;  // Owned by |widget_|.
+  raw_ptr<Widget, AcrossTasksDanglingUntriaged> widget_ =
+      nullptr;  // Owned by self.
+  raw_ptr<TestMenuButton, AcrossTasksDanglingUntriaged> button_ =
+      nullptr;  // Owned by |widget_|.
   std::unique_ptr<ui::test::EventGenerator> generator_;
-  raw_ptr<test::TestInkDrop> ink_drop_ = nullptr;  // Owned by |button_|.
+  raw_ptr<test::TestInkDrop, AcrossTasksDanglingUntriaged> ink_drop_ =
+      nullptr;  // Owned by |button_|.
 };
 
 // A Button that will acquire a PressedLock in the pressed callback and

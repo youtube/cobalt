@@ -24,9 +24,14 @@ build_webui("build") {
   web_component_files = [
     "app.ts",
     "infinite_list.ts",
+    "tab_organization_failure.ts",
+    "tab_organization_in_progress.ts",
+    "tab_organization_not_started.ts",
+    "tab_organization_page.ts",
+    "tab_organization_results.ts",
     "tab_search_group_item.ts",
     "tab_search_item.ts",
-    "tab_search_search_field.ts",
+    "tab_search_page.ts",
   ]
 
   non_web_component_files = [
@@ -35,12 +40,16 @@ build_webui("build") {
     "tab_data.ts",
     "tab_group_color_helper.ts",
     "tab_search_api_proxy.ts",
+    "tab_search_sync_browser_proxy.ts",
     "tab_search.ts",
     "tab_search_utils.ts",
     "title_item.ts",
   ]
 
-  css_files = [ "tab_group_shared_vars.css" ]
+  css_files = [
+    "tab_group_shared_vars.css",
+    "tab_organization_shared_style.css",
+  ]
 
   mojo_files_deps = [
     "//chrome/browser/ui/webui/tab_search:mojo_bindings_ts__generator",
@@ -60,6 +69,7 @@ build_webui("build") {
   ]
   ts_deps = [
     "//third_party/polymer/v3_0:library",
+    "//ui/webui/resources/cr_components/color_change_listener:build_ts",
     "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",

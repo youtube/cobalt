@@ -83,6 +83,13 @@ TEST(SequenceCheckerTest, DetachFromThreadAndUseOnTaskQueue) {
   queue.SendTask([&] { EXPECT_TRUE(sequence_checker.IsCurrent()); });
 }
 
+TEST(SequenceCheckerTest, InitializeForDifferentTaskQueue) {
+  TaskQueueForTest queue;
+  SequenceChecker sequence_checker(queue.Get());
+  EXPECT_EQ(sequence_checker.IsCurrent(), !RTC_DCHECK_IS_ON);
+  queue.SendTask([&] { EXPECT_TRUE(sequence_checker.IsCurrent()); });
+}
+
 TEST(SequenceCheckerTest, DetachFromTaskQueueAndUseOnThread) {
   TaskQueueForTest queue;
   queue.SendTask([] {
@@ -97,6 +104,19 @@ TEST(SequenceCheckerTest, MethodNotAllowedOnDifferentThreadInDebug) {
   RunOnDifferentThread(
       [&] { EXPECT_EQ(sequence_checker.IsCurrent(), !RTC_DCHECK_IS_ON); });
 }
+
+#if RTC_DCHECK_IS_ON
+TEST(SequenceCheckerTest, OnlyCurrentOnOneThread) {
+  SequenceChecker sequence_checker(SequenceChecker::kDetached);
+  RunOnDifferentThread([&] {
+    EXPECT_TRUE(sequence_checker.IsCurrent());
+    // Spawn a new thread from within the first one to guarantee that we have
+    // two concurrently active threads (and that there's no chance of the
+    // thread ref being reused).
+    RunOnDifferentThread([&] { EXPECT_FALSE(sequence_checker.IsCurrent()); });
+  });
+}
+#endif
 
 TEST(SequenceCheckerTest, MethodNotAllowedOnDifferentTaskQueueInDebug) {
   SequenceChecker sequence_checker;

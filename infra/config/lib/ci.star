@@ -121,7 +121,7 @@ def ci_builder(
             predicate = resultdb.test_result_predicate(
                 # Match the "blink_web_tests" target and all of its
                 # flag-specific versions, e.g. "vulkan_swiftshader_blink_web_tests".
-                test_id_regexp = "(ninja://[^/]*blink_web_tests/.+)|(ninja://[^/]*blink_wpt_tests/.+)",
+                test_id_regexp = "(ninja://[^/]*blink_web_tests/.+)|(ninja://[^/]*_wpt_tests/.+)",
             ),
         ),
     ]
@@ -264,7 +264,6 @@ def thin_tester(
     if builder_spec and builder_spec.execution_mode != builder_config.execution_mode.TEST:
         fail("thin testers with builder specs must have TEST execution mode")
     cores = defaults.get_value("thin_tester_cores", cores)
-    kwargs.setdefault("goma_backend", None)
     kwargs.setdefault("reclient_instance", None)
     kwargs.setdefault("os", builders.os.LINUX_DEFAULT)
     return ci.builder(
@@ -288,6 +287,7 @@ ci = struct(
     DEFAULT_FYI_PRIORITY = 35,
     DEFAULT_POOL = "luci.chromium.ci",
     DEFAULT_SERVICE_ACCOUNT = "chromium-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
+    DEFAULT_SHADOW_SERVICE_ACCOUNT = "chromium-try-builder@chops-service-accounts.iam.gserviceaccount.com",
 
     # Functions and constants for the GPU-related builder groups
     gpu = struct(
@@ -296,6 +296,7 @@ ci = struct(
         windows_builder = _gpu_windows_builder,
         POOL = "luci.chromium.gpu.ci",
         SERVICE_ACCOUNT = "chromium-ci-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
+        SHADOW_SERVICE_ACCOUNT = "chromium-try-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
         TREE_CLOSING_NOTIFIERS = ["gpu-tree-closer-email"],
     ),
 )

@@ -75,6 +75,9 @@ public final class EventConstants {
      */
     public static final String ADD_TO_HOMESCREEN_DIALOG_SHOWN = "add_to_homescreen_dialog_shown";
 
+    /** The user clicked the minimize button on the toolbar. */
+    public static final String CCT_MINIMIZE_BUTTON_CLICKED = "cct_minimize_button_clicked";
+
     /**
      * Contextual Search panel was opened.
      */
@@ -171,6 +174,10 @@ public final class EventConstants {
     /** The keyboard accessory was swiped to reveal more suggestions. */
     public static final String KEYBOARD_ACCESSORY_BAR_SWIPED = "keyboard_accessory_bar_swiped";
 
+    /** The keyboard accessory was used to fill virtual card CVC data into a form. */
+    public static final String KEYBOARD_ACCESSORY_VIRTUAL_CARD_CVC_AUTOFILLED =
+            "autofill_virtual_card_cvc_suggestion_accepted";
+
     /** User has finished drop-to-merge to create a group. */
     public static final String TAB_DRAG_AND_DROP_TO_GROUP = "tab_drag_and_drop_to_group";
 
@@ -196,6 +203,10 @@ public final class EventConstants {
             "read_later_bottom_sheet_folder_seen";
     public static final String READ_LATER_BOOKMARK_FOLDER_OPENED =
             "read_later_bookmark_folder_opened";
+
+    /** The request desktop site window setting IPH was shown. */
+    public static final String REQUEST_DESKTOP_SITE_WINDOW_SETTING_IPH_SHOWN =
+            "request_desktop_site_window_setting_iph_shown";
 
     /** Video tutorial related events. */
     public static final String VIDEO_TUTORIAL_DISMISSED_SUMMARY =
@@ -265,6 +276,10 @@ public final class EventConstants {
     public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_TRANSLATE_OPENED =
             "adaptive_toolbar_customization_translate_opened";
 
+    /** AdaptiveButtonInTopToolbarCustomization read aloud events. */
+    public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_READ_ALOUD_CLICKED =
+            "adaptive_toolbar_customization_read_aloud_clicked";
+
     /** AdaptiveButtonInTopToolbarCustomization add to bookmarks events. */
     public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_OPENED =
             "adaptive_toolbar_customization_add_to_bookmarks_opened";
@@ -329,9 +344,10 @@ public final class EventConstants {
     public static final String APP_MENU_DESKTOP_SITE_EXCEPTION_ADDED =
             "app_menu_desktop_site_exception_added";
 
-    /** Restore tabs on first run experience promo event */
+    /** Restore tabs related events. */
     public static final String RESTORE_TABS_ON_FIRST_RUN_SHOW_PROMO =
             "restore_tabs_on_first_run_show_promo";
+    public static final String RESTORE_TABS_PROMO_USED = "restore_tabs_promo_used";
 
     /**
      * Do not instantiate.

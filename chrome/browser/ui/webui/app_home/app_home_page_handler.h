@@ -12,13 +12,13 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/extension_enable_flow_delegate.h"
 #include "chrome/browser/ui/webui/app_home/app_home.mojom.h"
-#include "chrome/browser/web_applications/app_registrar_observer.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_registrar_observer.h"
 #include "chrome/common/extensions/extension_constants.h"
+#include "components/webapps/common/web_app_id.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/common/constants.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -49,7 +49,7 @@ class AppHomePageHandler
       public extensions::ExtensionRegistryObserver,
       public extensions::ExtensionUninstallDialog::Delegate,
       public ExtensionEnableFlowDelegate,
-      public web_app::AppRegistrarObserver {
+      public web_app::WebAppRegistrarObserver {
  public:
   AppHomePageHandler(
       content::WebUI*,
@@ -67,9 +67,9 @@ class AppHomePageHandler
   // some type of installs, e.g. sync install only trigger `OnWebAppInstalled`.
   // `OnWebAppInstalledWithOsHooks` also gets fired when an installed app gets
   // locally installed.
-  void OnWebAppInstalled(const web_app::AppId& app_id) override;
-  void OnWebAppInstalledWithOsHooks(const web_app::AppId& app_id) override;
-  void OnWebAppWillBeUninstalled(const web_app::AppId& app_id) override;
+  void OnWebAppInstalled(const webapps::AppId& app_id) override;
+  void OnWebAppInstalledWithOsHooks(const webapps::AppId& app_id) override;
+  void OnWebAppWillBeUninstalled(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
 
   // extensions::ExtensionRegistryObserver:
@@ -82,12 +82,12 @@ class AppHomePageHandler
                            const extensions::Extension* extension,
                            extensions::UnloadedExtensionReason reason) override;
 
-  // web_app::AppRegistrarObserver:
+  // web_app::WebAppRegistrarObserver:
   void OnWebAppRunOnOsLoginModeChanged(
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       web_app::RunOnOsLoginMode run_on_os_login_mode) override;
   void OnWebAppUserDisplayModeChanged(
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       web_app::mojom::UserDisplayMode user_display_mode) override;
   void OnAppRegistrarDestroyed() override;
 
@@ -110,7 +110,7 @@ class AppHomePageHandler
       const std::string& app_id,
       web_app::mojom::UserDisplayMode display_mode) override;
 
-  app_home::mojom::AppInfoPtr GetApp(const web_app::AppId& app_id);
+  app_home::mojom::AppInfoPtr GetApp(const webapps::AppId& app_id);
 
  private:
   Browser* GetCurrentBrowser();
@@ -135,7 +135,7 @@ class AppHomePageHandler
   void OnExtensionUninstallDialogClosed(bool did_start_uninstall,
                                         const std::u16string& error) override;
 
-  void InstallOsHooks(const web_app::AppId& app_id, web_app::AppLock* lock);
+  void InstallOsHooks(const webapps::AppId& app_id, web_app::AppLock* lock);
   void LaunchAppInternal(const std::string& app_id,
                          extension_misc::AppLaunchBucket bucket,
                          app_home::mojom::ClickEventPtr click_event,
@@ -154,7 +154,7 @@ class AppHomePageHandler
   void FillWebAppInfoList(std::vector<app_home::mojom::AppInfoPtr>* result);
   void FillExtensionInfoList(std::vector<app_home::mojom::AppInfoPtr>* result);
   app_home::mojom::AppInfoPtr CreateAppInfoPtrFromWebApp(
-      const web_app::AppId& app_id);
+      const webapps::AppId& app_id);
   app_home::mojom::AppInfoPtr CreateAppInfoPtrFromExtension(
       const extensions::Extension* extension);
 
@@ -175,7 +175,7 @@ class AppHomePageHandler
   const raw_ref<extensions::ExtensionSystem> extension_system_;
 
   base::ScopedObservation<web_app::WebAppRegistrar,
-                          web_app::AppRegistrarObserver>
+                          web_app::WebAppRegistrarObserver>
       web_app_registrar_observation_{this};
 
   base::ScopedObservation<web_app::WebAppInstallManager,

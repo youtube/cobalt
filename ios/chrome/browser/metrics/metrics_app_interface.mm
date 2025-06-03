@@ -15,18 +15,14 @@
 #import "components/network_time/network_time_tracker.h"
 #import "components/ukm/ukm_service.h"
 #import "components/ukm/ukm_test_helper.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state_manager.h"
 #import "ios/chrome/browser/metrics/ios_chrome_metrics_service_accessor.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state_manager.h"
 #import "ios/chrome/test/app/histogram_test_util.h"
 #import "ios/testing/nserror_util.h"
 #import "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #import "third_party/metrics_proto/ukm/report.pb.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 

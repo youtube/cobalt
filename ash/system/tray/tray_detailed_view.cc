@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/containers/cxx20_erase.h"
 #include "ash/constants/ash_features.h"
 #include "ash/controls/rounded_scroll_bar.h"
 #include "ash/public/cpp/ash_view_ids.h"
@@ -29,6 +30,8 @@
 #include "third_party/skia/include/core/SkDrawLooper.h"
 #include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/clip_recorder.h"
@@ -70,19 +73,28 @@ constexpr int kQsScrollViewCornerRadius = 16;
 
 constexpr int kQsTriViewRightPadding = 16;
 
+// If there's no back button then less padding is required.
+// TODO(b/285280977): Remove when CalendarView is out of TrayDetailedView as
+// this is only used there.
+constexpr int kNoBackButtonLeftPadding = 8;
+
 // Inset the scroll bar to avoid the rounded corners at top and bottom.
 constexpr auto kQsScrollBarInsets =
     gfx::Insets::VH(kQsScrollViewCornerRadius, 0);
 
 // Configures the TriView used for the title in a detailed view.
-void ConfigureTitleTriView(TriView* tri_view, TriView::Container container) {
+void ConfigureTitleTriView(TriView* tri_view,
+                           TriView::Container container,
+                           bool create_back_button) {
   std::unique_ptr<views::BoxLayout> layout;
 
   switch (container) {
     case TriView::Container::START:
     case TriView::Container::END: {
       const int left_padding = container == TriView::Container::START
-                                   ? kUnifiedBackButtonLeftPadding
+                                   ? create_back_button
+                                         ? kUnifiedBackButtonLeftPadding
+                                         : kNoBackButtonLeftPadding
                                    : 0;
       const int right_padding =
           container == TriView::Container::END ? kQsTriViewRightPadding : 0;
@@ -104,7 +116,7 @@ void ConfigureTitleTriView(TriView* tri_view, TriView::Container container) {
           views::BoxLayout::Orientation::kVertical);
       layout->set_main_axis_alignment(
           views::BoxLayout::MainAxisAlignment::kCenter);
-      if (features::IsQsRevampEnabled()) {
+      if (features::IsQsRevampEnabled() && create_back_button) {
         layout->set_cross_axis_alignment(
             views::BoxLayout::CrossAxisAlignment::kCenter);
         break;
@@ -238,11 +250,9 @@ class ScrollContentsView : public views::View {
     }
 
     if (!details.is_add && details.parent == this) {
-      headers_.erase(std::remove_if(headers_.begin(), headers_.end(),
-                                    [details](const Header& header) {
-                                      return header.view.get() == details.child;
-                                    }),
-                     headers_.end());
+      base::EraseIf(headers_, [details](const Header& header) {
+          return header.view.get() == details.child;
+      });
     } else if (details.is_add && details.parent == this &&
                details.child == children().front()) {
       // We always want padding on the bottom of the scroll contents.
@@ -404,7 +414,8 @@ void TrayDetailedView::OverrideProgressBarAccessibleName(
 void TrayDetailedView::CreateTitleRow(int string_id, bool create_back_button) {
   DCHECK(!tri_view_);
 
-  tri_view_ = AddChildViewAt(CreateTitleTriView(string_id), 0);
+  tri_view_ =
+      AddChildViewAt(CreateTitleTriView(string_id, create_back_button), 0);
   if (create_back_button) {
     back_button_ = delegate_->CreateBackButton(base::BindRepeating(
         &TrayDetailedView::TransitionToMainView, base::Unretained(this)));
@@ -425,7 +436,7 @@ void TrayDetailedView::CreateTitleRow(int string_id, bool create_back_button) {
 
   CreateExtraTitleRowButtons();
 
-  if (!features::IsQsRevampEnabled()) {
+  if (!features::IsQsRevampEnabled() || !create_back_button) {
     Layout();
     return;
   }
@@ -488,11 +499,17 @@ HoverHighlightView* TrayDetailedView::AddScrollListItem(
   if (icon.is_empty()) {
     item->AddLabelRow(text);
   } else {
-    item->AddIconAndLabel(
-        gfx::CreateVectorIcon(
-            icon, AshColorProvider::Get()->GetContentLayerColor(
-                      AshColorProvider::ContentLayerType::kIconColorPrimary)),
-        text);
+    if (chromeos::features::IsJellyEnabled()) {
+      item->AddIconAndLabel(
+          ui::ImageModel::FromVectorIcon(icon, cros_tokens::kCrosSysOnSurface),
+          text);
+    } else {
+      item->AddIconAndLabel(
+          gfx::CreateVectorIcon(
+              icon, AshColorProvider::Get()->GetContentLayerColor(
+                        AshColorProvider::ContentLayerType::kIconColorPrimary)),
+          text);
+    }
   }
 
   if (features::IsQsRevampEnabled()) {
@@ -500,7 +517,7 @@ HoverHighlightView* TrayDetailedView::AddScrollListItem(
     views::InstallRoundRectHighlightPathGenerator(item, gfx::Insets(2),
                                                   /*corner_radius=*/0);
     views::FocusRing::Get(item)->SetColorId(cros_tokens::kCrosSysFocusRing);
-    // Unset the focus painter set by `ActionableView`.
+    // Unset the focus painter set by `HoverHighlightView`.
     item->SetFocusPainter(nullptr);
   }
 
@@ -611,12 +628,17 @@ void TrayDetailedView::HandleViewClicked(views::View* view) {
   NOTREACHED();
 }
 
-std::unique_ptr<TriView> TrayDetailedView::CreateTitleTriView(int string_id) {
+std::unique_ptr<TriView> TrayDetailedView::CreateTitleTriView(
+    int string_id,
+    bool create_back_button) {
   auto tri_view = std::make_unique<TriView>(kUnifiedTopShortcutSpacing);
 
-  ConfigureTitleTriView(tri_view.get(), TriView::Container::START);
-  ConfigureTitleTriView(tri_view.get(), TriView::Container::CENTER);
-  ConfigureTitleTriView(tri_view.get(), TriView::Container::END);
+  ConfigureTitleTriView(tri_view.get(), TriView::Container::START,
+                        create_back_button);
+  ConfigureTitleTriView(tri_view.get(), TriView::Container::CENTER,
+                        create_back_button);
+  ConfigureTitleTriView(tri_view.get(), TriView::Container::END,
+                        create_back_button);
 
   auto* title_label = TrayPopupUtils::CreateDefaultLabel();
   title_label->SetText(l10n_util::GetStringUTF16(string_id));
@@ -685,8 +707,7 @@ int TrayDetailedView::GetHeightForWidth(int width) const {
   return height();
 }
 
-const char* TrayDetailedView::GetClassName() const {
-  return "TrayDetailedView";
-}
+BEGIN_METADATA(TrayDetailedView, views::View)
+END_METADATA
 
 }  // namespace ash

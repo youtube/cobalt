@@ -17,11 +17,11 @@
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
+#include "chrome/browser/sync/test/integration/history_helper.h"
 #include "chrome/browser/sync/test/integration/session_hierarchy_match_checker.h"
 #include "chrome/browser/sync/test/integration/sessions_helper.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "chrome/browser/sync/test/integration/typed_urls_helper.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -57,6 +57,7 @@
 namespace {
 
 using fake_server::SessionsHierarchy;
+using history_helper::GetUrlFromClient;
 using sessions_helper::CheckInitialState;
 using sessions_helper::CloseTab;
 using sessions_helper::ExecJs;
@@ -75,7 +76,6 @@ using sessions_helper::WindowsMatch;
 using sync_sessions::SessionSyncTestHelper;
 using testing::IsEmpty;
 using testing::UnorderedElementsAre;
-using typed_urls_helper::GetUrlFromClient;
 
 static const char* kBaseFragmentURL =
     "data:text/html,<html><title>Fragment</title><body></body></html>";
@@ -115,7 +115,7 @@ class IsHistoryURLSyncedChecker : public SingleClientStatusChangeChecker {
 
  private:
   const std::string url_;
-  raw_ptr<fake_server::FakeServer> fake_server_;
+  const raw_ptr<fake_server::FakeServer> fake_server_;
 };
 
 class IsIconURLSyncedChecker : public SingleClientStatusChangeChecker {
@@ -155,7 +155,7 @@ class IsIconURLSyncedChecker : public SingleClientStatusChangeChecker {
  private:
   const std::string page_url_;
   const std::string icon_url_;
-  raw_ptr<fake_server::FakeServer> fake_server_;
+  const raw_ptr<fake_server::FakeServer> fake_server_;
 };
 
 // Checker to block until the history DB for |profile| does / does not have a
@@ -663,6 +663,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTest, OpenNewWindow) {
 IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTest,
                        GarbageCollectionOfForeignSessions) {
   const std::string kForeignSessionTag = "ForeignSessionTag";
+  const std::string kForeignClientName = "ForeignClientName";
   const SessionID kWindowId = SessionID::FromSerializedValue(5);
   const SessionID kTabId1 = SessionID::FromSerializedValue(1);
   const SessionID kTabId2 = SessionID::FromSerializedValue(2);
@@ -678,7 +679,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTest,
   // that such tabs are also subject to garbage collection.
   sync_pb::SessionSpecifics header =
       SessionSyncTestHelper::BuildHeaderSpecificsWithoutWindows(
-          kForeignSessionTag);
+          kForeignSessionTag, kForeignClientName);
   SessionSyncTestHelper::AddWindowSpecifics(kWindowId, {kTabId1}, &header);
 
   for (const sync_pb::SessionSpecifics& specifics : {tab1, tab2, header}) {
@@ -794,7 +795,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTest, CorruptForeignTabUpdate) {
           /*last_modified_time=*/0));
 
   // Mimic a browser restart by forcing a refresh to get updates.
-  GetSyncService(0)->TriggerRefresh(syncer::SESSIONS);
+  GetSyncService(0)->TriggerRefresh({syncer::SESSIONS});
   EXPECT_TRUE(UpdatedProgressMarkerChecker(GetSyncService(0)).Wait());
 
   // Foreign data should be empty.
@@ -932,6 +933,7 @@ class SingleClientSessionsSyncTestWithFaviconTestServer
 IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTestWithFaviconTestServer,
                        MAYBE_ShouldDeleteOnDemandIconsOnSessionsDisabled) {
   const std::string kForeignSessionTag = "ForeignSessionTag";
+  const std::string kForeignClientName = "ForeignClientName";
   const SessionID kWindowId = SessionID::FromSerializedValue(5);
   const SessionID kTabId = SessionID::FromSerializedValue(1);
   const base::Time kLastModifiedTime = base::Time::Now();
@@ -942,7 +944,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSessionsSyncTestWithFaviconTestServer,
       helper.BuildTabSpecifics(kForeignSessionTag, kWindowId, kTabId);
   sync_pb::SessionSpecifics header =
       SessionSyncTestHelper::BuildHeaderSpecificsWithoutWindows(
-          kForeignSessionTag);
+          kForeignSessionTag, kForeignClientName);
   SessionSyncTestHelper::AddWindowSpecifics(kWindowId, {kTabId}, &header);
   for (const sync_pb::SessionSpecifics& specifics : {tab, header}) {
     sync_pb::EntitySpecifics entity;

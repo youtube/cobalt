@@ -124,6 +124,7 @@ const ExtensionInfoMap &GetExtensionInfoMap()
         map["GL_KHR_parallel_shader_compile"] = enableableExtension(&Extensions::parallelShaderCompileKHR);
         map["GL_AMD_performance_monitor"] = esOnlyExtension(&Extensions::performanceMonitorAMD);
         map["GL_NV_pixel_buffer_object"] = enableableExtension(&Extensions::pixelBufferObjectNV);
+        map["GL_NV_polygon_mode"] = enableableExtension(&Extensions::polygonModeNV);
         map["GL_EXT_polygon_offset_clamp"] = enableableExtension(&Extensions::polygonOffsetClampEXT);
         map["GL_EXT_primitive_bounding_box"] = esOnlyExtension(&Extensions::primitiveBoundingBoxEXT);
         map["GL_OES_primitive_bounding_box"] = esOnlyExtension(&Extensions::primitiveBoundingBoxOES);
@@ -168,6 +169,8 @@ const ExtensionInfoMap &GetExtensionInfoMap()
         map["GL_EXT_texture_buffer"] = enableableExtension(&Extensions::textureBufferEXT);
         map["GL_OES_texture_buffer"] = enableableExtension(&Extensions::textureBufferOES);
         map["GL_OES_texture_compression_astc"] = enableableExtension(&Extensions::textureCompressionAstcOES);
+        map["GL_EXT_texture_compression_astc_decode_mode"] = enableableExtension(&Extensions::textureCompressionAstcDecodeModeEXT);
+        map["GL_EXT_texture_compression_astc_decode_mode_rgb9e5"] = enableableExtension(&Extensions::textureCompressionAstcDecodeModeRgb9e5EXT);
         map["GL_KHR_texture_compression_astc_hdr"] = enableableExtension(&Extensions::textureCompressionAstcHdrKHR);
         map["GL_KHR_texture_compression_astc_ldr"] = enableableExtension(&Extensions::textureCompressionAstcLdrKHR);
         map["GL_KHR_texture_compression_astc_sliced_3d"] = enableableExtension(&Extensions::textureCompressionAstcSliced3dKHR);
@@ -235,11 +238,13 @@ const ExtensionInfoMap &GetExtensionInfoMap()
         map["GL_ANGLE_memory_size"] = enableableExtension(&Extensions::memorySizeANGLE);
         map["GL_ANGLE_multi_draw"] = enableableExtension(&Extensions::multiDrawANGLE);
         map["GL_ANGLE_multiview_multisample"] = enableableExtension(&Extensions::multiviewMultisampleANGLE);
+        map["GL_ANGLE_polygon_mode"] = enableableExtension(&Extensions::polygonModeANGLE);
         map["GL_ANGLE_program_binary"] = esOnlyExtension(&Extensions::programBinaryANGLE);
         map["GL_ANGLE_program_cache_control"] = esOnlyExtension(&Extensions::programCacheControlANGLE);
         map["GL_ANGLE_provoking_vertex"] = enableableExtension(&Extensions::provokingVertexANGLE);
         map["GL_ANGLE_read_only_depth_stencil_feedback_loops"] = enableableExtension(&Extensions::readOnlyDepthStencilFeedbackLoopsANGLE);
         map["GL_ANGLE_relaxed_vertex_attribute_type"] = esOnlyExtension(&Extensions::relaxedVertexAttributeTypeANGLE);
+        map["GL_ANGLE_renderability_validation"] = enableableExtension(&Extensions::renderabilityValidationANGLE);
         map["GL_ANGLE_request_extension"] = esOnlyExtension(&Extensions::requestExtensionANGLE);
         map["GL_ANGLE_rgbx_internal_format"] = esOnlyExtension(&Extensions::rgbxInternalFormatANGLE);
         map["GL_ANGLE_robust_client_memory"] = esOnlyExtension(&Extensions::robustClientMemoryANGLE);

@@ -40,6 +40,9 @@ class MockPasswordAccessoryController : public PasswordAccessoryController {
               (override));
   MOCK_METHOD(void, DidNavigateMainFrame, ());
   MOCK_METHOD(void,
+              UpdateCredManReentryUi,
+              (autofill::mojom::FocusedFieldType));
+  MOCK_METHOD(void,
               RegisterFillingSourceObserver,
               (FillingSourceObserver),
               (override));
@@ -50,6 +53,10 @@ class MockPasswordAccessoryController : public PasswordAccessoryController {
   MOCK_METHOD(void,
               OnFillingTriggered,
               (autofill::FieldGlobalId, const autofill::AccessorySheetField&),
+              (override));
+  MOCK_METHOD((void),
+              OnPasskeySelected,
+              (const std::vector<uint8_t>& credential_id),
               (override));
   MOCK_METHOD(void,
               OnOptionSelected,

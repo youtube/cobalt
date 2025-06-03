@@ -36,6 +36,16 @@
       "2FCBCE08B34CCA1728A85F1EFBD9A34DD2558B2E"
     ]
   },
+  "accessibilityServicePrivate": {
+    "channel": "stable",
+    "component_extensions_auto_granted": false,
+    "extension_types": ["extension"],
+    "location": "component",
+    "platforms": ["chromeos", "lacros"],
+    "allowlist": [
+      "3CD7D4ABEB04E8C4D20552C60B8B20983DD10A2F"   // Embedded A11y Helper.
+    ]
+  },
   "activityLogPrivate": {
     "channel": "stable",
     "extension_types": ["extension", "platform_app"],
@@ -229,10 +239,6 @@
     "channel": "stable",
     "extension_types": ["extension", "platform_app"]
   },
-  "desktopCapturePrivate": {
-    "channel": "stable",
-    "extension_types": ["extension", "platform_app"]
-  },
   "documentScan": {
     "channel": "stable",
     "extension_types": ["extension", "platform_app"],
@@ -302,7 +308,16 @@
     "location": "external_component",
     "platforms": ["chromeos"],
     "allowlist": [
-      "EC8EA268128FECE14CEC68B90686D87755D87083"  // http://crbug.com/854695
+      "EC8EA268128FECE14CEC68B90686D87755D87083"   // http://crbug.com/854695
+    ]
+  },
+  {
+    "channel": "stable",
+    "platforms": ["chromeos", "lacros"],
+    "extension_types": ["extension"],
+    "allowlist": [
+      "A4CC6F00ACF41015AF38F1D5C98E97C2B8B3B320",  // http://crbug.com/1483151
+      "4E09F1C1EEC4D27F1F7DF18BA3643307107A7C41"   // http://crbug.com/1483151
     ]
   }],
   "enterprise.platformKeysPrivate": {
@@ -348,10 +363,12 @@
   },
   "fileManagerPrivate": {
     "channel": "stable",
-    "extension_types": ["extension", "legacy_packaged_app", "platform_app"],
+    "extension_types": ["extension", "platform_app"],
+    "location": "component",
     "platforms": ["chromeos"],
     "allowlist": [
-      "74E2D32A61B08D29521A8C4E360F581DE78F5CA5"  // Image loader
+      // Only used for API tests by test ext pkplfbidichfdicaijlchgnapepdginl.
+      "5065C83E84321221675D20FBE4DC43C655CC8C6F"
     ]
   },
   "fileSystemProvider": [{
@@ -409,13 +426,6 @@
     "channel": "stable",
     "extension_types": ["extension", "platform_app"]
   },
-  "identityPrivate": {
-    "channel": "stable",
-    "extension_types": [
-      "legacy_packaged_app", "platform_app"
-    ],
-    "location": "component"
-  },
   "idltest": {
     "channel": "trunk",
     "extension_types": ["extension"]
@@ -424,6 +434,16 @@
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app"],
     "platforms": ["chromeos", "win", "linux"]
+  },
+  "imageLoaderPrivate": {
+    "channel": "stable",
+    "component_extensions_auto_granted": false,
+    "extension_types": ["extension"],
+    "location": "component",
+    "platforms": ["chromeos"],
+    "allowlist": [
+      "74E2D32A61B08D29521A8C4E360F581DE78F5CA5"  // Image loader
+    ]
   },
   "inputMethodPrivate": [{
     "channel": "stable",
@@ -482,6 +502,7 @@
     "location": "policy",
     "platforms": ["chromeos", "lacros"],
     "allowlist": [
+      "93B7178E8C275515C38D4F43D9DF4648F0EA9B03", // Badge Based Auth Extension
       "7FE4A999359A456C4B0FB7B7AD85CEA29CA50519", // Login screen APIs test extension
       "3F5995FE79A861F019C6F093BEF98D73FA9D3A5F"  // Login screen APIs in-session test extension
     ]
@@ -500,6 +521,14 @@
     "allowlist": [
       "7FE4A999359A456C4B0FB7B7AD85CEA29CA50519", // Login screen APIs test extension
       "3F5995FE79A861F019C6F093BEF98D73FA9D3A5F"  // Login screen APIs in-session test extension
+    ]
+  }, {
+    "channel": "stable",
+    "extension_types": ["extension", "login_screen_extension"],
+    "location": "policy",
+    "platforms": ["chromeos", "lacros"],
+    "allowlist": [
+      "93B7178E8C275515C38D4F43D9DF4648F0EA9B03" // Badge Based Auth Extension
     ]
   }],
   "loginScreenUi": [{
@@ -528,6 +557,7 @@
     "location": "policy",
     "platforms": ["chromeos"],
     "allowlist": [
+      "93B7178E8C275515C38D4F43D9DF4648F0EA9B03",   // Badge Based Auth Extension
       "EC3DE21E048B67319893889529354DFBFA96FD23",   // https://crbug.com/1233881
       "A19608AC34215B127FF9D7C006D67F5C8ED8146D",   // https://crbug.com/1233881
       // https://crbug.com/1194693
@@ -597,8 +627,7 @@
       "allowlist": [
         "B44D08FD98F1523ED5837D78D0A606EA9D6206E5"  // Web Store
       ]
-    },
-    {
+    }, {
       "channel": "stable",
       "extension_types": ["platform_app"],
       "session_types": ["kiosk"]
@@ -606,6 +635,14 @@
       "channel": "stable",
       "dependencies": ["behavior:imprivata_login_screen_extension"],
       "extension_types": ["login_screen_extension"]
+    }, {
+      "channel": "stable",
+      "extension_types": ["login_screen_extension"],
+      "location": "policy",
+      "platforms": ["chromeos"],
+      "allowlist": [
+        "93B7178E8C275515C38D4F43D9DF4648F0EA9B03" // Badge Based Auth Extension
+      ]
     }
   ],
   "mediaPlayerPrivate": {
@@ -753,6 +790,11 @@
       "754A9CB3C8623093180E10CF4C3AB64837179E68",  // https://crbug.com/1201800
       "CF6B19571334F49878327D557597D23B1458AA39"   // https://crbug.com/1201800
     ]
+  },
+  "readingList": {
+    "channel": "stable",
+    "extension_types": ["extension"],
+    "min_manifest_version": 3
   },
   "resourcesPrivate": {
     "channel": "stable",
@@ -938,23 +980,12 @@
     "extension_types": ["platform_app", "extension"],
     "platforms": ["chromeos", "lacros"]
   },
-  "webAuthenticationProxy": [{
-    "channel": "trunk",
-    "extension_types": ["extension"],
-    "min_manifest_version": 3,
-    "platforms": ["win", "linux", "mac"]
-  }, {
+  "webAuthenticationProxy": {
     "channel": "stable",
     "extension_types": ["extension"],
     "min_manifest_version": 3,
-    "platforms": ["win", "linux", "mac"],
-    "allowlist": [
-      // Chrome Remote Desktop Security Key extension
-      "3CDF65D2CA48FCA9A96B01936FA97049F8332737",
-      // Chrome Remote Desktop Security Key dev extension
-      "2981AC9CF0999EEFFB4599E3C02395054167A521"
-    ]
-  }],
+    "platforms": ["win", "linux", "mac"]
+  },
   "webNavigation": {
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app"]

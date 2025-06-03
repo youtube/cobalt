@@ -10,11 +10,11 @@
 namespace autofill {
 
 AddressFormLabelFormatter::AddressFormLabelFormatter(
-    const std::vector<AutofillProfile*>& profiles,
+    const std::vector<const AutofillProfile*>& profiles,
     const std::string& app_locale,
     ServerFieldType focused_field_type,
     uint32_t groups,
-    const std::vector<ServerFieldType>& field_types)
+    const ServerFieldTypeSet& field_types)
     : LabelFormatter(profiles,
                      app_locale,
                      focused_field_type,
@@ -22,12 +22,12 @@ AddressFormLabelFormatter::AddressFormLabelFormatter(
                      field_types),
       form_has_street_address_(HasStreetAddress(field_types_for_labels())) {}
 
-AddressFormLabelFormatter::~AddressFormLabelFormatter() {}
+AddressFormLabelFormatter::~AddressFormLabelFormatter() = default;
 
 std::u16string AddressFormLabelFormatter::GetLabelForProfile(
     const AutofillProfile& profile,
     FieldTypeGroup focused_group) const {
-  if (focused_group != FieldTypeGroup::kAddressHome) {
+  if (focused_group != FieldTypeGroup::kAddress) {
     return GetLabelNationalAddress(field_types_for_labels(), profile,
                                    app_locale());
   } else {

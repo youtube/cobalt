@@ -18,11 +18,11 @@ namespace autofill {
 // Handles the creation of Suggestions' disambiguating labels.
 class LabelFormatter {
  public:
-  LabelFormatter(const std::vector<AutofillProfile*>& profiles,
+  LabelFormatter(const std::vector<const AutofillProfile*>& profiles,
                  const std::string& app_locale,
                  ServerFieldType focused_field_type,
                  uint32_t groups,
-                 const std::vector<ServerFieldType>& field_types);
+                 const ServerFieldTypeSet& field_types);
   virtual ~LabelFormatter();
 
   // Returns the bitmask indicating which FieldTypeGroups are represented in
@@ -37,10 +37,10 @@ class LabelFormatter {
   // formatter has the ability to build labels with disambiguating information
   // from the given |profiles|.
   static std::unique_ptr<LabelFormatter> Create(
-      const std::vector<AutofillProfile*>& profiles,
+      const std::vector<const AutofillProfile*>& profiles,
       const std::string& app_locale,
       ServerFieldType focused_field_type,
-      const std::vector<ServerFieldType>& field_types);
+      const ServerFieldTypeSet& field_types);
 
  protected:
   // Returns a label to show the user. The elements of the label and their
@@ -66,7 +66,7 @@ class LabelFormatter {
   // It is safe to store a reference here because the LabelFormatter is
   // destroyed when the suggestions for which the labels are constructed are
   // returned.
-  const raw_ref<const std::vector<AutofillProfile*>> profiles_;
+  const raw_ref<const std::vector<const AutofillProfile*>> profiles_;
 
   // The locale for which to generate labels. This reflects the language and
   // country for which the application is translated, e.g. en-AU for Australian

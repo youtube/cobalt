@@ -47,6 +47,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/components/arc/mojom/app.mojom.h"
+#include "ash/public/cpp/new_window_delegate.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -354,7 +355,7 @@ int GetSessionIdForRestoreFromWebContents(
     return SessionID::InvalidValue().id();
   }
 
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return SessionID::InvalidValue().id();
   }
@@ -386,22 +387,7 @@ crosapi::mojom::LaunchParamsPtr ConvertLaunchParamsToCrosapi(
     Profile* profile) {
   auto crosapi_params = crosapi::mojom::LaunchParams::New();
 
-  std::string id = params.app_id;
-  // In Lacros, all platform apps must be converted to use a muxed id.
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // During testing, the profile could be nullptr.
-  if (profile) {
-    extensions::ExtensionRegistry* registry =
-        extensions::ExtensionRegistry::Get(profile);
-    const extensions::Extension* extension =
-        registry->GetExtensionById(id, extensions::ExtensionRegistry::ENABLED);
-    if (extension && extension->is_platform_app()) {
-      id = lacros_extensions_util::MuxId(profile, extension);
-    }
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
-  crosapi_params->app_id = id;
+  crosapi_params->app_id = params.app_id;
   crosapi_params->launch_source = params.launch_source;
 
   // Both launch_files and override_url will be represent by intent in crosapi
@@ -507,8 +493,17 @@ void MaybeLaunchPreferredAppForUrl(Profile* profile,
       return;
     }
   }
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  CHECK(ash::NewWindowDelegate::GetPrimary());
+
+  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+      url, ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
+      ash::NewWindowDelegate::Disposition::kNewForegroundTab);
+#elif BUILDFLAG(IS_CHROMEOS_LACROS)
   NavigateParams params(profile, url, ui::PAGE_TRANSITION_LINK);
+  params.window_action = NavigateParams::SHOW_WINDOW;
   Navigate(&params);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

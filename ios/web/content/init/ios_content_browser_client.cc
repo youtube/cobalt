@@ -50,7 +50,7 @@ std::string IOSContentBrowserClient::GetAcceptLangs(
 }
 
 std::string IOSContentBrowserClient::GetProduct() {
-  return version_info::GetProductNameAndVersionForUserAgent();
+  return std::string(version_info::GetProductNameAndVersionForUserAgent());
 }
 
 std::string IOSContentBrowserClient::GetUserAgent() {
@@ -62,22 +62,15 @@ std::string IOSContentBrowserClient::GetUserAgentBasedOnPolicy(
   return GetUserAgent();
 }
 
-std::string IOSContentBrowserClient::GetFullUserAgent() {
-  return embedder_support::GetFullUserAgent();
-}
-
-std::string IOSContentBrowserClient::GetReducedUserAgent() {
-  return embedder_support::GetReducedUserAgent();
-}
-
 blink::UserAgentMetadata IOSContentBrowserClient::GetUserAgentMetadata() {
   blink::UserAgentMetadata metadata;
 
-  metadata.brand_version_list.emplace_back(version_info::GetProductName(),
-                                           "113");
+  metadata.brand_version_list.emplace_back(
+      std::string(version_info::GetProductName()), "113");
   metadata.brand_full_version_list.emplace_back(
-      version_info::GetProductName(), version_info::GetVersionNumber());
-  metadata.full_version = version_info::GetVersionNumber();
+      std::string(version_info::GetProductName()),
+      std::string(version_info::GetVersionNumber()));
+  metadata.full_version = std::string(version_info::GetVersionNumber());
   metadata.platform = "Unknown";
   metadata.architecture = content::GetCpuArchitecture();
   metadata.model = content::BuildModelInfo();

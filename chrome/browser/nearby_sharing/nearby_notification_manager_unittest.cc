@@ -49,6 +49,7 @@
 #include "components/account_id/account_id.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "storage/browser/file_system/external_mount_points.h"
@@ -152,21 +153,14 @@ std::unique_ptr<TestingProfileManager> CreateTestingProfileManager() {
 
 class NearbyNotificationManagerTestBase : public testing::Test {
  public:
-  explicit NearbyNotificationManagerTestBase(
-      std::tuple<bool, bool> feature_list) {
+  explicit NearbyNotificationManagerTestBase(std::tuple<bool> feature_list) {
     std::vector<base::test::FeatureRef> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
     is_self_share_enabled_ = std::get<0>(feature_list);
-    is_self_share_auto_accept_enabled_ = std::get<1>(feature_list);
     if (is_self_share_enabled_) {
-      enabled_features.push_back(features::kNearbySharingSelfShareUI);
+      enabled_features.push_back(features::kNearbySharingSelfShare);
     } else {
-      disabled_features.push_back(features::kNearbySharingSelfShareUI);
-    }
-    if (is_self_share_auto_accept_enabled_) {
-      enabled_features.push_back(features::kNearbySharingSelfShareAutoAccept);
-    } else {
-      disabled_features.push_back(features::kNearbySharingSelfShareAutoAccept);
+      disabled_features.push_back(features::kNearbySharingSelfShare);
     }
     scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
     RegisterNearbySharingPrefs(pref_service_.registry());
@@ -283,16 +277,16 @@ class NearbyNotificationManagerTestBase : public testing::Test {
   std::unique_ptr<base::ScopedDisallowBlocking> disallow_blocking_;
   std::unique_ptr<NearbyNotificationManager> manager_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
-  raw_ptr<MockSettingsOpener, ExperimentalAsh> settings_opener_;
+  raw_ptr<MockSettingsOpener, DanglingUntriaged | ExperimentalAsh>
+      settings_opener_;
   bool is_self_share_enabled_ = false;
-  bool is_self_share_auto_accept_enabled_ = false;
 };
 
 // We parameterize these tests to run them with Self Share and Nearby Share
 // Visibility Reminder enabled and disabled.
 class NearbyNotificationManagerTest
     : public NearbyNotificationManagerTestBase,
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+      public testing::WithParamInterface<std::tuple<bool>> {
  public:
   NearbyNotificationManagerTest()
       : NearbyNotificationManagerTestBase(/*feature_list=*/GetParam()) {}
@@ -407,7 +401,7 @@ class NearbyNotificationManagerAttachmentsTest
  public:
   NearbyNotificationManagerAttachmentsTest()
       : NearbyNotificationManagerTestBase(
-            /*feature_list=*/std::get<2>(GetParam())) {}
+            /*feature_list=*/std::get<1>(GetParam())) {}
 };
 
 // Boolean parameter is |with_token| and the tuple parameter is featuree list
@@ -420,7 +414,7 @@ class NearbyNotificationManagerConnectionRequestTest
  public:
   NearbyNotificationManagerConnectionRequestTest()
       : NearbyNotificationManagerTestBase(
-            /*feature_list=*/std::get<1>(GetParam())) {}
+            /*feature_list=*/std::get<0>(GetParam())) {}
 };
 
 std::u16string FormatNotificationTitle(
@@ -1694,7 +1688,8 @@ class NearbyFilesHoldingSpaceTest : public testing::Test {
   std::unique_ptr<NearbyNotificationManager> manager_;
   std::unique_ptr<TestSessionController> session_controller_;
   std::unique_ptr<ash::HoldingSpaceController> holding_space_controller_;
-  std::unique_ptr<ash::FakeChromeUserManager> user_manager_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      user_manager_;
 };
 
 TEST_F(NearbyFilesHoldingSpaceTest, ShowSuccess_Files) {
@@ -1728,7 +1723,7 @@ TEST_F(NearbyFilesHoldingSpaceTest, ShowSuccess_Files) {
               holding_space_item->type());
 
     EXPECT_EQ(share_target.file_attachments[i].file_path(),
-              holding_space_item->file_path());
+              holding_space_item->file().file_path);
   }
 }
 
@@ -1923,13 +1918,36 @@ TEST_P(NearbyNotificationManagerTest, ConnectionRequest_SelfShare) {
   manager()->OnTransferUpdate(share_target, transfer_metadata);
   std::vector<message_center::Notification> notifications =
       GetDisplayedNotifications();
-  if (is_self_share_auto_accept_enabled_) {
-    ASSERT_EQ(0u, notifications.size());
+  if (is_self_share_enabled_) {
+      ASSERT_EQ(0u, notifications.size());
   } else {
-    ASSERT_EQ(1u, notifications.size());
+      ASSERT_EQ(1u, notifications.size());
   }
+}
+
+TEST_P(NearbyNotificationManagerTest,
+       ConnectionRequest_SelfShare_WiFiCantAutoAccept) {
+  ShareTarget share_target;
+  // Incoming Wi-Fi credential Self Share.
+  share_target.is_incoming = true;
+  share_target.for_self_share = true;
+  share_target.wifi_credentials_attachments.push_back(
+      CreateWifiCredentialsAttachment(
+          WifiCredentialsAttachment::SecurityType::kWpaPsk));
+  TransferMetadata transfer_metadata =
+      TransferMetadataBuilder()
+          .set_status(TransferMetadata::Status::kAwaitingLocalConfirmation)
+          .build();
+
+  // Simulate incoming connection request waiting for local confirmation.
+  manager()->OnTransferUpdate(share_target, transfer_metadata);
+  std::vector<message_center::Notification> notifications =
+      GetDisplayedNotifications();
+  // We can't auto-accept Wi-Fi credentials, so expect the confirmation
+  // notification whether or not self share is enabled.
+  ASSERT_EQ(1u, notifications.size());
 }
 
 INSTANTIATE_TEST_SUITE_P(NearbyNotificationManagerTest,
                          NearbyNotificationManagerTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+                         testing::Combine(testing::Bool()));

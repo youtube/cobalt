@@ -1,11 +1,11 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_RAW_PTR_ASAN_BOUND_ARG_TRACKER_H_
 #define BASE_MEMORY_RAW_PTR_ASAN_BOUND_ARG_TRACKER_H_
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 
 #if BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
 #include <cstddef>
@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/containers/stack_container.h"
 #include "base/memory/raw_ptr.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 namespace internal {
@@ -47,7 +47,7 @@ class UnretainedRefWrapper;
 class BASE_EXPORT RawPtrAsanBoundArgTracker {
  public:
   static constexpr size_t kInlineArgsCount = 3;
-  using ProtectedArgsVector = base::StackVector<uintptr_t, kInlineArgsCount>;
+  using ProtectedArgsVector = absl::InlinedVector<uintptr_t, kInlineArgsCount>;
 
   // Check whether ptr is an address inside an allocation pointed to by one of
   // the currently protected callback arguments. If it is, then this function

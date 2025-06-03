@@ -10,10 +10,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 using base::test::ios::WaitUntilConditionOrTimeout;
@@ -29,7 +25,6 @@ ArchivableCredential* TestCredential(NSString* user) {
                                      serviceIdentifier:@"serviceIdentifier"
                                            serviceName:@"serviceName"
                                                   user:user
-                                  validationIdentifier:@"validationIdentifier"
                                                   note:@"note"];
 }
 

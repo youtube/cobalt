@@ -6,7 +6,8 @@ package org.chromium.chrome.test.util.browser;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.test.util.FeaturesBase;
-import org.chromium.chrome.browser.flags.CachedFeatureFlags;
+import org.chromium.chrome.browser.flags.CachedFlag;
+import org.chromium.chrome.browser.flags.CachedFlagUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
@@ -27,7 +28,7 @@ import java.util.List;
  *    &#64;Rule
  *    public TestRule mProcessor = new Features.JUnitProcessor();
  *
- *    &#64;Features.EnableFeatures(ChromeFeatureList.CHROME_MODERN_DESIGN)
+ *    &#64;EnableFeatures(ChromeFeatureList.CHROME_MODERN_DESIGN)
  *    public void testFoo() { ... }
  * }
  * </pre>
@@ -65,13 +66,13 @@ public class Features extends FeaturesBase {
     @Override
     protected void applyForJUnit() {
         super.applyForJUnit();
-        CachedFeatureFlags.setFeaturesForTesting(mRegisteredState);
+        CachedFlag.setFeaturesForTesting(mRegisteredState);
     }
 
     @Override
     protected void applyForInstrumentation() {
         super.applyForInstrumentation();
-        CachedFeatureFlags.setFeaturesForTesting(mRegisteredState);
+        CachedFlag.setFeaturesForTesting(mRegisteredState);
         FieldTrials.getInstance().applyFieldTrials();
     }
 
@@ -129,9 +130,9 @@ public class Features extends FeaturesBase {
 
     /** Resets Features-related state that might persist in between tests. */
     private static void resetCachedFlags(boolean forInstrumentation) {
-        CachedFeatureFlags.resetFlagsForTesting();
+        CachedFlagUtils.resetFlagsForTesting();
         if (forInstrumentation) {
-            CachedFeatureFlags.resetDiskForTesting();
+            CachedFlag.resetDiskForTesting();
         }
         FieldTrials.getInstance().reset();
     }

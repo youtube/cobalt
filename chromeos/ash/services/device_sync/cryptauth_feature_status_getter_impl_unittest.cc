@@ -85,7 +85,7 @@ cryptauthv2::DeviceFeatureStatus ConvertDeviceToDeviceFeatureStatus(
     // as the last_modified_time_millis. All other feature types will have
     // smaller last_modified_time_millis.
     feature_status->set_last_modified_time_millis(
-        std::max(0L, device.last_update_time.ToJavaTime() -
+        std::max(0L, device.last_update_time.InMillisecondsSinceUnixEpoch() -
                          last_modified_time_offset_millis));
     ++last_modified_time_offset_millis;
 
@@ -257,7 +257,7 @@ class DeviceSyncCryptAuthFeatureStatusGetterImplTest
       device_sync_result_code_;
 
   std::unique_ptr<MockCryptAuthClientFactory> client_factory_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> timer_;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged | ExperimentalAsh> timer_;
 
   std::unique_ptr<CryptAuthFeatureStatusGetter> feature_status_getter_;
 };

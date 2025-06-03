@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/paint/ng/ng_highlight_painter.h"
+#include "third_party/blink/renderer/core/paint/line_relative_rect.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/ng/layout_ng_block_flow.h"
 #include "third_party/blink/renderer/core/paint/ng/ng_inline_paint_context.h"
 #include "third_party/blink/renderer/core/paint/ng/ng_text_decoration_painter.h"
@@ -42,7 +43,7 @@ TEST_P(NGHighlightPainterTest, FastSpellingGrammarPaintCase) {
     LayoutObject& body = *GetDocument().body()->GetLayoutObject();
     const auto& block_flow = To<LayoutNGBlockFlow>(body);
     NGInlinePaintContext inline_context{};
-    NGInlineCursor cursor{block_flow};
+    InlineCursor cursor{block_flow};
     cursor.MoveToFirstLine();
     inline_context.SetLineBox(cursor);
     cursor.MoveTo(*block_flow.FirstChild());
@@ -51,7 +52,7 @@ TEST_P(NGHighlightPainterTest, FastSpellingGrammarPaintCase) {
     gfx::Rect rect{};
     PhysicalOffset physical_offset{};
     PhysicalRect physical_rect{};
-    const NGFragmentItem& text_item = *cursor.CurrentItem();
+    const FragmentItem& text_item = *cursor.CurrentItem();
     const ComputedStyle& style = text_item.Style();
     absl::optional<NGHighlightPainter::SelectionPaintState> maybe_selection;
     NGHighlightPainter::SelectionPaintState* selection = nullptr;
@@ -65,12 +66,20 @@ TEST_P(NGHighlightPainterTest, FastSpellingGrammarPaintCase) {
     PaintInfo paint_info{graphics_context, cull_rect, PaintPhase::kForeground};
     TextPaintStyle text_style =
         TextPainterBase::TextPaintingStyle(GetDocument(), style, paint_info);
-    NGTextPainter text_painter(graphics_context, text_item.ScaledFont(), rect,
-                               physical_offset, physical_rect, &inline_context,
-                               true);
+    if (selection) {
+      selection->ComputeSelectionStyle(GetDocument(), style,
+                                       text_item.GetLayoutObject()->GetNode(),
+                                       paint_info, text_style);
+    }
+    LineRelativeRect rotated_rect =
+        LineRelativeRect::CreateFromLineBox(physical_rect, true);
+    NGTextPainter text_painter(
+        graphics_context, text_item.ScaledFont(), rect,
+        LineRelativeOffset::CreateFromBoxOrigin(physical_offset), rotated_rect,
+        &inline_context, true);
     NGTextDecorationPainter decoration_painter(text_painter, text_item,
                                                paint_info, style, text_style,
-                                               physical_rect, selection);
+                                               rotated_rect, selection);
     NGHighlightPainter highlight_painter(
         cursor.Current()->TextPaintInfo(cursor.Items()), text_painter,
         decoration_painter, paint_info, cursor, text_item, {}, physical_offset,

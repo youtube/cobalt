@@ -4,39 +4,36 @@
 
 package org.chromium.components.signin.identitymanager;
 
-import android.os.SystemClock;
-
 import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Log;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ObserverList;
+import org.chromium.base.Promise;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.task.AsyncTask;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
-import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.AccountsChangeObserver;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
- * Android wrapper of AccountTrackerService which provides access from the java layer.
- * It offers the capability of fetching and seeding system accounts into AccountTrackerService in
- * C++ layer, and notifies observers when it is complete.
+ * Android wrapper of AccountTrackerService which provides access from the java layer. It offers the
+ * capability of fetching and seeding system accounts into AccountTrackerService in C++ layer, and
+ * notifies observers when it is complete.
  *
- * TODO(crbug/1176136): Move this class to components/signin/internal
+ * <p>TODO(crbug/1176136): Move this class to components/signin/internal
  */
 public class AccountTrackerService implements AccountsChangeObserver {
     /**
@@ -45,14 +42,14 @@ public class AccountTrackerService implements AccountsChangeObserver {
     public interface Observer {
         /**
          * This method is invoked every time the accounts on device are seeded.
+         *
          * @param accountInfos List of all the accounts on device.
          * @param accountsChanged Whether this seeding is triggered by an accounts changed event.
-         *
-         * The seeding can be triggered when Chrome starts, user signs in/signs out and
-         * when accounts change. Only the last scenario should trigger this call with
-         * {@param accountsChanged} equal true.
+         *     <p>The seeding can be triggered when Chrome starts, user signs in/signs out and when
+         *     accounts change. Only the last scenario should trigger this call with {@param
+         *     accountsChanged} equal true.
          */
-        void onAccountsSeeded(List<CoreAccountInfo> accountInfos, boolean accountsChanged);
+        void legacyOnAccountsSeeded(List<CoreAccountInfo> accountInfos, boolean accountsChanged);
     }
 
     private static final String TAG = "AccountService";
@@ -73,8 +70,7 @@ public class AccountTrackerService implements AccountsChangeObserver {
     private final Queue<Runnable> mRunnablesWaitingForAccountsSeeding;
     private @AccountsSeedingStatus int mAccountsSeedingStatus;
     private final ObserverList<Observer> mObservers = new ObserverList<>();
-    private boolean mAccountsChangeObserverAdded;
-    private boolean mExistsPendingSeedAccountsTask;
+    private final AccountManagerFacade mAccountManagerFacade;
 
     @VisibleForTesting
     @CalledByNative
@@ -82,7 +78,14 @@ public class AccountTrackerService implements AccountsChangeObserver {
         mNativeAccountTrackerService = nativeAccountTrackerService;
         mAccountsSeedingStatus = AccountsSeedingStatus.NOT_STARTED;
         mRunnablesWaitingForAccountsSeeding = new ConcurrentLinkedDeque<>();
-        mExistsPendingSeedAccountsTask = false;
+        mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
+        mAccountManagerFacade.addObserver(this);
+    }
+
+    @VisibleForTesting
+    @CalledByNative
+    void destroy() {
+        mAccountManagerFacade.removeObserver(this);
     }
 
     /**
@@ -100,17 +103,21 @@ public class AccountTrackerService implements AccountsChangeObserver {
     }
 
     /**
-     * Seeds the accounts only if they are not seeded yet.
-     * The given runnable will run after the accounts are seeded. If the accounts
-     * are already seeded, the runnable will be executed immediately.
+     * Seeds the accounts only if they are not seeded yet. The given runnable will run after the
+     * accounts are seeded. If the accounts are already seeded, the runnable will be executed
+     * immediately.
      */
     @MainThread
-    public void seedAccountsIfNeeded(Runnable onAccountsSeeded) {
-        ThreadUtils.assertOnUiThread();
+    public void legacySeedAccountsIfNeeded(Runnable onAccountsSeeded) {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.SEED_ACCOUNTS_REVAMP)) {
+            throw new IllegalStateException(
+                    "This method should never be called when SeedAccountsRevamp is enabled");
+        }
+        ThreadUtils.checkUiThread();
         switch (mAccountsSeedingStatus) {
             case AccountsSeedingStatus.NOT_STARTED:
                 mRunnablesWaitingForAccountsSeeding.add(onAccountsSeeded);
-                seedAccounts(/*accountsChanged=*/false);
+                legacySeedAccounts(/* accountsChanged= */ false);
                 break;
             case AccountsSeedingStatus.IN_PROGRESS:
                 mRunnablesWaitingForAccountsSeeding.add(onAccountsSeeded);
@@ -122,134 +129,69 @@ public class AccountTrackerService implements AccountsChangeObserver {
     }
 
     /** Implements {@link AccountsChangeObserver}. */
-    @Override
-    public void onAccountsChanged() {
-        if (!AccountTrackerServiceJni.get().isGaiaIdInAMFEnabled()) {
-            onAccountsChangedInternal();
-        }
-    }
-
-    /** Implements {@link AccountsChangeObserver}. */
+    // TODO(crbug/1491005): Move the AccountInfoChanged logic to the SigninManager.
     @Override
     public void onCoreAccountInfosChanged() {
-        if (AccountTrackerServiceJni.get().isGaiaIdInAMFEnabled()) {
-            onAccountsChangedInternal();
+        // If mAccountsSeedingStatus is IN_PROGRESS do nothing. The promise in seedAccounts() will
+        // be fulfilled with updated list of CoreAccountInfo's.
+        if (mAccountsSeedingStatus != AccountsSeedingStatus.IN_PROGRESS) {
+            mAccountsSeedingStatus = AccountsSeedingStatus.NOT_STARTED;
+            legacySeedAccounts(true);
         }
     }
 
     @MainThread
     void invalidateAccountsSeedingStatus() {
-        if (mAccountsSeedingStatus == AccountsSeedingStatus.IN_PROGRESS) {
-            // Re-seed accounts again after the current, now invalid, seeding process finishes.
-            mExistsPendingSeedAccountsTask = true;
-        } else {
+        // If mAccountsSeedingStatus is IN_PROGRESS do nothing. The old invalidated seeding status
+        // will be overwritten by the new seeding process.
+        if (mAccountsSeedingStatus != AccountsSeedingStatus.IN_PROGRESS) {
             mAccountsSeedingStatus = AccountsSeedingStatus.NOT_STARTED;
-        }
-    }
-
-    /**
-     * Invoked when accounts change on device. When there is already a seeding in
-     * progress, the {@link #seedAccounts()} task will be added to the pending task list so
-     * that we will seed the accounts again in the end of the current seeding to avoid
-     * the race condition.
-     */
-    private void onAccountsChangedInternal() {
-        if (mAccountsSeedingStatus == AccountsSeedingStatus.IN_PROGRESS) {
-            mExistsPendingSeedAccountsTask = true;
-        } else {
-            seedAccounts(/*accountsChanged=*/true);
+            legacySeedAccounts(false);
         }
     }
 
     /**
      * Seeds the accounts on device.
-     * @param accountsChanged Whether this seeding is triggered by an accounts changed event.
      *
-     * The seeding can be triggered when Chrome starts, user signs in/signs out and
-     * when accounts change. Only the last scenario should trigger this call with
-     * {@param accountsChanged} equal true.
-     * When Chrome starts, we should trigger seedAccounts(false) because the accounts are
-     * already loaded in PO2TS in this flow. accountsChanged=false will avoid it to get
-     * triggered again from SigninChecker.
+     * @param accountsChanged Whether this seeding is triggered by an accounts changed event.
+     *     <p>The seeding can be triggered when Chrome starts, user signs in/signs out and when
+     *     accounts change. Only the last scenario should trigger this call with {@param
+     *     accountsChanged} equal true. When Chrome starts, we should trigger seedAccounts(false)
+     *     because the accounts are already loaded in PO2TS in this flow. accountsChanged=false will
+     *     avoid it to get triggered again from SigninChecker.
      */
-    private void seedAccounts(boolean accountsChanged) {
-        ThreadUtils.assertOnUiThread();
-        final AccountManagerFacade accountManagerFacade =
-                AccountManagerFacadeProvider.getInstance();
-        assert mAccountsSeedingStatus
-                != AccountsSeedingStatus.IN_PROGRESS : "There is already a seeding in progress!";
+    private void legacySeedAccounts(boolean accountsChanged) {
+        ThreadUtils.checkUiThread();
+        // The revamped signin flow will not seed accounts here.
+        if (SigninFeatureMap.isEnabled(SigninFeatures.SEED_ACCOUNTS_REVAMP)) {
+            throw new IllegalStateException(
+                    "This method should never be called when SeedAccountsRevamp is enabled");
+        }
+        assert mAccountsSeedingStatus != AccountsSeedingStatus.IN_PROGRESS
+                : "There is already a seeding in progress!";
         mAccountsSeedingStatus = AccountsSeedingStatus.IN_PROGRESS;
 
-        if (!mAccountsChangeObserverAdded) {
-            mAccountsChangeObserverAdded = true;
-            accountManagerFacade.addObserver(this);
+        Promise<List<CoreAccountInfo>> coreAccountInfosPromise =
+                mAccountManagerFacade.getCoreAccountInfos();
+        if (coreAccountInfosPromise.isFulfilled()) {
+            finishSeedingAccounts(coreAccountInfosPromise.getResult(), accountsChanged);
+        } else {
+            coreAccountInfosPromise.then(
+                    coreAccountInfos -> {
+                        finishSeedingAccounts(coreAccountInfos, accountsChanged);
+                    });
         }
-
-        if (AccountTrackerServiceJni.get().isGaiaIdInAMFEnabled()) {
-            accountManagerFacade.getCoreAccountInfos().then(coreAccountInfos -> {
-                finishSeedingAccounts(coreAccountInfos, accountsChanged);
-            });
-            return;
-        }
-
-        accountManagerFacade.getAccounts().then(accounts -> {
-            final List<String> emails = AccountUtils.toAccountNames(accounts);
-            new AsyncTask<List<String>>() {
-                @Override
-                public List<String> doInBackground() {
-                    Log.d(TAG, "Getting id/email mapping");
-                    final long seedingStartTime = SystemClock.elapsedRealtime();
-                    final List<String> gaiaIds = new java.util.ArrayList<>();
-                    for (String email : emails) {
-                        final String gaiaId = accountManagerFacade.getAccountGaiaId(email);
-                        if (gaiaId == null) {
-                            return gaiaIds;
-                        }
-                        gaiaIds.add(gaiaId);
-                    }
-                    RecordHistogram.recordTimesHistogram("Signin.AndroidGetAccountIdsTime",
-                            SystemClock.elapsedRealtime() - seedingStartTime);
-                    return gaiaIds;
-                }
-                @Override
-                public void onPostExecute(List<String> gaiaIds) {
-                    if (gaiaIds.size() == emails.size()) {
-                        finishSeedingAccounts(
-                                createCoreAccountInfosFromEmailsAndGaiaIds(emails, gaiaIds),
-                                accountsChanged);
-                    } else {
-                        mAccountsSeedingStatus = AccountsSeedingStatus.NOT_STARTED;
-                        seedAccounts(/*accountsChanged=*/accountsChanged);
-                    }
-                }
-            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        });
-    }
-
-    private List<CoreAccountInfo> createCoreAccountInfosFromEmailsAndGaiaIds(
-            List<String> emails, List<String> gaiaIds) {
-        List<CoreAccountInfo> coreAccountInfos = new ArrayList<>();
-        for (int index = 0; index < gaiaIds.size(); index++) {
-            coreAccountInfos.add(CoreAccountInfo.createFromEmailAndGaiaId(
-                    emails.get(index), gaiaIds.get(index)));
-        }
-        return coreAccountInfos;
     }
 
     private void finishSeedingAccounts(
             List<CoreAccountInfo> coreAccountInfos, boolean accountsChanged) {
-        AccountTrackerServiceJni.get().seedAccountsInfo(
-                mNativeAccountTrackerService, coreAccountInfos.toArray(new CoreAccountInfo[0]));
-        mAccountsSeedingStatus = AccountsSeedingStatus.DONE;
+        ThreadUtils.checkUiThread();
+        AccountTrackerServiceJni.get()
+                .legacySeedAccountsInfo(
+                        mNativeAccountTrackerService,
+                        coreAccountInfos.toArray(new CoreAccountInfo[0]));
 
-        if (mExistsPendingSeedAccountsTask) {
-            // When mExistsPendingSeedAccountsTask is true, it means that an accounts changed
-            // event has been triggered during the current seeding, we should stop the current
-            // seeding here and re-seed the accounts
-            seedAccounts(/*accountsChanged=*/true);
-            mExistsPendingSeedAccountsTask = false;
-            return;
-        }
+        mAccountsSeedingStatus = AccountsSeedingStatus.DONE;
 
         for (@Nullable Runnable runnable = mRunnablesWaitingForAccountsSeeding.poll();
                 runnable != null; runnable = mRunnablesWaitingForAccountsSeeding.poll()) {
@@ -257,19 +199,13 @@ public class AccountTrackerService implements AccountsChangeObserver {
         }
 
         for (Observer observer : mObservers) {
-            observer.onAccountsSeeded(coreAccountInfos, accountsChanged);
+            observer.legacyOnAccountsSeeded(coreAccountInfos, accountsChanged);
         }
     }
 
     @NativeMethods
     interface Natives {
-        void seedAccountsInfo(long nativeAccountTrackerService, CoreAccountInfo[] coreAccountInfos);
-
-        /**
-         * Returns whether GaiaIdCacheInAccountManagerFacade feature is enabled in native code.
-         * We call native to get feature state due to limitation of adding chrome dependency in
-         * components code.
-         */
-        boolean isGaiaIdInAMFEnabled();
+        void legacySeedAccountsInfo(
+                long nativeAccountTrackerService, CoreAccountInfo[] coreAccountInfos);
     }
 }

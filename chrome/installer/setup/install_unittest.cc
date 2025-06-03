@@ -16,7 +16,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat_win.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/test_shortcut_win.h"
@@ -24,7 +24,6 @@
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/shortcut.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/install_static/install_details.h"
 #include "chrome/install_static/install_modes.h"
 #include "chrome/install_static/test/scoped_install_details.h"
@@ -94,10 +93,11 @@ class CreateVisualElementsManifestTest
   // Creates the VisualElements directory and a light asset, if testing such.
   void PrepareTestVisualElementsDirectory() {
     base::FilePath visual_elements_dir =
-        version_dir_.Append(installer::kVisualElements);
+        version_dir_.AppendASCII(installer::kVisualElements);
     ASSERT_TRUE(base::CreateDirectory(visual_elements_dir));
-    std::wstring light_logo_file_name = base::StringPrintf(
-        L"Logo%ls.png", install_static::InstallDetails::Get().logo_suffix());
+    std::wstring light_logo_file_name = base::StrCat(
+        {L"Logo", install_static::InstallDetails::Get().logo_suffix(),
+         L".png"});
     ASSERT_NO_FATAL_FAILURE(
         CreateTestFile(visual_elements_dir.Append(light_logo_file_name)));
   }
@@ -232,7 +232,7 @@ class InstallShortcutTest : public testing::Test {
     expected_start_menu_properties_ = expected_properties_;
     expected_start_menu_properties_.set_dual_mode(false);
 
-    prefs_.reset(GetFakeMasterPrefs(false, false));
+    prefs_.reset(GetFakeInitialPrefs(false, false));
 
     ASSERT_TRUE(fake_user_desktop_.CreateUniqueTempDir());
     ASSERT_TRUE(fake_common_desktop_.CreateUniqueTempDir());
@@ -281,7 +281,7 @@ class InstallShortcutTest : public testing::Test {
     UnpinShortcutFromTaskbar(system_start_menu_subdir_shortcut_);
   }
 
-  installer::InitialPreferences* GetFakeMasterPrefs(
+  installer::InitialPreferences* GetFakeInitialPrefs(
       bool do_not_create_desktop_shortcut,
       bool do_not_create_quick_launch_shortcut) {
     const struct {
@@ -384,7 +384,7 @@ TEST_F(InstallShortcutTest, CreateAllShortcutsSystemLevel) {
 
 TEST_F(InstallShortcutTest, CreateAllShortcutsButDesktopShortcut) {
   std::unique_ptr<installer::InitialPreferences> prefs_no_desktop(
-      GetFakeMasterPrefs(true, false));
+      GetFakeInitialPrefs(true, false));
   installer::CreateOrUpdateShortcuts(chrome_exe_, *prefs_no_desktop,
                                      installer::CURRENT_USER,
                                      installer::INSTALL_SHORTCUT_CREATE_ALL);
@@ -397,7 +397,7 @@ TEST_F(InstallShortcutTest, CreateAllShortcutsButDesktopShortcut) {
 
 TEST_F(InstallShortcutTest, CreateAllShortcutsButQuickLaunchShortcut) {
   std::unique_ptr<installer::InitialPreferences> prefs_no_ql(
-      GetFakeMasterPrefs(false, true));
+      GetFakeInitialPrefs(false, true));
   installer::CreateOrUpdateShortcuts(chrome_exe_, *prefs_no_ql,
                                      installer::CURRENT_USER,
                                      installer::INSTALL_SHORTCUT_CREATE_ALL);

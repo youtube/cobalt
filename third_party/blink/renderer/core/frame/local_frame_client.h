@@ -33,6 +33,7 @@
 
 #include <memory>
 
+#include "base/time/time.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -41,6 +42,7 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/loader/url_loader_factory_bundle.h"
+#include "third_party/blink/public/common/performance/performance_timeline_constants.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy_features.h"
 #include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
@@ -52,6 +54,7 @@
 #include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/triggering_event_info.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/portal/portal.mojom-blink-forward.h"
+#include "third_party/blink/public/platform/child_url_loader_factory_bundle.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "third_party/blink/public/platform/web_effective_connection_type.h"
@@ -101,6 +104,7 @@ class ResourceError;
 class ResourceRequest;
 class ResourceResponse;
 class SourceLocation;
+class WebBackgroundResourceFetchAssets;
 class WebContentCaptureClient;
 class WebDedicatedWorkerHostFactoryClient;
 class WebLocalFrame;
@@ -116,7 +120,7 @@ class URLLoader;
 class ResourceLoadInfoNotifierWrapper;
 enum class SyncCondition;
 struct Impression;
-struct MobileFriendliness;
+struct JavaScriptFrameworkDetectionResult;
 
 namespace scheduler {
 class TaskAttributionId;
@@ -206,11 +210,10 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
 
   // Will be called when |PerformanceTiming| events are updated
   virtual void DidChangePerformanceTiming() {}
-  // Will be called when an |InputEvent| is observed.
-  virtual void DidObserveInputDelay(base::TimeDelta input_delay) {}
 
   // Will be called when a user interaction is observed.
-  virtual void DidObserveUserInteraction(base::TimeDelta max_event_duration,
+  virtual void DidObserveUserInteraction(base::TimeTicks max_event_start,
+                                         base::TimeTicks max_event_end,
                                          UserInteractionType interaction_type) {
   }
 
@@ -221,6 +224,10 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   // propogates renderer loading behavior to the browser process for histograms.
   virtual void DidObserveLoadingBehavior(LoadingBehaviorFlag) {}
 
+  // propagates framework detection info to the browser process for histograms.
+  virtual void DidObserveJavaScriptFrameworks(
+      const JavaScriptFrameworkDetectionResult&) {}
+
   // Will be called when a sub resource load happens.
   virtual void DidObserveSubresourceLoad(
       const SubresourceLoadMetrics& subresource_load_metrics) {}
@@ -230,7 +237,7 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   virtual void DidObserveNewFeatureUsage(const UseCounterFeature&) {}
 
   // A new soft navigation was observed.
-  virtual void DidObserveSoftNavigation(uint32_t count) {}
+  virtual void DidObserveSoftNavigation(SoftNavigationMetrics metrics) {}
 
   // Reports that visible elements in the frame shifted (bit.ly/lsm-explainer).
   virtual void DidObserveLayoutShift(double score, bool after_input_or_scroll) {
@@ -251,8 +258,6 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
 
   virtual String UserAgentOverride() = 0;
   virtual String UserAgent() = 0;
-  virtual String FullUserAgent() = 0;
-  virtual String ReducedUserAgent() = 0;
   virtual absl::optional<blink::UserAgentMetadata> UserAgentMetadata() = 0;
 
   virtual String DoNotTrackValue() = 0;
@@ -367,6 +372,10 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   virtual scoped_refptr<network::SharedURLLoaderFactory>
   GetURLLoaderFactory() = 0;
   virtual std::unique_ptr<URLLoader> CreateURLLoaderForTesting() = 0;
+  virtual blink::ChildURLLoaderFactoryBundle* GetLoaderFactoryBundle() = 0;
+
+  virtual scoped_refptr<WebBackgroundResourceFetchAssets>
+  MaybeGetBackgroundResourceFetchAssets() = 0;
 
   virtual void AnnotatedRegionsChanged() = 0;
 
@@ -445,12 +454,6 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   virtual void BindDevToolsAgent(
       mojo::PendingAssociatedRemote<mojom::blink::DevToolsAgentHost> host,
       mojo::PendingAssociatedReceiver<mojom::blink::DevToolsAgent> receiver) {}
-
-  // AppCache ------------------------------------------------------------
-  virtual void UpdateSubresourceFactory(
-      std::unique_ptr<blink::PendingURLLoaderFactoryBundle> pending_factory) {}
-
-  virtual void DidChangeMobileFriendliness(const MobileFriendliness&) {}
 };
 
 }  // namespace blink

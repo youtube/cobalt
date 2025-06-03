@@ -107,7 +107,8 @@ class SnapshotAXTreeFencedFrameBrowserTest : public SnapshotAXTreeBrowserTest {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {{"implementation_type", "mparch"}}},
          {features::kPrivacySandboxAdsAPIsOverride, {}},
-         {blink::features::kFencedFramesAPIChanges, {}}},
+         {blink::features::kFencedFramesAPIChanges, {}},
+         {blink::features::kFencedFramesDefaultMode, {}}},
         {/* disabled_features */});
   }
 
@@ -217,7 +218,7 @@ IN_PROC_BROWSER_TEST_F(SnapshotAXTreeBrowserTest,
       "      staticText 'Before'\n"
       "    iframe\n"
       "      rootWebArea\n"
-      "        pre\n"
+      "        genericContainer\n"
       "          staticText 'Alpha'\n"
       "    button 'Middle'\n"
       "      staticText 'Middle'\n"
@@ -283,7 +284,7 @@ IN_PROC_BROWSER_TEST_F(SnapshotAXTreeBrowserTest,
       "      staticText 'Before'\n"
       "    iframe\n"
       "      rootWebArea\n"
-      "        pre\n"
+      "        genericContainer\n"
       "          staticText 'Alpha'\n"
       "    button 'Middle'\n"
       "      staticText 'Middle'\n"

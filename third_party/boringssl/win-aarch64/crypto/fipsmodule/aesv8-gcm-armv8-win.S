@@ -1,17 +1,9 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <openssl/asm_base.h>
 
-#if !defined(OPENSSL_NO_ASM) && defined(__AARCH64EL__) && defined(_WIN32)
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_AARCH64) && defined(_WIN32)
 #include <openssl/arm_arch.h>
 #if __ARM_MAX_ARCH__ >= 8
 
@@ -85,7 +77,7 @@ aes_gcm_enc_kernel:
 	ldr	q23, [x8, #80]                                 // load rk5
 	aese	v1.16b, v19.16b
 	aesmc	v1.16b, v1.16b          // AES block 1 - round 1
-	ldr	q14, [x3, #80]                         // load h3l | h3h
+	ldr	q14, [x6, #48]                              // load h3l | h3h
 	ext	v14.16b, v14.16b, v14.16b, #8
 	aese	v3.16b, v18.16b
 	aesmc	v3.16b, v3.16b          // AES block 3 - round 0
@@ -94,14 +86,14 @@ aes_gcm_enc_kernel:
 	ldr	q22, [x8, #64]                                 // load rk4
 	aese	v1.16b, v20.16b
 	aesmc	v1.16b, v1.16b          // AES block 1 - round 2
-	ldr	q13, [x3, #64]                         // load h2l | h2h
+	ldr	q13, [x6, #32]                              // load h2l | h2h
 	ext	v13.16b, v13.16b, v13.16b, #8
 	aese	v3.16b, v19.16b
 	aesmc	v3.16b, v3.16b          // AES block 3 - round 1
 	ldr	q30, [x8, #192]                               // load rk12
 	aese	v2.16b, v20.16b
 	aesmc	v2.16b, v2.16b          // AES block 2 - round 2
-	ldr	q15, [x3, #112]                        // load h4l | h4h
+	ldr	q15, [x6, #80]                              // load h4l | h4h
 	ext	v15.16b, v15.16b, v15.16b, #8
 	aese	v1.16b, v21.16b
 	aesmc	v1.16b, v1.16b          // AES block 1 - round 3
@@ -144,7 +136,7 @@ aes_gcm_enc_kernel:
 	ldr	q27, [x8, #144]                                // load rk9
 	aese	v0.16b, v24.16b
 	aesmc	v0.16b, v0.16b          // AES block 0 - round 6
-	ldr	q12, [x3, #32]                         // load h1l | h1h
+	ldr	q12, [x6]                                   // load h1l | h1h
 	ext	v12.16b, v12.16b, v12.16b, #8
 	aese	v2.16b, v24.16b
 	aesmc	v2.16b, v2.16b          // AES block 2 - round 6
@@ -847,15 +839,15 @@ aes_gcm_dec_kernel:
 	ldr	q19, [x8, #16]                                 // load rk1
 	aese	v0.16b, v18.16b
 	aesmc	v0.16b, v0.16b          // AES block 0 - round 0
-	ldr	q14, [x3, #80]                         // load h3l | h3h
+	ldr	q14, [x6, #48]                              // load h3l | h3h
 	ext	v14.16b, v14.16b, v14.16b, #8
 	aese	v3.16b, v18.16b
 	aesmc	v3.16b, v3.16b          // AES block 3 - round 0
-	ldr	q15, [x3, #112]                        // load h4l | h4h
+	ldr	q15, [x6, #80]                              // load h4l | h4h
 	ext	v15.16b, v15.16b, v15.16b, #8
 	aese	v1.16b, v18.16b
 	aesmc	v1.16b, v1.16b          // AES block 1 - round 0
-	ldr	q13, [x3, #64]                         // load h2l | h2h
+	ldr	q13, [x6, #32]                              // load h2l | h2h
 	ext	v13.16b, v13.16b, v13.16b, #8
 	aese	v2.16b, v18.16b
 	aesmc	v2.16b, v2.16b          // AES block 2 - round 0
@@ -875,7 +867,7 @@ aes_gcm_dec_kernel:
 	ldr	q30, [x8, #192]                               // load rk12
 	aese	v0.16b, v20.16b
 	aesmc	v0.16b, v0.16b          // AES block 0 - round 2
-	ldr	q12, [x3, #32]                         // load h1l | h1h
+	ldr	q12, [x6]                                   // load h1l | h1h
 	ext	v12.16b, v12.16b, v12.16b, #8
 	aese	v2.16b, v20.16b
 	aesmc	v2.16b, v2.16b          // AES block 2 - round 2
@@ -1564,8 +1556,4 @@ Ldec_blocks_less_than_1:	//	blocks left <= 1
 	ret
 
 #endif
-#endif  // !OPENSSL_NO_ASM && defined(__AARCH64EL__) && defined(_WIN32)
-#if defined(__ELF__)
-// See https://www.airs.com/blog/archives/518.
-.section .note.GNU-stack,"",%progbits
-#endif
+#endif  // !OPENSSL_NO_ASM && defined(OPENSSL_AARCH64) && defined(_WIN32)

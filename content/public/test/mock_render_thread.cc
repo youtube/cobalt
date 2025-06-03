@@ -21,7 +21,6 @@
 #include "ipc/ipc_sync_message.h"
 #include "ipc/message_filter.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "services/network/public/mojom/attribution.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
@@ -63,11 +62,6 @@ class MockRenderMessageFilterImpl : public mojom::RenderMessageFilter {
   void HasGpuProcess(HasGpuProcessCallback callback) override {
     std::move(callback).Run(false);
   }
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  void SetThreadType(int32_t platform_thread_id,
-                     base::ThreadType thread_type) override {}
-#endif
 };
 
 }  // namespace
@@ -211,14 +205,6 @@ blink::WebString MockRenderThread::GetUserAgent() {
   return blink::WebString();
 }
 
-blink::WebString MockRenderThread::GetFullUserAgent() {
-  return blink::WebString();
-}
-
-blink::WebString MockRenderThread::GetReducedUserAgent() {
-  return blink::WebString();
-}
-
 const blink::UserAgentMetadata& MockRenderThread::GetUserAgentMetadata() {
   return kUserAgentMetadata;
 }
@@ -325,11 +311,6 @@ void MockRenderThread::OnCreateWindow(
 
 void MockRenderThread::ReleaseAllWebViews() {
   page_broadcasts_.clear();
-}
-
-network::mojom::AttributionSupport
-MockRenderThread::GetAttributionReportingSupport() {
-  return network::mojom::AttributionSupport::kWeb;
 }
 
 }  // namespace content

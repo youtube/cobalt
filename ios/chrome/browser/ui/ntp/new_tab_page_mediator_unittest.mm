@@ -7,12 +7,21 @@
 #import <memory>
 
 #import "base/test/metrics/histogram_tester.h"
+#import "base/test/scoped_feature_list.h"
+#import "components/feed/core/v2/public/common_enums.h"
+#import "components/search_engines/search_engines_switches.h"
+#import "components/search_engines/template_url.h"
+#import "components/search_engines/template_url_data.h"
+#import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/discover_feed/discover_feed_service_factory.h"
+#import "ios/chrome/browser/ntp/features.h"
 #import "ios/chrome/browser/ntp/new_tab_page_tab_helper.h"
-#import "ios/chrome/browser/search_engines/template_url_service_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
@@ -20,14 +29,16 @@
 #import "ios/chrome/browser/ui/content_suggestions/cells/content_suggestions_most_visited_item.h"
 #import "ios/chrome/browser/ui/content_suggestions/content_suggestions_mediator.h"
 #import "ios/chrome/browser/ui/content_suggestions/user_account_image_update_delegate.h"
+#import "ios/chrome/browser/ui/ntp/feed_control_delegate.h"
 #import "ios/chrome/browser/ui/ntp/logo_vendor.h"
+#import "ios/chrome/browser/ui/ntp/metrics/feed_metrics_constants.h"
+#import "ios/chrome/browser/ui/ntp/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_consumer.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/ui/toolbar/test/toolbar_test_navigation_manager.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/url_loading/fake_url_loading_browser_agent.h"
-#import "ios/chrome/browser/url_loading/url_loading_notifier_browser_agent.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
+#import "ios/chrome/browser/url_loading/model/fake_url_loading_browser_agent.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -35,14 +46,15 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+using feed::FeedUserActionType;
 
-namespace {
-// A random scroll position value to use for testing.
-const CGFloat kSomeScrollPosition = 500.0;
-}  // namespace
+// Expects a URL to start with a prefix.
+#define EXPECT_URL_PREFIX(url, prefix) \
+  EXPECT_STREQ(url.spec().substr(0, strlen(prefix)).c_str(), prefix);
+
+// Expects the URL loader to have loaded a URL that has the given `prefix`.
+#define EXPECT_URL_LOAD(prefix) \
+  EXPECT_URL_PREFIX(url_loader_->last_params.web_params.url, prefix);
 
 class NewTabPageMediatorTest : public PlatformTest {
  public:
@@ -76,25 +88,34 @@ class NewTabPageMediatorTest : public PlatformTest {
             chrome_browser_state_.get()));
     identity_manager_ =
         IdentityManagerFactory::GetForBrowserState(chrome_browser_state_.get());
-    ChromeAccountManagerService* accountManagerService =
+    ChromeAccountManagerService* account_manager_service =
         ChromeAccountManagerServiceFactory::GetForBrowserState(
             chrome_browser_state_.get());
-    imageUpdater_ = OCMProtocolMock(@protocol(UserAccountImageUpdateDelegate));
+    image_updater_ = OCMProtocolMock(@protocol(UserAccountImageUpdateDelegate));
+    bool is_incognito = chrome_browser_state_.get()->IsOffTheRecord();
+    DiscoverFeedService* discover_feed_service =
+        DiscoverFeedServiceFactory::GetForBrowserState(
+            chrome_browser_state_.get());
+    PrefService* prefs = chrome_browser_state_->GetPrefs();
     mediator_ = [[NewTabPageMediator alloc]
-                initWithWebState:initial_web_state_.get()
-              templateURLService:ios::TemplateURLServiceFactory::
-                                     GetForBrowserState(
-                                         chrome_browser_state_.get())
-                       URLLoader:url_loader_
-                     authService:auth_service_
-                 identityManager:identity_manager_
-           accountManagerService:accountManagerService
-                      logoVendor:logo_vendor_
-        identityDiscImageUpdater:imageUpdater_];
-    mediator_.browser = browser_.get();
-    headerConsumer_ = OCMProtocolMock(@protocol(NewTabPageHeaderConsumer));
-    mediator_.headerConsumer = headerConsumer_;
-    histogram_tester_.reset(new base::HistogramTester());
+        initWithTemplateURLService:ios::TemplateURLServiceFactory::
+                                       GetForBrowserState(
+                                           chrome_browser_state_.get())
+                         URLLoader:url_loader_
+                       authService:auth_service_
+                   identityManager:identity_manager_
+             accountManagerService:account_manager_service
+          identityDiscImageUpdater:image_updater_
+                       isIncognito:is_incognito
+               discoverFeedService:discover_feed_service
+                       prefService:prefs
+                        isSafeMode:NO];
+    header_consumer_ = OCMProtocolMock(@protocol(NewTabPageHeaderConsumer));
+    mediator_.headerConsumer = header_consumer_;
+    feed_metrics_recorder_ =
+        [[FeedMetricsRecorder alloc] initWithPrefService:prefs];
+    mediator_.feedMetricsRecorder = feed_metrics_recorder_;
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
   }
 
   // Explicitly disconnect the mediator.
@@ -106,8 +127,6 @@ class NewTabPageMediatorTest : public PlatformTest {
       CGFloat scroll_position = 0.0) {
     auto web_state = std::make_unique<web::FakeWebState>();
     NewTabPageTabHelper::CreateForWebState(web_state.get());
-    NewTabPageTabHelper::FromWebState(web_state.get())
-        ->SaveNTPState(scroll_position, NewTabPageTabHelper::DefaultFeedType());
     web_state->SetVisibleURL(url);
     // Force the DidStopLoading callback.
     web_state->SetLoading(true);
@@ -123,84 +142,150 @@ class NewTabPageMediatorTest : public PlatformTest {
     return ntp_consumer;
   }
 
+  void SetCustomSearchEngine() {
+    TemplateURLService* template_url_service =
+        ios::TemplateURLServiceFactory::GetForBrowserState(
+            chrome_browser_state_.get());
+    // A custom search engine will have a `prepopulate_id` of 0.
+    const int kCustomSearchEnginePrepopulateId = 0;
+    TemplateURLData template_url_data;
+    template_url_data.prepopulate_id = kCustomSearchEnginePrepopulateId;
+    template_url_data.SetURL("https://www.example.com/?q={searchTerms}");
+    template_url_service->SetUserSelectedDefaultSearchProvider(
+        template_url_service->Add(
+            std::make_unique<TemplateURL>(template_url_data)));
+  }
+
+  void OverrideSearchEngineChoiceCountry(base::StringPiece country) {
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        switches::kSearchEngineChoiceCountry, country);
+  }
+
  protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestChromeBrowserState> chrome_browser_state_;
   std::unique_ptr<Browser> browser_;
   std::unique_ptr<web::WebState> initial_web_state_;
-  id headerConsumer_;
-  id imageUpdater_;
+  id header_consumer_;
+  id image_updater_;
   id logo_vendor_;
+  FeedMetricsRecorder* feed_metrics_recorder_;
   NewTabPageMediator* mediator_;
   ToolbarTestNavigationManager* navigation_manager_;
   FakeUrlLoadingBrowserAgent* url_loader_;
   AuthenticationService* auth_service_;
   signin::IdentityManager* identity_manager_;
   std::unique_ptr<base::HistogramTester> histogram_tester_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that the consumer has the right value set up.
 TEST_F(NewTabPageMediatorTest, TestConsumerSetup) {
   // Setup.
-  OCMExpect([headerConsumer_ setLogoVendor:logo_vendor_]);
-  OCMExpect([headerConsumer_ setLogoIsShowing:YES]);
+  OCMExpect([header_consumer_ setLogoIsShowing:YES]);
 
   // Action.
   [mediator_ setUp];
 
   // Tests.
-  EXPECT_OCMOCK_VERIFY(headerConsumer_);
+  EXPECT_OCMOCK_VERIFY(header_consumer_);
 }
 
-// Tests that the the mediator calls the consumer to set the content offset,
-// when a new WebState is set.
-TEST_F(NewTabPageMediatorTest, TestSetContentOffsetForWebState) {
-  id suggestions_mediator = OCMClassMock([ContentSuggestionsMediator class]);
-  mediator_.suggestionsMediator = suggestions_mediator;
-  [mediator_ setUp];
+// Tests that the FeedManagementNavigationDelegate methods load URLs and
+// record metrics.
+TEST_F(NewTabPageMediatorTest, TestFeedManagementNavigationDelegate) {
+  [mediator_ handleNavigateToActivity];
+  EXPECT_URL_LOAD("https://myactivity.google.com/myactivity");
+  histogram_tester_->ExpectUniqueSample(
+      kDiscoverFeedUserActionHistogram,
+      FeedUserActionType::kTappedManageActivity, 1);
 
-  // Test with WebState that has not been scrolled.
-  id ntp_consumer = SetupNTPConsumerMock();
-  std::unique_ptr<web::WebState> web_state_1 =
-      CreateWebStateWithURL(GURL("chrome://newtab"), 0.0);
-  OCMExpect([ntp_consumer setContentOffsetToTop]);
-  [[[ntp_consumer reject] ignoringNonObjectArgs] setSavedContentOffset:0];
-  OCMExpect([suggestions_mediator refreshMostVisitedTiles]);
-  mediator_.webState = web_state_1.get();
-  EXPECT_OCMOCK_VERIFY(ntp_consumer);
-  EXPECT_OCMOCK_VERIFY(suggestions_mediator);
+  histogram_tester_.reset(new base::HistogramTester());
+  [mediator_ handleNavigateToInterests];
+  EXPECT_URL_LOAD("https://google.com/preferences/interests");
+  histogram_tester_->ExpectUniqueSample(
+      kDiscoverFeedUserActionHistogram,
+      FeedUserActionType::kTappedManageInterests, 1);
 
-  // Test with WebState that is scrolled down some.
-  ntp_consumer = SetupNTPConsumerMock();
-  std::unique_ptr<web::WebState> web_state_2 =
-      CreateWebStateWithURL(GURL("chrome://newtab"), kSomeScrollPosition);
-  OCMExpect([ntp_consumer setSavedContentOffset:kSomeScrollPosition]);
-  [[ntp_consumer reject] setContentOffsetToTop];
-  mediator_.webState = web_state_2.get();
-  EXPECT_OCMOCK_VERIFY(ntp_consumer);
+  histogram_tester_.reset(new base::HistogramTester());
+  [mediator_ handleNavigateToHidden];
+  EXPECT_URL_LOAD("https://google.com/preferences/interests/hidden");
+  histogram_tester_->ExpectUniqueSample(kDiscoverFeedUserActionHistogram,
+                                        FeedUserActionType::kTappedManageHidden,
+                                        1);
+
+  histogram_tester_.reset(new base::HistogramTester());
+  GURL followed_url("https://example.org");
+  [mediator_ handleNavigateToFollowedURL:followed_url];
+  EXPECT_URL_LOAD(followed_url.spec().c_str());
+  // TODO(crbug.com/1331102): Add metrics.
 }
 
-// Tests that the mediator saves the current content offset for a WebState when
-// a new one is assigned.
-TEST_F(NewTabPageMediatorTest, TestSaveContentOffsetForWebState) {
-  id ntp_consumer = OCMProtocolMock(@protocol(NewTabPageConsumer));
-  [[[ntp_consumer expect] andReturnValue:[NSNumber numberWithDouble:0.0]]
-      heightAboveFeed];
-  mediator_.consumer = ntp_consumer;
-  [mediator_ setUp];
+// Tests that the handleFeedLearnMoreTapped loads the correct URL and records
+// metrics.
+TEST_F(NewTabPageMediatorTest, TestHandleFeedLearnMoreTapped) {
+  [mediator_ handleFeedLearnMoreTapped];
+  EXPECT_URL_LOAD("https://support.google.com/chrome/"
+                  "?p=new_tab&co=GENIE.Platform%3DiOS&oco=1");
+  histogram_tester_->ExpectUniqueSample(kDiscoverFeedUserActionHistogram,
+                                        FeedUserActionType::kTappedLearnMore,
+                                        1);
+}
 
-  std::unique_ptr<web::WebState> web_state_1 =
-      CreateWebStateWithURL(GURL("chrome://newtab"));
-  [[[ntp_consumer expect]
-      andReturnValue:[NSNumber numberWithDouble:kSomeScrollPosition]]
-      scrollPosition];
-  [[[ntp_consumer expect] andReturnValue:[NSNumber numberWithDouble:0.0]]
-      collectionShiftingOffset];
-  mediator_.webState = web_state_1.get();
-  EXPECT_OCMOCK_VERIFY(ntp_consumer);
-  CGFloat saved_scroll_position =
-      NewTabPageTabHelper::FromWebState(initial_web_state_.get())
-          ->ScrollPositionFromSavedState();
-  EXPECT_EQ(saved_scroll_position, kSomeScrollPosition);
+// Tests that the feed will be hidden when IOSHideFeedWithSearchChoice is
+// enabled and a non-Google search engine is chosen.
+TEST_F(NewTabPageMediatorTest, TestHideFeedWithSearchChoice) {
+  scoped_feature_list_.InitWithFeatures({kIOSHideFeedWithSearchChoice}, {});
+
+  // Test it with the default search engine.
+  [mediator_ setUp];
+  EXPECT_TRUE(mediator_.feedHeaderVisible);
+
+  // Set up expectation for custom search engine.
+  id feed_control_delegate = OCMProtocolMock(@protocol(FeedControlDelegate));
+  OCMExpect([feed_control_delegate setFeedAndHeaderVisibility:NO]);
+  mediator_.feedControlDelegate = feed_control_delegate;
+
+  // Test setting a custom search engine.
+  SetCustomSearchEngine();
+  EXPECT_FALSE(mediator_.feedHeaderVisible);
+  EXPECT_OCMOCK_VERIFY(feed_control_delegate);
+}
+
+// Tests that the feed will be hidden when IOSHideFeedWithSearchChoice is
+// enabled and a non-Google search engine is chosen, but only in EEA countries.
+TEST_F(NewTabPageMediatorTest, TestHideFeedWithSearchChoiceTargeted) {
+  scoped_feature_list_.InitWithFeaturesAndParameters(
+      {
+          {kIOSHideFeedWithSearchChoice,
+           {{kIOSHideFeedWithSearchChoiceTargeted, "true"}}},
+      },
+      {});
+
+  // Test it with the default search engine, with country set to France.
+  OverrideSearchEngineChoiceCountry("FR");
+  [mediator_ setUp];
+  EXPECT_TRUE(mediator_.feedHeaderVisible);
+
+  // Set up expectation for custom search engine, country set to France.
+  id feed_control_delegate = OCMProtocolMock(@protocol(FeedControlDelegate));
+  OCMExpect([feed_control_delegate setFeedAndHeaderVisibility:NO]);
+  mediator_.feedControlDelegate = feed_control_delegate;
+
+  // Test setting a custom search engine, country still set to France.
+  SetCustomSearchEngine();
+  EXPECT_FALSE(mediator_.feedHeaderVisible);
+  EXPECT_OCMOCK_VERIFY(feed_control_delegate);
+
+  // Set up expectation for custom search engine, with country set to US.
+  feed_control_delegate = OCMProtocolMock(@protocol(FeedControlDelegate));
+  OCMExpect([feed_control_delegate setFeedAndHeaderVisibility:YES]);
+  mediator_.feedControlDelegate = feed_control_delegate;
+
+  // Test with custom search engine, with country set to US.
+  OverrideSearchEngineChoiceCountry("US");
+  SetCustomSearchEngine();
+  EXPECT_TRUE(mediator_.feedHeaderVisible);
+  EXPECT_OCMOCK_VERIFY(feed_control_delegate);
 }

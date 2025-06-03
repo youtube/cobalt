@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/gmock_callback_support.h"
@@ -350,7 +351,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     } else {
       input_image._frameType = webrtc::VideoFrameType::kVideoFrameDelta;
     }
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     return adapter_wrapper_->Decode(input_image, false, 0);
   }
 
@@ -382,7 +383,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     input_image.SetEncodedData(
         webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
     input_image._frameType = webrtc::VideoFrameType::kVideoFrameKey;
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     webrtc::ColorSpace webrtc_color_space;
     webrtc_color_space.set_primaries_from_uint8(1);
     webrtc_color_space.set_transfer_from_uint8(1);
@@ -400,7 +401,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     input_image.SetEncodedData(
         webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
     input_image._frameType = webrtc::VideoFrameType::kVideoFrameKey;
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     // Input image only has 1 spatial layer, but non-zero spatial index.
     input_image.SetSpatialIndex(kSpatialIndex);
     input_image.SetSpatialLayerFrameSize(kSpatialIndex, sizeof(data));
@@ -450,7 +451,8 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
   base::Thread media_thread_;
 
   // Owned by |rtc_video_decoder_adapter_|.
-  StrictMock<MockVideoDecoder>* video_decoder_ = nullptr;
+  raw_ptr<StrictMock<MockVideoDecoder>, DanglingUntriaged> video_decoder_ =
+      nullptr;
 
   StrictMock<base::MockCallback<
       base::RepeatingCallback<void(const webrtc::VideoFrame&)>>>
@@ -757,7 +759,9 @@ TEST_P(RTCVideoDecoderAdapterTest, DecodesImageWithSingleSpatialLayer) {
 
   // Check the side data was not set as there was only 1 spatial layer.
   ASSERT_TRUE(decoder_buffer);
-  EXPECT_EQ(0u, decoder_buffer->side_data_size());
+  if (decoder_buffer->has_side_data()) {
+    EXPECT_TRUE(decoder_buffer->side_data()->spatial_layers.empty());
+  }
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -775,15 +779,12 @@ TEST_P(RTCVideoDecoderAdapterTest, UseD3D11ToDecodeVP9kSVCStream) {
   FinishDecode(0);
   media_thread_.FlushForTesting();
 }
-#endif
-
+#elif !(defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS))
 // ChromeOS has the ability to decode VP9 kSVC Stream. Other cases should
 // fallback to sw decoder.
-#if !(defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS))
 TEST_P(RTCVideoDecoderAdapterTest,
        FallbackToSWSinceDecodeVP9kSVCStreamWithoutD3D11) {
   ASSERT_TRUE(BasicSetup());
-  EXPECT_FALSE(base::FeatureList::IsEnabled(media::kVp9kSVCHWDecoding));
   SetSpatialIndex(2);
   // kTesting will represent hw decoders for other use cases mentioned above.
   EXPECT_CALL(*video_decoder_, Decode_(_, _)).Times(0);
@@ -792,7 +793,7 @@ TEST_P(RTCVideoDecoderAdapterTest,
 
   media_thread_.FlushForTesting();
 }
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 INSTANTIATE_TEST_SUITE_P(RTCVideoDecoderAdapterTest,
                          RTCVideoDecoderAdapterTest,

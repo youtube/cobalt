@@ -23,6 +23,7 @@
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client_impl.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/dbus/tpm_manager/tpm_manager_client.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/log_decoder.h"
 #include "components/metrics/metrics_logs_event_manager.h"
 #include "components/metrics/metrics_service.h"
@@ -81,6 +82,9 @@ class ChromeMetricsServiceClientTestWithoutUKMProviders
   // Equivalent to ChromeMetricsServiceClient::Create
   static std::unique_ptr<ChromeMetricsServiceClientTestWithoutUKMProviders>
   Create(metrics::MetricsStateManager* metrics_state_manager) {
+    // Needed because RegisterMetricsServiceProviders() checks for this.
+    metrics::SubprocessMetricsProvider::CreateInstance();
+
     std::unique_ptr<ChromeMetricsServiceClientTestWithoutUKMProviders> client(
         new ChromeMetricsServiceClientTestWithoutUKMProviders(
             metrics_state_manager));
@@ -117,7 +121,7 @@ class MockSyncService : public syncer::TestSyncService {
     GetUserSettings()->SetSelectedTypes(
         /*sync_everything=*/false,
         /*types=*/history_enabled ? syncer::UserSelectableTypeSet(
-                                        syncer::UserSelectableType::kHistory)
+                                        {syncer::UserSelectableType::kHistory})
                                   : syncer::UserSelectableTypeSet());
 
     // It doesn't matter what exactly we set here, it's only relevant that the
@@ -197,9 +201,8 @@ class ChromeMetricsServiceClientTestIgnoredForAppMetrics
         &prefs_, &enabled_state_provider_, std::wstring(), base::FilePath());
     metrics_state_manager_->InstantiateFieldTrialList();
     ASSERT_TRUE(profile_manager_->SetUp());
-    scoped_feature_list_.InitWithFeatures(
-        {features::kUmaStorageDimensions, ukm::kAppMetricsOnlyRelyOnAppSync},
-        {});
+    scoped_feature_list_.InitAndEnableFeature(features::kUmaStorageDimensions);
+
     // ChromeOs Metrics Provider require g_login_state and power manager client
     // initialized before they can be instantiated.
     chromeos::PowerManagerClient::InitializeFake();
@@ -351,13 +354,15 @@ class ChromeMetricsServiceClientTestIgnoredForAppMetrics
   base::test::ScopedFeatureList scoped_feature_list_;
 
   std::vector<ukm::SourceId> source_ids_;
-  raw_ptr<ChromeMetricsServiceClient, ExperimentalAsh>
+  raw_ptr<ChromeMetricsServiceClient, DanglingUntriaged | ExperimentalAsh>
       chrome_metrics_service_client_;
 
   MockSyncService sync_service_;
   ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
-  raw_ptr<TestingProfile, ExperimentalAsh> testing_profile_ = nullptr;
-  raw_ptr<ash::multidevice_setup::FakeMultiDeviceSetupClient, ExperimentalAsh>
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh>
+      testing_profile_ = nullptr;
+  raw_ptr<ash::multidevice_setup::FakeMultiDeviceSetupClient,
+          DanglingUntriaged | ExperimentalAsh>
       fake_multidevice_setup_client_;
   std::unique_ptr<FakeMultiDeviceSetupClientImplFactory>
       fake_multidevice_setup_client_impl_factory_;

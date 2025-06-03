@@ -24,6 +24,10 @@
 #include "base/mac/mac_util.h"
 #endif
 
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
+
 #ifndef EGL_CHROMIUM_create_context_bind_generates_resource
 #define EGL_CHROMIUM_create_context_bind_generates_resource 1
 #define EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM 0x33AD
@@ -47,7 +51,6 @@
 #ifndef EGL_ANGLE_external_context_and_surface
 #define EGL_ANGLE_external_context_and_surface 1
 #define EGL_EXTERNAL_CONTEXT_ANGLE 0x348E
-#define EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE 0x3490
 #endif /* EGL_ANGLE_external_context_and_surface */
 
 #ifndef EGL_ANGLE_create_context_client_arrays
@@ -114,13 +117,30 @@ bool ChangeContextAttributes(std::vector<EGLint>& context_attributes,
   return false;
 }
 
+bool IsARMSwiftShaderPlatform() {
+#if BUILDFLAG(IS_MAC)
+  return base::mac::GetCPUType() == base::mac::CPUType::kArm;
+#elif BUILDFLAG(IS_IOS)
+  return true;
+#elif BUILDFLAG(IS_WIN)
+  base::win::OSInfo::WindowsArchitecture windows_architecture =
+      base::win::OSInfo::GetInstance()->GetArchitecture();
+  base::win::OSInfo* os_info = base::win::OSInfo::GetInstance();
+  return windows_architecture == base::win::OSInfo::ARM64_ARCHITECTURE ||
+         os_info->IsWowX86OnARM64() || os_info->IsWowAMD64OnARM64();
+#else
+  // SwiftShader is not used on Android
+  return false;
+#endif
+}
+
 }  // namespace
 
 GLContextEGL::GLContextEGL(GLShareGroup* share_group)
     : GLContextReal(share_group) {}
 
-bool GLContextEGL::Initialize(GLSurface* compatible_surface,
-                              const GLContextAttribs& attribs) {
+bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
+                                  const GLContextAttribs& attribs) {
   DCHECK(compatible_surface);
   DCHECK(!context_);
 
@@ -178,26 +198,15 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
   bool is_swangle = IsSoftwareGLImplementation(GetGLImplementationParts());
 
-#if BUILDFLAG(IS_MAC)
-  if (is_swangle && attribs.webgl_compatibility_context &&
-      base::mac::GetCPUType() == base::mac::CPUType::kArm) {
+  if (attribs.webgl_compatibility_context && is_swangle &&
+      IsARMSwiftShaderPlatform()) {
     // crbug.com/1378476: LLVM 10 is used as the JIT compiler for SwiftShader,
     // which doesn't fully support ARM. Disable Swiftshader on ARM CPUs for
     // WebGL until LLVM is upgraded.
     DVLOG(1) << __FUNCTION__
-             << ": Software WebGL contexts are not supported on ARM MacOS.";
+             << ": Software WebGL contexts are not supported on ARM CPUs.";
     return false;
   }
-#elif BUILDFLAG(IS_IOS)
-  if (is_swangle && attribs.webgl_compatibility_context) {
-    // crbug.com/1378476: LLVM 10 is used as the JIT compiler for SwiftShader,
-    // which doesn't fully support ARM. Disable Swiftshader on ARM CPUs for
-    // WebGL until LLVM is upgraded.
-    DVLOG(1) << __FUNCTION__
-             << ": Software WebGL contexts are not supported on iOS.";
-    return false;
-  }
-#endif
 
   if (gl_display_->ext->b_EGL_EXT_create_context_robustness || is_swangle) {
     DVLOG(1) << "EGL_EXT_create_context_robustness supported.";
@@ -323,10 +332,6 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
       context_attributes.push_back(EGL_EXTERNAL_CONTEXT_ANGLE);
       context_attributes.push_back(EGL_TRUE);
     }
-    if (attribs.angle_restore_external_context_state) {
-      context_attributes.push_back(EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE);
-      context_attributes.push_back(EGL_TRUE);
-    }
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_context_virtualization) {
@@ -392,6 +397,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
 void GLContextEGL::Destroy() {
   ReleaseBackpressureFences();
+  OnContextWillDestroy();
   if (context_) {
     if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
       LOG(ERROR) << "eglDestroyContext failed with error "
@@ -428,9 +434,9 @@ void GLContextEGL::ReleaseBackpressureFences() {
   if (has_backpressure_fences) {
     // If this context is not current, bind this context's API so that the YUV
     // converter can safely destruct
-    GLContext* current_context = GetRealCurrent();
-    if (current_context != this) {
-      SetCurrentGL(GetCurrentGL());
+    GLContext* prev_current_context = GetRealCurrent();
+    if (prev_current_context != this) {
+      SetThreadLocalCurrentGL(GetCurrentGL());
     }
 
     EGLContext current_egl_context = eglGetCurrentContext();
@@ -451,8 +457,10 @@ void GLContextEGL::ReleaseBackpressureFences() {
 #endif
 
     // Rebind the current context's API if needed.
-    if (current_context && current_context != this) {
-      SetCurrentGL(current_context->GetCurrentGL());
+    if (prev_current_context != this) {
+      SetThreadLocalCurrentGL(prev_current_context
+                                  ? prev_current_context->GetCurrentGL()
+                                  : nullptr);
     }
 
     if (context_ != current_egl_context) {

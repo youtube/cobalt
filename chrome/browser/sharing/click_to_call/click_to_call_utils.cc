@@ -4,8 +4,6 @@
 
 #include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
 
-#include <cctype>
-
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -18,6 +16,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/url_constants.h"
@@ -73,11 +72,10 @@ absl::optional<std::string> ExtractPhoneNumber(
 std::string GetUnescapedURLContent(const GURL& url) {
   std::string content_string(url.GetContent());
   url::RawCanonOutputT<char16_t> unescaped_content;
-  url::DecodeURLEscapeSequences(content_string.data(), content_string.size(),
+  url::DecodeURLEscapeSequences(content_string,
                                 url::DecodeURLMode::kUTF8OrIsomorphic,
                                 &unescaped_content);
-  return base::UTF16ToUTF8(
-      std::u16string(unescaped_content.data(), unescaped_content.length()));
+  return base::UTF16ToUTF8(unescaped_content.view());
 }
 
 }  // namespace
@@ -99,7 +97,7 @@ absl::optional<std::string> ExtractPhoneNumberForClickToCall(
   // See https://en.cppreference.com/w/cpp/string/byte/isdigit for why this uses
   // unsigned char.
   int digits = base::ranges::count_if(
-      selection_text, [](unsigned char c) { return std::isdigit(c); });
+      selection_text, [](unsigned char c) { return absl::ascii_isdigit(c); });
   if (digits > kSelectionTextMaxDigits)
     return absl::nullopt;
 

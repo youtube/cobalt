@@ -27,7 +27,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_ARRAY_BUFFER_CONTENTS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_ARRAY_BUFFER_CONTENTS_H_
 
-#include "base/allocator/partition_allocator/page_allocator.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/page_allocator.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_constants.h"
 #include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -137,9 +138,8 @@ class CORE_EXPORT ArrayBufferContents {
   static void FreeMemory(void*);
 
  private:
-  static void* AllocateMemoryWithFlags(size_t,
-                                       InitializationPolicy,
-                                       unsigned int);
+  template <partition_alloc::AllocFlags flags>
+  static void* AllocateMemory(size_t, InitializationPolicy);
 
   std::shared_ptr<v8::BackingStore> backing_store_;
 };

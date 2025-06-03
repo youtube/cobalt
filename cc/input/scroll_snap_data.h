@@ -112,7 +112,17 @@ class SnapSearchResult {
   ElementId element_id() const { return element_id_; }
   void set_element_id(ElementId id) { element_id_ = id; }
 
+  absl::optional<gfx::RangeF> covered_range() const { return covered_range_; }
+  void set_covered_range(const gfx::RangeF& range) { covered_range_ = range; }
+
  private:
+  // Scroll offset corresponding to this snap position. If covered_range_ is set
+  // then this will be a position inside the range. In the covered case, the
+  // result from FindClosestValidArea has a snap_offset_ equal to the
+  // intended_position() of the SnapSelectionStrategy.
+  // TODO(crbug.com/1472410): With refactoring it may be possible to replace
+  // snap_offset_ and covered_range_ with a single range field with start == end
+  // for "aligned" snap positions.
   float snap_offset_;
   // This is the range on the cross axis, within which the SnapArea generating
   // this |snap_offset| is visible. We expect the range to be in order (as
@@ -121,6 +131,15 @@ class SnapSearchResult {
 
   // The ElementId of the snap area that corresponds to this SnapSearchResult.
   ElementId element_id_;
+
+  // This is set if the validity of this result derives from the fact that the
+  // snap area covers the viewport, as described in the spec section on
+  // "Snapping Boxes that Overflow the Scrollport":
+  // https://drafts.csswg.org/css-scroll-snap-1/#snap-overflow
+  //
+  // If set, indicates the range of scroll offsets for which the snap area
+  // covers the viewport. The snap_offset_ will be a point within this range.
+  absl::optional<gfx::RangeF> covered_range_;
 };
 
 // Snap area is a bounding box that could be snapped to when a scroll happens in
@@ -183,6 +202,23 @@ struct TargetSnapAreaElementIds {
 
 typedef std::vector<SnapAreaData> SnapAreaList;
 
+// Represents the result of a call to SnapContainerData::FindSnapPosition.
+struct SnapPositionData {
+  enum class Type { kNone, kAligned, kCovered };
+
+  // What kind of snap position (if any) was found.
+  Type type = Type::kNone;
+
+  // The scroll offset of the snap position.
+  gfx::PointF position;
+
+  // The elements generating the snap areas on both axes.
+  TargetSnapAreaElementIds target_element_ids;
+
+  absl::optional<gfx::RangeF> covered_range_x;
+  absl::optional<gfx::RangeF> covered_range_y;
+};
+
 // Snap container is a scroll container that at least one snap area assigned to
 // it.  If the snap-type is not 'none', then it can be snapped to one of its
 // snap areas when a scroll happens.
@@ -219,11 +255,9 @@ class CC_EXPORT SnapContainerData {
     return !(*this == other);
   }
 
-  // Returns true if a snap position was found.
-  bool FindSnapPosition(const SnapSelectionStrategy& strategy,
-                        gfx::PointF* snap_position,
-                        TargetSnapAreaElementIds* target_element_ids,
-                        const ElementId& active_element_id = ElementId()) const;
+  SnapPositionData FindSnapPosition(
+      const SnapSelectionStrategy& strategy,
+      const ElementId& active_element_id = ElementId()) const;
 
   const TargetSnapAreaElementIds& GetTargetSnapAreaElementIds() const;
   // Returns true if the target snap area element ids were changed.
@@ -260,12 +294,15 @@ class CC_EXPORT SnapContainerData {
   // |snap_offset| and its visible range on the cross axis.
   // When |should_consider_covering| is true, the current offset can be valid if
   // it makes a snap area cover the snapport.
+  // When |active_element_range| is provided, only snap areas that overlap
+  // the active element are considered.
   absl::optional<SnapSearchResult> FindClosestValidAreaInternal(
       SearchAxis axis,
       const SnapSelectionStrategy& strategy,
       const SnapSearchResult& cross_axis_snap_result,
       const ElementId& active_element_id,
-      bool should_consider_covering = true) const;
+      bool should_consider_covering = true,
+      absl::optional<gfx::RangeF> active_element_range = absl::nullopt) const;
 
   // A wrapper of FindClosestValidAreaInternal(). If
   // FindClosestValidAreaInternal() doesn't return a valid result when the snap
@@ -284,7 +321,8 @@ class CC_EXPORT SnapContainerData {
   // given axis.
   absl::optional<SnapSearchResult> GetTargetSnapAreaSearchResult(
       const SnapSelectionStrategy& strategy,
-      SearchAxis axis) const;
+      SearchAxis axis,
+      SnapSearchResult cross_axis_snap_result) const;
 
   // Returns all the info needed to snap at this area on the given axis,
   // including:
@@ -301,6 +339,12 @@ class CC_EXPORT SnapContainerData {
 
   void UpdateSnapAreaForTesting(ElementId element_id,
                                 SnapAreaData snap_area_data);
+
+  absl::optional<SnapSearchResult> FindCoveringCandidate(
+      const SnapAreaData& area,
+      SearchAxis axis,
+      const SnapSearchResult& aligned_candidate,
+      float intended_position) const;
 
   // Specifies whether a scroll container is a scroll snap container, how
   // strictly it snaps, and which axes are considered.

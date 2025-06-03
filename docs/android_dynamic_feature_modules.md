@@ -420,7 +420,7 @@ base module's native code (DFM native code can call base module code directly).
 
 #### JNI
 
-Read the `jni_generator` [docs](../base/android/jni_generator/README.md) before
+Read the `jni_generator` [docs](../third_party/jni_zero/README.md) before
 reading this section.
 
 There are some subtleties to how JNI registration works with DFMs:
@@ -453,13 +453,13 @@ First, build a module native interface. Supply a JNI method named
 on all Chrome build variants, including Monochrome (unlike base module JNI).
 
 ```c++
-#include "base/android/jni_generator/jni_generator_helper.h"
+#include "third_party/jni_zero/jni_zero_helper.h"
 #include "base/android/jni_utils.h"
 #include "chrome/android/modules/foo/internal/jni_registration.h"
 
 extern "C" {
 // This JNI registration method is found and called by module framework code.
-JNI_GENERATOR_EXPORT bool JNI_OnLoad_foo(JNIEnv* env) {
+JNI_BOUNDARY_EXPORT bool JNI_OnLoad_foo(JNIEnv* env) {
   if (!foo::RegisterNatives(env)) {
     return false;
   }

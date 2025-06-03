@@ -14,33 +14,6 @@
 #include "ui/base/models/menu_model.h"
 #include "ui/views/controls/combobox/combobox_menu_model.h"
 
-// Adapts a ui::ComboboxModel for Read Anything.
-class ReadAnythingFontCombobox::MenuModel : public ComboboxMenuModel {
- public:
-  MenuModel(Combobox* owner, ui::ComboboxModel* model)
-      : ComboboxMenuModel(owner, model) {}
-  MenuModel(const MenuModel&) = delete;
-  MenuModel& operator&(const MenuModel&) = delete;
-  ~MenuModel() override = default;
-
-  // Overridden from ComboboxMenuModel:
- private:
-  // The Read Anything font combobox will not have icons on any platform.
-  bool HasIcons() const override { return false; }
-
-  // The Read Anything font combobox will use a different FontList for each
-  // item in the menu. This will give a preview of the font to the user.
-  const gfx::FontList* GetLabelFontListAt(size_t index) const override {
-    std::vector<std::string> font_list = GetModel()->GetLabelFontNameAt(index);
-    if (!font_list.empty()) {
-      return new gfx::FontList(font_list, gfx::Font::FontStyle::NORMAL,
-                               kMenuLabelFontSizePx, gfx::Font::Weight::NORMAL);
-    }
-
-    return ComboboxMenuModel::GetLabelFontListAt(index);
-  }
-};
-
 ReadAnythingFontCombobox::ReadAnythingFontCombobox(
     ReadAnythingFontCombobox::Delegate* delegate)
     : Combobox(std::move(delegate->GetFontComboboxModel())),
@@ -51,12 +24,10 @@ ReadAnythingFontCombobox::ReadAnythingFontCombobox(
       base::BindRepeating(&ReadAnythingFontCombobox::FontNameChangedCallback,
                           weak_pointer_factory_.GetWeakPtr()));
 
-  std::unique_ptr<ComboboxMenuModel> new_model =
-      std::make_unique<MenuModel>(this, GetModel());
-
   SetBorderColorId(ui::kColorSidePanelComboboxBorder);
-  SetMenuModel(std::move(new_model));
+  SetMenuModel(std::make_unique<ComboboxMenuModel>(this, GetModel()));
   SetFocusBehavior(FocusBehavior::ALWAYS);
+  SetEventHighlighting(true);
 }
 
 void ReadAnythingFontCombobox::GetAccessibleNodeData(
@@ -67,13 +38,18 @@ void ReadAnythingFontCombobox::GetAccessibleNodeData(
 }
 
 void ReadAnythingFontCombobox::FontNameChangedCallback() {
-  UpdateFont();
   if (delegate_)
     delegate_->OnFontChoiceChanged(GetSelectedIndex().value());
 }
 
 gfx::Size ReadAnythingFontCombobox::GetMinimumSize() const {
   return gfx::Size(kMinimumComboboxWidth, CalculatePreferredSize().height());
+}
+
+void ReadAnythingFontCombobox::SetFocusRingColorId(
+    ui::ColorId focus_ring_color) {
+  DCHECK(views::FocusRing::Get(this));
+  views::FocusRing::Get(this)->SetColorId(focus_ring_color);
 }
 
 void ReadAnythingFontCombobox::SetDropdownColorIds(ui::ColorId background_color,

@@ -28,6 +28,7 @@
 #include "ui/gfx/geometry/point3_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/transform.h"
 
@@ -41,6 +42,10 @@ class SlimLayerTest : public testing::TestWithParam<bool> {
     } else {
       scoped_feature_list_.InitAndDisableFeature(features::kSlimCompositor);
     }
+  }
+
+  static bool HasNonTrivialMaskFilterInfo(const Layer* layer) {
+    return layer->HasNonTrivialMaskFilterInfo();
   }
 
  protected:
@@ -147,6 +152,35 @@ TEST_P(SlimLayerTest, LayerProperties) {
   std::vector<Filter> filters;
   filters.push_back(Filter::CreateBrightness(0.5f));
   layer->SetFilters(std::move(filters));
+
+  if (GetParam()) {
+    EXPECT_FALSE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
+  layer->SetRoundedCorner(gfx::RoundedCornersF(50));
+  EXPECT_EQ(layer->corner_radii(), gfx::RoundedCornersF(50));
+  if (GetParam()) {
+    EXPECT_TRUE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
+  layer->SetRoundedCorner(gfx::RoundedCornersF());
+  if (GetParam()) {
+    EXPECT_FALSE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
+
+  gfx::LinearGradient gradient;
+  gradient.AddStep(0.0f, 0);
+  gradient.AddStep(1.0f, 255);
+  if (GetParam()) {
+    EXPECT_FALSE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
+  layer->SetGradientMask(gradient);
+  EXPECT_EQ(layer->gradient_mask(), gradient);
+  if (GetParam()) {
+    EXPECT_TRUE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
+  layer->SetGradientMask(gfx::LinearGradient());
+  if (GetParam()) {
+    EXPECT_FALSE(HasNonTrivialMaskFilterInfo(layer.get()));
+  }
 }
 
 TEST_P(SlimLayerTest, SurfaceLayerProperties) {

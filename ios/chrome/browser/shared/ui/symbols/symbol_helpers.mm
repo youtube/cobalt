@@ -8,10 +8,6 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbol_configurations.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Returns the default configuration with the given `point_size`.
@@ -43,10 +39,6 @@ UIImage* SymbolWithConfiguration(NSString* symbol_name,
 }
 
 }  // namespace
-
-bool UseSymbolsInOmnibox() {
-  return base::FeatureList::IsEnabled(kUseSFSymbolsInOmnibox);
-}
 
 UIImage* DefaultSymbolWithConfiguration(NSString* symbol_name,
                                         UIImageConfiguration* configuration) {

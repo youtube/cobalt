@@ -52,7 +52,6 @@ class PasswordDataForUI : public PasswordFormManagerForUI {
   base::span<const InteractionsStats> GetInteractionsStats() const override;
   std::vector<const PasswordForm*> GetInsecureCredentials() const override;
   bool IsBlocklisted() const override;
-  bool WasUnblocklisted() const override;
   bool IsMovableToAccountStore() const override;
   void Save() override;
   void Update(const PasswordForm& credentials_to_update) override;
@@ -134,11 +133,6 @@ std::vector<const PasswordForm*> PasswordDataForUI::GetInsecureCredentials()
 
 bool PasswordDataForUI::IsBlocklisted() const {
   // 'true' would suppress the bubble.
-  return false;
-}
-
-bool PasswordDataForUI::WasUnblocklisted() const {
-  // This information should not be relevant hereconst.
   return false;
 }
 
@@ -348,7 +342,7 @@ void PasswordGenerationManager::PresaveGeneratedPassword(
     PasswordForm generated,
     const std::vector<const PasswordForm*>& matches,
     FormSaver* form_saver) {
-  DCHECK(!generated.password_value.empty());
+  CHECK(!generated.password_value.empty());
   // Clear the username value if there are already saved credentials with
   // the same username in order to prevent overwriting.
   if (FindUsernameConflict(generated, matches))
@@ -390,6 +384,7 @@ void PasswordGenerationManager::CommitGeneratedPassword(
   }
   form_saver->UpdateReplace(generated, matches, old_password,
                             presaved_.value() /* old_primary_key */);
+  presaved_ = std::move(generated);
 }
 
 void PasswordGenerationManager::OnPresaveBubbleResult(
@@ -405,9 +400,7 @@ void PasswordGenerationManager::OnPresaveBubbleResult(
 
   if (accepted) {
     driver->GeneratedPasswordAccepted(pending.password_value);
-  } else if (base::FeatureList::IsEnabled(
-                 password_manager::features::
-                     kPasswordGenerationPreviewOnHover)) {
+  } else {
     driver->ClearPreviewedForm();
   }
 }

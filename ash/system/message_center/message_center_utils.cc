@@ -16,6 +16,7 @@
 #include "ash/system/message_center/session_state_notification_blocker.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/unified/unified_system_tray.h"
+#include "base/hash/sha1.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/ranges/algorithm.h"
 #include "ui/compositor/animation_throughput_reporter.h"
@@ -24,6 +25,7 @@
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/message_center/message_center.h"
+#include "ui/message_center/views/message_view.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -41,6 +43,27 @@ void ReportAnimationSmoothness(const std::string& animation_histogram_name,
 }  // namespace
 
 namespace ash::message_center_utils {
+
+std::string GenerateGroupParentNotificationIdSuffix(
+    message_center::NotifierId notifier_id) {
+  switch (notifier_id.type) {
+    case message_center::NotifierType::WEB_PAGE:
+      return base::SHA1HashString(notifier_id.url.spec() +
+                                  notifier_id.web_app_id.value_or(""));
+    case message_center::NotifierType::ARC_APPLICATION:
+      return base::SHA1HashString(notifier_id.id +
+                                  notifier_id.group_key.value_or(""));
+    case message_center::NotifierType::SYSTEM_COMPONENT:
+      if (notifier_id.id == ash::kPrivacyIndicatorsNotifierId) {
+        return base::SHA1HashString(notifier_id.id);
+      }
+      ABSL_FALLTHROUGH_INTENDED;
+    case message_center::NotifierType::APPLICATION:
+    case message_center::NotifierType::CROSTINI_APPLICATION:
+    case message_center::NotifierType::PHONE_HUB:
+      NOTREACHED_NORETURN();
+  }
+}
 
 bool CompareNotifications(message_center::Notification* n1,
                           message_center::Notification* n2) {
@@ -278,6 +301,27 @@ absl::optional<gfx::ImageSkia> ResizeImageIfExceedSizeLimit(
   return gfx::ImageSkiaOperations::CreateResizedImage(
       input_image, skia::ImageOperations::RESIZE_BEST,
       gfx::ToFlooredSize(resized_size));
+}
+
+bool IsAshNotificationView(views::View* sender) {
+  auto* message_view = static_cast<message_center::MessageView*>(sender);
+  std::string notification_id = message_view->notification_id();
+
+  message_center::Notification* notification =
+      message_center::MessageCenter::Get()->FindVisibleNotificationById(
+          notification_id);
+
+  return IsAshNotification(notification);
+}
+
+bool IsAshNotification(const message_center::Notification* notification) {
+  if (!notification ||
+      (notification->type() == message_center::NOTIFICATION_TYPE_CUSTOM &&
+       notification->notifier_id().type ==
+           message_center::NotifierType::ARC_APPLICATION)) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace ash::message_center_utils

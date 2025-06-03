@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/views/performance_controls/high_efficiency_chip_view.h"
+#include <string>
 
+#include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
@@ -12,6 +14,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/performance_controls/high_efficiency_chip_tab_helper.h"
+#include "chrome/browser/ui/performance_controls/high_efficiency_utils.h"
+#include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -49,11 +53,10 @@ HighEfficiencyChipView::HighEfficiencyChipView(
                          icon_label_bubble_delegate,
                          page_action_icon_delegate,
                          "HighEfficiency"),
-      browser_(browser) {
+      browser_(browser),
+      chip_accessible_label_(
+          l10n_util::GetStringUTF16(IDS_HIGH_EFFICIENCY_CHIP_ACCNAME)) {
   DCHECK(browser_);
-  SetAccessibilityProperties(
-      /*role*/ absl::nullopt,
-      l10n_util::GetStringUTF16(IDS_HIGH_EFFICIENCY_CHIP_ACCNAME));
 
   auto* manager = performance_manager::user_tuning::
       UserPerformanceTuningManager::GetInstance();
@@ -63,12 +66,9 @@ HighEfficiencyChipView::HighEfficiencyChipView(
   SetUpForInOutAnimation(kChipAnimationDuration);
   SetPaintLabelOverSolidBackground(true);
   SetProperty(views::kElementIdentifierKey, kHighEfficiencyChipElementId);
-  browser_->tab_strip_model()->AddObserver(this);
 }
 
-HighEfficiencyChipView::~HighEfficiencyChipView() {
-  browser_->tab_strip_model()->RemoveObserver(this);
-}
+HighEfficiencyChipView::~HighEfficiencyChipView() = default;
 
 void HighEfficiencyChipView::OnBubbleShown() {
   PauseAnimation();
@@ -79,56 +79,62 @@ void HighEfficiencyChipView::OnBubbleHidden() {
   bubble_ = nullptr;
 }
 
-void HighEfficiencyChipView::OnTabStripModelChanged(
-    TabStripModel* tab_strip_model,
-    const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {
-  content::WebContents* const web_contents = selection.old_contents;
-  if (!web_contents) {
-    return;
-  }
-
-  if (selection.active_tab_changed()) {
-    HighEfficiencyChipTabHelper* const tab_helper =
-        HighEfficiencyChipTabHelper::FromWebContents(web_contents);
-    tab_helper->SetChipHasBeenHidden();
-  }
-}
-
 void HighEfficiencyChipView::UpdateImpl() {
   content::WebContents* const web_contents = GetWebContents();
   if (!web_contents) {
     return;
   }
+
   HighEfficiencyChipTabHelper* const tab_helper =
       HighEfficiencyChipTabHelper::FromWebContents(web_contents);
-  if (tab_helper->ShouldChipBeVisible() && is_high_efficiency_mode_enabled_) {
-    SetVisible(true);
-    if (tab_helper->ShouldIconAnimate()) {
-      // Show an informational message the first 3 times the chip is shown.
-      PrefService* const pref_service = browser_->profile()->GetPrefs();
-      int times_rendered =
-          pref_service->GetInteger(prefs::kHighEfficiencyChipExpandedCount);
-      if (times_rendered < kChipAnimationCount) {
+  auto chip_state = tab_helper->chip_state();
+
+  if (chip_state != high_efficiency::ChipState::HIDDEN &&
+      is_high_efficiency_mode_enabled_) {
+    if (!tab_helper->ShouldChipAnimate()) {
+      return;
+    }
+
+    switch (chip_state) {
+      case high_efficiency::ChipState::EXPANDED_EDUCATION: {
+        SetVisible(true);
         AnimateIn(IDS_HIGH_EFFICIENCY_CHIP_LABEL);
-        tab_helper->SetWasAnimated();
-        pref_service->SetInteger(prefs::kHighEfficiencyChipExpandedCount,
-                                 times_rendered + 1);
-      } else if (ShouldHighlightMemorySavingsWithExpandedChip(tab_helper,
-                                                              pref_service)) {
-        int const memory_savings = tab_helper->GetMemorySavingsInBytes();
+        RecordHighEfficiencyChipState(
+            HighEfficiencyChipState::kExpandedEducation);
+        break;
+      }
+      case high_efficiency::ChipState::EXPANDED_WITH_SAVINGS: {
+        SetVisible(true);
+        int const memory_savings =
+            high_efficiency::GetDiscardedMemorySavingsInBytes(web_contents);
+        std::u16string memory_savings_string = ui::FormatBytes(memory_savings);
         SetLabel(
             l10n_util::GetStringFUTF16(IDS_HIGH_EFFICIENCY_CHIP_SAVINGS_LABEL,
-                                       {ui::FormatBytes(memory_savings)}));
+                                       {memory_savings_string}),
+            l10n_util::GetStringFUTF16(
+                IDS_HIGH_EFFICIENCY_CHIP_WITH_SAVINGS_ACCNAME,
+                {memory_savings_string}));
         AnimateIn(absl::nullopt);
-        tab_helper->SetWasAnimated();
-        pref_service->SetTime(prefs::kLastHighEfficiencyChipExpandedTimestamp,
-                              base::Time::Now());
+        RecordHighEfficiencyChipState(
+            HighEfficiencyChipState::kExpandedWithSavings);
+        break;
       }
-    } else if (tab_helper->HasChipBeenHidden()) {
-      UnpauseAnimation();
-      AnimateOut();
-      ResetSlideAnimation(false);
+      case high_efficiency::ChipState::COLLAPSED_FROM_EXPANDED: {
+        SetVisible(true);
+        UnpauseAnimation();
+        AnimateOut();
+        ResetSlideAnimation(false);
+        break;
+      }
+      case high_efficiency::ChipState::COLLAPSED: {
+        SetVisible(true);
+        SetAccessibleName(chip_accessible_label_);
+        RecordHighEfficiencyChipState(HighEfficiencyChipState::kCollapsed);
+        break;
+      }
+      default: {
+        NOTREACHED();
+      }
     }
   } else {
     AnimateOut();
@@ -171,39 +177,6 @@ void HighEfficiencyChipView::OnHighEfficiencyModeChanged() {
   auto* manager = performance_manager::user_tuning::
       UserPerformanceTuningManager::GetInstance();
   is_high_efficiency_mode_enabled_ = manager->IsHighEfficiencyModeActive();
-}
-
-bool HighEfficiencyChipView::ShouldHighlightMemorySavingsWithExpandedChip(
-    HighEfficiencyChipTabHelper* high_efficiency_tab_helper,
-    PrefService* pref_service) {
-  if (!base::FeatureList::IsEnabled(
-          performance_manager::features::kMemorySavingsReportingImprovements)) {
-    return false;
-  }
-
-  bool const savings_over_threshold =
-      (int)high_efficiency_tab_helper->GetMemorySavingsInBytes() >
-      performance_manager::features::kExpandedHighEfficiencyChipThresholdBytes
-          .Get();
-
-  base::Time const last_expanded_timestamp =
-      pref_service->GetTime(prefs::kLastHighEfficiencyChipExpandedTimestamp);
-  bool const expanded_chip_not_shown_recently =
-      (base::Time::Now() - last_expanded_timestamp) >
-      performance_manager::features::kExpandedHighEfficiencyChipFrequency.Get();
-
-  auto* pre_discard_resource_usage =
-      performance_manager::user_tuning::UserPerformanceTuningManager::
-          PreDiscardResourceUsage::FromWebContents(GetWebContents());
-  bool const tab_discard_time_over_threshold =
-      pre_discard_resource_usage &&
-      (base::TimeTicks::Now() -
-       pre_discard_resource_usage->discard_timetick()) >
-          performance_manager::features::
-              kExpandedHighEfficiencyChipDiscardedDuration.Get();
-
-  return savings_over_threshold && expanded_chip_not_shown_recently &&
-         tab_discard_time_over_threshold;
 }
 
 BEGIN_METADATA(HighEfficiencyChipView, PageActionIconView)

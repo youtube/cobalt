@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 
+#include "base/feature_list.h"
+#include "base/functional/overloaded.h"
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/browser/browsing_data/cookies_tree_model.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
@@ -13,12 +15,17 @@
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/collected_cookies_infobar_delegate.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog_controller.h"
 #include "chrome/browser/ui/views/site_data/site_data_row_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/browsing_data/content/browsing_data_model.h"
+#include "components/browsing_data/core/browsing_data_utils.h"
+#include "components/browsing_data/core/features.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
@@ -36,6 +43,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
+#include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/view_class_properties.h"
 #include "url/origin.h"
@@ -187,7 +195,8 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
   }
 
   std::vector<PageSpecificSiteDataDialogSite> GetAllSites() {
-    std::map<std::string, PageSpecificSiteDataDialogSite> sites_map;
+    std::map<BrowsingDataModel::DataOwner, PageSpecificSiteDataDialogSite>
+        sites_map;
     for (const std::unique_ptr<CookieTreeNode>& node :
          allowed_cookies_tree_model_->GetRoot()->children()) {
       std::string host_name = node->GetDetailedInfo().origin.host();
@@ -208,11 +217,11 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     }
     for (const BrowsingDataModel::BrowsingDataEntryView& entry :
          *allowed_browsing_data_model()) {
-      auto existing_site = sites_map.find(*entry.primary_host);
+      const BrowsingDataModel::DataOwner& owner = *entry.data_owner;
+      auto existing_site = sites_map.find(owner);
       if (existing_site == sites_map.end()) {
         sites_map.emplace(
-            *entry.primary_host,
-            CreateSiteFromEntryView(entry, /*from_allowed_model=*/true));
+            owner, CreateSiteFromEntryView(entry, /*from_allowed_model=*/true));
       } else {
         // To display the result entry as fully partitioned, entries from both
         // models have to be partitioned.
@@ -238,7 +247,8 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     }
     for (const BrowsingDataModel::BrowsingDataEntryView& entry :
          *blocked_browsing_data_model()) {
-      auto existing_site = sites_map.find(*entry.primary_host);
+      const BrowsingDataModel::DataOwner& owner = *entry.data_owner;
+      auto existing_site = sites_map.find(owner);
       if (existing_site == sites_map.end()) {
         // If there are multiple entries from the same tree, ignore the entry
         // from the blocked tree. It might be caused by partitioned allowed
@@ -246,9 +256,8 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
         // creating an exception and not reloading the page. Existing site
         // entries doesn't need to be updated as partitioned state isn't
         // relevant for blocked entries.
-        sites_map.emplace(
-            *entry.primary_host,
-            CreateSiteFromEntryView(entry, /*from_allowed_model=*/false));
+        sites_map.emplace(owner, CreateSiteFromEntryView(
+                                     entry, /*from_allowed_model=*/false));
       }
     }
 
@@ -281,23 +290,30 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     DeleteMatchingHostNodeFromModel(allowed_cookies_tree_model_.get(), origin);
     DeleteMatchingHostNodeFromModel(blocked_cookies_tree_model_.get(), origin);
 
-    // Correctly remove partitioned storage (needs to be done separately), since
-    // the existing calls don't apply the necessary filtering.
-    DeletePartitionedStorage(origin);
+    if (!base::FeatureList::IsEnabled(
+            browsing_data::features::kMigrateStorageToBDM)) {
+      DeletePartitionedStorage(origin);
+    }
 
     // Removing origin from Browsing Data Model to support new storage types.
     // The UI assumes deletion completed successfully, so we're passing
     // `base::DoNothing` callback.
     // TODO(crbug.com/1394352): Future tests will need to know when the deletion
     // is completed, this will require a callback to be passed here.
-
     allowed_browsing_data_model()->RemoveBrowsingData(origin.host(),
                                                       base::DoNothing());
+    allowed_browsing_data_model()->RemovePartitionedBrowsingData(
+        origin.host(), net::SchemefulSite(origin), base::DoNothing());
     blocked_browsing_data_model()->RemoveBrowsingData(origin.host(),
                                                       base::DoNothing());
+    blocked_browsing_data_model()->RemovePartitionedBrowsingData(
+        origin.host(), net::SchemefulSite(origin), base::DoNothing());
 
     RecordPageSpecificSiteDataDialogAction(
         PageSpecificSiteDataDialogAction::kSiteDeleted);
+
+    browsing_data::RecordDeleteBrowsingDataAction(
+        browsing_data::DeleteBrowsingDataAction::kCookiesInUseDialog);
   }
 
   void SetContentException(const url::Origin& origin, ContentSetting setting) {
@@ -312,6 +328,11 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     }
     RecordPageSpecificSiteDataDialogAction(
         GetDialogActionForContentSetting(setting));
+  }
+
+  void OnManageOnDeviceSiteDataClicked() {
+    Browser* browser = chrome::FindBrowserWithTab(web_contents_.get());
+    chrome::ShowSettingsSubPage(browser, chrome::kOnDeviceSiteDataSubpage);
   }
 
  private:
@@ -333,7 +354,6 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     }
   }
 
-  // TODO(crbug.com/1405808): Add an end-to-end browser test for this.
   void DeletePartitionedStorage(const url::Origin& origin) {
     Profile* profile =
         Profile::FromBrowserContext(web_contents_->GetBrowserContext());
@@ -364,23 +384,27 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
   PageSpecificSiteDataDialogSite CreateSiteFromEntryView(
       const BrowsingDataModel::BrowsingDataEntryView& entry,
       bool from_allowed_model) {
-    GURL current_url = web_contents_->GetVisibleURL();
     // TODO(crbug.com/1271155): BDM provides host name only while
     // CookieTreeModel provides url::Origin. This classes works with
     // url::Origin, so here we convert host name to origin with some assumptions
     // (which might not be true). We should either convert to work only with
     // host names or BDM should return origins.
-    GURL site_url = net::cookie_util::CookieOriginToURL(
-        *entry.primary_host, current_url.SchemeIsCryptographic());
-    return CreateSite(url::Origin::Create(site_url), from_allowed_model,
+    url::Origin entry_origin = absl::visit(
+        base::Overloaded{[&](const std::string& host) {
+                           GURL current_url = web_contents_->GetVisibleURL();
+                           GURL site_url = net::cookie_util::CookieOriginToURL(
+                               host, current_url.SchemeIsCryptographic());
+                           return url::Origin::Create(site_url);
+                         },
+                         [](const url::Origin& origin) { return origin; }},
+        *entry.data_owner);
+    return CreateSite(entry_origin, from_allowed_model,
                       IsBrowsingDataEntryViewFullyPartitioned(entry));
   }
 
   bool IsBrowsingDataEntryViewFullyPartitioned(
       const BrowsingDataModel::BrowsingDataEntryView& entry) {
-    // TODO(crbug.com/1378703): Implement showing partitioned state from
-    // BrowsingDataModel.
-    return false;
+    return entry.GetThirdPartyPartitioningSite().has_value();
   }
 
   bool IsCookieTreeNodeFullyPartitioned(CookieTreeNode* node) {
@@ -422,7 +446,7 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     const bool block_third_party_cookies =
         cookie_settings_->ShouldBlockThirdPartyCookies();
     const auto default_content_setting =
-        cookie_settings_->GetDefaultCookieSetting(/*provider_id=*/nullptr);
+        cookie_settings_->GetDefaultCookieSetting();
     ContentSetting first_party_setting =
         host_content_settings_map_->GetContentSetting(
             current_url, GURL(), ContentSettingsType::COOKIES);
@@ -498,8 +522,10 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
   // the actual content settings to determine the state.
   std::unique_ptr<CookiesTreeModel> allowed_cookies_tree_model_;
   std::unique_ptr<CookiesTreeModel> blocked_cookies_tree_model_;
-  raw_ptr<BrowsingDataModel> allowed_browsing_data_model_for_testing_ = nullptr;
-  raw_ptr<BrowsingDataModel> blocked_browsing_data_model_for_testing_ = nullptr;
+  raw_ptr<BrowsingDataModel, DanglingUntriaged>
+      allowed_browsing_data_model_for_testing_ = nullptr;
+  raw_ptr<BrowsingDataModel, DanglingUntriaged>
+      blocked_browsing_data_model_for_testing_ = nullptr;
   std::unique_ptr<FaviconCache> favicon_cache_;
   scoped_refptr<content_settings::CookieSettings> cookie_settings_;
   raw_ptr<HostContentSettingsMap> host_content_settings_map_;
@@ -613,10 +639,23 @@ views::Widget* ShowPageSpecificSiteDataDialog(
   auto delegate_unique =
       std::make_unique<PageSpecificSiteDataDialogModelDelegate>(web_contents);
   PageSpecificSiteDataDialogModelDelegate* delegate = delegate_unique.get();
+
+  // Text replacement for on-device site data subtitle text which has an
+  // embedded link to on-device site data settings page.
+  ui::DialogModelLabel::TextReplacement settings_link =
+      ui::DialogModelLabel::CreateLink(
+          IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_SETTINGS_LINK,
+          base::BindRepeating(&PageSpecificSiteDataDialogModelDelegate::
+                                  OnManageOnDeviceSiteDataClicked,
+                              base::Unretained(delegate)));
   auto builder = ui::DialogModel::Builder(std::move(delegate_unique));
   builder
       .SetTitle(
           l10n_util::GetStringUTF16(IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_TITLE))
+      .AddParagraph(
+          ui::DialogModelLabel::CreateWithReplacement(
+              IDS_PAGE_SPECIFIC_SITE_DATA_DIALOG_SUBTITLE, settings_link)
+              .set_is_secondary())
       .SetInternalName("PageSpecificSiteDataDialog")
       .AddOkButton(
           base::BindRepeating(&PageSpecificSiteDataDialogModelDelegate::

@@ -17,6 +17,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "components/omnibox/browser/omnibox_popup_view.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/search_engines/template_url_service.h"
@@ -40,7 +41,6 @@
 
 class LocationBarView;
 class OmniboxClient;
-class OmniboxPopupViewViews;
 
 namespace content {
 class WebContents;
@@ -70,10 +70,9 @@ class OmniboxViewViews
   // Max width of the gradient mask used to smooth ElideAnimation edges.
   static const int kSmoothingGradientMaxWidth = 15;
 
-  OmniboxViewViews(OmniboxEditModelDelegate* edit_model_delegate,
-                   std::unique_ptr<OmniboxClient> client,
+  OmniboxViewViews(std::unique_ptr<OmniboxClient> client,
                    bool popup_window_mode,
-                   LocationBarView* location_bar,
+                   LocationBarView* location_bar_view,
                    const gfx::FontList& font_list);
   OmniboxViewViews(const OmniboxViewViews&) = delete;
   OmniboxViewViews& operator=(const OmniboxViewViews&) = delete;
@@ -154,9 +153,7 @@ class OmniboxViewViews
   bool IsCommandIdEnabled(int command_id) const override;
 
   // For testing only.
-  OmniboxPopupViewViews* GetPopupContentsViewForTesting() const {
-    return popup_view_.get();
-  }
+  OmniboxPopupView* GetPopupViewForTesting() const;
 
  protected:
   // OmniboxView:
@@ -324,10 +321,11 @@ class OmniboxViewViews
   // different presentation (smaller font size). This is used for popups.
   bool popup_window_mode_;
 
-  std::unique_ptr<OmniboxPopupViewViews> popup_view_;
+  // Owns either an OmniboxPopupViewViews or an OmniboxPopupViewWebUI.
+  std::unique_ptr<OmniboxPopupView> popup_view_;
 
   // Selection persisted across temporary text changes, like popup suggestions.
-  std::vector<gfx::Range> saved_temporary_selection_;
+  std::vector<gfx::Range> saved_temporary_selection_ = {{}};
 
   // Holds the user's selection across focus changes.  There is only a saved
   // selection if this range IsValid().

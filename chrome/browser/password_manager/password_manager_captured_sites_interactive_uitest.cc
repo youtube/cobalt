@@ -14,7 +14,7 @@
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/password_manager_test_base.h"
 #include "chrome/browser/password_manager/password_manager_uitest_util.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tab_dialogs.h"
@@ -24,6 +24,7 @@
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
@@ -42,7 +43,7 @@ constexpr base::TimeDelta kWaitForSaveFallbackInterval = base::Seconds(5);
 // and test recipe replay files.
 base::FilePath GetReplayFilesRootDirectory() {
   base::FilePath src_dir;
-  if (base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir)) {
+  if (base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir)) {
     return src_dir.AppendASCII("chrome")
         .AppendASCII("test")
         .AppendASCII("data")
@@ -88,8 +89,8 @@ class CapturedSitesPasswordManagerBrowserTest
                      const std::string& username,
                      const std::string& password) override {
     scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-        PasswordStoreFactory::GetForProfile(browser()->profile(),
-                                            ServiceAccessType::EXPLICIT_ACCESS);
+        ProfilePasswordStoreFactory::GetForProfile(
+            browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
     password_manager::PasswordForm signin_form;
     signin_form.url = GURL(origin);
     signin_form.signon_realm = origin;
@@ -155,8 +156,8 @@ class CapturedSitesPasswordManagerBrowserTest
                                  const std::string& username,
                                  const std::string& password) override {
     scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-        PasswordStoreFactory::GetForProfile(browser()->profile(),
-                                            ServiceAccessType::EXPLICIT_ACCESS);
+        ProfilePasswordStoreFactory::GetForProfile(
+            browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
     FakePasswordStoreBackend* fake_backend =
         static_cast<FakePasswordStoreBackend*>(
             password_store->GetBackendForTesting());
@@ -195,7 +196,7 @@ class CapturedSitesPasswordManagerBrowserTest
                   SyncServiceFactory::GetInstance()->SetTestingFactory(
                       context, base::BindRepeating(&BuildTestSyncService));
 
-                  PasswordStoreFactory::GetInstance()->SetTestingFactory(
+                  ProfilePasswordStoreFactory::GetInstance()->SetTestingFactory(
                       context,
                       base::BindRepeating(
                           &password_manager::BuildPasswordStoreWithFakeBackend<
@@ -211,7 +212,6 @@ class CapturedSitesPasswordManagerBrowserTest
     recipe_replayer_ =
         std::make_unique<captured_sites_test_utils::TestRecipeReplayer>(
             browser(), this);
-    recipe_replayer()->Setup();
     SetServerUrlLoader(
         std::make_unique<ServerUrlLoader>(std::make_unique<ServerCacheReplayer>(
             GetParam().capture_file_path,
@@ -221,6 +221,9 @@ class CapturedSitesPasswordManagerBrowserTest
     ChromePasswordManagerClient* client =
         ChromePasswordManagerClient::FromWebContents(WebContents());
     client->SetTestObserver(&observer_);
+
+    browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
+                                                 false);
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -241,13 +244,13 @@ class CapturedSitesPasswordManagerBrowserTest
   }
 
   void TearDownOnMainThread() override {
-    recipe_replayer()->Cleanup();
+    recipe_replayer_.reset();
     // Need to delete the URL loader and its underlying interceptor on the main
     // thread. Will result in a fatal crash otherwise. The pointer  has its
     // memory cleaned up twice: first time in that single thread, a second time
     // when the fixture's destructor is called, which will have no effect since
     // the raw pointer will be nullptr.
-    server_url_loader_.reset(nullptr);
+    server_url_loader_.reset();
   }
 
   captured_sites_test_utils::TestRecipeReplayer* recipe_replayer() {
@@ -279,7 +282,7 @@ IN_PROC_BROWSER_TEST_P(CapturedSitesPasswordManagerBrowserTest, Recipe) {
       "password_manager_captured_sites_interactive_uitest");
 
   base::FilePath src_dir;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
 
   bool test_completed = recipe_replayer()->ReplayTest(
       GetParam().capture_file_path, GetParam().recipe_file_path,

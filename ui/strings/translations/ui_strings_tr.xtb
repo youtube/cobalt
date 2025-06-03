@@ -105,7 +105,6 @@
 <translation id="4266252015790371705">{MONTHS,plural, =1{1 ay önce}other{# ay önce}}</translation>
 <translation id="4289300219472526559">Konuşmaya Başla</translation>
 <translation id="4289540628985791613">Genel bakış</translation>
-<translation id="4306392492252714209">Panodan kaldır.</translation>
 <translation id="4491109536499578614">Resim</translation>
 <translation id="4565377596337484307">Şifreyi gizle</translation>
 <translation id="4588090240171750605">Sağa Kaydır</translation>
@@ -115,6 +114,7 @@
 <translation id="4746179598275229723">Uzantının sabitlemesi kaldırıldı</translation>
 <translation id="4788285488841504513">{MONTHS,plural, =1{1 ay kaldı}other{# ay kaldı}}</translation>
 <translation id="4888938634149558681">Telefon et</translation>
+<translation id="4895877746940133817"><ph name="TYPE_1" />, <ph name="TYPE_2" />, <ph name="TYPE_3" /></translation>
 <translation id="4968171027979920686">{SECONDS,plural, =1{1 saniye}other{# saniye}}</translation>
 <translation id="4971687151119236543">Medya Önceki Parça</translation>
 <translation id="5046499563572181734">Buraya dokunun</translation>
@@ -125,6 +125,7 @@
 <translation id="5329858601952122676">&amp;Sil</translation>
 <translation id="5361107212971249203">Kısa mesaj</translation>
 <translation id="5463830097259460683">Emoji ve Semboller</translation>
+<translation id="5505748296268090374"><ph name="ITEM_TEXT" /> öğesini kaldır</translation>
 <translation id="5528053674512161860">Geliştirici UI modülü (dev_ui) yüklü olmadığından sayfa yükleme başarısız oldu</translation>
 <translation id="5574202486608032840"><ph name="IDS_SHORT_PRODUCT_OS_NAME" /> sistemi</translation>
 <translation id="5583640892426849032">Geri al tuşu</translation>
@@ -147,6 +148,7 @@
 <translation id="6142413573757616983"><ph name="QUANTITY" /> B/sn</translation>
 <translation id="6237461503717005873"><ph name="ROW_NAME" /> seçildi.</translation>
 <translation id="6264365405983206840">&amp;Tümünü Seç</translation>
+<translation id="6346952829206698721">Panodan yapıştır</translation>
 <translation id="6364916375976753737">Sola Kaydır</translation>
 <translation id="6394627529324717982">Virgül</translation>
 <translation id="6397363302884558537">Konuşmayı Durdur</translation>
@@ -173,6 +175,7 @@
 <translation id="7170202025028120564">Uygulamanız yeniden başlatıldığında ekran ayarları devreye girecek.</translation>
 <translation id="7222373446505536781">F11</translation>
 <translation id="7238427729722629793">{MINUTES,plural, =1{1 dk. kaldı}other{# dk. kaldı}}</translation>
+<translation id="7363164521834647158">Yanıt gönder</translation>
 <translation id="7365057348334984696">{MINUTES,plural, =1{1 dk. önce}other{# dk. önce}}</translation>
 <translation id="7389409599945284130">- <ph name="MESSAGE" /></translation>
 <translation id="7410957453383678442">{MINUTES,plural, =1{1 dakika kaldı}other{# dakika kaldı}}</translation>

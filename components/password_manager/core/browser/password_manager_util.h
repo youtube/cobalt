@@ -14,28 +14,17 @@
 #include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
 #include "ui/gfx/native_widget_types.h"
 
-namespace network {
-namespace mojom {
-class NetworkContext;
-}
-}  // namespace network
-
 namespace password_manager {
-class CredentialsCleanerRunner;
 class PasswordManagerDriver;
 class PasswordManagerClient;
+struct PasswordFormDigest;
 }  // namespace password_manager
 
 namespace autofill {
 class AutofillClient;
 }  // namespace autofill
-
-namespace syncer {
-class SyncService;
-}
 
 class PrefService;
 
@@ -44,6 +33,7 @@ namespace password_manager_util {
 // For credentials returned from PasswordStore::GetLogins, the enum specifies
 // the type of the match for the requested page. Higher value always means
 // weaker match.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.password_manager
 enum class GetLoginMatchType {
   // Exact origin or Android credentials.
   kExact,
@@ -55,17 +45,6 @@ enum class GetLoginMatchType {
 
 // Update |credential| to reflect usage.
 void UpdateMetadataForUsage(password_manager::PasswordForm* credential);
-
-// Reports whether and how passwords are currently synced. In particular, for a
-// null |sync_service| returns NOT_SYNCING.
-password_manager::SyncState GetPasswordSyncState(
-    const syncer::SyncService* sync_service);
-
-// Removes Android username-only credentials from |android_credentials|.
-// Transforms federated credentials into non zero-click ones.
-void TrimUsernameOnlyCredentials(
-    std::vector<std::unique_ptr<password_manager::PasswordForm>>*
-        android_credentials);
 
 // A convenience function for testing that |client| has a non-null LogManager
 // and that that LogManager returns true for IsLoggingActive. This function can
@@ -90,26 +69,6 @@ void UserTriggeredManualGenerationFromContextMenu(
     password_manager::PasswordManagerClient* password_manager_client,
     autofill::AutofillClient* autofill_client);
 
-// This function handles the following clean-ups of credentials:
-// (1) Removing blocklisted duplicates: if two blocklisted credentials have the
-// same signon_realm, they are duplicates of each other. Deleting all but one
-// sharing the signon_realm does not affect Chrome's behaviour and hence
-// duplicates can be removed. Having duplicates makes un-blocklisting not work,
-// hence blocklisted duplicates need to be removed.
-// (2) Removing or fixing of HTTPS credentials with wrong signon_realm. See
-// https://crbug.com/881731 for details.
-// (3) Report metrics about HTTP to HTTPS migration process and remove obsolete
-// HTTP credentials. This feature is not available on iOS platform because the
-// HSTS query is not supported. |network_context_getter| is always null for iOS
-// and it can also be null for some unittests.
-void RemoveUselessCredentials(
-    password_manager::CredentialsCleanerRunner* cleaning_tasks_runner,
-    scoped_refptr<password_manager::PasswordStoreInterface> store,
-    PrefService* prefs,
-    base::TimeDelta delay,
-    base::RepeatingCallback<network::mojom::NetworkContext*()>
-        network_context_getter);
-
 // Excluding protocol from a signon_realm means to remove from the signon_realm
 // what is before the web origin (with the protocol excluded as well). For
 // example if the signon_realm is "https://www.google.com/", after
@@ -123,19 +82,18 @@ base::StringPiece GetSignonRealmWithProtocolExcluded(
 GetLoginMatchType GetMatchType(const password_manager::PasswordForm& form);
 
 // Given all non-blocklisted |non_federated_matches|, finds and populates
-// |non_federated_same_scheme|, |best_matches|, and |preferred_match|
-// accordingly. For comparing credentials the following rule is used: non-psl
-// match is better than psl match, most recently used match is better than other
-// matches. In case of tie, an arbitrary credential from the tied ones is chosen
-// for |best_matches| and |preferred_match|.
+// |non_federated_same_scheme|, |best_matches| accordingly.
+// For comparing credentials the following rule is used: non-psl match is better
+// than psl match, most recently used match is better than other matches. In
+// case of tie, an arbitrary credential from the tied ones is chosen for
+// |best_matches|.
 void FindBestMatches(
     const std::vector<const password_manager::PasswordForm*>&
         non_federated_matches,
     password_manager::PasswordForm::Scheme scheme,
     std::vector<const password_manager::PasswordForm*>*
         non_federated_same_scheme,
-    std::vector<const password_manager::PasswordForm*>* best_matches,
-    const password_manager::PasswordForm** preferred_match);
+    std::vector<const password_manager::PasswordForm*>* best_matches);
 
 // Returns a form with the given |username_value| from |forms|, or nullptr if
 // none exists. If multiple matches exist, returns the first one.
@@ -188,9 +146,6 @@ GURL StripAuthAndParams(const GURL& gurl);
 // by default. For ip-addresses, scheme "http://" is used.
 GURL ConstructGURLWithScheme(const std::string& url);
 
-// Returns whether |url| has valid format and either an HTTP or HTTPS scheme.
-bool IsValidPasswordURL(const GURL& url);
-
 // TODO(crbug.com/1261752): Deduplicate GetSignonRealm implementations.
 // Returns the value of PasswordForm::signon_realm for an HTML form with the
 // origin |url|.
@@ -206,18 +161,8 @@ bool IsCredentialProviderEnabledOnStartup(const PrefService* prefs);
 void SetCredentialProviderEnabledOnStartup(PrefService* prefs, bool enabled);
 #endif
 
-// Retrieves the extended top level domain for a given |url|
-// ("https://www.facebook.com/" => "facebook.com"). If the calculated top
-// private domain matches an entry from the |psl_extensions| (e.g. "app.link"),
-// the domain is extended by one level ("https://facebook.app.link/" =>
-// "facebook.app.link"). If the |url| is not a valid URI or has an unsupported
-// schema (e.g. "android://"), empty string is returned.
-std::string GetExtendedTopLevelDomain(
-    const GURL& url,
-    const base::flat_set<std::string>& psl_extensions);
-
 // Contains all special symbols considered for password-generation.
-constexpr char kSpecialSymbols[] = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+inline constexpr char kSpecialSymbols[] = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
 // Helper functions for character type classification. The built-in functions
 // depend on locale, platform and other stuff. To make the output more
@@ -233,6 +178,14 @@ bool IsUppercaseLetter(char16_t c);
 // Checks if a supplied character |c| is a special symbol.
 // Special symbols are defined by the string |kSpecialSymbols|.
 bool IsSpecialSymbol(char16_t c);
+
+// Returns true if 'type' is a username in a password-less form.
+bool IsSingleUsernameType(autofill::ServerFieldType type);
+
+#if BUILDFLAG(IS_ANDROID)
+// Checks that the feature is enabled.
+bool UsesUPMForLocalM2(PrefService* prefs);
+#endif
 
 }  // namespace password_manager_util
 

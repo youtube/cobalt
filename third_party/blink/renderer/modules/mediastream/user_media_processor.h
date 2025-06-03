@@ -10,6 +10,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
@@ -22,6 +23,7 @@
 #include "third_party/blink/renderer/modules/mediastream/user_media_request.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
+#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -47,6 +49,8 @@ class WebString;
 // render thread. There should be only one UserMediaProcessor per frame.
 class MODULES_EXPORT UserMediaProcessor
     : public GarbageCollected<UserMediaProcessor> {
+  USING_PRE_FINALIZER(UserMediaProcessor, StopAllProcessing);
+
  public:
   using MediaDevicesDispatcherCallback = base::RepeatingCallback<
       blink::mojom::blink::MediaDevicesDispatcherHost*()>;
@@ -299,8 +303,8 @@ class MODULES_EXPORT UserMediaProcessor
   WebMediaStreamDeviceObserver* GetMediaStreamDeviceObserver();
 
   // Owned by the test.
-  WebMediaStreamDeviceObserver* media_stream_device_observer_for_testing_ =
-      nullptr;
+  raw_ptr<WebMediaStreamDeviceObserver, DanglingUntriaged>
+      media_stream_device_observer_for_testing_ = nullptr;
 
   LocalStreamSources local_sources_;
   LocalStreamSources pending_local_sources_;

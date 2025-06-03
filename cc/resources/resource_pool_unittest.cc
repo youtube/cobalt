@@ -16,6 +16,7 @@
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/returned_resource.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/test/test_context_provider.h"
 #include "components/viz/test/test_context_support.h"
 #include "components/viz/test/test_shared_bitmap_manager.h"
@@ -30,7 +31,7 @@ class ResourcePoolTest : public testing::Test {
     auto context_support = std::make_unique<MockContextSupport>();
     context_support_ = context_support.get();
     context_provider_ =
-        viz::TestContextProvider::Create(std::move(context_support));
+        viz::TestContextProvider::CreateRaster(std::move(context_support));
     context_provider_->BindToCurrentSequence();
     resource_provider_ = std::make_unique<viz::ClientResourceProvider>();
     test_task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
@@ -74,7 +75,7 @@ class ResourcePoolTest : public testing::Test {
   }
 
   viz::TestSharedBitmapManager shared_bitmap_manager_;
-  raw_ptr<MockContextSupport> context_support_;
+  raw_ptr<MockContextSupport, DanglingUntriaged> context_support_;
   scoped_refptr<viz::TestContextProvider> context_provider_;
   std::unique_ptr<viz::ClientResourceProvider> resource_provider_;
   scoped_refptr<base::TestMockTimeTaskRunner> test_task_runner_;
@@ -244,7 +245,8 @@ TEST_F(ResourcePoolTest, LostResource) {
       resource_pool_->AcquireResource(size, format, color_space);
 
   SetBackingOnResource(resource);
-  EXPECT_TRUE(resource_pool_->PrepareForExport(resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
 
   std::vector<viz::ResourceId> export_ids = {resource.resource_id_for_export()};
   std::vector<viz::TransferableResource> transferable_resources;
@@ -279,7 +281,8 @@ TEST_F(ResourcePoolTest, BusyResourcesNotFreed) {
   EXPECT_EQ(40000u, resource_pool_->GetTotalMemoryUsageForTesting());
   EXPECT_EQ(1u, resource_pool_->resource_count());
 
-  EXPECT_TRUE(resource_pool_->PrepareForExport(resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
 
   std::vector<viz::TransferableResource> transfers;
   resource_provider_->PrepareSendToParent(
@@ -327,7 +330,8 @@ TEST_F(ResourcePoolTest, UnusedResourcesEventuallyFreed) {
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
 
   // Export the resource to the display compositor.
-  EXPECT_TRUE(resource_pool_->PrepareForExport(resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
   std::vector<viz::TransferableResource> transfers;
   resource_provider_->PrepareSendToParent(
       {resource.resource_id_for_export()}, &transfers,
@@ -536,7 +540,8 @@ TEST_F(ResourcePoolTest, PurgedMemory) {
   ResourcePool::InUsePoolResource resource =
       resource_pool_->AcquireResource(size, format, color_space);
   SetBackingOnResource(resource);
-  EXPECT_TRUE(resource_pool_->PrepareForExport(resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
 
   EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
@@ -590,7 +595,8 @@ TEST_F(ResourcePoolTest, InvalidateResources) {
   ResourcePool::InUsePoolResource busy_resource =
       resource_pool_->AcquireResource(size, format, color_space);
   SetBackingOnResource(busy_resource);
-  EXPECT_TRUE(resource_pool_->PrepareForExport(busy_resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      busy_resource, viz::TransferableResource::ResourceSource::kTest));
   EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
   EXPECT_EQ(1u, resource_pool_->resource_count());
@@ -691,7 +697,7 @@ TEST_F(ResourcePoolTest, MetadataSentToDisplayCompositor) {
   gfx::Size size(100, 101);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_4444;
   EXPECT_NE(gfx::BufferFormat::RGBA_8888,
-            viz::BufferFormat(format.resource_format()));
+            viz::SinglePlaneSharedImageFormatToBufferFormat(format));
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
   uint32_t target = 5;
   gpu::Mailbox mailbox;
@@ -710,7 +716,8 @@ TEST_F(ResourcePoolTest, MetadataSentToDisplayCompositor) {
   resource.gpu_backing()->wait_on_fence_required = true;
   resource.gpu_backing()->overlay_candidate = true;
 
-  EXPECT_TRUE(resource_pool_->PrepareForExport(resource));
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
 
   std::vector<viz::TransferableResource> transfer;
   resource_provider_->PrepareSendToParent(
@@ -745,7 +752,7 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   gfx::Size size(100, 101);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_4444;
   EXPECT_NE(gfx::BufferFormat::RGBA_8888,
-            viz::BufferFormat(format.resource_format()));
+            viz::SinglePlaneSharedImageFormatToBufferFormat(format));
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
   uint32_t target = 5;
 
@@ -759,7 +766,8 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   backing->overlay_candidate = true;
   resource.set_gpu_backing(std::move(backing));
 
-  EXPECT_FALSE(resource_pool_->PrepareForExport(resource));
+  EXPECT_FALSE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
 
   resource_pool_->ReleaseResource(std::move(resource));
 

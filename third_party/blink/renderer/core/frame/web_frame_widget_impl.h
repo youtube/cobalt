@@ -36,6 +36,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/types/pass_key.h"
+#include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "cc/input/event_listener_properties.h"
 #include "cc/input/overscroll_behavior.h"
@@ -59,6 +60,7 @@
 #include "third_party/blink/renderer/core/exported/web_page_popup_impl.h"
 #include "third_party/blink/renderer/core/frame/animation_frame_timing_monitor.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
+#include "third_party/blink/renderer/core/page/drag_controller.h"
 #include "third_party/blink/renderer/core/page/event_with_hit_test_results.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/platform/graphics/apply_viewport_changes.h"
@@ -74,7 +76,7 @@
 #include "third_party/blink/renderer/platform/widget/widget_base_client.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
-#include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/base/ui_base_types.h"
 #include "ui/gfx/ca_layer_result.h"
 
 namespace gfx {
@@ -151,7 +153,7 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   // Returns the WebFrame that this widget is attached to. It will be a local
   // root since only local roots have a widget attached.
-  WebLocalFrameImpl* LocalRootImpl() const { return local_root_; }
+  WebLocalFrameImpl* LocalRootImpl() const { return local_root_.Get(); }
 
   // Returns the bounding box of the block type node touched by the WebPoint.
   gfx::Rect ComputeBlockBound(const gfx::Point& point_in_root_frame,
@@ -235,6 +237,8 @@ class CORE_EXPORT WebFrameWidgetImpl
   cc::EventListenerProperties EventListenerProperties(
       cc::EventListenerClass) const final;
   mojom::blink::DisplayMode DisplayMode() const override;
+  ui::WindowShowState WindowShowState() const override;
+  bool Resizable() const override;
   const WebVector<gfx::Rect>& WindowSegments() const override;
   void SetDelegatedInkMetadata(
       std::unique_ptr<gfx::DelegatedInkMetadata> metadata) final;
@@ -242,14 +246,16 @@ class CORE_EXPORT WebFrameWidgetImpl
                      const gfx::Vector2dF& accumulated_overscroll,
                      const gfx::PointF& position,
                      const gfx::Vector2dF& velocity) override;
-  void InjectGestureScrollEvent(WebGestureDevice device,
-                                const gfx::Vector2dF& delta,
-                                ui::ScrollGranularity granularity,
-                                cc::ElementId scrollable_area_element_id,
-                                WebInputEvent::Type injected_type) override;
+  void InjectScrollbarGestureScroll(const gfx::Vector2dF& delta,
+                                    ui::ScrollGranularity granularity,
+                                    cc::ElementId scrollable_area_element_id,
+                                    WebInputEvent::Type injected_type) override;
   void DidChangeCursor(const ui::Cursor&) override;
   void GetCompositionCharacterBoundsInWindow(
       Vector<gfx::Rect>* bounds_in_dips) override;
+  // Return the last calculated line bounds.
+  Vector<gfx::Rect>& GetVisibleLineBoundsOnScreen() override;
+  void UpdateLineBounds() override;
   gfx::Range CompositionRange() override;
   WebTextInputInfo TextInputInfo() override;
   ui::mojom::VirtualKeyboardVisibilityRequest
@@ -327,6 +333,9 @@ class CORE_EXPORT WebFrameWidgetImpl
   // AnimationFrameTimingMonitor::Client overrides
   void ReportLongAnimationFrameTiming(AnimationFrameTimingInfo* info) override;
   bool ShouldReportLongAnimationFrameTiming() const override;
+  void ReportLongTaskTiming(base::TimeTicks start_time,
+                            base::TimeTicks end,
+                            ExecutionContext* task_context) override;
   bool RequestedMainFramePending() override;
   ukm::UkmRecorder* MainFrameUkmRecorder() override;
   ukm::SourceId MainFrameUkmSourceId() override;
@@ -370,15 +379,19 @@ class CORE_EXPORT WebFrameWidgetImpl
   void PrepareForFinalLifecyclUpdateForTesting() override;
 
   // Called when a drag-n-drop operation should begin.
-  virtual void StartDragging(const WebDragData&,
+  virtual void StartDragging(LocalFrame* source_frame,
+                             const WebDragData&,
                              DragOperationsMask,
                              const SkBitmap& drag_image,
                              const gfx::Vector2d& cursor_offset,
                              const gfx::Rect& drag_obj_rect);
 
   bool DoingDragAndDrop() { return doing_drag_and_drop_; }
-  static void SetIgnoreInputEvents(bool value) { ignore_input_events_ = value; }
-  static bool IgnoreInputEvents() { return ignore_input_events_; }
+  static void SetIgnoreInputEvents(
+      const base::UnguessableToken& browsing_context_group_token,
+      bool value);
+  static bool IgnoreInputEvents(
+      const base::UnguessableToken& browsing_context_group_token);
 
   // Resets the layout tracking steps for the main frame. When
   // `UpdateLifecycle()` is called it generates `WebMeaningfulLayout` events
@@ -389,6 +402,10 @@ class CORE_EXPORT WebFrameWidgetImpl
   // WebWidget overrides.
   void InitializeCompositing(const display::ScreenInfos& screen_infos,
                              const cc::LayerTreeSettings* settings) override;
+  void InitializeCompositingFromPreviousWidget(
+      const display::ScreenInfos& screen_infos,
+      const cc::LayerTreeSettings* settings,
+      WebFrameWidget& previous_widget) override;
   void SetCompositorVisible(bool visible) override;
   gfx::Size Size() override;
   void Resize(const gfx::Size& size_with_dsf) override;
@@ -448,6 +465,11 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Sets the display mode, which comes from the top-level browsing context and
   // is applied to all widgets.
   void SetDisplayMode(mojom::blink::DisplayMode);
+
+  // Sets the window show state.
+  void SetWindowShowState(ui::WindowShowState);
+
+  void SetResizable(bool);
 
   absl::optional<gfx::Point> GetAndResetContextMenuLocation();
 
@@ -585,6 +607,10 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Called when the main frame navigates.
   void DidNavigate();
 
+  // Ensures all queued input in the widget has been processed and the queues
+  // emptied.
+  void FlushInputForTesting(base::OnceClosure done_callback);
+
   // Called when the widget should get targeting input.
   void SetMouseCapture(bool capture);
 
@@ -656,6 +682,10 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Ask compositor to create the shared memory for smoothness ukm region.
   base::ReadOnlySharedMemoryRegion CreateSharedMemoryForSmoothnessUkm();
 
+  // Calculate and cache the most up to date line bounding boxes in the document
+  // coordinate space.
+  Vector<gfx::Rect> CalculateVisibleLineBoundsOnScreen();
+
  protected:
   // WidgetBaseClient overrides:
   void WillBeginMainFrame() override;
@@ -663,6 +693,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   void DidBeginMainFrame() override;
   std::unique_ptr<cc::LayerTreeFrameSink> AllocateNewLayerTreeFrameSink()
       override;
+  void WasShown(bool was_evicted) override;
 
   // Whether compositing to LCD text should be auto determined. This can be
   // overridden by tests to disable this.
@@ -731,7 +762,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   absl::optional<display::mojom::blink::ScreenOrientation>
   ScreenOrientationOverride() override;
   void WasHidden() override;
-  void WasShown(bool was_evicted) override;
   void RunPaintBenchmark(int repeat_count,
                          cc::PaintBenchmarkResult& result) override;
   KURL GetURLForDebugTrace() override;
@@ -796,6 +826,9 @@ class CORE_EXPORT WebFrameWidgetImpl
       int32_t end,
       const Vector<ui::ImeTextSpan>& ime_text_spans) override;
   void ExtendSelectionAndDelete(int32_t before, int32_t after) override;
+  void ExtendSelectionAndReplace(uint32_t before,
+                                 uint32_t after,
+                                 const String& replacement_text) override;
   void DeleteSurroundingText(int32_t before, int32_t after) override;
   void DeleteSurroundingTextInCodePoints(int32_t before,
                                          int32_t after) override;
@@ -877,6 +910,10 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   mojom::blink::FrameWidgetHost* GetAssociatedFrameWidgetHost() const;
 
+  void InitializeCompositingInternal(const display::ScreenInfos& screen_infos,
+                                     const cc::LayerTreeSettings* settings,
+                                     WebFrameWidget* previous_widget);
+
   // Notifies RenderWidgetHostImpl that the frame widget has painted something.
   void DidMeaningfulLayout(WebMeaningfulLayout layout_type);
 
@@ -937,6 +974,17 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   void NotifyZoomLevelChanged(LocalFrame* root);
 
+  // Satisfy the render blocking condition for cross-document view transitions.
+  void NotifyViewTransitionRenderingHasBegun();
+
+  // True when `this` should ignore input events.
+  bool ShouldIgnoreInputEvents();
+
+  // Stores the current composition line bounds. These bounds are rectangles
+  // which surround each line of text in a currently focused input or textarea
+  // element.
+  Vector<gfx::Rect> input_visible_line_bounds_;
+
   // A copy of the web drop data object we received from the browser.
   Member<DataObject> current_drag_data_;
 
@@ -946,8 +994,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   // The current drag operation as negotiated by the source and destination.
   // When not equal to DragOperationNone, the drag data can be dropped onto the
   // current drop target in this WebView (the drop target can accept the drop).
-  ui::mojom::blink::DragOperation drag_operation_ =
-      ui::mojom::blink::DragOperation::kNone;
+  DragController::Operation drag_operation_;
 
   // This field stores drag/drop related info for the event that is currently
   // being handled. If the current event results in starting a drag/drop
@@ -989,6 +1036,8 @@ class CORE_EXPORT WebFrameWidgetImpl
   Member<WebLocalFrameImpl> local_root_;
 
   mojom::blink::DisplayMode display_mode_;
+  ui::WindowShowState window_show_state_;
+  bool resizable_;
 
   WebVector<gfx::Rect> window_segments_;
 

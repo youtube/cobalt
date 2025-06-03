@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,14 +16,15 @@ import androidx.annotation.VisibleForTesting;
 import androidx.browser.customtabs.CustomTabsService;
 import androidx.browser.customtabs.CustomTabsService.Relation;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PackageUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.browser.browserservices.metrics.OriginVerifierMetricsRecorder.VerificationResult;
@@ -248,7 +249,6 @@ public class ChromeOriginVerifier extends OriginVerifier {
     }
 
     /** Clears all known relations. */
-    @VisibleForTesting
     public static void clearCachedVerificationsForTesting() {
         ChromeVerificationResultStore.getInstance().clearStoredRelationships();
     }
@@ -261,7 +261,7 @@ public class ChromeOriginVerifier extends OriginVerifier {
         ChromeVerificationResultStore.getInstance().clearStoredRelationships();
     }
 
-    @VisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
         long init(ChromeOriginVerifier caller, BrowserContextHandle browserContextHandle);

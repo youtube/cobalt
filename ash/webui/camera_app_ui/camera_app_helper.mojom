@@ -25,16 +25,6 @@ enum ScreenState {
     OFF_AUTO,
 };
 
-// Ready state for document scanner.
-enum DocumentScannerReadyState {
-  // The library is not supported on the device.
-  NOT_SUPPORTED,
-  // The library is supported but needs to wait for its installation.
-  SUPPORTED_BUT_NOT_READY,
-  // The library is supported and ready.
-  SUPPORTED_AND_READY,
-};
-
 // Interface for monitoring screen state of device. The state is detected from
 // Chrome browser process and is notified to Chrome Camera App in renderer
 // process.
@@ -69,6 +59,9 @@ enum WindowStateType {
 interface WindowStateMonitor {
   // Updates when any of the window states are changed.
   OnWindowStateChanged(array<WindowStateType> states);
+
+  // Updates when the window focus state is changed.
+  OnWindowFocusChanged(bool is_focus);
 };
 
 // The possible result of the file deletion monitor.
@@ -199,12 +192,6 @@ interface CameraAppHelper {
   // Opens the given URL in the browser.
   OpenUrlInBrowser(url.mojom.Url url);
 
-  // Sets the monitor to monitor the camera usage ownership changed. If the
-  // window operation is not supported for current instance, return false.
-  SetCameraUsageMonitor(
-      pending_remote<CameraUsageOwnershipMonitor> usage_monitor)
-          => (bool is_success);
-
   // Gets the controller to control and monitor the window state of app.
   GetWindowStateController()
       => (pending_remote<WindowStateController> controller);
@@ -223,8 +210,8 @@ interface CameraAppHelper {
   // by result.
   MonitorFileDeletion(string name) => (FileMonitorResult result);
 
-  // Returns the ready type of the document scanner on the device.
-  GetDocumentScannerReadyState() => (DocumentScannerReadyState ready_state);
+  // Check if document scanner is supported.
+  IsDocumentScannerSupported() => (bool is_supported);
 
   // Registers a callback which will be resolved once the document scanner is
   // ready or when it fails to load. If the document scanner is not supported on

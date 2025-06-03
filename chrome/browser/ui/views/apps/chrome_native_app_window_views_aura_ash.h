@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_UI_VIEWS_APPS_CHROME_NATIVE_APP_WINDOW_VIEWS_AURA_ASH_H_
 
 #include <memory>
-#include <vector>
 
 #include "ash/public/cpp/tablet_mode_observer.h"
 #include "ash/wm/window_state.h"
@@ -145,6 +144,9 @@ class ChromeNativeAppWindowViewsAuraAsh
                                intptr_t old) override;
   void OnWindowDestroying(aura::Window* window) override;
 
+  // views::View
+  void AddedToWidget() override;
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            ImmersiveWorkFlow);
@@ -152,18 +154,21 @@ class ChromeNativeAppWindowViewsAuraAsh
                            ImmersiveModeFullscreenRestoreType);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveModeWhenForcedFullscreen);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           PublicSessionNoImmersiveModeWhenFullscreen);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      PublicSessionNoImmersiveModeWhenFullscreen);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            RestoreImmersiveMode);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveOrBubbleOutsidePublicSessionWindow);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveOrBubbleOutsidePublicSessionDom);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           BubbleInsidePublicSessionWindow);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           BubbleInsidePublicSessionDom);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      BubbleInsidePublicSessionWindow);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      BubbleInsidePublicSessionDom);
   FRIEND_TEST_ALL_PREFIXES(ShapedAppWindowTargeterTest,
                            ResizeInsetsWithinBounds);
 

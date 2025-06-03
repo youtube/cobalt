@@ -4,19 +4,16 @@
 
 #import "ios/chrome/browser/ui/tab_switcher/tab_switcher_item.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import "base/check.h"
+#import "ios/web/public/web_state_id.h"
 
 @implementation TabSwitcherItem
 
-- (instancetype)initWithIdentifier:(NSString*)identifier {
-  DCHECK(identifier);
+- (instancetype)initWithIdentifier:(web::WebStateID)identifier {
   self = [super init];
   if (self) {
-    _identifier = [identifier copy];
+    CHECK(identifier.valid());
+    _identifier = identifier;
   }
   return self;
 }

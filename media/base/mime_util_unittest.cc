@@ -137,6 +137,10 @@ static bool HasEac3Support() {
 #endif
 }
 
+static bool HasAc4Support() {
+  return false;
+}
+
 TEST(MimeUtilTest, CommonMediaMimeType) {
   EXPECT_TRUE(IsSupportedMediaMimeType("audio/webm"));
   EXPECT_TRUE(IsSupportedMediaMimeType("video/webm"));
@@ -168,11 +172,10 @@ TEST(MimeUtilTest, CommonMediaMimeType) {
   EXPECT_TRUE(IsSupportedMediaMimeType("audio/aac"));
   EXPECT_TRUE(IsSupportedMediaMimeType("video/3gpp"));
 
-#if BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
-  EXPECT_TRUE(IsSupportedMediaMimeType("video/mp2t"));
-#else
+  // Always an unsupported mime type, even when the parsers are compiled in
+  // MediaSource handles reporting support separately in order to not taint
+  // the src= support response.
   EXPECT_FALSE(IsSupportedMediaMimeType("video/mp2t"));
-#endif  // BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
 
 #else
   EXPECT_FALSE(IsSupportedMediaMimeType("audio/x-m4a"));
@@ -507,22 +510,28 @@ TEST(MimeUtilTest, ParseVideoCodecString_SimpleCodecsHaveProfiles) {
   EXPECT_EQ(0, out_level);
   EXPECT_EQ(VideoColorSpace::REC709(), out_colorspace);
 
-// Valid Theora string.
-#if BUILDFLAG(IS_ANDROID)
-  // Theora not supported on Android.
-  EXPECT_FALSE(ParseVideoCodecString("video/ogg", "theora", &out_is_ambiguous,
-                                     &out_codec, &out_profile, &out_level,
-                                     &out_colorspace));
+  const bool kHaveTheoraCodec =
+#if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
+      base::FeatureList::IsEnabled(kTheoraVideoCodec);
 #else
-  EXPECT_TRUE(ParseVideoCodecString("video/ogg", "theora", &out_is_ambiguous,
-                                    &out_codec, &out_profile, &out_level,
-                                    &out_colorspace));
-  EXPECT_FALSE(out_is_ambiguous);
-  EXPECT_EQ(VideoCodec::kTheora, out_codec);
-  EXPECT_EQ(THEORAPROFILE_ANY, out_profile);
-  EXPECT_EQ(0, out_level);
-  EXPECT_EQ(VideoColorSpace::REC709(), out_colorspace);
+      false;
 #endif
+
+  // Valid Theora string.
+  if (kHaveTheoraCodec) {
+    EXPECT_TRUE(ParseVideoCodecString("video/ogg", "theora", &out_is_ambiguous,
+                                      &out_codec, &out_profile, &out_level,
+                                      &out_colorspace));
+    EXPECT_FALSE(out_is_ambiguous);
+    EXPECT_EQ(VideoCodec::kTheora, out_codec);
+    EXPECT_EQ(THEORAPROFILE_ANY, out_profile);
+    EXPECT_EQ(0, out_level);
+    EXPECT_EQ(VideoColorSpace::REC709(), out_colorspace);
+  } else {
+    EXPECT_FALSE(ParseVideoCodecString("video/ogg", "theora", &out_is_ambiguous,
+                                       &out_codec, &out_profile, &out_level,
+                                       &out_colorspace));
+  }
 }
 
 TEST(IsCodecSupportedOnAndroidTest, EncryptedCodecBehavior) {
@@ -596,6 +605,10 @@ TEST(IsCodecSupportedOnAndroidTest, EncryptedCodecBehavior) {
           case MimeUtil::DTSE:
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
             break;
+
+          case MimeUtil::AC4:
+            EXPECT_EQ(HasAc4Support(), result);
+            break;
         }
       });
 }
@@ -662,6 +675,10 @@ TEST(IsCodecSupportedOnAndroidTest, ClearCodecBehavior) {
           case MimeUtil::DTSXP2:
           case MimeUtil::DTSE:
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
+            break;
+
+          case MimeUtil::AC4:
+            EXPECT_EQ(HasAc4Support(), result);
             break;
         }
       });

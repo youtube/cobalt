@@ -13,7 +13,6 @@
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics_service.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/instance.h"
 #include "components/sync/test/test_sync_service.h"
@@ -39,7 +38,7 @@ AppPtr MakeApp(const std::string& app_id,
 
 // Helper method that adds a new app using the provided app metadata with the
 // `AppRegistryCache`.
-void AddApp(AppRegistryCache& cache,
+void AddApp(AppServiceProxy* proxy,
             const std::string& app_id,
             AppType app_type,
             const std::string& publisher_id,
@@ -134,7 +133,7 @@ class AppPlatformMetricsServiceTestBase : public ::testing::Test {
   raw_ptr<syncer::TestSyncService> sync_service_ = nullptr;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<AppPlatformMetricsService> app_platform_metrics_service_;
-  raw_ptr<ash::FakeChromeUserManager> fake_user_manager_;
+  raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged> fake_user_manager_;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
 };

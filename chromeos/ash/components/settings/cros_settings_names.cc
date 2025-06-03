@@ -14,6 +14,11 @@ const char kAccountsPrefAllowNewUser[] = "cros.accounts.allowGuest";
 const char kAccountsPrefShowUserNamesOnSignIn[] =
     "cros.accounts.showUserNamesOnSignIn";
 const char kAccountsPrefUsers[] = "cros.accounts.users";
+// Only `ChromeUserManagerImpl` is allowed to directly use this setting. All
+// other clients have to use `UserManager::IsEphemeralAccountId()` function to
+// get ephemeral mode for account ID. Such rule is needed because there are
+// new policies(e.g.kiosk ephemeral mode) that overrides behaviour of
+// the current setting for some accounts.
 const char kAccountsPrefEphemeralUsersEnabled[] =
     "cros.accounts.ephemeralUsersEnabled";
 const char kAccountsPrefDeviceLocalAccounts[] =
@@ -240,6 +245,11 @@ const char kReportDeviceLoginLogout[] = "cros.reporting.report_login_logout";
 // Determines whether CRD session events are reported.
 const char kReportCRDSessions[] = "cros.reporting.report_crd_sessions";
 
+// A boolean pref that determines whether the device runtime counters should be
+// reported.
+const char kDeviceReportRuntimeCounters[] =
+    "cros.reporting.report_runtime_counters";
+
 // Determines the device activity heartbeat collection rate (in milliseconds).
 const char kDeviceActivityHeartbeatCollectionRateMs[] =
     "cros.reporting.device_activity_heartbeat_collection_rate_ms";
@@ -259,7 +269,7 @@ const char kHeartbeatFrequency[] = "cros.device_status.heartbeat_frequency";
 const char kSystemLogUploadEnabled[] =
     "cros.device_status.system_log_upload_enabled";
 
-// How frequently the networks health telemetry are collected.
+// How frequently the networks health telemetry is collected.
 const char kReportDeviceNetworkTelemetryCollectionRateMs[] =
     "cros.telemetry_reporting.report_network_telemetry_collection_rate_ms";
 
@@ -270,6 +280,10 @@ const char kReportDeviceNetworkTelemetryEventCheckingRateMs[] =
 // How frequently the audio data are checked for events.
 const char kReportDeviceAudioStatusCheckingRateMs[] =
     "cros.telemetry_reporting.report_device_audio_status_checking_rate_ms";
+
+// How frequently the runtime counters telemetry is collected.
+const char kDeviceReportRuntimeCountersCheckingRateMs[] =
+    "cros.telemetry_reporting.device_report_runtime_counters_checking_rate_ms";
 
 // How frequently the audio data are checked for events.
 const char kReportDeviceSignalStrengthEventDrivenTelemetry[] =
@@ -298,6 +312,7 @@ const char kFeatureFlags[] = "cros.feature_flags";
 const char kVariationsRestrictParameter[] =
     "cros.variations_restrict_parameter";
 
+// TODO(b/285556135): Remove this pref together with AttestationEnabledForDevice
 // A boolean pref that indicates whether enterprise attestation is enabled for
 // the device.
 const char kDeviceAttestationEnabled[] = "cros.device.attestation_enabled";
@@ -594,5 +609,15 @@ const char kDeviceReportXDREvents[] = "cros.device.device_report_xdr_events";
 // support it. Maps to the `DevicePrintingClientNameTemplate` policy.
 const char kDevicePrintingClientNameTemplate[] =
     "cros.device.printing.client_name_template";
+
+// A boolean pref that indicates whether Hindi Inscript keyboard layout
+// is available.
+const char kDeviceHindiInscriptLayoutEnabled[] =
+    "cros.device.hindi_inscript_layout_enabled";
+
+// A list of strings representing DLC identifiers to be pre downloaded on the
+// device.
+const char kDeviceDlcPredownloadList[] =
+    "cros.device.device_dlc_predownload_list";
 
 }  // namespace ash

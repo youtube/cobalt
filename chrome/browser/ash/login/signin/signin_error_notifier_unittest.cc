@@ -16,7 +16,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -25,7 +24,9 @@
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/message_center/public/cpp/notification.h"
@@ -50,9 +51,10 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
  public:
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
+    // Required to initialize TokenHandleUtil.
+    ash::UserDataAuthClient::InitializeFake();
 
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<FakeChromeUserManager>());
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
 
     SigninErrorNotifierFactory::GetForProfile(GetProfile());
     display_service_ =
@@ -67,6 +69,7 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
     // will be destroyed as part of the TearDown() process.
     identity_test_env_profile_adaptor_.reset();
 
+    ash::UserDataAuthClient::Shutdown();
     BrowserWithTestWindowTest::TearDown();
   }
 
@@ -87,7 +90,8 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
 
  protected:
   std::unique_ptr<NotificationDisplayServiceTester> display_service_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_profile_adaptor_;
 };
@@ -110,7 +114,7 @@ TEST_F(SigninErrorNotifierTest, NoNotificationAfterAddSupervisionEnabled) {
                                          signin::ConsentLevel::kSync);
 
   // Mark signout required.
-  SupervisedUserService* service =
+  supervised_user::SupervisedUserService* service =
       SupervisedUserServiceFactory::GetForProfile(profile());
   service->set_signout_required_after_supervision_enabled();
 
@@ -221,6 +225,7 @@ TEST_F(SigninErrorNotifierTest, AuthStatusEnumerateAllErrors) {
       GoogleServiceAuthError::UNEXPECTED_SERVICE_RESPONSE,
       GoogleServiceAuthError::SERVICE_ERROR,
       GoogleServiceAuthError::SCOPE_LIMITED_UNRECOVERABLE_ERROR,
+      GoogleServiceAuthError::CHALLENGE_RESPONSE_REQUIRED,
   };
   static_assert(
       std::size(table) == GoogleServiceAuthError::NUM_STATES -
@@ -309,8 +314,8 @@ TEST_F(SigninErrorNotifierTest, TokenHandleTest) {
   TokenHandleUtil::SetInvalidTokenForTesting(kTokenHandle);
   SigninErrorNotifier* signin_error_notifier =
       SigninErrorNotifierFactory::GetForProfile(GetProfile());
-  signin_error_notifier->OnTokenHandleCheck(account_id,
-                                            TokenHandleUtil::INVALID);
+  signin_error_notifier->OnTokenHandleCheck(account_id, kTokenHandle,
+                                            /*reauth_required=*/true);
 
   // Test.
   absl::optional<message_center::Notification> notification =
@@ -341,8 +346,8 @@ TEST_F(SigninErrorNotifierTest,
   TokenHandleUtil::SetInvalidTokenForTesting(kTokenHandle);
   SigninErrorNotifier* signin_error_notifier =
       SigninErrorNotifierFactory::GetForProfile(GetProfile());
-  signin_error_notifier->OnTokenHandleCheck(account_id,
-                                            TokenHandleUtil::INVALID);
+  signin_error_notifier->OnTokenHandleCheck(account_id, kTokenHandle,
+                                            /*reauth_required=*/true);
 
   // Test.
   absl::optional<message_center::Notification> notification =

@@ -6,7 +6,8 @@ import("//build/config/features.gni")
 import("//device/bluetooth/cast_bluetooth.gni")
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 config("bluetooth_config") {
@@ -211,6 +212,7 @@ component("bluetooth") {
     deps += [
       "//ash/constants",
       "//chromeos/ash/services/nearby/public/cpp/",
+      "//chromeos/ash/services/secure_channel/public/cpp/shared",
     ]
   }
 
@@ -531,6 +533,8 @@ component("bluetooth") {
         "floss/fake_floss_advertiser_client.h",
         "floss/fake_floss_battery_manager_client.cc",
         "floss/fake_floss_battery_manager_client.h",
+        "floss/fake_floss_bluetooth_telephony_client.cc",
+        "floss/fake_floss_bluetooth_telephony_client.h",
         "floss/fake_floss_gatt_manager_client.cc",
         "floss/fake_floss_gatt_manager_client.h",
         "floss/fake_floss_lescan_client.cc",
@@ -549,6 +553,8 @@ component("bluetooth") {
         "floss/floss_advertiser_client.h",
         "floss/floss_battery_manager_client.cc",
         "floss/floss_battery_manager_client.h",
+        "floss/floss_bluetooth_telephony_client.cc",
+        "floss/floss_bluetooth_telephony_client.h",
         "floss/floss_dbus_client.cc",
         "floss/floss_dbus_client.h",
         "floss/floss_dbus_manager.cc",
@@ -567,6 +573,8 @@ component("bluetooth") {
         "floss/floss_sdp_types.h",
         "floss/floss_socket_manager.cc",
         "floss/floss_socket_manager.h",
+        "floss/floss_version.cc",
+        "floss/floss_version.h",
         "floss/test_helpers.h",
       ]
       if (is_chromeos) {
@@ -589,7 +597,7 @@ component("bluetooth") {
         }
       }
       if (use_dbus) {
-        deps += [ "//dbus" ]
+        public_deps += [ "//dbus" ]
       }
     } else {  # !use_bluez
       defines += [ "LINUX_WITHOUT_DBUS" ]
@@ -689,14 +697,14 @@ if (is_android) {
   }
 
   android_library("java") {
+    srcjar_deps = [ ":jni_headers" ]
     sources = java_sources_needing_jni
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//build/android:build_java",
       "//components/location/android:location_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   }
 }

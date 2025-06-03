@@ -45,11 +45,11 @@
 #include "components/favicon/core/favicon_service.h"
 #include "components/favicon_base/favicon_util.h"
 #include "components/sync/base/unique_position.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/sync_entity.pb.h"
 #include "components/sync/protocol/unique_position.pb.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/entity_builder_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -452,23 +452,19 @@ bool NodesMatch(const BookmarkNode* node_a, const BookmarkNode* node_b) {
   return true;
 }
 
-// Helper for BookmarkModelsMatch.
-bool NodeCantBeSynced(bookmarks::BookmarkClient* client,
-                      const BookmarkNode* node) {
-  // Return true to skip a node.
-  return !client->CanSyncNode(node);
-}
-
 // Checks if the hierarchies in |model_a| and |model_b| are equivalent in
 // terms of the data model and favicon. Returns true if they both match.
 // Note: Some peripheral fields like creation times are allowed to mismatch.
 bool BookmarkModelsMatch(BookmarkModel* model_a, BookmarkModel* model_b) {
+  // base::Unretained() is safe because these iterators are short-lived.
   ui::TreeNodeIterator<const BookmarkNode> iterator_a(
       model_a->root_node(),
-      base::BindRepeating(&NodeCantBeSynced, model_a->client()));
+      base::BindRepeating(&bookmarks::BookmarkClient::IsNodeManaged,
+                          base::Unretained(model_a->client())));
   ui::TreeNodeIterator<const BookmarkNode> iterator_b(
       model_b->root_node(),
-      base::BindRepeating(&NodeCantBeSynced, model_b->client()));
+      base::BindRepeating(&bookmarks::BookmarkClient::IsNodeManaged,
+                          base::Unretained(model_b->client())));
   while (iterator_a.has_next()) {
     const BookmarkNode* node_a = iterator_a.Next();
     if (!iterator_b.has_next()) {
@@ -793,8 +789,8 @@ bool ContainsDuplicateBookmarks(int profile) {
     if (node->is_folder()) {
       continue;
     }
-    std::vector<const BookmarkNode*> nodes;
-    GetBookmarkModel(profile)->GetNodesByURL(node->url(), &nodes);
+    std::vector<const BookmarkNode*> nodes =
+        GetBookmarkModel(profile)->GetNodesByURL(node->url());
     EXPECT_GE(nodes.size(), 1U);
     for (std::vector<const BookmarkNode*>::const_iterator it = nodes.begin();
          it != nodes.end(); ++it) {
@@ -808,14 +804,12 @@ bool ContainsDuplicateBookmarks(int profile) {
 }
 
 bool HasNodeWithURL(int profile, const GURL& url) {
-  std::vector<const BookmarkNode*> nodes;
-  GetBookmarkModel(profile)->GetNodesByURL(url, &nodes);
-  return !nodes.empty();
+  return !GetBookmarkModel(profile)->GetNodesByURL(url).empty();
 }
 
 const BookmarkNode* GetUniqueNodeByURL(int profile, const GURL& url) {
-  std::vector<const BookmarkNode*> nodes;
-  GetBookmarkModel(profile)->GetNodesByURL(url, &nodes);
+  std::vector<const BookmarkNode*> nodes =
+      GetBookmarkModel(profile)->GetNodesByURL(url);
   EXPECT_EQ(1U, nodes.size());
   if (nodes.empty()) {
     return nullptr;
@@ -833,8 +827,8 @@ size_t CountBookmarksWithTitlesMatching(int profile, const std::string& title) {
 }
 
 size_t CountBookmarksWithUrlsMatching(int profile, const GURL& url) {
-  std::vector<const BookmarkNode*> nodes;
-  GetBookmarkModel(profile)->GetNodesByURL(url, &nodes);
+  std::vector<const BookmarkNode*> nodes =
+      GetBookmarkModel(profile)->GetNodesByURL(url);
   return nodes.size();
 }
 

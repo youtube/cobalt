@@ -5,6 +5,10 @@
 #ifndef CHROME_BROWSER_ASH_APP_LIST_SEARCH_KEYBOARD_SHORTCUT_RESULT_H_
 #define CHROME_BROWSER_ASH_APP_LIST_SEARCH_KEYBOARD_SHORTCUT_RESULT_H_
 
+#include <string>
+#include <vector>
+#include "ash/public/mojom/accelerator_info.mojom-forward.h"
+#include "ash/webui/shortcut_customization_ui/backend/search/search.mojom-forward.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/keyboard_shortcut_data.h"
@@ -25,6 +29,9 @@ class KeyboardShortcutResult : public ChromeSearchResult {
   explicit KeyboardShortcutResult(Profile* profile,
                                   const KeyboardShortcutData& data,
                                   double relevance);
+  KeyboardShortcutResult(
+      Profile* profile,
+      const ash::shortcut_customization::mojom::SearchResultPtr& search_result);
   KeyboardShortcutResult(const KeyboardShortcutResult&) = delete;
   KeyboardShortcutResult& operator=(const KeyboardShortcutResult&) = delete;
 
@@ -46,6 +53,12 @@ class KeyboardShortcutResult : public ChromeSearchResult {
   // backend icon codes. Returns nullopt for unsupported codes.
   static absl::optional<ash::SearchResultTextItem::IconCode>
       GetIconCodeFromKeyboardCode(ui::KeyboardCode);
+  // The `key_string` represents the keyboard code's string representation.
+  // ash::SearchResultTextItem::IconCode represents icon codes in the frontend.
+  // The supported front-end icon codes are a small subset of the existing
+  // backend icon codes. Returns nullopt for unsupported codes.
+  static absl::optional<ash::SearchResultTextItem::IconCode>
+  GetIconCodeByKeyString(base::StringPiece16 key_string);
 
   // Parse a |template_string| (containing placeholders of the form $i). The
   // output is a TextVector where the TextItem elements can be of three
@@ -60,7 +73,41 @@ class KeyboardShortcutResult : public ChromeSearchResult {
       const std::vector<std::u16string>& replacement_strings,
       const std::vector<ui::KeyboardCode>& shortcut_key_codes);
 
+  // Add the `accelerator` to the `text_vector` and populate
+  // `accessible_strings`.
+  void PopulateTextVector(TextVector* text_vector,
+                          std::vector<std::u16string>& accessible_strings,
+                          const ui::Accelerator& accelerator);
+
+  // Add the `accelerator_parts` to the `text_vector` and populate
+  // `accessible_strings`.
+  void PopulateTextVectorWithTextParts(
+      TextVector* text_vector,
+      std::vector<std::u16string>& accessible_strings,
+      const std::vector<ash::mojom::TextAcceleratorPartPtr>& accelerator_parts);
+
+  // Add the `accelerator_info` to the `text_vector` and populate
+  // `accessible_strings`.
+  void PopulateTextVector(
+      TextVector* text_vector,
+      std::vector<std::u16string>& accessible_strings,
+      const ash::mojom::AcceleratorInfoPtr& accelerator_info);
+
+  // Add `accelerator_1` and `accelerator_2` to the `text_vector` and populate
+  // `accessible_strings`. When there are more than one shortcuts, we only show
+  // the first two.
+  void PopulateTextVectorWithTwoShortcuts(
+      TextVector* text_vector,
+      std::vector<std::u16string>& accessible_strings,
+      const ash::mojom::AcceleratorInfoPtr& accelerator_1,
+      const ash::mojom::AcceleratorInfoPtr& accelerator_2);
+
   void UpdateIcon();
+
+  // The following info will be passed to the shortcuts app when a result is
+  // clicked so that the selected shortcuts will be displayed in the app.
+  std::string accelerator_action_;
+  std::string accelerator_category_;
 
   raw_ptr<Profile, ExperimentalAsh> profile_;
   friend class test::KeyboardShortcutResultTest;

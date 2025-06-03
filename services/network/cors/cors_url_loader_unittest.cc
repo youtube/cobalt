@@ -10,8 +10,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/system/functions.h"
+#include "net/base/features.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_request_headers.h"
 #include "net/log/test_net_log_util.h"
@@ -2381,6 +2383,157 @@ TEST_F(CorsURLLoaderTest, NonBrowserNavigationRedirect) {
   EXPECT_THAT(bad_message_helper.bad_message_reports(),
               ElementsAre("CorsURLLoader: navigate from non-browser-process "
                           "should not call FollowRedirect"));
+}
+
+TEST_F(CorsURLLoaderTest, RedirectBlockedByResourceBlockList) {
+  url::Origin top_frame_origin =
+      url::Origin::Create(GURL("https://example.com"));
+  const GURL url("https://example.com/foo.png");
+  const GURL new_url("https://block.com/bar.png");
+
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  ResetFactory(top_frame_origin, kRendererProcessId, factory_params);
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = net::HttpRequestHeaders::kGetMethod;
+  request.url = url;
+  request.request_initiator = top_frame_origin;
+  request.trusted_params = ResourceRequest::TrustedParams();
+
+  url::Origin request_origin = url::Origin::Create(request.url);
+  request.trusted_params->isolation_info = net::IsolationInfo::Create(
+      net::IsolationInfo::RequestType::kOther, top_frame_origin, request_origin,
+      net::SiteForCookies());
+
+  AddResourceBlockListRule("block.com", "other.com");
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  EXPECT_EQ(1, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+  EXPECT_EQ(GetRequest().method, "GET");
+
+  NotifyLoaderClientOnReceiveRedirect(
+      CreateRedirectInfo(301, "GET", new_url),
+      {{"Access-Control-Allow-Origin", "https://example.com"}});
+  RunUntilRedirectReceived();
+
+  EXPECT_TRUE(IsNetworkLoaderStarted());
+  EXPECT_FALSE(client().has_received_completion());
+  EXPECT_FALSE(client().has_received_response());
+  EXPECT_TRUE(client().has_received_redirect());
+
+  ClearHasReceivedRedirect();
+  FollowRedirect();
+
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "https://example.com"}});
+
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  // original_loader->FollowRedirect() is called, so no new loader is created.
+  EXPECT_EQ(1, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+
+  EXPECT_FALSE(client().has_received_redirect());
+  EXPECT_TRUE(client().has_received_completion());
+  EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT,
+            client().completion_status().error_code);
+}
+
+TEST_F(CorsURLLoaderTest, BypassBlockListDuringRedirect) {
+  url::Origin top_frame_origin =
+      url::Origin::Create(GURL("https://example.com"));
+  const GURL url("https://other.example.com/foo.png");
+  const GURL new_url("https://block.com/bar.png");
+
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  ResetFactory(top_frame_origin, kRendererProcessId, factory_params);
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = net::HttpRequestHeaders::kGetMethod;
+  request.url = url;
+  request.request_initiator = top_frame_origin;
+  request.trusted_params = ResourceRequest::TrustedParams();
+
+  request.trusted_params->isolation_info = net::IsolationInfo::Create(
+      net::IsolationInfo::RequestType::kOther, top_frame_origin,
+      top_frame_origin, net::SiteForCookies());
+
+  // Redirect will bypass the block list because the top frame matches the
+  // bypass rule.
+  AddResourceBlockListRule("block.com", "example.com");
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  EXPECT_EQ(1, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+  EXPECT_EQ(GetRequest().method, "GET");
+
+  NotifyLoaderClientOnReceiveRedirect(CreateRedirectInfo(301, "GET", new_url),
+                                      {{"Access-Control-Allow-Origin", "*"}});
+  RunUntilRedirectReceived();
+
+  EXPECT_TRUE(IsNetworkLoaderStarted());
+  EXPECT_FALSE(client().has_received_completion());
+  EXPECT_FALSE(client().has_received_response());
+  EXPECT_TRUE(client().has_received_redirect());
+
+  ClearHasReceivedRedirect();
+  FollowRedirect();
+
+  NotifyLoaderClientOnReceiveResponse({{"Access-Control-Allow-Origin", "*"}});
+
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  // original_loader->FollowRedirect() is called, so no new loader is created.
+  EXPECT_EQ(1, num_created_loaders());
+  EXPECT_EQ(GetRequest().url, url);
+
+  EXPECT_FALSE(client().has_received_redirect());
+  EXPECT_TRUE(client().has_received_response());
+  EXPECT_TRUE(client().has_received_completion());
+  EXPECT_EQ(net::OK, client().completion_status().error_code);
+}
+
+TEST_F(CorsURLLoaderTest, PrivateNetworkAccessTargetAddressSpaceCheck) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kPrivateNetworkAccessPermissionPrompt);
+
+  auto initiator = url::Origin::Create(GURL("https://foo.example"));
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  factory_params.client_security_state = mojom::ClientSecurityState::New();
+  factory_params.client_security_state->is_web_secure_context = true;
+  ResetFactory(initiator, mojom::kBrowserProcessId, factory_params);
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.target_address_space = mojom::IPAddressSpace::kPrivate;
+  request.target_ip_address_space = mojom::IPAddressSpace::kPrivate;
+  request.url = GURL("http://foo.example/");
+  request.request_initiator = initiator;
+  request.trusted_params = ResourceRequest::TrustedParams();
+  request.trusted_params->client_security_state =
+      mojom::ClientSecurityState::New();
+  request.trusted_params->client_security_state->is_web_secure_context = true;
+
+  BadMessageTestHelper bad_message_helper;
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  EXPECT_EQ(client().completion_status().error_code, net::OK);
 }
 
 }  // namespace

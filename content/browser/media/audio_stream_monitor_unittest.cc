@@ -70,6 +70,11 @@ class AudioStreamMonitorTest : public RenderViewHostTestHarness {
     const_cast<const base::TickClock*&>(monitor_->clock_) = &clock_;
   }
 
+  void TearDown() override {
+    monitor_ = nullptr;
+    RenderViewHostTestHarness::TearDown();
+  }
+
   base::TimeTicks GetTestClockTime() { return clock_.NowTicks(); }
 
   void AdvanceClock(const base::TimeDelta& delta) { clock_.Advance(delta); }

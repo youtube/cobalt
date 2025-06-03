@@ -26,18 +26,21 @@
 #import "components/translate/core/browser/translate_pref_names.h"
 #import "components/translate/core/browser/translate_prefs.h"
 #import "components/translate/core/language_detection/language_detection_model.h"
-#import "ios/chrome/browser/bookmarks/local_or_syncable_bookmark_model_factory.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
+#import "ios/chrome/browser/bookmarks/model/local_or_syncable_bookmark_model_factory.h"
 #import "ios/chrome/browser/overlays/public/overlay_presenter.h"
 #import "ios/chrome/browser/overlays/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/public/overlay_request_queue.h"
 #import "ios/chrome/browser/overlays/public/web_content_area/java_script_alert_dialog_overlay.h"
 #import "ios/chrome/browser/overlays/test/fake_overlay_presentation_context.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/policy/enterprise_policy_test_helper.h"
-#import "ios/chrome/browser/reading_list/reading_list_model_factory.h"
-#import "ios/chrome/browser/reading_list/reading_list_test_utils.h"
+#import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
+#import "ios/chrome/browser/reading_list/model/reading_list_test_utils.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/ui/popup_menu/cells/popup_menu_text_item.h"
@@ -45,10 +48,8 @@
 #import "ios/chrome/browser/ui/popup_menu/popup_menu_constants.h"
 #import "ios/chrome/browser/ui/popup_menu/public/popup_menu_table_view_controller.h"
 #import "ios/chrome/browser/ui/toolbar/test/toolbar_test_navigation_manager.h"
+#import "ios/chrome/browser/web/font_size/font_size_java_script_feature.h"
 #import "ios/chrome/browser/web/font_size/font_size_tab_helper.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_list_observer_bridge.h"
-#import "ios/chrome/browser/web_state_list/web_state_opener.h"
 #import "ios/public/provider/chrome/browser/text_zoom/text_zoom_api.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_api.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -65,10 +66,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using bookmarks::BookmarkModel;
 
@@ -110,7 +107,7 @@ class PopupMenuMediatorTest : public PlatformTest {
         ios::LocalOrSyncableBookmarkModelFactory::GetInstance(),
         ios::LocalOrSyncableBookmarkModelFactory::GetDefaultFactory());
     builder.AddTestingFactory(
-        IOSChromePasswordStoreFactory::GetInstance(),
+        IOSChromeProfilePasswordStoreFactory::GetInstance(),
         base::BindRepeating(&password_manager::BuildPasswordStoreInterface<
                             web::BrowserState,
                             password_manager::MockPasswordStoreInterface>));
@@ -148,6 +145,7 @@ class PopupMenuMediatorTest : public PlatformTest {
         std::make_unique<web::FakeWebState>();
     test_web_state->SetNavigationManager(std::move(navigation_manager));
     test_web_state->SetLoading(true);
+    test_web_state->SetBrowserState(browser_state_.get());
     web_state_ = test_web_state.get();
 
     auto frames_manager = std::make_unique<web::FakeWebFramesManager>();
@@ -156,8 +154,6 @@ class PopupMenuMediatorTest : public PlatformTest {
     main_frame->set_browser_state(browser_state_.get());
     frames_manager->AddWebFrame(std::move(main_frame));
     web_state_->SetWebFramesManager(std::move(frames_manager));
-    web_state_->OnWebFrameDidBecomeAvailable(
-        web_state_->GetPageWorldWebFramesManager()->GetMainWebFrame());
 
     browser_->GetWebStateList()->InsertWebState(
         0, std::move(test_web_state), WebStateList::INSERT_FORCE_INDEX,
@@ -233,8 +229,6 @@ class PopupMenuMediatorTest : public PlatformTest {
     main_frame->set_browser_state(browser_state_.get());
     frames_manager->AddWebFrame(std::move(main_frame));
     web_state->SetWebFramesManager(std::move(frames_manager));
-    web_state->OnWebFrameDidBecomeAvailable(
-        web_state->GetPageWorldWebFramesManager()->GetMainWebFrame());
 
     browser_->GetWebStateList()->InsertWebState(
         index, std::move(web_state), WebStateList::INSERT_FORCE_INDEX,
@@ -460,6 +454,11 @@ TEST_F(PopupMenuMediatorTest, TestTextZoomDisabled) {
 
   FakePopupMenuConsumer* consumer = [[FakePopupMenuConsumer alloc] init];
   mediator_.popupMenu = consumer;
+
+  // FontSizeTabHelper requires a web frames manager.
+  web_state_->SetWebFramesManager(
+      FontSizeJavaScriptFeature::GetInstance()->GetSupportedContentWorld(),
+      std::make_unique<web::FakeWebFramesManager>());
   FontSizeTabHelper::CreateForWebState(
       browser_->GetWebStateList()->GetWebStateAt(0));
   SetUpActiveWebState();

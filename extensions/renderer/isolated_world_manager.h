@@ -11,6 +11,7 @@
 #include "base/sequence_checker.h"
 #include "extensions/common/mojom/execution_world.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
 
 class InjectionHost;
 
@@ -54,9 +55,17 @@ class IsolatedWorldManager {
   // exist.
   void RemoveIsolatedWorlds(const std::string& host_id);
 
-  // Sets the CSP to use for newly-created user script worlds for the associated
-  // `host_id`. Does not affect any already-created worlds.
-  void SetUserScriptWorldCsp(std::string host_id, std::string csp);
+  // Sets properties for newly-created user script worlds for the associated
+  // `host_id`. Does not affect any already-created worlds, but does update the
+  // world data stored in blink so that any newly-created worlds will be
+  // properly initialized.
+  void SetUserScriptWorldProperties(const std::string& host_id,
+                                    absl::optional<std::string> csp,
+                                    bool enable_messaging);
+
+  // Returns whether messaging APIs should be enabled in worlds for the given
+  // `host_id`.
+  bool IsMessagingEnabledInUserScriptWorlds(const std::string& host_id);
 
   // Returns the id of the isolated world associated with the given
   // `injection_host`.  If none exists, creates a new world for it associated
@@ -67,20 +76,51 @@ class IsolatedWorldManager {
  private:
   // A structure to track existing isolated world information.
   struct IsolatedWorldInfo {
+    // Defaults, to appease the Chromium clang plugin.
+    IsolatedWorldInfo();
+    ~IsolatedWorldInfo();
+    IsolatedWorldInfo(IsolatedWorldInfo&&);
+
     // The id of the injection host the world is associated with. For
     // extensions, this is the extension ID.
     std::string host_id;
+
     // The execution world for the isolated world. Currently, this is restricted
     // to mojom::ExecutionWorld::kIsolated.
     mojom::ExecutionWorld execution_world;
+
+    // A human-friendly name for the isolated world host.
+    std::string name;
+
+    // The URL associated with the isolated world host.
+    GURL url;
+
+    // CSP to use for the isolated world, if any.
+    absl::optional<std::string> csp;
   };
+
+  // A set of data to store properties for newly-created isolated worlds.
+  struct PendingWorldInfo {
+    PendingWorldInfo();
+    ~PendingWorldInfo();
+    PendingWorldInfo(PendingWorldInfo&&);
+
+    // The CSP to use for newly-created isolated worlds, if any.
+    absl::optional<std::string> csp;
+
+    // Whether to enable messaging APIs in newly-created isolated worlds.
+    bool enable_messaging = false;
+  };
+
+  void UpdateBlinkIsolatedWorldInfo(int world_id,
+                                    const IsolatedWorldInfo& world_info);
 
   // A map between the isolated world ID and injection host ID.
   using IsolatedWorldMap = std::map<int, IsolatedWorldInfo>;
   IsolatedWorldMap isolated_worlds_;
 
-  // A map of <host id, csp> for CSPs to use for newly-created isolated worlds.
-  std::map<std::string, std::string> user_script_world_csps_;
+  // A map of <host id, info> to use for newly-created isolated worlds.
+  std::map<std::string, PendingWorldInfo> pending_worlds_info_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

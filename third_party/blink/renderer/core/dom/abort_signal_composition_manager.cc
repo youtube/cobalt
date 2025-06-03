@@ -18,7 +18,9 @@ namespace blink {
 AbortSignalCompositionManager::AbortSignalCompositionManager(
     AbortSignal& signal,
     AbortSignalCompositionType type)
-    : signal_(signal), composition_type_(type) {}
+    : signal_(signal), composition_type_(type) {
+  CHECK(signal_);
+}
 
 AbortSignalCompositionManager::~AbortSignalCompositionManager() = default;
 
@@ -77,10 +79,6 @@ void DependentSignalCompositionManager::AddSourceSignal(AbortSignal& source) {
   }
 
   DCHECK(!source.IsCompositeSignal());
-  // Internal signals can add dependent signals after construction via
-  // AbortSignal::Follow, which would violate our assumptions for
-  // AbortSignal.any().
-  DCHECK_NE(source.GetSignalType(), AbortSignal::SignalType::kInternal);
   // Cycles are prevented by sources being specified only at creation time.
   DCHECK_NE(&GetSignal(), &source);
 
@@ -134,6 +132,7 @@ void SourceSignalCompositionManager::AddDependentSignal(
   DCHECK(GetCompositionType() != AbortSignalCompositionType::kAbort ||
          !GetSignal().aborted());
 
+  CHECK(&dependent_manager.GetSignal());
   dependent_signals_.insert(&dependent_manager.GetSignal());
 }
 

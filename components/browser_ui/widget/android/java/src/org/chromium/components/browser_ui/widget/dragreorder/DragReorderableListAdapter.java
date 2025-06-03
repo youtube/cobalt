@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.res.Resources;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -159,12 +158,12 @@ public abstract class DragReorderableListAdapter<T> extends RecyclerView.Adapter
     public DragReorderableListAdapter(Context context) {
         mContext = context;
 
-        Resources resource = context.getResources();
+        Resources resources = context.getResources();
         // Set the alpha to 90% when dragging which is 230/255
         mDraggedBackgroundColor = ColorUtils.setAlphaComponent(
                 ChromeColors.getSurfaceColor(mContext, R.dimen.default_elevation_1),
-                resource.getInteger(R.integer.list_item_dragged_alpha));
-        mDraggedElevation = resource.getDimension(R.dimen.list_item_dragged_elevation);
+                resources.getInteger(R.integer.list_item_dragged_alpha));
+        mDraggedElevation = resources.getDimension(R.dimen.list_item_dragged_elevation);
     }
 
     @Override
@@ -278,7 +277,6 @@ public abstract class DragReorderableListAdapter<T> extends RecyclerView.Adapter
      * @param start The index of the ViewHolder that you want to drag.
      * @param end The index this ViewHolder should be dragged to and dropped at.
      */
-    @VisibleForTesting
     public void simulateDragForTests(int start, int end) {
         ViewHolder viewHolder = mRecyclerView.findViewHolderForAdapterPosition(start);
         mItemTouchHelper.startDrag(viewHolder);

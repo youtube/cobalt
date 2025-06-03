@@ -115,7 +115,7 @@
               <template is="dom-if"
                   if="[[shouldShowTextDivider(index, searchResult)]]">
                 <div class="accelerator-text-divider">
-                  [[i18n('searchAcceleratorTextDivider')]]
+                  [[i18n('acceleratorTextDivider')]]
                 </div>
               </template>
             </div>
@@ -125,6 +125,11 @@
           <text-accelerator parts="[[getTextAcceleratorParts(searchResult)]]"
               highlighted="[[selected]]" narrow>
           </text-accelerator>
+        </template>
+        <template is="dom-if" if="[[isNoShortcutAssigned(searchResult)]]">
+          <div id="noShortcutAssignedMessage">
+            [[i18n('noShortcutAssigned')]]
+          </div>
         </template>
       </div>
       <iron-icon id="actionIcon" icon="cr:arrow-forward"></iron-icon>

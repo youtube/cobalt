@@ -11,35 +11,32 @@
 #import "base/functional/bind.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/pref_registry/pref_registry_syncable.h"
+#import "components/signin/public/base/signin_metrics.h"
 #import "components/sync/test/mock_sync_service.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
 #import "components/sync_preferences/pref_service_syncable.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
-#import "ios/chrome/browser/main/test_browser.h"
-#import "ios/chrome/browser/prefs/browser_prefs.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_browser_agent.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
-#import "ios/chrome/browser/sync/mock_sync_service_utils.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_mock.h"
+#import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_mock.h"
 #import "ios/chrome/browser/ui/settings/settings_navigation_controller.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using testing::DefaultValue;
 using testing::NiceMock;
@@ -95,9 +92,7 @@ void PassphraseTableViewControllerTest::SetUp() {
       chrome_browser_state_.get(),
       std::make_unique<FakeAuthenticationServiceDelegate>());
   browser_ = std::make_unique<TestBrowser>(chrome_browser_state_.get());
-  app_state_ = [[AppState alloc] initWithBrowserLauncher:nil
-                                      startupInformation:nil
-                                     applicationDelegate:nil];
+  app_state_ = [[AppState alloc] initWithStartupInformation:nil];
   scene_state_ = [[SceneState alloc] initWithAppState:app_state_];
   SceneStateBrowserAgent::CreateForBrowser(browser_.get(), scene_state_);
 
@@ -121,13 +116,14 @@ void PassphraseTableViewControllerTest::SetUp() {
   AuthenticationService* auth_service =
       AuthenticationServiceFactory::GetForBrowserState(
           chrome_browser_state_.get());
-  auth_service->SignIn(account_manager_service->GetDefaultIdentity());
+  auth_service->SignIn(account_manager_service->GetDefaultIdentity(),
+                       signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
 }
 
 void PassphraseTableViewControllerTest::TearDown() {
   // If the navigation controller exists, clear any of its child view
   // controllers.
-  [nav_controller_ setViewControllers:@[] animated:NO];
+  [nav_controller_ cleanUpSettings];
   nav_controller_ = nil;
   ChromeTableViewControllerTest::TearDown();
 }

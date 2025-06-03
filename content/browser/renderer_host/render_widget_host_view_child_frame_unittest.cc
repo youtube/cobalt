@@ -127,6 +127,8 @@ class RenderWidgetHostViewChildFrameTest
     // OOPIF.
     widget_host_ = RenderWidgetHostImpl::Create(
         /*frame_tree=*/&contents()->GetPrimaryFrameTree(), &delegate_,
+        RenderWidgetHostImpl::DefaultFrameSinkId(*site_instance_group_,
+                                                 routing_id),
         site_instance_group_->GetSafeRef(), routing_id,
         /*hidden=*/false, /*renderer_initiated_creation=*/false,
         std::make_unique<FrameTokenMessageQueue>());
@@ -186,8 +188,8 @@ class RenderWidgetHostViewChildFrameTest
   // Tests should set these to NULL if they've already triggered their
   // destruction.
   std::unique_ptr<RenderWidgetHostImpl> widget_host_;
-  raw_ptr<RenderWidgetHostViewChildFrame> view_;
-  raw_ptr<MockFrameConnector> test_frame_connector_;
+  raw_ptr<RenderWidgetHostViewChildFrame, DanglingUntriaged> view_;
+  raw_ptr<MockFrameConnector, DanglingUntriaged> test_frame_connector_;
 };
 
 TEST_F(RenderWidgetHostViewChildFrameTest, VisibilityTest) {

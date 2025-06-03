@@ -23,18 +23,24 @@ namespace ntp_features {
 BASE_DECLARE_FEATURE(kConfirmSuggestionRemovals);
 BASE_DECLARE_FEATURE(kCacheOneGoogleBar);
 BASE_DECLARE_FEATURE(kCustomizeChromeColorExtraction);
-BASE_DECLARE_FEATURE(kCustomizeChromeSidePanel);
-BASE_DECLARE_FEATURE(kCwsScrimRemoval);
+BASE_DECLARE_FEATURE(kCustomizeChromeSidePanelExtensionsCard);
+BASE_DECLARE_FEATURE(kCustomizeChromeWallpaperSearch);
+BASE_DECLARE_FEATURE(kCwsDarkLogo);
 BASE_DECLARE_FEATURE(kDismissPromos);
 BASE_DECLARE_FEATURE(kIframeOneGoogleBar);
 BASE_DECLARE_FEATURE(kOneGoogleBarModalOverlays);
+BASE_DECLARE_FEATURE(kRealboxCr23All);
 BASE_DECLARE_FEATURE(kRealboxMatchOmniboxTheme);
 BASE_DECLARE_FEATURE(kRealboxMatchSearchboxTheme);
-BASE_DECLARE_FEATURE(kRealboxRoundedCorners);
 BASE_DECLARE_FEATURE(kRealboxUseGoogleGIcon);
+BASE_DECLARE_FEATURE(kRealboxWidthBehavior);
+BASE_DECLARE_FEATURE(kRealboxIsTall);
 BASE_DECLARE_FEATURE(kNtpAlphaBackgroundCollections);
+BASE_DECLARE_FEATURE(kNtpBackgroundImageErrorDetection);
 BASE_DECLARE_FEATURE(kNtpChromeCartModule);
 BASE_DECLARE_FEATURE(kNtpDriveModule);
+BASE_DECLARE_FEATURE(kNtpDriveModuleSegmentation);
+BASE_DECLARE_FEATURE(kNtpDriveModuleShowSixFiles);
 #if !defined(OFFICIAL_BUILD)
 BASE_DECLARE_FEATURE(kNtpDummyModules);
 #endif
@@ -47,11 +53,12 @@ BASE_DECLARE_FEATURE(kNtpMiddleSlotPromoDismissal);
 BASE_DECLARE_FEATURE(kNtpModulesLoadTimeoutMilliseconds);
 BASE_DECLARE_FEATURE(kNtpWideModules);
 BASE_DECLARE_FEATURE(kNtpModulesOrder);
+BASE_DECLARE_FEATURE(kNtpModulesOverflowScrollbar);
 BASE_DECLARE_FEATURE(kNtpModulesDragAndDrop);
 BASE_DECLARE_FEATURE(kNtpModulesFirstRunExperience);
 BASE_DECLARE_FEATURE(kNtpModulesLoad);
 BASE_DECLARE_FEATURE(kNtpModulesRedesigned);
-BASE_DECLARE_FEATURE(kNtpModulesRedesignedLayout);
+BASE_DECLARE_FEATURE(kNtpMostVisitedReflowOnOverflow);
 BASE_DECLARE_FEATURE(kNtpPhotosModule);
 BASE_DECLARE_FEATURE(kNtpPhotosModuleSoftOptOut);
 BASE_DECLARE_FEATURE(kNtpPhotosModuleCustomizedOptInTitle);
@@ -60,8 +67,8 @@ BASE_DECLARE_FEATURE(kNtpPhotosModuleSplitSvgOptInArtWork);
 BASE_DECLARE_FEATURE(kNtpFeedModule);
 BASE_DECLARE_FEATURE(kNtpOneGoogleBar);
 BASE_DECLARE_FEATURE(kNtpRealboxLensSearch);
+BASE_DECLARE_FEATURE(kNtpLensDirectUpload);
 BASE_DECLARE_FEATURE(kNtpRecipeTasksModule);
-BASE_DECLARE_FEATURE(kNtpRemoveScrim);
 BASE_DECLARE_FEATURE(kNtpSafeBrowsingModule);
 BASE_DECLARE_FEATURE(kNtpShortcuts);
 BASE_DECLARE_FEATURE(kNtpSingleRowShortcuts);
@@ -73,10 +80,17 @@ BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleMinimumImagesRequired);
 BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleCategories);
 BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleLoad);
 BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleMaxClusters);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleSuggestionChipHeader);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleTextOnly);
 BASE_DECLARE_FEATURE(kNtpModulesHeaderIcon);
 BASE_DECLARE_FEATURE(kNtpChromeCartInHistoryClusterModule);
 BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleUseModelRanking);
 BASE_DECLARE_FEATURE(kNtpChromeCartHistoryClusterCoexist);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleFetchClustersUntilExhausted);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleIncludeSyncedVisits);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleEnableContentClustering);
+BASE_DECLARE_FEATURE(kNtpHistoryClustersModuleDiscounts);
+BASE_DECLARE_FEATURE(kNtpTabResumptionModule);
 
 // Parameter for controlling the luminosity difference for NTP elements on light
 // backgrounds.
@@ -87,12 +101,6 @@ extern const base::FeatureParam<double>
 // backgrounds.
 extern const base::FeatureParam<double>
     kNtpElementLuminosityChangeForDarkBackgroundParam;
-
-// Parameter for the CSS selector for the button elements on the OGB.
-extern const base::FeatureParam<std::string> kNtpOgbButtonSelectorParam;
-// Parameter for the CSS selector for the unprotected text on the OGB.
-extern const base::FeatureParam<std::string>
-    kNtpOgbUnprotectedTextSelectorParam;
 
 // Parameter determining the module load timeout.
 extern const char kNtpModulesLoadTimeoutMillisecondsParam[];
@@ -170,9 +178,19 @@ extern const char kNtpHistoryClustersModuleCategoriesBoostlistParam[];
 // Parameter for setting the maximum number of candidate clusters for the
 // History Clusters Service to return.
 extern const char kNtpHistoryClustersModuleMaxClustersParam[];
+extern const char kNtpRealboxWidthBehaviorParam[];
 
 // Returns the timeout after which the load of a module should be aborted.
 base::TimeDelta GetModulesLoadTimeout();
+
+// Returns the maximum number of columns to show on the redesigned modules UI
+// experience.
+int GetModulesMaxColumnCount();
+
+// Returns the maximum number of instances to render for a given module when the
+// module has loaded with other modules. A sentinel value of -1 implies there is
+// no limit.
+int GetMultipleLoadedModulesMaxModuleInstanceCount();
 
 // Returns a list of module IDs ordered by how they should appear on the NTP.
 std::vector<std::string> GetModulesOrder();

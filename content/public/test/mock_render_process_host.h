@@ -159,7 +159,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   IPC::ChannelProxy* GetChannel() override;
   void AddFilter(BrowserMessageFilter* filter) override;
   base::TimeDelta GetChildProcessIdleTime() override;
-  void FilterURL(bool empty_allowed, GURL* url) override;
+  FilterURLResult FilterURL(bool empty_allowed, GURL* url) override;
   void EnableAudioDebugRecordings(const base::FilePath& file) override;
   void DisableAudioDebugRecordings() override;
   WebRtcStopRtpDumpCallback StartRtpDump(
@@ -278,19 +278,14 @@ class MockRenderProcessHost : public RenderProcessHost {
       const blink::StorageKey& storage_key,
       mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver)
       override {}
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   void CreateStableVideoDecoder(
       mojo::PendingReceiver<media::stable::mojom::StableVideoDecoder> receiver)
       override {}
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
   std::string GetInfoForBrowserContextDestructionCrashReporting() override;
   void WriteIntoTrace(perfetto::TracedProto<TraceProto> proto) const override;
-
-#if BUILDFLAG(IS_ANDROID)
-  void SetAttributionReportingSupport(
-      network::mojom::AttributionSupport) override {}
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   void ReinitializeLogging(uint32_t logging_dest,
@@ -338,7 +333,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   int bad_msg_count_;
   int id_;
   bool has_connection_;
-  raw_ptr<BrowserContext> browser_context_;
+  raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
   base::ObserverList<RenderProcessHostObserver> observers_;
 
   StoragePartitionConfig storage_partition_config_;
@@ -360,6 +355,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   std::unique_ptr<mojo::AssociatedRemote<mojom::Renderer>> renderer_interface_;
   std::map<std::string, InterfaceBinder> binder_overrides_;
   bool is_renderer_locked_to_site_ = false;
+  std::set<GlobalRenderFrameHostId> render_frame_host_id_set_;
   std::unique_ptr<network::mojom::URLLoaderFactory> url_loader_factory_;
   mojo::PendingReceiver<blink::mojom::CacheStorage> cache_storage_receiver_;
   mojo::PendingReceiver<blink::mojom::IDBFactory> idb_factory_receiver_;

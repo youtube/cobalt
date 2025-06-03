@@ -1,23 +1,23 @@
 [package]
 name = "quote"
-version = "1.0.10" # don't forget to update html_root_url, version in readme for breaking changes
+version = "1.0.33" # don't forget to update html_root_url, version in readme for breaking changes
 authors = ["David Tolnay <dtolnay@gmail.com>"]
-license = "MIT OR Apache-2.0"
-description = "Quasi-quoting macro quote!(...)"
-repository = "https://github.com/dtolnay/quote"
-documentation = "https://docs.rs/quote/"
-keywords = ["syn"]
+autobenches = false
 categories = ["development-tools::procedural-macro-helpers"]
-readme = "README.md"
+description = "Quasi-quoting macro quote!(...)"
+documentation = "https://docs.rs/quote/"
 edition = "2018"
-rust-version = "1.31"
+keywords = ["macros", "syn"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dtolnay/quote"
+rust-version = "1.56"
 
 [dependencies]
-proc-macro2 = { version = "1.0.20", default-features = false }
+proc-macro2 = { version = "1.0.66", default-features = false }
 
 [dev-dependencies]
 rustversion = "1.0"
-trybuild = { version = "1.0.19", features = ["diff"] }
+trybuild = { version = "1.0.66", features = ["diff"] }
 
 [features]
 default = ["proc-macro"]
@@ -25,5 +25,12 @@ default = ["proc-macro"]
 # libproc_macro in the rustc compiler.
 proc-macro = ["proc-macro2/proc-macro"]
 
+[lib]
+doc-scrape-examples = false
+
+[workspace]
+members = ["benches"]
+
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--generate-link-to-definition"]

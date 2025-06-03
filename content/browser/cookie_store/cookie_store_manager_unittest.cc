@@ -6,6 +6,7 @@
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/bind.h"
@@ -282,8 +283,10 @@ class CookieStoreManagerTest
     EXPECT_TRUE(active_version);
     if (!active_version)
       return false;
-    if (active_version->running_status() == EmbeddedWorkerStatus::RUNNING)
+    if (active_version->running_status() ==
+        blink::EmbeddedWorkerStatus::kRunning) {
       return true;
+    }
     {
       base::RunLoop run_loop;
       active_version->RunAfterStartWorker(
@@ -427,8 +430,9 @@ class CookieStoreManagerTest
         ContentSettingsPattern::FromString("*"),
         base::Value(ContentSetting::CONTENT_SETTING_ALLOW), std::string(),
         false /* incognito */);
-    cookie_manager_->SetContentSettingsForLegacyCookieAccess(
-        std::move(legacy_settings));
+    cookie_manager_->SetContentSettings(
+        ContentSettingsType::LEGACY_COOKIE_ACCESS, std::move(legacy_settings),
+        base::NullCallback());
     cookie_manager_.FlushForTesting();
   }
 
@@ -437,6 +441,8 @@ class CookieStoreManagerTest
     // safely opened again if the test will continue.
     worker_test_helper_->ShutdownContext();
     task_environment_.RunUntilIdle();
+
+    storage_partition_impl_->OnBrowserContextWillBeDestroyed();
 
     // Smart pointers are reset manually in destruction order because this is
     // called by ResetServiceWorkerContext().

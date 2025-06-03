@@ -178,8 +178,9 @@ struct WebPreferences {
   bool password_echo_enabled;
   bool should_clear_document_background;
   bool enable_scroll_animator;
-  bool threaded_scrolling_enabled;
   bool prefers_reduced_motion;
+  bool prefers_reduced_transparency;
+  bool inverted_colors;
   bool touch_event_feature_detection_enabled;
   int32 pointer_events_max_touch_points;
   int32 available_pointer_types;
@@ -210,7 +211,6 @@ struct WebPreferences {
   bool initialize_at_minimum_page_scale;
   bool smart_insert_delete_enabled;
   bool spatial_navigation_enabled;
-  bool navigate_on_drag_drop;
   bool fake_no_alloc_direct_call_for_testing_enabled;
   V8CacheOptions v8_cache_options;
   bool record_whole_document;
@@ -276,6 +276,12 @@ struct WebPreferences {
 
   [EnableIf=is_android]
   float font_scale_factor;
+
+  [EnableIf=is_android]
+  int32 font_weight_adjustment;
+
+  [EnableIf=is_android]
+  int32 text_size_contrast_factor;
 
   [EnableIf=is_android]
   float device_scale_adjustment;
@@ -433,15 +439,6 @@ struct WebPreferences {
 
   // Whether lazy loading of frames and images is enabled.
   bool lazy_load_enabled;
-
-  // Specifies how close a lazily loaded iframe or image should be from the
-  // viewport before it should start being loaded in, depending on the effective
-  // connection type of the current network. Blink will use the default distance
-  // threshold for effective connection types that aren't specified here.
-  map<EffectiveConnectionType, int32>
-      lazy_frame_loading_distance_thresholds_px;
-  map<EffectiveConnectionType, int32>
-      lazy_image_loading_distance_thresholds_px;
 
   // Setting to false disables upgrades to HTTPS for HTTP resources in HTTPS
   // sites.

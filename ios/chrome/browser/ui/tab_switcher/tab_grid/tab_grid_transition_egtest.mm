@@ -21,10 +21,6 @@
 #import "net/test/embedded_test_server/request_handler_util.h"
 #import "ui/base/device_form_factor.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using chrome_test_util::CloseTabMenuButton;
 using chrome_test_util::TabGridDoneButton;
 using chrome_test_util::TabGridIncognitoTabsPanelButton;
@@ -50,7 +46,8 @@ void SelectTab(NSString* title) {
                                               @"GridCell")),
                                           grey_accessibilityTrait(
                                               UIAccessibilityTraitStaticText),
-                                          nil)] performAction:grey_tap()];
+                                          grey_hidden(NO), nil)]
+      performAction:grey_tap()];
 }
 
 // Expects that the total number of samples in histogram `histogram` grew by
@@ -544,7 +541,7 @@ void ExpectIdleHistogramBucketCount(const char* histogram,
 
   [ChromeEarlGrey showTabSwitcher];
 
-  // Close a tab an open the current selected tab.
+  // Close tab #3 and open the current selected tab.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::
                                           TabGridCloseButtonForCellAtIndex(1)]
       performAction:grey_tap()];

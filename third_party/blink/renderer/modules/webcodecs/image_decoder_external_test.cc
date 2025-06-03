@@ -297,11 +297,11 @@ TEST_F(ImageDecoderTest, DecodeGif) {
   const auto& tracks = decoder->tracks();
   ASSERT_EQ(tracks.length(), 1u);
   EXPECT_EQ(tracks.AnonymousIndexedGetter(0)->animated(), true);
-  EXPECT_EQ(tracks.selectedTrack().value()->animated(), true);
+  EXPECT_EQ(tracks.selectedTrack()->animated(), true);
 
   EXPECT_EQ(decoder->type(), kImageType);
-  EXPECT_EQ(tracks.selectedTrack().value()->frameCount(), 10u);
-  EXPECT_EQ(tracks.selectedTrack().value()->repetitionCount(), INFINITY);
+  EXPECT_EQ(tracks.selectedTrack()->frameCount(), 10u);
+  EXPECT_EQ(tracks.selectedTrack()->repetitionCount(), INFINITY);
   EXPECT_EQ(decoder->complete(), true);
 
   {
@@ -412,11 +412,11 @@ TEST_F(ImageDecoderTest, DecoderReset) {
   const auto& tracks = decoder->tracks();
   ASSERT_EQ(tracks.length(), 1u);
   EXPECT_EQ(tracks.AnonymousIndexedGetter(0)->animated(), true);
-  EXPECT_EQ(tracks.selectedTrack().value()->animated(), true);
+  EXPECT_EQ(tracks.selectedTrack()->animated(), true);
 
   EXPECT_EQ(decoder->type(), kImageType);
-  EXPECT_EQ(tracks.selectedTrack().value()->frameCount(), 2u);
-  EXPECT_EQ(tracks.selectedTrack().value()->repetitionCount(), INFINITY);
+  EXPECT_EQ(tracks.selectedTrack()->frameCount(), 2u);
+  EXPECT_EQ(tracks.selectedTrack()->repetitionCount(), INFINITY);
   EXPECT_EQ(decoder->complete(), true);
 
   {
@@ -560,7 +560,7 @@ TEST_F(ImageDecoderTest, DecoderReadableStream) {
 
   // Deselect the current track.
   ASSERT_TRUE(decoder->tracks().selectedTrack());
-  decoder->tracks().selectedTrack().value()->setSelected(false);
+  decoder->tracks().selectedTrack()->setSelected(false);
 
   // Enqueue remaining data.
   ASSERT_TRUE(ToV8Traits<DOMUint8Array>::ToV8(
@@ -923,8 +923,8 @@ TEST_F(ImageDecoderTest, DecodeInvalidFileViaReadableStream) {
   EXPECT_FALSE(completed_tester.IsRejected());
 
   {
-    auto promise = decoder->decode(MakeOptions(
-        decoder->tracks().selectedTrack().value()->frameCount() - 1, true));
+    auto promise = decoder->decode(
+        MakeOptions(decoder->tracks().selectedTrack()->frameCount() - 1, true));
     ScriptPromiseTester tester(v8_scope.GetScriptState(), promise);
     tester.WaitUntilSettled();
     EXPECT_TRUE(tester.IsRejected());
@@ -953,11 +953,11 @@ TEST_F(ImageDecoderTest, DecodeYuv) {
   const auto& tracks = decoder->tracks();
   ASSERT_EQ(tracks.length(), 1u);
   EXPECT_EQ(tracks.AnonymousIndexedGetter(0)->animated(), false);
-  EXPECT_EQ(tracks.selectedTrack().value()->animated(), false);
+  EXPECT_EQ(tracks.selectedTrack()->animated(), false);
 
   EXPECT_EQ(decoder->type(), kImageType);
-  EXPECT_EQ(tracks.selectedTrack().value()->frameCount(), 1u);
-  EXPECT_EQ(tracks.selectedTrack().value()->repetitionCount(), 0);
+  EXPECT_EQ(tracks.selectedTrack()->frameCount(), 1u);
+  EXPECT_EQ(tracks.selectedTrack()->repetitionCount(), 0);
   EXPECT_EQ(decoder->complete(), true);
 
   {
@@ -977,8 +977,51 @@ TEST_F(ImageDecoderTest, DecodeYuv) {
   }
 }
 
-// TODO(crbug.com/1073995): Add tests for each format, partial decoding,
-// reduced resolution decoding, premultiply, and ignored color behavior.
+TEST_F(ImageDecoderTest, TransferBuffer) {
+  V8TestingScope v8_scope;
+  constexpr char kImageType[] = "image/gif";
+  EXPECT_TRUE(IsTypeSupported(&v8_scope, kImageType));
+
+  auto* init = MakeGarbageCollected<ImageDecoderInit>();
+  init->setType(kImageType);
+
+  auto data = ReadFile("images/resources/animated.gif");
+  DCHECK(!data->empty());
+
+  auto* buffer = DOMArrayBuffer::Create(std::move(data));
+  init->setData(MakeGarbageCollected<V8ImageBufferSource>(buffer));
+
+  HeapVector<Member<DOMArrayBuffer>> transfer;
+  transfer.push_back(Member<DOMArrayBuffer>(buffer));
+  init->setTransfer(std::move(transfer));
+
+  auto* decoder = ImageDecoderExternal::Create(v8_scope.GetScriptState(), init,
+                                               v8_scope.GetExceptionState());
+  ASSERT_TRUE(decoder);
+  EXPECT_TRUE(buffer->IsDetached());
+  ASSERT_FALSE(v8_scope.GetExceptionState().HadException());
+
+  {
+    auto promise = decoder->completed(v8_scope.GetScriptState());
+    ScriptPromiseTester tester(v8_scope.GetScriptState(), promise);
+    tester.WaitUntilSettled();
+    ASSERT_TRUE(tester.IsFulfilled());
+  }
+
+  {
+    auto promise = decoder->decode(MakeOptions(0, true));
+    ScriptPromiseTester tester(v8_scope.GetScriptState(), promise);
+    tester.WaitUntilSettled();
+    ASSERT_TRUE(tester.IsFulfilled());
+    auto* result = ToImageDecodeResult(&v8_scope, tester.Value());
+    EXPECT_TRUE(result->complete());
+
+    auto* frame = result->image();
+    EXPECT_EQ(frame->duration(), 0u);
+    EXPECT_EQ(frame->displayWidth(), 16u);
+    EXPECT_EQ(frame->displayHeight(), 16u);
+  }
+}
 
 }  // namespace
 

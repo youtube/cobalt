@@ -43,7 +43,8 @@ ChromeSearchResult::IconInfo CreateAnswerIconInfo(
   const auto icon = gfx::ImageSkiaOperations::CreateImageWithCircleBackground(
       kAnswerCardIconDimension / 2, gfx::kGoogleBlue300,
       gfx::CreateVectorIcon(vector_icon, gfx::kGoogleGrey900));
-  return ChromeSearchResult::IconInfo(icon, kAnswerCardIconDimension);
+  return ChromeSearchResult::IconInfo(ui::ImageModel::FromImageSkia(icon),
+                                      kAnswerCardIconDimension);
 }
 
 // Convert from our Mojo answer type to the corresponding Omnibox icon.
@@ -144,9 +145,6 @@ OmniboxAnswerResult::OmniboxAnswerResult(
 
   // Derive relevance from omnibox relevance and normalize it to [0, 1].
   set_relevance(search_result_->relevance / kMaxOmniboxScore);
-
-  if (crosapi::OptionalBoolIsTrue(search_result_->is_omnibox_search))
-    SetIsOmniboxSearch(true);
 
   UpdateIcon();
   UpdateTitleAndDetails();
@@ -256,7 +254,8 @@ void OmniboxAnswerResult::OnFetchComplete(const GURL& url,
     return;
 
   DCHECK(IsWeatherResult());
-  IconInfo icon_info(gfx::ImageSkia::CreateFrom1xBitmap(*bitmap),
+  IconInfo icon_info(ui::ImageModel::FromImageSkia(
+                         gfx::ImageSkia::CreateFrom1xBitmap(*bitmap)),
                      kAnswerCardIconDimension);
   SetIcon(icon_info);
 }

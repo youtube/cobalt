@@ -16,11 +16,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/history/history_service_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/web_data_service_factory.h"
@@ -94,8 +93,8 @@ void ProfileWriter::AddPasswordForm(
 
   if (profile_->GetPrefs()->GetBoolean(
           password_manager::prefs::kCredentialsEnableService)) {
-    PasswordStoreFactory::GetForProfile(profile_,
-                                        ServiceAccessType::EXPLICIT_ACCESS)
+    ProfilePasswordStoreFactory::GetForProfile(
+        profile_, ServiceAccessType::EXPLICIT_ACCESS)
         ->AddLogin(form);
   }
 }
@@ -332,13 +331,13 @@ void ProfileWriter::AddKeywords(
   }
 }
 
-void ProfileWriter::AddAutofillFormDataEntries(
-    const std::vector<autofill::AutofillEntry>& autofill_entries) {
+void ProfileWriter::AddAutocompleteFormDataEntries(
+    const std::vector<autofill::AutocompleteEntry>& autocomplete_entries) {
   scoped_refptr<autofill::AutofillWebDataService> web_data_service =
       WebDataServiceFactory::GetAutofillWebDataForProfile(
           profile_, ServiceAccessType::EXPLICIT_ACCESS);
   if (web_data_service.get())
-    web_data_service->UpdateAutofillEntries(autofill_entries);
+    web_data_service->UpdateAutocompleteEntries(autocomplete_entries);
 }
 
 ProfileWriter::~ProfileWriter() {}

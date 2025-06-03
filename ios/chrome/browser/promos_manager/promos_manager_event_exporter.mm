@@ -8,17 +8,11 @@
 #import "components/feature_engagement/public/configuration.h"
 #import "components/feature_engagement/public/feature_configurations.h"
 #import "components/prefs/scoped_user_pref_update.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
 #import "ios/chrome/browser/promos_manager/constants.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 
 PromosManagerEventExporter::PromosManagerEventExporter(PrefService* local_state)
-    : local_state_(local_state) {
-  DCHECK(local_state_);
-}
+    : local_state_(local_state) {}
 
 PromosManagerEventExporter::~PromosManagerEventExporter() = default;
 

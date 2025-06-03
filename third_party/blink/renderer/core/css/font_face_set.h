@@ -28,7 +28,7 @@ class FontFaceCache;
 
 using FontFaceSetIterable = ValueSyncIterable<FontFaceSet>;
 
-class CORE_EXPORT FontFaceSet : public EventTargetWithInlineData,
+class CORE_EXPORT FontFaceSet : public EventTarget,
                                 public ExecutionContextClient,
                                 public FontFaceSetIterable,
                                 public FontFace::LoadFontCallback {
@@ -72,7 +72,7 @@ class CORE_EXPORT FontFaceSet : public EventTargetWithInlineData,
 
  protected:
   static const int kDefaultFontSize;
-  static const char kDefaultFontFamily[];
+  static const AtomicString& DefaultFontFamily();
 
   virtual bool ResolveFontStyle(const String&, Font&) = 0;
   virtual bool InActiveContext() const = 0;

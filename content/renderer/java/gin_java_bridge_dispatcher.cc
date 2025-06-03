@@ -5,6 +5,7 @@
 #include "content/renderer/java/gin_java_bridge_dispatcher.h"
 
 #include "base/auto_reset.h"
+#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/common/gin_java_bridge_messages.h"
@@ -72,9 +73,8 @@ void GinJavaBridgeDispatcher::OnAddNamedObject(
 void GinJavaBridgeDispatcher::OnRemoveNamedObject(const std::string& name) {
   // Removal becomes in effect on next reload. We simply removing the entry
   // from the map here.
-  NamedObjectMap::iterator iter = named_objects_.find(name);
-  DCHECK(iter != named_objects_.end());
-  named_objects_.erase(iter);
+  DCHECK(base::Contains(named_objects_, name));
+  named_objects_.erase(name);
 }
 
 void GinJavaBridgeDispatcher::GetJavaMethods(
@@ -95,8 +95,8 @@ bool GinJavaBridgeDispatcher::HasJavaMethod(ObjectID object_id,
 std::unique_ptr<base::Value> GinJavaBridgeDispatcher::InvokeJavaMethod(
     ObjectID object_id,
     const std::string& method_name,
-    const base::Value::List& arguments,
-    GinJavaBridgeError* error) {
+    base::Value::List arguments,
+    mojom::GinJavaBridgeError* error) {
   base::Value::List result_wrapper;
   render_frame()->Send(
       new GinJavaBridgeHostMsg_InvokeMethod(routing_id(),
@@ -113,7 +113,8 @@ std::unique_ptr<base::Value> GinJavaBridgeDispatcher::InvokeJavaMethod(
 GinJavaBridgeObject* GinJavaBridgeDispatcher::GetObject(ObjectID object_id) {
   GinJavaBridgeObject* result = objects_.Lookup(object_id);
   if (!result) {
-    result = GinJavaBridgeObject::InjectAnonymous(AsWeakPtr(), object_id);
+    result = GinJavaBridgeObject::InjectAnonymous(render_frame()->GetWebFrame(),
+                                                  AsWeakPtr(), object_id);
     if (result)
       objects_.AddWithID(result, object_id);
   }

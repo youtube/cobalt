@@ -7,9 +7,9 @@
 #import <Cocoa/Cocoa.h>
 #include <stddef.h>
 
+#include <algorithm>
 #include <utility>
 
-#include "base/cxx17_backports.h"
 #include "base/i18n/rtl.h"
 #include "base/mac/mac_util.h"
 #include "base/memory/singleton.h"
@@ -117,7 +117,7 @@ ui::Accelerator enterFullscreenAccelerator() {
   int modifiers = ui::EF_COMMAND_DOWN | ui::EF_CONTROL_DOWN;
 
   // The default keyboard accelerator for Enter Full Screen changed in macOS 12.
-  if (base::mac::IsAtLeastOS12()) {
+  if (base::mac::MacOSMajorVersion() >= 12) {
     modifiers = ui::EF_FUNCTION_DOWN;
   }
 

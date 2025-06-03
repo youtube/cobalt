@@ -33,8 +33,7 @@ using resource_coordinator::TabLoadTracker;
 namespace {
 
 void BackgroundTracingTrigger() {
-  content::BackgroundTracingManager::GetInstance().EmitNamedTrigger(
-      "session-restore-config");
+  content::BackgroundTracingManager::EmitNamedTrigger("session-restore-config");
 }
 
 const base::TickClock* GetDefaultTickClock() {
@@ -659,7 +658,7 @@ void TabLoader::LoadNextTab(bool due_to_timeout) {
 
   // Get the browser associated with this contents and determine if its in the
   // process of being closed.
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
+  Browser* browser = chrome::FindBrowserWithTab(contents);
   if (IsBrowserClosing(browser)) {
     RemoveTab(contents);
     StartTimerIfNeeded();

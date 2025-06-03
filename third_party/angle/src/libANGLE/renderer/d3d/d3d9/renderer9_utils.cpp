@@ -16,10 +16,8 @@
 #include "libANGLE/renderer/d3d/d3d9/RenderTarget9.h"
 #include "libANGLE/renderer/d3d/d3d9/formatutils9.h"
 #include "libANGLE/renderer/driver_utils.h"
-#include "platform/FeaturesD3D_autogen.h"
 #include "platform/PlatformMethods.h"
-
-#include "third_party/systeminfo/SystemInfo.h"
+#include "platform/autogen/FeaturesD3D_autogen.h"
 
 namespace rx
 {
@@ -691,7 +689,7 @@ void GenerateCaps(IDirect3D9 *d3d9,
             !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_POW2) &&
             !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_CUBEMAP_POW2) &&
             !(deviceCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) &&
-            !(!isWindowsVistaOrGreater() && IsAMD(adapterId.VendorId));
+            !(!IsWindowsVistaOrLater() && IsAMD(adapterId.VendorId));
 
         // Disable depth texture support on AMD cards (See ANGLE issue 839)
         if (IsAMD(adapterId.VendorId))
@@ -846,6 +844,11 @@ void InitializeFeatures(angle::FeaturesD3D *features, DWORD vendorID)
     ANGLE_FEATURE_CONDITION(features, borderColorSrgb, IsNvidia(vendorID));
 }
 
+void InitializeFrontendFeatures(angle::FrontendFeatures *features, DWORD vendorID)
+{
+    // The D3D backend's handling of link is thread-safe
+    ANGLE_FEATURE_CONDITION(features, linkJobIsThreadSafe, true);
+}
 }  // namespace d3d9
 
 }  // namespace rx

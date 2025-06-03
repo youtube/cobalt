@@ -26,13 +26,12 @@
 #include "ash/constants/ash_features.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/crosapi/browser_util.h"
-#include "chromeos/ash/components/standalone_browser/browser_support.h"
+#include "chromeos/ash/components/standalone_browser/migrator_util.h"
+#include "chromeos/ash/components/standalone_browser/standalone_browser_features.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/user_manager/fake_user_manager.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_manager.h"
-
-using ash::standalone_browser::BrowserSupport;
 #endif
 
 namespace {
@@ -40,8 +39,9 @@ namespace {
 class MockAppMenuIconControllerDelegate
     : public AppMenuIconController::Delegate {
  public:
-  MOCK_METHOD1(UpdateTypeAndSeverity,
-               void(AppMenuIconController::TypeAndSeverity type_and_severity));
+  MOCK_METHOD(void,
+              UpdateTypeAndSeverity,
+              (AppMenuIconController::TypeAndSeverity type_and_severity));
   MOCK_CONST_METHOD1(GetDefaultColorForSeverity,
                      SkColor(AppMenuIconController::Severity severity));
 };
@@ -110,6 +110,8 @@ class AppMenuIconControllerTest : public ::testing::TestWithParam<int> {
                                /*browser_restart=*/false,
                                /*is_child=*/false);
     crosapi::browser_util::RegisterLocalStatePrefs(local_state_.registry());
+    ash::standalone_browser::migrator_util::RegisterLocalStatePrefs(
+        local_state_.registry());
 #endif
   }
 
@@ -164,10 +166,7 @@ TEST_P(AppMenuIconControllerTest, UpgradeNotification) {
   // the only browser.
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
-      {ash::features::kLacrosSupport, ash::features::kLacrosPrimary,
-       ash::features::kLacrosOnly},
-      {});
-  auto set_lacros_enabled = BrowserSupport::SetLacrosEnabledForTest(true);
+      {ash::standalone_browser::features::kLacrosOnly}, {});
 #endif
 
   ::testing::StrictMock<MockAppMenuIconControllerDelegate> mock_delegate;

@@ -114,11 +114,21 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
     return weak_factory_.GetWeakPtr();
   }
 
+  // Dispatched when the page is being navigated to a different document. The
+  // new page hasn't been marked as active yet.
+  void DidNavigateMainFramePreCommit();
+
+  // Dispatched after the old page has been unloaded and has entered the
+  // `BackForwardCache`.
+  void DidEnterBackForwardCache();
+
   void DidNavigate();
 
   void ForceNewSurfaceForTesting();
 
   ui::Compositor* GetCompositor() const;
+
+  void InvalidateSurfaceAllocationGroup();
 
  private:
   // ui::LayerObserver implementation:
@@ -150,6 +160,10 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
                      float scale_factor,
                      const gfx::DisplayColorSpaces& display_color_spaces);
 
+  void InvalidateSurface();
+  void Suspend();
+  void Unsuspend();
+
   // Weak pointer to the layer supplied and reset via SetParentUiLayer. |this|
   // is an observer of |parent_ui_layer_|, to ensure that |parent_ui_layer_|
   // always be valid when non-null. The UpdateState function will re-parent
@@ -180,6 +194,7 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
   gfx::Size size_pixels_;
   float scale_factor_ = 1.f;
   gfx::DisplayColorSpaces display_color_spaces_;
+  std::unique_ptr<ui::CompositorLock> compositor_suspended_lock_;
 
   base::WeakPtrFactory<BrowserCompositorIOS> weak_factory_;
 };

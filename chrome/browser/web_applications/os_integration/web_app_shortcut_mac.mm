@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #import "chrome/browser/web_applications/os_integration/web_app_shortcut_mac.h"
-#include "base/check_is_test.h"
 
 #import <Cocoa/Cocoa.h>
 #include <stdint.h>
@@ -14,7 +13,12 @@
 #include <string>
 #include <utility>
 
+#include "base/apple/bridging.h"
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/base_switches.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_enumerator.h"
@@ -25,12 +29,8 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
 #import "base/mac/launch_application.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -49,6 +49,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/version.h"
+#include "cc/paint/paint_flags.h"
 #import "chrome/browser/mac/dock.h"
 #include "chrome/browser/shell_integration.h"
 #include "chrome/browser/web_applications/os_integration/icns_encoder.h"
@@ -68,6 +69,16 @@
 #include "content/public/common/content_switches.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/core/embedder/features.h"
+#include "third_party/skia/include/core/SkAlphaType.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkColorType.h"
+#include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkPaint.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "third_party/skia/include/effects/SkImageFilters.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/image/image_family.h"
@@ -79,24 +90,66 @@
 #include "base/process/launch.h"
 #endif
 
+// <https://github.com/apple-oss-distributions/Security/blob/Security-60420.101.4/OSX/libsecurity_codesigning/lib/SecCodeSigner.h>
+extern "C" {
+
+extern const CFStringRef kSecCodeSignerFlags;
+extern const CFStringRef kSecCodeSignerIdentity;
+extern const CFStringRef kSecCodeSignerEntitlements;
+
+const uint32_t kSecCodeMagicEntitlement = 0xfade7171;
+
+typedef struct __SecCodeSigner* SecCodeSignerRef;
+
+OSStatus SecCodeSignerCreate(CFDictionaryRef parameters,
+                             SecCSFlags flags,
+                             SecCodeSignerRef* signer);
+
+OSStatus SecCodeSignerAddSignatureWithErrors(SecCodeSignerRef signer,
+                                             SecStaticCodeRef code,
+                                             SecCSFlags flags,
+                                             CFErrorRef* errors);
+}  // extern "C"
+
 // A TerminationObserver observes a NSRunningApplication for when it
 // terminates. On termination, it will run the specified callback on the UI
 // thread and release itself.
-@interface TerminationObserver : NSObject {
-  base::scoped_nsobject<NSRunningApplication> _app;
-  base::OnceClosure _callback;
-}
-- (instancetype)initWithRunningApplication:(NSRunningApplication*)app
-                                  callback:(base::OnceClosure)callback;
+@interface TerminationObserver : NSObject
+
++ (void)startObservingForRunningApplication:(NSRunningApplication*)app
+                               withCallback:(base::OnceClosure)callback;
+
+- (instancetype)init NS_UNAVAILABLE;
+
 @end
 
-@implementation TerminationObserver
+@implementation TerminationObserver {
+  NSRunningApplication* __strong _app;
+  base::OnceClosure _callback;
+}
+
++ (NSMutableSet<TerminationObserver*>*)allObservers {
+  static NSMutableSet<TerminationObserver*>* set = [NSMutableSet set];
+  return set;
+}
+
++ (void)startObservingForRunningApplication:(NSRunningApplication*)app
+                               withCallback:(base::OnceClosure)callback {
+  TerminationObserver* observer = [[TerminationObserver alloc]
+      initWithRunningApplication:app
+                        callback:std::move(callback)];
+
+  if (observer) {
+    [[TerminationObserver allObservers] addObject:observer];
+  }
+}
+
 - (instancetype)initWithRunningApplication:(NSRunningApplication*)app
                                   callback:(base::OnceClosure)callback {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (self = [super init]) {
     _callback = std::move(callback);
-    _app.reset(app, base::scoped_policy::RETAIN);
+    _app = app;
     // Note that |observeValueForKeyPath| will be called with the initial value
     // within the |addObserver| call.
     [_app addObserver:self
@@ -113,16 +166,12 @@
                         change:(NSDictionary*)change
                        context:(void*)context {
   NSNumber* newNumberValue = change[NSKeyValueChangeNewKey];
-  BOOL newValue = [newNumberValue boolValue];
+  BOOL newValue = newNumberValue.boolValue;
   if (newValue) {
-    base::scoped_nsobject<TerminationObserver> scoped_self(
-        self, base::scoped_policy::RETAIN);
-    content::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(
-                       [](base::scoped_nsobject<TerminationObserver> observer) {
-                         [observer onTerminated];
-                       },
-                       scoped_self));
+    // Note that a block is posted, which will hold a retain on `self`.
+    content::GetUIThreadTaskRunner({})->PostTask(FROM_HERE, base::BindOnce(^{
+                                                   [self onTerminated];
+                                                 }));
   }
 }
 
@@ -131,12 +180,17 @@
   // If |onTerminated| is called repeatedly (which in theory it should not),
   // then ensure that we only call removeObserver and release once by doing an
   // early-out if |callback_| has already been made.
-  if (!_callback)
+  if (!_callback) {
     return;
+  }
   std::move(_callback).Run();
   DCHECK(!_callback);
+
   [_app removeObserver:self forKeyPath:@"isTerminated" context:nullptr];
-  [self release];
+
+  [[TerminationObserver allObservers] performSelector:@selector(removeObject:)
+                                           withObject:self
+                                           afterDelay:0];
 }
 @end
 
@@ -164,12 +218,20 @@ void RunAppLaunchCallbacks(
   // but we only need to watch for termination until the app establishes a
   // (whereupon termination will be noticed by the mojo connection closing).
   std::move(launch_callback).Run(std::move(process));
-  [[TerminationObserver alloc]
-      initWithRunningApplication:app
-                        callback:std::move(termination_callback)];
+  [TerminationObserver
+      startObservingForRunningApplication:app
+                             withCallback:std::move(termination_callback)];
 }
 
 namespace web_app {
+
+BASE_FEATURE(kWebAppMaskableIconsOnMac,
+             "WebAppMaskableIconsOnMac",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseAdHocSigningForWebAppShims,
+             "UseAdHocSigningForWebAppShims",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 
@@ -197,7 +259,8 @@ enum class CreateShortcutResult {
   kFailToUpdateIcon = 12,
   kFailToCreateParentDir = 13,
   kFailToCopyApp = 14,
-  kMaxValue = kFailToCopyApp
+  kFailToSign = 15,
+  kMaxValue = kFailToSign,
 };
 
 // Records the result of creating shortcut to UMA.
@@ -232,13 +295,13 @@ bool AppShimRevealDisabledForTest() {
 
 base::FilePath GetWritableApplicationsDirectory() {
   base::FilePath path;
-  if (base::mac::GetUserDirectory(NSApplicationDirectory, &path)) {
+  if (base::apple::GetUserDirectory(NSApplicationDirectory, &path)) {
     if (!base::DirectoryExists(path)) {
       if (!base::CreateDirectory(path))
         return base::FilePath();
 
-      // Create a zero-byte ".localized" file to inherit localizations from OSX
-      // for folders that have special meaning.
+      // Create a zero-byte ".localized" file to inherit localizations from
+      // macOS for folders that have special meaning.
       base::WriteFile(path.Append(".localized"), "");
     }
     return base::PathIsWritable(path) ? path : base::FilePath();
@@ -251,9 +314,9 @@ base::FilePath GetResourcesPath(const base::FilePath& app_path) {
   return app_path.Append("Contents").Append("Resources");
 }
 
-// Given the path to an app bundle, return the path to the Info.plist file.
-NSString* GetPlistPath(const base::FilePath& bundle_path) {
-  return base::mac::FilePathToNSString(
+// Given the path to an app bundle, return the URL of the Info.plist file.
+NSURL* GetPlistURL(const base::FilePath& bundle_path) {
+  return base::apple::FilePathToNSURL(
       bundle_path.Append("Contents").Append("Info.plist"));
 }
 
@@ -277,9 +340,8 @@ class BundleInfoPlist {
   // Retrieve info from the specified app shim in |bundle_path|.
   explicit BundleInfoPlist(const base::FilePath& bundle_path)
       : bundle_path_(bundle_path) {
-    NSString* plist_path = GetPlistPath(bundle_path_);
-    plist_.reset([NSDictionary dictionaryWithContentsOfFile:plist_path],
-                 base::scoped_policy::RETAIN);
+    plist_ = [NSDictionary dictionaryWithContentsOfURL:GetPlistURL(bundle_path_)
+                                                 error:nil];
   }
   BundleInfoPlist(const BundleInfoPlist& other) = default;
   BundleInfoPlist& operator=(const BundleInfoPlist& other) = default;
@@ -296,16 +358,15 @@ class BundleInfoPlist {
     base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
     DCHECK(!user_data_dir.empty());
     return base::StartsWith(
-        base::SysNSStringToUTF8(
-            [plist_ valueForKey:app_mode::kCrAppModeUserDataDirKey]),
+        base::SysNSStringToUTF8(plist_[app_mode::kCrAppModeUserDataDirKey]),
         user_data_dir.value(), base::CompareCase::SENSITIVE);
   }
 
   // Checks if kCrAppModeProfileDirKey corresponds to the specified profile
   // path.
   bool IsForProfile(const base::FilePath& test_profile_path) const {
-    std::string profile_path = base::SysNSStringToUTF8(
-        [plist_ valueForKey:app_mode::kCrAppModeProfileDirKey]);
+    std::string profile_path =
+        base::SysNSStringToUTF8(plist_[app_mode::kCrAppModeProfileDirKey]);
     return profile_path == test_profile_path.BaseName().value();
   }
 
@@ -313,44 +374,40 @@ class BundleInfoPlist {
   base::FilePath GetFullProfilePath() const {
     // Figure out the profile_path. Since the user_data_dir could contain the
     // path to the web app data dir.
-    base::FilePath user_data_dir = base::mac::NSStringToFilePath(
-        [plist_ valueForKey:app_mode::kCrAppModeUserDataDirKey]);
-    base::FilePath profile_base_name = base::mac::NSStringToFilePath(
-        [plist_ valueForKey:app_mode::kCrAppModeProfileDirKey]);
+    base::FilePath user_data_dir = base::apple::NSStringToFilePath(
+        plist_[app_mode::kCrAppModeUserDataDirKey]);
+    base::FilePath profile_base_name = base::apple::NSStringToFilePath(
+        plist_[app_mode::kCrAppModeProfileDirKey]);
     if (user_data_dir.DirName().DirName().BaseName() == profile_base_name)
       return user_data_dir.DirName().DirName();
     return user_data_dir.Append(profile_base_name);
   }
 
   std::string GetExtensionId() const {
-    return base::SysNSStringToUTF8(
-        [plist_ valueForKey:app_mode::kCrAppModeShortcutIDKey]);
+    return base::SysNSStringToUTF8(plist_[app_mode::kCrAppModeShortcutIDKey]);
   }
   std::string GetProfileName() const {
-    return base::SysNSStringToUTF8(
-        [plist_ valueForKey:app_mode::kCrAppModeProfileNameKey]);
+    return base::SysNSStringToUTF8(plist_[app_mode::kCrAppModeProfileNameKey]);
   }
   GURL GetURL() const {
-    return GURL(base::SysNSStringToUTF8(
-        [plist_ valueForKey:app_mode::kCrAppModeShortcutURLKey]));
+    return GURL(
+        base::SysNSStringToUTF8(plist_[app_mode::kCrAppModeShortcutURLKey]));
   }
   std::u16string GetTitle() const {
     return base::SysNSStringToUTF16(
-        [plist_ valueForKey:app_mode::kCrAppModeShortcutNameKey]);
+        plist_[app_mode::kCrAppModeShortcutNameKey]);
   }
   base::Version GetVersion() const {
-    NSString* version_string =
-        [plist_ valueForKey:app_mode::kCrBundleVersionKey];
+    NSString* version_string = plist_[app_mode::kCrBundleVersionKey];
     if (!version_string) {
       // Older bundles have the Chrome version in the following key.
-      version_string =
-          [plist_ valueForKey:app_mode::kCFBundleShortVersionStringKey];
+      version_string = plist_[app_mode::kCFBundleShortVersionStringKey];
     }
     return base::Version(base::SysNSStringToUTF8(version_string));
   }
   std::string GetBundleId() const {
     return base::SysNSStringToUTF8(
-        [plist_ valueForKey:base::mac::CFToNSCast(kCFBundleIdentifierKey)]);
+        plist_[base::apple::CFToNSPtrCast(kCFBundleIdentifierKey)]);
   }
 
  private:
@@ -358,15 +415,15 @@ class BundleInfoPlist {
   base::FilePath bundle_path_;
 
   // Data read from the Info.plist.
-  base::scoped_nsobject<NSDictionary> plist_;
+  NSDictionary* __strong plist_;
 };
 
 bool HasExistingExtensionShimForDifferentProfile(
     const base::FilePath& destination_directory,
     const std::string& extension_id,
     const base::FilePath& profile_dir) {
-  std::list<BundleInfoPlist> bundles_info = BundleInfoPlist::GetAllInPath(
-      destination_directory, false /* recursive */);
+  std::list<BundleInfoPlist> bundles_info =
+      BundleInfoPlist::GetAllInPath(destination_directory, /*recursive=*/false);
   for (const auto& info : bundles_info) {
     if (info.GetExtensionId() == extension_id &&
         !info.IsForProfile(profile_dir)) {
@@ -382,17 +439,17 @@ base::CommandLine BuildCommandLineForShimLaunch() {
       app_mode::kLaunchedByChromeProcessId,
       base::NumberToString(base::GetCurrentProcId()));
   command_line.AppendSwitchPath(app_mode::kLaunchedByChromeBundlePath,
-                                base::mac::MainBundlePath());
+                                base::apple::MainBundlePath());
 
   // When running unbundled (e.g, when running browser_tests), the path
-  // returned by base::mac::FrameworkBundlePath will not include the version.
+  // returned by base::apple::FrameworkBundlePath will not include the version.
   // Manually append it.
   // https://crbug.com/1286681
   const base::FilePath framework_bundle_path =
-      base::mac::AmIBundled() ? base::mac::FrameworkBundlePath()
-                              : base::mac::FrameworkBundlePath()
-                                    .Append("Versions")
-                                    .Append(version_info::GetVersionNumber());
+      base::apple::AmIBundled() ? base::apple::FrameworkBundlePath()
+                                : base::apple::FrameworkBundlePath()
+                                      .Append("Versions")
+                                      .Append(version_info::GetVersionNumber());
   command_line.AppendSwitchPath(app_mode::kLaunchedByChromeFrameworkBundlePath,
                                 framework_bundle_path);
   command_line.AppendSwitchPath(
@@ -420,7 +477,7 @@ NSRunningApplication* FindRunningApplicationForBundleIdAndPath(
       runningApplicationsWithBundleIdentifier:base::SysUTF8ToNSString(
                                                   bundle_id)];
   for (NSRunningApplication* app in apps) {
-    if (base::mac::NSURLToFilePath(app.bundleURL) == bundle_path) {
+    if (base::apple::NSURLToFilePath(app.bundleURL) == bundle_path) {
       return app;
     }
   }
@@ -428,10 +485,10 @@ NSRunningApplication* FindRunningApplicationForBundleIdAndPath(
   // Sometimes runningApplicationsWithBundleIdentifier incorrectly fails to
   // return all apps with the provided bundle id. So also scan over the full
   // list of running applications.
-  apps = [NSWorkspace sharedWorkspace].runningApplications;
+  apps = NSWorkspace.sharedWorkspace.runningApplications;
   for (NSRunningApplication* app in apps) {
     if (base::SysNSStringToUTF8(app.bundleIdentifier) == bundle_id &&
-        base::mac::NSURLToFilePath(app.bundleURL) == bundle_path) {
+        base::apple::NSURLToFilePath(app.bundleURL) == bundle_path) {
       return app;
     }
   }
@@ -441,7 +498,7 @@ NSRunningApplication* FindRunningApplicationForBundleIdAndPath(
 
 // Wrapper around base::mac::LaunchApplication that attempts to retry the launch
 // once, if the initial launch fails. This helps reduce test flakiness on older
-// Mac OS bots (Mac 11 and Mac 10.16).
+// Mac OS bots (Mac 11).
 void LaunchApplicationWithRetry(const base::FilePath& app_bundle_path,
                                 const base::CommandLine& command_line,
                                 const std::vector<std::string>& url_specs,
@@ -455,9 +512,9 @@ void LaunchApplicationWithRetry(const base::FilePath& app_bundle_path,
              const std::vector<std::string>& url_specs,
              base::mac::LaunchApplicationOptions options,
              base::mac::LaunchApplicationCallback callback,
-             base::expected<NSRunningApplication*, NSError*> result) {
-            if (result.has_value()) {
-              std::move(callback).Run(std::move(result));
+             NSRunningApplication* app, NSError* error) {
+            if (app) {
+              std::move(callback).Run(app, nil);
               return;
             }
 
@@ -465,69 +522,35 @@ void LaunchApplicationWithRetry(const base::FilePath& app_bundle_path,
               // In newer Mac OS versions this workaround isn't needed, and in
               // fact can itself cause flaky tests by launching the app twice
               // when only one launch is expected.
-              std::move(callback).Run(std::move(result));
+              std::move(callback).Run(app, error);
               return;
             }
 
-            LOG(ERROR) << "Failed to open application with path: "
-                       << app_bundle_path << ", retrying in 100ms";
-            internals::GetShortcutIOTaskRunner()->PostDelayedTask(
-                FROM_HERE,
-                base::BindOnce(&base::mac::LaunchApplication, app_bundle_path,
-                               command_line, url_specs, options,
-                               std::move(callback)),
-                base::Milliseconds(100));
+            // Only retry for the one specific error code that seems to need
+            // this. Like above, retrying in all cases can otherwise itself
+            // cause flaky tests.
+            if (error.domain == NSCocoaErrorDomain &&
+                error.code == NSFileReadCorruptFileError) {
+              LOG(ERROR) << "Failed to open application with path: "
+                         << app_bundle_path << ", retrying in 100ms";
+              internals::GetShortcutIOTaskRunner()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(&base::mac::LaunchApplication, app_bundle_path,
+                                 command_line, url_specs, options,
+                                 std::move(callback)),
+                  base::Milliseconds(100));
+              return;
+            }
+            std::move(callback).Run(nil, error);
           },
           app_bundle_path, command_line, url_specs, options,
           std::move(callback)));
 }
 
-// Wrapper around base::mac::LaunchApplication. This works around a OS bug
-// where sometimes LaunchApplication returns an error even though the launch did
-// actually succeed, by double checking if any running applications match the
-// application we were trying to launch. If one is found, that one is returned
-// rather than an error.
-void LaunchApplicationWithWorkaround(
-    const base::FilePath& app_bundle_path,
-    const base::CommandLine& command_line,
-    const std::vector<std::string>& url_specs,
-    base::mac::LaunchApplicationOptions options,
-    const std::string& bundle_id,
-    base::mac::LaunchApplicationCallback callback) {
-  LaunchApplicationWithRetry(
-      app_bundle_path, command_line, url_specs, options,
-      base::BindOnce(
-          [](const base::FilePath& app_bundle_path,
-             base::mac::LaunchApplicationOptions options,
-             const std::string& bundle_id,
-             base::mac::LaunchApplicationCallback callback,
-             base::expected<NSRunningApplication*, NSError*> result) {
-            if (result.has_value()) {
-              std::move(callback).Run(std::move(result));
-              return;
-            }
-
-            LOG(ERROR) << "Failed to open application with path: "
-                       << app_bundle_path;
-            if (!options.create_new_instance) {
-              NSRunningApplication* app =
-                  FindRunningApplicationForBundleIdAndPath(bundle_id,
-                                                           app_bundle_path);
-              if (app) {
-                LOG(ERROR) << "But found a running application anyway.";
-                std::move(callback).Run(app);
-                return;
-              }
-            }
-
-            std::move(callback).Run(result);
-          },
-          app_bundle_path, options, bundle_id, std::move(callback)));
-}
-
 void LaunchTheFirstShimThatWorksOnFileThread(
     std::vector<base::FilePath> shim_paths,
     bool launched_after_rebuild,
+    ShimLaunchMode launch_mode,
     const std::string& bundle_id,
     ShimLaunchedCallback launched_callback,
     ShimTerminatedCallback terminated_callback) {
@@ -555,18 +578,20 @@ void LaunchTheFirstShimThatWorksOnFileThread(
     command_line.AppendSwitch(app_mode::kLaunchedAfterRebuild);
   }
 
-  LaunchApplicationWithWorkaround(
-      shim_path, command_line, /*url_specs=*/{}, {.activate = false}, bundle_id,
+  LaunchApplicationWithRetry(
+      shim_path, command_line, /*url_specs=*/{},
+      {.activate = false,
+       .hidden_in_background = launch_mode == ShimLaunchMode::kBackground},
       base::BindOnce(
           [](base::FilePath shim_path,
              std::vector<base::FilePath> remaining_shim_paths,
-             bool launched_after_rebuild, const std::string& bundle_id,
+             bool launched_after_rebuild, ShimLaunchMode launch_mode,
+             const std::string& bundle_id,
              ShimLaunchedCallback launched_callback,
              ShimTerminatedCallback terminated_callback,
-             base::expected<NSRunningApplication*, NSError*> result) {
-            if (result.has_value()) {
-              RunAppLaunchCallbacks(result.value(),
-                                    std::move(launched_callback),
+             NSRunningApplication* app, NSError* error) {
+            if (app) {
+              RunAppLaunchCallbacks(app, std::move(launched_callback),
                                     std::move(terminated_callback));
               return;
             }
@@ -577,14 +602,16 @@ void LaunchTheFirstShimThatWorksOnFileThread(
                 FROM_HERE,
                 base::BindOnce(&LaunchTheFirstShimThatWorksOnFileThread,
                                remaining_shim_paths, launched_after_rebuild,
-                               bundle_id, std::move(launched_callback),
+                               launch_mode, bundle_id,
+                               std::move(launched_callback),
                                std::move(terminated_callback)));
           },
-          shim_path, shim_paths, launched_after_rebuild, bundle_id,
+          shim_path, shim_paths, launched_after_rebuild, launch_mode, bundle_id,
           std::move(launched_callback), std::move(terminated_callback)));
 }
 
 void LaunchShimOnFileThread(LaunchShimUpdateBehavior update_behavior,
+                            ShimLaunchMode launch_mode,
                             ShimLaunchedCallback launched_callback,
                             ShimTerminatedCallback terminated_callback,
                             const ShortcutInfo& shortcut_info) {
@@ -600,28 +627,29 @@ void LaunchShimOnFileThread(LaunchShimUpdateBehavior update_behavior,
   std::vector<base::FilePath> shim_paths;
   bool shortcuts_updated = true;
   switch (update_behavior) {
-    case LaunchShimUpdateBehavior::DO_NOT_RECREATE:
+    case LaunchShimUpdateBehavior::kDoNotRecreate:
       // Attempt to locate the shim's path using LaunchServices.
       shim_paths = shortcut_creator.GetAppBundlesById();
       break;
-    case LaunchShimUpdateBehavior::RECREATE_IF_INSTALLED:
+    case LaunchShimUpdateBehavior::kRecreateIfInstalled:
       // Only attempt to launch shims that were updated.
       launched_after_rebuild = true;
       shortcuts_updated = shortcut_creator.UpdateShortcuts(
-          false /* create_if_needed */, &shim_paths);
+          /*create_if_needed=*/false, &shim_paths);
       break;
-    case LaunchShimUpdateBehavior::RECREATE_UNCONDITIONALLY:
+    case LaunchShimUpdateBehavior::kRecreateUnconditionally:
       // Likewise, only attempt to launch shims that were updated.
       launched_after_rebuild = true;
       shortcuts_updated = shortcut_creator.UpdateShortcuts(
-          true /* create_if_needed */, &shim_paths);
+          /*create_if_needed=*/true, &shim_paths);
       break;
   }
   LOG_IF(ERROR, !shortcuts_updated) << "Could not write shortcut for app shim.";
 
   LaunchTheFirstShimThatWorksOnFileThread(
-      shim_paths, launched_after_rebuild, shortcut_creator.GetAppBundleId(),
-      std::move(launched_callback), std::move(terminated_callback));
+      shim_paths, launched_after_rebuild, launch_mode,
+      shortcut_creator.GetAppBundleId(), std::move(launched_callback),
+      std::move(terminated_callback));
 }
 
 base::FilePath GetLocalizableAppShortcutsSubdirName() {
@@ -642,13 +670,13 @@ base::FilePath GetLocalizableAppShortcutsSubdirName() {
 }
 
 // Creates a canvas the same size as |overlay|, copies the appropriate
-// representation from |backgound| into it (according to Cocoa), then draws
+// representation from |background| into it (according to Cocoa), then draws
 // |overlay| over it using NSCompositingOperationSourceOver.
 NSImageRep* OverlayImageRep(NSImage* background, NSImageRep* overlay) {
   DCHECK(background);
-  NSInteger dimension = [overlay pixelsWide];
-  DCHECK_EQ(dimension, [overlay pixelsHigh]);
-  base::scoped_nsobject<NSBitmapImageRep> canvas([[NSBitmapImageRep alloc]
+  NSInteger dimension = overlay.pixelsWide;
+  DCHECK_EQ(dimension, overlay.pixelsHigh);
+  NSBitmapImageRep* canvas = [[NSBitmapImageRep alloc]
       initWithBitmapDataPlanes:nullptr
                     pixelsWide:dimension
                     pixelsHigh:dimension
@@ -658,20 +686,19 @@ NSImageRep* OverlayImageRep(NSImage* background, NSImageRep* overlay) {
                       isPlanar:NO
                 colorSpaceName:NSCalibratedRGBColorSpace
                    bytesPerRow:0
-                  bitsPerPixel:0]);
+                  bitsPerPixel:0];
 
   // There isn't a colorspace name constant for sRGB, so retag.
-  NSBitmapImageRep* srgb_canvas = [canvas
-      bitmapImageRepByRetaggingWithColorSpace:[NSColorSpace sRGBColorSpace]];
-  canvas.reset([srgb_canvas retain]);
+  canvas = [canvas
+      bitmapImageRepByRetaggingWithColorSpace:NSColorSpace.sRGBColorSpace];
 
   // Communicate the DIP scale (1.0). TODO(tapted): Investigate HiDPI.
-  [canvas setSize:NSMakeSize(dimension, dimension)];
+  canvas.size = NSMakeSize(dimension, dimension);
 
   NSGraphicsContext* drawing_context =
       [NSGraphicsContext graphicsContextWithBitmapImageRep:canvas];
   [NSGraphicsContext saveGraphicsState];
-  [NSGraphicsContext setCurrentContext:drawing_context];
+  NSGraphicsContext.currentContext = drawing_context;
   [background drawInRect:NSMakeRect(0, 0, dimension, dimension)
                 fromRect:NSZeroRect
                operation:NSCompositingOperationCopy
@@ -683,19 +710,18 @@ NSImageRep* OverlayImageRep(NSImage* background, NSImageRep* overlay) {
        respectFlipped:NO
                 hints:nil];
   [NSGraphicsContext restoreGraphicsState];
-  return canvas.autorelease();
+  return canvas;
 }
 
 // Helper function to extract the single NSImageRep held in a resource bundle
 // image.
-base::scoped_nsobject<NSImageRep> ImageRepForGFXImage(const gfx::Image& image) {
-  NSArray* image_reps = [image.AsNSImage() representations];
-  DCHECK_EQ(1u, [image_reps count]);
-  return base::scoped_nsobject<NSImageRep>(image_reps[0],
-                                           base::scoped_policy::RETAIN);
+NSImageRep* ImageRepForGFXImage(const gfx::Image& image) {
+  NSArray* image_reps = image.AsNSImage().representations;
+  DCHECK_EQ(1u, image_reps.count);
+  return image_reps[0];
 }
 
-using ResourceIDToImage = std::map<int, base::scoped_nsobject<NSImageRep>>;
+using ResourceIDToImage = std::map<int, NSImageRep*>;
 
 // Generates a map of NSImageReps used by SetWorkspaceIconOnFILEThread and
 // passes it to |io_task|. Since ui::ResourceBundle can only be used on UI
@@ -730,10 +756,10 @@ void SetWorkspaceIconOnWorkerThread(const base::FilePath& apps_directory,
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
-  base::scoped_nsobject<NSImage> folder_icon_image([[NSImage alloc] init]);
+  NSImage* folder_icon_image = [[NSImage alloc] init];
   // Use complete assets for the small icon sizes. -[NSWorkspace setIcon:] has a
   // bug when dealing with named NSImages where it incorrectly handles alpha
-  // premultiplication. This is most noticable with small assets since the 1px
+  // premultiplication. This is most noticeable with small assets since the 1px
   // border is a much larger component of the small icons.
   // See http://crbug.com/305373 for details.
   for (int id : {IDR_APPS_FOLDER_16, IDR_APPS_FOLDER_32}) {
@@ -744,7 +770,7 @@ void SetWorkspaceIconOnWorkerThread(const base::FilePath& apps_directory,
 
   // Brand larger folder assets with an embossed app launcher logo to
   // conserve distro size and for better consistency with changing hue
-  // across OSX versions. The folder is textured, so compresses poorly
+  // across macOS versions. The folder is textured, so compresses poorly
   // without this.
   NSImage* base_image = [NSImage imageNamed:NSImageNameFolder];
   for (int id : {IDR_APPS_FOLDER_OVERLAY_128, IDR_APPS_FOLDER_OVERLAY_512}) {
@@ -755,14 +781,14 @@ void SetWorkspaceIconOnWorkerThread(const base::FilePath& apps_directory,
     if (with_overlay)
       [folder_icon_image addRepresentation:with_overlay];
   }
-  [[NSWorkspace sharedWorkspace]
+  [NSWorkspace.sharedWorkspace
       setIcon:folder_icon_image
-      forFile:base::mac::FilePathToNSString(apps_directory)
+      forFile:base::apple::FilePathToNSString(apps_directory)
       options:0];
 }
 
 // Adds a localized strings file for the Chrome Apps directory using the current
-// locale. OSX will use this for the display name.
+// locale. macOS will use this for the display name.
 // + Chrome Apps.localized (|apps_directory|)
 // | + .localized
 // | | en.strings
@@ -777,7 +803,7 @@ bool UpdateAppShortcutsSubdirLocalizedName(
   std::u16string localized_name =
       shell_integration::GetAppShortcutsSubdirName();
   NSDictionary* strings_dict = @{
-    base::mac::FilePathToNSString(directory_name) :
+    base::apple::FilePathToNSString(directory_name) :
         base::SysUTF16ToNSString(localized_name)
   };
 
@@ -785,7 +811,7 @@ bool UpdateAppShortcutsSubdirLocalizedName(
       l10n_util::GetApplicationLocale(std::string()));
 
   NSString* strings_path =
-      base::mac::FilePathToNSString(localized.Append(locale + ".strings"));
+      base::apple::FilePathToNSString(localized.Append(locale + ".strings"));
   [strings_dict writeToFile:strings_path atomically:YES];
 
   content::GetUIThreadTaskRunner({})->PostTask(
@@ -818,36 +844,17 @@ base::FilePath GetMultiProfileAppDataDir(base::FilePath app_data_dir) {
       .Append(app_name_dir);
 }
 
-// Returns the bundle identifier for an app. If |profile_path| is unset, then
-// the returned bundle id will be profile-agnostic.
-std::string GetBundleIdentifier(
-    const std::string& app_id,
-    const base::FilePath& profile_path = base::FilePath()) {
-  // Note that this matches APP_MODE_APP_BUNDLE_ID in chrome/chrome.gyp.
-  if (!profile_path.empty()) {
-    // Replace spaces in the profile path with hyphen.
-    std::string normalized_profile_path;
-    base::ReplaceChars(profile_path.BaseName().value(), " ", "-",
-                       &normalized_profile_path);
-    return base::mac::BaseBundleID() + std::string(".app.") +
-           normalized_profile_path + "-" + app_id;
-  }
-  return base::mac::BaseBundleID() + std::string(".app.") + app_id;
-}
-
 // Return all bundles with the specified |bundle_id| which are for the current
 // user data dir.
 std::list<BundleInfoPlist> SearchForBundlesById(const std::string& bundle_id) {
   std::list<BundleInfoPlist> infos;
 
-  // First search using LaunchServices
-  base::ScopedCFTypeRef<CFStringRef> bundle_id_cf(
-      base::SysUTF8ToCFStringRef(bundle_id));
-  base::scoped_nsobject<NSArray> bundle_urls(base::mac::CFToNSCast(
-      LSCopyApplicationURLsForBundleIdentifier(bundle_id_cf.get(), nullptr)));
-  for (NSURL* url : bundle_urls.get()) {
-    NSString* path_string = [url path];
-    base::FilePath bundle_path([path_string fileSystemRepresentation]);
+  // First search using LaunchServices.
+  NSArray* bundle_urls =
+      base::apple::CFToNSOwnershipCast(LSCopyApplicationURLsForBundleIdentifier(
+          base::SysUTF8ToCFStringRef(bundle_id), /*outError=*/nullptr));
+  for (NSURL* url : bundle_urls) {
+    base::FilePath bundle_path = base::apple::NSURLToFilePath(url);
     BundleInfoPlist info(bundle_path);
     if (!info.IsForCurrentUserDataDir())
       continue;
@@ -861,7 +868,7 @@ std::list<BundleInfoPlist> SearchForBundlesById(const std::string& bundle_id) {
   // for an app in the applications folder to handle this case.
   // https://crbug.com/937703
   infos = BundleInfoPlist::GetAllInPath(GetChromeAppsFolder(),
-                                        true /* recursive */);
+                                        /*recursive=*/true);
   for (auto it = infos.begin(); it != infos.end();) {
     const BundleInfoPlist& info = *it;
     if (info.GetBundleId() == bundle_id && info.IsForCurrentUserDataDir()) {
@@ -969,6 +976,173 @@ bool AddPathToRPath(const base::FilePath& executable_path,
 }
 #endif
 
+// Creates a masked icon image from a base icon image.
+gfx::Image MaskedIcon(const gfx::Image& base_icon) {
+  // According to Apple design templates, a macOS icon should be a rounded
+  // rect surrounded by some transparent padding.  The rounded rect's size
+  // is approximately 80% of the overall icon, but this percentage varies.
+  // Exact mask size and shape gleaned from Apple icon design templates,
+  // specifically the March 2023 macOS Production Templates Sketch file at
+  // https://developer.apple.com/design/resources/.  A few corner radius
+  // values were unavailable in the file because the relevant shapes were
+  // represenated as plain paths rather than rounded rects.
+  //
+  // The Web App Manifest spec defines a safe zone for maskable icons
+  // (https://www.w3.org/TR/appmanifest/#icon-masks) in a centered circle
+  // with diameter 80% of the overall icon.  Since the macOS icon mask
+  // is a rounded rect that is never smaller than 80% of the overall icon,
+  // it is within spec to simply draw our base icon full size and clip
+  // whatever is outside of the rounded rect.  This is what is currently
+  // implemented, even though is is different from what Apple does in macOS
+  // Sonoma web apps (where instead they first scale the icon to cover just
+  // the rounded rect, only clipping the corners).  Somewhere in the middle
+  // of these options might be ideal, although with the current icon loading
+  // code icons have already been resized to neatly fill entire standard sized
+  // icons by the time this code runs, so doing any more resizing here would
+  // not be great.
+  int base_size = base_icon.Width();
+  SkScalar icon_grid_bounding_box_inset;
+  SkScalar icon_grid_bounding_box_corner_radius;
+  SkScalar shadow_y_offset;
+  SkScalar shadow_blur_radius;
+  switch (base_size) {
+    case 16:
+      // An exact value for the 16 corner radius was not available.
+      // this corner radius is derived by dividing the 32 radius by 2
+      icon_grid_bounding_box_inset = 1.0;
+      icon_grid_bounding_box_corner_radius = 2.785;
+      shadow_y_offset = 0.5;
+      shadow_blur_radius = 0.5;
+      break;
+    case 32:
+      icon_grid_bounding_box_inset = 2.0;
+      icon_grid_bounding_box_corner_radius = 5.75;
+      shadow_y_offset = 1.0;
+      shadow_blur_radius = 1.0;
+      break;
+    case 64:
+      icon_grid_bounding_box_inset = 6.0;
+      icon_grid_bounding_box_corner_radius = 11.5;
+      shadow_y_offset = 2;
+      shadow_blur_radius = 2;
+      break;
+    case 128:
+      // An exact value for the 128 corner radius was not available.
+      // this corner radius is derived by dividing the 256 radius by 2
+      // or by multiplying the 64 radius by 2, both calculations
+      // have the same result.
+      icon_grid_bounding_box_inset = 12.0;
+      icon_grid_bounding_box_corner_radius = 23.0;
+      shadow_y_offset = 1.25;
+      shadow_blur_radius = 1.25;
+      break;
+    case 256:
+      icon_grid_bounding_box_inset = 25.0;
+      icon_grid_bounding_box_corner_radius = 46.0;
+      shadow_y_offset = 2.5;
+      shadow_blur_radius = 2.5;
+      break;
+    case 512:
+      icon_grid_bounding_box_inset = 50.0;
+      icon_grid_bounding_box_corner_radius = 92.0;
+      shadow_y_offset = 5.0;
+      shadow_blur_radius = 5.0;
+      break;
+    case 1024:
+      // An exact value for the 1024 corner radius was not available.
+      // this corner radius is derived by multiplying the 512 radius by 2
+      icon_grid_bounding_box_inset = 100.0;
+      icon_grid_bounding_box_corner_radius = 184.0;
+      shadow_y_offset = 10.0;
+      shadow_blur_radius = 10.0;
+      break;
+    default:
+      // Use 1024 sizes as a reference for approximating any size mask if needed
+      icon_grid_bounding_box_inset = base_size * 100.0 / 1024.0;
+      icon_grid_bounding_box_corner_radius = base_size * 184.0 / 1024.0;
+      shadow_y_offset = base_size * 10.0 / 1024.0;
+      shadow_blur_radius = base_size * 10.0 / 1024.0;
+      break;
+  }
+
+  // Creat a bitmap and canvas for drawing the masked icon
+  SkImageInfo info =
+      SkImageInfo::Make(base_size, base_size, SkColorType::kN32_SkColorType,
+                        SkAlphaType::kUnpremul_SkAlphaType);
+  SkBitmap bitmap;
+  bitmap.allocPixels(info);
+  SkCanvas canvas(bitmap);
+  SkRect base_rect = SkRect::MakeIWH(base_size, base_size);
+
+  // Create a path for the icon mask. The mask will match Apple's icon grid
+  // bounding box.
+  SkPath icon_grid_bounding_box_path;
+  SkRect icon_grid_bounding_box_rect = base_rect.makeInset(
+      icon_grid_bounding_box_inset, icon_grid_bounding_box_inset);
+  icon_grid_bounding_box_path.addRoundRect(
+      icon_grid_bounding_box_rect, icon_grid_bounding_box_corner_radius,
+      icon_grid_bounding_box_corner_radius);
+
+  // Draw the shadow
+  SkPaint shadowPaint;
+  shadowPaint.setStyle(SkPaint::kFill_Style);
+  shadowPaint.setARGB(77, 0, 0, 0);
+  shadowPaint.setImageFilter(
+      SkImageFilters::Blur(shadow_blur_radius, shadow_blur_radius, nullptr));
+  canvas.save();
+  canvas.translate(0, shadow_y_offset);
+  canvas.drawPath(icon_grid_bounding_box_path, shadowPaint);
+  canvas.restore();
+
+  // Clip to the mask
+  canvas.clipPath(icon_grid_bounding_box_path, /*doAntiAlias=*/true);
+
+  // Draw the base icon on a white background
+  // If the base icon is opaque, we shouldn't see any white. Unfortunately,
+  // first filling the clip with white and then overlaying the base icon
+  // results in white artifacts around the corners.  So, we'll use an unclipped
+  // intermediate canvas to overlay the base icon on a full white background,
+  // and then draw the intermediate canvas in the clip in one shot to avoid
+  // white around the edges.
+  SkBitmap opaque_bitmap;
+  opaque_bitmap.allocPixels(info);
+  SkCanvas opaque_canvas(opaque_bitmap);
+  SkPaint backgroundPaint;
+  backgroundPaint.setStyle(SkPaint::kFill_Style);
+  backgroundPaint.setARGB(255, 255, 255, 255);
+  opaque_canvas.drawRect(base_rect, backgroundPaint);
+  opaque_canvas.drawImage(SkImages::RasterFromBitmap(base_icon.AsBitmap()), 0,
+                          0);
+  canvas.drawImage(SkImages::RasterFromBitmap(opaque_bitmap), 0, 0);
+
+  // Create the final image.
+  return gfx::Image::CreateFrom1xBitmap(bitmap);
+}
+
+NSData* AppShimEntitlements() {
+  // Entitlement data to disable library validation with the hardened runtime.
+  // The first 8 bytes of the entitlement data consists of two 32-bit values:
+  // a magic constant and the length of the data. They are populated below.
+  char entitlement_bytes[] =
+      R"xml(12345678<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
+)xml";
+
+  // The magic constant and length are expected to be big endian.
+  uint32_t* entitlement_header = reinterpret_cast<uint32_t*>(entitlement_bytes);
+  entitlement_header[0] = CFSwapInt32HostToBig(kSecCodeMagicEntitlement);
+  entitlement_header[1] = CFSwapInt32HostToBig(sizeof(entitlement_bytes) - 1);
+
+  return [NSData dataWithBytes:static_cast<void*>(entitlement_bytes)
+                        length:sizeof(entitlement_bytes) - 1];
+}
+
 }  // namespace
 
 bool AppShimCreationAndLaunchDisabledForTest() {
@@ -1019,7 +1193,7 @@ void WebAppAutoLoginUtil::AddToLoginItems(const base::FilePath& app_bundle_path,
   if (os_override) {
     CHECK_IS_TEST();
     os_override->EnableOrDisablePathOnLogin(app_bundle_path,
-                                            /*enabled_on_start=*/true);
+                                            /*enable_on_login=*/true);
   } else {
     base::mac::AddToLoginItems(app_bundle_path, hide_on_startup);
   }
@@ -1032,7 +1206,7 @@ void WebAppAutoLoginUtil::RemoveFromLoginItems(
   if (os_override) {
     CHECK_IS_TEST();
     os_override->EnableOrDisablePathOnLogin(app_bundle_path,
-                                            /*enabled_on_start=*/false);
+                                            /*enable_on_login=*/false);
   } else {
     base::mac::RemoveFromLoginItems(app_bundle_path);
   }
@@ -1122,7 +1296,8 @@ bool WebAppShortcutCreator::BuildShortcut(
     return false;
   }
 
-  const base::FilePath framework_bundle_path = base::mac::FrameworkBundlePath();
+  const base::FilePath framework_bundle_path =
+      base::apple::FrameworkBundlePath();
 
   const base::FilePath executable_path =
       framework_bundle_path.Append("Helpers").Append("app_mode_loader");
@@ -1138,8 +1313,8 @@ bool WebAppShortcutCreator::BuildShortcut(
   // Use NSFileManager so that the permissions can be set appropriately. The
   // base::CreateDirectory() routine forces mode 0700.
   NSError* error = nil;
-  if (![[NSFileManager defaultManager]
-                 createDirectoryAtURL:base::mac::FilePathToNSURL(
+  if (![NSFileManager.defaultManager
+                 createDirectoryAtURL:base::apple::FilePathToNSURL(
                                           destination_executable_path)
           withIntermediateDirectories:YES
                            attributes:@{
@@ -1188,6 +1363,22 @@ bool WebAppShortcutCreator::BuildShortcut(
     LOG(ERROR) << "Failed to copy asan library: " << asan_library_path;
     return false;
   }
+
+  // The address sanitizer runtime must have a valid signature in order for the
+  // containing app bundle to be signed. On Apple Silicon the address sanitizer
+  // runtime library has a linker-generated ad-hoc code signature, but this is
+  // treated as equivalent to being unsigned when signing the containing app
+  // bundle.
+  std::string codesign_output;
+  std::vector<std::string> codesign_argv = {
+      "codesign", "--sign", "-",
+      destination_executable_path.Append(asan_library_path.BaseName()).value()};
+  CHECK(base::GetAppOutputAndError(base::CommandLine(codesign_argv),
+                                   &codesign_output))
+      << "Failed to sign executable at "
+      << destination_executable_path.Append(asan_library_path.BaseName())
+             .value()
+      << ": " << codesign_output;
 #endif
 
   // Copy the Info.plist.
@@ -1220,6 +1411,10 @@ bool WebAppShortcutCreator::BuildShortcut(
   result = UpdateIcon(staging_path);
   if (!result) {
     RecordCreateShortcut(CreateShortcutResult::kFailToUpdateIcon);
+  }
+  result = UpdateSignature(staging_path);
+  if (!result) {
+    RecordCreateShortcut(CreateShortcutResult::kFailToSign);
   }
   return result;
 }
@@ -1292,8 +1487,7 @@ void WebAppShortcutCreator::CreateShortcutsAt(
 
     // LaunchServices will eventually detect the (updated) app, but explicitly
     // calling LSRegisterURL ensures tests see the right state immediately.
-    LSRegisterURL(
-        base::mac::NSToCFCast(base::mac::FilePathToNSURL(dst_app_path)), true);
+    LSRegisterURL(base::apple::FilePathToCFURL(dst_app_path), true);
 
     updated_paths->push_back(dst_app_path);
   }
@@ -1305,7 +1499,7 @@ bool WebAppShortcutCreator::CreateShortcuts(
   DCHECK_NE(creation_locations.applications_menu_location,
             APP_MENU_LOCATION_HIDDEN);
   std::vector<base::FilePath> updated_app_paths;
-  if (!UpdateShortcuts(true /* create_if_needed */, &updated_app_paths)) {
+  if (!UpdateShortcuts(/*create_if_needed=*/true, &updated_app_paths)) {
     return false;
   }
   if (creation_locations.in_startup) {
@@ -1365,8 +1559,7 @@ bool WebAppShortcutCreator::UpdateShortcuts(
   // If that path does not exist, create a new entry in ~/Applications if
   // requested.
   if (app_paths.empty() && create_if_needed) {
-    app_paths.push_back(
-        GetApplicationsShortcutPath(true /* avoid_conflicts */));
+    app_paths.push_back(GetApplicationsShortcutPath(/*avoid_conflicts=*/true));
   }
   if (app_paths.empty()) {
     RecordCreateShortcut(CreateShortcutResult::kFailToGetApplicationPaths);
@@ -1383,7 +1576,7 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
   NSString* extension_title = base::SysUTF16ToNSString(info_->title);
   NSString* extension_url = base::SysUTF8ToNSString(info_->url.spec());
   NSString* chrome_bundle_id =
-      base::SysUTF8ToNSString(base::mac::BaseBundleID());
+      base::SysUTF8ToNSString(base::apple::BaseBundleID());
   NSDictionary* replacement_dict = @{
     app_mode::kShortcutIdPlaceholder : app_id,
     app_mode::kShortcutNamePlaceholder : extension_title,
@@ -1391,22 +1584,23 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
     app_mode::kShortcutBrowserBundleIDPlaceholder : chrome_bundle_id
   };
 
-  NSString* plist_path = GetPlistPath(app_path);
+  NSURL* plist_url = GetPlistURL(app_path);
   NSMutableDictionary* plist =
-      [NSMutableDictionary dictionaryWithContentsOfFile:plist_path];
-  NSArray* keys = [plist allKeys];
+      [[NSMutableDictionary alloc] initWithContentsOfURL:plist_url error:nil];
+  NSArray* keys = plist.allKeys;
 
   // 1. Fill in variables.
   for (id key in keys) {
-    NSString* value = [plist valueForKey:key];
-    if (![value isKindOfClass:[NSString class]] || [value length] < 2)
+    NSString* value = plist[key];
+    if (![value isKindOfClass:[NSString class]] || value.length < 2) {
       continue;
+    }
 
     // Remove leading and trailing '@'s.
     NSString* variable =
-        [value substringWithRange:NSMakeRange(1, [value length] - 2)];
+        [value substringWithRange:NSMakeRange(1, value.length - 2)];
 
-    NSString* substitution = [replacement_dict valueForKey:variable];
+    NSString* substitution = replacement_dict[variable];
     if (substitution)
       plist[key] = substitution;
   }
@@ -1417,19 +1611,19 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
   plist[app_mode::kCFBundleShortVersionStringKey] =
       base::SysUTF8ToNSString(info_->version_for_display);
   if (IsMultiProfile()) {
-    plist[base::mac::CFToNSCast(kCFBundleIdentifierKey)] =
-        base::SysUTF8ToNSString(GetBundleIdentifier(info_->app_id));
+    plist[base::apple::CFToNSPtrCast(kCFBundleIdentifierKey)] =
+        base::SysUTF8ToNSString(GetBundleIdentifierForShim(info_->app_id));
     base::FilePath data_dir = GetMultiProfileAppDataDir(app_data_dir_);
     plist[app_mode::kCrAppModeUserDataDirKey] =
-        base::mac::FilePathToNSString(data_dir);
+        base::apple::FilePathToNSString(data_dir);
   } else {
-    plist[base::mac::CFToNSCast(kCFBundleIdentifierKey)] =
+    plist[base::apple::CFToNSPtrCast(kCFBundleIdentifierKey)] =
         base::SysUTF8ToNSString(
-            GetBundleIdentifier(info_->app_id, info_->profile_path));
+            GetBundleIdentifierForShim(info_->app_id, info_->profile_path));
     plist[app_mode::kCrAppModeUserDataDirKey] =
-        base::mac::FilePathToNSString(app_data_dir_);
+        base::apple::FilePathToNSString(app_data_dir_);
     plist[app_mode::kCrAppModeProfileDirKey] =
-        base::mac::FilePathToNSString(info_->profile_path.BaseName());
+        base::apple::FilePathToNSString(info_->profile_path.BaseName());
     plist[app_mode::kCrAppModeProfileNameKey] =
         base::SysUTF8ToNSString(info_->profile_name);
   }
@@ -1455,26 +1649,21 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
         profile_handlers.second.file_handler_mime_types.end());
   }
   if (!file_handler_extensions.empty() || !file_handler_mime_types.empty()) {
-    base::scoped_nsobject<NSMutableArray> doc_types_value(
-        [[NSMutableArray alloc] init]);
-    base::scoped_nsobject<NSMutableDictionary> doc_types_dict(
-        [[NSMutableDictionary alloc] init]);
+    NSMutableArray* doc_types_value = [NSMutableArray array];
+    NSMutableDictionary* doc_types_dict = [NSMutableDictionary dictionary];
     if (!file_handler_extensions.empty()) {
-      base::scoped_nsobject<NSMutableArray> extensions(
-          [[NSMutableArray alloc] init]);
-      for (const auto& file_extension : file_handler_extensions)
+      NSMutableArray* extensions = [NSMutableArray array];
+      for (const auto& file_extension : file_handler_extensions) {
         [extensions addObject:base::SysUTF8ToNSString(file_extension)];
-      [doc_types_dict setObject:extensions
-                         forKey:app_mode::kCFBundleTypeExtensionsKey];
-      ;
+      }
+      doc_types_dict[app_mode::kCFBundleTypeExtensionsKey] = extensions;
     }
     if (!file_handler_mime_types.empty()) {
-      base::scoped_nsobject<NSMutableArray> mime_types(
-          [[NSMutableArray alloc] init]);
-      for (const auto& mime_type : file_handler_mime_types)
+      NSMutableArray* mime_types = [NSMutableArray array];
+      for (const auto& mime_type : file_handler_mime_types) {
         [mime_types addObject:base::SysUTF8ToNSString(mime_type)];
-      [doc_types_dict setObject:mime_types
-                         forKey:app_mode::kCFBundleTypeMIMETypesKey];
+      }
+      doc_types_dict[app_mode::kCFBundleTypeMIMETypesKey] = mime_types;
     }
     [doc_types_value addObject:doc_types_dict];
     plist[app_mode::kCFBundleDocumentTypesKey] = doc_types_value;
@@ -1493,27 +1682,28 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
   }
 
   if (!protocol_handlers.empty()) {
-    base::scoped_nsobject<NSMutableArray> handlers(
-        [[NSMutableArray alloc] init]);
-    for (const auto& protocol_handler : protocol_handlers)
+    scoped_refptr<OsIntegrationTestOverride> os_override =
+        OsIntegrationTestOverride::Get();
+    if (os_override) {
+      CHECK_IS_TEST();
+      std::vector<std::string> protocol_handlers_vec;
+      protocol_handlers_vec.insert(protocol_handlers_vec.end(),
+                                   protocol_handlers.begin(),
+                                   protocol_handlers.end());
+      os_override->RegisterProtocolSchemes(info_->app_id,
+                                           std::move(protocol_handlers_vec));
+    }
+
+    NSMutableArray* handlers = [NSMutableArray array];
+    for (const auto& protocol_handler : protocol_handlers) {
       [handlers addObject:base::SysUTF8ToNSString(protocol_handler)];
+    }
 
     plist[app_mode::kCFBundleURLTypesKey] = @[ @{
       app_mode::kCFBundleURLNameKey :
-          base::SysUTF8ToNSString(GetBundleIdentifier(info_->app_id)),
+          base::SysUTF8ToNSString(GetBundleIdentifierForShim(info_->app_id)),
       app_mode::kCFBundleURLSchemesKey : handlers
     } ];
-  }
-  scoped_refptr<OsIntegrationTestOverride> os_override =
-      OsIntegrationTestOverride::Get();
-  if (os_override) {
-    CHECK_IS_TEST();
-    std::vector<std::string> protocol_handlers_vec;
-    protocol_handlers_vec.insert(protocol_handlers_vec.end(),
-                                 protocol_handlers.begin(),
-                                 protocol_handlers.end());
-    os_override->RegisterProtocolSchemes(info_->app_id,
-                                         std::move(protocol_handlers_vec));
   }
 
   // TODO(crbug.com/1273526): If we decide to rename app bundles on app title
@@ -1522,19 +1712,19 @@ bool WebAppShortcutCreator::UpdatePlist(const base::FilePath& app_path) const {
   // (in other words, revert to what the code looked like before on these
   // lines). See also crbug.com/1021804.
   base::FilePath app_name = app_path.BaseName().RemoveFinalExtension();
-  plist[base::mac::CFToNSCast(kCFBundleNameKey)] =
-      base::mac::FilePathToNSString(app_name);
+  plist[base::apple::CFToNSPtrCast(kCFBundleNameKey)] =
+      base::apple::FilePathToNSString(app_name);
 
-  return [plist writeToFile:plist_path atomically:YES];
+  return [plist writeToURL:plist_url error:nil];
 }
 
 bool WebAppShortcutCreator::UpdateDisplayName(
     const base::FilePath& app_path) const {
   // Localization is used to display the app name (rather than the bundle
-  // filename). OSX searches for the best language in the order of preferred
+  // filename). macOS searches for the best language in the order of preferred
   // languages, but one of them must be found otherwise it will default to
   // the filename.
-  NSString* language = [NSLocale preferredLanguages][0];
+  NSString* language = NSLocale.preferredLanguages[0];
   base::FilePath localized_dir = GetResourcesPath(app_path).Append(
       base::SysNSStringToUTF8(language) + ".lproj");
   if (!base::CreateDirectory(localized_dir))
@@ -1559,42 +1749,132 @@ bool WebAppShortcutCreator::UpdateDisplayName(
   }
 
   NSDictionary* strings_plist = @{
-    base::mac::CFToNSCast(kCFBundleNameKey) : bundle_name,
+    base::apple::CFToNSPtrCast(kCFBundleNameKey) : bundle_name,
     app_mode::kCFBundleDisplayNameKey : display_name
   };
 
-  NSString* localized_path =
-      base::mac::FilePathToNSString(localized_dir.Append("InfoPlist.strings"));
+  NSString* localized_path = base::apple::FilePathToNSString(
+      localized_dir.Append("InfoPlist.strings"));
   return [strings_plist writeToFile:localized_path atomically:YES];
 }
 
 bool WebAppShortcutCreator::UpdateIcon(const base::FilePath& app_path) const {
-  if (info_->favicon.empty())
+  if (info_->favicon.empty() && info_->favicon_maskable.empty()) {
     return true;
+  }
 
   IcnsEncoder icns_encoder;
   bool has_valid_icons = false;
-  for (gfx::ImageFamily::const_iterator it = info_->favicon.begin();
-       it != info_->favicon.end(); ++it) {
-    if (icns_encoder.AddImage(*it))
-      has_valid_icons = true;
+  if (!info_->favicon_maskable.empty() &&
+      base::FeatureList::IsEnabled(kWebAppMaskableIconsOnMac)) {
+    for (gfx::ImageFamily::const_iterator it = info_->favicon_maskable.begin();
+         it != info_->favicon_maskable.end(); ++it) {
+      if (icns_encoder.AddImage(MaskedIcon(*it))) {
+        has_valid_icons = true;
+      }
+    }
   }
-  if (!has_valid_icons)
+
+  if (!has_valid_icons) {
+    for (gfx::ImageFamily::const_iterator it = info_->favicon.begin();
+         it != info_->favicon.end(); ++it) {
+      if (icns_encoder.AddImage(*it)) {
+        has_valid_icons = true;
+      }
+    }
+  }
+
+  if (!has_valid_icons) {
     return false;
+  }
 
   base::FilePath resources_path = GetResourcesPath(app_path);
-  if (!base::CreateDirectory(resources_path))
+  if (!base::CreateDirectory(resources_path)) {
     return false;
+  }
 
   return icns_encoder.WriteToFile(resources_path.Append("app.icns"));
 }
 
+bool UseAdHocSigningForWebAppShims() {
+  if (@available(macOS 11.7, *)) {
+    // macOS 11.7 and above can code sign at runtime without requiring that the
+    // developer tools be installed.
+    return base::FeatureList::IsEnabled(kUseAdHocSigningForWebAppShims);
+  }
+
+  // Code signing on older macOS versions invokes `codesign_allocate` from the
+  // developer tools, so we can't do it at runtime.
+  return false;
+}
+
+bool WebAppShortcutCreator::UpdateSignature(
+    const base::FilePath& app_path) const {
+  if (!UseAdHocSigningForWebAppShims()) {
+    return true;
+  }
+
+  base::apple::ScopedCFTypeRef<CFURLRef> app_url =
+      base::apple::FilePathToCFURL(app_path);
+  base::apple::ScopedCFTypeRef<SecStaticCodeRef> app_code;
+  if (SecStaticCodeCreateWithPath(app_url, kSecCSDefaultFlags,
+                                  app_code.InitializeInto()) != errSecSuccess) {
+    return false;
+  }
+
+  // Use the most restrictive flags possible. Library validation cannot be
+  // enabled as an adhoc binary's signing identity inherently does not match the
+  // signing identity of the non-system libraries that the app shim loads.
+  uint32_t code_signer_flags = kSecCodeSignatureRestrict |
+                               kSecCodeSignatureForceKill |
+                               kSecCodeSignatureRuntime;
+
+  auto* signer_params = @{
+    static_cast<id>(kSecCodeSignerFlags) : @(code_signer_flags),
+    static_cast<id>(kSecCodeSignerIdentity) : [NSNull null],
+    static_cast<id>(kSecCodeSignerEntitlements) : AppShimEntitlements(),
+  };
+  base::apple::ScopedCFTypeRef<SecCodeSignerRef> signer;
+  if (SecCodeSignerCreate(base::apple::NSToCFPtrCast(signer_params),
+                          kSecCSDefaultFlags,
+                          signer.InitializeInto()) != errSecSuccess) {
+    return false;
+  }
+
+  base::apple::ScopedCFTypeRef<CFErrorRef> errors;
+  if (SecCodeSignerAddSignatureWithErrors(signer, app_code, kSecCSDefaultFlags,
+                                          errors.InitializeInto()) !=
+      errSecSuccess) {
+    LOG(ERROR) << "Failed to sign web app shim: " << errors;
+    return false;
+  }
+
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> app_shim_info;
+  if (SecCodeCopySigningInformation(app_code, kSecCSSigningInformation,
+                                    app_shim_info.InitializeInto()) !=
+      errSecSuccess) {
+    LOG(ERROR) << "Failed to copy signing information from web app shim";
+    return false;
+  }
+
+  CFDataRef cd_hash_data =
+      GetValueFromDictionary<CFDataRef>(app_shim_info, kSecCodeInfoUnique);
+  std::vector<uint8_t> cd_hash(
+      CFDataGetBytePtr(cd_hash_data),
+      CFDataGetBytePtr(cd_hash_data) + CFDataGetLength(cd_hash_data));
+
+  content::GetUIThreadTaskRunner()->PostTask(
+      FROM_HERE, base::BindOnce(&AppShimRegistry::SaveCdHashForApp,
+                                base::Unretained(AppShimRegistry::Get()),
+                                info_->app_id, std::move(cd_hash)));
+
+  return true;
+}
+
 std::vector<base::FilePath> WebAppShortcutCreator::GetAppBundlesByIdUnsorted()
     const {
-  base::scoped_nsobject<NSMutableArray> urls([[NSMutableArray alloc] init]);
-
   // Search using LaunchServices using the default bundle id.
-  const std::string bundle_id = GetBundleIdentifier(
+  const std::string bundle_id = GetBundleIdentifierForShim(
       info_->app_id, IsMultiProfile() ? base::FilePath() : info_->profile_path);
   auto bundle_infos = SearchForBundlesById(bundle_id);
 
@@ -1602,7 +1882,7 @@ std::vector<base::FilePath> WebAppShortcutCreator::GetAppBundlesByIdUnsorted()
   // case the user has an old shim hanging around.
   if (bundle_infos.empty() && IsMultiProfile()) {
     const std::string profile_scoped_bundle_id =
-        GetBundleIdentifier(info_->app_id, info_->profile_path);
+        GetBundleIdentifierForShim(info_->app_id, info_->profile_path);
     bundle_infos = SearchForBundlesById(profile_scoped_bundle_id);
   }
 
@@ -1617,7 +1897,7 @@ std::vector<base::FilePath> WebAppShortcutCreator::GetAppBundlesById() const {
 
   // Sort the matches by preference.
   base::FilePath default_path =
-      GetApplicationsShortcutPath(false /* avoid_conflicts */);
+      GetApplicationsShortcutPath(/*avoid_conflicts=*/false);
 
   base::FilePath apps_dir = GetChromeAppsFolder();
   auto compare = [default_path, apps_dir](const base::FilePath& a,
@@ -1645,7 +1925,7 @@ std::vector<base::FilePath> WebAppShortcutCreator::GetAppBundlesById() const {
 }
 
 std::string WebAppShortcutCreator::GetAppBundleId() const {
-  return GetBundleIdentifier(
+  return GetBundleIdentifierForShim(
       info_->app_id, IsMultiProfile() ? base::FilePath() : info_->profile_path);
 }
 
@@ -1663,7 +1943,7 @@ void WebAppShortcutCreator::RevealAppShimInFinder(
         if (AppShimRevealDisabledForTest()) {
           return;
         }
-        NSURL* path_url = base::mac::FilePathToNSURL(app_path);
+        NSURL* path_url = base::apple::FilePathToNSURL(app_path);
         [[NSWorkspace sharedWorkspace]
             activateFileViewerSelectingURLs:@[ path_url ]];
       },
@@ -1675,6 +1955,7 @@ void WebAppShortcutCreator::RevealAppShimInFinder(
 }
 
 void LaunchShim(LaunchShimUpdateBehavior update_behavior,
+                ShimLaunchMode launch_mode,
                 ShimLaunchedCallback launched_callback,
                 ShimTerminatedCallback terminated_callback,
                 std::unique_ptr<ShortcutInfo> shortcut_info) {
@@ -1686,7 +1967,7 @@ void LaunchShim(LaunchShimUpdateBehavior update_behavior,
   }
 
   internals::PostShortcutIOTask(
-      base::BindOnce(&LaunchShimOnFileThread, update_behavior,
+      base::BindOnce(&LaunchShimOnFileThread, update_behavior, launch_mode,
                      std::move(launched_callback),
                      std::move(terminated_callback)),
       std::move(shortcut_info));
@@ -1695,10 +1976,12 @@ void LaunchShim(LaunchShimUpdateBehavior update_behavior,
 void LaunchShimForTesting(const base::FilePath& shim_path,  // IN-TEST
                           const std::vector<GURL>& urls,
                           ShimLaunchedCallback launched_callback,
-                          ShimTerminatedCallback terminated_callback) {
+                          ShimTerminatedCallback terminated_callback,
+                          const base::FilePath& chromium_path) {
   base::CommandLine command_line = BuildCommandLineForShimLaunch();
   command_line.AppendSwitch(app_mode::kLaunchedForTest);
   command_line.AppendSwitch(app_mode::kIsNormalLaunch);
+  command_line.AppendSwitchPath(app_mode::kLaunchChromeForTest, chromium_path);
   if (mojo::core::IsMojoIpczEnabled()) {
     command_line.AppendSwitchASCII(switches::kEnableFeatures,
                                    mojo::core::kMojoIpcz.name);
@@ -1719,15 +2002,15 @@ void LaunchShimForTesting(const base::FilePath& shim_path,  // IN-TEST
           [](const base::FilePath& shim_path,
              ShimLaunchedCallback launched_callback,
              ShimTerminatedCallback terminated_callback,
-             base::expected<NSRunningApplication*, NSError*> result) {
-            if (!result.has_value()) {
+             NSRunningApplication* app, NSError* error) {
+            if (error) {
               LOG(ERROR) << "Failed to open application with path: "
                          << shim_path;
 
               std::move(launched_callback).Run(base::Process());
               return;
             }
-            RunAppLaunchCallbacks(result.value(), std::move(launched_callback),
+            RunAppLaunchCallbacks(app, std::move(launched_callback),
                                   std::move(terminated_callback));
           },
           shim_path, std::move(launched_callback),
@@ -1737,7 +2020,7 @@ void LaunchShimForTesting(const base::FilePath& shim_path,  // IN-TEST
 void WaitForShimToQuitForTesting(const base::FilePath& shim_path,  // IN-TEST
                                  const std::string& app_id,
                                  bool terminate_shim) {
-  std::string bundle_id = GetBundleIdentifier(app_id);
+  std::string bundle_id = GetBundleIdentifierForShim(app_id);
   NSRunningApplication* matching_app =
       FindRunningApplicationForBundleIdAndPath(bundle_id, shim_path);
   if (!matching_app) {
@@ -1751,8 +2034,8 @@ void WaitForShimToQuitForTesting(const base::FilePath& shim_path,  // IN-TEST
   }
 
   base::RunLoop loop;
-  [[TerminationObserver alloc] initWithRunningApplication:matching_app
-                                                 callback:loop.QuitClosure()];
+  [TerminationObserver startObservingForRunningApplication:matching_app
+                                              withCallback:loop.QuitClosure()];
   loop.Run();
 }
 
@@ -1760,12 +2043,26 @@ void WaitForShimToQuitForTesting(const base::FilePath& shim_path,  // IN-TEST
 void RemoveAppShimFromLoginItems(const std::string& app_id) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
-  const std::string bundle_id = GetBundleIdentifier(app_id);
+  const std::string bundle_id = GetBundleIdentifierForShim(app_id);
   auto bundle_infos = SearchForBundlesById(bundle_id);
   for (const auto& bundle_info : bundle_infos) {
     WebAppAutoLoginUtil::GetInstance()->RemoveFromLoginItems(
         bundle_info.bundle_path());
   }
+}
+
+std::string GetBundleIdentifierForShim(const std::string& app_id,
+                                       const base::FilePath& profile_path) {
+  // Note that this matches APP_MODE_APP_BUNDLE_ID in chrome/chrome.gyp.
+  if (!profile_path.empty()) {
+    // Replace spaces in the profile path with hyphen.
+    std::string normalized_profile_path;
+    base::ReplaceChars(profile_path.BaseName().value(), " ", "-",
+                       &normalized_profile_path);
+    return base::apple::BaseBundleID() + std::string(".app.") +
+           normalized_profile_path + "-" + app_id;
+  }
+  return base::apple::BaseBundleID() + std::string(".app.") + app_id;
 }
 
 namespace internals {
@@ -1818,8 +2115,14 @@ void DeletePlatformShortcuts(const base::FilePath& app_data_path,
   // `GetChromeAppsFolder()`).
   scoped_refptr<OsIntegrationTestOverride> test_override =
       web_app::OsIntegrationTestOverride::Get();
-  const std::string bundle_id =
-      GetBundleIdentifier(shortcut_info.app_id, shortcut_info.profile_path);
+
+  if (test_override) {
+    CHECK_IS_TEST();
+    test_override->RegisterProtocolSchemes(shortcut_info.app_id,
+                                           std::vector<std::string>());
+  }
+  const std::string bundle_id = GetBundleIdentifierForShim(
+      shortcut_info.app_id, shortcut_info.profile_path);
   auto bundle_infos = SearchForBundlesById(bundle_id);
   bool result = true;
   for (const auto& bundle_info : bundle_infos) {
@@ -1841,7 +2144,7 @@ void DeleteMultiProfileShortcutsForApp(const std::string& app_id) {
   // `GetChromeAppsFolder()`).
   scoped_refptr<OsIntegrationTestOverride> test_override =
       web_app::OsIntegrationTestOverride::Get();
-  const std::string bundle_id = GetBundleIdentifier(app_id);
+  const std::string bundle_id = GetBundleIdentifierForShim(app_id);
   auto bundle_infos = SearchForBundlesById(bundle_id);
   for (const auto& bundle_info : bundle_infos) {
     WebAppAutoLoginUtil::GetInstance()->RemoveFromLoginItems(
@@ -1850,9 +2153,11 @@ void DeleteMultiProfileShortcutsForApp(const std::string& app_id) {
   }
 }
 
-Result UpdatePlatformShortcuts(const base::FilePath& app_data_path,
-                               const std::u16string& old_app_title,
-                               const ShortcutInfo& shortcut_info) {
+Result UpdatePlatformShortcuts(
+    const base::FilePath& app_data_path,
+    const std::u16string& old_app_title,
+    absl::optional<ShortcutLocations> user_specified_locations,
+    const ShortcutInfo& shortcut_info) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
   // If this is set, then keeping this as a local variable ensures it is not
@@ -1880,8 +2185,8 @@ void DeleteAllShortcutsForProfile(const base::FilePath& profile_path) {
   // `GetChromeAppsFolder()`).
   scoped_refptr<OsIntegrationTestOverride> test_override =
       web_app::OsIntegrationTestOverride::Get();
-  std::list<BundleInfoPlist> bundles_info = BundleInfoPlist::GetAllInPath(
-      GetChromeAppsFolder(), true /* recursive */);
+  std::list<BundleInfoPlist> bundles_info =
+      BundleInfoPlist::GetAllInPath(GetChromeAppsFolder(), /*recursive=*/true);
   for (const auto& info : bundles_info) {
     if (!info.IsForCurrentUserDataDir()) {
       continue;

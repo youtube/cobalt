@@ -14,16 +14,24 @@ class BookmarkModel;
 
 // Allows the bookmark editor’s view controller to reflect user’s change in the
 // model.
+// TODO(crbug.com/1412479): Change of model should be done through the mutator.
+// Right now they are done through the coordinator, because some utils function
+// deals simultaneously with changing the model and opening a toast.
 @protocol BookmarksEditorMutator <NSObject>
+
+// Save the bookmark being edited.
+- (void)commitBookmarkChangesWithURLString:(NSString*)URL name:(NSString*)name;
+
+// Delete the bookmark being edited. This will also dismiss the editor UI
+// afterwards.
+- (void)deleteBookmark;
 
 // TODO(crbug.com/1404311): Remove those accessor and setters.
 // We temporarily use them to facilitate code migration.
 - (const bookmarks::BookmarkNode*)bookmark;
-- (void)setBookmark:(const bookmarks::BookmarkNode*)bookmark;
 - (bookmarks::BookmarkModel*)bookmarkModel;
 - (const bookmarks::BookmarkNode*)folder;
 - (BOOL)ignoresBookmarkModelChanges;
-- (BOOL*)ignoresBookmarkModelChangesPointer;
 - (BOOL)shouldDisplayCloudSlashSymbolForParentFolder;
 
 @end

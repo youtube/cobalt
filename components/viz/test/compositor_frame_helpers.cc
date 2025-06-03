@@ -183,11 +183,11 @@ RenderPassBuilder& RenderPassBuilder::AddRenderPassQuad(
     const RenderPassQuadParams& params) {
   auto* sqs = AppendDefaultSharedQuadState(rect, visible_rect);
   auto* quad = pass_->CreateAndAppendDrawQuad<CompositorRenderPassDrawQuad>();
-  quad->SetAll(sqs, rect, visible_rect, params.needs_blending, id,
-               kInvalidResourceId, gfx::RectF(), gfx::Size(), gfx::Vector2dF(),
-               gfx::PointF(), gfx::RectF(), params.force_anti_aliasing_off,
-               /*backdrop_filter_quality=*/1.0f,
-               params.intersects_damage_under);
+  quad->SetAll(
+      sqs, rect, visible_rect, params.needs_blending, id, kInvalidResourceId,
+      gfx::RectF(), gfx::Size(), gfx::Vector2dF(1.0f, 1.0f), gfx::PointF(),
+      gfx::RectF(), params.force_anti_aliasing_off,
+      /*backdrop_filter_quality=*/1.0f, params.intersects_damage_under);
 
   return *this;
 }
@@ -210,7 +210,7 @@ RenderPassBuilder& RenderPassBuilder::AddTextureQuad(
                rect.size(), params.premultiplied_alpha, gfx::PointF(0.0f, 0.0f),
                gfx::PointF(1.0f, 1.0f), params.background_color,
                params.vertex_opacity, params.flipped, params.nearest_neighbor,
-               params.secure_output_only, gfx::ProtectedVideoType::kClear);
+               params.secure_output_only, params.protected_video_type);
 
   return *this;
 }
@@ -288,7 +288,8 @@ SharedQuadState* RenderPassBuilder::AppendDefaultSharedQuadState(
   SharedQuadState* sqs = pass_->CreateAndAppendSharedQuadState();
   sqs->SetAll(gfx::Transform(), rect, visible_rect, gfx::MaskFilterInfo(),
               /*clip=*/absl::nullopt, /*contents_opaque=*/false,
-              /*opacity_f=*/1.0f, SkBlendMode::kSrcOver, 0);
+              /*opacity_f=*/1.0f, SkBlendMode::kSrcOver, /*sorting_context=*/0,
+              /*layer_id=*/0u, /*fast_rounded_corner=*/false);
   return sqs;
 }
 

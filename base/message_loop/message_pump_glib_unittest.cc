@@ -141,15 +141,26 @@ class EventInjector {
     return TRUE;
   }
 
+  static void Finalize(GSource* source) {
+    // Since the Source object memory is managed by glib, Source implicit
+    // destructor is never called, and thus Source's raw_ptr never release its
+    // internal reference on the pump pointer. This leads to adding pressure to
+    // the BackupRefPtr quarantine.
+    static_cast<Source*>(source)->injector = nullptr;
+  }
+
   raw_ptr<Source> source_;
   std::vector<Event> events_;
   int processed_events_;
   static GSourceFuncs SourceFuncs;
 };
 
-GSourceFuncs EventInjector::SourceFuncs = {EventInjector::Prepare,
-                                           EventInjector::Check,
-                                           EventInjector::Dispatch, nullptr};
+GSourceFuncs EventInjector::SourceFuncs = {
+    EventInjector::Prepare,
+    EventInjector::Check,
+    EventInjector::Dispatch,
+    EventInjector::Finalize,
+};
 
 void IncrementInt(int *value) {
   ++*value;
@@ -642,6 +653,7 @@ class MessagePumpGLibFdWatchTest : public testing::Test {
   }
 
   int pipefds_[2];
+  static constexpr char null_byte_ = 0;
 
  private:
   Thread io_thread_;
@@ -814,11 +826,10 @@ TEST_F(MessagePumpGLibFdWatchTest, QuitWatcher) {
                             controller, &delegate);
 
   // Make the IO thread wait for |event| before writing to pipefds[1].
-  const char buf = 0;
   WaitableEvent event;
   auto watcher = std::make_unique<WaitableEventWatcher>();
   WaitableEventWatcher::EventCallback write_fd_task =
-      BindOnce(&WriteFDWrapper, pipefds_[1], &buf, 1);
+      BindOnce(&WriteFDWrapper, pipefds_[1], &null_byte_, 1);
   io_runner()->PostTask(
       FROM_HERE, BindOnce(IgnoreResult(&WaitableEventWatcher::StartWatching),
                           Unretained(watcher.get()), &event,

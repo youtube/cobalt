@@ -6,12 +6,9 @@
 #define IOS_CHROME_BROWSER_UI_NTP_NEW_TAB_PAGE_COMPONENT_FACTORY_PROTOCOL_H_
 
 class Browser;
-namespace web {
-class WebState;
-}
-
 @class ContentSuggestionsCoordinator;
 @class DiscoverFeedViewControllerConfiguration;
+@class FeedHeaderViewController;
 @class FeedMetricsRecorder;
 @class FeedWrapperViewController;
 @protocol FeedWrapperViewControllerDelegate;
@@ -36,7 +33,6 @@ typedef NS_ENUM(NSInteger, FollowingFeedSortType);
 
 // Mediator owned by the NewTabPageCoordinator
 - (NewTabPageMediator*)NTPMediatorForBrowser:(Browser*)browser
-                                    webState:(web::WebState*)webState
                     identityDiscImageUpdater:
                         (id<UserAccountImageUpdateDelegate>)imageUpdater;
 
@@ -61,6 +57,11 @@ typedef NS_ENUM(NSInteger, FollowingFeedSortType);
     feedWrapperViewControllerWithDelegate:
         (id<FeedWrapperViewControllerDelegate>)delegate
                        feedViewController:(UIViewController*)feedViewController;
+
+// The header of the feed with the Following feed segment dot visibility as
+// `followingDotVisible`.
+- (FeedHeaderViewController*)feedHeaderViewControllerWithFollowingDotVisible:
+    (BOOL)followingDotVisible;
 
 @end
 

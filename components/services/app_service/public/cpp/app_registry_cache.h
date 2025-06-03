@@ -22,33 +22,36 @@
 
 namespace apps {
 
-// Caches all of the apps::AppPtr. AppServiceProxy sees a stream of "deltas", or
-// changes in app state. This cache also keeps the "sum" of those previous
-// deltas, so that observers of this object are presented with AppUpdate's, i.e.
-// "state-and-delta"s.
+// An in-memory cache of all the metadata about installed apps known to App
+// Service. Can be queried synchronously for information about the current
+// state, and can be observed to receive updates about changes to that app
+// state.
 //
-// It can also be queried synchronously, providing answers from its in-memory
-// cache. Synchronous APIs can be more suitable for e.g. UI programming that
-// should not block an event loop on I/O.
+// AppServiceProxy sees a stream of `apps::AppPtr` "deltas", or changes in app
+// state, received from publishers. This cache stores the "sum" of those
+// previous deltas. When a new delta is received, observers are presented with
+// an `apps:::AppUpdate` containing information about what has changed, and
+// then the new delta is "added" to the stored state.
 //
 // This class is not thread-safe.
 //
 // See components/services/app_service/README.md for more details.
 class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
  public:
+  // Observer for changes to app state in the AppRegistryCache.
   class COMPONENT_EXPORT(APP_UPDATE) Observer : public base::CheckedObserver {
    public:
     Observer(const Observer&) = delete;
     Observer& operator=(const Observer&) = delete;
 
-    // The apps::AppUpdate argument shouldn't be accessed after OnAppUpdate
-    // returns.
+    // Called whenever AppRegistryCache receives an update for any app. `update`
+    // exposes the latest field values and whether they have changed in this
+    // update (as per the docs on `apps::AppUpdate`). The `update` argument
+    // shouldn't be accessed after OnAppUpdate returns.
     virtual void OnAppUpdate(const AppUpdate& update) {}
 
     // Called when the AppRegistryCache first receives a set of apps for
-    // |app_type|. This is usually when a publisher first publishes its apps but
-    // may also happen if the AppRegistryCache gets instantiated after this
-    // event (e.g. after a Lacros restart).
+    // `app_type`. This is called after reading from the AppStorage file.
     // Note that this will not be called for app types initialized prior to this
     // observer being registered. Observers should call
     // AppRegistryCache::InitializedAppTypes() at the time of starting
@@ -56,30 +59,15 @@ class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
     virtual void OnAppTypeInitialized(apps::AppType app_type) {}
 
     // Called when the AppRegistryCache object (the thing that this observer
-    // observes) will be destroyed. In response, the observer, |this|, should
+    // observes) will be destroyed. In response, the observer, `this`, should
     // call "cache->RemoveObserver(this)", whether directly or indirectly (e.g.
-    // via base::ScopedObservation::Remove or via Observe(nullptr)).
+    // via base::ScopedObservation::Reset).
     virtual void OnAppRegistryCacheWillBeDestroyed(AppRegistryCache* cache) = 0;
 
    protected:
-    // Use this constructor when the observer |this| is tied to a single
-    // AppRegistryCache for its entire lifetime, or until the observee (the
-    // AppRegistryCache) is destroyed, whichever comes first.
-    explicit Observer(AppRegistryCache* cache);
-
-    // Use this constructor when the observer |this| wants to observe a
-    // AppRegistryCache for part of its lifetime. It can then call Observe() to
-    // start and stop observing.
     Observer();
 
     ~Observer() override;
-
-    // Start observing a different AppRegistryCache. |cache| may be nullptr,
-    // meaning to stop observing.
-    void Observe(AppRegistryCache* cache);
-
-   private:
-    raw_ptr<AppRegistryCache> cache_ = nullptr;
   };
 
   AppRegistryCache();
@@ -89,30 +77,9 @@ class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
 
   ~AppRegistryCache();
 
+  // Prefer using a base::ScopedObservation for idiomatic observer behavior.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
-
-  // Notifies all observers of state-and-delta AppUpdate's (the state comes
-  // from the internal cache, the delta comes from the argument) and then
-  // merges the cached states with the deltas.
-  //
-  // Notification and merging might be delayed until after OnApps returns. For
-  // example, suppose that the initial set of states is (a0, b0, c0) for three
-  // app_id's ("a", "b", "c"). Now suppose OnApps is called with two updates
-  // (b1, c1), and when notified of b1, an observer calls OnApps again with
-  // (c2, d2). The c1 delta should be processed before the c2 delta, as it was
-  // sent first: c2 should be merged (with "newest wins" semantics) onto c1 and
-  // not vice versa. This means that processing c2 (scheduled by the second
-  // OnApps call) should wait until the first OnApps call has finished
-  // processing b1 (and then c1), which means that processing c2 is delayed
-  // until after the second OnApps call returns.
-  //
-  // The callee will consume the deltas. An apps::AppPtr has the ownership
-  // semantics of a unique_ptr, and will be deleted when out of scope. The
-  // caller presumably calls OnApps(std::move(deltas)).
-  void OnApps(std::vector<AppPtr> deltas,
-              apps::AppType app_type,
-              bool should_notify_initialized);
 
   AppType GetAppType(const std::string& app_id);
 
@@ -133,7 +100,7 @@ class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
   // f must be synchronous, and if it asynchronously calls ForEachApp again,
   // it's not guaranteed to see a consistent state.
   template <typename FunctionType>
-  void ForEachApp(FunctionType f) {
+  void ForEachApp(FunctionType f) const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
 
     for (const auto& s_iter : states_) {
@@ -166,7 +133,7 @@ class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
   // f must be synchronous, and if it asynchronously calls ForOneApp again,
   // it's not guaranteed to see a consistent state.
   template <typename FunctionType>
-  bool ForOneApp(const std::string& app_id, FunctionType f) {
+  bool ForOneApp(const std::string& app_id, FunctionType f) const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(my_sequence_checker_);
 
     auto s_iter = states_.find(app_id);
@@ -189,12 +156,54 @@ class COMPONENT_EXPORT(APP_UPDATE) AppRegistryCache {
 
   bool IsAppTypeInitialized(AppType app_type) const;
 
+  // Returns true if the cache contains an app with id `app_id` whose
+  // `Readiness()` corresponds to an installed state.
+  bool IsAppInstalled(const std::string& app_id) const;
+
   // Clears all apps from the cache.
   void ReinitializeForTesting();
 
+  // Please use AppServiceProxy::OnApps if possible. This method is used to
+  // tests without Profile, e.g. unittests.
+  void OnAppsForTesting(std::vector<AppPtr> deltas,
+                        apps::AppType app_type,
+                        bool should_notify_initialized);
+
  private:
   friend class AppRegistryCacheTest;
+  friend class AppRegistryCacheWrapperTest;
   friend class PublisherTest;
+  friend class AppStorage;
+  friend class FakeAppStorage;
+  friend class AppStorageTest;
+  friend class AppServiceProxyAsh;
+  friend class AppServiceProxyBase;
+  friend class AppServiceProxyLacros;
+
+  // Notifies all observers of state-and-delta AppUpdate's (the state comes
+  // from the internal cache, the delta comes from the argument) and then
+  // merges the cached states with the deltas.
+  //
+  // Notification and merging might be delayed until after OnApps returns. For
+  // example, suppose that the initial set of states is (a0, b0, c0) for three
+  // app_id's ("a", "b", "c"). Now suppose OnApps is called with two updates
+  // (b1, c1), and when notified of b1, an observer calls OnApps again with
+  // (c2, d2). The c1 delta should be processed before the c2 delta, as it was
+  // sent first: c2 should be merged (with "newest wins" semantics) onto c1 and
+  // not vice versa. This means that processing c2 (scheduled by the second
+  // OnApps call) should wait until the first OnApps call has finished
+  // processing b1 (and then c1), which means that processing c2 is delayed
+  // until after the second OnApps call returns.
+  //
+  // The callee will consume the deltas. An apps::AppPtr has the ownership
+  // semantics of a unique_ptr, and will be deleted when out of scope. The
+  // caller presumably calls OnApps(std::move(deltas)).
+  //
+  // Please use AppServiceProxy::OnApps if possible. For tests without Profile,
+  // e.g. unittests, please use OnAppsForTesting.
+  void OnApps(std::vector<AppPtr> deltas,
+              apps::AppType app_type,
+              bool should_notify_initialized);
 
   void DoOnApps(std::vector<AppPtr> deltas);
 

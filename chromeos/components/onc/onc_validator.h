@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
@@ -186,6 +187,7 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
 
   bool ValidateToplevelConfiguration(base::Value::Dict* result);
   bool ValidateNetworkConfiguration(base::Value::Dict* result);
+  bool ValidateCellular(base::Value::Dict* result);
   bool ValidateEthernet(base::Value::Dict* result);
   bool ValidateIPConfig(base::Value::Dict* result, bool require_fields = true);
   bool ValidateNameServersConfig(base::Value::Dict* result);
@@ -217,8 +219,7 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
   bool IsValidValue(const std::string& field_value,
                     const std::vector<const char*>& valid_values);
 
-  bool IsInDevicePolicy(base::Value::Dict* result,
-                        const std::string& field_name);
+  bool IsInDevicePolicy(base::Value::Dict* result, std::string_view field_name);
 
   bool FieldExistsAndHasNoValidValue(
       const base::Value::Dict& object,

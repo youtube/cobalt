@@ -103,7 +103,7 @@ class CONTENT_EXPORT Portal : public blink::mojom::Portal,
   void CloseContents(WebContents*) override;
   void NavigationStateChanged(WebContents* source,
                               InvalidateTypes changed_flags) override;
-  bool ShouldFocusPageAfterCrash() override;
+  bool ShouldFocusPageAfterCrash(WebContents* source) override;
   void CanDownload(const GURL& url,
                    const std::string& request_method,
                    base::OnceCallback<void(bool)> callback) override;
@@ -176,6 +176,9 @@ class CONTENT_EXPORT Portal : public blink::mojom::Portal,
     // caller.
     std::unique_ptr<WebContents> ReleaseOwnership() {
       DCHECK(OwnsContents());
+      if (owned_contents_) {
+        owned_contents_->SetOwnerLocationForDebug(absl::nullopt);
+      }
       return std::move(owned_contents_);
     }
 

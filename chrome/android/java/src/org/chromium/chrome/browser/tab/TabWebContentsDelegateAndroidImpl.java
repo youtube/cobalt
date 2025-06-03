@@ -9,16 +9,16 @@ import android.graphics.RectF;
 import android.os.Handler;
 import android.view.KeyEvent;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ObserverList.RewindableIterator;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chrome.browser.AppHooks;
 import org.chromium.chrome.browser.app.bluetooth.BluetoothNotificationService;
 import org.chromium.chrome.browser.app.usb.UsbNotificationService;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bluetooth.BluetoothNotificationManager;
 import org.chromium.chrome.browser.media.MediaCaptureNotificationServiceImpl;
 import org.chromium.chrome.browser.policy.PolicyAuditor;
@@ -181,6 +181,10 @@ final class TabWebContentsDelegateAndroidImpl extends TabWebContentsDelegateAndr
 
     @Override
     public void navigationStateChanged(int flags) {
+        if (BackPressManager.isEnabled()) {
+            RewindableIterator<TabObserver> observers = mTab.getTabObservers();
+            while (observers.hasNext()) observers.next().onNavigationStateChanged();
+        }
         if ((flags & InvalidateTypes.TAB) != 0) {
             MediaCaptureNotificationServiceImpl.updateMediaNotificationForTab(
                     ContextUtils.getApplicationContext(), mTab.getId(), mTab.getWebContents(),
@@ -390,10 +394,14 @@ final class TabWebContentsDelegateAndroidImpl extends TabWebContentsDelegateAndr
         return mDelegate.getVirtualKeyboardHeight();
     }
 
-    @VisibleForTesting
     void showFramebustBlockInfobarForTesting(String url) {
         TabWebContentsDelegateAndroidImplJni.get().showFramebustBlockInfoBar(
                 mTab.getWebContents(), url);
+    }
+
+    @Override
+    public void didChangeCloseSignalInterceptStatus() {
+        mTab.didChangeCloseSignalInterceptStatus();
     }
 
     @NativeMethods

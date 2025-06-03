@@ -4,6 +4,7 @@
 
 #include "RawPtrHelpers.h"
 
+#include "StackAllocatedChecker.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -79,8 +80,7 @@ void FilterFile::ParseInputFile(const std::string& filepath,
   }
 }
 
-clang::ast_matchers::internal::Matcher<clang::FieldDecl>
-ImplicitFieldDeclaration() {
+clang::ast_matchers::internal::Matcher<clang::Decl> ImplicitFieldDeclaration() {
   auto implicit_class_specialization_matcher =
       classTemplateSpecializationDecl(isImplicitClassTemplateSpecialization());
   auto implicit_function_specialization_matcher =
@@ -93,8 +93,15 @@ ImplicitFieldDeclaration() {
   return implicit_field_decl_matcher;
 }
 
+clang::ast_matchers::internal::Matcher<clang::QualType> StackAllocatedQualType(
+    const chrome_checker::StackAllocatedPredicate* checker) {
+  return qualType(recordType(hasDeclaration(
+                      cxxRecordDecl(isStackAllocated(*checker)))))
+      .bind("pointeeQualType");
+}
+
 // These represent the common conditions to skip the rewrite for reference and
-// pointer fields. This includes fields that are:
+// pointer decls. This includes decls that are:
 // - listed in the --exclude-fields cmdline param or located in paths
 //   matched by --exclude-paths cmdline param
 // - "implicit" (i.e. field decls that are not explicitly present in
@@ -103,32 +110,68 @@ ImplicitFieldDeclaration() {
 // RAW_PTR_EXCLUSION
 // - located under third_party/ except under third_party/blink as Blink
 // is part of chromium git repo.
-auto PtrAndRefExclusions(const FilterFile* paths_to_exclude,
-                         const FilterFile* fields_to_exclude) {
-  return anyOf(isExpansionInSystemHeader(), isInExternCContext(),
-               isRawPtrExclusionAnnotated(), isInThirdPartyLocation(),
-               isInGeneratedLocation(),
-               isInLocationListedInFilterFile(paths_to_exclude),
-               isFieldDeclListedInFilterFile(fields_to_exclude),
-               ImplicitFieldDeclaration());
+//
+// Additionally, if |options.should_exclude_stack_allocated_records|,
+// - Pointer pointing to a STACK_ALLOCATED() object.
+// - Pointer that are a member of STACK_ALLOCATED() object.
+//    struct Foo {
+//      STACK_ALLOCATED();
+//      int*         ptr2; // isDeclaredInStackAllocated(...)
+//    }
+//    struct Bar {
+//      Foo*         ptr2; // hasDescendant(StackAllocatedQualType(...))
+//    }
+clang::ast_matchers::internal::Matcher<clang::NamedDecl> PtrAndRefExclusions(
+    const RawPtrAndRefExclusionsOptions& options) {
+  if (!options.should_exclude_stack_allocated_records) {
+    return anyOf(isSpellingInSystemHeader(), isInExternCContext(),
+                 isRawPtrExclusionAnnotated(), isInThirdPartyLocation(),
+                 isInGeneratedLocation(), isNotSpelledInSource(),
+                 isInLocationListedInFilterFile(options.paths_to_exclude),
+                 isFieldDeclListedInFilterFile(options.fields_to_exclude),
+                 ImplicitFieldDeclaration(), isObjCSynthesize());
+  } else {
+    return anyOf(
+        isSpellingInSystemHeader(), isInExternCContext(),
+        isRawPtrExclusionAnnotated(), isInThirdPartyLocation(),
+        isInGeneratedLocation(), isNotSpelledInSource(),
+        isInLocationListedInFilterFile(options.paths_to_exclude),
+        isFieldDeclListedInFilterFile(options.fields_to_exclude),
+        ImplicitFieldDeclaration(), isObjCSynthesize(),
+        hasDescendant(
+            StackAllocatedQualType(options.stack_allocated_predicate)),
+        isDeclaredInStackAllocated(*options.stack_allocated_predicate));
+  }
 }
 
+// These represent the common conditions to skip the check on existing
+// |raw_ptr<T>| and |raw_ref<T>|. This includes decls that are:
+// - located in system headers.
+// - located under third_party/ except under third_party/blink as Blink
+// is part of chromium git repo.
+clang::ast_matchers::internal::Matcher<clang::TypeLoc>
+PtrAndRefTypeLocExclusions() {
+  return anyOf(isSpellingInSystemHeader(), isInThirdPartyLocation());
+}
+
+static const auto unsupported_pointee_types =
+    pointee(hasUnqualifiedDesugaredType(
+        anyOf(functionType(), memberPointerType(), arrayType())));
+
 clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawPtrFieldDecl(
-    const FilterFile* paths_to_exclude,
-    const FilterFile* fields_to_exclude) {
+    const RawPtrAndRefExclusionsOptions& options) {
   // Supported pointer types =========
   // Given
-  //   struct MyStrict {
+  //   struct MyStruct {
   //     int* int_ptr;
   //     int i;
   //     int (*func_ptr)();
   //     int (MyStruct::* member_func_ptr)(char);
-  //     int (*ptr_to_array_of_ints)[123]
+  //     int (*ptr_to_array_of_ints)[123];
   //   };
   // matches |int*|, but not the other types.
   auto supported_pointer_types_matcher =
-      pointerType(unless(pointee(hasUnqualifiedDesugaredType(
-          anyOf(functionType(), memberPointerType(), arrayType())))));
+      pointerType(unless(unsupported_pointee_types));
 
   // TODO(crbug.com/1381955): Skipping const char pointers as it likely points
   // to string literals where raw_ptr isn't necessary. Remove when we have
@@ -137,21 +180,28 @@ clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawPtrFieldDecl(
       fieldDecl(hasType(pointerType(pointee(qualType(allOf(
           isConstQualified(), hasUnqualifiedDesugaredType(anyCharType())))))));
 
-  // TODO(keishi): Skip field declarations in scratch space for now as we can't
-  // tell the correct file path.
-  auto field_decl_matcher =
-      fieldDecl(
-          allOf(hasType(supported_pointer_types_matcher),
-                unless(anyOf(
-                    const_char_pointer_matcher, isInScratchSpace(),
-                    PtrAndRefExclusions(paths_to_exclude, fields_to_exclude)))))
-          .bind("affectedFieldDecl");
-  return field_decl_matcher;
+    auto field_decl_matcher =
+        fieldDecl(allOf(hasType(supported_pointer_types_matcher),
+                        unless(anyOf(const_char_pointer_matcher,
+                                     PtrAndRefExclusions(options)))))
+            .bind("affectedFieldDecl");
+    return field_decl_matcher;
 }
 
 clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawRefFieldDecl(
-    const FilterFile* paths_to_exclude,
-    const FilterFile* fields_to_exclude) {
+    const RawPtrAndRefExclusionsOptions& options) {
+  // Supported reference types =========
+  // Given
+  //   struct MyStruct {
+  //     int& int_ref;
+  //     int i;
+  //     int (&func_ref)();
+  //     int (&ref_to_array_of_ints)[123];
+  //   };
+  // matches |int&|, but not the other types.
+  auto supported_ref_types_matcher =
+      referenceType(unless(unsupported_pointee_types));
+
   // Field declarations =========
   // Given
   //   struct S {
@@ -162,11 +212,170 @@ clang::ast_matchers::internal::Matcher<clang::Decl> AffectedRawRefFieldDecl(
   // - fields matching criteria elaborated in PtrAndRefExclusions
   auto field_decl_matcher =
       fieldDecl(allOf(has(referenceTypeLoc().bind("affectedFieldDeclType")),
-                      unless(PtrAndRefExclusions(paths_to_exclude,
-                                                 fields_to_exclude))))
+                      hasType(supported_ref_types_matcher),
+                      unless(PtrAndRefExclusions(options))))
           .bind("affectedFieldDecl");
 
   return field_decl_matcher;
+}
+
+clang::ast_matchers::internal::Matcher<clang::TypeLoc>
+RawPtrToStackAllocatedTypeLoc(
+    const chrome_checker::StackAllocatedPredicate* predicate) {
+  // Given
+  //   class StackAllocatedType { STACK_ALLOCATED(); };
+  //   class StackAllocatedSubType : public StackAllocatedType {};
+  //   class NonStackAllocatedType {};
+  //
+  //   struct MyStruct {
+  //     raw_ptr<StackAllocatedType> a;
+  //     raw_ptr<StackAllocatedSubType> b;
+  //     raw_ptr<NonStackAllocatedType> c;
+  //     raw_ptr<some_container<StackAllocatedType>> d;
+  //     raw_ptr<some_container<StackAllocatedSubType>> e;
+  //     raw_ptr<some_container<NonStackAllocatedType>> f;
+  //     some_container<raw_ptr<StackAllocatedType>> g;
+  //     some_container<raw_ptr<StackAllocatedSubType>> h;
+  //     some_container<raw_ptr<NonStackAllocatedType>> i;
+  //   };
+  // matches fields a,b,d,e,g,h, and not c,f,i.
+  // Similarly, given
+  //   void my_func() {
+  //     raw_ptr<StackAllocatedType> a;
+  //     raw_ptr<StackAllocatedSubType> b;
+  //     raw_ptr<NonStackAllocatedType> c;
+  //     raw_ptr<some_container<StackAllocatedType>> d;
+  //     raw_ptr<some_container<StackAllocatedSubType>> e;
+  //     raw_ptr<some_container<NonStackAllocatedType>> f;
+  //     some_container<raw_ptr<StackAllocatedType>> g;
+  //     some_container<raw_ptr<StackAllocatedSubType>> h;
+  //     some_container<raw_ptr<NonStackAllocatedType>> i;
+  //   }
+  // matches variables a,b,d,e,g,h, and not c,f,i.
+
+  // Matches records |raw_ptr| or |raw_ref|.
+  auto pointer_record =
+      cxxRecordDecl(hasAnyName("base::raw_ptr", "base::raw_ref"))
+          .bind("pointerRecordDecl");
+
+  // Matches qual types having a record with |isStackAllocated| = true.
+  auto pointee_type =
+      qualType(StackAllocatedQualType(predicate)).bind("pointeeQualType");
+
+  // Matches type locs like |raw_ptr<StackAllocatedType>| or
+  // |raw_ref<StackAllocatedType>|.
+  auto stack_allocated_rawptr_type_loc =
+      templateSpecializationTypeLoc(
+          allOf(unless(PtrAndRefTypeLocExclusions()),
+                loc(templateSpecializationType(hasDeclaration(
+                    allOf(pointer_record,
+                          classTemplateSpecializationDecl(hasTemplateArgument(
+                              0, refersToType(pointee_type)))))))))
+          .bind("stackAllocatedRawPtrTypeLoc");
+  return stack_allocated_rawptr_type_loc;
+}
+
+clang::ast_matchers::internal::Matcher<clang::Stmt> BadRawPtrCastExpr(
+    const CastingUnsafePredicate& casting_unsafe_predicate,
+    const FilterFile& exclude_files,
+    const FilterFile& exclude_functions) {
+  // Matches anything contains |raw_ptr<T>| / |raw_ref<T>|.
+  auto src_type =
+      type(isCastingUnsafe(casting_unsafe_predicate)).bind("srcType");
+  auto dst_type =
+      type(isCastingUnsafe(casting_unsafe_predicate)).bind("dstType");
+  // Matches |static_cast| on pointers, all |bit_cast|
+  // and all |reinterpret_cast|.
+  auto cast_kind = castExpr(anyOf(hasCastKind(clang::CK_BitCast),
+                                  hasCastKind(clang::CK_LValueBitCast),
+                                  hasCastKind(clang::CK_LValueToRValueBitCast),
+                                  hasCastKind(clang::CK_PointerToIntegral),
+                                  hasCastKind(clang::CK_IntegralToPointer)));
+
+  // Matches implicit casts happening in invocation inside template context.
+  //   void f(int v);
+  //   void f(void* p);
+  //   template <typename T>
+  //   void call_f(T t) { f(t); }
+  //                        ^ implicit cast here if |T| = |int*|
+  // We exclude this cast from check because we cannot apply
+  // |base::unsafe_raw_ptr_*_cast<void*>(t)| here.
+  auto in_template_invocation_ctx = implicitCastExpr(
+      allOf(isInTemplateInstantiation(), hasParent(invocation())));
+
+  // Matches implicit casts happening in comparison.
+  //   int* x;
+  //   void* y;
+  //   if (x < y) f();
+  //       ^~~~~ |x| is implicit casted into |void*| here
+  // This cast is guaranteed to be safe because it cannot break ref count.
+  auto in_comparison_ctx =
+      implicitCastExpr(hasParent(binaryOperator(isComparisonOperator())));
+
+  // Matches implicit casts happening in invocation to allow-listed
+  // declarations.
+  auto in_allowlisted_invocation_ctx =
+      implicitCastExpr(hasParent(invocation(hasDeclaration(
+          namedDecl(isFieldDeclListedInFilterFile(&exclude_functions))))));
+
+  // Matches casts to const pointer types pointing to built-in types.
+  // e.g. matches |const char*| and |const void*| but neither |const int**| nor
+  // |int* const*|.
+  // They are safe as long as const qualifier is kept because const means we
+  // shouldn't be writing to the memory and won't mutate the value in a way that
+  // causes BRP's refcount inconsistency.
+  auto const_builtin_pointer_type =
+      type(hasUnqualifiedDesugaredType(pointerType(
+          pointee(qualType(allOf(isConstQualified(), builtinType()))))));
+  auto cast_expr_to_const_pointer = anyOf(
+      implicitCastExpr(hasImplicitDestinationType(const_builtin_pointer_type)),
+      explicitCastExpr(hasDestinationType(const_builtin_pointer_type)));
+
+  // Unsafe castings are allowed if:
+  // - In locations developers have no control
+  //   - In system headers
+  //   - In third party libraries
+  //   - In non-source locations (e.g. <scratch space>)
+  //   - In separate repository locations (e.g. //internal)
+  // - In locations that are likely to be safe
+  //   - In pointer comparison context
+  //   - In allowlisted function/constructor invocations
+  //   - To const-qualified void/char pointers
+  // - In cases that the cast is indispensable and developers can guarantee it
+  //   will not break BRP's refcount
+  //   - In |base::unsafe_raw_ptr_static_cast<T>(...)|
+  //   - In |base::unsafe_raw_ptr_reinterpret_cast<T>(...)|
+  //   - In |base::unsafe_raw_ptr_bit_cast<T>(...)|
+  // - In cases that the cast is indispensable but developers cannot use the
+  //   cast exclusion listed above
+  //   - Implicit casts inside template context as there can be multiple
+  //     destination types depending on how template is instantiated
+  auto exclusions =
+      anyOf(isSpellingInSystemHeader(), isInThirdPartyLocation(),
+            isNotSpelledInSource(),
+            isInLocationListedInFilterFile(&exclude_files), in_comparison_ctx,
+            in_allowlisted_invocation_ctx, cast_expr_to_const_pointer,
+            isInRawPtrCastHeader(), in_template_invocation_ctx);
+
+  // To correctly display the error location, bind enclosing castExpr if
+  // available.
+  auto enclosingCastExpr = hasEnclosingExplicitCastExpr(
+      explicitCastExpr().bind("enclosingCastExpr"));
+
+  // Implicit/explicit casting from/to |raw_ptr<T>| matches.
+  // Both casting direction is unsafe.
+  //   https://godbolt.org/z/zqKMzcKfo
+  // |__bit/bit_cast.h| header is configured to bypass exclusions to perform
+  // checking on |std::bit_cast<T>|.
+  auto cast_matcher =
+      castExpr(
+          allOf(anyOf(hasSourceExpression(hasType(src_type)),
+                      implicitCastExpr(hasImplicitDestinationType(dst_type)),
+                      explicitCastExpr(hasDestinationType(dst_type))),
+                cast_kind, optionally(enclosingCastExpr),
+                anyOf(isInStdBitCastHeader(), unless(exclusions))))
+          .bind("castExpr");
+  return cast_matcher;
 }
 
 // If |field_decl| declares a field in an implicit template specialization, then

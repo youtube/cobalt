@@ -52,8 +52,9 @@ bool IsProhibitedByPolicy(Profile* profile) {
 }
 
 bool IsLoggedInAsPrimaryUser(Profile* profile) {
-  // Guest/incognito profiles cannot use Phone Hub.
-  if (profile->IsOffTheRecord()) {
+  // Guest/incognito/signin profiles cannot use Phone Hub.
+  if (ash::ProfileHelper::IsSigninProfile(profile) ||
+      profile->IsOffTheRecord()) {
     return false;
   }
 
@@ -76,7 +77,8 @@ PhoneHubManager* PhoneHubManagerFactory::GetForProfile(Profile* profile) {
 
 // static
 PhoneHubManagerFactory* PhoneHubManagerFactory::GetInstance() {
-  return base::Singleton<PhoneHubManagerFactory>::get();
+  static base::NoDestructor<PhoneHubManagerFactory> instance;
+  return instance.get();
 }
 
 PhoneHubManagerFactory::PhoneHubManagerFactory()

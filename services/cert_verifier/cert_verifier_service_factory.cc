@@ -14,6 +14,7 @@
 #include "base/task/thread_pool.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -78,9 +79,9 @@ internal::CertVerifierServiceImpl* GetNewCertVerifierImpl(
 }
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-std::string GetName(std::shared_ptr<const net::ParsedCertificate> cert) {
+std::string GetName(const net::ParsedCertificate& cert) {
   net::RDNSequence subject_rdn;
-  if (!net::ParseName(cert->subject_tlv(), &subject_rdn)) {
+  if (!net::ParseName(cert.subject_tlv(), &subject_rdn)) {
     return "UNKNOWN";
   }
   std::string subject_string;
@@ -90,9 +91,9 @@ std::string GetName(std::shared_ptr<const net::ParsedCertificate> cert) {
   return subject_string;
 }
 
-std::string GetHash(std::shared_ptr<const net::ParsedCertificate> cert) {
+std::string GetHash(const net::ParsedCertificate& cert) {
   net::SHA256HashValue hash =
-      net::X509Certificate::CalculateFingerprint256(cert->cert_buffer());
+      net::X509Certificate::CalculateFingerprint256(cert.cert_buffer());
   return base::HexEncode(hash.data, std::size(hash.data));
 }
 #endif
@@ -146,6 +147,14 @@ void CertVerifierServiceFactoryImpl::GetNewCertVerifierForTesting(
 void CertVerifierServiceFactoryImpl::UpdateCRLSet(
     mojo_base::BigBuffer crl_set,
     mojom::CertVerifierServiceFactory::UpdateCRLSetCallback callback) {
+  // Posting to thread pool might fail if the browser is in shutdown. Wrap the
+  // callback so that it will be invoked anyway to avoid violating Mojo
+  // expectations. This is a little misleading since the CRLSet was not
+  // actually updated, but if the browser is shutting down then it doesn't
+  // really matter. (If it actually mattered the callback could get passed a
+  // boolean success value or something.)
+  callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback));
+
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT},
       base::BindOnce(&ParseCRLSet, std::move(crl_set)),
@@ -225,13 +234,13 @@ void CertVerifierServiceFactoryImpl::GetChromeRootStoreInfo(
     info_ptr->version = proc_params_.root_store_data->version();
     for (auto cert : proc_params_.root_store_data->anchors()) {
       info_ptr->root_cert_info.push_back(
-          mojom::ChromeRootCertInfo::New(GetName(cert), GetHash(cert)));
+          mojom::ChromeRootCertInfo::New(GetName(*cert), GetHash(*cert)));
     }
   } else {
     info_ptr->version = net::CompiledChromeRootStoreVersion();
     for (auto cert : net::CompiledChromeRootStoreAnchors()) {
       info_ptr->root_cert_info.push_back(
-          mojom::ChromeRootCertInfo::New(GetName(cert), GetHash(cert)));
+          mojom::ChromeRootCertInfo::New(GetName(*cert), GetHash(*cert)));
     }
   }
   std::move(callback).Run(std::move(info_ptr));

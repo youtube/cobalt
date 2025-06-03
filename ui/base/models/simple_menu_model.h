@@ -47,6 +47,10 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
     // in-product help.
     virtual bool IsCommandIdAlerted(int command_id) const;
 
+    // Determines if |element_id| should be rendered with an alert for
+    // in-product help.
+    virtual bool IsElementIdAlerted(ui::ElementIdentifier element_id) const;
+
     // Some command ids have labels and icons that change over time.
     virtual bool IsItemForCommandIdDynamic(int command_id) const;
     virtual std::u16string GetLabelForCommandId(int command_id) const;
@@ -100,6 +104,7 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
                                   const std::u16string& label,
                                   const ui::ImageModel& icon);
   void AddTitle(const std::u16string& label);
+  void AddTitleWithStringId(int string_id);
 
   // Adds a separator of the specified type to the model.
   // - Adding a separator after another separator is always invalid if they
@@ -134,7 +139,6 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
   // Methods for inserting items into the model.
   void InsertItemAt(size_t index, int command_id, const std::u16string& label);
   void InsertItemWithStringIdAt(size_t index, int command_id, int string_id);
-  void InsertSeparatorAt(size_t index, MenuSeparatorType separator_type);
   void InsertCheckItemAt(size_t index,
                          int command_id,
                          const std::u16string& label);
@@ -149,6 +153,8 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
                                      int command_id,
                                      int string_id,
                                      int group_id);
+  void InsertTitleWithStringIdAt(size_t index, int string_id);
+  void InsertSeparatorAt(size_t index, MenuSeparatorType separator_type);
   void InsertSubMenuAt(size_t index,
                        int command_id,
                        const std::u16string& label,
@@ -200,7 +206,6 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
   absl::optional<size_t> GetIndexOfCommandId(int command_id) const;
 
   // Overridden from MenuModel:
-  bool HasIcons() const override;
   size_t GetItemCount() const override;
   ItemType GetTypeAt(size_t index) const override;
   ui::MenuSeparatorType GetSeparatorTypeAt(size_t index) const override;
@@ -229,7 +234,6 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
   void MenuWillClose() override;
 
  protected:
-  void set_delegate(Delegate* delegate) { delegate_ = delegate; }
   Delegate* delegate() { return delegate_; }
 
   // One or more of the menu menu items associated with the model has changed.
@@ -276,7 +280,7 @@ class COMPONENT_EXPORT(UI_BASE) SimpleMenuModel : public MenuModel {
 
   ItemVector items_;
 
-  raw_ptr<Delegate, DanglingUntriaged> delegate_;
+  raw_ptr<Delegate, AcrossTasksDanglingUntriaged> delegate_;
 
   base::WeakPtrFactory<SimpleMenuModel> method_factory_{this};
 };

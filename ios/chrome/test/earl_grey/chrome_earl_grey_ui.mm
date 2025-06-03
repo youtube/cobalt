@@ -12,13 +12,10 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
+#import "ios/chrome/test/earl_grey/scoped_disable_timer_tracking.h"
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Redefine EarlGrey macro to use line number and file name taken from the place
 // of ChromeEarlGreyUI macro instantiation, rather than local line number
@@ -88,30 +85,6 @@ bool IsAppCompactWidth() {
 
   return sizeClass == UIUserInterfaceSizeClassCompact;
 }
-
-// Helper class to disable EarlGrey's NSTimer tracking.
-// TODO(crbug.com/1101608): This is a workaround that should be removed once a
-// proper fix lands in EarlGrey.
-class ScopedDisableTimerTracking {
- public:
-  ScopedDisableTimerTracking() {
-    original_interval_ =
-        GREY_CONFIG_DOUBLE(kGREYConfigKeyNSTimerMaxTrackableInterval);
-    [[GREYConfiguration sharedConfiguration]
-            setValue:@0
-        forConfigKey:kGREYConfigKeyNSTimerMaxTrackableInterval];
-  }
-
-  ~ScopedDisableTimerTracking() {
-    [[GREYConfiguration sharedConfiguration]
-            setValue:[NSNumber numberWithDouble:original_interval_]
-        forConfigKey:kGREYConfigKeyNSTimerMaxTrackableInterval];
-  }
-
- private:
-  // The original NSTimer max trackable interval.
-  double original_interval_;
-};
 
 // Maximum number of times `typeTextInOmnibox:andPressEnter:` will attempt to
 // type the given text in the Omnibox. If it still cannot be typed properly
@@ -370,7 +343,7 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 
   if (text.length) {
     [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-        performAction:grey_typeText(text)];
+        performAction:grey_replaceText(text)];
   }
 }
 
@@ -491,6 +464,8 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 - (void)selectAllBrowsingDataAndClear {
   // Check "Saved Passwords" and "Autofill Data" which are unchecked by
   // default.
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:ClearSavedPasswordsButton()];
   [[EarlGrey selectElementWithMatcher:ClearSavedPasswordsButton()]
       performAction:grey_tap()];
   [[[EarlGrey
@@ -526,6 +501,8 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
   [self waitForAppToIdle];
 
   // Recheck "Saved Passwords" and "Autofill Data".
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:ClearSavedPasswordsButton()];
   [[EarlGrey selectElementWithMatcher:ClearSavedPasswordsButton()]
       performAction:grey_tap()];
   [[[EarlGrey
@@ -568,7 +545,7 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 
     // Type the text.
     [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-        performAction:grey_typeText(base::SysUTF8ToNSString(text))];
+        performAction:grey_replaceText(base::SysUTF8ToNSString(text))];
     numberOfAttemptsPerformed++;
 
     // Check that the omnibox contains the typed text.
@@ -595,8 +572,9 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 
   if (textHasBeenTypedProperly && shouldPressEnter) {
     // Press enter to navigate.
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-        performAction:grey_typeText(@"\n")];
+    // TODO(crbug.com/1454516): Use simulatePhysicalKeyboardEvent until
+    // replaceText can properly handle \n.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\n" flags:0];
   }
 
   // Assert the text has been typed properly.

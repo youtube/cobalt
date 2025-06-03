@@ -6,7 +6,6 @@
 
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/download/ar_quick_look_tab_helper.h"
 #import "ios/chrome/browser/download/download_manager_metric_names.h"
 #import "ios/chrome/browser/download/download_manager_tab_helper.h"
@@ -15,15 +14,12 @@
 #import "ios/chrome/browser/download/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/download/safari_download_tab_helper.h"
 #import "ios/chrome/browser/download/vcard_tab_helper.h"
-#import "ios/chrome/browser/prerender/prerender_service.h"
-#import "ios/chrome/browser/prerender/prerender_service_factory.h"
+#import "ios/chrome/browser/prerender/model/prerender_service.h"
+#import "ios/chrome/browser/prerender/model/prerender_service_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/ui/download/features.h"
 #import "ios/web/public/download/download_controller.h"
 #import "ios/web/public/download/download_task.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 BrowserDownloadService::BrowserDownloadService(
     web::DownloadController* download_controller)
@@ -59,7 +55,9 @@ void BrowserDownloadService::OnDownloadCreated(
                                 DownloadFileUI::DownloadFilePresented,
                                 DownloadFileUI::Count);
 
-  if (task->GetMimeType() == kPkPassMimeType) {
+  if ((task->GetMimeType() == kPkPassMimeType ||
+       task->GetMimeType() == kPkBundledPassMimeType) &&
+      !base::FeatureList::IsEnabled(kPassKitKillSwitch)) {
     PassKitTabHelper* tab_helper = PassKitTabHelper::FromWebState(web_state);
     if (tab_helper)
       tab_helper->Download(std::move(task));

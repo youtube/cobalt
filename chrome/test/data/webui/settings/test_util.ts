@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {ChooserException, ChooserType, ContentSetting, ContentSettingProvider, ContentSettingsTypes, DefaultContentSetting, OriginInfo, PaperTooltipElement, RawChooserException, RawSiteException, SiteException, SiteGroup, SiteSettingSource} from 'chrome://settings/lazy_load.js';
+import {StorageAccessEmbeddingException, StorageAccessSiteException, ChooserException, ChooserType, ContentSetting, ContentSettingProvider, ContentSettingsTypes, DefaultContentSetting, OriginInfo, PaperTooltipElement, RawChooserException, RawSiteException, SiteException, SiteGroup, SiteSettingSource} from 'chrome://settings/lazy_load.js';
 import {Route, Router} from 'chrome://settings/settings.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 // clang-format on
@@ -159,14 +159,28 @@ export function createSiteSettingsPrefs(
 }
 
 /**
+ * Creates a groupingKey that maps to the given id. This will not
+ * have the same internal format as the groupingKey returned by
+ * SiteSettingsHelper.
+ * @param id An id that can uniquely represent a SiteGroup.
+ */
+export function groupingKey(id: string): string {
+  // Base64 encode the id to make sure that if an eTLD+1 or origin is used
+  // somewhere instead of a groupingKey, it won't accidentally have the
+  // correct groupingKey value.
+  return btoa(id);
+}
+
+/**
  * Helper to create a mock SiteGroup.
- * @param eTLDPlus1Name The eTLD+1 of all the origins provided in |originList|.
+ * @param owningEntity The eTLD+1 or origin that owns this group.
+ * @param displayName The user-visible group name.
  * @param originList A list of the origins with the same eTLD+1.
  * @param mockUsage The override initial usage value for each origin in the site
  *     group.
  */
 export function createSiteGroup(
-    eTLDPlus1Name: string, originList: string[],
+    owningEntity: string|URL, displayName: string, originList: string[],
     mockUsage?: number): SiteGroup {
   if (mockUsage === undefined) {
     mockUsage = 0;
@@ -174,8 +188,9 @@ export function createSiteGroup(
   const originInfoList =
       originList.map((origin) => createOriginInfo(origin, {usage: mockUsage}));
   return {
-    etldPlus1: eTLDPlus1Name,
-    displayName: eTLDPlus1Name,
+    groupingKey: groupingKey(owningEntity.toString()),
+    etldPlus1: typeof owningEntity === 'string' ? owningEntity : undefined,
+    displayName,
     origins: originInfoList,
     numCookies: 0,
     hasInstalledPWA: false,
@@ -262,6 +277,52 @@ export function createSiteException(
         enforcement: null,
         controlledBy: chrome.settingsPrivate.ControlledBy.PRIMARY_USER,
         isEmbargoed: false,
+      },
+      override || {});
+}
+
+/**
+ * Helper to create a mock of a group of Storage Access Site Exceptions.
+ * @param origin The origin to use for this group.
+ * @param override An object with a subset of the properties of
+ *     StorageAccessSiteException. Properties defined in |override| will
+ * overwrite the defaults in this function's return value.
+ */
+export function createStorageAccessSiteException(
+    origin: string,
+    override?: Partial<StorageAccessSiteException>,
+    embeddingOrigin?: string,
+    ): StorageAccessSiteException {
+  return Object.assign(
+      {
+        origin: origin,
+        displayName: origin,
+        setting: ContentSetting.ALLOW,
+        openDescription: '',
+        closeDescription: '',
+        exceptions: [createStorageAccessEmbeddingException(
+            embeddingOrigin || 'google.com')],
+      },
+      override || {});
+}
+
+/**
+ * Helper to create a mock of an Storage Access embedding site exception.
+ * @param embeddingOrigin The embedding origin to use for this SiteException.
+ * @param override An object with a subset of the properties of
+ *     StorageAccessEmbeddingException. Properties defined in |override| will
+ * overwrite the defaults in this function's return value.
+ */
+export function createStorageAccessEmbeddingException(
+    embeddingOrigin: string,
+    override?: Partial<StorageAccessEmbeddingException>):
+    StorageAccessEmbeddingException {
+  return Object.assign(
+      {
+        embeddingOrigin: embeddingOrigin,
+        embeddingDisplayName: embeddingOrigin,
+        description: '',
+        incognito: false,
       },
       override || {});
 }

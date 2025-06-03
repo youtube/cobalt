@@ -69,7 +69,8 @@ void GaiaPasswordChangedScreen::ShowImpl() {
   if (view_)
     view_->Show(context()->user_context->GetAccountId().GetUserEmail());
   auth_performer_ = std::make_unique<AuthPerformer>(UserDataAuthClient::Get());
-  factor_editor_ = std::make_unique<AuthFactorEditor>();
+  factor_editor_ =
+      std::make_unique<AuthFactorEditor>(UserDataAuthClient::Get());
   mount_performer_ = std::make_unique<MountPerformer>();
   // Store password obtained during online authentication.
   // It will be either used to replace old password or
@@ -232,7 +233,7 @@ void GaiaPasswordChangedScreen::OnRemovedUserDirectory(
       context()->user_context->GetAccountId());
   // Now that user is deleted, reset everything in UserContext
   // related to cryptohome state.
-  context()->user_context->ResetAuthSessionId();
+  context()->user_context->ResetAuthSessionIds();
   context()->user_context->ClearAuthFactorsConfiguration();
   // Move online password back so that it can be used as key.
   // See `ShowImpl()` to see where it was stored.

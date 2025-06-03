@@ -93,10 +93,10 @@ void DeviceSettingsTestBase::TearDown() {
   chromeos::PowerManagerClient::Shutdown();
   CryptohomeMiscClient::Shutdown();
   UserDataAuthClient::Shutdown();
-  ConciergeClient::Shutdown();
   device_policy_.reset();
   base::RunLoop().RunUntilIdle();
   profile_.reset();
+  ConciergeClient::Shutdown();
 }
 
 void DeviceSettingsTestBase::ReloadDevicePolicy() {
@@ -119,17 +119,18 @@ void DeviceSettingsTestBase::InitOwner(const AccountId& account_id,
   if (!user) {
     user = user_manager_->AddUser(account_id);
     profile_->set_profile_name(account_id.GetUserEmail());
-
     ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
                                                             profile_.get());
-    ProfileHelper::Get()->SetProfileToUserMappingForTesting(
-        const_cast<user_manager::User*>(user));
   }
   OwnerSettingsServiceAsh* service =
       OwnerSettingsServiceAshFactory::GetForBrowserContext(profile_.get());
   CHECK(service);
   if (tpm_is_ready)
     service->OnTPMTokenReady();
+}
+
+void DeviceSettingsTestBase::SetSessionStopping() {
+  session_manager_client_.NotifySessionStopping();
 }
 
 }  // namespace ash

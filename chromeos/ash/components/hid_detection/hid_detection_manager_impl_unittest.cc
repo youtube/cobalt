@@ -273,7 +273,7 @@ class HidDetectionManagerImplTest : public testing::Test {
   size_t num_devices_created_ = 0;
 
   FakeHidDetectionManagerDelegate delegate_;
-  raw_ptr<FakeBluetoothHidDetector, ExperimentalAsh>
+  raw_ptr<FakeBluetoothHidDetector, DanglingUntriaged | ExperimentalAsh>
       fake_bluetooth_hid_detector_ = nullptr;
 
   std::unique_ptr<hid_detection::HidDetectionManagerImpl>
@@ -1340,6 +1340,44 @@ TEST_F(HidDetectionManagerImplTest,
   EXPECT_EQ(2u, GetNumSetInputDevicesStatusCalls());
   AssertInputDevicesStatus(
       {.pointer_is_missing = false, .keyboard_is_missing = true});
+
+  StopHidDetection(/*should_be_using_bluetooth=*/false);
+}
+
+TEST_F(HidDetectionManagerImplTest, StartDetection_VirtialMouseConnected) {
+  StartHidDetection();
+  EXPECT_EQ(1u, GetNumHidDetectionStatusChangedCalls());
+  ASSERT_TRUE(GetLastHidDetectionStatus().has_value());
+  AssertHidDetectionStatus(
+      /*pointer_metadata=*/{InputState::kSearching,
+                            /*detected_hid_name=*/""},
+      /*keyboard_metadata=*/
+      {InputState::kSearching, /*detected_hid_name=*/""},
+      /*touchscreen_detected=*/false,
+      /*pairing_state=*/absl::nullopt);
+  EXPECT_EQ(0u, GetNumSetInputDevicesStatusCalls());
+  AssertInputDevicesStatus(
+      {.pointer_is_missing = true, .keyboard_is_missing = true});
+  AssertHidConnectedCount(HidType::kBluetoothPointer, /*count=*/0,
+                          /*total_count=*/0);
+
+  std::string pointer_id1;
+  AddDevice(TestHidType::kMouse, InputDeviceType::TYPE_BLUETOOTH, &pointer_id1,
+            "VIRTUAL_SUSPEND_UHID");
+  EXPECT_EQ(1u, GetNumHidDetectionStatusChangedCalls());
+  ASSERT_TRUE(GetLastHidDetectionStatus().has_value());
+  AssertHidDetectionStatus(
+      /*pointer_metadata=*/{InputState::kSearching,
+                            /*detected_hid_name=*/""},
+      /*keyboard_metadata=*/
+      {InputState::kSearching, /*detected_hid_name=*/""},
+      /*touchscreen_detected=*/false,
+      /*pairing_state=*/absl::nullopt);
+  EXPECT_EQ(0u, GetNumSetInputDevicesStatusCalls());
+  AssertInputDevicesStatus(
+      {.pointer_is_missing = true, .keyboard_is_missing = true});
+  AssertHidConnectedCount(HidType::kBluetoothPointer, /*count=*/0,
+                          /*total_count=*/0);
 
   StopHidDetection(/*should_be_using_bluetooth=*/false);
 }

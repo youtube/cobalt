@@ -10,10 +10,13 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/webid/account_selection_bubble_view.h"
+#include "chrome/browser/ui/views/webid/fedcm_modal_dialog_view.h"
 #include "chrome/browser/ui/views/webid/identity_provider_display_data.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/views/input_event_activation_protector.h"
 #include "ui/views/widget/widget_observer.h"
+
+using TokenError = content::IdentityCredentialTokenError;
 
 class AccountSelectionBubbleViewInterface;
 
@@ -22,6 +25,7 @@ class AccountSelectionBubbleViewInterface;
 // account chooser to the user.
 class FedCmAccountSelectionView : public AccountSelectionView,
                                   public AccountSelectionBubbleView::Observer,
+                                  public FedCmModalDialogView::Observer,
                                   content::WebContentsObserver,
                                   TabStripModelObserver,
                                   views::WidgetObserver {
@@ -40,7 +44,8 @@ class FedCmAccountSelectionView : public AccountSelectionView,
     VERIFYING = 1,
     AUTO_REAUTHN = 2,
     SIGN_IN_TO_IDP_STATIC = 3,
-    COUNT = 4
+    SIGN_IN_ERROR = 4,
+    COUNT = 5
   };
 
   explicit FedCmAccountSelectionView(AccountSelectionView::Delegate* delegate);
@@ -57,9 +62,19 @@ class FedCmAccountSelectionView : public AccountSelectionView,
       const std::string& top_frame_etld_plus_one,
       const absl::optional<std::string>& iframe_etld_plus_one,
       const std::string& idp_etld_plus_one,
+      const blink::mojom::RpContext& rp_context,
       const content::IdentityProviderMetadata& idp_metadata) override;
+  void ShowErrorDialog(const std::string& top_frame_etld_plus_one,
+                       const absl::optional<std::string>& iframe_etld_plus_one,
+                       const std::string& idp_etld_plus_one,
+                       const blink::mojom::RpContext& rp_context,
+                       const content::IdentityProviderMetadata& idp_metadata,
+                       const absl::optional<TokenError>& error) override;
   std::string GetTitle() const override;
   absl::optional<std::string> GetSubtitle() const override;
+
+  // FedCmModalDialogView::Observer
+  void OnPopupWindowDestroyed() override;
 
   // content::WebContentsObserver
   void OnVisibilityChanged(content::Visibility visibility) override;
@@ -73,12 +88,18 @@ class FedCmAccountSelectionView : public AccountSelectionView,
 
   void SetInputEventActivationProtectorForTesting(
       std::unique_ptr<views::InputEventActivationProtector>);
+  void SetIdpSigninPopupWindowForTesting(std::unique_ptr<FedCmModalDialogView>);
+
+  // AccountSelectionBubbleView::Observer:
+  content::WebContents* ShowModalDialog(const GURL& url) override;
+  void CloseModalDialog() override;
 
  protected:
   friend class FedCmAccountSelectionViewBrowserTest;
 
   // Creates the bubble. Sets the bubble's accessible title. Registers any
-  // observers.
+  // observers. May fail and return nullptr if there is no browser or tab strip
+  // model.
   virtual views::Widget* CreateBubbleWithAccessibleTitle(
       const std::u16string& top_frame_etld_plus_one,
       const absl::optional<std::u16string>& iframe_etld_plus_one,
@@ -91,6 +112,30 @@ class FedCmAccountSelectionView : public AccountSelectionView,
   virtual const AccountSelectionBubbleViewInterface* GetBubbleView() const;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           MismatchDialogDismissedByCloseIconMetric);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           MismatchDialogDismissedForOtherReasonsMetric);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           MismatchDialogContinueClickedMetric);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           MismatchDialogDestroyedMetric);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           MismatchDialogContinueClickedThenDestroyedMetric);
+  FRIEND_TEST_ALL_PREFIXES(
+      FedCmAccountSelectionViewDesktopTest,
+      IdpSigninStatusAccountsReceivedAndNoPopupClosedByIdpMetric);
+  FRIEND_TEST_ALL_PREFIXES(
+      FedCmAccountSelectionViewDesktopTest,
+      IdpSigninStatusAccountsNotReceivedAndPopupClosedByIdpMetric);
+  FRIEND_TEST_ALL_PREFIXES(
+      FedCmAccountSelectionViewDesktopTest,
+      IdpSigninStatusAccountsNotReceivedAndNoPopupClosedByIdpMetric);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           IdpSigninStatusPopupClosedBeforeAccountsPopulated);
+  FRIEND_TEST_ALL_PREFIXES(FedCmAccountSelectionViewDesktopTest,
+                           IdpSigninStatusPopupClosedAfterAccountsPopulated);
+
   enum class State {
     // User is shown message that they are not currently signed-in to IdP.
     // Dialog has button to sign-in to IdP.
@@ -110,7 +155,37 @@ class FedCmAccountSelectionView : public AccountSelectionView,
 
     // Shown when the user is being shown a dialog that auto re-authn is
     // happening.
-    AUTO_REAUTHN
+    AUTO_REAUTHN,
+
+    // Shown when an error has occurred during the user's sign-in attempt and
+    // IDP has not provided any details on the failure.
+    SIGN_IN_ERROR
+  };
+
+  // This enum describes the outcome of the mismatch dialog and is used for
+  // histograms. Do not remove or modify existing values, but you may add new
+  // values at the end. This enum should be kept in sync with
+  // FedCmMismatchDialogResult in tools/metrics/histograms/enums.xml.
+  enum class MismatchDialogResult {
+    kContinued,
+    kDismissedByCloseIcon,
+    kDismissedForOtherReasons,
+
+    kMaxValue = kDismissedForOtherReasons
+  };
+
+  // This enum describes the outcome of the pop-up window and is used for
+  // histograms. Do not remove or modify existing values, but you may add new
+  // values at the end. This enum should be kept in sync with
+  // FedCmPopupWindowResult in
+  // tools/metrics/histograms/metadata/blink/enums.xml.
+  enum class PopupWindowResult {
+    kAccountsReceivedAndPopupClosedByIdp,
+    kAccountsReceivedAndPopupNotClosedByIdp,
+    kAccountsNotReceivedAndPopupClosedByIdp,
+    kAccountsNotReceivedAndPopupNotClosedByIdp,
+
+    kMaxValue = kAccountsNotReceivedAndPopupNotClosedByIdp
   };
 
   // views::WidgetObserver:
@@ -125,9 +200,13 @@ class FedCmAccountSelectionView : public AccountSelectionView,
                      const ui::Event& event) override;
   void OnBackButtonClicked() override;
   void OnCloseButtonClicked(const ui::Event& event) override;
-  void ShowModalDialogView(const GURL& url) override;
+  void OnSigninToIdP(const ui::Event& event) override;
+  void OnGotIt(const ui::Event& event) override;
+  void OnMoreDetails(const ui::Event& event) override;
 
-  void ShowVerifyingSheet(const Account& account,
+  // Returns false if `this` got deleted. In that case, the caller should not
+  // access any further member variables.
+  bool ShowVerifyingSheet(const Account& account,
                           const IdentityProviderDisplayData& idp_display_data);
 
   // Returns the SheetType to be used for metrics reporting.
@@ -155,6 +234,49 @@ class FedCmAccountSelectionView : public AccountSelectionView,
   base::WeakPtr<views::Widget> bubble_widget_;
 
   std::unique_ptr<views::InputEventActivationProtector> input_protector_;
+
+  std::unique_ptr<FedCmModalDialogView> popup_window_;
+
+  // If dialog has been populated with accounts as a result of the IDP sign-in
+  // flow but the IDP sign-in pop-up window has not been closed yet, we use this
+  // callback to show the accounts dialog upon closing the IDP sign-in pop-up
+  // window. This can happen when IDP sign-in status header is sent after the
+  // sign-in flow is complete but the pop-up window is not closed yet e.g. user
+  // is asked to verify phone number, change password, etc.
+  base::OnceClosure show_accounts_dialog_callback_;
+
+  // If dialog has NOT been populated with accounts yet as a result of the IDP
+  // sign-in flow and the IDP sign-in pop-up window has been closed, we use this
+  // boolean to let bubble widget know it should unhide itself when the dialog
+  // is ready. This can happen when the accounts fetch has yet to finish but the
+  // pop-up window has already been closed.
+  bool is_modal_closed_but_accounts_fetch_pending_{false};
+
+  // If IDP sign-in pop-up window is closed through means other than
+  // IdentityProvider.close() such as the user closing the pop-up window or
+  // window.close(), we should destroy the bubble widget and reject the
+  // navigator.credentials.get promise. This boolean tracks whether
+  // IdentityProvider.close() was called.
+  bool should_destroy_bubble_widget_{true};
+
+  // Whether the associated WebContents is visible or not.
+  bool is_web_contents_visible_;
+
+  // Whether the "Continue" button on the mismatch dialog is clicked. Once the
+  // "Continue" button is clicked, a pop-up window is shown for the user to sign
+  // in to an IDP. The mismatch dialog is hidden until it has been updated into
+  // an accounts dialog, which occurs after the user completes the sign in flow.
+  // If the user closes the page with the hidden mismatch dialog before
+  // completing the flow, this boolean prevents us from double counting the
+  // Blink.FedCm.IdpSigninStatus.MismatchDialogResult metric.
+  bool is_mismatch_continue_clicked_{false};
+
+  // Time when IdentityProvider.close() was called for metrics purposes.
+  base::TimeTicks idp_close_popup_time_;
+
+  // The current state of the IDP sign-in pop-up window, if initiated by user.
+  // This is nullopt when no popup window has been opened.
+  absl::optional<PopupWindowResult> popup_window_state_;
 
   base::WeakPtrFactory<FedCmAccountSelectionView> weak_ptr_factory_{this};
 };

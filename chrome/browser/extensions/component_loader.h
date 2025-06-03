@@ -17,6 +17,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/common/buildflags.h"
@@ -64,6 +65,11 @@ class ComponentLoader {
   std::string Add(int manifest_resource_id,
                   const base::FilePath& root_directory);
 
+  // Convenience method for registering a component extension by parsed
+  // manifest.
+  std::string Add(base::Value::Dict manifest,
+                  const base::FilePath& root_directory);
+
   // Loads a component extension from file system. Replaces previously added
   // extension with the same ID.
   std::string AddOrReplace(const base::FilePath& path);
@@ -79,6 +85,11 @@ class ComponentLoader {
   // Call this during test setup to load component extensions that have
   // background pages for testing, which could otherwise interfere with tests.
   static void EnableBackgroundExtensionsForTesting();
+
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Call this during test setup to disabling loading the HelpApp.
+  static void DisableHelpAppForTesting();
+#endif
 
   // Adds the default component extensions. If |skip_session_components|
   // the loader will skip loading component extensions that weren't supposed to
@@ -222,7 +233,7 @@ class ComponentLoader {
 
   raw_ptr<Profile> profile_;
 
-  raw_ptr<ExtensionSystem, DanglingUntriaged> extension_system_;
+  raw_ptr<ExtensionSystem, AcrossTasksDanglingUntriaged> extension_system_;
 
   // List of registered component extensions (see mojom::ManifestLocation).
   typedef std::vector<ComponentExtensionInfo> RegisteredComponentExtensions;

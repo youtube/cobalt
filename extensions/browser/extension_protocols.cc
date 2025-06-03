@@ -39,6 +39,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
 #include "components/keyed_service/core/keyed_service_shutdown_notifier.h"
@@ -369,7 +370,8 @@ void GetSecurityPolicyForURL(const network::ResourceRequest& request,
       CrossOriginIsolationHeader::GetCrossOriginOpenerPolicy(extension);
 
   if (WebAccessibleResourcesInfo::IsResourceWebAccessible(
-          &extension, resource_path, request.request_initiator)) {
+          &extension, resource_path,
+          base::OptionalToPtr(request.request_initiator))) {
     *send_cors_header = true;
   }
 
@@ -739,12 +741,12 @@ class ExtensionURLLoader : public network::mojom::URLLoader {
         request_.request_initiator->GetTupleOrPrecursorTupleIfOpaque()
                 .scheme() == kExtensionScheme) {
       // Surface opaque origin for web accessible resource verification.
-      auto origin = url::Origin::Create(
+      const auto origin = url::Origin::Create(
           request_.request_initiator->GetTupleOrPrecursorTupleIfOpaque()
               .GetURL());
       bool is_web_accessible_resource =
           WebAccessibleResourcesInfo::IsResourceWebAccessible(
-              extension.get(), request_.url.path(), origin);
+              extension.get(), request_.url.path(), &origin);
       base::UmaHistogramBoolean(
           "Extensions.SandboxedPageLoad.IsWebAccessibleResource",
           is_web_accessible_resource);
@@ -871,7 +873,8 @@ class ExtensionURLLoader : public network::mojom::URLLoader {
   mojo::Receiver<network::mojom::URLLoader> loader_{this};
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   network::ResourceRequest request_;
-  const raw_ptr<content::BrowserContext, DanglingUntriaged> browser_context_;
+  const raw_ptr<content::BrowserContext, AcrossTasksDanglingUntriaged>
+      browser_context_;
   const bool is_web_view_request_;
   const ukm::SourceIdObj ukm_source_id_;
 
@@ -1005,9 +1008,8 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
 
     content::BrowserContext* GetBrowserContextToUse(
         content::BrowserContext* context) const override {
-      return ExtensionsBrowserClient::Get()->GetContextForRegularAndIncognito(
-          context, /*force_guest_profile=*/true,
-          /*force_system_profile=*/false);
+      return ExtensionsBrowserClient::Get()->GetContextOwnInstance(
+          context, /*force_guest_profile=*/true);
     }
   };
 
@@ -1062,13 +1064,22 @@ CreateExtensionURLLoaderFactory(int render_process_id, int render_frame_id) {
   content::RenderProcessHost* process_host =
       content::RenderProcessHost::FromID(render_process_id);
   content::BrowserContext* browser_context = process_host->GetBrowserContext();
-  content::RenderFrameHost* rfh =
+  content::RenderFrameHost* render_frame_host =
       content::RenderFrameHost::FromID(render_process_id, render_frame_id);
-  bool is_web_view_request = WebViewGuest::FromRenderFrameHost(rfh) != nullptr;
+  bool is_web_view_request =
+      WebViewGuest::FromRenderFrameHost(render_frame_host) != nullptr;
 
   ukm::SourceIdObj ukm_source_id = ukm::kInvalidSourceIdObj;
-  if (rfh)
-    ukm_source_id = ukm::SourceIdObj::FromInt64(rfh->GetPageUkmSourceId());
+  // Our data collection policy disallows collecting UKMs while prerendering.
+  // So, assign a valid ID only when the page is not in the prerendering state.
+  // See //content/browser/preloading/prerender/README.md and ask the team to
+  // explore options to record data for prerendering pages.
+  if (render_frame_host &&
+      !render_frame_host->IsInLifecycleState(
+          content::RenderFrameHost::LifecycleState::kPrerendering)) {
+    ukm_source_id =
+        ukm::SourceIdObj::FromInt64(render_frame_host->GetPageUkmSourceId());
+  }
 
   return ExtensionURLLoaderFactory::Create(
       browser_context, ukm_source_id, is_web_view_request, render_process_id);

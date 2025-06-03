@@ -358,7 +358,7 @@ SpeechSynthesisUtterance* SpeechSynthesis::CurrentSpeechUtterance() const {
   if (utterance_queue_.empty())
     return nullptr;
 
-  return utterance_queue_.front();
+  return utterance_queue_.front().Get();
 }
 
 ExecutionContext* SpeechSynthesis::GetExecutionContext() const {
@@ -371,7 +371,7 @@ void SpeechSynthesis::Trace(Visitor* visitor) const {
   visitor->Trace(voice_list_);
   visitor->Trace(utterance_queue_);
   Supplement<LocalDOMWindow>::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   SpeechSynthesisBase::Trace(visitor);
 }
 

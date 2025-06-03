@@ -69,8 +69,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     kNoInternet,
     kMaxValue = kNoInternet  // For UMA_HISTOGRAM_ENUMERATION
   };
-  friend std::ostream& operator<<(std::ostream& stream,
-                                  const PortalState& portal_state);
+
+  friend std::ostream& operator<<(std::ostream& stream, PortalState state);
 
   // ManagedState overrides
   // If you change this method, update GetProperties too.
@@ -155,6 +155,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     blocked_by_policy_ = blocked_by_policy;
   }
   bool hidden_ssid() const { return hidden_ssid_; }
+  const std::string& passpoint_id() const { return passpoint_id_; }
 
   // Wifi property accessors
   const std::string& eap_method() const { return eap_method_; }
@@ -275,6 +276,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     kUnknown = 6,
     kMaxValue = kUnknown,
   };
+
+  friend std::ostream& operator<<(std::ostream& stream,
+                                  NetworkTechnologyType type);
+
   NetworkTechnologyType GetNetworkTechnologyType() const;
 
   // Setters for testing.
@@ -366,6 +371,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   int frequency_ = 0;
   bool blocked_by_policy_ = false;
   bool hidden_ssid_ = false;
+  std::string passpoint_id_;
 
   // Cellular properties, used for icons, Connect, and Activation.
   std::string eid_;
@@ -408,9 +414,13 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   bool connect_requested_ = false;
 };
 
-std::ostream& COMPONENT_EXPORT(CHROMEOS_NETWORK) operator<<(
-    std::ostream& stream,
-    const NetworkState::PortalState& portal_state);
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+std::ostream& operator<<(std::ostream& stream,
+                         NetworkState::PortalState portal_state);
+
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+std::ostream& operator<<(std::ostream& stream,
+                         NetworkState::NetworkTechnologyType type);
 
 }  // namespace ash
 

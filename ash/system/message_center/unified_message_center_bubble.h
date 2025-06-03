@@ -22,6 +22,7 @@ namespace ash {
 class UnifiedSystemTray;
 class NotificationCenterView;
 class SystemShadow;
+class TrayEventFilter;
 
 // Manages the bubble that contains `NotificationCenterView`.
 // Shows the bubble on `ShowBubble()`, and closes the bubble on the destructor.
@@ -86,11 +87,13 @@ class ASH_EXPORT UnifiedMessageCenterBubble
   // TrayBubbleView::Delegate:
   std::u16string GetAccessibleNameForBubble() override;
   bool ShouldEnableExtraKeyboardAccessibility() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // views::ViewObserver:
   void OnViewPreferredSizeChanged(views::View* observed_view) override;
   void OnViewVisibilityChanged(views::View* observed_view,
                                views::View* starting_view) override;
+  void OnViewIsDeleting(views::View* observed_view) override;
 
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;
@@ -128,6 +131,8 @@ class ASH_EXPORT UnifiedMessageCenterBubble
 
   // Owned by `bubble_widget_`.
   raw_ptr<TrayBubbleView, ExperimentalAsh> bubble_view_ = nullptr;
+
+  std::unique_ptr<TrayEventFilter> tray_event_filter_;
 
   std::unique_ptr<Border> border_;
   std::unique_ptr<SystemShadow> shadow_;

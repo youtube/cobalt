@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.tab;
 
 import androidx.annotation.Nullable;
 
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
@@ -16,47 +16,38 @@ import org.chromium.url.GURL;
  */
 public class MockTab extends TabImpl {
     private GURL mGurlOverride;
+    private WebContents mWebContentsOverride;
     // TODO(crbug.com/1223963) set mIsInitialized to true when initialize is called
     private boolean mIsInitialized;
     private boolean mIsDestroyed;
     private boolean mIsBeingRestored;
 
-    /**
-     * Create a new Tab for testing and initializes Tab UserData objects.
-     */
-    public static Tab createAndInitialize(int id, boolean incognito) {
-        TabImpl tab = new MockTab(id, incognito);
+    private boolean mIsCustomTab;
+
+    private Long mTimestampMillis;
+    private Integer mParentId;
+
+    /** Create a new Tab for testing and initializes Tab UserData objects. */
+    public static MockTab createAndInitialize(int id, Profile profile) {
+        MockTab tab = new MockTab(id, profile);
         tab.initialize(null, null, null, null, null, false, null, false);
         return tab;
     }
 
-    /**
-     * Create a new Tab for testing and initializes Tab UserData objects.
-     */
-    public static Tab createAndInitialize(
-            int id, boolean incognito, @TabLaunchType int tabLaunchType) {
-        TabImpl tab = new MockTab(id, incognito, tabLaunchType);
+    /** Create a new Tab for testing and initializes Tab UserData objects. */
+    public static MockTab createAndInitialize(
+            int id, Profile profile, @TabLaunchType int tabLaunchType) {
+        MockTab tab = new MockTab(id, profile, tabLaunchType);
         tab.initialize(null, null, null, null, null, false, null, false);
         return tab;
     }
 
-    public static TabImpl initializeWithCriticalPersistedTabData(
-            TabImpl tab, CriticalPersistedTabData criticalPersistedTabData) {
-        tab.getUserDataHost().setUserData(CriticalPersistedTabData.class, criticalPersistedTabData);
-        tab.initialize(null, null, null, null, null, false, null, false);
-        return tab;
+    public MockTab(int id, Profile profile) {
+        this(id, profile, null);
     }
 
-    /**
-     * Constructor for id and incognito attribute. Tests often need to initialize
-     * these two fields only.
-     */
-    public MockTab(int id, boolean incognito) {
-        super(id, incognito, null, null);
-    }
-
-    public MockTab(int id, boolean incognito, @TabLaunchType Integer type) {
-        super(id, incognito, type, null);
+    public MockTab(int id, Profile profile, @TabLaunchType Integer type) {
+        super(id, profile, type);
     }
 
     @Override
@@ -66,7 +57,6 @@ public class MockTab extends TabImpl {
             TabState tabState, boolean initializeRenderer) {
         if (loadUrlParams != null) {
             mGurlOverride = new GURL(loadUrlParams.getUrl());
-            CriticalPersistedTabData.from(this).setUrl(mGurlOverride);
         }
         TabHelpers.initTabHelpers(this, parent);
     }
@@ -87,6 +77,18 @@ public class MockTab extends TabImpl {
         mGurlOverride = url;
     }
 
+    public void setWebContentsOverrideForTesting(WebContents webContents) {
+        mWebContentsOverride = webContents;
+    }
+
+    @Override
+    public WebContents getWebContents() {
+        if (mWebContentsOverride != null) {
+            return mWebContentsOverride;
+        }
+        return super.getWebContents();
+    }
+
     @Override
     public boolean isInitialized() {
         return mIsInitialized;
@@ -101,6 +103,10 @@ public class MockTab extends TabImpl {
         mIsInitialized = isInitialized;
     }
 
+    public void setIsCustomTab(boolean isCustomTab) {
+        mIsCustomTab = isCustomTab;
+    }
+
     @Override
     public void destroy() {
         mIsDestroyed = true;
@@ -111,7 +117,7 @@ public class MockTab extends TabImpl {
 
     @Override
     public boolean isCustomTab() {
-        return false;
+        return mIsCustomTab;
     }
 
     @Override
@@ -121,5 +127,34 @@ public class MockTab extends TabImpl {
 
     public void setIsBeingRestored(boolean isBeingRestored) {
         mIsBeingRestored = isBeingRestored;
+    }
+
+    @Override
+    public long getTimestampMillis() {
+        if (mTimestampMillis == null) {
+            return super.getTimestampMillis();
+        }
+        return mTimestampMillis;
+    }
+
+    public void setTimestampMillis(long timestampMillis) {
+        mTimestampMillis = timestampMillis;
+    }
+
+    @Override
+    public int getParentId() {
+        if (mParentId == null) {
+            return super.getParentId();
+        }
+        return mParentId;
+    }
+
+    public void setParentId(int parentId) {
+        mParentId = parentId;
+    }
+
+    @Override
+    public void setTitle(String title) {
+        super.setTitle(title);
     }
 }

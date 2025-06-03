@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
@@ -14,12 +15,12 @@
 #include "base/timer/elapsed_timer.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/input/native_web_keyboard_event.h"
 #include "extensions/browser/bad_message.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_error.h"
@@ -59,11 +60,11 @@ ExtensionHost::ExtensionHost(const Extension* extension,
       extension_host_type_(host_type) {
   DCHECK(host_type == mojom::ViewType::kExtensionBackgroundPage ||
          host_type == mojom::ViewType::kOffscreenDocument ||
-         host_type == mojom::ViewType::kExtensionDialog ||
          host_type == mojom::ViewType::kExtensionPopup ||
          host_type == mojom::ViewType::kExtensionSidePanel);
   host_contents_ = WebContents::Create(
-      WebContents::CreateParams(browser_context_, site_instance)),
+      WebContents::CreateParams(browser_context_, site_instance));
+  host_contents_->SetOwnerLocationForDebug(FROM_HERE);
   content::WebContentsObserver::Observe(host_contents_.get());
   host_contents_->SetDelegate(this);
   SetViewType(host_contents_.get(), host_type);
@@ -172,10 +173,14 @@ void ExtensionHost::RemoveObserver(ExtensionHostObserver* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
-void ExtensionHost::OnBackgroundEventDispatched(const std::string& event_name,
-                                                int event_id) {
+void ExtensionHost::OnBackgroundEventDispatched(
+    const std::string& event_name,
+    base::TimeTicks dispatch_start_time,
+    int event_id,
+    EventDispatchSource dispatch_source) {
   CHECK(IsBackgroundPage());
-  unacked_messages_[event_id] = event_name;
+  unacked_messages_[event_id] =
+      UnackedEventData{event_name, dispatch_start_time, dispatch_source};
   for (auto& observer : observer_list_)
     observer.OnBackgroundEventDispatched(this, event_name, event_id);
 }
@@ -300,19 +305,17 @@ void ExtensionHost::CloseContents(WebContents* contents) {
   Close();
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
 bool ExtensionHost::OnMessageReceived(const IPC::Message& message,
                                       content::RenderFrameHost* host) {
   bool handled = true;
   IPC_BEGIN_MESSAGE_MAP(ExtensionHost, message)
     IPC_MESSAGE_HANDLER(ExtensionHostMsg_EventAck, OnEventAck)
-    IPC_MESSAGE_HANDLER(ExtensionHostMsg_IncrementLazyKeepaliveCount,
-                        OnIncrementLazyKeepaliveCount)
-    IPC_MESSAGE_HANDLER(ExtensionHostMsg_DecrementLazyKeepaliveCount,
-                        OnDecrementLazyKeepaliveCount)
     IPC_MESSAGE_UNHANDLED(handled = false)
   IPC_END_MESSAGE_MAP()
   return handled;
 }
+#endif
 
 void ExtensionHost::OnEventAck(int event_id) {
   // This should always be true since event acks are only sent by extensions
@@ -347,27 +350,31 @@ void ExtensionHost::OnEventAck(int event_id) {
     return;
   }
 
+  const UnackedEventData& unacked_message_data = it->second;
+
+  // Only emit events that use the EventRouter::DispatchEventToProcess() event
+  // routing flow since EventRouter::DispatchEventToSender() uses a different
+  // flow that doesn't include dispatch start and service worker start time.
+  if (unacked_messages_[event_id].dispatch_source ==
+      EventDispatchSource::kDispatchEventToProcess) {
+    base::UmaHistogramCustomMicrosecondsTimes(
+        "Extensions.Events.DispatchToAckTime.ExtensionEventPage2",
+        /*sample=*/base::TimeTicks::Now() -
+            unacked_message_data.dispatch_start_time,
+        /*min=*/base::Microseconds(1), /*max=*/base::Minutes(5),
+        /*buckets=*/100);
+  }
+
   EventRouter* router = EventRouter::Get(browser_context_);
   if (router)
-    router->OnEventAck(browser_context_, extension_id(), it->second);
+    router->OnEventAck(browser_context_, extension_id(),
+                       unacked_message_data.event_name);
 
   for (auto& observer : observer_list_)
     observer.OnBackgroundEventAcked(this, event_id);
 
   // Remove it.
   unacked_messages_.erase(it);
-}
-
-void ExtensionHost::OnIncrementLazyKeepaliveCount() {
-  ProcessManager::Get(browser_context_)
-      ->IncrementLazyKeepaliveCount(extension(), Activity::LIFECYCLE_MANAGEMENT,
-                                    Activity::kIPC);
-}
-
-void ExtensionHost::OnDecrementLazyKeepaliveCount() {
-  ProcessManager::Get(browser_context_)
-      ->DecrementLazyKeepaliveCount(extension(), Activity::LIFECYCLE_MANAGEMENT,
-                                    Activity::kIPC);
 }
 
 // content::WebContentsObserver

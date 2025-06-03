@@ -34,6 +34,8 @@ class SimpleURLLoader;
 class SharedURLLoaderFactory;
 }  // namespace network
 
+class PrefService;
+
 namespace safe_browsing {
 
 // Suffix for metrics when there is no URL lookup service.
@@ -60,7 +62,8 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
       VerdictCacheManager* cache_manager,
       base::RepeatingCallback<ChromeUserPopulation()>
           get_user_population_callback,
-      ReferrerChainProvider* referrer_chain_provider);
+      ReferrerChainProvider* referrer_chain_provider,
+      PrefService* pref_service);
 
   RealTimeUrlLookupServiceBase(const RealTimeUrlLookupServiceBase&) = delete;
   RealTimeUrlLookupServiceBase& operator=(const RealTimeUrlLookupServiceBase&) =
@@ -213,6 +216,13 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
   // Called to post a task to store the response in |cache_manager|.
   void MayBeCacheRealTimeUrlVerdict(RTLookupResponse response);
 
+  // Maybe logs protego ping times to preferences. The base class provides this
+  // as an empty implementation that subclasses can implement. This method gets
+  // called as a part of `SendRequest()`. If |sent_with_token| is true, updates
+  // the last ping time of the with-token ping time. Otherwise, updates the last
+  // ping time of the without-token ping time.
+  virtual void MaybeLogLastProtegoPingTimeToPrefs(bool sent_with_token) {}
+
   // Get a resource request with URL, load_flags and method set.
   std::unique_ptr<network::ResourceRequest> GetResourceRequest();
 
@@ -253,16 +263,19 @@ class RealTimeUrlLookupServiceBase : public KeyedService {
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   // Unowned object used for getting and storing real time url check cache.
-  raw_ptr<VerdictCacheManager> cache_manager_;
+  raw_ptr<VerdictCacheManager, DanglingUntriaged> cache_manager_;
 
   // All requests that are sent but haven't received a response yet.
   PendingRTLookupRequests pending_requests_;
+
+  // Unowned object used for getting preference settings.
+  raw_ptr<PrefService> pref_service_;
 
   // Used to populate the ChromeUserPopulation field in requests.
   base::RepeatingCallback<ChromeUserPopulation()> get_user_population_callback_;
 
   // Unowned object used to retrieve referrer chains.
-  raw_ptr<ReferrerChainProvider> referrer_chain_provider_;
+  raw_ptr<ReferrerChainProvider, DanglingUntriaged> referrer_chain_provider_;
 
   // Helper object that manages backoff state.
   std::unique_ptr<BackoffOperator> backoff_operator_;

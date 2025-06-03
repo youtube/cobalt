@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
@@ -53,7 +54,7 @@ class ScopedAvoidIdentityHashForTesting {
   ~ScopedAvoidIdentityHashForTesting();
 
  private:
-  content::V8ValueConverterImpl* converter_;
+  raw_ptr<content::V8ValueConverterImpl, ExperimentalRenderer> converter_;
 };
 
 ScopedAvoidIdentityHashForTesting::ScopedAvoidIdentityHashForTesting(
@@ -261,7 +262,7 @@ class V8ValueConverterImplTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   gin::IsolateHolder isolate_holder_;
   v8::Isolate::Scope isolate_scope_;
-  v8::Isolate* isolate_ = nullptr;
+  raw_ptr<v8::Isolate, ExperimentalRenderer> isolate_ = nullptr;
 
   // Context for the JavaScript in the test.
   v8::Persistent<v8::Context> context_;
@@ -428,8 +429,8 @@ TEST_F(V8ValueConverterImplTest, ObjectExceptions) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   // Set up objects to throw when reading or writing 'foo'.
   const char source[] =
@@ -474,8 +475,8 @@ TEST_F(V8ValueConverterImplTest, ArrayExceptions) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
       "(function() {"
@@ -517,7 +518,7 @@ TEST_F(V8ValueConverterImplTest, WeirdTypes) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::RegExp> regex(
@@ -549,8 +550,8 @@ TEST_F(V8ValueConverterImplTest, Prototype) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
       "(function() {"
@@ -577,7 +578,7 @@ TEST_F(V8ValueConverterImplTest, ObjectPrototypeSetter) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
@@ -645,7 +646,7 @@ TEST_F(V8ValueConverterImplTest, ArrayPrototypeSetter) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
@@ -710,8 +711,8 @@ TEST_F(V8ValueConverterImplTest, StripNullFromObjects) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
       "(function() {"
@@ -734,7 +735,7 @@ TEST_F(V8ValueConverterImplTest, RecursiveObjects) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   V8ValueConverterImpl converter;
@@ -779,8 +780,8 @@ TEST_F(V8ValueConverterImplTest, WeirdProperties) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
       "(function() {"
@@ -817,8 +818,8 @@ TEST_F(V8ValueConverterImplTest, ArrayGetters) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   const char source[] =
       "(function() {"
@@ -840,8 +841,8 @@ TEST_F(V8ValueConverterImplTest, UndefinedValueBehavior) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Local<v8::Object> object;
   {
@@ -892,7 +893,7 @@ TEST_F(V8ValueConverterImplTest, ObjectsWithClashingIdentityHash) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   V8ValueConverterImpl converter;
 
@@ -927,7 +928,7 @@ TEST_F(V8ValueConverterImplTest, DetectCycles) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   V8ValueConverterImpl converter;
 
@@ -976,8 +977,8 @@ TEST_F(V8ValueConverterImplTest, ReuseObjects) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(
-      isolate_, v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::MicrotasksScope microtasks(context,
+                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
   V8ValueConverterImpl converter;
 
   // Object with reused values in different keys.
@@ -1039,7 +1040,7 @@ TEST_F(V8ValueConverterImplTest, MaxRecursionDepth) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
   v8::Context::Scope context_scope(context);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   // Must larger than kMaxRecursionDepth in v8_value_converter_impl.cc.
@@ -1084,7 +1085,7 @@ TEST_F(V8ValueConverterImplTest, NegativeZero) {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate_, context_);
-  v8::MicrotasksScope microtasks(isolate_,
+  v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   v8::Context::Scope context_scope(context);

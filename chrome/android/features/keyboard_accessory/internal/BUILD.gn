@@ -5,15 +5,24 @@
 import("//build/config/android/rules.gni")
 import("//build/config/locales.gni")
 import("//chrome/common/features.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
+
+generate_jni("jni") {
+  sources = [
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/AutofillKeyboardAccessoryViewBridge.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponentBridge.java",
+    "java/src/org/chromium/chrome/browser/keyboard_accessory/all_passwords_bottom_sheet/AllPasswordsBottomSheetBridge.java",
+  ]
+}
 
 android_library("internal_java") {
   deps = [
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//components/favicon/android:java",
+    "//third_party/jni_zero:jni_zero_java",
 
     # TODO(crbug/951695): Cyclic dependency. Depend on public only when ready.
     "//chrome/android:chrome_java",
@@ -34,6 +43,7 @@ android_library("internal_java") {
     "//components/browser_ui/modaldialog/android:java",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/widget/android:java",
+    "//components/embedder_support/android:content_view_java",
     "//components/embedder_support/android:util_java",
     "//components/feature_engagement/public:public_java",
     "//components/image_fetcher:java",
@@ -51,6 +61,7 @@ android_library("internal_java") {
     "//ui/base/ime/mojom:mojom_java",
     "//url:gurl_java",
   ]
+  srcjar_deps = [ ":jni" ]
   sources = [
     "java/src/org/chromium/chrome/browser/keyboard_accessory/AutofillKeyboardAccessoryViewBridge.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/ManualFillingComponentBridge.java",
@@ -93,7 +104,6 @@ android_library("internal_java") {
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabCoordinator.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabItemsModel.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabMediator.java",
-    "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabMetricsRecorder.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabProperties.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabView.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_tabs/AccessorySheetTabViewBinder.java",
@@ -119,7 +129,7 @@ android_library("internal_java") {
     "java/src/org/chromium/chrome/browser/keyboard_accessory/tab_layout_component/KeyboardAccessoryTabLayoutViewBinder.java",
     "java/src/org/chromium/chrome/browser/keyboard_accessory/utils/InsecureFillingDialogUtils.java",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
   resources_package = "org.chromium.chrome.browser.keyboard_accessory"
 }
 
@@ -148,6 +158,7 @@ android_resources("java_resources") {
     "java/res/layout/keyboard_accessory_sheet_tab_title.xml",
     "java/res/layout/keyboard_accessory_suggestion.xml",
     "java/res/layout/keyboard_accessory_tabs.xml",
+    "java/res/layout/password_accessory_passkey_chip.xml",
     "java/res/layout/password_accessory_sheet.xml",
     "java/res/layout/password_accessory_sheet_label.xml",
     "java/res/layout/password_accessory_sheet_legacy_option.xml",
@@ -159,6 +170,7 @@ android_resources("java_resources") {
     ":java_strings_grd",
     "//chrome/android:chrome_app_java_resources",
     "//components/browser_ui/strings/android:browser_ui_strings_grd",
+    "//components/browser_ui/widget/android/shared_with_webview:java_resources",
   ]
 }
 

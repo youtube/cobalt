@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
 #include "third_party/blink/renderer/core/css/counter_style_map.h"
 #include "third_party/blink/renderer/core/css/css_font_selector.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/font_face.h"
 #include "third_party/blink/renderer/core/css/page_rule_collector.h"
@@ -42,6 +43,7 @@
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_rule.h"
+#include "third_party/blink/renderer/core/css/style_scope_data.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
@@ -117,12 +119,13 @@ void ScopedStyleResolver::AppendActiveStyleSheets(
       continue;
     }
     const RuleSet& rule_set = *active_iterator->second;
-    style_sheets_.push_back(sheet);
+    active_style_sheets_.push_back(*active_iterator);
     AddKeyframeRules(rule_set);
     AddFontFaceRules(rule_set);
     AddCounterStyleRules(rule_set);
     AddPositionFallbackRules(rule_set);
     AddFontFeatureValuesRules(rule_set);
+    AddImplicitScopeTriggers(*sheet, rule_set);
   }
 }
 
@@ -132,7 +135,7 @@ void ScopedStyleResolver::CollectFeaturesTo(
         visited_shared_style_sheet_contents) const {
   features.MutableMediaQueryResultFlags().Add(media_query_result_flags_);
 
-  for (auto sheet : style_sheets_) {
+  for (auto [sheet, rule_set] : active_style_sheets_) {
     DCHECK(sheet->ownerNode() || sheet->IsConstructed());
     StyleSheetContents* contents = sheet->Contents();
     if (contents->HasOneClient() ||
@@ -143,7 +146,8 @@ void ScopedStyleResolver::CollectFeaturesTo(
 }
 
 void ScopedStyleResolver::ResetStyle() {
-  style_sheets_.clear();
+  RemoveImplicitScopeTriggers();
+  active_style_sheets_.clear();
   media_query_result_flags_.Clear();
   keyframes_rule_map_.clear();
   position_fallback_rule_map_.clear();
@@ -240,15 +244,29 @@ void ScopedStyleResolver::KeyframesRulesAdded(const TreeScope& tree_scope) {
   tree_scope.GetDocument().Timeline().InvalidateKeyframeEffects(tree_scope);
 }
 
+namespace {
+
+bool CanRejectRuleSet(ElementRuleCollector& collector,
+                      const RuleSet& rule_set) {
+  const StyleScope* scope = rule_set.SingleScope();
+  return scope && collector.CanRejectScope(*scope);
+}
+
+}  // namespace
+
 template <class Func>
-void ScopedStyleResolver::ForAllStylesheets(const Func& func) {
-  if (style_sheets_.empty()) {
+void ScopedStyleResolver::ForAllStylesheets(ElementRuleCollector& collector,
+                                            const Func& func) {
+  if (active_style_sheets_.empty()) {
     return;
   }
 
   MatchRequest match_request{&scope_->RootNode()};
-  for (auto sheet : style_sheets_) {
-    match_request.AddRuleset(&sheet->Contents()->GetRuleSet(), sheet);
+  for (auto [sheet, rule_set] : active_style_sheets_) {
+    if (CanRejectRuleSet(collector, *rule_set)) {
+      continue;
+    }
+    match_request.AddRuleset(rule_set.Get());
     if (match_request.IsFull()) {
       func(match_request);
       match_request.ClearAfterMatching();
@@ -261,21 +279,21 @@ void ScopedStyleResolver::ForAllStylesheets(const Func& func) {
 
 void ScopedStyleResolver::CollectMatchingElementScopeRules(
     ElementRuleCollector& collector) {
-  ForAllStylesheets([&collector](const MatchRequest& match_request) {
+  ForAllStylesheets(collector, [&collector](const MatchRequest& match_request) {
     collector.CollectMatchingRules(match_request);
   });
 }
 
 void ScopedStyleResolver::CollectMatchingShadowHostRules(
     ElementRuleCollector& collector) {
-  ForAllStylesheets([&collector](const MatchRequest& match_request) {
+  ForAllStylesheets(collector, [&collector](const MatchRequest& match_request) {
     collector.CollectMatchingShadowHostRules(match_request);
   });
 }
 
 void ScopedStyleResolver::CollectMatchingSlottedRules(
     ElementRuleCollector& collector) {
-  ForAllStylesheets([&collector](const MatchRequest& match_request) {
+  ForAllStylesheets(collector, [&collector](const MatchRequest& match_request) {
     collector.CollectMatchingSlottedRules(match_request);
   });
 }
@@ -284,7 +302,7 @@ void ScopedStyleResolver::CollectMatchingPartPseudoRules(
     ElementRuleCollector& collector,
     PartNames& part_names,
     bool for_shadow_pseudo) {
-  ForAllStylesheets([&](const MatchRequest& match_request) {
+  ForAllStylesheets(collector, [&](const MatchRequest& match_request) {
     collector.CollectMatchingPartPseudoRules(match_request, part_names,
                                              for_shadow_pseudo);
   });
@@ -293,9 +311,8 @@ void ScopedStyleResolver::CollectMatchingPartPseudoRules(
 void ScopedStyleResolver::MatchPageRules(PageRuleCollector& collector) {
   // Currently, only @page rules in the document scope apply.
   DCHECK(scope_->RootNode().IsDocumentNode());
-  for (auto sheet : style_sheets_) {
-    collector.MatchPageRules(&sheet->Contents()->GetRuleSet(),
-                             GetCascadeLayerMap());
+  for (auto [sheet, rule_set] : active_style_sheets_) {
+    collector.MatchPageRules(rule_set.Get(), GetCascadeLayerMap());
   }
 }
 
@@ -335,7 +352,7 @@ void ScopedStyleResolver::AddFontFeatureValuesRules(const RuleSet& rule_set) {
   for (auto& rule : font_feature_values_rules) {
     for (auto& font_family : rule->GetFamilies()) {
       unsigned layer_order = CascadeLayerMap::kImplicitOuterLayerOrder;
-      if (cascade_layer_map_) {
+      if (cascade_layer_map_ && rule->GetCascadeLayer() != nullptr) {
         layer_order =
             cascade_layer_map_->GetLayerOrder(*rule->GetCascadeLayer());
       }
@@ -355,7 +372,7 @@ StyleRulePositionFallback* ScopedStyleResolver::PositionFallbackForName(
   DCHECK(fallback_name);
   auto iter = position_fallback_rule_map_.find(fallback_name);
   if (iter != position_fallback_rule_map_.end()) {
-    return iter->value;
+    return iter->value.Get();
   }
   return nullptr;
 }
@@ -375,9 +392,87 @@ const FontFeatureValuesStorage* ScopedStyleResolver::FontFeatureValuesForFamily(
   return &(it->value);
 }
 
+// When appending/removing stylesheets, we go through all implicit
+// StyleScope instances in each stylesheet and store those instances
+// in the StyleScopeData (ElementRareData) of the triggering element.
+//
+// See StyleScopeData for more information.
+
+namespace {
+
+Element* ImplicitScopeTrigger(TreeScope& scope, CSSStyleSheet& sheet) {
+  if (Element* owner_parent = sheet.OwnerParentOrShadowHostElement()) {
+    return owner_parent;
+  }
+  if (sheet.IsAdoptedByTreeScope(scope)) {
+    if (ShadowRoot* shadow_root = DynamicTo<ShadowRoot>(scope)) {
+      return &shadow_root->host();
+    }
+  }
+  return nullptr;
+}
+
+template <typename Func>
+void ForEachImplicitScopeTrigger(TreeScope& scope,
+                                 CSSStyleSheet& sheet,
+                                 const RuleSet& rule_set,
+                                 Func func) {
+  for (const RuleSet::Interval<StyleScope>& interval :
+       rule_set.ScopeIntervals()) {
+    const StyleScope* style_scope = interval.value.Get();
+    if (!style_scope || !style_scope->IsImplicit()) {
+      continue;
+    }
+    if (Element* scoping_root = ImplicitScopeTrigger(scope, sheet)) {
+      func(*scoping_root, *style_scope);
+    }
+  }
+}
+
+}  // namespace
+
+void ScopedStyleResolver::AddImplicitScopeTriggers(CSSStyleSheet& sheet,
+                                                   const RuleSet& rule_set) {
+  ForEachImplicitScopeTrigger(
+      *scope_, sheet, rule_set,
+      [&](Element& element, const StyleScope& style_scope) {
+        AddImplicitScopeTrigger(element, style_scope);
+      });
+}
+
+void ScopedStyleResolver::AddImplicitScopeTrigger(
+    Element& element,
+    const StyleScope& style_scope) {
+  DCHECK(style_scope.IsImplicit());
+  element.EnsureStyleScopeData().AddTriggeredImplicitScope(style_scope);
+}
+
+void ScopedStyleResolver::RemoveImplicitScopeTriggers() {
+  for (auto [sheet, rule_set] : active_style_sheets_) {
+    RemoveImplicitScopeTriggers(*sheet, *rule_set);
+  }
+}
+
+void ScopedStyleResolver::RemoveImplicitScopeTriggers(CSSStyleSheet& sheet,
+                                                      const RuleSet& rule_set) {
+  ForEachImplicitScopeTrigger(
+      *scope_, sheet, rule_set,
+      [&](Element& element, const StyleScope& style_scope) {
+        RemoveImplicitScopeTrigger(element, style_scope);
+      });
+}
+
+void ScopedStyleResolver::RemoveImplicitScopeTrigger(
+    Element& element,
+    const StyleScope& style_scope) {
+  if (StyleScopeData* style_scope_data = element.GetStyleScopeData()) {
+    style_scope_data->RemoveTriggeredImplicitScope(style_scope);
+  }
+}
+
 void ScopedStyleResolver::Trace(Visitor* visitor) const {
   visitor->Trace(scope_);
-  visitor->Trace(style_sheets_);
+  visitor->Trace(active_style_sheets_);
   visitor->Trace(keyframes_rule_map_);
   visitor->Trace(position_fallback_rule_map_);
   visitor->Trace(counter_style_map_);

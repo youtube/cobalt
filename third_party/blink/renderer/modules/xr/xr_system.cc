@@ -834,7 +834,7 @@ XRFrameProvider* XRSystem::frameProvider() {
     frame_provider_ = MakeGarbageCollected<XRFrameProvider>(this);
   }
 
-  return frame_provider_;
+  return frame_provider_.Get();
 }
 
 device::mojom::blink::XREnvironmentIntegrationProvider*
@@ -1161,12 +1161,16 @@ XRSystem::RequestedXRSessionFeatureSet XRSystem::ParseRequestedFeatures(
   for (const auto& feature : features) {
     String feature_string;
     if (feature.ToString(feature_string)) {
-      auto feature_enum =
-          StringToXRSessionFeature(GetExecutionContext(), feature_string);
+      auto feature_enum = StringToXRSessionFeature(feature_string);
 
       if (!feature_enum) {
         AddConsoleMessage(error_level,
                           "Unrecognized feature requested: " + feature_string);
+        result.invalid_features = true;
+      } else if (!IsFeatureEnabledForContext(feature_enum.value(),
+                                             GetExecutionContext())) {
+        AddConsoleMessage(error_level,
+                          "Unsupported feature requested: " + feature_string);
         result.invalid_features = true;
       } else if (!IsFeatureValidForMode(feature_enum.value(), session_mode,
                                         session_init, GetExecutionContext(),
@@ -1573,12 +1577,6 @@ void XRSystem::FinishSessionCreation(
       // element is already in fullscreen mode, and the session can proceed.
       session->SetDOMOverlayElement(query->DOMOverlayElement());
     }
-
-    if (query->mode() == device::mojom::blink::XRSessionMode::kImmersiveVr &&
-        session->UsesInputEventing()) {
-      frameProvider()->GetImmersiveDataProvider()->SetInputSourceButtonListener(
-          session->GetInputClickListener());
-    }
   }
 
   UseCounter::Count(ExecutionContext::From(query->GetScriptState()),
@@ -1590,8 +1588,7 @@ void XRSystem::FinishSessionCreation(
 void XRSystem::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::AddedEventListener(event_type,
-                                                registered_listener);
+  EventTarget::AddedEventListener(event_type, registered_listener);
 
   // If we're adding an event listener we should spin up the service, if we can,
   // so that we can actually register for notifications.
@@ -1749,7 +1746,7 @@ void XRSystem::Trace(Visitor* visitor) const {
   visitor->Trace(fullscreen_exit_observer_);
   Supplement<Navigator>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 }  // namespace blink

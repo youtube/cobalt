@@ -9,6 +9,8 @@ import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
+import android.os.Build.VERSION;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.InputDevice;
@@ -25,6 +27,7 @@ import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import androidx.appcompat.widget.TooltipCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
@@ -38,7 +41,6 @@ import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
-import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -47,7 +49,6 @@ import org.chromium.chrome.browser.theme.ThemeColorProvider.ThemeColorObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider.TintObserver;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.ButtonData;
-import org.chromium.chrome.browser.toolbar.HomeButton;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.TabCountProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
@@ -72,8 +73,7 @@ import java.util.function.BooleanSupplier;
  * through {@link Toolbar} rather than using this class directly.
  */
 public abstract class ToolbarLayout
-        extends FrameLayout implements Destroyable, TintObserver, ThemeColorObserver,
-                                       OmniboxSuggestionsDropdownScrollListener {
+        extends FrameLayout implements Destroyable, TintObserver, ThemeColorObserver {
     private Callback<Runnable> mInvalidator;
     private @Nullable ToolbarColorObserver mToolbarColorObserver;
 
@@ -208,7 +208,7 @@ public abstract class ToolbarLayout
     /**
      * @param toolbarColorObserver The observer that observes toolbar color change.
      */
-    void setToolbarColorObserver(@NonNull ToolbarColorObserver toolbarColorObserver) {
+    public void setToolbarColorObserver(@NonNull ToolbarColorObserver toolbarColorObserver) {
         mToolbarColorObserver = toolbarColorObserver;
     }
 
@@ -255,6 +255,26 @@ public abstract class ToolbarLayout
      */
     @CallSuper
     protected void onMenuButtonDisabled() {}
+
+    // Set hover tooltip text for buttons shared between phones and tablets.
+    public void setTooltipTextForToolbarButtons() {
+        // Set hover tooltip text for home and tab switcher buttons.
+        setTooltipText(((View) getHomeButton()),
+                getContext().getString(R.string.accessibility_toolbar_btn_home));
+        setTooltipText(((View) getTabSwitcherButton()),
+                getContext().getString(
+                        R.string.accessibility_toolbar_btn_tabswitcher_toggle_default));
+    }
+
+    /**
+     * Set hover tooltip text for buttons shared between phones and tablets.
+     * @TODO: Remove and use the method in UiUtils.java instead once JaCoCo issue is resolved.
+     */
+    protected void setTooltipText(View button, String text) {
+        if (button != null && VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            TooltipCompat.setTooltipText(button, text);
+        }
+    }
 
     @Override
     protected void onFinishInflate() {
@@ -383,7 +403,6 @@ public abstract class ToolbarLayout
         return mMenuButtonCoordinator;
     }
 
-    @VisibleForTesting
     void setMenuButtonCoordinatorForTesting(MenuButtonCoordinator menuButtonCoordinator) {
         mMenuButtonCoordinator = menuButtonCoordinator;
     }
@@ -391,8 +410,7 @@ public abstract class ToolbarLayout
     /**
      * @return The {@link ProgressBar} this layout uses.
      */
-    @Nullable
-    protected ToolbarProgressBar getProgressBar() {
+    protected @Nullable ToolbarProgressBar getProgressBar() {
         return mProgressBar;
     }
 
@@ -615,8 +633,7 @@ public abstract class ToolbarLayout
      *                       finished (which can be detected by a call to
      *                       {@link #onTabSwitcherTransitionFinished()}).
      */
-    void setTabSwitcherMode(boolean inTabSwitcherMode, boolean showToolbar, boolean delayAnimation,
-            MenuButtonCoordinator menuButtonCoordinator) {}
+    void setTabSwitcherMode(boolean inTabSwitcherMode) {}
 
     /**
      * Gives inheriting classes the chance to update their state when the TabSwitcher transition has
@@ -630,9 +647,10 @@ public abstract class ToolbarLayout
      * @param isShowingStartSurfaceHomepage Whether start surface homepage is showing.
      * @param isShowingStartSurfaceTabSwitcher Whether the StartSurface-controlled TabSwitcher is
      *         showing.
+     * @param isRealSearchBoxFocused Whether the real search box is focused.
      */
     void onStartSurfaceStateChanged(boolean shouldBeVisible, boolean isShowingStartSurfaceHomepage,
-            boolean isShowingStartSurfaceTabSwitcher) {}
+            boolean isShowingStartSurfaceTabSwitcher, boolean isRealSearchBoxFocused) {}
 
     /**
      * Force to hide toolbar shadow.
@@ -804,7 +822,6 @@ public abstract class ToolbarLayout
     /**
      * @return Optional button view.
      */
-    @VisibleForTesting
     public View getOptionalButtonViewForTesting() {
         return null;
     }
@@ -816,16 +833,22 @@ public abstract class ToolbarLayout
     void setTabModelSelector(TabModelSelector selector) {}
 
     /**
-     * @return {@link HomeButton} this {@link ToolbarLayout} contains.
+     * @return Home button this {@link ToolbarLayout} contains, if any.
      */
-    public HomeButton getHomeButton() {
+    public ImageView getHomeButton() {
+        return null;
+    }
+
+    /**
+     * @return {@link ToggleTabStackButton} this {@link ToolbarLayout} contains.
+     */
+    public ToggleTabStackButton getTabSwitcherButton() {
         return null;
     }
 
     /**
      * Returns whether there are any ongoing animations.
      */
-    @VisibleForTesting
     public boolean isAnimationRunningForTesting() {
         return false;
     }

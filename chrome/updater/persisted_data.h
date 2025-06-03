@@ -34,11 +34,6 @@ struct RegistrationRequest;
 
 // PersistedData uses the PrefService to persist updater data that outlives
 // the updater processes.
-//
-// This class has sequence affinity.
-//
-// A mechanism to remove apps or app versions from prefs is needed.
-// TODO(sorin): crbug.com/1056450
 class PersistedData : public base::RefCountedThreadSafe<PersistedData> {
  public:
   // Constructs a provider using the specified |pref_service|.
@@ -52,6 +47,14 @@ class PersistedData : public base::RefCountedThreadSafe<PersistedData> {
   // version, if the version is not found.
   base::Version GetProductVersion(const std::string& id) const;
   void SetProductVersion(const std::string& id, const base::Version& pv);
+
+  // These functions access the version path for the specified id.
+  base::FilePath GetProductVersionPath(const std::string& id) const;
+  void SetProductVersionPath(const std::string& id, const base::FilePath& path);
+
+  // These functions access the version key for the specified id.
+  std::string GetProductVersionKey(const std::string& id) const;
+  void SetProductVersionKey(const std::string& id, const std::string& value);
 
   // These functions access |fingerprint| data for the specified |id|.
   std::string GetFingerprint(const std::string& id) const;
@@ -71,8 +74,16 @@ class PersistedData : public base::RefCountedThreadSafe<PersistedData> {
   void SetBrandPath(const std::string& id, const base::FilePath& bp);
 
   // These functions access the AP for the specified id.
-  std::string GetAP(const std::string& id) const;
+  std::string GetAP(const std::string& id);
   void SetAP(const std::string& id, const std::string& ap);
+
+  // These functions access the AP path for the specified id.
+  base::FilePath GetAPPath(const std::string& id) const;
+  void SetAPPath(const std::string& id, const base::FilePath& path);
+
+  // These functions access the AP key for the specified id.
+  std::string GetAPKey(const std::string& id) const;
+  void SetAPKey(const std::string& id, const std::string& value);
 
   // These functions get/set the client-regulated-counting data for the
   // specified id. The functions are for app migration only.
@@ -83,6 +94,14 @@ class PersistedData : public base::RefCountedThreadSafe<PersistedData> {
   void SetDateLastActive(const std::string& id, int dla);
   absl::optional<int> GetDateLastRollcall(const std::string& id) const;
   void SetDateLastRollcall(const std::string& id, int dlrc);
+
+  // These functions access the cohort values for the specified id.
+  std::string GetCohort(const std::string& id) const;
+  void SetCohort(const std::string& id, const std::string& cohort);
+  std::string GetCohortName(const std::string& id) const;
+  void SetCohortName(const std::string& id, const std::string& cohort_name);
+  std::string GetCohortHint(const std::string& id) const;
+  void SetCohortHint(const std::string& id, const std::string& cohort_hint);
 
   // This function sets any non-empty field in the registration request object
   // into the persistent data store.
@@ -150,7 +169,7 @@ class PersistedData : public base::RefCountedThreadSafe<PersistedData> {
   SEQUENCE_CHECKER(sequence_checker_);
 
   const UpdaterScope scope_;
-  raw_ptr<PrefService> pref_service_ = nullptr;  // Not owned by this class.
+  raw_ptr<PrefService, DanglingUntriaged> pref_service_ = nullptr;
 };
 
 void RegisterPersistedDataPrefs(scoped_refptr<PrefRegistrySimple> registry);

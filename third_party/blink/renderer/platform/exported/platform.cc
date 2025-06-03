@@ -32,7 +32,6 @@
 
 #include <memory>
 
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
@@ -266,7 +265,11 @@ void Platform::InitializeMainThreadCommon(
 
   // Use a delayed idle task as this is low priority work that should stop when
   // the main thread is not doing any work.
-  WTF::Partitions::StartPeriodicReclaim(
+  //
+  // This relies on being called prior to
+  // PartitionAllocSupport::ReconfigureAfterTaskRunnerInit, which would start
+  // memory reclaimer with a regular task runner. The first one prevails.
+  WTF::Partitions::StartMemoryReclaimer(
       base::MakeRefCounted<IdleDelayedTaskHelper>());
 }
 
@@ -310,8 +313,6 @@ void Platform::CreateServiceWorkerSubresourceLoaderFactory(
     CrossVariantMojoRemote<mojom::ServiceWorkerContainerHostInterfaceBase>
         service_worker_container_host,
     const WebString& client_id,
-    mojom::blink::ServiceWorkerFetchHandlerBypassOption
-        fetch_handler_bypass_option,
     std::unique_ptr<network::PendingSharedURLLoaderFactory> fallback_factory,
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver,
     scoped_refptr<base::SequencedTaskRunner> task_runner) {}
@@ -335,7 +336,7 @@ Platform::CompositorThreadTaskRunner() {
 std::unique_ptr<WebGraphicsContext3DProvider>
 Platform::CreateOffscreenGraphicsContext3DProvider(
     const Platform::ContextAttributes&,
-    const WebURL& top_document_url,
+    const WebURL& document_url,
     Platform::GraphicsInfo*) {
   return nullptr;
 }
@@ -346,8 +347,7 @@ Platform::CreateSharedOffscreenGraphicsContext3DProvider() {
 }
 
 std::unique_ptr<WebGraphicsContext3DProvider>
-Platform::CreateWebGPUGraphicsContext3DProvider(
-    const WebURL& top_document_url) {
+Platform::CreateWebGPUGraphicsContext3DProvider(const WebURL& document_url) {
   return nullptr;
 }
 
@@ -379,6 +379,11 @@ std::unique_ptr<media::MediaLog> Platform::GetMediaLog(
     scoped_refptr<base::SingleThreadTaskRunner> owner_task_runner,
     bool is_on_worker) {
   return nullptr;
+}
+
+size_t Platform::GetMaxDecodedImageBytes() {
+  return Current() ? Current()->MaxDecodedImageBytes()
+                   : kNoDecodedImageByteLimit;
 }
 
 }  // namespace blink

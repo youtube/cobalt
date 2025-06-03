@@ -25,7 +25,6 @@
 #include "components/password_manager/core/browser/affiliation/fake_affiliation_service.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/test_password_store.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -89,7 +88,7 @@ class FakePromoCard : public PromoCardInterface {
 
 std::unique_ptr<web_app::WebApp> CreateWebApp() {
   GURL url(chrome::kChromeUIPasswordManagerURL);
-  web_app::AppId app_id = web_app::GenerateAppId(/*manifest_id=*/"", url);
+  webapps::AppId app_id = web_app::GenerateAppId(/*manifest_id=*/"", url);
   auto web_app = std::make_unique<web_app::WebApp>(app_id);
   web_app->SetStartUrl(url);
   web_app->SetScope(url.DeprecatedGetOriginAsURL());
@@ -200,6 +199,11 @@ TEST_F(PromoCardBaseTest, GetAllPromoCards) {
   ASSERT_THAT(pref_service()->GetList(prefs::kPasswordManagerPromoCardsList),
               IsEmpty());
 
+  // Enforce delegate creation before retrieving promo cards.
+  scoped_refptr<extensions::PasswordsPrivateDelegate> delegate =
+      extensions::PasswordsPrivateDelegateFactory::GetForBrowserContext(
+          profile(), true);
+
   std::vector<std::unique_ptr<PromoCardInterface>> promo_cards =
       PromoCardInterface::GetAllPromoCardsForProfile(profile());
   const base::Value::List& list =
@@ -216,7 +220,6 @@ class PromoCardCheckupTest : public PromoCardBaseTest {
  public:
   void SetUp() override {
     PromoCardBaseTest::SetUp();
-    feature_list_.InitAndEnableFeature(features::kPasswordsGrouping);
     delegate_ =
         extensions::PasswordsPrivateDelegateFactory::GetForBrowserContext(
             profile(), true);
@@ -239,11 +242,27 @@ class PromoCardCheckupTest : public PromoCardBaseTest {
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   scoped_refptr<extensions::PasswordsPrivateDelegate> delegate_;
 };
 
 TEST_F(PromoCardCheckupTest, NoPromoIfNoPasswords) {
+  ASSERT_THAT(pref_service()->GetList(prefs::kPasswordManagerPromoCardsList),
+              IsEmpty());
+  std::unique_ptr<PromoCardInterface> promo =
+      std::make_unique<PasswordCheckupPromo>(pref_service(), delegate());
+
+  EXPECT_THAT(
+      pref_service()->GetList(prefs::kPasswordManagerPromoCardsList),
+      testing::ElementsAre(PromoCardPrefInfo(PrefInfo{promo->GetPromoID()})));
+
+  EXPECT_FALSE(promo->ShouldShowPromo());
+}
+
+TEST_F(PromoCardCheckupTest, NoPromoIfLeakCheckDisabledByPolicy) {
+  pref_service()->SetBoolean(
+      password_manager::prefs::kPasswordLeakDetectionEnabled, false);
+  SavePassword();
+
   ASSERT_THAT(pref_service()->GetList(prefs::kPasswordManagerPromoCardsList),
               IsEmpty());
   std::unique_ptr<PromoCardInterface> promo =
@@ -415,7 +434,7 @@ class PromoCardShortcutTest : public WebAppTest {
   web_app::FakeWebAppProvider* provider() { return provider_; }
 
  private:
-  raw_ptr<web_app::FakeWebAppProvider> provider_;
+  raw_ptr<web_app::FakeWebAppProvider, DanglingUntriaged> provider_;
 };
 
 TEST_F(PromoCardShortcutTest, NoPromoIfShortcutInstalled) {

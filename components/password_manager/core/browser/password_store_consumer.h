@@ -15,10 +15,13 @@
 
 namespace password_manager {
 
-struct FieldInfo;
 struct InteractionsStats;
 struct PasswordForm;
 class PasswordStoreInterface;
+
+using LoginsResult = std::vector<std::unique_ptr<PasswordForm>>;
+using LoginsResultOrError =
+    absl::variant<LoginsResult, PasswordStoreBackendError>;
 
 // Reads from the PasswordStoreInterface are done asynchronously on a separate
 // thread. PasswordStoreConsumer provides the virtual callback method, which is
@@ -28,8 +31,6 @@ class PasswordStoreInterface;
 class PasswordStoreConsumer {
  public:
   // TODO(crbug.com/1361990): Use base::expected instead of absl::variant.
-  using FormsOrError = absl::variant<std::vector<std::unique_ptr<PasswordForm>>,
-                                     PasswordStoreBackendError>;
   PasswordStoreConsumer();
 
   // Called when `GetLogins()` request is finished, with a vector of forms or
@@ -39,15 +40,11 @@ class PasswordStoreConsumer {
   // between the profile-scoped and account-scoped password stores.
   virtual void OnGetPasswordStoreResultsOrErrorFrom(
       PasswordStoreInterface* store,
-      FormsOrError results_or_error);
+      LoginsResultOrError results_or_error);
 
   // Called when the GetSiteStats() request is finished, with the associated
   // site statistics.
   virtual void OnGetSiteStatistics(std::vector<InteractionsStats> stats);
-
-  // Called when the GetAllFieldInfo() request is finished, with the associated
-  // field info.
-  virtual void OnGetAllFieldInfo(std::vector<FieldInfo> field_info);
 
   // The base::CancelableTaskTracker can be used for cancelling the
   // tasks associated with the consumer.
@@ -63,7 +60,7 @@ class PasswordStoreConsumer {
   // TODO(crbug.com/1360343): Remove when the `FormsOrError` version is
   // implemented by all consumers.
   virtual void OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<PasswordForm>> results) = 0;
+      LoginsResult results);
 
   // Like OnGetPasswordStoreResults(), but also receives the originating
   // PasswordStoreInterface as a parameter. This is useful for consumers that
@@ -74,7 +71,7 @@ class PasswordStoreConsumer {
   // implemented by all consumers.
   virtual void OnGetPasswordStoreResultsFrom(
       PasswordStoreInterface* store,
-      std::vector<std::unique_ptr<PasswordForm>> results);
+      LoginsResult results);
 
  private:
   base::CancelableTaskTracker cancelable_task_tracker_;

@@ -24,11 +24,55 @@
     --emoji-picker-subcategory-bar-inline-margin: 18px;
     --emoji-tooltip-delay-in: 500ms;
     --emoji-tooltip-delay-out: 500ms;
+
+    /**
+     * Scemantic color css variables
+     *
+     * TODO(b/297297441): Drop the fallback values once Emoji Picker Jelly
+     * support is enabled by default.
+     */
+    --emoji-picker-category-header-color: var(--cros-sys-on_surface_variant,
+                                          var(--cros-text-color-secondary));
+    --emoji-picker-container-color: var(--cros-sys-base_elevated,
+                                    var(--cros-bg-color));
+    --emoji-picker-focus-ring-color: var(--cros-sys-focus_ring,
+                                     var(--cros-focus-ring-color));
+    --emoji-picker-icon-button-icon-color: var(--cros-sys-on_surface,
+                                           var(--cros-icon-color-primary));
+    --emoji-picker-icon-toggle-unselected-color: var(--cros-sys-on_surface,
+                                                 var(--cros-icon-color-secondary));
+    --emoji-picker-icon-toggle-selected-color: var(--cros-sys-primary,
+                                               var(--cros-icon-color-prominent));
+    --emoji-picker-icon-toggle-selected-container-color: var(--cros-sys-app_base_shaded,
+                                                         var(--cros-highlight-color));
+    --emoji-picker-illustration-text-color: var(--cros-sys-on_surface_variant,
+                                     var(--cros-button-label-color-secondary-disabled));
+    --emoji-picker-illustration-link-color: var(--cros-sys-primary,
+                                     var(--cros-icon-color-prominent));
+    --emoji-picker-nudge-background-color: var(--cros-sys-primary,
+                                           var(--cros-nudge-background-color));
+    --emoji-picker-nudge-icon-color: var(--cros-sys-on_primary,
+                                     var(--cros-button-icon-color-primary));
+    --emoji-picker-search-field-clear-icon-color: var(--cros-sys-secondary,
+                                                  var(--cros-icon-color-primary));
+    --emoji-picker-search-field-placeholder-color: var(--cros-sys-secondary,
+                                                   var(--cros-text-color-disabled));
+    --emoji-picker-search-field-search-icon-color: var(--cros-sys-secondary,
+                                                   var(--cros-text-color-secondary));
+    --emoji-picker-search-field-container-color: var(--cros-sys-input_field_on_base,
+                                                 var(--cros-toolbar-search-bg-color));
+    --emoji-picker-symbol-color: var(--cros-sys-on_surface,
+                                 var(--cros-text-color-primary));
+    --emoji-picker-tab-selected-color: var(--cros-sys-primary,
+                                       var(--cros-icon-color-prominent));
+    --emoji-picker-tab-unselected-color: var(--cros-sys-on_surface_variant,
+                                         var(--cros-icon-color-secondary));
+
     /* Actual properties of the emoji picker */
-    background-color: var(--cros-bg-color);
+    background-color: var(--emoji-picker-container-color);
     display: flex;
     flex-direction: column;
-    font-family: 'Roboto', sans-serif;
+    font: var(--cros-body-2-font);
     height: calc(var(--emoji-picker-height) - var(--emoji-picker-top-padding));
     margin-top: 0;
     padding-top: var(--emoji-picker-top-padding);
@@ -61,6 +105,10 @@
     width: 100%;
   }
 
+  #list-container {
+    margin-top: -6px;
+  }
+
   #search-container {
     flex-grow: 0;
   }
@@ -68,11 +116,18 @@
   #tabs {
     display: grid;
     grid-gap: var(--emoji-spacing);
-    grid-template-columns: repeat(18,1fr);
+    /**
+     * The number of repetition here should be aligned with the maximum number
+     * of paginations. Theoretically, we can put MAX_INT here but 100 seems big
+     * enough for our case for now.
+     *
+     * TODO(b/295426497): Find a better way rather than having a magic number.
+     */
+    grid-template-columns: repeat(100,1fr);
     left: var(--emoji-group-tabs-left);
     overflow-x: hidden;
-    padding-bottom: 6px;
-    padding-top: 0; /* Search field also has some padding below which adds to this. */
+    padding-top: var(--emoji-picker-tabs-vertical-padding, 6px);
+    padding-bottom: var(--emoji-picker-tabs-vertical-padding, 6px);
     scroll-behavior: smooth;
     scroll-padding: var(--emoji-size);
     scroll-snap-type: x mandatory;
@@ -95,10 +150,11 @@
   }
 
   .chevron {
-    --cr-icon-button-fill-color: var(--cros-icon-color-primary);
+    --cr-icon-button-fill-color: var(--emoji-picker-icon-button-icon-color);
+    --cr-icon-button-focus-outline-color: var(--emoji-picker-focus-ring-color);
     --cr-icon-button-icon-size: 20px;
     --cr-icon-button-size: 28px;
-    background-color: var(--cros-bg-color);
+    background-color: var(--emoji-picker-container-color);
     border-radius: 0;
     margin: 0;
     padding: 0;
@@ -122,7 +178,10 @@
 
   .divider {
     border-top: 1px solid var(--cros-separator-color);
-    margin-inline: var(--emoji-picker-subcategory-bar-inline-margin);
+    /**
+     * TODO(b/297297441): Remove this line once jelly is enabled by default.
+     */
+    margin-inline: var(--emoji-picker-divider-inline-margin, var(--emoji-picker-subcategory-bar-inline-margin));
   }
 
   .sr-only {
@@ -135,8 +194,21 @@
     display: none;
   }
 
+  /**
+   * With jelly flag on, the highlight bar should be on-top of the tab buttons.
+   */
+  #bar-container[jelly-support]{
+    margin-top: -4px;
+  }
+
+  #bar-container[jelly-support] > #bar {
+    height: 4px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+  }
+
   #bar {
-    background-color: var(--cros-icon-color-prominent);
+    background-color: var(--emoji-picker-tab-selected-color);
     border-top-left-radius: 2px;
     border-top-right-radius: 2px;
     /* This gets made visible after we determine the correct location by loading
@@ -205,12 +277,15 @@
   :host([text-subcategory-bar-enabled]) #left-chevron {
     left: var(--emoji-picker-subcategory-bar-inline-margin);
     margin-inline-end: var(--tab-button-margin);
+    border-radius: var(--emoji-picker-group-button-border-radius, 0px);
   }
 
   :host([text-subcategory-bar-enabled]) #right-chevron {
     left: calc(var(--emoji-picker-width) - var(--emoji-size)
     - var(--emoji-picker-subcategory-bar-inline-margin));
     padding-inline-end: 0;
+    --cr-icon-button-fill-color: var(--emoji-picker-icon-button-icon-color);
+    border-radius: var(--emoji-picker-group-button-border-radius, 0px);
   }
 
   /* Center vertically the history icon and text buttons.*/
@@ -242,7 +317,7 @@
     flex: 1;
   }
 
-  #list-container.error-only>:not(#groups) {
+  #list-container.error-only>:not(#groups,#dummyTab) {
     display: none;
   }
 
@@ -279,7 +354,9 @@
     lazy-indexing="[[searchLazyIndexing]]"
     on-scroll="onSearchScroll"
     category-metadata="[[getCategoryMetadata(gifSupport, category)]]"
-    gif-support$="[[gifSupport]]">
+    gif-support$="[[gifSupport]]"
+    jelly-support$="[[jellySupport]]"
+    close-gif-nudge-overlay="[[closeGifNudgeOverlay]]">
   </emoji-search>
 
 <div id="list-container" class$="[[computeListContainerClass(category, status)]]">
@@ -287,6 +364,7 @@
   <div class="side-padding">
     <div id="tabs" on-scroll="onGroupsScroll">
       <cr-icon-button id="left-chevron" class="chevron"
+        aria-label$="[[getLeftChevronAriaLabel(gifSupport)]]"
         on-click="onLeftChevronClick"
         iron-icon="emoji_picker:keyboard_arrow_left">
       </cr-icon-button>
@@ -373,13 +451,15 @@
         </template>
       </template>
       <cr-icon-button id="right-chevron" class="chevron"
+        aria-label$="[[getRightChevronAriaLabel(gifSupport)]]"
         on-click="onRightChevronClick"
+        on-keydown="onRightChevronKeyDown"
         iron-icon="emoji_picker:keyboard_arrow_right">
       </cr-icon-button>
     </div>
   </div>
   <div class="sr-only" role="heading" aria-level="1">Emoji Groups</div>
-  <div class="side-padding">
+  <div class="side-padding" id="bar-container" jelly-support$="[[jellySupport]]">
     <div id="bar"
       on-transitionend="onBarTransitionEnd"
       on-transitionstart="onBarTransitionStart"></div>
@@ -389,6 +469,8 @@
     <template is="dom-repeat" items="[[categoriesGroupElements]]">
       <div data-group$="[[item.groupId]]">
         <emoji-group data="[[item.emoji]]"
+          gif-support$="[[gifSupport]]"
+          jelly-support$="[[jellySupport]]"
           group="[[item.name]]"
           preferred="[[item.preferences]]"
           clearable$="[[item.isHistory]]"
@@ -398,7 +480,10 @@
       </div>
     </template>
     <template is="dom-if" if="[[isGifInErrorState(status)]]">
-      <emoji-error status="[[status]]" error-message="[[errorMessage]]">
+      <emoji-error
+        status="[[status]]"
+        error-message="[[errorMessage]]"
+        jelly-support$="[[jellySupport]]">
       </emoji-error>
     </template>
   </div>
@@ -416,3 +501,7 @@
     </text-group-button>
   </div>
 </div>
+
+<template is="dom-if" if="[[showGifNudgeOverlay]]">
+  <emoji-gif-nudge-overlay close-overlay="[[closeGifNudgeOverlay]]">
+</template>

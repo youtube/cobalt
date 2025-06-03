@@ -154,7 +154,8 @@ void PrepareLanguageModels(Profile* const profile,
 
 // static
 LanguageModelManagerFactory* LanguageModelManagerFactory::GetInstance() {
-  return base::Singleton<LanguageModelManagerFactory>::get();
+  static base::NoDestructor<LanguageModelManagerFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -169,9 +170,14 @@ LanguageModelManagerFactory::LanguageModelManagerFactory()
     : ProfileKeyedServiceFactory(
           "LanguageModelManager",
           // Use the original profile's language model even in Incognito mode.
-          ProfileSelections::BuildRedirectedInIncognito()) {}
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {}
 
-LanguageModelManagerFactory::~LanguageModelManagerFactory() {}
+LanguageModelManagerFactory::~LanguageModelManagerFactory() = default;
 
 KeyedService* LanguageModelManagerFactory::BuildServiceInstanceFor(
     content::BrowserContext* const browser_context) const {

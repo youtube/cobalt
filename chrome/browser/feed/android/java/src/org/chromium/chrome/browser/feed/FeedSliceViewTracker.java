@@ -28,7 +28,6 @@ import java.util.HashSet;
  * the observer is notified.
  */
 public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener {
-    private static final String TAG = "FeedSliceViewTracker";
     private static final float DEFAULT_VIEW_LOG_THRESHOLD = .66f;
     private static final float GOOD_VISITS_EXPOSURE_THRESHOLD = 0.5f;
     private static final float GOOD_VISITS_COVERAGE_THRESHOLD = 0.25f;
@@ -45,8 +44,9 @@ public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener 
     }
 
     private final Activity mActivity;
-    // Whether to watch a slice view to get notified for barely visible change.
-    private final boolean mWatchForBarelyVisibleChange;
+    // Whether to watch a slice view to get notified for user-interaction reliability related
+    // UI changes.
+    private final boolean mWatchForUserInteractionReliabilityReport;
     @Nullable
     private RecyclerView mRootView;
     @Nullable
@@ -58,6 +58,11 @@ public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener 
     // The set of content keys already reported as barely visible (5% threshold), which is used to
     // determine if a slice has entered the view port.
     private HashSet<String> mContentKeysBarelyVisible = new HashSet<>();
+    // The set of content keys for load-more indicators already reported as visible (5% threshold).
+    private HashSet<String> mLoadMoreIndicatorContentKeys = new HashSet<>();
+    // The set of content keys for load-more indicators already reported as that the user scrolled
+    // away from the indicator.
+    private HashSet<String> mLoadMoreAwayFromIndicatorContentKeys = new HashSet<>();
     private boolean mFeedContentVisible;
     @Nullable
     private Observer mObserver;
@@ -85,16 +90,20 @@ public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener 
         void reportViewFirstBarelyVisible(View view);
         // Called the first time a slice view is rendered.
         void reportViewFirstRendered(View view);
+        // Called the first time a loading indicator for load-more is 5% visible.
+        void reportLoadMoreIndicatorVisible();
+        // Called the first time the user scrolled away from the loading indicator for load-more.
+        void reportLoadMoreUserScrolledAwayFromIndicator();
     }
 
     public FeedSliceViewTracker(@NonNull RecyclerView rootView, @NonNull Activity activity,
             @NonNull FeedListContentManager contentManager, @Nullable ListLayoutHelper layoutHelper,
-            boolean watchForBarelyVisibleChange, @NonNull Observer observer) {
+            boolean watchForUserInteractionReliabilityReport, @NonNull Observer observer) {
         mActivity = activity;
         mRootView = rootView;
         mContentManager = contentManager;
         mLayoutHelper = layoutHelper;
-        mWatchForBarelyVisibleChange = watchForBarelyVisibleChange;
+        mWatchForUserInteractionReliabilityReport = watchForUserInteractionReliabilityReport;
         mObserver = observer;
     }
 
@@ -189,10 +198,27 @@ public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener 
         for (int i = firstPosition;
                 i <= lastPosition && i < mContentManager.getItemCount() && i >= 0; ++i) {
             String contentKey = mContentManager.getContent(i).getKey();
-            // Feed content slices come with a 'c/' prefix. Ignore everything else.
-            if (!contentKey.startsWith("c/")) continue;
             View childView = mRootView.getLayoutManager().findViewByPosition(i);
             if (childView == null) continue;
+
+            // Loading spinner slices come with a fixed prefix and a different ID after it.
+            if (mWatchForUserInteractionReliabilityReport
+                    && contentKey.startsWith("load-more-spinner")) {
+                if (!mLoadMoreIndicatorContentKeys.contains(contentKey)
+                        && isViewVisible(childView, VISIBLE_CHANGE_LOG_THRESHOLD)) {
+                    mLoadMoreIndicatorContentKeys.add(contentKey);
+                    mObserver.reportLoadMoreIndicatorVisible();
+                }
+                if (!mLoadMoreAwayFromIndicatorContentKeys.contains(contentKey)
+                        && mLoadMoreIndicatorContentKeys.contains(contentKey)
+                        && !isViewVisible(childView, VISIBLE_CHANGE_LOG_THRESHOLD)) {
+                    mLoadMoreAwayFromIndicatorContentKeys.add(contentKey);
+                    mObserver.reportLoadMoreUserScrolledAwayFromIndicator();
+                }
+            }
+
+            // Feed content slices come with a 'c/' prefix. Ignore everything else.
+            if (!contentKey.startsWith("c/")) continue;
 
             if (!mFeedContentVisible) {
                 mFeedContentVisible = true;
@@ -234,7 +260,8 @@ public class FeedSliceViewTracker implements ViewTreeObserver.OnPreDrawListener 
                 mObserver.sliceVisible(contentKey);
             }
 
-            if (mWatchForBarelyVisibleChange && !mContentKeysBarelyVisible.contains(contentKey)
+            if (mWatchForUserInteractionReliabilityReport
+                    && !mContentKeysBarelyVisible.contains(contentKey)
                     && isViewVisible(childView, VISIBLE_CHANGE_LOG_THRESHOLD)) {
                 mObserver.reportViewFirstBarelyVisible(childView);
                 // There is not a system way to measure the render latency. Here we mimic how

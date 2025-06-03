@@ -22,14 +22,14 @@
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/browser_process.h"
+#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/browser_resources.h"
+#include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ime/input_methods.h"
 #include "extensions/browser/extension_pref_value_map.h"
@@ -53,18 +53,18 @@ struct AllowlistedComponentExtensionIME {
 } allowlisted_component_extensions[] = {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
     {
-        // Official Google XKB Input.
+        // Official Google ChromeOS 1P Input.
         extension_ime_util::kXkbExtensionId,
         IDR_GOOGLE_XKB_MANIFEST,
     },
 #else
     {
-        // Open-sourced ChromeOS xkb extension.
+        // Open-sourced ChromiumOS xkb extension.
         extension_ime_util::kXkbExtensionId,
         IDR_XKB_MANIFEST,
     },
     {
-        // Open-sourced ChromeOS Keyboards extension.
+        // Open-sourced ChromiumOS Keyboards extension.
         extension_ime_util::kM17nExtensionId,
         IDR_M17N_MANIFEST,
     },
@@ -332,7 +332,12 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
 
   const std::string* option_page =
       dict.FindString(extensions::manifest_keys::kOptionsPage);
-  if (option_page) {
+
+  bool flag_allows_settings_page =
+      (*engine_id != "vkd_vi_vni" && *engine_id != "vkd_vi_telex") ||
+      base::FeatureList::IsEnabled(features::kFirstPartyVietnameseInput);
+
+  if (option_page && flag_allows_settings_page) {
     url_string = *option_page;
     GURL options_page_url = extensions::Extension::GetResourceURL(
         extensions::Extension::GetBaseURLFromExtensionId(
@@ -344,6 +349,15 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
   } else {
     // Fallback to extension level options page.
     out->options_page_url = component_extension.options_page_url;
+  }
+
+  const std::string* handwriting_language =
+      dict.FindString(extensions::manifest_keys::kHandwritingLanguage);
+
+  if (handwriting_language != nullptr) {
+    out->handwriting_language = *handwriting_language;
+  } else {
+    out->handwriting_language = absl::nullopt;
   }
 
   return true;
@@ -439,13 +453,14 @@ void ComponentExtensionIMEManagerDelegateImpl::ReadComponentExtensionsInfo(
       }
 
       const char* kHindiInscriptEngineId = "vkd_hi_inscript";
-      DCHECK(g_browser_process);
-      DCHECK(g_browser_process->local_state());
       if (engine.engine_id == kHindiInscriptEngineId &&
-          !base::FeatureList::IsEnabled(features::kHindiInscriptLayout) &&
-          !g_browser_process->local_state()->GetBoolean(
-              prefs::kDeviceHindiInscriptLayoutEnabled)) {
-        continue;
+          !base::FeatureList::IsEnabled(features::kHindiInscriptLayout)) {
+        bool policy_value = false;
+        CrosSettings::Get()->GetBoolean(kDeviceHindiInscriptLayoutEnabled,
+                                        &policy_value);
+        if (!policy_value) {
+          continue;
+        }
       }
 
       component_ime.engines.push_back(engine);

@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/animation/css_position_axis_list_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/interpolable_length.h"
 #include "third_party/blink/renderer/core/css/css_basic_shape_values.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/style/basic_shapes.h"
 
 namespace blink {
@@ -148,9 +149,31 @@ std::unique_ptr<InterpolableValue> ConvertCSSLength(const CSSValue* length) {
   return InterpolableLength::MaybeConvertCSSValue(*length);
 }
 
+std::unique_ptr<InterpolableValue> ConvertCSSLengthOrAuto(
+    const CSSValue* length,
+    double auto_percent) {
+  if (!length) {
+    return InterpolableLength::CreateNeutral();
+  }
+  auto* identifier = DynamicTo<CSSIdentifierValue>(length);
+  if (identifier && identifier->GetValueID() == CSSValueID::kAuto) {
+    return InterpolableLength::CreatePercent(auto_percent);
+  }
+  return InterpolableLength::MaybeConvertCSSValue(*length);
+}
+
 std::unique_ptr<InterpolableValue> ConvertLength(const Length& length,
                                                  double zoom) {
   return InterpolableLength::MaybeConvertLength(length, zoom);
+}
+
+std::unique_ptr<InterpolableValue> ConvertLengthOrAuto(const Length& length,
+                                                       double zoom,
+                                                       double auto_percent) {
+  if (length.IsAuto()) {
+    return InterpolableLength::CreatePercent(auto_percent);
+  }
+  return ConvertLength(length, zoom);
 }
 
 std::unique_ptr<InterpolableValue> ConvertCSSBorderRadiusWidth(
@@ -179,6 +202,7 @@ enum CircleComponentIndex : unsigned {
   kCircleCenterXIndex,
   kCircleCenterYIndex,
   kCircleRadiusIndex,
+  kCircleHasExplicitCenterIndex,
   kCircleComponentIndexCount,
 };
 
@@ -187,6 +211,8 @@ InterpolationValue ConvertCSSValue(
   auto list = std::make_unique<InterpolableList>(kCircleComponentIndexCount);
   list->Set(kCircleCenterXIndex, ConvertCSSCoordinate(circle.CenterX()));
   list->Set(kCircleCenterYIndex, ConvertCSSCoordinate(circle.CenterY()));
+  list->Set(kCircleHasExplicitCenterIndex,
+            std::make_unique<InterpolableNumber>(!!circle.CenterX()));
 
   std::unique_ptr<InterpolableValue> radius;
   if (!(radius = ConvertCSSRadius(circle.Radius())))
@@ -203,6 +229,8 @@ InterpolationValue ConvertBasicShape(const BasicShapeCircle& circle,
   auto list = std::make_unique<InterpolableList>(kCircleComponentIndexCount);
   list->Set(kCircleCenterXIndex, ConvertCoordinate(circle.CenterX(), zoom));
   list->Set(kCircleCenterYIndex, ConvertCoordinate(circle.CenterY(), zoom));
+  list->Set(kCircleHasExplicitCenterIndex,
+            std::make_unique<InterpolableNumber>(circle.HasExplicitCenter()));
 
   std::unique_ptr<InterpolableValue> radius;
   if (!(radius = ConvertRadius(circle.Radius(), zoom)))
@@ -219,6 +247,8 @@ std::unique_ptr<InterpolableValue> CreateNeutralValue() {
   list->Set(kCircleCenterXIndex, CreateNeutralInterpolableCoordinate());
   list->Set(kCircleCenterYIndex, CreateNeutralInterpolableCoordinate());
   list->Set(kCircleRadiusIndex, CreateNeutralInterpolableRadius());
+  list->Set(kCircleHasExplicitCenterIndex,
+            std::make_unique<InterpolableNumber>(0));
   return std::move(list);
 }
 
@@ -233,6 +263,8 @@ scoped_refptr<BasicShape> CreateBasicShape(
       CreateCoordinate(*list.Get(kCircleCenterYIndex), conversion_data));
   circle->SetRadius(
       CreateRadius(*list.Get(kCircleRadiusIndex), conversion_data));
+  circle->SetHasExplicitCenter(
+      To<InterpolableNumber>(list.Get(kCircleHasExplicitCenterIndex))->Value());
   return circle;
 }
 
@@ -245,6 +277,7 @@ enum EllipseComponentIndex : unsigned {
   kEllipseCenterYIndex,
   kEllipseRadiusXIndex,
   kEllipseRadiusYIndex,
+  kEllipseHasExplicitCenter,
   kEllipseComponentIndexCount,
 };
 
@@ -253,6 +286,8 @@ InterpolationValue ConvertCSSValue(
   auto list = std::make_unique<InterpolableList>(kEllipseComponentIndexCount);
   list->Set(kEllipseCenterXIndex, ConvertCSSCoordinate(ellipse.CenterX()));
   list->Set(kEllipseCenterYIndex, ConvertCSSCoordinate(ellipse.CenterY()));
+  list->Set(kEllipseHasExplicitCenter,
+            std::make_unique<InterpolableNumber>(!!ellipse.CenterX()));
 
   std::unique_ptr<InterpolableValue> radius;
   if (!(radius = ConvertCSSRadius(ellipse.RadiusX())))
@@ -272,6 +307,8 @@ InterpolationValue ConvertBasicShape(const BasicShapeEllipse& ellipse,
   auto list = std::make_unique<InterpolableList>(kEllipseComponentIndexCount);
   list->Set(kEllipseCenterXIndex, ConvertCoordinate(ellipse.CenterX(), zoom));
   list->Set(kEllipseCenterYIndex, ConvertCoordinate(ellipse.CenterY(), zoom));
+  list->Set(kEllipseHasExplicitCenter,
+            std::make_unique<InterpolableNumber>(ellipse.HasExplicitCenter()));
 
   std::unique_ptr<InterpolableValue> radius;
   if (!(radius = ConvertRadius(ellipse.RadiusX(), zoom)))
@@ -292,6 +329,7 @@ std::unique_ptr<InterpolableValue> CreateNeutralValue() {
   list->Set(kEllipseCenterYIndex, CreateNeutralInterpolableCoordinate());
   list->Set(kEllipseRadiusXIndex, CreateNeutralInterpolableRadius());
   list->Set(kEllipseRadiusYIndex, CreateNeutralInterpolableRadius());
+  list->Set(kEllipseHasExplicitCenter, std::make_unique<InterpolableNumber>(0));
   return std::move(list);
 }
 
@@ -308,6 +346,8 @@ scoped_refptr<BasicShape> CreateBasicShape(
       CreateRadius(*list.Get(kEllipseRadiusXIndex), conversion_data));
   ellipse->SetRadiusY(
       CreateRadius(*list.Get(kEllipseRadiusYIndex), conversion_data));
+  ellipse->SetHasExplicitCenter(
+      To<InterpolableNumber>(list.Get(kEllipseHasExplicitCenter))->Value());
   return ellipse;
 }
 
@@ -342,10 +382,12 @@ InterpolationValue ConvertCSSValue(const BasicShapeCSSValueClass& inset) {
   }
 
   auto list = std::make_unique<InterpolableList>(kInsetComponentIndexCount);
-  list->Set(kInsetTopIndex, ConvertCSSLength(inset.Top()));
-  list->Set(kInsetRightIndex, ConvertCSSLength(inset.Right()));
-  list->Set(kInsetBottomIndex, ConvertCSSLength(inset.Bottom()));
-  list->Set(kInsetLeftIndex, ConvertCSSLength(inset.Left()));
+  // 'auto' can only appear in the rect() function, but passing for inset()
+  // where it won't be used for simplicity.
+  list->Set(kInsetTopIndex, ConvertCSSLengthOrAuto(inset.Top(), 0));
+  list->Set(kInsetRightIndex, ConvertCSSLengthOrAuto(inset.Right(), 100));
+  list->Set(kInsetBottomIndex, ConvertCSSLengthOrAuto(inset.Bottom(), 100));
+  list->Set(kInsetLeftIndex, ConvertCSSLengthOrAuto(inset.Left(), 0));
 
   list->Set(kInsetBorderTopLeftWidthIndex,
             ConvertCSSBorderRadiusWidth(inset.TopLeftRadius()));
@@ -370,10 +412,12 @@ InterpolationValue ConvertCSSValue(const BasicShapeCSSValueClass& inset) {
 InterpolationValue ConvertBasicShape(const BasicShapeRectCommon& inset,
                                      double zoom) {
   auto list = std::make_unique<InterpolableList>(kInsetComponentIndexCount);
-  list->Set(kInsetTopIndex, ConvertLength(inset.Top(), zoom));
-  list->Set(kInsetRightIndex, ConvertLength(inset.Right(), zoom));
-  list->Set(kInsetBottomIndex, ConvertLength(inset.Bottom(), zoom));
-  list->Set(kInsetLeftIndex, ConvertLength(inset.Left(), zoom));
+  // 'auto' can only appear in the rect() function, but passing for inset()
+  // where it won't be used for simplicity.
+  list->Set(kInsetTopIndex, ConvertLengthOrAuto(inset.Top(), zoom, 0));
+  list->Set(kInsetRightIndex, ConvertLengthOrAuto(inset.Right(), zoom, 100));
+  list->Set(kInsetBottomIndex, ConvertLengthOrAuto(inset.Bottom(), zoom, 100));
+  list->Set(kInsetLeftIndex, ConvertLengthOrAuto(inset.Left(), zoom, 0));
 
   list->Set(kInsetBorderTopLeftWidthIndex,
             ConvertLength(inset.TopLeftRadius().Width(), zoom));

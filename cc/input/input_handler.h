@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/time/time.h"
@@ -191,13 +192,15 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // Note these are used in a histogram. Do not reorder or delete existing
   // entries.
   enum class ScrollThread {
-    SCROLL_ON_MAIN_THREAD = 0,
-    SCROLL_ON_IMPL_THREAD,
-    SCROLL_IGNORED,
-    // SCROLL_UNKOWN is not used anymore. However we'll keep this entry as per
+    // kScrollOnMainThread is not used anymore. However we'll keep this entry
+    // as per the comment above.
+    kScrollOnMainThread_NotUsed = 0,
+    kScrollOnImplThread,
+    kScrollIgnored,
+    // kScrollUnknown is not used anymore. However we'll keep this entry as per
     // the comment above.
-    SCROLL_UNKNOWN,
-    LAST_SCROLL_STATUS = SCROLL_UNKNOWN
+    kScrollUnknown_NotUsed,
+    kLastScrollStatus = kScrollUnknown_NotUsed,
   };
 
   explicit InputHandler(CompositorDelegateForInput& compositor_delegate);
@@ -207,25 +210,21 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   InputHandler& operator=(const InputHandler&) = delete;
 
   struct ScrollStatus {
-    ScrollThread thread = ScrollThread::SCROLL_ON_IMPL_THREAD;
-    // This should be set to nonzero iff `thread` is SCROLL_ON_MAIN_THREAD.
-    uint32_t main_thread_scrolling_reasons =
-        MainThreadScrollingReason::kNotScrollingOnMain;
+    ScrollThread thread = ScrollThread::kScrollOnImplThread;
 
-    // Used only in scroll unification. If nonzero, it tells the caller that
-    // the input handler detected a case where it cannot reliably target a
-    // scroll node and needs the main thread to perform a hit test.
+    // If nonzero, it tells the caller that the input handler detected a case
+    // where it cannot reliably target a scroll node and needs the main thread
+    // to perform a hit test. If nonzero, this will be one or more values from
+    // MainThreadScrollingReason::kHitTestReasons.
     uint32_t main_thread_hit_test_reasons =
         MainThreadScrollingReason::kNotScrollingOnMain;
 
-    // Used only in scroll unification. A nonzero value means we have performed
-    // the scroll (i.e. updated the offset in the scroll tree) on the compositor
-    // thread, but we will need a main thread lifecycle update + commit before
-    // the user will see the new pixels (for example, because the scroller does
-    // not have a composited layer). If nonzero, this will be one or more values
-    // from the MainThreadScrollingReason enum. (Unification avoids setting
-    // main_thread_scrolling_reasons, to keep that field consistent with
-    // semantics of ScrollThread::SCROLL_ON_IMPL_THREAD.)
+    // A nonzero value means we have performed the scroll (i.e. updated the
+    // offset in the scroll tree) on the compositor thread, but we will need a
+    // main thread lifecycle update + commit before the user will see the new
+    // pixels (for example, because the scroller does not have a composited
+    // layer). If nonzero, this will be one or more values from the
+    // MainThreadScrollingReason::kRepaintReasons.
     uint32_t main_thread_repaint_reasons =
         MainThreadScrollingReason::kNotScrollingOnMain;
 
@@ -238,9 +237,9 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   };
 
   enum class TouchStartOrMoveEventListenerType {
-    NO_HANDLER,
-    HANDLER,
-    HANDLER_ON_SCROLLING_LAYER
+    kNoHandler,
+    kHandler,
+    kHandlerOnScrollingLayer
   };
 
   virtual base::WeakPtr<InputHandler> AsWeakPtr();
@@ -255,7 +254,7 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // gesture is ended by a call to ScrollEnd.  Returns SCROLL_STARTED if a node
   // at the coordinates can be scrolled and was latched, SCROLL_ON_MAIN_THREAD
   // if the scroll event should instead be delegated to the main thread, or
-  // SCROLL_IGNORED if there is nothing to be scrolled at the given
+  // kScrollUnknown if there is nothing to be scrolled at the given
   // coordinates.
   virtual ScrollStatus ScrollBegin(ScrollState* scroll_state,
                                    ui::ScrollInputType type);
@@ -383,8 +382,6 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
                                        gfx::PointF* offset);
   virtual bool ScrollLayerTo(ElementId element_id, const gfx::PointF& offset);
 
-  virtual bool ScrollingShouldSwitchtoMainThread();
-
   // Sets the initial and target offset for scroll snapping for the currently
   // scrolling node and the given natural displacement. Also sets the target
   // element of the snap's scrolling animation.
@@ -392,6 +389,7 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // the active scroll sequence.
   // Returns false if their is no position to snap to.
   virtual bool GetSnapFlingInfoAndSetAnimatingSnapTarget(
+      const gfx::Vector2dF& current_delta,
       const gfx::Vector2dF& natural_displacement_in_viewport,
       gfx::PointF* initial_offset,
       gfx::PointF* target_offset);
@@ -415,6 +413,8 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   virtual void UpdateBrowserControlsState(BrowserControlsState constraints,
                                           BrowserControlsState current,
                                           bool animate);
+
+  virtual void SetIsHandlingTouchSequence(bool is_handling_touch_sequence);
 
   bool CanConsumeDelta(const ScrollState& scroll_state,
                        const ScrollNode& scroll_node);
@@ -486,19 +486,16 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   void SetPrefersReducedMotion(bool prefers_reduced_motion) override;
   bool IsCurrentlyScrolling() const override;
   ActivelyScrollingType GetActivelyScrollingType() const override;
+  bool IsHandlingTouchSequence() const override;
   bool IsCurrentScrollMainRepainted() const override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest,
                            AbortAnimatedScrollBeforeStartingAutoscroll);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           AnimatedScrollYielding);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           AutoscrollOnDeletedScrollbar);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           ThumbDragAfterJumpClick);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           ScrollOnLargeThumb);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, AnimatedScrollYielding);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, AutoscrollOnDeletedScrollbar);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, ThumbDragAfterJumpClick);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, ScrollOnLargeThumb);
   FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, AutoscrollTaskAbort);
 
   // This method gets the scroll offset for a regular scroller, or the combined
@@ -520,13 +517,6 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   void SetNeedsCommit();
   LayerTreeImpl& ActiveTree();
   LayerTreeImpl& ActiveTree() const;
-
-  bool IsMainThreadScrolling(const InputHandler::ScrollStatus& status,
-                             const ScrollNode* scroll_node) const;
-
-  bool IsTouchDraggingScrollbar(
-      LayerImpl* first_scrolling_layer_or_drawn_scrollbar,
-      ui::ScrollInputType type);
 
   void UpdateRootLayerStateForSynchronousInputHandler();
 
@@ -553,58 +543,26 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   void ScrollLatchedScroller(ScrollState* scroll_state,
                              base::TimeDelta delayed_by);
 
-  // Determines whether the given scroll node can scroll on the compositor
-  // thread or if there are any reasons it must be scrolled on the main thread
-  // or not at all. Note: in general, this is not sufficient to determine if a
-  // scroll can occur on the compositor thread. If hit testing to a scroll
-  // node, the caller must also check whether the hit point intersects a
-  // non-fast-scrolling-region of any ancestor scrolling layers. Can be removed
-  // after scroll unification https://crbug.com/476553.
-  InputHandler::ScrollStatus TryScroll(const ScrollTree& scroll_tree,
-                                       ScrollNode* scroll_node) const;
-
   enum class SnapReason { kGestureScrollEnd, kScrollOffsetAnimationFinished };
 
   // Creates an animation curve and returns true if we need to update the
   // scroll position to a snap point. Otherwise returns false.
   bool SnapAtScrollEnd(SnapReason reason);
 
-  // |layer| is returned from a regular hit test, and
-  // |first_scrolling_layer_or_drawn_scrollbar| is returned from a hit test
-  // performed only on scrollers and scrollbars. Initial scroll hit testing can
-  // be unreliable if the latter is not the direct scroll ancestor of the
-  // former. In this case, we will fall back to main thread scrolling because
-  // the compositor thread doesn't know which layer to scroll. This happens when
-  // a layer covers a scroller that doesn't scroll the former, or a scroller is
+  // `layer` is returned from a regular hit test, and
+  // `first_scrollable_or_opaque_to_hit_test_layer` is the first scroller,
+  // scrollbar, or layer opaque to hit test, when we perform a hit test for
+  // all layers from top to bottom in z order.
+  // This function returns true if we know which scroller to scroll, and
+  // `out_node_to_scroll` is set to the scroll node to scroll. It returns
+  // false when `layer` covers `first_layer_scrollable_or_opaque_to_hit_test`
+  // but they have different nearest scroll ancestors, and we don't know
+  // which scroll ancestor to scroll. This includes the case that a scroller is
   // masked by a mask layer for mask image, clip-path, rounded border, etc.
-  //
-  // Note, position: fixed layers use the inner viewport as their ScrollNode
-  // (since they don't scroll with the outer viewport), however, scrolls from
-  // the fixed layer still chain to the outer viewport. It's also possible for a
-  // node to have the inner viewport as its ancestor without going through the
-  // outer viewport; however, it may still scroll using the viewport(). Hence,
-  // this method must use the same scroll chaining logic we use in ApplyScroll.
   bool IsInitialScrollHitTestReliable(
       const LayerImpl* layer,
-      const LayerImpl* first_scrolling_layer_or_drawn_scrollbar) const;
-
-  // Similar to above but includes complicated logic to determine whether the
-  // ScrollNode is able to be scrolled on the compositor or requires main
-  // thread scrolling. If main thread scrolling is required
-  // |scroll_on_main_thread| is set to true and the reason is given in
-  // |main_thread_scrolling_reason| to on of the enum values in
-  // main_thread_scrolling_reason.h. Can be removed after scroll unification
-  // https://crbug.com/476553.
-  ScrollNode* FindScrollNodeForCompositedScrolling(
-      const gfx::PointF& device_viewport_point,
-      LayerImpl* layer_hit_by_point,
-      bool* scroll_on_main_thread,
-      uint32_t* main_thread_scrolling_reason);
-
-  // Return all ScrollNode indices that have an associated layer with a non-fast
-  // region that intersects the point.
-  base::flat_set<int> NonFastScrollableNodes(
-      const gfx::PointF& device_viewport_point) const;
+      const LayerImpl* first_layer_scrollable_or_opaque_to_hit_test,
+      ScrollNode*& out_node_to_scroll) const;
 
   // Returns the ScrollNode we should use to scroll, accounting for viewport
   // scroll chaining rules.
@@ -676,6 +634,8 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
     return scrollbar_controller_.get();
   }
 
+  absl::optional<gfx::PointF> ConstrainFling(gfx::PointF original);
+
   // The input handler is owned by the delegate so their lifetimes are tied
   // together.
   const raw_ref<CompositorDelegateForInput> compositor_delegate_;
@@ -711,6 +671,16 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // At the end of a scroll animation, the target should be set as the scroll
   // node's snap target.
   TargetSnapAreaElementIds scroll_animating_snap_target_ids_;
+
+  enum SnapFlingState {
+    kNoFling,
+    kNativeFling,
+    kConstrainedNativeFling,
+    kSnapFling
+  };
+  SnapFlingState snap_fling_state_ = kNoFling;
+  absl::optional<gfx::RangeF> fling_snap_constrain_x_;
+  absl::optional<gfx::RangeF> fling_snap_constrain_y_;
 
   // A set of elements that scroll-snapped to a new target since the last
   // begin main frame. The snap target ids of these elements will be sent to
@@ -778,6 +748,8 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   bool has_scrolled_by_scrollbar_ = false;
 
   bool prefers_reduced_motion_ = false;
+
+  bool is_handling_touch_sequence_ = false;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

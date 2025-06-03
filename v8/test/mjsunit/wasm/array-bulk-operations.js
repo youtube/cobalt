@@ -154,7 +154,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array = builder.addArray(kWasmI16, true);
 
-  builder.addMemory(10, 10, false);
+  builder.addMemory(10, 10);
 
   let passive = builder.addPassiveDataSegment([0, 1, 2, 3, 4, 5]);
   let active = builder.addDataSegment(0, [6, 7, 8, 9]);
@@ -219,6 +219,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Out-of-bounds data segment.
   assertTraps(kTrapDataSegmentOutOfBounds,
               () => wasm.init_passive(array_obj, 1, 2, 3));
+  // Out-of-bounds data segment with out-of-smi-range segment offset.
+  assertTraps(kTrapDataSegmentOutOfBounds,
+              () => wasm.init_passive(array_obj, 1, 0x80000000, 0));
   // Out-of-bounds array.
   assertTraps(kTrapArrayOutOfBounds,
               () => wasm.init_passive(array_obj, array_length - 1, 0, 2));
@@ -382,9 +385,16 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Out-of-bounds element segment.
   assertTraps(kTrapElementSegmentOutOfBounds,
               () => wasm.init_passive(array_obj, 1, 2, 3));
+  // Out-of-bounds element segment with out-of-smi-bounds segment offset.
+  assertTraps(kTrapElementSegmentOutOfBounds,
+              () => wasm.init_passive(array_obj, 1, 0x80000000, 0));
   // Out-of-bounds array.
   assertTraps(kTrapArrayOutOfBounds,
               () => wasm.init_passive(array_obj, array_length - 1, 0, 2));
+  // Out-of-bounds array with out-of-smi-bounds length
+  assertTraps(kTrapArrayOutOfBounds,
+              () => wasm.init_passive(array_obj, array_length - 1, 0,
+                                      0x80000000));
 
   // Load the last three elements of the element segment at index 5.
   wasm.init_passive(array_obj, 5, 1, 3);

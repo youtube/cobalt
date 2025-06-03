@@ -20,9 +20,17 @@
 #include "third_party/skia/include/core/SkYUVAInfo.h"
 
 struct SkGainmapInfo;
+struct SkHighContrastConfig;
 struct SkRect;
 struct SkIRect;
 class SkRRect;
+namespace sktext::gpu {
+class Slug;
+}
+
+namespace gfx {
+struct HDRMetadata;
+}
 
 namespace gpu {
 struct Mailbox;
@@ -30,6 +38,7 @@ struct Mailbox;
 
 namespace cc {
 
+class ColorFilter;
 class DecodedDrawImage;
 class DrawImage;
 class PaintShader;
@@ -47,13 +56,22 @@ class CC_PAINT_EXPORT PaintOpWriter {
   PaintOpWriter(void* memory,
                 size_t size,
                 const PaintOp::SerializeOptions& options,
-                bool enable_security_constraints = false);
+                bool enable_security_constraints = false)
+      : memory_(static_cast<char*>(memory)),
+        size_(base::bits::AlignDown(size, kDefaultAlignment)),
+        options_(options),
+        enable_security_constraints_(enable_security_constraints) {
+    memory_end_ = memory_ + size_;
+    AssertAlignment(memory, BufferAlignment());
+  }
+
   ~PaintOpWriter();
 
-  static std::unique_ptr<char, base::AlignedFreeDeleter> AllocateAlignedBuffer(
+  template <typename T = char>
+  static std::unique_ptr<T, base::AlignedFreeDeleter> AllocateAlignedBuffer(
       size_t size) {
-    return std::unique_ptr<char, base::AlignedFreeDeleter>(
-        static_cast<char*>(base::AlignedAlloc(size, kMaxAlignment)));
+    return std::unique_ptr<T, base::AlignedFreeDeleter>(
+        static_cast<T*>(base::AlignedAlloc(size, kMaxAlignment)));
   }
 
   const PaintOp::SerializeOptions& options() const { return *options_; }
@@ -110,6 +128,7 @@ class CC_PAINT_EXPORT PaintOpWriter {
   static constexpr size_t SerializedSize(const T& data);
   static size_t SerializedSize(const PaintImage& image);
   static size_t SerializedSize(const PaintRecord& record);
+  static size_t SerializedSize(const SkHighContrastConfig& config);
 
   // Serialization of raw/smart pointers is not supported by default.
   template <typename T>
@@ -127,6 +146,8 @@ class CC_PAINT_EXPORT PaintOpWriter {
   }
   static size_t SerializedSize(const SkFlattenable* flattenable);
   static size_t SerializedSize(const SkColorSpace* color_space);
+  static size_t SerializedSize(const gfx::HDRMetadata& hdr_metadata);
+  static size_t SerializedSize(const ColorFilter* filter);
   static size_t SerializedSize(const PaintFilter* filter);
 
   template <typename T>
@@ -157,7 +178,12 @@ class CC_PAINT_EXPORT PaintOpWriter {
   // serializing the data of a PaintOp. These functions should not be called
   // if this PaintOpWriter is used to write specific data instead of a whole
   // PaintOp.
-  void ReserveOpHeader();
+  void ReserveOpHeader() {
+    // Pretend we have written the header to leave a space for the header.
+    DCHECK_GE(size_, kHeaderBytes);
+    DidWrite(kHeaderBytes);
+  }
+
   // Returns the serialized size (aligned to BufferAlignment()) of the PaintOp,
   // or 0 on any errors.
   size_t FinishOp(uint8_t type);
@@ -171,38 +197,33 @@ class CC_PAINT_EXPORT PaintOpWriter {
 
   // Returns the size of successfully written data, including paddings for
   // alignment.
-  size_t size() const { return valid_ ? size_ - remaining_bytes_ : 0u; }
+  size_t size() const { return valid_ ? size_ - remaining_bytes() : 0u; }
 
-  // Writes a size_t. The return value can be used when the size is unknown
-  // before writing some data:
-  //   uint64_t* memory = WriteSize(0u);
-  //   size_t data_size = WriteSomeData();
-  //   *memory = data_size;
-  // Note that size_t is always serialized as uint64_t to make the serialized
-  // result portable between 32bit and 64bit processes.
-  uint64_t* WriteSize(size_t size);
-
-  void Write(SkScalar data);
-  void Write(SkMatrix data);
-  void Write(const SkM44& data);
-  void Write(uint8_t data);
-  void Write(uint32_t data);
-  void Write(uint64_t data);
-  void Write(int32_t data);
-  void Write(const SkRect& rect);
-  void Write(const SkIRect& rect);
-  void Write(const SkRRect& rect);
-  void Write(const SkColor4f& color);
+  // Writes a size_t.
+  // Note that size_t is always serialized as two uint32_ts to make the
+  // serialized result portable between 32bit and 64bit processes.
+  void WriteSize(size_t size);
+  void Write(SkScalar data) { WriteSimple(data); }
+  void Write(SkMatrix matrix);
+  void Write(const SkM44& matrix);
+  void Write(uint8_t data) { WriteSimple(data); }
+  void Write(uint32_t data) { WriteSimple(data); }
+  void Write(int32_t data) { WriteSimple(data); }
+  void Write(const SkRect& rect) { WriteSimple(rect); }
+  void Write(const SkIRect& rect) { WriteSimple(rect); }
+  void Write(const SkRRect& rect) { WriteSimple(rect); }
+  void Write(const SkColor4f& color) { WriteSimple(color); }
   void Write(const SkPath& path, UsePaintCache);
   void Write(const sk_sp<SkData>& data);
   void Write(const SkColorSpace* data);
   void Write(const SkGainmapInfo& gainmap_info);
   void Write(const SkSamplingOptions&);
-  void Write(const sk_sp<GrSlug>& slug);
+  void Write(const sk_sp<sktext::gpu::Slug>& slug);
   void Write(SkYUVColorSpace yuv_color_space);
   void Write(SkYUVAInfo::PlaneConfig plane_config);
   void Write(SkYUVAInfo::Subsampling subsampling);
   void Write(const gpu::Mailbox& mailbox);
+  void Write(const SkHighContrastConfig& config);
 
   // Shaders and filters need to know the current transform in order to lock in
   // the scale factor they will be evaluated at after deserialization. This is
@@ -212,7 +233,9 @@ class CC_PAINT_EXPORT PaintOpWriter {
   void Write(const PaintShader* shader,
              PaintFlags::FilterQuality quality,
              const SkM44& current_ctm);
+  void Write(const ColorFilter* filter);
   void Write(const PaintFilter* filter, const SkM44& current_ctm);
+  void Write(const gfx::HDRMetadata& hdr_metadata);
 
   void Write(SkClipOp op) { WriteEnum(op); }
   void Write(PaintCanvas::AnnotationType type) { WriteEnum(type); }
@@ -270,9 +293,60 @@ class CC_PAINT_EXPORT PaintOpWriter {
   // Serializes the given |skottie| vector graphic.
   void Write(scoped_refptr<SkottieWrapper> skottie);
 
+  // Faster than a series of WriteSimple() calls, because it can amortize
+  // the size checks and pointer maintenance over many values written.
+  // Note that the types must really be simple; prefer Write() over
+  // WriteSimpleMultiple() if you are not performance-constrained and/or
+  // not sure if the types are simple. In particular, size_t has its own
+  // convention through WriteSize(), and if you want to write a size_t
+  // using WriteSimpleMultiple(), you'll need to implement that convention
+  // yourself.
+  template <typename... Types>
+  ALWAYS_INLINE void WriteSimpleMultiple(Types... vals) {
+    AssertFieldAlignment();
+    static constexpr size_t total_size =
+        (base::bits::AlignUp(sizeof(vals), kDefaultAlignment) + ...);
+
+    EnsureBytes(total_size);
+    if (!valid_) {
+      return;
+    }
+
+    // The pattern ([&]{ code(vals) } (), ...) evaluates code() over
+    // each element of `vals` in turn. It is similar to the use of + ...
+    // above (the comma followed by ... generates a fold expression).
+    // Note that `vals` on the inside of the fold expression refers to
+    // one specific value.
+    char* ptr = memory_.get();
+    (
+        [&] {
+          static_assert(std::is_trivially_copyable_v<decltype(vals)>);
+          reinterpret_cast<decltype(vals)*>(ptr)[0] = vals;
+          ptr += base::bits::AlignUp(sizeof(vals), kDefaultAlignment);
+        }(),
+        ...);
+
+    DidWrite(total_size);
+  }
+
  private:
   template <typename T>
-  void WriteSimple(const T& val);
+  void WriteSimple(const T& val) {
+    static_assert(std::is_trivially_copyable_v<T>);
+
+    AssertFieldAlignment();
+    static constexpr size_t size =
+        base::bits::AlignUp(sizeof(T), kDefaultAlignment);
+    EnsureBytes(size);
+    if (!valid_) {
+      return;
+    }
+
+    reinterpret_cast<T*>(memory_.get())[0] = val;
+
+    memory_ += size;
+    AssertFieldAlignment();
+  }
 
   void WriteFlattenable(const SkFlattenable* val);
 
@@ -280,6 +354,14 @@ class CC_PAINT_EXPORT PaintOpWriter {
   void WriteEnum(Enum value) {
     Write(base::checked_cast<uint8_t>(value));
   }
+
+  // The following sequence is used when the size is unknown before writing
+  // some data:
+  //   void* memory = SkipSize();
+  //   size_t data_size = WriteSomeData();
+  //   WriteSizeAt(memory, data_size);
+  void* SkipSize();
+  void WriteSizeAt(void* memory, size_t size);
 
   // The main entry point is Write(const PaintFilter* filter) which casts the
   // filter and calls one of the following functions.
@@ -316,8 +398,22 @@ class CC_PAINT_EXPORT PaintOpWriter {
   void WriteImage(const DecodedDrawImage& decoded_draw_image);
   void WriteImage(uint32_t transfer_cache_entry_id, bool needs_mips);
   void WriteImage(const gpu::Mailbox& mailbox);
-  void DidWrite(size_t bytes_written);
-  void EnsureBytes(size_t required_bytes);
+  void DidWrite(size_t bytes_written) {
+    // All data are aligned with kDefaultAlignment at least.
+    size_t aligned_bytes =
+        base::bits::AlignUp(bytes_written, kDefaultAlignment);
+    DCHECK_LE(aligned_bytes, remaining_bytes());
+    memory_ += aligned_bytes;
+  }
+  void EnsureBytes(size_t required_bytes) {
+    if (remaining_bytes() < required_bytes) {
+      valid_ = false;
+    }
+  }
+  size_t remaining_bytes() const {
+    DCHECK_LE(memory_.get(), memory_end_);
+    return memory_end_ - memory_.get();
+  }
   sk_sp<PaintShader> TransformShaderIfNecessary(
       const PaintShader* original,
       PaintFlags::FilterQuality quality,
@@ -328,8 +424,8 @@ class CC_PAINT_EXPORT PaintOpWriter {
       gpu::Mailbox* mailbox_out);
 
   raw_ptr<char, AllowPtrArithmetic> memory_ = nullptr;
+  const char* memory_end_ = nullptr;
   size_t size_ = 0u;
-  size_t remaining_bytes_ = 0u;
   const raw_ref<const PaintOp::SerializeOptions> options_;
   bool valid_ = true;
 
@@ -347,11 +443,11 @@ constexpr size_t PaintOpWriter::SerializedSizeSimple() {
   return base::bits::AlignUp(sizeof(T), kDefaultAlignment);
 }
 
-// size_t is always serialized as uint64_t to make the serialized result
+// size_t is always serialized as two uint32_ts to make the serialized result
 // portable between 32bit and 64bit processes.
 template <>
 constexpr size_t PaintOpWriter::SerializedSizeSimple<size_t>() {
-  return base::bits::AlignUp(sizeof(uint64_t), kDefaultAlignment);
+  return base::bits::AlignUp(2 * sizeof(uint32_t), kDefaultAlignment);
 }
 
 template <>

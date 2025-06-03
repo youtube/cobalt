@@ -58,6 +58,10 @@ class COMPONENT_EXPORT(APP_UPDATE) AppUpdate {
   // fields whose values aren't "unknown". The |state| may not be nullptr.
   static void Merge(App* state, const App* delta);
 
+  // Returns true if there are some changed for `delta` compared with `state`.
+  // Otherwise, returns false. `state` and `delta` must have the same`app_id`.
+  static bool IsChanged(const App* state, const App* delta);
+
   // At most one of |state| or |delta| may be nullptr.
   AppUpdate(const App* state, const App* delta, const AccountId& account_id);
 
@@ -76,9 +80,16 @@ class COMPONENT_EXPORT(APP_UPDATE) AppUpdate {
   apps::Readiness PriorReadiness() const;
   bool ReadinessChanged() const;
 
+  // The full name of the app. This is the name that should be used by default
+  // in most UIs.
   const std::string& Name() const;
   bool NameChanged() const;
 
+  // A possibly shortened version of the app name. May omit branding (e.g.
+  // "Google" prefixes) or rely on abbreviations (e.g. "YT Music"). If the
+  // developer/publisher does not supply a short name, this will be the same as
+  // the Name() field. May be used in UIs where space is limited and/or we want
+  // to optimize for scannability.
   const std::string& ShortName() const;
   bool ShortNameChanged() const;
 
@@ -174,6 +185,9 @@ class COMPONENT_EXPORT(APP_UPDATE) AppUpdate {
 
   absl::optional<uint64_t> DataSizeInBytes() const;
   bool DataSizeInBytesChanged() const;
+
+  const App* State() const { return state_.get(); }
+  const App* Delta() const { return delta_.get(); }
 
  private:
   friend class AppRegistryCacheTest;

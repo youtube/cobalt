@@ -13,6 +13,7 @@
 #include "ash/public/cpp/vm_camera_mic_constants.h"
 #include "ash/root_window_controller.h"
 #include "ash/shell.h"
+#include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/privacy/privacy_indicators_tray_item_view.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/unified/unified_system_tray.h"
@@ -79,6 +80,9 @@ class FakeNotificationDisplayService : public NotificationDisplayService {
   }
 
   void GetDisplayed(DisplayedNotificationsCallback callback) override {}
+  void GetDisplayedForOrigin(const GURL& origin,
+                             DisplayedNotificationsCallback callback) override {
+  }
   void AddObserver(Observer* observer) override {}
   void RemoveObserver(Observer* observer) override {}
 
@@ -103,11 +107,15 @@ struct IsActiveTestParam {
 void ExpectPrivacyIndicatorsVisible(bool visible) {
   for (RootWindowController* root_window_controller :
        Shell::Get()->GetAllRootWindowControllers()) {
-    EXPECT_EQ(root_window_controller->GetStatusAreaWidget()
-                  ->unified_system_tray()
-                  ->privacy_indicators_view()
-                  ->GetVisible(),
-              visible);
+    auto* view = features::IsQsRevampEnabled()
+                     ? root_window_controller->GetStatusAreaWidget()
+                           ->notification_center_tray()
+                           ->privacy_indicators_view()
+                     : root_window_controller->GetStatusAreaWidget()
+                           ->unified_system_tray()
+                           ->privacy_indicators_view();
+
+    EXPECT_EQ(view->GetVisible(), visible);
   }
 }
 
@@ -146,12 +154,11 @@ class VmCameraMicManagerTest : public testing::Test {
   }
 
   VmCameraMicManagerTest() {
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
+
     // Make the profile the primary one.
-    auto fake_user_manager = std::make_unique<FakeChromeUserManager>();
-    fake_user_manager->AddUser(AccountId::FromUserEmailGaiaId(
+    fake_user_manager_->AddUser(AccountId::FromUserEmailGaiaId(
         testing_profile_.GetProfileUserName(), "id"));
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
 
     // Inject a fake notification display service.
     fake_display_service_ = static_cast<FakeNotificationDisplayService*>(
@@ -169,6 +176,8 @@ class VmCameraMicManagerTest : public testing::Test {
 
   VmCameraMicManagerTest(const VmCameraMicManagerTest&) = delete;
   VmCameraMicManagerTest& operator=(const VmCameraMicManagerTest&) = delete;
+
+  ~VmCameraMicManagerTest() override { fake_user_manager_.Reset(); }
 
   // testing::Test:
   void SetUp() override {
@@ -250,8 +259,9 @@ class VmCameraMicManagerTest : public testing::Test {
  protected:
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   TestingProfile testing_profile_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
 
   raw_ptr<FakeNotificationDisplayService, ExperimentalAsh>
       fake_display_service_;
@@ -296,19 +306,33 @@ TEST_F(VmCameraMicManagerTest, CameraPrivacy) {
 }
 
 // Test when PrivacyIndicators feature is enabled.
-class VmCameraMicManagerPrivacyIndicatorsTest : public VmCameraMicManagerTest {
+class VmCameraMicManagerPrivacyIndicatorsTest
+    : public VmCameraMicManagerTest,
+      public testing::WithParamInterface<bool> {
  public:
   // VmCameraMicManagerTest:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({features::kPrivacyIndicators}, {});
+    if (IsQsRevampEnabled()) {
+      scoped_feature_list_.InitWithFeatures(
+          {features::kPrivacyIndicators, features::kQsRevamp}, {});
+    } else {
+      scoped_feature_list_.InitWithFeatures({features::kPrivacyIndicators}, {});
+    }
 
     VmCameraMicManagerTest::SetUp();
   }
 
   bool IsPrivacyIndicatorsFeatureEnabled() const override { return true; }
+
+  // TODO(b/305075031) clean up after the flag is removed.
+  bool IsQsRevampEnabled() const { return true; }
 };
 
-TEST_F(VmCameraMicManagerPrivacyIndicatorsTest, Notification) {
+INSTANTIATE_TEST_SUITE_P(All,
+                         VmCameraMicManagerPrivacyIndicatorsTest,
+                         testing::Bool());
+
+TEST_P(VmCameraMicManagerPrivacyIndicatorsTest, Notification) {
   SetCameraAccessing(kPluginVm, false);
   SetCameraPrivacyIsOn(false);
   ForwardToStable();
@@ -327,10 +351,10 @@ TEST_F(VmCameraMicManagerPrivacyIndicatorsTest, Notification) {
       GetNotificationId(VmType::kPluginVm, kCameraNotification)});
 }
 
-TEST_F(VmCameraMicManagerPrivacyIndicatorsTest, PrivacyIndicatorsView) {
+TEST_P(VmCameraMicManagerPrivacyIndicatorsTest, PrivacyIndicatorsView) {
   // Make sure privacy indicators work on multiple displays.
   display::test::DisplayManagerTestApi(Shell::Get()->display_manager())
-      .UpdateDisplay("800x800,801+0-800x800");
+      .UpdateDisplay("800x700,801+0-800x700");
 
   SetCameraAccessing(kPluginVm, false);
   SetCameraPrivacyIsOn(false);

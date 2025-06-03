@@ -17,7 +17,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "base/time/time_to_iso8601.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/history_clusters/history_clusters_metrics_logger.h"
@@ -28,6 +27,9 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/tabs/tab_group.h"
+#include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/common/pref_names.h"
@@ -338,7 +340,8 @@ void HistoryClustersHandler::RemoveVisits(
 }
 
 void HistoryClustersHandler::OpenVisitUrlsInTabGroup(
-    std::vector<mojom::URLVisitPtr> visits) {
+    std::vector<mojom::URLVisitPtr> visits,
+    const absl::optional<std::string>& tab_group_name) {
   auto* browser = chrome::FindTabbedBrowser(profile_, false);
   if (!browser) {
     return;
@@ -372,7 +375,16 @@ void HistoryClustersHandler::OpenVisitUrlsInTabGroup(
   if (tab_indices.empty()) {
     return;
   }
-  model->AddToNewGroup(tab_indices);
+  auto new_group_id = model->AddToNewGroup(tab_indices);
+  if (!new_group_id.is_empty() && tab_group_name) {
+    if (auto* group_model = model->group_model()) {
+      auto* tab_group = group_model->GetTabGroup(new_group_id);
+      // Copy and modify the existing visual data with a new title.
+      tab_groups::TabGroupVisualData visual_data = *tab_group->visual_data();
+      visual_data.SetTitle(base::UTF8ToUTF16(*tab_group_name));
+      tab_group->SetVisualData(visual_data);
+    }
+  }
 }
 
 void HistoryClustersHandler::OnDebugMessage(const std::string& message) {

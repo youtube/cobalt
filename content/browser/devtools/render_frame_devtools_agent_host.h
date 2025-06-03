@@ -16,6 +16,7 @@
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "net/base/net_errors.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -38,6 +39,13 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
       private WebContentsObserver,
       private RenderProcessHostObserver {
  public:
+  // Returns true when DevTools was ever attached to any RenderFrameHost.
+  // TODO(https://crbug.com/1434900): Remove this method after the experiment
+  // associated with the bug entry.
+  static bool WasEverAttachedToAnyFrame();
+
+  static bool IsDebuggerAttached(WebContents* web_contents);
+
   static void AddAllAgentHosts(DevToolsAgentHost::List* result);
 
   // Returns appropriate agent host for given frame tree node, traversing
@@ -106,6 +114,8 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
   cross_origin_embedder_policy(const std::string& id) override;
   absl::optional<network::CrossOriginOpenerPolicy> cross_origin_opener_policy(
       const std::string& id) override;
+  absl::optional<std::vector<network::mojom::ContentSecurityPolicyHeader>>
+  content_security_policy(const std::string& id) override;
 
   // This is used to enable compatibility shims, including disabling some
   // features that are incompatible with older clients.
@@ -128,9 +138,14 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
   bool AttachSession(DevToolsSession* session, bool acquire_wake_lock) override;
   void DetachSession(DevToolsSession* session) override;
   void InspectElement(RenderFrameHost* frame_host, int x, int y) override;
+  void GetUniqueFormControlId(int node_id,
+                              GetUniqueFormControlIdCallback callback) override;
   void UpdateRendererChannel(bool force) override;
   protocol::TargetAutoAttacher* auto_attacher() override;
   std::string GetSubtype() override;
+  RenderProcessHost* GetProcessHost() override;
+  void MainThreadDebuggerPaused() override;
+  void MainThreadDebuggerResumed() override;
 
   // WebContentsObserver overrides.
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
@@ -169,6 +184,11 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
   base::flat_set<NavigationRequest*> navigation_requests_;
   bool render_frame_alive_ = false;
   bool render_frame_crashed_ = false;
+
+  // TODO(https://crbug.com/1449114): Remove these fields once we collect enough
+  // data.
+  bool is_debugger_paused_ = false;
+  bool is_debugger_pause_situation_recorded_ = false;
 
   // The FrameTreeNode associated with this agent.
   FrameTreeNode* frame_tree_node_;

@@ -7,8 +7,8 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
+#include "extensions/common/extension_id.h"
 #include "v8/include/v8-forward.h"
 
 namespace blink {
@@ -16,9 +16,15 @@ class WebLocalFrame;
 }
 
 namespace extensions {
+
+namespace mojom {
+enum class ChannelType;
 enum class SerializationFormat;
+}  // namespace mojom
+
 class ScriptContext;
 struct Message;
+struct MessagingEndpoint;
 
 namespace messaging_util {
 
@@ -29,10 +35,12 @@ extern const char kSendRequestChannel[];
 // Messaging-related events.
 extern const char kOnMessageEvent[];
 extern const char kOnMessageExternalEvent[];
+extern const char kOnUserScriptMessageEvent[];
 extern const char kOnRequestEvent[];
 extern const char kOnRequestExternalEvent[];
 extern const char kOnConnectEvent[];
 extern const char kOnConnectExternalEvent[];
+extern const char kOnUserScriptConnectEvent[];
 extern const char kOnConnectNativeEvent[];
 
 extern const int kNoFrameId;
@@ -41,7 +49,7 @@ extern const int kNoFrameId;
 // will populate |error_out|.
 std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
                                        v8::Local<v8::Value> value,
-                                       SerializationFormat format,
+                                       mojom::SerializationFormat format,
                                        std::string* error);
 
 // Converts a message to a v8 value. This is expected not to fail, since it
@@ -57,7 +65,7 @@ int ExtractIntegerId(v8::Local<v8::Value> value);
 // Returns the preferred serialization format for the given `context`. Note
 // extension native messaging clients shouldn't call this as they should always
 // use JSON.
-SerializationFormat GetSerializationFormat(const ScriptContext& context);
+mojom::SerializationFormat GetSerializationFormat(const ScriptContext& context);
 
 // Flags for ParseMessageOptions().
 enum ParseOptionsFlags {
@@ -94,14 +102,19 @@ bool GetTargetExtensionId(ScriptContext* script_context,
 // result if successful; otherwise leaves |arguments| untouched. (If the massage
 // is unsuccessful, our normal argument parsing code should throw a reasonable
 // error.
-void MassageSendMessageArguments(
-    v8::Isolate* isolate,
-    bool allow_options_argument,
-    std::vector<v8::Local<v8::Value>>* arguments_out);
+void MassageSendMessageArguments(v8::Isolate* isolate,
+                                 bool allow_options_argument,
+                                 v8::LocalVector<v8::Value>* arguments_out);
 
 // Returns true if the sendRequest-related properties are disabled for the given
 // |script_context|.
 bool IsSendRequestDisabled(ScriptContext* script_context);
+
+// Retrieves the event to dispatch for the given `source_endpoint`,
+// `target_extension_id`, and `channel_name`.
+std::string GetEventForChannel(const MessagingEndpoint& source_endpoint,
+                               const ExtensionId& target_extension_id,
+                               mojom::ChannelType channel_type);
 
 }  // namespace messaging_util
 }  // namespace extensions

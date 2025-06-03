@@ -9,6 +9,7 @@
 #include <set>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -21,6 +22,7 @@
 #include "base/values.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_filter.h"
+#include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/sync/model/sync_change.h"
 #include "components/sync/model/sync_change_processor.h"
@@ -94,12 +96,12 @@ SupervisedUserSettingsService::~SupervisedUserSettingsService() {}
 
 void SupervisedUserSettingsService::Init(
     base::FilePath profile_path,
-    base::SequencedTaskRunner* sequenced_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner,
     bool load_synchronously) {
   base::FilePath path =
       profile_path.Append(supervised_user::kSupervisedUserSettingsFilename);
   PersistentPrefStore* store = new JsonPrefStore(
-      path, std::unique_ptr<PrefFilter>(), sequenced_task_runner);
+      path, std::unique_ptr<PrefFilter>(), std::move(sequenced_task_runner));
   Init(store);
   if (load_synchronously) {
     store_->ReadPrefs();
@@ -158,8 +160,18 @@ void SupervisedUserSettingsService::SetActive(bool active) {
   active_ = active;
 
   if (active_) {
+// TODO(b/290004926): Modifying `prefs::kSigninAllowed` causes check failures on
+// iOS.
+#if !BUILDFLAG(IS_IOS)
     // Child account supervised users must be signed in.
     SetLocalSetting(supervised_user::kSigninAllowed, base::Value(true));
+#endif  // !BUILDFLAG(IS_IOS)
+
+    if (base::FeatureList::IsEnabled(
+            supervised_user::kSupervisedPrefsControlledBySupervisedStore)) {
+      SetLocalSetting(supervised_user::kSigninAllowedOnNextStartup,
+                      base::Value(true));
+    }
 
     // Always allow cookies, to avoid website compatibility issues.
     SetLocalSetting(supervised_user::kCookiesAlwaysAllowed, base::Value(true));
@@ -167,7 +179,12 @@ void SupervisedUserSettingsService::SetActive(bool active) {
     // SafeSearch and GeolocationDisabled are controlled at the account level,
     // so don't override them client-side.
   } else {
+// TODO(b/290004926): Modifying `prefs::kSigninAllowed` causes check failures on
+// iOS.
+#if !BUILDFLAG(IS_IOS)
     RemoveLocalSetting(supervised_user::kSigninAllowed);
+#endif  // !BUILDFLAG(IS_IOS)
+
     RemoveLocalSetting(supervised_user::kCookiesAlwaysAllowed);
     RemoveLocalSetting(supervised_user::kForceSafeSearch);
     RemoveLocalSetting(supervised_user::kGeolocationDisabled);

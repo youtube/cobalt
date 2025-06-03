@@ -244,7 +244,8 @@ extern "C" {
 
 // ExtensionType value from draft-vvv-tls-alps. This is not an IANA defined
 // extension number.
-#define TLSEXT_TYPE_application_settings 17513
+#define TLSEXT_TYPE_application_settings_old 17513
+#define TLSEXT_TYPE_application_settings 17613
 
 // ExtensionType values from draft-ietf-tls-esni-13. This is not an IANA defined
 // extension number.
@@ -408,6 +409,8 @@ extern "C" {
 #define TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA 0x0300C013
 #define TLS1_CK_ECDHE_RSA_WITH_AES_256_CBC_SHA 0x0300C014
 
+#define TLS1_CK_ECDHE_RSA_WITH_AES_128_CBC_SHA256 0x0300C027
+
 #define TLS1_CK_ECDH_anon_WITH_NULL_SHA 0x0300C015
 #define TLS1_CK_ECDH_anon_WITH_RC4_128_SHA 0x0300C016
 #define TLS1_CK_ECDH_anon_WITH_DES_192_CBC3_SHA 0x0300C017
@@ -517,6 +520,8 @@ extern "C" {
 #define TLS1_TXT_ECDHE_RSA_WITH_DES_192_CBC3_SHA "ECDHE-RSA-DES-CBC3-SHA"
 #define TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA "ECDHE-RSA-AES128-SHA"
 #define TLS1_TXT_ECDHE_RSA_WITH_AES_256_CBC_SHA "ECDHE-RSA-AES256-SHA"
+
+#define TLS1_TXT_ECDHE_RSA_WITH_AES_128_CBC_SHA256 "ECDHE-RSA-AES128-SHA256"
 
 #define TLS1_TXT_ECDH_anon_WITH_NULL_SHA "AECDH-NULL-SHA"
 #define TLS1_TXT_ECDH_anon_WITH_RC4_128_SHA "AECDH-RC4-SHA"

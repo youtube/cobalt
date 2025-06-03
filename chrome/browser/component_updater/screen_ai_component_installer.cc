@@ -8,9 +8,9 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/values.h"
+#include "chrome/browser/screen_ai/screen_ai_install_state.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/crx_file/id_util.h"
-#include "components/services/screen_ai/public/cpp/screen_ai_install_state.h"
 #include "components/services/screen_ai/public/cpp/utilities.h"
 #include "components/update_client/update_client_errors.h"
 #include "content/public/browser/browser_thread.h"
@@ -85,13 +85,17 @@ bool ScreenAIComponentInstallerPolicy::VerifyInstallation(
     return false;
   }
 
-  // Check the file iterator heuristic to find the library in the sandbox
-  // returns the same directory as `install_dir`.
-  return screen_ai::GetLatestComponentBinaryPath().DirName() == install_dir;
+  return screen_ai::ScreenAIInstallState::VerifyLibraryAvailablity(install_dir);
 }
 
 base::FilePath ScreenAIComponentInstallerPolicy::GetRelativeInstallDir() const {
   return screen_ai::GetRelativeInstallDir();
+}
+
+// static
+std::string ScreenAIComponentInstallerPolicy::GetOmahaId() {
+  return crx_file::id_util::GenerateIdFromHash(
+      kScreenAIPublicKeySHA256, std::size(kScreenAIPublicKeySHA256));
 }
 
 void ScreenAIComponentInstallerPolicy::GetHash(
@@ -111,28 +115,43 @@ ScreenAIComponentInstallerPolicy::GetInstallerAttributes() const {
 
 // static
 void ScreenAIComponentInstallerPolicy::DeleteComponent() {
-  base::FilePath component_binary_path =
-      screen_ai::GetLatestComponentBinaryPath();
-
-  if (!component_binary_path.empty())
-    base::DeletePathRecursively(component_binary_path.DirName());
-}
-
-void RegisterScreenAIComponent(ComponentUpdateService* cus,
-                               PrefService* local_state) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  if (screen_ai::ScreenAIInstallState::ShouldInstall(local_state)) {
-    auto installer = base::MakeRefCounted<ComponentInstaller>(
-        std::make_unique<ScreenAIComponentInstallerPolicy>());
-    installer->Register(cus, base::OnceClosure());
+  if (screen_ai::GetLatestComponentBinaryPath().empty()) {
     return;
   }
 
-  if (!screen_ai::GetLatestComponentBinaryPath().empty() &&
-      screen_ai::ScreenAIInstallState::ShouldUninstall(local_state)) {
+  base::DeletePathRecursively(screen_ai::GetComponentDir());
+  screen_ai::ScreenAIInstallState::RecordComponentInstallationResult(
+      /*install=*/false,
+      /*successful=*/true);
+}
+
+void ManageScreenAIComponentRegistration(ComponentUpdateService* cus,
+                                         PrefService* local_state) {
+  if (screen_ai::ScreenAIInstallState::ShouldInstall(local_state)) {
+    RegisterScreenAIComponent(cus);
+    return;
+  }
+
+  // Clean up.
+  if (!screen_ai::GetLatestComponentBinaryPath().empty()) {
     ScreenAIComponentInstallerPolicy::DeleteComponent();
   }
+}
+
+void RegisterScreenAIComponent(ComponentUpdateService* cus) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  // Only register once.
+  if (screen_ai::ScreenAIInstallState::GetInstance()->get_state() !=
+      screen_ai::ScreenAIInstallState::State::kNotDownloaded) {
+    return;
+  }
+  screen_ai::ScreenAIInstallState::GetInstance()->SetState(
+      screen_ai::ScreenAIInstallState::State::kDownloading);
+
+  auto installer = base::MakeRefCounted<ComponentInstaller>(
+      std::make_unique<ScreenAIComponentInstallerPolicy>());
+  installer->Register(cus, base::OnceClosure());
 }
 
 }  // namespace component_updater

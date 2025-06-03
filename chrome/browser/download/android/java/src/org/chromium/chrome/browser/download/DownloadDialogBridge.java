@@ -9,8 +9,9 @@ import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.browser.download.DownloadLocationDialogMetrics.DownloadLocationSuggestionEvent;
 import org.chromium.chrome.browser.download.dialogs.DownloadDialogUtils;
 import org.chromium.chrome.browser.download.dialogs.DownloadLocationDialogController;
@@ -30,7 +31,6 @@ import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
  * Glues download dialogs UI code and handles the communication to download native backend.
  */
 public class DownloadDialogBridge implements DownloadLocationDialogController {
-    private static final long INVALID_START_TIME = -1;
     private long mNativeDownloadDialogBridge;
 
     private final DownloadLocationDialogCoordinator mLocationDialog;
@@ -169,8 +169,7 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
     /**
      * @return The status of prompt for download pref, defined by {@link DownloadPromptStatus}.
      */
-    @DownloadPromptStatus
-    public static int getPromptForDownloadAndroid() {
+    public static @DownloadPromptStatus int getPromptForDownloadAndroid() {
         return getPrefService().getInteger(Pref.PROMPT_FOR_DOWNLOAD_ANDROID);
     }
 

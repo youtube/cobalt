@@ -9,12 +9,14 @@
 #include <stdint.h>
 
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "v8-callbacks.h"     // NOLINT(build/include_directory)
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
+#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-message.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -55,7 +57,7 @@ class V8_EXPORT ScriptOrModule {
 /**
  * A compiled JavaScript script, not yet tied to a Context.
  */
-class V8_EXPORT UnboundScript {
+class V8_EXPORT UnboundScript : public Data {
  public:
   /**
    * Binds the script to the currently entered context.
@@ -142,10 +144,9 @@ class V8_EXPORT ModuleRequest : public Data {
    *
    * All assertions present in the module request will be supplied in this
    * list, regardless of whether they are supported by the host. Per
-   * https://tc39.es/proposal-import-assertions/#sec-hostgetsupportedimportassertions,
-   * hosts are expected to ignore assertions that they do not support (as
-   * opposed to, for example, triggering an error if an unsupported assertion is
-   * present).
+   * https://tc39.es/proposal-import-attributes/#sec-hostgetsupportedimportattributes,
+   * hosts are expected to throw for assertions that they do not support (as
+   * opposed to, for example, ignoring them).
    */
   Local<FixedArray> GetImportAssertions() const;
 
@@ -285,9 +286,14 @@ class V8_EXPORT Module : public Data {
    * module_name is used solely for logging/debugging and doesn't affect module
    * behavior.
    */
+  V8_DEPRECATE_SOON("Please use the version that takes a MemorySpan")
   static Local<Module> CreateSyntheticModule(
       Isolate* isolate, Local<String> module_name,
       const std::vector<Local<String>>& export_names,
+      SyntheticModuleEvaluationSteps evaluation_steps);
+  static Local<Module> CreateSyntheticModule(
+      Isolate* isolate, Local<String> module_name,
+      const MemorySpan<const Local<String>>& export_names,
       SyntheticModuleEvaluationSteps evaluation_steps);
 
   /**
@@ -320,7 +326,7 @@ class V8_EXPORT Module : public Data {
  * A compiled JavaScript script, tied to a Context which was active when the
  * script was compiled.
  */
-class V8_EXPORT Script {
+class V8_EXPORT Script : public Data {
  public:
   /**
    * A shorthand for ScriptCompiler::Compile().
@@ -650,7 +656,9 @@ class V8_EXPORT ScriptCompiler {
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic,
-      CompileOptions options = kNoCompileOptions);
+      CompileOptions options = kNoCompileOptions,
+      CompileHintCallback compile_hint_callback = nullptr,
+      void* compile_hint_callback_data = nullptr);
 
   static ConsumeCodeCacheTask* StartConsumingCodeCache(
       Isolate* isolate, std::unique_ptr<CachedData> source);

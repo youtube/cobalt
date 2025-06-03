@@ -40,7 +40,6 @@ enum : int {  // The first valid value is 1.
   kVideoRotationRtpExtensionId,
 };
 
-constexpr int kDefaultMaxQp = cricket::WebRtcVideoChannel::kDefaultQpMax;
 uint8_t CodecTypeToPayloadType(VideoCodecType codec_type) {
   switch (codec_type) {
     case VideoCodecType::kVideoCodecGeneric:
@@ -51,6 +50,8 @@ uint8_t CodecTypeToPayloadType(VideoCodecType codec_type) {
       return VideoTestConstants::kPayloadTypeVP9;
     case VideoCodecType::kVideoCodecH264:
       return VideoTestConstants::kPayloadTypeH264;
+    case VideoCodecType::kVideoCodecH265:
+      return VideoTestConstants::kPayloadTypeH265;
     default:
       RTC_DCHECK_NOTREACHED();
   }
@@ -66,6 +67,8 @@ std::string CodecTypeToCodecName(VideoCodecType codec_type) {
       return cricket::kVp9CodecName;
     case VideoCodecType::kVideoCodecH264:
       return cricket::kH264CodecName;
+    case VideoCodecType::kVideoCodecH265:
+      return cricket::kH265CodecName;
     default:
       RTC_DCHECK_NOTREACHED();
   }
@@ -203,6 +206,7 @@ CreateEncoderSpecificSettings(VideoStreamConfig config) {
       return CreateVp9SpecificSettings(config);
     case Codec::kVideoCodecGeneric:
     case Codec::kVideoCodecAV1:
+    case Codec::kVideoCodecH265:
       return nullptr;
     case Codec::kVideoCodecMultiplex:
       RTC_DCHECK_NOTREACHED();
@@ -229,8 +233,8 @@ VideoEncoderConfig CreateVideoEncoderConfig(VideoStreamConfig config) {
                        VideoStreamConfig::Encoder::ContentType::kScreen;
     encoder_config.video_stream_factory =
         rtc::make_ref_counted<cricket::EncoderStreamFactory>(
-            cricket_codec, kDefaultMaxQp, screenshare, screenshare,
-            encoder_info);
+            cricket_codec, cricket::kDefaultVideoMaxQpVpx, screenshare,
+            screenshare, encoder_info);
   } else {
     encoder_config.video_stream_factory =
         rtc::make_ref_counted<DefaultVideoStreamFactory>();
@@ -419,6 +423,7 @@ SendVideoStream::SendVideoStream(CallClient* sender,
   send_config.suspend_below_min_bitrate =
       config.encoder.suspend_below_min_bitrate;
 
+  video_capturer_->Start();
   sender_->SendTask([&] {
     if (config.stream.fec_controller_factory) {
       send_stream_ = sender_->call_->CreateVideoSendStream(

@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/holding_space/holding_space_controller.h"
+#include "ash/public/cpp/holding_space/holding_space_file.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_metrics.h"
 #include "ash/public/cpp/holding_space/holding_space_prefs.h"
@@ -43,8 +44,9 @@ absl::optional<const HoldingSpaceItem*> GetAlternativeHoldingSpaceItem(
   for (const auto& candidate_item : model.items()) {
     if (candidate_item.get() == item)
       continue;
-    if (candidate_item->file_path() == item->file_path())
+    if (candidate_item->file().file_path == item->file().file_path) {
       return candidate_item.get();
+    }
   }
   return absl::nullopt;
 }
@@ -145,8 +147,11 @@ void HoldingSpaceKeyedService::AddPinnedFiles(
       continue;
 
     items.push_back(HoldingSpaceItem::CreateFileBackedItem(
-        HoldingSpaceItem::Type::kPinnedFile, file_system_url.path(),
-        file_system_url.ToGURL(),
+        HoldingSpaceItem::Type::kPinnedFile,
+        HoldingSpaceFile(file_system_url.path(),
+                         holding_space_util::ResolveFileSystemType(
+                             profile_, file_system_url.ToGURL()),
+                         file_system_url.ToGURL()),
         base::BindOnce(&holding_space_util::ResolveImage, &thumbnail_loader_)));
 
     // When pinning an item which already exists in holding space, the pin
@@ -218,7 +223,7 @@ std::vector<GURL> HoldingSpaceKeyedService::GetPinnedFiles() const {
   std::vector<GURL> pinned_files;
   for (const auto& item : holding_space_model_.items()) {
     if (item->type() == HoldingSpaceItem::Type::kPinnedFile)
-      pinned_files.push_back(item->file_system_url());
+      pinned_files.push_back(item->file().file_system_url);
   }
   return pinned_files;
 }
@@ -293,8 +298,8 @@ HoldingSpaceKeyedService::AddItems(
     }
     // Ignore any `items` that already exist in the `holding_space_model_` if
     // `allow_duplicates` is false.
-    if (!allow_duplicates &&
-        holding_space_model_.ContainsItem(item->type(), item->file_path())) {
+    if (!allow_duplicates && holding_space_model_.ContainsItem(
+                                 item->type(), item->file().file_path)) {
       result.push_back(std::cref(base::EmptyString()));
       continue;
     }
@@ -485,7 +490,12 @@ std::unique_ptr<HoldingSpaceItem> HoldingSpaceKeyedService::CreateItemOfType(
     return nullptr;
 
   return HoldingSpaceItem::CreateFileBackedItem(
-      type, file_path, file_system_url, progress,
+      type,
+      HoldingSpaceFile(
+          file_path,
+          holding_space_util::ResolveFileSystemType(profile_, file_system_url),
+          file_system_url),
+      progress,
       base::BindOnce(
           &holding_space_util::ResolveImageWithPlaceholderImageSkiaResolver,
           &thumbnail_loader_, placeholder_image_skia_resolver));

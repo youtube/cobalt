@@ -17,10 +17,6 @@ namespace optimization_guide {
 enum class AnnotationType {
   kUnknown,
 
-  // The input will be annotated with the topics on the page. These topics are
-  // fairly high-level like "sports" or "news".
-  kPageTopics,
-
   // The input will be annotated for the visibility of the content.
   kContentVisibility,
 
@@ -28,6 +24,9 @@ enum class AnnotationType {
   // will be persisted, make sure that only the entity IDs are persisted. To map
   // the IDs back to human-readable strings, use `EntityMetadataProvider`.
   kPageEntities,
+
+  // The input will be annotated for text embedding.
+  kTextEmbedding,
 };
 
 std::string AnnotationTypeToString(AnnotationType type);

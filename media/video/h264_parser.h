@@ -26,8 +26,8 @@
 namespace gfx {
 class Rect;
 class Size;
-struct ColorVolumeMetadata;
-struct HDRMetadata;
+struct HdrMetadataSmpteSt2086;
+struct HdrMetadataCta861_3;
 }  // namespace gfx
 
 namespace media {
@@ -392,15 +392,14 @@ struct MEDIA_EXPORT H264SEIMasteringDisplayInfo {
   uint32_t max_luminance;
   uint32_t min_luminance;
 
-  void PopulateColorVolumeMetadata(
-      gfx::ColorVolumeMetadata& color_volume_metadata) const;
+  gfx::HdrMetadataSmpteSt2086 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H264SEIContentLightLevelInfo {
   uint16_t max_content_light_level;
   uint16_t max_picture_average_light_level;
 
-  void PopulateHDRMetadata(gfx::HDRMetadata& hdr_metadata) const;
+  gfx::HdrMetadataCta861_3 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H264SEIMessage {
@@ -551,15 +550,6 @@ class MEDIA_EXPORT H264Parser {
   //   the start code as well as the trailing zero bits.
   // - the size in bytes of the start code is returned in |*start_code_size|.
   bool LocateNALU(off_t* nalu_size, off_t* start_code_size);
-
-  // Exp-Golomb code parsing as specified in chapter 9.1 of the spec.
-  // Read one unsigned exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadUE(int* val, int* num_bits_read);
-
-  // Read one signed exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadSE(int* val, int* num_bits_read);
 
   // Parse scaling lists (see spec).
   Result ParseScalingList(int size, uint8_t* scaling_list, bool* use_default);

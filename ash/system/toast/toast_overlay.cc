@@ -165,8 +165,7 @@ ToastOverlay::ToastOverlay(Delegate* delegate,
           leading_icon)),
       display_observer_(std::make_unique<ToastDisplayObserver>(this)),
       root_window_(root_window),
-      dismiss_callback_(std::move(dismiss_callback)),
-      widget_size_(overlay_view_->GetPreferredSize()) {
+      dismiss_callback_(std::move(dismiss_callback)) {
   views::Widget::InitParams params;
   params.type = views::Widget::InitParams::TYPE_POPUP;
   params.name = "ToastOverlay";
@@ -176,7 +175,7 @@ ToastOverlay::ToastOverlay(Delegate* delegate,
   params.z_order = ui::ZOrderLevel::kFloatingUIElement;
   params.bounds = CalculateOverlayBounds();
   params.parent =
-      root_window_->GetChildById(kShellWindowId_DragImageAndTooltipContainer);
+      root_window_->GetChildById(kShellWindowId_SettingBubbleContainer);
   overlay_widget_->Init(std::move(params));
   overlay_widget_->SetVisibilityChangedAnimationsEnabled(true);
   overlay_widget_->SetContentsView(overlay_view_.get());
@@ -192,12 +191,12 @@ ToastOverlay::ToastOverlay(Delegate* delegate,
   // with infinite duration persist regardless of hover).
   if (persist_on_hover && (duration != ToastData::kInfiniteDuration)) {
     hover_observer_ = std::make_unique<ToastHoverObserver>(
-        overlay_widget_->GetNativeWindow(),
-        base::BindRepeating(&ToastOverlay::OnHoverStateChanged,
-                            base::Unretained(this)));
+        overlay_window, base::BindRepeating(&ToastOverlay::OnHoverStateChanged,
+                                            base::Unretained(this)));
   }
 
   keyboard::KeyboardUIController::Get()->AddObserver(this);
+  shelf_observation_.Observe(Shelf::ForWindow(overlay_window));
 
   if (features::AreSideAlignedToastsEnabled()) {
     auto* window_controller = RootWindowController::ForWindow(root_window_);
@@ -256,8 +255,9 @@ bool ToastOverlay::MaybeToggleA11yHighlightOnDismissButton() {
 }
 
 bool ToastOverlay::MaybeActivateHighlightedDismissButton() {
-  if (!overlay_view_->is_dismiss_button_highlighted())
+  if (!overlay_view_->is_dismiss_button_highlighted()) {
     return false;
+  }
 
   OnButtonClicked();
   return true;
@@ -270,6 +270,10 @@ void ToastOverlay::OnSliderBubbleHeightChanged() {
   }
 }
 
+bool ToastOverlay::IsDismissButtonHighlighted() const {
+  return overlay_view_->is_dismiss_button_highlighted();
+}
+
 gfx::Rect ToastOverlay::CalculateOverlayBounds() {
   // If the native window has not been initialized, as in the first call, get
   // the default root window. Otherwise get the window for this `overlay_widget`
@@ -277,8 +281,11 @@ gfx::Rect ToastOverlay::CalculateOverlayBounds() {
   auto* window = overlay_widget_->IsNativeWidgetInitialized()
                      ? overlay_widget_->GetNativeWindow()
                      : root_window_.get();
+  DCHECK(window);
+
   auto* window_controller = RootWindowController::ForWindow(window);
   auto* hotseat_widget = window_controller->shelf()->hotseat_widget();
+  auto widget_size = overlay_view_->GetPreferredSize();
 
   gfx::Rect bounds = GetUserWorkAreaBounds(window);
 
@@ -295,17 +302,17 @@ gfx::Rect ToastOverlay::CalculateOverlayBounds() {
         ((base::i18n::IsRTL() && alignment != ShelfAlignment::kRight) ||
          alignment == ShelfAlignment::kLeft)
             ? bounds.x() + ToastOverlay::kOffset
-            : bounds.right() - widget_size_.width() - ToastOverlay::kOffset;
+            : bounds.right() - widget_size.width() - ToastOverlay::kOffset;
 
-    const int target_y = bounds.bottom() - widget_size_.height() -
+    const int target_y = bounds.bottom() - widget_size.height() -
                          ToastOverlay::kOffset - CalculateSliderBubbleOffset();
 
-    return gfx::Rect(gfx::Point(target_x, target_y), widget_size_);
+    return gfx::Rect(gfx::Point(target_x, target_y), widget_size);
   }
 
   const int target_y =
-      bounds.bottom() - widget_size_.height() - ToastOverlay::kOffset;
-  bounds.ClampToCenteredSize(widget_size_);
+      bounds.bottom() - widget_size.height() - ToastOverlay::kOffset;
+  bounds.ClampToCenteredSize(widget_size);
   bounds.set_y(target_y);
   return bounds;
 }
@@ -324,10 +331,12 @@ int ToastOverlay::CalculateSliderBubbleOffset() {
 
   // If a slider bubble is visible, the toast baseline will be shifted
   // up by the slider bubble's height + a default spacing offset.
-  return unified_system_tray->IsSliderBubbleShown()
-             ? unified_system_tray->GetSliderBubbleHeight() +
-                   ToastOverlay::kOffset
-             : 0;
+  if (unified_system_tray->IsSliderBubbleShown()) {
+    auto* slider_view = unified_system_tray->GetSliderView();
+    DCHECK(slider_view);
+    return slider_view->height() + ToastOverlay::kOffset;
+  }
+  return 0;
 }
 
 void ToastOverlay::OnButtonClicked() {
@@ -352,7 +361,7 @@ void ToastOverlay::OnImplicitAnimationsScheduled() {}
 
 void ToastOverlay::OnImplicitAnimationsCompleted() {
   if (!overlay_widget_->GetLayer()->GetTargetVisibility())
-    delegate_->OnClosed();
+    delegate_->CloseToast();
 }
 
 void ToastOverlay::OnKeyboardOccludedBoundsChanged(
@@ -362,12 +371,21 @@ void ToastOverlay::OnKeyboardOccludedBoundsChanged(
   UpdateOverlayBounds();
 }
 
+void ToastOverlay::OnShelfWorkAreaInsetsChanged() {
+  UpdateOverlayBounds();
+}
+
+void ToastOverlay::OnHotseatStateChanged(HotseatState old_state,
+                                         HotseatState new_state) {
+  UpdateOverlayBounds();
+}
+
 views::Widget* ToastOverlay::widget_for_testing() {
   return overlay_widget_.get();
 }
 
 views::LabelButton* ToastOverlay::dismiss_button_for_testing() {
-  return overlay_view_->button();
+  return overlay_view_->dismiss_button();
 }
 
 }  // namespace ash

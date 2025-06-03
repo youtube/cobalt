@@ -4,8 +4,6 @@
 
 source_set("cells") {
   sources = [
-    "action_list_module.h",
-    "action_list_module.mm",
     "content_suggestions_gesture_commands.h",
     "content_suggestions_most_visited_action_item.h",
     "content_suggestions_most_visited_action_item.mm",
@@ -28,16 +26,26 @@ source_set("cells") {
     "content_suggestions_tile_view.mm",
     "magic_stack_module_container.h",
     "magic_stack_module_container.mm",
+    "magic_stack_module_container_delegate.h",
+    "multi_row_container_view.h",
+    "multi_row_container_view.mm",
+    "parcel_tracking_item.h",
+    "parcel_tracking_item.mm",
+    "parcel_tracking_view.h",
+    "parcel_tracking_view.mm",
     "query_suggestion_view.h",
     "query_suggestion_view.mm",
     "suggested_content.h",
   ]
   deps = [
     ":constants",
+    "resources:magic_stack_placeholder_module",
     "resources:ntp_most_visited_tile",
+    "resources:untrack_parcel",
     "//base",
     "//components/ntp_tiles",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/ntp/home:features",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
@@ -45,9 +53,9 @@ source_set("cells") {
     "//ios/chrome/browser/ui/content_suggestions:constants",
     "//ios/chrome/browser/ui/content_suggestions:content_suggestions_constant",
     "//ios/chrome/browser/ui/content_suggestions:content_suggestions_ui_util",
-    "//ios/chrome/browser/ui/content_suggestions:feature_flags",
     "//ios/chrome/browser/ui/content_suggestions:public",
     "//ios/chrome/browser/ui/content_suggestions/identifier",
+    "//ios/chrome/browser/ui/ntp:constants",
     "//ios/chrome/browser/ui/resources:module_shadow",
     "//ios/chrome/common:string_util",
     "//ios/chrome/common:timing",
@@ -56,14 +64,14 @@ source_set("cells") {
     "//ios/chrome/common/ui/table_view:cells_constants",
     "//ios/chrome/common/ui/util",
     "//ios/chrome/common/ui/util:dynamic_type_util",
+    "//ios/public/provider/chrome/browser/branded_images:branded_images_api",
     "//ui/base",
     "//url",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
+  frameworks = [ "UIKit.framework" ]
 }
 
 source_set("constants") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "content_suggestions_cells_constants.h",
     "content_suggestions_cells_constants.mm",
@@ -73,8 +81,8 @@ source_set("constants") {
 
   deps = [
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/ntp/home:features",
     "//ios/chrome/browser/shared/ui/symbols",
-    "//ios/chrome/browser/ui/content_suggestions:feature_flags",
     "//ui/base:base",
   ]
 }
@@ -91,5 +99,4 @@ source_set("unit_tests") {
     "//ui/base",
     "//url",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }

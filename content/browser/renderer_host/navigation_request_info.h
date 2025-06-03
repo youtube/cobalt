@@ -16,6 +16,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-forward.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -47,9 +48,13 @@ struct CONTENT_EXPORT NavigationRequestInfo {
       const absl::optional<std::vector<net::SourceStream::SourceType>>&
           devtools_accepted_stream_types,
       bool is_pdf,
-      WeakDocumentPtr initiator_document,
+      int initiator_process_id,
+      absl::optional<blink::DocumentToken> initiator_document_token,
       const GlobalRenderFrameHostId& previous_render_frame_host_id,
-      bool allow_cookies_from_browser);
+      bool allow_cookies_from_browser,
+      int64_t navigation_id,
+      bool shared_storage_writable,
+      bool is_ad_tagged);
   NavigationRequestInfo(const NavigationRequestInfo& other) = delete;
   ~NavigationRequestInfo();
 
@@ -130,8 +135,9 @@ struct CONTENT_EXPORT NavigationRequestInfo {
   // Indicates that this navigation is for PDF content in a renderer.
   const bool is_pdf;
 
-  // The initiator document, if still available.
-  const WeakDocumentPtr initiator_document;
+  // The initiator document's token and its process ID.
+  const int initiator_process_id;
+  const absl::optional<blink::DocumentToken> initiator_document_token;
 
   // The previous document's RenderFrameHostId, used for speculation rules
   // prefetch.
@@ -141,6 +147,18 @@ struct CONTENT_EXPORT NavigationRequestInfo {
   // Whether a Cookie header added to this request should not be overwritten by
   // the network service.
   const bool allow_cookies_from_browser;
+
+  // Unique id that identifies the navigation.
+  const int64_t navigation_id;
+
+  // Whether or not the request is eligible to write to shared storage from
+  // response headers. See
+  // https://github.com/WICG/shared-storage#from-response-headers.
+  bool shared_storage_writable_eligible;
+
+  // Whether the embedder indicated this navigation is being used for
+  // advertising purposes.
+  bool is_ad_tagged;
 };
 
 }  // namespace content

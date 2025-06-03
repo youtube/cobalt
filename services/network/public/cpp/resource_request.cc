@@ -79,6 +79,20 @@ mojo::PendingRemote<mojom::AcceptCHFrameObserver> Clone(
   observer = remote.Unbind();
   return new_remote;
 }
+
+mojo::PendingRemote<mojom::SharedDictionaryAccessObserver> Clone(
+    mojo::PendingRemote<mojom::SharedDictionaryAccessObserver>& observer) {
+  if (!observer) {
+    return mojo::NullRemote();
+  }
+  mojo::Remote<mojom::SharedDictionaryAccessObserver> remote(
+      std::move(observer));
+  mojo::PendingRemote<mojom::SharedDictionaryAccessObserver> new_remote;
+  remote->Clone(new_remote.InitWithNewPipeAndPassReceiver());
+  observer = remote.Unbind();
+  return new_remote;
+}
+
 // Returns true iff either holds true:
 //
 //  - both |lhs| and |rhs| are nullopt, or
@@ -153,6 +167,9 @@ ResourceRequest::TrustedParams& ResourceRequest::TrustedParams::operator=(
   accept_ch_frame_observer =
       Clone(const_cast<mojo::PendingRemote<mojom::AcceptCHFrameObserver>&>(
           other.accept_ch_frame_observer));
+  shared_dictionary_observer = Clone(
+      const_cast<mojo::PendingRemote<mojom::SharedDictionaryAccessObserver>&>(
+          other.shared_dictionary_observer));
   return *this;
 }
 
@@ -218,7 +235,12 @@ ResourceRequest::WebBundleTokenParams::CloneHandle() const {
   return new_remote;
 }
 
+#if BUILDFLAG(IS_ANDROID)
+ResourceRequest::ResourceRequest(const base::Location& location)
+    : created_location(location.ToString()) {}
+#else
 ResourceRequest::ResourceRequest() = default;
+#endif
 ResourceRequest::ResourceRequest(const ResourceRequest& request) = default;
 ResourceRequest::~ResourceRequest() = default;
 
@@ -251,6 +273,8 @@ bool ResourceRequest::EqualsForTesting(const ResourceRequest& request) const {
          destination == request.destination &&
          request_body == request.request_body &&
          keepalive == request.keepalive &&
+         shared_storage_writable_eligible ==
+             request.shared_storage_writable_eligible &&
          has_user_gesture == request.has_user_gesture &&
          enable_load_timing == request.enable_load_timing &&
          enable_upload_progress == request.enable_upload_progress &&
@@ -268,6 +292,7 @@ bool ResourceRequest::EqualsForTesting(const ResourceRequest& request) const {
          fetch_window_id == request.fetch_window_id &&
          devtools_request_id == request.devtools_request_id &&
          is_fetch_like_api == request.is_fetch_like_api &&
+         is_fetch_later_api == request.is_fetch_later_api &&
          is_favicon == request.is_favicon &&
          recursive_prefetch_token == request.recursive_prefetch_token &&
          OptionalTrustedParamsEqualsForTesting(trusted_params,
@@ -281,7 +306,9 @@ bool ResourceRequest::EqualsForTesting(const ResourceRequest& request) const {
                                             request.net_log_create_info) &&
          OptionalNetLogInfoEqualsForTesting(net_log_reference_info,
                                             request.net_log_reference_info) &&
-         target_ip_address_space == request.target_ip_address_space;
+         target_ip_address_space == request.target_ip_address_space &&
+         shared_dictionary_writer_enabled ==
+             request.shared_dictionary_writer_enabled;
 }
 
 bool ResourceRequest::SendsCookies() const {

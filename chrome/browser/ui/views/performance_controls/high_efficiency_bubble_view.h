@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,10 @@ class HighEfficiencyBubbleView {
   HighEfficiencyBubbleView& operator=(const HighEfficiencyBubbleView&) = delete;
 
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kHighEfficiencyDialogBodyElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(
+      kHighEfficiencyDialogResourceViewElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kHighEfficiencyDialogOkButton);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kHighEfficiencyDialogCancelButton);
 
   static views::BubbleDialogModelHost* ShowBubble(
       Browser* browser,

@@ -125,6 +125,8 @@ component("bindings_base") {
     "//mojo/public/cpp/system",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   if (enable_ipc_fuzzer) {
     all_dependent_configs = [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
   }
@@ -147,6 +149,8 @@ component("bindings") {
     "callback_helpers.h",
     "connection_error_callback.h",
     "connector.h",
+    "direct_receiver.cc",
+    "direct_receiver.h",
     "generic_pending_associated_receiver.cc",
     "generic_pending_associated_receiver.h",
     "generic_pending_receiver.cc",
@@ -247,7 +251,12 @@ component("bindings") {
     "//mojo/public/interfaces/bindings",
   ]
 
-  deps = [ "//ipc:native_handle_type_converters" ]
+  deps = [
+    "//ipc:native_handle_type_converters",
+    "//mojo/core/embedder",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   defines = [ "IS_MOJO_CPP_BINDINGS_IMPL" ]
 }
@@ -289,6 +298,8 @@ if (use_blink) {
       "map_traits_wtf_hash_map.h",
       "string_traits_wtf.h",
     ]
+
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
     defines = [ "IS_MOJO_CPP_BINDINGS_BASE_IMPL" ]
 

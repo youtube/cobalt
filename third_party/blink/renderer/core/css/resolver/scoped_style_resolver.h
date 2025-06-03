@@ -31,6 +31,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/active_style_sheets.h"
+#include "third_party/blink/renderer/core/css/cascade_layer.h"
 #include "third_party/blink/renderer/core/css/element_rule_collector.h"
 #include "third_party/blink/renderer/core/css/rule_set.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
@@ -63,7 +64,7 @@ class CORE_EXPORT ScopedStyleResolver final
   StyleRuleKeyframes* KeyframeStylesForAnimation(
       const AtomicString& animation_name);
 
-  CounterStyleMap* GetCounterStyleMap() { return counter_style_map_; }
+  CounterStyleMap* GetCounterStyleMap() { return counter_style_map_.Get(); }
   static void CounterStyleRulesChanged(TreeScope& scope);
 
   StyleRulePositionFallback* PositionFallbackForName(
@@ -72,10 +73,13 @@ class CORE_EXPORT ScopedStyleResolver final
   const FontFeatureValuesStorage* FontFeatureValuesForFamily(
       AtomicString font_family);
 
-  void RebuildCascadeLayerMap(const ActiveStyleSheetVector&);
+  void RebuildCascadeLayerMap(const ActiveStyleSheetVector& sheets);
   bool HasCascadeLayerMap() const { return cascade_layer_map_.Get(); }
   const CascadeLayerMap* GetCascadeLayerMap() const {
-    return cascade_layer_map_;
+    return cascade_layer_map_.Get();
+  }
+  const ActiveStyleSheetVector& GetActiveStyleSheets() const {
+    return active_style_sheets_;
   }
 
   void AppendActiveStyleSheets(unsigned index, const ActiveStyleSheetVector&);
@@ -102,7 +106,7 @@ class CORE_EXPORT ScopedStyleResolver final
 
  private:
   template <class Func>
-  void ForAllStylesheets(const Func& func);
+  void ForAllStylesheets(ElementRuleCollector&, const Func& func);
 
   void AddFontFaceRules(const RuleSet&);
   void AddCounterStyleRules(const RuleSet&);
@@ -116,9 +120,15 @@ class CORE_EXPORT ScopedStyleResolver final
 
   CounterStyleMap& EnsureCounterStyleMap();
 
+  void AddImplicitScopeTriggers(CSSStyleSheet&, const RuleSet&);
+  void AddImplicitScopeTrigger(Element&, const StyleScope&);
+  void RemoveImplicitScopeTriggers();
+  void RemoveImplicitScopeTriggers(CSSStyleSheet&, const RuleSet&);
+  void RemoveImplicitScopeTrigger(Element&, const StyleScope&);
+
   Member<TreeScope> scope_;
 
-  HeapVector<Member<CSSStyleSheet>> style_sheets_;
+  ActiveStyleSheetVector active_style_sheets_;
   MediaQueryResultFlags media_query_result_flags_;
 
   using KeyframesRuleMap =

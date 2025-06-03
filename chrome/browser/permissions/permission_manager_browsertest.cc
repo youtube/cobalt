@@ -15,7 +15,6 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/permissions/permission_manager.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -104,7 +103,7 @@ class PermissionManagerBrowserTest : public InProcessBrowserTest {
   Browser* incognito_browser() { return incognito_browser_; }
 
  private:
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(PermissionManagerBrowserTest,

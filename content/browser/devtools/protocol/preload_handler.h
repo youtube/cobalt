@@ -12,13 +12,14 @@
 
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/preload.h"
+#include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
+#include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom-forward.h"
 #include "url/gurl.h"
 
 namespace content {
 
 class DevToolsAgentHostImpl;
-class NavigationRequest;
 class RenderFrameHostImpl;
 
 namespace protocol {
@@ -33,26 +34,20 @@ class PreloadHandler : public DevToolsDomainHandler, public Preload::Backend {
 
   static std::vector<PreloadHandler*> ForAgentHost(DevToolsAgentHostImpl* host);
 
-  void DidActivatePrerender(
-      const base::UnguessableToken& initiator_devtools_navigation_token,
-      const NavigationRequest& nav_request);
-  void DidCancelPrerender(
-      const GURL& prerendering_url,
-      const base::UnguessableToken& initiator_devtools_navigation_token,
-      const std::string& initiating_frame_id,
-      PrerenderFinalStatus status,
-      const std::string& disallowed_api_method);
-
   void DidUpdatePrefetchStatus(
       const base::UnguessableToken& initiator_devtools_navigation_token,
       const std::string& initiating_frame_id,
       const GURL& prefetch_url,
-      PreloadingTriggeringOutcome status);
+      PreloadingTriggeringOutcome status,
+      PrefetchStatus prefetch_status,
+      const std::string& request_id);
   void DidUpdatePrerenderStatus(
       const base::UnguessableToken& initiator_devtools_navigation_token,
-      const std::string& initiating_frame_id,
       const GURL& prerender_url,
-      PreloadingTriggeringOutcome status);
+      absl::optional<blink::mojom::SpeculationTargetHint> target_hint,
+      PreloadingTriggeringOutcome status,
+      absl::optional<PrerenderFinalStatus> prerender_status,
+      absl::optional<std::string> disallowed_mojo_interface);
 
  private:
   Response Enable() override;
@@ -63,17 +58,11 @@ class PreloadHandler : public DevToolsDomainHandler, public Preload::Backend {
   void SetRenderer(int process_host_id,
                    RenderFrameHostImpl* frame_host) override;
 
-  void RetrievePrerenderActivationFromWebContents();
   void SendInitialPreloadEnabledState();
 
   RenderFrameHostImpl* host_ = nullptr;
 
   bool enabled_ = false;
-
-  // `initiator_devtools_navigation_token` of the most recently activated
-  // prerender.
-  absl::optional<base::UnguessableToken>
-      last_activated_prerender_initiator_devtools_navigation_token_;
 
   std::unique_ptr<Preload::Frontend> frontend_;
 };

@@ -48,8 +48,9 @@ class SimpleContext : public WebContentsFrameTracker::Context {
   absl::optional<gfx::Rect> GetScreenBounds() override {
     return screen_bounds_;
   }
-  viz::FrameSinkId GetFrameSinkIdForCapture() override {
-    return frame_sink_id_;
+
+  WebContentsImpl::CaptureTarget GetCaptureTarget() override {
+    return WebContentsImpl::CaptureTarget{frame_sink_id_, gfx::NativeView{}};
   }
   void IncrementCapturerCount(const gfx::Size& capture_size) override {
     ++capturer_count_;
@@ -157,7 +158,7 @@ class WebContentsFrameTrackerTest : public RenderViewHostTestHarness {
     raw_context_->set_screen_bounds(gfx::Rect{size});
   }
 
-  void SetFrameSinkId(const viz::FrameSinkId id) {
+  void SetFrameSinkId(viz::FrameSinkId id) {
     raw_context_->set_frame_sink_id(id);
   }
 
@@ -203,7 +204,7 @@ class WebContentsFrameTrackerTest : public RenderViewHostTestHarness {
   std::unique_ptr<WebContentsFrameTracker> tracker_;
 
   // Save because the pointed-to location should not change during testing.
-  raw_ptr<SimpleContext> raw_context_;
+  raw_ptr<SimpleContext, AcrossTasksDanglingUntriaged> raw_context_;
 };
 
 TEST_F(WebContentsFrameTrackerTest, CalculatesPreferredSizeClampsToView) {
@@ -348,7 +349,7 @@ TEST_F(WebContentsFrameTrackerTest, NotifiesOfTargetChanges) {
   EXPECT_CALL(
       *device(),
       OnTargetChanged(absl::make_optional<viz::VideoCaptureTarget>(kNewId),
-                      /*crop_version=*/0))
+                      /*sub_capture_target_version=*/0))
       .Times(1);
 
   // The tracker doesn't actually use the frame host information, just
@@ -363,10 +364,11 @@ TEST_F(WebContentsFrameTrackerTest,
 
   // Expect the callback handed to Crop() to be invoke with kSuccess.
   bool success = false;
-  base::OnceCallback<void(media::mojom::CropRequestResult)> callback =
+  base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)> callback =
       base::BindOnce(
-          [](bool* success, media::mojom::CropRequestResult result) {
-            *success = (result == media::mojom::CropRequestResult::kSuccess);
+          [](bool* success, media::mojom::ApplySubCaptureTargetResult result) {
+            *success =
+                (result == media::mojom::ApplySubCaptureTargetResult::kSuccess);
           },
           &success);
 
@@ -374,10 +376,11 @@ TEST_F(WebContentsFrameTrackerTest,
   EXPECT_CALL(*device(),
               OnTargetChanged(absl::make_optional<viz::VideoCaptureTarget>(
                                   kInitSinkId, kCropId),
-                              /*crop_version=*/1))
+                              /*sub_capture_target_version=*/1))
       .Times(1);
 
-  tracker()->Crop(kCropId, /*crop_version=*/1, std::move(callback));
+  tracker()->Crop(kCropId, /*sub_capture_target_version=*/1,
+                  std::move(callback));
 
   RunAllTasksUntilIdle();
   EXPECT_TRUE(success);

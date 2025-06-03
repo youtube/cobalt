@@ -7,7 +7,7 @@
 #import <utility>
 #import <vector>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/path_service.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/autofill/core/browser/ui/popup_types.h"
@@ -30,10 +30,6 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill::FieldRendererId;
 using autofill::FormRendererId;
@@ -75,15 +71,18 @@ using autofill::PopupType;
 
 + (instancetype)providerWithSuggestions {
   NSArray* suggestions = @[
-    [FormSuggestion suggestionWithValue:@"foo"
-                     displayDescription:nil
-                                   icon:@""
-                             identifier:0
-                         requiresReauth:NO],
+    [FormSuggestion
+        suggestionWithValue:@"foo"
+         displayDescription:nil
+                       icon:nil
+                popupItemId:autofill::PopupItemId::kAutocompleteEntry
+          backendIdentifier:nil
+             requiresReauth:NO],
     [FormSuggestion suggestionWithValue:@"bar"
                      displayDescription:nil
-                                   icon:@""
-                             identifier:1
+                                   icon:nil
+                            popupItemId:autofill::PopupItemId::kAddressEntry
+                      backendIdentifier:nil
                          requiresReauth:NO]
   ];
   return [[TestSuggestionProvider alloc] initWithSuggestions:suggestions];
@@ -169,6 +168,7 @@ class FormSuggestionControllerTest : public PlatformTest {
   }
 
   void TearDown() override {
+    [accessory_mediator_ disconnect];
     [suggestion_controller_ detachFromWebState];
     PlatformTest::TearDown();
   }
@@ -380,15 +380,18 @@ TEST_F(FormSuggestionControllerTest,
   // Set up the controller with some providers, one of which can provide
   // suggestions.
   NSArray* suggestions = @[
-    [FormSuggestion suggestionWithValue:@"foo"
-                     displayDescription:nil
-                                   icon:@""
-                             identifier:0
-                         requiresReauth:NO],
+    [FormSuggestion
+        suggestionWithValue:@"foo"
+         displayDescription:nil
+                       icon:nil
+                popupItemId:autofill::PopupItemId::kAutocompleteEntry
+          backendIdentifier:nil
+             requiresReauth:NO],
     [FormSuggestion suggestionWithValue:@"bar"
                      displayDescription:nil
-                                   icon:@""
-                             identifier:1
+                                   icon:nil
+                            popupItemId:autofill::PopupItemId::kAddressEntry
+                      backendIdentifier:nil
                          requiresReauth:NO]
   ];
   TestSuggestionProvider* provider1 =
@@ -430,11 +433,13 @@ TEST_F(FormSuggestionControllerTest,
 TEST_F(FormSuggestionControllerTest, SelectingSuggestionShouldNotifyDelegate) {
   // Send some suggestions to the controller and then tap one.
   NSArray* suggestions = @[
-    [FormSuggestion suggestionWithValue:@"foo"
-                     displayDescription:nil
-                                   icon:@""
-                             identifier:0
-                         requiresReauth:NO],
+    [FormSuggestion
+        suggestionWithValue:@"foo"
+         displayDescription:nil
+                       icon:nil
+                popupItemId:autofill::PopupItemId::kAutocompleteEntry
+          backendIdentifier:nil
+             requiresReauth:NO],
   ];
   TestSuggestionProvider* provider =
       [[TestSuggestionProvider alloc] initWithSuggestions:suggestions];
@@ -466,11 +471,13 @@ TEST_F(FormSuggestionControllerTest, SelectingSuggestionShouldNotifyDelegate) {
 // Tests that the autofill suggestion IPH is triggered when suggesting an
 // address if the suggestion's `featureForiPH` property is set.
 TEST_F(FormSuggestionControllerTest, AutofillSuggestionIPH) {
-  FormSuggestion* suggestion = [FormSuggestion suggestionWithValue:@"foo"
-                                                displayDescription:nil
-                                                              icon:@""
-                                                        identifier:0
-                                                    requiresReauth:NO];
+  FormSuggestion* suggestion = [FormSuggestion
+      suggestionWithValue:@"foo"
+       displayDescription:nil
+                     icon:nil
+              popupItemId:autofill::PopupItemId::kAutocompleteEntry
+        backendIdentifier:nil
+           requiresReauth:NO];
   suggestion.featureForIPH = @"YES";
   NSArray* suggestions = @[ suggestion ];
   TestSuggestionProvider* provider =

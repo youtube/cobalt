@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
 #include "third_party/blink/renderer/core/inspector/inspector_issue_storage.h"
 #include "third_party/blink/renderer/core/inspector/main_thread_debugger.h"
+#include "third_party/blink/renderer/core/inspector/worker_inspector_controller.h"
 #include "third_party/blink/renderer/core/inspector/worker_thread_debugger.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
@@ -41,28 +42,24 @@ namespace blink {
 WorkletGlobalScope::WorkletGlobalScope(
     std::unique_ptr<GlobalScopeCreationParams> creation_params,
     WorkerReportingProxy& reporting_proxy,
-    LocalFrame* frame,
-    bool create_microtask_queue)
+    LocalFrame* frame)
     : WorkletGlobalScope(std::move(creation_params),
                          reporting_proxy,
                          ToIsolate(frame),
                          ThreadType::kMainThread,
                          frame,
-                         nullptr /* worker_thread */,
-                         create_microtask_queue) {}
+                         nullptr /* worker_thread */) {}
 
 WorkletGlobalScope::WorkletGlobalScope(
     std::unique_ptr<GlobalScopeCreationParams> creation_params,
     WorkerReportingProxy& reporting_proxy,
-    WorkerThread* worker_thread,
-    bool create_microtask_queue)
+    WorkerThread* worker_thread)
     : WorkletGlobalScope(std::move(creation_params),
                          reporting_proxy,
                          worker_thread->GetIsolate(),
                          ThreadType::kOffMainThread,
                          nullptr /* frame */,
-                         worker_thread,
-                         create_microtask_queue) {}
+                         worker_thread) {}
 
 // Partial implementation of the "set up a worklet environment settings object"
 // algorithm:
@@ -73,8 +70,7 @@ WorkletGlobalScope::WorkletGlobalScope(
     v8::Isolate* isolate,
     ThreadType thread_type,
     LocalFrame* frame,
-    WorkerThread* worker_thread,
-    bool create_microtask_queue)
+    WorkerThread* worker_thread)
     : WorkerOrWorkletGlobalScope(
           isolate,
           SecurityOrigin::CreateUniqueOpaque(),
@@ -82,10 +78,7 @@ WorkletGlobalScope::WorkletGlobalScope(
           MakeGarbageCollected<Agent>(
               isolate,
               creation_params->agent_cluster_id,
-              create_microtask_queue
-                  ? v8::MicrotaskQueue::New(isolate,
-                                            v8::MicrotasksPolicy::kScoped)
-                  : nullptr),
+              v8::MicrotaskQueue::New(isolate, v8::MicrotasksPolicy::kScoped)),
           creation_params->global_scope_name,
           creation_params->parent_devtools_token,
           creation_params->v8_cache_options,
@@ -156,7 +149,6 @@ WorkletGlobalScope::~WorkletGlobalScope() = default;
 
 const BrowserInterfaceBrokerProxy&
 WorkletGlobalScope::GetBrowserInterfaceBroker() const {
-  NOTIMPLEMENTED();
   return GetEmptyBrowserInterfaceBroker();
 }
 
@@ -185,7 +177,7 @@ void WorkletGlobalScope::AddConsoleMessageImpl(ConsoleMessage* console_message,
     return;
   }
   worker_thread_->GetWorkerReportingProxy().ReportConsoleMessage(
-      console_message->Source(), console_message->Level(),
+      console_message->GetSource(), console_message->GetLevel(),
       console_message->Message(), console_message->Location());
   worker_thread_->GetConsoleMessageStorage()->AddConsoleMessage(
       worker_thread_->GlobalScope(), console_message, discard_duplicates);
@@ -212,7 +204,8 @@ void WorkletGlobalScope::AddInspectorIssue(AuditsIssue issue) {
 
 void WorkletGlobalScope::ExceptionThrown(ErrorEvent* error_event) {
   if (IsMainThreadWorkletGlobalScope()) {
-    MainThreadDebugger::Instance()->ExceptionThrown(this, error_event);
+    MainThreadDebugger::Instance(GetIsolate())
+        ->ExceptionThrown(this, error_event);
     return;
   }
   if (WorkerThreadDebugger* debugger =
@@ -248,9 +241,14 @@ CodeCacheHost* WorkletGlobalScope::GetCodeCacheHost() {
 }
 
 CoreProbeSink* WorkletGlobalScope::GetProbeSink() {
-  if (IsMainThreadWorkletGlobalScope())
-    return probe::ToCoreProbeSink(frame_);
-  return nullptr;
+  switch (thread_type_) {
+    case ThreadType::kMainThread:
+      DCHECK(frame_);
+      return probe::ToCoreProbeSink(frame_);
+    case ThreadType::kOffMainThread:
+      DCHECK(worker_thread_);
+      return worker_thread_->GetWorkerInspectorController()->GetProbeSink();
+  }
 }
 
 scoped_refptr<base::SingleThreadTaskRunner> WorkletGlobalScope::GetTaskRunner(
@@ -269,7 +267,7 @@ FrameOrWorkerScheduler* WorkletGlobalScope::GetScheduler() {
 
 LocalFrame* WorkletGlobalScope::GetFrame() const {
   DCHECK(IsMainThreadWorkletGlobalScope());
-  return frame_;
+  return frame_.Get();
 }
 
 // Implementation of the first half of the "fetch and invoke a worklet script"

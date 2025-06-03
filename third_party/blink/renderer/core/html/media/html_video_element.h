@@ -97,6 +97,7 @@ class CORE_EXPORT HTMLVideoElement final
                          const cc::PaintFlags* paint_flags) const;
 
   bool HasAvailableVideoFrame() const;
+  bool HasReadableVideoFrame() const;
 
   void OnFirstFrame(base::TimeTicks frame_time,
                     size_t bytes_to_first_frame) final;
@@ -117,7 +118,7 @@ class CORE_EXPORT HTMLVideoElement final
 
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(
-      CanvasResourceProvider::FlushReason,
+      FlushReason,
       SourceImageStatus*,
       const gfx::SizeF&,
       const AlphaDisposition alpha_disposition = kPremultiplyAlpha) override;
@@ -163,7 +164,7 @@ class CORE_EXPORT HTMLVideoElement final
 
   bool IsRichlyEditableForAccessibility() const override { return false; }
 
-  VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
+  VideoWakeLock* wake_lock_for_tests() const { return wake_lock_.Get(); }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
@@ -214,7 +215,6 @@ class CORE_EXPORT HTMLVideoElement final
   // Video-specific overrides for part of the media::mojom::MediaPlayer
   // interface, fully implemented in the parent class HTMLMediaElement.
   void RequestEnterPictureInPicture() final;
-  void RequestExitPictureInPicture() final;
   void RequestMediaRemoting() final;
 
   void DidMoveToNewDocument(Document& old_document) override;

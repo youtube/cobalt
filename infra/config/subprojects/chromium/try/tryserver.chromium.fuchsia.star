@@ -5,7 +5,7 @@
 
 load("//lib/branches.star", "branches")
 load("//lib/builder_config.star", "builder_config")
-load("//lib/builders.star", "os", "reclient")
+load("//lib/builders.star", "os", "reclient", "siso")
 load("//lib/consoles.star", "consoles")
 load("//lib/try.star", "try_")
 load("//project.star", "settings")
@@ -17,12 +17,16 @@ try_.defaults.set(
     cores = 8,
     os = os.LINUX_DEFAULT,
     compilator_cores = 8,
-    compilator_reclient_jobs = reclient.jobs.MID_JOBS_FOR_CQ,
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
+    orchestrator_reclient_jobs = reclient.jobs.HIGH_JOBS_FOR_CQ,
     reclient_instance = reclient.instance.DEFAULT_UNTRUSTED,
     reclient_jobs = reclient.jobs.HIGH_JOBS_FOR_CQ,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
+    siso_configs = ["builder"],
+    siso_enable_cloud_profiler = True,
+    siso_enable_cloud_trace = True,
+    siso_project = siso.project.DEFAULT_UNTRUSTED,
 )
 
 consoles.list_view(
@@ -46,28 +50,32 @@ try_.builder(
     ),
 )
 
-try_.orchestrator_builder(
+try_.builder(
     name = "fuchsia-arm64-rel",
     branch_selector = branches.selector.FUCHSIA_BRANCHES,
     mirrors = [
         "ci/fuchsia-arm64-rel",
     ],
-    compilator = "fuchsia-arm64-rel-compilator",
     experiments = {
         "enable_weetbix_queries": 100,
         "weetbix.retry_weak_exonerations": 100,
         "weetbix.enable_weetbix_exonerations": 100,
     },
     main_list_view = "try",
-    tryjob = try_.job(),
-)
+    tryjob = try_.job(
+        location_filters = [
+            # Covers //fuchsia_web and //fuchsia changes, including
+            # SDK rolls.
+            ".*fuchsia.*",
 
-try_.compilator_builder(
-    name = "fuchsia-arm64-rel-compilator",
-    branch_selector = branches.selector.FUCHSIA_BRANCHES,
-    # TODO(crbug.com/1298110): Set to True once compilator bots are moved
-    ssd = None,
-    main_list_view = "try",
+            # In 04/2022 - 04/2023, there was an independent failure.
+            "media/.+",
+
+            # TODO(crbug.com/1377994): When arm64 graphics are supported on
+            # emulator, fuchsia-arm64-rel tests should be tested.
+            "components/viz/viz.gni",
+        ],
+    ),
 )
 
 try_.builder(
@@ -118,8 +126,22 @@ try_.builder(
 )
 
 try_.builder(
+    name = "fuchsia-fyi-x64-asan",
+    mirrors = ["ci/fuchsia-fyi-x64-asan"],
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+    execution_timeout = 10 * time.hour,
+)
+
+try_.builder(
     name = "fuchsia-fyi-x64-dbg",
     mirrors = ["ci/fuchsia-fyi-x64-dbg"],
+)
+
+try_.builder(
+    name = "fuchsia-fyi-x64-dbg-persistent-emulator",
+    mirrors = ["ci/fuchsia-fyi-x64-dbg-persistent-emulator"],
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+    execution_timeout = 10 * time.hour,
 )
 
 try_.orchestrator_builder(
@@ -131,9 +153,8 @@ try_.orchestrator_builder(
     compilator = "fuchsia-x64-cast-receiver-rel-compilator",
     coverage_test_types = ["unit", "overall"],
     experiments = {
-        "enable_weetbix_queries": 100,
-        "weetbix.retry_weak_exonerations": 100,
-        "weetbix.enable_weetbix_exonerations": 100,
+        # go/nplus1shardsproposal
+        "chromium.add_one_test_shard": 10,
     },
     main_list_view = "try",
     tryjob = try_.job(),
@@ -146,6 +167,7 @@ try_.compilator_builder(
     cores = "8|16",
     ssd = True,
     main_list_view = "try",
+    siso_enabled = True,
 )
 
 try_.builder(

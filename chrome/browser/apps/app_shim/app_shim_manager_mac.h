@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "apps/app_lifetime_monitor.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/callback_forward.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/apps/app_shim/app_shim_host_bootstrap_mac.h"
@@ -27,7 +27,9 @@
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list_observer.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/os_integration/web_app_shortcut_mac.h"
+#include "chrome/services/mac_notifications/public/mojom/mac_notifications.mojom.h"
+#include "components/webapps/common/web_app_id.h"
 
 class Profile;
 class ProfileManager;
@@ -47,15 +49,20 @@ namespace apps {
 // as possibly multiple windows within profiles).
 void SetMacShimStartupDoneCallbackForTesting(base::OnceClosure callback);
 
+// Returns the callback set with SetMacShimStartupDoneCallbackForTesting;
+base::OnceClosure TakeShimStartupDoneCallbackForTesting();
+
 // This app shim handler that handles events for app shims that correspond to an
 // extension.
-class AppShimManager : public AppShimHostBootstrap::Client,
-                       public AppShimHost::Client,
-                       public AppLifetimeMonitor::Observer,
-                       public BrowserListObserver,
-                       public AvatarMenuObserver,
-                       public ProfileManagerObserver,
-                       public ProfileObserver {
+class AppShimManager
+    : public AppShimHostBootstrap::Client,
+      public AppShimHost::Client,
+      public AppLifetimeMonitor::Observer,
+      public BrowserListObserver,
+      public AvatarMenuObserver,
+      public ProfileManagerObserver,
+      public ProfileObserver,
+      public mac_notifications::mojom::MacNotificationProvider {
  public:
   class Delegate {
    public:
@@ -64,33 +71,33 @@ class AppShimManager : public AppShimHostBootstrap::Client,
     // Show all app windows (for non-PWA apps). Return true if there existed any
     // windows.
     virtual bool ShowAppWindows(Profile* profile,
-                                const web_app::AppId& app_id) = 0;
+                                const webapps::AppId& app_id) = 0;
 
     // Close all app windows (for non-PWA apps).
     virtual void CloseAppWindows(Profile* profile,
-                                 const web_app::AppId& app_id) = 0;
+                                 const webapps::AppId& app_id) = 0;
 
     // Return true iff |app_id| corresponds to an app that is installed for
     // |profile|. Note that |profile| may be nullptr (in which case it should
     // always return false).
     virtual bool AppIsInstalled(Profile* profile,
-                                const web_app::AppId& app_id) = 0;
+                                const webapps::AppId& app_id) = 0;
 
     // Return true iff the specified app can create an AppShimHost, which will
     // keep the app shim process connected (as opposed to, e.g, a bookmark app
     // that opens in a tab, which will immediately close).
     virtual bool AppCanCreateHost(Profile* profile,
-                                  const web_app::AppId& app_id) = 0;
+                                  const webapps::AppId& app_id) = 0;
 
     // Return true if Cocoa windows for this app should be hosted in the app
     // shim process.
     virtual bool AppUsesRemoteCocoa(Profile* profile,
-                                    const web_app::AppId& app_id) = 0;
+                                    const webapps::AppId& app_id) = 0;
 
     // Return true if a single app shim is used for all profiles (as opposed to
     // one shim per profile).
     virtual bool AppIsMultiProfile(Profile* profile,
-                                   const web_app::AppId& app_id) = 0;
+                                   const webapps::AppId& app_id) = 0;
 
     // Open a dialog to enable the specified extension. Call |callback| after
     // the dialog is executed.
@@ -103,7 +110,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
     // is called.
     virtual void LaunchApp(
         Profile* profile,
-        const web_app::AppId& app_id,
+        const webapps::AppId& app_id,
         const std::vector<base::FilePath>& files,
         const std::vector<GURL>& urls,
         const GURL& override_url,
@@ -113,8 +120,9 @@ class AppShimManager : public AppShimHostBootstrap::Client,
     // Launch the shim process for an app. It is guaranteed that |app_id| is
     // installed for |profile| when this method is called.
     virtual void LaunchShim(Profile* profile,
-                            const web_app::AppId& app_id,
-                            bool recreate_shims,
+                            const webapps::AppId& app_id,
+                            web_app::LaunchShimUpdateBehavior update_behavior,
+                            web_app::ShimLaunchMode launch_mode,
                             ShimLaunchedCallback launched_callback,
                             ShimTerminatedCallback terminated_callback) = 0;
 
@@ -124,7 +132,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
 
     virtual std::vector<chrome::mojom::ApplicationDockMenuItemPtr>
     GetAppShortcutsMenuItemInfos(Profile* profile,
-                                 const web_app::AppId& app_id) = 0;
+                                 const webapps::AppId& app_id) = 0;
   };
 
   // Helper function to get the instance on the browser process. This will be
@@ -136,13 +144,9 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   AppShimManager& operator=(const AppShimManager&) = delete;
   ~AppShimManager() override;
 
-  // Called at the beginning of browser shut down. Is used to remove |this| as
-  // a ProfileManager and AvatarMenuObserver observer.
-  void OnBeginTearDown();
-
   // Get the host corresponding to a profile and app id, or null if there is
   // none.
-  AppShimHost* FindHost(Profile* profile, const web_app::AppId& app_id);
+  AppShimHost* FindHost(Profile* profile, const webapps::AppId& app_id);
 
   // If the specified |browser| should be using RemoteCocoa (because it is a
   // bookmark app), then get or create an AppShimHost for it, and return
@@ -166,8 +170,19 @@ class AppShimManager : public AppShimHostBootstrap::Client,
 
   void UpdateAppBadge(
       Profile* profile,
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       const absl::optional<badging::BadgeManager::BadgeValue>& badge);
+
+  // Called to connect to a MacNotificationProvider instance in the app shim
+  // process for the given app_id. This is only supported for multi-profile
+  // app shims; but only legacy platform apps would use single-profile shims
+  // anyway.
+  // If there is no running app shim matching `app_id`, currently this method
+  // instead returns a remote connected to a dummy notification provider. In
+  // the future this will instead launch an app shim for `app_id` and connect
+  // to that.
+  mojo::Remote<mac_notifications::mojom::MacNotificationProvider>
+  LaunchNotificationProvider(const webapps::AppId& app_id);
 
   // AppShimHostBootstrap::Client:
   void OnShimProcessConnected(
@@ -176,7 +191,8 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // AppShimHost::Client:
   void OnShimLaunchRequested(
       AppShimHost* host,
-      bool recreate_shims,
+      web_app::LaunchShimUpdateBehavior update_behavior,
+      web_app::ShimLaunchMode launch_mode,
       base::OnceCallback<void(base::Process)> launched_callback,
       base::OnceClosure terminated_callback) override;
   void OnShimProcessDisconnected(AppShimHost* host) override;
@@ -186,6 +202,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
                          const std::vector<base::FilePath>& files) override;
   void OnShimSelectedProfile(AppShimHost* host,
                              const base::FilePath& profile_path) override;
+  void OnShimOpenedAppSettings(AppShimHost* host) override;
   void OnShimOpenedUrls(AppShimHost* host,
                         const std::vector<GURL>& urls) override;
   void OnShimOpenAppWithOverrideUrl(AppShimHost* host,
@@ -204,6 +221,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // ProfileManagerObserver overrides:
   void OnProfileAdded(Profile* profile) override;
   void OnProfileMarkedForPermanentDeletion(Profile* profile) override;
+  void OnProfileManagerDestroying() override;
 
   // BrowserListObserver overrides:
   void OnBrowserAdded(Browser* browser) override;
@@ -216,7 +234,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // AvatarMenuObserver:
   void OnAvatarMenuChanged(AvatarMenu* menu) override;
 
-  static base::ScopedCFTypeRef<SecRequirementRef>
+  static base::apple::ScopedCFTypeRef<SecRequirementRef>
       BuildAppShimRequirementFromFrameworkRequirementString(CFStringRef);
 
   class AppShimObserver {
@@ -241,6 +259,9 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // Return the profile for |path|, only if it is already loaded.
   virtual Profile* ProfileForPath(const base::FilePath& path);
 
+  // Return a profile to use for a background shim launch, virtual for tests.
+  virtual Profile* ProfileForBackgroundShimLaunch(const webapps::AppId& app_id);
+
   // Load a profile and call |callback| when completed or failed.
   virtual void LoadProfileAsync(const base::FilePath& path,
                                 base::OnceCallback<void(Profile*)> callback);
@@ -259,7 +280,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   virtual std::unique_ptr<AppShimHost> CreateHost(
       AppShimHost::Client* client,
       const base::FilePath& profile_path,
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       bool use_remote_cocoa);
 
   // Open the specified URL in a new Chrome window. This is the fallback when
@@ -326,7 +347,7 @@ class AppShimManager : public AppShimHostBootstrap::Client,
     // will open exactly one window.
     bool HasFilesOrURLs() const;
 
-    web_app::AppId app_id;
+    webapps::AppId app_id;
     std::vector<base::FilePath> files;
     std::vector<GURL> urls;
     GURL override_url;
@@ -364,18 +385,18 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // the result. The callback's arguments may be nullptr on failure.
   using LoadProfileAndAppCallback = base::OnceCallback<void(Profile*)>;
   void LoadProfileAndApp(const base::FilePath& profile_path,
-                         const web_app::AppId& app_id,
+                         const webapps::AppId& app_id,
                          LoadProfileAndAppCallback callback);
   void LoadProfileAndApp_OnProfileLoaded(const base::FilePath& profile_path,
-                                         const web_app::AppId& app_id,
+                                         const webapps::AppId& app_id,
                                          LoadProfileAndAppCallback callback,
                                          Profile* profile);
   void LoadProfileAndApp_OnProfileAppRegistryReady(
       const base::FilePath& profile_path,
-      const web_app::AppId& app_id,
+      const webapps::AppId& app_id,
       LoadProfileAndAppCallback callback);
   void LoadProfileAndApp_OnAppEnabled(const base::FilePath& profile_path,
-                                      const web_app::AppId& app_id,
+                                      const webapps::AppId& app_id,
                                       LoadProfileAndAppCallback callback);
 
   // Update the profiles menu for the specified host.
@@ -390,16 +411,28 @@ class AppShimManager : public AppShimHostBootstrap::Client,
   // Retrieve the ProfileState for a given (Profile, AppId) pair. If one
   // does not exist, create one.
   ProfileState* GetOrCreateProfileState(Profile* profile,
-                                        const web_app::AppId& app_id);
+                                        const webapps::AppId& app_id);
+
+  void LaunchShimInBackgroundMode(
+      const webapps::AppId& app_id,
+      base::OnceCallback<void(AppShimHost*)> callback);
 
   // Returns a mapping of profile paths to how many of the files and urls passed
   // in in `params` each profile can handle.
   static std::map<base::FilePath, int> GetProfilesWithMatchingHandlers(
       const LoadAndLaunchAppParams& params);
 
+  // mac_notifications::mojom::MacNotificationProvider:
+  void BindNotificationService(
+      mojo::PendingReceiver<mac_notifications::mojom::MacNotificationService>
+          service,
+      mojo::PendingRemote<
+          mac_notifications::mojom::MacNotificationActionHandler> handler)
+      override;
+
   std::unique_ptr<Delegate> delegate_;
 
-  // Weak, reset during OnBeginTearDown.
+  // Weak, reset during OnProfileManagerDestroying.
   raw_ptr<ProfileManager> profile_manager_ = nullptr;
 
   // Map from extension id to the state for that app.
@@ -407,6 +440,13 @@ class AppShimManager : public AppShimHostBootstrap::Client,
 
   // The avatar menu instance used by all app shims.
   std::unique_ptr<AvatarMenu> avatar_menu_;
+
+  // Requests for MacNotificationProviders that can't be connected to the
+  // correct app shim process right away get added to this receiver set
+  // instead. This is needed because higher level notifications code currently
+  // always expects to get a connected MacNotificationProvider remote.
+  mojo::ReceiverSet<mac_notifications::mojom::MacNotificationProvider>
+      dummy_notification_provider_receivers_;
 
   raw_ptr<AppShimObserver> app_shim_observer_ = nullptr;
 

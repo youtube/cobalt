@@ -35,6 +35,11 @@
 #include "media/capture/video_capture_types.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
+#if BUILDFLAG(IS_WIN)
+#include <mfobjects.h>
+#include <wrl/client.h>
+#endif
+
 namespace base {
 class Location;
 }  // namespace base
@@ -65,11 +70,26 @@ struct CAPTURE_EXPORT CapturedExternalVideoBuffer {
   CapturedExternalVideoBuffer(gfx::GpuMemoryBufferHandle handle,
                               VideoCaptureFormat format,
                               gfx::ColorSpace color_space);
-  CapturedExternalVideoBuffer(CapturedExternalVideoBuffer&& other);
-  ~CapturedExternalVideoBuffer();
 
+#if BUILDFLAG(IS_WIN)
+  CapturedExternalVideoBuffer(Microsoft::WRL::ComPtr<IMFMediaBuffer> imf_buffer,
+                              gfx::GpuMemoryBufferHandle handle,
+                              VideoCaptureFormat format,
+                              gfx::ColorSpace color_space);
+#endif
+
+  CapturedExternalVideoBuffer(CapturedExternalVideoBuffer&& other);
   CapturedExternalVideoBuffer& operator=(CapturedExternalVideoBuffer&& other);
 
+  CapturedExternalVideoBuffer(const CapturedExternalVideoBuffer&) = delete;
+  CapturedExternalVideoBuffer& operator=(const CapturedExternalVideoBuffer&) =
+      delete;
+
+  ~CapturedExternalVideoBuffer();
+
+#if BUILDFLAG(IS_WIN)
+  Microsoft::WRL::ComPtr<IMFMediaBuffer> imf_buffer;
+#endif
   gfx::GpuMemoryBufferHandle handle;
   VideoCaptureFormat format;
   gfx::ColorSpace color_space;
@@ -217,10 +237,9 @@ class CAPTURE_EXPORT VideoCaptureDevice
     // contains the captured content.
     virtual void OnIncomingCapturedExternalBuffer(
         CapturedExternalVideoBuffer buffer,
-        std::vector<CapturedExternalVideoBuffer> scaled_buffers,
         base::TimeTicks reference_time,
         base::TimeDelta timestamp,
-        gfx::Rect visible_rect) = 0;
+        const gfx::Rect& visible_rect) = 0;
 
     // Reserve an output buffer into which contents can be captured directly.
     // The returned |buffer| will always be allocated with a memory size
@@ -332,8 +351,8 @@ class CAPTURE_EXPORT VideoCaptureDevice
   // Non-empty |crop_id| sets (or changes) the crop-target.
   // Empty |crop_id| reverts the capture to its original, uncropped state.
   //
-  // |crop_version| must be incremented by at least one for each call.
-  // By including it in frame's metadata, Viz informs Blink what was the
+  // |sub_capture_target_version| must be incremented by at least one for each
+  // call. By including it in frame's metadata, Viz informs Blink what was the
   // latest invocation of cropTo() before a given frame was produced.
   //
   // The callback reports success/failure. It is called on an unspecified
@@ -341,8 +360,9 @@ class CAPTURE_EXPORT VideoCaptureDevice
   // as needed.
   virtual void Crop(
       const base::Token& crop_id,
-      uint32_t crop_version,
-      base::OnceCallback<void(media::mojom::CropRequestResult)> callback);
+      uint32_t sub_capture_target_version,
+      base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+          callback);
 
   // Deallocates the video capturer, possibly asynchronously.
   //

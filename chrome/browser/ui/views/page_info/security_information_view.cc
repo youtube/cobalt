@@ -9,7 +9,7 @@
 #include "chrome/browser/ui/views/accessibility/non_accessible_image_view.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -148,6 +148,8 @@ void SecurityInformationView::AddResetDecisionsLabel(
   views::StyledLabel* reset_cert_decisions_label =
       reset_decisions_label_container_->AddChildView(
           std::make_unique<views::StyledLabel>());
+  reset_cert_decisions_label->SetID(
+      PageInfoViewFactory::VIEW_ID_PAGE_INFO_RESET_DECISIONS_LABEL);
   reset_cert_decisions_label->SetDefaultTextStyle(
       views::style::STYLE_SECONDARY);
   reset_cert_decisions_label->SetText(text);

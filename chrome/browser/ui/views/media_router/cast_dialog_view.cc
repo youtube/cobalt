@@ -21,7 +21,6 @@
 #include "chrome/browser/ui/media_router/ui_media_sink.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/controls/md_text_button_with_down_arrow.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/media_router/cast_dialog_access_code_cast_button.h"
@@ -66,13 +65,7 @@ CastDialogView::CastDialogView(
   SetButtons(ui::DIALOG_BUTTON_NONE);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
-  sources_button_ =
-      SetExtraView(std::make_unique<views::MdTextButtonWithDownArrow>(
-          base::BindRepeating(&CastDialogView::ShowSourcesMenu,
-                              base::Unretained(this)),
-          l10n_util::GetStringUTF16(
-              IDS_MEDIA_ROUTER_ALTERNATIVE_SOURCES_BUTTON)));
-  sources_button_->SetEnabled(false);
+  InitializeSourcesButton();
   MaybeShowAccessCodeCastButton();
   ShowNoSinksView();
 }
@@ -131,11 +124,6 @@ void CastDialogView::OnControllerDestroying() {
   // cause the dialog to immediately open again.
 }
 
-void CastDialogView::OnPaint(gfx::Canvas* canvas) {
-  views::BubbleDialogDelegateView::OnPaint(canvas);
-  metrics_.OnPaint(base::Time::Now());
-}
-
 bool CastDialogView::IsCommandIdChecked(int command_id) const {
   return command_id == selected_source_;
 }
@@ -177,9 +165,9 @@ void CastDialogView::Init() {
 }
 
 void CastDialogView::WindowClosing() {
-  for (Observer& observer : observers_)
+  for (Observer& observer : observers_) {
     observer.OnDialogWillClose(this);
-  metrics_.OnCloseDialog(base::Time::Now());
+  }
 }
 
 void CastDialogView::ShowAccessCodeCastDialog() {
@@ -267,8 +255,12 @@ void CastDialogView::RestoreSinkListState() {
 void CastDialogView::PopulateScrollView(const std::vector<UIMediaSink>& sinks) {
   sink_views_.clear();
   auto sink_list_view = std::make_unique<views::View>();
-  sink_list_view->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical));
+  auto layout_manager = std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kVertical);
+  // Give a little extra space below all sink views, so that focus rings may be
+  // properly drawn.
+  layout_manager->set_inside_border_insets(gfx::Insets::TLBR(0, 0, 4, 0));
+  sink_list_view->SetLayoutManager(std::move(layout_manager));
   for (size_t i = 0; i < sinks.size(); i++) {
     auto* sink_view =
         sink_list_view->AddChildView(std::make_unique<CastDialogSinkView>(
@@ -285,6 +277,17 @@ void CastDialogView::PopulateScrollView(const std::vector<UIMediaSink>& sinks) {
 
   MaybeSizeToContents();
   Layout();
+}
+
+void CastDialogView::InitializeSourcesButton() {
+  sources_button_ =
+      SetExtraView(std::make_unique<views::MdTextButtonWithDownArrow>(
+          base::BindRepeating(&CastDialogView::ShowSourcesMenu,
+                              base::Unretained(this)),
+          l10n_util::GetStringUTF16(
+              IDS_MEDIA_ROUTER_ALTERNATIVE_SOURCES_BUTTON)));
+  sources_button_->SetEnabled(false);
+  sources_button_->SetStyle(ui::ButtonStyle::kTonal);
 }
 
 void CastDialogView::ShowSourcesMenu() {
@@ -309,7 +312,6 @@ void CastDialogView::SelectSource(SourceType source) {
   selected_source_ = source;
   DisableUnsupportedSinks();
   GetWidget()->UpdateWindowTitle();
-  metrics_.OnCastModeSelected();
 }
 
 void CastDialogView::SinkPressed(size_t index) {
@@ -321,7 +323,6 @@ void CastDialogView::SinkPressed(size_t index) {
   // due to a model update, so make a copy here.
   const UIMediaSink sink = sink_views_.at(index)->sink();
   if (sink.route) {
-    metrics_.OnStopCasting(sink.route->is_local());
     // StopCasting() may trigger a model update and invalidate |sink|.
     controller_->StopCasting(sink.route->media_route_id());
   } else if (sink.issue) {
@@ -330,8 +331,6 @@ void CastDialogView::SinkPressed(size_t index) {
     absl::optional<MediaCastMode> cast_mode = GetCastModeToUse(sink);
     if (cast_mode) {
       controller_->StartCasting(sink.id, cast_mode.value());
-      metrics_.OnStartCasting(base::Time::Now(), index, cast_mode.value(),
-                              sink.icon_type);
     }
   }
 }
@@ -345,7 +344,6 @@ void CastDialogView::StopPressed(size_t index) {
   if (!sink.route) {
     return;
   }
-  metrics_.OnStopCasting(sink.route->is_local());
   // StopCasting() may trigger a model update and invalidate |sink|.
   controller_->StopCasting(sink.route->media_route_id());
 }

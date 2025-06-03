@@ -122,6 +122,9 @@ suite('ApnListTest', function() {
     await flushTasks();
     assertFalse(!!getDescriptionWithLink());
     assertTrue(!!getDescriptionWithoutLink());
+    assertEquals(
+        'assertive',
+        apnList.shadowRoot.querySelector('#apnDescription').ariaLive);
   });
 
   test('No managedCellularProperties', async function() {
@@ -158,7 +161,9 @@ suite('ApnListTest', function() {
     assertTrue(!!getErrorMessage());
     const getErrorMessageText = () =>
         getErrorMessage().querySelector('localized-link').localizedString;
-    assertEquals('Can\'t connect to network.', getErrorMessageText());
+    assertEquals(
+        apnList.i18n('apnSettingsDatabaseApnsErrorMessage'),
+        getErrorMessageText());
 
     // Add an enabled custom APN.
     apnList.managedCellularProperties = {
@@ -178,7 +183,24 @@ suite('ApnListTest', function() {
     await flushTasks();
     assertFalse(!!getZeroStateText());
     assertTrue(!!getErrorMessage());
-    assertEquals('Can\'t connect to network.', getErrorMessageText());
+    assertEquals(
+        apnList.i18n('apnSettingsDatabaseApnsErrorMessage'),
+        getErrorMessageText());
+
+    // Add a connected APN. The error should not show.
+    apnList.managedCellularProperties = {
+      connectedApn: connectedApn,
+      apnList: {
+        activeValue: [connectedApn],
+      },
+    };
+    await flushTasks();
+    assertFalse(!!getZeroStateText());
+    assertFalse(!!getErrorMessage());
+    const apns = apnList.shadowRoot.querySelectorAll('apn-list-item');
+    assertEquals(apns.length, 1);
+    assertTrue(OncMojo.apnMatch(apns[0].apn, connectedApn));
+    assertTrue(apns[0].isConnected);
   });
 
   test('There is no Connected APN and no custom APNs', async function() {

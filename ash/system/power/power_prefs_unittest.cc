@@ -131,6 +131,7 @@ std::string GetExpectedPowerPolicyForPrefs(PrefService* prefs,
       power_manager::PowerManagementPolicy::BatteryChargeMode::ADAPTIVE);
   expected_policy.set_boot_on_ac(false);
   expected_policy.set_usb_power_share(true);
+  expected_policy.set_hibernate_delay_sec(0);
 
   expected_policy.set_reason("Prefs");
   return chromeos::PowerPolicyController::GetPolicyDebugString(expected_policy);
@@ -224,9 +225,9 @@ class PowerPrefsTest : public NoSessionAshTestBase {
     FakeHumanPresenceDBusClient::Get()->set_hps_service_is_available(true);
     NoSessionAshTestBase::SetUp();
 
-    // Sets adaptive charging hardware support.
+    // Initializes adaptive charging hardware support to false.
     power_manager::PowerSupplyProperties power_props;
-    power_props.set_adaptive_charging_supported(true);
+    power_props.set_adaptive_charging_supported(false);
     power_manager_client()->UpdatePowerProperties(power_props);
 
     power_policy_controller_ = chromeos::PowerPolicyController::Get();
@@ -300,9 +301,10 @@ class PowerPrefsTest : public NoSessionAshTestBase {
   // Start counting histogram updates before we load our first pref service.
   base::HistogramTester histogram_tester_;
 
-  raw_ptr<chromeos::PowerPolicyController, ExperimentalAsh>
-      power_policy_controller_ = nullptr;                       // Not owned.
-  raw_ptr<PowerPrefs, ExperimentalAsh> power_prefs_ = nullptr;  // Not owned.
+  raw_ptr<chromeos::PowerPolicyController, DanglingUntriaged | ExperimentalAsh>
+      power_policy_controller_ = nullptr;  // Not owned.
+  raw_ptr<PowerPrefs, DanglingUntriaged | ExperimentalAsh> power_prefs_ =
+      nullptr;  // Not owned.
   base::SimpleTestTickClock tick_clock_;
 
   scoped_refptr<TestingPrefStore> user_pref_store_ =
@@ -654,29 +656,38 @@ TEST_F(PowerPrefsTest, QuickDimMetrics) {
 }
 
 TEST_F(PowerPrefsTest, SetAdaptiveChargingParams) {
-  // Should be enabled by default.
-  EXPECT_TRUE(power_manager_client()->policy().adaptive_charging_enabled());
+  // kPowerAdaptiveChargingEnabled is true by default.
+  PrefService* prefs =
+      Shell::Get()->session_controller()->GetActivePrefService();
+  EXPECT_TRUE(prefs->GetBoolean(prefs::kPowerAdaptiveChargingEnabled));
 
-  // Should be disabled after changing the prefs to false.
-  SetAdaptiveChargingPreference(false);
+  // But adaptive charging should be disabled initially because of no hardware
+  // support.
   EXPECT_FALSE(power_manager_client()->policy().adaptive_charging_enabled());
 
-  // Should be enabled after setting the prefs to true.
+  // Sets adaptive charging hardware support.
+  power_manager::PowerSupplyProperties power_props;
+  power_props.set_adaptive_charging_supported(true);
+  power_manager_client()->UpdatePowerProperties(power_props);
+
+  // With hardware support exists, the adaptive charging feature is controlled
+  // by prefs settings.
+  SetAdaptiveChargingPreference(false);
+  EXPECT_FALSE(power_manager_client()->policy().adaptive_charging_enabled());
   SetAdaptiveChargingPreference(true);
   EXPECT_TRUE(power_manager_client()->policy().adaptive_charging_enabled());
 
-  // Removes adaptive charging hardware support.
-  power_manager::PowerSupplyProperties power_props;
+  // Once power properties proto showed hardware adaptive_charging_supported, we
+  // never reset it false because the hardware feature should not change.
+  // So although we force power_manager_client to update the power properties
+  // here, hardware support keeps true.
   power_props.set_adaptive_charging_supported(false);
   power_manager_client()->UpdatePowerProperties(power_props);
 
-  // Should be disabled in spite of the prefs setting because lack of hardware
-  // support.
+  // The adaptive charging feature is controlled by prefs settings as above.
   SetAdaptiveChargingPreference(false);
   EXPECT_FALSE(power_manager_client()->policy().adaptive_charging_enabled());
-
   SetAdaptiveChargingPreference(true);
-  EXPECT_FALSE(power_manager_client()->policy().adaptive_charging_enabled());
+  EXPECT_TRUE(power_manager_client()->policy().adaptive_charging_enabled());
 }
-
 }  // namespace ash

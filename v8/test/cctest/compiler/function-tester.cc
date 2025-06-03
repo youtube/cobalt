@@ -42,7 +42,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
   CHECK(!code.is_null());
-  CHECK(code->IsCode());
+  CHECK(IsCode(*code));
   Compile(function);
   function->set_code(*code, kReleaseStore);
 }
@@ -83,7 +83,7 @@ void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
   Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
-  CHECK(expected->SameValue(*result));
+  CHECK(Object::SameValue(*expected, *result));
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
@@ -130,13 +130,13 @@ Handle<Object> FunctionTester::false_value() {
 
 Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
                                                    int param_count) {
-  JSFunction p;
+  Tagged<JSFunction> p;
   {  // because of the implicit handle scope of FunctionTester.
     FunctionTester f(graph, param_count);
     p = *f.function;
   }
   return Handle<JSFunction>(
-      p, p.GetIsolate());  // allocated in outer handle scope.
+      p, p->GetIsolate());  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> f) {

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {DevicePageBrowserProxyImpl, fakeKeyboards, fakeKeyboards2, Router, routes, SettingsPerDeviceKeyboardElement, SettingsSliderElement} from 'chrome://os-settings/chromeos/os_settings.js';
-import {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import 'chrome://os-settings/os_settings.js';
+
+import {CrLinkRowElement, DevicePageBrowserProxyImpl, fakeKeyboards, fakeKeyboards2, Router, routes, SettingsPerDeviceKeyboardElement, SettingsSliderElement} from 'chrome://os-settings/os_settings.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {pressAndReleaseKeyOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -61,6 +62,8 @@ suite('<settings-per-device-keyboard>', () => {
     let subsections = perDeviceKeyboardPage.shadowRoot!.querySelectorAll(
         'settings-per-device-keyboard-subsection');
     assertEquals(fakeKeyboards.length, subsections.length);
+    assertFalse(subsections[0]!.get('isLastDevice'));
+    assertTrue(subsections[fakeKeyboards.length - 1]!.get('isLastDevice'));
 
     // Check the number of subsections when the keyboard list is updated.
     perDeviceKeyboardPage.set('keyboards', fakeKeyboards2);
@@ -68,6 +71,7 @@ suite('<settings-per-device-keyboard>', () => {
     subsections = perDeviceKeyboardPage.shadowRoot!.querySelectorAll(
         'settings-per-device-keyboard-subsection');
     assertEquals(fakeKeyboards2.length, subsections.length);
+    assertTrue(subsections[fakeKeyboards2.length - 1]!.get('isLastDevice'));
   });
 
   test(
@@ -78,10 +82,10 @@ suite('<settings-per-device-keyboard>', () => {
           const name =
               subsections[i]!.shadowRoot!.querySelector('h2')!.textContent;
           if (fakeKeyboards[i]!.isExternal) {
-            assertEquals(fakeKeyboards[i]!.name, name);
+            assertEquals(fakeKeyboards[i]!.name, name!.trim());
           } else {
             assertTrue(subsections[i]!.i18nExists('builtInKeyboardName'));
-            assertEquals('Built-in Keyboard', name);
+            assertEquals('Built-in Keyboard', name!.trim());
           }
         }
       });
@@ -169,7 +173,7 @@ suite('<settings-per-device-keyboard>', () => {
 
   test('Navigate to input tab', async () => {
     perDeviceKeyboardPage.shadowRoot!
-        .querySelector<CrLinkRowElement>('#showLanguagesInput')!.click();
+        .querySelector<CrLinkRowElement>('#inputRow')!.click();
     assertEquals(routes.OS_LANGUAGES_INPUT, Router.getInstance().currentRoute);
   });
 
@@ -179,7 +183,7 @@ suite('<settings-per-device-keyboard>', () => {
     assertTrue(isVisible(perDeviceKeyboardPage.shadowRoot!.querySelector(
         '#noKeyboardsConnectedContainer')));
     assertEquals(
-        'No keyboard detected',
+        'No keyboard connected',
         perDeviceKeyboardPage.shadowRoot!
             .querySelector<HTMLElement>(
                 '#noKeyboardsConnectedMessage')!.innerText.trim());

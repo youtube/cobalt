@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "ash/public/cpp/test/app_list_test_api.h"
-#include "base/memory/raw_ptr.h"
 
 #include <string>
 #include <utility>
@@ -35,9 +34,11 @@
 #include "ash/app_list/views/recent_apps_view.h"
 #include "ash/app_list/views/scrollable_apps_grid_view.h"
 #include "ash/app_list/views/search_box_view.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/accelerators.h"
 #include "ash/shell.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/window_observer.h"
@@ -304,7 +305,7 @@ AppListModel* AppListTestApi::GetAppListModel() {
 
 void AppListTestApi::ShowBubbleAppListAndWait() {
   ash::AcceleratorController::Get()->PerformActionIfEnabled(
-      ash::TOGGLE_APP_LIST, {});
+      AcceleratorAction::kToggleAppList, {});
   WaitForBubbleWindow(
       /*wait_for_opening_animation=*/true);
 }
@@ -563,6 +564,15 @@ bool AppListTestApi::HasAnyWaitingReorderDoneCallback() const {
 
 void AppListTestApi::DisableAppListNudge(bool disable) {
   AppListNudgeController::SetReorderNudgeDisabledForTest(disable);
+}
+
+void AppListTestApi::DisableSearchNotifier(bool disable) {
+  auto* prefs =
+      Shell::Get()->session_controller()->GetLastActiveUserPrefService();
+  ScopedDictPrefUpdate pref_update(prefs,
+                                   ash::prefs::kImageSearchPrivacyNotice);
+  // Accept the notifier to disable it.
+  pref_update->Set("accepted", disable);
 }
 
 void AppListTestApi::SetContinueSectionPrivacyNoticeAccepted() {

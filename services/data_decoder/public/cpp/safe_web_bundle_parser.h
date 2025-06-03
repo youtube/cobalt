@@ -40,24 +40,27 @@ class SafeWebBundleParser {
   void OpenDataSource(
       mojo::PendingRemote<web_package::mojom::BundleDataSource> data_source);
 
-  // Parses the integrity block of a signed web bundle. See
-  // web_package::mojom::WebBundleParser::ParseIntegrityBlock for
+  // Parses the integrity block of a Signed Web Bundle. See
+  // `web_package::mojom::WebBundleParser::ParseIntegrityBlock` for
   // details. This method fails when it's called before the previous call
   // finishes.
   void ParseIntegrityBlock(
       web_package::mojom::WebBundleParser::ParseIntegrityBlockCallback
           callback);
 
-  // Parses metadata. If `offset` is >= 0, then parsing of the web bundle starts
-  // at that offset. See web_package::mojom::WebBundleParser::ParseMetadata for
+  // Parses metadata of a (Signed) Web Bundle. If `offset` is specified, then
+  // parsing of the metadata starts at that offset. If `offset` is not set, then
+  // parsing either starts at offset 0 for non-random-access data sources, or at
+  // a position based on the `length` field of the Web Bundle for random access
+  // data sources. See `web_package::mojom::WebBundleParser::ParseMetadata` for
   // details. This method fails when it's called before the previous call
   // finishes.
   void ParseMetadata(
-      int64_t offset,
+      absl::optional<uint64_t> offset,
       web_package::mojom::WebBundleParser::ParseMetadataCallback callback);
 
-  // Parses response. See web_package::mojom::WebBundleParser::ParseResponse for
-  // details.
+  // Parses a response from a (Signed) Web Bundle. See
+  // `web_package::mojom::WebBundleParser::ParseResponse` for details.
   void ParseResponse(
       uint64_t response_offset,
       uint64_t response_length,
@@ -66,6 +69,13 @@ class SafeWebBundleParser {
   // Sets a callback to be called when the data_decoder service connection is
   // terminated.
   void SetDisconnectCallback(base::OnceClosure callback);
+
+  // Closes the data source that this class is using to read the data from.
+  // One can use this function to know the point after which the source file
+  // is closed and can be removed.
+  // If the caller doesn't care when the file is closed, then it is fine
+  // to destroy the instance of this class without calling this function.
+  void Close(base::OnceClosure callback);
 
  private:
   web_package::mojom::WebBundleParserFactory* GetFactory();
@@ -78,6 +88,7 @@ class SafeWebBundleParser {
   void OnResponseParsed(size_t callback_id,
                         web_package::mojom::BundleResponsePtr response,
                         web_package::mojom::BundleResponseParseErrorPtr error);
+  void OnParserClosed();
 
   absl::optional<GURL> base_url_;
   DataDecoder data_decoder_;
@@ -90,6 +101,7 @@ class SafeWebBundleParser {
                  web_package::mojom::WebBundleParser::ParseResponseCallback>
       response_callbacks_;
   base::OnceClosure disconnect_callback_;
+  base::OnceClosure close_callback_;
   size_t response_callback_next_id_ = 0;
   bool disconnected_ = true;
 };

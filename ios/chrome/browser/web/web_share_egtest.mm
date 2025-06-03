@@ -9,13 +9,10 @@
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
+#import "ios/web/public/test/element_selector.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 #import "net/test/embedded_test_server/http_request.h"
 #import "net/test/embedded_test_server/http_response.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -82,6 +79,13 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   return std::move(http_response);
 }
 
+// Taps the Web Share button in the web view.
+void TapWebShareButton() {
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:chrome_test_util::TapWebElementUnverified([ElementSelector
+                        selectorWithElementID:kWebShareButtonId])];
+}
+
 }  // namespace
 
 @interface WebShareTestCase : ChromeTestCase
@@ -100,11 +104,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 - (void)testShareUrl {
   const GURL pageURL = self.testServer->GetURL(kWebShareValidLinkUrl);
   [ChromeEarlGrey loadURL:pageURL];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kWebShareButtonId)];
+  TapWebShareButton();
 
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Copy")]
-      performAction:grey_tap()];
+  [ChromeEarlGrey tapButtonInActivitySheetWithID:@"Copy"];
 
   [ChromeEarlGrey waitForWebStateContainingText:kWebShareStatusSuccess];
 }
@@ -113,11 +115,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 - (void)testShareRelativeUrl {
   const GURL pageURL = self.testServer->GetURL(kWebShareRelativeLinkUrl);
   [ChromeEarlGrey loadURL:pageURL];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kWebShareButtonId)];
+  TapWebShareButton();
 
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Copy")]
-      performAction:grey_tap()];
+  [ChromeEarlGrey tapButtonInActivitySheetWithID:@"Copy"];
 
   [ChromeEarlGrey waitForWebStateContainingText:kWebShareStatusSuccess];
 }
@@ -127,11 +127,9 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   const GURL pageURL =
       self.testServer->GetURL(kWebShareRelativeFilenameFileUrl);
   [ChromeEarlGrey loadURL:pageURL];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kWebShareButtonId)];
+  TapWebShareButton();
 
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Copy")]
-      performAction:grey_tap()];
+  [ChromeEarlGrey tapButtonInActivitySheetWithID:@"Copy"];
 
   [ChromeEarlGrey waitForWebStateContainingText:kWebShareStatusSuccess];
 }
@@ -140,25 +138,21 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
 - (void)testShareFileUrl {
   const GURL pageURL = self.testServer->GetURL(kWebShareFileUrl);
   [ChromeEarlGrey loadURL:pageURL];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kWebShareButtonId)];
+  TapWebShareButton();
 
   [ChromeEarlGrey waitForWebStateContainingText:kWebShareStatusFailure];
 
   // Share sheet should not display.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Copy")]
-      assertWithMatcher:grey_nil()];
+  [ChromeEarlGrey verifyActivitySheetNotVisible];
 }
 
 // Tests that an url object can be shared.
 - (void)testShareUrlObject {
   const GURL pageURL = self.testServer->GetURL(kWebShareUrlObjectUrl);
   [ChromeEarlGrey loadURL:pageURL];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
-      performAction:chrome_test_util::TapWebElementWithId(kWebShareButtonId)];
+  TapWebShareButton();
 
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"Copy")]
-      performAction:grey_tap()];
+  [ChromeEarlGrey tapButtonInActivitySheetWithID:@"Copy"];
 
   [ChromeEarlGrey waitForWebStateContainingText:kWebShareStatusSuccess];
 }

@@ -61,7 +61,8 @@ bool DeviceCommandResetEuiccJob::IsExpired(base::TimeTicks now) {
 }
 
 void DeviceCommandResetEuiccJob::RunImpl(CallbackWithResult result_callback) {
-  absl::optional<dbus::ObjectPath> euicc_path = ash::GetCurrentEuiccPath();
+  absl::optional<dbus::ObjectPath> euicc_path =
+      ash::cellular_utils::GetCurrentEuiccPath();
   if (!euicc_path) {
     SYSLOG(ERROR) << "No current EUICC. Unable to reset EUICC";
     RunResultCallback(std::move(result_callback), ResultType::kFailure);

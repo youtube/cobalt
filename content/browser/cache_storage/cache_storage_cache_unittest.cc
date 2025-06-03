@@ -10,6 +10,7 @@
 #include <set>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -25,6 +26,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
@@ -568,7 +570,8 @@ class CacheStorageCacheTest : public testing::Test {
         std::vector<uint8_t>(expected_blob_data_.begin(),
                              expected_blob_data_.end()));
 
-    auto bucket_locator = GetOrCreateBucket(kTestUrl);
+    ASSERT_OK_AND_ASSIGN(auto bucket_locator,
+                         GetOrCreateDefaultBucket(kTestUrl));
     // Use a mock CacheStorage object so we can use real
     // CacheStorageCacheHandle reference counting.  A CacheStorage
     // must be present to be notified when a cache becomes unreferenced.
@@ -587,17 +590,16 @@ class CacheStorageCacheTest : public testing::Test {
     content::RunAllTasksUntilIdle();
   }
 
-  storage::BucketLocator GetOrCreateBucket(const GURL& url) {
+  storage::QuotaErrorOr<storage::BucketLocator> GetOrCreateDefaultBucket(
+      const GURL& url) {
     const auto storage_key =
         blink::StorageKey::CreateFirstParty(url::Origin::Create(url));
     base::test::TestFuture<storage::QuotaErrorOr<storage::BucketInfo>> future;
     quota_manager_proxy_->UpdateOrCreateBucket(
-        storage::BucketInitParams(storage_key, storage::kDefaultBucketName),
+        storage::BucketInitParams::ForDefaultBucket(storage_key),
         base::SingleThreadTaskRunner::GetCurrentDefault(),
         future.GetCallback());
-    auto bucket = future.Take();
-    EXPECT_TRUE(bucket.has_value());
-    return bucket->ToBucketLocator();
+    return future.Take().transform(&storage::BucketInfo::ToBucketLocator);
   }
 
   GURL BodyUrl() const {
@@ -1300,8 +1302,7 @@ TEST_P(CacheStorageCacheTestP, PutReplaceInBatchFails) {
   // A duplicate operation error should provide an informative message
   // containing the URL of the duplicate request.
   ASSERT_TRUE(callback_message_);
-  EXPECT_NE(std::string::npos,
-            callback_message_.value().find(BodyUrl().spec()));
+  EXPECT_TRUE(base::Contains(callback_message_.value(), BodyUrl().spec()));
 
   // Neither operation should have completed.
   EXPECT_FALSE(Match(body_request_));
@@ -2047,30 +2048,50 @@ TEST_P(CacheStorageCacheTestP, QuotaManagerModified) {
   // event loop.
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1, quota_manager_proxy_->notify_bucket_modified_count());
-  EXPECT_LT(0, quota_manager_proxy_->last_notified_bucket_delta());
-  int64_t sum_delta = quota_manager_proxy_->last_notified_bucket_delta();
+  int64_t sum_delta =
+      quota_manager_proxy_->last_notified_bucket_delta().value_or(0);
+  EXPECT_LT(0, sum_delta);
 
   EXPECT_TRUE(Put(body_request_, CreateBlobBodyResponse()));
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(2, quota_manager_proxy_->notify_bucket_modified_count());
-  EXPECT_LT(sum_delta, quota_manager_proxy_->last_notified_bucket_delta());
-  sum_delta += quota_manager_proxy_->last_notified_bucket_delta();
+  EXPECT_LT(sum_delta, *quota_manager_proxy_->last_notified_bucket_delta());
+  sum_delta += *quota_manager_proxy_->last_notified_bucket_delta();
 
   EXPECT_TRUE(Delete(body_request_));
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(3, quota_manager_proxy_->notify_bucket_modified_count());
-  sum_delta += quota_manager_proxy_->last_notified_bucket_delta();
+  sum_delta += *quota_manager_proxy_->last_notified_bucket_delta();
 
   EXPECT_TRUE(Delete(no_body_request_));
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(4, quota_manager_proxy_->notify_bucket_modified_count());
-  sum_delta += quota_manager_proxy_->last_notified_bucket_delta();
+  sum_delta += *quota_manager_proxy_->last_notified_bucket_delta();
 
   EXPECT_EQ(0, sum_delta);
 }
 
 TEST_P(CacheStorageCacheTestP, PutObeysQuotaLimits) {
-  SetQuota(0);
+  SetQuota(10);
+  EXPECT_FALSE(Put(body_request_, CreateBlobBodyResponse()));
+  EXPECT_EQ(CacheStorageError::kErrorQuotaExceeded, callback_error_);
+}
+
+TEST_P(CacheStorageCacheTestP, PutObeysBucketQuotaLimits) {
+  SetQuota(1000000);
+  EXPECT_TRUE(Put(body_request_, CreateBlobBodyResponse()));
+
+  const auto storage_key =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(kTestUrl));
+  base::test::TestFuture<storage::QuotaErrorOr<storage::BucketInfo>> future;
+  storage::BucketInitParams bucket(storage_key, "inbox");
+  bucket.quota = 15;
+  quota_manager_proxy_->UpdateOrCreateBucket(
+      bucket, base::SingleThreadTaskRunner::GetCurrentDefault(),
+      future.GetCallback());
+  ASSERT_OK_AND_ASSIGN(storage::BucketInfo value, future.Take());
+  InitCache(nullptr, value.ToBucketLocator());
+
   EXPECT_FALSE(Put(body_request_, CreateBlobBodyResponse()));
   EXPECT_EQ(CacheStorageError::kErrorQuotaExceeded, callback_error_);
 }
@@ -2204,8 +2225,8 @@ TEST_P(CacheStorageCacheTestP, PutResponseUrlListObeysQuotaLimits) {
   EXPECT_EQ(CacheStorageError::kErrorQuotaExceeded, callback_error_);
 }
 
-TEST_P(CacheStorageCacheTestP, PutObeysQuotaLimitsWithEmptyResponseZeroQuota) {
-  SetQuota(0);
+TEST_P(CacheStorageCacheTestP, PutObeysQuotaLimitsWithEmptyResponseTinyQuota) {
+  SetQuota(1);
   EXPECT_FALSE(Put(body_request_, CreateNoBodyResponse()));
   EXPECT_EQ(CacheStorageError::kErrorQuotaExceeded, callback_error_);
 }
@@ -2399,7 +2420,8 @@ TEST_P(CacheStorageCacheTestP, UnfinishedPutsShouldNotBeReusable) {
   base::RunLoop().RunUntilIdle();
 
   // Create a new Cache in the same space.
-  InitCache(nullptr, GetOrCreateBucket(kTestUrl));
+  ASSERT_OK_AND_ASSIGN(auto bucket, GetOrCreateDefaultBucket(kTestUrl));
+  InitCache(nullptr, std::move(bucket));
 
   // Now attempt to read the same response from the cache. It should fail.
   EXPECT_FALSE(Match(body_request_));

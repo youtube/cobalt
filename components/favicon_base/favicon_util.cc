@@ -17,7 +17,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkImage.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/size.h"
@@ -145,18 +145,17 @@ SkBitmap ResizeBitmapByDownsamplingIfPossible(
 
 std::vector<float> GetFaviconScales() {
   const float kScale1x = 1.0f;
-  std::vector<ui::ResourceScaleFactor> resource_scale_factors =
-      ui::GetSupportedResourceScaleFactors();
 
   // TODO(ios): 1.0f should not be necessary on iOS retina devices. However
   // the sync service only supports syncing 100p favicons. Until sync supports
   // other scales 100p is needed in the list of scales to retrieve and
   // store the favicons in both 100p for sync and 200p for display. cr/160503.
   std::vector<float> favicon_scales(1, kScale1x);
-  for (size_t i = 0; i < resource_scale_factors.size(); ++i) {
-    if (resource_scale_factors[i] != ui::k100Percent)
+  for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
+    if (scale_factor != ui::k100Percent) {
       favicon_scales.push_back(
-          ui::GetScaleForResourceScaleFactor(resource_scale_factors[i]));
+          ui::GetScaleForResourceScaleFactor(scale_factor));
+    }
   }
   return favicon_scales;
 }

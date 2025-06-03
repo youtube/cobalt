@@ -7,10 +7,10 @@
 #include <stddef.h>
 
 #include <memory>
-#include <tuple>
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_piece.h"
@@ -27,6 +27,7 @@
 #include "content/public/test/render_view_test.h"
 #include "ipc/ipc_listener.h"
 #include "printing/buildflags/buildflags.h"
+#include "printing/image.h"
 #include "printing/mojom/print.mojom.h"
 #include "printing/page_range.h"
 #include "printing/print_job_constants.h"
@@ -46,14 +47,9 @@
 #include "printing/print_settings_conversion.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-#include "base/files/file_util.h"
-#include "printing/image.h"
-
 using blink::WebFrame;
 using blink::WebLocalFrame;
 using blink::WebString;
-#endif
 
 namespace printing {
 
@@ -153,6 +149,11 @@ const char kHTMLWithManyLinesOfText[] =
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
 class FakePrintPreviewUI : public mojom::PrintPreviewUI {
  public:
+  struct PageData {
+    uint32_t index;
+    uint32_t content_data_size;
+  };
+
   FakePrintPreviewUI() = default;
   ~FakePrintPreviewUI() override = default;
 
@@ -200,12 +201,14 @@ class FakePrintPreviewUI : public mojom::PrintPreviewUI {
     return did_preview_document_params_ ? did_preview_document_params_.get()
                                         : nullptr;
   }
-  const std::vector<std::pair<uint32_t, uint32_t>>& print_preview_pages()
-      const {
+  const std::vector<PageData>& print_preview_pages() const {
     return print_preview_pages_;
   }
-  bool has_custom_page_size_style() const {
-    return has_custom_page_size_style_;
+  bool all_pages_have_custom_size() const {
+    return all_pages_have_custom_size_;
+  }
+  bool all_pages_have_custom_orientation() const {
+    return all_pages_have_custom_orientation_;
   }
 
   // mojom::PrintPreviewUI:
@@ -215,11 +218,11 @@ class FakePrintPreviewUI : public mojom::PrintPreviewUI {
                                     int32_t request_id) override {}
   void DidPreviewPage(mojom::DidPreviewPageParamsPtr params,
                       int32_t request_id) override {
-    uint32_t page_number = params->page_number;
-    DCHECK_NE(page_number, kInvalidPageIndex);
+    uint32_t page_index = params->page_index;
+    DCHECK_NE(page_index, kInvalidPageIndex);
     print_preview_pages_remaining_--;
     print_preview_pages_.emplace_back(
-        params->page_number, params->content->metafile_data_region.GetSize());
+        params->page_index, params->content->metafile_data_region.GetSize());
   }
   void MetafileReadyForPrinting(mojom::DidPreviewDocumentParamsPtr params,
                                 int32_t request_id) override {
@@ -247,11 +250,13 @@ class FakePrintPreviewUI : public mojom::PrintPreviewUI {
     RunQuitClosure();
   }
   void DidGetDefaultPageLayout(mojom::PageSizeMarginsPtr page_layout_in_points,
-                               const gfx::Rect& printable_area_in_points,
-                               bool has_custom_page_size_style,
+                               const gfx::RectF& printable_area_in_points,
+                               bool all_pages_have_custom_size,
+                               bool all_pages_have_custom_orientation,
                                int32_t request_id) override {
     page_layout_ = std::move(page_layout_in_points);
-    has_custom_page_size_style_ = has_custom_page_size_style;
+    all_pages_have_custom_size_ = all_pages_have_custom_size;
+    all_pages_have_custom_orientation_ = all_pages_have_custom_orientation;
   }
   void DidStartPreview(mojom::DidStartPreviewParamsPtr params,
                        int32_t request_id) override {
@@ -280,7 +285,8 @@ class FakePrintPreviewUI : public mojom::PrintPreviewUI {
 
   PreviewStatus preview_status_ = PreviewStatus::kNone;
   uint32_t page_count_ = 0;
-  bool has_custom_page_size_style_ = false;
+  bool all_pages_have_custom_size_ = false;
+  bool all_pages_have_custom_orientation_ = false;
   // Simulates cancelling print preview if |print_preview_pages_remaining_|
   // equals this.
   uint32_t print_preview_cancel_page_number_ = kInvalidPageIndex;
@@ -288,8 +294,8 @@ class FakePrintPreviewUI : public mojom::PrintPreviewUI {
   mojom::DidPreviewDocumentParamsPtr did_preview_document_params_;
   // Number of pages to generate for print preview.
   uint32_t print_preview_pages_remaining_ = 0;
-  // Vector of <page_number, content_data_size> that were previewed.
-  std::vector<std::pair<uint32_t, uint32_t>> print_preview_pages_;
+  // Vector of <page_index, content_data_size> that were previewed.
+  std::vector<PageData> print_preview_pages_;
   base::OnceClosure quit_closure_;
   base::OnceClosure quit_closure_for_preview_started_;
 
@@ -316,7 +322,7 @@ class TestPrintManagerHost
   void DidPrintDocument(mojom::DidPrintDocumentParamsPtr params,
                         DidPrintDocumentCallback callback) override {
     base::RunLoop().RunUntilIdle();
-    printer_->PrintPage(std::move(params));
+    printer_->OnDocumentPrinted(std::move(params));
     std::move(callback).Run(true);
     is_printed_ = true;
   }
@@ -404,14 +410,13 @@ class TestPrintManagerHost
     base::RunLoop().RunUntilIdle();
     std::move(callback).Run(preview_ui_->ShouldCancelRequest());
   }
-#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
+
   void SetAccessibilityTree(
       int32_t cookie,
       const ui::AXTreeUpdate& accessibility_tree) override {
     ++accessibility_tree_set_count_;
   }
-#endif
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
 
   bool IsSetupScriptedPrintPreview() {
     return is_setup_scripted_print_preview_;
@@ -444,11 +449,9 @@ class TestPrintManagerHost
   }
 #endif
 
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
   int accessibility_tree_set_count() const {
     return accessibility_tree_set_count_;
   }
-#endif
 
  private:
   void Init(content::RenderFrame* frame) {
@@ -478,9 +481,7 @@ class TestPrintManagerHost
   bool is_printing_enabled_ = true;
   // True to simulate user clicking print. False to cancel.
   bool print_dialog_user_response_ = true;
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
   int accessibility_tree_set_count_ = 0;
-#endif
   mojo::AssociatedReceiver<mojom::PrintManagerHost> receiver_{this};
 };
 
@@ -555,8 +556,8 @@ class PrintRenderFrameHelperTestBase : public content::RenderViewTest {
   }
 
   void OnPrintPagesInFrame(base::StringPiece frame_name) {
-    blink::WebFrame* frame = GetMainFrame()->FindFrameByName(
-        blink::WebString::FromUTF8(frame_name.data(), frame_name.size()));
+    blink::WebFrame* frame =
+        GetMainFrame()->FindFrameByName(blink::WebString::FromUTF8(frame_name));
     ASSERT_TRUE(frame);
     content::RenderFrame* render_frame =
         content::RenderFrame::FromWebFrame(frame->ToWebLocalFrame());
@@ -683,7 +684,7 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, BlockScriptInitiatedPrinting) {
 
   // Unblock script initiated printing and verify printing works.
   GetPrintRenderFrameHelper()->scripting_throttler_.Reset();
-  printer()->ResetPrinter();
+  printer()->Reset();
   print_manager()->SetExpectedPagesCount(1);
   PrintWithJavaScript();
   VerifyPagesPrinted(true);
@@ -706,7 +707,7 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, AllowUserOriginatedPrinting) {
   VerifyPagesPrinted(false);
 
   // Try again as if user initiated, without resetting the print count.
-  printer()->ResetPrinter();
+  printer()->Reset();
   LoadHTML(kPrintOnUserAction);
   gfx::Size new_size(200, 100);
   Resize(new_size, false);
@@ -829,11 +830,384 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, MonolithicAbsposOverflowingParent) {
   OnPrintPages();
 }
 
-#if BUILDFLAG(IS_APPLE)
-// TODO(estade): I don't think this test is worth porting to Linux. We will have
-// to rip out and replace most of the IPC code if we ever plan to improve
-// printing, and the comment below by sverrir suggests that it doesn't do much
-// for us anyway.
+#if defined(MOCK_PRINTER_SUPPORTS_PAGE_IMAGES)
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, Pixels) {
+  // This test should generate two pages. The first should be 16x16 CSS pixels
+  // large, and the second should be 24x24. The pixels and page size information
+  // are going on a ride through the machineries, so use size values carefully,
+  // to avoid subpixel issues. At some point on the journey, everything will be
+  // changed to 300 DPI, and the page sizes involved will be rounded to integers
+  // (so we need something that ends up with integers after having been
+  // multiplied by 300/72 and back). See crbug.com/1466995 . Furthermore, the
+  // final output will be in points, not CSS pixels, which is why the
+  // expectation is to get 12x12 and 18x18 pages instead of 16x16 and 24x24 (and
+  // a 4px border becomes a 3pt border).
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 24px;
+        margin: 0;
+      }
+      @page:first {
+        size: 16px;
+      }
+      body {
+        margin: 0;
+      }
+      div {
+        box-sizing: border-box;
+        border: 4px solid;
+      }
+    </style>
+    <div style="width:16px; height:16px; border-color:#00ff00;"></div>
+    <div style="width:24px; height:24px; border-color:#0000ff;"></div>
+  )HTML");
+
+  printer()->set_should_generate_page_images(true);
+  printer()->Params().should_print_backgrounds = true;
+  OnPrintPages();
+
+  // First page:
+  const MockPrinterPage* page = printer()->GetPrinterPage(0);
+  ASSERT_TRUE(page);
+  const Image& first_image = page->image();
+  ASSERT_EQ(first_image.size(), gfx::Size(12, 12));
+  // Top left corner:
+  EXPECT_EQ(first_image.pixel_at(0, 0), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(2, 2), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(3, 3), 0xffffffU);
+  // Top right corner:
+  EXPECT_EQ(first_image.pixel_at(11, 0), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(9, 2), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(8, 3), 0xffffffU);
+  // Bottom right corner:
+  EXPECT_EQ(first_image.pixel_at(11, 11), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(9, 9), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(8, 8), 0xffffffU);
+  // Bottom left corner:
+  EXPECT_EQ(first_image.pixel_at(0, 11), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(2, 9), 0x00ff00U);
+  EXPECT_EQ(first_image.pixel_at(3, 8), 0xffffffU);
+
+  // Second page:
+  page = printer()->GetPrinterPage(1);
+  ASSERT_TRUE(page);
+  const Image& second_image = page->image();
+  ASSERT_EQ(second_image.size(), gfx::Size(18, 18));
+  // Top left corner:
+  EXPECT_EQ(second_image.pixel_at(0, 0), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(2, 2), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(3, 3), 0xffffffU);
+  // Top right corner:
+  EXPECT_EQ(second_image.pixel_at(0, 17), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(2, 15), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(3, 14), 0xffffffU);
+  // Bottom right corner:
+  EXPECT_EQ(second_image.pixel_at(17, 17), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(15, 15), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(14, 14), 0xffffffU);
+  // Bottom left corner:
+  EXPECT_EQ(second_image.pixel_at(0, 17), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(2, 15), 0x0000ffU);
+  EXPECT_EQ(second_image.pixel_at(3, 14), 0xffffffU);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, RoundingAndHeadersAndFooters) {
+  // Use values that end up as fractional values. The output is converted from
+  // CSS pixels (96 DPI) to points (72 DPI), and also via 300 DPI, and some
+  // rounding is applied on the way. See also crbug.com/1466995
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 21px;
+        margin: 4px;
+      }
+      body {
+        margin: 0;
+        background: #0000ff;
+      }
+    </style>
+    <body></body>
+  )HTML");
+
+  // Print without headers and footers.
+  printer()->set_should_generate_page_images(true);
+  printer()->Params().should_print_backgrounds = true;
+  printer()->Params().display_header_footer = false;
+  OnPrintPages();
+  const MockPrinterPage* page = printer()->GetPrinterPage(0);
+  ASSERT_TRUE(page);
+  printing::Image image(page->image());
+
+  printer()->Reset();
+
+  // Print again, this time with headers and footers. Note that no headers or
+  // footers will actually be shown, since the page margins are so small, so
+  // this should look identical to the output with headers and footers turned
+  // off.
+  printer()->Params().display_header_footer = true;
+
+  OnPrintPages();
+
+  page = printer()->GetPrinterPage(0);
+  ASSERT_TRUE(page);
+
+  // First check that the two results are identical.
+  ASSERT_EQ(image, page->image());
+
+  // Then check the size, and some pixels. Just check the corners. Note that
+  // assumptions about how subpixels are treated are being made here, meaning
+  // that if code changes cause the following expectations to fail, maybe it's
+  // the test that needs to be adjusted.
+
+  ASSERT_EQ(image.size(), gfx::Size(17, 17));
+
+  // Top left corner:
+  EXPECT_EQ(image.pixel_at(2, 2), 0xffffffU);
+  EXPECT_EQ(image.pixel_at(3, 3), 0x0000ffU);
+
+  // Top right corner:
+  EXPECT_EQ(image.pixel_at(13, 2), 0xffffffU);
+  EXPECT_EQ(image.pixel_at(12, 3), 0x0000ffU);
+
+  // Bottom right corner:
+  EXPECT_EQ(image.pixel_at(13, 13), 0xffffffU);
+  EXPECT_EQ(image.pixel_at(12, 12), 0x0000ffU);
+
+  // Bottom left corner:
+  EXPECT_EQ(image.pixel_at(2, 13), 0xffffffU);
+  EXPECT_EQ(image.pixel_at(3, 12), 0x0000ffU);
+}
+
+#endif  // MOCK_PRINTER_SUPPORTS_PAGE_IMAGES
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, SpecifiedPageSize1) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 400px 123px;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="width:400px; height:123px;"></div>
+  )HTML");
+
+  print_manager()->SetExpectedPagesCount(1);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, SpecifiedPageSize2) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 400px 123.1px;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="width:400px; height:123.1px;"></div>
+  )HTML");
+
+  print_manager()->SetExpectedPagesCount(1);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, SpecifiedPageSize3) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 400px 123.9px;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="width:400px; height:123.9px;"></div>
+  )HTML");
+
+  print_manager()->SetExpectedPagesCount(1);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, MediaQueryDefaultCSSPageMargins) {
+  // The default page size in these tests is US Letter (see MockPrinter). The
+  // default margin is 1/2 inch on each side, and this is taken into account for
+  // media query evaluation in this implementation, which is interoperable with
+  // others. The spec, on the other hand, says to match against the page *box*
+  // [1], not the page area [1]. I.e. margins shouldn't make any difference at
+  // all, according to the spec.
+  //
+  // [1] https://www.w3.org/TR/css-page-3/#page-model
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        /* The default margins are overridden here (to 0) as far as page area
+           size and layout are concerned, but that cannot affect media query
+           evaluation, as that might cause cyclic dependencies. So the 1/2 inch
+           default margins are still taken into account for media query
+           evaluation.  */
+        margin: 0;
+      }
+
+      /* As explained above, this media query won't match, because of the
+         half-inch default margins. */
+      @media (width: 8.5in) and (height: 11in) {
+        div { break-before: page; }
+      }
+    </style>
+    First page
+    <div>Also first page</div>
+  )HTML");
+
+  print_manager()->SetExpectedPagesCount(1);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, MediaQueryNoCSSPageMargins) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        /* This has no effect on media query evaluation (it affects the page
+           area size and layout, though). Only the default margins can affect
+           media query evaluation. */
+        margin: 100px;
+      }
+
+      /* This media query will match, since the default margins are 0,
+         and the default page size is US-Letter. */
+      @media (width: 8.5in) and (height: 11in) {
+        div { break-before: page; }
+      }
+    </style>
+    First page
+    <div>Second page</div>
+  )HTML");
+
+  // Set the default margins to 0, and the page area size equal to the page box
+  // size.
+  mojom::PrintParams& params = printer()->Params();
+  params.margin_left = 0;
+  params.margin_top = 0;
+  params.content_size = params.page_size;
+
+  print_manager()->SetExpectedPagesCount(2);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, InputScale1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 2 shrinks this to 5 inches. Content that
+  // is 50 inches tall should therefore require 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        margin: 0.5in;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="height:50in;"></div>
+  )HTML");
+
+  printer()->Params().scale_factor = 2;
+  print_manager()->SetExpectedPagesCount(10);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, InputScale2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 2 shrinks this to 5 inches. Content that
+  // is 45.5 inches tall should therefore require just a bit more than 9 pages,
+  // i.e. 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        margin: 0.5in;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="height:45.5in;"></div>
+  )HTML");
+
+  printer()->Params().scale_factor = 2;
+  print_manager()->SetExpectedPagesCount(10);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, InputScaleAndAvoidOverflowScale1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in and horizontal margins to 2.25in leaves
+  // 4in by 10in for the page area. Setting the input scale factor to 2 shrinks
+  // this to 2in by 5in. There's a 3in wide block in the test. To make it fit
+  // without overflowing, Blink will increase the page area size by 3/2,
+  // i.e. 50% larger, so that the final page area for layout is 3 by 7.5
+  // inches. Content that is 75 inches tall should therefore require 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        margin: 0.5in 2.25in;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="width:3in; height:75in;"></div>
+  )HTML");
+
+  printer()->Params().scale_factor = 2;
+  print_manager()->SetExpectedPagesCount(10);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+TEST_F(MAYBE_PrintRenderFrameHelperTest, InputScaleAndAvoidOverflowScale2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in and horizontal margins to 2.25in leaves
+  // 4in by 10in for the page area. Setting the input scale factor to 2 shrinks
+  // this to 2in by 5in. There's a 3in wide block in the test. To make it fit
+  // without overflowing, Blink will increase the page area size by 3/2,
+  // i.e. 50% larger, so that the final page area for layout is 3 by 7.5
+  // inches. Content that is 68 inches tall should therefore require just a bit
+  // more than 9 pages, i.e. 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        margin: 0.5in 2.25in;
+      }
+      body {
+        margin: 0;
+      }
+    </style>
+    <div style="width:3in; height:68in;"></div>
+  )HTML");
+
+  printer()->Params().scale_factor = 2;
+  print_manager()->SetExpectedPagesCount(10);
+  OnPrintPages();
+  VerifyPagesPrinted(true);
+}
+
+#if defined(MOCK_PRINTER_SUPPORTS_PAGE_IMAGES)
+
 TEST_F(MAYBE_PrintRenderFrameHelperTest, PrintWithIframe) {
   // Document that populates an iframe.
   static const char html[] =
@@ -845,6 +1219,7 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, PrintWithIframe) {
       "  frames['sub1'].document.close();"
       "</script></body></html>";
 
+  printer()->set_should_generate_page_images(true);
   LoadHTML(html);
 
   // Find the frame and set it as the focused one.  This should mean that that
@@ -862,8 +1237,8 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, PrintWithIframe) {
 
   // Verify output through MockPrinter.
   const MockPrinter* mock_printer(printer());
-  ASSERT_EQ(1, mock_printer->GetPrintedPages());
-  const Image& image1(mock_printer->GetPrintedPage(0)->image());
+  ASSERT_EQ(1, mock_printer->GetPageCount());
+  const Image& image1(mock_printer->GetPrinterPage(0)->image());
 
   // TODO(sverrir): Figure out a way to improve this test to actually print
   // only the content of the iframe.  Currently image1 will contain the full
@@ -871,102 +1246,8 @@ TEST_F(MAYBE_PrintRenderFrameHelperTest, PrintWithIframe) {
   EXPECT_NE(0, image1.size().width());
   EXPECT_NE(0, image1.size().height());
 }
-#endif  // BUILDFLAG(IS_APPLE)
 
-// Tests if we can print a page and verify its results.
-// This test prints HTML pages into a pseudo printer and check their outputs,
-// i.e. a simplified version of the PrintingLayoutTextTest UI test.
-namespace {
-// Test cases used in this test.
-struct TestPageData {
-  const char* page;
-  size_t printed_pages;
-  int width;
-  int height;
-  const char* checksum;
-  const wchar_t* file;
-};
-
-#if BUILDFLAG(IS_APPLE)
-const TestPageData kTestPages[] = {
-    {
-        "<html>"
-        "<head>"
-        "<meta"
-        "  http-equiv=\"Content-Type\""
-        "  content=\"text/html; charset=utf-8\"/>"
-        "<title>Test 1</title>"
-        "</head>"
-        "<body style=\"background-color: white;\">"
-        "<p style=\"font-family: arial;\">Hello World!</p>"
-        "</body>",
-        1,
-        // Mac printing code compensates for the WebKit scale factor while
-        // generating the metafile, so we expect smaller pages. (On non-Mac
-        // platforms, this would be 675x900).
-        600, 780, nullptr, nullptr,
-    },
-};
-#endif  // BUILDFLAG(IS_APPLE)
-}  // namespace
-
-// TODO(estade): need to port MockPrinter to get this on Linux. This involves
-// hooking up Cairo to read a pdf stream, or accessing the cairo surface in the
-// metafile directly.
-// Same for printing via PDF on Windows.
-#if BUILDFLAG(IS_APPLE)
-TEST_F(MAYBE_PrintRenderFrameHelperTest, PrintLayoutTest) {
-  bool baseline = false;
-
-  EXPECT_TRUE(printer());
-  for (size_t i = 0; i < std::size(kTestPages); ++i) {
-    // Load an HTML page and print it.
-    LoadHTML(kTestPages[i].page);
-    OnPrintPages();
-    VerifyPagesPrinted(true);
-
-    // MockRenderThread::Send() just calls MockRenderThread::OnReceived().
-    // So, all IPC messages sent in the above RenderView::OnPrintPages() call
-    // has been handled by the MockPrinter object, i.e. this printing job
-    // has been already finished.
-    // So, we can start checking the output pages of this printing job.
-    // Retrieve the number of pages actually printed.
-    size_t pages = printer()->GetPrintedPages();
-    EXPECT_EQ(kTestPages[i].printed_pages, pages);
-
-    // Retrieve the width and height of the output page.
-    int width = printer()->GetWidth(0);
-    int height = printer()->GetHeight(0);
-
-    // Check with margin for error.  This has been failing with a one pixel
-    // offset on our buildbot.
-    const int kErrorMargin = 5;  // 5%
-    EXPECT_GT(kTestPages[i].width * (100 + kErrorMargin) / 100, width);
-    EXPECT_LT(kTestPages[i].width * (100 - kErrorMargin) / 100, width);
-    EXPECT_GT(kTestPages[i].height * (100 + kErrorMargin) / 100, height);
-    EXPECT_LT(kTestPages[i].height * (100 - kErrorMargin) / 100, height);
-
-    // Retrieve the checksum of the bitmap data from the pseudo printer and
-    // compare it with the expected result.
-    std::string bitmap_actual;
-    EXPECT_TRUE(printer()->GetBitmapChecksum(0, &bitmap_actual));
-    if (kTestPages[i].checksum)
-      EXPECT_EQ(kTestPages[i].checksum, bitmap_actual);
-
-    if (baseline) {
-      // Save the source data and the bitmap data into temporary files to
-      // create base-line results.
-      base::FilePath source_path;
-      base::CreateTemporaryFile(&source_path);
-      printer()->SaveSource(0, source_path);
-
-      base::FilePath bitmap_path;
-      base::CreateTemporaryFile(&bitmap_path);
-      printer()->SaveBitmap(0, bitmap_path);
-    }
-  }
-}
-#endif  // BUILDFLAG(IS_APPLE)
+#endif  // MOCK_PRINTER_SUPPORTS_PAGE_IMAGES
 
 // These print preview tests do not work on Chrome OS yet.
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
@@ -998,9 +1279,21 @@ class PrintRenderFrameHelperPreviewTest
     PrintRenderFrameHelper* print_render_frame_helper =
         GetPrintRenderFrameHelper();
     print_render_frame_helper->InitiatePrintPreview(
-        mojo::NullAssociatedRemote(), false);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+        mojo::NullAssociatedRemote(),
+#endif
+        /*has_selection=*/false);
     print_render_frame_helper->PrintPreview(print_settings_.Clone());
     preview_ui()->WaitUntilPreviewUpdate();
+
+#if defined(MOCK_PRINTER_SUPPORTS_PAGE_IMAGES)
+    if (const mojom::DidPreviewDocumentParams* preview_params =
+            preview_ui()->did_preview_document_params()) {
+      const auto& region = preview_params->content->metafile_data_region;
+      ASSERT_TRUE(region.IsValid());
+      printer()->GeneratePageImages(region.Map());
+    }
+#endif  // MOCK_PRINTER_SUPPORTS_PAGE_IMAGES
   }
 
   void OnPrintPreviewRerender() {
@@ -1011,6 +1304,10 @@ class PrintRenderFrameHelperPreviewTest
 
   void OnClosePrintPreviewDialog() {
     GetPrintRenderFrameHelper()->OnPrintPreviewDialogClosed();
+  }
+
+  void OnPrintForSystemDialog() {
+    GetPrintRenderFrameHelper()->PrintForSystemDialog();
   }
 
   void VerifyPreviewRequest(bool expect_request) {
@@ -1050,82 +1347,85 @@ class PrintRenderFrameHelperPreviewTest
     EXPECT_EQ(expect_invalid_settings, preview_ui()->InvalidPrinterSetting());
   }
 
-  // |page_number| is 0-based.
-  void VerifyDidPreviewPage(bool expect_generated, uint32_t page_number) {
+  // `page_index` is 0-based.
+  void VerifyDidPreviewPage(bool expect_generated, uint32_t page_index) {
     bool msg_found = false;
     uint32_t data_size = 0;
     for (const auto& preview : preview_ui()->print_preview_pages()) {
-      if (preview.first == page_number) {
+      if (preview.index == page_index) {
         msg_found = true;
-        data_size = preview.second;
+        data_size = preview.content_data_size;
         break;
       }
     }
-    EXPECT_EQ(expect_generated, msg_found) << "For page " << page_number;
+    EXPECT_EQ(expect_generated, msg_found)
+        << "For page at index " << page_index;
     if (expect_generated)
-      EXPECT_NE(0U, data_size) << "For page " << page_number;
+      EXPECT_NE(0U, data_size) << "For page at index " << page_index;
   }
 
-  void VerifyDefaultPageLayout(int expected_content_width,
-                               int expected_content_height,
-                               int expected_margin_top,
-                               int expected_margin_bottom,
-                               int expected_margin_left,
-                               int expected_margin_right,
-                               bool expected_page_has_print_css) {
-    EXPECT_NE(preview_ui()->page_layout(), nullptr);
-    EXPECT_EQ(expected_content_width,
-              preview_ui()->page_layout()->content_width);
-    EXPECT_EQ(expected_content_height,
-              preview_ui()->page_layout()->content_height);
-    EXPECT_EQ(expected_margin_top, preview_ui()->page_layout()->margin_top);
-    EXPECT_EQ(expected_margin_right, preview_ui()->page_layout()->margin_right);
-    EXPECT_EQ(expected_margin_left, preview_ui()->page_layout()->margin_left);
-    EXPECT_EQ(expected_margin_bottom,
-              preview_ui()->page_layout()->margin_bottom);
-    EXPECT_EQ(expected_page_has_print_css,
-              preview_ui()->has_custom_page_size_style());
+  void VerifyDefaultPageLayout(
+      int expected_content_width,
+      int expected_content_height,
+      int expected_margin_top,
+      int expected_margin_bottom,
+      int expected_margin_left,
+      int expected_margin_right,
+      bool expected_all_pages_have_custom_size,
+      bool expected_all_pages_have_custom_orientation) {
+    const mojom::PageSizeMargins* page_layout = preview_ui()->page_layout();
+    ASSERT_TRUE(page_layout);
+    EXPECT_EQ(expected_content_width, page_layout->content_width);
+    EXPECT_EQ(expected_content_height, page_layout->content_height);
+    EXPECT_EQ(expected_margin_top, page_layout->margin_top);
+    EXPECT_EQ(expected_margin_right, page_layout->margin_right);
+    EXPECT_EQ(expected_margin_left, page_layout->margin_left);
+    EXPECT_EQ(expected_margin_bottom, page_layout->margin_bottom);
+    EXPECT_EQ(expected_all_pages_have_custom_size,
+              preview_ui()->all_pages_have_custom_size());
+    EXPECT_EQ(expected_all_pages_have_custom_orientation,
+              preview_ui()->all_pages_have_custom_orientation());
   }
 
   base::Value::Dict& print_settings() { return print_settings_; }
 
  private:
   void CreatePrintSettingsDictionary() {
-    print_settings_ = base::Value::Dict();
-    print_settings_.Set(kSettingLandscape, false);
-    print_settings_.Set(kSettingCollate, false);
-    print_settings_.Set(kSettingColor,
-                        static_cast<int>(mojom::ColorModel::kGray));
-    print_settings_.Set(kSettingPrinterType,
-                        static_cast<int>(mojom::PrinterType::kPdf));
-    print_settings_.Set(kSettingDuplexMode,
-                        static_cast<int>(mojom::DuplexMode::kSimplex));
-    print_settings_.Set(kSettingCopies, 1);
-    print_settings_.Set(kSettingDeviceName, "dummy");
-    print_settings_.Set(kSettingDpiHorizontal, 72);
-    print_settings_.Set(kSettingDpiVertical, 72);
-    print_settings_.Set(kPreviewUIID, 4);
-    print_settings_.Set(kSettingRasterizePdf, false);
-    print_settings_.Set(kPreviewRequestID, 12345);
-    print_settings_.Set(kSettingScaleFactor, 100);
-    print_settings_.Set(kIsFirstRequest, true);
-    print_settings_.Set(kSettingMarginsType,
-                        static_cast<int>(mojom::MarginType::kDefaultMargins));
-    print_settings_.Set(kSettingPagesPerSheet, 1);
-    print_settings_.Set(kSettingPreviewModifiable, true);
-    print_settings_.Set(kSettingPreviewIsFromArc, false);
-    print_settings_.Set(kSettingHeaderFooterEnabled, false);
-    print_settings_.Set(kSettingShouldPrintBackgrounds, false);
-    print_settings_.Set(kSettingShouldPrintSelectionOnly, false);
+    print_settings_ =
+        base::Value::Dict()
+            .Set(kSettingLandscape, false)
+            .Set(kSettingCollate, false)
+            .Set(kSettingColor, static_cast<int>(mojom::ColorModel::kGray))
+            .Set(kSettingPrinterType,
+                 static_cast<int>(mojom::PrinterType::kPdf))
+            .Set(kSettingDuplexMode,
+                 static_cast<int>(mojom::DuplexMode::kSimplex))
+            .Set(kSettingCopies, 1)
+            .Set(kSettingDeviceName, "dummy")
+            .Set(kSettingDpiHorizontal, 72)
+            .Set(kSettingDpiVertical, 72)
+            .Set(kPreviewUIID, 4)
+            .Set(kSettingRasterizePdf, false)
+            .Set(kPreviewRequestID, 12345)
+            .Set(kSettingScaleFactor, 100)
+            .Set(kIsFirstRequest, true)
+            .Set(kSettingMarginsType,
+                 static_cast<int>(mojom::MarginType::kDefaultMargins))
+            .Set(kSettingPagesPerSheet, 1)
+            .Set(kSettingPreviewModifiable, true)
+            .Set(kSettingPreviewIsFromArc, false)
+            .Set(kSettingHeaderFooterEnabled, false)
+            .Set(kSettingShouldPrintBackgrounds, false)
+            .Set(kSettingShouldPrintSelectionOnly, false);
 
     // Using a media size with realistic dimensions for a Letter paper.
-    base::Value::Dict media_size;
-    media_size.Set(kSettingMediaSizeWidthMicrons, 215900);
-    media_size.Set(kSettingMediaSizeHeightMicrons, 279400);
-    media_size.Set(kSettingsImageableAreaLeftMicrons, 12700);
-    media_size.Set(kSettingsImageableAreaBottomMicrons, 0);
-    media_size.Set(kSettingsImageableAreaRightMicrons, 209550);
-    media_size.Set(kSettingsImageableAreaTopMicrons, 254000);
+    auto media_size = base::Value::Dict()
+                          .Set(kSettingMediaSizeWidthMicrons, 215900)
+                          .Set(kSettingMediaSizeHeightMicrons, 279400)
+                          .Set(kSettingsImageableAreaLeftMicrons, 12700)
+                          .Set(kSettingsImageableAreaBottomMicrons, 0)
+                          .Set(kSettingsImageableAreaRightMicrons, 209550)
+                          .Set(kSettingsImageableAreaTopMicrons, 254000);
     print_settings_.Set(kSettingMediaSize, std::move(media_size));
   }
 
@@ -1168,7 +1468,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, OnPrintPreview) {
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
-  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false);
+  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false, false);
   VerifyPrintPreviewCancelled(false);
   VerifyPrintPreviewFailed(false);
   VerifyPrintPreviewGenerated(true);
@@ -1196,7 +1496,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewHTMLWithPageMarginsCss) {
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(519, 432, 216, 144, 21, 72, false);
+  VerifyDefaultPageLayout(519, 432, 216, 144, 21, 72, false, false);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1220,7 +1520,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest,
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(612, 792, 0, 0, 0, 0, true);
+  VerifyDefaultPageLayout(612, 792, 0, 0, 0, 0, true, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1244,7 +1544,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintToPDFSelectedHonorPrintCss) {
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   // Since PRINT_TO_PDF is selected, pdf page size is equal to print media page
   // size.
-  VerifyDefaultPageLayout(234, 216, 72, 0, 36, 18, true);
+  VerifyDefaultPageLayout(234, 216, 72, 0, 36, 18, true, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1399,7 +1699,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest,
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   // Since PRINT_TO_PDF is selected, pdf page size is equal to print media page
   // size.
-  VerifyDefaultPageLayout(915, 648, 216, 144, 21, 72, true);
+  VerifyDefaultPageLayout(915, 648, 216, 144, 21, 72, true, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1420,7 +1720,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewCenterToFitPage) {
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(224, 188, 324, 280, 198, 190, true);
+  VerifyDefaultPageLayout(224, 188, 324, 280, 198, 190, true, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1452,7 +1752,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewShrinkToFitPage) {
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(576, 637, 89, 66, 20, 16, true);
+  VerifyDefaultPageLayout(576, 637, 89, 66, 20, 16, true, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1460,6 +1760,304 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewShrinkToFitPage) {
   VerifyPrintPreviewGenerated(true);
   VerifyPagesPrinted(false);
 
+  OnClosePrintPreviewDialog();
+}
+
+// Test to verify that print preview workflow scale the html page contents to
+// fit the page size, and that orientation implied by specified CSS page size is
+// honored, even though the size itself is to be ignored.
+TEST_F(PrintRenderFrameHelperPreviewTest, ShrinkToFitPageMatchOrientation) {
+  LoadHTML(R"HTML(
+      <style>
+        @page { size: 17in 15in; }
+      </style>
+      :-D
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  base::Value::Dict custom_margins;
+  custom_margins.Set(kSettingMarginTop, 10);
+  custom_margins.Set(kSettingMarginRight, 20);
+  custom_margins.Set(kSettingMarginBottom, 30);
+  custom_margins.Set(kSettingMarginLeft, 40);
+  print_settings().Set(kSettingMarginsType,
+                       static_cast<int>(mojom::MarginType::kCustomMargins));
+  print_settings().Set(kSettingMarginsCustom, std::move(custom_margins));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(732, 572, 10, 30, 40, 20, true, true);
+  OnClosePrintPreviewDialog();
+}
+
+// Test to verify that print preview workflow scale the html page contents to
+// fit the page size, and that orientation implied by specified CSS page size is
+// honored.
+TEST_F(PrintRenderFrameHelperPreviewTest,
+       ShrinkToFitPageMatchOrientationCssMargins) {
+  LoadHTML(R"HTML(
+      <style>
+        @page {
+          size: 20in 17in;
+          margin: 1in 2in 3in 4in;
+        }
+      </style>
+      :-D
+  )HTML");
+  // The default page size is 8.5 by 11 inches. The @page descriptor wants it in
+  // landscape mode, so 11 by 8.5 inches, then. The content should be scaled to
+  // fit on the page. The requested page size is 20 by 17 inches. Figure out
+  // which axis needs the most scaling. 20/11 < 17/8.5. 17/8.5 is 2. The content
+  // needs to be scaled down by a factor of 2. To retain the aspect ratio of the
+  // paper size, additional horizontal margins will be inserted, so that the
+  // page width before scaling becomes 22in (11*2). The requested page size is
+  // 20in, so add an additional 1in to the left and the right margins. This
+  // means that the result would be the same as if this were in the CSS:
+  //
+  // @page {
+  //   size: 22in 17in;
+  //   margin: 1in 3in 3in 5in;
+  // }
+  //
+  // Then scale everything down by a factor of 2.
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(504, 468, 36, 108, 180, 108, true, true);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsAndInputScaleToPdf1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 200% shrinks this to 5 inches. Content
+  // that is 50 inches tall should therefore require 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:0.5in; }
+      body { margin:0; }
+    </style>
+    <div style="height:50in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(540, 720, 36, 36, 36, 36, false, false);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsAndInputScaleToPdf2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 200% shrinks this to 5 inches. Content
+  // that is 45.5 inches tall should therefore require just a bit more than 9
+  // pages, i.e. 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:0.5in; }
+      body { margin:0; }
+    </style>
+    <div style="height:45.5in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(540, 720, 36, 36, 36, 36, false, false);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsAndInputScaleToPrinter1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 200% shrinks this to 5 inches. Content
+  // that is 50 inches tall should therefore require 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:0.5in; }
+      body { margin:0; }
+    </style>
+    <div style="height:50in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(540, 720, 36, 36, 36, 36, false, false);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsAndInputScaleToPrinter2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting vertical margins to 0.5in results in a page area of 10 inches.
+  // Setting the input scale factor to 200% shrinks this to 5 inches. Content
+  // that is 45.5 inches tall should therefore require just a bit more than 9
+  // pages, i.e. 10 pages.
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:0.5in; }
+      body { margin:0; }
+    </style>
+    <div style="height:45.5in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(540, 720, 36, 36, 36, 36, false, false);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsSizeAndInputScaleToPrinter1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting the page width to 34 inches and vertical margins to 1 inch results
+  // in a page area of 32 inches. Setting the input scale factor to 200% shrinks
+  // this to 16 inches. Content that is 160 inches tall should therefore require
+  // 10 pages. Furthermore, setting the page width to 34 inches and having to
+  // fit this to the actual "paper" means that everything needs to be scaled
+  // down by 34/8.5 = 4. This also applies to the final margins. Horizontal
+  // margins will therefore become 1/4 inch. Being in portrait mode, the actual
+  // "paper" height is larger than the width, although the CSS-specified page
+  // size has the same height and width. In order to resolve the
+  // over-constrained situation, this means that vertical margins will be
+  // adjusted to center the page area on "paper".
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:1in; size:34in; }
+      body { margin:0; }
+    </style>
+    <div style="height:160in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(576, 576, 108, 108, 18, 18, true, true);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, MarginsSizeAndInputScaleToPrinter2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting the page width to 34 inches and vertical margins to 1 inch results
+  // in a page area of 32 inches. Setting the input scale factor to 200% shrinks
+  // this to 16 inches. Content that is 145 inches tall should therefore require
+  // just a bit more than 9 pages, i.e. 10 pages. Furthermore, setting the page
+  // width to 34 inches and having to fit this to the actual "paper" means that
+  // everything needs to be scaled down by 34/8.5 = 4. This also applies to the
+  // final margins. Horizontal margins will therefore become 1/4 inch. Being in
+  // portrait mode, the actual "paper" height is larger than the width, although
+  // the CSS-specified page size has the same height and width. In order to
+  // resolve the over-constrained situation, this means that vertical margins
+  // will be adjusted to center the page area on "paper".
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:1in; size:34in; }
+      body { margin:0; }
+    </style>
+    <div style="height:145in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(576, 576, 108, 108, 18, 18, true, true);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest,
+       MarginsSizeAndInputScaleAndAvoidOverflowScaleToPrinter1) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting the page width to 34 inches and vertical margins to 1 inch results
+  // in a page area of 32 inches. Setting the input scale factor to 200% shrinks
+  // this to 16 inches. There's a 48in wide block in the test. To make it fit
+  // without overflowing, Blink will increase the page area size by 3/2 (48/32),
+  // i.e. 50% larger, so that the final page area for layout is 24 by 24 inches.
+  // Content that is 240 inches tall should therefore require 10
+  // pages. Furthermore, setting the page width to 34 inches and having to fit
+  // this to the actual "paper" means that everything needs to be scaled down by
+  // 34/8.5 = 4. This also applies to the final margins. Horizontal margins will
+  // therefore become 1/4 inch. Being in portrait mode, the actual "paper"
+  // height is larger than the width, although the CSS-specified page size has
+  // the same height and width. In order to resolve the over-constrained
+  // situation, this means that vertical margins will be adjusted to center the
+  // page area on "paper".
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:1in; size:34in; }
+      body { margin:0; }
+    </style>
+    <div style="width:48in; height:240in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(576, 576, 108, 108, 18, 18, true, true);
+  VerifyPreviewPageCount(10);
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest,
+       MarginsSizeAndInputScaleAndAvoidOverflowScaleToPrinter2) {
+  // The default page size in these tests is US Letter - 8.5 by 11 inches.
+  // Setting the page width to 34 inches and vertical margins to 1 inch results
+  // in a page area of 32 inches. Setting the input scale factor to 200% shrinks
+  // this to 16 inches. There's a 48in wide block in the test. To make it fit
+  // without overflowing, Blink will increase the page area size by 3/2 (48/32),
+  // i.e. 50% larger, so that the final page area for layout is 24 by 24 inches.
+  // Content that is 217 inches tall should therefore require just a bit more
+  // than 9 pages, i.e. 10 pages. Furthermore, setting the page width to 34
+  // inches and having to fit this to the actual "paper" means that everything
+  // needs to be scaled down by 34/8.5 = 4. This also applies to the final
+  // margins. Horizontal margins will therefore become 1/4 inch. Being in
+  // portrait mode, the actual "paper" height is larger than the width, although
+  // the CSS-specified page size has the same height and width. In order to
+  // resolve the over-constrained situation, this means that vertical margins
+  // will be adjusted to center the page area on "paper".
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:1in; size:34in; }
+      body { margin:0; }
+    </style>
+    <div style="width:48in; height:217in;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingScaleFactor, 200);
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDefaultPageLayout(576, 576, 108, 108, 18, 18, true, true);
+  VerifyPreviewPageCount(10);
   OnClosePrintPreviewDialog();
 }
 
@@ -1475,7 +2073,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewHonorsOrientationCss) {
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(792, 612, 0, 0, 0, 0, true);
+  VerifyDefaultPageLayout(792, 612, 0, 0, 0, 0, false, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1504,7 +2102,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest,
   OnPrintPreview();
 
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
-  VerifyDefaultPageLayout(748, 568, 21, 23, 21, 23, true);
+  VerifyDefaultPageLayout(748, 568, 21, 23, 21, 23, false, true);
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
   VerifyPrintPreviewCancelled(false);
@@ -1593,7 +2191,8 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewForSelectedText) {
   LoadHTML(kMultipageHTML);
   GetMainFrame()->SelectRange(blink::WebRange(1, 3),
                               blink::WebLocalFrame::kHideSelectionHandle,
-                              blink::mojom::SelectionMenuBehavior::kHide);
+                              blink::mojom::SelectionMenuBehavior::kHide,
+                              blink::WebLocalFrame::kSelectionSetFocus);
 
   print_settings().Set(kSettingShouldPrintSelectionOnly, true);
 
@@ -1615,7 +2214,8 @@ TEST_F(PrintRenderFrameHelperPreviewTest, PrintPreviewForSelectedText2) {
   LoadHTML(kMultipageHTML);
   GetMainFrame()->SelectRange(blink::WebRange(1, 8),
                               blink::WebLocalFrame::kHideSelectionHandle,
-                              blink::mojom::SelectionMenuBehavior::kHide);
+                              blink::mojom::SelectionMenuBehavior::kHide,
+                              blink::WebLocalFrame::kSelectionSetFocus);
 
   print_settings().Set(kSettingShouldPrintSelectionOnly, true);
 
@@ -1781,7 +2381,7 @@ TEST_F(PrintRenderFrameHelperPreviewTest, BasicBeforePrintAfterPrint) {
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
-  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false);
+  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false, false);
   VerifyPrintPreviewCancelled(false);
   VerifyPrintPreviewFailed(false);
   VerifyPrintPreviewGenerated(true);
@@ -1808,6 +2408,276 @@ TEST_F(PrintRenderFrameHelperPreviewTest, WindowPrintBeforePrintAfterPrint) {
   OnClosePrintPreviewDialog();
   ExpectOneBeforeOneAfterPrintEvent();
 }
+
+TEST_F(PrintRenderFrameHelperPreviewTest, OnlySomePagesWithCustomSize) {
+  // A specified page size will set both size and orientation (not just for any
+  // given fixed size, but also for well-known page sizes, such as B5). In this
+  // test, however, only the first page will match the @page rule, whereas the
+  // size and orientation of the second page may be freely controlled by UI
+  // settings.
+  LoadHTML(R"HTML(
+    <style>
+      @page custom { size:B5; }
+    </style>
+    <div style="page:custom;">Custom page</div>
+    Default page
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  EXPECT_FALSE(preview_ui()->all_pages_have_custom_size());
+  EXPECT_FALSE(preview_ui()->all_pages_have_custom_orientation());
+  VerifyPreviewPageCount(2);
+
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, SingleNamedPageWithCustomSize) {
+  // There's only one page, and that page is named, and it matches the @page
+  // rule, which specifies a page size. There are no pages that can be
+  // controlled by UI options, so the options should be hidden.
+  LoadHTML(R"HTML(
+    <style>
+      @page custom { size:B5; }
+    </style>
+    <div style="page:custom;">Custom page</div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  EXPECT_TRUE(preview_ui()->all_pages_have_custom_size());
+  EXPECT_TRUE(preview_ui()->all_pages_have_custom_orientation());
+  VerifyPreviewPageCount(1);
+
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, OnlySomePagesWithCustomOrientation) {
+  LoadHTML(R"HTML(
+    <style>
+      @page custom { size:portrait; }
+    </style>
+    <div style="page:custom;">Custom page</div>
+    Default page
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  EXPECT_FALSE(preview_ui()->all_pages_have_custom_size());
+  EXPECT_FALSE(preview_ui()->all_pages_have_custom_orientation());
+  VerifyPreviewPageCount(2);
+
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest,
+       SingleNamedPageWithCustomOrientation) {
+  LoadHTML(R"HTML(
+    <style>
+      @page custom { size:portrait; }
+    </style>
+    <div style="page:custom;">Custom page</div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  EXPECT_FALSE(preview_ui()->all_pages_have_custom_size());
+  EXPECT_TRUE(preview_ui()->all_pages_have_custom_orientation());
+  VerifyPreviewPageCount(1);
+
+  OnClosePrintPreviewDialog();
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, PrintForSystemDialog) {
+  LoadHTML(kHelloWorldHTML);
+
+  OnPrintPreview();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyDidPreviewPage(true, 0);
+  VerifyPreviewPageCount(1);
+  VerifyPrintPreviewCancelled(false);
+  VerifyPrintPreviewFailed(false);
+  VerifyPrintPreviewGenerated(true);
+  VerifyPagesPrinted(false);
+  VerifyPreviewPageCount(1);
+
+  // No need to call OnClosePrintPreviewDialog(), as OnPrintForSystemDialog()
+  // takes care of the Print Preview to system print dialog transition.
+  OnPrintForSystemDialog();
+
+  EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
+  VerifyPrintPreviewCancelled(false);
+  VerifyPrintPreviewFailed(false);
+  VerifyPrintPreviewGenerated(true);
+  VerifyPagesPrinted(true);
+}
+
+#if defined(MOCK_PRINTER_SUPPORTS_PAGE_IMAGES)
+
+TEST_F(PrintRenderFrameHelperPreviewTest, IgnorePageSizeAndMargin) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: 2000px;
+        margin: 100px;
+      }
+      html, body { height:100%; }
+      body {
+        margin: 0;
+      }
+      .flex {
+        display: flex;
+        height: 100%;
+        justify-content: flex-end;
+        align-items: flex-end;
+      }
+      .flex > div {
+        width: 1pt;
+        height: 1pt;
+        background: #00ff00;
+      }
+    </style>
+    <div class="flex"><div></div></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingShouldPrintBackgrounds, true);
+
+  base::Value::Dict custom_margins;
+  custom_margins.Set(kSettingMarginTop, 12);
+  custom_margins.Set(kSettingMarginRight, 6);
+  custom_margins.Set(kSettingMarginBottom, 12);
+  custom_margins.Set(kSettingMarginLeft, 6);
+  print_settings().Set(kSettingMarginsType,
+                       static_cast<int>(mojom::MarginType::kCustomMargins));
+  print_settings().Set(kSettingMarginsCustom, std::move(custom_margins));
+
+  printer()->set_should_generate_page_images(true);
+
+  OnPrintPreview();
+
+  const MockPrinterPage* page = printer()->GetPrinterPage(0);
+  ASSERT_TRUE(page);
+  const printing::Image& image(page->image());
+
+  // The specified page size is much larger than 8.5x11 inches, but it should be
+  // ignored, because CSS page size and margins are to be ignored, according to
+  // the settings above.
+
+  ASSERT_EQ(image.size(), gfx::Size(612, 792));
+
+  // Find the green point in the bottom right corner of the page.
+  EXPECT_EQ(image.pixel_at(605, 779), 0x00ff00U);
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest, LandscapeIgnorePageSizeAndMargin) {
+  LoadHTML(R"HTML(
+    <style>
+      @page {
+        size: landscape;
+        margin: 100px;
+      }
+      html, body { height:100%; }
+      body {
+        margin: 0;
+      }
+      .flex {
+        display: flex;
+        height: 100%;
+        justify-content: flex-end;
+        align-items: flex-end;
+      }
+      .flex > div {
+        width: 1pt;
+        height: 1pt;
+        background: #00ff00;
+      }
+    </style>
+    <div class="flex"><div></div></div>
+  )HTML");
+
+  print_settings().Set(kSettingPrinterType,
+                       static_cast<int>(mojom::PrinterType::kLocal));
+  print_settings().Set(kSettingShouldPrintBackgrounds, true);
+
+  base::Value::Dict custom_margins;
+  // TODO(crbug.com/1477190): Would be neat to test with different vertical and
+  // horizontal margins here.
+  custom_margins.Set(kSettingMarginTop, 12);
+  custom_margins.Set(kSettingMarginRight, 12);
+  custom_margins.Set(kSettingMarginBottom, 12);
+  custom_margins.Set(kSettingMarginLeft, 12);
+  print_settings().Set(kSettingMarginsType,
+                       static_cast<int>(mojom::MarginType::kCustomMargins));
+  print_settings().Set(kSettingMarginsCustom, std::move(custom_margins));
+
+  printer()->set_should_generate_page_images(true);
+
+  OnPrintPreview();
+  const MockPrinterPage* page = printer()->GetPrinterPage(0);
+  ASSERT_TRUE(page);
+  const printing::Image& image(page->image());
+
+  // Specified page size should be ignored, according to the settings
+  // above. Page orientation (landscape vs portrait) should still be honored,
+  // though.
+
+  ASSERT_EQ(image.size(), gfx::Size(792, 612));
+
+  // Find the green point in the bottom right corner of the page.
+  EXPECT_EQ(image.pixel_at(779, 599), 0x00ff00U);
+}
+
+TEST_F(PrintRenderFrameHelperPreviewTest,
+       NonDefaultFirstPageSizeDefaultSecond) {
+  LoadHTML(R"HTML(
+    <style>
+      @page { margin:0; }
+      @page larger { size:15in; }
+      html, body { margin:0; height:100%; }
+      div { width:100%; height:100%; }
+      * { box-sizing:border-box; }
+    </style>
+    <div style="page:larger;"></div>
+    <div style="break-before:page; border:2pt solid #00ff00;"></div>
+  )HTML");
+
+  print_settings().Set(kSettingShouldPrintBackgrounds, true);
+
+  printer()->set_should_generate_page_images(true);
+
+  OnPrintPreview();
+  const MockPrinterPage* page = printer()->GetPrinterPage(1);
+  ASSERT_TRUE(page);
+  const printing::Image& image(page->image());
+
+  ASSERT_EQ(image.size(), gfx::Size(612, 792));
+
+  // Find the border in the bottom right corner of the page.
+  EXPECT_EQ(image.pixel_at(611, 788), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(611, 789), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(611, 790), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(611, 791), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(610, 791), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(609, 791), 0x00ff00U);
+  EXPECT_EQ(image.pixel_at(608, 791), 0x00ff00U);
+}
+
+#endif  // MOCK_PRINTER_SUPPORTS_PAGE_IMAGES
 
 class PrintRenderFrameHelperTaggedPreviewTest
     : public PrintRenderFrameHelperPreviewTest,
@@ -1838,17 +2708,16 @@ TEST_P(PrintRenderFrameHelperTaggedPreviewTest,
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
-  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false);
+  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false, false);
   VerifyPrintPreviewCancelled(false);
   VerifyPrintPreviewFailed(false);
   VerifyPrintPreviewGenerated(true);
   VerifyPagesPrinted(false);
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
+
   int expected_accessibility_tree_set_count =
       ExpectsSetAccessibilityTreeCalls() ? 1 : 0;
   EXPECT_EQ(expected_accessibility_tree_set_count,
             print_manager()->accessibility_tree_set_count());
-#endif
 
   print_settings().Set(kSettingScaleFactor, 200);
   OnPrintPreviewRerender();
@@ -1856,17 +2725,16 @@ TEST_P(PrintRenderFrameHelperTaggedPreviewTest,
   EXPECT_EQ(0u, preview_ui()->print_preview_pages_remaining());
   VerifyDidPreviewPage(true, 0);
   VerifyPreviewPageCount(1);
-  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false);
+  VerifyDefaultPageLayout(548, 692, 72, 28, 36, 28, false, false);
   VerifyPrintPreviewCancelled(false);
   VerifyPrintPreviewFailed(false);
   VerifyPrintPreviewGenerated(true);
   VerifyPagesPrinted(false);
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
+
   expected_accessibility_tree_set_count =
       ExpectsSetAccessibilityTreeCalls() ? 2 : 0;
   EXPECT_EQ(expected_accessibility_tree_set_count,
             print_manager()->accessibility_tree_set_count());
-#endif
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

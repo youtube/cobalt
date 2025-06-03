@@ -7,7 +7,6 @@
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
-#include "base/time/time.h"
 #include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/ash/login/app_mode/test/kiosk_apps_mixin.h"
 #include "chrome/browser/ash/login/login_wizard.h"
@@ -75,7 +74,7 @@ class NetworkErrorScreenTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     ShowLoginWizard(WelcomeView::kScreenId);
-    OobeScreenWaiter(WelcomeView::kScreenId).Wait();
+    test::WaitForWelcomeScreen();
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -283,8 +282,6 @@ class KioskErrorScreenTest : public MixinBasedInProcessBrowserTest {
 
     skip_splash_wait_override_ =
         KioskLaunchController::SkipSplashScreenWaitForTesting();
-    network_wait_override_ =
-        KioskLaunchController::SetNetworkWaitForTesting(base::Seconds(0));
 
     AddKioskAppToDevicePolicy();
 
@@ -343,7 +340,6 @@ class KioskErrorScreenTest : public MixinBasedInProcessBrowserTest {
   std::unique_ptr<NetworkStateTestHelper> network_helper_;
 
   std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
-  std::unique_ptr<base::AutoReset<base::TimeDelta>> network_wait_override_;
   std::unique_ptr<base::AutoReset<bool>> block_app_launch_override_;
 
   DeviceStateMixin device_state_{

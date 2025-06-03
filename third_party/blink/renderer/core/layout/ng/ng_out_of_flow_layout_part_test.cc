@@ -82,7 +82,7 @@ TEST_F(NGOutOfFlowLayoutPartTest, FixedInsideAbs) {
       )HTML");
 
   // Test whether the oof fragments have been collected at NG->Legacy boundary.
-  Element* rel = GetDocument().getElementById("rel");
+  Element* rel = GetDocument().getElementById(AtomicString("rel"));
   auto* block_flow = To<LayoutBlockFlow>(rel->GetLayoutObject());
   const NGLayoutResult* result = block_flow->GetSingleCachedLayoutResult();
   EXPECT_TRUE(result);
@@ -90,8 +90,8 @@ TEST_F(NGOutOfFlowLayoutPartTest, FixedInsideAbs) {
             2u);
 
   // Test the final result.
-  Element* fixed_1 = GetDocument().getElementById("fixed1");
-  Element* fixed_2 = GetDocument().getElementById("fixed2");
+  Element* fixed_1 = GetDocument().getElementById(AtomicString("fixed1"));
+  Element* fixed_2 = GetDocument().getElementById(AtomicString("fixed2"));
   // fixed1 top is static: #abs.top + #pad.height
   EXPECT_EQ(fixed_1->OffsetTop(), LayoutUnit(99));
   // fixed2 top is positioned: #fixed2.top
@@ -1758,6 +1758,36 @@ TEST_F(NGOutOfFlowLayoutPartTest, RelayoutNestedMulticolWithOOF) {
   ASSERT_TRUE(fragmentainer);
   // It should still have two children: the relpos and the OOF.
   EXPECT_EQ(fragmentainer->Children().size(), 2u);
+}
+
+TEST_F(NGOutOfFlowLayoutPartTest, UseCountOutOfFlowNoInsets) {
+  SetBodyInnerHTML(R"HTML(
+    <div style="position: absolute; justify-self: center;"></div>
+  )HTML");
+  EXPECT_TRUE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowJustifySelfNoInsets));
+  EXPECT_FALSE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowAlignSelfNoInsets));
+}
+
+TEST_F(NGOutOfFlowLayoutPartTest, UseCountOutOfFlowSingleInset) {
+  SetBodyInnerHTML(R"HTML(
+    <div style="position: absolute; right: 0; bottom: 0; justify-self: center;"></div>
+  )HTML");
+  EXPECT_TRUE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowJustifySelfSingleInset));
+  EXPECT_FALSE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowAlignSelfSingleInset));
+}
+
+TEST_F(NGOutOfFlowLayoutPartTest, UseCountOutOfFlowBothInsets) {
+  SetBodyInnerHTML(R"HTML(
+    <div style="position: absolute; inset: 0; justify-self: center;"></div>
+  )HTML");
+  EXPECT_TRUE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowJustifySelfBothInsets));
+  EXPECT_FALSE(
+      GetDocument().IsUseCounted(WebFeature::kOutOfFlowAlignSelfBothInsets));
 }
 
 }  // namespace

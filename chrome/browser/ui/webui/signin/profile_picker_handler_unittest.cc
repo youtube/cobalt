@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/signin/profile_picker_handler.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/json/values_util.h"
@@ -14,10 +15,11 @@
 #include "build/buildflag.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/test/base/profile_waiter.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -36,7 +38,7 @@
 #include "chrome/browser/lacros/account_manager/get_account_information_helper.h"
 #include "chrome/browser/lacros/identity_manager_lacros.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_addition_result.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/mock_account_manager_facade.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
@@ -340,7 +342,7 @@ TEST_F(ProfilePickerHandlerTest, MarkProfileAsOmitted) {
 
   profile_b->SetIsEphemeral(true);
   profile_b->SetIsOmitted(true);
-  VerifyProfileListWasPushed({profile_a, profile_c, profile_d});
+  VerifyProfileWasRemoved(profile_b->GetPath());
   web_ui()->ClearTrackedCalls();
 
   // Omitted profile is appended to the end of the profile list.
@@ -612,9 +614,9 @@ TEST_F(ProfilePickerHandlerTest, CreateProfileNewAccount) {
           [account, this](
               account_manager::AccountManagerFacade::AccountAdditionSource,
               base::OnceCallback<void(
-                  const account_manager::AccountAdditionResult&)> callback) {
+                  const account_manager::AccountUpsertionResult&)> callback) {
             std::move(callback).Run(
-                account_manager::AccountAdditionResult::FromAccount(account));
+                account_manager::AccountUpsertionResult::FromAccount(account));
             // Notify the mapper that an account has been added.
             profile_manager()
                 ->profile_manager()
@@ -847,9 +849,9 @@ TEST_F(ProfilePickerHandlerInUserProfileTest, NoAvailableAccount) {
           [account, this](
               account_manager::AccountManagerFacade::AccountAdditionSource,
               base::OnceCallback<void(
-                  const account_manager::AccountAdditionResult&)> callback) {
+                  const account_manager::AccountUpsertionResult&)> callback) {
             std::move(callback).Run(
-                account_manager::AccountAdditionResult::FromAccount(account));
+                account_manager::AccountUpsertionResult::FromAccount(account));
             // Notify the mapper that an account has been added.
             profile_manager()
                 ->profile_manager()
@@ -899,3 +901,51 @@ TEST_F(ProfilePickerHandlerInUserProfileTest,
 }
 
 #endif  //  BUILDFLAG(IS_CHROMEOS_LACROS)
+
+TEST_F(ProfilePickerHandlerTest, UpdateProfileOrder) {
+  auto entries_to_names =
+      [](const std::vector<ProfileAttributesEntry*> entries) {
+        std::vector<std::string> names;
+        for (auto* entry : entries) {
+          names.emplace_back(base::UTF16ToUTF8(entry->GetLocalProfileName()));
+        }
+        return names;
+      };
+
+  std::vector<std::string> profile_names = {"A", "B", "C", "D"};
+  for (auto name : profile_names) {
+    CreateTestingProfile(name);
+  }
+
+  ProfileAttributesStorage* storage =
+      profile_manager()->profile_attributes_storage();
+  std::vector<ProfileAttributesEntry*> display_entries =
+      storage->GetAllProfilesAttributesSortedForDisplay();
+  ASSERT_EQ(entries_to_names(display_entries), profile_names);
+
+  // Perform first changes.
+  {
+    base::Value::List args;
+    args.Append(0);  // `from_index`
+    args.Append(2);  // `to_index`
+    web_ui()->HandleReceivedMessage("updateProfileOrder", args);
+
+    std::vector<std::string> expected_profile_order_names{"B", "C", "A", "D"};
+    EXPECT_EQ(
+        entries_to_names(storage->GetAllProfilesAttributesSortedForDisplay()),
+        expected_profile_order_names);
+  }
+
+  // Perform second changes.
+  {
+    base::Value::List args;
+    args.Append(1);  // `from_index`
+    args.Append(3);  // `to_index`
+    web_ui()->HandleReceivedMessage("updateProfileOrder", args);
+
+    std::vector<std::string> expected_profile_order_names{"B", "A", "D", "C"};
+    EXPECT_EQ(
+        entries_to_names(storage->GetAllProfilesAttributesSortedForDisplay()),
+        expected_profile_order_names);
+  }
+}

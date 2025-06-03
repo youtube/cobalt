@@ -37,6 +37,12 @@ using ReportSuccessfulUploadCallback =
 using EncryptionKeyAttachedCallback =
     base::RepeatingCallback<void(SignedEncryptionInfo)>;
 
+// UpdateConfigInMissiveCallback is called if the configuration file obtained
+// from the server is different from the one that was sent previously using
+// this callback.
+using UpdateConfigInMissiveCallback =
+    base::RepeatingCallback<void(ListOfBlockedDestinations)>;
+
 // Successful response consists of Sequence information that may be
 // accompanied with force_confirm flag.
 struct SuccessfulUploadResponse {
@@ -67,6 +73,7 @@ class RecordHandler {
   // Any errors will result in |upload_complete| being called with a Status.
   virtual void HandleRecords(
       bool need_encryption_key,
+      int config_file_version,
       std::vector<EncryptedRecord> records,
       ScopedReservation scoped_reservation,
       CompletionCallback upload_complete,
@@ -86,6 +93,7 @@ class DmServerUploader : public TaskRunnerContext<CompletionResponse> {
  public:
   DmServerUploader(
       bool need_encryption_key,
+      int config_file_version,
       std::vector<EncryptedRecord> records,
       ScopedReservation scoped_reservation,
       RecordHandler* handler,  // Not owned!
@@ -114,11 +122,8 @@ class DmServerUploader : public TaskRunnerContext<CompletionResponse> {
   // to upload to DmServer.
   void HandleRecords();
 
-  // Processes |completion_response| and call |Response|.
+  // Processes |completion_response| and calls |Response|.
   void Finalize(CompletionResponse completion_response);
-
-  // Complete schedules |Finalize| with the provided |completion_response|.
-  void Complete(CompletionResponse completion_response);
 
   // Helper function for determining if an EncryptedRecord is valid.
   Status IsRecordValid(const EncryptedRecord& encrypted_record,
@@ -126,12 +131,16 @@ class DmServerUploader : public TaskRunnerContext<CompletionResponse> {
                        const int64_t expected_sequencing_id) const;
 
   const bool need_encryption_key_;
+  const int config_file_version_;
   std::vector<EncryptedRecord> encrypted_records_
       GUARDED_BY_CONTEXT(sequence_checker_);
   ScopedReservation scoped_reservation_ GUARDED_BY_CONTEXT(sequence_checker_);
   const ReportSuccessfulUploadCallback report_success_upload_cb_;
   const EncryptionKeyAttachedCallback encryption_key_attached_cb_;
-  const raw_ptr<RecordHandler> handler_;
+  // This dangling raw_ptr occurred in:
+  // unit_tests: NeedOrNoNeedKey/DmServerUploaderTest.ReprotWithZeroRecords/2
+  // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1425192/test-results?q=ExactID%3Aninja%3A%2F%2Fchrome%2Ftest%3Aunit_tests%2FDmServerUploaderTest.ReprotWithZeroRecords%2FNeedOrNoNeedKey.2+VHash%3A728d3f3a440b40c1
+  const raw_ptr<RecordHandler, FlakyDanglingUntriaged> handler_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

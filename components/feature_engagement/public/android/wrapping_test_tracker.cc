@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/android/jni_string.h"
+#include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/feature_engagement/public/jni_headers/CppWrappedTestTracker_jni.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -116,6 +117,16 @@ void WrappingTestTracker::AddOnInitializedCallback(
     OnInitializedCallback callback) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), IsInitialized()));
+}
+
+const Configuration* WrappingTestTracker::GetConfigurationForTesting() const {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
+void WrappingTestTracker::SetClockForTesting(const base::Clock& clock,
+                                             base::Time& initial_time) {
+  NOTIMPLEMENTED();
 }
 
 }  // namespace feature_engagement

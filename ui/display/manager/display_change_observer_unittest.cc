@@ -22,11 +22,12 @@
 #include "ui/display/display.h"
 #include "ui/display/display_features.h"
 #include "ui/display/display_switches.h"
-#include "ui/display/fake/fake_display_snapshot.h"
 #include "ui/display/manager/display_configurator.h"
 #include "ui/display/manager/display_manager.h"
-#include "ui/display/manager/display_manager_util.h"
 #include "ui/display/manager/managed_display_info.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
+#include "ui/display/manager/util/display_manager_test_util.h"
+#include "ui/display/manager/util/display_manager_util.h"
 #include "ui/display/screen.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/types/display_mode.h"
@@ -57,8 +58,8 @@ std::unique_ptr<DisplayMode> MakeDisplayMode(int width,
                                              int height,
                                              bool is_interlaced,
                                              float refresh_rate) {
-  return std::make_unique<DisplayMode>(gfx::Size(width, height), is_interlaced,
-                                       refresh_rate);
+  return CreateDisplayModePtrForTest({width, height}, is_interlaced,
+                                     refresh_rate);
 }
 
 }  // namespace
@@ -163,22 +164,19 @@ TEST_F(DisplayChangeObserverPanelRadiiTest, RadiiSpecifiedForInternalDisplay) {
       display_change_observer_.get(), display_snapshot.get(),
       default_display_mode_.get());
 
-  EXPECT_EQ(display_info.rounded_corners_radii(),
+  EXPECT_EQ(display_info.panel_corners_radii(),
             gfx::RoundedCornersF(16, 16, 15, 15));
 }
 
-TEST_F(DisplayChangeObserverPanelRadiiTest, RadiiNotSetForExternalDisplays) {
-  // Specifies radii for connectors that are different from the connector of
-  // the display(snapshot) under test.
+TEST_F(DisplayChangeObserverPanelRadiiTest, IgnoreRadiiIfNotInternalDisplay) {
   command_line_.GetProcessCommandLine()->AppendSwitchASCII(
       switches::kDisplayProperties,
-      "[{\"connector-type\": 14, \"rounded-corners\": {\"bottom-left\": 15, "
+      "[{\"connector-type\": 15, \"rounded-corners\": {\"bottom-left\": 15, "
       "\"bottom-right\": 15, \"top-left\": 16, \"top-right\": 16}}]");
 
   InitializeDisplayChangeObserver();
 
-  // Radii is not specified for the connection protocol
-  // `DisplayConnectionProtocol::k9PinDin` through command line.
+  // The snapshot is of a display that is not a internal display.
   std::unique_ptr<DisplaySnapshot> display_snapshot =
       FakeDisplaySnapshot::Builder()
           .SetId(123)
@@ -190,7 +188,7 @@ TEST_F(DisplayChangeObserverPanelRadiiTest, RadiiNotSetForExternalDisplays) {
       display_change_observer_.get(), display_snapshot.get(),
       default_display_mode_.get());
 
-  EXPECT_TRUE(display_info.rounded_corners_radii().IsEmpty());
+  EXPECT_TRUE(display_info.panel_corners_radii().IsEmpty());
 }
 
 TEST_P(DisplayChangeObserverTest, GetExternalManagedDisplayModeList) {
@@ -304,8 +302,8 @@ TEST_P(DisplayChangeObserverTest, GetEmptyExternalManagedDisplayModeList) {
       /*connector_index=*/0x0001, gfx::Point(), gfx::Size(),
       DISPLAY_CONNECTION_TYPE_UNKNOWN,
       /*base_connector_id=*/1u, /*path_topology=*/{}, false, false,
-      PrivacyScreenState::kNotSupported, false, false, false, std::string(), {},
-      nullptr, nullptr, 0, gfx::Size(), gfx::ColorSpace(),
+      PrivacyScreenState::kNotSupported, false, false, false, std::string(),
+      base::FilePath(), {}, nullptr, nullptr, 0, gfx::Size(), gfx::ColorSpace(),
       /*bits_per_channel=*/8u, /*hdr_static_metadata=*/{}, kVrrNotCapable,
       absl::nullopt, DrmFormatsAndModifiers());
 
@@ -554,7 +552,12 @@ TEST_P(DisplayChangeObserverTest, HDRDisplayColorSpaces) {
           .SetNativeMode(MakeDisplayMode(1920, 1080, true, 60))
           .SetColorSpace(display_color_space)
           .SetBitsPerChannel(10u)
-          .SetHDRStaticMetadata({600.0, 500.0, 0.01})
+          .SetHDRStaticMetadata(
+              {600.0, 500.0, 0.01,
+               gfx::HDRStaticMetadata::EotfMask({
+                   gfx::HDRStaticMetadata::Eotf::kGammaSdrRange,
+                   gfx::HDRStaticMetadata::Eotf::kPq,
+               })})
           .Build();
 
   ui::DeviceDataManager::CreateInstance();
@@ -596,6 +599,124 @@ TEST_P(DisplayChangeObserverTest, HDRDisplayColorSpaces) {
             gfx::ColorSpace::TransferID::PIECEWISE_HDR);
 }
 #endif
+
+TEST_P(DisplayChangeObserverTest, VSyncRateMin) {
+  ui::DeviceDataManager::CreateInstance();
+  DisplayManager manager(nullptr);
+  DisplayChangeObserver observer(&manager);
+
+  // Verify that vsync_rate_min is absent from DisplayInfo when it is not
+  // present from the DisplaySnapshot.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetName("AmazingFakeDisplay")
+            .SetNativeMode(MakeDisplayMode(1920, 1080, true, 60))
+            .Build();
+    const auto display_mode = std::make_unique<DisplayMode>(
+        gfx::Size{1920, 1080}, true, 60, 2720, 1696, 553580);
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode.get());
+
+    EXPECT_EQ(display_info.vsync_rate_min(), absl::nullopt);
+  }
+
+  // Verify that the value of vsync_rate_min falls back to the value from the
+  // EDID when it cannot be calculated from the mode.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetName("AmazingFakeDisplay")
+            .SetNativeMode(MakeDisplayMode(1920, 1080, true, 60))
+            .SetVsyncRateMin(48)
+            .Build();
+    const auto display_mode =
+        std::make_unique<DisplayMode>(gfx::Size{1920, 1080}, true, 60, 0, 0, 0);
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode.get());
+
+    EXPECT_EQ(display_info.vsync_rate_min(), 48.0f);
+  }
+
+  // Verify that the value of vsync_rate_min is correctly calculated.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetName("AmazingFakeDisplay")
+            .SetNativeMode(MakeDisplayMode(1920, 1080, true, 60))
+            .SetVsyncRateMin(48)
+            .Build();
+    const auto display_mode = std::make_unique<DisplayMode>(
+        gfx::Size{1920, 1080}, true, 60, 2720, 1696, 553580);
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode.get());
+
+    EXPECT_EQ(display_info.vsync_rate_min(), 48.000488f);
+  }
+}
+
+TEST_P(DisplayChangeObserverTest, DisplayModeNativeCalculation) {
+  ui::DeviceDataManager::CreateInstance();
+  DisplayManager manager(nullptr);
+  DisplayChangeObserver observer(&manager);
+
+  // For external display, verify that native attribute is determined by
+  // comparing current mode with the DisplaySnapshot's native mode. Native is
+  // true when they are the same.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetType(DISPLAY_CONNECTION_TYPE_DISPLAYPORT)
+            .SetNativeMode(MakeDisplayMode(1920, 1080, true, 60))
+            .SetCurrentMode(MakeDisplayMode(1920, 1080, true, 60))
+            .Build();
+
+    const DisplayMode* display_mode = display_snapshot->current_mode();
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode);
+
+    EXPECT_TRUE(display_info.native());
+  }
+
+  // For external display, verify that native attribute is determined by
+  // comparing current mode with the DisplaySnapshot's native mode. Native is
+  // false when they are different.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetType(DISPLAY_CONNECTION_TYPE_DISPLAYPORT)
+            .SetNativeMode(MakeDisplayMode(3840, 2160, true, 60))
+            .SetCurrentMode(MakeDisplayMode(1920, 1080, true, 60))
+            .Build();
+
+    const DisplayMode* display_mode = display_snapshot->current_mode();
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode);
+
+    EXPECT_FALSE(display_info.native());
+  }
+
+  // For internal display, verify that native attribute is always true.
+  {
+    const std::unique_ptr<DisplaySnapshot> display_snapshot =
+        FakeDisplaySnapshot::Builder()
+            .SetId(123)
+            .SetType(DISPLAY_CONNECTION_TYPE_INTERNAL)
+            .SetCurrentMode(MakeDisplayMode(1920, 1080, true, 60))
+            .Build();
+
+    const DisplayMode* display_mode = display_snapshot->current_mode();
+    const ManagedDisplayInfo display_info = CreateManagedDisplayInfo(
+        &observer, display_snapshot.get(), display_mode);
+
+    EXPECT_TRUE(display_info.native());
+  }
+}
 
 INSTANTIATE_TEST_SUITE_P(All,
                          DisplayChangeObserverTest,

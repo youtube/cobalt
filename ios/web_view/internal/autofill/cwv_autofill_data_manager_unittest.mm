@@ -29,10 +29,6 @@
 #include "ui/base/l10n/l10n_util_mac.h"
 #include "ui/base/resource/resource_bundle.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
@@ -55,7 +51,7 @@ class CWVAutofillDataManagerTest : public PlatformTest {
 
     // Set to stub out behavior inside PersonalDataManager.
     personal_data_manager_->SetAutofillProfileEnabled(true);
-    personal_data_manager_->SetAutofillCreditCardEnabled(true);
+    personal_data_manager_->SetAutofillPaymentMethodsEnabled(true);
     personal_data_manager_->SetAutofillWalletImportEnabled(true);
 
     password_store_ = new password_manager::TestPasswordStore(

@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/safe_sprintf.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "cc/base/math_util.h"
@@ -346,7 +347,8 @@ class TopControlsSlideControllerTest : public InProcessBrowserTest {
 
     // Add content/test/data so we can use cross_site_iframe_factory.html
     base::FilePath test_data_dir;
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
     embedded_test_server()->ServeFilesFromDirectory(
         test_data_dir.AppendASCII("chrome/test/data/top_controls_scroll"));
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -558,8 +560,8 @@ class TopControlsSlideControllerTest : public InProcessBrowserTest {
     return std::move(controller);
   }
 
-  raw_ptr<TestController, ExperimentalAsh> test_controller_ =
-      nullptr;  // Not owned.
+  raw_ptr<TestController, DanglingUntriaged | ExperimentalAsh>
+      test_controller_ = nullptr;  // Not owned.
 };
 
 namespace {
@@ -957,10 +959,12 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, MAYBE_DisplayRotation) {
   mojo::Remote<crosapi::mojom::CrosDisplayConfigController> cros_display_config;
   ash::BindCrosDisplayConfigController(
       cros_display_config.BindNewPipeAndPassReceiver());
-  crosapi::mojom::CrosDisplayConfigControllerAsyncWaiter waiter_for(
-      cros_display_config.get());
-  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list;
-  waiter_for.GetDisplayUnitInfoList(false /* single_unified */, &info_list);
+
+  base::test::TestFuture<std::vector<crosapi::mojom::DisplayUnitInfoPtr>>
+      info_list_future;
+  cros_display_config->GetDisplayUnitInfoList(false /* single_unified */,
+                                              info_list_future.GetCallback());
+  auto info_list = info_list_future.Take();
   for (const crosapi::mojom::DisplayUnitInfoPtr& display_unit_info :
        info_list) {
     const std::string display_id = display_unit_info->id;
@@ -969,11 +973,13 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, MAYBE_DisplayRotation) {
       auto config_properties = crosapi::mojom::DisplayConfigProperties::New();
       config_properties->rotation =
           crosapi::mojom::DisplayRotation::New(rotation);
-      crosapi::mojom::DisplayConfigResult result;
-      waiter_for.SetDisplayProperties(
+      base::test::TestFuture<crosapi::mojom::DisplayConfigResult> result_future;
+      cros_display_config->SetDisplayProperties(
           display_id, std::move(config_properties),
-          crosapi::mojom::DisplayConfigSource::kUser, &result);
-      EXPECT_EQ(result, crosapi::mojom::DisplayConfigResult::kSuccess);
+          crosapi::mojom::DisplayConfigSource::kUser,
+          result_future.GetCallback());
+      EXPECT_EQ(result_future.Take(),
+                crosapi::mojom::DisplayConfigResult::kSuccess);
 
       // Wait for the browser view to change its bounds as a result of display
       // rotation.

@@ -65,10 +65,10 @@ void OverlayProcessorWin::ProcessForOverlays(
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    SurfaceDamageRectList surface_damage_rect_list,
+    SurfaceDamageRectList surface_damage_rect_list_in_root_space,
     OutputSurfaceOverlayPlane* output_surface_plane,
     CandidateList* candidates,
-    gfx::Rect* damage_rect,
+    gfx::Rect* root_damage_rect,
     std::vector<gfx::Rect>* content_bounds) {
   TRACE_EVENT0("viz", "OverlayProcessorWin::ProcessForOverlays");
 
@@ -78,18 +78,41 @@ void OverlayProcessorWin::ProcessForOverlays(
     root_render_pass = (*render_passes)[render_passes->size() - 2].get();
   }
 
+  DCLayerOverlayProcessor::RenderPassOverlayDataMap
+      render_pass_overlay_data_map;
+  auto emplace_pair = render_pass_overlay_data_map.emplace(
+      root_render_pass, DCLayerOverlayProcessor::RenderPassOverlayData());
+  DCHECK(emplace_pair.second);  // Verify insertion occurred.
+  DCHECK_EQ(emplace_pair.first->first, root_render_pass);
+  DCLayerOverlayProcessor::RenderPassOverlayData&
+      root_render_pass_overlay_data = emplace_pair.first->second;
+  root_render_pass_overlay_data.damage_rect = *root_damage_rect;
   dc_layer_overlay_processor_->Process(
-      resource_provider, gfx::RectF(root_render_pass->output_rect),
-      render_pass_filters, render_pass_backdrop_filters, root_render_pass,
-      damage_rect, std::move(surface_damage_rect_list), candidates,
-      is_video_capture_enabled_, is_page_fullscreen_mode_);
+      resource_provider, render_pass_filters, render_pass_backdrop_filters,
+      surface_damage_rect_list_in_root_space, is_page_fullscreen_mode_,
+      render_pass_overlay_data_map);
+  *root_damage_rect = root_render_pass_overlay_data.damage_rect;
+  *candidates = root_render_pass_overlay_data.promoted_overlays;
 
+  // Force a swap chain when there is a copy request, since read back is
+  // impossible with a DComp surface.
+  //
+  // Normally, |DCLayerOverlayProcessor::Process| prevents
+  // overlays (and thus forces a swap chain) when there is a copy request, but
+  // |frames_since_using_dc_layers_| implements a one-sided hysteresis that
+  // keeps us on DComp surfaces a little after we stop having overlays. If a
+  // client issues a copy request while we're in this timeout, we end up asking
+  // read back from a DComp surface, which fails later in
+  // |SkiaOutputSurfaceImplOnGpu::CopyOutput|.
+  const bool force_swap_chain_due_to_copy_request =
+      root_render_pass->HasCapture();
   bool was_using_dc_layers = using_dc_layers_;
   if (!candidates->empty()) {
     using_dc_layers_ = true;
     frames_since_using_dc_layers_ = 0;
   } else if (++frames_since_using_dc_layers_ >=
-             kNumberOfFramesBeforeDisablingDCLayers) {
+                 kNumberOfFramesBeforeDisablingDCLayers ||
+             force_swap_chain_due_to_copy_request) {
     using_dc_layers_ = false;
   }
 
@@ -97,7 +120,7 @@ void OverlayProcessorWin::ProcessForOverlays(
     // The entire surface has to be redrawn if switching from or to direct
     // composition layers, because the previous contents are discarded and some
     // contents would otherwise be undefined.
-    *damage_rect = root_render_pass->output_rect;
+    *root_damage_rect = root_render_pass->output_rect;
   }
 
   if (base::FeatureList::IsEnabled(features::kDCompPresenter)) {
@@ -105,7 +128,7 @@ void OverlayProcessorWin::ProcessForOverlays(
       // A DComp surface is not readable by viz.
       // |DCLayerOverlayProcessor::Process| should avoid overlay candidates if
       // there are e.g. copy output requests present.
-      DCHECK(!using_dc_layers_);
+      CHECK(!using_dc_layers_);
     }
 
     // We have overlays, so our root surface requires a backing that
@@ -132,13 +155,13 @@ void OverlayProcessorWin::ProcessForOverlays(
 
   if (debug_settings_->show_dc_layer_debug_borders) {
     InsertDebugBorderDrawQuadsForOverlayCandidates(
-        *candidates, root_render_pass, *damage_rect);
+        *candidates, root_render_pass, *root_damage_rect);
 
     // Mark the entire output as damaged because the border quads might not be
     // inside the current damage rect.  It's far simpler to mark the entire
     // output as damaged instead of accounting for individual border quads which
     // can change positions across frames.
-    *damage_rect = root_render_pass->output_rect;
+    *root_damage_rect = root_render_pass->output_rect;
   }
 }
 
@@ -189,12 +212,23 @@ bool OverlayProcessorWin::NeedsSurfaceDamageRectList() const {
   return true;
 }
 
-void OverlayProcessorWin::SetIsVideoCaptureEnabled(bool enabled) {
-  is_video_capture_enabled_ = enabled;
-}
-
 void OverlayProcessorWin::SetIsPageFullscreen(bool enabled) {
   is_page_fullscreen_mode_ = enabled;
+}
+
+void OverlayProcessorWin::ProcessOnDCLayerOverlayProcessorForTesting(
+    DisplayResourceProvider* resource_provider,
+    const FilterOperationsMap& render_pass_filters,
+    const FilterOperationsMap& render_pass_backdrop_filters,
+    SurfaceDamageRectList surface_damage_rect_list,
+    bool is_page_fullscreen_mode,
+    DCLayerOverlayProcessor::RenderPassOverlayDataMap&
+        render_pass_overlay_data_map) {
+  CHECK_IS_TEST();
+  dc_layer_overlay_processor_->Process(
+      resource_provider, render_pass_filters, render_pass_backdrop_filters,
+      surface_damage_rect_list, is_page_fullscreen_mode,
+      render_pass_overlay_data_map);
 }
 
 }  // namespace viz

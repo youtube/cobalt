@@ -7,12 +7,15 @@
 
 #include <vector>
 
+#include "base/types/expected.h"
+#include "base/values.h"
 #include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder_types.mojom-forward.h"
 #include "chromeos/ash/services/nearby/public/mojom/quick_start_decoder_types.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::quick_start {
 
@@ -22,36 +25,31 @@ namespace ash::quick_start {
 // by the browser process.
 class QuickStartDecoder : public mojom::QuickStartDecoder {
  public:
-  explicit QuickStartDecoder(
-      mojo::PendingReceiver<mojom::QuickStartDecoder> receiver);
+  QuickStartDecoder(mojo::PendingReceiver<mojom::QuickStartDecoder> receiver,
+                    base::OnceClosure on_disconnect);
   QuickStartDecoder(const QuickStartDecoder&) = delete;
   QuickStartDecoder& operator=(const QuickStartDecoder&) = delete;
   ~QuickStartDecoder() override;
 
   // mojom::QuickStartDecoder;
-  void DecodeBootstrapConfigurations(
-      const std::vector<uint8_t>& data,
-      DecodeBootstrapConfigurationsCallback callback) override;
-
-  void DecodeGetAssertionResponse(
-      const std::vector<uint8_t>& data,
-      DecodeGetAssertionResponseCallback callback) override;
-
-  void DecodeWifiCredentialsResponse(
-      const std::vector<uint8_t>& data,
-      DecodeWifiCredentialsResponseCallback callback) override;
-  // mojom::QuickStartDecoder:
+  void DecodeQuickStartMessage(
+      const absl::optional<std::vector<uint8_t>>& data,
+      DecodeQuickStartMessageCallback callback) override;
 
  private:
   friend class QuickStartDecoderTest;
-  mojom::BootstrapConfigurationsPtr DoDecodeBootstrapConfigurations(
-      const std::vector<uint8_t>& data);
-  mojom::GetAssertionResponsePtr DoDecodeGetAssertionResponse(
-      const std::vector<uint8_t>& data);
-  mojom::GetWifiCredentialsResponsePtr DoDecodeWifiCredentialsResponse(
-      const std::vector<uint8_t>& data);
-  absl::optional<std::vector<uint8_t>> ExtractFidoDataFromJsonResponse(
-      const std::vector<uint8_t>& data);
+
+  base::expected<mojom::QuickStartMessagePtr, mojom::QuickStartDecoderError>
+  DoDecodeQuickStartMessage(const std::vector<uint8_t>& data);
+  base::expected<mojom::QuickStartMessagePtr, mojom::QuickStartDecoderError>
+  DecodeSecondDeviceAuthPayload(const base::Value::Dict& payload);
+  base::expected<mojom::QuickStartMessagePtr, mojom::QuickStartDecoderError>
+  DecodeBootstrapConfigurations(const base::Value::Dict& payload);
+  base::expected<mojom::QuickStartMessagePtr, mojom::QuickStartDecoderError>
+  DecodeQuickStartPayload(const base::Value::Dict& payload);
+  base::expected<mojom::QuickStartMessagePtr, mojom::QuickStartDecoderError>
+  DecodeWifiCredentials(const base::Value::Dict& wifi_network_information);
+
   mojo::Receiver<mojom::QuickStartDecoder> receiver_;
 };
 

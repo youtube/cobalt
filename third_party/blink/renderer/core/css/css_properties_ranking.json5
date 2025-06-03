@@ -413,7 +413,6 @@
         "-webkit-margin-collapse",
         "text-orientation",
         "-webkit-hyphenate-character",
-        "-webkit-highlight",
         "padding-block-start",
         "cx",
         "padding-block-end",
@@ -736,7 +735,7 @@
         "origin-trial-test-property",
         "subtree-visibility",
         "math-superscript-shift-style",
-        "start"
+        "start",
         "accent-color",
     ],
     "properties": {}

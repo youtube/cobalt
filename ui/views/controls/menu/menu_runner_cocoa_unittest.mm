@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-
-#import "base/task/single_thread_task_runner.h"
-#include "base/task/single_thread_task_runner.h"
 #import "ui/views/controls/menu/menu_runner_impl_cocoa.h"
 
 #import <Cocoa/Cocoa.h>
 
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/test_timeouts.h"
 #import "testing/gtest_mac.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/cocoa/menu_controller.h"
 #include "ui/base/models/simple_menu_model.h"
 #include "ui/events/event_utils.h"
 #import "ui/events/test/cocoa_test_event_utils.h"
@@ -95,7 +94,7 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
   static constexpr int kWindowHeight = 200;
   static constexpr int kWindowOffset = 100;
 
-  MenuRunnerCocoaTest() = default;
+  MenuRunnerCocoaTest() : runner_(nullptr), parent_(nullptr) {}
 
   MenuRunnerCocoaTest(const MenuRunnerCocoaTest&) = delete;
   MenuRunnerCocoaTest& operator=(const MenuRunnerCocoaTest&) = delete;
@@ -132,15 +131,14 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
               [[parent_->GetNativeView().GetNativeNSView() subviews] count]);
 
     if (runner_) {
-      runner_->Release();
-      runner_ = nullptr;
+      runner_.ExtractAsDangling()->Release();
     }
 
     // Clean up for tests that set the notification filter.
     MenuCocoaWatcherMac::SetNotificationFilterForTesting(
         MacNotificationFilter::DontIgnoreNotifications);
 
-    parent_->CloseNow();
+    parent_.ExtractAsDangling()->CloseNow();
     ViewsTestBase::TearDown();
   }
 
@@ -222,8 +220,7 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
   }
 
   void MenuDeleteCallback() {
-    runner_->Release();
-    runner_ = nullptr;
+    runner_.ExtractAsDangling()->Release();
     // Deleting an async menu intentionally does not invoke MenuCloseCallback().
     // (The callback is typically a method on something in the process of being
     // destroyed). So invoke QuitAsyncRunLoop() here as well.
@@ -241,13 +238,11 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
 
   void ModelDeleteThenSelectItemCallback() {
     // AppKit may retain a reference to the NSMenu.
-    base::scoped_nsobject<NSMenu> native_menu(GetNativeNSMenu(),
-                                              base::scoped_policy::RETAIN);
+    NSMenu* native_menu = GetNativeNSMenu();
 
     // A View showing a menu typically owns a MenuRunner unique_ptr, which will
     // will be destroyed (releasing the MenuRunnerImpl) alongside the MenuModel.
-    runner_->Release();
-    runner_ = nullptr;
+    runner_.ExtractAsDangling()->Release();
     menu_ = nullptr;
 
     // The menu is closing (yet "alive"), but the model is destroyed. The user
@@ -260,7 +255,7 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
       return;
     }
 
-    EXPECT_TRUE(native_menu.get());
+    EXPECT_TRUE(native_menu);
 
     // Simulate clicking the item using its accelerator.
     NSEvent* accelerator = cocoa_test_event_utils::KeyEventWithKeyCode(
@@ -270,8 +265,8 @@ class MenuRunnerCocoaTest : public ViewsTestBase,
 
   void MenuCancelAndDeleteCallback() {
     runner_->Cancel();
-    runner_->Release();
-    runner_ = nullptr;
+    // Release cause the runner to delete itself.
+    runner_.ExtractAsDangling()->Release();
   }
 
  protected:
@@ -407,8 +402,7 @@ TEST_P(MenuRunnerCocoaTest, CancelWithoutRunning) {
 }
 
 TEST_P(MenuRunnerCocoaTest, DeleteWithoutRunning) {
-  runner_->Release();
-  runner_ = nullptr;
+  runner_.ExtractAsDangling()->Release();
   EXPECT_EQ(0, menu_close_count_);
 }
 

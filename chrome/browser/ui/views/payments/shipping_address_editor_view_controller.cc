@@ -93,29 +93,16 @@ bool ShippingAddressEditorViewController::ValidateModelAndSave() {
     return false;
   if (!profile_to_edit_) {
     // Add the profile (will not add a duplicate).
-    profile.set_origin(autofill::kSettingsOrigin);
     if (!is_incognito())
       state()->GetPersonalDataManager()->AddProfile(profile);
     std::move(on_added_).Run(profile);
     on_edited_.Reset();
   } else {
-    autofill::ServerFieldTypeSet all_fields;
-    profile_to_edit_->GetSupportedTypes(&all_fields);
-    // Clear all the address data in |profile_to_edit_| except the email field,
-    // in anticipation of adding only the fields present in the editor. Prefer
-    // this method to copying |profile| into |profile_to_edit_|, because the
-    // latter object needs to retain other properties (use count, use date,
-    // guid, etc.).
-    for (autofill::ServerFieldType type : all_fields) {
-      if (type != autofill::ServerFieldType::EMAIL_ADDRESS) {
-        profile_to_edit_->SetRawInfo(type, std::u16string());
-      }
-    }
-
+    // Fields are only updated in the autofill profile to avoid clearing the
+    // parsed substructure.
     bool success = SaveFieldsToProfile(profile_to_edit_,
                                        /*ignore_errors=*/false);
     DCHECK(success);
-    profile_to_edit_->set_origin(autofill::kSettingsOrigin);
     if (!is_incognito())
       state()->GetPersonalDataManager()->UpdateProfile(*profile_to_edit_);
     state()->profile_comparator()->Invalidate(*profile_to_edit_);
@@ -131,7 +118,7 @@ ShippingAddressEditorViewController::CreateValidationDelegate(
     const EditorField& field) {
   return std::make_unique<
       ShippingAddressEditorViewController::ShippingAddressValidationDelegate>(
-      this, field);
+      weak_ptr_factory_.GetWeakPtr(), field);
 }
 
 std::unique_ptr<ui::ComboboxModel>
@@ -223,7 +210,7 @@ int ShippingAddressEditorViewController::GetPrimaryButtonId() {
 
 ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
     ShippingAddressValidationDelegate(
-        ShippingAddressEditorViewController* controller,
+        base::WeakPtr<ShippingAddressEditorViewController> controller,
         const EditorField& field)
     : field_(field), controller_(controller) {}
 
@@ -238,7 +225,8 @@ bool ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
 std::u16string
 ShippingAddressEditorViewController::ShippingAddressValidationDelegate::Format(
     const std::u16string& text) {
-  if (controller_->chosen_country_index_ < controller_->countries_.size()) {
+  if (controller_ &&
+      controller_->chosen_country_index_ < controller_->countries_.size()) {
     return base::UTF8ToUTF16(autofill::i18n::FormatPhoneForDisplay(
         base::UTF16ToUTF8(text),
         controller_->countries_[controller_->chosen_country_index_].first));
@@ -268,7 +256,9 @@ bool ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
 
   std::u16string error_message;
   bool is_valid = ValidateValue(textfield->GetText(), &error_message);
-  controller_->DisplayErrorMessageForField(field_.type, error_message);
+  if (controller_) {
+    controller_->DisplayErrorMessageForField(field_.type, error_message);
+  }
   return is_valid;
 }
 
@@ -278,18 +268,22 @@ bool ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
   bool is_valid = ValidateValue(
       combobox->GetTextForRow(combobox->GetSelectedIndex().value()),
       &error_message);
-  controller_->DisplayErrorMessageForField(field_.type, error_message);
+  if (controller_) {
+    controller_->DisplayErrorMessageForField(field_.type, error_message);
+  }
   return is_valid;
 }
 
 void ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
     ComboboxModelChanged(ValidatingCombobox* combobox) {
-  controller_->OnComboboxModelChanged(combobox);
+  if (controller_) {
+    controller_->OnComboboxModelChanged(combobox);
+  }
 }
 
 bool ShippingAddressEditorViewController::ShippingAddressValidationDelegate::
     ValidateValue(const std::u16string& value, std::u16string* error_message) {
-  if (!controller_->spec())
+  if (!controller_ || !controller_->spec())
     return false;
 
   // Show errors from merchant's retry() call. Note that changing the selected
@@ -435,7 +429,7 @@ void ShippingAddressEditorViewController::UpdateEditorFields() {
   if (chosen_country_index_ < countries_.size())
     chosen_country_code = countries_[chosen_country_index_].first;
 
-  std::vector<std::vector<autofill::ExtendedAddressUiComponent>> components;
+  std::vector<std::vector<autofill::AutofillAddressUIComponent>> components;
   autofill::GetAddressComponents(
       chosen_country_code, state()->GetApplicationLocale(),
       /*include_literals=*/false, &components, &language_code_);
@@ -447,30 +441,27 @@ void ShippingAddressEditorViewController::UpdateEditorFields() {
       EditorField::LengthHint::HINT_SHORT, /*required=*/true,
       EditorField::ControlType::COMBOBOX);
 
-  for (const std::vector<autofill::ExtendedAddressUiComponent>& line :
+  for (const std::vector<autofill::AutofillAddressUIComponent>& line :
        components) {
-    for (const autofill::ExtendedAddressUiComponent& component : line) {
+    for (const autofill::AutofillAddressUIComponent& component : line) {
       EditorField::LengthHint length_hint =
           component.length_hint ==
-                  i18n::addressinput::AddressUiComponent::HINT_LONG
+                  autofill::AutofillAddressUIComponent::HINT_LONG
               ? EditorField::LengthHint::HINT_LONG
               : EditorField::LengthHint::HINT_SHORT;
 
-      autofill::ServerFieldType server_field_type =
-          autofill::i18n::TypeForField(component.field);
-
       EditorField::ControlType control_type =
           EditorField::ControlType::TEXTFIELD;
-      if (server_field_type == autofill::ADDRESS_HOME_COUNTRY ||
-          (server_field_type == autofill::ADDRESS_HOME_STATE &&
+      if (component.field == autofill::ADDRESS_HOME_COUNTRY ||
+          (component.field == autofill::ADDRESS_HOME_STATE &&
            !failed_to_load_region_data_)) {
         control_type = EditorField::ControlType::COMBOBOX;
       }
       editor_fields_.emplace_back(
-          server_field_type, base::UTF8ToUTF16(component.name), length_hint,
-          autofill::i18n::IsFieldRequired(server_field_type,
+          component.field, base::UTF8ToUTF16(component.name), length_hint,
+          autofill::i18n::IsFieldRequired(component.field,
                                           chosen_country_code) ||
-              server_field_type == autofill::NAME_FULL,
+              component.field == autofill::NAME_FULL,
           control_type);
     }
   }

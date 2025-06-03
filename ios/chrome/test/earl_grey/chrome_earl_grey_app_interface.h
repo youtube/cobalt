@@ -8,10 +8,11 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
-#include "base/time/time.h"
+#import "base/ios/block_types.h"
+#import "base/time/time.h"
 #import "components/content_settings/core/common/content_settings.h"
 #import "components/sync/base/model_type.h"
-#include "third_party/metrics_proto/user_demographics.pb.h"
+#import "third_party/metrics_proto/user_demographics.pb.h"
 
 @class ElementSelector;
 @class FakeSystemIdentity;
@@ -39,6 +40,12 @@
 // returning. Returns nil on success, or else an NSError indicating why the
 // operation failed.
 + (NSError*)clearBrowsingHistory;
+
+// Shuts down the network process in order to
+// avoid tests from hanging when clearing browser history. Uses a private WebKit
+// API and should be refactored or removed in the event that there's a different
+// way to address hanging.
++ (void)killWebKitNetworkProcess;
 
 // Clears all web state browsing data and waits to finish clearing before
 // returning. Returns nil on success, otherwise an NSError indicating why
@@ -95,11 +102,17 @@
 // Returns the number of open non-incognito tabs.
 + (NSUInteger)mainTabCount [[nodiscard]];
 
+// Returns the number of open inactive tabs.
++ (NSUInteger)inactiveTabCount [[nodiscard]];
+
 // Returns the number of open incognito tabs.
 + (NSUInteger)incognitoTabCount [[nodiscard]];
 
 // Returns the number of open browsers.
 + (NSUInteger)browserCount [[nodiscard]];
+
+// Returns the number of the realized web states from the existing web states.
++ (NSInteger)realizedWebStatesCount [[nodiscard]];
 
 // Simulates a backgrounding.
 // If not succeed returns an NSError indicating  why the
@@ -133,6 +146,9 @@
 
 // Closes current tab.
 + (void)closeCurrentTab;
+
+// Pins current tab.
++ (void)pinCurrentTab;
 
 // Opens a new incognito tab, and does not wait for animations to complete.
 + (void)openNewIncognitoTab;
@@ -284,10 +300,10 @@
 
 // Signs the user out from Chrome and then starts clearing the identities.
 //
-// Note: This method does not wait for identities to be cleared from the
-// keychain. To wait for this operation to finish, please use an GREYCondition
-// and wait for +hasIdentities to return NO.
-+ (void)signOutAndClearIdentities;
+// Note: The idendities & browsing data cleanings are executed asynchronously.
+// The completion block should be used if there's a need to wait the end of
+// those operations.
++ (void)signOutAndClearIdentitiesWithCompletion:(ProceduralBlock)completion;
 
 // Returns YES if there is at at least identity in the ChromeIdentityService.
 + (BOOL)hasIdentities;
@@ -317,17 +333,6 @@
 
 // Stops any pending navigations in all WebStates which are loading.
 + (void)stopAllWebStatesLoading;
-
-#pragma mark - Bookmarks Utilities (EG2)
-
-// Waits for the bookmark internal state to be done loading.
-// If not succeed returns an NSError indicating  why the operation failed,
-// otherwise nil.
-+ (NSError*)waitForBookmarksToFinishinLoading;
-
-// Clears bookmarks. If not succeed returns an NSError indicating  why the
-// operation failed, otherwise nil.
-+ (NSError*)clearBookmarks;
 
 #pragma mark - URL Utilities (EG2)
 
@@ -391,9 +396,6 @@
                                          title:(NSString*)title
                      originator_client_item_id:
                          (NSString*)originator_client_item_id;
-
-// Injects a typed URL to the sync FakeServer.
-+ (void)addFakeSyncServerTypedURL:(NSString*)URL;
 
 // Injects a HISTORY visit to the sync FakeServer.
 + (void)addFakeSyncServerHistoryVisit:(NSURL*)URL;
@@ -464,6 +466,9 @@
 // passphrase to start.
 + (void)addBookmarkWithSyncPassphrase:(NSString*)syncPassphrase;
 
+// Returns whether UserSelectableType::kHistory is among the selected types.
++ (BOOL)isSyncHistoryDataTypeSelected;
+
 #pragma mark - JavaScript Utilities (EG2)
 
 // Executes JavaScript through the WebState's WebFrame and waits for either the
@@ -496,17 +501,14 @@
 // Returns YES if UKM feature is enabled.
 + (BOOL)isUKMEnabled [[nodiscard]];
 
-// Returns YES if kSynthesizedRestoreSessionEnabled feature is enabled.
-+ (BOOL)isSynthesizedRestoreSessionEnabled [[nodiscard]];
-
 // Returns YES if kTestFeature is enabled.
 + (BOOL)isTestFeatureEnabled;
 
 // Returns YES if DemographicMetricsReporting feature is enabled.
 + (BOOL)isDemographicMetricsReportingEnabled [[nodiscard]];
 
-// Returns YES if the SyncEnableHistoryDataType feature is enabled.
-+ (BOOL)isSyncHistoryDataTypeEnabled [[nodiscard]];
+// Returns YES if the ReplaceSyncPromosWithSignInPromos feature is enabled.
++ (BOOL)isReplaceSyncWithSigninEnabled [[nodiscard]];
 
 // Returns YES if the `launchSwitch` is found in host app launch switches.
 + (BOOL)appHasLaunchSwitch:(NSString*)launchSwitch;
@@ -532,15 +534,14 @@
 // Returns whether the UseLensToSearchForImage feature is enabled.
 + (BOOL)isUseLensToSearchForImageEnabled;
 
-// Returns whether the Thumbstrip feature is enabled for window with given
-// number.
-+ (BOOL)isThumbstripEnabledForWindowWithNumber:(int)windowNumber;
-
 // Returns whether the Web Channels feature is enabled.
 + (BOOL)isWebChannelsEnabled;
 
 // Returns whether UIButtonConfiguration changes are enabled.
 + (BOOL)isUIButtonConfigurationEnabled;
+
+// Returns whether the bottom omnibox steady state feature is enabled.
++ (BOOL)isBottomOmniboxSteadyStateEnabled;
 
 #pragma mark - ContentSettings
 
@@ -555,13 +556,21 @@
 // Resets the desktop content setting to its default value.
 + (void)resetDesktopContentSetting;
 
+// Sets the preference value of a content settings type for the original browser
+// state.
++ (void)setContentSetting:(ContentSetting)setting
+    forContentSettingsType:(ContentSettingsType)type;
+
 #pragma mark - Default Utilities (EG2)
 
 // Stores a value for the provided key in NSUserDefaults.
-+ (void)setUserDefaultObject:(id)value forKey:(NSString*)defaultName;
++ (void)setUserDefaultsObject:(id)value forKey:(NSString*)defaultName;
 
 // Removes the object for the provided `key` in NSUserDefaults.
-+ (void)removeUserDefaultObjectForKey:(NSString*)key;
++ (void)removeUserDefaultsObjectForKey:(NSString*)key;
+
+// Returns the value for provided key from NSUserDefaults.
++ (id)userDefaultsObjectForKey:(NSString*)key;
 
 #pragma mark - Pref Utilities (EG2)
 
@@ -570,10 +579,22 @@
 // returns a Value of type NONE.
 + (NSString*)localStatePrefValue:(NSString*)prefName;
 
-// Sets the integer values for the local state pref with `prefName`. `value`
+// Sets the integer value for the local state pref with `prefName`. `value`
 // can be either a casted enum or any other numerical value. Local State
 // contains the preferences that are shared between all browser states.
 + (void)setIntegerValue:(int)value forLocalStatePref:(NSString*)prefName;
+
+// Sets the time value for the local state pref with `prefName`. Local State
+// contains the preferences that are shared between all browser states.
++ (void)setTimeValue:(base::Time)value forLocalStatePref:(NSString*)prefName;
+
+// Sets the string value for the local state pref with `prefName`. Local State
+// contains the preferences that are shared between all browser states.
++ (void)setStringValue:(NSString*)value forLocalStatePref:(NSString*)prefName;
+
+// Sets the bool value for the local state pref with `prefName`. Local State
+// contains the preferences that are shared between all browser states.
++ (void)setBoolValue:(BOOL)value forLocalStatePref:(NSString*)prefName;
 
 // Gets the value of a user pref in the original browser state. Returns a
 // base::Value encoded as a JSON string. If the pref was not registered,
@@ -614,7 +635,9 @@
 // The input is similar to UIKeyCommand parameters, and is designed for testing
 // keyboard shortcuts.
 // Accepts any strings and also UIKeyInput{Up|Down|Left|Right}Arrow and
-// UIKeyInputEscape constants as `input`.
+// UIKeyInputEscape constants as `input`. `flags` must be set to
+// UIKeyModifierShift for things like capital letters or characters like !@#$%
+// etc.
 + (void)simulatePhysicalKeyboardEvent:(NSString*)input
                                 flags:(UIKeyModifierFlags)flags;
 
@@ -669,6 +692,15 @@
 // in a second window, this needs to be disabled or the popup will kill the
 // message.
 + (void)disableDefaultBrowserPromo;
+
+#pragma mark - First Run Utilities
+
+// Writes the First Run Sentinel file, used to record that First Run has
+// completed.
++ (void)writeFirstRunSentinel;
+
+// Remove the FirstRun sentinel file.
++ (void)removeFirstRunSentinel;
 
 @end
 

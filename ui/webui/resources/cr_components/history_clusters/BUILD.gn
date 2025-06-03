@@ -17,7 +17,6 @@ mojom("mojo_bindings") {
     "//url/mojom:url_mojom_gurl",
   ]
   webui_module_path = ""
-  use_typescript_sources = true
 }
 
 build_webui("build") {
@@ -27,6 +26,7 @@ build_webui("build") {
     "cluster.ts",
     "clusters.ts",
     "cluster_menu.ts",
+    "horizontal_carousel.ts",
     "page_favicon.ts",
     "search_query.ts",
     "url_visit.ts",
@@ -67,6 +67,4 @@ build_webui("build") {
   ]
   generate_grdp = true
   grd_resource_path_prefix = rebase_path(".", "//ui/webui/resources")
-
-  enable_source_maps = enable_webui_inline_sourcemaps
 }

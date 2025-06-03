@@ -39,9 +39,9 @@
 #include "chrome/browser/prefs/pref_service_syncable_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_preferences/pref_service_syncable_observer.h"
 #endif
@@ -146,8 +146,7 @@ class ExternalPrefLoader::PrioritySyncReadyWaiter
  private:
   void MaybeObserveSyncStart() {
     syncer::SyncService* service = SyncServiceFactory::GetForProfile(profile_);
-    DCHECK(service);
-    if (!service->CanSyncFeatureStart()) {
+    if (!service || !service->IsSyncFeatureEnabled()) {
       Finish();
       // Note: |this| is deleted.
       return;
@@ -167,8 +166,9 @@ class ExternalPrefLoader::PrioritySyncReadyWaiter
 
   // syncer::SyncServiceObserver
   void OnStateChanged(syncer::SyncService* sync) override {
-    if (!sync->CanSyncFeatureStart())
+    if (!sync->IsSyncFeatureEnabled()) {
       Finish();
+    }
   }
 
   void OnSyncShutdown(syncer::SyncService* sync) override {
@@ -194,7 +194,7 @@ class ExternalPrefLoader::PrioritySyncReadyWaiter
 
   void Finish() { std::move(done_closure_).Run(); }
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile, LeakedDanglingUntriaged | ExperimentalAsh> profile_;
 
   base::OnceClosure done_closure_;
 

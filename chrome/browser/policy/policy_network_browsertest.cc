@@ -46,8 +46,16 @@ class SSLPolicyTest : public PolicyTest {
     std::u16string title;
   };
 
-  bool StartTestServer(const net::SSLServerConfig ssl_config) {
+  bool StartTestServer(const net::SSLServerConfig& ssl_config) {
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_OK, ssl_config);
+    https_server_.ServeFilesFromSourceDirectory("chrome/test/data");
+    return https_server_.Start();
+  }
+
+  bool StartTestServer(
+      const net::EmbeddedTestServer::ServerCertificateConfig& cert_config,
+      const net::SSLServerConfig& ssl_config) {
+    https_server_.SetSSLConfig(cert_config, ssl_config);
     https_server_.ServeFilesFromSourceDirectory("chrome/test/data");
     return https_server_.Start();
   }
@@ -87,47 +95,50 @@ class SSLPolicyTest : public PolicyTest {
 class PostQuantumPolicyTest : public SSLPolicyTest {
  public:
   PostQuantumPolicyTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        net::features::kPostQuantumKyber);
+    scoped_feature_list_.InitAndEnableFeature(net::features::kPostQuantumKyber);
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
-IN_PROC_BROWSER_TEST_F(PostQuantumPolicyTest, ChromeVariations) {
+IN_PROC_BROWSER_TEST_F(PostQuantumPolicyTest, PostQuantumEnabledPolicy) {
   net::SSLServerConfig ssl_config;
-  ssl_config.curves_for_testing = {NID_X25519Kyber768};
+  ssl_config.curves_for_testing = {NID_X25519Kyber768Draft00};
   ASSERT_TRUE(StartTestServer(ssl_config));
 
-  // Should be able to load a page from the test server because Kyber is
-  // enabled.
-  EXPECT_TRUE(GetBooleanPref(prefs::kPostQuantumEnabled));
+  // Should be able to load a page from the test server because policy is in
+  // the default state and feature is enabled.
+  EXPECT_FALSE(GetBooleanPref(prefs::kPostQuantumKeyAgreementEnabled));
   LoadResult result = LoadPage("/title2.html");
   EXPECT_TRUE(result.success);
   EXPECT_EQ(u"Title Of Awesomeness", result.title);
 
-  // Setting ChromeVariations to a non-zero value should also disable
-  // Kyber.
-  const auto* const variations_key =
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-      // On Chrome OS the ChromeVariations policy doesn't exist and is
-      // replaced by DeviceChromeVariations.
-      key::kDeviceChromeVariations;
-#else
-      key::kChromeVariations;
-#endif
+  // Disable the policy.
   PolicyMap policies;
-  SetPolicy(&policies, variations_key, base::Value(1));
+  SetPolicy(&policies, key::kPostQuantumKeyAgreementEnabled,
+            base::Value(false));
   UpdateProviderPolicy(policies);
   content::FlushNetworkServiceInstanceForTesting();
 
   // Page loads should now fail.
+  EXPECT_FALSE(GetBooleanPref(prefs::kPostQuantumKeyAgreementEnabled));
   result = LoadPage("/title3.html");
   EXPECT_FALSE(result.success);
+
+  // Enable the policy.
+  PolicyMap policies2;
+  SetPolicy(&policies2, key::kPostQuantumKeyAgreementEnabled,
+            base::Value(true));
+  UpdateProviderPolicy(policies2);
+  content::FlushNetworkServiceInstanceForTesting();
+
+  // Page load should now succeed.
+  EXPECT_TRUE(GetBooleanPref(prefs::kPostQuantumKeyAgreementEnabled));
+  result = LoadPage("/title2.html");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(u"Title Of Awesomeness", result.title);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
 class ECHPolicyTest : public SSLPolicyTest {
  public:
@@ -339,6 +350,106 @@ IN_PROC_BROWSER_TEST_F(SHA1EnabledPolicyTest, InsecureHashPolicy) {
   result = LoadPage("/title3.html");
   EXPECT_TRUE(result.success);
   EXPECT_EQ(u"Title Of More Awesomeness", result.title);
+}
+
+class RSAKeyUsageDisabledPolicyTest : public SSLPolicyTest {
+ public:
+  RSAKeyUsageDisabledPolicyTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        net::features::kRSAKeyUsageForLocalAnchors);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(RSAKeyUsageDisabledPolicyTest, RSAKeyUsagePolicy) {
+  net::EmbeddedTestServer::ServerCertificateConfig cert_config;
+  cert_config.key_usages = {net::KEY_USAGE_BIT_KEY_ENCIPHERMENT};
+  net::SSLServerConfig ssl_config;
+  ssl_config.version_max = net::SSL_PROTOCOL_VERSION_TLS1_2;
+  // 0xc02f is TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, which expects the
+  // digitalSignature key usage bit.
+  ssl_config.cipher_suite_for_testing = 0xc02f;
+  ASSERT_TRUE(StartTestServer(cert_config, ssl_config));
+
+  // By default, key usage is not checked by feature flag.
+  LoadResult result = LoadPage("/title2.html?1");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(u"Title Of Awesomeness", result.title);
+
+  // Enable the check by policy.
+  PolicyMap policies;
+  SetPolicy(&policies, key::kRSAKeyUsageForLocalAnchorsEnabled,
+            base::Value(true));
+  UpdateProviderPolicy(policies);
+  content::FlushNetworkServiceInstanceForTesting();
+
+  // The page load should now fail.
+  EXPECT_TRUE(GetBooleanPref(prefs::kRSAKeyUsageForLocalAnchorsEnabled));
+  result = LoadPage("/title2.html?2");
+  EXPECT_FALSE(result.success);
+
+  // Disable the check by policy.
+  SetPolicy(&policies, key::kRSAKeyUsageForLocalAnchorsEnabled,
+            base::Value(false));
+  UpdateProviderPolicy(policies);
+  content::FlushNetworkServiceInstanceForTesting();
+
+  // The page load should succeed again.
+  result = LoadPage("/title2.html?3");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(u"Title Of Awesomeness", result.title);
+}
+
+class RSAKeyUsageEnabledPolicyTest : public SSLPolicyTest {
+ public:
+  RSAKeyUsageEnabledPolicyTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        net::features::kRSAKeyUsageForLocalAnchors);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(RSAKeyUsageEnabledPolicyTest, RSAKeyUsagePolicy) {
+  net::EmbeddedTestServer::ServerCertificateConfig cert_config;
+  cert_config.key_usages = {net::KEY_USAGE_BIT_KEY_ENCIPHERMENT};
+  net::SSLServerConfig ssl_config;
+  ssl_config.version_max = net::SSL_PROTOCOL_VERSION_TLS1_2;
+  // 0xc02f is TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, which expects the
+  // digitalSignature key usage bit.
+  ssl_config.cipher_suite_for_testing = 0xc02f;
+  ASSERT_TRUE(StartTestServer(cert_config, ssl_config));
+
+  // By default, key usage is checked by feature flag.
+  LoadResult result = LoadPage("/title2.html?1");
+  EXPECT_FALSE(result.success);
+
+  // Disable the check by policy.
+  PolicyMap policies;
+  SetPolicy(&policies, key::kRSAKeyUsageForLocalAnchorsEnabled,
+            base::Value(false));
+  UpdateProviderPolicy(policies);
+  content::FlushNetworkServiceInstanceForTesting();
+
+  // The page load should now succeed.
+  EXPECT_FALSE(GetBooleanPref(prefs::kRSAKeyUsageForLocalAnchorsEnabled));
+  result = LoadPage("/title2.html?2");
+  EXPECT_TRUE(result.success);
+  EXPECT_EQ(u"Title Of Awesomeness", result.title);
+
+  // Enable the check by policy.
+  SetPolicy(&policies, key::kRSAKeyUsageForLocalAnchorsEnabled,
+            base::Value(true));
+  UpdateProviderPolicy(policies);
+  content::FlushNetworkServiceInstanceForTesting();
+
+  // The page load should fail again.
+  EXPECT_TRUE(GetBooleanPref(prefs::kRSAKeyUsageForLocalAnchorsEnabled));
+  result = LoadPage("/title2.html?3");
+  EXPECT_FALSE(result.success);
 }
 
 }  // namespace policy

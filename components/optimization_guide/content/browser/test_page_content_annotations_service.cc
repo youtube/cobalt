@@ -68,6 +68,7 @@ TestPageContentAnnotationsService::TestPageContentAnnotationsService(
     history::HistoryService* history_service)
     : PageContentAnnotationsService(/*autocomplete_provider_client=*/nullptr,
                                     /*application_locale=*/"en-US",
+                                    /*country_code=*/"US",
                                     optimization_guide_model_provider,
                                     history_service,
                                     /*template_url_service=*/nullptr,
@@ -75,6 +76,7 @@ TestPageContentAnnotationsService::TestPageContentAnnotationsService(
                                     /*database_provider=*/nullptr,
                                     /*database_dir=*/base::FilePath(),
                                     /*optimization_guide_logger=*/nullptr,
+                                    /*optimization_guide_decider=*/nullptr,
                                     /*background_task_runner=*/nullptr) {}
 
 }  // namespace optimization_guide

@@ -40,6 +40,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/chaps_util/test_util.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "components/policy/core/common/policy_switches.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
@@ -125,10 +126,6 @@ std::vector<uint8_t> PrependSHA256DigestInfo(base::span<const uint8_t> hash) {
 
 std::string BytesToStr(const std::vector<uint8_t>& val) {
   return std::string(val.begin(), val.end());
-}
-
-std::vector<uint8_t> StrToBytes(const std::string& val) {
-  return std::vector<uint8_t>(val.begin(), val.end());
 }
 
 }  // namespace
@@ -236,7 +233,7 @@ class PlatformKeysServiceBrowserTestBase
                         const std::string& cert_filename,
                         const std::string& key_filename,
                         net::ScopedCERTCertificate* out_cert,
-                        std::string* out_spki_der) {
+                        std::vector<uint8_t>* out_spki_der) {
     // Import testing key pair and certificate.
     {
       base::ScopedAllowBlockingForTesting allow_io;
@@ -247,8 +244,8 @@ class PlatformKeysServiceBrowserTestBase
     ASSERT_TRUE(cert);
     ASSERT_GT(cert->derPublicKey.len, 0U);
     *out_spki_der =
-        std::string(reinterpret_cast<const char*>(cert->derPublicKey.data),
-                    cert->derPublicKey.len);
+        std::vector<uint8_t>(cert->derPublicKey.data,
+                             cert->derPublicKey.data + cert->derPublicKey.len);
   }
 
  private:
@@ -271,11 +268,11 @@ class PlatformKeysServiceBrowserTestBase
 
   // Unowned pointer to the profile selected by the current TestConfig.
   // Valid after SetUpOnMainThread().
-  raw_ptr<Profile, ExperimentalAsh> profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_ = nullptr;
   // Unowned pointer to the PlatformKeysService for |profile_|. Valid after
   // SetUpOnMainThread().
-  raw_ptr<PlatformKeysService, ExperimentalAsh> platform_keys_service_ =
-      nullptr;
+  raw_ptr<PlatformKeysService, DanglingUntriaged | ExperimentalAsh>
+      platform_keys_service_ = nullptr;
   // The private slot for the profile under test. This should be null if the
   // test parameter mandates testing with the sign-in profile.
   crypto::ScopedPK11Slot user_slot_;
@@ -296,6 +293,8 @@ class PlatformKeysServicePerProfileBrowserTest
   ProfileToUse GetProfileToUse() override { return GetParam().profile_to_use; }
 };
 
+using CallbackIfCallableBrowserTest = InProcessBrowserTest;
+
 // Tests that GetTokens() is callable and returns the expected tokens.
 IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerProfileBrowserTest, GetTokens) {
   test_util::GetTokensExecutionWaiter get_tokens_waiter;
@@ -303,8 +302,7 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerProfileBrowserTest, GetTokens) {
   ASSERT_TRUE(get_tokens_waiter.Wait());
 
   EXPECT_EQ(get_tokens_waiter.status(), Status::kSuccess);
-  ASSERT_TRUE(get_tokens_waiter.token_ids());
-  EXPECT_THAT(*get_tokens_waiter.token_ids(),
+  EXPECT_THAT(get_tokens_waiter.token_ids(),
               ::testing::UnorderedElementsAreArray(GetParam().token_ids));
 }
 
@@ -340,10 +338,10 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerProfileBrowserTest, GetAllKeys) {
 IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerProfileBrowserTest,
                        KeyAttributesPerToken) {
   // Import the same key pair + cert in every token, remember its SPKI.
-  std::string spki_der;
+  std::vector<uint8_t> spki_der;
   for (TokenId token_id : GetParam().token_ids) {
     net::ScopedCERTCertificate cert;
-    std::string current_spki_der;
+    std::vector<uint8_t> current_spki_der;
     ASSERT_NO_FATAL_FAILURE(
         ImportCertAndKey(token_id, net::GetTestCertsDirectory(), "client_1.pem",
                          "client_1.pk8", &cert, &current_spki_der));
@@ -459,9 +457,9 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
   EXPECT_FALSE(public_key_spki_der.empty());
 
   base::test::TestFuture<std::vector<uint8_t>, Status> sign_waiter;
-  platform_keys_service()->SignRSAPKCS1Digest(
-      token_id, kDataToSign, public_key_spki_der, kHashAlgorithm,
-      sign_waiter.GetCallback());
+  platform_keys_service()->SignRsaPkcs1(token_id, kDataToSign,
+                                        public_key_spki_der, kHashAlgorithm,
+                                        sign_waiter.GetCallback());
   ASSERT_TRUE(sign_waiter.Wait());
   EXPECT_EQ(sign_waiter.Get<Status>(), Status::kSuccess);
 
@@ -472,6 +470,47 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
       base::as_bytes(base::make_span(public_key_spki_der))));
   signature_verifier.VerifyUpdate(base::as_bytes(base::make_span(kDataToSign)));
   EXPECT_TRUE(signature_verifier.VerifyFinal());
+}
+
+class RunLoopQuiter {
+ public:
+  explicit RunLoopQuiter(base::RunLoop* rl) : runloop_(rl) {}
+  void Quit() { runloop_->Quit(); }
+  void QuitWithFail() {
+    Quit();
+    FAIL();
+  }
+  base::WeakPtr<RunLoopQuiter> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  const raw_ptr<base::RunLoop> runloop_;
+  base::WeakPtrFactory<RunLoopQuiter> weak_factory_{this};
+};
+
+// Verifies that RunCallBackIfCallableElseCleanup will run the cleanup callback
+// if the given callback is canceled. RunCallBackIfCallableElseCleanup is
+// specially helpful in PlatformKeyService when PKS is asked to generate a key
+// and by the time the key is generated the asker is gone.
+IN_PROC_BROWSER_TEST_F(CallbackIfCallableBrowserTest,
+                       CallCleanUpWhenCallBackIsCanceled) {
+  base::RunLoop loop;
+  base::OnceCallback<void()> canceled_cb, quit_loop_cb;
+
+  RunLoopQuiter main_quiter(&loop);
+  quit_loop_cb = base::BindOnce(&RunLoopQuiter::Quit, main_quiter.GetWeakPtr());
+
+  {
+    RunLoopQuiter canceled_quiter(&loop);
+    // If the canceled_cb runs then test will fail.
+    canceled_cb = base::BindOnce(&RunLoopQuiter::QuitWithFail,
+                                 canceled_quiter.GetWeakPtr());
+  }
+
+  RunCallBackIfCallableElseRunCleanUp(std::move(canceled_cb),
+                                      std::move(quit_loop_cb));
+  loop.Run();
 }
 
 // Generates a Rsa key pair and tests signing using the SignRSAPKCS1Raw
@@ -520,7 +559,7 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
 
   // Arrange: Configure the ChapsUtilFactory singleton instance to return fake
   // ChapsUtil instances.
-  test_util::ScopedChapsUtilOverride scoped_chaps_util_override;
+  chromeos::ScopedChapsUtilOverride scoped_chaps_util_override;
 
   // Act: Generate the key pair.
   const TokenId token_id = GetParam().token_id;
@@ -592,17 +631,17 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
 
   // Set key attribute.
   base::test::TestFuture<Status> set_attr_waiter;
-  platform_keys_service()->SetAttributeForKey(
-      token_id, BytesToStr(public_key_spki_der), kAttributeType,
-      kAttributeValue, set_attr_waiter.GetCallback());
+  platform_keys_service()->SetAttributeForKey(token_id, public_key_spki_der,
+                                              kAttributeType, kAttributeValue,
+                                              set_attr_waiter.GetCallback());
   ASSERT_EQ(set_attr_waiter.Get<Status>(), Status::kSuccess);
 
   // Get key attribute.
   base::test::TestFuture<absl::optional<std::vector<uint8_t>>, Status>
       get_attr_waiter;
-  platform_keys_service()->GetAttributeForKey(
-      token_id, BytesToStr(public_key_spki_der), kAttributeType,
-      get_attr_waiter.GetCallback());
+  platform_keys_service()->GetAttributeForKey(token_id, public_key_spki_der,
+                                              kAttributeType,
+                                              get_attr_waiter.GetCallback());
   ASSERT_TRUE(get_attr_waiter.Wait());
 
   EXPECT_EQ(get_attr_waiter.Get<Status>(), Status::kSuccess);
@@ -619,13 +658,14 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
   const KeyAttributeType kAttributeType =
       KeyAttributeType::kCertificateProvisioningId;
   const TokenId token_id = GetParam().token_id;
-  const std::string kPublicKey = "Non Existing public key";
+  const std::vector<uint8_t> kNonExistingPublicKey = {1, 2, 3};
 
   // Get key attribute.
   base::test::TestFuture<absl::optional<std::vector<uint8_t>>, Status>
       get_attr_waiter;
-  platform_keys_service()->GetAttributeForKey(
-      token_id, kPublicKey, kAttributeType, get_attr_waiter.GetCallback());
+  platform_keys_service()->GetAttributeForKey(token_id, kNonExistingPublicKey,
+                                              kAttributeType,
+                                              get_attr_waiter.GetCallback());
   ASSERT_TRUE(get_attr_waiter.Wait());
 
   EXPECT_NE(get_attr_waiter.Get<Status>(), Status::kSuccess);
@@ -638,11 +678,11 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
       KeyAttributeType::kCertificateProvisioningId;
   const TokenId token_id = GetParam().token_id;
   const std::vector<uint8_t> kAttributeValue = {20, 21, 22, 23, 24};
-  const std::string kPublicKey = "Non Existing public key";
+  const std::vector<uint8_t> kNonExistingPublicKey = {1, 2, 3};
 
   // Set key attribute.
   base::test::TestFuture<Status> set_attr_waiter;
-  platform_keys_service()->SetAttributeForKey(token_id, kPublicKey,
+  platform_keys_service()->SetAttributeForKey(token_id, kNonExistingPublicKey,
                                               kAttributeType, kAttributeValue,
                                               set_attr_waiter.GetCallback());
   ASSERT_TRUE(set_attr_waiter.Wait());
@@ -689,7 +729,7 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
   ASSERT_EQ(get_certificates_waiter.matches().size(), 0U);
 
   net::ScopedCERTCertificate cert;
-  std::string public_key;
+  std::vector<uint8_t> public_key;
   ASSERT_NO_FATAL_FAILURE(
       ImportCertAndKey(token_id, net::GetTestCertsDirectory(), "client_1.pem",
                        "client_1.pk8", &cert, &public_key));
@@ -707,7 +747,7 @@ IN_PROC_BROWSER_TEST_P(PlatformKeysServicePerTokenBrowserTest,
 
   // Try Removing the key pair.
   test_util::RemoveKeyExecutionWaiter remove_key_waiter;
-  platform_keys_service()->RemoveKey(token_id, StrToBytes(public_key),
+  platform_keys_service()->RemoveKey(token_id, public_key,
                                      remove_key_waiter.GetCallback());
   ASSERT_TRUE(remove_key_waiter.Wait());
   EXPECT_NE(remove_key_waiter.status(), Status::kSuccess);

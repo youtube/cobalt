@@ -19,7 +19,9 @@ namespace user_education {
 class FeaturePromoRegistry {
  public:
   FeaturePromoRegistry();
+  FeaturePromoRegistry(FeaturePromoRegistry&& other);
   ~FeaturePromoRegistry();
+  FeaturePromoRegistry& operator=(FeaturePromoRegistry&& other);
 
   // Determines whether or not a particular feature is registered.
   bool IsFeatureRegistered(const base::Feature& iph_feature) const;
@@ -41,7 +43,7 @@ class FeaturePromoRegistry {
   void RegisterFeature(FeaturePromoSpecification spec);
 
   const std::map<const base::Feature*, FeaturePromoSpecification>&
-  GetRegisteredFeaturePromoSpecifications() {
+  GetRegisteredFeaturePromoSpecifications() const {
     return feature_promo_data_;
   }
 

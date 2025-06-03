@@ -154,9 +154,6 @@ void InputInjectorX11::Core::InjectKeyEvent(const KeyEvent& event) {
   int keycode =
       ui::KeycodeConverter::UsbKeycodeToNativeKeycode(event.usb_keycode());
 
-  VLOG(3) << "Converting USB keycode: " << std::hex << event.usb_keycode()
-          << " to keycode: " << keycode << std::dec;
-
   // Ignore events which can't be mapped.
   if (keycode == ui::KeycodeConverter::InvalidNativeKeycode()) {
     return;
@@ -208,6 +205,7 @@ void InputInjectorX11::Core::InjectKeyEvent(const KeyEvent& event) {
   }
   uint8_t opcode =
       event.pressed() ? x11::KeyEvent::Press : x11::KeyEvent::Release;
+  VLOG(3) << "Injecting key " << (event.pressed() ? "down" : "up") << " event.";
   connection_->xtest().FakeInput({opcode, static_cast<uint8_t>(keycode)});
   connection_->Flush();
 }
@@ -388,6 +386,10 @@ void InputInjectorX11::Core::InjectMouseEvent(const MouseEvent& event) {
           .rootY = static_cast<int16_t>(latest_mouse_position_.y()),
       });
     }
+  } else {
+    // The client includes either relative or absolute coordinates for all mouse
+    // events, so this log should be rare.
+    HOST_LOG << "Received mouse event with no relative or absolute coordinates";
   }
 
   if (event.has_button() && event.has_button_down()) {

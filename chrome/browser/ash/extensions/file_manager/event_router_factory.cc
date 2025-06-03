@@ -8,7 +8,9 @@
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/extensions/file_manager/event_router.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
+#include "chrome/browser/ash/guest_os/public/guest_os_service_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/arc/intent_helper/arc_intent_helper_bridge.h"
 #include "extensions/browser/event_router_factory.h"
@@ -25,14 +27,20 @@ EventRouter* EventRouterFactory::GetForProfile(Profile* profile) {
 
 // static
 EventRouterFactory* EventRouterFactory::GetInstance() {
-  return base::Singleton<EventRouterFactory>::get();
+  static base::NoDestructor<EventRouterFactory> instance;
+  return instance.get();
 }
 
 EventRouterFactory::EventRouterFactory()
     : ProfileKeyedServiceFactory(
           "EventRouter",
           // Explicitly and always allow this router in guest login mode.
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(drive::DriveIntegrationServiceFactory::GetInstance());
   DependsOn(extensions::EventRouterFactory::GetInstance());
   DependsOn(
@@ -40,13 +48,16 @@ EventRouterFactory::EventRouterFactory()
   DependsOn(VolumeManagerFactory::GetInstance());
   DependsOn(arc::ArcIntentHelperBridge::GetFactory());
   DependsOn(apps::AppServiceProxyFactory::GetInstance());
+  DependsOn(guest_os::GuestOsServiceFactory::GetInstance());
+  DependsOn(policy::DlpRulesManagerFactory::GetInstance());
 }
 
 EventRouterFactory::~EventRouterFactory() = default;
 
-KeyedService* EventRouterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+EventRouterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new EventRouter(Profile::FromBrowserContext(context));
+  return std::make_unique<EventRouter>(Profile::FromBrowserContext(context));
 }
 
 bool EventRouterFactory::ServiceIsCreatedWithBrowserContext() const {

@@ -27,6 +27,7 @@
 #include "services/device/generic_sensor/linux/sensor_device_manager.h"
 #include "services/device/generic_sensor/platform_sensor_provider_linux.h"
 #include "services/device/generic_sensor/platform_sensor_util.h"
+#include "services/device/public/cpp/generic_sensor/sensor_reading_shared_buffer.h"
 #include "services/device/public/cpp/generic_sensor/sensor_traits.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -996,7 +997,7 @@ TEST_F(PlatformSensorAndProviderLinuxTest,
 
   // We cannot call PlatformSensorAndProviderLinuxTest::CreateSensor() like the
   // other tests because we need more control over the RunLoop; both calls to
-  // PlatformSensorProviderBase::CreateSensor() must happen before the RunLoop
+  // PlatformSensorProvider::CreateSensor() must happen before the RunLoop
   // runs (and therefore before sensor enumeration finishes).
   scoped_refptr<PlatformSensor> accelerometer;
   provider_->CreateSensor(

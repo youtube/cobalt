@@ -74,7 +74,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    StoreObjectField(function, JSFunction::kCodeOffset, optimized_code);
+    StoreCodePointerField(function, JSFunction::kCodeOffset, optimized_code);
     Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
     GenerateTailCallToJSCode(optimized_code, function);
 
@@ -108,9 +108,9 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // If feedback cell isn't initialized, compile function
   GotoIf(IsUndefined(feedback_cell_value), &compile_function);
 
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstantNoHole(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
-  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
+  StoreCodePointerField(function, JSFunction::kCodeOffset, sfi_code);
 
   Label maybe_use_sfi_code(this);
   // If there is no feedback, don't check for optimized code.
@@ -165,9 +165,9 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
-  TNode<Code> code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  TNode<Code> code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
-  StoreObjectField(function, JSFunction::kCodeOffset, code);
+  StoreCodePointerField(function, JSFunction::kCodeOffset, code);
   GenerateTailCallToJSCode(code, function);
 }
 

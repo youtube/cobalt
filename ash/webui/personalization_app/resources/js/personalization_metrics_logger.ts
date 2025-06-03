@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
-import {ColorScheme, StaticColor} from '../personalization_app.mojom-webui.js';
+import {ColorScheme} from '../color_scheme.mojom-webui.js';
+import {StaticColor} from '../personalization_app.mojom-webui.js';
 
 import {Paths} from './personalization_router_element.js';
 
@@ -20,8 +21,9 @@ enum MetricsPath {
   WALLPAPER_LOCAL_COLLECTION = 5,
   ROOT = 6,
   USER = 7,
+  WALLPAPER_SEA_PEN_COLLECTION = 8,
 
-  MAX_VALUE = USER,
+  MAX_VALUE = WALLPAPER_SEA_PEN_COLLECTION,
 }
 
 const enum HistogramName {
@@ -56,6 +58,8 @@ function toMetricsEnum(path: Paths) {
       return MetricsPath.ROOT;
     case Paths.USER:
       return MetricsPath.USER;
+    case Paths.SEA_PEN_COLLECTION:
+      return MetricsPath.WALLPAPER_SEA_PEN_COLLECTION;
   }
 }
 

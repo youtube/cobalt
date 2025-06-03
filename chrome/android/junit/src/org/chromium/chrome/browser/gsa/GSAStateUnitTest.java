@@ -21,9 +21,7 @@ import org.robolectric.shadows.ShadowPackageManager;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Tests of {@link GSAState}.
- */
+/** Tests of {@link GSAState}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public final class GSAStateUnitTest {
@@ -46,11 +44,7 @@ public final class GSAStateUnitTest {
             pm.addActivityIfNotPresent(componentName);
             IntentFilter intentFilter = new IntentFilter(Intent.ACTION_SEARCH);
             intentFilter.addCategory(Intent.CATEGORY_DEFAULT);
-            try {
-                pm.addIntentFilterForActivity(componentName, intentFilter);
-            } catch (NameNotFoundException e) {
-                throw new RuntimeException(e);
-            }
+            pm.addIntentFilterForActivity(componentName, intentFilter);
         }
     }
 

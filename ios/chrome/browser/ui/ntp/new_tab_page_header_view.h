@@ -7,6 +7,8 @@
 
 #import <UIKit/UIKit.h>
 
+@class GradientView;
+
 // Header view for the NTP. The header view contains all views that are
 // displayed above the list of most visited sites, which includes the
 // primary toolbar, doodle, and fake omnibox.
@@ -33,7 +35,7 @@
     NSLayoutConstraint* fakeLocationBarLeadingConstraint;
 @property(nonatomic, strong)
     NSLayoutConstraint* fakeLocationBarTrailingConstraint;
-@property(nonatomic, strong) UIView* fakeLocationBar;
+@property(nonatomic, strong) GradientView* fakeLocationBar;
 @property(nonatomic, strong) UILabel* searchHintLabel;
 
 // `YES` if Google is the default search engine.
@@ -49,8 +51,7 @@
 
 // Returns the progress of the search field position along
 // `ntp_header::kAnimationDistance` as the offset changes.
-- (CGFloat)searchFieldProgressForOffset:(CGFloat)offset
-                         safeAreaInsets:(UIEdgeInsets)safeAreaInsets;
+- (CGFloat)searchFieldProgressForOffset:(CGFloat)offset;
 
 // Changes the constraints of searchField based on its initialFrame and the
 // scroll view's y `offset`. Also adjust the alpha values for `_searchBoxBorder`
@@ -69,11 +70,6 @@
 
 // Highlights the fake omnibox.
 - (void)setFakeboxHighlighted:(BOOL)highlighted;
-
-// Updates the different constraints using `topSafeAreaInset`. This is needed
-// because sometimes the safe area isn't correctly updated. See
-// crbug.com/1041831.
-- (void)updateForTopSafeAreaInset:(CGFloat)topSafeAreaInset;
 
 @end
 

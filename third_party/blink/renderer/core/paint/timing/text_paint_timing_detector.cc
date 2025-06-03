@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_calculator.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/traced_value.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -36,9 +37,8 @@ TextPaintTimingDetector::TextPaintTimingDetector(
 void LargestTextPaintManager::PopulateTraceValue(
     TracedValue& value,
     const TextRecord& first_text_paint) {
-  value.SetInteger(
-      "DOMNodeId",
-      static_cast<int>(DOMNodeIds::IdForNode(first_text_paint.node_)));
+  value.SetInteger("DOMNodeId",
+                   static_cast<int>(first_text_paint.node_->GetDomNodeId()));
   value.SetInteger("size", static_cast<int>(first_text_paint.recorded_size));
   value.SetInteger("candidateIndex", ++count_candidates_);
   value.SetBoolean("isMainFrame", frame_view_->GetFrame().IsMainFrame());
@@ -79,7 +79,7 @@ TextRecord* LargestTextPaintManager::UpdateMetricsCandidate() {
     DCHECK(!time.is_null());
     ReportCandidateToTrace(*largest_text_);
   }
-  return largest_text_;
+  return largest_text_.Get();
 }
 
 void TextPaintTimingDetector::OnPaintFinished() {
@@ -185,6 +185,15 @@ void TextPaintTimingDetector::RecordAggregatedText(
     }
   }
 
+  LocalFrame& frame = frame_view_->GetFrame();
+  if (LocalDOMWindow* window = frame.DomWindow()) {
+    if (SoftNavigationHeuristics* soft_navigation =
+            SoftNavigationHeuristics::From(*window)) {
+      soft_navigation->RecordPaint(
+          &frame, mapped_visual_rect.size().GetArea(),
+          aggregator.GetNode()->IsModifiedBySoftNavigation());
+    }
+  }
   recorded_set_.insert(&aggregator);
   MaybeRecordTextRecord(aggregator, aggregated_size, property_tree_state,
                         aggregated_visual_rect, mapped_visual_rect);

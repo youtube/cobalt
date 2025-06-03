@@ -528,7 +528,9 @@ TEST_F(RulesetMatcherTest, RegexRules) {
 
   {
     TestCase test_case = {"http://www.collapse.com/PATH"};
-    // Filters are case sensitive by default, hence the request doesn't match.
+    // Filters are case insensitive by default, hence the request will match.
+    test_case.expected_action = CreateRequestActionForTesting(
+        RequestAction::Type::BLOCK, *block_rule.id);
     test_cases.push_back(std::move(test_case));
   }
 
@@ -621,11 +623,11 @@ TEST_F(RulesetMatcherTest, RegexRules_Metadata) {
 
   // Add a case sensitive rule.
   TestRule path_rule = create_regex_rule(1, "/PATH");
+  path_rule.condition->is_url_filter_case_sensitive = true;
   rules.push_back(path_rule);
 
   // Add a case insensitive rule.
   TestRule xyz_rule = create_regex_rule(2, "/XYZ");
-  xyz_rule.condition->is_url_filter_case_sensitive = false;
   rules.push_back(xyz_rule);
 
   // Test `domains`, `excludedDomains`.
@@ -651,13 +653,13 @@ TEST_F(RulesetMatcherTest, RegexRules_Metadata) {
       std::vector<std::string>({"b.example.com"});
   rules.push_back(request_domains_rule);
 
-  // Test |resourceTypes|.
+  // Test `resourceTypes`.
   TestRule sub_frame_rule = create_regex_rule(6, R"((abc|def)\.com)");
   sub_frame_rule.condition->resource_types =
       std::vector<std::string>({"sub_frame"});
   rules.push_back(sub_frame_rule);
 
-  // Test |domainType|.
+  // Test `domainType`.
   TestRule third_party_rule = create_regex_rule(7, R"(http://(\d+)\.com)");
   third_party_rule.condition->domain_type = "thirdParty";
   rules.push_back(third_party_rule);
@@ -1108,12 +1110,23 @@ TEST_F(RulesetMatcherTest, RegexSubstitution) {
 TEST_F(RulesetMatcherTest, RulesCount) {
   size_t kNumNonRegexRules = 20;
   size_t kNumRegexRules = 10;
+
+  // Rules that are not block or allow rules are considered unsafe for dynamic
+  // rulesets. Make some of the rules these types as well.
+  size_t kNumUnsafeNonRegexRules = 5;
+  size_t kNumUnsafeRegexRules = 3;
+
   std::vector<TestRule> rules;
   int id = kMinValidID;
   for (size_t i = 0; i < kNumNonRegexRules; ++i, ++id) {
     TestRule rule = CreateGenericRule();
     rule.id = id;
     rule.condition->url_filter = std::to_string(id);
+    if (i < kNumUnsafeNonRegexRules) {
+      rule.action->type = "redirect";
+      rule.action->redirect.emplace();
+      rule.action->redirect->url = "http://google.com";
+    }
     rules.push_back(rule);
   }
 
@@ -1122,6 +1135,11 @@ TEST_F(RulesetMatcherTest, RulesCount) {
     rule.id = id;
     rule.condition->url_filter.reset();
     rule.condition->regex_filter = std::to_string(id);
+    if (i < kNumUnsafeRegexRules) {
+      rule.action->type = std::string("modifyHeaders");
+      rule.action->response_headers = std::vector<TestHeaderInfo>(
+          {TestHeaderInfo("HEADER3", "append", "VALUE3")});
+    }
     rules.push_back(rule);
   }
 
@@ -1129,6 +1147,18 @@ TEST_F(RulesetMatcherTest, RulesCount) {
   ASSERT_TRUE(CreateVerifiedMatcher(rules, CreateTemporarySource(), &matcher));
   ASSERT_TRUE(matcher);
   EXPECT_EQ(kNumRegexRules + kNumNonRegexRules, matcher->GetRulesCount());
+  // For static rulesets, no rules are considered unsafe.
+  EXPECT_EQ(absl::nullopt, matcher->GetUnsafeRulesCount());
+  EXPECT_EQ(kNumRegexRules, matcher->GetRegexRulesCount());
+
+  // Recreate `matcher` for a dynamic ruleset to test that unsafe rule count is
+  // calculated correctly.
+  ASSERT_TRUE(CreateVerifiedMatcher(
+      rules, CreateTemporarySource(kDynamicRulesetID), &matcher));
+  ASSERT_TRUE(matcher);
+  EXPECT_EQ(kNumRegexRules + kNumNonRegexRules, matcher->GetRulesCount());
+  EXPECT_EQ(kNumUnsafeNonRegexRules + kNumUnsafeRegexRules,
+            matcher->GetUnsafeRulesCount());
   EXPECT_EQ(kNumRegexRules, matcher->GetRegexRulesCount());
 
   // Also verify the rules count for an empty matcher.
@@ -1136,6 +1166,7 @@ TEST_F(RulesetMatcherTest, RulesCount) {
       CreateVerifiedMatcher({} /* rules */, CreateTemporarySource(), &matcher));
   ASSERT_TRUE(matcher);
   EXPECT_EQ(0u, matcher->GetRulesCount());
+  EXPECT_EQ(absl::nullopt, matcher->GetUnsafeRulesCount());
   EXPECT_EQ(0u, matcher->GetRegexRulesCount());
 }
 
@@ -1277,9 +1308,10 @@ TEST_F(AllowAllRequestsTest, AllowlistedFrameTracking) {
                                     *google_rule_2.id, *google_rule_2.priority);
   EXPECT_EQ(google_rule_2_action, action);
 
-  auto* rfh_tester =
+  auto* render_frame_host_tester =
       content::RenderFrameHostTester::For(web_contents->GetPrimaryMainFrame());
-  content::RenderFrameHost* child = rfh_tester->AppendChild("sub_frame");
+  content::RenderFrameHost* child =
+      render_frame_host_tester->AppendChild("sub_frame");
   ASSERT_TRUE(child);
 
   child = simulate_navigation(child, example_url);

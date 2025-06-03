@@ -11,10 +11,6 @@
 #import "ios/web/public/js_messaging/script_message.h"
 #import "testing/libfuzzer/proto/lpm_interface.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 protobuf_mutator::protobuf::LogSilencer log_silencer;
@@ -31,7 +27,7 @@ DEFINE_PROTO_FUZZER(const web::ScriptMessageProto& proto_js_message) {
     if (base::RandDouble() < 0.2) {
       std::string encoded;
       base::Base64Encode("some raw data", &encoded);
-      script_message->body()->SetStringKey("data", encoded);
+      script_message->body()->GetDict().Set("data", encoded);
     }
   }
   env.InvokeScriptMessageReceived(*script_message);

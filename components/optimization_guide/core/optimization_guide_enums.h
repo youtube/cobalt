@@ -44,9 +44,16 @@ enum class OptimizationTypeDecision {
   // Guide Service was started, but was not available in time to make a
   // decision.
   kHintFetchStartedButNotAvailableInTime = 10,
+  // A fetch to get the hint for the page load from the remote Optimization
+  // Guide Service was started, but requested optimization type was not
+  // registered.
+  kRequestedUnregisteredType = 11,
+  // A fetch to get the hint for the page load from the remote Optimization
+  // Guide Service was started, but requested URL was invalid.
+  kInvalidURL = 12,
 
   // Add new values above this line.
-  kMaxValue = kHintFetchStartedButNotAvailableInTime,
+  kMaxValue = kInvalidURL,
 };
 
 // The statuses for racing a hints fetch with the current navigation based
@@ -181,6 +188,53 @@ enum class ModelDeliveryEvent {
 
   // Add new values above this line.
   kMaxValue = kModelDownloadDueToModelLoadFailure,
+};
+
+// The various results of an access token request.
+//
+// Keep in sync with OptimizationGuideAccessTokenResult in enums.xml.
+enum class OptimizationGuideAccessTokenResult {
+  kUnknown = 0,
+  // The access token was received successfully.
+  kSuccess = 1,
+  // User was not signed-in.
+  kUserNotSignedIn = 2,
+  // Failed with a transient error.
+  kTransientError = 3,
+  // Failed with a persistent error.
+  kPersistentError = 4,
+
+  // Add new values above this line.
+  kMaxValue = kPersistentError,
+};
+
+// Status of a request to fetch from the optimization guide service.
+// This enum must remain synchronized with the enum
+// |OptimizationGuideFetcherRequestStatus| in
+// tools/metrics/histograms/enums.xml.
+enum class FetcherRequestStatus {
+  // No fetch status known. Used in testing.
+  kUnknown,
+  // Fetch request was sent and a response received.
+  kSuccess,
+  // Fetch request was sent but no response received.
+  kResponseError,
+  // DEPRECATED: Fetch request not sent because of offline network status.
+  kDeprecatedNetworkOffline,
+  // Fetch request not sent because fetcher was busy with another request.
+  kFetcherBusy,
+  // Hints fetch request not sent because the host and URL lists were empty.
+  kNoHostsOrURLsToFetchHints,
+  // Hints fetch request not sent because no supported optimization types were
+  // provided.
+  kNoSupportedOptimizationTypesToFetchHints,
+  // Fetch request was canceled before completion.
+  kRequestCanceled,
+  // Fetch request was not started because user was not signed-in.
+  kUserNotSignedIn,
+
+  // Insert new values before this line.
+  kMaxValue = kUserNotSignedIn
 };
 
 }  // namespace optimization_guide

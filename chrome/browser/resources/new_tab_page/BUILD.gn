@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//chrome/common/features.gni")
-import("//ui/webui/webui_features.gni")
 import("./new_tab_page.gni")
 
 import("//ui/webui/resources/tools/build_webui.gni")
@@ -13,6 +12,8 @@ assert(!is_android)
 grd_prefix = "new_tab_page"
 
 build_webui("build") {
+  icons_html_files = [ "modules/v2/icons.html" ]
+
   static_files = [
     "new_tab_page.html",
     "shared_vars.css",
@@ -30,7 +31,7 @@ build_webui("build") {
     "$target_gen_dir/modules/feed/icons/resources.grdp",
     "$target_gen_dir/modules/photos/icons/resources.grdp",
     "$target_gen_dir/modules/photos/images/resources.grdp",
-    "$target_gen_dir/modules/recipes_v2/icons/resources.grdp",
+    "$target_gen_dir/modules/recipes/icons/resources.grdp",
   ]
 
   extra_grdp_deps = [
@@ -39,7 +40,7 @@ build_webui("build") {
     "modules/feed/icons:build_grdp",
     "modules/photos/icons:build_grdp",
     "modules/photos/images:build_grdp",
-    "modules/recipes_v2/icons:build_grdp",
+    "modules/recipes/icons:build_grdp",
   ]
 
   if (optimize_webui) {
@@ -56,8 +57,10 @@ build_webui("build") {
     "//chrome/browser/new_tab_page/modules/feed:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/history_clusters:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/history_clusters/cart:mojo_bindings_ts__generator",
+    "//chrome/browser/new_tab_page/modules/history_clusters/discount:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/photos:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/recipes:mojo_bindings_ts__generator",
+    "//chrome/browser/new_tab_page/modules/v2/history_clusters:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/new_tab_page:mojo_bindings_ts__generator",
     "//components/history_clusters/public/mojom:mojo_bindings_ts__generator",
   ]
@@ -66,7 +69,10 @@ build_webui("build") {
     "$root_gen_dir/chrome/browser/new_tab_page/modules/drive/drive.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/feed/feed.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/history_clusters/history_clusters.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/new_tab_page/modules/history_clusters/history_clusters_layout_type.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/new_tab_page/modules/v2/history_clusters/history_clusters_v2.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/history_clusters/cart/cart.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/new_tab_page/modules/history_clusters/discount/discount.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/photos/photos.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/recipes/recipes.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom-webui.ts",
@@ -121,8 +127,6 @@ build_webui("build") {
                                 "chrome://resources/mojo/url/mojom/url.mojom-webui.js",
                               ] + mojo_js_files
   }
-
-  enable_source_maps = enable_webui_inline_sourcemaps
 }
 
 if (optimize_webui) {

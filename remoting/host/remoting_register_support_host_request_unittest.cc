@@ -67,6 +67,8 @@ decltype(auto) DoValidateEnterpriseOptionsAndRespondOk(
     auto& options = request->chrome_os_enterprise_options();
     ASSERT_EQ(options.allow_troubleshooting_tools(),
               params.allow_troubleshooting_tools);
+    ASSERT_EQ(options.show_troubleshooting_tools(),
+              params.show_troubleshooting_tools);
     ASSERT_EQ(options.allow_reconnections(), params.allow_reconnections);
     ASSERT_EQ(options.allow_file_transfer(), params.allow_file_transfer);
     ValidateRegisterHost(*request);
@@ -131,7 +133,8 @@ class RemotingRegisterSupportHostTest : public testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   std::unique_ptr<RemotingRegisterSupportHostRequest> register_host_request_;
-  raw_ptr<MockRegisterSupportHostClient> register_host_client_ = nullptr;
+  raw_ptr<MockRegisterSupportHostClient, DanglingUntriaged>
+      register_host_client_ = nullptr;
 
   std::unique_ptr<SignalStrategy> signal_strategy_;
   scoped_refptr<RsaKeyPair> key_pair_;

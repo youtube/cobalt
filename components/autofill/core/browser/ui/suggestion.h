@@ -5,10 +5,12 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_UI_SUGGESTION_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_UI_SUGGESTION_H_
 
+#include <ostream>
 #include <string>
 
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/ui/popup_item_ids.h"
@@ -24,11 +26,6 @@ struct Suggestion {
   using BackendId = base::StrongAlias<struct BackendIdTag, std::string>;
   using ValueToFill = base::StrongAlias<struct ValueToFill, std::u16string>;
   using Payload = absl::variant<BackendId, GURL, ValueToFill>;
-
-  enum MatchMode {
-    PREFIX_MATCH,    // for prefix matched suggestions;
-    SUBSTRING_MATCH  // for substring matched suggestions;
-  };
 
   // The text information shown on the UI layer for a Suggestion.
   struct Text {
@@ -57,20 +54,57 @@ struct Suggestion {
     ShouldTruncate should_truncate = ShouldTruncate(false);
   };
 
+  enum class Icon {
+    kAccount,
+    kClear,
+    kCreate,
+    kDelete,
+    kDevice,
+    kEdit,
+    kEmpty,
+    kGlobe,
+    kGoogle,
+    kGooglePasswordManager,
+    kGooglePay,
+    kGooglePayDark,
+    kHttpWarning,
+    kHttpsInvalid,
+    kKey,
+    kLocation,
+    kMagic,
+    kOfferTag,
+    kScanCreditCard,
+    kSettings,
+    kUndo,
+    // Credit card icons
+    kCardGeneric,
+    kCardAmericanExpress,
+    kCardDiners,
+    kCardDiscover,
+    kCardElo,
+    kCardJCB,
+    kCardMaster,
+    kCardMir,
+    kCardTroy,
+    kCardUnionPay,
+    kCardVisa,
+  };
+
   Suggestion();
   explicit Suggestion(std::u16string main_text);
-  explicit Suggestion(int frontend_id);
+  explicit Suggestion(PopupItemId popup_item_id);
+  Suggestion(std::u16string main_text, PopupItemId popup_item_id);
   // Constructor for unit tests. It will convert the strings from UTF-8 to
   // UTF-16.
   Suggestion(base::StringPiece main_text,
              base::StringPiece label,
              std::string icon,
-             int frontend_id);
+             PopupItemId popup_item_id);
   Suggestion(base::StringPiece main_text,
              base::StringPiece minor_text,
              base::StringPiece label,
              std::string icon,
-             int frontend_id);
+             PopupItemId popup_item_id);
   Suggestion(const Suggestion& other);
   Suggestion(Suggestion&& other);
   Suggestion& operator=(const Suggestion& other);
@@ -87,11 +121,12 @@ struct Suggestion {
 
 #if DCHECK_IS_ON()
   bool Invariant() const {
-    switch (frontend_id) {
-      case PopupItemId::POPUP_ITEM_ID_SEE_PROMO_CODE_DETAILS:
+    switch (popup_item_id) {
+      case PopupItemId::kSeePromoCodeDetails:
         return absl::holds_alternative<GURL>(payload);
-      case PopupItemId::POPUP_ITEM_ID_IBAN_ENTRY:
-        return absl::holds_alternative<ValueToFill>(payload);
+      case PopupItemId::kIbanEntry:
+        return absl::holds_alternative<ValueToFill>(payload) ||
+               absl::holds_alternative<BackendId>(payload);
       default:
         return absl::holds_alternative<BackendId>(payload);
     }
@@ -106,12 +141,8 @@ struct Suggestion {
   // shown other than main_text.
   Payload payload;
 
-  // TODO(crbug.com/1325509): Convert |frontend_id| from an int to a
-  // PopupItemId.
-  // ID for the frontend to use in identifying the particular result. Positive
-  // values are sent over IPC to identify the item selected. Negative values
-  // (see popup_item_ids.h) have special built-in meanings.
-  int frontend_id = 0;
+  // Determines popup identifier for the suggestion.
+  PopupItemId popup_item_id = PopupItemId::kAutocompleteEntry;
 
   // The texts that will be displayed on the first line in a suggestion. The
   // order of showing the two texts on the first line depends on whether it is
@@ -135,6 +166,9 @@ struct Suggestion {
   // Contains an image to display for the suggestion.
   gfx::Image custom_icon;
 
+  // The children of this suggestion. If present, the autofill popup will have
+  // submenus.
+  std::vector<Suggestion> children;
 #if BUILDFLAG(IS_ANDROID)
   // The url for the custom icon. This is used by android to fetch the image as
   // android does not support gfx::Image directly.
@@ -146,6 +180,7 @@ struct Suggestion {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // TODO(crbug.com/1019660): Identify icons with enum instead of strings.
+  // This is the icon which is shown on the side of a suggestion.
   // If |custom_icon| is empty, the name of the fallback built-in icon.
   std::string icon;
 
@@ -156,8 +191,6 @@ struct Suggestion {
   // cards. It also holds Google Password Manager icon on the settings entry for
   // the passwords Autofill popup.
   std::string trailing_icon;
-
-  MatchMode match = PREFIX_MATCH;
 
   // Whether suggestion was interacted with and is now in a loading state.
   IsLoading is_loading = IsLoading(false);
@@ -177,8 +210,9 @@ struct Suggestion {
 #if defined(UNIT_TEST)
 inline void PrintTo(const Suggestion& suggestion, std::ostream* os) {
   *os << std::endl
-      << "Suggestion (frontend_id:" << suggestion.frontend_id
-      << ", main_text:\"" << suggestion.main_text.value << "\""
+      << "Suggestion (popup_item_id:"
+      << base::to_underlying(suggestion.popup_item_id) << ", main_text:\""
+      << suggestion.main_text.value << "\""
       << (suggestion.main_text.is_primary ? "(Primary)" : "(Not Primary)")
       << ", minor_text:\"" << suggestion.minor_text.value << "\""
       << (suggestion.minor_text.is_primary ? "(Primary)" : "(Not Primary)")

@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/paint/fragment_data_iterator.h"
 #include "third_party/blink/renderer/core/paint/object_paint_properties.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
@@ -58,10 +59,10 @@ class FrameViewPropertyTreePrinter
   void CollectNodes(const LayoutObject& object) {
     Traits::AddViewTransitionProperties(object, *this);
 
-    for (const auto* fragment = &object.FirstFragment(); fragment;
-         fragment = fragment->NextFragment()) {
-      if (const auto* properties = fragment->PaintProperties())
+    for (const FragmentData& fragment : FragmentDataIterator(object)) {
+      if (const auto* properties = fragment.PaintProperties()) {
         Traits::AddObjectPaintProperties(*properties, *this);
+      }
     }
     for (const auto* child = object.SlowFirstChild(); child;
          child = child->NextSibling()) {
@@ -86,7 +87,7 @@ class PropertyTreePrinterTraits<TransformPaintPropertyNodeOrAlias> {
       PropertyTreePrinter<TransformPaintPropertyNodeOrAlias>& printer) {
     printer.AddNode(properties.PaintOffsetTranslation());
     printer.AddNode(properties.StickyTranslation());
-    printer.AddNode(properties.AnchorScrollTranslation());
+    printer.AddNode(properties.AnchorPositionScrollTranslation());
     printer.AddNode(properties.Translate());
     printer.AddNode(properties.Rotate());
     printer.AddNode(properties.Scale());
@@ -150,14 +151,14 @@ class PropertyTreePrinterTraits<EffectPaintPropertyNodeOrAlias> {
     printer.AddNode(properties.ScrollCornerEffect());
     printer.AddNode(properties.Mask());
     printer.AddNode(properties.ClipPathMask());
+    printer.AddNode(properties.ElementCaptureEffect());
     printer.AddNode(properties.EffectIsolationNode());
   }
 
   static void AddViewTransitionProperties(
       const LayoutObject& object,
       PropertyTreePrinter<EffectPaintPropertyNodeOrAlias>& printer) {
-    auto* transition =
-        ViewTransitionUtils::GetActiveTransition(object.GetDocument());
+    auto* transition = ViewTransitionUtils::GetTransition(object.GetDocument());
     // `NeedsViewTransitionEffectNode` is an indirect way to see if the object
     // is participating in the transition.
     if (!transition || !transition->NeedsViewTransitionEffectNode(object)) {
@@ -231,8 +232,8 @@ void UpdateDebugNames(const LayoutObject& object,
   SetDebugName(properties.PaintOffsetTranslation(), "PaintOffsetTranslation",
                object);
   SetDebugName(properties.StickyTranslation(), "StickyTranslation", object);
-  SetDebugName(properties.AnchorScrollTranslation(), "AnchorScrollTranslation",
-               object);
+  SetDebugName(properties.AnchorPositionScrollTranslation(),
+               "AnchorPositionScrollTranslation", object);
   SetDebugName(properties.Translate(), "Translate", object);
   SetDebugName(properties.Rotate(), "Rotate", object);
   SetDebugName(properties.Scale(), "Scale", object);
@@ -269,6 +270,8 @@ void UpdateDebugNames(const LayoutObject& object,
   SetDebugName(properties.ScrollCornerEffect(), "ScrollCornerEffect", object);
   SetDebugName(properties.Mask(), "Mask", object);
   SetDebugName(properties.ClipPathMask(), "ClipPathMask", object);
+  SetDebugName(properties.ElementCaptureEffect(), "ElementCaptureEffect",
+               object);
   SetDebugName(properties.EffectIsolationNode(), "EffectIsolationNode", object);
 
   SetDebugName(properties.Scroll(), "Scroll", object);

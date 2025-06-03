@@ -12,7 +12,6 @@
 #include <memory>
 
 #include "ash/shell.h"
-#include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
@@ -24,7 +23,6 @@
 #include "components/exo/wayland/wayland_display_observer.h"
 #include "components/exo/wayland/wayland_display_output.h"
 #include "components/exo/wm_helper.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/modules/skcms/skcms.h"
 #include "ui/base/wayland/color_manager_util.h"
@@ -36,7 +34,6 @@
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/display_color_spaces.h"
 #include "ui/gfx/geometry/triangle_f.h"
-#include "wayland-server-protocol.h"
 
 namespace exo {
 namespace wayland {
@@ -52,11 +49,13 @@ constexpr auto kDefaultColorSpace = gfx::ColorSpace::CreateSRGB();
 // the protocol. These live as wayland resource data.
 class ColorManagerColorSpace {
  public:
-  explicit ColorManagerColorSpace(gfx::ColorSpace color_space)
+  explicit ColorManagerColorSpace(gfx::ColorSpace color_space, uint32_t version)
       : color_space(color_space),
-        eotf(ui::wayland::ToColorManagerEOTF(color_space)),
-        matrix(ui::wayland::ToColorManagerMatrix(color_space.GetMatrixID())),
-        range(ui::wayland::ToColorManagerRange(color_space.GetRangeID())),
+        eotf(ui::wayland::ToColorManagerEOTF(color_space, version)),
+        matrix(ui::wayland::ToColorManagerMatrix(color_space.GetMatrixID(),
+                                                 version)),
+        range(ui::wayland::ToColorManagerRange(color_space.GetRangeID(),
+                                               version)),
         primaries(color_space.GetPrimaries()) {}
 
   ColorManagerColorSpace(gfx::ColorSpace color_space,
@@ -222,6 +221,10 @@ class ColorManagerObserver : public WaylandDisplayObserver {
   }
 
   gfx::ColorSpace GetColorSpace() const {
+    if (!wayland_display_handler_) {
+      LOG(WARNING) << "Wayland output was destroyed and not replaced.";
+      return gfx::ColorSpace::CreateSRGB();
+    }
     // Snapshot ColorSpace is only valid for ScreenAsh.
     return ash::Shell::Get()
         ->display_manager()
@@ -258,7 +261,7 @@ class ColorManagerObserver : public WaylandDisplayObserver {
  private:
   raw_ptr<WaylandDisplayHandler, ExperimentalAsh> wayland_display_handler_;
   const raw_ptr<wl_resource, ExperimentalAsh> color_management_output_resource_;
-  raw_ptr<wl_resource, ExperimentalAsh> output_resource_;
+  raw_ptr<wl_resource, DanglingUntriaged | ExperimentalAsh> output_resource_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -290,7 +293,8 @@ void color_management_output_get_color_space(
 
   // create new zcr color space for the current color space of the output
   auto color_space = std::make_unique<ColorManagerColorSpace>(
-      color_management_output_observer->GetColorSpace());
+      color_management_output_observer->GetColorSpace(),
+      wl_resource_get_version(color_management_output_resource));
 
   wl_resource* color_space_resource = wl_resource_create(
       client, &zcr_color_space_v1_interface,
@@ -432,7 +436,7 @@ void color_manager_create_color_space_from_complete_names(
   auto chromaticity_id = gfx::ColorSpace::PrimaryID::INVALID;
   const auto* maybe_primary = ui::wayland::kChromaticityMap.find(chromaticity);
   if (maybe_primary != std::end(ui::wayland::kChromaticityMap)) {
-    chromaticity_id = maybe_primary->second;
+    chromaticity_id = maybe_primary->second.primary;
   } else {
     DLOG(ERROR) << "Unable to find named chromaticity for id=" << chromaticity;
     error_flags |= ZCR_COLOR_SPACE_CREATOR_V1_CREATION_ERROR_BAD_PRIMARIES;
@@ -441,7 +445,7 @@ void color_manager_create_color_space_from_complete_names(
   auto matrix_id = gfx::ColorSpace::MatrixID::INVALID;
   const auto* maybe_matrix = ui::wayland::kMatrixMap.find(matrix);
   if (maybe_matrix != std::end(ui::wayland::kMatrixMap)) {
-    matrix_id = maybe_matrix->second;
+    matrix_id = maybe_matrix->second.matrix;
   } else {
     DLOG(ERROR) << "Unable to find named matrix for id=" << matrix;
     wl_resource_post_error(color_manager_resource,
@@ -452,7 +456,7 @@ void color_manager_create_color_space_from_complete_names(
   auto range_id = gfx::ColorSpace::RangeID::INVALID;
   const auto* maybe_range = ui::wayland::kRangeMap.find(range);
   if (maybe_range != std::end(ui::wayland::kRangeMap)) {
-    range_id = maybe_range->second;
+    range_id = maybe_range->second.range;
   } else {
     DLOG(ERROR) << "Unable to find named range for id=" << range;
     wl_resource_post_error(color_manager_resource,
@@ -464,9 +468,9 @@ void color_manager_create_color_space_from_complete_names(
   auto eotf_id = gfx::ColorSpace::TransferID::INVALID;
   const auto* maybe_eotf = ui::wayland::kEotfMap.find(eotf);
   if (maybe_eotf != std::end(ui::wayland::kEotfMap)) {
-    eotf_id = maybe_eotf->second;
+    eotf_id = maybe_eotf->second.transfer;
   } else if (ui::wayland::kHDRTransferMap.contains(eotf)) {
-    auto transfer_fn = ui::wayland::kHDRTransferMap.at(eotf);
+    auto transfer_fn = ui::wayland::kHDRTransferMap.at(eotf).transfer_fn;
     CreateColorSpace(
         client, wl_resource_get_version(color_manager_resource), id,
         std::make_unique<NameBasedColorSpace>(
@@ -554,7 +558,7 @@ void color_manager_create_color_space_from_complete_params(
   auto matrix_id = gfx::ColorSpace::MatrixID::INVALID;
   const auto* maybe_matrix = ui::wayland::kMatrixMap.find(matrix);
   if (maybe_matrix != std::end(ui::wayland::kMatrixMap)) {
-    matrix_id = maybe_matrix->second;
+    matrix_id = maybe_matrix->second.matrix;
   } else {
     DLOG(ERROR) << "Unable to find named matrix for id=" << matrix;
     wl_resource_post_error(color_manager_resource,
@@ -565,7 +569,7 @@ void color_manager_create_color_space_from_complete_params(
   auto range_id = gfx::ColorSpace::RangeID::INVALID;
   const auto* maybe_range = ui::wayland::kRangeMap.find(range);
   if (maybe_range != std::end(ui::wayland::kRangeMap)) {
-    range_id = maybe_range->second;
+    range_id = maybe_range->second.range;
   } else {
     DLOG(ERROR) << "Unable to find named range for id=" << range;
     wl_resource_post_error(color_manager_resource,
@@ -577,7 +581,7 @@ void color_manager_create_color_space_from_complete_params(
   auto eotf_id = gfx::ColorSpace::TransferID::INVALID;
   const auto* maybe_eotf = ui::wayland::kEotfMap.find(eotf);
   if (maybe_eotf != std::end(ui::wayland::kEotfMap)) {
-    eotf_id = maybe_eotf->second;
+    eotf_id = maybe_eotf->second.transfer;
   } else {
     DLOG(ERROR) << "Unable to find named transfer function for id=" << eotf;
     wl_resource_post_error(color_manager_resource,
@@ -600,10 +604,11 @@ void color_manager_create_color_space_from_complete_params(
   }
 
   auto primary_id = gfx::ColorSpace::PrimaryID::CUSTOM;
-  CreateColorSpace(
-      client, wl_resource_get_version(color_manager_resource), id,
-      std::make_unique<ColorManagerColorSpace>(gfx::ColorSpace(
-          primary_id, eotf_id, matrix_id, range_id, &xyzd50, nullptr)));
+  CreateColorSpace(client, wl_resource_get_version(color_manager_resource), id,
+                   std::make_unique<ColorManagerColorSpace>(
+                       gfx::ColorSpace(primary_id, eotf_id, matrix_id, range_id,
+                                       &xyzd50, nullptr),
+                       kZcrColorManagerVersion));
 }
 
 void color_manager_create_color_space_from_params_DEPRECATED(

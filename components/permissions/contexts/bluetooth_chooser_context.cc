@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -83,19 +84,13 @@ void AddManufacturerDataTo(
   if (!options || options->optional_manufacturer_data.empty())
     return;
 
-  base::flat_set<uint16_t> manufacturer_data_set(
-      options->optional_manufacturer_data);
-
-  auto& manufacturer_data_list =
-      *permission_object.EnsureList(kManufacturerDataKey);
-  for (const auto& manufacturer_data_permission : manufacturer_data_list) {
-    manufacturer_data_set.insert(
-        static_cast<uint16_t>(manufacturer_data_permission.GetInt()));
+  CHECK(permission_object.FindDict(kManufacturerDataKey));
+  auto& manufacturer_data_dict =
+      *permission_object.FindDict(kManufacturerDataKey);
+  for (uint16_t manufacturer_code : options->optional_manufacturer_data) {
+    manufacturer_data_dict.Set(base::NumberToString(manufacturer_code),
+                               /*value=*/true);
   }
-
-  manufacturer_data_list.clear();
-  for (const uint16_t manufacturer_code : manufacturer_data_set)
-    manufacturer_data_list.Append(manufacturer_code);
 }
 
 }  // namespace
@@ -122,7 +117,7 @@ base::Value::Dict BluetoothChooserContext::DeviceInfoToValue(
   device_value.Set(kServicesKey, base::Value::Dict());
   AddUnionOfServicesTo(options, device_value);
 
-  device_value.Set(kManufacturerDataKey, base::Value::List());
+  device_value.Set(kManufacturerDataKey, base::Value::Dict());
   AddManufacturerDataTo(options, device_value);
 
   return device_value;
@@ -134,12 +129,11 @@ WebBluetoothDeviceId BluetoothChooserContext::GetWebBluetoothDeviceId(
   const std::vector<std::unique_ptr<Object>> object_list =
       GetGrantedObjects(origin);
   for (const auto& object : object_list) {
-    const base::Value& device = object->value;
+    const base::Value::Dict& device = object->value;
     DCHECK(IsValidObject(device));
 
-    if (device_address == *device.FindStringKey(kDeviceAddressKey)) {
-      return WebBluetoothDeviceId(
-          *device.FindStringKey(kWebBluetoothDeviceIdKey));
+    if (device_address == *device.FindString(kDeviceAddressKey)) {
+      return WebBluetoothDeviceId(*device.FindString(kWebBluetoothDeviceIdKey));
     }
   }
 
@@ -200,9 +194,8 @@ WebBluetoothDeviceId BluetoothChooserContext::GrantServiceAccessPermission(
       GetGrantedObjects(origin);
   const std::string& device_address = device->GetAddress();
   for (const auto& object : object_list) {
-    const base::Value& device_object = object->value;
-    DCHECK(IsValidObject(device_object));
-    const base::Value::Dict& device_dict = device_object.GetDict();
+    const base::Value::Dict& device_dict = object->value;
+    DCHECK(IsValidObject(device_dict));
     if (device_address == *device_dict.FindString(kDeviceAddressKey)) {
       auto new_device_dict = device_dict.Clone();
       WebBluetoothDeviceId device_id(
@@ -210,8 +203,7 @@ WebBluetoothDeviceId BluetoothChooserContext::GrantServiceAccessPermission(
 
       AddUnionOfServicesTo(options, new_device_dict);
       AddManufacturerDataTo(options, new_device_dict);
-      UpdateObjectPermission(origin, device_object,
-                             base::Value(std::move(new_device_dict)));
+      UpdateObjectPermission(origin, device_dict, std::move(new_device_dict));
       return device_id;
     }
   }
@@ -240,7 +232,7 @@ WebBluetoothDeviceId BluetoothChooserContext::GrantServiceAccessPermission(
 
   base::Value::Dict permission_object =
       DeviceInfoToValue(device, options, device_id);
-  GrantObjectPermission(origin, base::Value(std::move(permission_object)));
+  GrantObjectPermission(origin, std::move(permission_object));
   return device_id;
 }
 
@@ -258,7 +250,7 @@ void BluetoothChooserContext::RevokeDevicePermissionWebInitiated(
   absl::optional<base::Value::Dict> device =
       FindDeviceObject(origin, device_id);
   if (device.has_value())
-    RevokeObjectPermission(origin, base::Value(std::move(*device)));
+    RevokeObjectPermission(origin, std::move(*device));
 }
 
 bool BluetoothChooserContext::IsAllowedToAccessAtLeastOneService(
@@ -293,39 +285,32 @@ bool BluetoothChooserContext::IsAllowedToAccessManufacturerData(
   if (!device.has_value())
     return false;
 
-  const auto* manufacturer_data_list = device->FindList(kManufacturerDataKey);
-  if (!manufacturer_data_list)
-    return false;
-
-  for (const auto& manufacturer_data : *manufacturer_data_list) {
-    if (manufacturer_code == manufacturer_data.GetInt())
-      return true;
-  }
-  return false;
+  const auto& manufacturer_data_list = *device->FindDict(kManufacturerDataKey);
+  return manufacturer_data_list.contains(
+      base::NumberToString(manufacturer_code));
 }
 
 // static
 WebBluetoothDeviceId BluetoothChooserContext::GetObjectDeviceId(
-    const base::Value& object) {
-  std::string device_id_str =
-      *object.GetDict().FindString(kWebBluetoothDeviceIdKey);
+    const base::Value::Dict& object) {
+  std::string device_id_str = *object.FindString(kWebBluetoothDeviceIdKey);
   return WebBluetoothDeviceId(device_id_str);
 }
 
 std::string BluetoothChooserContext::GetKeyForObject(
-    const base::Value& object) {
+    const base::Value::Dict& object) {
   if (!IsValidObject(object))
     return std::string();
-  return *(object.GetDict().FindString(kWebBluetoothDeviceIdKey));
+  return *(object.FindString(kWebBluetoothDeviceIdKey));
 }
 
-bool BluetoothChooserContext::IsValidObject(const base::Value& object) {
-  return IsValidDict(object.GetDict());
+bool BluetoothChooserContext::IsValidObject(const base::Value::Dict& object) {
+  return IsValidDict(object);
 }
 
 std::u16string BluetoothChooserContext::GetObjectDisplayName(
-    const base::Value& object) {
-  return base::UTF8ToUTF16(*object.GetDict().FindString(kDeviceNameKey));
+    const base::Value::Dict& object) {
+  return base::UTF8ToUTF16(*object.FindString(kDeviceNameKey));
 }
 
 bool BluetoothChooserContext::IsValidDict(const base::Value::Dict& dict) {
@@ -334,7 +319,7 @@ bool BluetoothChooserContext::IsValidDict(const base::Value::Dict& dict) {
          dict.FindString(kWebBluetoothDeviceIdKey) &&
          WebBluetoothDeviceId::IsValid(
              *dict.FindString(kWebBluetoothDeviceIdKey)) &&
-         dict.FindDict(kServicesKey);
+         dict.FindDict(kServicesKey) && dict.FindDict(kManufacturerDataKey);
 }
 
 absl::optional<base::Value::Dict> BluetoothChooserContext::FindDeviceObject(
@@ -343,7 +328,7 @@ absl::optional<base::Value::Dict> BluetoothChooserContext::FindDeviceObject(
   const std::vector<std::unique_ptr<Object>> object_list =
       GetGrantedObjects(origin);
   for (const auto& object : object_list) {
-    base::Value::Dict device = std::move(object->value).TakeDict();
+    base::Value::Dict device = std::move(object->value);
     DCHECK(IsValidDict(device));
 
     const WebBluetoothDeviceId web_bluetooth_device_id(

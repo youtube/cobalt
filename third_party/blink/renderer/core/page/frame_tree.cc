@@ -42,29 +42,6 @@ namespace {
 
 const unsigned kInvalidChildCount = ~0U;
 
-void LogDanglingMarkupHistogram(Document* document, const AtomicString& name) {
-  document->CountUse(WebFeature::kDanglingMarkupInTarget);
-  if (!name.EndsWith('>')) {
-    document->CountUse(WebFeature::kDanglingMarkupInTargetNotEndsWithGT);
-    if (!name.EndsWith('\n')) {
-      document->CountUse(
-          WebFeature::kDanglingMarkupInTargetNotEndsWithNewLineOrGT);
-    }
-  }
-}
-
-bool ContainsNewLineAndLessThan(const AtomicString& name) {
-  return name.Contains('\n') && name.Contains('<');
-}
-
-bool IsRequestFromHtml(FrameLoadRequest& request) {
-  return request.ClientRedirectReason() ==
-             ClientNavigationReason::kFormSubmissionGet ||
-         request.ClientRedirectReason() ==
-             ClientNavigationReason::kFormSubmissionPost ||
-         request.ClientRedirectReason() == ClientNavigationReason::kAnchorClick;
-}
-
 }  // namespace
 
 FrameTree::FrameTree(Frame* this_frame)
@@ -233,12 +210,6 @@ FrameTree::FindResult FrameTree::FindOrCreateFrameForNavigation(
   if (request.GetNavigationPolicy() != kNavigationPolicyCurrentTab)
     return FindResult(current_frame, false);
 
-  // Log use counters if the name contains both '\n' and '<'.
-  if (ContainsNewLineAndLessThan(name) && IsRequestFromHtml(request) &&
-      current_frame->GetDocument()) {
-    LogDanglingMarkupHistogram(current_frame->GetDocument(), name);
-  }
-
   const KURL& url = request.GetResourceRequest().Url();
   Frame* frame = FindFrameForNavigationInternal(name, url, &request);
   bool new_window = false;
@@ -275,7 +246,7 @@ Frame* FrameTree::FindFrameForNavigationInternal(
 
   if (EqualIgnoringASCIICase(name, "_self") ||
       EqualIgnoringASCIICase(name, "_current") || name.empty()) {
-    return this_frame_;
+    return this_frame_.Get();
   }
 
   if (EqualIgnoringASCIICase(name, "_top"))
@@ -292,7 +263,7 @@ Frame* FrameTree::FindFrameForNavigationInternal(
             blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds &&
         request != nullptr) {
       request->SetIsUnfencedTopNavigation(true);
-      return this_frame_;
+      return this_frame_.Get();
     }
   }
 

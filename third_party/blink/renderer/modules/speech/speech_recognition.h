@@ -48,7 +48,7 @@ class LocalDOMWindow;
 class SpeechRecognitionController;
 
 class MODULES_EXPORT SpeechRecognition final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ActiveScriptWrappable<SpeechRecognition>,
       public ExecutionContextLifecycleObserver,
       public mojom::blink::SpeechRecognitionSessionClient,
@@ -63,7 +63,7 @@ class MODULES_EXPORT SpeechRecognition final
 
   // SpeechRecognition.idl implemementation.
   // Attributes.
-  SpeechGrammarList* grammars() { return grammars_; }
+  SpeechGrammarList* grammars() { return grammars_.Get(); }
   void setGrammars(SpeechGrammarList* grammars) { grammars_ = grammars; }
   String lang() { return lang_; }
   void setLang(const String& lang) { lang_ = lang; }

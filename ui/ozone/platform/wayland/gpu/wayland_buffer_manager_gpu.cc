@@ -29,6 +29,15 @@
 
 namespace ui {
 
+namespace {
+
+// The minimum version for `augmented_surface` interface to use DP coordinates
+// for the root surface origin. Before this version, it uses pixel coordinates
+// which causes event targeter breakage when quads are out of the root surface.
+constexpr uint32_t kRootSurfaceOriginInDP = 10;
+
+}  // namespace
+
 WaylandBufferManagerGpu::WaylandBufferManagerGpu()
     : WaylandBufferManagerGpu(base::FilePath()) {}
 
@@ -77,7 +86,9 @@ void WaylandBufferManagerGpu::Initialize(
     bool supports_viewporter,
     bool supports_acquire_fence,
     bool supports_overlays,
-    uint32_t supported_surface_augmentor_version) {
+    uint32_t supported_surface_augmentor_version,
+    bool supports_single_pixel_buffer,
+    const std::vector<uint32_t>& bug_fix_ids) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
 
   // See the comment in the constructor.
@@ -101,7 +112,13 @@ void WaylandBufferManagerGpu::Initialize(
       AUGMENTED_SURFACE_SET_BACKGROUND_COLOR_SINCE_VERSION;
   supports_clip_rect_ = supported_surface_augmentor_version >=
                         AUGMENTED_SUB_SURFACE_SET_CLIP_RECT_SINCE_VERSION;
+  supports_affine_transform_ =
+      supported_surface_augmentor_version >=
+      AUGMENTED_SUB_SURFACE_SET_TRANSFORM_SINCE_VERSION;
+  supports_out_of_window_clip_rect_ =
+      supported_surface_augmentor_version >= kRootSurfaceOriginInDP;
 
+  supports_single_pixel_buffer_ = supports_single_pixel_buffer;
   BindHostInterface(std::move(remote_host));
 
   ProcessPendingTasks();
@@ -261,6 +278,24 @@ void WaylandBufferManagerGpu::CreateSolidColorBuffer(SkColor4f color,
   RunOrQueueTask(std::move(task));
 }
 
+void WaylandBufferManagerGpu::CreateSinglePixelBuffer(SkColor4f color,
+                                                      uint32_t buf_id) {
+  DCHECK(gpu_thread_runner_);
+  if (!gpu_thread_runner_->BelongsToCurrentThread()) {
+    // Do the mojo call on the GpuMainThread.
+    gpu_thread_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&WaylandBufferManagerGpu::CreateSinglePixelBuffer,
+                       base::Unretained(this), color, buf_id));
+    return;
+  }
+
+  base::OnceClosure task =
+      base::BindOnce(&WaylandBufferManagerGpu::CreateSinglePixelBufferTask,
+                     base::Unretained(this), color, buf_id);
+  RunOrQueueTask(std::move(task));
+}
+
 void WaylandBufferManagerGpu::CommitBuffer(gfx::AcceleratedWidget widget,
                                            uint32_t frame_id,
                                            uint32_t buffer_id,
@@ -353,15 +388,17 @@ void WaylandBufferManagerGpu::AddBindingWaylandBufferManagerGpu(
   receiver_set_.Add(this, std::move(receiver));
 }
 
-const std::vector<uint64_t>&
+const std::vector<uint64_t>
 WaylandBufferManagerGpu::GetModifiersForBufferFormat(
     gfx::BufferFormat buffer_format) const {
   auto it = supported_buffer_formats_with_modifiers_.find(buffer_format);
   if (it != supported_buffer_formats_with_modifiers_.end()) {
+    if (drm_modifiers_filter_) {
+      return drm_modifiers_filter_->Filter(buffer_format, it->second);
+    }
     return it->second;
   }
-  static std::vector<uint64_t> dummy;
-  return dummy;
+  return {};
 }
 
 uint32_t WaylandBufferManagerGpu::AllocateBufferID() {
@@ -520,6 +557,14 @@ void WaylandBufferManagerGpu::CreateSolidColorBufferTask(SkColor4f color,
   DCHECK(remote_host_);
 
   remote_host_->CreateSolidColorBuffer(size, color, buf_id);
+}
+
+void WaylandBufferManagerGpu::CreateSinglePixelBufferTask(SkColor4f color,
+                                                          uint32_t buf_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+  DCHECK(remote_host_);
+
+  remote_host_->CreateSinglePixelBuffer(color, buf_id);
 }
 
 void WaylandBufferManagerGpu::CommitOverlaysTask(

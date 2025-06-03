@@ -5,12 +5,10 @@
 #include <set>
 #include <string>
 
+#include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/values.h"
-#include "components/autofill/core/common/autofill_prefs.h"
-#include "components/history/core/common/pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/testing_pref_store.h"
 #include "components/safe_search_api/safe_search_util.h"
@@ -19,6 +17,7 @@
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "components/sync/base/pref_names.h"
 #include "extensions/buildflags/buildflags.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -94,33 +93,9 @@ void SupervisedUserPrefStoreTest::TearDown() {
   service_.Shutdown();
 }
 
-TEST_F(SupervisedUserPrefStoreTest,
-       ConfigureSettingsWithHistoryDeletionAllowed) {
-  SupervisedUserPrefStoreFixture fixture(&service_);
-  EXPECT_FALSE(fixture.initialization_completed());
-
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      supervised_user::kAllowHistoryDeletionForChildAccounts);
-
-  pref_store_->SetInitializationCompleted();
-  service_.SetActive(true);
-
-  // kAllowDeletingBrowserHistory is based on the state of the feature
-  // supervised_user::kAllowHistoryDeletionForChildAccounts.
-  // This is enabled in scope.
-  EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
-                  prefs::kAllowDeletingBrowserHistory),
-              Optional(true));
-}
-
 TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
   SupervisedUserPrefStoreFixture fixture(&service_);
   EXPECT_FALSE(fixture.initialization_completed());
-
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      supervised_user::kAllowHistoryDeletionForChildAccounts);
 
   // Prefs should not change yet when the service is ready, but not
   // activated yet.
@@ -129,13 +104,6 @@ TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
   EXPECT_EQ(0u, fixture.changed_prefs()->size());
 
   service_.SetActive(true);
-
-  // kAllowDeletingBrowserHistory is based on the state of the feature
-  // supervised_user::kAllowHistoryDeletionForChildAccounts.
-  // This is disabled in scope.
-  EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
-                  prefs::kAllowDeletingBrowserHistory),
-              Optional(false));
 
   // kIncognitoModeAvailability must be disabled for all supervised users.
   EXPECT_THAT(
@@ -147,28 +115,46 @@ TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
   EXPECT_FALSE(fixture.changed_prefs()->FindDictByDottedPath(
       prefs::kSupervisedUserManualHosts));
 
-  // kForceGoogleSafeSearch defaults to true and kForceYouTubeRestrict defaults
-  // to Moderate for supervised users.
-  EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
-                  policy::policy_prefs::kForceGoogleSafeSearch),
-              Optional(true));
+  // kForceGoogleSafeSearch defaults to true if the relevant feature flag is
+  // enabled.
+  if (base::FeatureList::IsEnabled(
+          supervised_user::kForceGoogleSafeSearchForSupervisedUsers)) {
+    EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
+                    policy::policy_prefs::kForceGoogleSafeSearch),
+                Optional(true));
+  } else {
+    EXPECT_FALSE(
+        fixture.changed_prefs()
+            ->FindBoolByDottedPath(policy::policy_prefs::kForceGoogleSafeSearch)
+            .has_value());
+  }
+
+  // kForceYouTubeRestrict defaults to 'moderate' for supervised users on
+  // Android and ChromeOS only.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   int force_youtube_restrict =
       fixture.changed_prefs()
           ->FindIntByDottedPath(policy::policy_prefs::kForceYouTubeRestrict)
           .value_or(safe_search_api::YOUTUBE_RESTRICT_OFF);
   EXPECT_EQ(force_youtube_restrict, safe_search_api::YOUTUBE_RESTRICT_MODERATE);
+#else
+  EXPECT_FALSE(
+      fixture.changed_prefs()
+          ->FindIntByDottedPath(policy::policy_prefs::kForceYouTubeRestrict)
+          .has_value());
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
-                  autofill::prefs::kAutofillWalletImportEnabled),
+                  syncer::prefs::internal::kSyncPayments),
               false);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  // Permissions requests default to disallowed.
+  // Permissions requests default to allowed, to match server-side behavior.
   EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
                   prefs::kSupervisedUserExtensionsMayRequestPermissions),
-              Optional(false));
+              Optional(true));
 #endif
 
   // Activating the service again should not change anything.
@@ -190,8 +176,8 @@ TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
   ASSERT_TRUE(manual_hosts);
   EXPECT_TRUE(*manual_hosts == hosts);
 
-  // kForceGoogleSafeSearch and kForceYouTubeRestrict can be configured by the
-  // custodian, overriding the hardcoded default.
+  // kForceGoogleSafeSearch can be configured by the custodian, overriding the
+  // hardcoded default.
   fixture.changed_prefs()->clear();
   service_.SetLocalSetting(supervised_user::kForceSafeSearch,
                            base::Value(false));
@@ -200,11 +186,20 @@ TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
                   policy::policy_prefs::kForceGoogleSafeSearch),
               Optional(false));
 
+  // kForceYouTubeRestrict can be configured by the custodian on Android and
+  // ChromeOS only.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   force_youtube_restrict =
       fixture.changed_prefs()
           ->FindIntByDottedPath(policy::policy_prefs::kForceYouTubeRestrict)
           .value_or(safe_search_api::YOUTUBE_RESTRICT_MODERATE);
   EXPECT_EQ(force_youtube_restrict, safe_search_api::YOUTUBE_RESTRICT_OFF);
+#else
+  EXPECT_FALSE(
+      fixture.changed_prefs()
+          ->FindIntByDottedPath(policy::policy_prefs::kForceYouTubeRestrict)
+          .has_value());
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // The custodian can allow sites and apps to request permissions.
@@ -219,10 +214,7 @@ TEST_F(SupervisedUserPrefStoreTest, ConfigureSettings) {
   fixture.changed_prefs()->clear();
   service_.SetLocalSetting(supervised_user::kGeolocationDisabled,
                            base::Value(false));
-  EXPECT_EQ(1u, fixture.changed_prefs()->size());
-  EXPECT_THAT(fixture.changed_prefs()->FindBoolByDottedPath(
-                  prefs::kSupervisedUserExtensionsMayRequestPermissions),
-              Optional(true));
+  EXPECT_EQ(0u, fixture.changed_prefs()->size());
 
   histogram_tester.ExpectUniqueSample(
       "SupervisedUsers.ExtensionsMayRequestPermissions", /*enabled=*/true, 1);

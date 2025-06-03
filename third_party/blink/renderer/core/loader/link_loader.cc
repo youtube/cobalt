@@ -141,6 +141,7 @@ bool LinkLoader::LoadLink(const LinkLoadParameters& params,
     PreloadHelper::PrefetchIfNeeded(params, document, pending_preload_);
   PreloadHelper::ModulePreloadIfNeeded(
       params, document, nullptr /* viewport_description */, pending_preload_);
+  PreloadHelper::FetchDictionaryIfNeeded(params, document, pending_preload_);
 
   absl::optional<mojom::blink::PrerenderTriggerType> trigger_type =
       PrerenderTriggerTypeFromRelAttribute(params.rel, document);
@@ -166,8 +167,6 @@ void LinkLoader::LoadStylesheet(
 
   mojom::blink::FetchPriorityHint fetch_priority_hint =
       GetFetchPriorityAttributeValue(params.fetch_priority_hint);
-  DCHECK(fetch_priority_hint == mojom::blink::FetchPriorityHint::kAuto ||
-         RuntimeEnabledFeatures::PriorityHintsEnabled(context));
   resource_request.SetFetchPriorityHint(fetch_priority_hint);
 
   ResourceLoaderOptions options(context->GetCurrentWorld());

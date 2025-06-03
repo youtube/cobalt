@@ -4,12 +4,11 @@
 
 package org.chromium.components.payments;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
@@ -122,7 +121,6 @@ public class PaymentManifestDownloader {
     }
 
     /** @return An opaque origin to be used in tests. */
-    @VisibleForTesting
     public static Origin createOpaqueOriginForTest() {
         return PaymentManifestDownloaderJni.get().createOpaqueOriginForTest();
     }

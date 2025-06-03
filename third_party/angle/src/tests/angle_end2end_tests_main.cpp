@@ -22,17 +22,38 @@ void RegisterContextCompatibilityTests();
 namespace
 {
 constexpr char kTestExpectationsPath[] = "src/tests/angle_end2end_tests_expectations.txt";
+
+bool HasArg(int argc, char **argv, const char *arg)
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strstr(argv[i], arg) != nullptr)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 }  // namespace
 
 int main(int argc, char **argv)
 {
-    angle::TestSuite testSuite(&argc, argv);
-    ANGLEProcessTestArgs(&argc, argv);
-
-    if (!IsTSan())
+    if (!HasArg(argc, argv, "--list-tests") && !HasArg(argc, argv, "--gtest_list_tests") &&
+        HasArg(argc, argv, "--use-gl"))
     {
-        RegisterContextCompatibilityTests();
+        std::cerr << "--use-gl isn't supported by end2end tests - use *_EGL configs instead "
+                     "(angle_test_enable_system_egl=true)\n";
+        return EXIT_FAILURE;
     }
+
+    auto registerTestsCallback = [] {
+        if (!IsTSan())
+        {
+            RegisterContextCompatibilityTests();
+        }
+    };
+    angle::TestSuite testSuite(&argc, argv, registerTestsCallback);
+    ANGLEProcessTestArgs(&argc, argv);
 
     constexpr size_t kMaxPath = 512;
     std::array<char, kMaxPath> foundDataPath;

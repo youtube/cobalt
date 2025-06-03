@@ -55,6 +55,8 @@ component("gin") {
     "runner.h",
     "shell_runner.cc",
     "shell_runner.h",
+    "thread_isolation.cc",
+    "thread_isolation.h",
     "time_clamper.cc",
     "time_clamper.h",
     "try_catch.cc",
@@ -82,6 +84,12 @@ component("gin") {
       "v8_platform_page_allocator.cc",
       "v8_platform_page_allocator.h",
     ]
+    if (enable_pkeys) {
+      sources += [
+        "v8_platform_thread_isolated_allocator.cc",
+        "v8_platform_thread_isolated_allocator.h",
+      ]
+    }
   }
 
   if (v8_use_external_startup_data) {
@@ -239,9 +247,6 @@ test("gin_unittests") {
   }
 
   if (is_fuchsia) {
-    # TODO(https://crbug.com/1185811): Investigate removing the requirement for
-    # job_policy_ambient_mark_vmo_exec for the sake of V8's allocator in tests.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
     additional_manifest_fragments =
         [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
   }

@@ -5,12 +5,9 @@
 import("//build/config/chrome_build.gni")
 
 source_set("logging") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "first_run_signin_logger.h",
     "first_run_signin_logger.mm",
-    "force_signin_logger.h",
-    "force_signin_logger.mm",
     "upgrade_signin_logger.h",
     "upgrade_signin_logger.mm",
     "user_signin_logger.h",
@@ -19,6 +16,7 @@ source_set("logging") {
   deps = [
     "//components/prefs",
     "//components/version_info",
+    "//ios/chrome/browser/first_run",
     "//ios/chrome/browser/signin",
   ]
   public_deps = [

@@ -12,6 +12,7 @@
 #include "crypto/rsa_private_key.h"
 #include "net/cert/x509_util.h"
 #include "net/ssl/client_cert_identity_test_util.h"
+#include "net/ssl/client_cert_store.h"
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/test_ssl_private_key.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -71,8 +72,10 @@ class TestTokenValidator : TokenValidatorBase {
  private:
   void StartValidateRequest(const std::string& token) override {}
 
-  raw_ptr<net::X509Certificate> expected_client_cert_ = nullptr;
-  raw_ptr<net::SSLPrivateKey> expected_private_key_ = nullptr;
+  raw_ptr<net::X509Certificate, DanglingUntriaged> expected_client_cert_ =
+      nullptr;
+  raw_ptr<net::SSLPrivateKey, DanglingUntriaged> expected_private_key_ =
+      nullptr;
 };
 
 TestTokenValidator::TestTokenValidator(const ThirdPartyAuthConfig& config)

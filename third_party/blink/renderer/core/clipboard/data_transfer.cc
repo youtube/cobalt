@@ -197,20 +197,20 @@ AtomicString ConvertDragOperationsMaskToEffectAllowed(DragOperationsMask op) {
   if (((op & kDragOperationMove) && (op & kDragOperationCopy) &&
        (op & kDragOperationLink)) ||
       (op == kDragOperationEvery))
-    return "all";
+    return AtomicString("all");
   if ((op & kDragOperationMove) && (op & kDragOperationCopy))
-    return "copyMove";
+    return AtomicString("copyMove");
   if ((op & kDragOperationMove) && (op & kDragOperationLink))
-    return "linkMove";
+    return AtomicString("linkMove");
   if ((op & kDragOperationCopy) && (op & kDragOperationLink))
-    return "copyLink";
+    return AtomicString("copyLink");
   if (op & kDragOperationMove)
-    return "move";
+    return AtomicString("move");
   if (op & kDragOperationCopy)
-    return "copy";
+    return AtomicString("copy");
   if (op & kDragOperationLink)
-    return "link";
-  return "none";
+    return AtomicString("link");
+  return keywords::kNone;
 }
 
 // We provide the IE clipboard types (URL and Text), and the clipboard types
@@ -235,8 +235,8 @@ String NormalizeType(const String& type, bool* convert_to_url = nullptr) {
 DataTransfer* DataTransfer::Create() {
   DataTransfer* data = Create(
       kCopyAndPaste, DataTransferAccessPolicy::kWritable, DataObject::Create());
-  data->drop_effect_ = "none";
-  data->effect_allowed_ = "none";
+  data->drop_effect_ = keywords::kNone;
+  data->effect_allowed_ = keywords::kNone;
   return data;
 }
 
@@ -331,11 +331,11 @@ Vector<String> DataTransfer::types() {
 FileList* DataTransfer::files() const {
   if (!CanReadData()) {
     files_->clear();
-    return files_;
+    return files_.Get();
   }
 
   if (!files_->IsEmpty())
-    return files_;
+    return files_.Get();
 
   for (uint32_t i = 0; i < data_object_->length(); ++i) {
     if (data_object_->Item(i)->Kind() == DataObjectItem::kFileKind) {
@@ -345,7 +345,7 @@ FileList* DataTransfer::files() const {
     }
   }
 
-  return files_;
+  return files_.Get();
 }
 
 void DataTransfer::setDragImage(Element* image, int x, int y) {
@@ -414,8 +414,9 @@ std::unique_ptr<DragImage> DataTransfer::CreateDragImageForFrame(
   // Rasterize upfront, since DragImage::create() is going to do it anyway
   // (SkImage::asLegacyBitmap).
   SkSurfaceProps surface_props(0, kUnknown_SkPixelGeometry);
-  sk_sp<SkSurface> surface = SkSurface::MakeRasterN32Premul(
-      device_size.width(), device_size.height(), &surface_props);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(device_size.width(), device_size.height()),
+      &surface_props);
   if (!surface)
     return nullptr;
 
@@ -597,7 +598,7 @@ DataTransferItemList* DataTransfer::items() {
 }
 
 DataObject* DataTransfer::GetDataObject() const {
-  return data_object_;
+  return data_object_.Get();
 }
 
 DataTransfer::DataTransfer(DataTransferType type,

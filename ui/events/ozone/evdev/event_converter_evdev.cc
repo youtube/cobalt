@@ -50,6 +50,14 @@ EventConverterEvdev::EventConverterEvdev(int fd,
 
 EventConverterEvdev::~EventConverterEvdev() = default;
 
+// static
+bool EventConverterEvdev::IsValidKeyboardKeyPress(uint64_t key) {
+  return (key >= KEY_1 && key <= KEY_EQUAL) ||
+         (key >= KEY_Q && key <= KEY_RIGHTBRACE) ||
+         (key >= KEY_A && key <= KEY_APOSTROPHE) ||
+         (key >= KEY_BACKSLASH && key <= KEY_SLASH);
+}
+
 void EventConverterEvdev::ApplyDeviceSettings(
     const InputDeviceSettingsEvdev& settings) {}
 
@@ -136,6 +144,14 @@ bool EventConverterEvdev::HasPen() const {
 }
 
 bool EventConverterEvdev::HasGamepad() const {
+  return false;
+}
+
+bool EventConverterEvdev::HasGraphicsTablet() const {
+  return false;
+}
+
+bool EventConverterEvdev::HasAssistantKey() const {
   return false;
 }
 
@@ -257,4 +273,12 @@ base::TimeTicks EventConverterEvdev::TimeTicksFromInputEvent(
   ValidateEventTimeClock(&timestamp);
   return timestamp;
 }
+
+std::ostream& EventConverterEvdev::DescribeForLog(std::ostream& os) const {
+  os << "class=ui::EventConverterEvdev id=" << input_device_.id << std::endl
+     << " path=\"" << path_.value() << "\"" << std::endl
+     << "member ";
+  return input_device_.DescribeForLog(os);
+}
+
 }  // namespace ui

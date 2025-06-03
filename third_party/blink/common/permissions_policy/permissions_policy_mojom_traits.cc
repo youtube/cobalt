@@ -14,6 +14,7 @@ bool StructTraits<blink::mojom::OriginWithPossibleWildcardsDataView,
     Read(blink::mojom::OriginWithPossibleWildcardsDataView in,
          blink::OriginWithPossibleWildcards* out) {
   out->csp_source.is_host_wildcard = in.is_host_wildcard();
+  out->csp_source.is_port_wildcard = in.is_port_wildcard();
   out->csp_source.port = in.port();
   if (!in.ReadScheme(&out->csp_source.scheme) ||
       !in.ReadHost(&out->csp_source.host)) {

@@ -26,6 +26,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using bookmarks::BookmarkModel;
+using PermissionStatus = blink::mojom::PermissionStatus;
 
 namespace {
 
@@ -103,8 +104,10 @@ TEST_F(DurableStoragePermissionContextTest, Bookmarked) {
   ASSERT_EQ(CONTENT_SETTING_DEFAULT,
             permission_context.last_permission_set_setting());
 
-  permission_context.DecidePermission(id, url, url, true /* user_gesture */,
-                                      base::DoNothing());
+  permission_context.DecidePermission(
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, url, url),
+      base::DoNothing());
   // Success.
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
@@ -128,8 +131,10 @@ TEST_F(DurableStoragePermissionContextTest, BookmarkAndIncognitoMode) {
   ASSERT_EQ(CONTENT_SETTING_DEFAULT,
             permission_context.last_permission_set_setting());
 
-  permission_context.DecidePermission(id, url, url, true /* user_gesture */,
-                                      base::DoNothing());
+  permission_context.DecidePermission(
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, url, url),
+      base::DoNothing());
   // Success.
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
@@ -155,8 +160,10 @@ TEST_F(DurableStoragePermissionContextTest, BookmarkAndNonPrimaryOTRProfile) {
   ASSERT_EQ(CONTENT_SETTING_DEFAULT,
             permission_context.last_permission_set_setting());
 
-  permission_context.DecidePermission(id, url, url, true /* user_gesture */,
-                                      base::DoNothing());
+  permission_context.DecidePermission(
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, url, url),
+      base::DoNothing());
   // Success.
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
@@ -178,8 +185,10 @@ TEST_F(DurableStoragePermissionContextTest, NoBookmark) {
   ASSERT_EQ(CONTENT_SETTING_DEFAULT,
             permission_context.last_permission_set_setting());
 
-  permission_context.DecidePermission(id, url, url, true /* user_gesture */,
-                                      base::DoNothing());
+  permission_context.DecidePermission(
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, url, url),
+      base::DoNothing());
 
   // We shouldn't be granted.
   EXPECT_EQ(1, permission_context.permission_set_count());
@@ -208,8 +217,10 @@ TEST_F(DurableStoragePermissionContextTest, CookiesNotAllowed) {
   ASSERT_EQ(CONTENT_SETTING_DEFAULT,
             permission_context.last_permission_set_setting());
 
-  permission_context.DecidePermission(id, url, url, true /* user_gesture */,
-                                      base::DoNothing());
+  permission_context.DecidePermission(
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, url, url),
+      base::DoNothing());
   // We shouldn't be granted.
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_FALSE(permission_context.last_permission_set_persisted());
@@ -234,7 +245,10 @@ TEST_F(DurableStoragePermissionContextTest, EmbeddedFrame) {
             permission_context.last_permission_set_setting());
 
   permission_context.DecidePermission(
-      id, requesting_url, url, true /* user_gesture */, base::DoNothing());
+      permissions::PermissionRequestData(&permission_context, id,
+                                         /*user_gesture=*/true, requesting_url,
+                                         url),
+      base::DoNothing());
   // We shouldn't be granted.
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_FALSE(permission_context.last_permission_set_persisted());
@@ -246,8 +260,8 @@ TEST_F(DurableStoragePermissionContextTest, NonsecureOrigin) {
   TestDurablePermissionContext permission_context(profile());
   GURL url("http://www.google.com");
 
-  EXPECT_EQ(CONTENT_SETTING_BLOCK,
+  EXPECT_EQ(PermissionStatus::DENIED,
             permission_context
                 .GetPermissionStatus(nullptr /* render_frame_host */, url, url)
-                .content_setting);
+                .status);
 }

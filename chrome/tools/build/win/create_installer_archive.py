@@ -70,7 +70,8 @@ def BuildVersion():
   return '%s.%s.%s.%s' % (major, minor, build, patch)
 
 
-def CompressUsingLZMA(build_dir, compressed_file, input_file, verbose, fast):
+def CompressUsingLZMA(build_dir, compressed_file, input_file, verbose, fast,
+                      strip_time=False):
   lzma_exec = GetLZMAExec(build_dir)
   cmd = [lzma_exec,
          'a', '-t7z',
@@ -102,13 +103,31 @@ def CompressUsingLZMA(build_dir, compressed_file, input_file, verbose, fast):
       os.path.abspath(input_file),
     ]
   )
+  # 'tm' means to store last modified timestamps for files in the
+  # archive(default on). If strip_time is true, attach '-' to turn it off.
+  # See https://sourceforge.net/p/sevenzip/discussion/45797/thread/61905a4c.
+  if strip_time:
+    cmd.append('-mtm-')
   if os.path.exists(compressed_file):
     os.remove(compressed_file)
   RunSystemCommand(cmd, verbose)
 
 
+def OverwriteStagingBuildTime(timestamp_str):
+  """Overwrite created and modified time for all entities in staging folder.
+
+  Args:
+    * timestamp_str (str): Epoch second.
+  """
+  timestamp = int(timestamp_str)
+  abs_stg = os.path.abspath(options.staging_dir)
+  for root, dirs, files in os.walk(abs_stg, topdown=False):
+    [os.utime(os.path.join(abs_stg, root, x), (timestamp, timestamp))
+     for x in dirs + files]
+
+
 def CopyAllFilesToStagingDir(config, distribution, staging_dir, build_dir,
-                             enable_hidpi, include_snapshotblob,
+                             enable_hidpi, include_snapshotblob, include_dxc,
                              component_build, component_ffmpeg_build, verbose):
   """Copies the files required for installer archive.
   Copies all common files required for various distributions of Chromium and
@@ -132,9 +151,18 @@ def CopyAllFilesToStagingDir(config, distribution, staging_dir, build_dir,
     CopySectionFilesToStagingDir(config, 'SNAPSHOTBLOB', staging_dir, build_dir,
                                  verbose)
 
+  if include_dxc == '1':
+    CopySectionFilesToStagingDir(config, 'DXC', staging_dir, build_dir,
+                                 verbose)
+
   if component_build != '1' and component_ffmpeg_build == '1':
     CopySectionFilesToStagingDir(config, 'FFMPEG', staging_dir, build_dir,
                                  verbose)
+
+  # If build_time specified, overwrite it to every object in the
+  # staging folder, making the compressed package deterministic.
+  if options.build_time:
+    OverwriteStagingBuildTime(options.build_time)
 
 # The 'ConfigParser' makes all strings lowercase - which works fine on
 # a cases-insensitive NTFS partition, but makes no sense when trying to build
@@ -332,7 +360,11 @@ def CreateArchiveFile(options, staging_dir, current_version, prev_version):
   compressed_archive_file_path = os.path.join(options.output_dir,
                                               compressed_archive_file)
   CompressUsingLZMA(options.build_dir, compressed_archive_file_path, orig_file,
-                    options.verbose, options.fast_archive_compression)
+                    options.verbose, options.fast_archive_compression,
+                    # If build time is specified, the compressed artifact
+                    # should be deterministic. So in the archive, aka
+                    # chrome.packed.7z, strip chrome.7z's timestamp.
+                    strip_time=True)
 
   return compressed_archive_file
 
@@ -550,6 +582,7 @@ def main(options):
                            staging_dir, options.build_dir,
                            options.enable_hidpi,
                            options.include_snapshotblob,
+                           options.include_dxc,
                            options.component_build,
                            options.component_ffmpeg_build,
                            options.verbose)
@@ -615,6 +648,8 @@ def _ParseOptions():
       help='Whether to include HiDPI resource files.')
   parser.add_option('--include_snapshotblob', default='0',
       help='Whether to include the V8 snapshot blob.')
+  parser.add_option('--include_dxc', default='0',
+      help='Whether to include DXC dlls.')
   parser.add_option('--component_build', default='0',
       help='Whether this archive is packaging a component build.')
   parser.add_option('--component_ffmpeg_build', default='0',
@@ -636,6 +671,9 @@ def _ParseOptions():
       help='Specify the target architecture for installer - this is used '
            'to determine which CRT runtime files to pull and package '
            'with the installer archive {x86|x64}.')
+  parser.add_option('--build_time',
+      help='Epoch second in string. If set, overwrite the timestamp for files '
+           'archived, to keep output artifacts deterministic.')
   parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
                     default=False)
 

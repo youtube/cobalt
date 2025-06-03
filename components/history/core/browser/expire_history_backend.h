@@ -99,7 +99,8 @@ class ExpireHistoryBackend {
 
   // Removes the given list of visits, updating the URLs accordingly (similar to
   // ExpireHistoryBetween(), but affecting a specific set of visits).
-  void ExpireVisits(const VisitVector& visits);
+  void ExpireVisits(const VisitVector& visits,
+                    DeletionInfo::Reason deletion_reason);
 
   // Expires all visits before and including the given time, updating the URLs
   // accordingly.
@@ -160,7 +161,8 @@ class ExpireHistoryBackend {
   // Returns a vector with all visits that eventually redirect to `visits`.
   VisitVector GetVisitsAndRedirectParents(const VisitVector& visits);
 
-  // Deletes the visit-related stuff for all the visits in the given list, and
+  // Deletes the visit-related stuff for all the visits in the given list,
+  // decreases the visit_count for corresponding VisitedLinks, and
   // adds the rows for unique URLs affected to the affected_urls list in
   // the dependencies structure.
   void DeleteVisitRelatedInfo(const VisitVector& visits,
@@ -221,7 +223,8 @@ class ExpireHistoryBackend {
   void ExpireVisitsInternal(const VisitVector& visits,
                             const DeletionTimeRange& time_range,
                             const std::set<GURL>& restrict_urls,
-                            DeletionType type);
+                            DeletionType type,
+                            DeletionInfo::Reason deletion_reason);
 
   // Deletes the favicons listed in `effects->affected_favicons` if they are
   // unused. Fails silently (we don't care about favicons so much, so don't want
@@ -234,7 +237,8 @@ class ExpireHistoryBackend {
   void BroadcastNotifications(DeleteEffects* effects,
                               DeletionType type,
                               const DeletionTimeRange& time_range,
-                              absl::optional<std::set<GURL>> restrict_urls);
+                              absl::optional<std::set<GURL>> restrict_urls,
+                              DeletionInfo::Reason deletion_reason);
 
   // Schedules a call to DoExpireIteration.
   void ScheduleExpire();
@@ -272,9 +276,9 @@ class ExpireHistoryBackend {
   raw_ptr<HistoryBackendNotifier> notifier_;
 
   // Non-owning pointers to the databases we deal with (MAY BE NULL).
-  raw_ptr<HistoryDatabase, DanglingUntriaged>
+  raw_ptr<HistoryDatabase, AcrossTasksDanglingUntriaged>
       main_db_;  // Main history database.
-  raw_ptr<favicon::FaviconDatabase, DanglingUntriaged> favicon_db_;
+  raw_ptr<favicon::FaviconDatabase, AcrossTasksDanglingUntriaged> favicon_db_;
 
   // The threshold for "old" history where we will automatically delete it.
   base::TimeDelta expiration_threshold_;
@@ -301,7 +305,7 @@ class ExpireHistoryBackend {
   std::unique_ptr<ExpiringVisitsReader> auto_subframe_visits_reader_;
 
   // The HistoryBackendClient; may be null.
-  raw_ptr<HistoryBackendClient, DanglingUntriaged> backend_client_;
+  raw_ptr<HistoryBackendClient, AcrossTasksDanglingUntriaged> backend_client_;
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 

@@ -58,6 +58,24 @@ enum class COMPONENT_EXPORT(KCER) Error {
   kInvalidCertificate = 9,
   kFailedToImportCertificate = 10,
   kFailedToRemoveCertificate = 11,
+  kKeyNotFound = 12,
+  kUnknownKeyType = 13,
+  kFailedToGetKeyId = 14,
+  kFailedToReadAttribute = 15,
+  kFailedToWriteAttribute = 16,
+  kFailedToParseKeyPermissions = 17,
+  kUnexpectedSigningScheme = 18,
+  kKeyDoesNotSupportSigningScheme = 19,
+  kFailedToSignFailedToDigest = 20,
+  kFailedToSignFailedToAddPrefix = 21,
+  kFailedToSignFailedToGetSignatureLength = 22,
+  kFailedToSign = 23,
+  kFailedToSignBadSignatureLength = 24,
+  kFailedToDerEncode = 25,
+  kInputTooLong = 26,
+  kFailedToListKeys = 27,
+  kFailedToRemovePrivateKey = 28,
+  kFailedToRemovePublicKey = 29,
 };
 
 // Handles for tokens on ChromeOS.
@@ -67,6 +85,7 @@ enum class COMPONENT_EXPORT(KCER) Token {
   // Keys and certificates storage that belongs to the entire
   // device (some users might still not have access to it).
   kDevice,
+  kMaxValue = kDevice,
 };
 
 // Additional info related to a token.
@@ -85,23 +104,31 @@ enum class COMPONENT_EXPORT(KCER) KeyType {
   kEcc,
 };
 
+// Supported sizes for RSA keys. It's allowed to static_cast the values to
+// uint32_t.
+enum class COMPONENT_EXPORT(KCER) RsaModulusLength {
+  k1024 = 1024,
+  k2048 = 2048,
+  k4096 = 4096
+};
+
 enum class COMPONENT_EXPORT(KCER) EllipticCurve {
   kP256,
 };
 
+// Possible sign schemes (aka algorithms) for Kcer::Sign() method. Maps 1-to-1
+// to OpenSSL SSL_* constants. It is allowed to cast SigningScheme to SSL_*.
 enum class COMPONENT_EXPORT(KCER) SigningScheme {
   kRsaPkcs1Sha1 = SSL_SIGN_RSA_PKCS1_SHA1,
   kRsaPkcs1Sha256 = SSL_SIGN_RSA_PKCS1_SHA256,
   kRsaPkcs1Sha384 = SSL_SIGN_RSA_PKCS1_SHA384,
   kRsaPkcs1Sha512 = SSL_SIGN_RSA_PKCS1_SHA512,
-  kEcdsaSha1 = SSL_SIGN_ECDSA_SHA1,
   kEcdsaSecp256r1Sha256 = SSL_SIGN_ECDSA_SECP256R1_SHA256,
   kEcdsaSecp384r1Sha384 = SSL_SIGN_ECDSA_SECP384R1_SHA384,
   kEcdsaSecp521r1Sha512 = SSL_SIGN_ECDSA_SECP521R1_SHA512,
   kRsaPssRsaeSha256 = SSL_SIGN_RSA_PSS_RSAE_SHA256,
   kRsaPssRsaeSha384 = SSL_SIGN_RSA_PSS_RSAE_SHA384,
   kRsaPssRsaeSha512 = SSL_SIGN_RSA_PSS_RSAE_SHA512,
-  kEd25519 = SSL_SIGN_ED25519,
 };
 
 class COMPONENT_EXPORT(KCER) PublicKey {
@@ -114,6 +141,9 @@ class COMPONENT_EXPORT(KCER) PublicKey {
   PublicKey(PublicKey&&);
   PublicKey& operator=(PublicKey&&);
   ~PublicKey();
+
+  bool operator==(const PublicKey& other) const;
+  bool operator!=(const PublicKey& other) const;
 
   Token GetToken() const { return token_; }
   const Pkcs11Id& GetPkcs11Id() const { return pkcs11_id_; }
@@ -177,7 +207,14 @@ class COMPONENT_EXPORT(KCER) PrivateKeyHandle {
  public:
   explicit PrivateKeyHandle(const PublicKey& public_key);
   explicit PrivateKeyHandle(const Cert&);
+  PrivateKeyHandle(Token token, PublicKeySpki pub_key_spki);
+  // If possible, prefer specifying the token (use another constructor) for
+  // better performance. Calling a Kcer method using this overload will make it
+  // search on all tokens for the key before proceeding with the request.
   explicit PrivateKeyHandle(PublicKeySpki pub_key_spki);
+  // Used internally to convert from `PrivateKeyHandle(PublicKeySpki)`. `other`
+  // must have no token set.
+  PrivateKeyHandle(Token token, PrivateKeyHandle&& other);
   ~PrivateKeyHandle();
 
   PrivateKeyHandle(const PrivateKeyHandle&);
@@ -185,12 +222,18 @@ class COMPONENT_EXPORT(KCER) PrivateKeyHandle {
   PrivateKeyHandle(PrivateKeyHandle&&);
   PrivateKeyHandle& operator=(PrivateKeyHandle&&);
 
+  // Public for implementations of Kcer only.
+  const absl::optional<Token>& GetTokenInternal() const { return token_; }
+  const Pkcs11Id& GetPkcs11IdInternal() const { return pkcs11_id_; }
+  const PublicKeySpki& GetSpkiInternal() const { return pub_key_spki_; }
+
  private:
   // Depending on how PrivateKeyHandle is constructed, some member variables
   // might not contain valid values, possible combinations:
-  // * Only `token_` and `pkcs11_id_` are valid.
-  // * Only `pub_key_spki_` is valid.
-  // * All of them are valid.
+  // * Only `token_` and `pkcs11_id_` are populated.
+  // * Only `token_` and `pub_key_spki_` are populated.
+  // * Only `pub_key_spki_` is populated.
+  // * All member variables are populated.
   absl::optional<Token> token_;
   Pkcs11Id pkcs11_id_;
   PublicKeySpki pub_key_spki_;
@@ -224,6 +267,8 @@ class COMPONENT_EXPORT(KCER) Kcer {
       base::OnceCallback<void(base::expected<bool, Error>)>;
   using SignCallback =
       base::OnceCallback<void(base::expected<Signature, Error>)>;
+  using GetAvailableTokensCallback =
+      base::OnceCallback<void(base::flat_set<Token>)>;
   using GetTokenInfoCallback =
       base::OnceCallback<void(base::expected<TokenInfo, Error>)>;
   using GetKeyInfoCallback =
@@ -241,8 +286,11 @@ class COMPONENT_EXPORT(KCER) Kcer {
   // the key pair will not be hardware protected (by the TPM). Software keys are
   // usually faster, but less secure. Returns a public key on success, an error
   // otherwise.
+  // TODO(miersh): Software keys are currently only implemented in Ash because
+  // they are only used there. When Kcer-without-NSS is implemented, they should
+  // work everywhere.
   virtual void GenerateRsaKey(Token token,
-                              uint32_t modulus_length_bits,
+                              RsaModulusLength modulus_length_bits,
                               bool hardware_backed,
                               GenerateKeyCallback callback) = 0;
   // Generates a new EC key pair in the `token`. If `hardware_backed` is false,
@@ -256,9 +304,12 @@ class COMPONENT_EXPORT(KCER) Kcer {
 
   // Imports a key pair from bytes `key_pair` in the PKCS#8 format (DER encoded)
   // into the `token`. It is caller's responsibility to make sure that the same
-  // key doesn't end up on two different tokens (otherwise Kcer is allowed to
-  // perform any future operations, such as RemoveKey, with only one of the
-  // keys). Returns a public key on success, an error otherwise.
+  // key doesn't end up on several different tokens at the same time (otherwise
+  // Kcer is allowed to perform any future operations, such as RemoveKey, with
+  // only one of the keys). Returns a public key on success, an error otherwise.
+  // WARNING: With the current implementation the key can be used with most
+  // other methods, but it won't appear in the ListKeys() results.
+  // TODO(miersh): Make ListKeys() return imported keys.
   virtual void ImportKey(Token token,
                          Pkcs8PrivateKeyInfoDer pkcs8_private_key_info_der,
                          ImportKeyCallback callback) = 0;
@@ -348,7 +399,7 @@ class COMPONENT_EXPORT(KCER) Kcer {
                                SignCallback callback) = 0;
 
   // Returns tokens that are available to the current instance of Kcer.
-  virtual base::flat_set<Token> GetAvailableTokens() = 0;
+  virtual void GetAvailableTokens(GetAvailableTokensCallback callback) = 0;
 
   // Retrieves additional info for the loaded `token`. Returns a `TokenInfo`
   // struct on success, kTokenNotAvailable if the `token` will never be loaded,
@@ -362,6 +413,11 @@ class COMPONENT_EXPORT(KCER) Kcer {
 
   // Sets the `nickname` on the `key`. (Not to be confused with the nickname of
   // the certificate.) Returns an error on failure.
+  // The nickname on the key is partially independent from the certificates'
+  // nicknames and is stored as CKA_LABEL in PKCS#11 attributes of the key
+  // object. When a new certificate is imported, its nickname might be copied
+  // into the key's nickname (TODO(miersh): this part should be changed in the
+  // future), but generally speaking they are not kept in sync.
   virtual void SetKeyNickname(PrivateKeyHandle key,
                               std::string nickname,
                               StatusCallback callback) = 0;
@@ -375,20 +431,6 @@ class COMPONENT_EXPORT(KCER) Kcer {
                                             std::string profile_id,
                                             StatusCallback callback) = 0;
 };
-
-namespace internal {
-class KcerToken;
-// Creates an instance of Kcer interface, should only be used by a dedicated
-// factory. Tokens are expected to be owned by the factory and live on a non-UI
-// thread. All the requests for the tokens should be posted on the
-// `token_task_runner`. Kcer doesn't take ownership of the tokens and accesses
-// them via weak pointers.
-COMPONENT_EXPORT(KCER)
-std::unique_ptr<Kcer> CreateKcer(
-    scoped_refptr<base::TaskRunner> token_task_runner,
-    base::WeakPtr<internal::KcerToken> user_token,
-    base::WeakPtr<internal::KcerToken> device_token);
-}  // namespace internal
 
 }  // namespace kcer
 

@@ -85,12 +85,24 @@ _APKS = {
         ('CHROME_MODERN', 'CHROME_MODERN', '32'),
         ('MONOCHROME', 'MONOCHROME', '32'),
         ('TRICHROME', 'TRICHROME', '32'),
+        ('TRICHROME_AUTO', 'TRICHROME_AUTO', '32'),
         ('TRICHROME_BETA', 'TRICHROME_BETA', '32'),
         ('WEBVIEW_STABLE', 'WEBVIEW_STABLE', '32'),
         ('WEBVIEW_BETA', 'WEBVIEW_BETA', '32'),
         ('WEBVIEW_DEV', 'WEBVIEW_DEV', '32'),
     ],
     '64': [
+        ('CHROME', 'CHROME', '64'),
+        ('CHROME_MODERN', 'CHROME_MODERN', '64'),
+        ('MONOCHROME', 'MONOCHROME', '64'),
+        ('TRICHROME', 'TRICHROME', '64'),
+        ('TRICHROME_AUTO', 'TRICHROME_AUTO', '64'),
+        ('TRICHROME_BETA', 'TRICHROME_BETA', '64'),
+        ('WEBVIEW_STABLE', 'WEBVIEW_STABLE', '64'),
+        ('WEBVIEW_BETA', 'WEBVIEW_BETA', '64'),
+        ('WEBVIEW_DEV', 'WEBVIEW_DEV', '64'),
+    ],
+    'hybrid': [
         ('CHROME', 'CHROME', '64'),
         ('CHROME_MODERN', 'CHROME_MODERN', '64'),
         ('MONOCHROME', 'MONOCHROME', '32_64'),
@@ -104,7 +116,12 @@ _APKS = {
         ('TRICHROME_64_32', 'TRICHROME', '64_32'),
         ('TRICHROME_64_32_HIGH', 'TRICHROME', '64_32_high'),
         ('TRICHROME_64', 'TRICHROME', '64'),
+        ('TRICHROME_AUTO', 'TRICHROME_AUTO', '32_64'),
+        ('TRICHROME_AUTO_32', 'TRICHROME_AUTO', '32'),
+        ('TRICHROME_AUTO_32_64', 'TRICHROME_AUTO', '32_64'),
+        ('TRICHROME_AUTO_64', 'TRICHROME_AUTO', '64'),
         ('TRICHROME_AUTO_64_32', 'TRICHROME_AUTO', '64_32'),
+        ('TRICHROME_AUTO_64_32_HIGH', 'TRICHROME_AUTO', '64_32_high'),
         ('TRICHROME_BETA', 'TRICHROME_BETA', '32_64'),
         ('TRICHROME_32_BETA', 'TRICHROME_BETA', '32'),
         ('TRICHROME_32_64_BETA', 'TRICHROME_BETA', '32_64'),
@@ -126,9 +143,12 @@ _APKS = {
 # Splits input build config architecture to manufacturer and bitness.
 _ARCH_TO_MFG_AND_BITNESS = {
     'arm': ('arm', '32'),
-    'arm64': ('arm', '64'),
+    'arm64': ('arm', 'hybrid'),
+    # Until riscv64 needs a unique version code to ship APKs to the store,
+    # point to the 'arm' bitmask.
+    'riscv64': ('arm', '64'),
     'x86': ('intel', '32'),
-    'x64': ('intel', '64'),
+    'x64': ('intel', 'hybrid'),
 }
 
 # Expose the available choices to other scripts.
@@ -174,50 +194,50 @@ things here:
 """
 
 
-def _GetAbisToDigitMask(build_number):
+def _GetAbisToDigitMask(build_number, patch_number):
   """Return the correct digit mask based on build number.
 
   Updated from build 5750: Some intel devices advertise support for arm,
   so arm codes must be lower than x86 codes to prevent providing an
   arm-optimized build to intel devices.
 
-  Cherry-picked to 5735 to support releasing the new
-  version code schema earlier.
-
   Returns:
     A dictionary of architecture mapped to bitness
     mapped to version code suffix.
   """
-
-  if build_number < 5750 and build_number != 5735:
+  # Scheme change was made directly to M113 and M114 branches.
+  use_new_scheme = (build_number >= 5750
+                    or (build_number == 5672 and patch_number >= 176)
+                    or (build_number == 5735 and patch_number >= 53))
+  if use_new_scheme:
     return {
         'arm': {
             '32': 0,
-            '32_64': 3,
-            '64_32': 4,
-            '64': 5,
-            '64_32_high': 9,
+            '32_64': 1,
+            '64_32': 2,
+            '64_32_high': 3,
+            '64': 4,
         },
         'intel': {
-            '32': 1,
-            '32_64': 6,
-            '64_32': 7,
-            '64': 8,
+            '32': 6,
+            '32_64': 7,
+            '64_32': 8,
+            '64': 9,
         },
     }
   return {
       'arm': {
           '32': 0,
-          '32_64': 1,
-          '64_32': 2,
-          '64_32_high': 3,
-          '64': 4,
+          '32_64': 3,
+          '64_32': 4,
+          '64': 5,
+          '64_32_high': 9,
       },
       'intel': {
-          '32': 6,
-          '32_64': 7,
-          '64_32': 8,
-          '64': 9,
+          '32': 1,
+          '32_64': 6,
+          '64_32': 7,
+          '64': 8,
       },
   }
 
@@ -280,7 +300,8 @@ def TranslateVersionCode(version_code, is_webview=False):
         package_name = package
         break
 
-  for arch, bitness_to_number in _GetAbisToDigitMask(build_number).items():
+  for arch, bitness_to_number in (_GetAbisToDigitMask(build_number,
+                                                      patch_number).items()):
     for bitness, number in bitness_to_number.items():
       if abi_digit == number:
         abi = arch if arch != 'intel' else 'x86'
@@ -316,8 +337,9 @@ def GenerateVersionCodes(version_values, arch, is_next_build):
   Thus, this method is responsible for the final two digits of versionCode.
   """
 
-  base_version_code = int(
-      '%s%03d00' % (version_values['BUILD'], int(version_values['PATCH'])))
+  build_number = int(version_values['BUILD'])
+  patch_number = int(version_values['PATCH'])
+  base_version_code = (build_number * 1000 + patch_number) * 100
 
   if is_next_build:
     base_version_code += _NEXT_BUILD_VERSION_CODE_DIFF
@@ -326,7 +348,7 @@ def GenerateVersionCodes(version_values, arch, is_next_build):
 
   version_codes = {}
 
-  abi_to_digit_mask = _GetAbisToDigitMask(int(version_values['BUILD']))
+  abi_to_digit_mask = _GetAbisToDigitMask(build_number, patch_number)
   for apk, package, abis in _APKS[bitness]:
     if abis == '64_32_high' and arch != 'arm64':
       continue

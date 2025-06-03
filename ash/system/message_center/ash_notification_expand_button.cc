@@ -4,6 +4,8 @@
 
 #include "ash/system/message_center/ash_notification_expand_button.h"
 
+#include <string>
+
 #include "ash/public/cpp/metrics_util.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
@@ -31,7 +33,6 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
-#include "ui/views/layout/layout_types.h"
 #include "ui/views/view_class_properties.h"
 
 namespace ash {
@@ -39,7 +40,7 @@ namespace ash {
 namespace {
 
 constexpr gfx::Insets kFocusInsets(2);
-constexpr gfx::Insets kImageInsets(4);
+constexpr gfx::Insets kImageInsets(2);
 constexpr auto kLabelInsets = gfx::Insets::TLBR(0, 8, 0, 0);
 constexpr int kCornerRadius = 12;
 constexpr int kChevronIconSize = 16;
@@ -51,9 +52,7 @@ constexpr int kLabelFontSize = 12;
 BEGIN_METADATA(AshNotificationExpandButton, views::Button)
 END_METADATA
 
-AshNotificationExpandButton::AshNotificationExpandButton(
-    PressedCallback callback)
-    : Button(std::move(callback)) {
+AshNotificationExpandButton::AshNotificationExpandButton() {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal));
 
@@ -78,9 +77,7 @@ AshNotificationExpandButton::AshNotificationExpandButton(
   views::InstallRoundRectHighlightPathGenerator(this, kFocusInsets,
                                                 kCornerRadius);
 
-  SetAccessibleName(l10n_util::GetStringUTF16(
-      expanded_ ? IDS_ASH_NOTIFICATION_COLLAPSE_TOOLTIP
-                : IDS_ASH_NOTIFICATION_EXPAND_TOOLTIP));
+  UpdateTooltip();
 
   message_center_utils::InitLayerForAnimations(label_);
   message_center_utils::InitLayerForAnimations(image_);
@@ -107,13 +104,8 @@ void AshNotificationExpandButton::SetExpanded(bool expanded) {
   label_->SetVisible(ShouldShowLabel());
 
   image_->SetImage(expanded_ ? expanded_image_ : collapsed_image_);
-  image_->SetTooltipText(l10n_util::GetStringUTF16(
-      expanded_ ? IDS_ASH_NOTIFICATION_COLLAPSE_TOOLTIP
-                : IDS_ASH_NOTIFICATION_EXPAND_TOOLTIP));
 
-  SetAccessibleName(l10n_util::GetStringUTF16(
-      expanded_ ? IDS_ASH_NOTIFICATION_COLLAPSE_TOOLTIP
-                : IDS_ASH_NOTIFICATION_EXPAND_TOOLTIP));
+  UpdateTooltip();
 }
 
 bool AshNotificationExpandButton::ShouldShowLabel() const {
@@ -132,7 +124,6 @@ void AshNotificationExpandButton::UpdateIcons() {
           ? GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurface)
           : AshColorProvider::Get()->GetContentLayerColor(
                 AshColorProvider::ContentLayerType::kIconColorPrimary);
-
   int icon_size = chromeos::features::IsJellyEnabled() ? kJellyChevronIconSize
                                                        : kChevronIconSize;
 
@@ -142,6 +133,8 @@ void AshNotificationExpandButton::UpdateIcons() {
   collapsed_image_ = gfx::ImageSkiaOperations::CreateRotatedImage(
       gfx::CreateVectorIcon(kUnifiedMenuExpandIcon, icon_size, icon_color),
       SkBitmapOperations::ROTATION_180_CW);
+
+  image_->SetImage(expanded_ ? expanded_image_ : collapsed_image_);
 }
 
 void AshNotificationExpandButton::AnimateExpandCollapse() {
@@ -216,14 +209,7 @@ void AshNotificationExpandButton::OnThemeChanged() {
   views::Button::OnThemeChanged();
 
   UpdateIcons();
-  image_->SetImage(expanded_ ? expanded_image_ : collapsed_image_);
-
-  layer()->SetColor(
-      chromeos::features::IsJellyEnabled()
-          ? GetColorProvider()->GetColor(cros_tokens::kCrosSysSystemOnBase1)
-          : AshColorProvider::Get()->GetControlsLayerColor(
-                AshColorProvider::ControlsLayerType::
-                    kControlBackgroundColorInactive));
+  UpdateBackgroundColor();
 }
 
 gfx::Size AshNotificationExpandButton::CalculatePreferredSize() const {
@@ -239,6 +225,15 @@ gfx::Size AshNotificationExpandButton::CalculatePreferredSize() const {
   }
 
   return size;
+}
+
+void AshNotificationExpandButton::SetNotificationTitleForButtonTooltip(
+    const std::u16string& notification_title) {
+  if (notification_title_ == notification_title) {
+    return;
+  }
+  notification_title_ = notification_title;
+  UpdateTooltip();
 }
 
 void AshNotificationExpandButton::AnimateBoundsChange(
@@ -276,6 +271,24 @@ void AshNotificationExpandButton::AnimateBoundsChange(
       .SetDuration(base::Milliseconds(duration_in_ms))
       .SetBounds(this, target_bounds, tween_type)
       .SetBounds(image_, image_target_bounds, tween_type);
+}
+
+void AshNotificationExpandButton::UpdateBackgroundColor() {
+  layer()->SetColor(
+      chromeos::features::IsJellyEnabled()
+          ? GetColorProvider()->GetColor(cros_tokens::kCrosSysSystemOnBase1)
+          : AshColorProvider::Get()->GetControlsLayerColor(
+                AshColorProvider::ControlsLayerType::
+                    kControlBackgroundColorInactive));
+}
+
+void AshNotificationExpandButton::UpdateTooltip() {
+  std::u16string tooltip_text = l10n_util::GetStringFUTF16(
+      expanded_ ? IDS_ASH_NOTIFICATION_COLLAPSE_TOOLTIP
+                : IDS_ASH_NOTIFICATION_EXPAND_TOOLTIP,
+      notification_title_);
+  image_->SetTooltipText(tooltip_text);
+  SetAccessibleName(tooltip_text);
 }
 
 }  // namespace ash

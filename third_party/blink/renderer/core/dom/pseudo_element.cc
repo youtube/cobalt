@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
+#include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
 #include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/node_computed_style.h"
@@ -38,7 +39,7 @@
 #include "third_party/blink/renderer/core/layout/generated_children.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_quote.h"
-#include "third_party/blink/renderer/core/layout/list_marker.h"
+#include "third_party/blink/renderer/core/layout/list/list_marker.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/content_data.h"
@@ -48,6 +49,8 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 
 namespace blink {
+
+using mojom::blink::FormControlType;
 
 bool PseudoElementLayoutObjectIsNeeded(const DisplayStyle& pseudo_style,
                                        const Element* originating_element);
@@ -59,7 +62,7 @@ PseudoElement* PseudoElement::Create(Element* parent,
     return MakeGarbageCollected<FirstLetterPseudoElement>(parent);
   } else if (IsTransitionPseudoElement(pseudo_id)) {
     auto* transition =
-        ViewTransitionUtils::GetActiveTransition(parent->GetDocument());
+        ViewTransitionUtils::GetTransition(parent->GetDocument());
     DCHECK(transition);
     return transition->CreatePseudoElement(parent, pseudo_id,
                                            view_transition_name);
@@ -73,64 +76,58 @@ PseudoElement* PseudoElement::Create(Element* parent,
 const QualifiedName& PseudoElementTagName(PseudoId pseudo_id) {
   switch (pseudo_id) {
     case kPseudoIdAfter: {
-      DEFINE_STATIC_LOCAL(QualifiedName, after,
-                          (g_null_atom, "::after", g_null_atom));
+      DEFINE_STATIC_LOCAL(QualifiedName, after, (AtomicString("::after")));
       return after;
     }
     case kPseudoIdBefore: {
-      DEFINE_STATIC_LOCAL(QualifiedName, before,
-                          (g_null_atom, "::before", g_null_atom));
+      DEFINE_STATIC_LOCAL(QualifiedName, before, (AtomicString("::before")));
       return before;
     }
     case kPseudoIdBackdrop: {
       DEFINE_STATIC_LOCAL(QualifiedName, backdrop,
-                          (g_null_atom, "::backdrop", g_null_atom));
+                          (AtomicString("::backdrop")));
       return backdrop;
     }
     case kPseudoIdFirstLetter: {
       DEFINE_STATIC_LOCAL(QualifiedName, first_letter,
-                          (g_null_atom, "::first-letter", g_null_atom));
+                          (AtomicString("::first-letter")));
       return first_letter;
     }
     case kPseudoIdMarker: {
-      DEFINE_STATIC_LOCAL(QualifiedName, marker,
-                          (g_null_atom, "::marker", g_null_atom));
+      DEFINE_STATIC_LOCAL(QualifiedName, marker, (AtomicString("::marker")));
       return marker;
     }
     case kPseudoIdViewTransition: {
       DEFINE_STATIC_LOCAL(QualifiedName, transition,
-                          (g_null_atom, "::view-transition", g_null_atom));
+                          (AtomicString("::view-transition")));
       return transition;
     }
     case kPseudoIdViewTransitionGroup: {
       // TODO(khushalsagar) : Update these tag names to include the additional
       // ID.
-      DEFINE_STATIC_LOCAL(
-          QualifiedName, transition_container,
-          (g_null_atom, "::view-transition-group", g_null_atom));
+      DEFINE_STATIC_LOCAL(QualifiedName, transition_container,
+                          (AtomicString("::view-transition-group")));
       return transition_container;
     }
     case kPseudoIdViewTransitionImagePair: {
-      DEFINE_STATIC_LOCAL(
-          QualifiedName, transition_image_wrapper,
-          (g_null_atom, "::view-transition-image-pair", g_null_atom));
+      DEFINE_STATIC_LOCAL(QualifiedName, transition_image_wrapper,
+                          (AtomicString("::view-transition-image-pair")));
       return transition_image_wrapper;
     }
     case kPseudoIdViewTransitionNew: {
       DEFINE_STATIC_LOCAL(QualifiedName, transition_incoming_image,
-                          (g_null_atom, "::view-transition-new", g_null_atom));
+                          (AtomicString("::view-transition-new")));
       return transition_incoming_image;
     }
     case kPseudoIdViewTransitionOld: {
       DEFINE_STATIC_LOCAL(QualifiedName, transition_outgoing_image,
-                          (g_null_atom, "::view-transition-old", g_null_atom));
+                          (AtomicString("::view-transition-old")));
       return transition_outgoing_image;
     }
     default:
       NOTREACHED();
   }
-  DEFINE_STATIC_LOCAL(QualifiedName, name,
-                      (g_null_atom, "::unknown", g_null_atom));
+  DEFINE_STATIC_LOCAL(QualifiedName, name, (AtomicString("::unknown")));
   return name;
 }
 
@@ -188,11 +185,11 @@ PseudoElement::PseudoElement(Element* parent,
     UseCounter::Count(parent->GetDocument(),
                       WebFeature::kPseudoBeforeAfterForInputElement);
     if (HTMLInputElement* input = DynamicTo<HTMLInputElement>(parent)) {
-      if (input->type() == input_type_names::kDate ||
-          input->type() == input_type_names::kDatetimeLocal ||
-          input->type() == input_type_names::kMonth ||
-          input->type() == input_type_names::kWeek ||
-          input->type() == input_type_names::kTime) {
+      if (input->FormControlType() == FormControlType::kInputDate ||
+          input->FormControlType() == FormControlType::kInputDatetimeLocal ||
+          input->FormControlType() == FormControlType::kInputMonth ||
+          input->FormControlType() == FormControlType::kInputWeek ||
+          input->FormControlType() == FormControlType::kInputTime) {
         UseCounter::Count(
             parent->GetDocument(),
             WebFeature::kPseudoBeforeAfterForDateTimeInputElement);
@@ -201,22 +198,27 @@ PseudoElement::PseudoElement(Element* parent,
   }
 }
 
-scoped_refptr<const ComputedStyle> PseudoElement::CustomStyleForLayoutObject(
+const ComputedStyle* PseudoElement::CustomStyleForLayoutObject(
     const StyleRecalcContext& style_recalc_context) {
+  // This method is not used for highlight pseudos that require an
+  // originating element.
+  DCHECK(!IsHighlightPseudoElement(pseudo_id_));
   Element* parent = ParentOrShadowHostElement();
   return parent->StyleForPseudoElement(
-      style_recalc_context, StyleRequest(pseudo_id_, parent->GetComputedStyle(),
-                                         view_transition_name_));
+      style_recalc_context,
+      StyleRequest(pseudo_id_, parent->GetComputedStyle(),
+                   /* originating_element_style */ nullptr,
+                   view_transition_name_));
 }
 
-scoped_refptr<const ComputedStyle> PseudoElement::LayoutStyleForDisplayContents(
+const ComputedStyle* PseudoElement::LayoutStyleForDisplayContents(
     const ComputedStyle& style) {
   // For display:contents we should not generate a box, but we generate a non-
   // observable inline box for pseudo elements to be able to locate the
   // anonymous layout objects for generated content during DetachLayoutTree().
   ComputedStyleBuilder builder =
-      GetDocument().GetStyleResolver().CreateComputedStyleBuilder();
-  builder.InheritFrom(style);
+      GetDocument().GetStyleResolver().CreateComputedStyleBuilderInheritingFrom(
+          style);
   builder.SetContent(style.GetContentData());
   builder.SetDisplay(EDisplay::kInline);
   builder.SetStyleType(pseudo_id_);
@@ -306,8 +308,14 @@ void PseudoElement::AttachLayoutTree(AttachContext& context) {
       LayoutObject* child = content->CreateLayoutObject(*this, style);
       if (layout_object->IsChildAllowed(child, style)) {
         layout_object->AddChild(child);
-        if (child->IsQuote())
-          To<LayoutQuote>(child)->AttachQuote();
+        if (child->IsQuote()) {
+          StyleContainmentScopeTree& tree =
+              GetDocument().GetStyleEngine().EnsureStyleContainmentScopeTree();
+          StyleContainmentScope* scope =
+              tree.FindOrCreateEnclosingScopeForElement(*this);
+          scope->AttachQuote(*To<LayoutQuote>(child));
+          tree.UpdateOutermostQuotesDirtyScope(scope);
+        }
       } else {
         child->Destroy();
       }
@@ -337,6 +345,16 @@ Node* PseudoElement::InnerNodeForHitTesting() const {
   if (parent && parent->IsPseudoElement())
     return To<PseudoElement>(parent)->InnerNodeForHitTesting();
   return parent;
+}
+
+void PseudoElement::AccessKeyAction(
+    SimulatedClickCreationScope creation_scope) {
+  // Even though pseudo elements can't use the accesskey attribute, assistive
+  // tech can still attempt to interact with pseudo elements if they are in
+  // the AX tree (usually due to their text/image content).
+  // Just pass this request to the originating element.
+  DCHECK(OriginatingElement());
+  OriginatingElement()->AccessKeyAction(creation_scope);
 }
 
 Element* PseudoElement::OriginatingElement() const {

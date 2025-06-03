@@ -12,7 +12,6 @@
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/service/display/display_client.h"
@@ -29,6 +28,10 @@
 #include "services/viz/public/mojom/compositing/compositor_frame_sink.mojom.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/ca_layer_params.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/buildflags.h"
+#endif
 
 namespace viz {
 
@@ -63,7 +66,8 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
 
   ~RootCompositorFrameSinkImpl() override;
 
-  void DidEvictSurface(const SurfaceId& surface_id);
+  // Returns true iff it is okay to evict the root surface immediately.
+  bool WillEvictSurface(const SurfaceId& surface_id);
 
   const SurfaceId& CurrentSurfaceId() const;
 
@@ -105,6 +109,7 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
   void SetNeedsBeginFrame(bool needs_begin_frame) override;
   void SetWantsAnimateOnlyBeginFrames() override;
   void SetWantsBeginFrameAcks() override;
+  void SetAutoNeedsBeginFrame() override;
   void SubmitCompositorFrame(
       const LocalSurfaceId& local_surface_id,
       CompositorFrame frame,
@@ -128,6 +133,9 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
 #endif
 
   base::ScopedClosureRunner GetCacheBackBufferCb();
+  ExternalBeginFrameSource* external_begin_frame_source() {
+    return external_begin_frame_source_.get();
+  }
 
  private:
   class StandaloneBeginFrameObserver;
@@ -143,8 +151,7 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
       std::unique_ptr<SyntheticBeginFrameSource> synthetic_begin_frame_source,
       std::unique_ptr<ExternalBeginFrameSource> external_begin_frame_source,
       std::unique_ptr<Display> display,
-      bool hw_support_for_multiple_refresh_rates,
-      bool apply_simple_frame_rate_throttling);
+      bool hw_support_for_multiple_refresh_rates);
 
   // DisplayClient:
   void DisplayOutputSurfaceLost() override;
@@ -163,6 +170,9 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
 
   void UpdateVSyncParameters();
   BeginFrameSource* begin_frame_source();
+
+  std::vector<base::TimeDelta> GetSupportedFrameIntervals(
+      base::TimeDelta interval);
 
   mojo::Remote<mojom::CompositorFrameSinkClient> compositor_frame_sink_client_;
   mojo::AssociatedReceiver<mojom::CompositorFrameSink>
@@ -198,15 +208,16 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
   base::TimeDelta preferred_frame_interval_ =
       FrameRateDecider::UnspecifiedFrameInterval();
 
-  // Determines whether to throttle frame rate by half.
-  // TODO(http://crbug.com/1153404): Remove this field when experiment is over.
-  bool apply_simple_frame_rate_throttling_ = false;
+  // If we evict the root surface, we want to push an empty compositor frame to
+  // it first to unref its resources. This requires a draw and swap to complete
+  // to actually unref.
+  LocalSurfaceId to_evict_on_next_draw_and_swap_ = LocalSurfaceId();
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_OZONE)
+#if BUILDFLAG(OZONE_PLATFORM_X11)
   gfx::Size last_swap_pixel_size_;
-#endif
+#endif  // BUILDFLAG(OZONE_PLATFORM_X11)
+#endif  // BUILFFLAG(IS_OZONE)
 
 #if BUILDFLAG(IS_APPLE)
   gfx::CALayerParams last_ca_layer_params_;

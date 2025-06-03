@@ -4,7 +4,7 @@
 
 #include "chrome/browser/autocomplete/document_suggestions_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/omnibox/browser/document_suggestions_service.h"
@@ -21,16 +21,18 @@ DocumentSuggestionsService* DocumentSuggestionsServiceFactory::GetForProfile(
 // static
 DocumentSuggestionsServiceFactory*
 DocumentSuggestionsServiceFactory::GetInstance() {
-  return base::Singleton<DocumentSuggestionsServiceFactory>::get();
+  static base::NoDestructor<DocumentSuggestionsServiceFactory> instance;
+  return instance.get();
 }
 
-KeyedService* DocumentSuggestionsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+DocumentSuggestionsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
-  return new DocumentSuggestionsService(
+  return std::make_unique<DocumentSuggestionsService>(
       identity_manager, profile->GetDefaultStoragePartition()
                             ->GetURLLoaderFactoryForBrowserProcess());
 }
@@ -47,4 +49,5 @@ DocumentSuggestionsServiceFactory::DocumentSuggestionsServiceFactory()
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
-DocumentSuggestionsServiceFactory::~DocumentSuggestionsServiceFactory() {}
+DocumentSuggestionsServiceFactory::~DocumentSuggestionsServiceFactory() =
+    default;

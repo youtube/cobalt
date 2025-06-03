@@ -14,6 +14,7 @@
 
 namespace blink {
 
+class DOMViewTransition;
 class ViewTransition;
 
 class CORE_EXPORT ViewTransitionUtils {
@@ -111,8 +112,63 @@ class CORE_EXPORT ViewTransitionUtils {
     return nullptr;
   }
 
-  // Returns the active transition from the document, if any.
-  static ViewTransition* GetActiveTransition(const Document& document);
+  template <typename Functor>
+  static void ForEachDirectTransitionPseudo(const Element* element,
+                                            Functor& func) {
+    if (element->IsDocumentElement()) {
+      if (auto* pseudo = element->GetPseudoElement(kPseudoIdViewTransition)) {
+        func(pseudo);
+      }
+      return;
+    }
+
+    if (!IsTransitionPseudoElement(element->GetPseudoId())) {
+      return;
+    }
+
+    switch (element->GetPseudoId()) {
+      case kPseudoIdViewTransition:
+        for (auto name :
+             element->GetDocument().GetStyleEngine().ViewTransitionTags()) {
+          if (auto* pseudo = element->GetPseudoElement(
+                  kPseudoIdViewTransitionGroup, name)) {
+            func(pseudo);
+          }
+        }
+        break;
+      case kPseudoIdViewTransitionGroup:
+        if (auto* pseudo =
+                element->GetPseudoElement(kPseudoIdViewTransitionImagePair)) {
+          func(pseudo);
+        }
+        break;
+      case kPseudoIdViewTransitionImagePair:
+        if (auto* pseudo =
+                element->GetPseudoElement(kPseudoIdViewTransitionOld)) {
+          func(pseudo);
+        }
+        if (auto* pseudo =
+                element->GetPseudoElement(kPseudoIdViewTransitionNew)) {
+          func(pseudo);
+        }
+        break;
+      case kPseudoIdViewTransitionOld:
+      case kPseudoIdViewTransitionNew:
+        break;
+      default:
+        NOTREACHED();
+    }
+  }
+
+  // Returns the view transition in-progress in the given document, if one
+  // exists.
+  static ViewTransition* GetTransition(const Document& document);
+
+  // If the given document has an in-progress view transition, this will return
+  // the script delegate associated with that view transition (which may be
+  // null).
+  static DOMViewTransition* GetTransitionScriptDelegate(
+      const Document& document);
 
   // Returns the ::view-transition pseudo element that is the root of the
   // view-transition DOM hierarchy.
@@ -133,7 +189,8 @@ class CORE_EXPORT ViewTransitionUtils {
   // Returns true if this element is a view transition participant. This is a
   // slow check that walks all of the view transition elements in the
   // ViewTransitionStyleTracker.
-  static bool IsViewTransitionParticipantFromSupplement(const Element& element);
+  static bool IsViewTransitionElementExcludingRootFromSupplement(
+      const Element& element);
 
   // Returns true if this object represents an element that is a view transition
   // participant. This is a slow check that walks all of the view transition

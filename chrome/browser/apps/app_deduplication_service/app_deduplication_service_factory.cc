@@ -8,15 +8,19 @@
 #include "chrome/browser/apps/app_deduplication_service/app_deduplication_service.h"
 #include "chrome/browser/apps/app_deduplication_service/app_deduplication_service_factory.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/incognito_helpers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "google_apis/google_api_keys.h"
 
 namespace {
+
 static constexpr const char* kAppDeduplicationService =
     "AppDeduplicationService";
+
+bool g_skip_api_key_check = false;
+
 }  // namespace
 
 namespace apps::deduplication {
@@ -41,17 +45,22 @@ AppDeduplicationServiceFactory* AppDeduplicationServiceFactory::GetInstance() {
 // app deduplication.
 bool AppDeduplicationServiceFactory::
     IsAppDeduplicationServiceAvailableForProfile(Profile* profile) {
-  if (!base::FeatureList::IsEnabled(features::kAppDeduplicationService) &&
-      !base::FeatureList::IsEnabled(features::kAppDeduplicationServiceFondue)) {
-    return false;
+  if (base::FeatureList::IsEnabled(features::kAppDeduplicationServiceFondue)) {
+    // Ensure that the build uses the Google-internal file containing the
+    // official API keys, which are required to make queries to the Almanac.
+    if (!google_apis::IsGoogleChromeAPIKeyUsed() && !g_skip_api_key_check) {
+      return false;
+    }
+    return AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile);
   }
-  // These two feature flags should not be on at the same time otherwise the
-  // deduplication data may be overwritten.
-  if (base::FeatureList::IsEnabled(features::kAppDeduplicationService) &&
-      base::FeatureList::IsEnabled(features::kAppDeduplicationServiceFondue)) {
-    return false;
-  }
-  return AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile);
+
+  return false;
+}
+
+// static
+void AppDeduplicationServiceFactory::SkipApiKeyCheckForTesting(
+    bool skip_api_key_check) {
+  g_skip_api_key_check = skip_api_key_check;
 }
 
 AppDeduplicationServiceFactory::AppDeduplicationServiceFactory()
@@ -63,13 +72,14 @@ AppDeduplicationServiceFactory::AppDeduplicationServiceFactory()
 
 AppDeduplicationServiceFactory::~AppDeduplicationServiceFactory() = default;
 
-KeyedService* AppDeduplicationServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppDeduplicationServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* const profile = Profile::FromBrowserContext(context);
   if (!IsAppDeduplicationServiceAvailableForProfile(profile)) {
     return nullptr;
   }
-  return new AppDeduplicationService(profile);
+  return std::make_unique<AppDeduplicationService>(profile);
 }
 
 content::BrowserContext* AppDeduplicationServiceFactory::GetBrowserContextToUse(

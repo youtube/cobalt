@@ -106,6 +106,7 @@ class ShowItemHelper {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     // The browser process is about to exit. Clean up while we still can.
     object_proxy_ = nullptr;
+    dbus_proxy_ = nullptr;
     if (bus_)
       bus_->ShutdownOnDBusThreadAndBlock();
     bus_.reset();

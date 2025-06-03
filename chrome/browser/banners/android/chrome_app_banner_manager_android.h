@@ -5,10 +5,15 @@
 #ifndef CHROME_BROWSER_BANNERS_ANDROID_CHROME_APP_BANNER_MANAGER_ANDROID_H_
 #define CHROME_BROWSER_BANNERS_ANDROID_CHROME_APP_BANNER_MANAGER_ANDROID_H_
 
-#include "components/segmentation_platform/public/segmentation_platform_service.h"
 #include "components/webapps/browser/android/app_banner_manager_android.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+
+class PrefService;
+
+namespace segmentation_platform {
+class SegmentationPlatformService;
+}
 
 namespace webapps {
 
@@ -35,6 +40,8 @@ class ChromeAppBannerManagerAndroid
   void RecordExtraMetricsForInstallEvent(
       AddToHomescreenInstaller::Event event,
       const AddToHomescreenParams& a2hs_params) override;
+  segmentation_platform::SegmentationPlatformService*
+  GetSegmentationPlatformService() override;
 
  private:
   friend class content::WebContentsUserData<ChromeAppBannerManagerAndroid>;
@@ -46,6 +53,7 @@ class ChromeAppBannerManagerAndroid
 
   raw_ptr<segmentation_platform::SegmentationPlatformService>
       segmentation_platform_service_;
+  raw_ptr<PrefService> pref_service_;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

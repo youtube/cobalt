@@ -140,11 +140,11 @@ bool StructTraits<blink::mojom::AdAuctionDataDataView,
 }
 
 // static
-const url::Origin&
+const net::SchemefulSite&
 StructTraits<blink::mojom::SharedStorageBudgetMetadataDataView,
              blink::FencedFrame::SharedStorageBudgetMetadata>::
-    origin(const blink::FencedFrame::SharedStorageBudgetMetadata& input) {
-  return input.origin;
+    site(const blink::FencedFrame::SharedStorageBudgetMetadata& input) {
+  return input.site;
 }
 // static
 double StructTraits<blink::mojom::SharedStorageBudgetMetadataDataView,
@@ -166,7 +166,7 @@ bool StructTraits<blink::mojom::SharedStorageBudgetMetadataDataView,
                   blink::FencedFrame::SharedStorageBudgetMetadata>::
     Read(blink::mojom::SharedStorageBudgetMetadataDataView data,
          blink::FencedFrame::SharedStorageBudgetMetadata* out_data) {
-  if (!data.ReadOrigin(&out_data->origin)) {
+  if (!data.ReadSite(&out_data->site)) {
     return false;
   }
   out_data->budget_to_charge = data.budget_to_charge();
@@ -412,7 +412,9 @@ bool StructTraits<blink::mojom::FencedFrameConfigDataView,
       !data.ReadAdAuctionData(&out_config->ad_auction_data_) ||
       !data.ReadNestedConfigs(&out_config->nested_configs_) ||
       !data.ReadSharedStorageBudgetMetadata(
-          &out_config->shared_storage_budget_metadata_)) {
+          &out_config->shared_storage_budget_metadata_) ||
+      !data.ReadEffectiveEnabledPermissions(
+          &out_config->effective_enabled_permissions_)) {
     return false;
   }
 
@@ -462,7 +464,9 @@ bool StructTraits<blink::mojom::FencedFramePropertiesDataView,
       !data.ReadAdAuctionData(&out_properties->ad_auction_data_) ||
       !data.ReadNestedUrnConfigPairs(&nested_urn_config_pairs) ||
       !data.ReadSharedStorageBudgetMetadata(
-          &out_properties->shared_storage_budget_metadata_)) {
+          &out_properties->shared_storage_budget_metadata_) ||
+      !data.ReadEffectiveEnabledPermissions(
+          &out_properties->effective_enabled_permissions_)) {
     return false;
   }
 

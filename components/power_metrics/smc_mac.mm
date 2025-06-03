@@ -113,7 +113,7 @@ bool SMCReader::SMCKey::CallSMCFunction(uint8_t function, SMCParamStruct* out) {
     connect_.reset();
   }
 
-  // Even if the close failed, report whether the actual call succeded.
+  // Even if the close failed, report whether the actual call succeeded.
   return success;
 }
 

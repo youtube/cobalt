@@ -24,10 +24,6 @@
 #import "ios/web_view/public/cwv_credential_provider_extension_utils.h"
 #include "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // Typedefs of |completionHandler| in |fetchProfilesWithCompletionHandler:|,
 // |fetchCreditCardsWithCompletionHandler:|, and
 // |fetchPasswordsWithCompletionHandler|.
@@ -330,7 +326,7 @@ class WebViewPasswordStoreObserver
   form.url = password_manager_util::StripAuthAndParams(url);
   form.signon_realm = form.url.DeprecatedGetOriginAsURL().spec();
   form.username_value = base::SysNSStringToUTF16(username);
-  form.encrypted_password = base::SysNSStringToUTF8(keychainIdentifier);
+  form.keychain_identifier = base::SysNSStringToUTF8(keychainIdentifier);
 
   _passwordStore->AddLogin(form);
 }

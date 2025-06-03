@@ -12,37 +12,39 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
+#include "src/objects/instance-type-inl.h"
 
 namespace v8::internal {
 
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
+    uint32_t cell_index, MarkBit::CellType mask) {
   cells()[cell_index] |= mask;
 }
 
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
-  base::AsAtomic32::SetBits(cells() + cell_index, mask, mask);
+    uint32_t cell_index, MarkBit::CellType mask) {
+  base::AsAtomicWord::SetBits(cells() + cell_index, mask, mask);
 }
 
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
+    uint32_t cell_index, MarkBit::CellType mask) {
   cells()[cell_index] &= ~mask;
 }
 
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::ATOMIC>(
-    uint32_t cell_index, uint32_t mask) {
-  base::AsAtomic32::SetBits(cells() + cell_index, 0u, mask);
+    uint32_t cell_index, MarkBit::CellType mask) {
+  base::AsAtomicWord::SetBits(cells() + cell_index,
+                              static_cast<MarkBit::CellType>(0u), mask);
 }
 
 template <>
 inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  base::AtomicWord* cell_base = reinterpret_cast<base::AtomicWord*>(cells());
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
     base::Relaxed_Store(cell_base + i, 0);
   }
@@ -59,9 +61,10 @@ inline void MarkingBitmap::ClearCellRangeRelaxed<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
-  base::Atomic32* cell_base = reinterpret_cast<base::Atomic32*>(cells());
+  base::AtomicWord* cell_base = reinterpret_cast<base::AtomicWord*>(cells());
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
-    base::Relaxed_Store(cell_base + i, 0xffffffff);
+    base::Relaxed_Store(cell_base + i,
+                        std::numeric_limits<MarkBit::CellType>::max());
   }
 }
 
@@ -69,7 +72,7 @@ template <>
 inline void MarkingBitmap::SetCellRangeRelaxed<AccessMode::NON_ATOMIC>(
     uint32_t start_cell_index, uint32_t end_cell_index) {
   for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
-    cells()[i] = 0xffffffff;
+    cells()[i] = std::numeric_limits<MarkBit::CellType>::max();
   }
 }
 
@@ -166,12 +169,91 @@ constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
 }
 
 // static
+inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
+                                                      Address maybe_inner_ptr) {
+  DCHECK(page->Contains(maybe_inner_ptr));
+  const auto* bitmap = page->marking_bitmap();
+  const MarkBit::CellType* cells = bitmap->cells();
+
+  // The first actual bit of the bitmap, corresponding to page->area_start(),
+  // is at start_index which is somewhere in (not necessarily at the start of)
+  // start_cell_index.
+  const auto start_index = MarkingBitmap::AddressToIndex(page->area_start());
+  const auto start_cell_index = MarkingBitmap::IndexToCell(start_index);
+  // We assume that all markbits before start_index are clear:
+  // SLOW_DCHECK(bitmap->AllBitsClearInRange(0, start_index));
+  // This has already been checked for the entire bitmap before starting marking
+  // by MarkCompactCollector::VerifyMarkbitsAreClean.
+
+  const auto index = MarkingBitmap::AddressToIndex(maybe_inner_ptr);
+  auto cell_index = MarkingBitmap::IndexToCell(index);
+  const auto index_in_cell = MarkingBitmap::IndexInCell(index);
+  DCHECK_GT(MarkingBitmap::kBitsPerCell, index_in_cell);
+  auto cell = cells[cell_index];
+
+  // Clear the bits corresponding to higher addresses in the cell.
+  cell &= ((~static_cast<MarkBit::CellType>(0)) >>
+           (MarkingBitmap::kBitsPerCell - index_in_cell - 1));
+
+  // Traverse the bitmap backwards, until we find a markbit that is set and
+  // whose previous markbit (if it exists) is unset.
+  // First, iterate backwards to find a cell with any set markbit.
+  while (cell == 0 && cell_index > start_cell_index) cell = cells[--cell_index];
+  if (cell == 0) {
+    DCHECK_EQ(start_cell_index, cell_index);
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // We have found such a cell.
+  const auto leading_zeros = base::bits::CountLeadingZeros(cell);
+  const auto leftmost_ones =
+      base::bits::CountLeadingZeros(~(cell << leading_zeros));
+  const auto index_of_last_leftmost_one =
+      MarkingBitmap::kBitsPerCell - leading_zeros - leftmost_ones;
+
+  // If the leftmost sequence of set bits does not reach the start of the cell,
+  // we found it.
+  if (index_of_last_leftmost_one > 0) {
+    return page->address() + MarkingBitmap::IndexToAddressOffset(
+                                 cell_index * MarkingBitmap::kBitsPerCell +
+                                 index_of_last_leftmost_one);
+  }
+
+  // The leftmost sequence of set bits reaches the start of the cell. We must
+  // keep traversing backwards until we find the first unset markbit.
+  if (cell_index == start_cell_index) {
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // Iterate backwards to find a cell with any unset markbit.
+  do {
+    cell = cells[--cell_index];
+  } while (~cell == 0 && cell_index > start_cell_index);
+  if (~cell == 0) {
+    DCHECK_EQ(start_cell_index, cell_index);
+    // We have reached the start of the page.
+    return page->area_start();
+  }
+
+  // We have found such a cell.
+  const auto leading_ones = base::bits::CountLeadingZeros(~cell);
+  const auto index_of_last_leading_one =
+      MarkingBitmap::kBitsPerCell - leading_ones;
+  DCHECK_LT(0, index_of_last_leading_one);
+  return page->address() + MarkingBitmap::IndexToAddressOffset(
+                               cell_index * MarkingBitmap::kBitsPerCell +
+                               index_of_last_leading_one);
+}
+
+// static
 MarkBit MarkBit::From(Address address) {
   return MarkingBitmap::MarkBitFromAddress(address);
 }
 
 // static
-MarkBit MarkBit::From(HeapObject heap_object) {
+MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
   return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
@@ -248,10 +330,10 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
       Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
       // The object may be a filler which we want to skip.
       current_object_ = HeapObject::FromAddress(object_address);
-      current_map_ = current_object_.map(cage_base_, kAcquireLoad);
+      current_map_ = current_object_->map(cage_base_, kAcquireLoad);
       DCHECK(MapWord::IsMapOrForwarded(current_map_));
       current_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(
-          current_object_.SizeFromMap(current_map_));
+          current_object_->SizeFromMap(current_map_));
       CHECK(page_->ContainsLimit(object_address + current_size_));
       return true;
     }

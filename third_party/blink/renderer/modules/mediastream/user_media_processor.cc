@@ -322,7 +322,7 @@ class UserMediaProcessor::RequestInfo final
                             MediaStreamRequestResult result,
                             const String& result_name);
 
-  UserMediaRequest* request() { return request_; }
+  UserMediaRequest* request() { return request_.Get(); }
   int32_t request_id() const { return request_->request_id(); }
 
   State state() const { return state_; }
@@ -397,7 +397,7 @@ class UserMediaProcessor::RequestInfo final
 
   MediaStreamDescriptorVector* descriptors() {
     DCHECK(descriptors_);
-    return descriptors_;
+    return descriptors_.Get();
   }
 
   const mojom::blink::StreamDevicesSet& devices_set() const {
@@ -620,7 +620,7 @@ void UserMediaProcessor::SetupAudioInput() {
 
   TrackControls& audio_controls = stream_controls->audio;
   audio_controls.stream_type =
-      (request->MediaRequestType() == UserMediaRequestType::kDisplayMediaSet)
+      (request->MediaRequestType() == UserMediaRequestType::kAllScreensMedia)
           ? MediaStreamType::NO_SERVICE
           : request->AudioMediaStreamType();
 
@@ -813,6 +813,9 @@ void UserMediaProcessor::SetupVideoInput() {
   stream_controls->dynamic_surface_switching_requested =
       request->dynamic_surface_switching_requested();
 
+  stream_controls->exclude_monitor_type_surfaces =
+      request->exclude_monitor_type_surfaces();
+
   if (blink::IsDeviceMediaType(video_controls.stream_type)) {
     GetMediaDevicesDispatcher()->GetVideoInputCapabilities(
         WTF::BindOnce(&UserMediaProcessor::SelectVideoDeviceSettings,
@@ -982,7 +985,7 @@ void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
 WebMediaStreamDeviceObserver*
 UserMediaProcessor::GetMediaStreamDeviceObserver() {
   auto* media_stream_device_observer =
-      media_stream_device_observer_for_testing_;
+      media_stream_device_observer_for_testing_.get();
   if (frame_) {  // Can be null for tests.
     auto* web_frame =
         static_cast<WebLocalFrame*>(WebFrame::FromCoreFrame(frame_));
@@ -1546,8 +1549,10 @@ UserMediaProcessor::CreateAudioSource(
         frame_, device,
         base::OptionalToPtr(current_request_info_->audio_capture_settings()
                                 .requested_buffer_size()),
-        stream_controls->disable_local_echo, std::move(source_ready),
-        task_runner_);
+        stream_controls->disable_local_echo,
+        audio_processing_properties.echo_cancellation_type ==
+            EchoCancellationType::kEchoCancellationSystem,
+        std::move(source_ready), task_runner_);
   }
 
   // The audio device is not associated with screen capture and also requires
@@ -1678,7 +1683,7 @@ MediaStreamComponent* UserMediaProcessor::CreateAudioTrack(
   // set. Thus, all audio processing properties are known and can be surfaced
   // to |source|.
   SurfaceAudioProcessingSettings(source);
-  return component;
+  return component.Get();
 }
 
 void UserMediaProcessor::OnCreateNativeTracksCompleted(
@@ -1817,7 +1822,7 @@ MediaStreamSource* UserMediaProcessor::FindLocalSource(
         local_source->GetPlatformSource();
     const MediaStreamDevice& active_device = source->device();
     if (IsSameDevice(active_device, device)) {
-      return local_source;
+      return local_source.Get();
     }
   }
   return nullptr;
@@ -1981,6 +1986,9 @@ void UserMediaProcessor::OnLocalSourceStopped(
 void UserMediaProcessor::StopLocalSource(MediaStreamSource* source,
                                          bool notify_dispatcher) {
   WebPlatformMediaStreamSource* source_impl = source->GetPlatformSource();
+  if (!source_impl) {
+    return;
+  }
   SendLogMessage(base::StringPrintf(
       "StopLocalSource({session_id=%s})",
       source_impl->device().session_id().ToString().c_str()));

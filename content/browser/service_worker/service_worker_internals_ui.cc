@@ -19,13 +19,13 @@
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/grit/dev_ui_content_resources.h"
+#include "content/grit/service_worker_resources.h"
+#include "content/grit/service_worker_resources_map.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -38,6 +38,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom.h"
 
@@ -84,16 +85,16 @@ base::ProcessId GetRealProcessId(int process_host_id) {
 base::Value::Dict UpdateVersionInfo(const ServiceWorkerVersionInfo& version) {
   base::Value::Dict info;
   switch (version.running_status) {
-    case EmbeddedWorkerStatus::STOPPED:
+    case blink::EmbeddedWorkerStatus::kStopped:
       info.Set("running_status", "STOPPED");
       break;
-    case EmbeddedWorkerStatus::STARTING:
+    case blink::EmbeddedWorkerStatus::kStarting:
       info.Set("running_status", "STARTING");
       break;
-    case EmbeddedWorkerStatus::RUNNING:
+    case blink::EmbeddedWorkerStatus::kRunning:
       info.Set("running_status", "RUNNING");
       break;
-    case EmbeddedWorkerStatus::STOPPING:
+    case blink::EmbeddedWorkerStatus::kStopping:
       info.Set("running_status", "STOPPING");
       break;
   }
@@ -137,6 +138,10 @@ base::Value::Dict UpdateVersionInfo(const ServiceWorkerVersionInfo& version) {
   } else {
     info.Set("fetch_handler_existence", "UNKNOWN");
     info.Set("fetch_handler_type", "UNKNOWN");
+  }
+
+  if (version.router_rules) {
+    info.Set("router_rules", *version.router_rules);
   }
 
   info.Set("script_url", version.script_url.spec());
@@ -286,6 +291,12 @@ class ServiceWorkerInternalsHandler::PartitionObserver
       handler_->OnVersionStateChanged(partition_id_, version_id);
     }
   }
+  void OnVersionRouterRulesChanged(int64_t, const std::string&) override {
+    DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    if (handler_) {
+      handler_->OnVersionRouterRulesChanged();
+    }
+  }
   void OnErrorReported(
       int64_t version_id,
       const GURL& scope,
@@ -356,11 +367,10 @@ ServiceWorkerInternalsUI::ServiceWorkerInternalsUI(WebUI* web_ui)
       network::mojom::CSPDirectiveName::TrustedTypes,
       "trusted-types jstemplate;");
   source->UseStringsJs();
-  source->AddResourcePath("serviceworker_internals.js",
-                          IDR_SERVICE_WORKER_INTERNALS_JS);
-  source->AddResourcePath("serviceworker_internals.css",
-                          IDR_SERVICE_WORKER_INTERNALS_CSS);
-  source->SetDefaultResource(IDR_SERVICE_WORKER_INTERNALS_HTML);
+  source->AddResourcePaths(
+      base::make_span(kServiceWorkerResources, kServiceWorkerResourcesSize));
+  source->SetDefaultResource(IDR_SERVICE_WORKER_SERVICEWORKER_INTERNALS_HTML);
+
   source->DisableDenyXFrameOptions();
 
   web_ui->AddMessageHandler(std::make_unique<ServiceWorkerInternalsHandler>());
@@ -428,6 +438,10 @@ void ServiceWorkerInternalsHandler::OnVersionStateChanged(int partition_id,
                                                           int64_t version_id) {
   FireWebUIListener("version-state-changed", base::Value(partition_id),
                     base::Value(base::NumberToString(version_id)));
+}
+
+void ServiceWorkerInternalsHandler::OnVersionRouterRulesChanged() {
+  FireWebUIListener("version-router-rules-changed");
 }
 
 void ServiceWorkerInternalsHandler::OnErrorEvent(

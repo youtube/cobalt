@@ -4,17 +4,17 @@
 
 #include "components/autofill/core/browser/metrics/form_events/form_event_logger_base.h"
 
-#include "base/containers/enum_set.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/form_parsing/form_field.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
-#include "components/autofill/core/common/autofill_constants.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_internals/log_message.h"
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
 
@@ -38,6 +38,33 @@ const char* AblationGroupToString(AblationGroup ablation_group) {
   return nullptr;
 }
 
+bool DetermineHeuristicOnlyEmailFormStatus(const FormStructure& form) {
+  // First, check the prerequisites.
+  // Without the feature being enabled, such forms are not parsed.
+  if (!base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableEmailHeuristicOnlyAddressForms)) {
+    return false;
+  }
+  // When the feature is enabled, the forms for which this classification is
+  // applicable must be inside a form tag, must not run heuristics normally
+  // (i.e., their field count is below `kMinRequiredFieldsForHeuristics`), but
+  // must be eligible for single field form heuristics.
+  if (!form.is_form_tag() || form.ShouldRunHeuristics() ||
+      !form.ShouldRunHeuristicsForSingleFieldForms()) {
+    return false;
+  }
+  // Having met the prerequisites, now determine if there's a field whose
+  // heuristic type is email.
+  for (const auto& field : form.fields()) {
+    if (field && field->heuristic_type() == EMAIL_ADDRESS &&
+        field->server_type() == NO_SERVER_DATA) {
+      return true;
+    }
+  }
+  // No email fields, therefore this is not a heuristic-only email form.
+  return false;
+}
+
 }  // namespace
 
 FormEventLoggerBase::FormEventLoggerBase(
@@ -56,8 +83,8 @@ FormEventLoggerBase::~FormEventLoggerBase() {
 
 void FormEventLoggerBase::OnDidInteractWithAutofillableForm(
     const FormStructure& form,
-    AutofillSyncSigninState sync_state) {
-  sync_state_ = sync_state;
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics) {
+  signin_state_for_metrics_ = signin_state_for_metrics;
   if (!has_logged_interacted_) {
     has_logged_interacted_ = true;
     LogUkmInteractedWithForm(form.form_signature());
@@ -67,8 +94,8 @@ void FormEventLoggerBase::OnDidInteractWithAutofillableForm(
 
 void FormEventLoggerBase::OnDidPollSuggestions(
     const FormFieldData& field,
-    AutofillSyncSigninState sync_state) {
-  sync_state_ = sync_state;
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics) {
+  signin_state_for_metrics_ = signin_state_for_metrics;
   // Record only one poll user action for consecutive polls of the same field.
   // This is to avoid recording too many poll actions (for example when a user
   // types in a field, triggering multiple queries) to make the analysis more
@@ -85,15 +112,6 @@ void FormEventLoggerBase::OnDidParseForm(const FormStructure& form) {
   has_parsed_form_ = true;
 }
 
-void FormEventLoggerBase::OnPopupSuppressed(const FormStructure& form,
-                                            const AutofillField& field) {
-  Log(FORM_EVENT_POPUP_SUPPRESSED, form);
-  if (!has_logged_popup_suppressed_) {
-    has_logged_popup_suppressed_ = true;
-    Log(FORM_EVENT_POPUP_SUPPRESSED_ONCE, form);
-  }
-}
-
 void FormEventLoggerBase::OnUserHideSuggestions(const FormStructure& form,
                                                 const AutofillField& field) {
   Log(FORM_EVENT_USER_HIDE_SUGGESTIONS, form);
@@ -107,9 +125,9 @@ void FormEventLoggerBase::OnDidShowSuggestions(
     const FormStructure& form,
     const AutofillField& field,
     const base::TimeTicks& form_parsed_timestamp,
-    AutofillSyncSigninState sync_state,
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
     bool off_the_record) {
-  sync_state_ = sync_state;
+  signin_state_for_metrics_ = signin_state_for_metrics;
   form_interactions_ukm_logger_->LogSuggestionsShown(
       form, field, form_parsed_timestamp, off_the_record);
 
@@ -144,9 +162,10 @@ void FormEventLoggerBase::SetTimeFromInteractionToSubmission(
   time_from_interaction_to_submission_ = time_from_interaction_to_submission;
 }
 
-void FormEventLoggerBase::OnWillSubmitForm(AutofillSyncSigninState sync_state,
-                                           const FormStructure& form) {
-  sync_state_ = sync_state;
+void FormEventLoggerBase::OnWillSubmitForm(
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
+    const FormStructure& form) {
+  signin_state_for_metrics_ = signin_state_for_metrics;
   // Not logging this kind of form if we haven't logged a user interaction.
   if (!has_logged_interacted_)
     return;
@@ -157,6 +176,10 @@ void FormEventLoggerBase::OnWillSubmitForm(AutofillSyncSigninState sync_state,
   has_logged_will_submit_ = true;
   submitted_form_types_ = form.GetFormTypes();
 
+  // Determine whether logging of email-heuristic only metrics is required.
+  is_heuristic_only_email_form_ = (is_heuristic_only_email_form_ ||
+                                   DetermineHeuristicOnlyEmailFormStatus(form));
+
   LogWillSubmitForm(form);
 
   if (has_logged_suggestions_shown_) {
@@ -166,9 +189,10 @@ void FormEventLoggerBase::OnWillSubmitForm(AutofillSyncSigninState sync_state,
   base::RecordAction(base::UserMetricsAction("Autofill_OnWillSubmitForm"));
 }
 
-void FormEventLoggerBase::OnFormSubmitted(AutofillSyncSigninState sync_state,
-                                          const FormStructure& form) {
-  sync_state_ = sync_state;
+void FormEventLoggerBase::OnFormSubmitted(
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
+    const FormStructure& form) {
+  signin_state_for_metrics_ = signin_state_for_metrics;
   // Not logging this kind of form if we haven't logged a user interaction.
   if (!has_logged_interacted_)
     return;
@@ -179,7 +203,6 @@ void FormEventLoggerBase::OnFormSubmitted(AutofillSyncSigninState sync_state,
   has_logged_submitted_ = true;
 
   LogFormSubmitted(form);
-  LogImpactOfHeuristicsThreshold(form);
 
   if (has_logged_suggestions_shown_) {
     Log(FORM_EVENT_SUGGESTION_SHOWN_SUBMITTED_ONCE, form);
@@ -248,8 +271,9 @@ void FormEventLoggerBase::Log(FormEvent event, const FormStructure& form) {
     name += ".WithBothServerAndLocalData";
   base::UmaHistogramEnumeration(name, event, NUM_FORM_EVENTS);
   base::UmaHistogramEnumeration(
-      name + AutofillMetrics::GetMetricsSyncStateSuffix(sync_state_), event,
-      NUM_FORM_EVENTS);
+      name +
+          AutofillMetrics::GetMetricsSyncStateSuffix(signin_state_for_metrics_),
+      event, NUM_FORM_EVENTS);
 }
 
 void FormEventLoggerBase::LogWillSubmitForm(const FormStructure& form) {
@@ -280,43 +304,60 @@ void FormEventLoggerBase::LogUkmInteractedWithForm(
 }
 
 void FormEventLoggerBase::RecordFunnelMetrics() const {
-  LogBuffer logs(IsLoggingActive(client_->GetLogManager()));
-  LOG_AF(logs) << Tr{} << "Form Type: " << form_type_name_;
   UmaHistogramBoolean("Autofill.Funnel.ParsedAsType." + form_type_name_,
                       has_parsed_form_);
   if (!has_parsed_form_) {
     return;
   }
-  UmaHistogramBoolean(
-      "Autofill.Funnel.InteractionAfterParsedAsType." + form_type_name_,
-      has_logged_interacted_);
-  LOG_AF(logs) << Tr{} << "InteractionAfterParsedAsType"
-               << has_logged_interacted_;
+  LogBuffer logs(IsLoggingActive(client_->GetLogManager()));
+  LOG_AF(logs) << Tr{} << "Form Type: " << form_type_name_;
+
+  RecordInteractionAfterParsedAsType(logs);
   if (has_logged_interacted_) {
-    UmaHistogramBoolean(
-        "Autofill.Funnel.SuggestionAfterInteraction." + form_type_name_,
-        has_logged_suggestions_shown_);
-    LOG_AF(logs) << Tr{} << "SuggestionAfterInteraction"
-                 << has_logged_suggestions_shown_;
+    RecordSuggestionAfterInteraction(logs);
   }
   if (has_logged_interacted_ && has_logged_suggestions_shown_) {
-    UmaHistogramBoolean(
-        "Autofill.Funnel.FillAfterSuggestion." + form_type_name_,
-        has_logged_suggestion_filled_);
-    LOG_AF(logs) << Tr{} << "FillAfterSuggestion"
-                 << has_logged_suggestion_filled_;
+    RecordFillAfterSuggestion(logs);
   }
   if (has_logged_interacted_ && has_logged_suggestions_shown_ &&
       has_logged_suggestion_filled_) {
-    UmaHistogramBoolean(
-        "Autofill.Funnel.SubmissionAfterFill." + form_type_name_,
-        has_logged_will_submit_);
-    LOG_AF(logs) << Tr{} << "SubmissionAfterFill" << has_logged_will_submit_;
+    RecordSubmissionAfterFill(logs);
   }
 
   LOG_AF(client_->GetLogManager())
       << LoggingScope::kMetrics << LogMessage::kFunnelMetrics << Tag{"table"}
       << std::move(logs) << CTag{"table"};
+}
+
+void FormEventLoggerBase::RecordInteractionAfterParsedAsType(
+    LogBuffer& logs) const {
+  UmaHistogramBoolean(
+      "Autofill.Funnel.InteractionAfterParsedAsType." + form_type_name_,
+      has_logged_interacted_);
+  LOG_AF(logs) << Tr{} << "InteractionAfterParsedAsType"
+               << has_logged_interacted_;
+}
+
+void FormEventLoggerBase::RecordSuggestionAfterInteraction(
+    LogBuffer& logs) const {
+  UmaHistogramBoolean(
+      "Autofill.Funnel.SuggestionAfterInteraction." + form_type_name_,
+      has_logged_suggestions_shown_);
+  LOG_AF(logs) << Tr{} << "SuggestionAfterInteraction"
+               << has_logged_suggestions_shown_;
+}
+
+void FormEventLoggerBase::RecordFillAfterSuggestion(LogBuffer& logs) const {
+  UmaHistogramBoolean("Autofill.Funnel.FillAfterSuggestion." + form_type_name_,
+                      has_logged_suggestion_filled_);
+  LOG_AF(logs) << Tr{} << "FillAfterSuggestion"
+               << has_logged_suggestion_filled_;
+}
+
+void FormEventLoggerBase::RecordSubmissionAfterFill(LogBuffer& logs) const {
+  UmaHistogramBoolean("Autofill.Funnel.SubmissionAfterFill." + form_type_name_,
+                      has_logged_will_submit_);
+  LOG_AF(logs) << Tr{} << "SubmissionAfterFill" << has_logged_will_submit_;
 }
 
 void FormEventLoggerBase::RecordKeyMetrics() const {
@@ -378,6 +419,14 @@ void FormEventLoggerBase::RecordFillingAcceptance(LogBuffer& logs) const {
                     (has_logged_autocomplete_off_ ? "Off" : "NotOff"),
                     ".FillingAcceptance.", form_type_name_.c_str()}),
       has_logged_suggestion_filled_);
+  // Note that `is_heuristic_only_email_form_` will only be true when the
+  // `kAutofillEnableEmailHeuristicOnlyAddressForms` feature is enabled and the
+  // form meets the requirements expressed in
+  // `DetermineHeuristicOnlyEmailFormStatus`.
+  if (is_heuristic_only_email_form_) {
+    UmaHistogramBoolean("Autofill.EmailHeuristicOnlyAcceptance",
+                        has_logged_suggestion_filled_);
+  }
 }
 
 void FormEventLoggerBase::RecordFillingCorrectness(LogBuffer& logs) const {
@@ -454,51 +503,6 @@ void FormEventLoggerBase::RecordAblationMetrics() const {
           base::Minutes(10), 50);
     }
   }
-}
-
-// TODO(crbug.com/1352826): Remove this after investigating the impact.
-void FormEventLoggerBase::LogImpactOfHeuristicsThreshold(
-    const FormStructure& form) {
-  size_t num_fields_classified_by_local_heuristic = 0;
-  base::EnumSet<ServerFieldType, NO_SERVER_DATA, MAX_VALID_FIELD_TYPE>
-      heuristic_types;
-  // Whether the final type would have changed for at least one field if we
-  // applied the stricter heuristic.
-  bool type_would_have_changed = false;
-  for (const auto& field : form) {
-    if (field->heuristic_type() == UNKNOWN_TYPE)
-      continue;
-    num_fields_classified_by_local_heuristic++;
-    heuristic_types.Put(field->heuristic_type());
-    type_would_have_changed |=
-        field->server_type() == NO_SERVER_DATA &&
-        field->html_type() == HtmlFieldType::kUnspecified &&
-        field->heuristic_type() != EMAIL_ADDRESS &&
-        !FormField::IsSingleFieldParseableType(field->heuristic_type());
-  }
-
-  bool relevant_form =
-      // We only consider forms where the local heuristics were applied...
-      num_fields_classified_by_local_heuristic >=
-          kMinRequiredFieldsForHeuristics &&
-      // and a stricter condition to only consider local heuristics with
-      // classify >= kMinRequiredFieldsForHeuristics *distinct* fields would
-      // reject the the local classifications
-      heuristic_types.Size() < kMinRequiredFieldsForHeuristics &&
-      // and at least one field type was derived from the heuristic that is not
-      // allow listed for classification for smaller forms in
-      // FormField::ParseFormFields.
-      type_would_have_changed;
-  if (!relevant_form)
-    return;
-  UmaHistogramBoolean(
-      "Autofill.FormAffectedByLaxLocalHeuristicRule.FillingAcceptance." +
-          form_type_name_,
-      has_logged_suggestion_filled_);
-  UmaHistogramBoolean(
-      "Autofill.FormAffectedByLaxLocalHeuristicRule.FillingCorrectness." +
-          form_type_name_,
-      !has_logged_edited_autofilled_field_);
 }
 
 void FormEventLoggerBase::OnTextFieldDidChange(

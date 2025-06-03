@@ -24,8 +24,6 @@ class ResourceRequestBody;
 
 namespace content {
 
-class SubresourceWebBundleNavigationInfo;
-
 // Represents a session history item for a particular frame.  It is matched with
 // corresponding FrameTreeNodes using unique name (or by the root position).
 // There is a tree of FrameNavigationEntries in each NavigationEntry, one per
@@ -43,7 +41,6 @@ class CONTENT_EXPORT FrameNavigationEntry
   // The value of bindings() before it is set during commit.
   enum : int { kInvalidBindings = -1 };
 
-  FrameNavigationEntry();
   FrameNavigationEntry(
       const std::string& frame_unique_name,
       int64_t item_sequence_number,
@@ -61,8 +58,6 @@ class CONTENT_EXPORT FrameNavigationEntry
       const std::string& method,
       int64_t post_id,
       scoped_refptr<network::SharedURLLoaderFactory> blob_url_loader_factory,
-      std::unique_ptr<SubresourceWebBundleNavigationInfo>
-          subresource_web_bundle_navigation_info,
       std::unique_ptr<PolicyContainerPolicies> policy_container_policies,
       bool protect_url_in_navigation_api);
 
@@ -91,8 +86,6 @@ class CONTENT_EXPORT FrameNavigationEntry
       const std::string& method,
       int64_t post_id,
       scoped_refptr<network::SharedURLLoaderFactory> blob_url_loader_factory,
-      std::unique_ptr<SubresourceWebBundleNavigationInfo>
-          subresource_web_bundle_navigation_info,
       std::unique_ptr<PolicyContainerPolicies> policy_container_policies,
       bool protect_url_in_navigation_api);
 
@@ -129,12 +122,6 @@ class CONTENT_EXPORT FrameNavigationEntry
   // process.  This is a refcounted pointer that keeps the SiteInstance (not
   // necessarily the process) alive as long as this object remains in the
   // session history.
-  // TODO(nasko, creis): The SiteInstance of a FrameNavigationEntry should
-  // not change once it has been assigned.  See https://crbug.com/849430.
-  void set_site_instance(scoped_refptr<SiteInstanceImpl> site_instance) {
-    CHECK(!site_instance_ || site_instance_ == site_instance);
-    site_instance_ = std::move(site_instance);
-  }
   SiteInstanceImpl* site_instance() const { return site_instance_.get(); }
 
   // The |source_site_instance| is used to identify the SiteInstance of the
@@ -236,9 +223,6 @@ class CONTENT_EXPORT FrameNavigationEntry
     blob_url_loader_factory_ = std::move(factory);
   }
 
-  SubresourceWebBundleNavigationInfo* subresource_web_bundle_navigation_info()
-      const;
-
   bool protect_url_in_navigation_api() {
     return protect_url_in_navigation_api_;
   }
@@ -266,6 +250,8 @@ class CONTENT_EXPORT FrameNavigationEntry
   int64_t document_sequence_number_;
   std::string navigation_api_key_;
 
+  // TODO(nasko, creis): The SiteInstance of a FrameNavigationEntry should
+  // not change once it has been assigned.  See https://crbug.com/849430.
   scoped_refptr<SiteInstanceImpl> site_instance_;
   // This member is cleared at commit time and is not persisted.
   scoped_refptr<SiteInstanceImpl> source_site_instance_;
@@ -289,11 +275,6 @@ class CONTENT_EXPORT FrameNavigationEntry
   std::string method_;
   int64_t post_id_;
   scoped_refptr<network::SharedURLLoaderFactory> blob_url_loader_factory_;
-
-  // Used when |this| is for a subframe navigation to a resource from the parent
-  // frame's subresource web bundle.
-  std::unique_ptr<SubresourceWebBundleNavigationInfo>
-      subresource_web_bundle_navigation_info_;
 
   // TODO(https://crbug.com/1140393): Persist these policies.
   std::unique_ptr<PolicyContainerPolicies> policy_container_policies_;

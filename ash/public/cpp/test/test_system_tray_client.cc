@@ -12,6 +12,10 @@ TestSystemTrayClient::~TestSystemTrayClient() = default;
 
 void TestSystemTrayClient::ShowSettings(int64_t display_id) {}
 
+void TestSystemTrayClient::ShowAccountSettings() {
+  show_account_settings_count_++;
+}
+
 void TestSystemTrayClient::ShowBluetoothSettings() {
   show_bluetooth_settings_count_++;
 }
@@ -60,6 +64,10 @@ void TestSystemTrayClient::ShowAccessibilityHelp() {}
 
 void TestSystemTrayClient::ShowAccessibilitySettings() {}
 
+void TestSystemTrayClient::ShowColorCorrectionSettings() {
+  show_color_correction_settings_count_++;
+}
+
 void TestSystemTrayClient::ShowGestureEducationHelp() {}
 
 void TestSystemTrayClient::ShowPaletteHelp() {}
@@ -72,6 +80,10 @@ void TestSystemTrayClient::ShowPrivacyAndSecuritySettings() {
 
 void TestSystemTrayClient::ShowPrivacyHubSettings() {
   show_os_settings_privacy_hub_count_++;
+}
+
+void TestSystemTrayClient::ShowSpeakOnMuteDetectionSettings() {
+  show_speak_on_mute_detection_count_++;
 }
 
 void TestSystemTrayClient::ShowSmartPrivacySettings() {
@@ -94,6 +106,11 @@ void TestSystemTrayClient::ShowSettingsSimUnlock() {
   ++show_sim_unlock_settings_count_;
 }
 
+void TestSystemTrayClient::ShowApnSubpage(const std::string& network_id) {
+  ++show_apn_subpage_count_;
+  last_apn_subpage_network_id_ = network_id;
+}
+
 void TestSystemTrayClient::ShowThirdPartyVpnCreate(
     const std::string& extension_id) {
   ++show_third_party_vpn_create_count_;
@@ -108,6 +125,10 @@ void TestSystemTrayClient::ShowArcVpnCreate(const std::string& app_id) {
 void TestSystemTrayClient::ShowNetworkSettings(const std::string& network_id) {
   show_network_settings_count_++;
   last_network_settings_network_id_ = network_id;
+}
+
+void TestSystemTrayClient::ShowHotspotSubpage() {
+  show_hotspot_subpage_count_++;
 }
 
 void TestSystemTrayClient::ShowMultiDeviceSetup() {
@@ -160,5 +181,13 @@ void TestSystemTrayClient::ShowEolInfoPage() {
 }
 
 void TestSystemTrayClient::RecordEolNoticeShown() {}
+
+void TestSystemTrayClient::ShowTouchpadSettings() {
+  ++show_touchpad_settings_count_;
+}
+
+void TestSystemTrayClient::ShowRemapKeysSubpage(int device_id) {
+  ++show_remap_keys_subpage_count_;
+}
 
 }  // namespace ash

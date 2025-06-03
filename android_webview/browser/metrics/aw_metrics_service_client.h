@@ -18,8 +18,6 @@
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service_client.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
 
 namespace android_webview {
 
@@ -208,6 +206,14 @@ class AwMetricsServiceClient : public ::metrics::AndroidMetricsServiceClient,
   // component update service, regardless if it was successful or not.
   base::Time GetAppPackageNameLoggingRuleLastUpdateTime() const;
   void SetAppPackageNameLoggingRuleLastUpdateTime(base::Time update_time);
+
+  // If `android_webview::features::kWebViewMetricsFiltering` is
+  // enabled:
+  // - return `true` if client used to be sampled out.
+  // - return `false` if client used to be in-sampled.
+  //
+  // If the feature isn't enabled, return false.
+  virtual bool ShouldApplyMetricsFiltering() const;
 
  protected:
   // Restrict usage of the inherited AndroidMetricsServiceClient::RegisterPrefs,

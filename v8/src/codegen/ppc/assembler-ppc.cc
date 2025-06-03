@@ -207,7 +207,7 @@ MemOperand::MemOperand(Register ra, Register rb)
 MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
     : ra_(ra), offset_(offset), rb_(rb) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
   for (auto& request : heap_number_requests_) {
     Handle<HeapObject> object =
@@ -242,8 +242,11 @@ Assembler::Assembler(const AssemblerOptions& options,
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  GetCode(isolate->main_thread_local_isolate(), desc);
+}
+void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add
@@ -483,7 +486,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       int32_t offset =
           target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
       PatchingAssembler patcher(
-          options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
+          options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 2);
       patcher.bitwise_mov32(dst, offset);
       break;
     }
@@ -498,7 +501,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
                           : (SIGN_EXT_IMM22(operands & kImm22Mask));
       int32_t offset = target_pos + delta;
       PatchingAssembler patcher(
-          options(), reinterpret_cast<byte*>(buffer_start_ + pos),
+          options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos),
           2 + static_cast<int32_t>(opcode == kUnboundAddLabelLongOffsetOpcode));
       patcher.bitwise_add32(dst, base, offset);
       if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
@@ -508,7 +511,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       PatchingAssembler patcher(options(),
-                                reinterpret_cast<byte*>(buffer_start_ + pos),
+                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
                                 kMovInstructionsNoConstantPool);
       // Keep internal references relative until EmitRelocations.
       patcher.bitwise_mov(dst, target_pos);
@@ -516,7 +519,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     }
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
-                                reinterpret_cast<byte*>(buffer_start_ + pos),
+                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
                                 kSystemPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
       patcher.dp(target_pos);
@@ -2135,7 +2138,7 @@ void Assembler::GrowBuffer(int needed) {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -2249,7 +2252,7 @@ void Assembler::CheckTrampolinePool() {
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
-                                     byte* address, int instructions)
+                                     uint8_t* address, int instructions)
     : Assembler(options, ExternalAssemblerBuffer(
                              address, instructions * kInstrSize + kGap)) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
@@ -2259,20 +2262,6 @@ PatchingAssembler::~PatchingAssembler() {
   // Check that the code was patched as expected.
   DCHECK_EQ(pc_, buffer_start_ + buffer_->size() - kGap);
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
-}
-
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : assembler_(assembler),
-      old_available_(*assembler->GetScratchRegisterList()) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *assembler_->GetScratchRegisterList() = old_available_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  RegList* available = assembler_->GetScratchRegisterList();
-  DCHECK_NOT_NULL(available);
-  return available->PopFirst();
 }
 
 }  // namespace internal

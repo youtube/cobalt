@@ -60,6 +60,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   // Sets the suggested value and puts the element into
   // WebAutofillState::kPreviewed state if |value| is non-empty, or
   // WebAutofillState::kNotFilled otherwise.
+  // A null value indicates that the suggested value should be hidden.
   void SetSuggestedValue(const String& value) override;
 
   // For ValidityState
@@ -96,7 +97,6 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   bool SupportsPlaceholder() const override { return true; }
   String GetPlaceholderValue() const final;
   void UpdatePlaceholderText() override;
-  bool IsEmptyValue() const override { return Value().empty(); }
   TextControlInnerEditorElement* EnsureInnerEditorElement() const final;
 
   bool IsOptionalFormControl() const override {
@@ -112,12 +112,14 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   bool IsInteractiveContent() const override;
   bool IsLabelable() const override { return true; }
 
-  const AtomicString& FormControlType() const override;
+  mojom::blink::FormControlType FormControlType() const override;
+  const AtomicString& FormControlTypeAsString() const override;
 
   FormControlState SaveFormControlState() const override;
   void RestoreFormControlState(const FormControlState&) override;
 
   bool IsTextControl() const override { return true; }
+  bool ShouldAutoDirUseValue() const final { return true; }
   int scrollWidth() override;
   int scrollHeight() override;
   void ChildrenChanged(const ChildrenChange&) override;
@@ -140,7 +142,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
 
   bool MatchesReadOnlyPseudoClass() const override;
   bool MatchesReadWritePseudoClass() const override;
-  void CloneNonAttributePropertiesFrom(const Element&, CloneChildrenFlag) final;
+  void CloneNonAttributePropertiesFrom(const Element&, NodeCloningData&) final;
 
   // If the String* argument is 0, apply value().
   bool ValueMissing(const String*) const;

@@ -7,10 +7,6 @@
 
 #import <Foundation/Foundation.h>
 
-namespace web {
-class WebState;
-}
-
 // Commands for the popup menu.
 @protocol PopupMenuCommands
 
@@ -18,9 +14,8 @@ class WebState;
 - (void)showToolsMenuPopup;
 // Dismisses the currently presented popup.
 - (void)dismissPopupMenuAnimated:(BOOL)animated;
-// Shows a snackbar that allows the user to UNDO its pin/unpin action.
-- (void)showSnackbarForPinnedState:(BOOL)pinnedState
-                          webState:(web::WebState*)webState;
+// Adjusts the popup's size when the containing view's size changes.
+- (void)adjustPopupSize;
 
 @end
 

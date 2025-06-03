@@ -222,7 +222,7 @@ class CrostiniManager : public KeyedService,
   void MaybeUpdateCrostini();
 
   // Installs termina using the DLC service.
-  void InstallTermina(CrostiniResultCallback callback, bool is_initial_install);
+  void InstallTermina(CrostiniResultCallback callback);
 
   // Try to cancel a previous InstallTermina call. This is done on a best-effort
   // basis. The callback passed to InstallTermina is still run upon completion.
@@ -600,8 +600,7 @@ class CrostiniManager : public KeyedService,
   bool IsUncleanStartup() const;
   void SetUncleanStartupForTesting(bool is_unclean_startup);
   void RemoveUncleanSshfsMounts();
-  void DeallocateForwardedPortsCallback(Profile* profile,
-                                        const guest_os::GuestId& container_id);
+  void DeallocateForwardedPortsCallback(const guest_os::GuestId& container_id);
 
   void CallRestarterStartLxdContainerFinishedForTesting(
       CrostiniManager::RestartId id,
@@ -807,6 +806,9 @@ class CrostiniManager : public KeyedService,
   // triggering observers.
   void HandleContainerShutdown(const guest_os::GuestId& container_id);
 
+  // Registers a container with the GuestOsService's terminal provider registry.
+  void RegisterContainerTerminal(const guest_os::GuestId& container_id);
+
   // Registers a container with GuestOsService's registries. No-op if it's
   // already registered.
   void RegisterContainer(const guest_os::GuestId& container_id);
@@ -821,7 +823,9 @@ class CrostiniManager : public KeyedService,
   // Best-effort attempt to premount the user's files.
   void MountCrostiniFilesBackground(guest_os::GuestInfo info);
 
-  Profile* profile_;
+  bool ShouldWarnAboutExpiredVersion(const guest_os::GuestId& container_id);
+
+  raw_ptr<Profile, ExperimentalAsh> profile_;
   std::string owner_id_;
 
   bool skip_restart_for_testing_ = false;
@@ -934,6 +938,8 @@ class CrostiniManager : public KeyedService,
       mount_provider_ids_;
 
   base::CallbackListSubscription primary_counter_mount_subscription_;
+
+  bool already_warned_expired_version_ = false;
 
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate its weak pointers before any other members are destroyed.

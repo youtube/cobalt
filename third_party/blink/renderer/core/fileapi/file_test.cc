@@ -19,6 +19,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/platform/blob/testing/fake_blob.h"
 #include "third_party/blink/renderer/platform/file_metadata.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -114,14 +115,14 @@ class MockFileSystemManager : public mojom::blink::FileSystemManager {
   void ReadDirectorySync(const KURL& path,
                          ReadDirectorySyncCallback callback) override {}
   void Write(const KURL& file_path,
-             const String& blob_uuid,
+             mojo::PendingRemote<mojom::blink::Blob> blob,
              int64_t position,
              mojo::PendingReceiver<mojom::blink::FileSystemCancellableOperation>
                  op_receiver,
              mojo::PendingRemote<mojom::blink::FileSystemOperationListener>
                  pending_listener) override {}
   void WriteSync(const KURL& file_path,
-                 const String& blob_uuid,
+                 mojo::PendingRemote<mojom::blink::Blob> blob,
                  int64_t position,
                  WriteSyncCallback callback) override {}
   void Truncate(
@@ -175,7 +176,9 @@ void ExpectTimestampIsNow(const File& file) {
 }  // namespace
 
 TEST(FileTest, NativeFileWithoutTimestamp) {
-  auto* const file = MakeGarbageCollected<File>("/native/path");
+  ScopedNullExecutionContext context;
+  auto* const file = MakeGarbageCollected<File>(&context.GetExecutionContext(),
+                                                "/native/path");
   MockBlob::Create(file, base::Time());
 
   EXPECT_TRUE(file->HasBackingFile());
@@ -185,7 +188,9 @@ TEST(FileTest, NativeFileWithoutTimestamp) {
 }
 
 TEST(FileTest, NativeFileWithUnixEpochTimestamp) {
-  auto* const file = MakeGarbageCollected<File>("/native/path");
+  ScopedNullExecutionContext context;
+  auto* const file = MakeGarbageCollected<File>(&context.GetExecutionContext(),
+                                                "/native/path");
   MockBlob::Create(file, base::Time::UnixEpoch());
 
   EXPECT_TRUE(file->HasBackingFile());
@@ -194,7 +199,9 @@ TEST(FileTest, NativeFileWithUnixEpochTimestamp) {
 }
 
 TEST(FileTest, NativeFileWithApocalypseTimestamp) {
-  auto* const file = MakeGarbageCollected<File>("/native/path");
+  ScopedNullExecutionContext context;
+  auto* const file = MakeGarbageCollected<File>(&context.GetExecutionContext(),
+                                                "/native/path");
   MockBlob::Create(file, base::Time::Max());
 
   EXPECT_TRUE(file->HasBackingFile());
@@ -249,33 +256,36 @@ TEST(FileTest, BlobBackingFileWithApocalypseTimestamp) {
 }
 
 TEST(FileTest, fileSystemFileWithNativeSnapshot) {
+  ScopedNullExecutionContext context;
   FileMetadata metadata;
   metadata.platform_path = "/native/snapshot";
-  File* const file =
-      File::CreateForFileSystemFile("name", metadata, File::kIsUserVisible);
+  File* const file = File::CreateForFileSystemFile(
+      &context.GetExecutionContext(), "name", metadata, File::kIsUserVisible);
   EXPECT_TRUE(file->HasBackingFile());
   EXPECT_EQ("/native/snapshot", file->GetPath());
   EXPECT_TRUE(file->FileSystemURL().IsEmpty());
 }
 
 TEST(FileTest, fileSystemFileWithNativeSnapshotAndSize) {
+  ScopedNullExecutionContext context;
   FileMetadata metadata;
   metadata.length = 1024ll;
   metadata.platform_path = "/native/snapshot";
-  File* const file =
-      File::CreateForFileSystemFile("name", metadata, File::kIsUserVisible);
+  File* const file = File::CreateForFileSystemFile(
+      &context.GetExecutionContext(), "name", metadata, File::kIsUserVisible);
   EXPECT_TRUE(file->HasBackingFile());
   EXPECT_EQ("/native/snapshot", file->GetPath());
   EXPECT_TRUE(file->FileSystemURL().IsEmpty());
 }
 
 TEST(FileTest, FileSystemFileWithWindowsEpochTimestamp) {
+  ScopedNullExecutionContext context;
   FileMetadata metadata;
   metadata.length = INT64_C(1025);
   metadata.modification_time = base::Time();
   metadata.platform_path = "/native/snapshot";
-  File* const file =
-      File::CreateForFileSystemFile("name", metadata, File::kIsUserVisible);
+  File* const file = File::CreateForFileSystemFile(
+      &context.GetExecutionContext(), "name", metadata, File::kIsUserVisible);
   EXPECT_TRUE(file->HasBackingFile());
   EXPECT_EQ("/native/snapshot", file->GetPath());
   EXPECT_TRUE(file->FileSystemURL().IsEmpty());
@@ -286,12 +296,13 @@ TEST(FileTest, FileSystemFileWithWindowsEpochTimestamp) {
 }
 
 TEST(FileTest, FileSystemFileWithUnixEpochTimestamp) {
+  ScopedNullExecutionContext context;
   FileMetadata metadata;
   metadata.length = INT64_C(1025);
   metadata.modification_time = base::Time::UnixEpoch();
   metadata.platform_path = "/native/snapshot";
-  File* const file =
-      File::CreateForFileSystemFile("name", metadata, File::kIsUserVisible);
+  File* const file = File::CreateForFileSystemFile(
+      &context.GetExecutionContext(), "name", metadata, File::kIsUserVisible);
   EXPECT_TRUE(file->HasBackingFile());
   EXPECT_EQ("/native/snapshot", file->GetPath());
   EXPECT_TRUE(file->FileSystemURL().IsEmpty());
@@ -301,13 +312,14 @@ TEST(FileTest, FileSystemFileWithUnixEpochTimestamp) {
 }
 
 TEST(FileTest, FileSystemFileWithApocalypseTimestamp) {
+  ScopedNullExecutionContext context;
   constexpr base::Time kMaxTime = base::Time::Max();
   FileMetadata metadata;
   metadata.length = INT64_C(1025);
   metadata.modification_time = kMaxTime;
   metadata.platform_path = "/native/snapshot";
-  File* const file =
-      File::CreateForFileSystemFile("name", metadata, File::kIsUserVisible);
+  File* const file = File::CreateForFileSystemFile(
+      &context.GetExecutionContext(), "name", metadata, File::kIsUserVisible);
   EXPECT_TRUE(file->HasBackingFile());
   EXPECT_EQ("/native/snapshot", file->GetPath());
   EXPECT_TRUE(file->FileSystemURL().IsEmpty());
@@ -329,9 +341,13 @@ TEST(FileTest, fileSystemFileWithoutNativeSnapshot) {
 }
 
 TEST(FileTest, hsaSameSource) {
-  auto* const native_file_a1 = MakeGarbageCollected<File>("/native/pathA");
-  auto* const native_file_a2 = MakeGarbageCollected<File>("/native/pathA");
-  auto* const native_file_b = MakeGarbageCollected<File>("/native/pathB");
+  ScopedNullExecutionContext context;
+  auto* const native_file_a1 = MakeGarbageCollected<File>(
+      &context.GetExecutionContext(), "/native/pathA");
+  auto* const native_file_a2 = MakeGarbageCollected<File>(
+      &context.GetExecutionContext(), "/native/pathA");
+  auto* const native_file_b = MakeGarbageCollected<File>(
+      &context.GetExecutionContext(), "/native/pathB");
 
   const scoped_refptr<BlobDataHandle> blob_data_a = BlobDataHandle::Create();
   const scoped_refptr<BlobDataHandle> blob_data_b = BlobDataHandle::Create();

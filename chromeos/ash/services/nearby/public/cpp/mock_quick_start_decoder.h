@@ -10,6 +10,8 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
 namespace ash {
 namespace nearby {
 
@@ -31,21 +33,9 @@ class MockQuickStartDecoder
           pending_receiver);
 
   MOCK_METHOD(void,
-              DecodeBootstrapConfigurations,
-              (const std::vector<uint8_t>& data,
-               DecodeBootstrapConfigurationsCallback callback),
-              (override));
-
-  MOCK_METHOD(void,
-              DecodeGetAssertionResponse,
-              (const std::vector<uint8_t>& data,
-               DecodeGetAssertionResponseCallback callback),
-              (override));
-
-  MOCK_METHOD(void,
-              DecodeWifiCredentialsResponse,
-              (const std::vector<uint8_t>& data,
-               DecodeWifiCredentialsResponseCallback callback),
+              DecodeQuickStartMessage,
+              (const absl::optional<std::vector<uint8_t>>& data,
+               DecodeQuickStartMessageCallback callback),
               (override));
 
  private:

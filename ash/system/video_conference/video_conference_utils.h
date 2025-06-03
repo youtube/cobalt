@@ -7,14 +7,26 @@
 
 #include <string>
 
+#include "chromeos/crosapi/mojom/video_conference.mojom-forward.h"
+
 namespace ash {
 
 enum class VcEffectId;
 
 namespace video_conference_utils {
 
-// Get the histogram name for the effect associated with `effect_id`.
-std::string GetEffectHistogramName(VcEffectId effect_id);
+// Get the histogram name for the click histogram associated with `effect_id`.
+std::string GetEffectHistogramNameForClick(VcEffectId effect_id);
+
+// Get the histogram name for the initial state histogram associated with
+// `effect_id`.
+std::string GetEffectHistogramNameForInitialState(VcEffectId effect_id);
+
+// Gets the display text representing a media app shown in the return to app
+// button.
+std::u16string GetMediaAppDisplayText(
+    const mojo::StructPtr<crosapi::mojom::VideoConferenceMediaAppInfo>&
+        media_app);
 
 }  // namespace video_conference_utils
 

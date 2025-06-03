@@ -8,19 +8,18 @@
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
 #import "ios/chrome/browser/discover_feed/feed_constants.h"
-#import "ios/chrome/browser/ui/ntp/logo_animation_controller.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_configuring.h"
+
+namespace web {
+class WebState;
+}
 
 @class BubblePresenter;
 @protocol NewTabPageComponentFactoryProtocol;
 @protocol NewTabPageControllerDelegate;
-@protocol ThumbStripSupporting;
-@class ViewRevealingVerticalPanHandler;
 
 // Coordinator handling the NTP.
-@interface NewTabPageCoordinator
-    : ChromeCoordinator <LogoAnimationControllerOwnerOwner,
-                         NewTabPageConfiguring>
+@interface NewTabPageCoordinator : ChromeCoordinator <NewTabPageConfiguring>
 
 // Initializes this coordinator with its `browser`, a nil base view
 // controller, and the given `componentFactory`.
@@ -38,17 +37,11 @@
 // ViewController associated with this coordinator.
 @property(nonatomic, readonly) UIViewController* viewController;
 
-// The toolbar delegate to pass to ContentSuggestionsCoordinator.
+// Delete for NTP and it's subclasses to communicate with the toolbar.
 @property(nonatomic, weak) id<NewTabPageControllerDelegate> toolbarDelegate;
 
 // Returns `YES` if the coordinator is started.
 @property(nonatomic, readonly) BOOL started;
-
-// The pan gesture handler for the view controller.
-@property(nonatomic, weak) ViewRevealingVerticalPanHandler* panGestureHandler;
-
-// Allows for the in-flight enabling/disabling of the thumb strip.
-@property(nonatomic, readonly) id<ThumbStripSupporting> thumbStripSupporting;
 
 // Bubble presenter for displaying IPH bubbles relating to the NTP.
 @property(nonatomic, strong) BubblePresenter* bubblePresenter;
@@ -73,10 +66,13 @@
 - (void)reload;
 
 // Called when the user navigates to the NTP.
-- (void)didNavigateToNTP;
+- (void)didNavigateToNTPInWebState:(web::WebState*)webState;
 
 // Called when the user navigates away from the NTP.
 - (void)didNavigateAwayFromNTP;
+
+// The location bar will lose focus.
+- (void)locationBarWillResignFirstResponder;
 
 // The location bar has lost focus.
 - (void)locationBarDidResignFirstResponder;
@@ -97,6 +93,12 @@
 // Checks if there are any WebStates showing an NTP at this time. If not, then
 // stops the NTP.
 - (void)stopIfNeeded;
+
+// Checks if NTP is active for the current webState.
+- (BOOL)isNTPActiveForCurrentWebState;
+
+// Returns YES if the fakebox is pinned or scrolled to the top.
+- (BOOL)isFakeboxPinned;
 
 @end
 

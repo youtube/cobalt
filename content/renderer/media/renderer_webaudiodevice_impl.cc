@@ -11,9 +11,11 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
@@ -24,12 +26,15 @@
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/base/output_device_info.h"
 #include "media/base/silent_sink_suspender.h"
+#include "media/base/speech_recognition_client.h"
 #include "third_party/blink/public/platform/audio/web_audio_device_source_type.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/public/web/modules/media/audio/audio_device_factory.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_view.h"
 
 using blink::AudioDeviceFactory;
@@ -55,14 +60,13 @@ blink::WebAudioDeviceSourceType GetLatencyHintSourceType(
     case WebAudioLatencyHint::kCategoryExact:
       return blink::WebAudioDeviceSourceType::kWebAudioExact;
     case WebAudioLatencyHint::kLastValue:
-      NOTREACHED();
+      NOTREACHED_NORETURN();
   }
-  NOTREACHED();
-  return blink::WebAudioDeviceSourceType::kWebAudioInteractive;
+  NOTREACHED_NORETURN();
 }
 
 int GetOutputBufferSize(const blink::WebAudioLatencyHint& latency_hint,
-                        media::AudioLatency::LatencyType latency,
+                        media::AudioLatency::Type latency,
                         const media::AudioParameters& hardware_params) {
   media::AudioParameters::HardwareCapabilities hardware_capabilities =
       hardware_params.hardware_capabilities().value_or(
@@ -70,16 +74,16 @@ int GetOutputBufferSize(const blink::WebAudioLatencyHint& latency_hint,
 
   // Adjust output buffer size according to the latency requirement.
   switch (latency) {
-    case media::AudioLatency::LATENCY_INTERACTIVE:
+    case media::AudioLatency::Type::kInteractive:
       return media::AudioLatency::GetInteractiveBufferSize(
           hardware_params.frames_per_buffer());
-    case media::AudioLatency::LATENCY_RTC:
+    case media::AudioLatency::Type::kRtc:
       return media::AudioLatency::GetRtcBufferSize(
           hardware_params.sample_rate(), hardware_params.frames_per_buffer());
-    case media::AudioLatency::LATENCY_PLAYBACK:
+    case media::AudioLatency::Type::kPlayback:
       return media::AudioLatency::GetHighLatencyBufferSize(
           hardware_params.sample_rate(), hardware_params.frames_per_buffer());
-    case media::AudioLatency::LATENCY_EXACT_MS:
+    case media::AudioLatency::Type::kExactMS:
       return media::AudioLatency::GetExactBufferSize(
           base::Seconds(latency_hint.Seconds()), hardware_params.sample_rate(),
           hardware_params.frames_per_buffer(),
@@ -164,7 +168,7 @@ RendererWebAudioDeviceImpl::RendererWebAudioDeviceImpl(
       "%s => (hardware_params=[%s])", __func__,
       original_sink_params_.AsHumanReadableString().c_str()));
 
-  const media::AudioLatency::LatencyType latency =
+  const media::AudioLatency::Type latency =
       AudioDeviceFactory::GetSourceLatencyType(
           GetLatencyHintSourceType(latency_hint_.Category()));
 
@@ -181,6 +185,17 @@ RendererWebAudioDeviceImpl::RendererWebAudioDeviceImpl(
   SendLogMessage(
       base::StringPrintf("%s => (sink_params=[%s])", __func__,
                          current_sink_params_.AsHumanReadableString().c_str()));
+
+  if (base::FeatureList::IsEnabled(media::kLiveCaptionWebAudio)) {
+    auto* web_local_frame = WebLocalFrame::FromFrameToken(frame_token_);
+    if (web_local_frame) {
+      speech_recognition_client_ =
+          web_local_frame->Client()->CreateSpeechRecognitionClient();
+      if (speech_recognition_client_) {
+        speech_recognition_client_->Reconfigure(current_sink_params_);
+      }
+    }
+  }
 }
 
 RendererWebAudioDeviceImpl::~RendererWebAudioDeviceImpl() {
@@ -268,7 +283,13 @@ int RendererWebAudioDeviceImpl::Render(
     is_rendering_ = true;
   }
 
-  return webaudio_callback_->Render(delay, delay_timestamp, glitch_info, dest);
+  int frames_filled =
+      webaudio_callback_->Render(delay, delay_timestamp, glitch_info, dest);
+  if (speech_recognition_client_) {
+    speech_recognition_client_->AddAudio(*dest);
+  }
+
+  return frames_filled;
 }
 
 void RendererWebAudioDeviceImpl::OnRenderError() {

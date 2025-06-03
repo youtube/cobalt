@@ -19,10 +19,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 // Fake implementation of NewPasswordUIHandler so tests can tell if any UI
 // methods were called
 @interface FakeNewPasswordUIHandler : NSObject <NewPasswordUIHandler>
@@ -109,7 +105,6 @@ ArchivableCredential* TestCredential(NSString* recordIdentifier) {
                                      serviceIdentifier:@"serviceIdentifier"
                                            serviceName:@"serviceName"
                                                   user:@"user"
-                                  validationIdentifier:@"validationIdentifier"
                                                   note:@"note"];
 }
 

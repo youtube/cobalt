@@ -37,6 +37,7 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/proto/variations_seed.pb.h"
 #include "components/variations/seed_response.h"
+#include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_seed_simulator.h"
 #include "components/variations/variations_switches.h"
 #include "components/variations/variations_url_constants.h"
@@ -346,7 +347,8 @@ VariationsService::VariationsService(
           std::make_unique<VariationsSeedStore>(
               local_state,
               MaybeImportFirstRunSeed(client_.get(), local_state),
-              /*signature_verification_enabled=*/true),
+              /*signature_verification_enabled=*/true,
+              std::make_unique<VariationsSafeSeedStoreLocalState>(local_state)),
           ui_string_overrider) {
   DCHECK(client_);
   DCHECK(resource_request_allowed_notifier_);
@@ -428,6 +430,14 @@ void VariationsService::SetRestrictMode(const std::string& restrict_mode) {
   // builds that talk to the variations server - which don't enable DCHECKs.
   CHECK(variations_server_url_.is_empty());
   restrict_mode_ = restrict_mode;
+}
+
+bool VariationsService::IsLikelyDogfoodClient() const {
+  // The param is typically only set for dogfood clients, though in principle it
+  // could be set in other rare contexts as well.
+  const std::string restrict_mode = GetRestrictParameterValue(
+      restrict_mode_, client_.get(), policy_pref_service_);
+  return !restrict_mode.empty();
 }
 
 GURL VariationsService::GetVariationsServerURL(HttpOptions http_options) {
@@ -703,7 +713,8 @@ void VariationsService::InitResourceRequestedAllowedNotifier() {
   // ResourceRequestAllowedNotifier does not install an observer if there is no
   // NetworkChangeNotifier, which results in never being notified of changes to
   // network status.
-  resource_request_allowed_notifier_->Init(this, false /* leaky */);
+  resource_request_allowed_notifier_->Init(this, /*leaky=*/false,
+                                           /*wait_for_eula=*/false);
 }
 
 void VariationsService::StartRepeatedVariationsSeedFetch() {
@@ -987,13 +998,17 @@ bool VariationsService::OverrideStoredPermanentCountry(
     const std::string& country_override) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  const std::string country_override_lowercase =
+      base::ToLowerASCII(country_override);
   const std::string stored_country =
       local_state_->GetString(prefs::kVariationsPermanentOverriddenCountry);
 
-  if (stored_country == country_override)
+  if (stored_country == country_override_lowercase) {
     return false;
+  }
 
-  field_trial_creator_.StoreVariationsOverriddenCountry(country_override);
+  field_trial_creator_.StoreVariationsOverriddenCountry(
+      country_override_lowercase);
   return true;
 }
 

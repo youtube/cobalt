@@ -89,7 +89,7 @@ class PipPositionerDisplayTest : public AshTestBase,
 
  private:
   std::unique_ptr<display::ScopedDisplayForNewWindows> scoped_display_;
-  raw_ptr<aura::Window, ExperimentalAsh> root_window_;
+  raw_ptr<aura::Window, DanglingUntriaged | ExperimentalAsh> root_window_;
 };
 
 TEST_P(PipPositionerDisplayTest, PipAdjustPositionForDragClampsToMovementArea) {
@@ -100,24 +100,26 @@ TEST_P(PipPositionerDisplayTest, PipAdjustPositionForDragClampsToMovementArea) {
   // Adjust near top edge outside movement area.
   EXPECT_EQ(ConvertToScreen(gfx::Rect(100, 8, 100, 100)),
             PipPositioner::GetBoundsForDrag(
-                display, ConvertToScreen(gfx::Rect(100, -50, 100, 100))));
+                display, ConvertToScreen(gfx::Rect(100, -50, 100, 100)),
+                gfx::Transform()));
 
   // Adjust near bottom edge outside movement area.
-  EXPECT_EQ(
-      ConvertToScreen(gfx::Rect(100, bottom - 108, 100, 100)),
-      PipPositioner::GetBoundsForDrag(
-          display, ConvertToScreen(gfx::Rect(100, bottom + 50, 100, 100))));
+  EXPECT_EQ(ConvertToScreen(gfx::Rect(100, bottom - 108, 100, 100)),
+            PipPositioner::GetBoundsForDrag(
+                display, ConvertToScreen(gfx::Rect(100, bottom + 50, 100, 100)),
+                gfx::Transform()));
 
   // Adjust near left edge outside movement area.
   EXPECT_EQ(ConvertToScreen(gfx::Rect(8, 100, 100, 100)),
             PipPositioner::GetBoundsForDrag(
-                display, ConvertToScreen(gfx::Rect(-50, 100, 100, 100))));
+                display, ConvertToScreen(gfx::Rect(-50, 100, 100, 100)),
+                gfx::Transform()));
 
   // Adjust near right edge outside movement area.
-  EXPECT_EQ(
-      ConvertToScreen(gfx::Rect(right - 108, 100, 100, 100)),
-      PipPositioner::GetBoundsForDrag(
-          display, ConvertToScreen(gfx::Rect(right + 50, 100, 100, 100))));
+  EXPECT_EQ(ConvertToScreen(gfx::Rect(right - 108, 100, 100, 100)),
+            PipPositioner::GetBoundsForDrag(
+                display, ConvertToScreen(gfx::Rect(right + 50, 100, 100, 100)),
+                gfx::Transform()));
 }
 
 TEST_P(PipPositionerDisplayTest,

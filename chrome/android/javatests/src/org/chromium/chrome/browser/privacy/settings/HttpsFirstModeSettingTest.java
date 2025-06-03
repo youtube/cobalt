@@ -20,22 +20,17 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.ExecutionException;
 
-/**
- * Tests for the HTTPS-First Mode setting in Privacy and security.
- */
+/** Tests for the HTTPS-First Mode setting in Privacy and security. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@Features.EnableFeatures(ChromeFeatureList.HTTPS_FIRST_MODE)
 @Batch(PER_CLASS)
 public class HttpsFirstModeSettingTest {
     private final SettingsActivityTestRule<PrivacySettings> mSettingsActivityTestRule =
@@ -43,12 +38,16 @@ public class HttpsFirstModeSettingTest {
 
     private static final String PREF_HTTPS_FIRST_MODE = "https_first_mode";
 
-    private static Preference waitForPreference(final PreferenceFragmentCompat prefFragment,
-            final String preferenceKey) throws ExecutionException {
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("Expected valid preference for: " + preferenceKey,
-                    prefFragment.findPreference(preferenceKey), Matchers.notNullValue());
-        });
+    private static Preference waitForPreference(
+            final PreferenceFragmentCompat prefFragment, final String preferenceKey)
+            throws ExecutionException {
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Expected valid preference for: " + preferenceKey,
+                            prefFragment.findPreference(preferenceKey),
+                            Matchers.notNullValue());
+                });
 
         return TestThreadUtils.runOnUiThreadBlocking(
                 () -> prefFragment.findPreference(preferenceKey));
@@ -60,14 +59,17 @@ public class HttpsFirstModeSettingTest {
         mSettingsActivityTestRule.startSettingsActivity();
         final PrivacySettings privacySettings = mSettingsActivityTestRule.getFragment();
         final String unlockedSummaryText =
-                ApplicationProvider.getApplicationContext().getResources().getString(
-                        R.string.settings_https_first_mode_summary);
+                ApplicationProvider.getApplicationContext()
+                        .getResources()
+                        .getString(R.string.settings_https_first_mode_summary);
 
         Preference pref = waitForPreference(privacySettings, PREF_HTTPS_FIRST_MODE);
         Assert.assertNotNull(pref);
 
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> { Assert.assertTrue(pref.getSummary().equals(unlockedSummaryText)); });
+                () -> {
+                    Assert.assertTrue(pref.getSummary().equals(unlockedSummaryText));
+                });
     }
 
     @Test
@@ -78,13 +80,18 @@ public class HttpsFirstModeSettingTest {
 
         final PrivacySettings privacySettings = mSettingsActivityTestRule.getFragment();
         final String lockedSummaryText =
-                ApplicationProvider.getApplicationContext().getResources().getString(
-                        R.string.settings_https_first_mode_with_advanced_protection_summary);
+                ApplicationProvider.getApplicationContext()
+                        .getResources()
+                        .getString(
+                                R.string
+                                        .settings_https_first_mode_with_advanced_protection_summary);
 
         Preference pref = waitForPreference(privacySettings, PREF_HTTPS_FIRST_MODE);
         Assert.assertNotNull(pref);
 
         TestThreadUtils.runOnUiThreadBlocking(
-                () -> { Assert.assertTrue(pref.getSummary().equals(lockedSummaryText)); });
+                () -> {
+                    Assert.assertTrue(pref.getSummary().equals(lockedSummaryText));
+                });
     }
 }

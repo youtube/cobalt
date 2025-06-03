@@ -9,9 +9,11 @@
 #include <string>
 
 #include "base/containers/contains.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/values.h"
 #include "components/content_settings/core/browser/content_settings_info.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
@@ -23,6 +25,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
+#include "net/cookies/cookie_constants.h"
 
 namespace {
 
@@ -40,9 +43,8 @@ constexpr PrefsForManagedContentSettingsMapEntry
          CONTENT_SETTING_BLOCK},
         {prefs::kManagedCookiesSessionOnlyForUrls, ContentSettingsType::COOKIES,
          CONTENT_SETTING_SESSION_ONLY},
-        {prefs::kManagedGetDisplayMediaSetSelectAllScreensAllowedForUrls,
-         ContentSettingsType::GET_DISPLAY_MEDIA_SET_SELECT_ALL_SCREENS,
-         CONTENT_SETTING_ALLOW},
+        {prefs::kManagedAccessToGetAllScreensMediaInSessionAllowedForUrls,
+         ContentSettingsType::ALL_SCREEN_CAPTURE, CONTENT_SETTING_ALLOW},
         {prefs::kManagedImagesAllowedForUrls, ContentSettingsType::IMAGES,
          CONTENT_SETTING_ALLOW},
         {prefs::kManagedImagesBlockedForUrls, ContentSettingsType::IMAGES,
@@ -89,8 +91,8 @@ constexpr PrefsForManagedContentSettingsMapEntry
          CONTENT_SETTING_ALLOW},
         {prefs::kManagedSensorsBlockedForUrls, ContentSettingsType::SENSORS,
          CONTENT_SETTING_BLOCK},
-        {prefs::kManagedInsecureLocalNetworkAllowedForUrls,
-         ContentSettingsType::INSECURE_LOCAL_NETWORK, CONTENT_SETTING_ALLOW},
+        {prefs::kManagedInsecurePrivateNetworkAllowedForUrls,
+         ContentSettingsType::INSECURE_PRIVATE_NETWORK, CONTENT_SETTING_ALLOW},
         {prefs::kManagedJavaScriptJitAllowedForSites,
          ContentSettingsType::JAVASCRIPT_JIT, CONTENT_SETTING_ALLOW},
         {prefs::kManagedJavaScriptJitBlockedForSites,
@@ -110,6 +112,10 @@ constexpr PrefsForManagedContentSettingsMapEntry
         {prefs::kManagedThirdPartyStoragePartitioningBlockedForOrigins,
          ContentSettingsType::THIRD_PARTY_STORAGE_PARTITIONING,
          CONTENT_SETTING_BLOCK},
+        {prefs::kManagedMidiAllowedForUrls, ContentSettingsType::MIDI,
+         CONTENT_SETTING_ALLOW},
+        {prefs::kManagedMidiBlockedForUrls, ContentSettingsType::MIDI,
+         CONTENT_SETTING_BLOCK},
 };
 
 constexpr const char* kManagedPrefs[] = {
@@ -123,12 +129,12 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedFileSystemReadBlockedForUrls,
     prefs::kManagedFileSystemWriteAskForUrls,
     prefs::kManagedFileSystemWriteBlockedForUrls,
-    prefs::kManagedGetDisplayMediaSetSelectAllScreensAllowedForUrls,
+    prefs::kManagedAccessToGetAllScreensMediaInSessionAllowedForUrls,
     prefs::kManagedImagesAllowedForUrls,
     prefs::kManagedImagesBlockedForUrls,
     prefs::kManagedInsecureContentAllowedForUrls,
     prefs::kManagedInsecureContentBlockedForUrls,
-    prefs::kManagedInsecureLocalNetworkAllowedForUrls,
+    prefs::kManagedInsecurePrivateNetworkAllowedForUrls,
     prefs::kManagedJavaScriptAllowedForUrls,
     prefs::kManagedJavaScriptBlockedForUrls,
     prefs::kManagedJavaScriptJitAllowedForSites,
@@ -152,6 +158,8 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedLocalFontsAllowedForUrls,
     prefs::kManagedLocalFontsBlockedForUrls,
     prefs::kManagedThirdPartyStoragePartitioningBlockedForOrigins,
+    prefs::kManagedMidiAllowedForUrls,
+    prefs::kManagedMidiBlockedForUrls,
 };
 
 // The following preferences are only used to indicate if a default content
@@ -169,7 +177,7 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultGeolocationSetting,
     prefs::kManagedDefaultImagesSetting,
     prefs::kManagedDefaultInsecureContentSetting,
-    prefs::kManagedDefaultInsecureLocalNetworkSetting,
+    prefs::kManagedDefaultInsecurePrivateNetworkSetting,
     prefs::kManagedDefaultJavaScriptSetting,
     prefs::kManagedDefaultMediaStreamSetting,
     prefs::kManagedDefaultNotificationsSetting,
@@ -183,7 +191,34 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultWindowManagementSetting,
     prefs::kManagedDefaultLocalFontsSetting,
     prefs::kManagedDefaultThirdPartyStoragePartitioningSetting,
+    prefs::kManagedDefaultMidi,
 };
+
+void ReportCookiesAllowedForUrlsUsage(bool has_pattern_with_wildcard_primary,
+                                      bool has_pattern_with_wildcard_secondary,
+                                      bool has_pattern_with_no_wildcard) {
+  if (!has_pattern_with_wildcard_primary &&
+      !has_pattern_with_wildcard_secondary && !has_pattern_with_no_wildcard) {
+    return;
+  }
+  constexpr auto usage_map =
+      base::MakeFixedFlatMap<size_t, net::CookiesAllowedForUrlsUsage>({
+          {0b001, net::CookiesAllowedForUrlsUsage::kWildcardPrimaryOnly},
+          {0b010, net::CookiesAllowedForUrlsUsage::kWildcardSecondaryOnly},
+          {0b011, net::CookiesAllowedForUrlsUsage::kWildcardOnly},
+          {0b100, net::CookiesAllowedForUrlsUsage::kExplicitOnly},
+          {0b101, net::CookiesAllowedForUrlsUsage::kExplicitAndPrimaryWildcard},
+          {0b110,
+           net::CookiesAllowedForUrlsUsage::kExplicitAndSecondaryWildcard},
+          {0b111, net::CookiesAllowedForUrlsUsage::kAllPresent},
+      });
+  base::UmaHistogramEnumeration(
+      "Cookie.Experimental.CookiesAllowedForUrlsUsage",
+      usage_map.at(
+          static_cast<size_t>(has_pattern_with_wildcard_primary) +
+          2 * static_cast<size_t>(has_pattern_with_wildcard_secondary) +
+          4 * static_cast<size_t>(has_pattern_with_no_wildcard)));
+}
 
 }  // namespace
 
@@ -228,8 +263,8 @@ const PolicyProvider::PrefsForManagedDefaultMapEntry
         {ContentSettingsType::SERIAL_GUARD,
          prefs::kManagedDefaultSerialGuardSetting},
         {ContentSettingsType::SENSORS, prefs::kManagedDefaultSensorsSetting},
-        {ContentSettingsType::INSECURE_LOCAL_NETWORK,
-         prefs::kManagedDefaultInsecureLocalNetworkSetting},
+        {ContentSettingsType::INSECURE_PRIVATE_NETWORK,
+         prefs::kManagedDefaultInsecurePrivateNetworkSetting},
         {ContentSettingsType::JAVASCRIPT_JIT,
          prefs::kManagedDefaultJavaScriptJitSetting},
         {ContentSettingsType::HID_GUARD,
@@ -240,6 +275,7 @@ const PolicyProvider::PrefsForManagedDefaultMapEntry
          prefs::kManagedDefaultLocalFontsSetting},
         {ContentSettingsType::THIRD_PARTY_STORAGE_PARTITIONING,
          prefs::kManagedDefaultThirdPartyStoragePartitioningSetting},
+        {ContentSettingsType::MIDI, prefs::kManagedDefaultMidi},
 };
 
 // static
@@ -266,6 +302,34 @@ PolicyProvider::PolicyProvider(PrefService* prefs) : prefs_(prefs) {
 
   for (const char* pref : kManagedDefaultPrefs)
     pref_change_registrar_.Add(pref, callback);
+
+  bool has_pattern_with_wildcard_primary = false;
+  bool has_pattern_with_wildcard_secondary = false;
+  bool has_pattern_with_no_wildcard = false;
+
+  auto it = value_map_.find(ContentSettingsType::COOKIES);
+  if (it == value_map_.end()) {
+    return;
+  }
+  for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+    if (static_cast<ContentSetting>(jt->second.value.GetIfInt().value()) !=
+        CONTENT_SETTING_ALLOW) {
+      continue;
+    }
+    const auto& pattern_pair = jt->first;
+    if (pattern_pair.primary_pattern == ContentSettingsPattern::Wildcard()) {
+      has_pattern_with_wildcard_primary = true;
+    } else if (pattern_pair.secondary_pattern ==
+               ContentSettingsPattern::Wildcard()) {
+      has_pattern_with_wildcard_secondary = true;
+    } else {
+      has_pattern_with_no_wildcard = true;
+    }
+  }
+
+  ReportCookiesAllowedForUrlsUsage(has_pattern_with_wildcard_primary,
+                                   has_pattern_with_wildcard_secondary,
+                                   has_pattern_with_no_wildcard);
 }
 
 PolicyProvider::~PolicyProvider() {
@@ -275,11 +339,10 @@ PolicyProvider::~PolicyProvider() {
 std::unique_ptr<RuleIterator> PolicyProvider::GetRuleIterator(
     ContentSettingsType content_type,
     bool incognito) const {
-  return value_map_.GetRuleIterator(content_type, &lock_);
+  return value_map_.GetRuleIterator(content_type);
 }
 
-void PolicyProvider::GetContentSettingsFromPreferences(
-    OriginIdentifierValueMap* value_map) {
+void PolicyProvider::GetContentSettingsFromPreferences() {
   for (const auto& entry : kPrefsForManagedContentSettingsMap) {
     // Skip unset policies.
     if (!prefs_->HasPrefPath(entry.pref_name)) {
@@ -290,7 +353,13 @@ void PolicyProvider::GetContentSettingsFromPreferences(
     const PrefService::Preference* pref =
         prefs_->FindPreference(entry.pref_name);
     DCHECK(pref);
-    DCHECK(!pref->HasUserSetting());
+    // Prefs must not be user settings, except for the special case of
+    // kManagedGetAllScreensMediaAfterLoginAllowedForUrls. This pref is used to
+    // make sure content settings are only updated once on user login.
+    DCHECK(
+        !pref->HasUserSetting() ||
+        pref->name() ==
+            prefs::kManagedAccessToGetAllScreensMediaInSessionAllowedForUrls);
     DCHECK(!pref->HasExtensionSetting());
 
     if (!pref->GetValue()->is_list()) {
@@ -338,14 +407,13 @@ void PolicyProvider::GetContentSettingsFromPreferences(
       }
 
       // Don't set a timestamp for policy settings.
-      value_map->SetValue(pattern_pair.first, secondary_pattern,
+      value_map_.SetValue(pattern_pair.first, secondary_pattern,
                           entry.content_type, base::Value(entry.setting), {});
     }
   }
 }
 
-void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences(
-    OriginIdentifierValueMap* value_map) {
+void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences() {
   constexpr const char* pref_name = prefs::kManagedAutoSelectCertificateForUrls;
   if (!prefs_->HasPrefPath(pref_name)) {
     VLOG(2) << "Skipping unset preference: " << pref_name;
@@ -428,7 +496,7 @@ void PolicyProvider::GetAutoSelectCertificateSettingsFromPreferences(
       continue;
     }
 
-    value_map->SetValue(pattern, ContentSettingsPattern::Wildcard(),
+    value_map_.SetValue(pattern, ContentSettingsPattern::Wildcard(),
                         ContentSettingsType::AUTO_SELECT_CERTIFICATE,
                         base::Value(setting.Clone()), {});
   }
@@ -456,8 +524,8 @@ void PolicyProvider::UpdateManagedDefaultSetting(
   // MUST be managed.
   DCHECK(!prefs_->HasPrefPath(entry.pref_name) ||
          prefs_->IsManagedPreference(entry.pref_name));
-  base::AutoLock auto_lock(lock_);
   int setting = prefs_->GetInteger(entry.pref_name);
+  base::AutoLock lock(value_map_.GetLock());
   if (setting == CONTENT_SETTING_DEFAULT) {
     value_map_.DeleteValue(ContentSettingsPattern::Wildcard(),
                            ContentSettingsPattern::Wildcard(),
@@ -471,11 +539,11 @@ void PolicyProvider::UpdateManagedDefaultSetting(
 }
 
 void PolicyProvider::ReadManagedContentSettings(bool overwrite) {
-  base::AutoLock auto_lock(lock_);
+  base::AutoLock lock(value_map_.GetLock());
   if (overwrite)
     value_map_.clear();
-  GetContentSettingsFromPreferences(&value_map_);
-  GetAutoSelectCertificateSettingsFromPreferences(&value_map_);
+  GetContentSettingsFromPreferences();
+  GetAutoSelectCertificateSettingsFromPreferences();
 }
 
 // Since the PolicyProvider is a read only content settings provider, all

@@ -34,6 +34,7 @@
 #include "components/safe_browsing/content/browser/safe_browsing_blocking_page.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
+#include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/security_interstitials/content/bad_clock_blocking_page.h"
 #include "components/security_interstitials/content/blocked_interception_blocking_page.h"
 #include "components/security_interstitials/content/https_only_mode_blocking_page.h"
@@ -41,6 +42,7 @@
 #include "components/security_interstitials/content/mitm_software_blocking_page.h"
 #include "components/security_interstitials/content/security_interstitial_page.h"
 #include "components/security_interstitials/content/unsafe_resource_util.h"
+#include "components/security_interstitials/core/https_only_mode_metrics.h"
 #include "components/security_interstitials/core/ssl_error_options_mask.h"
 #include "components/security_interstitials/core/ssl_error_ui.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
@@ -68,8 +70,8 @@
 #endif
 
 #if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "chrome/browser/supervised_user/supervised_user_interstitial.h"
 #include "components/supervised_user/core/browser/supervised_user_error_page.h"  // nogncheck
+#include "components/supervised_user/core/browser/supervised_user_interstitial.h"
 #endif
 
 using security_interstitials::TestSafeBrowsingBlockingPageQuiet;
@@ -276,7 +278,7 @@ CreateHttpsOnlyModePage(content::WebContents* web_contents) {
       web_contents, request_url,
       std::make_unique<HttpsOnlyModeControllerClient>(web_contents,
                                                       request_url),
-      /*is_under_advanced_protection=*/false);
+      security_interstitials::https_only_mode::HttpInterstitialState{});
 }
 
 std::unique_ptr<safe_browsing::SafeBrowsingBlockingPage>
@@ -320,9 +322,11 @@ CreateSafeBrowsingBlockingPage(content::WebContents* web_contents) {
   resource.threat_type = threat_type;
   resource.render_process_id = primary_main_frame_id.child_id;
   resource.render_frame_id = primary_main_frame_id.frame_routing_id;
-  resource.threat_source = g_browser_process->safe_browsing_service()
-                               ->database_manager()
-                               ->GetThreatSource();
+  resource.threat_source =
+      g_browser_process->safe_browsing_service()
+          ->database_manager()
+          ->GetBrowseUrlThreatSource(
+              safe_browsing::CheckBrowseUrlType::kHashDatabase);
 
   // Normally safebrowsing interstitial types which block the main page load
   // (SB_THREAT_TYPE_URL_MALWARE, SB_THREAT_TYPE_URL_PHISHING, and
@@ -363,9 +367,11 @@ std::unique_ptr<EnterpriseWarnPage> CreateEnterpriseWarnPage(
   resource.threat_type = safe_browsing::SB_THREAT_TYPE_MANAGED_POLICY_WARN;
   resource.render_process_id = primary_main_frame_id.child_id;
   resource.render_frame_id = primary_main_frame_id.frame_routing_id;
-  resource.threat_source = g_browser_process->safe_browsing_service()
-                               ->database_manager()
-                               ->GetThreatSource();
+  resource.threat_source =
+      g_browser_process->safe_browsing_service()
+          ->database_manager()
+          ->GetBrowseUrlThreatSource(
+              safe_browsing::CheckBrowseUrlType::kHashDatabase);
 
   return std::make_unique<EnterpriseWarnPage>(
       ui_manager, web_contents, kRequestUrl,
@@ -412,9 +418,11 @@ CreateSafeBrowsingQuietBlockingPage(content::WebContents* web_contents) {
   resource.threat_type = threat_type;
   resource.render_process_id = primary_main_frame_id.child_id;
   resource.render_frame_id = primary_main_frame_id.frame_routing_id;
-  resource.threat_source = g_browser_process->safe_browsing_service()
-                               ->database_manager()
-                               ->GetThreatSource();
+  resource.threat_source =
+      g_browser_process->safe_browsing_service()
+          ->database_manager()
+          ->GetBrowseUrlThreatSource(
+              safe_browsing::CheckBrowseUrlType::kHashDatabase);
 
   // Normally safebrowsing interstitial types which block the main page load
   // (SB_THREAT_TYPE_URL_MALWARE, SB_THREAT_TYPE_URL_PHISHING, and
@@ -616,10 +624,16 @@ std::string InterstitialHTMLSource::GetSupervisedUserInterstitialHTML(
     }
   }
 
+  bool show_banner = false;
+  std::string show_banner_string;
+  if (net::GetValueForKeyInQuery(url, "show_banner", &show_banner_string)) {
+    show_banner = show_banner_string == "1";
+  }
+
   return supervised_user::BuildErrorPageHtml(
       allow_access_requests, profile_image_url, profile_image_url2, custodian,
       custodian_email, second_custodian, second_custodian_email, reason,
       g_browser_process->GetApplicationLocale(), /*already_sent_request=*/false,
-      /*is_main_frame=*/true);
+      /*is_main_frame=*/true, show_banner);
 }
 #endif

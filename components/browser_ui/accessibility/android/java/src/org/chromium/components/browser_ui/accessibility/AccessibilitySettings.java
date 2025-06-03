@@ -17,6 +17,8 @@ import org.chromium.components.browser_ui.accessibility.FontSizePrefs.FontSizePr
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.CustomDividerFragment;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
+import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.ContentFeatureMap;
 
 /**
  * Fragment to keep track of all the accessibility related preferences.
@@ -29,6 +31,7 @@ public class AccessibilitySettings extends PreferenceFragmentCompat
     public static final String PREF_FORCE_ENABLE_ZOOM = "force_enable_zoom";
     public static final String PREF_READER_FOR_ACCESSIBILITY = "reader_for_accessibility";
     public static final String PREF_CAPTIONS = "captions";
+    public static final String PREF_ZOOM_INFO = "zoom_info";
 
     private TextScalePreference mTextScalePref;
     private PageZoomPreference mPageZoomDefaultZoomPref;
@@ -37,7 +40,6 @@ public class AccessibilitySettings extends PreferenceFragmentCompat
     private boolean mRecordFontSizeChangeOnStop;
     private AccessibilitySettingsDelegate mDelegate;
     private BooleanPreferenceDelegate mReaderForAccessibilityDelegate;
-    private BooleanPreferenceDelegate mAccessibilityTabSwitcherDelegate;
     private double mPageZoomLatestDefaultZoomPrefValue;
 
     private FontSizePrefs mFontSizePrefs;
@@ -82,11 +84,17 @@ public class AccessibilitySettings extends PreferenceFragmentCompat
 
         if (mDelegate.showPageZoomSettingsUI()) {
             mTextScalePref.setVisible(false);
+            // Set the initial values for the page zoom settings, and set change listeners.
             mPageZoomDefaultZoomPref.setInitialValue(PageZoomUtils.getDefaultZoomAsSeekBarValue(
                     mDelegate.getBrowserContextHandle()));
             mPageZoomDefaultZoomPref.setOnPreferenceChangeListener(this);
             mPageZoomAlwaysShowPref.setChecked(PageZoomUtils.shouldShowZoomMenuItem());
             mPageZoomAlwaysShowPref.setOnPreferenceChangeListener(this);
+            // When Smart Zoom feature is enabled, set the required delegate.
+            if (ContentFeatureMap.isEnabled(ContentFeatureList.SMART_ZOOM)) {
+                mPageZoomDefaultZoomPref.setTextSizeContrastDelegate(
+                        mDelegate.getTextSizeContrastAccessibilityDelegate());
+            }
         } else {
             mPageZoomDefaultZoomPref.setVisible(false);
             mPageZoomAlwaysShowPref.setVisible(false);
@@ -109,16 +117,6 @@ public class AccessibilitySettings extends PreferenceFragmentCompat
             getPreferenceScreen().removePreference(readerForAccessibilityPref);
         }
 
-        ChromeSwitchPreference accessibilityTabSwitcherPref =
-                (ChromeSwitchPreference) findPreference(
-                        AccessibilityConstants.ACCESSIBILITY_TAB_SWITCHER);
-        mAccessibilityTabSwitcherDelegate = mDelegate.getAccessibilityTabSwitcherDelegate();
-        if (mAccessibilityTabSwitcherDelegate != null) {
-            accessibilityTabSwitcherPref.setChecked(mAccessibilityTabSwitcherDelegate.isEnabled());
-        } else {
-            getPreferenceScreen().removePreference(accessibilityTabSwitcherPref);
-        }
-
         Preference captions = findPreference(PREF_CAPTIONS);
         captions.setOnPreferenceClickListener(preference -> {
             Intent intent = new Intent(Settings.ACTION_CAPTIONING_SETTINGS);
@@ -130,6 +128,17 @@ public class AccessibilitySettings extends PreferenceFragmentCompat
 
             return true;
         });
+
+        Preference zoomInfo = findPreference(PREF_ZOOM_INFO);
+        if (ContentFeatureMap.isEnabled(ContentFeatureList.SMART_ZOOM)) {
+            zoomInfo.setVisible(true);
+            zoomInfo.setOnPreferenceClickListener(preference -> {
+                mDelegate.launchSiteSettingsZoomActivity(getContext());
+                return true;
+            });
+        } else {
+            zoomInfo.setVisible(false);
+        }
 
         mDelegate.addExtraPreferences(this);
     }

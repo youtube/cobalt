@@ -80,19 +80,11 @@
   "automationInternal": {
     "internal": true,
     "dependencies": ["manifest:automation"],
-    "contexts": ["blessed_extension"],
-    "disallow_for_service_workers": true
+    "contexts": ["blessed_extension"]
   },
   "automation": {
     "dependencies": ["manifest:automation"],
-    "contexts": ["blessed_extension"],
-    "disallow_for_service_workers": true
-  },
-  "automation.languageAnnotationForStringAttribute": {
-    "command_line_switch": "enable-experimental-accessibility-chromevox-sub-node-language-switching",
-    "channel": "dev",
-    "contexts": ["blessed_extension"],
-    "disallow_for_service_workers": true
+    "contexts": ["blessed_extension"]
   },
   "bluetooth": [{
     "dependencies": ["manifest:bluetooth"],
@@ -108,7 +100,7 @@
   "bluetoothLowEnergy": {
     "dependencies": ["manifest:bluetooth"],
     "contexts": ["blessed_extension"],
-    "platforms": ["chromeos", "linux"]
+    "platforms": ["chromeos", "lacros", "linux"]
   },
   "bluetoothPrivate": [{
     "dependencies": ["permission:bluetoothPrivate"],
@@ -215,7 +207,7 @@
   },
   "feedbackPrivate.readLogSource": [
     {
-      "platforms": ["chromeos"],
+      "platforms": ["chromeos", "lacros"],
       "session_types": ["kiosk"]
     },
     {
@@ -317,17 +309,6 @@
     "channel": "stable",
     "extension_types": ["extension", "legacy_packaged_app", "platform_app"]
   },
-  "management.canInstallReplacementAndroidApp": {
-    "dependencies": ["manifest:replacement_android_app"],
-    // TODO(jshikaram): add test coverage before trunk promotion.
-    "channel": "trunk",
-    "extension_types": ["platform_app"]
-  },
-  "management.installReplacementAndroidApp": {
-    "dependencies": ["manifest:replacement_android_app"],
-    "channel": "trunk",
-    "extension_types": ["platform_app"]
-  },
   "management.installReplacementWebApp": {
     "dependencies": ["manifest:replacement_web_app"],
     "channel": "stable",
@@ -355,6 +336,7 @@
       "chrome://bookmarks/*",
       "chrome://bookmarks-side-panel.top-chrome/*",
       "chrome://customize-chrome-side-panel.top-chrome/*",
+      "chrome://shopping-insights-side-panel.top-chrome/*",
       "chrome://download-shelf.top-chrome/*",
       "chrome://eche-app/*",
       "chrome://extensions/*",
@@ -372,7 +354,8 @@
       "chrome://tab-search.top-chrome/*",
       "chrome://tab-strip.top-chrome/*",
       "chrome://welcome/*",
-      "chrome://app-settings/*"
+      "chrome://app-settings/*",
+      "chrome://compose/*"
     ]
   }, {
     "channel": "stable",
@@ -380,7 +363,9 @@
     "matches": [
       "chrome-untrusted://help-app/*",
       "chrome-untrusted://media-app/*",
-      "chrome-untrusted://projector/*"
+      "chrome-untrusted://mako/*",
+      "chrome-untrusted://projector/*",
+      "chrome-untrusted://read-anything-side-panel.top-chrome/*"
     ]
   }],
   "metricsPrivateIndividualApis": {
@@ -557,7 +542,6 @@
   "runtime.getContexts": {
     "min_manifest_version": 3,
     "contexts": ["blessed_extension"],
-    "channel": "dev",
     "feature_flag": "ApiRuntimeGetContexts"
   },
   "runtime.getURL": {
@@ -604,6 +588,12 @@
     "dependencies": ["permission:nativeMessaging"],
     "contexts": ["blessed_extension"]
   },
+  "runtime.onUserScriptConnect": {
+    // NOTE: We can readily open this up to offscreen extensions and
+    // lockscreen extensions, if there's desire. For now, limit it.
+    "contexts": ["blessed_extension"],
+    "min_manifest_version": 3
+  },
   "runtime.onMessage": {
     "contexts": [
       "blessed_extension",
@@ -620,6 +610,12 @@
       "lock_screen_extension",
       "offscreen_extension"
     ]
+  },
+  "runtime.onUserScriptMessage": {
+    // NOTE: We can readily open this up to offscreen extensions and
+    // lockscreen extensions, if there's desire. For now, limit it.
+    "contexts": ["blessed_extension"],
+    "min_manifest_version": 3
   },
   "runtime.sendMessage": [{
     // Everything except WebUI.
@@ -736,7 +732,8 @@
       "content_script",
       "lock_screen_extension",
       "offscreen_extension",
-      "unblessed_extension"
+      "unblessed_extension",
+      "user_script"
     ]
   }, {
     "channel": "stable",
@@ -761,6 +758,13 @@
   "usb": {
     "dependencies": ["permission:usb"],
     "contexts": ["blessed_extension"]
+  },
+  "userScripts": {
+    "dependencies": [ "permission:userScripts" ],
+    "contexts": [ "blessed_extension" ],
+    "channel": "stable",
+    "developer_mode_only": true,
+    "feature_flag": "ApiUserScripts"
   },
   "virtualKeyboard": {
     "dependencies": ["permission:virtualKeyboard"],

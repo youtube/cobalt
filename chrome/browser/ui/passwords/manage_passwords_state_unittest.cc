@@ -14,7 +14,9 @@
 #include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
+#include "base/test/to_vector.h"
 #include "components/password_manager/core/browser/mock_password_form_manager_for_ui.h"
+#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/common/password_manager_ui.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -44,16 +46,17 @@ constexpr char kTestPSLOrigin[] = "http://1.example.com/";
 
 std::vector<const PasswordForm*> GetRawPointers(
     const std::vector<std::unique_ptr<PasswordForm>>& forms) {
-  std::vector<const PasswordForm*> result;
-  base::ranges::transform(forms, std::back_inserter(result),
-                          &std::unique_ptr<PasswordForm>::get);
-  return result;
+  // &std::unique_ptr<PasswordForm>::get returns a non-const ptr and hence
+  // cannot be used instead.
+  return base::test::ToVector(
+      forms,
+      [](const auto& form) -> const PasswordForm* { return form.get(); });
 }
 
 class MockPasswordManagerClient
     : public password_manager::StubPasswordManagerClient {
  public:
-  MOCK_METHOD0(UpdateFormManagers, void());
+  MOCK_METHOD(void, UpdateFormManagers, (), (override));
 };
 
 class ManagePasswordsStateTest : public testing::Test {
@@ -65,12 +68,13 @@ class ManagePasswordsStateTest : public testing::Test {
     saved_match_.username_element = u"username_element";
     saved_match_.password_value = u"12345";
     saved_match_.password_element = u"password_element";
+    saved_match_.match_type = PasswordForm::MatchType::kExact;
 
     psl_match_ = saved_match_;
     psl_match_.url = GURL(kTestPSLOrigin);
     psl_match_.signon_realm = kTestPSLOrigin;
     psl_match_.username_value = u"username_psl";
-    psl_match_.is_public_suffix_match = true;
+    psl_match_.match_type = PasswordForm::MatchType::kPSL;
 
     local_federated_form_ = saved_match_;
     local_federated_form_.federation_origin =
@@ -78,6 +82,7 @@ class ManagePasswordsStateTest : public testing::Test {
     local_federated_form_.password_value.clear();
     local_federated_form_.signon_realm =
         "federation://example.com/accounts.com";
+    local_federated_form_.match_type = PasswordForm::MatchType::kExact;
 
     passwords_data_.set_client(&mock_client_);
   }
@@ -345,7 +350,8 @@ TEST_F(ManagePasswordsStateTest, AutomaticPasswordSave) {
       CreateFormManager(&best_matches, {}));
 
   passwords_data().OnAutomaticPasswordSave(std::move(test_form_manager));
-  EXPECT_EQ(password_manager::ui::CONFIRMATION_STATE, passwords_data().state());
+  EXPECT_EQ(password_manager::ui::SAVE_CONFIRMATION_STATE,
+            passwords_data().state());
   EXPECT_EQ(url::Origin::Create(GURL(kTestOrigin)), passwords_data().origin());
   ASSERT_TRUE(passwords_data().form_manager());
   TestAllUpdates();
@@ -495,7 +501,8 @@ TEST_F(ManagePasswordsStateTest, AutomaticPasswordSaveAddBlocklisted) {
   std::unique_ptr<MockPasswordFormManagerForUI> test_form_manager(
       CreateFormManager(&best_matches, {}));
   passwords_data().OnAutomaticPasswordSave(std::move(test_form_manager));
-  EXPECT_EQ(password_manager::ui::CONFIRMATION_STATE, passwords_data().state());
+  EXPECT_EQ(password_manager::ui::SAVE_CONFIRMATION_STATE,
+            passwords_data().state());
 
   TestBlocklistedUpdates();
 }
@@ -544,7 +551,7 @@ TEST_F(ManagePasswordsStateTest, AndroidPasswordUpdateSubmitted) {
   android_form.url = GURL(android_form.signon_realm);
   android_form.username_value = u"username";
   android_form.password_value = u"old pass";
-  android_form.is_affiliation_based_match = true;
+  android_form.match_type = PasswordForm::MatchType::kAffiliated;
   std::vector<const PasswordForm*> best_matches = {&android_form};
   std::unique_ptr<MockPasswordFormManagerForUI> test_form_manager(
       CreateFormManager(&best_matches, {}));

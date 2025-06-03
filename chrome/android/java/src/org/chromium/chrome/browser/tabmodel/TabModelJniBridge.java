@@ -8,8 +8,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -27,7 +28,7 @@ import org.chromium.url.Origin;
  * Bridges between the C++ and Java {@link TabModel} interfaces.
  */
 public abstract class TabModelJniBridge implements TabModel {
-    private final boolean mIsIncognito;
+    private final Profile mProfile;
 
     /** The type of the Activity for which this tab model works. */
     private final @ActivityType int mActivityType;
@@ -36,7 +37,7 @@ public abstract class TabModelJniBridge implements TabModel {
     private long mNativeTabModelJniBridge;
 
     public TabModelJniBridge(@NonNull Profile profile, @ActivityType int activityType) {
-        mIsIncognito = profile.isOffTheRecord();
+        mProfile = profile;
         mActivityType = activityType;
     }
 
@@ -63,14 +64,12 @@ public abstract class TabModelJniBridge implements TabModel {
 
     @Override
     public boolean isIncognito() {
-        return mIsIncognito;
+        return mProfile.isOffTheRecord();
     }
 
     @Override
     public Profile getProfile() {
-        assert isNativeInitialized();
-        return TabModelJniBridgeJni.get().getProfileAndroid(
-                mNativeTabModelJniBridge, TabModelJniBridge.this);
+        return mProfile;
     }
 
     /** Broadcast a native-side notification that all tabs are now loaded from storage. */
@@ -167,8 +166,10 @@ public abstract class TabModelJniBridge implements TabModel {
 
         final TabModelFilter filter =
                 selector.getTabModelFilterProvider().getTabModelFilter(tab.isIncognito());
-        if (!(filter instanceof TabGroupModelFilter)) return false;
+        // Filter may still be null for CCTs.
+        if (filter == null) return false;
 
+        assert filter instanceof TabGroupModelFilter;
         final TabGroupModelFilter groupingFilter = (TabGroupModelFilter) filter;
         return groupingFilter.hasOtherRelatedTabs(tab);
     }
@@ -196,7 +197,6 @@ public abstract class TabModelJniBridge implements TabModel {
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
         long init(TabModelJniBridge caller, Profile profile, @ActivityType int activityType);
-        Profile getProfileAndroid(long nativeTabModelJniBridge, TabModelJniBridge caller);
         void broadcastSessionRestoreComplete(
                 long nativeTabModelJniBridge, TabModelJniBridge caller);
         void destroy(long nativeTabModelJniBridge, TabModelJniBridge caller);

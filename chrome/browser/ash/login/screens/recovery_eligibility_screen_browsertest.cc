@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ash/login/screens/recovery_eligibility_screen.h"
 
+#include <string>
+#include <utility>
+
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/test/shell_test_api.h"
@@ -14,6 +17,7 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_exit_waiter.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
+#include "chrome/browser/ash/login/test/user_policy_mixin.h"
 #include "chrome/browser/ash/login/test/wizard_controller_screen_exit_waiter.h"
 #include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
@@ -22,9 +26,12 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/recovery_eligibility_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/user_creation_screen_handler.h"
+#include "chrome/test/base/fake_gaia_mixin.h"
+#include "chromeos/ash/components/osauth/public/auth_session_storage.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -50,17 +57,32 @@ class RecoveryEligibilityScreenTest : public OobeBaseTest {
     result_ = absl::nullopt;
   }
 
-  void LoginAsRegularUser() {
+  void LoginAsUser(bool is_child) {
     // Login, and skip the post login screens.
     auto* context =
         LoginDisplayHost::default_host()->GetWizardContextForTesting();
     context->skip_post_login_screens_for_tests = true;
     context->defer_oobe_flow_finished_for_tests = true;
-    login_manager_mixin_.LoginAsNewRegularUser();
+    if (is_child) {
+      // Child users require user policy. Set up an empty one so the user can
+      // get through login.
+      ASSERT_TRUE(user_policy_mixin_.RequestPolicyUpdate());
+      login_manager_mixin_.LoginAsNewChildUser();
+    } else {
+      login_manager_mixin_.LoginAsNewRegularUser();
+    }
     WizardControllerExitWaiter(UserCreationView::kScreenId).Wait();
     WaitForScreenExit();
-    auto user_context =
-        std::make_unique<UserContext>(*context->extra_factors_auth_session);
+
+    std::unique_ptr<UserContext> user_context;
+    if (ash::features::ShouldUseAuthSessionStorage()) {
+      user_context = ash::AuthSessionStorage::Get()->BorrowForTests(
+          FROM_HERE, context->extra_factors_token.value());
+      context->extra_factors_token = absl::nullopt;
+    } else {
+      user_context =
+          std::make_unique<UserContext>(*context->extra_factors_auth_session);
+    }
     cryptohome_.MarkUserAsExisting(user_context->GetAccountId());
     ContinueScreenExit();
     // Wait until the OOBE flow finishes before we set new values on the wizard
@@ -70,10 +92,16 @@ class RecoveryEligibilityScreenTest : public OobeBaseTest {
     // Set the values on the wizard context: the `extra_factors_auth_session`
     // is available after the previous screens have run regularly, and it holds
     // an authenticated auth session.
-    user_context->ResetAuthSessionId();
-    user_context->SetAuthSessionId(cryptohome_.AddSession(
-        user_context->GetAccountId(), /*authenticated=*/true));
-    context->extra_factors_auth_session = std::move(user_context);
+    user_context->ResetAuthSessionIds();
+    auto session_ids = cryptohome_.AddSession(user_context->GetAccountId(),
+                                              /*authenticated=*/true);
+    user_context->SetAuthSessionIds(session_ids.first, session_ids.second);
+    if (ash::features::ShouldUseAuthSessionStorage()) {
+      context->extra_factors_token =
+          ash::AuthSessionStorage::Get()->Store(std::move(user_context));
+    } else {
+      context->extra_factors_auth_session = std::move(user_context);
+    }
     context->skip_post_login_screens_for_tests = false;
     result_ = absl::nullopt;
   }
@@ -105,7 +133,11 @@ class RecoveryEligibilityScreenTest : public OobeBaseTest {
     WaitForScreenExit();
   }
 
-  LoginManagerMixin login_manager_mixin_{&mixin_host_};
+  FakeGaiaMixin fake_gaia_{&mixin_host_};
+  UserPolicyMixin user_policy_mixin_{
+      &mixin_host_,
+      AccountId::FromUserEmailGaiaId(test::kTestEmail, test::kTestGaiaId)};
+  LoginManagerMixin login_manager_mixin_{&mixin_host_, {}, &fake_gaia_};
   CryptohomeMixin cryptohome_{&mixin_host_};
   absl::optional<RecoveryEligibilityScreen::Result> result_;
 
@@ -122,7 +154,7 @@ class RecoveryEligibilityScreenTest : public OobeBaseTest {
 // The recovery fields on the context should be set correctly for unmanaged
 // users.
 IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest, UnmanagedUser) {
-  LoginAsRegularUser();
+  LoginAsUser(/*is_child=*/false);
 
   ShowScreen();
   EXPECT_TRUE(LoginDisplayHost::default_host()
@@ -139,7 +171,7 @@ IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest, UnmanagedUser) {
 // The recovery fields on the context should be set correctly for managed users.
 IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest,
                        ManagedUserRecoveryEnabled) {
-  LoginAsRegularUser();
+  LoginAsUser(/*is_child=*/false);
   ProfileManager::GetActiveUserProfile()
       ->GetProfilePolicyConnector()
       ->OverrideIsManagedForTesting(/*is_managed=*/true);
@@ -161,7 +193,7 @@ IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest,
 // The recovery fields on the context should be set correctly for managed users.
 IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest,
                        ManagedUserRecoveryDisabled) {
-  LoginAsRegularUser();
+  LoginAsUser(/*is_child=*/false);
   ProfileManager::GetActiveUserProfile()
       ->GetProfilePolicyConnector()
       ->OverrideIsManagedForTesting(/*is_managed=*/true);
@@ -180,4 +212,18 @@ IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest,
   EXPECT_EQ(result_.value(), RecoveryEligibilityScreen::Result::PROCEED);
 }
 
+// The recovery fields on the context should be set correctly for child users.
+IN_PROC_BROWSER_TEST_F(RecoveryEligibilityScreenTest, ChildUser) {
+  LoginAsUser(/*is_child=*/true);
+
+  ShowScreen();
+  EXPECT_TRUE(LoginDisplayHost::default_host()
+                  ->GetWizardContextForTesting()
+                  ->recovery_setup.ask_about_recovery_consent);
+  EXPECT_FALSE(LoginDisplayHost::default_host()
+                   ->GetWizardContextForTesting()
+                   ->recovery_setup.recovery_factor_opted_in);
+
+  ContinueScreenExit();
+}
 }  // namespace ash

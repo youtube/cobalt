@@ -13,26 +13,23 @@
 #import "base/time/time.h"
 #import "components/feed/core/shared_prefs/pref_names.h"
 #import "components/prefs/pref_service.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/discover_feed/discover_feed_service.h"
 #import "ios/chrome/browser/discover_feed/discover_feed_service_factory.h"
-#import "ios/chrome/browser/flags/system_flags.h"
 #import "ios/chrome/browser/follow/follow_service.h"
 #import "ios/chrome/browser/follow/follow_service_factory.h"
 #import "ios/chrome/browser/follow/web_page_urls.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/ntp/features.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/commands/feed_commands.h"
 #import "ios/chrome/browser/shared/public/commands/new_tab_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/ui/ntp/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ui/ntp/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -62,19 +59,22 @@ bool ShouldShowFirstFollowUI(PrefService* pref_service) {
     [user_defaults removeObjectForKey:kDisplayedFirstFollowModalCountKey];
   }
 
-  if (experimental_flags::ShouldAlwaysShowFirstFollow())
+  if (experimental_flags::ShouldAlwaysShowFirstFollow()) {
     return true;
+  }
 
   if (experimental_flags::ShouldResetFirstFollowCount()) {
     pref_service->ClearPref(prefs::kFirstFollowUIShownCount);
+    pref_service->ClearPref(prefs::kFirstFollowUpdateUIShownCount);
     experimental_flags::DidResetFirstFollowCount();
   }
 
-  const int count = pref_service->GetInteger(prefs::kFirstFollowUIShownCount);
-  if (count >= kFirstFollowModalShownMaxCount)
-    return false;
+  const int count =
+      IsFollowUIUpdateEnabled()
+          ? pref_service->GetInteger(prefs::kFirstFollowUpdateUIShownCount)
+          : pref_service->GetInteger(prefs::kFirstFollowUIShownCount);
 
-  return true;
+  return count < kFirstFollowModalShownMaxCount;
 }
 
 // Returns whether the source is from a menu action.
@@ -266,9 +266,15 @@ void FollowBrowserAgent::OnFollowSuccess(WebPageURLs* web_page_urls,
   // Display the First Follow modal UI if needed.
   const bool is_overflow_menu_source = source == FollowSource::OverflowMenu;
   if (is_overflow_menu_source && ShouldShowFirstFollowUI(pref_service)) {
-    pref_service->SetInteger(
-        prefs::kFirstFollowUIShownCount,
-        pref_service->GetInteger(prefs::kFirstFollowUIShownCount) + 1);
+    if (IsFollowUIUpdateEnabled()) {
+      pref_service->SetInteger(
+          prefs::kFirstFollowUIShownCount,
+          pref_service->GetInteger(prefs::kFirstFollowUpdateUIShownCount) + 1);
+    } else {
+      pref_service->SetInteger(
+          prefs::kFirstFollowUIShownCount,
+          pref_service->GetInteger(prefs::kFirstFollowUIShownCount) + 1);
+    }
 
     [feed_commands_ showFirstFollowUIForWebSite:web_site];
     return;

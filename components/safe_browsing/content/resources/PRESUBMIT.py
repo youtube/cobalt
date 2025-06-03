@@ -5,16 +5,12 @@
 """Presubmit checks for SafeBrowsing download_file_types.
 """
 
-USE_PYTHON3 = True
-
 def CheckVersionUpdatedInDownloadFileTypeList(input_api, output_api):
     # Don't report errors for "git cl presubmit --all/--files"
     if input_api.no_diffs:
         return []
 
-    download_file_type_names = [
-        'download_file_types.asciipb', 'download_file_types_experiment.asciipb'
-    ]
+    download_file_type_names = ['download_file_types.asciipb']
 
     def IsDownloadFileTypeList(x):
         return input_api.os_path.basename(
@@ -47,13 +43,6 @@ def CheckVersionUpdatedInDownloadFileTypeList(input_api, output_api):
                     'Increment |version_id| in ' +
                     download_file_types_file.LocalPath() + ' if you are '
                     'updating the file types proto.'))
-
-    if len(download_file_types_files) == 1:
-        results.append(
-            output_api.PresubmitPromptWarning(
-                'You only modified either of download_file_types.asciipb or ' +
-                'download_file_types_experiment.asciipb, please make sure ' +
-                'your change does not affect any ongoing experiment.'))
 
     results.append(
         output_api.PresubmitPromptWarning(

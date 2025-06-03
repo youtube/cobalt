@@ -402,12 +402,23 @@ GetDisplayInfosAndInvalidCrtcs(const DrmWrapper& drm) {
 
     ScopedDrmConnectorPtr connector =
         drm.GetConnector(resources->connectors[i]);
-    if (!connector)
+    // In case of zombie connectors, verify that the connector is valid by
+    // checking if it has props.
+    // Zombie connectors can occur when an MST (which creates a new connector ID
+    // upon connection) is disconnected but the kernel hasn't cleaned up the old
+    // connector ID yet.
+    if (!connector || !drm.GetObjectProperties(resources->connectors[i],
+                                               DRM_MODE_OBJECT_CONNECTOR)) {
       continue;
+    }
 
-    if (connector->connection == DRM_MODE_CONNECTED &&
-        connector->count_modes != 0) {
-      available_connectors.push_back(connector.get());
+    if (connector->connection == DRM_MODE_CONNECTED) {
+      if (connector->count_modes != 0) {
+        available_connectors.push_back(connector.get());
+      } else {
+        LOG(WARNING) << "[CONNECTOR:" << connector->connector_id
+                     << "] is connected but has no modes. Connector ignored.";
+      }
     }
 
     connectors.emplace_back(std::move(connector));
@@ -485,8 +496,9 @@ bool SameMode(const drmModeModeInfo& lhs, const drmModeModeInfo& rhs) {
 std::unique_ptr<display::DisplayMode> CreateDisplayMode(
     const drmModeModeInfo& mode) {
   return std::make_unique<display::DisplayMode>(
-      gfx::Size(mode.hdisplay, mode.vdisplay),
-      mode.flags & DRM_MODE_FLAG_INTERLACE, GetRefreshRate(mode));
+      gfx::Size{mode.hdisplay, mode.vdisplay},
+      mode.flags & DRM_MODE_FLAG_INTERLACE, GetRefreshRate(mode), mode.htotal,
+      mode.vtotal, mode.clock);
 }
 
 display::DisplaySnapshot::DisplayModeList ExtractDisplayModes(
@@ -641,7 +653,7 @@ std::unique_ptr<display::DisplaySnapshot> CreateDisplaySnapshot(
 
 int GetFourCCFormatForOpaqueFramebuffer(gfx::BufferFormat format) {
   // DRM atomic interface doesn't currently support specifying an alpha
-  // blending. We can simulate disabling alpha bleding creating an fb
+  // blending. We can simulate disabling alpha blending creating an fb
   // with a format without the alpha channel.
   switch (format) {
     case gfx::BufferFormat::RGBA_8888:
@@ -666,6 +678,13 @@ int GetFourCCFormatForOpaqueFramebuffer(gfx::BufferFormat format) {
       NOTREACHED();
       return 0;
   }
+}
+
+const char* GetNameForColorspace(const gfx::ColorSpace color_space) {
+  if (color_space == gfx::ColorSpace::CreateHDR10())
+    return kColorSpaceBT2020RGBEnumName;
+
+  return kColorSpaceDefaultEnumName;
 }
 
 uint64_t GetEnumValueForName(const DrmWrapper& drm,

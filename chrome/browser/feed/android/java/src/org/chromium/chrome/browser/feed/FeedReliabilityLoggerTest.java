@@ -20,20 +20,18 @@ import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger.StreamType;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger.ClosedReason;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger.StreamType;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 import org.chromium.components.feed.proto.wire.ReliabilityLoggingEnums.DiscoverLaunchResult;
 
 /** Unit tests for {@link FeedReliabilityLogger}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class FeedReliabilityLoggerTest {
-    @Mock
-    FeedLaunchReliabilityLogger mLaunchLogger;
-    @Mock
-    FeedUserInteractionReliabilityLogger mUserInteractionLogger;
+    @Mock FeedLaunchReliabilityLogger mLaunchLogger;
+    @Mock FeedUserInteractionReliabilityLogger mUserInteractionLogger;
 
     FeedReliabilityLogger mFeedReliabilityLogger;
 
@@ -86,28 +84,28 @@ public class FeedReliabilityLoggerTest {
     @Test
     public void testOnUrlFocusChange_gainFocus_launchInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/true);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ true);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_gainFocus_launchNotInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(false);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/true);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ true);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_loseFocus_launchInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/false);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ false);
         verify(mLaunchLogger, times(1)).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_loseFocus_launchNotInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(false);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/false);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ false);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
@@ -145,7 +143,6 @@ public class FeedReliabilityLoggerTest {
                 .logLaunchFinished(
                         anyLong(), eq(DiscoverLaunchResult.SWITCHED_FEED_TABS.getNumber()));
         verify(mLaunchLogger).logSwitchedFeeds(eq(StreamType.FOR_YOU), anyLong());
-        verify(mUserInteractionLogger).onStreamClosed(eq(ClosedReason.SWITCH_STREAM));
     }
 
     @Test
@@ -159,7 +156,7 @@ public class FeedReliabilityLoggerTest {
     @Test
     public void testOnUnbindStream() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUnbindStream();
+        mFeedReliabilityLogger.onUnbindStream(ClosedReason.LEAVE_FEED);
         verify(mLaunchLogger)
                 .logLaunchFinished(
                         anyLong(), eq(DiscoverLaunchResult.FRAGMENT_STOPPED.getNumber()));
@@ -172,6 +169,5 @@ public class FeedReliabilityLoggerTest {
         mFeedReliabilityLogger.onOpenCard();
         verify(mLaunchLogger)
                 .logLaunchFinished(anyLong(), eq(DiscoverLaunchResult.CARD_TAPPED.getNumber()));
-        verify(mUserInteractionLogger).onStreamClosed(eq(ClosedReason.OPEN_CARD));
     }
 }

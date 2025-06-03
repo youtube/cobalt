@@ -3,8 +3,16 @@
 // found in the LICENSE file.
 
 #include "base/containers/enum_set.h"
+#include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/sync/test/integration/bookmarks_helper.h"
+#include "chrome/browser/sync/test/integration/committed_all_nudged_changes_checker.h"
+#include "chrome/browser/sync/test/integration/preferences_helper.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
+#include "chrome/common/pref_names.h"
+#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/prefs/pref_service.h"
 #include "components/sync/protocol/sync.pb.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "components/sync/test/fake_server.h"
@@ -64,11 +72,20 @@ class GetUpdatesObserver : public FakeServer::Observer {
 
 class SingleClientCommonSyncTest : public SyncTest {
  public:
-  SingleClientCommonSyncTest() : SyncTest(SINGLE_CLIENT) {}
+  SingleClientCommonSyncTest() : SyncTest(SINGLE_CLIENT) {
+    override_features_.InitWithFeatures(
+        /*enabled_features=*/
+        {password_manager::features::kPasswordManagerEnableReceiverService,
+         password_manager::features::kPasswordManagerEnableSenderService},
+        /*disabled_features=*/{});
+  }
   ~SingleClientCommonSyncTest() override = default;
   SingleClientCommonSyncTest(const SingleClientCommonSyncTest&) = delete;
   SingleClientCommonSyncTest& operator=(const SingleClientCommonSyncTest&) =
       delete;
+
+ private:
+  base::test::ScopedFeatureList override_features_;
 };
 
 // Android doesn't currently support PRE_ tests, see crbug.com/1117345.
@@ -109,5 +126,93 @@ IN_PROC_BROWSER_TEST_F(SingleClientCommonSyncTest,
       << "Updated data types: " << get_updates_observer.GetUpdatedTypes();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/1465272): Deflake and reenable the test.
+#define MAYBE_ShouldGetTypesWithUnsyncedDataFromSyncService \
+  DISABLED_ShouldGetTypesWithUnsyncedDataFromSyncService
+#else
+#define MAYBE_ShouldGetTypesWithUnsyncedDataFromSyncService \
+  ShouldGetTypesWithUnsyncedDataFromSyncService
+#endif
+IN_PROC_BROWSER_TEST_F(SingleClientCommonSyncTest,
+                       MAYBE_ShouldGetTypesWithUnsyncedDataFromSyncService) {
+  const std::string kBookmarkFolderTitle = "title1";
+
+  ASSERT_TRUE(SetupClients());
+
+  // Set the preference to false initially which should get synced.
+  GetProfile(0)->GetPrefs()->SetBoolean(prefs::kHomePageIsNewTabPage, false);
+  ASSERT_TRUE(SetupSync());
+  absl::optional<sync_pb::PreferenceSpecifics> server_value =
+      preferences_helper::GetPreferenceInFakeServer(
+          syncer::ModelType::PREFERENCES, prefs::kHomePageIsNewTabPage,
+          GetFakeServer());
+  ASSERT_TRUE(server_value.has_value());
+  ASSERT_EQ(server_value->value(), "false");
+
+  {
+    // No types have unsynced data.
+    base::RunLoop loop;
+    base::MockOnceCallback<void(syncer::ModelTypeSet)> callback;
+    EXPECT_CALL(callback, Run(ModelTypeSet())).WillOnce([&]() { loop.Quit(); });
+    GetSyncService(0)->GetTypesWithUnsyncedData(callback.Get());
+    loop.Run();
+  }
+
+  // Start throttling PREFERENCES so further commits will be rejected by the
+  // server.
+  GetFakeServer()->SetThrottledTypes({syncer::PREFERENCES});
+
+  // Make local changes for PREFERENCES and BOOKMARKS, but the first is
+  // throttled.
+  GetProfile(0)->GetPrefs()->SetBoolean(prefs::kHomePageIsNewTabPage, true);
+  bookmarks_helper::AddFolder(0, 0, kBookmarkFolderTitle);
+
+  ASSERT_TRUE(AwaitQuiescence());
+
+  // The bookmark should get committed successfully.
+  ASSERT_TRUE(bookmarks_helper::ServerBookmarksEqualityChecker(
+                  {{kBookmarkFolderTitle, GURL()}},
+                  /*cryptographer=*/nullptr)
+                  .Wait());
+
+  // The preference should remain unsynced (still set to the previous value).
+  ASSERT_EQ(preferences_helper::GetPreferenceInFakeServer(
+                syncer::ModelType::PREFERENCES, prefs::kHomePageIsNewTabPage,
+                GetFakeServer())
+                ->value(),
+            "false");
+
+  {
+    // PREFERENCES now has local changes not yet synced with the server.
+    base::RunLoop loop;
+    base::MockOnceCallback<void(syncer::ModelTypeSet)> callback;
+    EXPECT_CALL(callback, Run(ModelTypeSet({syncer::PREFERENCES})))
+        .WillOnce([&]() { loop.Quit(); });
+    GetSyncService(0)->GetTypesWithUnsyncedData(callback.Get());
+    loop.Run();
+  }
+
+  // Unthrottle PREFERENCES to verify that sync can resume.
+  GetFakeServer()->SetThrottledTypes(syncer::ModelTypeSet());
+
+  // Wait for PREFERENCES to be de-throttled and commit local changes.
+  ASSERT_TRUE(CommittedAllNudgedChangesChecker(GetSyncService(0)).Wait());
+  ASSERT_EQ(preferences_helper::GetPreferenceInFakeServer(
+                syncer::ModelType::PREFERENCES, prefs::kHomePageIsNewTabPage,
+                GetFakeServer())
+                ->value(),
+            "true");
+
+  {
+    // No types have unsynced data.
+    base::RunLoop loop;
+    base::MockOnceCallback<void(syncer::ModelTypeSet)> callback;
+    EXPECT_CALL(callback, Run(ModelTypeSet())).WillOnce([&]() { loop.Quit(); });
+    GetSyncService(0)->GetTypesWithUnsyncedData(callback.Get());
+    loop.Run();
+  }
+}
 
 }  // namespace

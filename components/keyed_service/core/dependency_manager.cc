@@ -44,8 +44,12 @@ void DependencyManager::AddComponent(KeyedServiceBaseFactory* component) {
          "Ensure.*KeyedServiceFactoriesBuilt().";
 #endif  // DCHECK_IS_ON()
 
-  if (do_not_allow_factory_registration_) {
-    LOG(WARNING)
+  if (disallow_factory_registration_) {
+    SCOPED_CRASH_KEY_STRING32("KeyedServiceFactories", "factory_name",
+                              component->name());
+    base::debug::DumpWithoutCrashing();
+
+    DCHECK(false)
         << "Trying to register KeyedService Factory: `" << component->name()
         << "` after the call to the main registration function `"
         << registration_function_name_error_message_
@@ -54,9 +58,6 @@ void DependencyManager::AddComponent(KeyedServiceBaseFactory* component) {
            "previous method or to the appropriate "
            "`EnsureBrowserContextKeyedServiceFactoriesBuilt()` function to "
            "properly register your factory.";
-    SCOPED_CRASH_KEY_STRING32("KeyedServiceFactories", "factory_name",
-                              component->name());
-    base::debug::DumpWithoutCrashing();
   }
 
   dependency_graph_.AddNode(component);
@@ -227,9 +228,9 @@ DependencyGraph& DependencyManager::GetDependencyGraphForTesting() {
   return dependency_graph_;
 }
 
-void DependencyManager::DoNotAllowKeyedServiceFactoryRegistration(
+void DependencyManager::DisallowKeyedServiceFactoryRegistration(
     const std::string& registration_function_name_error_message) {
-  do_not_allow_factory_registration_ = true;
+  disallow_factory_registration_ = true;
   registration_function_name_error_message_ =
       registration_function_name_error_message;
 }

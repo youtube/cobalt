@@ -7,10 +7,13 @@
 #include <memory>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
 #include "base/test/bind.h"
+#include "base/test/to_vector.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/ranking/launch_data.h"
@@ -20,9 +23,12 @@
 #include "chrome/browser/ash/app_list/search/test/search_controller_test_util.h"
 #include "chrome/browser/ash/app_list/search/test/test_ranker_manager.h"
 #include "chrome/browser/ash/app_list/search/test/test_search_provider.h"
+#include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/ash/app_list/test/fake_app_list_model_updater.h"
 #include "chrome/browser/ash/app_list/test/test_app_list_controller_delegate.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -33,6 +39,7 @@ namespace {
 using testing::ElementsAreArray;
 using testing::UnorderedElementsAreArray;
 using Category = ash::AppListSearchResultCategory;
+using ControlCategory = ash::AppListSearchControlCategory;
 using DisplayType = ash::SearchResultDisplayType;
 using Result = ash::AppListSearchResultType;
 
@@ -89,10 +96,8 @@ class SearchControllerTest : public testing::Test {
   void ExpectIdOrder(std::vector<std::string> expected_ids) {
     const auto& actual_results = model_updater_.search_results();
     EXPECT_EQ(actual_results.size(), expected_ids.size());
-    std::vector<std::string> actual_ids;
-    base::ranges::transform(actual_results, std::back_inserter(actual_ids),
-                            &ChromeSearchResult::id);
-    EXPECT_THAT(actual_ids, ElementsAreArray(expected_ids));
+    EXPECT_THAT(base::test::ToVector(actual_results, &ChromeSearchResult::id),
+                ElementsAreArray(expected_ids));
   }
 
   // Compares expected category burn-in iteration numbers to those recorded
@@ -149,7 +154,8 @@ class SearchControllerTest : public testing::Test {
   std::unique_ptr<SearchController> search_controller_;
   ::test::TestAppListControllerDelegate list_controller_{};
   // Owned by |search_controller_|.
-  raw_ptr<TestRankerManager, ExperimentalAsh> ranker_manager_{nullptr};
+  raw_ptr<TestRankerManager, DanglingUntriaged | ExperimentalAsh>
+      ranker_manager_{nullptr};
 };
 
 // Tests that long queries are truncated to the maximum allowed query length.
@@ -843,6 +849,74 @@ TEST_F(SearchControllerTest, NotifyObserverWhenPublished) {
   // We expect observer1 to observe while observer2 is not.
   EXPECT_TRUE(observer1.results_added());
   EXPECT_FALSE(observer2.results_added());
+}
+
+TEST_F(SearchControllerTest, ProviderIsFilteredWithSearchControl) {
+  base::test::ScopedFeatureList scoped_feature_list_;
+  scoped_feature_list_.InitAndEnableFeature(
+      ash::features::kLauncherSearchControl);
+
+  // Create a fake provider, and we do not care about the result type.
+  auto provider = std::make_unique<TestSearchProvider>(Result::kInstalledApp,
+                                                       base::Milliseconds(20));
+  auto* provider_ptr = provider.get();
+  search_controller_->AddProvider(std::move(provider));
+
+  // `kCannotToggle` is excluded as its always enabled.
+  static const ControlCategory toggleable_categories[] = {
+      ControlCategory::kApps,      ControlCategory::kAppShortcuts,
+      ControlCategory::kFiles,     ControlCategory::kGames,
+      ControlCategory::kHelp,      ControlCategory::kImages,
+      ControlCategory::kPlayStore, ControlCategory::kWeb,
+  };
+
+  ScopedDictPrefUpdate pref_update(
+      profile_.GetPrefs(), ash::prefs::kLauncherSearchCategoryControlStatus);
+
+  // Sets all toggleable categories to be disabled.
+  for (const ControlCategory control_category : toggleable_categories) {
+    pref_update->Set(ash::GetAppListControlCategoryName(control_category),
+                     false);
+  }
+
+  // Cannot toggle provider should always return results.
+  provider_ptr->SetNextResults(
+      MakeListResults({"AAA"}, {Category::kApps}, {-1}, {0.1}));
+  search_controller_->StartSearch(u"A");
+  WaitInMilliseconds();
+  ExpectIdOrder({"AAA"});
+
+  provider_ptr->SetNextResults({});
+  search_controller_->ClearSearch();
+
+  for (const ControlCategory control_category : toggleable_categories) {
+    // Sets the provider to the associated category.
+    provider_ptr->SetControlCategoryForTest(control_category);
+
+    provider_ptr->SetNextResults(
+        MakeListResults({"BBB"}, {Category::kApps}, {-1}, {0.1}));
+    search_controller_->StartSearch(u"B");
+    WaitInMilliseconds();
+    // No result should be returned as the associated category has been set
+    // disabled.
+    ExpectIdOrder({});
+
+    provider_ptr->SetNextResults({});
+    search_controller_->ClearSearch();
+
+    // Starts search with control enabled.
+    pref_update->Set(ash::GetAppListControlCategoryName(control_category),
+                     true);
+    provider_ptr->SetNextResults(
+        MakeListResults({"CCC"}, {Category::kApps}, {-1}, {0.1}));
+    search_controller_->StartSearch(u"C");
+    WaitInMilliseconds();
+    // Result should be returned.
+    ExpectIdOrder({"CCC"});
+
+    provider_ptr->SetNextResults({});
+    search_controller_->ClearSearch();
+  }
 }
 
 }  // namespace app_list::test

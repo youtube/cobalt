@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/check.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -143,7 +144,7 @@ class WorkerThreadDelegate : public WorkerThread::Delegate {
   void DidProcessTask(RegisteredTaskSource task_source) override {
     if (task_source) {
       auto task_source_with_transaction =
-          TransactionWithRegisteredTaskSource::FromTaskSource(
+          RegisteredTaskSourceAndTransaction::FromTaskSource(
               std::move(task_source));
       task_source_with_transaction.task_source.WillReEnqueue(
           TimeTicks::Now(), &task_source_with_transaction.transaction);
@@ -225,7 +226,7 @@ class WorkerThreadDelegate : public WorkerThread::Delegate {
   // Returns true iff the worker must wakeup, i.e. task source is allowed to run
   // and the worker was not awake.
   bool EnqueueTaskSource(
-      TransactionWithRegisteredTaskSource transaction_with_task_source) {
+      RegisteredTaskSourceAndTransaction transaction_with_task_source) {
     CheckedAutoLock auto_lock(lock_);
     auto sort_key = transaction_with_task_source.task_source->GetSortKey();
     // When moving |task_source| into |priority_queue_|, it may be destroyed
@@ -281,6 +282,9 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
     WorkerThreadDelegate::OnMainEntry(worker);
 
     scoped_com_initializer_ = std::make_unique<win::ScopedCOMInitializer>();
+
+    // CHECK to make sure this COM thread is initialized correctly in an STA.
+    CHECK(scoped_com_initializer_->Succeeded());
   }
 
   RegisteredTaskSource GetWork(WorkerThread* worker) override {
@@ -528,7 +532,7 @@ class PooledSingleThreadTaskRunnerManager::PooledSingleThreadTaskRunner
                 DisableDanglingPtrDetection>
       outer_;
 
-  const raw_ptr<WorkerThread, DanglingUntriaged> worker_;
+  const raw_ptr<WorkerThread, AcrossTasksDanglingUntriaged> worker_;
   const SingleThreadTaskRunnerThreadMode thread_mode_;
   const scoped_refptr<Sequence> sequence_;
 };

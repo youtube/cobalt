@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GPU_WEBGPU_SWAP_BUFFER_PROVIDER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GPU_WEBGPU_SWAP_BUFFER_PROVIDER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "cc/layers/texture_layer.h"
 #include "cc/layers/texture_layer_client.h"
 #include "components/viz/common/resources/shared_image_format.h"
@@ -45,8 +46,7 @@ class PLATFORM_EXPORT WebGPUSwapBufferProvider
       WGPUTextureUsage usage,
       WGPUTextureFormat format,
       PredefinedColorSpace color_space,
-      gfx::HDRMode hdr_mode,
-      absl::optional<gfx::HDRMetadata> hdr_metadata);
+      const gfx::HDRMetadata& hdr_metadata);
   ~WebGPUSwapBufferProvider() override;
 
   viz::SharedImageFormat Format() const;
@@ -156,7 +156,7 @@ class PLATFORM_EXPORT WebGPUSwapBufferProvider
   void ReleaseWGPUTextureAccessIfNeeded();
 
   scoped_refptr<DawnControlClientHolder> dawn_control_client_;
-  Client* client_;
+  raw_ptr<Client, ExperimentalRenderer> client_;
   WGPUDevice device_;
   scoped_refptr<cc::TextureLayer> layer_;
   bool neutered_ = false;
@@ -170,6 +170,7 @@ class PLATFORM_EXPORT WebGPUSwapBufferProvider
   const viz::SharedImageFormat format_;
   const WGPUTextureUsage usage_;
   const PredefinedColorSpace color_space_;
+  int max_texture_size_;
 
   scoped_refptr<SwapBuffer> current_swap_buffer_;
 };

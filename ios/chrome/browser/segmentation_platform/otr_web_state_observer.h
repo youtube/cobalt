@@ -9,7 +9,7 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "ios/chrome/browser/browser_state/browser_state_info_cache_observer.h"
+#include "ios/chrome/browser/shared/model/browser_state/browser_state_info_cache_observer.h"
 
 class AllWebStateListObservationRegistrar;
 
@@ -71,7 +71,7 @@ class OTRWebStateObserver : public BrowserStateInfoCacheObserver {
   // any OTR WebState exists.
   bool HasAnyOtrWebState() const;
 
-  base::ObserverList<ObserverClient> observer_clients_;
+  base::ObserverList<ObserverClient, true> observer_clients_;
   raw_ptr<ios::ChromeBrowserStateManager> browser_state_manager_;
   base::flat_map<base::FilePath, std::unique_ptr<BrowserStateData>>
       browser_state_data_;

@@ -9,11 +9,13 @@
 #include "ash/app_list/views/apps_grid_view_test_api.h"
 #include "ash/app_list/views/paged_apps_grid_view.h"
 #include "ash/app_list/views/scrollable_apps_grid_view.h"
+#include "ash/constants/ash_features.h"
 #include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
+#include "ash/system/progress_indicator/progress_indicator.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
@@ -26,6 +28,38 @@
 
 namespace ash {
 
+namespace {
+// ProgressIndicatorWaiter -----------------------------------------------------
+
+// A class which supports waiting for a progress indicator to reach a desired
+// state of progress.
+class ProgressIndicatorWaiter {
+ public:
+  ProgressIndicatorWaiter() = default;
+  ProgressIndicatorWaiter(const ProgressIndicatorWaiter&) = delete;
+  ProgressIndicatorWaiter& operator=(const ProgressIndicatorWaiter&) = delete;
+  ~ProgressIndicatorWaiter() = default;
+
+  // Waits for `progress_indicator` to reach the specified `progress`. If the
+  // `progress_indicator` is already at `progress`, this method no-ops.
+  void WaitForProgress(ProgressIndicator* progress_indicator,
+                       const absl::optional<float>& progress) {
+    if (progress_indicator->progress() == progress) {
+      return;
+    }
+    base::RunLoop run_loop;
+    auto subscription = progress_indicator->AddProgressChangedCallback(
+        base::BindLambdaForTesting([&]() {
+          if (progress_indicator->progress() == progress) {
+            run_loop.Quit();
+          }
+        }));
+    run_loop.Run();
+  }
+};
+
+}  // namespace
+
 class AppListItemViewTest : public AshTestBase,
                             public testing::WithParamInterface<bool> {
  public:
@@ -34,8 +68,9 @@ class AppListItemViewTest : public AshTestBase,
 
   // testing::Test:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatureState(
-        app_list_features::kDragAndDropRefactor, IsUsingDragDropController());
+    scoped_feature_list_.InitWithFeatureStates(
+        {{app_list_features::kDragAndDropRefactor, IsUsingDragDropController()},
+         {features::kPromiseIcons, true}});
 
     AshTestBase::SetUp();
 
@@ -46,8 +81,6 @@ class AppListItemViewTest : public AshTestBase,
           EXPECT_EQ(GetDragState(drag_view_),
                     AppListItemView::DragState::kStarted);
           GetEventGenerator()->ReleaseTouch();
-          EXPECT_EQ(GetDragState(drag_view_),
-                    AppListItemView::DragState::kNone);
         }),
         base::DoNothing());
   }
@@ -59,6 +92,13 @@ class AppListItemViewTest : public AshTestBase,
   AppListItem* CreateAppListItem(const std::string& name) {
     AppListItem* item =
         GetAppListTestHelper()->model()->CreateAndAddItem(name + "_id");
+    item->SetName(name);
+    return item;
+  }
+
+  AppListItem* CreatePromiseAppListItem(const std::string& name) {
+    AppListItem* item =
+        GetAppListTestHelper()->model()->CreateAndAddPromiseItem(name + "_id");
     item->SetName(name);
     return item;
   }
@@ -87,7 +127,7 @@ class AppListItemViewTest : public AshTestBase,
   bool IsUsingDragDropController() { return GetParam(); }
 
   int drag_started_on_controller_ = 0;
-  raw_ptr<AppListItemView, ExperimentalAsh> drag_view_;
+  raw_ptr<AppListItemView, DanglingUntriaged | ExperimentalAsh> drag_view_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 INSTANTIATE_TEST_SUITE_P(All, AppListItemViewTest, testing::Bool());
@@ -379,6 +419,121 @@ TEST_P(AppListItemViewTestWithDragDropController,
   EXPECT_FALSE(helper->IsInFolderView());
 
   EXPECT_TRUE(view->title()->GetVisible());
+}
+
+TEST_P(AppListItemViewTestWithDragDropController,
+       AppItemDragStateResetsAfterDrag) {
+  CreateAppListItem("TestItem 1");
+
+  auto* helper = GetAppListTestHelper();
+  helper->ShowAppList();
+
+  auto* apps_grid_view = helper->GetScrollableAppsGridView();
+  AppListItemView* view = apps_grid_view->GetItemViewAt(0);
+  auto* generator = GetEventGenerator();
+  ASSERT_EQ(GetDragState(view), AppListItemView::DragState::kNone);
+
+  SetAppListItemViewForTest(view);
+
+  gfx::Point from = view->GetBoundsInScreen().CenterPoint();
+  generator->MoveTouch(from);
+  generator->PressTouch();
+  view->FireTouchDragTimerForTest();
+  EXPECT_EQ(GetDragState(view), AppListItemView::DragState::kInitialized);
+
+  // Make sure that the item view has a started drag state during drag.
+  ShellTestApi().drag_drop_controller()->SetLoopClosureForTesting(
+      base::BindLambdaForTesting([&]() {
+        drag_started_on_controller_++;
+        generator->MoveTouchBy(10, 10);
+        EXPECT_EQ(GetDragState(view), AppListItemView::DragState::kStarted);
+        generator->MoveMouseTo(apps_grid_view->GetBoundsInScreen().top_right());
+        generator->MoveTouchBy(10, 10);
+        EXPECT_EQ(GetDragState(view), AppListItemView::DragState::kStarted);
+        helper->Dismiss();
+        EXPECT_EQ(GetDragState(view), AppListItemView::DragState::kStarted);
+        generator->ReleaseTouch();
+      }),
+      base::DoNothing());
+
+  generator->MoveTouchBy(10, 10);
+
+  EXPECT_EQ(GetDragState(view), AppListItemView::DragState::kNone);
+  EXPECT_FALSE(view->FireTouchDragTimerForTest());
+  EXPECT_FALSE(IsIconScaled(view));
+  MaybeCheckDragStartedOnControllerCount(1);
+}
+
+TEST_P(AppListItemViewTest, AppStatusReflectsOnProgressIndicator) {
+  AppListItem* item = CreatePromiseAppListItem("TestItem 1");
+
+  auto* helper = GetAppListTestHelper();
+  helper->ShowAppList();
+
+  auto* apps_grid_view = helper->GetScrollableAppsGridView();
+  AppListItemView* view = apps_grid_view->GetItemViewAt(0);
+
+  // Promise apps are created with app_status kPending.
+  ProgressIndicator* progress_indicator = view->GetProgressIndicatorForTest();
+
+  EXPECT_EQ(view->item()->progress(), -1.0f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.0f);
+
+  // Change app status to installing and send a progress update. Verify that the
+  // progress indicator correctly reflects the progress.
+  item->UpdateAppStatusForTesting(AppStatus::kInstalling);
+  item->SetProgress(0.3f);
+  EXPECT_EQ(view->item()->progress(), 0.3f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.3f);
+
+  // Change app status back to pending state. Verify that even if the item had
+  // progress previously associated to it, the progress indicator reflects as
+  // 0 progress since it is pending.
+  item->UpdateAppStatusForTesting(AppStatus::kPending);
+  EXPECT_EQ(view->item()->progress(), 0.3f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.0f);
+
+  // Send another progress update. Since the app status is still pending, the
+  // progress indicator still be 0
+  item->SetProgress(0.8f);
+  EXPECT_EQ(view->item()->progress(), 0.8f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.0f);
+
+  // Set the last status update to kInstallSuccess as if the app had finished
+  // installing.
+  item->UpdateAppStatusForTesting(AppStatus::kInstallSuccess);
+
+  // No crash.
+}
+
+TEST_P(AppListItemViewTest, UpdateProgressOnPromiseIcon) {
+  AppListItem* item = CreatePromiseAppListItem("TestItem 1");
+
+  auto* helper = GetAppListTestHelper();
+  helper->ShowAppList();
+
+  auto* apps_grid_view = helper->GetScrollableAppsGridView();
+  AppListItemView* view = apps_grid_view->GetItemViewAt(0);
+
+  // Start install progress bar.
+  item->UpdateAppStatusForTesting(AppStatus::kInstalling);
+  item->SetProgress(0.f);
+  ProgressIndicator* progress_indicator = view->GetProgressIndicatorForTest();
+
+  EXPECT_EQ(view->item()->progress(), 0.f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.0f);
+
+  item->SetProgress(0.3f);
+  EXPECT_EQ(view->item()->progress(), 0.3f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.3f);
+
+  item->SetProgress(0.7f);
+  EXPECT_EQ(view->item()->progress(), 0.7f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 0.7f);
+
+  item->SetProgress(1.5f);
+  EXPECT_EQ(view->item()->progress(), 1.5f);
+  ProgressIndicatorWaiter().WaitForProgress(progress_indicator, 1.0f);
 }
 
 }  // namespace ash

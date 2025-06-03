@@ -15,11 +15,14 @@ Are you a Google employee? See
 *   A 64-bit Intel machine with at least 8GB of RAM. More than 16GB is highly
     recommended.
 *   At least 100GB of free disk space.
-*   You must have Git and Python v3.6+ installed already (and `python3` must point
-    to a Python v3.6+ binary).
+*   You must have Git and Python v3.8+ installed already (and `python3` must point
+    to a Python v3.8+ binary). Depot_tools bundles an appropriate version
+    of Python in `$depot_tools/python-bin`, if you don't have an appropriate
+    version already on your system.
 
-Most development is done on Ubuntu (currently 18.04, Bionic Beaver). There are
-some instructions for other distros below, but they are mostly unsupported.
+Most development is done on Ubuntu (Chromium's build infrastructure currently
+runs 22.04, Jammy Jellyfish). There are some instructions for other distros
+below, but they are mostly unsupported.
 
 ### Docker requirements
 
@@ -44,12 +47,12 @@ Clone the `depot_tools` repository:
 $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 ```
 
-Add `depot_tools` to the end of your PATH (you will probably want to put this
-in your `~/.bashrc` or `~/.zshrc`). Assuming you cloned `depot_tools` to
+Add `depot_tools` to the beginning of your `PATH` (you will probably want to put
+this in your `~/.bashrc` or `~/.zshrc`). Assuming you cloned `depot_tools` to
 `/path/to/depot_tools`:
 
 ```shell
-$ export PATH="$PATH:/path/to/depot_tools"
+$ export PATH="/path/to/depot_tools:$PATH"
 ```
 
 When cloning `depot_tools` to your home directory **do not** use `~` on PATH,
@@ -57,7 +60,7 @@ otherwise `gclient runhooks` will fail to run. Rather, you should use either
 `$HOME` or the absolute path:
 
 ```shell
-$ export PATH="$PATH:${HOME}/depot_tools"
+$ export PATH="${HOME}/depot_tools:$PATH"
 ```
 
 ## Get the code
@@ -150,7 +153,38 @@ $ gn gen out/Default
 This section contains some things you can change to speed up your builds,
 sorted so that the things that make the biggest difference are first.
 
-#### Use Goma
+#### Use reclient
+
+If you are a Google employee, do not follow the instructions below. See
+[go/chrome-linux-build#using-remote-execution](http://go/chrome-linux-build#using-remote-execution)
+instead.
+
+Google developed the
+[Remote Execution API](https://github.com/bazelbuild/remote-apis)
+client called [reclient](https://github.com/bazelbuild/reclient).
+
+If you would like to use `reclient`, specify your `rbe_instance` in .gclient
+like
+```
+solutions = [
+  {
+    ...,
+    "custom_vars": {
+      # e.g. <your instance> can be something like
+      # "projects/rbe-chromium-untrusted/instances/default_instance"
+      # if you are allowed to use Google's RBE backend.
+      "rbe_instance": <your instance>,
+    },
+  },
+]
+```
+and run `gclient sync`. Then, add the following GN args to your `args.gn`.
+```
+use_remoteexec=true
+rbe_cfg_dir="../../buildtools/reclient_cfgs/linux"
+```
+
+#### Use Goma (deprecated)
 
 Google developed the distributed compiler called
 [Goma](https://chromium.googlesource.com/infra/goma/client).
@@ -261,14 +295,8 @@ hyperthreaded, 12 GB RAM)
 
 The Chrome binary contains embedded symbols by default. You can reduce its size
 by using the Linux `strip` command to remove this debug information. You can
-also reduce binary size by disabling debug mode, disabling dchecks, and turning
-on all optimizations by enabling official build mode, with these GN args:
-
-```
-is_debug = false
-dcheck_always_on = false
-is_official_build = true
-```
+also reduce binary size and turn on all optimizations by enabling official build
+mode, with the GN arg `is_official_build = true`.
 
 ## Build Chromium
 
@@ -418,8 +446,8 @@ Instead of running `install-build-deps.sh` to install build dependencies, run:
 
 ```shell
 $ sudo pacman -S --needed python perl gcc gcc-libs bison flex gperf pkgconfig \
-nss alsa-lib glib2 gtk3 nspr freetype2 cairo dbus libgnome-keyring \
-xorg-server-xvfb xorg-xdpyinfo
+nss alsa-lib glib2 gtk3 nspr freetype2 cairo dbus xorg-server-xvfb \
+xorg-xdpyinfo
 ```
 
 For the optional packages on Arch Linux:
@@ -453,11 +481,10 @@ bison binutils brlapi-devel bluez-libs-devel bzip2-devel cairo-devel \
 cups-devel dbus-devel dbus-glib-devel expat-devel fontconfig-devel \
 freetype-devel gcc-c++ glib2-devel glibc.i686 gperf glib2-devel \
 gtk3-devel java-1.*.0-openjdk-devel libatomic libcap-devel libffi-devel \
-libgcc.i686 libgnome-keyring-devel libjpeg-devel libstdc++.i686 libX11-devel \
-libXScrnSaver-devel libXtst-devel libxkbcommon-x11-devel ncurses-compat-libs \
-nspr-devel nss-devel pam-devel pango-devel pciutils-devel \
-pulseaudio-libs-devel zlib.i686 httpd mod_ssl php php-cli python-psutil wdiff \
-xorg-x11-server-Xvfb'
+libgcc.i686 libjpeg-devel libstdc++.i686 libX11-devel libXScrnSaver-devel \
+libXtst-devel libxkbcommon-x11-devel ncurses-compat-libs nspr-devel nss-devel \
+pam-devel pango-devel pciutils-devel pulseaudio-libs-devel zlib.i686 httpd \
+mod_ssl php php-cli python-psutil wdiff xorg-x11-server-Xvfb'
 ```
 
 The fonts needed by Blink's web tests can be obtained by following [these

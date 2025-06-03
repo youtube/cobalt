@@ -55,11 +55,6 @@ namespace internal {
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
-// The ARM ABI does not specify the usage of register r9, which may be reserved
-// as the static base or thread register on some platforms, in which case we
-// leave it alone. Adjust the value of kR9Available accordingly:
-const int kR9Available = 1;  // 1 if available to us, 0 if reserved
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)
@@ -76,6 +71,13 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
+
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
 
 // r7: context register
 #define DECLARE_REGISTER(R) \
@@ -297,6 +299,7 @@ DEFINE_REGISTER_NAMES(QwNeonRegister, SIMD128_REGISTERS)
 DEFINE_REGISTER_NAMES(CRegister, C_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register kStackPointerRegister = sp;
 constexpr Register kReturnRegister0 = r0;
 constexpr Register kReturnRegister1 = r1;
 constexpr Register kReturnRegister2 = r2;
@@ -326,6 +329,8 @@ constexpr Register r11 = fp;
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
+
+constexpr Register kMaglevExtraScratchRegister = r9;
 
 }  // namespace internal
 }  // namespace v8

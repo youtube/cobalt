@@ -56,7 +56,6 @@ class EnterpriseProfileWelcomeUI : public content::WebUIController {
                   const AccountInfo& account_info,
                   bool profile_creation_required_by_policy,
                   bool show_link_data_option,
-                  absl::optional<SkColor> profile_color,
                   signin::SigninChoiceCallback proceed_callback);
 
   // Allows tests to trigger page events.

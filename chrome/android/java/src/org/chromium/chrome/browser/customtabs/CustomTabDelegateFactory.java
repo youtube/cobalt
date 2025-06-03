@@ -17,6 +17,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.browser.trusted.TrustedWebActivityDisplayMode.ImmersiveMode;
 
+import dagger.Lazy;
+
 import org.chromium.base.supplier.Supplier;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.cc.input.BrowserControlsState;
@@ -65,8 +67,6 @@ import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import dagger.Lazy;
-
 /**
  * A {@link TabDelegateFactory} class to be used in all {@link Tab} owned
  * by a {@link CustomTabActivity}.
@@ -114,15 +114,13 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         @Override
         public boolean isForTrustedCallingApp(Supplier<List<ResolveInfo>> resolveInfoSupplier) {
             if (TextUtils.isEmpty(mClientPackageName)) return false;
-            if (!mExternalAuthUtils.isGoogleSigned(mClientPackageName)) return false;
-
-            if (ExternalIntentsFeatures.DO_NOT_REQUIRE_SPECIALIZED_CCT_HANDLER.isEnabled()) {
-                return ExternalNavigationHandler.resolveInfoContainsPackage(
-                        resolveInfoSupplier.get(), mClientPackageName);
-            } else {
-                return ExternalNavigationHandler.isPackageSpecializedHandler(
-                        mClientPackageName, resolveInfoSupplier.get());
+            if (!ExternalIntentsFeatures.TRUSTED_CLIENT_GESTURE_BYPASS.isEnabled()
+                    && !mExternalAuthUtils.isGoogleSigned(mClientPackageName)) {
+                return false;
             }
+
+            return ExternalNavigationHandler.resolveInfoContainsPackage(
+                    resolveInfoSupplier.get(), mClientPackageName);
         }
 
         @Override
@@ -203,11 +201,10 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
 
         @Override
         protected boolean isInstalledWebappDelegateGeolocation() {
-            if ((mActivity instanceof CustomTabActivity)
-                    && ((CustomTabActivity) mActivity).isInTwaMode()) {
+            if ((mActivity instanceof CustomTabActivity cctActivity) && cctActivity.isInTwaMode()) {
                 // Whether the corresponding TWA client app enrolled in location delegation.
                 return InstalledWebappPermissionManager.hasAndroidLocationPermission(
-                               ((CustomTabActivity) mActivity).getTwaPackage())
+                                cctActivity.getTwaPackage())
                         != null;
             }
             return false;
@@ -331,7 +328,7 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
      * Creates a basic/empty {@link TabDelegateFactory} for use when creating a hidden tab. It will
      * be replaced when the hidden Tab becomes shown.
      */
-    static CustomTabDelegateFactory createDummy() {
+    static CustomTabDelegateFactory createEmpty() {
         return new CustomTabDelegateFactory(null, false, false, null, DisplayMode.BROWSER, false,
                 null, null, null, null,
                 ()

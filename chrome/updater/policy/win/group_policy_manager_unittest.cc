@@ -17,6 +17,7 @@
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/win_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 
@@ -52,15 +53,15 @@ void GroupPolicyManagerTests::DeletePolicyKey() {
 }
 
 TEST_F(GroupPolicyManagerTests, NoPolicySet) {
-  scoped_refptr<PolicyManagerInterface> policy_manager =
-      base::MakeRefCounted<GroupPolicyManager>(true);
+  auto policy_manager = base::MakeRefCounted<GroupPolicyManager>(true);
   EXPECT_FALSE(policy_manager->HasActiveDevicePolicies());
 
-  EXPECT_EQ(policy_manager->source(), "GroupPolicy");
+  EXPECT_EQ(policy_manager->source(), "Group Policy");
+  EXPECT_FALSE(policy_manager->CloudPolicyOverridesPlatformPolicy());
 
   EXPECT_EQ(policy_manager->GetLastCheckPeriod(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetUpdatesSuppressedTimes(), absl::nullopt);
-  EXPECT_EQ(policy_manager->GetDownloadPreferenceGroupPolicy(), absl::nullopt);
+  EXPECT_EQ(policy_manager->GetDownloadPreference(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetPackageCacheSizeLimitMBytes(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetPackageCacheExpirationTimeDays(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetProxyMode(), absl::nullopt);
@@ -97,6 +98,8 @@ TEST_F(GroupPolicyManagerTests, PolicyRead) {
 
   // Set global policies.
   EXPECT_EQ(ERROR_SUCCESS,
+            key.WriteValue(L"CloudPolicyOverridesPlatformPolicy", 1));
+  EXPECT_EQ(ERROR_SUCCESS,
             key.WriteValue(L"AutoUpdateCheckPeriodMinutes", 480));
   EXPECT_EQ(ERROR_SUCCESS, key.WriteValue(L"UpdatesSuppressedStartHour", 2));
   EXPECT_EQ(ERROR_SUCCESS, key.WriteValue(L"UpdatesSuppressedStartMin", 30));
@@ -122,11 +125,11 @@ TEST_F(GroupPolicyManagerTests, PolicyRead) {
   EXPECT_EQ(ERROR_SUCCESS,
             key.WriteValue(L"RollbackToTargetVersion" TEST_APP_ID, 1));
 
-  scoped_refptr<PolicyManagerInterface> policy_manager =
-      base::MakeRefCounted<GroupPolicyManager>(true);
+  auto policy_manager = base::MakeRefCounted<GroupPolicyManager>(true);
   EXPECT_EQ(policy_manager->HasActiveDevicePolicies(),
             base::win::IsEnrolledToDomain());
 
+  EXPECT_TRUE(policy_manager->CloudPolicyOverridesPlatformPolicy());
   EXPECT_EQ(policy_manager->GetLastCheckPeriod(), base::Minutes(480));
 
   absl::optional<UpdatesSuppressedTimes> suppressed_times =
@@ -136,7 +139,7 @@ TEST_F(GroupPolicyManagerTests, PolicyRead) {
   EXPECT_EQ(suppressed_times->start_minute_, 30);
   EXPECT_EQ(suppressed_times->duration_minute_, 500);
 
-  EXPECT_EQ(policy_manager->GetDownloadPreferenceGroupPolicy(), "cacheable");
+  EXPECT_EQ(policy_manager->GetDownloadPreference(), "cacheable");
   EXPECT_EQ(policy_manager->GetPackageCacheSizeLimitMBytes(), 100);
   EXPECT_EQ(policy_manager->GetPackageCacheExpirationTimeDays(), 45);
   EXPECT_EQ(policy_manager->GetProxyMode(), "fixed_servers");
@@ -170,6 +173,8 @@ TEST_F(GroupPolicyManagerTests, WrongPolicyValueType) {
 
   // Set global policies.
   EXPECT_EQ(ERROR_SUCCESS,
+            key.WriteValue(L"CloudPolicyOverridesPlatformPolicy", L"1"));
+  EXPECT_EQ(ERROR_SUCCESS,
             key.WriteValue(L"AutoUpdateCheckPeriodMinutes", L"NotAnInteger"));
   EXPECT_EQ(ERROR_SUCCESS, key.WriteValue(L"UpdatesSuppressedStartHour", L""));
   EXPECT_EQ(ERROR_SUCCESS, key.WriteValue(L"UpdatesSuppressedStartMin", L"30"));
@@ -194,12 +199,13 @@ TEST_F(GroupPolicyManagerTests, WrongPolicyValueType) {
   EXPECT_EQ(ERROR_SUCCESS,
             key.WriteValue(L"RollbackToTargetVersion" TEST_APP_ID, L"1"));
 
-  scoped_refptr<PolicyManagerInterface> policy_manager =
-      base::MakeRefCounted<GroupPolicyManager>(true);
+  auto policy_manager = base::MakeRefCounted<GroupPolicyManager>(true, true);
+  EXPECT_TRUE(policy_manager->HasActiveDevicePolicies());
 
+  EXPECT_FALSE(policy_manager->CloudPolicyOverridesPlatformPolicy());
   EXPECT_EQ(policy_manager->GetLastCheckPeriod(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetUpdatesSuppressedTimes(), absl::nullopt);
-  EXPECT_EQ(policy_manager->GetDownloadPreferenceGroupPolicy(), absl::nullopt);
+  EXPECT_EQ(policy_manager->GetDownloadPreference(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetPackageCacheSizeLimitMBytes(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetPackageCacheExpirationTimeDays(), absl::nullopt);
   EXPECT_EQ(policy_manager->GetProxyMode(), absl::nullopt);

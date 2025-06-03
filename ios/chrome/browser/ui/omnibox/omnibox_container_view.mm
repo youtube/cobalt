@@ -6,10 +6,11 @@
 
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/animation_util.h"
-#import "ios/chrome/browser/shared/ui/util/named_guide.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
+#import "ios/chrome/browser/ui/omnibox/omnibox_constants.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_text_field_experimental.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_text_field_legacy.h"
@@ -20,20 +21,8 @@
 #import "ui/gfx/color_palette.h"
 #import "ui/gfx/image/image.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
-// Size of the leading image view.
-const CGFloat kLeadingImageSize = 30;
-// Offset from the leading edge to the image view (used when the image is
-// shown).
-const CGFloat kleadingImageViewEdgeOffset = 7;
-// Offset from the leading edge to the textfield when no image is shown.
-const CGFloat kTextFieldLeadingOffsetNoImage = 16;
-// Space between the leading button and the textfield when a button is shown.
-const CGFloat kTextFieldLeadingOffsetImage = 14;
+
 // Space between the clear button and the edge of the omnibox.
 const CGFloat kTextFieldClearButtonTrailingOffset = 4;
 
@@ -80,7 +69,7 @@ const CGFloat kTextFieldClearButtonTrailingOffset = 4;
 
     _leadingTextfieldConstraint = [_textField.leadingAnchor
         constraintEqualToAnchor:self.leadingAnchor
-                       constant:kTextFieldLeadingOffsetNoImage];
+                       constant:kOmniboxTextFieldLeadingOffsetNoImage];
 
     [NSLayoutConstraint activateConstraints:@[
       [_textField.trailingAnchor
@@ -113,10 +102,6 @@ const CGFloat kTextFieldClearButtonTrailingOffset = 4;
   self.textField.incognito = incognito;
 }
 
-- (void)setLeadingImageAlpha:(CGFloat)alpha {
-  self.leadingImageView.alpha = alpha;
-}
-
 - (void)setLeadingImageScale:(CGFloat)scaleValue {
   self.leadingImageView.transform =
       CGAffineTransformMakeScale(scaleValue, scaleValue);
@@ -130,6 +115,12 @@ const CGFloat kTextFieldClearButtonTrailingOffset = 4;
                           underName:kOmniboxTextFieldGuide];
 }
 
+#pragma mark - TextFieldViewContaining
+
+- (UIView*)textFieldView {
+  return self.textField;
+}
+
 #pragma mark - Private
 
 - (void)setupLeadingImageViewWithTint:(UIColor*)iconTint {
@@ -139,7 +130,8 @@ const CGFloat kTextFieldClearButtonTrailingOffset = 4;
 
   // The image view is always shown. Its width should be constant.
   [NSLayoutConstraint activateConstraints:@[
-    [_leadingImageView.widthAnchor constraintEqualToConstant:kLeadingImageSize],
+    [_leadingImageView.widthAnchor
+        constraintEqualToConstant:kOmniboxLeadingImageSize],
     [_leadingImageView.heightAnchor
         constraintEqualToAnchor:_leadingImageView.widthAnchor],
   ]];
@@ -151,14 +143,14 @@ const CGFloat kTextFieldClearButtonTrailingOffset = 4;
   NSLayoutConstraint* leadingImageViewToTextField =
       [self.leadingImageView.trailingAnchor
           constraintEqualToAnchor:self.textField.leadingAnchor
-                         constant:-kTextFieldLeadingOffsetImage];
+                         constant:-kOmniboxTextFieldLeadingOffsetImage];
 
   [NSLayoutConstraint activateConstraints:@[
     [_leadingImageView.centerYAnchor
         constraintEqualToAnchor:self.centerYAnchor],
     [self.leadingAnchor
         constraintEqualToAnchor:self.leadingImageView.leadingAnchor
-                       constant:-kleadingImageViewEdgeOffset],
+                       constant:-kOmniboxLeadingImageViewEdgeOffset],
     leadingImageViewToTextField,
   ]];
 }

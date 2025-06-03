@@ -5,7 +5,7 @@
 // https://gpuweb.github.io/gpuweb/
 
 [
-    Exposed(Window WebGPU, DedicatedWorker WebGPU),
+    Exposed=(Window, DedicatedWorker),
     SecureContext
 ] interface GPUAdapterInfo {
   readonly attribute DOMString vendor;
@@ -13,4 +13,6 @@
   readonly attribute DOMString device;
   readonly attribute DOMString description;
   [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString driver;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString backend;
+  [RuntimeEnabled=WebGPUDeveloperFeatures] readonly attribute DOMString type;
 };

@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h"
 #include "chromeos/ui/frame/highlight_border_overlay.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
@@ -15,6 +16,7 @@
 #include "ui/display/display.h"
 #include "ui/display/display_observer.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/views/view_observer.h"
 #include "ui/views/widget/widget.h"
 
 namespace viz {
@@ -35,8 +37,12 @@ class ToggleCameraButton;
 // implemented in views, which will support all desktop platforms.
 class VideoOverlayWindowViews : public content::VideoOverlayWindow,
                                 public views::Widget,
-                                public display::DisplayObserver {
+                                public display::DisplayObserver,
+                                public views::ViewObserver {
  public:
+  using GetOverlayViewCb =
+      base::RepeatingCallback<std::unique_ptr<AutoPipSettingOverlayView>()>;
+
   static std::unique_ptr<VideoOverlayWindowViews> Create(
       content::VideoPictureInPictureWindowController* controller);
 
@@ -46,6 +52,10 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   ~VideoOverlayWindowViews() override;
 
   enum class WindowQuadrant { kBottomLeft, kBottomRight, kTopLeft, kTopRight };
+
+  // The amount of time to keep the controls hidden after a widget move.
+  static constexpr base::TimeDelta kControlHideDelayAfterMove =
+      base::Milliseconds(100);
 
   // VideoOverlayWindow:
   void Close() override;
@@ -67,7 +77,7 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   void SetNextSlideButtonVisibility(bool is_visible) override;
   void SetSurfaceId(const viz::SurfaceId& surface_id) override;
 
-  // views::Widget
+  // views::Widget:
   bool IsActive() const override;
   bool IsVisible() const override;
   void OnNativeFocus() override;
@@ -84,9 +94,13 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   void OnMouseEvent(ui::MouseEvent* event) override;
   void OnGestureEvent(ui::GestureEvent* event) override;
 
-  // display::DisplayObserver
+  // display::DisplayObserver:
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
+
+  // views::ViewObserver:
+  void OnViewVisibilityChanged(views::View* observed_view,
+                               views::View* starting_view) override;
 
   bool ControlsHitTestContainsPoint(const gfx::Point& point);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -116,7 +130,9 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   // visible.
   bool AreControlsVisible() const;
 
-  // Updates the controls view::Views to reflect |is_visible|.
+  // Updates the controls view::Views to reflect |is_visible|. If the window is
+  // currently in motion, the update is queued until the end of motion. If
+  // multiple updates are requested, only the last update will be applied.
   void UpdateControlsVisibility(bool is_visible);
 
   // Gets the bounds of the controls.
@@ -148,8 +164,15 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   gfx::Point resize_handle_position_for_testing() const;
   PlaybackState playback_state_for_testing() const;
   ui::Layer* video_layer_for_testing() const;
+  views::View* window_background_view_for_testing() const {
+    return window_background_view_;
+  }
 
   void ForceControlsVisibleForTesting(bool visible);
+
+  void set_overlay_view_cb_for_testing(GetOverlayViewCb get_overlay_view_cb) {
+    get_overlay_view_cb_ = std::move(get_overlay_view_cb);
+  }
 
   // Determines whether a layout of the window controls has been scheduled but
   // is not done yet.
@@ -223,6 +246,18 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   void RecordButtonPressed(OverlayWindowControl);
   void RecordTapGesture(OverlayWindowControl);
 
+  // Re-enables controls after moving. Controls are hidden while the pip window
+  // is in motion. This will change the move status and set the control
+  // visibility to the last requested state.
+  void ReEnableControlsAfterMove();
+
+  // Returns true if and only if `overlay_view_` is currently shown.  In
+  // practice, the is the allow / block UI for auto-pip.
+  bool IsOverlayViewShown() const;
+
+  // Removes the `overlay_view_` if it exists.
+  void RemoveOverlayViewIfExists();
+
   // Not owned; |controller_| owns |this|.
   raw_ptr<content::VideoPictureInPictureWindowController> controller_;
 
@@ -253,6 +288,14 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   // Automatically hides the controls a few seconds after user tap gesture.
   base::RetainingOneShotTimer hide_controls_timer_;
 
+  // Used to track movement of the window. The mouse movement and the window
+  // movement can cause the overlay to flicker, because mouse movement shows
+  // the overlay while the window movement hides the overlay. A timer is used
+  // to prevent the rapid changes between states.
+  base::RetainingOneShotTimer enable_controls_after_move_timer_;
+  bool is_moving_ = false;
+  absl::optional<bool> queued_controls_visibility_status_;
+
   // Timer used to update controls bounds.
   std::unique_ptr<base::OneShotTimer> update_controls_bounds_timer_;
 
@@ -281,6 +324,7 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   raw_ptr<SimpleOverlayWindowImageButton> previous_slide_controls_view_ =
       nullptr;
   raw_ptr<SimpleOverlayWindowImageButton> next_slide_controls_view_ = nullptr;
+  raw_ptr<AutoPipSettingOverlayView> overlay_view_ = nullptr;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   // Generates a nine patch layer painted with a highlight border for ChromeOS
@@ -328,6 +372,10 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   // Whether or not the current frame sink for the surface displayed in the
   // |video_view_| is registered as the child of the overlay window frame sink.
   bool has_registered_frame_sink_hierarchy_ = false;
+
+  // Callback to get / create an overlay view.  This is a callback to let tests
+  // provide alternate implementations.
+  GetOverlayViewCb get_overlay_view_cb_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OVERLAY_VIDEO_OVERLAY_WINDOW_VIEWS_H_

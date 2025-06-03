@@ -21,14 +21,20 @@ MediaHistoryKeyedService* MediaHistoryKeyedServiceFactory::GetForProfile(
 // static
 MediaHistoryKeyedServiceFactory*
 MediaHistoryKeyedServiceFactory::GetInstance() {
-  return base::Singleton<MediaHistoryKeyedServiceFactory>::get();
+  static base::NoDestructor<MediaHistoryKeyedServiceFactory> instance;
+  return instance.get();
 }
 
 MediaHistoryKeyedServiceFactory::MediaHistoryKeyedServiceFactory()
     : ProfileKeyedServiceFactory(
           "MediaHistoryKeyedService",
           // Enable incognito profiles.
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/1418376): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
 }
 
@@ -39,9 +45,11 @@ bool MediaHistoryKeyedServiceFactory::ServiceIsCreatedWithBrowserContext()
   return true;
 }
 
-KeyedService* MediaHistoryKeyedServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+  MediaHistoryKeyedServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new MediaHistoryKeyedService(Profile::FromBrowserContext(context));
+  return std::make_unique<MediaHistoryKeyedService>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace media_history

@@ -62,7 +62,6 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   void ScheduleWork() override;
   void SetNextDelayedDoWork(LazyNow* lazy_now,
                             absl::optional<WakeUp> wake_up) override;
-  void SetTimerSlack(TimerSlack timer_slack) override;
   bool RunsTasksInCurrentSequence() override;
   void SetDefaultTaskRunner(
       scoped_refptr<SingleThreadTaskRunner> task_runner) override;
@@ -130,9 +129,6 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
     // While Now() is less than |yield_to_native_after_batch| we will request a
     // yield to the MessagePump after |work_batch_size| work items.
     base::TimeTicks yield_to_native_after_batch = base::TimeTicks();
-
-    // When the next scheduled delayed work should run, if any.
-    TimeTicks next_delayed_do_work = TimeTicks::Max();
 
     // The time after which the runloop should quit.
     TimeTicks quit_runloop_after = TimeTicks::Max();

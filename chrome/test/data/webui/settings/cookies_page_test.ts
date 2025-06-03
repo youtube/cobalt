@@ -17,7 +17,7 @@ import {createContentSettingTypeToValuePair, createRawSiteException, createSiteS
 
 // clang-format on
 
-suite('CrSettingsCookiesPageTest', function() {
+suite('CookiesPageTest', function() {
   let siteSettingsBrowserProxy: TestSiteSettingsPrefsBrowserProxy;
   let testMetricsBrowserProxy: TestMetricsBrowserProxy;
   let page: SettingsCookiesPageElement;
@@ -74,8 +74,10 @@ suite('CrSettingsCookiesPageTest', function() {
     assertFalse(isChildVisible(page, '#blockExceptionsList'));
 
     assertFalse(isChildVisible(page, '#clearOnExit'));
+    assertFalse(isChildVisible(page, '#rollbackNotice'));
 
     assertTrue(isChildVisible(page, '#doNotTrack'));
+    // TODO(b/296212999): Remove after b/296212999 is launched.
     assertTrue(isChildVisible(page, '#preloadingLinkRow'));
 
     assertTrue(isChildVisible(page, '#allowThirdParty'));
@@ -85,6 +87,7 @@ suite('CrSettingsCookiesPageTest', function() {
     assertFalse(isChildVisible(page, '#blockAll'));
   });
 
+  // TODO(b/296212999): Remove after b/296212999 is launched.
   test('PreloadingClickRecorded', async function() {
     const linkRow =
         page.shadowRoot!.querySelector<HTMLElement>('#preloadingLinkRow');
@@ -98,10 +101,9 @@ suite('CrSettingsCookiesPageTest', function() {
     assertEquals(routes.PRELOADING, Router.getInstance().getCurrentRoute());
   });
 
+  // TODO(b/296212999): Remove after b/296212999 is launched.
   test('PreloadingSubLabel', async function() {
     assertTrue(isChildVisible(page, '#preloadingLinkRow'));
-    // TODO(crbug.com/1385176): Remove after crbug.com/1385176 is launched.
-    assertFalse(isChildVisible(page, '#preloadingToggle'));
 
     const preloadingPageLinkRow =
         page.shadowRoot!.querySelector<CrLinkRowElement>('#preloadingLinkRow');
@@ -131,7 +133,7 @@ suite('CrSettingsCookiesPageTest', function() {
     // This value is deprecated, and users cannot change their prefs to this
     // value, but it is still the default value for the pref. It is treated the
     // as STANDARD and the "Standard preloading" sub label is applied for this
-    // case. See chrome/browser/prefetch/prefetch_prefs.h for more info.
+    // case. See chrome/browser/preloading/preloading_prefs.h for more info.
     page.setPrefValue(
         'net.network_prediction_options',
         NetworkPredictionOptions.WIFI_ONLY_DEPRECATED);
@@ -353,7 +355,7 @@ suite('CrSettingsCookiesPageTest', function() {
 });
 
 // TODO(crbug.com/1378703): Remove after crbug/1378703 launched.
-suite('CrSettingsCookiesPageTest_PrivacySandboxSettings4Disabled', function() {
+suite('PrivacySandboxSettings4Disabled', function() {
   let siteSettingsBrowserProxy: TestSiteSettingsPrefsBrowserProxy;
   let testMetricsBrowserProxy: TestMetricsBrowserProxy;
   let page: SettingsCookiesPageElement;
@@ -665,7 +667,7 @@ suite('CrSettingsCookiesPageTest_PrivacySandboxSettings4Disabled', function() {
 });
 
 // TODO(crbug/1349370): Remove after crbug/1349370 is launched.
-suite('CrSettingsCookiesPageTest_FirstPartySetsUIDisabled', function() {
+suite('FirstPartySetsUIDisabled', function() {
   let page: SettingsCookiesPageElement;
   let settingsPrefs: SettingsPrefsElement;
 
@@ -743,7 +745,7 @@ suite(
 
 // <if expr="chromeos_lacros">
 // TODO(crbug/1378703): Remove after crbug/1378703 launched.
-suite('CrSettingsCookiesPageTest_lacrosSecondaryProfile', function() {
+suite('LacrosSecondaryProfile', function() {
   let page: SettingsCookiesPageElement;
   let settingsPrefs: SettingsPrefsElement;
 
@@ -778,25 +780,20 @@ suite('CrSettingsCookiesPageTest_lacrosSecondaryProfile', function() {
 });
 // </if>
 
-// TODO(crbug.com/1385176): Remove after crbug.com/1385176 is launched.
-suite('PreloadingDesktopSettingsSubPageDisabled', function() {
+// TODO(b/296212999): Remove after b/296212999 is launched.
+suite('PreloadingSubpageMovedToPerformanceSettings', function() {
   let page: SettingsCookiesPageElement;
   let settingsPrefs: SettingsPrefsElement;
-  let testMetricsBrowserProxy: TestMetricsBrowserProxy;
 
   suiteSetup(function() {
     loadTimeData.overrideValues({
-      showPreloadingSubPage: false,
+      isPerformanceSettingsPreloadingSubpageEnabled: true,
     });
-
     settingsPrefs = document.createElement('settings-prefs');
     return CrSettingsPrefs.initialized;
   });
 
   setup(function() {
-    testMetricsBrowserProxy = new TestMetricsBrowserProxy();
-    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
-
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     page = document.createElement('settings-cookies-page');
     page.prefs = settingsPrefs.prefs!;
@@ -804,18 +801,89 @@ suite('PreloadingDesktopSettingsSubPageDisabled', function() {
     flush();
   });
 
-  test('NetworkPredictionClickRecorded', async function() {
-    const preloadingToggle =
-        page.shadowRoot!.querySelector<HTMLElement>('#preloadingToggle');
-    assertTrue(!!preloadingToggle);
-    preloadingToggle.click();
-    const result =
-        await testMetricsBrowserProxy.whenCalled('recordSettingsPageHistogram');
-    assertEquals(PrivacyElementInteractions.NETWORK_PREDICTION, result);
+  test('PreloadingLinkRowNotShown', function() {
+    assertFalse(isChildVisible(page, '#preloadingLinkRow'));
+  });
+});
+
+suite('TrackingProtectionSettings', function() {
+  let page: SettingsCookiesPageElement;
+  let settingsPrefs: SettingsPrefsElement;
+  let testMetricsBrowserProxy: TestMetricsBrowserProxy;
+
+  suiteSetup(function() {
+    loadTimeData.overrideValues({is3pcdCookieSettingsRedesignEnabled: true});
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
   });
 
-  test('PreloadingToggleShown', function() {
-    assertTrue(isChildVisible(page, '#preloadingToggle'));
-    assertFalse(isChildVisible(page, '#preloadingLinkRow'));
+  setup(function() {
+    testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    page = document.createElement('settings-cookies-page');
+    page.prefs = settingsPrefs.prefs!;
+    document.body.appendChild(page);
+    flush();
+  });
+
+  test('CheckVisibility', function() {
+    // Page description
+    assertTrue(isChildVisible(page, '#explanationText'));
+
+    // Advanced toggles
+    assertTrue(isChildVisible(page, '#blockThirdPartyToggle'));
+    assertTrue(isChildVisible(page, '#doNotTrack'));
+
+    // Site Exception header
+    assertFalse(isChildVisible(page, '#exceptionHeader'));
+    assertFalse(isChildVisible(page, '#exceptionHeaderSubLabel'));
+    assertTrue(isChildVisible(page, '#exceptionHeader3pcd'));
+  });
+
+  test('BlockAll3pcToggle', async function() {
+    page.set(
+        'prefs.tracking_protection.block_all_3pc_toggle_enabled.value', false);
+    const blockThirdPartyCookiesToggle =
+        page.shadowRoot!.querySelector<SettingsToggleButtonElement>(
+            '#blockThirdPartyToggle')!;
+    assertTrue(!!blockThirdPartyCookiesToggle);
+
+    blockThirdPartyCookiesToggle.click();
+    const result =
+        await testMetricsBrowserProxy.whenCalled('recordSettingsPageHistogram');
+    assertEquals(
+        PrivacyElementInteractions.BLOCK_ALL_THIRD_PARTY_COOKIES, result);
+    assertEquals(
+        'Settings.PrivacySandbox.Block3PCookies',
+        await testMetricsBrowserProxy.whenCalled('recordAction'));
+    assertEquals(
+        page.getPref('tracking_protection.block_all_3pc_toggle_enabled.value'),
+        true);
+  });
+});
+
+suite('TrackingProtectionSettingsRollbackNotice', function() {
+  let page: SettingsCookiesPageElement;
+  let settingsPrefs: SettingsPrefsElement;
+
+  suiteSetup(function() {
+    loadTimeData.overrideValues({
+      showTrackingProtectionSettingsRollbackNotice: true,
+    });
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
+  });
+
+  setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    page = document.createElement('settings-cookies-page');
+    page.prefs = settingsPrefs.prefs!;
+    document.body.appendChild(page);
+    flush();
+  });
+
+  test('RollbackNoticeDisplayed', function() {
+    assertTrue(isChildVisible(page, '#rollbackNotice'));
   });
 });

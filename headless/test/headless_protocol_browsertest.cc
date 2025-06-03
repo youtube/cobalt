@@ -106,7 +106,7 @@ void HeadlessProtocolBrowserTest::OnLoadEventFired(
 
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::FilePath src_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
   base::FilePath test_path =
       src_dir.Append(kTestsDirectory).AppendASCII(script_name_);
   std::string script;
@@ -159,7 +159,7 @@ void HeadlessProtocolBrowserTest::ProcessTestResult(
   base::ScopedAllowBlockingForTesting allow_blocking;
 
   base::FilePath src_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
   base::FilePath expectation_path =
       src_dir.Append(kTestsDirectory)
           .AppendASCII(script_name_.substr(0, script_name_.length() - 3) +
@@ -262,6 +262,8 @@ HEADLESS_PROTOCOL_TEST(VirtualTimeFetchStream,
                        "emulation/virtual-time-fetch-stream.js")
 HEADLESS_PROTOCOL_TEST(VirtualTimeFetchReadBody,
                        "emulation/virtual-time-fetch-read-body.js")
+HEADLESS_PROTOCOL_TEST(VirtualTimeFetchBlobReadBodyBlob,
+                       "emulation/virtual-time-fetch-read-body-blob.js")
 HEADLESS_PROTOCOL_TEST(VirtualTimeDialogWhileLoading,
                        "emulation/virtual-time-dialog-while-loading.js")
 HEADLESS_PROTOCOL_TEST(VirtualTimeHistoryNavigation,
@@ -327,7 +329,7 @@ HEADLESS_PROTOCOL_TEST(Geolocation, "emulation/geolocation-crash.js")
 HEADLESS_PROTOCOL_TEST(DragStarted, "input/dragIntercepted.js")
 
 // https://crbug.com/1414190
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 #define MAYBE_InputClipboardOps DISABLED_InputClipboardOps
 #else
 #define MAYBE_InputClipboardOps InputClipboardOps
@@ -443,7 +445,7 @@ class HeadlessProtocolBrowserTestWithDataPath
  protected:
   base::Value::Dict GetPageUrlExtraParams() override {
     base::FilePath src_dir;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
     base::FilePath path =
         src_dir.Append(kTestsDirectory).AppendASCII(data_path_);
     base::Value::Dict dict;

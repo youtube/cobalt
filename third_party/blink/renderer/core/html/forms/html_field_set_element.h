@@ -52,7 +52,8 @@ class CORE_EXPORT HTMLFieldSetElement final : public HTMLFormControlElement {
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   LayoutBox* GetLayoutBoxForScrolling() const override;
   void DidRecalcStyle(const StyleRecalcChange change) override;
-  const AtomicString& FormControlType() const override;
+  mojom::blink::FormControlType FormControlType() const override;
+  const AtomicString& FormControlTypeAsString() const override;
   bool RecalcWillValidate() const override { return false; }
   bool MatchesValidityPseudoClasses() const final;
   bool IsValidElement() final;
@@ -60,6 +61,7 @@ class CORE_EXPORT HTMLFieldSetElement final : public HTMLFormControlElement {
   bool AreAuthorShadowsAllowed() const override { return false; }
   bool IsSubmittableElement() override;
   bool AlwaysCreateUserAgentShadowRoot() const override { return false; }
+  bool MatchesEnabledPseudoClass() const final;
 
   Element* InvalidateDescendantDisabledStateAndFindFocusedOne(Element& base);
 };

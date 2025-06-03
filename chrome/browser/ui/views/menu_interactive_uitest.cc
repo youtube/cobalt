@@ -13,8 +13,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/test_browser_window.h"
-#include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/gfx/geometry/point.h"
@@ -75,8 +75,7 @@ class MenuControllerUITest : public InProcessBrowserTest {
     // Figure out the middle of the first menu item.
     mouse_pos_.set_x(first_item_->width() / 2);
     mouse_pos_.set_y(first_item_->height() / 2);
-    View::ConvertPointToScreen(
-        menu_item->GetSubmenu()->GetWidget()->GetRootView(), &mouse_pos_);
+    View::ConvertPointToScreen(first_item_.get(), &mouse_pos_);
     // Move the mouse so that it's where the menu will be shown.
     base::RunLoop run_loop;
     ui_controls::SendMouseMoveNotifyWhenDone(mouse_pos_.x(), mouse_pos_.y(),
@@ -103,6 +102,11 @@ class MenuControllerUITest : public InProcessBrowserTest {
     run_loop.RunUntilIdle();
   }
 
+  void TearDownOnMainThread() override {
+    menu_runner_.reset();
+    menu_delegate_.reset();
+  }
+
  protected:
   raw_ptr<MenuItemView, DanglingUntriaged> first_item_ = nullptr;
   std::unique_ptr<MenuRunner> menu_runner_;
@@ -113,17 +117,9 @@ class MenuControllerUITest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(MenuControllerUITest, TestMouseOverShownMenu) {
 #if !BUILDFLAG(IS_CHROMEOS_ASH)
-  content::testing::ScopedContentAXModeSetter ax_mode_setter(
+  content::ScopedAccessibilityModeOverride ax_mode_override(
       ui::kAXModeComplete);
 #endif
-#if BUILDFLAG(IS_WIN)
-  // TODO(crbug.com/1286137): This test is consistently failing on Win11.
-  if (base::win::OSInfo::GetInstance()->version() >=
-      base::win::Version::WIN11) {
-    GTEST_SKIP() << "Skipping test for WIN11_21H2 and greater";
-  }
-#endif
-
   // Create a parent widget.
   Widget* widget = new views::Widget;
   Widget::InitParams params(Widget::InitParams::TYPE_WINDOW);
@@ -223,7 +219,7 @@ IN_PROC_BROWSER_TEST_F(MenuControllerUITest, FocusOnOrphanMenu) {
   // Going into full screen mode prevents pre-test focus and mouse position
   // state from affecting test, and helps ui_controls function correctly.
   chrome::ToggleFullscreenMode(browser());
-  content::testing::ScopedContentAXModeSetter ax_mode_setter(
+  content::ScopedAccessibilityModeOverride ax_mode_override(
       ui::kAXModeComplete);
   MenuDelegate menu_delegate;
   MenuItemView* menu_item = new MenuItemView(&menu_delegate);

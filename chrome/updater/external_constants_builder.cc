@@ -150,6 +150,48 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::SetOverinstallTimeout(
   return *this;
 }
 
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearOverinstallTimeout() {
+  overrides_.Remove(kDevOverrideKeyOverinstallTimeout);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetIdleCheckPeriod(
+    const base::TimeDelta& idle_check_period) {
+  overrides_.Set(kDevOverrideKeyIdleCheckPeriodSeconds,
+                 static_cast<int>(idle_check_period.InSeconds()));
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearIdleCheckPeriod() {
+  overrides_.Remove(kDevOverrideKeyIdleCheckPeriodSeconds);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetMachineManaged(
+    const absl::optional<bool>& is_managed_device) {
+  if (is_managed_device.has_value()) {
+    overrides_.Set(kDevOverrideKeyManagedDevice, is_managed_device.value());
+  }
+
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearMachineManaged() {
+  overrides_.Remove(kDevOverrideKeyManagedDevice);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetEnableDiffUpdates(
+    bool enable_diffs) {
+  overrides_.Set(kDevOverrideKeyEnableDiffUpdates, enable_diffs);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearEnableDiffUpdates() {
+  overrides_.Remove(kDevOverrideKeyEnableDiffUpdates);
+  return *this;
+}
+
 bool ExternalConstantsBuilder::Overwrite() {
   const absl::optional<base::FilePath> override_path =
       GetOverrideFilePath(GetUpdaterScope());
@@ -195,6 +237,15 @@ bool ExternalConstantsBuilder::Modify() {
     SetGroupPolicies(verifier->GroupPolicies());
   if (!overrides_.contains(kDevOverrideKeyOverinstallTimeout))
     SetOverinstallTimeout(verifier->OverinstallTimeout());
+  if (!overrides_.contains(kDevOverrideKeyIdleCheckPeriodSeconds)) {
+    SetIdleCheckPeriod(verifier->IdleCheckPeriod());
+  }
+  if (!overrides_.contains(kDevOverrideKeyManagedDevice)) {
+    SetMachineManaged(verifier->IsMachineManaged());
+  }
+  if (!overrides_.contains(kDevOverrideKeyEnableDiffUpdates)) {
+    SetEnableDiffUpdates(verifier->EnableDiffUpdates());
+  }
 
   return Overwrite();
 }

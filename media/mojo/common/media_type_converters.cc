@@ -46,6 +46,39 @@ TypeConverter<std::unique_ptr<media::DecryptConfig>,
 }
 
 // static
+media::mojom::DecoderBufferSideDataPtr
+TypeConverter<media::mojom::DecoderBufferSideDataPtr,
+              absl::optional<media::DecoderBufferSideData>>::
+    Convert(const absl::optional<media::DecoderBufferSideData>& input) {
+  if (!input.has_value()) {
+    return nullptr;
+  }
+  media::mojom::DecoderBufferSideDataPtr mojo_side_data(
+      media::mojom::DecoderBufferSideData::New());
+  mojo_side_data->alpha_data = input->alpha_data;
+  mojo_side_data->spatial_layers = input->spatial_layers;
+  mojo_side_data->secure_handle = input->secure_handle;
+
+  return mojo_side_data;
+}
+
+// static
+absl::optional<media::DecoderBufferSideData>
+TypeConverter<absl::optional<media::DecoderBufferSideData>,
+              media::mojom::DecoderBufferSideDataPtr>::
+    Convert(const media::mojom::DecoderBufferSideDataPtr& input) {
+  if (!input) {
+    return absl::nullopt;
+  }
+  auto side_data = absl::make_optional<media::DecoderBufferSideData>(
+      media::DecoderBufferSideData());
+  side_data->alpha_data = input->alpha_data;
+  side_data->spatial_layers = input->spatial_layers;
+  side_data->secure_handle = input->secure_handle;
+  return side_data;
+}
+
+// static
 media::mojom::DecoderBufferPtr
 TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     const media::DecoderBuffer& input) {
@@ -71,13 +104,6 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
   mojo_buffer->data_size = base::checked_cast<uint32_t>(input.data_size());
   mojo_buffer->front_discard = input.discard_padding().first;
   mojo_buffer->back_discard = input.discard_padding().second;
-
-  // Note: The side data is always small, so this copy is okay.
-  if (input.side_data()) {
-    DCHECK_GT(input.side_data_size(), 0u);
-    mojo_buffer->side_data.assign(input.side_data(),
-                                  input.side_data() + input.side_data_size());
-  }
 
   if (input.decrypt_config()) {
     mojo_buffer->decrypt_config =
@@ -110,10 +136,7 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
   buffer->Release();
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   scoped_refptr<media::DecoderBuffer> buffer(
-      new media::DecoderBuffer(input->data_size));
-
-  if (!input->side_data.empty())
-    buffer->CopySideDataFrom(input->side_data.data(), input->side_data.size());
+      new media::DecoderBuffer(base::strict_cast<size_t>(input->data_size)));
 
   buffer->set_timestamp(input->timestamp);
   buffer->set_duration(input->duration);

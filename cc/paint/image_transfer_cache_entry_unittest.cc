@@ -16,6 +16,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "cc/paint/image_transfer_cache_entry.h"
+#include "cc/paint/paint_op_writer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -30,6 +31,8 @@
 #include "third_party/skia/include/gpu/GrDirectContext.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
 #include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLDirectContext.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 #include "ui/gfx/geometry/size.h"
@@ -48,7 +51,7 @@ namespace {
 constexpr SkYUVColorSpace kJpegYUVColorSpace =
     SkYUVColorSpace::kJPEG_SkYUVColorSpace;
 
-void MarkTextureAsReleased(SkImage::ReleaseContext context) {
+void MarkTextureAsReleased(SkImages::ReleaseContext context) {
   auto* released = static_cast<bool*>(context);
   DCHECK(!*released);
   *released = true;
@@ -84,23 +87,25 @@ bool CheckImageIsSolidColor(const sk_sp<SkImage>& image,
       image, expected_color, SkIRect::MakeWH(image->width(), image->height()));
 }
 
+// TODO(crbug.com/1442381): Implement test with Skia Graphite backend.
 class ImageTransferCacheEntryTest
     : public testing::TestWithParam<SkYUVAInfo::PlaneConfig> {
  public:
   void SetUp() override {
     // Initialize a GL GrContext for Skia.
-    surface_ = gl::init::CreateOffscreenGLSurface(gl::GetDefaultDisplay(),
-                                                  gfx::Size());
-    ASSERT_TRUE(surface_);
+    auto surface = gl::init::CreateOffscreenGLSurface(gl::GetDefaultDisplay(),
+                                                      gfx::Size());
+    ASSERT_TRUE(surface);
     share_group_ = base::MakeRefCounted<gl::GLShareGroup>();
     gl_context_ = base::MakeRefCounted<gl::GLContextEGL>(share_group_.get());
     ASSERT_TRUE(gl_context_);
-    ASSERT_TRUE(
-        gl_context_->Initialize(surface_.get(), gl::GLContextAttribs()));
-    ASSERT_TRUE(gl_context_->MakeCurrent(surface_.get()));
+    ASSERT_TRUE(gl_context_->Initialize(surface.get(), gl::GLContextAttribs()));
+    //  The surface will be stored by the gl::GLContext.
+    ASSERT_TRUE(gl_context_->default_surface());
+    ASSERT_TRUE(gl_context_->MakeCurrentDefault());
     sk_sp<GrGLInterface> gl_interface(gl::init::CreateGrGLInterface(
         *gl_context_->GetVersionInfo(), false /* use_version_es2 */));
-    gr_context_ = GrDirectContext::MakeGL(std::move(gl_interface));
+    gr_context_ = GrDirectContexts::MakeGL(std::move(gl_interface));
     ASSERT_TRUE(gr_context_);
   }
 
@@ -158,7 +163,6 @@ class ImageTransferCacheEntryTest
   void TearDown() override {
     DeletePendingTextures();
     gr_context_.reset();
-    surface_.reset();
     gl_context_.reset();
     share_group_.reset();
   }
@@ -176,14 +180,16 @@ class ImageTransferCacheEntryTest
                                   const SkColor4f& color,
                                   bool* released) {
     GrBackendTexture allocated_texture = gr_context->createBackendTexture(
-        width, height, GrBackendFormat::MakeGL(texture_format, GL_TEXTURE_2D),
-        color, GrMipMapped::kNo, GrRenderable::kNo);
+        width, height, GrBackendFormats::MakeGL(texture_format, GL_TEXTURE_2D),
+        color, skgpu::Mipmapped::kNo, GrRenderable::kNo);
     if (!allocated_texture.isValid())
       return nullptr;
     textures_to_free_.push_back(allocated_texture);
     GrGLTextureInfo allocated_texture_info;
-    if (!allocated_texture.getGLTextureInfo(&allocated_texture_info))
+    if (!GrBackendTextures::GetGLTextureInfo(allocated_texture,
+                                             &allocated_texture_info)) {
       return nullptr;
+    }
     DCHECK_EQ(width, allocated_texture.width());
     DCHECK_EQ(height, allocated_texture.height());
     DCHECK(!allocated_texture.hasMipMaps());
@@ -198,7 +204,6 @@ class ImageTransferCacheEntryTest
   }
 
   std::vector<GrBackendTexture> textures_to_free_;
-  scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLShareGroup> share_group_;
   scoped_refptr<gl::GLContext> gl_context_;
   sk_sp<GrDirectContext> gr_context_;
@@ -242,14 +247,15 @@ TEST_P(ImageTransferCacheEntryTest, MAYBE_Deserialize) {
                                            nullptr /* decoded color space*/),
       true /* needs_mips */, absl::nullopt));
   uint32_t size = client_entry->SerializedSize();
-  std::vector<uint8_t> data(size);
+  auto data = PaintOpWriter::AllocateAlignedBuffer<uint8_t>(size);
   ASSERT_TRUE(client_entry->Serialize(
-      base::make_span(static_cast<uint8_t*>(data.data()), size)));
+      base::make_span(static_cast<uint8_t*>(data.get()), size)));
 
   // Create service-side entry from the client-side serialize info
   auto entry(std::make_unique<ServiceImageTransferCacheEntry>());
   ASSERT_TRUE(entry->Deserialize(
-      gr_context(), base::make_span(static_cast<uint8_t*>(data.data()), size)));
+      gr_context(), /*graphite_recorder=*/nullptr,
+      base::make_span(static_cast<uint8_t*>(data.get()), size)));
   ASSERT_TRUE(entry->is_yuv());
 
   // Check color of pixels
@@ -394,12 +400,14 @@ TEST(ImageTransferCacheEntryTestNoYUV, CPUImageWithMips) {
   ClientImageTransferCacheEntry client_entry(
       ClientImageTransferCacheEntry::Image(&bitmap.pixmap()), true,
       absl::nullopt);
-  std::vector<uint8_t> storage(client_entry.SerializedSize());
-  client_entry.Serialize(base::make_span(storage.data(), storage.size()));
+  const uint32_t storage_size = client_entry.SerializedSize();
+  auto storage = PaintOpWriter::AllocateAlignedBuffer<uint8_t>(storage_size);
+  client_entry.Serialize(base::make_span(storage.get(), storage_size));
 
   ServiceImageTransferCacheEntry service_entry;
   service_entry.Deserialize(gr_context.get(),
-                            base::make_span(storage.data(), storage.size()));
+                            /*graphite_recorder=*/nullptr,
+                            base::make_span(storage.get(), storage_size));
   ASSERT_TRUE(service_entry.image());
   auto pre_mip_image = service_entry.image();
   EXPECT_FALSE(pre_mip_image->isTextureBacked());
@@ -422,12 +430,14 @@ TEST(ImageTransferCacheEntryTestNoYUV, CPUImageAddMipsLater) {
   ClientImageTransferCacheEntry client_entry(
       ClientImageTransferCacheEntry::Image(&bitmap.pixmap()), false,
       absl::nullopt);
-  std::vector<uint8_t> storage(client_entry.SerializedSize());
-  client_entry.Serialize(base::make_span(storage.data(), storage.size()));
+  const uint32_t storage_size = client_entry.SerializedSize();
+  auto storage = PaintOpWriter::AllocateAlignedBuffer<uint8_t>(storage_size);
+  client_entry.Serialize(base::make_span(storage.get(), storage_size));
 
   ServiceImageTransferCacheEntry service_entry;
   service_entry.Deserialize(gr_context.get(),
-                            base::make_span(storage.data(), storage.size()));
+                            /*graphite_recorder=*/nullptr,
+                            base::make_span(storage.get(), storage_size));
   ASSERT_TRUE(service_entry.image());
   auto pre_mip_image = service_entry.image();
   EXPECT_FALSE(pre_mip_image->isTextureBacked());
@@ -510,22 +520,21 @@ TEST(ImageTransferCacheEntryTestHDR, Gainmap) {
   // Read the resulting image back into a bitmap.
   SkBitmap result;
   {
-    TargetColorParams target_color_params;
-    target_color_params.hdr_max_luminance_relative = 2.f;
-
     ClientImageTransferCacheEntry client_entry(
         ClientImageTransferCacheEntry::Image(&sdr_bitmap.pixmap()),
         ClientImageTransferCacheEntry::Image(&gainmap_bitmap.pixmap()),
-        gainmap_info, false, target_color_params);
+        gainmap_info, false);
 
     std::vector<uint8_t> storage(client_entry.SerializedSize());
     client_entry.Serialize(base::make_span(storage.data(), storage.size()));
 
     ServiceImageTransferCacheEntry service_entry;
     service_entry.Deserialize(gr_context,
+                              /*graphite_recorder=*/nullptr,
                               base::make_span(storage.data(), storage.size()));
     ASSERT_TRUE(service_entry.image());
-    auto image = service_entry.image();
+    ASSERT_TRUE(service_entry.NeedsToneMapApplied());
+    auto image = service_entry.GetImageWithToneMapApplied(2.f, false);
 
     SkImageInfo info =
         SkImageInfo::Make(kSdrWidth, kSdrHeight, kRGBA_F32_SkColorType,

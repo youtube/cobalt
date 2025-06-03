@@ -146,7 +146,8 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
       mojo::PendingReceiver<mojom::FrameSinkVideoCapturer> receiver) override;
   void EvictSurfaces(const std::vector<SurfaceId>& surface_ids) override;
   void RequestCopyOfOutput(const SurfaceId& surface_id,
-                           std::unique_ptr<CopyOutputRequest> request) override;
+                           std::unique_ptr<CopyOutputRequest> request,
+                           bool capture_exact_surface_id) override;
   void CacheBackBuffer(uint32_t cache_id,
                        const FrameSinkId& root_frame_sink_id) override;
   void EvictBackBuffer(uint32_t cache_id,
@@ -257,11 +258,13 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   // Called when video capture stops on the target frame sink with |id|.
   void OnCaptureStopped(const FrameSinkId& id);
 
-  // Returns true if thread IDs do not belong to this process or the host (ie
-  // browser) process. Note this also returns false on any unexpected errors.
-  // Only implemented on Android.
-  bool VerifySandboxedThreadIds(
-      base::flat_set<base::PlatformThreadId> thread_ids);
+  // Invokes the callback with `true` if thread IDs do belong to neither this
+  // process nor the host (i.e. browser) process. Invokes the callback with
+  // `false` otherwise, or on any unexpected errors. Only implemented on
+  // Android.
+  void VerifySandboxedThreadIds(
+      const base::flat_set<base::PlatformThreadId>& thread_ids,
+      base::OnceCallback<void(bool)> verification_callback);
 
   // Manages transferring ownership of SurfaceAnimationManager for
   // cross-document navigations where a transition could be initiated on one
@@ -455,7 +458,7 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
   //     remote client and |ui_task_runner_| will be nullptr, and calls to
   //     OnFrameTokenChanged() will be directly called (without PostTask) on
   //     |client_|. Used for some unit tests.
-  raw_ptr<mojom::FrameSinkManagerClient> client_ = nullptr;
+  raw_ptr<mojom::FrameSinkManagerClient, DanglingUntriaged> client_ = nullptr;
   mojo::Receiver<mojom::FrameSinkManager> receiver_{this};
 
   base::ObserverList<FrameSinkObserver>::Unchecked observer_list_;

@@ -4,13 +4,13 @@
 
 package org.chromium.chrome.browser.signin;
 
+import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +25,8 @@ import androidx.fragment.app.Fragment;
 
 import org.chromium.base.Promise;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
 import org.chromium.chrome.browser.firstrun.FirstRunFragment;
@@ -32,10 +34,12 @@ import org.chromium.chrome.browser.firstrun.FirstRunUtils;
 import org.chromium.chrome.browser.firstrun.MobileFreProgress;
 import org.chromium.chrome.browser.firstrun.SkipTosDialogPolicyListener;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.device_lock.DeviceLockCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.fre.SigninFirstRunCoordinator;
 import org.chromium.chrome.browser.ui.signin.fre.SigninFirstRunView;
+import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
@@ -57,6 +61,7 @@ public class SigninFirstRunFragment extends Fragment implements FirstRunFragment
     private SigninFirstRunCoordinator mSigninFirstRunCoordinator;
     private DeviceLockCoordinator mDeviceLockCoordinator;
     private boolean mExitFirstRunCalled;
+    private boolean mDelayedExitFirstRunCalledForTesting;
 
     public SigninFirstRunFragment() {}
 
@@ -90,6 +95,10 @@ public class SigninFirstRunFragment extends Fragment implements FirstRunFragment
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        // Keep device lock page if it's currently displayed.
+        if (mDeviceLockCoordinator != null) {
+            return;
+        }
         // Inflate the view required for the current configuration and set it as the fragment view.
         mFragmentView.removeAllViews();
         mMainView = inflateFragmentView(
@@ -188,6 +197,11 @@ public class SigninFirstRunFragment extends Fragment implements FirstRunFragment
         getPageDelegate().showInfoPage(url);
     }
 
+    @Override
+    public OneshotSupplier<Profile> getProfileSupplier() {
+        return getPageDelegate().getProfileSupplier();
+    }
+
     /** Implements {@link SigninFirstRunCoordinator.Delegate}. */
     @Override
     public OneshotSupplier<Boolean> getPolicyLoadListener() {
@@ -211,7 +225,13 @@ public class SigninFirstRunFragment extends Fragment implements FirstRunFragment
         // Make sure this function is called at most once.
         if (!mExitFirstRunCalled) {
             mExitFirstRunCalled = true;
-            new Handler().postDelayed(() -> {
+            PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, () -> {
+                mDelayedExitFirstRunCalledForTesting = true;
+
+                // If we've been detached, someone else has handled something, and it's no longer
+                // clear that we should still be accepting the ToS and exiting the FRE.
+                if (isDetached()) return;
+
                 getPageDelegate().acceptTermsOfService(false);
                 getPageDelegate().exitFirstRun();
             }, FirstRunUtils.getSkipTosExitDelayMs());
@@ -233,32 +253,50 @@ public class SigninFirstRunFragment extends Fragment implements FirstRunFragment
         return view;
     }
 
+    /** Implements {@link SigninFirstRunCoordinator.Delegate}. */
     @Override
-    public void displayDeviceLockPage() {
+    public void displayDeviceLockPage(Account selectedAccount) {
         mDeviceLockCoordinator = new DeviceLockCoordinator(
-                true, this, getPageDelegate().getWindowAndroid(), requireContext());
+                this, getPageDelegate().getWindowAndroid(), getActivity(), selectedAccount);
     }
 
+    /** Implements {@link DeviceLockCoordinator.Delegate}. */
     @Override
     public void setView(View view) {
         mFragmentView.removeAllViews();
         mFragmentView.addView(view);
     }
 
+    /** Implements {@link DeviceLockCoordinator.Delegate}. */
     @Override
     public void onDeviceLockReady() {
-        restoreMainView();
-        mDeviceLockCoordinator = null;
-        mSigninFirstRunCoordinator.continueSignIn();
+        if (mFragmentView != null) {
+            restoreMainView();
+        }
+        if (mDeviceLockCoordinator != null) {
+            mDeviceLockCoordinator.destroy();
+            mDeviceLockCoordinator = null;
+            mSigninFirstRunCoordinator.continueSignIn();
+        }
     }
 
+    /** Implements {@link DeviceLockCoordinator.Delegate}. */
     @Override
     public void onDeviceLockRefused() {
         mSigninFirstRunCoordinator.cancelSignInAndDismiss();
     }
 
+    @Override
+    public @DeviceLockActivityLauncher.Source String getSource() {
+        return DeviceLockActivityLauncher.Source.FIRST_RUN;
+    }
+
     private void restoreMainView() {
         mFragmentView.removeAllViews();
         mFragmentView.addView(mMainView);
+    }
+
+    boolean getDelayedExitFirstRunCalledForTesting() {
+        return mDelayedExitFirstRunCalledForTesting;
     }
 }

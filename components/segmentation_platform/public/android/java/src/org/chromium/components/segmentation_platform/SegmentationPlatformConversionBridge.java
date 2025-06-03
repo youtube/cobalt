@@ -4,8 +4,9 @@
 
 package org.chromium.components.segmentation_platform;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.components.segmentation_platform.proto.SegmentationProto.SegmentId;
 
 /**
@@ -20,5 +21,11 @@ public class SegmentationPlatformConversionBridge {
         if (segment == null) segment = SegmentId.OPTIMIZATION_TARGET_UNKNOWN;
         Float optionalRank = hasRank ? rank : null;
         return new SegmentSelectionResult(isReady, segment, optionalRank);
+    }
+
+    @CalledByNative
+    private static ClassificationResult createClassificationResult(
+            int status, String[] orderedLabels) {
+        return new ClassificationResult(status, orderedLabels);
     }
 }

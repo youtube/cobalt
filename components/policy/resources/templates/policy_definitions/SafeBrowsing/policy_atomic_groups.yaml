@@ -14,3 +14,7 @@ SafeBrowsing:
   - RealTimeDownloadProtectionRequestAllowed
   - ClientSidePhishingProtectionAllowed
   - SafeBrowsingExtensionProtectionAllowed
+  - SafeBrowsingProxiedRealTimeChecksAllowed
+  - SafeBrowsingSurveysEnabled
+  - SafeBrowsingDeepScanningEnabled
+  - DisableSafeBrowsingProceedAnyway

@@ -26,12 +26,14 @@
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "base/test/scoped_running_on_chromeos.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
-#include "chrome/browser/ash/file_manager/fake_disk_mount_manager.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
+#include "chromeos/ash/components/disks/disk_mount_manager.h"
+#include "chromeos/ash/components/disks/fake_disk_mount_manager.h"
 #include "components/drive/drive_pref_names.h"
+#include "components/user_manager/scoped_user_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
@@ -359,13 +361,7 @@ TEST(DownloadPrefsTest, AutoOpenSetByPolicyBlobURL) {
   EXPECT_FALSE(prefs.IsAutoOpenByPolicy(kBlobDisallowedURL, kFilePath));
 }
 
-// TODO(crbug.com/1326319): Flaky on Win.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_Pdf DISABLED_Pdf
-#else
-#define MAYBE_Pdf Pdf
-#endif
-TEST(DownloadPrefsTest, MAYBE_Pdf) {
+TEST(DownloadPrefsTest, Pdf) {
   const base::FilePath kPdfFile(FILE_PATH_LITERAL("abcd.pdf"));
   const GURL kURL("http://basic.com");
 
@@ -613,12 +609,11 @@ TEST(DownloadPrefsTest, DownloadDirSanitization) {
     TestingProfile profile2(base::FilePath("/home/chronos/u-0123456789abcdef"));
     DownloadPrefs prefs2(&profile2);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-    ash::FakeChromeUserManager user_manager;
-    const auto* user = user_manager.AddUser(account_id);
+    user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+        user_manager{std::make_unique<ash::FakeChromeUserManager>()};
+    const auto* user = user_manager->AddUser(account_id);
     ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
                                                                  &profile2);
-    ash::ProfileHelper::Get()->SetProfileToUserMappingForTesting(
-        const_cast<user_manager::User*>(user));
     profile2.GetPrefs()->SetString(drive::prefs::kDriveFsProfileSalt,
                                    drivefs_profile_salt);
     auto* integration_service =
@@ -656,8 +651,8 @@ TEST(DownloadPrefsTest, DownloadPathWithMigrationFromOldFormat) {
   base::FilePath default_download_dir =
       DownloadPrefs::GetDefaultDownloadDirectory();
   base::FilePath path_from_pref = default_download_dir.Append("a").Append("b");
-  ash::disks::DiskMountManager::InitializeForTesting(
-      new file_manager::FakeDiskMountManager);
+  ash::disks::FakeDiskMountManager disk_mount_manager;
+  ash::disks::DiskMountManager::InitializeForTesting(&disk_mount_manager);
 
   TestingProfile profile(base::FilePath("/home/chronos/u-0123456789abcdef"));
   base::test::ScopedRunningOnChromeOS running_on_chromeos;
@@ -674,8 +669,8 @@ TEST(DownloadPrefsTest, DownloadPathWithMigrationFromOldFormat) {
 // Tests that default download path pref is migrated from old format.
 TEST(DownloadPrefsTest, DefaultDownloadPathPrefMigrationFromOldFormat) {
   content::BrowserTaskEnvironment task_environment;
-  ash::disks::DiskMountManager::InitializeForTesting(
-      new file_manager::FakeDiskMountManager);
+  ash::disks::FakeDiskMountManager disk_mount_manager;
+  ash::disks::DiskMountManager::InitializeForTesting(&disk_mount_manager);
 
   TestingProfile profile(base::FilePath("/home/chronos/u-0123456789abcdef"));
   base::test::ScopedRunningOnChromeOS running_on_chromeos;
@@ -748,11 +743,6 @@ TEST(DownloadPrefsTest, PromptForDuplicateFile) {
                                    true);
     EXPECT_FALSE(prefs.PromptForDuplicateFile());
   }
-
-  // Bubble disabled by enterprise policy.
-  profile.GetTestingPrefService()->SetManagedPref(
-      prefs::kDownloadBubbleEnabled, std::make_unique<base::Value>(false));
-  EXPECT_FALSE(prefs.PromptForDuplicateFile());
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

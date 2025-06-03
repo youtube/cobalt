@@ -5,9 +5,10 @@
 // https://fs.spec.whatwg.org/#api-filesystemsyncaccesshandle
 [
   Exposed=DedicatedWorker,
-  RuntimeEnabled=FileSystemAccessAccessHandle,
   SecureContext
 ] interface FileSystemSyncAccessHandle {
+  [RuntimeEnabled=FileSystemAccessLockingScheme] readonly attribute USVString mode;
+
   [Measure] void close();
 
   [RaisesException, Measure] void flush();
@@ -20,10 +21,10 @@
 
   [
     RaisesException, Measure
-  ] unsigned long long read([AllowShared] ArrayBufferView buffer,
+  ] unsigned long long read(AllowSharedBufferSource buffer,
                             optional FileSystemReadWriteOptions options = {});
   [
     RaisesException, Measure
-  ] unsigned long long write([AllowShared] ArrayBufferView buffer,
+  ] unsigned long long write(AllowSharedBufferSource buffer,
                             optional FileSystemReadWriteOptions options = {});
 };

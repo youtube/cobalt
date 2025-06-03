@@ -6,24 +6,25 @@ source_set("ntp") {
   sources = [
     "browser_policy_new_tab_page_rewriter.h",
     "browser_policy_new_tab_page_rewriter.mm",
+    "new_tab_page_state.h",
+    "new_tab_page_state.mm",
     "new_tab_page_tab_helper.h",
     "new_tab_page_tab_helper.mm",
     "new_tab_page_tab_helper_delegate.h",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     ":features",
     "//base:base",
     "//components/prefs",
     "//components/strings",
     "//components/url_formatter",
-    "//ios/chrome/browser/browser_state",
     "//ios/chrome/browser/discover_feed:constants",
-    "//ios/chrome/browser/flags:system_flags",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/url",
+    "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/public/features",
-    "//ios/chrome/browser/url",
-    "//ios/chrome/browser/url:constants",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/components/webui:url_constants",
     "//ios/web/common:features",
     "//ios/web/public",
@@ -32,14 +33,13 @@ source_set("ntp") {
 }
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "new_tab_page_util.h",
     "new_tab_page_util.mm",
   ]
   deps = [
     ":ntp",
-    "//ios/chrome/browser/url:constants",
+    "//ios/chrome/browser/shared/model/url:constants",
     "//ios/web/public",
   ]
 }
@@ -49,12 +49,12 @@ source_set("features") {
     "features.h",
     "features.mm",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     "//base",
+    "//components/country_codes",
     "//components/version_info:channel",
     "//ios/chrome/app:background_mode_buildflags",
-    "//ios/chrome/browser/flags:system_flags",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/common",
   ]
 }
@@ -63,28 +63,58 @@ source_set("set_up_list") {
   sources = [
     "set_up_list.h",
     "set_up_list.mm",
+    "set_up_list_delegate.h",
     "set_up_list_item.h",
     "set_up_list_item.mm",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     ":features",
     ":set_up_list_item_type",
+    ":set_up_list_metrics",
+    ":set_up_list_prefs",
     "//base",
     "//components/password_manager/core/browser",
     "//components/prefs:prefs",
-    "//ios/chrome/browser/default_browser:utils",
+    "//components/prefs/ios",
+    "//components/sync/base",
+    "//components/sync/service",
+    "//ios/chrome/browser/default_browser/model:utils",
+    "//ios/chrome/browser/ntp/home:features",
     "//ios/chrome/browser/signin",
+    "//ios/chrome/browser/sync/model",
   ]
 }
 
 source_set("set_up_list_item_type") {
   sources = [ "set_up_list_item_type.h" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
+}
+
+source_set("set_up_list_metrics") {
+  sources = [
+    "set_up_list_metrics.h",
+    "set_up_list_metrics.mm",
+  ]
+  deps = [
+    ":set_up_list_item_type",
+    "//base",
+  ]
+}
+
+source_set("set_up_list_prefs") {
+  sources = [
+    "set_up_list_prefs.h",
+    "set_up_list_prefs.mm",
+  ]
+  deps = [
+    ":set_up_list_item_type",
+    ":set_up_list_metrics",
+    "//base",
+    "//components/pref_registry",
+    "//components/prefs",
+  ]
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "browser_policy_new_tab_page_rewriter_unittest.mm",
@@ -94,26 +124,30 @@ source_set("unit_tests") {
   deps = [
     ":set_up_list",
     ":set_up_list_item_type",
+    ":set_up_list_prefs",
     "//base/test:test_support",
     "//components/password_manager/core/browser",
     "//components/prefs",
     "//components/strings",
     "//components/sync_preferences:test_support",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/default_browser:test_support",
-    "//ios/chrome/browser/default_browser:utils",
+    "//ios/chrome/browser/default_browser/model:test_support",
+    "//ios/chrome/browser/default_browser/model:utils",
     "//ios/chrome/browser/favicon:favicon",
     "//ios/chrome/browser/ntp",
-    "//ios/chrome/browser/prefs:pref_names",
-    "//ios/chrome/browser/search_engines:search_engines",
+    "//ios/chrome/browser/ntp/home:features",
+    "//ios/chrome/browser/policy:policy_util",
+    "//ios/chrome/browser/search_engines/model",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/model/web_state_list/test:test_support",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:fake_system_identity",
     "//ios/chrome/browser/signin:fake_system_identity_manager",
     "//ios/chrome/browser/signin:test_support",
-    "//ios/chrome/browser/url:constants",
-    "//ios/chrome/browser/web_state_list",
-    "//ios/chrome/browser/web_state_list:test_support",
+    "//ios/chrome/browser/sync/model",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test:test",
     "//ios/web/public/test/fakes",

@@ -8,12 +8,13 @@
 
 #import <utility>
 
+#import "base/apple/foundation_util.h"
 #import "base/check_op.h"
+#import "base/containers/contains.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
 #import "base/functional/bind.h"
 #import "base/location.h"
-#import "base/mac/foundation_util.h"
 #import "base/memory/weak_ptr.h"
 #import "base/notreached.h"
 #import "base/observer_list.h"
@@ -33,10 +34,6 @@
 #import "net/log/net_log.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace net {
 
@@ -62,10 +59,10 @@ class NotificationTrampoline {
   void NotifyCookiesChanged();
 
  private:
-  NotificationTrampoline();
-  ~NotificationTrampoline();
+  NotificationTrampoline() = default;
+  ~NotificationTrampoline() = default;
 
-  base::ObserverList<CookieNotificationObserver>::Unchecked observer_list_;
+  base::ObserverList<CookieNotificationObserver, true> observer_list_;
 
   static NotificationTrampoline* g_notification_trampoline;
 };
@@ -89,12 +86,6 @@ void NotificationTrampoline::RemoveObserver(CookieNotificationObserver* obs) {
 void NotificationTrampoline::NotifyCookiesChanged() {
   for (auto& observer : observer_list_)
     observer.OnSystemCookiesChanged();
-}
-
-NotificationTrampoline::NotificationTrampoline() {
-}
-
-NotificationTrampoline::~NotificationTrampoline() {
 }
 
 // Global instance of NotificationTrampoline.
@@ -482,8 +473,7 @@ void CookieStoreIOS::DeleteCookiesMatchingInfoAsync(
             bool delegate_treats_url_as_trustworthy = false;
             net::CookieAccessParams params = {
                 net::CookieAccessSemantics::UNKNOWN,
-                delegate_treats_url_as_trustworthy,
-                net::CookieSamePartyStatus::kNoSamePartyEnforcement};
+                delegate_treats_url_as_trustworthy};
             return delete_info.Matches(cc, params);
           },
           std::move(delete_info)),
@@ -570,7 +560,7 @@ std::unique_ptr<CookieChangeSubscription> CookieStoreIOS::AddCallbackForCookie(
     hook_map_[key] = std::make_unique<CookieChangeCallbackList>();
   }
 
-  DCHECK(hook_map_.find(key) != hook_map_.end());
+  DCHECK(base::Contains(hook_map_, key));
   auto subscription =
       std::make_unique<Subscription>(hook_map_[key]->Add(std::move(callback)));
   all_subscriptions_.Append(subscription.get());

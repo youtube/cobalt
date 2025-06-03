@@ -308,37 +308,38 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   SbMediaMasteringMetadata sb_media_mastering_metadata = {};
 
   if (hdr_metadata) {
-    const auto& color_volume_metadata = hdr_metadata->color_volume_metadata;
+    const auto& smpte_st_2086 = hdr_metadata->smpte_st_2086.value();
 
     sb_media_mastering_metadata.primary_r_chromaticity_x =
-        color_volume_metadata.primaries.fRX;
+        smpte_st_2086.primaries.fRX;
     sb_media_mastering_metadata.primary_r_chromaticity_y =
-        color_volume_metadata.primaries.fRY;
+        smpte_st_2086.primaries.fRY;
 
     sb_media_mastering_metadata.primary_g_chromaticity_x =
-        color_volume_metadata.primaries.fGX;
+        smpte_st_2086.primaries.fGX;
     sb_media_mastering_metadata.primary_g_chromaticity_y =
-        color_volume_metadata.primaries.fGY;
+        smpte_st_2086.primaries.fGY;
 
     sb_media_mastering_metadata.primary_b_chromaticity_x =
-        color_volume_metadata.primaries.fBX;
+        smpte_st_2086.primaries.fBX;
     sb_media_mastering_metadata.primary_b_chromaticity_y =
-        color_volume_metadata.primaries.fBY;
+        smpte_st_2086.primaries.fBY;
 
     sb_media_mastering_metadata.white_point_chromaticity_x =
-        color_volume_metadata.primaries.fWX;
+        smpte_st_2086.primaries.fWX;
     sb_media_mastering_metadata.white_point_chromaticity_y =
-        color_volume_metadata.primaries.fWX;
+        smpte_st_2086.primaries.fWX;
 
     sb_media_mastering_metadata.luminance_max =
-        color_volume_metadata.luminance_max;
+        smpte_st_2086.luminance_max;
     sb_media_mastering_metadata.luminance_min =
-        color_volume_metadata.luminance_min;
+        smpte_st_2086.luminance_min;
 
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
-    sb_media_color_metadata.max_cll = hdr_metadata->max_content_light_level;
+    sb_media_color_metadata.max_cll =
+        hdr_metadata->cta_861_3.value().max_content_light_level;
     sb_media_color_metadata.max_fall =
-        hdr_metadata->max_frame_average_light_level;
+        hdr_metadata->cta_861_3.value().max_frame_average_light_level;
   }
 
   // Copy the color space below.

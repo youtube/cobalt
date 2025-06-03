@@ -10,7 +10,6 @@
 
 #include "base/notreached.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
 #include "chrome/browser/chromeos/policy/dlp/dialogs/policy_dialog_base.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_confidential_contents.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_confidential_file.h"
@@ -19,8 +18,33 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/chromeos/strings/grit/ui_chromeos_strings.h"
+#include "ui/views/layout/box_layout.h"
 
 namespace policy {
+
+// The insets of a single confidential content row.
+constexpr auto kConfidentialRowInsets = gfx::Insets::TLBR(6, 0, 6, 0);
+
+// The font used for in the dialog.
+constexpr char kFontName[] = "Roboto";
+
+// The font size of the title.
+constexpr int kTitleFontSize = 16;
+
+// The line height of the title.
+constexpr int kTitleLineHeight = 24;
+
+// The font size of the text.
+constexpr int kBodyFontSize = 14;
+
+// The line height of the text.
+constexpr int kBodyLineHeight = 20;
+
+// The line height of the confidential content title label.
+constexpr int kConfidentialContentLineHeight = 20;
+
+// The spacing between the elements in a box layout.
+constexpr int kBetweenChildSpacing = 16;
 
 DlpWarnDialog::DlpWarnDialogOptions::DlpWarnDialogOptions(
     Restriction restriction)
@@ -40,18 +64,6 @@ DlpWarnDialog::DlpWarnDialogOptions::DlpWarnDialogOptions(
 }
 
 DlpWarnDialog::DlpWarnDialogOptions::DlpWarnDialogOptions(
-    Restriction restriction,
-    const std::vector<DlpConfidentialFile>& confidential_files,
-    absl::optional<DlpFileDestination> files_destination,
-    DlpFilesController::FileAction files_action)
-    : restriction(restriction),
-      confidential_files(confidential_files),
-      files_destination(files_destination),
-      files_action(files_action) {
-  DCHECK(restriction == Restriction::kFiles);
-}
-
-DlpWarnDialog::DlpWarnDialogOptions::DlpWarnDialogOptions(
     const DlpWarnDialogOptions& other) = default;
 
 DlpWarnDialog::DlpWarnDialogOptions&
@@ -60,12 +72,15 @@ DlpWarnDialog::DlpWarnDialogOptions::operator=(
 
 DlpWarnDialog::DlpWarnDialogOptions::~DlpWarnDialogOptions() = default;
 
-DlpWarnDialog::DlpWarnDialog(OnDlpRestrictionCheckedCallback callback,
+DlpWarnDialog::DlpWarnDialog(WarningCallback callback,
                              DlpWarnDialogOptions options)
-    : PolicyDialogBase(std::move(callback)),
-      restriction_(options.restriction),
+    : restriction_(options.restriction),
       application_title_(options.application_title),
       contents_(std::move(options.confidential_contents)) {
+  SetWarningCallback(std::move(callback));
+
+  set_margins(gfx::Insets::TLBR(20, 0, 20, 0));
+
   SetModalType(ui::MODAL_TYPE_SYSTEM);
 
   SetButtonLabel(ui::DIALOG_BUTTON_OK, GetOkButton());
@@ -77,8 +92,30 @@ DlpWarnDialog::DlpWarnDialog(OnDlpRestrictionCheckedCallback callback,
 
 DlpWarnDialog::~DlpWarnDialog() = default;
 
-void DlpWarnDialog::AddGeneralInformation() {
-  SetupUpperPanel(GetTitle(), GetMessage());
+void DlpWarnDialog::SetWarningCallback(WarningCallback callback) {
+  auto split = base::SplitOnceCallback(std::move(callback));
+  SetAcceptCallback(base::BindOnce(std::move(split.first), true));
+  SetCancelCallback(base::BindOnce(std::move(split.second), false));
+}
+
+views::Label* DlpWarnDialog::AddTitle(const std::u16string& title) {
+  // Call the parent class to setup the element. Do not remove.
+  views::Label* title_label = PolicyDialogBase::AddTitle(title);
+  title_label->SetFontList(gfx::FontList({kFontName}, gfx::Font::NORMAL,
+                                         kTitleFontSize,
+                                         gfx::Font::Weight::MEDIUM));
+  title_label->SetLineHeight(kTitleLineHeight);
+  return title_label;
+}
+
+views::Label* DlpWarnDialog::AddMessage(const std::u16string& message) {
+  // Call the parent class to setup the element. Do not remove.
+  views::Label* message_label = PolicyDialogBase::AddMessage(message);
+  message_label->SetFontList(gfx::FontList({kFontName}, gfx::Font::NORMAL,
+                                           kBodyFontSize,
+                                           gfx::Font::Weight::NORMAL));
+  message_label->SetLineHeight(kBodyLineHeight);
+  return message_label;
 }
 
 void DlpWarnDialog::MaybeAddConfidentialRows() {
@@ -162,6 +199,24 @@ std::u16string DlpWarnDialog::GetMessage() {
       NOTREACHED();
       return u"";
   }
+}
+
+void DlpWarnDialog::AddConfidentialRow(const gfx::ImageSkia& icon,
+                                       const std::u16string& title) {
+  DCHECK(scroll_view_container_);
+  views::View* row =
+      scroll_view_container_->AddChildView(std::make_unique<views::View>());
+  row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kHorizontal, kConfidentialRowInsets,
+      kBetweenChildSpacing));
+
+  AddRowIcon(icon, row);
+
+  views::Label* title_label = AddRowTitle(title, row);
+  title_label->SetFontList(gfx::FontList({kFontName}, gfx::Font::NORMAL,
+                                         kBodyFontSize,
+                                         gfx::Font::Weight::NORMAL));
+  title_label->SetLineHeight(kConfidentialContentLineHeight);
 }
 
 BEGIN_METADATA(DlpWarnDialog, PolicyDialogBase)

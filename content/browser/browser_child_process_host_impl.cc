@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_shared_memory.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/observer_list.h"
@@ -32,6 +33,7 @@
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/metrics/histogram_controller.h"
+#include "content/browser/metrics/histogram_shared_memory_config.h"
 #include "content/browser/tracing/background_tracing_manager_impl.h"
 #include "content/public/browser/browser_child_process_host_delegate.h"
 #include "content/public/browser/browser_child_process_observer.h"
@@ -329,8 +331,7 @@ void BrowserChildProcessHostImpl::LaunchWithoutExtraCommandLineSwitches(
       switches::kV,
       switches::kVModule,
   };
-  cmd_line->CopySwitchesFrom(browser_command_line, kForwardSwitches,
-                             std::size(kForwardSwitches));
+  cmd_line->CopySwitchesFrom(browser_command_line, kForwardSwitches);
 
   // All processes should have a non-empty metrics name.
   if (data_.metrics_name.empty())
@@ -350,7 +351,7 @@ void BrowserChildProcessHostImpl::LaunchWithoutExtraCommandLineSwitches(
     child_process_host_->SetProfilingFile(OpenProfilingFile());
 #endif
 
-  child_process_ = std::make_unique<ChildProcessLauncher>(
+  child_process_launcher_ = std::make_unique<ChildProcessLauncher>(
       std::move(delegate), std::move(cmd_line), data_.id, this,
       std::move(*child_process_host_->GetMojoInvitation()),
       base::BindRepeating(&BrowserChildProcessHostImpl::OnMojoError,
@@ -364,10 +365,11 @@ void BrowserChildProcessHostImpl::LaunchWithoutExtraCommandLineSwitches(
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-void BrowserChildProcessHostImpl::SetProcessBackgrounded(bool is_background) {
-  DCHECK(child_process_);
-  DCHECK(!child_process_->IsStarting());
-  child_process_->SetProcessBackgrounded(is_background);
+void BrowserChildProcessHostImpl::SetProcessPriority(
+    base::Process::Priority priority) {
+  DCHECK(child_process_launcher_);
+  DCHECK(!child_process_launcher_->IsStarting());
+  child_process_launcher_->SetProcessPriority(priority);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -377,16 +379,17 @@ void BrowserChildProcessHostImpl::EnableWarmUpConnection() {
 }
 
 void BrowserChildProcessHostImpl::DumpProcessStack() {
-  if (!child_process_)
+  if (!child_process_launcher_) {
     return;
-  child_process_->DumpProcessStack();
+  }
+  child_process_launcher_->DumpProcessStack();
 }
 #endif
 
 ChildProcessTerminationInfo BrowserChildProcessHostImpl::GetTerminationInfo(
     bool known_dead) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!child_process_) {
+  if (!child_process_launcher_) {
     // If the delegate doesn't use Launch() helper.
     ChildProcessTerminationInfo info;
     // TODO(crbug.com/1412835): iOS is single process mode for now.
@@ -396,7 +399,7 @@ ChildProcessTerminationInfo BrowserChildProcessHostImpl::GetTerminationInfo(
 #endif
     return info;
   }
-  return child_process_->GetChildTerminationInfo(known_dead);
+  return child_process_launcher_->GetChildTerminationInfo(known_dead);
 }
 
 bool BrowserChildProcessHostImpl::OnMessageReceived(
@@ -474,7 +477,7 @@ void BrowserChildProcessHostImpl::OnChildDisconnected() {
   early_exit_watcher_.StopWatching();
 #endif
 
-  if (child_process_.get() || IsProcessLaunched()) {
+  if (child_process_launcher_.get() || IsProcessLaunched()) {
     ChildProcessTerminationInfo info =
         GetTerminationInfo(true /* known_dead */);
 #if BUILDFLAG(IS_ANDROID)
@@ -555,62 +558,35 @@ void BrowserChildProcessHostImpl::CreateMetricsAllocator() {
   // Create a persistent memory segment for subprocess histograms only if
   // they're active in the browser.
   // TODO(crbug.com/1290457): Remove this.
-  if (!base::GlobalHistogramAllocator::Get())
+  if (!base::GlobalHistogramAllocator::Get()) {
     return;
-
-  // Determine the correct parameters based on the process type.
-  size_t memory_size;
-  base::StringPiece metrics_name;
-  switch (data_.process_type) {
-    case PROCESS_TYPE_UTILITY:
-      // This needs to be larger for the network service.
-      memory_size = 256 << 10;  // 256 KiB
-      metrics_name = "UtilityMetrics";
-      break;
-
-    case PROCESS_TYPE_ZYGOTE:
-      memory_size = 64 << 10;  // 64 KiB
-      metrics_name = "ZygoteMetrics";
-      break;
-
-    case PROCESS_TYPE_SANDBOX_HELPER:
-      memory_size = 64 << 10;  // 64 KiB
-      metrics_name = "SandboxHelperMetrics";
-      break;
-
-    case PROCESS_TYPE_GPU:
-      // This needs to be larger for the display-compositor in the gpu process.
-      memory_size = 256 << 10;  // 256 KiB
-      metrics_name = "GpuMetrics";
-      break;
-
-    case PROCESS_TYPE_PPAPI_PLUGIN:
-      memory_size = 64 << 10;  // 64 KiB
-      metrics_name = "PpapiPluginMetrics";
-      break;
-
-    case PROCESS_TYPE_PPAPI_BROKER:
-      memory_size = 64 << 10;  // 64 KiB
-      metrics_name = "PpapiBrokerMetrics";
-      break;
-
-    default:
-      return;
   }
 
-  // Create the shared memory segment and attach an allocator to it.
-  // Mapping the memory shouldn't fail but be safe if it does; everything
-  // will continue to work but just as if persistence weren't available.
-  base::WritableSharedMemoryRegion shm_region =
-      base::WritableSharedMemoryRegion::Create(memory_size);
-  base::WritableSharedMemoryMapping shm_mapping = shm_region.Map();
-  if (!shm_region.IsValid() || !shm_mapping.IsValid())
+  // This class is not expected to be used for renderer child processes.
+  // TODO(crbug/1028263): CHECK, once proven that this scenario does not
+  // occur in the wild, else remove dump and just return early if disproven.
+  if (data_.process_type == PROCESS_TYPE_RENDERER) {
+    base::debug::DumpWithoutCrashing();
     return;
-  metrics_allocator_ =
-      std::make_unique<base::WritableSharedPersistentMemoryAllocator>(
-          std::move(shm_mapping), static_cast<uint64_t>(data_.id),
-          metrics_name);
-  metrics_shared_region_ = std::move(shm_region);
+  }
+
+  // Get the shared memory configuration for this process type, if any,
+  auto shared_memory_config =
+      GetHistogramSharedMemoryConfig(data_.process_type);
+  if (!shared_memory_config.has_value()) {
+    return;
+  }
+
+  // Create the shared memory region and histogram allocator.
+  auto shared_memory = base::HistogramSharedMemory::Create(
+      data_.id, shared_memory_config.value());
+  if (!shared_memory.has_value()) {
+    return;
+  }
+
+  // Move the memory region and allocator out of the |shared_memory| helper.
+  metrics_allocator_ = shared_memory->TakeAllocator();
+  metrics_shared_region_ = shared_memory->TakeRegion();
 }
 
 void BrowserChildProcessHostImpl::ShareMetricsAllocatorToProcess() {
@@ -627,7 +603,7 @@ void BrowserChildProcessHostImpl::OnProcessLaunchFailed(int error_code) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   delegate_->OnProcessLaunchFailed(error_code);
   ChildProcessTerminationInfo info =
-      child_process_->GetChildTerminationInfo(/*known_dead=*/true);
+      child_process_launcher_->GetChildTerminationInfo(/*known_dead=*/true);
   DCHECK_EQ(info.status, base::TERMINATION_STATUS_LAUNCH_FAILED);
 
   for (auto& observer : g_browser_child_process_observers.Get())
@@ -644,7 +620,7 @@ bool BrowserChildProcessHostImpl::CanUseWarmUpConnection() {
 void BrowserChildProcessHostImpl::OnProcessLaunched() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  const base::Process& process = child_process_->GetProcess();
+  const base::Process& process = child_process_launcher_->GetProcess();
   DCHECK(process.IsValid());
 
 #if BUILDFLAG(IS_MAC)
@@ -653,6 +629,10 @@ void BrowserChildProcessHostImpl::OnProcessLaunched() {
       static_cast<ChildProcessHostImpl*>(child_process_host_.get())
           ->child_process());
 #endif
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  child_thread_type_switcher_.SetPid(process.Pid());
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
   // Start a WaitableEventWatcher that will invoke OnProcessExitedEarly if the
@@ -726,7 +706,8 @@ void BrowserChildProcessHostImpl::RegisterCoordinatorClient(
               std::move(receiver), std::move(client_process),
               GetCoordinatorClientProcessType(
                   static_cast<ProcessType>(data_.process_type)),
-              child_process_->GetProcess().Pid(), delegate_->GetServiceName()));
+              child_process_launcher_->GetProcess().Pid(),
+              delegate_->GetServiceName()));
 }
 
 bool BrowserChildProcessHostImpl::IsProcessLaunched() const {
@@ -771,7 +752,7 @@ void BrowserChildProcessHostImpl::TerminateProcessForBadMessage(
     return;
   }
   LOG(ERROR) << "Terminating child process for bad message: " << error;
-  process->child_process_->Terminate(RESULT_CODE_KILLED_BAD_MESSAGE);
+  process->child_process_launcher_->Terminate(RESULT_CODE_KILLED_BAD_MESSAGE);
 }
 
 #if BUILDFLAG(IS_WIN)

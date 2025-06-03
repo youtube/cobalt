@@ -9,7 +9,11 @@
 
 @class InactiveTabsCoordinator;
 @protocol GridCommands;
+@protocol GridToolbarsConfigurationProvider;
 @protocol TabContextMenuProvider;
+namespace web {
+class WebStateID;
+}  // namespace web
 
 // Delegate for the coordinator.
 @protocol InactiveTabsCoordinatorDelegate
@@ -17,7 +21,7 @@
 // Tells the delegate that the user selected an item.
 - (void)inactiveTabsCoordinator:
             (InactiveTabsCoordinator*)inactiveTabsCoordinator
-            didSelectItemWithID:(NSString*)itemID;
+            didSelectItemWithID:(web::WebStateID)itemID;
 
 // Tells the delegate that the coordinator should be dismissed.
 - (void)inactiveTabsCoordinatorDidFinish:
@@ -39,6 +43,9 @@
 
 // The GridCommands receiver handling "Close All"-related commands.
 @property(nonatomic, weak, readonly) id<GridCommands> gridCommandsHandler;
+// The mutator receiver handling regular grid calls.
+@property(nonatomic, weak, readonly) id<GridToolbarsConfigurationProvider>
+    toolbarsConfigurationProvider;
 
 // Init the inactive tabs coordinator, all parameters should *not* be nil.
 - (instancetype)

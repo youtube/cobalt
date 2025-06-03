@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -27,6 +28,8 @@ class SearchBoxViewBase;
 // when the user is signed in.
 class ASH_EXPORT AppListMainView : public views::View,
                                    public SearchBoxViewDelegate {
+  METADATA_HEADER(AppListMainView, views::View)
+
  public:
   AppListMainView(AppListViewDelegate* delegate, AppListView* app_list_view);
 
@@ -50,7 +53,6 @@ class ASH_EXPORT AppListMainView : public views::View,
   AppListViewDelegate* view_delegate() { return delegate_; }
 
   // Overridden from views::View:
-  const char* GetClassName() const override;
   void Layout() override;
 
  private:
@@ -68,7 +70,8 @@ class ASH_EXPORT AppListMainView : public views::View,
   void ActiveChanged(SearchBoxViewBase* sender) override;
   void OnSearchBoxKeyEvent(ui::KeyEvent* event) override;
   bool CanSelectSearchResults() override;
-
+  bool HandleFocusMoveAboveSearchResults(
+      const ui::KeyEvent& key_event) override;
   raw_ptr<AppListViewDelegate, ExperimentalAsh>
       delegate_;  // Owned by parent view (AppListView).
 

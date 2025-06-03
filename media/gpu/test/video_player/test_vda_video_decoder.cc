@@ -21,7 +21,6 @@
 #include "media/base/waiting.h"
 #include "media/gpu/gpu_video_decode_accelerator_factory.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/test/video.h"
 #include "media/gpu/test/video_player/frame_renderer_dummy.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -103,7 +102,7 @@ void TestVDAVideoDecoder::Initialize(const VideoDecoderConfig& config,
 
   // Create Decoder.
   VideoDecodeAccelerator::Config vda_config(config.profile());
-  vda_config.output_mode = VideoDecodeAccelerator::Config::OutputMode::IMPORT;
+  vda_config.output_mode = VideoDecodeAccelerator::Config::OutputMode::kImport;
   vda_config.encryption_scheme = config.encryption_scheme();
   vda_config.is_deferred_initialization_allowed = false;
   vda_config.initial_expected_coded_size = config.coded_size();

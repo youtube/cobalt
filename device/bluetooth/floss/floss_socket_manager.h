@@ -215,6 +215,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
  protected:
@@ -223,6 +224,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
   // Complete the method call for |RegisterCallback|.
   void CompleteRegisterCallback(dbus::Response* response,
                                 dbus::ErrorResponse* error_response);
+
+  // Complete the method call for |UnregisterCallback|.
+  void CompleteUnregisterCallback(DBusResult<bool> result);
 
   // Complete any of |ListenUsingL2cap| or |ListenUsingRfcomm|.
   void CompleteListen(ResponseCallback<BtifStatus> callback,
@@ -286,7 +290,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossSocketManager : public FlossDBusClient {
 
   // All socket api calls require callback id since callbacks must take
   // ownership of the file descriptors. A value of zero is invalid.
-  CallbackId callback_id_ = 0;
+  CallbackId callback_id_ = kInvalidCallbackId;
 
   // Signal when client is ready to be used.
   base::OnceClosure on_ready_;

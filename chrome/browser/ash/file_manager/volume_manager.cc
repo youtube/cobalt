@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/file_manager/volume_manager.h"
 
 #include "ash/components/arc/arc_util.h"
+#include "base/auto_reset.h"
 #include "base/base64url.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/ash/arc/fileapi/arc_media_view_util.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
+#include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/snapshot_manager.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
@@ -34,6 +36,10 @@
 #include "crypto/sha2.h"
 #include "services/device/public/mojom/mtp_storage_info.mojom.h"
 #include "storage/browser/file_system/external_mount_points.h"
+#include "ui/base/clipboard/clipboard_data.h"
+#include "ui/base/clipboard/clipboard_format_type.h"
+#include "ui/base/clipboard/clipboard_monitor.h"
+#include "ui/base/clipboard/clipboard_non_backed.h"
 
 namespace file_manager {
 namespace {
@@ -105,12 +111,13 @@ bool FindExternalMountPoint(const std::string& mount_point_name) {
 }
 
 std::string FuseBoxSubdirADP(const std::string& authority,
-                             const std::string& root_id) {
-  // Hash the authority and ID
+                             const std::string& document_id) {
+  // Hash the authority and document ID
   // - because the ID can be quite long (400+ bytes) and
   // - to avoid sharing the ID in the file system.
-  std::string hash =
-      crypto::SHA256HashString(base::StrCat({authority, "/", root_id}));
+  std::string hash = crypto::SHA256HashString(
+      arc::GetDocumentsProviderMountPathSuffix(authority, document_id)
+          .AsUTF8Unsafe());
   std::string b64;
   base::Base64UrlEncode(hash, base::Base64UrlEncodePolicy::OMIT_PADDING, &b64);
   return base::StrCat({util::kFuseBoxSubdirPrefixADP, b64});
@@ -240,7 +247,7 @@ void VolumeManager::Initialize() {
       base::BindOnce(&RecordDownloadsDiskUsageStats, std::move(localVolume)));
 
   // Subscribe to DriveIntegrationService.
-  drive_integration_service_->AddObserver(this);
+  Observe(drive_integration_service_);
   if (drive_integration_service_->IsMounted()) {
     DoMountEvent(Volume::CreateForDrive(GetDriveMountPointPath()));
   }
@@ -299,6 +306,9 @@ void VolumeManager::Initialize() {
         arc::IsArcPlayStoreEnabledForProfile(profile_));
   }
 
+  // Subscribe to clipboard events.
+  ui::ClipboardMonitor::GetInstance()->AddObserver(this);
+
   RegisterShareCacheMountPoint(profile_);
   DoMountEvent(
       Volume::CreateForShareCache(util::GetShareCacheFilePath(profile_)));
@@ -324,9 +334,7 @@ void VolumeManager::Shutdown() {
     p->RemoveObserver(this);
   }
 
-  if (drive_integration_service_) {
-    drive_integration_service_->RemoveObserver(this);
-  }
+  drive::DriveIntegrationService::Observer::Reset();
 
   if (file_system_provider_service_) {
     file_system_provider_service_->RemoveObserver(this);
@@ -342,6 +350,8 @@ void VolumeManager::Shutdown() {
       session_manager->RemoveObserver(this);
     }
   }
+
+  ui::ClipboardMonitor::GetInstance()->RemoveObserver(this);
 }
 
 void VolumeManager::AddObserver(VolumeManagerObserver* observer) {
@@ -1211,12 +1221,12 @@ void VolumeManager::OnDocumentsProviderRootAdded(
   auto adp_file_system_url = mount_points->CreateExternalFileSystemURL(
       blink::StorageKey::CreateFirstParty(util::GetFilesAppOrigin()),
       arc::kDocumentsProviderMountPointName,
-      base::FilePath(base::StrCat({authority, "/", root_id})));
+      arc::GetDocumentsProviderMountPathSuffix(authority, document_id));
   const std::string url = adp_file_system_url.ToGURL().spec();
   DCHECK(adp_file_system_url.is_valid());
 
   // Attach the ADP storage device to the fusebox daemon.
-  std::string subdir = FuseBoxSubdirADP(authority, root_id);
+  std::string subdir = FuseBoxSubdirADP(authority, document_id);
   fusebox_daemon_->AttachStorage(subdir, url, read_only);
 
   // Create a Volume for the fusebox ADP storage device.
@@ -1258,7 +1268,7 @@ void VolumeManager::OnDocumentsProviderRootRemoved(
   }
 
   // Remove the fusebox ADP storage device from chrome::storage.
-  std::string subdir = FuseBoxSubdirADP(authority, root_id);
+  std::string subdir = FuseBoxSubdirADP(authority, document_id);
   auto* mount_points = storage::ExternalMountPoints::GetSystemInstance();
   const std::string fusebox_fsid =
       base::StrCat({util::kFuseBoxMountNamePrefix, subdir});
@@ -1267,6 +1277,36 @@ void VolumeManager::OnDocumentsProviderRootRemoved(
   // Detach the fusebox ADP storage device from the fusebox daemon.
   if (fusebox_daemon_) {
     fusebox_daemon_->DetachStorage(subdir);
+  }
+}
+
+void VolumeManager::OnClipboardDataChanged() {
+  // Ignore the event created when we change the clipboard.
+  if (ignore_clipboard_changed_) {
+    return;
+  }
+
+  auto* clipboard = ui::ClipboardNonBacked::GetForCurrentThread();
+  if (!clipboard) {
+    return;
+  }
+
+  ui::DataTransferEndpoint dte(ui::EndpointType::kClipboardHistory);
+  const auto* data = clipboard->GetClipboardData(&dte);
+  if (!data || data->custom_data_format() !=
+                   ui::ClipboardFormatType::WebCustomDataType().GetName()) {
+    return;
+  }
+
+  base::Pickle pickle(data->custom_data_data().data(),
+                      data->custom_data_data().size());
+  std::vector<ui::FileInfo> file_info =
+      file_manager::util::ParseFileSystemSources(data->source(), pickle);
+  if (!file_info.empty()) {
+    auto with_files = std::make_unique<ui::ClipboardData>(*data);
+    with_files->set_filenames(std::move(file_info));
+    base::AutoReset<bool> reset(&ignore_clipboard_changed_, true);
+    clipboard->WriteClipboardData(std::move(with_files));
   }
 }
 

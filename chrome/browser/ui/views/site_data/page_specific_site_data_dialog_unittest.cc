@@ -4,16 +4,16 @@
 
 #include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog.h"
 
+#include "base/feature_list.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/browsing_data/content/fake_browsing_data_model.h"
+#include "components/browsing_data/core/features.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/content_settings/common/content_settings_manager.mojom.h"
-#include "components/page_info/core/features.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/cookie_access_details.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -47,6 +47,19 @@ void ValidateAllowedUnpartitionedSites(
                           }));
 }
 
+blink::StorageKey CreateUnpartitionedStorageKey(const GURL& url) {
+  return blink::StorageKey::CreateFirstParty(url::Origin::Create(url));
+}
+
+blink::StorageKey CreateThirdPartyStorageKey(const GURL& url,
+                                             const GURL& top_url) {
+  return blink::StorageKey::Create(
+      url::Origin::Create(url),
+      net::SchemefulSite(url::Origin::Create(top_url)),
+      blink::mojom::AncestorChainBit::kCrossSite,
+      /*third_party_partitioning_allowed=*/true);
+}
+
 }  // namespace
 
 class PageSpecificSiteDataDialogUnitTest
@@ -67,32 +80,33 @@ class PageSpecificSiteDataDialogUnitTest
   }
 
   // To prevent tests from being flaky, all |DeleteStoredObjects| calls need to
-  // be used with a RunLoop.
+  // be used with a RunLoop if kMigrateStorageToBDM is off.
   void RunDeleteStoredObjects(test::PageSpecificSiteDataDialogTestApi* delegate,
                               const url::Origin& origin) {
     base::RunLoop loop;
-    auto* remover = profile()->GetBrowsingDataRemover();
-    remover->SetWouldCompleteCallbackForTesting(
-        base::BindLambdaForTesting([&](base::OnceClosure callback) {
-          std::move(callback).Run();
-          loop.Quit();
-        }));
+    if (!base::FeatureList::IsEnabled(
+            browsing_data::features::kMigrateStorageToBDM)) {
+      profile()->GetBrowsingDataRemover()->SetWouldCompleteCallbackForTesting(
+          base::BindLambdaForTesting([&](base::OnceClosure callback) {
+            std::move(callback).Run();
+            loop.Quit();
+          }));
+    }
     delegate->DeleteStoredObjects(origin);
-    loop.Run();
+    if (!base::FeatureList::IsEnabled(
+            browsing_data::features::kMigrateStorageToBDM)) {
+      loop.Run();
+    }
   }
 
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
-    feature_list_.InitAndEnableFeature(page_info::kPageSpecificSiteDataDialog);
     NavigateAndCommit(GURL(kCurrentUrl));
     content_settings::PageSpecificContentSettings::CreateForWebContents(
         web_contents(),
         std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
             web_contents()));
   }
-
- protected:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(PageSpecificSiteDataDialogUnitTest, CookieAccessed) {
@@ -128,6 +142,310 @@ TEST_F(PageSpecificSiteDataDialogUnitTest, CookieAccessed) {
       std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
   ValidateAllowedUnpartitionedSites(delegate.get(),
                                     {GURL(kCurrentUrl), GURL(kThirdPartyUrl)});
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest, QuotaStorageAccessedFirstParty) {
+  // Verify that storage access through BrowsingDataModel is correctly displayed
+  // in the dialog.
+  auto* content_settings = GetContentSettings();
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndCookieAccessedFirstParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> first_party_cookie(
+      net::CanonicalCookie::Create(GURL(kThirdPartyUrl), "C=D",
+                                   base::Time::Now(),
+                                   /*server_time=*/absl::nullopt,
+                                   /*cookie_partition_key=*/absl::nullopt));
+  ASSERT_TRUE(first_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kThirdPartyUrl),
+       {*first_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndPartitionedCookieAccessedFirstParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> first_party_cookie(
+      net::CanonicalCookie::Create(
+          GURL(kThirdPartyUrl), "C=D", base::Time::Now(),
+          /*server_time=*/absl::nullopt,
+          net::CookiePartitionKey::FromURLForTesting(GURL(kThirdPartyUrl))));
+  ASSERT_TRUE(first_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kThirdPartyUrl),
+       {*first_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest, QuotaStorageAccessedThirdParty) {
+  // Verify that storage access through BrowsingDataModel is correctly displayed
+  // in the dialog.
+  auto* content_settings = GetContentSettings();
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // True due to only third-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, true);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndCookieAccessedThirdParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> third_party_cookie(
+      net::CanonicalCookie::Create(GURL(kThirdPartyUrl), "C=D",
+                                   base::Time::Now(),
+                                   /*server_time=*/absl::nullopt,
+                                   /*cookie_partition_key=*/absl::nullopt));
+  ASSERT_TRUE(third_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kCurrentUrl),
+       {*third_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to cookies being accessed without forced partitioning.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndPartitionedCookieAccessedThirdParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> third_party_cookie(
+      net::CanonicalCookie::Create(
+          GURL(kThirdPartyUrl), "C=D", base::Time::Now(),
+          /*server_time=*/absl::nullopt,
+          net::CookiePartitionKey::FromURLForTesting(GURL(kCurrentUrl))));
+  ASSERT_TRUE(third_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kCurrentUrl),
+       {*third_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // TODO(crbug.com/1344787): Fix this test to return true once cookie partition
+  // logic is tested.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest, QuotaStorageAccessedMixedParty) {
+  // Verify that storage access through BrowsingDataModel is correctly displayed
+  // in the dialog.
+  auto* content_settings = GetContentSettings();
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndCookieAccessedMixedParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> first_party_cookie(
+      net::CanonicalCookie::Create(GURL(kThirdPartyUrl), "C=D",
+                                   base::Time::Now(),
+                                   /*server_time=*/absl::nullopt,
+                                   /*cookie_partition_key=*/absl::nullopt));
+  ASSERT_TRUE(first_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kThirdPartyUrl),
+       {*first_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+  std::unique_ptr<net::CanonicalCookie> third_party_cookie(
+      net::CanonicalCookie::Create(GURL(kThirdPartyUrl), "C=D",
+                                   base::Time::Now(),
+                                   /*server_time=*/absl::nullopt,
+                                   /*cookie_partition_key=*/absl::nullopt));
+  ASSERT_TRUE(third_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kCurrentUrl),
+       {*third_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
+}
+
+TEST_F(PageSpecificSiteDataDialogUnitTest,
+       QuotaStorageAndPartitionedCookieAccessedMixedParty) {
+  // Verify that storage access through CookiesTreeModel and BrowsingDataModel
+  // is correctly displayed in the dialog.
+  auto* content_settings = GetContentSettings();
+  std::unique_ptr<net::CanonicalCookie> first_party_cookie(
+      net::CanonicalCookie::Create(
+          GURL(kThirdPartyUrl), "C=D", base::Time::Now(),
+          /*server_time=*/absl::nullopt,
+          net::CookiePartitionKey::FromURLForTesting(GURL(kThirdPartyUrl))));
+  ASSERT_TRUE(first_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kThirdPartyUrl),
+       {*first_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+  std::unique_ptr<net::CanonicalCookie> third_party_cookie(
+      net::CanonicalCookie::Create(
+          GURL(kThirdPartyUrl), "C=D", base::Time::Now(),
+          /*server_time=*/absl::nullopt,
+          net::CookiePartitionKey::FromURLForTesting(GURL(kCurrentUrl))));
+  ASSERT_TRUE(third_party_cookie);
+  content_settings->OnCookiesAccessed(
+      {content::CookieAccessDetails::Type::kRead,
+       GURL(kThirdPartyUrl),
+       GURL(kCurrentUrl),
+       {*third_party_cookie},
+       false});
+  content_settings->OnBrowsingDataAccessed(
+      CreateThirdPartyStorageKey(GURL(kThirdPartyUrl), GURL(kCurrentUrl)),
+      BrowsingDataModel::StorageType::kQuotaStorage,
+      /*blocked=*/false);
+
+  auto delegate =
+      std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
+  auto sites = delegate->GetAllSites();
+  ASSERT_EQ(sites.size(), 1u);
+
+  auto first_site = sites[0];
+  EXPECT_EQ(first_site.origin.host(), GURL(kThirdPartyUrl).host());
+  EXPECT_EQ(first_site.setting, CONTENT_SETTING_ALLOW);
+  // False due to first-party storage being accessed.
+  EXPECT_EQ(first_site.is_fully_partitioned, false);
 }
 
 TEST_F(PageSpecificSiteDataDialogUnitTest, TrustTokenAccessed) {
@@ -385,30 +703,28 @@ TEST_F(PageSpecificSiteDataDialogUnitTest, RemovePartitionedStorage) {
       std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
   // Remove origins from the dialog.
   RunDeleteStoredObjects(delegate.get(), exampleUrlOrigin);
-  // Verify that the data remover was called.
-  auto* remover = profile()->GetBrowsingDataRemover();
-  EXPECT_EQ(content::BrowsingDataRemover::DATA_TYPE_DOM_STORAGE,
-            remover->GetLastUsedRemovalMaskForTesting());
-  EXPECT_EQ(base::Time::Min(), remover->GetLastUsedBeginTimeForTesting());
-  EXPECT_EQ(content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
-            remover->GetLastUsedOriginTypeMaskForTesting());
+  // Verify that the data was removed.
+  ValidateAllowedUnpartitionedSites(delegate.get(), {});
 }
 
 TEST_F(PageSpecificSiteDataDialogUnitTest, ServiceWorkerAccessed) {
   // Verify that site data access through CookiesTreeModel is correctly
   // displayed in the dialog.
   auto* content_settings = GetContentSettings();
-
+  auto current_url = GURL(kCurrentUrl);
   content_settings->OnServiceWorkerAccessed(
-      GURL(kCurrentUrl), content::AllowServiceWorkerResult::Yes());
+      current_url, CreateUnpartitionedStorageKey(current_url),
+      content::AllowServiceWorkerResult::Yes());
+  auto third_party_url = GURL(kThirdPartyUrl);
   content_settings->OnServiceWorkerAccessed(
-      GURL(kThirdPartyUrl), content::AllowServiceWorkerResult::Yes());
+      third_party_url, CreateUnpartitionedStorageKey(third_party_url),
+      content::AllowServiceWorkerResult::Yes());
 
   auto delegate =
       std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());
 
   ValidateAllowedUnpartitionedSites(delegate.get(),
-                                    {GURL(kCurrentUrl), GURL(kThirdPartyUrl)});
+                                    {current_url, third_party_url});
 }
 
 class PageSpecificSiteDataDialogStorageUnitTest
@@ -420,10 +736,12 @@ TEST_P(PageSpecificSiteDataDialogStorageUnitTest, StorageAccessed) {
   // displayed in the dialog.
   auto* content_settings = GetContentSettings();
 
-  content_settings->OnStorageAccessed(GetParam(), GURL(kCurrentUrl),
-                                      /*blocked_by_policy=*/false);
-  content_settings->OnStorageAccessed(GetParam(), GURL(kThirdPartyUrl),
-                                      /*blocked_by_policy=*/false);
+  content_settings->OnStorageAccessed(
+      GetParam(), CreateUnpartitionedStorageKey(GURL(kCurrentUrl)),
+      /*blocked_by_policy=*/false);
+  content_settings->OnStorageAccessed(
+      GetParam(), CreateUnpartitionedStorageKey(GURL(kThirdPartyUrl)),
+      /*blocked_by_policy=*/false);
 
   auto delegate =
       std::make_unique<test::PageSpecificSiteDataDialogTestApi>(web_contents());

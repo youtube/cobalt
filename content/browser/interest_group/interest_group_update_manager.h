@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <list>
+#include <map>
 #include <memory>
 
 #include "base/containers/circular_deque.h"
@@ -21,6 +22,7 @@
 #include "content/browser/interest_group/interest_group_update.h"
 #include "content/browser/interest_group/storage_interest_group.h"
 #include "content/common/content_export.h"
+#include "net/base/isolation_info.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
@@ -47,6 +49,9 @@ class InterestGroupManagerImpl;
 // updated recently.
 class CONTENT_EXPORT InterestGroupUpdateManager {
  public:
+  using AreReportingOriginsAttestedCallback =
+      base::RepeatingCallback<bool(const std::vector<url::Origin>&)>;
+
   // `manager` should be the InterestGroupManagerImpl that owns this
   // InterestGroupManager.
   InterestGroupUpdateManager(
@@ -59,7 +64,8 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   // load or validate are skipped, but other updates will proceed.
   void UpdateInterestGroupsOfOwner(
       const url::Origin& owner,
-      network::mojom::ClientSecurityStatePtr client_security_state);
+      network::mojom::ClientSecurityStatePtr client_security_state,
+      AreReportingOriginsAttestedCallback callback);
 
   // Like UpdateInterestGroupsOfOwner(), but handles multiple interest group
   // owners.
@@ -67,7 +73,8 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   // The list is shuffled in-place to ensure fairness.
   void UpdateInterestGroupsOfOwners(
       base::span<url::Origin> owners,
-      network::mojom::ClientSecurityStatePtr client_security_state);
+      network::mojom::ClientSecurityStatePtr client_security_state,
+      AreReportingOriginsAttestedCallback callback);
 
   // For testing *only*; changes the maximum amount of time that the update
   // process can run before it gets cancelled for taking too long.
@@ -96,7 +103,8 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   };
 
   // A queue of interest group owners that require updating, along with the
-  // ClientSecurityState that was used to request those updates.
+  // ClientSecurityState that was used to request those updates and an isolation
+  // info map that stores different NIKs for different joining origins.
   class OwnersToUpdate {
    public:
     OwnersToUpdate();
@@ -126,6 +134,12 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
     // the front of the queue. Requires !Empty().
     void PopFront();
 
+    // Get isolation info by joining origin.
+    // Note that the returned pointer is not guaranteed to be valid after the
+    // next time call of GetIsolationInfoByJoiningOrigin(), due to the map could
+    // be re-allocated to a new address.
+    net::IsolationInfo* GetIsolationInfoByJoiningOrigin(const url::Origin&);
+
     // Removes all queued interest group owners.
     void Clear();
 
@@ -137,6 +151,16 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
     // ClientSecurityState that was used to make the update request.
     base::flat_map<url::Origin, network::mojom::ClientSecurityStatePtr>
         security_state_map_;
+
+    // IsolationInfo map, keyed by `StorageInterestGroup::joining_origin`.
+    // This is used to improve privacy that only the interest groups from same
+    // joining origin can reuse a network isolation key.
+    //
+    // During the update process for all owners, it will create isolation info
+    // for every joining origin and store it in this map. After the update
+    // process is done, the whole map will be erased.
+    std::map<url::Origin, net::IsolationInfo>
+        joining_origin_isolation_info_map_;
   };
 
   // Processes the next set of interest groups to update.
@@ -146,18 +170,20 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   // immediately to avoid duplicating update work.
   void MaybeContinueUpdatingCurrentOwner();
 
-  // Like GetInterestGroupsForOwner(), but doesn't return any interest groups
-  // that are currently rate-limited for updates. Additionally, this will update
-  // the `next_update_after` field such that a subsequent
-  // GetInterestGroupsForUpdate() call with the same `owner` won't return
-  // anything until after the success rate limit period passes.
+  // For a given owner, gets interest group keys along with their update urls.
   void GetInterestGroupsForUpdate(
       const url::Origin& owner,
-      base::OnceCallback<void(std::vector<StorageInterestGroup>)> callback);
+      base::OnceCallback<void(std::vector<InterestGroupUpdateParameter>)>
+          callback);
+
+  // Update interest groups by batch in parallel.
+  void UpdateInterestGroupByBatch(
+      const url::Origin& owner,
+      std::vector<InterestGroupUpdateParameter> update_parameters);
 
   void DidUpdateInterestGroupsOfOwnerDbLoad(
       url::Origin owner,
-      std::vector<StorageInterestGroup> storage_groups);
+      std::vector<InterestGroupUpdateParameter> update_parameters);
   void DidUpdateInterestGroupsOfOwnerNetFetch(
       UrlLoadersList::iterator simple_url_loader,
       blink::InterestGroupKey group_key,
@@ -194,7 +220,9 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   // database.
   raw_ptr<InterestGroupManagerImpl> manager_;
 
-  // ClientSecurityState that was used to request those updates.
+  // A queue of owners to update, with ClientSecurityState that was used to
+  // request those update and isolation info map that is used to store different
+  // NIKs for different joining origins.
   OwnersToUpdate owners_to_update_;
 
   // The number of interest group updates for the current interest group owner
@@ -251,6 +279,9 @@ class CONTENT_EXPORT InterestGroupUpdateManager {
   // All active network requests -- active requests will be cancelled when
   // destroyed.
   UrlLoadersList url_loaders_;
+
+  // For checking if all allowed reporting origins are attested.
+  AreReportingOriginsAttestedCallback attestation_callback_;
 
   // TODO(crbug.com/1186444): Do we need to test InterestGroupManager
   // destruction during update? If so, how?

@@ -16,13 +16,13 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/geo/country_names.h"
 #include "components/autofill/core/browser/test_autofill_clock.h"
 #include "components/autofill/core/browser/webdata/autofill_sync_bridge_util.h"
 #include "components/autofill/core/browser/webdata/autofill_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_backend.h"
 #include "components/autofill/core/browser/webdata/mock_autofill_webdata_backend.h"
 #include "components/autofill/core/common/autofill_constants.h"
+#include "components/sync/base/model_type.h"
 #include "components/sync/model/sync_data.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -43,7 +43,6 @@ using syncer::MockModelTypeChangeProcessor;
 using testing::NiceMock;
 using testing::Return;
 
-const char kLocaleString[] = "en-US";
 const std::string kExpectedClientTagAndStorageKey =
     "VirtualCardUsageData|12345|google|https://www.google.com";
 
@@ -63,7 +62,6 @@ std::vector<VirtualCardUsageData> ExtractVirtualCardUsageDataFromDataBatch(
 class AutofillWalletUsageDataSyncBridgeTest : public testing::Test {
  public:
   void SetUp() override {
-    CountryNames::SetLocaleString(kLocaleString);
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     db_.AddTable(&table_);
     db_.Init(temp_dir_.GetPath().AppendASCII("SyncTestWebDatabase"));
@@ -222,7 +220,8 @@ TEST_F(AutofillWalletUsageDataSyncBridgeTest, ApplyIncrementalSyncChanges) {
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(backend(), CommitChanges());
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_USAGE));
 
   // `ApplyIncrementalSyncChanges()` returns an error if it fails.
   EXPECT_FALSE(bridge()->ApplyIncrementalSyncChanges(
@@ -247,7 +246,8 @@ TEST_F(AutofillWalletUsageDataSyncBridgeTest, ApplyIncrementalSyncChanges) {
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(backend(), CommitChanges());
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_USAGE));
 
   // `ApplyIncrementalSyncChanges()` returns an error if it fails.
   EXPECT_FALSE(bridge()->ApplyIncrementalSyncChanges(
@@ -272,7 +272,8 @@ TEST_F(AutofillWalletUsageDataSyncBridgeTest, ApplyDisableSyncChanges) {
             absl::nullopt);
 
   EXPECT_CALL(backend(), CommitChanges());
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges());
+  EXPECT_CALL(backend(),
+              NotifyOnAutofillChangedBySync(syncer::AUTOFILL_WALLET_USAGE));
 
   bridge()->ApplyDisableSyncChanges(/*delete_metadata_change_list=*/
                                     bridge()->CreateMetadataChangeList());

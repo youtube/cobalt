@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,8 @@
 
 namespace web_app {
 
-WebAppIconDiagnostic::WebAppIconDiagnostic(Profile* profile, AppId app_id)
+WebAppIconDiagnostic::WebAppIconDiagnostic(Profile* profile,
+                                           webapps::AppId app_id)
     : profile_(profile),
       app_id_(std::move(app_id)),
       provider_(WebAppProvider::GetForLocalAppsUnchecked(profile_.get())),

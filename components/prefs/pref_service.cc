@@ -16,6 +16,7 @@
 #include "base/functional/bind.h"
 #include "base/json/values_util.h"
 #include "base/location.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram.h"
 #include "base/notreached.h"
@@ -242,6 +243,22 @@ base::Value::Dict PrefService::GetPreferenceValues(
   return out;
 }
 
+std::vector<PrefService::PreferenceValueAndStore>
+PrefService::GetPreferencesValueAndStore() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::vector<PreferenceValueAndStore> result;
+  for (const auto& it : *pref_registry_) {
+    auto* preference = FindPreference(it.first);
+    CHECK(preference);
+    PreferenceValueAndStore pref_data{
+        it.first, preference->GetValue()->Clone(),
+        pref_value_store_->ControllingPrefStoreForPref(it.first)};
+    result.emplace_back(std::move(pref_data));
+  }
+  return result;
+}
+
 const PrefService::Preference* PrefService::FindPreference(
     const std::string& pref_name) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -427,7 +444,7 @@ void PrefService::SetDouble(const std::string& path, double value) {
   SetUserPrefValue(path, base::Value(value));
 }
 
-void PrefService::SetString(const std::string& path, const std::string& value) {
+void PrefService::SetString(const std::string& path, base::StringPiece value) {
   SetUserPrefValue(path, base::Value(value));
 }
 
@@ -644,13 +661,6 @@ const base::Value* PrefService::GetPreferenceValue(
     base::StringPiece path) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(battre): This is a check for crbug.com/435208. After analyzing some
-  // crash dumps it looks like the PrefService is accessed even though it has
-  // been cleared already.
-  CHECK(pref_registry_);
-  CHECK(pref_registry_->defaults());
-  CHECK(pref_value_store_);
-
   const base::Value* default_value = nullptr;
   if (!pref_registry_->defaults()->GetValue(path, &default_value))
     return nullptr;
@@ -677,11 +687,21 @@ const base::Value* PrefService::GetPreferenceValueChecked(
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 void PrefService::SetStandaloneBrowserPref(const std::string& path,
                                            const base::Value& value) {
+  if (!standalone_browser_pref_store_) {
+    LOG(WARNING) << "Failure to set value of " << path
+                 << " in standalone browser store";
+    return;
+  }
   standalone_browser_pref_store_->SetValue(
       path, value.Clone(), WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
 }
 
 void PrefService::RemoveStandaloneBrowserPref(const std::string& path) {
+  if (!standalone_browser_pref_store_) {
+    LOG(WARNING) << "Failure to remove value of " << path
+                 << " in standalone browser store";
+    return;
+  }
   standalone_browser_pref_store_->RemoveValue(
       path, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
 }

@@ -13,7 +13,6 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
-#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "third_party/icu/source/i18n/unicode/gregocal.h"
@@ -220,8 +219,9 @@ std::unique_ptr<icu::Calendar> ConvertUtcToTzIcuTime(base::Time cur_time,
   }
   // Erase current time from the calendar.
   cal_tz->clear();
-  // Use Time::ToJavaTime() to get ms since epoch in int64_t format.
-  cal_tz->setTime(cur_time.ToJavaTime(), status);
+  // Use Time::InMillisecondsSinceUnixEpoch() to get ms since epoch in int64_t
+  // format.
+  cal_tz->setTime(cur_time.InMillisecondsSinceUnixEpoch(), status);
   if (U_FAILURE(status)) {
     LOG(ERROR) << "Couldn't create calendar";
     return nullptr;
@@ -263,13 +263,6 @@ std::unique_ptr<icu::Calendar> CalculateNextScheduledTimeAfter(
   DCHECK(IsAfter(*scheduled_task_time, time));
 
   return scheduled_task_time;
-}
-
-base::TimeDelta GenerateRandomDelay(int max_delay_in_seconds) {
-  int64_t max_delay_in_ms = max_delay_in_seconds * 1000;
-  int64_t random_delay =
-      static_cast<int64_t>(base::RandGenerator(max_delay_in_ms));
-  return base::Milliseconds(random_delay);
 }
 
 // Returns grace from commandline if present and valid. Returns default grace

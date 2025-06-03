@@ -60,8 +60,7 @@ void ShowWarningOnOpenOperationResult(Profile* profile,
   Browser* browser = chrome::FindTabbedBrowser(profile, false);
   chrome::ShowWarningMessageBox(
       browser ? browser->window()->GetNativeWindow() : nullptr,
-      l10n_util::GetStringFUTF16(IDS_FILE_BROWSER_ERROR_VIEWING_FILE_TITLE,
-                                 path.BaseName().AsUTF16Unsafe()),
+      path.BaseName().AsUTF16Unsafe(),
       l10n_util::GetStringUTF16(message_id));
 }
 
@@ -104,7 +103,12 @@ void OpenExternal(Profile* profile, const GURL& url) {
   // previously been accepted with "Always allow ..." and this is called from
   // ChromeContentBrowserClient::HandleExternalProtocol.
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  guest_os::Launch(profile, url);
+
+  absl::optional<guest_os::GuestOsUrlHandler> handler =
+      guest_os::GuestOsUrlHandler::GetForUrl(profile, url);
+  if (handler) {
+    handler->Handle(profile, url);
+  }
 }
 
 bool IsBrowserLockedFullscreen(const Browser* browser) {

@@ -129,7 +129,6 @@ class AutofillDownloadManager {
  protected:
   AutofillDownloadManager(AutofillClient* client,
                           const std::string& api_key,
-                          bool is_raw_metadata_uploading_enabled,
                           LogManager* log_manager);
 
   // Gets the length of the payload from request data. Used to simulate
@@ -203,7 +202,7 @@ class AutofillDownloadManager {
   const std::string api_key_;
 
   // Access to leave log messages for chrome://autofill-internals, may be null.
-  const raw_ptr<LogManager, DanglingUntriaged> log_manager_;  // WEAK
+  const raw_ptr<LogManager> log_manager_;  // WEAK
 
   // The autofill server URL root: scheme://host[:port]/path excluding the
   // final path component for the request and the query params.
@@ -224,10 +223,6 @@ class AutofillDownloadManager {
 
   // Used for exponential backoff of requests.
   net::BackoffEntry loader_backoff_;
-
-  // Whether form data (e.g. form and field names) can be uploaded in clear
-  // text.
-  bool is_raw_metadata_uploading_enabled_ = false;
 
   base::WeakPtrFactory<AutofillDownloadManager> weak_factory_{this};
 };

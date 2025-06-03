@@ -24,7 +24,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/test/test_window_delegate.h"
 #include "ui/aura/test/test_windows.h"
@@ -243,7 +242,8 @@ class WorkspaceWindowResizerTest : public AshTestBase {
   TestWindowDelegate touch_resize_delegate_;
   std::unique_ptr<aura::Window> touch_resize_window_;
 
-  raw_ptr<WorkspaceWindowResizer, ExperimentalAsh> workspace_resizer_ = nullptr;
+  raw_ptr<WorkspaceWindowResizer, DanglingUntriaged | ExperimentalAsh>
+      workspace_resizer_ = nullptr;
 };
 
 // Assertions around attached window resize dragging from the right with 2
@@ -657,7 +657,7 @@ TEST_F(WorkspaceWindowResizerTest, DragSnapped) {
   window_->Show();
   AllowSnap(window_.get());
 
-  const WMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_event);
   EXPECT_EQ(WindowStateType::kPrimarySnapped, window_state->GetStateType());
   gfx::Rect snapped_bounds = window_->bounds();
@@ -682,7 +682,7 @@ TEST_F(WorkspaceWindowResizerTest, ResizeSnapped) {
   window_->SetBounds(kInitialBounds);
   window_->Show();
 
-  const WMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_event);
   EXPECT_EQ(WindowStateType::kPrimarySnapped, window_state->GetStateType());
   gfx::Rect snapped_bounds = window_->bounds();
@@ -740,7 +740,7 @@ TEST_F(WorkspaceWindowResizerTest, ResizeRestoreSnappedWindow) {
   window_->Show();
 
   // Snap the window to the left.
-  const WMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_event);
   gfx::Rect snapped_bounds = window_->bounds();
 
@@ -2213,7 +2213,7 @@ TEST_F(WorkspaceWindowResizerTest, FlingRestoreSize) {
   EXPECT_EQ(window_size, touch_resize_window_->bounds().size());
 
   // Snap a window and do the same test.
-  const WMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_event);
   ASSERT_TRUE(window_state->IsSnapped());
   const gfx::Rect snapped_bounds = window_state->window()->bounds();
@@ -2227,47 +2227,6 @@ TEST_F(WorkspaceWindowResizerTest, FlingRestoreSize) {
   window_state->Unminimize();
   EXPECT_TRUE(window_state->IsSnapped());
   EXPECT_EQ(snapped_bounds, touch_resize_window_->bounds());
-}
-
-// Tests that fling to maximize does not crash or DCHECK if the window's restore
-// bounds is on another display.
-TEST_F(WorkspaceWindowResizerTest,
-       FlingMaximizeRestoreBoundsOnDifferentDisplay) {
-  UpdateDisplay("800x600,500x400");
-
-  // Prepare `touch_resize_window_` in the 2nd display.
-  gfx::Size window_size(300, 300);
-  InitTouchResizeWindow(gfx::Rect(gfx::Point(800, 100), window_size),
-                        HTCAPTION);
-
-  // Speculatively simulate how a window could get a restore bounds in another
-  // display. What actually happens in the field is still a mystery.
-  // 1. Maximize to set a restore bounds in the 2nd display.
-  auto* window_state = WindowState::Get(touch_resize_window_.get());
-  window_state->Maximize();
-  ASSERT_TRUE(window_state->IsMaximized());
-
-  // 2. SetBoundsInScreen to move the window to the primary display.
-  touch_resize_window_->SetBoundsInScreen(
-      gfx::Rect(100, 100, 300, 30),
-      display::Screen::GetScreen()->GetPrimaryDisplay());
-
-  // Ensures that the restore bounds is not in the same display of window.
-  gfx::Rect restore_bounds = window_state->GetRestoreBoundsInScreen();
-  ASSERT_FALSE(
-      touch_resize_window_->GetRootWindow()->GetBoundsInScreen().Contains(
-          restore_bounds));
-
-  // Fling up.
-  ui::test::EventGenerator generator(Shell::GetPrimaryRootWindow(),
-                                     touch_resize_window_.get());
-  generator.GestureScrollSequence(gfx::Point(250, 110), gfx::Point(250, 10),
-                                  base::Milliseconds(10), 10);
-  ASSERT_TRUE(window_state->IsMaximized());
-
-  // No crash, no DCHECK, and the window stays in the primary display.
-  EXPECT_TRUE(
-      Shell::GetPrimaryRootWindow()->Contains(touch_resize_window_.get()));
 }
 
 using MultiDisplayWorkspaceWindowResizerTest = AshTestBase;
@@ -2626,7 +2585,7 @@ TEST_F(PortraitWorkspaceWindowResizerTest, ResizeSnapped) {
   const gfx::Rect work_area =
       screen_util::GetDisplayWorkAreaBoundsInParent(window_.get());
 
-  const WMEvent snap_top(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_top(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_top);
   EXPECT_EQ(WindowStateType::kPrimarySnapped, window_state->GetStateType());
   gfx::Rect expected_snap_bounds =

@@ -83,30 +83,16 @@ inline bool UseV4L2Codec() {
 #endif
 }
 
-inline bool UseLibV4L2() {
-#if BUILDFLAG(USE_V4L2_CODEC)
-  return media::V4L2Device::UseLibV4L2();
-#else
-  return false;
-#endif
-}
-
 #if BUILDFLAG(IS_CHROMEOS) && defined(__aarch64__)
 static const char kLibGlesPath[] = "/usr/lib64/libGLESv2.so.2";
 static const char kLibEglPath[] = "/usr/lib64/libEGL.so.1";
 static const char kLibMaliPath[] = "/usr/lib64/libmali.so";
 static const char kLibTegraPath[] = "/usr/lib64/libtegrav4l2.so";
-static const char kLibV4l2Path[] = "/usr/lib64/libv4l2.so";
-static const char kLibV4lEncPluginPath[] =
-    "/usr/lib64/libv4l/plugins/libv4l-encplugin.so";
 #else
 static const char kLibGlesPath[] = "/usr/lib/libGLESv2.so.2";
 static const char kLibEglPath[] = "/usr/lib/libEGL.so.1";
 static const char kLibMaliPath[] = "/usr/lib/libmali.so";
 static const char kLibTegraPath[] = "/usr/lib/libtegrav4l2.so";
-static const char kLibV4l2Path[] = "/usr/lib/libv4l2.so";
-static const char kLibV4lEncPluginPath[] =
-    "/usr/lib/libv4l/plugins/libv4l-encplugin.so";
 #endif
 
 constexpr int dlopen_flag = RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE;
@@ -178,6 +164,22 @@ void AddV4L2GpuPermissions(
   // Device node for V4L2 JPEG encode accelerator drivers.
   static const char kDevJpegEncPath[] = "/dev/jpeg-enc";
   permissions->push_back(BrokerFilePermission::ReadWrite(kDevJpegEncPath));
+
+  // Additional device nodes for V4L2 JPEG decode encode accelerator drivers,
+  // as ChromeOS can have both /dev/jpeg-dec and /dev/jpeg-decN naming styles.
+  // See comments above for why we don't use a FileEnumerator.
+  static constexpr size_t MAX_V4L2_JPEG_NODES = 5;
+  for (size_t i = 0; i < MAX_V4L2_JPEG_NODES; i++) {
+    std::ostringstream jpegDecPath;
+    jpegDecPath << kDevJpegDecPath << i;
+    permissions->push_back(
+        BrokerFilePermission::ReadWrite(jpegDecPath.str()));
+
+    std::ostringstream jpegEncPath;
+    jpegEncPath << kDevJpegEncPath << i;
+    permissions->push_back(
+        BrokerFilePermission::ReadWrite(jpegEncPath.str()));
+  }
 
   if (UseChromecastSandboxAllowlist()) {
     static const char kAmlogicAvcEncoderPath[] = "/dev/amvenc_avc";
@@ -607,29 +609,9 @@ void LoadVulkanLibraries() {
   // Try to preload Vulkan libraries. Failure is not an error as not all may be
   // present.
   dlopen("libvulkan.so.1", dlopen_flag);
-  dlopen("libvulkan_radeon.so ", dlopen_flag);
+  dlopen("libvulkan_radeon.so", dlopen_flag);
   dlopen("libvulkan_intel.so", dlopen_flag);
   dlopen("libGLX_nvidia.so.0", dlopen_flag);
-}
-
-bool IsAcceleratedVideoEnabled(
-    const sandbox::policy::SandboxSeccompBPF::Options& options) {
-  return options.accelerated_video_encode_enabled ||
-         options.accelerated_video_decode_enabled;
-}
-
-void LoadV4L2Libraries(
-    const sandbox::policy::SandboxSeccompBPF::Options& options) {
-  DCHECK(UseV4L2Codec());
-
-  if (IsAcceleratedVideoEnabled(options) && UseLibV4L2()) {
-    dlopen(kLibV4l2Path, dlopen_flag);
-
-    if (options.accelerated_video_encode_enabled) {
-      // This is a device-specific encoder plugin.
-      dlopen(kLibV4lEncPluginPath, dlopen_flag);
-    }
-  }
 }
 
 void LoadChromecastV4L2Libraries() {
@@ -648,8 +630,6 @@ bool LoadLibrariesForGpu(
     LoadArmGpuLibraries();
   }
   if (IsChromeOS()) {
-    if (UseV4L2Codec())
-      LoadV4L2Libraries(options);
     if (options.use_amd_specific_policies) {
       if (!LoadAmdGpuLibraries())
         return false;

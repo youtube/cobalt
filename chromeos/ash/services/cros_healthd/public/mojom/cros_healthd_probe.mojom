@@ -368,7 +368,7 @@ union BlockDeviceInfo {
 
 // Information related to a specific non-removable block device.
 //
-// NextMinVersion: 2, NextIndex: 18
+// NextMinVersion: 3, NextIndex: 19
 [Stable]
 struct NonRemovableBlockDeviceInfo {
   // IO statistics
@@ -422,6 +422,8 @@ struct NonRemovableBlockDeviceInfo {
   uint8 manufacturer_id@15;
   // PSN: Product serial number, 32 bits
   uint32 serial@16;
+  // String representatil of the device FW version
+  [MinVersion=2] string? firmware_string@18;
 };
 
 // CPU probe result. Can either be populated with the CpuInfo or an error
@@ -757,9 +759,9 @@ union StatefulPartitionResult {
 // NextMinVersion: 1, NextIndex: 4
 [Stable]
 struct StatefulPartitionInfo {
-  // Available space for user data storage in the device in bytes.
+  // Available space in bytes for stateful partition.
   uint64 available_space@0;
-  // Total space for user data storage in the device in bytes.
+  // Total space in bytes for stateful partition.
   uint64 total_space@1;
   // File system on stateful partition. e.g. ext4.
   string filesystem@2;
@@ -802,14 +804,14 @@ struct BluetoothAdapterInfo {
   [MinVersion=1] string? modalias@8;
   // List of allowed system devices.
   [MinVersion=2] array<string>? service_allow_list@9;
-  // A dictionary of supported capabilities.
-  [MinVersion=2] SupportedCapabilities? supported_capabilities@10;
+  // A dictionary of supported capabilities. DEPRECATED.
+  [MinVersion=2] DEPRECATED_SupportedCapabilities? deprecated_capabilities@10;
 };
 
 
 // Information related to one of a adapter's Bluetooth connected devices.
 //
-// NextMinVersion: 2, NextIndex: 9
+// NextMinVersion: 3, NextIndex: 10
 [Stable]
 struct BluetoothDeviceInfo {
   // The MAC address of the device.
@@ -830,6 +832,8 @@ struct BluetoothDeviceInfo {
   array<string>? uuids@7;
   // The battery percentage of the device.
   [MinVersion=1] NullableUint8? battery_percentage@8;
+  // The Bluetooth class of device (CoD) of the device.
+  [MinVersion=2] NullableUint32? bluetooth_class@9;
 };
 
 // An enumeration of type in Bluetooth device info.
@@ -849,24 +853,13 @@ enum BluetoothDeviceType {
   kDual = 4,
 };
 
-// Supported Capabilities related information.
-//
-// NextMinVersion: 1, NextIndex: 4
+// Supported Capabilities related information. DEPRECATED.
 [Stable]
-struct SupportedCapabilities {
-  // Max advertising data length.
-  uint8 max_adv_len@0;
-  // Max advertising scan response length.
-  uint8 max_scn_rsp_len@1;
-  // Min advertising tx power (dBm).
-  int16 min_tx_power@2;
-  // Max advertising tx power (dBm).
-  int16 max_tx_power@3;
-};
+struct DEPRECATED_SupportedCapabilities {};
 
 // System probe result. DEPRECATED.
 [Stable]
-union DEPRECATE_SystemResult { ProbeError error; };
+union DEPRECATED_SystemResult { ProbeError error; };
 
 // System probe result. Can either be populated with the SystemInfo or an error
 // retrieving the information.
@@ -1030,7 +1023,7 @@ struct DmiInfo {
 struct PsrEvent {
   // PSR event types.
   //
-  // NextMinVersion: 1, NextIndex: 6
+  // NextMinVersion: 2, NextIndex: 11
   [Stable, Extensible]
   enum EventType {
     // An enum value not defined in this version of the enum definition.
@@ -1045,7 +1038,16 @@ struct PsrEvent {
     kPrtcFailure = 4,
     // Secure Version Number increased.
     kSvnIncrease = 5,
-
+    // Missing event file.
+    [MinVersion=1] kMissing = 6,
+    // Invalid event.
+    [MinVersion=1] kInvalid = 7,
+    // Entered into CSME DAM state.
+    [MinVersion=1] kCsmeDamState = 8,
+    // CSME Unlocked state for debugging.
+    [MinVersion=1] kCsmeUnlockState = 9,
+    // FW Version Changed.
+    [MinVersion=1] kFwVersionChanged = 10,
   };
   EventType type@0;
 
@@ -1057,7 +1059,7 @@ struct PsrEvent {
 
 // Platform Service Record (PSR) information.
 //
-// NextMinVersion: 1, NextIndex: 15
+// NextMinVersion: 2, NextIndex: 16
 [Stable]
 struct PsrInfo {
   // The PSR log state.
@@ -1105,6 +1107,8 @@ struct PsrInfo {
   uint32 warm_reset_counter@13;
   // First 100 PSR events that have been saved.
   array<PsrEvent> events@14;
+  // Is PSR supported.
+  [MinVersion=1] bool is_supported@15;
 };
 
 // Network probe result. Can either be populated with the NetworkHealthSnapshot
@@ -1275,10 +1279,11 @@ union BootPerformanceResult {
 
 // Boot performance information.
 //
-// NextMinVersion: 2, NextIndex: 6
+// NextMinVersion: 3, NextIndex: 11
 [Stable]
 struct BootPerformanceInfo {
-  // Total time since power on to login screen prompt.
+  // Total time of [power on, boot up complete], a.k.a. boot up time.
+  // Boot up complete event is fired when login screen is shown.
   double boot_up_seconds@0;
   // The timestamp when power on.
   double boot_up_timestamp@1;
@@ -1292,6 +1297,16 @@ struct BootPerformanceInfo {
   string shutdown_reason@4;
   // TPM initialization time.
   [MinVersion=1] NullableDouble? tpm_initialization_seconds@5;
+  // Total time of [power on, jump to kernel], a.k.a. firmware time.
+  [MinVersion=2] double? power_on_to_kernel_seconds@6;
+  // Total time of [jump to kernel, pre start up], a.k.a. kernel time.
+  [MinVersion=2] double? kernel_to_pre_startup_seconds@7;
+  // Total time of [jump to kernel, post start up].
+  [MinVersion=2] double? kernel_to_post_startup_seconds@8;
+  // Total time of [start up, chrome exec], a.k.a. system time.
+  [MinVersion=2] double? startup_to_chrome_exec_seconds@9;
+  // Total time of [chrome exec, login screen prompt], a.k.a. chrome time.
+  [MinVersion=2] double? chrome_exec_to_login_seconds@10;
 };
 
 // Bus probe result. Can either be populated with the BusDevice or an error
@@ -1354,7 +1369,7 @@ union BusInfo {
 
 // The info related to pci.
 //
-// NextMinVersion: 1, NextIndex: 6
+// NextMinVersion: 2, NextIndex: 8
 [Stable]
 struct PciBusInfo {
   // These fields can be used to classify / identify the pci devices. See the
@@ -1368,6 +1383,11 @@ struct PciBusInfo {
   // is registered in the kernel. See "{kernel root}/drivers/". for the list of
   // the built in drivers.
   string? driver@5;
+  // These fields can be used to classify / identify the pci subsystem devices.
+  // See the pci.ids database for the values. (https://github.com/gentoo/hwids)
+  // Note that not every device has these fields.
+  [MinVersion=1] NullableUint16? sub_vendor_id@6;
+  [MinVersion=1] NullableUint16? sub_device_id@7;
 };
 
 // The info related to usb.
@@ -1479,9 +1499,9 @@ enum UsbSpecSpeed {
   k1_5Mbps = 2,
   // Full speed.
   k12Mbps = 3,
-  // Deprecate. Should be a typo in
+  // Deprecated. Should be a typo in
   // https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-usb.
-  kDeprecateSpeed = 4,
+  kDeprecatedSpeed = 4,
   // High Speed.
   k480Mbps = 5,
   // Super Speed.
@@ -1695,9 +1715,9 @@ union DisplayResult {
 [Stable]
 struct DisplayInfo {
   // Embedded display info.
-  EmbeddedDisplayInfo edp_info@0;
+  EmbeddedDisplayInfo embedded_display@0;
   // External display info.
-  [MinVersion=1] array<ExternalDisplayInfo>? dp_infos@1;
+  [MinVersion=1] array<ExternalDisplayInfo>? external_displays@1;
 };
 
 // NextMinVersion: 3, NextIndex: 15
@@ -1999,7 +2019,7 @@ struct TelemetryInfo {
   // when kBluetooth was included in the categories input to ProbeTelemetryInfo.
   BluetoothResult? bluetooth_result@8;
   // Information about the system. DEPRECATED.
-  DEPRECATE_SystemResult? deprecate_system_result@9;
+  DEPRECATED_SystemResult? deprecated_system_result@9;
   // Information about the networking devices and associated networks of the
   // system. Only present when kNetwork was included in the categories input to
   // ProbeTelemetryInfo.

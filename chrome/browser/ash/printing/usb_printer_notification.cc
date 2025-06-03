@@ -6,6 +6,7 @@
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/notifications/notification_display_service.h"
@@ -13,7 +14,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -44,7 +44,7 @@ UsbPrinterNotification::UsbPrinterNotification(
   message_center::RichNotificationData rich_notification_data;
   rich_notification_data.vector_small_image = &kNotificationPrintingIcon;
   if (chromeos::features::IsJellyEnabled()) {
-    rich_notification_data.accent_color_id = cros_tokens::kCrosSysOnPrimary;
+    rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
   } else {
     rich_notification_data.accent_color = ash::kSystemNotificationColorNormal;
   }

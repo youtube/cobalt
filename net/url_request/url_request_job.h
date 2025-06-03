@@ -42,7 +42,7 @@ class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 struct LoadTimingInfo;
-class ProxyServer;
+class ProxyChain;
 class SSLCertRequestInfo;
 class SSLInfo;
 class SSLPrivateKey;
@@ -252,6 +252,11 @@ class NET_EXPORT URLRequestJob {
   virtual void SetEarlyResponseHeadersCallback(
       ResponseHeadersCallback callback) {}
 
+  // Set a callback that will be invoked when a matching shared dictionary is
+  // available to determine whether it is allowed to use the dictionary.
+  virtual void SetIsSharedDictionaryReadAllowedCallback(
+      base::RepeatingCallback<bool()> callback) {}
+
   // Causes the current transaction always close its active socket on
   // destruction. Does not close H2/H3 sessions.
   virtual void CloseConnectionOnDestruction();
@@ -285,7 +290,8 @@ class NET_EXPORT URLRequestJob {
 
   // Delegates to URLRequest.
   bool CanSetCookie(const net::CanonicalCookie& cookie,
-                    CookieOptions* options) const;
+                    CookieOptions* options,
+                    CookieInclusionStatus* inclusion_status) const;
 
   // Notifies the job that headers have been received.
   void NotifyHeadersComplete();
@@ -334,8 +340,8 @@ class NET_EXPORT URLRequestJob {
   // or nullptr on error.
   virtual std::unique_ptr<SourceStream> SetUpSourceStream();
 
-  // Set the proxy server that was used, if any.
-  void SetProxyServer(const ProxyServer& proxy_server);
+  // Set the proxy chain that was used, if any.
+  void SetProxyChain(const ProxyChain& proxy_chain);
 
   // The number of bytes read after passing through the filter. This value
   // reflects bytes read even when there is no filter.

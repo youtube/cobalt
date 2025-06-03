@@ -176,6 +176,8 @@ bool NetworkState::PropertyChanged(const std::string& key,
     return GetIntegerValue(key, value, &priority_);
   } else if (key == shill::kWifiHiddenSsid) {
     return GetBooleanValue(key, value, &hidden_ssid_);
+  } else if (key == shill::kPasspointIDProperty) {
+    return GetStringValue(key, value, &passpoint_id_);
   } else if (key == shill::kOutOfCreditsProperty) {
     return GetBooleanValue(key, value, &cellular_out_of_credits_);
   } else if (key == shill::kIccidProperty) {
@@ -309,8 +311,8 @@ void NetworkState::GetStateProperties(base::Value::Dict* dictionary) const {
     // Shill sends VPN provider properties in a nested dictionary. |dictionary|
     // must replicate that nested structure.
     std::string provider_type = vpn_provider()->type;
-    base::Value::Dict provider_property;
-    provider_property.Set(shill::kTypeProperty, provider_type);
+    auto provider_property =
+        base::Value::Dict().Set(shill::kTypeProperty, provider_type);
     if (provider_type == shill::kProviderThirdPartyVpn ||
         provider_type == shill::kProviderArcVpn) {
       provider_property.Set(shill::kHostProperty, vpn_provider()->id);
@@ -471,7 +473,7 @@ bool NetworkState::IndicateRoaming() const {
 }
 
 bool NetworkState::IsDynamicWep() const {
-  return security_class_ == shill::kSecurityWep &&
+  return security_class_ == shill::kSecurityClassWep &&
          eap_key_mgmt_ == shill::kKeyManagementIEEE8021X;
 }
 
@@ -511,7 +513,8 @@ bool NetworkState::IsPrivate() const {
 }
 
 bool NetworkState::IsNonShillCellularNetwork() const {
-  return type() == shill::kTypeCellular && IsStubCellularServicePath(path());
+  return type() == shill::kTypeCellular &&
+         cellular_utils::IsStubCellularServicePath(path());
 }
 
 NetworkState::PortalState NetworkState::GetPortalState() const {
@@ -520,7 +523,8 @@ NetworkState::PortalState NetworkState::GetPortalState() const {
 }
 
 bool NetworkState::IsSecure() const {
-  return !security_class_.empty() && security_class_ != shill::kSecurityNone;
+  return !security_class_.empty() &&
+         security_class_ != shill::kSecurityClassNone;
 }
 
 std::string NetworkState::GetHexSsid() const {
@@ -672,7 +676,7 @@ std::unique_ptr<NetworkState> NetworkState::CreateNonShillCellularNetwork(
     const std::string& guid,
     bool is_managed,
     const std::string& cellular_device_path) {
-  std::string path = GenerateStubCellularServicePath(iccid);
+  std::string path = cellular_utils::GenerateStubCellularServicePath(iccid);
   auto new_state = std::make_unique<NetworkState>(path);
   new_state->set_type(shill::kTypeCellular);
   new_state->set_update_received();
@@ -756,11 +760,11 @@ void NetworkState::SetVpnProvider(const std::string& id,
 }
 
 std::ostream& operator<<(std::ostream& out,
-                         const NetworkState::PortalState& state) {
-  using PortalState = NetworkState::PortalState;
+                         const NetworkState::PortalState state) {
+  using State = NetworkState::PortalState;
   switch (state) {
-#define PRINT(s)          \
-  case PortalState::k##s: \
+#define PRINT(s)    \
+  case State::k##s: \
     return out << #s;
     PRINT(Unknown)
     PRINT(Online)
@@ -772,7 +776,28 @@ std::ostream& operator<<(std::ostream& out,
   }
 
   return out << "PortalState("
-             << static_cast<std::underlying_type_t<PortalState>>(state) << ")";
+             << static_cast<std::underlying_type_t<State>>(state) << ")";
+}
+
+std::ostream& operator<<(std::ostream& out,
+                         const NetworkState::NetworkTechnologyType type) {
+  using Type = NetworkState::NetworkTechnologyType;
+  switch (type) {
+#define PRINT(s)   \
+  case Type::k##s: \
+    return out << #s;
+    PRINT(Cellular)
+    PRINT(Ethernet)
+    PRINT(EthernetEap)
+    PRINT(WiFi)
+    PRINT(Tether)
+    PRINT(VPN)
+    PRINT(Unknown)
+#undef PRINT
+  }
+
+  return out << "NetworkTechnologyType("
+             << static_cast<std::underlying_type_t<Type>>(type) << ")";
 }
 
 }  // namespace ash

@@ -8,10 +8,11 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_view.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/views/view_observer.h"
 
@@ -56,6 +57,38 @@ class ViewDeletedWaiter : public ::views::ViewObserver {
   base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
 };
 
+// Waits until `expected_url` is loaded in `web_view`. Supports the case when
+// the page load happens in a different `content::WebContents` than the one
+// displayed at the moment we start waiting.
+class PickerLoadStopWaiter : public content::WebContentsObserver {
+ public:
+  enum class Mode {
+    kWaitUntilUrlLoaded,
+    kCheckUrlAtNextLoad,
+  };
+
+  PickerLoadStopWaiter(views::WebView* web_view,
+                       const GURL& expected_url,
+                       Mode wait_mode = Mode::kWaitUntilUrlLoaded);
+
+  // content::WebContentsObserver:
+  void DidStopLoading() override;
+
+  // Waits until the navigation is completed.
+  void Wait();
+
+ private:
+  void OnWebContentsAttached(views::WebView* web_view);
+  bool ShouldKeepWaiting() const;
+
+  const raw_ref<views::WebView> web_view_;
+  const GURL expected_url_;
+  const Mode wait_mode_;
+
+  base::RunLoop run_loop_;
+  base::CallbackListSubscription web_contents_attached_subscription_;
+};
+
 // View intended to be used in pixel tests to render a specific step in the
 // Profile Picker view.
 // Unlike the classic `ProfilePickerView`, this one does not interact with the
@@ -81,9 +114,6 @@ class ProfileManagementStepTestView : public ProfilePickerView {
   std::unique_ptr<ProfileManagementFlowController> CreateFlowController(
       Profile* picker_profile,
       ClearHostClosure clear_host_callback) override;
-
-  void OnNativeWidgetSizeChanged(const gfx::Size& new_size) override;
-  gfx::Size CalculatePreferredSize() const override;
 
  private:
   const ProfileManagementFlowController::Step step_;

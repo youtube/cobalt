@@ -30,7 +30,8 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_decoder_support.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
-#include "third_party/blink/renderer/modules/webcodecs/allow_shared_buffer_source_util.h"
+#include "third_party/blink/renderer/modules/webcodecs/array_buffer_util.h"
+#include "third_party/blink/renderer/modules/webcodecs/decrypt_config_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/encoded_video_chunk.h"
 #include "third_party/blink/renderer/modules/webcodecs/gpu_factories_retriever.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_color_space.h"
@@ -93,6 +94,11 @@ void DecoderSupport_OnKnown(
 bool ParseCodecString(const String& codec_string,
                       media::VideoType& out_video_type,
                       String& js_error_message) {
+  if (codec_string.LengthWithStrippedWhiteSpace() == 0) {
+    js_error_message = "Invalid codec; codec is required.";
+    return false;
+  }
+
   bool is_codec_ambiguous = true;
   media::VideoCodec codec = media::VideoCodec::kUnknown;
   media::VideoCodecProfile profile = media::VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -102,14 +108,11 @@ bool ParseCodecString(const String& codec_string,
       media::ParseVideoCodecString("", codec_string.Utf8(), &is_codec_ambiguous,
                                    &codec, &profile, &level, &color_space);
 
-  if (!parse_succeeded) {
-    js_error_message = "Failed to parse codec string.";
-    return false;
-  }
-
-  if (is_codec_ambiguous) {
-    js_error_message = "Codec string is ambiguous.";
-    return false;
+  if (!parse_succeeded || is_codec_ambiguous) {
+    js_error_message = "Unknown or ambiguous codec name.";
+    out_video_type = {media::VideoCodec::kUnknown,
+                      media::VIDEO_CODEC_PROFILE_UNKNOWN, level, color_space};
+    return true;
   }
 
   out_video_type = {codec, profile, level, color_space};
@@ -432,6 +435,9 @@ VideoDecoder::MakeMediaVideoDecoderConfigInternal(
     NOTREACHED();
     return absl::nullopt;
   }
+  if (video_type.codec == media::VideoCodec::kUnknown) {
+    return absl::nullopt;
+  }
 
   std::vector<uint8_t> extra_data;
   if (config.hasDescription()) {
@@ -505,14 +511,25 @@ VideoDecoder::MakeMediaVideoDecoderConfigInternal(
     media_color_space = color_space->ToMediaColorSpace();
   }
 
+  auto encryption_scheme = media::EncryptionScheme::kUnencrypted;
+  if (config.hasEncryptionScheme()) {
+    auto scheme = ToMediaEncryptionScheme(config.encryptionScheme());
+    if (!scheme) {
+      *js_error_message = "Unsupported encryption scheme";
+      return absl::nullopt;
+    }
+    encryption_scheme = scheme.value();
+  }
+
   media::VideoDecoderConfig media_config;
   media_config.Initialize(video_type.codec, video_type.profile,
                           media::VideoDecoderConfig::AlphaMode::kIsOpaque,
                           media_color_space, media::kNoTransformation,
                           coded_size, visible_rect, natural_size, extra_data,
-                          media::EncryptionScheme::kUnencrypted);
+                          encryption_scheme);
   media_config.set_aspect_ratio(aspect_ratio);
   if (!media_config.IsValidConfig()) {
+    *js_error_message = "Unsupported config.";
     return absl::nullopt;
   }
 

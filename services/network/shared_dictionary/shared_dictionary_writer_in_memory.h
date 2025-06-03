@@ -5,6 +5,10 @@
 #ifndef SERVICES_NETWORK_SHARED_DICTIONARY_SHARED_DICTIONARY_WRITER_IN_MEMORY_H_
 #define SERVICES_NETWORK_SHARED_DICTIONARY_SHARED_DICTIONARY_WRITER_IN_MEMORY_H_
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "base/component_export.h"
 #include "base/functional/callback.h"
 #include "crypto/secure_hash.h"
@@ -26,6 +30,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryWriterInMemory
     kSuccess,
     kErrorAborted,
     kErrorSizeZero,
+    kErrorSizeExceedsLimit,
   };
   using FinishCallback =
       base::OnceCallback<void(Result result,
@@ -47,6 +52,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) SharedDictionaryWriterInMemory
   FinishCallback finish_callback_;
   std::unique_ptr<crypto::SecureHash> secure_hash_;
   std::vector<std::string> data_;
+  size_t total_size_ = 0;
 };
 
 }  // namespace network

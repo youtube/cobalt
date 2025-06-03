@@ -30,6 +30,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using autofill::FieldPropertiesFlags;
+using autofill::FieldRendererId;
 using autofill::FormData;
 using autofill::FormFieldData;
 using base::ASCIIToUTF16;
@@ -40,7 +41,7 @@ namespace {
 
 constexpr ukm::SourceId kTestSourceId = 0x1234;
 
-using metrics_util::PasswordAccountStorageUsageLevel;
+using features_util::PasswordAccountStorageUsageLevel;
 using UkmEntry = ukm::builders::PasswordForm;
 
 // Create a UkmEntryBuilder with kTestSourceId.
@@ -213,21 +214,20 @@ TEST(PasswordFormMetricsRecorder, SubmittedFormType) {
 
   static constexpr struct {
     // Stimuli:
-    bool is_main_frame_secure;
-    PasswordFormMetricsRecorder::SubmittedFormType form_type;
+    absl::optional<metrics_util::SubmittedFormType> form_type;
+    bool was_form_submitted;
     // Expectations:
-    // Expectation for PasswordManager.SubmittedFormType:
-    int expected_submitted_form_type;
+    bool should_record_metrics;
   } kTests[] = {
-      {false, PasswordFormMetricsRecorder::SubmittedFormType::kUnspecified, 0},
-      {true, PasswordFormMetricsRecorder::SubmittedFormType::kUnspecified, 0},
-      {false, PasswordFormMetricsRecorder::SubmittedFormType::kLogin, 1},
-      {true, PasswordFormMetricsRecorder::SubmittedFormType::kLogin, 1},
+      {metrics_util::SubmittedFormType::kLogin, true, true},
+      {metrics_util::SubmittedFormType::kSignup, true, true},
+      {metrics_util::SubmittedFormType::kLogin, false, false},
+      {absl::nullopt, true, false},
   };
   for (const auto& test : kTests) {
     SCOPED_TRACE(testing::Message()
-                 << "is_main_frame_secure=" << test.is_main_frame_secure
-                 << ", form_type=" << static_cast<int64_t>(test.form_type));
+                 << "Was form_type set = " << test.form_type.has_value()
+                 << ", was_form_submitted =" << test.was_form_submitted);
 
     ukm::TestAutoSetUkmRecorder test_ukm_recorder;
     base::HistogramTester histogram_tester;
@@ -236,23 +236,24 @@ TEST(PasswordFormMetricsRecorder, SubmittedFormType) {
     // on destruction.
     {
       auto recorder = CreatePasswordFormMetricsRecorder(
-          test.is_main_frame_secure, &pref_service);
-      recorder->SetSubmittedFormType(test.form_type);
+          /*is_main_frame_secure=*/true, &pref_service);
+      if (test.form_type) {
+        recorder->SetSubmittedFormType(test.form_type.value());
+      }
+      if (test.was_form_submitted) {
+        recorder->LogSubmitPassed();
+      }
     }
 
-    if (test.form_type !=
-        PasswordFormMetricsRecorder::SubmittedFormType::kUnspecified) {
+    if (test.should_record_metrics) {
+      histogram_tester.ExpectUniqueSample("PasswordManager.SubmittedFormType2",
+                                          test.form_type.value(), 1);
       ExpectUkmValueCount(&test_ukm_recorder,
-                          UkmEntry::kSubmission_SubmittedFormTypeName,
-                          static_cast<int64_t>(test.form_type), 1);
-    }
-
-    if (test.expected_submitted_form_type) {
-      histogram_tester.ExpectBucketCount("PasswordManager.SubmittedFormType",
-                                         test.form_type,
-                                         test.expected_submitted_form_type);
+                          UkmEntry::kSubmission_SubmittedFormType2Name,
+                          static_cast<int64_t>(test.form_type.value()), 1);
     } else {
-      histogram_tester.ExpectTotalCount("PasswordManager.SubmittedFormType", 0);
+      histogram_tester.ExpectTotalCount("PasswordManager.SubmittedFormType2",
+                                        0);
     }
   }
 }
@@ -637,7 +638,9 @@ FormData ConvertToFormData(const std::vector<TestCaseFieldInfo>& fields) {
     if (field.automatically_filled)
       form_field.properties_mask |= FieldPropertiesFlags::kAutofilledOnPageLoad;
 
-    form_field.form_control_type = field.is_password ? "password" : "text";
+    form_field.form_control_type =
+        field.is_password ? autofill::FormControlType::kInputPassword
+                          : autofill::FormControlType::kInputText;
 
     form.fields.push_back(form_field);
   }
@@ -1540,5 +1543,90 @@ TEST(PasswordFormMetricsRecorder, StoresUsedForFillingInLast7And28DaysExpiry) {
   }
 }
 #endif
+
+// Verify that the difference between parsing during filling and saving is
+// calculated and recorded correctly when form parsing doesn't change.
+TEST(PasswordFormMetricsRecorder, FormParsingDifferenceNone) {
+  base::test::TaskEnvironment task_environment;
+  sync_preferences::TestingPrefServiceSyncable pref_service;
+  PasswordManager::RegisterProfilePrefs(pref_service.registry());
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  {
+    auto recorder = CreatePasswordFormMetricsRecorder(
+        /*is_main_frame_secure=*/true, &pref_service);
+    PasswordForm form;
+    form.username_element_renderer_id = FieldRendererId(1);
+    form.password_element_renderer_id = FieldRendererId(2);
+    recorder->CacheParsingResultInFillingMode(form);
+    // Imitate the form did not change before submission.
+    recorder->CalculateParsingDifferenceOnSavingAndFilling(form);
+    recorder->LogSubmitPassed();
+  }
+  auto entries = test_ukm_recorder.GetEntriesByName(UkmEntry::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_EQ(kTestSourceId, entries[0]->source_id);
+  test_ukm_recorder.ExpectEntryMetric(
+      entries[0], UkmEntry::kParsingDiffFillingAndSavingName,
+      static_cast<int>(PasswordFormMetricsRecorder::ParsingDifference::kNone));
+}
+
+// Verify that the difference between parsing during filling and saving is
+// calculated and recorded correctly when the username field is detected
+// differently.
+TEST(PasswordFormMetricsRecorder, FormParsingDifferenceUsername) {
+  base::test::TaskEnvironment task_environment;
+  sync_preferences::TestingPrefServiceSyncable pref_service;
+  PasswordManager::RegisterProfilePrefs(pref_service.registry());
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  {
+    auto recorder = CreatePasswordFormMetricsRecorder(
+        /*is_main_frame_secure=*/true, &pref_service);
+    PasswordForm form;
+    form.username_element_renderer_id = FieldRendererId(2);
+    form.password_element_renderer_id = FieldRendererId(3);
+    recorder->CacheParsingResultInFillingMode(form);
+    // Update the username field before submission.
+    form.username_element_renderer_id = FieldRendererId(1);
+    recorder->CalculateParsingDifferenceOnSavingAndFilling(form);
+    recorder->LogSubmitPassed();
+  }
+  auto entries = test_ukm_recorder.GetEntriesByName(UkmEntry::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_EQ(kTestSourceId, entries[0]->source_id);
+  test_ukm_recorder.ExpectEntryMetric(
+      entries[0], UkmEntry::kParsingDiffFillingAndSavingName,
+      static_cast<int>(
+          PasswordFormMetricsRecorder::ParsingDifference::kUsernameDiff));
+}
+
+// Verify that the difference between parsing during filling and saving is
+// calculated and recorded correctly when password fields are detected
+// differently.
+TEST(PasswordFormMetricsRecorder, FormParsingDifferencePassword) {
+  base::test::TaskEnvironment task_environment;
+  sync_preferences::TestingPrefServiceSyncable pref_service;
+  PasswordManager::RegisterProfilePrefs(pref_service.registry());
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  {
+    auto recorder = CreatePasswordFormMetricsRecorder(
+        /*is_main_frame_secure=*/true, &pref_service);
+    PasswordForm form;
+    form.username_element_renderer_id = FieldRendererId(1);
+    form.password_element_renderer_id = FieldRendererId(2);
+    recorder->CacheParsingResultInFillingMode(form);
+    // Update password parsing result before submission.
+    form.password_element_renderer_id = FieldRendererId(0);
+    form.new_password_element_renderer_id = FieldRendererId(2);
+    recorder->CalculateParsingDifferenceOnSavingAndFilling(form);
+    recorder->LogSubmitPassed();
+  }
+  auto entries = test_ukm_recorder.GetEntriesByName(UkmEntry::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_EQ(kTestSourceId, entries[0]->source_id);
+  test_ukm_recorder.ExpectEntryMetric(
+      entries[0], UkmEntry::kParsingDiffFillingAndSavingName,
+      static_cast<int>(
+          PasswordFormMetricsRecorder::ParsingDifference::kPasswordDiff));
+}
 
 }  // namespace password_manager

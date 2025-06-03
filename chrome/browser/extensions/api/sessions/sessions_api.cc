@@ -43,7 +43,6 @@
 #include "extensions/browser/extension_function_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/error_utils.h"
-#include "ui/base/layout.h"
 
 namespace extensions {
 

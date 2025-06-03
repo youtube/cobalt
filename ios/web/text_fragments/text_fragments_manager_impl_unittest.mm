@@ -28,10 +28,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using web::Referrer;
 using ::testing::_;
 using ::testing::Eq;
@@ -169,8 +165,8 @@ class TextFragmentsManagerImplTest : public WebTest {
   void AddMainWebFrame(TextFragmentsManagerImpl* fragments_mgr) {
     web_frames_manager_->AddWebFrame(
         FakeWebFrame::CreateMainWebFrame(GURL("https://chromium.org")));
-    fragments_mgr->WebFrameDidBecomeAvailable(
-        web_state_, web_frames_manager_->GetMainWebFrame());
+    fragments_mgr->WebFrameBecameAvailable(
+        web_frames_manager_, web_frames_manager_->GetMainWebFrame());
   }
 
   MockJSFeature feature_;

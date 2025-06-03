@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_parsing/regex_patterns.h"
+#include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
 #include "components/autofill/core/browser/proto/api_v1.pb.h"
 #include "components/autofill/core/browser/proto/password_requirements.pb.h"
@@ -30,7 +32,7 @@ typedef std::map<ServerFieldType, std::vector<AutofillDataModel::ValidityState>>
 typedef std::map<ServerFieldType, AutofillDataModel::ValidityState>
     ServerFieldTypeValidityStateMap;
 
-enum class FormControlType {
+enum class DeprecatedFormControlType {
   kEmpty = 0,
   kOther = 1,
   kText = 2,
@@ -38,7 +40,20 @@ enum class FormControlType {
   kCheckbox = 4,
   kRadio = 5,
   kSelectOne = 6,
-  kMaxValue = kSelectOne,
+  kSelectlist = 7,
+  kMaxValue = kSelectlist,
+};
+
+// Specifies if the Username First Flow vote has intermediate values.
+enum class IsMostRecentSingleUsernameCandidate {
+  // Field is not part of Username First Flow.
+  kNotPartOfUsernameFirstFlow = 0,
+  // Field is candidate for username in Username First Flow and has no
+  // intermediate fields
+  kMostRecentCandidate = 1,
+  // Field is candidate for username in Username First Flow and has intermediate
+  // fields between candidate and password form.
+  kHasIntermediateValuesInBetween = 2,
 };
 
 class AutofillField : public FormFieldData {
@@ -58,6 +73,8 @@ class AutofillField : public FormFieldData {
 
   AutofillField(const AutofillField&) = delete;
   AutofillField& operator=(const AutofillField&) = delete;
+  AutofillField(AutofillField&&);
+  AutofillField& operator=(AutofillField&&);
 
   virtual ~AutofillField();
 
@@ -68,7 +85,7 @@ class AutofillField : public FormFieldData {
       FieldSignature field_signature);
 
   ServerFieldType heuristic_type() const;
-  ServerFieldType heuristic_type(PatternSource s) const;
+  ServerFieldType heuristic_type(HeuristicSource s) const;
   ServerFieldType server_type() const;
   bool server_type_prediction_is_override() const;
   const std::vector<
@@ -96,7 +113,7 @@ class AutofillField : public FormFieldData {
   bool only_fill_when_focused() const { return only_fill_when_focused_; }
 
   // Setters for the detected types.
-  void set_heuristic_type(PatternSource s, ServerFieldType t);
+  void set_heuristic_type(HeuristicSource s, ServerFieldType t);
   void add_possible_types_validities(
       const ServerFieldTypeValidityStateMap& possible_types_validities);
   void set_server_predictions(
@@ -201,17 +218,25 @@ class AutofillField : public FormFieldData {
   // Returns true if the field's type is a credit card expiration type.
   bool HasExpirationDateType() const;
 
-  // Address Autofill gets disabled by an unrecognized autocomplete attribute.
-  // If `kAutofillFillAndImportFromMoreFields` is enabled, this changes and the
-  // server/heuristic predictions overwrite the unrecognized autocomplete
-  // attribute. Depending on the feature's parameters, Autofill then fills or
-  // imports from these fields.
-  // This function returns true if the field's type prediction is only available
-  // due to the aforementioned feature.
-  bool HasPredictionDespiteUnrecognizedAutocompleteAttribute() const;
+  // Address Autofill is disabled for fields with unrecognized autocomplete
+  // attribute - except if the field has a server overwrite.
+  // Without `kAutofillPredictionsForAutocompleteUnrecognized`, this happens
+  // implicitly, since ac=unrecognized suppresses the predicted type. As of
+  // `kAutofillPredictionsForAutocompleteUnrecognized`, ac=unrecognized fields
+  // receive a predictions, but suggestions and filling are still suppressed.
+  // This function can be used to determine whether suggestions and filling
+  // should be suppressed for this field (independently of the predicted type).
+  bool ShouldSuppressSuggestionsAndFillingByDefault() const;
 
   void set_initial_value_hash(uint32_t value) { initial_value_hash_ = value; }
   absl::optional<uint32_t> initial_value_hash() { return initial_value_hash_; }
+
+  void set_initial_value_changed(std::optional<bool> initial_value_changed) {
+    initial_value_changed_ = initial_value_changed;
+  }
+  std::optional<bool> initial_value_changed() const {
+    return initial_value_changed_;
+  }
 
   void set_credit_card_number_offset(size_t position) {
     credit_card_number_offset_ = position;
@@ -266,6 +291,18 @@ class AutofillField : public FormFieldData {
     return single_username_vote_type_;
   }
 
+  void set_is_most_recent_single_username_candidate(
+      IsMostRecentSingleUsernameCandidate
+          is_most_recent_single_username_candidate) {
+    is_most_recent_single_username_candidate_ =
+        is_most_recent_single_username_candidate;
+  }
+
+  IsMostRecentSingleUsernameCandidate is_most_recent_single_username_candidate()
+      const {
+    return is_most_recent_single_username_candidate_;
+  }
+
   // Getter and Setter methods for
   // |value_not_autofilled_over_existing_value_hash_|.
   void set_value_not_autofilled_over_existing_value_hash(
@@ -307,14 +344,15 @@ class AutofillField : public FormFieldData {
   void ClearLogEvents() { field_log_events_.clear(); }
 
   void set_autofill_source_profile_guid(
-      const std::string& autofill_profile_guid) {
-    autofill_source_profile_guid_ = autofill_profile_guid;
+      std::optional<std::string> autofill_profile_guid) {
+    autofill_source_profile_guid_ = std::move(autofill_profile_guid);
   }
   absl::optional<std::string> autofill_source_profile_guid() const {
     return autofill_source_profile_guid_;
   }
 
-  enum FormControlType FormControlType() const;
+  // Use FormFieldData::form_control_type instead (crbug.com/1482526).
+  enum DeprecatedFormControlType FormControlType() const;
 
  private:
   explicit AutofillField(FieldSignature field_signature);
@@ -350,13 +388,18 @@ class AutofillField : public FormFieldData {
   // Predictions which where calculated on the client. This is initialized to
   // `NO_SERVER_DATA`, which means "NO_DATA", i.e. no classification was
   // attempted.
-  std::array<ServerFieldType, static_cast<size_t>(PatternSource::kMaxValue) + 1>
+  std::array<ServerFieldType,
+             static_cast<size_t>(HeuristicSource::kMaxValue) + 1>
       local_type_predictions_;
 
   // The type of the field. Overrides all other types (html_type_,
   // heuristic_type_).
   // |AutofillType(NO_SERVER_DATA)| is used when this |overall_type_| has not
   // been set.
+  // This field serves as a cache to prevent frequent re-evaluation of
+  // ComputedType(). It is invalidated when set_heuristic_type(),
+  // set_server_predictions() or SetHtmlType() is called and then set to a
+  // value during the rationalization.
   AutofillType overall_type_;
 
   // The type of the field, as specified by the site author in HTML.
@@ -375,6 +418,13 @@ class AutofillField : public FormFieldData {
   // A low-entropy hash of the field's initial value before user-interactions or
   // automatic fillings. This field is used to detect static placeholders.
   absl::optional<uint32_t> initial_value_hash_;
+
+  // On form submission, set to `true` if the field had a value on page load and
+  // it was changed between page load and form submission. Set to `false` if the
+  // pre-filled value wasn't changed. Not set if the field didn't have a
+  // pre-filled value.
+  // Currently not implemented for <select> fields.
+  std::optional<bool> initial_value_changed_;
 
   // Used to hold the position of the first digit to be copied as a substring
   // from credit card number.
@@ -415,6 +465,18 @@ class AutofillField : public FormFieldData {
   absl::optional<AutofillUploadContents::Field::SingleUsernameVoteType>
       single_username_vote_type_;
 
+  // If set to `kMostRecentCandidate`, the field is candidate for username
+  // in Username First Flow and the field has no intermediate
+  // fields (like OTP/Captcha) between the candidate and the password form.
+  // If set to `kHasIntermediateValuesInBetween`, the field is candidate for
+  // username in Username First Flow, but has intermediate fields between the
+  // candidate and the password form.
+  // If set to `kNotPartOfUsernameFirstFlow`, the field is not part of Username
+  // First Flow.
+  IsMostRecentSingleUsernameCandidate
+      is_most_recent_single_username_candidate_ =
+          IsMostRecentSingleUsernameCandidate::kNotPartOfUsernameFirstFlow;
+
   // Stores the hash of the value which is supposed to be autofilled in the
   // field but was not due to a prefilled value.
   absl::optional<size_t> value_not_autofilled_over_existing_value_hash_;
@@ -432,7 +494,10 @@ class AutofillField : public FormFieldData {
   // to the autofill profile's GUID for the current value if `is_autofilled` is
   // set or for the previously autofilled value if the field was changed after
   // filling. nullopt means the field wasn't autofilled.
-  absl::optional<std::string> autofill_source_profile_guid_;
+  // Note: `is_autofilled` is true for autocompleted fields. So `is_autofilled`
+  // is not a sufficient condition for `autofill_source_profile_guid_` to have a
+  // value.
+  std::optional<std::string> autofill_source_profile_guid_;
 };
 
 }  // namespace autofill

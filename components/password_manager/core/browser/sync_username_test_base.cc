@@ -21,12 +21,12 @@ FormData CreateSigninFormData(const GURL& url, const char* username) {
   form.url = url;
   FormFieldData field;
   field.name = u"username_element";
-  field.form_control_type = "text";
+  field.form_control_type = autofill::FormControlType::kInputText;
   field.value = ASCIIToUTF16(username);
   form.fields.push_back(field);
 
   field.name = u"password_element";
-  field.form_control_type = "password";
+  field.form_control_type = autofill::FormControlType::kInputPassword;
   field.value = u"strong_pw";
   form.fields.push_back(field);
   return form;
@@ -64,6 +64,7 @@ PasswordForm SyncUsernameTestBase::SimpleGaiaForm(const char* username) {
   form.username_value = ASCIIToUTF16(username);
   form.form_data = CreateSigninFormData(GURL(form.signon_realm), username);
   form.in_store = PasswordForm::Store::kProfileStore;
+  form.match_type = PasswordForm::MatchType::kExact;
   return form;
 }
 
@@ -75,6 +76,7 @@ PasswordForm SyncUsernameTestBase::SimpleNonGaiaForm(const char* username) {
   form.username_value = ASCIIToUTF16(username);
   form.form_data = CreateSigninFormData(GURL(form.signon_realm), username);
   form.in_store = PasswordForm::Store::kProfileStore;
+  form.match_type = PasswordForm::MatchType::kExact;
   return form;
 }
 
@@ -87,15 +89,17 @@ PasswordForm SyncUsernameTestBase::SimpleNonGaiaForm(const char* username,
   form.url = GURL(origin);
   form.form_data = CreateSigninFormData(GURL(form.signon_realm), username);
   form.in_store = PasswordForm::Store::kProfileStore;
+  form.match_type = PasswordForm::MatchType::kExact;
   return form;
 }
 
 void SyncUsernameTestBase::SetSyncingPasswords(bool syncing_passwords) {
   sync_service_.GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false,
-      /*types=*/syncing_passwords ? syncer::UserSelectableTypeSet(
-                                        syncer::UserSelectableType::kPasswords)
-                                  : syncer::UserSelectableTypeSet());
+      /*types=*/syncing_passwords
+          ? syncer::UserSelectableTypeSet(
+                {syncer::UserSelectableType::kPasswords})
+          : syncer::UserSelectableTypeSet());
 }
 
 }  // namespace password_manager

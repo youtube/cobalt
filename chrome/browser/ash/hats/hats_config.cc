@@ -20,7 +20,28 @@ HatsConfig::HatsConfig(const base::Feature& feature,
     : feature(feature),
       new_device_threshold(new_device_threshold),
       is_selected_pref_name(is_selected_pref_name),
-      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name) {
+      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name),
+      survey_last_interaction_timestamp_pref_name(nullptr),
+      threshold_time(base::TimeDelta()),
+      global_cap_opt_out(false) {
+  DCHECK(new_device_threshold.InDaysFloored() >= kMinDaysThreshold);
+}
+
+HatsConfig::HatsConfig(
+    const base::Feature& feature,
+    const base::TimeDelta& new_device_threshold,
+    const char* const is_selected_pref_name,
+    const char* const cycle_end_timestamp_pref_name,
+    const char* const survey_last_interaction_timestamp_pref_name,
+    const base::TimeDelta& threshold_time)
+    : feature(feature),
+      new_device_threshold(new_device_threshold),
+      is_selected_pref_name(is_selected_pref_name),
+      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name),
+      survey_last_interaction_timestamp_pref_name(
+          survey_last_interaction_timestamp_pref_name),
+      threshold_time(threshold_time),
+      global_cap_opt_out(true) {
   DCHECK(new_device_threshold.InDaysFloored() >= kMinDaysThreshold);
 }
 
@@ -99,6 +120,15 @@ const HatsConfig kHatsAudioSurvey = {
     prefs::kHatsAudioSurveyCycleEndTs,          // cycle_end_timestamp_pref_name
 };
 
+// Bluetooth Audio Survey -- shown after the user closed an audio stream
+// sent to a Bluetooth device after listening for more than one minute.
+const HatsConfig kHatsBluetoothAudioSurvey = {
+    ::features::kHappinessTrackingSystemBluetoothAudio,  // feature
+    base::Days(90),                                      // new_device_threshold
+    prefs::kHatsBluetoothAudioDeviceIsSelected,  // is_selected_pref_name
+    prefs::
+        kHatsBluetoothAudioSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
 // Personalization Avatar Survey -- shown 60 seconds after a user closes the
 // Avatar selection page of either OS Settings or Personalization Hub, depending
 // on whether PersonalizationHub feature is enabled.
@@ -186,13 +216,22 @@ const HatsConfig kHatsBatteryLifeSurvey = {
     prefs::kHatsBatteryLifeCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
-// Privacy Hub Baseline experience survey -- shown 40 seconds after the user
-// leaves the Security and Privacy page.
-const HatsConfig kPrivacyHubBaselineSurvey = {
-    ::features::kHappinessTrackingPrivacyHubBaseline,  // feature
-    base::Days(1),                                     // new_device_threshold
-    prefs::kHatsPrivacyHubBaselineIsSelected,          // is_selected_pref_name
-    prefs::kHatsPrivacyHubBaselineCycleEndTs,  // cycle_end_timestamp_pref_name
+// Peripherals experience survey -- shown after login.
+const HatsConfig kHatsPeripheralsSurvey = {
+    ::features::kHappinessTrackingSystemPeripherals,  // feature
+    base::Days(7),                                    // new_device_threshold
+    prefs::kHatsPeripheralsIsSelected,                // is_selected_pref_name
+    prefs::kHatsPeripheralsCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Privacy Hub post launch experience survey -- shown 40 seconds after the user
+// leaves the Privacy controls page after staying there for 5 seconds.
+const HatsConfig kPrivacyHubPostLaunchSurvey = {
+    ::features::kHappinessTrackingPrivacyHubPostLaunch,  // feature
+    base::Days(1),                                       // new_device_threshold
+    prefs::kHatsPrivacyHubPostLaunchIsSelected,  // is_selected_pref_name
+    prefs::
+        kHatsPrivacyHubPostLaunchCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
 // OS Settings Survey -- shown [5-30] seconds after a user removes focus from
@@ -204,6 +243,17 @@ const HatsConfig kHatsOsSettingsSearchSurvey = {
     prefs::kHatsOsSettingsSearchSurveyIsSelected,    // is_selected_pref_name
     prefs::
         kHatsOsSettingsSearchSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Borealis games survey -- Shown after a Steam game exits.
+const HatsConfig kHatsBorealisGamesSurvey = {
+    ::features::kHappinessTrackingBorealisGames,  // feature
+    base::Days(1),                                // new_device_threshold
+    prefs::kHatsBorealisGamesSurveyIsSelected,    // is_selected_pref_name
+    prefs::kHatsBorealisGamesSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+    prefs::kHatsBorealisGamesLastInteractionTimestamp,
+    // survey_last_interaction_timestamp_pref_name
+    base::Days(7),  // threshold_time
 };
 
 }  // namespace ash

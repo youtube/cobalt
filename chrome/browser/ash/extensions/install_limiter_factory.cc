@@ -19,7 +19,8 @@ InstallLimiter* InstallLimiterFactory::GetForProfile(Profile* profile) {
 
 // static
 InstallLimiterFactory* InstallLimiterFactory::GetInstance() {
-  return base::Singleton<InstallLimiterFactory>::get();
+  static base::NoDestructor<InstallLimiterFactory> instance;
+  return instance.get();
 }
 
 InstallLimiterFactory::InstallLimiterFactory()
@@ -36,9 +37,10 @@ InstallLimiterFactory::InstallLimiterFactory()
 
 InstallLimiterFactory::~InstallLimiterFactory() = default;
 
-KeyedService* InstallLimiterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+InstallLimiterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new InstallLimiter();
+  return std::make_unique<InstallLimiter>();
 }
 
 }  // namespace extensions

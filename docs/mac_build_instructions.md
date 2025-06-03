@@ -282,7 +282,7 @@ ask there. Be sure that the
 [waterfall](https://build.chromium.org/buildbot/waterfall/) is green and the
 tree is open before checking out. This will increase your chances of success.
 
-### Improving performance of `git status`
+### Improving performance of git commands
 
 #### Increase the vnode cache size
 
@@ -329,7 +329,7 @@ Or edit the file directly.
 
 #### Configure git to use an untracked cache
 
-If `git --version` reports 2.8 or higher, try running
+Try running
 
 ```shell
 $ git update-index --test-untracked-cache
@@ -342,10 +342,16 @@ If the output ends with `OK`, then the following may also improve performance of
 $ git config core.untrackedCache true
 ```
 
-If `git --version` reports 2.6 or higher, but below 2.8, you can instead run
+#### Configure git to use fsmonitor
+
+You can significantly speed up git by using [fsmonitor.](https://github.blog/2022-06-29-improve-git-monorepo-performance-with-a-file-system-monitor/)
+You should enable fsmonitor in large repos, such as Chromium and v8. Enabling
+it globally will launch many processes and probably isn't worthwhile. Be sure
+you have at least version 2.43 (fsmonitor on the Mac is broken before then). The
+command to enable fsmonitor in the current repo is:
 
 ```shell
-$ git update-index --untracked-cache
+$ git config core.fsmonitor true
 ```
 
 ### Xcode license agreement

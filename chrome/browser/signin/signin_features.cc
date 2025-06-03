@@ -38,6 +38,30 @@ const base::FeatureParam<SigninPromoVariant> kForYouFreSignInPromoVariant{
     /*default_value=*/SigninPromoVariant::kSignIn,
     /*options=*/&kSignInPromoVariantOptions};
 
+constexpr base::FeatureParam<WithDefaultBrowserStep>::Option
+    kWithDefaultBrowserStepOptions[] = {
+        {WithDefaultBrowserStep::kYes, "yes"},
+        {WithDefaultBrowserStep::kNo, "no"},
+        {WithDefaultBrowserStep::kForced, "forced"},
+};
+
+const base::FeatureParam<WithDefaultBrowserStep>
+    kForYouFreWithDefaultBrowserStep{
+        &kForYouFre, /*name=*/"with_default_browser_step",
+        /*default_value=*/WithDefaultBrowserStep::kNo,
+        /*options=*/&kWithDefaultBrowserStepOptions};
+
+constexpr base::FeatureParam<DefaultBrowserVariant>::Option
+    kDefaultBrowserVariantOptions[] = {
+        {DefaultBrowserVariant::kCurrent, "current"},
+        {DefaultBrowserVariant::kNew, "new"},
+};
+
+const base::FeatureParam<DefaultBrowserVariant> kForYouFreDefaultBrowserVariant{
+    &kForYouFre, /*name=*/"default_browser_variant",
+    /*default_value=*/DefaultBrowserVariant::kCurrent,
+    /*options=*/&kDefaultBrowserVariantOptions};
+
 // Feature that indicates that we should put the client in a study group
 // (provided through `kForYouFreStudyGroup`) to be able to look at metrics in
 // the long term. Does not affect the client's behavior by itself, instead this
@@ -53,10 +77,6 @@ const base::FeatureParam<std::string> kForYouFreStudyGroup{
     &kForYouFreSyntheticTrialRegistration, /*name=*/"group_name",
     /*default_value=*/""};
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
-BASE_FEATURE(kEnterpriseWelcomeTangibleSyncStyle,
-             "EnterpriseWelcomeTangibleSyncStyle",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
 
 // Enables the client-side processing of the HTTP response header
@@ -64,17 +84,6 @@ BASE_FEATURE(kEnterpriseWelcomeTangibleSyncStyle,
 BASE_FEATURE(kProcessGaiaRemoveLocalAccountHeader,
              "ProcessGaiaRemoveLocalAccountHeader",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the sync promo after the sign-in intercept.
-BASE_FEATURE(kSyncPromoAfterSigninIntercept,
-             "SyncPromoAfterSigninIntercept",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables using new style (strings, illustration, and disclaimer if needed)
-// for the sign-in intercept bubble.
-BASE_FEATURE(kSigninInterceptBubbleV2,
-             "SigninInterceptBubbleV2",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables showing the enterprise dialog after every signin into a managed
 // account.
@@ -85,8 +94,18 @@ BASE_FEATURE(kShowEnterpriseDialogForAllManagedAccountsSignin,
 // Disables signout for enteprise managed profiles
 BASE_FEATURE(kDisallowManagedProfileSignout,
              "DisallowManagedProfileSignout",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(ENABLE_MIRROR)
+BASE_FEATURE(kVerifyRequestInitiatorForMirrorHeaders,
+             "VerifyRequestInitiatorForMirrorHeaders",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_MIRROR)
+
+BASE_FEATURE(kProfilesReordering,
+             "ProfilesReordering",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Makes the profile creation flow use the "promo" flow version of the Gaia
-// sign-in page instead of one that mentions the Chrome sync benefits.
-BASE_FEATURE(kPromoGaiaFlow, "PromoGaiaFlow", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kForceSigninFlowInProfilePicker,
+             "ForceSigninFlowInProfilePicker",
+             base::FEATURE_DISABLED_BY_DEFAULT);

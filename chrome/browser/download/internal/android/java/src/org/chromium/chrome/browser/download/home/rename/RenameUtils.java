@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 package org.chromium.chrome.browser.download.home.rename;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.FileUtils;
-import org.chromium.base.annotations.NativeMethods;
 
 /**
  * A class containing some utility static methods for rename.
@@ -31,7 +30,6 @@ public class RenameUtils {
     /**
      * Disables the native APIs. This is only intended for testing purposes.
      */
-    @VisibleForTesting
     public static void disableNativeForTesting() {
         sIsDisabledNativeForTesting = true;
     }

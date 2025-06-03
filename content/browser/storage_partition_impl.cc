@@ -16,6 +16,7 @@
 #include "base/barrier_closure.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -37,6 +38,7 @@
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "components/attribution_reporting/features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
@@ -59,11 +61,11 @@
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
-#include "content/browser/browsing_topics/browsing_topics_url_loader_service.h"
 #include "content/browser/buckets/bucket_manager.h"
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
+#include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
@@ -76,10 +78,11 @@
 #include "content/browser/indexed_db/indexed_db_control_wrapper.h"
 #include "content/browser/interest_group/interest_group_manager_impl.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
-#include "content/browser/loader/prefetch_url_loader_service.h"
 #include "content/browser/loader/resource_cache_manager.h"
+#include "content/browser/loader/subresource_proxying_url_loader_service.h"
 #include "content/browser/locks/lock_manager.h"
 #include "content/browser/navigation_or_document_handle.h"
+#include "content/browser/network/shared_dictionary_util.h"
 #include "content/browser/network_context_client_base_impl.h"
 #include "content/browser/notifications/platform_notification_context_impl.h"
 #include "content/browser/payments/payment_app_context_impl.h"
@@ -93,12 +96,14 @@
 #include "content/browser/runtime_feature_state/runtime_feature_state_document_data.h"
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/shared_storage/shared_storage_header_observer.h"
 #include "content/browser/shared_storage/shared_storage_worklet_host_manager.h"
 #include "content/browser/ssl/ssl_client_auth_handler.h"
 #include "content/browser/ssl/ssl_error_handler.h"
 #include "content/browser/ssl_private_key_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/worker_host/shared_worker_service_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -109,10 +114,13 @@
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_result.h"
+#include "content/public/browser/private_aggregation_data_model.h"
+#include "content/public/browser/private_network_device_delegate.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/browser/session_storage_usage_info.h"
 #include "content/public/browser/shared_cors_origin_access_list.h"
 #include "content/public/browser/storage_notification_service.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/storage_usage_info.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
@@ -122,6 +130,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/ssl/client_cert_store.h"
@@ -129,10 +138,13 @@
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
 #include "services/network/public/cpp/cross_thread_pending_shared_url_loader_factory.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/cookie_access_observer.mojom.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
+#include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
 #include "storage/browser/database/database_tracker.h"
 #include "storage/browser/quota/quota_client_type.h"
 #include "storage/browser/quota/quota_manager.h"
@@ -143,7 +155,9 @@
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-shared.h"
+#include "third_party/blink/public/mojom/private_network_device/private_network_device.mojom.h"
 #include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
+#include "url/scheme_host_port.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "content/public/browser/android/java_interfaces.h"
@@ -152,6 +166,8 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+#include "content/browser/media/cdm_storage_common.h"
+#include "content/browser/media/cdm_storage_manager.h"
 #include "content/browser/media/media_license_manager.h"
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
@@ -446,6 +462,34 @@ WebContents* GetWebContents(
   return context.navigation_or_document()->GetWebContents();
 }
 
+// A getter for the context required for the SSLClientAuthHandler. If
+// `BrowserContext` is null, it indicates the calling context is no longer
+// valid. This assumes that if the WebContents goes away, the caller is no
+// longer valid.
+std::pair<BrowserContext*, WebContents*> GetContextFromNetworkContext(
+    StoragePartitionImpl::URLLoaderNetworkContext context) {
+  WebContents* web_contents = GetWebContents(context);
+  if (!web_contents) {
+    return std::make_pair(nullptr, nullptr);
+  }
+  return std::make_pair(web_contents->GetBrowserContext(), web_contents);
+}
+
+// A getter for the context required for the SSLClientAuthHandler. If
+// `BrowserContext` is null, it indicates the calling context is no longer
+// valid. This version allows for a null WebContents and is used in cases when
+// the context is not associated with a document.
+// TODO(devlin): This is used as a proxy for if a service worker requestor is
+// still alive, but it's a pretty sorry excuse. The StoragePartition is owned by
+// the BrowserContext, and can definitely outlive service workers.
+// This seems to be okay, since in the request sites its used, we also have
+// checks for if the mojo receiver goes away, but... eww.
+std::pair<BrowserContext*, WebContents*> GetContextFromStoragePartition(
+    base::WeakPtr<StoragePartitionImpl> storage_partition) {
+  return std::make_pair(
+      GetBrowserContextFromStoragePartition(storage_partition), nullptr);
+}
+
 // LoginHandlerDelegate manages HTTP auth. It is self-owning and deletes itself
 // when the credentials are resolved or the AuthChallengeResponder is cancelled.
 class LoginHandlerDelegate {
@@ -584,14 +628,14 @@ class SSLClientAuthDelegate : public SSLClientAuthHandler::Delegate {
   SSLClientAuthDelegate(
       mojo::PendingRemote<network::mojom::ClientCertificateResponder>
           client_cert_responder_remote,
-      content::BrowserContext* browser_context,
-      WebContents::Getter web_contents_getter,
+      BrowserContext* browser_context,
+      SSLClientAuthHandler::ContextGetter context_getter,
       const scoped_refptr<net::SSLCertRequestInfo>& cert_info)
       : client_cert_responder_(std::move(client_cert_responder_remote)),
         ssl_client_auth_handler_(std::make_unique<SSLClientAuthHandler>(
             GetContentClient()->browser()->CreateClientCertStore(
                 browser_context),
-            std::move(web_contents_getter),
+            std::move(context_getter),
             std::move(cert_info.get()),
             this)) {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -675,27 +719,6 @@ bool CancelIfPrerendering(NavigationOrDocumentHandle* navigation_or_document,
 
   auto* web_contents = WebContentsImpl::FromFrameTreeNode(frame_tree_node);
   return web_contents->CancelPrerendering(frame_tree_node, final_status);
-}
-
-void OnCertificateRequestedContinuation(
-    const scoped_refptr<net::SSLCertRequestInfo>& cert_info,
-    mojo::PendingRemote<network::mojom::ClientCertificateResponder>
-        client_cert_responder_remote,
-    base::RepeatingCallback<WebContents*(void)> web_contents_getter) {
-  WebContents* web_contents = nullptr;
-  if (web_contents_getter) {
-    web_contents = web_contents_getter.Run();
-  }
-
-  if (!web_contents) {
-    CallCancelRequest(std::move(client_cert_responder_remote));
-    return;
-  }
-
-  new SSLClientAuthDelegate(std::move(client_cert_responder_remote),
-                            web_contents->GetBrowserContext(),
-                            std::move(web_contents_getter),
-                            cert_info);  // deletes self
 }
 
 class SSLErrorDelegate : public SSLErrorHandler::Delegate {
@@ -1007,8 +1030,11 @@ class StoragePartitionImpl::DataDeletionHelper {
       InterestGroupManagerImpl* interest_group_manager,
       AttributionManager* attribution_manager,
       AggregationService* aggregation_service,
-      PrivateAggregationManager* private_aggregation_manager,
+      PrivateAggregationManagerImpl* private_aggregation_manager,
       storage::SharedStorageManager* shared_storage_manager,
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+      CdmStorageManager* cdm_storage_manager,
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
       bool perform_storage_cleanup,
       const base::Time begin,
       const base::Time end);
@@ -1181,6 +1207,49 @@ class StoragePartitionImpl::ServiceWorkerTrustTokenAccessObserver
   raw_ptr<StoragePartitionImpl> storage_partition_;
 };
 
+class StoragePartitionImpl::ServiceWorkerSharedDictionaryAccessObserver
+    : public network::mojom::SharedDictionaryAccessObserver {
+ public:
+  explicit ServiceWorkerSharedDictionaryAccessObserver(
+      StoragePartitionImpl* storage_partition)
+      : storage_partition_(storage_partition) {}
+
+ private:
+  void Clone(
+      mojo::PendingReceiver<network::mojom::SharedDictionaryAccessObserver>
+          observer) override {
+    storage_partition_->service_worker_shared_dictionary_observers_.Add(
+        std::make_unique<ServiceWorkerSharedDictionaryAccessObserver>(
+            storage_partition_),
+        std::move(observer));
+  }
+
+  void OnSharedDictionaryAccessed(
+      network::mojom::SharedDictionaryAccessDetailsPtr details) override {
+    DCHECK_CURRENTLY_ON(BrowserThread::UI);
+    scoped_refptr<ServiceWorkerContextWrapper> service_worker_context =
+        storage_partition_->GetServiceWorkerContext();
+
+    std::vector<GlobalRenderFrameHostId> destinations =
+        *service_worker_context->GetWindowClientFrameRoutingIds(
+            blink::StorageKey::CreateFirstParty(
+                details->isolation_key.frame_origin()));
+    if (destinations.empty()) {
+      return;
+    }
+
+    for (GlobalRenderFrameHostId frame_id : destinations) {
+      if (RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(frame_id)) {
+        rfh->OnSharedDictionaryAccessed(mojo::Clone(details));
+      }
+    }
+  }
+
+  // `storage_partition_` owns this object via UniqueReceiverSet
+  // (service_worker_shared_dictionary_observers_).
+  raw_ptr<StoragePartitionImpl> storage_partition_;
+};
+
 StoragePartitionImpl::StoragePartitionImpl(
     BrowserContext* browser_context,
     const StoragePartitionConfig& config,
@@ -1195,6 +1264,9 @@ StoragePartitionImpl::StoragePartitionImpl(
       deletion_helpers_running_(0) {}
 
 StoragePartitionImpl::~StoragePartitionImpl() {
+#if DCHECK_IS_ON()
+  DCHECK(on_browser_context_will_be_destroyed_called_);
+#endif
   browser_context_ = nullptr;
 
   if (url_loader_factory_getter_) {
@@ -1212,10 +1284,6 @@ StoragePartitionImpl::~StoragePartitionImpl() {
     database_tracker_ptr->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&storage::DatabaseTracker::Shutdown,
                                   std::move(database_tracker)));
-  }
-
-  if (GetFileSystemAccessManager()) {
-    GetFileSystemAccessManager()->Shutdown();
   }
 
   if (GetFileSystemContext()) {
@@ -1242,12 +1310,34 @@ StoragePartitionImpl::~StoragePartitionImpl() {
     GetBackgroundFetchContext()->Shutdown();
   }
 
+  if (GetGeneratedCodeCacheContext()) {
+    GetGeneratedCodeCacheContext()->Shutdown();
+  }
+}
+
+void StoragePartitionImpl::OnBrowserContextWillBeDestroyed() {
+#if DCHECK_IS_ON()
+  on_browser_context_will_be_destroyed_called_ = true;
+#endif
+
+  // Shut down service worker and shared worker machinery because these can keep
+  // RenderProcessHosts and SiteInstances alive, and the codebase assumes these
+  // are destroyed before the BrowserContext is destroyed.
+  GetServiceWorkerContext()->Shutdown();
+  GetSharedWorkerService()->Shutdown();
+
+  // These hold raw pointers to objects that are about to be destroyed, before
+  // this object is destroyed. Shut them down now to avoid dangling pointers.
+  if (GetFileSystemAccessManager()) {
+    GetFileSystemAccessManager()->Shutdown();
+  }
+
   if (GetContentIndexContext()) {
     GetContentIndexContext()->Shutdown();
   }
 
-  if (GetGeneratedCodeCacheContext()) {
-    GetGeneratedCodeCacheContext()->Shutdown();
+  if (keep_alive_url_loader_service_) {
+    keep_alive_url_loader_service_->Shutdown();
   }
 }
 
@@ -1366,7 +1456,7 @@ void StoragePartitionImpl::Initialize(
   platform_notification_context_->Initialize();
 
   devtools_background_services_context_ =
-      base::MakeRefCounted<DevToolsBackgroundServicesContextImpl>(
+      std::make_unique<DevToolsBackgroundServicesContextImpl>(
           browser_context_, service_worker_context_);
 
   content_index_context_ = base::MakeRefCounted<ContentIndexContextImpl>(
@@ -1374,11 +1464,11 @@ void StoragePartitionImpl::Initialize(
 
   background_fetch_context_ = base::MakeRefCounted<BackgroundFetchContext>(
       weak_factory_.GetWeakPtr(), service_worker_context_, quota_manager_proxy,
-      devtools_background_services_context_);
+      *devtools_background_services_context_.get());
 
   background_sync_context_ = base::MakeRefCounted<BackgroundSyncContextImpl>();
   background_sync_context_->Init(service_worker_context_,
-                                 devtools_background_services_context_);
+                                 *devtools_background_services_context_.get());
 
   payment_app_context_ = new PaymentAppContextImpl();
   payment_app_context_->Init(service_worker_context_);
@@ -1387,6 +1477,17 @@ void StoragePartitionImpl::Initialize(
 
   bluetooth_allowed_devices_map_ =
       std::make_unique<BluetoothAllowedDevicesMap>();
+
+  // Must be initialized before the `url_loader_factory_getter_`.
+  // Cookie deprecation traffic labels should not be sent for off-the-record
+  // profiles, unless the "enable_otr_profiles" feature parameter is true.
+  if (base::FeatureList::IsEnabled(
+          features::kCookieDeprecationFacilitatedTesting) &&
+      (!is_in_memory() ||
+       features::kCookieDeprecationFacilitatedTestingEnableOTRProfiles.Get())) {
+    cookie_deprecation_label_manager_ =
+        std::make_unique<CookieDeprecationLabelManagerImpl>(browser_context_);
+  }
 
   url_loader_factory_getter_ = new URLLoaderFactoryGetter();
   url_loader_factory_getter_->Initialize(this);
@@ -1408,18 +1509,12 @@ void StoragePartitionImpl::Initialize(
         blob_context, blob_url_registry_->AsWeakPtr());
   }
 
-  prefetch_url_loader_service_ =
-      std::make_unique<PrefetchURLLoaderService>(browser_context_);
+  subresource_proxying_url_loader_service_ =
+      std::make_unique<SubresourceProxyingURLLoaderService>(browser_context_);
 
-  if (base::FeatureList::IsEnabled(blink::features::kBrowsingTopics)) {
-    browsing_topics_url_loader_service_ =
-        std::make_unique<BrowsingTopicsURLLoaderService>();
-  }
-
-  if (base::FeatureList::IsEnabled(
-          blink::features::kKeepAliveInBrowserMigration)) {
+  if (blink::features::IsKeepAliveURLLoaderServiceEnabled()) {
     keep_alive_url_loader_service_ =
-        std::make_unique<KeepAliveURLLoaderService>();
+        std::make_unique<KeepAliveURLLoaderService>(browser_context_);
   }
 
   cookie_store_manager_ =
@@ -1432,7 +1527,8 @@ void StoragePartitionImpl::Initialize(
 
   bucket_manager_ = std::make_unique<BucketManager>(this);
 
-  if (base::FeatureList::IsEnabled(blink::features::kConversionMeasurement)) {
+  if (base::FeatureList::IsEnabled(
+          attribution_reporting::features::kConversionMeasurement)) {
     // The Conversion Measurement API is not available in Incognito mode, but
     // this is enforced by the `AttributionManagerImpl` itself for better error
     // reporting and metrics.
@@ -1494,9 +1590,30 @@ void StoragePartitionImpl::Initialize(
   }
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+  if (base::FeatureList::IsEnabled(features::kCdmStorageDatabase)) {
+    if (is_in_memory()) {
+      // Pass an empty path if in_memory so that CdmStorage.db is not stored on
+      // disk.
+      cdm_storage_manager_ =
+          std::make_unique<CdmStorageManager>(base::FilePath());
+    } else {
+      cdm_storage_manager_ = std::make_unique<CdmStorageManager>(
+          partition_path_.Append(kCdmStorageDatabaseFileName));
+    }
+  }
+
   media_license_manager_ = std::make_unique<MediaLicenseManager>(
       is_in_memory(), browser_context_->GetSpecialStoragePolicy(),
       quota_manager_proxy);
+
+  // When 'kCdmStorageDatabaseMigration' is enabled, in the
+  // 'MediaLicenseStorageHost', when operations occur, we make sure to
+  // update and reflect that in the CdmStorageDatabase as well.
+  if (base::FeatureList::IsEnabled(features::kCdmStorageDatabase) &&
+      base::FeatureList::IsEnabled(features::kCdmStorageDatabaseMigration)) {
+    CHECK(cdm_storage_manager_);
+    media_license_manager_->set_cdm_storage_manager(cdm_storage_manager_.get());
+  }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
   if (base::FeatureList::IsEnabled(blink::features::kSharedStorageAPI)) {
@@ -1505,6 +1622,10 @@ void StoragePartitionImpl::Initialize(
                        : path.Append(storage::kSharedStoragePath);
     shared_storage_manager_ = std::make_unique<storage::SharedStorageManager>(
         shared_storage_path, special_storage_policy_);
+    if (base::FeatureList::IsEnabled(blink::features::kSharedStorageAPIM118)) {
+      shared_storage_header_observer_ =
+          std::make_unique<SharedStorageHeaderObserver>(this);
+    }
   }
 
   if (base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi)) {
@@ -1744,15 +1865,10 @@ storage::BlobUrlRegistry* StoragePartitionImpl::GetBlobUrlRegistry() {
   return blob_url_registry_.get();
 }
 
-PrefetchURLLoaderService* StoragePartitionImpl::GetPrefetchURLLoaderService() {
+SubresourceProxyingURLLoaderService*
+StoragePartitionImpl::GetSubresourceProxyingURLLoaderService() {
   DCHECK(initialized_);
-  return prefetch_url_loader_service_.get();
-}
-
-BrowsingTopicsURLLoaderService*
-StoragePartitionImpl::GetBrowsingTopicsURLLoaderService() {
-  DCHECK(initialized_);
-  return browsing_topics_url_loader_service_.get();
+  return subresource_proxying_url_loader_service_.get();
 }
 
 KeepAliveURLLoaderService*
@@ -1816,6 +1932,10 @@ MediaLicenseManager* StoragePartitionImpl::GetMediaLicenseManager() {
   DCHECK(initialized_);
   return media_license_manager_.get();
 }
+
+CdmStorageManager* StoragePartitionImpl::GetCdmStorageManager() {
+    return cdm_storage_manager_.get();
+}
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
 InterestGroupManager* StoragePartitionImpl::GetInterestGroupManager() {
@@ -1870,9 +1990,21 @@ StoragePartitionImpl::GetPrivateAggregationManager() {
   return private_aggregation_manager_.get();
 }
 
+PrivateAggregationDataModel*
+StoragePartitionImpl::GetPrivateAggregationDataModel() {
+  DCHECK(initialized_);
+  return private_aggregation_manager_.get();
+}
+
 ResourceCacheManager* StoragePartitionImpl::GetResourceCacheManager() {
   CHECK(initialized_);
   return resource_cache_manager_.get();
+}
+
+CookieDeprecationLabelManager*
+StoragePartitionImpl::GetCookieDeprecationLabelManager() {
+  CHECK(initialized_);
+  return cookie_deprecation_label_manager_.get();
 }
 
 void StoragePartitionImpl::OpenLocalStorage(
@@ -2007,10 +2139,88 @@ void StoragePartitionImpl::OnAuthRequired(
       }
     }
   }
+
+  WebContents* current_web_contents = GetWebContents(context);
+  if (current_web_contents) {
+    // Evict all the BFCache entries that
+    // 1): are stored in the same BrowserContext
+    // 2): were loaded with the "Cache-control: no-store" header
+    // 3): match the challenger information of the page that requires HTTP
+    // authentication.
+    for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
+      if (web_contents->GetBrowserContext()->UniqueId() ==
+          current_web_contents->GetBrowserContext()->UniqueId()) {
+        for (const std::unique_ptr<BackForwardCacheImpl::Entry>& entry :
+             web_contents->GetController().GetBackForwardCache().GetEntries()) {
+          RenderFrameHostImpl* rfh = entry->render_frame_host();
+          const GURL& last_committed_url = rfh->GetLastCommittedURL();
+          if (rfh->LoadedWithCacheControlNoStoreHeader() &&
+              auth_info.challenger ==
+                  url::SchemeHostPort(last_committed_url.scheme(),
+                                      last_committed_url.host(),
+                                      last_committed_url.IntPort())) {
+            BackForwardCacheCanStoreDocumentResult flattened_reasons;
+            flattened_reasons.No(BackForwardCacheMetrics::NotRestoredReason::
+                                     kCacheControlNoStore);
+            flattened_reasons.No(
+                BackForwardCacheMetrics::NotRestoredReason::kHTTPAuthRequired);
+            rfh->EvictFromBackForwardCacheWithFlattenedReasons(
+                flattened_reasons);
+          }
+        }
+      }
+    }
+  }
+
   OnAuthRequiredContinuation(
       process_id, request_id, url, *is_primary_main_frame, first_auth_attempt,
       auth_info, head_headers, std::move(auth_challenge_responder),
       web_contents_getter);
+}
+
+void StoragePartitionImpl::OnPrivateNetworkAccessPermissionRequired(
+    const GURL& url,
+    const net::IPAddress& ip_address,
+    const absl::optional<std::string>& private_network_device_id,
+    const absl::optional<std::string>& private_network_device_name,
+    OnPrivateNetworkAccessPermissionRequiredCallback callback) {
+  if (!base::FeatureList::IsEnabled(
+          network::features::kPrivateNetworkAccessPermissionPrompt)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  if (url_loader_network_observers_.empty()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const URLLoaderNetworkContext& context =
+      url_loader_network_observers_.current_context();
+
+  if (context.type() !=
+          URLLoaderNetworkContext::Type::kRenderFrameHostContext ||
+      !context.navigation_or_document()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  RenderFrameHost* render_frame_host =
+      context.navigation_or_document()->GetDocument();
+  if (!render_frame_host) {
+    std::move(callback).Run(false);
+    return;
+  }
+  auto device = blink::mojom::PrivateNetworkDevice::New(
+      private_network_device_id, private_network_device_name, ip_address);
+
+  PrivateNetworkDeviceDelegate* delegate =
+      GetContentClient()->browser()->GetPrivateNetworkDeviceDelegate();
+  if (!delegate) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  delegate->RequestPermission(*render_frame_host, std::move(device),
+                              std::move(callback));
 }
 
 void StoragePartitionImpl::OnCertificateRequested(
@@ -2068,9 +2278,23 @@ void StoragePartitionImpl::OnCertificateRequested(
     return;
   }
 
-  auto web_contents_getter = base::BindRepeating(GetWebContents, context);
-  OnCertificateRequestedContinuation(cert_info, std::move(cert_responder),
-                                     std::move(web_contents_getter));
+  SSLClientAuthHandler::ContextGetter context_getter;
+
+  if (context.type() == URLLoaderNetworkContext::Type::kServiceWorkerContext) {
+    context_getter = base::BindRepeating(GetContextFromStoragePartition,
+                                         weak_factory_.GetWeakPtr());
+  } else {
+    context_getter = base::BindRepeating(GetContextFromNetworkContext, context);
+    // The WebContents is already invalid. Bail.
+    if (!GetWebContents(context)) {
+      CallCancelRequest(std::move(cert_responder));
+      return;
+    }
+  }
+
+  // SSLClientAuthDelegate handles its own lifetime.
+  new SSLClientAuthDelegate(std::move(cert_responder), browser_context(),
+                            std::move(context_getter), cert_info);
 }
 
 void StoragePartitionImpl::OnSSLCertificateError(
@@ -2130,6 +2354,22 @@ void StoragePartitionImpl::OnDataUseUpdate(
   GetContentClient()->browser()->OnNetworkServiceDataUseUpdate(
       render_frame_host_id, network_traffic_annotation_id_hash, recv_bytes,
       sent_bytes);
+}
+
+void StoragePartitionImpl::OnSharedStorageHeaderReceived(
+    const url::Origin& request_origin,
+    std::vector<network::mojom::SharedStorageOperationPtr> operations,
+    OnSharedStorageHeaderReceivedCallback callback) {
+  if (!shared_storage_header_observer_) {
+    std::move(callback).Run();
+    return;
+  }
+  auto* navigation_or_document =
+      url_loader_network_observers_.current_context().navigation_or_document();
+  DCHECK(navigation_or_document);
+  RenderFrameHost* rfh = navigation_or_document->GetDocument();
+  shared_storage_header_observer_->HeaderReceived(
+      request_origin, rfh, std::move(operations), std::move(callback));
 }
 
 void StoragePartitionImpl::Clone(
@@ -2235,8 +2475,8 @@ void StoragePartitionImpl::OnClearSiteData(
           : nullptr);
 
   ClearSiteDataHandler::HandleHeader(
-      browser_context_getter, web_contents_getter, url, header_value,
-      load_flags, cookie_partition_key, storage_key,
+      browser_context_getter, web_contents_getter, GetConfig(), url,
+      header_value, load_flags, cookie_partition_key, storage_key,
       partitioned_state_allowed_only, std::move(callback));
 }
 
@@ -2330,7 +2570,11 @@ void StoragePartitionImpl::ClearDataImpl(
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
       interest_group_manager_.get(), attribution_manager_.get(),
       aggregation_service_.get(), private_aggregation_manager_.get(),
-      shared_storage_manager_.get(), perform_storage_cleanup, begin, end);
+      shared_storage_manager_.get(),
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+      cdm_storage_manager_.get(),
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
+      perform_storage_cleanup, begin, end);
 }
 
 void StoragePartitionImpl::DeletionHelperDone(base::OnceClosure callback) {
@@ -2526,8 +2770,11 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     InterestGroupManagerImpl* interest_group_manager,
     AttributionManager* attribution_manager,
     AggregationService* aggregation_service,
-    PrivateAggregationManager* private_aggregation_manager,
+    PrivateAggregationManagerImpl* private_aggregation_manager,
     storage::SharedStorageManager* shared_storage_manager,
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+    CdmStorageManager* cdm_storage_manager,
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
     bool perform_storage_cleanup,
     const base::Time begin,
     const base::Time end) {
@@ -2617,6 +2864,22 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     }
   }
 
+#if BUILDFLAG(ENABLE_LIBRARY_CDMS)
+  if ((remove_mask_ & REMOVE_DATA_MASK_MEDIA_LICENSES) && cdm_storage_manager) {
+    // If no storage key specified, then delete the CdmStorage.db.
+    if (storage_key_origin_empty) {
+      cdm_storage_manager->DeleteDatabase();
+    } else {
+      // TODO(crbug.com/1454512): Investigate and add logic to handle
+      // filter_builder and storage_key_policy_matcher.
+      cdm_storage_manager->DeleteDataForStorageKey(storage_key,
+                                                   base::DoNothing());
+    }
+  }
+#endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
+
+  // TODO(crbug.com/1454512): Remove REMOVE_DATA_MASK_MEDIA_LICENSES from here
+  // when MediaLicense is removed from Quota types.
   if (remove_mask_ & REMOVE_DATA_MASK_INDEXEDDB ||
       remove_mask_ & REMOVE_DATA_MASK_WEBSQL ||
       remove_mask_ & REMOVE_DATA_MASK_FILE_SYSTEMS ||
@@ -2884,20 +3147,6 @@ void StoragePartitionImpl::ClearBluetoothAllowedDevicesMapForTesting() {
   bluetooth_allowed_devices_map_->Clear();
 }
 
-void StoragePartitionImpl::ResetAttributionManagerForTesting(
-    base::OnceCallback<void(bool)> callback) {
-  DCHECK(initialized_);
-
-  // Reset the existing manager first to ensure that the underlying DB is only
-  // accessed by one instance at a time.
-  attribution_manager_.reset();
-
-  attribution_manager_ = AttributionManagerImpl::CreateWithNewDbForTesting(
-      this, partition_path_, special_storage_policy_);
-
-  std::move(callback).Run(/*success=*/!!attribution_manager_);
-}
-
 void StoragePartitionImpl::AddObserver(DataRemovalObserver* observer) {
   data_removal_observers_.AddObserver(observer);
 }
@@ -3049,6 +3298,13 @@ void StoragePartitionImpl::OverrideSharedStorageWorkletHostManagerForTesting(
       std::move(shared_storage_worklet_host_manager);
 }
 
+void StoragePartitionImpl::OverrideSharedStorageHeaderObserverForTesting(
+    std::unique_ptr<SharedStorageHeaderObserver>
+        shared_storage_header_observer) {
+  DCHECK(initialized_);
+  shared_storage_header_observer_ = std::move(shared_storage_header_observer);
+}
+
 void StoragePartitionImpl::OverrideAggregationServiceForTesting(
     std::unique_ptr<AggregationService> aggregation_service) {
   DCHECK(initialized_);
@@ -3062,7 +3318,8 @@ void StoragePartitionImpl::OverrideAttributionManagerForTesting(
 }
 
 void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(
-    std::unique_ptr<PrivateAggregationManager> private_aggregation_manager) {
+    std::unique_ptr<PrivateAggregationManagerImpl>
+        private_aggregation_manager) {
   DCHECK(initialized_);
   private_aggregation_manager_ = std::move(private_aggregation_manager);
 }
@@ -3117,6 +3374,32 @@ void StoragePartitionImpl::InitNetworkContext() {
   variations::UpdateCorsExemptHeaderForVariations(context_params.get());
 
   cors_exempt_header_list_ = context_params->cors_exempt_header_list;
+
+  if (base::FeatureList::IsEnabled(
+          network::features::kCompressionDictionaryTransportBackend) &&
+      GetContentClient()->browser()->AllowCompressionDictionaryTransport(
+          browser_context_)) {
+    context_params->shared_dictionary_enabled = true;
+    if (!is_in_memory()) {
+      // Some callers may already initialize NetworkContextFilePaths, and we
+      // don't want to overwrite them.
+      if (!context_params->file_paths) {
+        context_params->file_paths =
+            network::mojom::NetworkContextFilePaths::New();
+      }
+      context_params->file_paths->shared_dictionary_directory =
+          partition_path_.Append(FILE_PATH_LITERAL("Shared Dictionary"));
+    }
+    if (context_params->shared_dictionary_cache_max_size == 0u) {
+      CalculateAndSetSharedDictionaryCacheMaxSize(
+          GetWeakPtr(), is_in_memory() ? base::FilePath() : partition_path_);
+    }
+  }
+
+  if (cookie_deprecation_label_manager_) {
+    context_params->cookie_deprecation_label =
+        cookie_deprecation_label_manager_->GetValue();
+  }
 
   network_context_.reset();
   CreateNetworkContextInNetworkService(
@@ -3205,6 +3488,15 @@ StoragePartitionImpl::CreateTrustTokenAccessObserverForServiceWorker() {
   mojo::PendingRemote<network::mojom::TrustTokenAccessObserver> remote;
   service_worker_trust_token_observers_.Add(
       std::make_unique<ServiceWorkerTrustTokenAccessObserver>(this),
+      remote.InitWithNewPipeAndPassReceiver());
+  return remote;
+}
+
+mojo::PendingRemote<network::mojom::SharedDictionaryAccessObserver>
+StoragePartitionImpl::CreateSharedDictionaryAccessObserverForServiceWorker() {
+  mojo::PendingRemote<network::mojom::SharedDictionaryAccessObserver> remote;
+  service_worker_shared_dictionary_observers_.Add(
+      std::make_unique<ServiceWorkerSharedDictionaryAccessObserver>(this),
       remote.InitWithNewPipeAndPassReceiver());
   return remote;
 }

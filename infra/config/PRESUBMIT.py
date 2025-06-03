@@ -9,7 +9,6 @@ for more details on the presubmit API built into depot_tools.
 """
 
 PRESUBMIT_VERSION = '2.0.0'
-USE_PYTHON3 = True
 
 _IGNORE_FREEZE_FOOTER = 'Ignore-Freeze'
 
@@ -45,12 +44,8 @@ def CheckFreeze(input_api, output_api):
 
 def CheckTests(input_api, output_api):
   glob = input_api.os_path.join(input_api.PresubmitLocalPath(), '*_test.py')
-  tests = input_api.canned_checks.GetUnitTests(input_api,
-                                               output_api,
-                                               input_api.glob(glob),
-                                               run_on_python2=False,
-                                               run_on_python3=True,
-                                               skip_shebang_check=True)
+  tests = input_api.canned_checks.GetUnitTests(input_api, output_api,
+                                               input_api.glob(glob))
   return input_api.RunTests(tests)
 
 
@@ -67,9 +62,9 @@ def CheckLintLuciMilo(input_api, output_api):
   return []
 
 def CheckTestingBuildbot(input_api, output_api):
-  if ('infra/config/generated/luci/luci-milo.cfg' in input_api.LocalPaths() or
-      'infra/config/generated/luci/luci-milo-dev.cfg' in input_api.LocalPaths()
-      ):
+  if ('infra/config/generated/luci/luci-milo.cfg' in input_api.LocalPaths()
+      or 'infra/config/generated/luci/luci-milo-dev.cfg'
+      in input_api.LocalPaths()):
     return input_api.RunTests([
         input_api.Command(name='testing/buildbot config checks',
                           cmd=[

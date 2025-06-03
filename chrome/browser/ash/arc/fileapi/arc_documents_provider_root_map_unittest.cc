@@ -76,13 +76,15 @@ class ArcDocumentsProviderRootMapTest : public testing::Test {
   void TearDownARC() {
     arc_service_manager_->arc_bridge_service()->file_system()->CloseInstance(
         &fake_file_system_);
+    arc_service_manager_->set_browser_context(nullptr);
   }
 
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
   FakeFileSystemInstance fake_file_system_;
   std::unique_ptr<ArcServiceManager> arc_service_manager_;
-  raw_ptr<ArcDocumentsProviderRootMap> arc_documents_provider_root_map_;
+  raw_ptr<ArcDocumentsProviderRootMap, DanglingUntriaged>
+      arc_documents_provider_root_map_;
 };
 
 TEST_F(ArcDocumentsProviderRootMapTest, Lookup) {

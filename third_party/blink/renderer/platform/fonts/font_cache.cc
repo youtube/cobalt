@@ -79,7 +79,6 @@ float FontCache::device_scale_factor_ = 1.0;
 #if BUILDFLAG(IS_WIN)
 bool FontCache::antialiased_text_enabled_ = false;
 bool FontCache::lcd_text_enabled_ = false;
-bool FontCache::use_skia_font_fallback_ = false;
 static bool should_use_test_font_mgr = false;
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -164,24 +163,6 @@ std::unique_ptr<FontPlatformData> FontCache::ScaleFontPlatformData(
 #else
   return std::make_unique<FontPlatformData>(font_platform_data, font_size);
 #endif
-}
-
-NGShapeCache* FontCache::GetNGShapeCache(const FallbackListCompositeKey& key) {
-  if (!fallback_list_ng_shaper_cache_) {
-    fallback_list_ng_shaper_cache_.emplace();
-  }
-  FallbackListNGShaperCache::iterator it =
-      fallback_list_ng_shaper_cache_->find(key);
-  NGShapeCache* result = nullptr;
-  if (it == fallback_list_ng_shaper_cache_->end()) {
-    result = new NGShapeCache();
-    fallback_list_ng_shaper_cache_->Set(key, base::WrapUnique(result));
-  } else {
-    result = it->value.get();
-  }
-
-  DCHECK(result);
-  return result;
 }
 
 ShapeCache* FontCache::GetShapeCache(const FallbackListCompositeKey& key) {
@@ -304,20 +285,9 @@ void FontCache::PurgePlatformFontDataCache() {
   font_platform_data_cache_->Purge(*font_data_cache_);
 }
 
-void FontCache::PurgeFallbackListNGShaperCache() {
-  TRACE_EVENT0("fonts,ui", "FontCache::PurgeFallbackListNGShaperCache");
-  if (UNLIKELY(fallback_list_ng_shaper_cache_)) {
-    fallback_list_ng_shaper_cache_->clear();
-  }
-}
-
 void FontCache::PurgeFallbackListShaperCache() {
   TRACE_EVENT0("fonts,ui", "FontCache::PurgeFallbackListShaperCache");
   fallback_list_shaper_cache_.clear();
-}
-
-void FontCache::InvalidateNGShapeCache() {
-  PurgeFallbackListNGShaperCache();
 }
 
 void FontCache::InvalidateShapeCache() {
@@ -335,7 +305,6 @@ void FontCache::Purge(PurgeSeverity purge_severity) {
     return;
 
   PurgePlatformFontDataCache();
-  PurgeFallbackListNGShaperCache();
   PurgeFallbackListShaperCache();
 }
 

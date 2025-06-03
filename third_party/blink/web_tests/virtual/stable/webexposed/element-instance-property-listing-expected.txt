@@ -309,7 +309,6 @@ namespace http://www.w3.org/1999/xhtml
     property setAttributeNS
     property setAttributeNode
     property setAttributeNodeNS
-    property setHTML
     property setPointerCapture
     property shadowRoot
     property showPopover
@@ -526,6 +525,7 @@ html element del
     property cite
     property dateTime
 html element details
+    property name
     property open
 html element dfn
 html element dialog
@@ -660,6 +660,7 @@ html element iframe
     property marginHeight
     property marginWidth
     property name
+    property privateToken
     property referrerPolicy
     property sandbox
     property scrolling
@@ -931,6 +932,7 @@ html element script
     property src
     property text
     property type
+html element search
 html element section
 html element select
     property add
@@ -1492,7 +1494,6 @@ namespace http://www.w3.org/2000/svg
     property setAttributeNS
     property setAttributeNode
     property setAttributeNodeNS
-    property setHTML
     property setPointerCapture
     property shadowRoot
     property slot
@@ -1578,13 +1579,6 @@ svg element circle
     property transform
 svg element clipPath
     property clipPathUnits
-    property farthestViewportElement
-    property getBBox
-    property getCTM
-    property getScreenCTM
-    property nearestViewportElement
-    property requiredExtensions
-    property systemLanguage
     property transform
 svg element defs
     property farthestViewportElement
@@ -1936,6 +1930,7 @@ svg element g
     property systemLanguage
     property transform
 svg element image
+    property crossOrigin
     property decode
     property decoding
     property farthestViewportElement

@@ -57,7 +57,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/timer/mock_timer.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power_manager/suspend.pb.h"
 #include "components/prefs/pref_service.h"
@@ -136,8 +136,8 @@ class LockContentsViewUnitTest : public LoginTestBase {
  public:
   LockContentsViewUnitTest() {
     set_start_session(true);
-    AuthMetricsRecorder::Get()->OnAuthenticationSurfaceChange(
-        AuthMetricsRecorder::AuthenticationSurface::kLogin);
+    AuthEventsRecorder::Get()->OnAuthenticationSurfaceChange(
+        AuthEventsRecorder::AuthenticationSurface::kLogin);
   }
   LockContentsViewUnitTest(LockContentsViewUnitTest&) = delete;
   LockContentsViewUnitTest& operator=(LockContentsViewUnitTest&) = delete;
@@ -1003,11 +1003,6 @@ TEST_F(LockContentsViewUnitTest, ShowErrorBubbleOnAuthFailure) {
   base::RunLoop().RunUntilIdle();
 
   EXPECT_TRUE(test_api.auth_error_bubble()->GetVisible());
-
-  // The error bubble is expected to close on a user action - e.g. if they start
-  // typing the password again.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_B);
-  EXPECT_FALSE(test_api.auth_error_bubble()->GetVisible());
 }
 
 TEST_F(LockContentsViewUnitTest, AuthErrorLockscreenLearnMoreButton) {
@@ -1204,6 +1199,11 @@ TEST_F(LockContentsViewUnitTest, GaiaNeverShownAfterFirstFailedLoginAttempt) {
 
 // Gaia is shown in login on the 4th bad password attempt.
 TEST_F(LockContentsViewUnitTest, ShowGaiaAuthAfterManyFailedLoginAttempts) {
+  base::test::ScopedFeatureList feature_list;
+  // With recovery feature enabled, the online login is not forced after bad
+  // password attempts.
+  feature_list.InitAndDisableFeature(features::kCryptohomeRecovery);
+
   // Build lock screen with a single user.
   auto* contents = new LockContentsView(
       mojom::TrayActionState::kNotAvailable, LockScreen::ScreenType::kLogin,
@@ -1553,12 +1553,11 @@ TEST_F(LockContentsViewUnitTest, AuthErrorDoesNotRemoveDetachableBaseError) {
   EXPECT_TRUE(test_api.auth_error_bubble()->GetVisible());
   EXPECT_TRUE(test_api.detachable_base_error_bubble()->GetVisible());
 
-  // User action, like pressing a key should close the auth error bubble, but
-  // not the detachable base error bubble.
+  // User action, like pressing a key, should not close the detachable base
+  // error bubble.
   PressAndReleaseKey(ui::KeyboardCode::VKEY_A);
 
   EXPECT_TRUE(test_api.detachable_base_error_bubble()->GetVisible());
-  EXPECT_FALSE(test_api.auth_error_bubble()->GetVisible());
 }
 
 TEST_F(LockContentsViewKeyboardUnitTest, SwitchPinAndVirtualKeyboard) {
@@ -2679,7 +2678,7 @@ TEST_F(LockContentsViewUnitTest, RemoveUserFocusMovesBackToPrimaryUser) {
   PressAndReleaseKey(ui::KeyboardCode::VKEY_RETURN);
   base::RunLoop().RunUntilIdle();
   // Focus the remove user bubble, tap twice to remove the user.
-  user_test_api.remove_account_dialog()->RequestFocus();
+  secondary_test_api.remove_account_dialog()->RequestFocus();
   PressAndReleaseKey(ui::KeyboardCode::VKEY_RETURN);
   base::RunLoop().RunUntilIdle();
   PressAndReleaseKey(ui::KeyboardCode::VKEY_RETURN);
@@ -3359,7 +3358,7 @@ TEST_F(LockContentsViewUnitTest, LoginExtensionUiWithNoUsers) {
 }
 
 class LockContentsViewWithKioskLicenseTest : public LoginTestBase {
- protected:
+ public:
   LockContentsViewWithKioskLicenseTest() {
     scoped_feature_list_.InitAndEnableFeature(
         ash::features::kCryptohomeRecovery);
@@ -3377,8 +3376,13 @@ class LockContentsViewWithKioskLicenseTest : public LoginTestBase {
     NotifySessionStateChanged(session_manager::SessionState::OOBE);
   }
 
-  void SetNumberOfKioskApps(int number_apps) {
-    std::vector<KioskAppMenuEntry> kiosk_apps(number_apps);
+  void SetNFakeKioskApps(int n) {
+    std::vector<KioskAppMenuEntry> kiosk_apps(
+        n, KioskAppMenuEntry(KioskAppMenuEntry::AppType::kChromeApp,
+                             AccountId::FromUserEmail("fake@email.com"),
+                             /*chrome_app_id=*/"abc123chromeappid",
+                             /*name=*/u"Fake App",
+                             /*icon=*/gfx::ImageSkia()));
     login_shelf_view_->SetKioskApps(kiosk_apps);
   }
 
@@ -3387,8 +3391,8 @@ class LockContentsViewWithKioskLicenseTest : public LoginTestBase {
     GetSessionControllerClient()->FlushForTest();
   }
 
-  raw_ptr<LoginShelfView, ExperimentalAsh> login_shelf_view_ =
-      nullptr;  // Unowned.
+  raw_ptr<LoginShelfView, DanglingUntriaged | ExperimentalAsh>
+      login_shelf_view_ = nullptr;  // Unowned.
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -3407,11 +3411,10 @@ TEST_F(LockContentsViewWithKioskLicenseTest,
   lock_contents_view->SetKioskLicenseModeForTesting(is_kiosk_license_mode);
   LockContentsViewTestApi test_api(lock_contents_view);
   SetUserCount(0);
-  std::unique_ptr<views::Widget> widget =
-      CreateWidgetWithContent(lock_contents_view);
+  SetWidget(CreateWidgetWithContent(lock_contents_view));
 
   NotifySessionStateChanged(session_manager::SessionState::LOGIN_PRIMARY);
-  SetNumberOfKioskApps(1);
+  SetNFakeKioskApps(1);
 
   EXPECT_TRUE(test_api.kiosk_default_message());
   EXPECT_FALSE(test_api.kiosk_default_message()->GetVisible());
@@ -3430,11 +3433,10 @@ TEST_F(LockContentsViewWithKioskLicenseTest, ShouldHideKioskDefaultMessage) {
   lock_contents_view->SetKioskLicenseModeForTesting(is_kiosk_license_mode);
   LockContentsViewTestApi test_api(lock_contents_view);
   SetUserCount(0);
-  std::unique_ptr<views::Widget> widget =
-      CreateWidgetWithContent(lock_contents_view);
+  SetWidget(CreateWidgetWithContent(lock_contents_view));
 
   NotifySessionStateChanged(session_manager::SessionState::LOGIN_PRIMARY);
-  SetNumberOfKioskApps(0);
+  SetNFakeKioskApps(0);
 
   EXPECT_FALSE(test_api.kiosk_default_message());
 }
@@ -3453,11 +3455,10 @@ TEST_F(LockContentsViewWithKioskLicenseTest,
   lock_contents_view->SetKioskLicenseModeForTesting(is_kiosk_license_mode);
   LockContentsViewTestApi test_api(lock_contents_view);
   SetUserCount(0);
-  std::unique_ptr<views::Widget> widget =
-      CreateWidgetWithContent(lock_contents_view);
+  SetWidget(CreateWidgetWithContent(lock_contents_view));
 
   NotifySessionStateChanged(session_manager::SessionState::LOGIN_PRIMARY);
-  SetNumberOfKioskApps(0);
+  SetNFakeKioskApps(0);
 
   EXPECT_TRUE(test_api.kiosk_default_message());
   EXPECT_TRUE(test_api.kiosk_default_message()->GetVisible());
@@ -3477,11 +3478,10 @@ TEST_F(LockContentsViewWithKioskLicenseTest,
   lock_contents_view->SetKioskLicenseModeForTesting(is_kiosk_license_mode);
   LockContentsViewTestApi test_api(lock_contents_view);
   SetUserCount(1);
-  std::unique_ptr<views::Widget> widget =
-      CreateWidgetWithContent(lock_contents_view);
+  SetWidget(CreateWidgetWithContent(lock_contents_view));
 
   NotifySessionStateChanged(session_manager::SessionState::LOGIN_PRIMARY);
-  SetNumberOfKioskApps(0);
+  SetNFakeKioskApps(0);
 
   EXPECT_TRUE(test_api.kiosk_default_message());
   EXPECT_TRUE(test_api.kiosk_default_message()->GetVisible());
@@ -3502,16 +3502,15 @@ TEST_F(LockContentsViewWithKioskLicenseTest,
   lock_contents_view->SetKioskLicenseModeForTesting(is_kiosk_license_mode);
   LockContentsViewTestApi test_api(lock_contents_view);
   SetUserCount(0);
-  std::unique_ptr<views::Widget> widget =
-      CreateWidgetWithContent(lock_contents_view);
+  SetWidget(CreateWidgetWithContent(lock_contents_view));
 
   NotifySessionStateChanged(session_manager::SessionState::LOGIN_PRIMARY);
-  SetNumberOfKioskApps(0);
+  SetNFakeKioskApps(0);
 
   EXPECT_TRUE(test_api.kiosk_default_message());
   EXPECT_TRUE(test_api.kiosk_default_message()->GetVisible());
 
-  SetNumberOfKioskApps(1);
+  SetNFakeKioskApps(1);
 
   EXPECT_TRUE(test_api.kiosk_default_message());
   EXPECT_FALSE(test_api.kiosk_default_message()->GetVisible());

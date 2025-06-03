@@ -19,7 +19,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client_factory.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.h"
 #include "chrome/browser/safe_browsing/chrome_ui_manager_delegate.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
@@ -33,13 +33,13 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/hash_password_manager.h"
 #include "components/password_manager/core/browser/insecure_credentials_table.h"
 #include "components/password_manager/core/browser/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_reuse_detector.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/safe_browsing/content/browser/password_protection/password_protection_commit_deferring_condition.h"
@@ -177,7 +177,7 @@ class MockChromePasswordProtectionService
         is_account_signed_in_(false) {}
   bool IsExtendedReporting() override { return is_extended_reporting_; }
   bool IsIncognito() override { return is_incognito_; }
-  bool IsPrimaryAccountSyncing() const override { return is_syncing_; }
+  bool IsPrimaryAccountSyncingHistory() const override { return is_syncing_; }
   bool IsPrimaryAccountSignedIn() const override {
     return is_account_signed_in_;
   }
@@ -242,7 +242,7 @@ class ChromePasswordProtectionServiceTest
 
     password_store_ = base::WrapRefCounted(
         static_cast<password_manager::MockPasswordStoreInterface*>(
-            PasswordStoreFactory::GetInstance()
+            ProfilePasswordStoreFactory::GetInstance()
                 ->SetTestingFactoryAndUse(
                     profile(),
                     base::BindRepeating(
@@ -383,8 +383,8 @@ class ChromePasswordProtectionServiceTest
 
   CoreAccountInfo SetPrimaryAccount(const std::string& email) {
     identity_test_env()->MakeAccountAvailable(email);
-    return identity_test_env()->SetPrimaryAccount(email,
-                                                  signin::ConsentLevel::kSync);
+    return identity_test_env()->SetPrimaryAccount(
+        email, signin::ConsentLevel::kSignin);
   }
 
   void SetUpSyncAccount(const std::string& hosted_domain,
@@ -426,14 +426,16 @@ class ChromePasswordProtectionServiceTest
   std::unique_ptr<LoginReputationClientResponse> verdict_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_profile_adaptor_;
-  raw_ptr<MockSecurityEventRecorder> security_event_recorder_;
+  raw_ptr<MockSecurityEventRecorder, DanglingUntriaged>
+      security_event_recorder_;
   scoped_refptr<password_manager::MockPasswordStoreInterface> password_store_;
   scoped_refptr<password_manager::MockPasswordStoreInterface>
       account_password_store_;
   // Owned by KeyedServiceFactory.
-  raw_ptr<syncer::FakeUserEventService> fake_user_event_service_;
+  raw_ptr<syncer::FakeUserEventService, DanglingUntriaged>
+      fake_user_event_service_;
 #if !BUILDFLAG(IS_ANDROID)
-  raw_ptr<extensions::TestEventRouter> test_event_router_;
+  raw_ptr<extensions::TestEventRouter, DanglingUntriaged> test_event_router_;
 #endif
   std::unique_ptr<VerdictCacheManager> cache_manager_;
   ScopedTestingLocalState local_state_;
@@ -799,7 +801,7 @@ TEST_F(ChromePasswordProtectionServiceTest,
 TEST_F(ChromePasswordProtectionServiceTest,
        VerifyPasswordReuseDetectedSecurityEventRecorded) {
   identity_test_env()->SetPrimaryAccount(kTestEmail,
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
   service_->set_username_for_last_shown_warning(kTestEmail);
   EXPECT_CALL(*security_event_recorder_, RecordGaiaPasswordReuse(_))
       .WillOnce(WithArg<0>([&](const auto& message) {

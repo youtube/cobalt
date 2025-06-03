@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/css/active_style_sheets.h"
 #include "third_party/blink/renderer/core/css/color_scheme_flags.h"
 #include "third_party/blink/renderer/core/css/css_global_rule_set.h"
+#include "third_party/blink/renderer/core/css/css_to_length_conversion_data.h"
 #include "third_party/blink/renderer/core/css/invalidation/pending_invalidations.h"
 #include "third_party/blink/renderer/core/css/invalidation/style_invalidator.h"
 #include "third_party/blink/renderer/core/css/layout_tree_rebuild_root.h"
@@ -52,6 +53,7 @@
 #include "third_party/blink/renderer/core/css/style_invalidation_root.h"
 #include "third_party/blink/renderer/core/css/style_recalc_root.h"
 #include "third_party/blink/renderer/core/css/vision_deficiency.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/layout/geometry/axis.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
@@ -74,6 +76,7 @@ namespace blink {
 class ComputedStyleBuilder;
 class CounterStyle;
 class CounterStyleMap;
+class StyleContainmentScopeTree;
 class CSSFontSelector;
 class CSSPropertyValueSet;
 class CSSStyleSheet;
@@ -99,12 +102,14 @@ class StyleRuleFontFace;
 class StyleRuleFontPaletteValues;
 class StyleRuleKeyframes;
 class StyleRuleUsageTracker;
+class StyleScopeFrame;
 class StyleSheet;
 class StyleSheetContents;
 class StyleInitialData;
 class TextTrack;
 class TreeScopeStyleSheetCollection;
 class ViewportStyleResolver;
+class SelectorFilter;
 struct LogicalSize;
 
 enum InvalidationScope { kInvalidateCurrentScope, kInvalidateAllScopes };
@@ -203,7 +208,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
     return injected_author_style_sheets_;
   }
 
-  CSSStyleSheet* InspectorStyleSheet() const { return inspector_style_sheet_; }
+  CSSStyleSheet* InspectorStyleSheet() const {
+    return inspector_style_sheet_.Get();
+  }
 
   void AddTextTrack(TextTrack*);
   void RemoveTextTrack(TextTrack*);
@@ -344,6 +351,11 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
     return *resolver_;
   }
 
+  StyleContainmentScopeTree& EnsureStyleContainmentScopeTree();
+  StyleContainmentScopeTree* GetStyleContainmentScopeTree() const {
+    return style_containment_scope_tree_.Get();
+  }
+
   void SetRuleUsageTracker(StyleRuleUsageTracker*);
 
   Font ComputeFont(Element& element,
@@ -419,7 +431,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // resume it during layout.
   bool SkipStyleRecalcAllowed() const { return allow_skip_style_recalc_; }
 
-  CSSFontSelector* GetFontSelector() { return font_selector_; }
+  CSSFontSelector* GetFontSelector() { return font_selector_.Get(); }
 
   void RemoveFontFaceRules(const HeapVector<Member<const StyleRuleFontFace>>&);
   // updateGenericFontFamilySettings is used from WebSettingsImpl.
@@ -435,8 +447,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void CollectFeaturesTo(RuleFeatureSet& features);
 
-  void EnsureUAStyleForFullscreen();
-  void EnsureUAStyleForXrOverlay();
+  void EnsureUAStyleForFullscreen(const Element&);
   void EnsureUAStyleForElement(const Element&);
   void EnsureUAStyleForPseudoElement(PseudoId);
   void EnsureUAStyleForForcedColors();
@@ -470,10 +481,22 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
                                               Element& removed_element,
                                               Element& after_element);
   void ScheduleNthPseudoInvalidations(ContainerNode&);
-  void ScheduleInvalidationsForRuleSets(
+  void ApplyRuleSetInvalidationForTreeScope(
       TreeScope&,
+      ContainerNode&,
+      SelectorFilter&,
+      StyleScopeFrame&,
       const HeapHashSet<Member<RuleSet>>&,
       InvalidationScope = kInvalidateCurrentScope);
+  void ApplyRuleSetInvalidationForSubtree(
+      TreeScope&,
+      Element&,
+      SelectorFilter&,
+      StyleScopeFrame& parent_style_scope_frame,
+      const HeapHashSet<Member<RuleSet>>&,
+      InvalidationScope,
+      bool invalidate_slotted,
+      bool invalidate_part);
   void ScheduleCustomElementInvalidations(HashSet<AtomicString> tag_names);
   void ScheduleInvalidationsForHasPseudoAffectedByInsertion(
       Element* parent,
@@ -487,8 +510,8 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void NodeWillBeRemoved(Node&);
   void ChildrenRemoved(ContainerNode& parent);
-  void RemovedFromFlatTree(Node& node) {
-    style_recalc_root_.RemovedFromFlatTree(node);
+  void FlatTreePositionChanged(Node& node) {
+    style_recalc_root_.FlatTreePositionChanged(node);
   }
   void PseudoElementRemoved(Element& originating_element) {
     layout_tree_rebuild_root_.SubtreeModified(originating_element);
@@ -508,7 +531,8 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void ApplyRuleSetChanges(TreeScope&,
                            const ActiveStyleSheetVector& old_style_sheets,
-                           const ActiveStyleSheetVector& new_style_sheets);
+                           const ActiveStyleSheetVector& new_style_sheets,
+                           const HeapVector<Member<RuleSetDiff>>& diffs);
   void ApplyUserRuleSetChanges(const ActiveStyleSheetVector& old_style_sheets,
                                const ActiveStyleSheetVector& new_style_sheets);
 
@@ -550,12 +574,14 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
       AtomicString palette_name,
       AtomicString font_family);
 
-  CounterStyleMap* GetUserCounterStyleMap() { return user_counter_style_map_; }
+  CounterStyleMap* GetUserCounterStyleMap() {
+    return user_counter_style_map_.Get();
+  }
   const CounterStyle& FindCounterStyleAcrossScopes(const AtomicString&,
                                                    const TreeScope*) const;
 
   const CascadeLayerMap* GetUserCascadeLayerMap() const {
-    return user_cascade_layer_map_;
+    return user_cascade_layer_map_.Get();
   }
 
   DocumentStyleEnvironmentVariables& EnsureEnvironmentVariables();
@@ -654,10 +680,18 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   const char* NameInHeapSnapshot() const override { return "StyleEngine"; }
 
   RuleSet* DefaultViewTransitionStyle() const;
-  void InvalidateUAViewTransitionStyle();
+  void UpdateViewTransitionsOptIn();
 
-  const ActiveStyleSheetVector& ActiveUserStyleSheetsForDebug() const {
+  const ActiveStyleSheetVector& ActiveUserStyleSheets() const {
     return active_user_style_sheets_;
+  }
+
+  // See comment on viewport_size_.
+  void UpdateViewportSize();
+  const CSSToLengthConversionData::ViewportSize& GetViewportSize() const {
+    DCHECK(viewport_size_ == CSSToLengthConversionData::ViewportSize(
+                                 GetDocument().GetLayoutView()));
+    return viewport_size_;
   }
 
  private:
@@ -727,11 +761,13 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   bool ShouldSkipInvalidationFor(const Element&) const;
   bool IsSubtreeAndSiblingsStyleDirty(const Element&) const;
-  void ScheduleRuleSetInvalidationsForElement(
-      Element&,
-      const HeapHashSet<Member<RuleSet>>&);
-  void ScheduleTypeRuleSetInvalidations(ContainerNode&,
-                                        const HeapHashSet<Member<RuleSet>>&);
+  void ApplyRuleSetInvalidationForElement(
+      const TreeScope& tree_scope,
+      Element& element,
+      SelectorFilter& selector_filter,
+      StyleScopeFrame& style_scope_frame,
+      const HeapHashSet<Member<RuleSet>>& rule_sets,
+      bool is_shadow_host);
   void InvalidateSlottedElements(HTMLSlotElement&);
   void InvalidateForRuleSetChanges(
       TreeScope& tree_scope,
@@ -776,6 +812,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   bool UserKeyframeStyleShouldOverride(
       const StyleRuleKeyframes* new_rule,
       const StyleRuleKeyframes* existing_rule) const;
+  void AddViewTransitionsRules(const ActiveStyleSheetVector& sheets);
 
   CounterStyleMap& EnsureUserCounterStyleMap();
 
@@ -790,6 +827,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void RecalcStyle(StyleRecalcChange, const StyleRecalcContext&);
   void RecalcStyleForContainer(Element& container, StyleRecalcChange change);
+  void RecalcHighlightStylesForContainer(Element& container);
 
   void RecalcTransitionPseudoStyle();
 
@@ -821,6 +859,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   bool AllowSkipStyleRecalcForScope() const;
 
   Member<Document> document_;
+
+  // Tree of style containment scopes. Is in charge of the document's quotes.
+  Member<StyleContainmentScopeTree> style_containment_scope_tree_;
 
   // Tracks the number of currently loading top-level stylesheets. Sheets loaded
   // using the @import directive are not included in this count. We use this
@@ -904,12 +945,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   Member<ViewportStyleResolver> viewport_resolver_;
   Member<MediaQueryEvaluator> media_query_evaluator_;
   Member<CSSGlobalRuleSet> global_rule_set_;
-
-  // This is the default UA generated style sheet for the ::transition* pseudo
-  // elements. This is tracked by StyleEngine as opposed to
-  // CSSDefaultStyleSheets since it is 1:1 with a Document and can be
-  // dynamically updated.
-  Member<RuleSet> ua_view_transition_style_;
 
   PendingInvalidations pending_invalidations_;
 
@@ -1003,6 +1038,9 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // generated during a ViewTransition.
   Vector<AtomicString> view_transition_names_;
 
+  // The @view-transitions rule currently applying to the document.
+  Member<StyleRuleViewTransitions> view_transitions_rule_;
+
   // Cache for sharing StyleFetchedImage between CSSValues referencing the same
   // URL.
   StyleImageCache style_image_cache_;
@@ -1012,6 +1050,10 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // for more info.
   HeapHashMap<AtomicString, Member<const CSSValue>>
       fill_or_clip_path_uri_value_cache_;
+
+  // Cached because it can be expensive to compute anew for each element.
+  // You must call UpdateViewportSize() once before resolving style.
+  CSSToLengthConversionData::ViewportSize viewport_size_;
 };
 
 void PossiblyScheduleNthPseudoInvalidations(Node& node);

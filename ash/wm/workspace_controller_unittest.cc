@@ -457,12 +457,12 @@ TEST_F(WorkspaceControllerTest, MinimizeResetsVisibility) {
   wm::ActivateWindow(w1.get());
   w1->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_MAXIMIZED);
   EXPECT_EQ(ShelfBackgroundType::kMaximized,
-            shelf_widget()->GetBackgroundType());
+            GetPrimaryShelf()->shelf_layout_manager()->shelf_background_type());
 
   w1->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_MINIMIZED);
   EXPECT_EQ(SHELF_VISIBLE, GetPrimaryShelf()->GetVisibilityState());
   EXPECT_EQ(ShelfBackgroundType::kDefaultBg,
-            shelf_widget()->GetBackgroundType());
+            GetPrimaryShelf()->shelf_layout_manager()->shelf_background_type());
 }
 
 // Verifies window visibility during various workspace changes.
@@ -955,7 +955,7 @@ TEST_F(WorkspaceControllerTest, TestUserHandledWindowRestore) {
   window1->SetBounds(user_pos);
   WindowState* window1_state = WindowState::Get(window1.get());
 
-  window1_state->SetPreAutoManageWindowBounds(user_pos);
+  window1_state->set_pre_auto_manage_window_bounds(user_pos);
   gfx::Rect desktop_area = window1->parent()->bounds();
 
   // Create a second window to let the auto manager kick in.
@@ -1283,7 +1283,7 @@ TEST_F(WorkspaceControllerTest, RestoreMinimizedSnappedWindow) {
 
   // Left snap |window|.
   EXPECT_FALSE(window_state->bounds_changed_by_user());
-  const WMEvent snap_left(WM_EVENT_SNAP_PRIMARY);
+  const WindowSnapWMEvent snap_left(WM_EVENT_SNAP_PRIMARY);
   window_state->OnWMEvent(&snap_left);
   const gfx::Rect work_area =
       display::Screen::GetScreen()

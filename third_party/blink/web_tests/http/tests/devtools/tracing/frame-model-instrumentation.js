@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {PerformanceTestRunner} from 'performance_test_runner';
+
+import * as Timeline from 'devtools/panels/timeline/timeline.js';
+
 (async function() {
-  await TestRunner.loadLegacyModule('timeline'); await TestRunner.loadTestModule('performance_test_runner');
+  await TestRunner.loadHTML('ABC');
   await TestRunner.showPanel('timeline');
   await TestRunner.evaluateInPagePromise(`
   function doActions() {
     return generateFrames(3);
   }`);
 
-  UI.panels.timeline.captureLayersAndPicturesSetting.set(true);
+  Timeline.TimelinePanel.TimelinePanel.instance().captureLayersAndPicturesSetting.set(true);
   await PerformanceTestRunner.invokeAsyncWithTimeline('doActions');
   const frames = PerformanceTestRunner.timelineFrameModel().getFrames();
   const lastFrame = frames[frames.length - 1];

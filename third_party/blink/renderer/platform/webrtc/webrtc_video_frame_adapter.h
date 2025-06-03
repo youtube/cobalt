@@ -7,6 +7,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/time/default_tick_clock.h"
@@ -43,9 +44,6 @@ namespace blink {
 //
 // WebRtcVideoFrameAdapter keeps track of which crops and scales were
 // hard-applied during its lifetime.
-// TODO(https://crbug.com/webrtc/12469): Expose this information to the caller
-// or to the frame feeddback so that we may optionally use this information to
-// optimize future captured frames for these sizes.
 class PLATFORM_EXPORT WebRtcVideoFrameAdapter
     : public webrtc::VideoFrameBuffer {
  public:
@@ -65,7 +63,7 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
     };
     base::Lock buffer_lock_;
     Vector<BufferEntry> free_buffers_ GUARDED_BY(buffer_lock_);
-    const base::TickClock* tick_clock_;
+    raw_ptr<const base::TickClock, ExperimentalRenderer> tick_clock_;
   };
 
   class PLATFORM_EXPORT SharedResources
@@ -129,7 +127,8 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
     scoped_refptr<viz::RasterContextProvider> raster_context_provider_
         GUARDED_BY(context_provider_lock_);
 
-    media::GpuVideoAcceleratorFactories* gpu_factories_;
+    raw_ptr<media::GpuVideoAcceleratorFactories, ExperimentalRenderer>
+        gpu_factories_;
 
     base::Lock feedback_lock_;
 
@@ -202,7 +201,6 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
   explicit WebRtcVideoFrameAdapter(scoped_refptr<media::VideoFrame> frame);
   WebRtcVideoFrameAdapter(
       scoped_refptr<media::VideoFrame> frame,
-      std::vector<scoped_refptr<media::VideoFrame>> scaled_frames,
       scoped_refptr<SharedResources> shared_resources);
 
   scoped_refptr<media::VideoFrame> getMediaVideoFrame() const { return frame_; }
@@ -262,7 +260,6 @@ class PLATFORM_EXPORT WebRtcVideoFrameAdapter
 
   base::Lock adapted_frames_lock_;
   const scoped_refptr<media::VideoFrame> frame_;
-  const Vector<scoped_refptr<media::VideoFrame>> scaled_frames_;
   const scoped_refptr<SharedResources> shared_resources_;
   const ScaledBufferSize full_size_;
   // Frames that have been adapted, i.e. that were "hard-applied" and mapped.

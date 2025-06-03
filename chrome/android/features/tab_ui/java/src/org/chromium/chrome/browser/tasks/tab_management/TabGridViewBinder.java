@@ -8,28 +8,24 @@ import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.Card
 
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
-import android.graphics.Matrix;
 import android.util.Size;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.ImageView;
-import android.widget.ImageView.ScaleType;
 import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.ButtonCompat;
@@ -112,20 +108,8 @@ class TabGridViewBinder {
             updateColor(view, model.get(TabProperties.IS_INCOGNITO),
                     model.get(TabProperties.IS_SELECTED));
             updateFavicon(view, model);
-        } else if (TabProperties.FAVICON == propertyKey) {
-            if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(view.getContext())) {
-                return;
-            }
-
-            updateFavicon(view, model);
         } else if (TabProperties.FAVICON_FETCHER == propertyKey) {
-            if (!TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(view.getContext())) {
-                return;
-            }
-
             updateFavicon(view, model);
-        } else if (TabProperties.THUMBNAIL_FETCHER == propertyKey) {
-            updateThumbnail(view, model);
         } else if (TabProperties.CONTENT_DESCRIPTION_STRING == propertyKey) {
             view.setContentDescription(model.get(TabProperties.CONTENT_DESCRIPTION_STRING));
         } else if (TabProperties.GRID_CARD_SIZE == propertyKey) {
@@ -135,9 +119,8 @@ class TabGridViewBinder {
             view.getLayoutParams().height = cardSize.getHeight();
             view.getLayoutParams().width = cardSize.getWidth();
             view.setLayoutParams(view.getLayoutParams());
-            TabGridThumbnailView thumbnail =
-                    (TabGridThumbnailView) view.fastFindViewById(R.id.tab_thumbnail);
-            thumbnail.getLayoutParams().height = LayoutParams.MATCH_PARENT;
+            updateThumbnail(view, model);
+        } else if (TabProperties.THUMBNAIL_FETCHER == propertyKey) {
             updateThumbnail(view, model);
         }
     }
@@ -179,14 +162,6 @@ class TabGridViewBinder {
             });
         } else if (CARD_ALPHA == propertyKey) {
             view.setAlpha(model.get(CARD_ALPHA));
-        } else if (TabProperties.TITLE == propertyKey) {
-            if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(view.getContext())) {
-                return;
-            }
-            String title = model.get(TabProperties.TITLE);
-            view.fastFindViewById(R.id.action_button)
-                    .setContentDescription(view.getResources().getString(
-                            R.string.accessibility_tabstrip_btn_close_tab, title));
         } else if (TabProperties.IPH_PROVIDER == propertyKey) {
             TabListMediator.IphProvider provider = model.get(TabProperties.IPH_PROVIDER);
             if (provider != null) provider.showIPH(view.fastFindViewById(R.id.tab_thumbnail));
@@ -226,8 +201,7 @@ class TabGridViewBinder {
             view.setSelected(model.get(TabProperties.IS_SELECTED));
             updateColorForActionButton(view, model.get(TabProperties.IS_INCOGNITO),
                     model.get(TabProperties.IS_SELECTED));
-        } else if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(view.getContext())
-                && TabProperties.CLOSE_BUTTON_DESCRIPTION_STRING == propertyKey) {
+        } else if (TabProperties.CLOSE_BUTTON_DESCRIPTION_STRING == propertyKey) {
             view.fastFindViewById(R.id.action_button)
                     .setContentDescription(
                             model.get(TabProperties.CLOSE_BUTTON_DESCRIPTION_STRING));
@@ -284,87 +258,44 @@ class TabGridViewBinder {
     }
 
     private static void updateThumbnail(ViewLookupCachingFrameLayout view, PropertyModel model) {
+        TabThumbnailView thumbnail = (TabThumbnailView) view.fastFindViewById(R.id.tab_thumbnail);
+
+        // To GC on hide set a background color and remove the thumbnail.
+        final boolean isSelected = model.get(TabProperties.IS_SELECTED);
+        thumbnail.updateThumbnailPlaceholder(model.get(TabProperties.IS_INCOGNITO), isSelected);
+
         final TabListMediator.ThumbnailFetcher fetcher = model.get(TabProperties.THUMBNAIL_FETCHER);
-        TabGridThumbnailView thumbnail =
-                (TabGridThumbnailView) view.fastFindViewById(R.id.tab_thumbnail);
-        if (fetcher == null) {
+        final Size cardSize = model.get(TabProperties.GRID_CARD_SIZE);
+        if (fetcher == null || cardSize == null) {
             thumbnail.setImageDrawable(null);
             return;
         }
-        // Use placeholder drawable before the real thumbnail is available.
-        boolean isSelected = model.get(TabProperties.IS_SELECTED);
-        thumbnail.setColorThumbnailPlaceHolder(model.get(TabProperties.IS_INCOGNITO), isSelected);
-        // TODO(crbug/1395467): Consider unsetting the bitmap early to allow memory reuse if needed.
 
-        final Size cardSize = model.get(TabProperties.GRID_CARD_SIZE);
+        // TODO(crbug/1395467): Consider unsetting the bitmap early to allow memory reuse if needed.
+        final Size thumbnailSize = TabUtils.deriveThumbnailSize(cardSize, view.getContext());
         Callback<Bitmap> callback = result -> {
+            final boolean isMostRecentRequest =
+                    fetcher == model.get(TabProperties.THUMBNAIL_FETCHER)
+                    && cardSize.equals(model.get(TabProperties.GRID_CARD_SIZE));
             if (result != null) {
                 // TODO(crbug/1395467): look into cancelling if there are multiple in-flight
-                // requests. Ensure only the most recently requested bitmap it used.
-                if (fetcher != model.get(TabProperties.THUMBNAIL_FETCHER)) {
+                // requests. Ensure only the most recently requested bitmap is used.
+                if (!isMostRecentRequest) {
                     result.recycle();
                     return;
                 }
-                if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(view.getContext())
-                        && model.get(TabProperties.GRID_CARD_SIZE) != null) {
-                    // Adjust bitmap to thumbnail.
-                    Size destSize = TabUtils.deriveThumbnailSize(
-                            model.get(TabProperties.GRID_CARD_SIZE), view.getContext());
-                    updateThumbnailMatrix(thumbnail, result, destSize);
-                } else {
-                    thumbnail.setScaleType(ScaleType.FIT_CENTER);
-                    thumbnail.setAdjustViewBounds(true);
-                }
-                thumbnail.setImageBitmap(result);
+                // Adjust bitmap to thumbnail.
+                TabUtils.setBitmapAndUpdateImageMatrix(thumbnail, result, thumbnailSize);
+            } else if (isMostRecentRequest) {
+                // If the most recent request is a null bitmap ensure a placeholder is visible.
+                thumbnail.setImageDrawable(null);
             }
         };
-        final Size thumbnailSize =
-                DeviceFormFactor.isNonMultiDisplayContextOnTablet(view.getContext())
-                        && cardSize != null
-                ? TabUtils.deriveThumbnailSize(cardSize, view.getContext())
-                : null;
-        if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(view.getContext())
-                && sThumbnailFetcherForTesting != null) {
+        if (sThumbnailFetcherForTesting != null) {
             sThumbnailFetcherForTesting.fetch(callback, thumbnailSize, isSelected);
         } else {
             fetcher.fetch(callback, thumbnailSize, isSelected);
         }
-    }
-
-    /**
-     * Update @{@link Matrix} of ImageView. Bitmap is scaled to larger of the two dimens, then
-     * top-center aligned.
-     * @param thumbnail Destination image view @{@link TabGridThumbnailView}.
-     * @param source Image bitmap to resize.
-     * @param destinationSize Desired width and height for source.
-     */
-    private static void updateThumbnailMatrix(
-            TabGridThumbnailView thumbnail, Bitmap source, Size destinationSize) {
-        int newWidth = destinationSize == null ? 0 : destinationSize.getWidth();
-        int newHeight = destinationSize == null ? 0 : destinationSize.getHeight();
-        if (newWidth <= 0 || newHeight <= 0
-                || (newWidth == source.getWidth() && newHeight == source.getHeight())) {
-            thumbnail.setScaleType(ScaleType.FIT_CENTER);
-            return;
-        }
-
-        final Matrix m = new Matrix();
-
-        // Scale image to larger of the two dimensions.
-        final float scale = Math.max(
-                (float) newWidth / source.getWidth(), (float) newHeight / source.getHeight()); //
-        m.setScale(scale, scale);
-
-        /**
-         * Bitmap is top-left aligned by default. We want to translate the image to be horizontally
-         * center-aligned. |destination width - scaled width| is the width that is out of view
-         * bounds. We need to translate bitmap (to left) by half of this distance.
-         */
-        final int xOffset = (int) ((newWidth - (source.getWidth() * scale)) / 2);
-        m.postTranslate(xOffset, 0);
-
-        thumbnail.setScaleType(ScaleType.MATRIX);
-        thumbnail.setImageMatrix(m);
     }
 
     /**
@@ -373,22 +304,17 @@ class TabGridViewBinder {
      * #bindCommonProperties}.
      */
     private static void updateFavicon(ViewLookupCachingFrameLayout rootView, PropertyModel model) {
-        if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(rootView.getContext())) {
-            final TabListFaviconProvider.TabFaviconFetcher fetcher =
-                    model.get(TabProperties.FAVICON_FETCHER);
-            if (fetcher == null) {
-                setFavicon(rootView, model, null);
-                return;
-            }
-            fetcher.fetch(tabFavicon -> {
-                if (fetcher != model.get(TabProperties.FAVICON_FETCHER)) return;
-
-                setFavicon(rootView, model, tabFavicon);
-            });
+        final TabListFaviconProvider.TabFaviconFetcher fetcher =
+                model.get(TabProperties.FAVICON_FETCHER);
+        if (fetcher == null) {
+            setFavicon(rootView, model, null);
             return;
         }
-        TabListFaviconProvider.TabFavicon favicon = model.get(TabProperties.FAVICON);
-        setFavicon(rootView, model, favicon);
+        fetcher.fetch(tabFavicon -> {
+            if (fetcher != model.get(TabProperties.FAVICON_FETCHER)) return;
+
+            setFavicon(rootView, model, tabFavicon);
+        });
     }
 
     /**
@@ -417,8 +343,8 @@ class TabGridViewBinder {
             ViewLookupCachingFrameLayout rootView, boolean isIncognito, boolean isSelected) {
         View cardView = rootView.fastFindViewById(R.id.card_view);
         TextView titleView = (TextView) rootView.fastFindViewById(R.id.tab_title);
-        TabGridThumbnailView thumbnail =
-                (TabGridThumbnailView) rootView.fastFindViewById(R.id.tab_thumbnail);
+        TabThumbnailView thumbnail =
+                (TabThumbnailView) rootView.fastFindViewById(R.id.tab_thumbnail);
         ChromeImageView backgroundView =
                 (ChromeImageView) rootView.fastFindViewById(R.id.background_view);
 
@@ -430,15 +356,11 @@ class TabGridViewBinder {
         titleView.setTextColor(TabUiThemeProvider.getTitleTextColor(
                 titleView.getContext(), isIncognito, isSelected));
 
-        if (thumbnail.isPlaceHolder()) {
-            thumbnail.setColorThumbnailPlaceHolder(isIncognito, isSelected);
-        }
+        thumbnail.updateThumbnailPlaceholder(isIncognito, isSelected);
 
-        if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(rootView.getContext())) {
-            ViewCompat.setBackgroundTintList(backgroundView,
-                    TabUiThemeProvider.getHoveredCardBackgroundTintList(
-                            backgroundView.getContext(), isIncognito, isSelected));
-        }
+        ViewCompat.setBackgroundTintList(backgroundView,
+                TabUiThemeProvider.getHoveredCardBackgroundTintList(
+                        backgroundView.getContext(), isIncognito, isSelected));
     }
 
     private static void updateColorForActionButton(
@@ -474,8 +396,8 @@ class TabGridViewBinder {
         }
     }
 
-    @VisibleForTesting
     static void setThumbnailFeatureForTesting(TabListMediator.ThumbnailFetcher fetcher) {
         sThumbnailFetcherForTesting = fetcher;
+        ResettersForTesting.register(() -> sThumbnailFetcherForTesting = null);
     }
 }

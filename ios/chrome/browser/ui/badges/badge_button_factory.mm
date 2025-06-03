@@ -9,7 +9,6 @@
 #import "base/notreached.h"
 #import "build/build_config.h"
 #import "components/autofill/core/browser/autofill_save_update_address_profile_delegate_ios.h"
-#import "components/password_manager/core/common/password_manager_features.h"
 #import "ios/chrome/browser/infobars/infobar_ios.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/ui/badges/badge_button.h"
@@ -19,10 +18,6 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // The identifier for the new popup menu action trigger.
@@ -60,6 +55,8 @@ const CGFloat kSymbolIncognitoFullScreenPointSize = 14.;
       return [self permissionsCameraBadgeButton];
     case kBadgeTypePermissionsMicrophone:
       return [self permissionsMicrophoneBadgeButton];
+    case kBadgeTypeParcelTracking:
+      return [self parcelTrackingBadgeButton];
     case kBadgeTypeNone:
       NOTREACHED() << "A badge should not have kBadgeTypeNone";
       return nil;
@@ -71,11 +68,8 @@ const CGFloat kSymbolIncognitoFullScreenPointSize = 14.;
   UIImage* image =
       CustomSymbolWithPointSize(kPasswordSymbol, kInfobarSymbolPointSize);
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kIOSShowPasswordStorageInSaveInfobar)) {
-    image = CustomSymbolWithPointSize(kMulticolorPasswordSymbol,
-                                      kInfobarSymbolPointSize);
-  }
+  image = CustomSymbolWithPointSize(kMulticolorPasswordSymbol,
+                                    kInfobarSymbolPointSize);
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
   BadgeButton* button = [self createButtonForType:kBadgeTypePasswordSave
                                             image:image];
@@ -93,11 +87,8 @@ const CGFloat kSymbolIncognitoFullScreenPointSize = 14.;
   UIImage* image =
       CustomSymbolWithPointSize(kPasswordSymbol, kInfobarSymbolPointSize);
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kIOSShowPasswordStorageInSaveInfobar)) {
-    image = CustomSymbolWithPointSize(kMulticolorPasswordSymbol,
-                                      kInfobarSymbolPointSize);
-  }
+  image = CustomSymbolWithPointSize(kMulticolorPasswordSymbol,
+                                    kInfobarSymbolPointSize);
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
   BadgeButton* button = [self createButtonForType:kBadgeTypePasswordUpdate
                                             image:image];
@@ -257,6 +248,21 @@ const CGFloat kSymbolIncognitoFullScreenPointSize = 14.;
       kBadgeButtonPermissionsMicrophoneAccessibilityIdentifier;
   button.accessibilityLabel =
       l10n_util::GetNSString(IDS_IOS_INFOBAR_BADGES_PERMISSIONS_HINT);
+  return button;
+}
+
+- (BadgeButton*)parcelTrackingBadgeButton {
+  UIImage* image =
+      DefaultSymbolWithPointSize(kShippingBoxSymbol, kInfobarSymbolPointSize);
+  BadgeButton* button = [self createButtonForType:kBadgeTypeParcelTracking
+                                            image:image];
+  [button addTarget:self.delegate
+                action:@selector(parcelTrackingBadgeButtonTapped:)
+      forControlEvents:UIControlEventTouchUpInside];
+  button.accessibilityIdentifier =
+      kBadgeButtonParcelTrackingAccessibilityIdentifier;
+  button.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_INFOBAR_BADGES_PARCEL_TRACKING_HINT);
   return button;
 }
 

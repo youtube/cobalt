@@ -32,12 +32,6 @@ BASE_DECLARE_FEATURE(kEnableFeedInvisibleForegroundRefresh);
 // Use IsWebChannelsEnabled() instead of this constant directly.
 BASE_DECLARE_FEATURE(kEnableWebChannels);
 
-// Feature flag to enable Feed bottom sign-in promo feature, which displays a
-// sign-in promotion card at the bottom of the Discover Feed for signed out
-// users. Use IsFeedBottomSignInPromoEnabled() instead of this constant
-// directly.
-BASE_DECLARE_FEATURE(kEnableFeedBottomSignInPromo);
-
 // Feature flag to enable Feed card menu promo feature, which displays a sign-in
 // promotion UI when signed out users click on personalization options within
 // the feed card menu.
@@ -55,6 +49,22 @@ BASE_DECLARE_FEATURE(kIOSSetUpList);
 
 // Feature flag to disable Discover-controlled foregrounding refreshes.
 BASE_DECLARE_FEATURE(kFeedDisableHotStartRefresh);
+
+// Feature flag to enable the Follow UI update.
+BASE_DECLARE_FEATURE(kEnableFollowUIUpdate);
+
+// Feature flag to enable the live sport card in the Discover feed.
+BASE_DECLARE_FEATURE(kDiscoverFeedSportCard);
+
+// Feature flag to enable the content notifications.
+BASE_DECLARE_FEATURE(kContentPushNotifications);
+
+// Feature flag to enable the Large Fakebox design changes.
+BASE_DECLARE_FEATURE(kIOSLargeFakebox);
+
+// Feature flag to enable hiding the feed and feed header depending on Search
+// Engine choice.
+BASE_DECLARE_FEATURE(kIOSHideFeedWithSearchChoice);
 
 // Feature param under `kEnableFeedBackgroundRefresh` to also enable background
 // refresh for the Following feed.
@@ -121,6 +131,11 @@ extern const char kFeedUnseenRefreshThresholdInSeconds[];
 // and no sooner than 5 minutes from the last refresh.
 extern const char
     kEnableFeedUseInteractivityInvalidationForForegroundRefreshes[];
+
+// Feature param under `kIOSHideFeedWithSearchChoice` to only target the
+// feature at certain countries (i.e. only hide the feed when the device is
+// from those countries when the search engine is changed).
+extern const char kIOSHideFeedWithSearchChoiceTargeted[];
 
 // Whether the Following Feed is enabled on NTP.
 bool IsWebChannelsEnabled();
@@ -216,15 +231,16 @@ double GetFeedSeenRefreshThresholdInSeconds();
 // Returns the refresh threshold (aka feed expiration) for an unseen feed.
 double GetFeedUnseenRefreshThresholdInSeconds();
 
+// Returns whether the feed hide with search choice feature should be targeted
+// only at devices from certain countries.
+bool IsIOSHideFeedWithSearchChoiceTargeted();
+
 // YES if user engagement is used as a signal to invalidate the cache when the
 // app is foregrounded. This can result in a visible refresh when the NTP is
 // visible during foregrounding, or invisible refresh when a non-NTP is shown
 // during foregrounding. The engagement signals may include a deep scroll or 4
 // views, and no sooner than 5 minutes from the last refresh.
 bool IsFeedUseInteractivityInvalidationForForegroundRefreshesEnabled();
-
-// YES if enabled Feed bottom sign-in promo.
-bool IsFeedBottomSignInPromoEnabled();
 
 // YES if enabled Feed card menu promo.
 bool IsFeedCardMenuSignInPromoEnabled();
@@ -240,5 +256,17 @@ bool IsIOSSetUpListEnabled();
 
 // Whether Discover-controlled foregrounding refreshes are disabled.
 bool IsFeedHotStartRefreshDisabled();
+
+// YES when Follow UI Update is enabled.
+bool IsFollowUIUpdateEnabled();
+
+// YES when the Content Push Notifications are enabled.
+bool IsContentPushNotificationsEnabled();
+
+// Returns true when the IOSLargeFakebox feature is enabled.
+bool IsIOSLargeFakeboxEnabled();
+
+// Returns true when the IOSHideFeedWithSearchChoice feature is enabled.
+bool IsIOSHideFeedWithSearchChoiceEnabled();
 
 #endif  // IOS_CHROME_BROWSER_NTP_FEATURES_H_

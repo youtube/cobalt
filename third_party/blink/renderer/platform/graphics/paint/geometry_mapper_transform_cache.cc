@@ -37,22 +37,26 @@ void GeometryMapperTransformCache::Update(
     screen_transform_updated_ = true;
 
     DCHECK(node.ScrollNode());
-    nearest_scroll_translation_ = &node;
+    nearest_scroll_translation_ = scroll_translation_state_ = &node;
     return;
   }
 
   const GeometryMapperTransformCache& parent =
       node.UnaliasedParent()->GetTransformCache();
 
-  has_sticky_or_anchor_scroll_ = node.RequiresCompositingForStickyPosition() ||
-                                 node.RequiresCompositingForAnchorScroll() ||
-                                 parent.has_sticky_or_anchor_scroll_;
+  has_sticky_or_anchor_position_ =
+      node.RequiresCompositingForStickyPosition() ||
+      node.RequiresCompositingForAnchorPosition() ||
+      parent.has_sticky_or_anchor_position_;
 
   is_backface_hidden_ =
       node.IsBackfaceHiddenInternal(parent.is_backface_hidden_);
 
   nearest_scroll_translation_ =
       node.ScrollNode() ? &node : parent.nearest_scroll_translation_;
+  scroll_translation_state_ = node.ScrollTranslationForFixed()
+                                  ? node.ScrollTranslationForFixed()
+                                  : nearest_scroll_translation_;
 
   nearest_directly_composited_ancestor_ =
       node.HasDirectCompositingReasons()

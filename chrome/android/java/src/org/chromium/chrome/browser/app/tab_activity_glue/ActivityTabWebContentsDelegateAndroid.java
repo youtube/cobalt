@@ -49,7 +49,6 @@ import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.tasks.tab_management.TabUiFeatureUtilities;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
 import org.chromium.ui.base.WindowAndroid;
@@ -157,10 +156,7 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
 
     @Override
     protected boolean shouldResumeRequestsForCreatedWindow() {
-        // Pause the WebContents if an Activity has to be created for it first.
-        TabCreator tabCreator = mTabCreatorManager.getTabCreator(mTab.isIncognito());
-        assert tabCreator != null;
-        return !tabCreator.createsTabsAsynchronously();
+        return true;
     }
 
     @Override
@@ -180,22 +176,12 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
         // Creating new Tabs asynchronously requires starting a new Activity to create the Tab,
         // so the Tab returned will always be null.  There's no way to know synchronously
         // whether the Tab is created, so assume it's always successful.
-        boolean createdSuccessfully = tabCreator.createTabWithWebContents(
-                mTab, webContents, TabLaunchType.FROM_LONGPRESS_FOREGROUND, url);
-        boolean success = tabCreator.createsTabsAsynchronously() || createdSuccessfully;
+        boolean success =
+                tabCreator.createTabWithWebContents(
+                        mTab, webContents, TabLaunchType.FROM_LONGPRESS_FOREGROUND, url);
 
         if (success) {
             if (disposition == WindowOpenDisposition.NEW_FOREGROUND_TAB) {
-                if (TabUiFeatureUtilities.ENABLE_TAB_GROUP_AUTO_CREATION.getValue()
-                        && mTabModelSelectorSupplier.hasValue()
-                        && mTabModelSelectorSupplier.get()
-                                        .getTabModelFilterProvider()
-                                        .getCurrentTabModelFilter()
-                                        .getRelatedTabList(mTab.getId())
-                                        .size()
-                                == 2) {
-                    RecordUserAction.record("TabGroup.Created.DeveloperRequestedNewTab");
-                }
                 RecordUserAction.record("LinkNavigationOpenedInForegroundTab");
             } else if (disposition == WindowOpenDisposition.NEW_POPUP) {
                 PolicyAuditor auditor = AppHooks.get().getPolicyAuditor();
@@ -430,10 +416,7 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
         if (webContents == null) {
             return false;
         }
-        Profile profile = Profile.fromWebContents(mTab.getWebContents());
-        if (profile == null) {
-            return false;
-        }
+        Profile profile = mTab.getProfile();
         return isNightModeEnabled()
                 && WebContentsDarkModeController.isEnabledForUrl(
                         profile, webContents.getVisibleUrl());

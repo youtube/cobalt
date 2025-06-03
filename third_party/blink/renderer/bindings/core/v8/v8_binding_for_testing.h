@@ -29,10 +29,8 @@ class V8TestingScope {
   STACK_ALLOCATED();
 
  public:
-  // TODO(keishi): Define CreateDummyPageHolder in DummyPageHolder.
-  static std::unique_ptr<DummyPageHolder> CreateDummyPageHolder(
-      const KURL& url);
   explicit V8TestingScope(const KURL& url = KURL());
+  explicit V8TestingScope(std::unique_ptr<DummyPageHolder> holder);
   ScriptState* GetScriptState() const;
   ExecutionContext* GetExecutionContext() const;
   v8::Isolate* GetIsolate() const;
@@ -68,7 +66,6 @@ class BindingTestSupportingGC : public testing::Test {
  public:
   void SetIsolate(v8::Isolate* isolate) {
     CHECK(isolate);
-    CHECK_EQ(isolate, ThreadState::Current()->GetIsolate());
     isolate_ = isolate;
   }
   v8::Isolate* GetIsolate() const { return isolate_; }

@@ -22,21 +22,18 @@ import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.ui.modelutil.PropertyModel;
 
-/**
- * Tests for {@link BaseCarouselSuggestionProcessor}.
- */
+/** Tests for {@link BaseCarouselSuggestionProcessor}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class BaseCarouselSuggestionProcessorUnitTest {
+    private static final int ITEM_VIEW_WIDTH = 12345;
     public @Rule TestRule mFeatures = new Features.JUnitProcessor();
 
     // Stores PropertyModel for the suggestion.
     private PropertyModel mModel;
     private BaseCarouselSuggestionProcessorTestClass mProcessor;
 
-    /**
-     * Test class to instantiate BaseCarouselSuggestionProcessor class
-     */
+    /** Test class to instantiate BaseCarouselSuggestionProcessor class */
     public class BaseCarouselSuggestionProcessorTestClass extends BaseCarouselSuggestionProcessor {
         /**
          * Constructs a new BaseCarouselSuggestionProcessor.
@@ -63,8 +60,13 @@ public class BaseCarouselSuggestionProcessorUnitTest {
         }
 
         @Override
-        public int getMinimumCarouselItemViewHeight() {
+        public int getCarouselItemViewHeight() {
             return 0;
+        }
+
+        @Override
+        public int getCarouselItemViewWidth() {
+            return ITEM_VIEW_WIDTH;
         }
     }
 
@@ -88,5 +90,13 @@ public class BaseCarouselSuggestionProcessorUnitTest {
         mProcessor.onNativeInitialized();
         mProcessor.populateModel(null, mModel, 0);
         Assert.assertTrue(mModel.get(BaseCarouselSuggestionViewProperties.HORIZONTAL_FADE));
+    }
+
+    @Test
+    public void testPopulateItemViewWidth() {
+        mProcessor.onNativeInitialized();
+        mProcessor.populateModel(null, mModel, 0);
+        Assert.assertEquals(
+                ITEM_VIEW_WIDTH, mModel.get(BaseCarouselSuggestionViewProperties.ITEM_WIDTH));
     }
 }

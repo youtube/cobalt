@@ -13,6 +13,7 @@
 #include "components/segmentation_platform/internal/post_processor/post_processor.h"
 #include "components/segmentation_platform/public/constants.h"
 #include "components/segmentation_platform/public/proto/model_metadata.pb.h"
+#include "components/segmentation_platform/public/proto/output_config.pb.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
 #include "components/segmentation_platform/public/proto/types.pb.h"
 
@@ -47,6 +48,7 @@ GetOptimizationTargetOutputDescription(SegmentId segment_id) {
       return proto::SegmentationModelMetadata::RETURN_TYPE_PROBABILITY;
     case SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SEARCH_USER:
     case SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_TABLET_PRODUCTIVITY_USER:
+    case SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_IOS_MODULE_RANKER:
       return proto::SegmentationModelMetadata::RETURN_TYPE_MULTISEGMENT;
     default:
       return proto::SegmentationModelMetadata::UNKNOWN_RETURN_TYPE;
@@ -194,6 +196,12 @@ float ZeroValueFraction(const std::vector<float>& tensor) {
   return static_cast<float>(zero_values) / static_cast<float>(tensor.size());
 }
 
+// For server models to keep the same name as before, empty string is returned.
+std::string GetModelSourceAsString(proto::ModelSource model_source) {
+  // Should map to ModelSource variant string in
+  // //tools/metrics/histograms/metadata/segmentation_platform/histograms.xml.
+  return (model_source == proto::DEFAULT_MODEL_SOURCE ? "Default" : "");
+}
 }  // namespace
 
 void RecordModelUpdateTimeDifference(SegmentId segment_id,
@@ -229,8 +237,9 @@ void RecordSegmentSelectionComputed(
                                ? previous_selection.value()
                                : SegmentId::OPTIMIZATION_TARGET_UNKNOWN;
 
-  if (prev_segment == new_selection || config.on_demand_execution)
+  if (prev_segment == new_selection || !config.auto_execute_and_cache) {
     return;
+  }
 
   std::string switched_hist =
       base::StrCat({"SegmentationPlatform.", config.segmentation_uma_name,
@@ -250,6 +259,10 @@ void RecordSegmentSelectionComputed(
 void RecordClassificationResultComputed(
     const Config& config,
     const proto::PredictionResult& new_result) {
+  if (new_result.output_config().predictor().PredictorType_case() ==
+      proto::Predictor::kGenericPredictor) {
+    return;
+  }
   PostProcessor post_processor;
   int new_result_top_label = post_processor.GetIndexOfTopLabel(new_result);
   std::string computed_hist =
@@ -262,10 +275,6 @@ void RecordClassificationResultUpdated(
     const Config& config,
     const absl::optional<proto::PredictionResult>& old_result,
     const proto::PredictionResult& new_result) {
-  if (config.on_demand_execution) {
-    return;
-  }
-
   PostProcessor post_processor;
   int new_result_top_label = post_processor.GetIndexOfTopLabel(new_result);
   int old_result_top_label =
@@ -326,42 +335,65 @@ void RecordModelDeliveryHasMetadata(SegmentId segment_id, bool has_metadata) {
 }
 
 void RecordModelDeliveryMetadataFeatureCount(SegmentId segment_id,
+                                             ModelSource model_source,
                                              size_t count) {
-  base::UmaHistogramCounts1000(
-      "SegmentationPlatform.ModelDelivery.Metadata.FeatureCount." +
-          SegmentIdToHistogramVariant(segment_id),
-      count);
+  base::UmaHistogramCounts1000("SegmentationPlatform." +
+                                   GetModelSourceAsString(model_source) +
+                                   "ModelDelivery.Metadata.FeatureCount." +
+                                   SegmentIdToHistogramVariant(segment_id),
+                               count);
 }
 
 void RecordModelDeliveryMetadataValidation(
     SegmentId segment_id,
+    proto::ModelSource model_source,
     bool processed,
     metadata_utils::ValidationResult validation_result) {
   // Should map to ValidationPhase variant string in
   // //tools/metrics/histograms/metadata/segmentation_platform/histograms.xml.
   std::string validation_phase = processed ? "Processed" : "Incoming";
   base::UmaHistogramEnumeration(
-      "SegmentationPlatform.ModelDelivery.Metadata.Validation." +
-          validation_phase + "." + SegmentIdToHistogramVariant(segment_id),
+      "SegmentationPlatform." + GetModelSourceAsString(model_source) +
+          "ModelDelivery.Metadata.Validation." + validation_phase + "." +
+          SegmentIdToHistogramVariant(segment_id),
       validation_result);
 }
 
-void RecordModelDeliveryReceived(SegmentId segment_id) {
-  base::UmaHistogramSparse("SegmentationPlatform.ModelDelivery.Received",
+void RecordModelDeliveryReceived(SegmentId segment_id,
+                                 proto::ModelSource model_source) {
+  base::UmaHistogramSparse("SegmentationPlatform." +
+                               GetModelSourceAsString(model_source) +
+                               "ModelDelivery.Received",
                            segment_id);
 }
 
-void RecordModelDeliverySaveResult(SegmentId segment_id, bool success) {
-  base::UmaHistogramBoolean("SegmentationPlatform.ModelDelivery.SaveResult." +
+void RecordModelDeliverySaveResult(SegmentId segment_id,
+                                   proto::ModelSource model_source,
+                                   bool success) {
+  base::UmaHistogramBoolean(
+      "SegmentationPlatform." + GetModelSourceAsString(model_source) +
+          "ModelDelivery.SaveResult." + SegmentIdToHistogramVariant(segment_id),
+      success);
+}
+
+void RecordModelDeliveryDeleteResult(SegmentId segment_id,
+                                     proto::ModelSource model_source,
+                                     bool success) {
+  base::UmaHistogramBoolean("SegmentationPlatform." +
+                                GetModelSourceAsString(model_source) +
+                                "ModelDelivery.DeleteResult." +
                                 SegmentIdToHistogramVariant(segment_id),
                             success);
 }
 
-void RecordModelDeliverySegmentIdMatches(SegmentId segment_id, bool matches) {
-  base::UmaHistogramBoolean(
-      "SegmentationPlatform.ModelDelivery.SegmentIdMatches." +
-          SegmentIdToHistogramVariant(segment_id),
-      matches);
+void RecordModelDeliverySegmentIdMatches(SegmentId segment_id,
+                                         proto::ModelSource model_source,
+                                         bool matches) {
+  base::UmaHistogramBoolean("SegmentationPlatform." +
+                                GetModelSourceAsString(model_source) +
+                                "ModelDelivery.SegmentIdMatches." +
+                                SegmentIdToHistogramVariant(segment_id),
+                            matches);
 }
 
 void RecordModelExecutionDurationFeatureProcessing(SegmentId segment_id,
@@ -402,30 +434,22 @@ void RecordModelExecutionDurationTotal(SegmentId segment_id,
       duration);
 }
 
-void RecordClassificationRequestTotalDuration(
-    const std::string& segmentation_key,
-    base::TimeDelta duration) {
+void RecordClassificationRequestTotalDuration(const Config& config,
+                                              base::TimeDelta duration) {
   std::string histogram_name =
       base::StrCat({"SegmentationPlatform.ClassificationRequest.TotalDuration.",
-                    SegmentationKeyToUmaName(segmentation_key)});
+                    config.segmentation_uma_name});
   base::UmaHistogramTimes(histogram_name, duration);
 }
 
 void RecordOnDemandSegmentSelectionDuration(
-    const std::string& segmentation_key,
+    const Config& config,
     const SegmentSelectionResult& result,
     base::TimeDelta duration) {
   std::string histogram_prefix =
       base::StrCat({"SegmentationPlatform.SegmentSelectionOnDemand.Duration.",
-                    SegmentationKeyToUmaName(segmentation_key), "."});
+                    config.segmentation_uma_name});
   base::UmaHistogramTimes(base::StrCat({histogram_prefix, "Any"}), duration);
-
-  std::string histogram_name =
-      base::StrCat({histogram_prefix,
-                    result.segment.has_value()
-                        ? SegmentIdToHistogramVariant(result.segment.value())
-                        : "None"});
-  base::UmaHistogramTimes(histogram_name, duration);
 }
 
 void RecordModelExecutionResult(
@@ -471,6 +495,8 @@ void RecordModelExecutionResult(SegmentId segment_id,
     case proto::Predictor::kBinnedClassifier:
       [[fallthrough]];
     case proto::Predictor::kRegressor:
+      [[fallthrough]];
+    case proto::Predictor::kGenericPredictor:
       is_probability_score = false;
       break;
     default:
@@ -532,6 +558,14 @@ void RecordSignalDatabaseGetSamplesSampleCount(size_t count) {
       "SegmentationPlatform.SignalDatabase.GetSamples.SampleCount", count);
 }
 
+void RecordSegmentInfoDatabaseUpdateEntriesResult(SegmentId segment_id,
+                                                  bool success) {
+  base::UmaHistogramBoolean(
+      "SegmentationPlatform.SegmentInfoDatabase.ProtoDBUpdateResult." +
+          SegmentIdToHistogramVariant(segment_id),
+      success);
+}
+
 void RecordSignalsListeningCount(
     const std::set<uint64_t>& user_actions,
     const std::set<std::pair<std::string, proto::SignalType>>& histograms) {
@@ -564,14 +598,6 @@ void RecordSegmentSelectionFailure(const Config& config,
   base::UmaHistogramEnumeration(
       base::StrCat({"SegmentationPlatform.SelectionFailedReason.",
                     config.segmentation_uma_name}),
-      reason);
-}
-
-void RecordSegmentSelectionFailure(const std::string& segmentation_key,
-                                   SegmentationSelectionFailureReason reason) {
-  base::UmaHistogramEnumeration(
-      base::StrCat({"SegmentationPlatform.SelectionFailedReason.",
-                    SegmentationKeyToUmaName(segmentation_key)}),
       reason);
 }
 
@@ -617,12 +643,67 @@ void RecordTooManyInputTensors(int tensor_size) {
       tensor_size);
 }
 
+std::string TrainingDataCollectionEventToErrorMsg(
+    TrainingDataCollectionEvent event) {
+  switch (event) {
+    case TrainingDataCollectionEvent::kImmediateCollectionStart:
+      return "Immediate Collection Start";
+    case TrainingDataCollectionEvent::kImmediateCollectionSuccess:
+      return "Immediate Collection Success";
+    case TrainingDataCollectionEvent::kModelInfoMissing:
+      return "Model Info Missing";
+    case TrainingDataCollectionEvent::kMetadataValidationFailed:
+      return "Metadata Validation Failed";
+    case TrainingDataCollectionEvent::kGetInputTensorsFailed:
+      return "Get Input Tensors Failed";
+    case TrainingDataCollectionEvent::kNotEnoughCollectionTime:
+      return "Not Enough Collection Time";
+    case TrainingDataCollectionEvent::kUkmReportingFailed:
+      return "UKM Reporting Failed";
+    case TrainingDataCollectionEvent::kPartialDataNotAllowed:
+      return "Partial Data Not Allowed";
+    case TrainingDataCollectionEvent::kContinousCollectionStart:
+      return "Continuous Collection Start";
+    case TrainingDataCollectionEvent::kContinousCollectionSuccess:
+      return "Continuous Collection Success";
+    case TrainingDataCollectionEvent::kCollectAndStoreInputsSuccess:
+      return "Collect and Store Inputs Success";
+    case TrainingDataCollectionEvent::kObservationTimeReached:
+      return "Observation Time Reached";
+    case TrainingDataCollectionEvent::kDelayedTaskPosted:
+      return "Delayed Task Posted";
+    case TrainingDataCollectionEvent::kImmediateObservationPosted:
+      return "Immediate Observation Posted";
+    case TrainingDataCollectionEvent::kWaitingForNonDelayedTrigger:
+      return "Waiting for Non Delayed Trigger";
+    case TrainingDataCollectionEvent::kHistogramTriggerHit:
+      return "Histogram Trigger Hit";
+    case TrainingDataCollectionEvent::kNoSegmentInfo:
+      return "No Segment Info";
+    case TrainingDataCollectionEvent::kDisallowedForRecording:
+      return "Disallowed for Recording";
+    case TrainingDataCollectionEvent::kObservationDisallowed:
+      return "Observation Disallowed";
+    case TrainingDataCollectionEvent::kTrainingDataMissing:
+      return "Training Data Missing";
+    case TrainingDataCollectionEvent::kOnDecisionTimeTypeMistmatch:
+      return "On Decision Time Type Mismatch";
+    case TrainingDataCollectionEvent::kDelayTriggerSampled:
+      return "Delay Trigger Sampled";
+    default:
+      return "";
+  }
+}
+
 void RecordTrainingDataCollectionEvent(SegmentId segment_id,
                                        TrainingDataCollectionEvent event) {
   base::UmaHistogramEnumeration(
       "SegmentationPlatform.TrainingDataCollectionEvents." +
           SegmentIdToHistogramVariant(segment_id),
       event);
+  VLOG(1) << "Training Data event for "
+          << SegmentIdToHistogramVariant(segment_id) << ": "
+          << TrainingDataCollectionEventToErrorMsg(event);
 }
 
 // This conversion exists because segment selector uses the result state
@@ -634,31 +715,39 @@ SegmentationSelectionFailureReason GetSuccessOrFailureReason(
     case SegmentResultProvider::ResultState::kUnknown:
       NOTREACHED();
       return SegmentationSelectionFailureReason::kMaxValue;
-    case SegmentResultProvider::ResultState::kSuccessFromDatabase:
-      return SegmentationSelectionFailureReason::kScoreUsedFromDatabase;
-    case SegmentResultProvider::ResultState::kDefaultModelScoreUsed:
-      return SegmentationSelectionFailureReason::kScoreComputedFromDefaultModel;
-    case SegmentResultProvider::ResultState::kTfliteModelScoreUsed:
-      return SegmentationSelectionFailureReason::kScoreComputedFromTfliteModel;
-    case SegmentResultProvider::ResultState::kDatabaseScoreNotReady:
-      return SegmentationSelectionFailureReason::kAtLeastOneSegmentNotReady;
-    case SegmentResultProvider::ResultState::kSegmentNotAvailable:
-      return SegmentationSelectionFailureReason::kAtLeastOneSegmentNotAvailable;
-    case SegmentResultProvider::ResultState::kSignalsNotCollected:
+    case SegmentResultProvider::ResultState::kServerModelDatabaseScoreUsed:
+      return SegmentationSelectionFailureReason::kServerModelDatabaseScoreUsed;
+    case SegmentResultProvider::ResultState::kDefaultModelDatabaseScoreUsed:
+      return SegmentationSelectionFailureReason::kDefaultModelDatabaseScoreUsed;
+    case SegmentResultProvider::ResultState::kDefaultModelExecutionScoreUsed:
       return SegmentationSelectionFailureReason::
-          kAtLeastOneSegmentSignalsNotCollected;
-    case SegmentResultProvider::ResultState::kDefaultModelMetadataMissing:
+          kDefaultModelExecutionScoreUsed;
+    case SegmentResultProvider::ResultState::kServerModelExecutionScoreUsed:
+      return SegmentationSelectionFailureReason::kServerModelExecutionScoreUsed;
+    case SegmentResultProvider::ResultState::kDefaultModelDatabaseScoreNotReady:
       return SegmentationSelectionFailureReason::
-          kAtLeastOneSegmentDefaultMissingMetadata;
-    case SegmentResultProvider::ResultState::kDefaultModelSignalNotCollected:
+          kDefaultModelDatabaseScoreNotReady;
+    case SegmentResultProvider::ResultState::kServerModelDatabaseScoreNotReady:
       return SegmentationSelectionFailureReason::
-          kAtLeastOneSegmentDefaultSignalNotCollected;
+          kServerModelDatabaseScoreNotReady;
+    case SegmentResultProvider::ResultState::
+        kDefaultModelSegmentInfoNotAvailable:
+      return SegmentationSelectionFailureReason::
+          kDefaultModelSegmentInfoNotAvailable;
+    case SegmentResultProvider::ResultState::
+        kServerModelSegmentInfoNotAvailable:
+      return SegmentationSelectionFailureReason::
+          kServerModelSegmentInfoNotAvailable;
+    case SegmentResultProvider::ResultState::kDefaultModelSignalsNotCollected:
+      return SegmentationSelectionFailureReason::
+          kDefaultModelSignalsNotCollected;
+    case SegmentResultProvider::ResultState::kServerModelSignalsNotCollected:
+      return SegmentationSelectionFailureReason::
+          kServerModelSignalsNotCollected;
     case SegmentResultProvider::ResultState::kDefaultModelExecutionFailed:
-      return SegmentationSelectionFailureReason::
-          kAtLeastOneSegmentDefaultExecFailed;
-    case SegmentResultProvider::ResultState::kTfliteModelExecutionFailed:
-      return SegmentationSelectionFailureReason::
-          kAtLeastOneSegmentTfliteExecFailed;
+      return SegmentationSelectionFailureReason::kDefaultModelExecutionFailed;
+    case SegmentResultProvider::ResultState::kServerModelExecutionFailed:
+      return SegmentationSelectionFailureReason::kServerModelExecutionFailed;
   }
 }
 

@@ -25,6 +25,7 @@
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router_factory.h"
 #include "chrome/browser/extensions/api/preference/preference_api.h"
 #include "chrome/browser/extensions/api/processes/processes_api.h"
+#include "chrome/browser/extensions/api/reading_list/reading_list_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
 #include "chrome/browser/extensions/api/sessions/sessions_api.h"
 #include "chrome/browser/extensions/api/settings_overrides/settings_overrides_api.h"
@@ -46,10 +47,19 @@
 #include "chrome/browser/extensions/api/system_indicator/system_indicator_manager_factory.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/chromeos/extensions/wm/wm_desks_private_events.h"
+#include "chrome/browser/extensions/api/document_scan/document_scan_api_handler.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/extensions/api/input_ime/input_ime_api.h"
 #include "chrome/browser/extensions/api/platform_keys/verify_trust_api.h"
 #include "chrome/browser/extensions/api/terminal/terminal_private_api.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "chrome/browser/extensions/api/image_writer_private/image_writer_controller_lacros.h"
 #endif
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
@@ -72,10 +82,16 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::CommandService::GetFactoryInstance();
   extensions::CookiesAPI::GetFactoryInstance();
   extensions::DeveloperPrivateAPI::GetFactoryInstance();
+#if BUILDFLAG(IS_CHROMEOS)
+  extensions::DocumentScanAPIHandler::GetFactoryInstance();
+#endif
   extensions::ExtensionActionAPI::GetFactoryInstance();
   extensions::FontSettingsAPI::GetFactoryInstance();
   extensions::HistoryAPI::GetFactoryInstance();
   extensions::IdentityAPI::GetFactoryInstance();
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+  extensions::image_writer::ImageWriterControllerLacros::GetFactoryInstance();
+#endif
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   extensions::InputImeAPI::GetFactoryInstance();
 #endif
@@ -97,6 +113,7 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   extensions::PreferenceAPI::GetFactoryInstance();
   extensions::ProcessesAPI::GetFactoryInstance();
+  extensions::ReadingListEventRouter::GetFactoryInstance();
   extensions::SafeBrowsingPrivateEventRouterFactory::GetInstance();
   extensions::SessionsAPI::GetFactoryInstance();
   extensions::SettingsPrivateEventRouterFactory::GetInstance();
@@ -118,6 +135,9 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::WebAuthenticationProxyAPI::GetFactoryInstance();
   extensions::WebNavigationAPI::GetFactoryInstance();
   extensions::WebrtcAudioPrivateEventService::GetFactoryInstance();
+#if BUILDFLAG(IS_CHROMEOS)
+  extensions::WMDesksPrivateEventsAPI::GetFactoryInstance();
+#endif
 }
 
 }  // namespace chrome_extensions

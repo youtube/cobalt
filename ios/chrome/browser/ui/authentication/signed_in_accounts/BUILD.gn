@@ -5,7 +5,6 @@
 import("//build/config/chrome_build.gni")
 
 source_set("signed_in_accounts") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "signed_in_accounts_presentation_controller.h",
     "signed_in_accounts_presentation_controller.mm",
@@ -15,10 +14,11 @@ source_set("signed_in_accounts") {
     "signed_in_accounts_view_controller.mm",
   ]
   deps = [
+    "//components/signin/public/base",
     "//components/signin/public/identity_manager",
     "//components/signin/public/identity_manager/objc",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/browser_state",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/table_view",
@@ -36,23 +36,23 @@ source_set("signed_in_accounts") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "signed_in_accounts_view_controller_unittest.mm" ]
   deps = [
     ":signed_in_accounts",
     "//base",
     "//base/test:test_support",
+    "//components/signin/public/base",
     "//components/signin/public/identity_manager:test_support",
     "//components/variations:test_support",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:fake_system_identity",
     "//ios/chrome/browser/signin:fake_system_identity_manager",
     "//ios/chrome/browser/signin:test_support",
-    "//ios/chrome/browser/sync",
-    "//ios/chrome/browser/sync:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/test:block_cleanup_test",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
@@ -60,14 +60,12 @@ source_set("unit_tests") {
 }
 
 source_set("eg2_tests") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "signed_in_accounts_egtest.mm" ]
   deps = [
     "//base",
+    "//components/signin/public/base",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/signin:fake_system_identity",
     "//ios/chrome/browser/ui/authentication:eg_test_support+eg2",

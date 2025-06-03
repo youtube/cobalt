@@ -69,15 +69,31 @@ struct KeyInfo {
   KeyManagerPermanentFailure permanent_failure;
 };
 
+struct ConsentMetadata {
+  // Whether signals can be collected based on the current user
+  // and management context.
+  bool can_collect_signals;
+
+  // Whether the user has given explicit consent.
+  bool consent_received;
+};
+
 struct DeviceTrustState {
   // Whether the connector is enabled or not.
   bool is_enabled;
+
+  // Information around the levels the device trust connector is enabled for.
+  array<string> policy_enabled_levels;
 
   // Information around the state of the device trust signing key.
   KeyInfo key_info;
 
   // Json string of the device signals.
   string signals_json;
+
+  // Metadata around whether user consent is required for the given management
+  // context, or if it was already given.
+  ConsentMetadata? consent_metadata;
 };
 
 // Browser interface for the page. Consists of calls for data and hooks for
@@ -85,4 +101,8 @@ struct DeviceTrustState {
 interface PageHandler {
   // Get state information about the Device Trust connector.
   GetDeviceTrustState() => (DeviceTrustState state);
+
+  // Deletes the Device Trust key stored on the device. Will only work on
+  // developer builds or early release channels.
+  DeleteDeviceTrustKey() => ();
 };

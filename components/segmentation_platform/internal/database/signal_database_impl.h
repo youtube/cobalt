@@ -9,9 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 
-#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
@@ -54,6 +52,7 @@ class SignalDatabaseImpl : public SignalDatabase {
                   base::Time start_time,
                   base::Time end_time,
                   SamplesCallback callback) override;
+  const std::vector<DbEntry>* GetAllSamples() override;
   void DeleteSamples(proto::SignalType signal_type,
                      uint64_t name_hash,
                      base::Time end_time,
@@ -71,6 +70,11 @@ class SignalDatabaseImpl : public SignalDatabase {
       SamplesCallback callback,
       base::Time start_time,
       base::Time end_time,
+      bool success,
+      std::unique_ptr<std::map<std::string, proto::SignalData>> entries);
+
+  void OnGetAllSamples(
+      SuccessCallback callback,
       bool success,
       std::unique_ptr<std::map<std::string, proto::SignalData>> entries);
 
@@ -97,6 +101,8 @@ class SignalDatabaseImpl : public SignalDatabase {
 
   // Whether or not initialization has been completed.
   bool initialized_{false};
+
+  std::vector<DbEntry> all_signals_;
 
   // A cache of recently added signals. Used for avoiding collisions between two
   // signals if they end up generating the same signal key, which can happen if

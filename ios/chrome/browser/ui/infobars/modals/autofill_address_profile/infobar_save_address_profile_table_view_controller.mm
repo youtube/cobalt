@@ -4,8 +4,8 @@
 
 #import "ios/chrome/browser/ui/infobars/modals/autofill_address_profile/infobar_save_address_profile_table_view_controller.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
-#import "base/mac/foundation_util.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/ui/autofill/autofill_ui_type.h"
 #import "ios/chrome/browser/ui/autofill/autofill_ui_type_util.h"
 #import "ios/chrome/browser/ui/infobars/modals/autofill_address_profile/infobar_save_address_profile_modal_delegate.h"
+#import "ios/chrome/browser/ui/infobars/modals/infobar_address_profile_modal_constants.h"
 #import "ios/chrome/browser/ui/infobars/modals/infobar_modal_constants.h"
 #import "ios/chrome/browser/ui/settings/cells/settings_image_detail_text_cell.h"
 #import "ios/chrome/browser/ui/settings/cells/settings_image_detail_text_item.h"
@@ -28,10 +29,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -88,8 +85,8 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
 @property(nonatomic, copy) NSDictionary* profileDataDiff;
 // Description of the update modal.
 @property(nonatomic, copy) NSString* updateModalDescription;
-// Stores the user email for the currently syncing account.
-@property(nonatomic, copy) NSString* syncingUserEmail;
+// Stores the user email for the currently signed-in account.
+@property(nonatomic, copy) NSString* userEmail;
 // If YES, denotes that the profile will be added to the Google Account.
 @property(nonatomic, assign) BOOL isMigrationToAccount;
 // IF YES, for update prompt, the profile belongs to the Google Account.
@@ -120,6 +117,7 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   self.styler.tableViewBackgroundColor = [UIColor colorNamed:kBackgroundColor];
   self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
   self.styler.cellBackgroundColor = [UIColor colorNamed:kBackgroundColor];
+  self.tableView.allowsSelection = NO;
   self.tableView.sectionHeaderHeight = 0;
   self.tableView.sectionFooterHeight = 0;
   if (self.isUpdateModal && [self shouldShowOldSection]) {
@@ -149,8 +147,7 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
         initWithBarButtonSystemItem:UIBarButtonSystemItemEdit
                              target:self
                              action:@selector(showEditAddressProfileModal)];
-    // TODO(crbug.com/1167062): Add accessibility identifier for the edit
-    // button.
+    editButton.accessibilityIdentifier = kInfobarSaveAddressModalEditButton;
     self.navigationItem.rightBarButtonItem = editButton;
   }
 
@@ -212,7 +209,7 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
 
   if (itemType == ItemTypeAddressProfileSaveUpdateButton) {
     TableViewTextButtonCell* tableViewTextButtonCell =
-        base::mac::ObjCCastStrict<TableViewTextButtonCell>(cell);
+        base::apple::ObjCCastStrict<TableViewTextButtonCell>(cell);
     [tableViewTextButtonCell.button
                addTarget:self
                   action:@selector(saveAddressProfileButtonWasPressed:)
@@ -222,70 +219,19 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
         UIEdgeInsetsMake(0, 0, 0, self.tableView.bounds.size.width);
   } else if (itemType == ItemTypeAddressProfileNoThanksButton) {
     TableViewTextButtonCell* tableViewTextButtonCell =
-        base::mac::ObjCCastStrict<TableViewTextButtonCell>(cell);
+        base::apple::ObjCCastStrict<TableViewTextButtonCell>(cell);
     [tableViewTextButtonCell.button
                addTarget:self
                   action:@selector(noThanksButtonWasPressed:)
         forControlEvents:UIControlEventTouchUpInside];
-  } else {
-    if (itemType == ItemTypeFooter ||
-        itemType == ItemTypeUpdateModalDescription ||
-        itemType == ItemTypeUpdateModalTitle) {
-      // Hide the separator line.
-      cell.separatorInset =
-          UIEdgeInsetsMake(0, 0, 0, self.tableView.bounds.size.width);
-    }
-    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+  } else if (itemType == ItemTypeFooter ||
+             itemType == ItemTypeUpdateModalDescription ||
+             itemType == ItemTypeUpdateModalTitle) {
+    // Hide the separator line.
+    cell.separatorInset =
+        UIEdgeInsetsMake(0, 0, 0, self.tableView.bounds.size.width);
   }
   return cell;
-}
-
-#pragma mark - UITableViewDelegate
-
-- (void)tableView:(UITableView*)tableView
-    didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
-  TableViewModel* model = self.tableViewModel;
-  NSInteger itemType = [model itemTypeForIndexPath:indexPath];
-  switch (itemType) {
-    case ItemTypeSaveAddress:
-    case ItemTypeSaveEmail:
-    case ItemTypeSavePhone:
-    case ItemTypeUpdateNameNew:
-    case ItemTypeUpdateAddressNew:
-    case ItemTypeUpdateEmailNew:
-    case ItemTypeUpdatePhoneNew:
-      [self ensureContextMenuShownForItemType:itemType atIndexPath:indexPath];
-      break;
-    default:
-      break;
-  }
-}
-
-// If the context menu is not shown for a given item type, constructs that
-// menu and shows it. This method should only be called for item types
-// representing the cells with the save/update address profile modal.
-- (void)ensureContextMenuShownForItemType:(NSInteger)itemType
-                              atIndexPath:(NSIndexPath*)indexPath {
-  UIMenuController* menu = [UIMenuController sharedMenuController];
-  if (![menu isMenuVisible]) {
-    menu.menuItems = [self menuItems];
-    [self becomeFirstResponder];
-    [menu showMenuFromView:self.tableView
-                      rect:[self.tableView rectForRowAtIndexPath:indexPath]];
-  }
-}
-
-#pragma mark - UIResponder
-
-- (BOOL)canBecomeFirstResponder {
-  return YES;
-}
-
-- (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
-  if (action == @selector(showEditAddressProfileModal)) {
-    return YES;
-  }
-  return NO;
 }
 
 #pragma mark - InfobarSaveAddressProfileModalConsumer
@@ -300,7 +246,7 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   self.profileDataDiff = prefs[kProfileDataDiffKey];
   self.updateModalDescription = prefs[kUpdateModalDescriptionKey];
   self.isMigrationToAccount = [prefs[kIsMigrationToAccountKey] boolValue];
-  self.syncingUserEmail = prefs[kSyncingUserEmailKey];
+  self.userEmail = prefs[kUserEmailKey];
   self.profileAnAccountProfile =
       [prefs[kIsProfileAnAccountProfileKey] boolValue];
   self.profileDescriptionForMigrationPrompt =
@@ -391,7 +337,6 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   }
 
   if (self.profileAnAccountProfile) {
-    DCHECK([self.syncingUserEmail length] > 0);
     [model addItem:[self updateFooterItem]
         toSectionWithIdentifier:SectionIdentifierFields];
   }
@@ -425,7 +370,6 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   }
 
   if (self.isMigrationToAccount || self.profileAnAccountProfile) {
-    DCHECK([self.syncingUserEmail length] > 0);
     [model addItem:[self saveFooterItem]
         toSectionWithIdentifier:SectionIdentifierFields];
   }
@@ -570,16 +514,6 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   }
 }
 
-// Returns an array of UIMenuItems to display in a context menu on the site
-// cell.
-- (NSArray*)menuItems {
-  // TODO(crbug.com/1167062): Use proper i18n string for Edit.
-  UIMenuItem* editOption =
-      [[UIMenuItem alloc] initWithTitle:@"Edit"
-                                 action:@selector(showEditAddressProfileModal)];
-  return @[ editOption ];
-}
-
 // Returns YES if the old section is shown in the update modal.
 - (BOOL)shouldShowOldSection {
   // Determines whether the old section is to be shown or not.
@@ -635,8 +569,9 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   int footerTextId = self.currentAddressProfileSaved
                          ? IDS_IOS_SETTINGS_AUTOFILL_ACCOUNT_ADDRESS_FOOTER_TEXT
                          : IDS_IOS_AUTOFILL_SAVE_ADDRESS_IN_ACCOUNT_FOOTER;
-  item.text = l10n_util::GetNSStringF(
-      footerTextId, base::SysNSStringToUTF16(self.syncingUserEmail));
+  CHECK([self.userEmail length] > 0);
+  item.text = l10n_util::GetNSStringF(footerTextId,
+                                      base::SysNSStringToUTF16(self.userEmail));
   item.textFont = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
   item.textColor = [UIColor colorNamed:kTextSecondaryColor];
   return item;
@@ -645,9 +580,10 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
 - (TableViewTextItem*)updateFooterItem {
   TableViewTextItem* item =
       [[TableViewTextItem alloc] initWithType:ItemTypeFooter];
+  CHECK([self.userEmail length] > 0);
   item.text = l10n_util::GetNSStringF(
       IDS_IOS_SETTINGS_AUTOFILL_ACCOUNT_ADDRESS_FOOTER_TEXT,
-      base::SysNSStringToUTF16(self.syncingUserEmail));
+      base::SysNSStringToUTF16(self.userEmail));
   item.textFont = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
   item.textColor = [UIColor colorNamed:kTextSecondaryColor];
   return item;
@@ -659,8 +595,9 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
   int footerTextId = self.currentAddressProfileSaved
                          ? IDS_IOS_SETTINGS_AUTOFILL_ACCOUNT_ADDRESS_FOOTER_TEXT
                          : IDS_IOS_AUTOFILL_ADDRESS_MIGRATE_IN_ACCOUNT_FOOTER;
-  item.text = l10n_util::GetNSStringF(
-      footerTextId, base::SysNSStringToUTF16(self.syncingUserEmail));
+  CHECK([self.userEmail length] > 0);
+  item.text = l10n_util::GetNSStringF(footerTextId,
+                                      base::SysNSStringToUTF16(self.userEmail));
   item.textFont = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
   item.textColor = [UIColor colorNamed:kTextSecondaryColor];
   return item;

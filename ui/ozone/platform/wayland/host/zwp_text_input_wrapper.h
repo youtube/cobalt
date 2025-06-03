@@ -15,6 +15,7 @@
 #include "ui/base/ime/text_input_client.h"
 #include "ui/base/ime/text_input_mode.h"
 #include "ui/base/ime/text_input_type.h"
+#include "url/gurl.h"
 
 namespace gfx {
 class Rect;
@@ -92,6 +93,9 @@ class ZWPTextInputWrapperClient {
   virtual void OnSetVirtualKeyboardOccludedBounds(
       const gfx::Rect& screen_bounds) = 0;
 
+  // Called when confirming the preedit.
+  virtual void OnConfirmPreedit(bool keep_selection) = 0;
+
   // Called when the visibility state of the input panel changed.
   // There's no detailed spec of |state|, and no actual implementor except
   // components/exo is found in the world at this moment.
@@ -106,6 +110,9 @@ class ZWPTextInputWrapperClient {
   // on OnKeysym. E.g., if LSB of modifiers is set, modifiers_map[0] is
   // set, if (1 << 1) of modifiers is set, modifiers_map[1] is set, and so on.
   virtual void OnModifiersMap(std::vector<std::string> modifiers_map) = 0;
+
+  // Called when some image is being inserted.
+  virtual void OnInsertImage(const GURL& src) = 0;
 };
 
 // A wrapper around different versions of wayland text input protocols.
@@ -128,6 +135,8 @@ class ZWPTextInputWrapper {
   virtual void SetCursorRect(const gfx::Rect& rect) = 0;
   virtual void SetSurroundingText(const std::string& text,
                                   const gfx::Range& selection_range) = 0;
+  virtual bool HasAdvancedSurroundingTextSupport() const = 0;
+  virtual void SetSurroundingTextOffsetUtf16(uint32_t offset_utf16) = 0;
   virtual void SetContentType(ui::TextInputType type,
                               ui::TextInputMode mode,
                               uint32_t flags,

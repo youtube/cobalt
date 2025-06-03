@@ -493,12 +493,9 @@ WaylandRemoteShell::~WaylandRemoteShell() {
 }
 
 std::unique_ptr<ClientControlledShellSurface>
-WaylandRemoteShell::CreateShellSurface(Surface* surface,
-                                       int container,
-                                       double default_device_scale_factor) {
+WaylandRemoteShell::CreateShellSurface(Surface* surface, int container) {
   return display_->CreateOrGetClientControlledShellSurface(
-      surface, container, default_device_scale_factor,
-      use_default_scale_cancellation_,
+      surface, container, use_default_scale_cancellation_,
       /*supports_floated_state=*/event_mapping_.has_bounds_change_reason_float);
 }
 
@@ -516,18 +513,14 @@ WaylandRemoteShell::CreateNotificationSurface(
 }
 
 std::unique_ptr<InputMethodSurface>
-WaylandRemoteShell::CreateInputMethodSurface(
-    Surface* surface,
-    double default_device_scale_factor) {
-  return display_->CreateInputMethodSurface(
-      surface, default_device_scale_factor, use_default_scale_cancellation_);
+WaylandRemoteShell::CreateInputMethodSurface(Surface* surface) {
+  return display_->CreateInputMethodSurface(surface,
+                                            use_default_scale_cancellation_);
 }
 
 std::unique_ptr<ToastSurface> WaylandRemoteShell::CreateToastSurface(
-    Surface* surface,
-    double default_device_scale_factor) {
-  return display_->CreateToastSurface(surface, default_device_scale_factor,
-                                      use_default_scale_cancellation_);
+    Surface* surface) {
+  return display_->CreateToastSurface(surface, use_default_scale_cancellation_);
 }
 
 void WaylandRemoteShell::SetUseDefaultScaleCancellation(
@@ -1047,6 +1040,8 @@ SurfaceFrameType RemoteShellSurfaceFrameType(uint32_t frame_type) {
       return SurfaceFrameType::AUTOHIDE;
     case ZCR_REMOTE_SURFACE_V1_FRAME_TYPE_OVERLAY:
       return SurfaceFrameType::OVERLAY;
+    case ZCR_REMOTE_SURFACE_V2_FRAME_TYPE_OVERLAP:
+      return SurfaceFrameType::OVERLAP;
     default:
       VLOG(2) << "Unknown remote-shell frame type: " << frame_type;
       return SurfaceFrameType::NONE;
@@ -1083,8 +1078,7 @@ void remote_surface_set_scale(wl_client* client,
                               wl_resource* resource,
                               wl_fixed_t scale) {
   // DEPRECATED (b/141715728) - The server updates the client's scale.
-  GetUserDataAs<ClientControlledShellSurface>(resource)->SetScale(
-      wl_fixed_to_double(scale));
+  NOTREACHED();
 }
 
 void remote_surface_set_rectangular_shadow_DEPRECATED(wl_client* client,
@@ -1136,11 +1130,13 @@ void remote_surface_restore(wl_client* client, wl_resource* resource) {
 }
 
 void remote_surface_fullscreen(wl_client* client, wl_resource* resource) {
-  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFullscreen(true);
+  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFullscreen(
+      true, display::kInvalidDisplayId);
 }
 
 void remote_surface_unfullscreen(wl_client* client, wl_resource* resource) {
-  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFullscreen(false);
+  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFullscreen(
+      false, display::kInvalidDisplayId);
 }
 
 void remote_surface_pin(wl_client* client,
@@ -1477,7 +1473,29 @@ void remote_surface_set_resize_lock_type(wl_client* client,
 }
 
 void remote_surface_set_float(wl_client* client, wl_resource* resource) {
-  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFloat();
+  GetUserDataAs<ClientControlledShellSurface>(resource)->SetFloatToLocation(
+      chromeos::FloatStartLocation::kBottomRight);
+}
+
+void remote_surface_set_scale_factor(wl_client* client,
+                                     wl_resource* resource,
+                                     uint scale_factor_as_uint) {
+  static_assert(sizeof(uint32_t) == sizeof(float),
+                "Sizes much match for reinterpret cast to be meaningful");
+  float scale_factor = *reinterpret_cast<float*>(&scale_factor_as_uint);
+  GetUserDataAs<ClientControlledShellSurface>(resource)->SetScaleFactor(
+      scale_factor);
+}
+
+void remote_surface_set_window_corner_radii(wl_client* client,
+                                            wl_resource* resource,
+                                            uint32_t upper_left_radius,
+                                            uint32_t upper_right_radius,
+                                            uint32_t lower_right_radius,
+                                            uint32_t lower_left_radius) {
+  GetUserDataAs<ClientControlledShellSurface>(resource)->SetWindowCornerRadii(
+      gfx::RoundedCornersF(upper_left_radius, upper_right_radius,
+                           lower_right_radius, lower_left_radius));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1552,6 +1570,15 @@ void toast_surface_set_bounds_in_output(wl_client* client,
       GetUserDataAs<WaylandDisplayHandler>(output_resource);
   GetUserDataAs<ToastSurface>(resource)->SetBounds(
       display_handler->id(), gfx::Rect(x, y, width, height));
+}
+
+void toast_surface_set_scale_factor(wl_client* client,
+                                    wl_resource* resource,
+                                    uint scale_factor_as_uint) {
+  static_assert(sizeof(uint32_t) == sizeof(float),
+                "Sizes must match for reinterpret cast to be meaningful");
+  float scale_factor = *reinterpret_cast<float*>(&scale_factor_as_uint);
+  GetUserDataAs<ToastSurface>(resource)->SetScaleFactor(scale_factor);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

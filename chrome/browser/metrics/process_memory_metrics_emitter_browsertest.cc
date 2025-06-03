@@ -6,7 +6,7 @@
 
 #include <set>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -25,9 +25,8 @@
 #include "chrome/test/base/tracing.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/ukm/test_ukm_recorder.h"
-#include "content/public/browser/notification_service.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/buildflags/buildflags.h"
@@ -93,8 +92,8 @@ void OnStartTracingDoneCallback(
     base::OnceClosure quit_closure) {
   memory_instrumentation::MemoryInstrumentation::GetInstance()
       ->RequestGlobalDumpAndAppendToTrace(
-          MemoryDumpType::PERIODIC_INTERVAL, dump_type,
-          MemoryDumpDeterminism::NONE,
+          MemoryDumpType::kPeriodicInterval, dump_type,
+          MemoryDumpDeterminism::kNone,
           BindOnce(&RequestGlobalDumpCallback, std::move(quit_closure)));
 }
 
@@ -229,6 +228,8 @@ void CheckExperimentalMemoryMetrics(
   CheckMemoryMetric("Memory.Experimental.Browser2.Malloc", histogram_tester,
                     count, ValueRestriction::ABOVE_ZERO);
 #endif
+  CheckMemoryMetric("Memory.Experimental.Browser2.Custom.AXPlatformNodeCount",
+                    histogram_tester, count, ValueRestriction::ABOVE_ZERO);
   if (number_of_renderer_processes) {
     CheckExperimentalMemoryMetricsForProcessType(
         histogram_tester, count, "Renderer", number_of_renderer_processes);
@@ -316,7 +317,12 @@ void CheckStableMemoryMetrics(const base::HistogramTester& histogram_tester,
                     histogram_tester, count, ValueRestriction::ABOVE_ZERO);
   CheckMemoryMetric("Memory.Total.RendererMalloc", histogram_tester, count,
                     ValueRestriction::ABOVE_ZERO);
-  // Shared memory footprint can be below 1 MB, which is reported as zero.
+  CheckMemoryMetric("Memory.Total.RendererBlinkGC", histogram_tester, count,
+                    ValueRestriction::ABOVE_ZERO);
+  // Can be below 1 MB, which is reported as zero.
+  CheckMemoryMetric("Memory.Total.RendererBlinkGC.Fragmentation",
+                    histogram_tester, count, ValueRestriction::NONE);
+  // Can be below 1 MB, which is reported as zero.
   CheckMemoryMetric("Memory.Total.SharedMemoryFootprint", histogram_tester,
                     count, ValueRestriction::NONE);
   CheckMemoryMetric("Memory.Total.TileMemory", histogram_tester, count,
@@ -563,14 +569,9 @@ class ProcessMemoryMetricsEmitterTest
 };
 
 // TODO(crbug.com/732501): Re-enable on Win and Mac once not flaky.
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-#define MAYBE_FetchAndEmitMetrics DISABLED_FetchAndEmitMetrics
-#else
-#define MAYBE_FetchAndEmitMetrics FetchAndEmitMetrics
-#endif
 IN_PROC_BROWSER_TEST_F(ProcessMemoryMetricsEmitterTest,
-                       MAYBE_FetchAndEmitMetrics) {
+                       // TODO(crbug.com/1459385): Re-enable this test
+                       DISABLED_FetchAndEmitMetrics) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url = embedded_test_server()->GetURL("foo.com", "/empty.html");
   ui_test_utils::NavigateToURLWithDisposition(
@@ -706,19 +707,14 @@ IN_PROC_BROWSER_TEST_F(ProcessMemoryMetricsEmitterTest,
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // TODO(crbug.com/989810): Re-enable on Win and Mac once not flaky.
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-#define MAYBE_FetchDuringTrace DISABLED_FetchDuringTrace
-#else
-#define MAYBE_FetchDuringTrace FetchDuringTrace
-#endif
 IN_PROC_BROWSER_TEST_F(ProcessMemoryMetricsEmitterTest,
-                       MAYBE_FetchDuringTrace) {
+                       DISABLED_FetchDuringTrace) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url = embedded_test_server()->GetURL("foo.com", "/empty.html");
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  // TODO(crbug.com/1459385): Re-enable this test
 
   base::HistogramTester histogram_tester;
 
@@ -731,7 +727,7 @@ IN_PROC_BROWSER_TEST_F(ProcessMemoryMetricsEmitterTest,
     ASSERT_TRUE(tracing::BeginTracingWithTraceConfig(
         trace_config,
         BindOnce(&OnStartTracingDoneCallback,
-                 base::trace_event::MemoryDumpLevelOfDetail::DETAILED,
+                 base::trace_event::MemoryDumpLevelOfDetail::kDetailed,
                  run_loop.QuitClosure())));
     run_loop.Run();
   }
@@ -759,7 +755,7 @@ IN_PROC_BROWSER_TEST_F(ProcessMemoryMetricsEmitterTest,
   ASSERT_GT(events.size(), 1u);
   ASSERT_TRUE(trace_analyzer::CountMatches(
       events, trace_analyzer::Query::EventNameIs(
-                  MemoryDumpTypeToString(MemoryDumpType::PERIODIC_INTERVAL))));
+                  MemoryDumpTypeToString(MemoryDumpType::kPeriodicInterval))));
 
   constexpr int kNumRenderers = 2;
   EXPECT_EQ(kNumRenderers, GetNumRenderers(browser()));

@@ -29,10 +29,11 @@ TEST_F(HTMLObjectElementTest, FallbackRecalcForReattach) {
     <object id='obj' data='dummy'></object>
   )HTML");
 
-  auto* object = To<HTMLObjectElement>(GetDocument().getElementById("obj"));
+  auto* object =
+      To<HTMLObjectElement>(GetDocument().getElementById(AtomicString("obj")));
   ASSERT_TRUE(object);
 
-  Node* slot = object->GetShadowRoot()->firstChild();
+  Element* slot = object->GetShadowRoot()->firstElementChild();
   ASSERT_TRUE(slot);
 
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();

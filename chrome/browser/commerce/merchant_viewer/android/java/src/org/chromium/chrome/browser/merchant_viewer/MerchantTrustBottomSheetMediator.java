@@ -10,10 +10,11 @@ import android.os.Handler;
 import android.view.ViewGroup;
 
 import androidx.annotation.DrawableRes;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.chrome.browser.content.ContentUtils;
+import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
@@ -187,13 +188,13 @@ public class MerchantTrustBottomSheetMediator {
             mWebContents = mWebContentsForTesting;
             return;
         }
-        mWebContents = WebContentsHelpers.createWebContents(false, false);
+        mWebContents = WebContentsFactory.createWebContents(mProfileSupplier.get(), false, false);
         mWebContentView = ContentView.createContentView(mContext, null, mWebContents);
         final ViewAndroidDelegate delegate =
                 ViewAndroidDelegate.createBasicDelegate(mWebContentView);
         mWebContents.initialize(VersionInfo.getProductVersion(), delegate, mWebContentView,
                 mWindowAndroid, WebContents.createDefaultInternalsHolder());
-        WebContentsHelpers.setUserAgentOverride(mWebContents);
+        ContentUtils.setUserAgentOverride(mWebContents, false);
     }
 
     void destroyWebContents() {
@@ -216,8 +217,8 @@ public class MerchantTrustBottomSheetMediator {
         }
     }
 
-    @DrawableRes
-    private static int getSecurityIconResource(@ConnectionSecurityLevel int securityLevel) {
+    private static @DrawableRes int getSecurityIconResource(
+            @ConnectionSecurityLevel int securityLevel) {
         switch (securityLevel) {
             case ConnectionSecurityLevel.NONE:
             case ConnectionSecurityLevel.WARNING:
@@ -241,7 +242,6 @@ public class MerchantTrustBottomSheetMediator {
                 || UrlUtilitiesJni.get().isGoogleSubDomainUrl(url.getSpec());
     }
 
-    @VisibleForTesting
     void setWebContentsForTesting(WebContents webContents) {
         mWebContentsForTesting = webContents;
     }
@@ -285,7 +285,6 @@ public class MerchantTrustBottomSheetMediator {
         }
     }
 
-    @VisibleForTesting
     void setFaviconDrawableForTesting(Drawable drawableForTesting) {
         mFaviconDrawableForTesting = drawableForTesting;
     }

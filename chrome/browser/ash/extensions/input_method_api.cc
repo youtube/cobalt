@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
@@ -21,17 +22,21 @@
 #include "chrome/browser/ash/extensions/dictionary_event_router.h"
 #include "chrome/browser/ash/extensions/ime_menu_event_router.h"
 #include "chrome/browser/ash/extensions/input_method_event_router.h"
+#include "chrome/browser/ash/extensions/language_packs/language_pack_event_router.h"
+#include "chrome/browser/ash/extensions/language_packs/language_packs_extensions_util.h"
 #include "chrome/browser/ash/input_method/autocorrect_manager.h"
 #include "chrome/browser/ash/input_method/native_input_method_engine.h"
 #include "chrome/browser/ash/os_url_handler.h"
 #include "chrome/browser/extensions/api/input_ime/input_ime_api.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/spellchecker/spellcheck_factory.h"
 #include "chrome/browser/spellchecker/spellcheck_service.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/common/extensions/api/input_method_private.h"
 #include "chrome/common/pref_names.h"
+#include "chromeos/ash/components/language_packs/handwriting.h"
+#include "chromeos/ash/components/language_packs/language_pack_manager.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "extensions/browser/extension_function_registry.h"
@@ -77,6 +82,10 @@ namespace OnInputMethodOptionsChanged =
 namespace OnAutocorrect = extensions::api::input_method_private::OnAutocorrect;
 namespace GetTextFieldBounds =
     extensions::api::input_method_private::GetTextFieldBounds;
+namespace GetLanguagePackStatus =
+    extensions::api::input_method_private::GetLanguagePackStatus;
+namespace OnLanguagePackStatusChanged =
+    extensions::api::input_method_private::OnLanguagePackStatusChanged;
 
 using ::ash::input_method::InputMethodEngine;
 
@@ -290,7 +299,7 @@ InputMethodPrivateOpenOptionsPageFunction::Run() {
     // If Lacros is the only browser, open the options page in an Ash app window
     // instead of a regular Ash browser window.
     if (!crosapi::browser_util::IsAshWebBrowserEnabled() &&
-        !profiles::IsKioskSession()) {
+        !chromeos::IsKioskSession()) {
       bool launched = ash::TryLaunchOsUrlHandler(options_page_url);
       DCHECK(launched);
       return RespondNow(NoArguments());
@@ -298,7 +307,7 @@ InputMethodPrivateOpenOptionsPageFunction::Run() {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
     content::WebContents* web_contents = GetSenderWebContents();
     if (web_contents) {
-      Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+      Browser* browser = chrome::FindBrowserWithTab(web_contents);
       content::OpenURLParams url_params(options_page_url, content::Referrer(),
                                         WindowOpenDisposition::SINGLETON_TAB,
                                         ui::PAGE_TRANSITION_LINK, false);
@@ -512,6 +521,66 @@ InputMethodPrivateNotifyInputMethodReadyForTestingFunction::Run() {
   return RespondNow(NoArguments());
 }
 
+ExtensionFunction::ResponseAction
+InputMethodPrivateGetLanguagePackStatusFunction::Run() {
+  absl::optional<GetLanguagePackStatus::Params> params =
+      GetLanguagePackStatus::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+  // This currently only handles handwriting, but this should (in theory)
+  // handle a collection of language packs once input methods depend on multiple
+  // language packs.
+  auto* manager = ash::input_method::InputMethodManager::Get();
+
+  absl::optional<std::string> handwriting_locale =
+      ash::language_packs::MapInputMethodIdToHandwritingLocale(
+          manager->GetInputMethodUtil(), params->input_method_id);
+  // If there are no language packs associated with an input method, installed
+  // is returned.
+  if (!handwriting_locale.has_value()) {
+    return RespondNow(
+        WithArguments(ToString(input_method_private::LanguagePackStatus::
+                                   LANGUAGE_PACK_STATUS_INSTALLED)));
+  }
+  if (!ash::language_packs::HandwritingLocaleToDlc(*handwriting_locale)
+           .has_value()) {
+    // We obtained a handwriting locale, but it doesn't have an associated
+    // language pack. This means that there are no language packs associated
+    // with this input method.
+    //
+    // "en" is the only handwriting locale which does not have an associated
+    // language pack (as of writing).
+    if (*handwriting_locale != "en") {
+      LOG(DFATAL) << "Got non-English handwriting locale from manifest which "
+                     "does not have DLC: "
+                  << *handwriting_locale;
+    }
+    return RespondNow(
+        WithArguments(ToString(input_method_private::LanguagePackStatus::
+                                   LANGUAGE_PACK_STATUS_INSTALLED)));
+  }
+
+  ash::language_packs::LanguagePackManager::GetInstance()->GetPackState(
+      ash::language_packs::kHandwritingFeatureId, *handwriting_locale,
+      // This `BindOnce` into a `.Then` is required to avoid having a method on
+      // this class which has a language pack type in its function signature,
+      // which would cause language packs to be included in this file's headers,
+      // which would cause a slew of dependency issues.
+      base::BindOnce(&chromeos::LanguagePackResultToExtensionStatus)
+          .Then(
+              base::BindOnce(&InputMethodPrivateGetLanguagePackStatusFunction::
+                                 OnGetLanguagePackStatusComplete,
+                             this)));
+  return RespondLater();
+}
+
+void InputMethodPrivateGetLanguagePackStatusFunction::
+    OnGetLanguagePackStatusComplete(
+        const input_method_private::LanguagePackStatus status) {
+  base::Value::List results =
+      input_method_private::GetLanguagePackStatus::Results::Create(status);
+  Respond(ArgumentList(std::move(results)));
+}
+
 InputMethodAPI::InputMethodAPI(content::BrowserContext* context)
     : context_(context) {
   EventRouter::Get(context_)->RegisterObserver(this, OnChanged::kEventName);
@@ -525,6 +594,8 @@ InputMethodAPI::InputMethodAPI(content::BrowserContext* context)
       ->RegisterObserver(this, OnImeMenuListChanged::kEventName);
   EventRouter::Get(context_)
       ->RegisterObserver(this, OnImeMenuItemsChanged::kEventName);
+  EventRouter::Get(context_)->RegisterObserver(
+      this, OnLanguagePackStatusChanged::kEventName);
   ExtensionFunctionRegistry& registry =
       ExtensionFunctionRegistry::GetInstance();
   registry.RegisterFunction<InputMethodPrivateGetInputMethodConfigFunction>();
@@ -573,6 +644,10 @@ void InputMethodAPI::OnListenerAdded(
              !ime_menu_event_router_.get()) {
     ime_menu_event_router_ =
         std::make_unique<chromeos::ExtensionImeMenuEventRouter>(context_);
+  } else if (details.event_name == OnLanguagePackStatusChanged::kEventName &&
+             !language_pack_event_router_.get()) {
+    language_pack_event_router_ =
+        std::make_unique<chromeos::LanguagePackEventRouter>(context_);
   }
 }
 

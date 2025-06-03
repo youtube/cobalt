@@ -9,8 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/feature_list.h"
-#include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/autofill_offer_data.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
@@ -24,7 +22,9 @@
 #include "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 #include "components/autofill/core/browser/proto/api_v1.pb.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
+#include "components/autofill/core/browser/ui/popup_item_ids.h"
 #include "components/autofill/core/browser/ui/suggestion.h"
+#include "components/autofill/core/common/autofill_test_utils.h"
 
 class PrefService;
 
@@ -74,91 +74,6 @@ struct FormGroupValue {
 // Convenience declaration for multiple FormGroup values.
 using FormGroupValues = std::vector<FormGroupValue>;
 
-using RandomizeFrame = base::StrongAlias<struct RandomizeFrameTag, bool>;
-
-// AutofillTestEnvironment encapsulates global state for test data that should
-// be reset automatically after each test.
-class AutofillTestEnvironment {
- public:
-  struct Options {
-    bool disable_server_communication = true;
-  };
-
-  static AutofillTestEnvironment& GetCurrent(const base::Location& = FROM_HERE);
-
-  AutofillTestEnvironment(const AutofillTestEnvironment&) = delete;
-  AutofillTestEnvironment& operator=(const AutofillTestEnvironment&) = delete;
-  ~AutofillTestEnvironment();
-
-  LocalFrameToken NextLocalFrameToken();
-  FormRendererId NextFormRendererId();
-  FieldRendererId NextFieldRendererId();
-
- protected:
-  explicit AutofillTestEnvironment(const Options& options = {
-                                       .disable_server_communication = false});
-
- private:
-  static AutofillTestEnvironment* current_instance_;
-  base::test::ScopedFeatureList scoped_feature_list_;
-
-  // Use some distinct 64 bit numbers to start the counters.
-  uint64_t local_frame_token_counter_high_ = 0xAAAAAAAAAAAAAAAA;
-  uint64_t local_frame_token_counter_low_ = 0xBBBBBBBBBBBBBBBB;
-  FormRendererId::underlying_type form_renderer_id_counter_ = 10;
-  FieldRendererId::underlying_type field_renderer_id_counter_ = 10;
-};
-
-// This encapsulates global unittest state.
-class AutofillUnitTestEnvironment : public AutofillTestEnvironment {
- public:
-  AutofillUnitTestEnvironment() = default;
-};
-
-// This encapsulates global browsertest state. By default this environment
-// disables `kAutofillServerCommunication` feature.
-class AutofillBrowserTestEnvironment : public AutofillTestEnvironment {
- public:
-  explicit AutofillBrowserTestEnvironment(
-      const Options& options = {.disable_server_communication = false});
-};
-
-// Creates non-empty LocalFrameToken. If `randomize` is false, the
-// LocalFrameToken is stable across multiple calls.
-LocalFrameToken MakeLocalFrameToken(
-    RandomizeFrame randomize = RandomizeFrame(false));
-
-// Creates new, pairwise distinct FormRendererIds.
-inline FormRendererId MakeFormRendererId() {
-  return AutofillTestEnvironment::GetCurrent().NextFormRendererId();
-}
-
-// Creates new, pairwise distinct FieldRendererIds.
-inline FieldRendererId MakeFieldRendererId() {
-  return AutofillTestEnvironment::GetCurrent().NextFieldRendererId();
-}
-
-// Creates new, pairwise distinct FormGlobalIds. If `randomize` is true, the
-// LocalFrameToken is generated randomly, otherwise it is stable across multiple
-// calls.
-inline FormGlobalId MakeFormGlobalId(
-    RandomizeFrame randomize = RandomizeFrame(false)) {
-  return {MakeLocalFrameToken(randomize), MakeFormRendererId()};
-}
-
-// Creates new, pairwise distinct FieldGlobalIds. If `randomize` is true, the
-// LocalFrameToken is generated randomly, otherwise it is stable.
-inline FieldGlobalId MakeFieldGlobalId(
-    RandomizeFrame randomize = RandomizeFrame(false)) {
-  return {MakeLocalFrameToken(randomize), MakeFieldRendererId()};
-}
-
-// Returns a copy of `form` with cleared values.
-FormData WithoutValues(FormData form);
-
-// Returns a copy of `form` with `is_autofilled` set as specified.
-FormData AsAutofilled(FormData form, bool is_autofilled = true);
-
 // Helper function to set values and verification statuses to a form group.
 void SetFormGroupValues(FormGroup& form_group,
                         const std::vector<FormGroupValue>& values);
@@ -170,12 +85,7 @@ void VerifyFormGroupValues(const FormGroup& form_group,
                            const std::vector<FormGroupValue>& values,
                            bool ignore_status = false);
 
-const char kEmptyOrigin[] = "";
-// A valid France IBAN number.
-const char kIbanValue[] = "FR76 3000 6000 0112 3456 7890 189";
-// Two valid Switzerland IBAN numbers.
-const char kIbanValue_1[] = "CH56 0483 5012 3456 7800 9";
-const char kIbanValue_2[] = "CH93 0076 2011 6238 5295 7";
+inline constexpr char kEmptyOrigin[] = "";
 
 // The following methods return a PrefService that can be used for
 // Autofill-related testing in contexts where the PrefService would otherwise
@@ -186,91 +96,17 @@ std::unique_ptr<PrefService> PrefServiceForTesting();
 std::unique_ptr<PrefService> PrefServiceForTesting(
     user_prefs::PrefRegistrySyncable* registry);
 
-// Provides a quick way to populate a FormField with c-strings.
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         FormFieldData* field);
-
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         const char* autocomplete,
-                         FormFieldData* field);
-
-void CreateTestFormField(const char* label,
-                         const char* name,
-                         const char* value,
-                         const char* type,
-                         const char* autocomplete,
-                         uint64_t max_length,
-                         FormFieldData* field);
-
-// Provides a quick way to populate a select field.
-void CreateTestSelectField(const char* label,
-                           const char* name,
-                           const char* value,
-                           const std::vector<const char*>& values,
-                           const std::vector<const char*>& contents,
-                           FormFieldData* field);
-
-void CreateTestSelectField(const char* label,
-                           const char* name,
-                           const char* value,
-                           const char* autocomplete,
-                           const std::vector<const char*>& values,
-                           const std::vector<const char*>& contents,
-                           FormFieldData* field);
-
-void CreateTestSelectField(const std::vector<const char*>& values,
-                           FormFieldData* field);
-
-// Provides a quick way to populate a datalist field.
-void CreateTestDatalistField(const char* label,
-                             const char* name,
-                             const char* value,
-                             const std::vector<const char*>& values,
-                             const std::vector<const char*>& labels,
-                             FormFieldData* field);
-
-// Populates |form| with data corresponding to a simple address form.
+// Populates `form` with data corresponding to a simple address form.
 // Note that this actually appends fields to the form data, which can be useful
 // for building up more complex test forms. Another version of the function is
-// provided in case the caller wants the vector of expected field |types|. Use
-// |unique_id| optionally ensure that each form has its own signature.
+// provided in case the caller wants the vector of expected field `types`. Use
+// `unique_id` optionally ensure that each form has its own signature.
+[[nodiscard]] FormData CreateTestAddressFormData(
+    const char* unique_id = nullptr);
 void CreateTestAddressFormData(FormData* form, const char* unique_id = nullptr);
 void CreateTestAddressFormData(FormData* form,
                                std::vector<ServerFieldTypeSet>* types,
                                const char* unique_id = nullptr);
-
-// Populates |form| with data corresponding to a simple personal information
-// form, including name and email, but no address-related fields. Use
-// |unique_id| to optionally ensure that each form has its own signature.
-void CreateTestPersonalInformationFormData(FormData* form,
-                                           const char* unique_id = nullptr);
-
-// Populates |form| with data corresponding to a simple credit card form.
-// Note that this actually appends fields to the form data, which can be
-// useful for building up more complex test forms. Use |unique_id| to optionally
-// ensure that each form has its own signature.
-void CreateTestCreditCardFormData(FormData* form,
-                                  bool is_https,
-                                  bool use_month_type,
-                                  bool split_names = false,
-                                  const char* unique_id = nullptr);
-
-// Populates `form_data` with data corresponding to an IBAN form (a form with a
-// single IBAN field). Note that this actually appends fields to the form data,
-// which can be useful for building up more complex test forms.
-void CreateTestIbanFormData(FormData* form_data,
-                            const char* value = kIbanValue);
-
-// Strips those members from |form| and |field| that are not serialized via
-// mojo, i.e., resets them to `{}`.
-FormData WithoutUnserializedData(FormData form);
-FormFieldData WithoutUnserializedData(FormFieldData field);
 
 // Returns a full profile with valid info according to rules for Canada.
 AutofillProfile GetFullValidProfileForCanada();
@@ -290,9 +126,6 @@ AutofillProfile GetIncompleteProfile1();
 // Returns an incomplete profile of dummy info, different to the above.
 AutofillProfile GetIncompleteProfile2();
 
-// Returns a verified profile full of dummy info.
-AutofillProfile GetVerifiedProfile();
-
 // Returns a server profile full of dummy info.
 AutofillProfile GetServerProfile();
 
@@ -308,15 +141,16 @@ void SetProfileCategory(
 // the given `value`.
 std::string GetStrippedValue(const char* value);
 
-// Returns an IBAN full of dummy info.
-IBAN GetIBAN();
+// Returns a local IBAN full of dummy info.
+Iban GetLocalIban();
 
-// Returns an IBAN full of dummy info, different to the above.
-IBAN GetIBAN2();
+// Returns a local IBAN full of dummy info, different from the above.
+Iban GetLocalIban2();
 
-// Returns an IBAN full of dummy info, different to the above and without
-// nickname.
-IBAN GetIBANWithoutNickname();
+// Returns server-based IBANs full of dummy info.
+Iban GetServerIban();
+Iban GetServerIban2();
+Iban GetServerIban3();
 
 // Returns a credit card full of dummy info.
 CreditCard GetCreditCard();
@@ -333,6 +167,7 @@ CreditCard GetIncompleteCreditCard();
 
 // Returns a masked server card full of dummy info.
 CreditCard GetMaskedServerCard();
+CreditCard GetMaskedServerCard2();
 CreditCard GetMaskedServerCardWithNonLegacyId();
 CreditCard GetMaskedServerCardWithLegacyId();
 CreditCard GetMaskedServerCardVisa();
@@ -349,6 +184,9 @@ CreditCard GetVirtualCard();
 // Returns a randomly generated credit card of |record_type|. Note that the
 // card is not guaranteed to be valid/sane from a card validation standpoint.
 CreditCard GetRandomCreditCard(CreditCard::RecordType record_Type);
+
+// Returns a copy of `credit_card` with `cvc` set as specified.
+CreditCard WithCvc(CreditCard credit_card, std::u16string cvc = u"123");
 
 // Returns a credit card cloud token data full of dummy info.
 CreditCardCloudTokenData GetCreditCardCloudTokenData1();
@@ -444,7 +282,8 @@ void SetCreditCardInfo(CreditCard* credit_card,
                        const char* card_number,
                        const char* expiration_month,
                        const char* expiration_year,
-                       const std::string& billing_address_id);
+                       const std::string& billing_address_id,
+                       const std::u16string& cvc = u"");
 
 // TODO(isherman): We should do this automatically for all tests, not manually
 // on a per-test basis: http://crbug.com/57221
@@ -470,30 +309,19 @@ void InitializePossibleTypesAndValidities(
     const std::vector<ServerFieldType>& possible_type,
     const std::vector<AutofillDataModel::ValidityState>& validity_state = {});
 
-// Fills the upload |field| with the information passed by parameter. If the
-// value of a const char* parameter is NULL, the corresponding attribute won't
-// be set at all, as opposed to being set to empty string.
+// Fills the upload |field| with the information passed by parameter.
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      unsigned autofill_type,
                      unsigned validity_state = 0);
 
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      const std::vector<unsigned>& autofill_type,
                      const std::vector<unsigned>& validity_state = {});
 
 void FillUploadField(AutofillUploadContents::Field* field,
                      unsigned signature,
-                     const char* name,
-                     const char* control_type,
-                     const char* autocomplete,
                      unsigned autofill_type,
                      const std::vector<unsigned>& validity_states);
 
@@ -507,13 +335,18 @@ std::vector<FormSignature> GetEncodedSignatures(const FormStructure& form);
 std::vector<FormSignature> GetEncodedSignatures(
     const std::vector<FormStructure*>& forms);
 
+std::vector<FormSignature> GetEncodedAlternativeSignatures(
+    const FormStructure& form);
+std::vector<FormSignature> GetEncodedAlternativeSignatures(
+    const std::vector<FormStructure*>& forms);
+
 // Calls the required functions on the given external delegate to cause the
 // delegate to display a popup.
 void GenerateTestAutofillPopup(
     AutofillExternalDelegate* autofill_external_delegate);
 
 std::string ObfuscatedCardDigitsAsUTF8(const std::string& str,
-                                       int obfuscation_length = 4);
+                                       int obfuscation_length);
 
 // Returns 2-digit month string, like "02", "10".
 std::string NextMonth();
@@ -551,7 +384,7 @@ void AddFieldPredictionsToForm(
     ::autofill::AutofillQueryResponse_FormSuggestion* form_suggestion);
 
 Suggestion CreateAutofillSuggestion(
-    int frontend_id = 0,
+    PopupItemId popup_item_id,
     const std::u16string& main_text_value = std::u16string(),
     const Suggestion::Payload& payload = Suggestion::Payload());
 

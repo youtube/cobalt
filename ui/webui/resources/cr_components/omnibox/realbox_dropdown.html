@@ -5,19 +5,14 @@
 
   #content {
     background-color: var(--color-realbox-results-background);
-    border-radius: calc(0.25 * var(--cr-realbox-height));
+    border-radius: calc(0.5 * var(--cr-realbox-height));
     box-shadow: var(--cr-realbox-shadow);
     display: flex;
     gap: 16px;
     margin-bottom: 8px;
     overflow: hidden;
-    padding-bottom: 8px;
-    padding-top: var(--cr-realbox-height);
-  }
-
-  :host([round-corners]) #content {
-    border-radius: calc(0.5 * var(--cr-realbox-height));
     padding-bottom: 18px;
+    padding-top: var(--cr-realbox-height);
   }
 
   @media (forced-colors: active) {
@@ -114,12 +109,11 @@
               the dropdown from losing focus and closing as a result. -->
           <h3 class="header" data-id$="[[groupId]]" tabindex="-1"
               on-focusin="onHeaderFocusin_" on-click="onHeaderClick_"
-              aria-hidden="true">
+              on-mousedown="onHeaderMousedown_" aria-hidden="true">
             <span class="text">[[headerForGroup_(groupId)]]</span>
             <cr-icon-button class$="action-icon [[toggleButtonIconForGroup_(groupId, hiddenGroupIds_.*)]]"
                 title="[[toggleButtonTitleForGroup_(groupId, hiddenGroupIds_.*)]]"
-                aria-label$="[[toggleButtonA11yLabelForGroup_(groupId, hiddenGroupIds_.*)]]"
-                on-mousedown="onToggleButtonMouseDown_">
+                aria-label$="[[toggleButtonA11yLabelForGroup_(groupId, hiddenGroupIds_.*)]]">
             </cr-icon-button>
           </h3>
         </template>

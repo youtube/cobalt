@@ -6,7 +6,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
@@ -15,10 +15,6 @@
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -37,13 +33,14 @@ enum class FormInputAccessoryAction {
 };
 
 FormInputAccessoryAction UMAActionForAssistAction(NSString* assistAction) {
-  if ([assistAction isEqual:kFormSuggestionAssistButtonPreviousElement]) {
+  if ([assistAction
+          isEqualToString:kFormSuggestionAssistButtonPreviousElement]) {
     return FormInputAccessoryAction::kPreviousElement;
   }
-  if ([assistAction isEqual:kFormSuggestionAssistButtonNextElement]) {
+  if ([assistAction isEqualToString:kFormSuggestionAssistButtonNextElement]) {
     return FormInputAccessoryAction::kNextElement;
   }
-  if ([assistAction isEqual:kFormSuggestionAssistButtonDone]) {
+  if ([assistAction isEqualToString:kFormSuggestionAssistButtonDone]) {
     return FormInputAccessoryAction::kDone;
   }
   NOTREACHED();
@@ -228,6 +225,14 @@ NSArray* FindDescendantToolbarItemsForActionName(
   [self closeKeyboardLoggingButtonPressed];
 }
 
+- (void)closeKeyboardWithOmniboxTypingShield {
+  if (_webState) {
+    UIView* view = _webState->GetView();
+    CHECK(view);
+    [view endEditing:YES];
+  }
+}
+
 - (void)selectPreviousElementWithButtonPress {
   [self selectPreviousElementLoggingButtonPressed];
 }
@@ -253,11 +258,7 @@ NSArray* FindDescendantToolbarItemsForActionName(
     return;
   }
 
-  web::WebFramesManager* framesManager =
-      autofill::SuggestionControllerJavaScriptFeature::GetInstance()
-          ->GetWebFramesManager(_webState);
-  web::WebFrame* frame = framesManager->GetFrameWithId(
-      base::SysNSStringToUTF8(_lastFocusFormActivityWebFrameID));
+  web::WebFrame* frame = [self webFrame];
 
   if (!frame) {
     completionHandler(false, false);
@@ -293,11 +294,7 @@ NSArray* FindDescendantToolbarItemsForActionName(
   if (!performedAction && _webState) {
     // We could not find the built-in form assist controls, so try to focus
     // the next or previous control using JavaScript.
-    web::WebFramesManager* framesManager =
-        autofill::SuggestionControllerJavaScriptFeature::GetInstance()
-            ->GetWebFramesManager(_webState);
-    web::WebFrame* frame = framesManager->GetFrameWithId(
-        base::SysNSStringToUTF8(_lastFocusFormActivityWebFrameID));
+    web::WebFrame* frame = [self webFrame];
 
     if (frame) {
       autofill::SuggestionControllerJavaScriptFeature::GetInstance()
@@ -315,17 +312,22 @@ NSArray* FindDescendantToolbarItemsForActionName(
   if (!performedAction && _webState) {
     // We could not find the built-in form assist controls, so try to focus
     // the next or previous control using JavaScript.
-    web::WebFramesManager* framesManager =
-        autofill::SuggestionControllerJavaScriptFeature::GetInstance()
-            ->GetWebFramesManager(_webState);
-    web::WebFrame* frame = framesManager->GetFrameWithId(
-        base::SysNSStringToUTF8(_lastFocusFormActivityWebFrameID));
+    web::WebFrame* frame = [self webFrame];
 
     if (frame) {
       autofill::SuggestionControllerJavaScriptFeature::GetInstance()
           ->SelectNextElementInFrame(frame);
     }
   }
+}
+
+// Attempts to fetch the frame object from its id. May return nil.
+- (web::WebFrame*)webFrame {
+  web::WebFramesManager* framesManager =
+      autofill::SuggestionControllerJavaScriptFeature::GetInstance()
+          ->GetWebFramesManager(_webState);
+  return framesManager->GetFrameWithId(
+      base::SysNSStringToUTF8(_lastFocusFormActivityWebFrameID));
 }
 
 @end

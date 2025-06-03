@@ -47,13 +47,13 @@ TestListener::TestListener() {
 TEST_F(ServerTest, Open) {
   auto server = CreateServer();
   // Check that calling Open() succeeds.
-  bool rv = server->Open(/*default_path=*/false);
+  bool rv = server->Open();
   EXPECT_TRUE(rv);
 }
 
 TEST_F(ServerTest, GetFileDescriptor) {
   auto server = CreateServer();
-  bool rv = server->Open(/*default_path=*/false);
+  bool rv = server->Open();
   EXPECT_TRUE(rv);
 
   // Check that the returned file descriptor is valid.
@@ -68,33 +68,8 @@ TEST_F(ServerTest, SecurityDelegateAssociation) {
 
   auto server = CreateServer(std::move(security_delegate));
 
-  EXPECT_EQ(GetSecurityDelegate(server->GetWaylandDisplayForTesting()),
+  EXPECT_EQ(GetSecurityDelegate(server->GetWaylandDisplay()),
             security_delegate_ptr);
-}
-
-TEST_F(ServerTest, CreateAsync) {
-  base::ScopedTempDir non_xdg_dir;
-  ASSERT_TRUE(non_xdg_dir.CreateUniqueTempDir());
-
-  base::RunLoop run_loop;
-  base::FilePath server_socket;
-
-  auto server = CreateServer();
-  server->StartAsync(base::BindLambdaForTesting(
-      [&run_loop, &server_socket](bool success, const base::FilePath& path) {
-        EXPECT_TRUE(success);
-        server_socket = path;
-        run_loop.Quit();
-      }));
-  run_loop.Run();
-
-  // Should create a directory for the server.
-  EXPECT_TRUE(base::DirectoryExists(server_socket.DirName()));
-  // Must not be a child of the XDG dir.
-  EXPECT_TRUE(base::IsDirectoryEmpty(xdg_temp_dir_.GetPath()));
-  // Must be deleted when the helper is removed.
-  server.reset();
-  EXPECT_FALSE(base::PathExists(server_socket));
 }
 
 TEST_F(ServerTest, StartFd) {
@@ -102,13 +77,11 @@ TEST_F(ServerTest, StartFd) {
 
   auto server = CreateServer();
   base::RunLoop start_loop;
-  server->StartWithFdAsync(
-      sock.TakeFd(),
-      base::BindLambdaForTesting([&](bool success, const base::FilePath& path) {
-        EXPECT_TRUE(success);
-        EXPECT_EQ(path, base::FilePath{});
-        start_loop.Quit();
-      }));
+  server->StartWithFdAsync(sock.TakeFd(),
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             start_loop.Quit();
+                           }));
   start_loop.Run();
 
   base::Thread client_thread("client");
@@ -128,7 +101,7 @@ TEST_F(ServerTest, StartFd) {
   EXPECT_NE(client_display, nullptr);
 
   wl_list* all_clients =
-      wl_display_get_client_list(server->GetWaylandDisplayForTesting());
+      wl_display_get_client_list(server->GetWaylandDisplay());
   ASSERT_FALSE(wl_list_empty(all_clients));
   wl_client* client = wl_client_from_link(all_clients->next);
 
@@ -146,14 +119,14 @@ TEST_F(ServerTest, StartFd) {
 
 TEST_F(ServerTest, Dispatch) {
   auto server = CreateServer();
-  bool rv = server->Open(/*default_path=*/false);
+  bool rv = server->Open();
   EXPECT_TRUE(rv);
 
   base::Thread client_thread("client");
   client_thread.Start();
 
   TestListener client_creation_listener;
-  wl_display_add_client_created_listener(server->GetWaylandDisplayForTesting(),
+  wl_display_add_client_created_listener(server->GetWaylandDisplay(),
                                          &client_creation_listener.listener);
 
   base::Lock lock;
@@ -167,8 +140,7 @@ TEST_F(ServerTest, Dispatch) {
         // is required to ensure `connected_to_server` is set before it is
         // accessed on the main thread.
         base::AutoLock locker(lock);
-        client_display =
-            wl_display_connect(server->socket_path().MaybeAsASCII().c_str());
+        client_display = wl_display_connect(nullptr);
         connected_to_server = !!client_display;
       }));
 
@@ -176,13 +148,16 @@ TEST_F(ServerTest, Dispatch) {
     server->Dispatch(base::Milliseconds(10));
   }
 
+  // Remove the listener from the display's client creation signal.
+  wl_list_remove(&client_creation_listener.listener.link);
+
   {
     base::AutoLock locker(lock);
     EXPECT_TRUE(connected_to_server);
   }
 
   wl_list* all_clients =
-      wl_display_get_client_list(server->GetWaylandDisplayForTesting());
+      wl_display_get_client_list(server->GetWaylandDisplay());
   ASSERT_FALSE(wl_list_empty(all_clients));
   wl_client* client = wl_client_from_link(all_clients->next);
 
@@ -196,11 +171,14 @@ TEST_F(ServerTest, Dispatch) {
   while (!client_destruction_listener.notified) {
     server->Dispatch(base::Milliseconds(10));
   }
+
+  // Remove the listener from the client's destroy signal.
+  wl_list_remove(&client_destruction_listener.listener.link);
 }
 
 TEST_F(ServerTest, Flush) {
   auto server = CreateServer();
-  bool rv = server->Open(/*default_path=*/false);
+  bool rv = server->Open();
   EXPECT_TRUE(rv);
 
   // Just call Flush to check that it doesn't have any bad side-effects.

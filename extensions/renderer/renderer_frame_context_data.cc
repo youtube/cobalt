@@ -4,6 +4,7 @@
 
 #include "extensions/renderer/renderer_frame_context_data.h"
 
+#include "extensions/renderer/renderer_context_data.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/web/blink.h"
@@ -28,7 +29,7 @@ RendererFrameContextData::CloneFrameContextData() const {
 }
 
 bool RendererFrameContextData::IsIsolatedApplication() const {
-  return blink::IsIsolatedContext();
+  return RendererContextData::IsIsolatedWebAppContextAndEnabled();
 }
 
 std::unique_ptr<FrameContextData>
@@ -92,7 +93,7 @@ bool RendererFrameContextData::CanAccess(const FrameContextData& target) const {
 
 uintptr_t RendererFrameContextData::GetId() const {
   CHECK(frame_);
-  return reinterpret_cast<uintptr_t>(frame_);
+  return reinterpret_cast<uintptr_t>(frame_.get());
 }
 
 }  // namespace extensions

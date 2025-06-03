@@ -42,10 +42,6 @@ class HibermanClientTest : public testing::Test {
     dbus_service_proxy_ = new dbus::MockObjectProxy(
         bus_.get(), DBUS_SERVICE_DBUS, dbus::ObjectPath(DBUS_PATH_DBUS));
 
-    // Except that we will test alive once after the object comes up.
-    EXPECT_CALL(*bus_.get(), GetObjectProxy(DBUS_SERVICE_DBUS,
-                                            dbus::ObjectPath(DBUS_PATH_DBUS)))
-        .WillOnce(Return(proxy_.get()));
     // Makes sure `GetObjectProxy()` is caled with the correct service name and
     // path.
     EXPECT_CALL(*bus_.get(),
@@ -84,21 +80,17 @@ class HibermanClientTest : public testing::Test {
                     dbus::ObjectProxy::ResponseCallback* callback) {
     std::unique_ptr<dbus::Response> response(dbus::Response::CreateEmpty());
     dbus::MessageWriter writer(response.get());
-    if (method_call->GetMember() == ::hiberman::kResumeFromHibernateMethod) {
+    if (method_call->GetMember() == ::hiberman::kResumeFromHibernateASMethod) {
       dbus::MessageReader reader(method_call);
       std::string account_id;
-      // The Resume method should have an account_id string.
-      ASSERT_TRUE(reader.PopString(&account_id));
-      // There's no reply data for this method.
-    } else if (method_call->GetMember() ==
-               ::hiberman::kResumeFromHibernateASMethod) {
-      dbus::MessageReader reader(method_call);
       const uint8_t* bytes = nullptr;
       size_t length = 0;
       // The ResumeFromHibernateAS method should have an auth_session_id byte
       // array.
       EXPECT_TRUE(reader.PopArrayOfBytes(&bytes, &length));
       EXPECT_NE(length, static_cast<size_t>(0));
+      // The ResumeFromHibernateAS method should have an account_id string.
+      ASSERT_TRUE(reader.PopString(&account_id));
     } else if (method_call->GetMember() == "NameHasOwner") {
       dbus::MessageReader reader(method_call);
       std::string name;
@@ -116,23 +108,5 @@ class HibermanClientTest : public testing::Test {
             std::move(*callback), std::move(response)));
   }
 };
-
-TEST_F(HibermanClientTest, ResumeFromHibernate) {
-  base::test::TestFuture<bool> future;
-  client_->ResumeFromHibernate("test@google.com", future.GetCallback());
-  base::RunLoop().RunUntilIdle();
-  // Assert that the callback was called and that the method_call_success
-  // parameter returned true.
-  ASSERT_TRUE(future.Get<0>());
-}
-
-TEST_F(HibermanClientTest, ResumeFromHibernateAS) {
-  base::test::TestFuture<bool> future;
-  client_->ResumeFromHibernateAS("fake_auth_session_id", future.GetCallback());
-  base::RunLoop().RunUntilIdle();
-  // Assert that the callback was called and that the method_call_success
-  // parameter returned true.
-  ASSERT_TRUE(future.Get<0>());
-}
 
 }  // namespace ash

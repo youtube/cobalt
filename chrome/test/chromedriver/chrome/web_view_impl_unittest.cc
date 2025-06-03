@@ -4,18 +4,17 @@
 
 #include "chrome/test/chromedriver/chrome/web_view_impl.h"
 
-#include <list>
 #include <memory>
 #include <queue>
 #include <string>
 
-#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/test/chromedriver/chrome/browser_info.h"
@@ -25,7 +24,6 @@
 #include "chrome/test/chromedriver/chrome/status.h"
 #include "chrome/test/chromedriver/chrome/stub_devtools_client.h"
 #include "chrome/test/chromedriver/net/sync_websocket.h"
-#include "chrome/test/chromedriver/net/sync_websocket_factory.h"
 #include "chrome/test/chromedriver/net/timeout.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -35,6 +33,7 @@ namespace {
 const char kElementKey[] = "ELEMENT";
 const char kElementKeyW3C[] = "element-6066-11e4-a52e-4f735466cecf";
 const char kShadowRootKey[] = "shadow-6066-11e4-a52e-4f735466cecf";
+const int kNonExistingBackendNodeId = 1000'000'001;
 
 using testing::Eq;
 using testing::Pointee;
@@ -52,21 +51,51 @@ testing::AssertionResult StatusOk(const Status& status) {
   return StatusCodeIs<kOk>(status);
 }
 
-base::Value::Dict GenerateResponse(int backend_node_id) {
+base::Value::Dict CreateElementPlaceholder(
+    int index,
+    std::string element_key = kElementKeyW3C) {
+  base::Value::Dict placeholder;
+  placeholder.Set(element_key, index);
+  return placeholder;
+}
+
+// Create weak local object reference on a node
+base::Value::Dict CreateWeakNodeReference(int weak_local_object_reference) {
+  base::Value::Dict node;
+  node.Set("type", "node");
+  node.Set("weakLocalObjectReference", weak_local_object_reference);
+  return node;
+}
+
+base::Value::Dict CreateNode(int backend_node_id,
+                             int weak_local_object_reference = -1) {
+  base::Value::Dict node;
+  node.Set("type", "node");
+  node.SetByDottedPath("value.backendNodeId", backend_node_id);
+  if (weak_local_object_reference >= 0) {
+    node.Set("weakLocalObjectReference", weak_local_object_reference);
+  }
+  return node;
+}
+
+std::string WrapToJson(base::Value value, int status = 0) {
   base::Value::Dict result;
-  result.SetByDottedPath(std::string("value.") + kElementKeyW3C, 0);
+  result.Set("value", std::move(value));
   result.Set("status", 0);
   std::string json;
   base::JSONWriter::Write(result, &json);
+  return json;
+}
+
+base::Value::Dict GenerateResponse(int backend_node_id) {
   base::Value::Dict dict;
-  dict.Set("value", std::move(json));
-  base::Value::Dict node;
-  node.SetByDottedPath("value.backendNodeId", backend_node_id);
+  dict.Set("value", WrapToJson(base::Value(CreateElementPlaceholder(0)), 0));
+  base::Value::Dict node = CreateNode(backend_node_id);
   base::Value::List serialized_list;
   serialized_list.Append(std::move(dict));
   serialized_list.Append(std::move(node));
   base::Value::Dict response;
-  response.SetByDottedPath("result.webDriverValue.value",
+  response.SetByDottedPath("result.deepSerializedValue.value",
                            std::move(serialized_list));
   return response;
 }
@@ -88,21 +117,12 @@ base::Value::Dict GenerateResponseWithScriptArguments(
       continue;
     }
 
-    base::Value::Dict node;
-    base::Value::Dict ref;
-    ref.Set(element_key, static_cast<int>(nodes.size()));
-    arr.Append(std::move(ref));
-    node.SetByDottedPath("value.backendNodeId", object_id);
-    nodes.Append(std::move(node));
+    arr.Append(CreateElementPlaceholder(nodes.size(), element_key));
+    nodes.Append(CreateNode(object_id));
   }
 
-  base::Value::Dict result;
-  result.Set("value", std::move(arr));
-  result.Set("status", 0);
-  std::string json;
-  base::JSONWriter::Write(result, &json);
   base::Value::Dict dict;
-  dict.Set("value", std::move(json));
+  dict.Set("value", WrapToJson(base::Value(std::move(arr)), 0));
   base::Value::List serialized_list;
   serialized_list.Append(std::move(dict));
 
@@ -111,7 +131,7 @@ base::Value::Dict GenerateResponseWithScriptArguments(
   }
 
   base::Value::Dict response;
-  response.SetByDottedPath("result.webDriverValue.value",
+  response.SetByDottedPath("result.deepSerializedValue.value",
                            std::move(serialized_list));
   return response;
 }
@@ -164,10 +184,13 @@ class FakeDevToolsClient : public StubDevToolsClient {
     } else if (method == "DOM.resolveNode") {
       absl::optional<int> maybe_backend_node_id =
           params.FindInt("backendNodeId");
-      if (!maybe_backend_node_id) {
+      if (!maybe_backend_node_id.has_value()) {
         return Status{
             kUnknownError,
             "backend node id is missing in DOM.resolveNode parameters"};
+      }
+      if (maybe_backend_node_id.value() == kNonExistingBackendNodeId) {
+        return Status{kNoSuchElement, "element with such id not found"};
       }
       result->SetByDottedPath("object.objectId",
                               base::NumberToString(*maybe_backend_node_id));
@@ -208,6 +231,49 @@ void AssertEvalFails(const base::Value::Dict& command_result) {
   ASSERT_EQ(kUnknownError, status.code());
   ASSERT_TRUE(result.empty());
 }
+
+class SyncWebSocketWrapper : public SyncWebSocket {
+ public:
+  explicit SyncWebSocketWrapper(SyncWebSocket* socket) : socket_(socket) {}
+  ~SyncWebSocketWrapper() override = default;
+
+  bool IsConnected() override { return socket_->IsConnected(); }
+
+  bool Connect(const GURL& url) override { return socket_->Connect(url); }
+
+  bool Send(const std::string& message) override {
+    return socket_->Send(message);
+  }
+
+  SyncWebSocket::StatusCode ReceiveNextMessage(
+      std::string* message,
+      const Timeout& timeout) override {
+    return socket_->ReceiveNextMessage(message, timeout);
+  }
+
+  bool HasNextMessage() override { return socket_->HasNextMessage(); }
+
+ private:
+  raw_ptr<SyncWebSocket> socket_;
+};
+
+template <typename TSocket>
+class SocketHolder {
+ public:
+  template <typename... Args>
+  explicit SocketHolder(Args&&... args) : socket_{args...} {}
+
+  std::unique_ptr<SyncWebSocket> Wrapper() {
+    return std::unique_ptr<SyncWebSocket>(new SyncWebSocketWrapper(&socket_));
+  }
+
+  TSocket& Socket() { return socket_; }
+
+  bool ConnectSocket() { return socket_.Connect(GURL("http://url/")); }
+
+ private:
+  TSocket socket_;
+};
 
 }  // namespace
 
@@ -376,51 +442,20 @@ class MockSyncWebSocket : public SyncWebSocket {
   SyncWebSocket::StatusCode next_status_;
 };
 
-std::unique_ptr<SyncWebSocket> CreateMockSyncWebSocket(
-    SyncWebSocket::StatusCode next_status) {
-  return std::make_unique<MockSyncWebSocket>(next_status);
-}
-
-class SyncWebSocketWrapper : public SyncWebSocket {
- public:
-  explicit SyncWebSocketWrapper(SyncWebSocket* socket) : socket_(socket) {}
-  ~SyncWebSocketWrapper() override = default;
-
-  bool IsConnected() override { return socket_->IsConnected(); }
-
-  bool Connect(const GURL& url) override { return socket_->Connect(url); }
-
-  bool Send(const std::string& message) override {
-    return socket_->Send(message);
-  }
-
-  SyncWebSocket::StatusCode ReceiveNextMessage(
-      std::string* message,
-      const Timeout& timeout) override {
-    return socket_->ReceiveNextMessage(message, timeout);
-  }
-
-  bool HasNextMessage() override { return socket_->HasNextMessage(); }
-
- private:
-  raw_ptr<SyncWebSocket> socket_;
-};
-
 }  // namespace
 
 TEST(CreateChild, MultiLevel) {
-  SyncWebSocketFactory factory = base::BindRepeating(
-      &CreateMockSyncWebSocket, SyncWebSocket::StatusCode::kOk);
+  SocketHolder<MockSyncWebSocket> socket_holder{SyncWebSocket::StatusCode::kOk};
   // CreateChild relies on client_ being a DevToolsClientImpl, so no mocking
   std::unique_ptr<DevToolsClientImpl> client_uptr =
-      std::make_unique<DevToolsClientImpl>("id", "", "http://url", factory);
+      std::make_unique<DevToolsClientImpl>("id", "");
   DevToolsClientImpl* client_ptr = client_uptr.get();
   BrowserInfo browser_info;
   WebViewImpl level1(client_ptr->GetId(), true, nullptr, &browser_info,
                      std::move(client_uptr), absl::nullopt,
                      PageLoadStrategy::kEager);
-  Status status = client_ptr->Connect();
-  ASSERT_EQ(kOk, status.code()) << status.message();
+  EXPECT_TRUE(socket_holder.ConnectSocket());
+  EXPECT_TRUE(StatusOk(client_ptr->SetSocket(socket_holder.Wrapper())));
   std::string sessionid = "2";
   std::unique_ptr<WebViewImpl> level2 =
       std::unique_ptr<WebViewImpl>(level1.CreateChild(sessionid, "1234"));
@@ -436,18 +471,17 @@ TEST(CreateChild, MultiLevel) {
 }
 
 TEST(CreateChild, IsNonBlocking_NoErrors) {
-  SyncWebSocketFactory factory = base::BindRepeating(
-      &CreateMockSyncWebSocket, SyncWebSocket::StatusCode::kOk);
+  SocketHolder<MockSyncWebSocket> socket_holder{SyncWebSocket::StatusCode::kOk};
   // CreateChild relies on client_ being a DevToolsClientImpl, so no mocking
   std::unique_ptr<DevToolsClientImpl> client_uptr =
-      std::make_unique<DevToolsClientImpl>("id", "", "http://url", factory);
+      std::make_unique<DevToolsClientImpl>("id", "");
   DevToolsClientImpl* client_ptr = client_uptr.get();
   BrowserInfo browser_info;
   WebViewImpl parent_view(client_ptr->GetId(), true, nullptr, &browser_info,
                           std::move(client_uptr), absl::nullopt,
                           PageLoadStrategy::kEager);
-  Status status = client_ptr->Connect();
-  ASSERT_EQ(kOk, status.code()) << status.message();
+  EXPECT_TRUE(socket_holder.ConnectSocket());
+  EXPECT_TRUE(StatusOk(client_ptr->SetSocket(socket_holder.Wrapper())));
   ASSERT_FALSE(parent_view.IsNonBlocking());
 
   std::string sessionid = "2";
@@ -459,18 +493,17 @@ TEST(CreateChild, IsNonBlocking_NoErrors) {
 }
 
 TEST(CreateChild, Load_NoErrors) {
-  SyncWebSocketFactory factory = base::BindRepeating(
-      &CreateMockSyncWebSocket, SyncWebSocket::StatusCode::kOk);
+  SocketHolder<MockSyncWebSocket> socket_holder{SyncWebSocket::StatusCode::kOk};
   // CreateChild relies on client_ being a DevToolsClientImpl, so no mocking
   std::unique_ptr<DevToolsClientImpl> client_uptr =
-      std::make_unique<DevToolsClientImpl>("id", "", "http://url", factory);
+      std::make_unique<DevToolsClientImpl>("id", "");
   DevToolsClientImpl* client_ptr = client_uptr.get();
   BrowserInfo browser_info;
   WebViewImpl parent_view(client_ptr->GetId(), true, nullptr, &browser_info,
                           std::move(client_uptr), absl::nullopt,
                           PageLoadStrategy::kNone);
-  Status status = client_ptr->Connect();
-  ASSERT_EQ(kOk, status.code()) << status.message();
+  EXPECT_TRUE(socket_holder.ConnectSocket());
+  EXPECT_TRUE(StatusOk(client_ptr->SetSocket(socket_holder.Wrapper())));
   std::string sessionid = "2";
   std::unique_ptr<WebViewImpl> child_view =
       std::unique_ptr<WebViewImpl>(parent_view.CreateChild(sessionid, "1234"));
@@ -480,47 +513,40 @@ TEST(CreateChild, Load_NoErrors) {
 }
 
 TEST(CreateChild, WaitForPendingNavigations_NoErrors) {
-  std::unique_ptr<MockSyncWebSocket> socket =
-      std::make_unique<MockSyncWebSocket>(SyncWebSocket::StatusCode::kOk);
-  SyncWebSocketFactory factory = base::BindRepeating(
-      [](SyncWebSocket* socket) {
-        return std::unique_ptr<SyncWebSocket>(new SyncWebSocketWrapper(socket));
-      },
-      socket.get());
+  SocketHolder<MockSyncWebSocket> socket_holder{SyncWebSocket::StatusCode::kOk};
   // CreateChild relies on client_ being a DevToolsClientImpl, so no mocking
   std::unique_ptr<DevToolsClientImpl> client_uptr =
-      std::make_unique<DevToolsClientImpl>("id", "", "http://url", factory);
+      std::make_unique<DevToolsClientImpl>("id", "");
   DevToolsClientImpl* client_ptr = client_uptr.get();
   BrowserInfo browser_info;
   WebViewImpl parent_view(client_ptr->GetId(), true, nullptr, &browser_info,
                           std::move(client_uptr), absl::nullopt,
                           PageLoadStrategy::kNone);
-  Status status = client_ptr->Connect();
-  ASSERT_EQ(kOk, status.code()) << status.message();
+  EXPECT_TRUE(socket_holder.ConnectSocket());
+  EXPECT_TRUE(StatusOk(client_ptr->SetSocket(socket_holder.Wrapper())));
   std::string sessionid = "2";
   std::unique_ptr<WebViewImpl> child_view =
       std::unique_ptr<WebViewImpl>(parent_view.CreateChild(sessionid, "1234"));
   child_view->AttachTo(client_ptr);
 
   // child_view gets no socket...
-  socket->SetNexStatusCode(SyncWebSocket::StatusCode::kTimeout);
+  socket_holder.Socket().SetNexStatusCode(SyncWebSocket::StatusCode::kTimeout);
   ASSERT_NO_FATAL_FAILURE(child_view->WaitForPendingNavigations(
       "1234", Timeout(base::Milliseconds(10)), true));
 }
 
 TEST(CreateChild, IsPendingNavigation_NoErrors) {
-  SyncWebSocketFactory factory = base::BindRepeating(
-      &CreateMockSyncWebSocket, SyncWebSocket::StatusCode::kOk);
+  SocketHolder<MockSyncWebSocket> socket_holder{SyncWebSocket::StatusCode::kOk};
   // CreateChild relies on client_ being a DevToolsClientImpl, so no mocking
   std::unique_ptr<DevToolsClientImpl> client_uptr =
-      std::make_unique<DevToolsClientImpl>("id", "", "http://url", factory);
+      std::make_unique<DevToolsClientImpl>("id", "");
   DevToolsClientImpl* client_ptr = client_uptr.get();
   BrowserInfo browser_info;
   WebViewImpl parent_view(client_ptr->GetId(), true, nullptr, &browser_info,
                           std::move(client_uptr), absl::nullopt,
                           PageLoadStrategy::kNormal);
-  Status status = client_ptr->Connect();
-  ASSERT_EQ(kOk, status.code()) << status.message();
+  EXPECT_TRUE(socket_holder.ConnectSocket());
+  EXPECT_TRUE(StatusOk(client_ptr->SetSocket(socket_holder.Wrapper())));
   std::string sessionid = "2";
   std::unique_ptr<WebViewImpl> child_view =
       std::unique_ptr<WebViewImpl>(parent_view.CreateChild(sessionid, "1234"));
@@ -770,6 +796,20 @@ TEST(CallUserSyncScript, ElementIdAsResultChildFrameErrors) {
   }
 }
 
+TEST(GetFedCmTracker, OK) {
+  std::unique_ptr<FakeDevToolsClient> client_uptr =
+      std::make_unique<FakeDevToolsClient>();
+  FakeDevToolsClient* client_ptr = client_uptr.get();
+  BrowserInfo browser_info;
+  WebViewImpl view(client_ptr->GetId(), true, nullptr, &browser_info,
+                   std::move(client_uptr), absl::nullopt,
+                   PageLoadStrategy::kEager);
+  FedCmTracker* tracker = nullptr;
+  Status status = view.GetFedCmTracker(&tracker);
+  EXPECT_TRUE(StatusOk(status));
+  EXPECT_NE(nullptr, tracker);
+}
+
 class CallUserSyncScriptArgs
     : public testing::TestWithParam<std::pair<std::string, bool>> {
  public:
@@ -796,7 +836,7 @@ class CallUserSyncScriptArgs
 
   BrowserInfo browser_info;
   std::unique_ptr<WebViewImpl> view;
-  base::raw_ptr<FakeDevToolsClient> client_ptr;
+  raw_ptr<FakeDevToolsClient> client_ptr;
 };
 
 TEST_P(CallUserSyncScriptArgs, Root) {
@@ -880,6 +920,19 @@ TEST_P(CallUserSyncScriptArgs, NoSuchLoader) {
                 .code());
 }
 
+TEST_P(CallUserSyncScriptArgs, NoSuchBackendNodeId) {
+  base::Value::List args;
+  base::Value::Dict ref;
+  ref.Set(ElementKey(), base::StringPrintf("good_loader_element_%d",
+                                           kNonExistingBackendNodeId));
+  args.Append(std::move(ref));
+  std::unique_ptr<base::Value> result;
+  EXPECT_EQ(kNoSuchElement,
+            view->CallUserSyncScript("good", "some_code", std::move(args),
+                                     base::TimeDelta::Max(), &result)
+                .code());
+}
+
 TEST_P(CallUserSyncScriptArgs, IncorrectSeparator) {
   base::Value::List args;
   base::Value::Dict ref;
@@ -932,3 +985,114 @@ INSTANTIATE_TEST_SUITE_P(References,
                                            std::make_pair(kElementKey, false),
                                            std::make_pair(kShadowRootKey,
                                                           false)));
+
+TEST(CallUserSyncScript, WeakReference) {
+  base::Value::Dict node = CreateNode(557, 13);
+  base::Value::Dict weak_ref = CreateWeakNodeReference(13);
+  base::Value::Dict dict;
+  base::Value::List placeholder_list;
+  placeholder_list.Append(CreateElementPlaceholder(0));
+  placeholder_list.Append(CreateElementPlaceholder(1));
+  dict.Set("value", WrapToJson(base::Value(std::move(placeholder_list)), 0));
+  base::Value::List serialized_list;
+  serialized_list.Append(std::move(dict));
+  serialized_list.Append(std::move(node));
+  serialized_list.Append(std::move(weak_ref));
+  base::Value::Dict response;
+  response.SetByDottedPath("result.deepSerializedValue.value",
+                           std::move(serialized_list));
+
+  std::unique_ptr<FakeDevToolsClient> client_uptr =
+      std::make_unique<FakeDevToolsClient>("root");
+  client_uptr->SetResult(response);
+
+  BrowserInfo browser_info;
+  WebViewImpl view("root", true, nullptr, &browser_info, std::move(client_uptr),
+                   absl::nullopt, PageLoadStrategy::kEager);
+  view.GetFrameTracker()->SetContextIdForFrame("root", "irrelevant");
+
+  std::unique_ptr<base::Value> result;
+  EXPECT_TRUE(
+      StatusOk(view.CallUserSyncScript("root", "some_code", base::Value::List(),
+                                       base::TimeDelta::Max(), &result)));
+
+  ASSERT_TRUE(result->is_list());
+  const base::Value::List& result_list = result->GetList();
+  ASSERT_EQ(2u, result_list.size());
+  ASSERT_TRUE(result_list[0].is_dict());
+  EXPECT_THAT(result_list[0].GetDict().FindString(kElementKeyW3C),
+              Pointee(Eq("root_loader_element_557")));
+  ASSERT_TRUE(result_list[1].is_dict());
+  EXPECT_THAT(result_list[1].GetDict().FindString(kElementKeyW3C),
+              Pointee(Eq("root_loader_element_557")));
+}
+
+TEST(CallUserSyncScript, WeakReferenceOrderInsensitive) {
+  base::Value::Dict node = CreateNode(557, 13);
+  base::Value::Dict weak_ref = CreateWeakNodeReference(13);
+  base::Value::Dict dict;
+  base::Value::List placeholder_list;
+  placeholder_list.Append(CreateElementPlaceholder(0));
+  placeholder_list.Append(CreateElementPlaceholder(1));
+  dict.Set("value", WrapToJson(base::Value(std::move(placeholder_list)), 0));
+  base::Value::List serialized_list;
+  serialized_list.Append(std::move(dict));
+  serialized_list.Append(std::move(weak_ref));
+  serialized_list.Append(std::move(node));
+  base::Value::Dict response;
+  response.SetByDottedPath("result.deepSerializedValue.value",
+                           std::move(serialized_list));
+
+  std::unique_ptr<FakeDevToolsClient> client_uptr =
+      std::make_unique<FakeDevToolsClient>("root");
+  client_uptr->SetResult(response);
+
+  BrowserInfo browser_info;
+  WebViewImpl view("root", true, nullptr, &browser_info, std::move(client_uptr),
+                   absl::nullopt, PageLoadStrategy::kEager);
+  view.GetFrameTracker()->SetContextIdForFrame("root", "irrelevant");
+
+  std::unique_ptr<base::Value> result;
+  EXPECT_TRUE(
+      StatusOk(view.CallUserSyncScript("root", "some_code", base::Value::List(),
+                                       base::TimeDelta::Max(), &result)));
+
+  ASSERT_TRUE(result->is_list());
+  const base::Value::List& result_list = result->GetList();
+  ASSERT_EQ(2u, result_list.size());
+  ASSERT_TRUE(result_list[0].is_dict());
+  EXPECT_THAT(result_list[0].GetDict().FindString(kElementKeyW3C),
+              Pointee(Eq("root_loader_element_557")));
+  ASSERT_TRUE(result_list[1].is_dict());
+  EXPECT_THAT(result_list[1].GetDict().FindString(kElementKeyW3C),
+              Pointee(Eq("root_loader_element_557")));
+}
+
+TEST(CallUserSyncScript, WeakReferenceNotResolved) {
+  base::Value::Dict weak_ref = CreateWeakNodeReference(13);
+  base::Value::Dict dict;
+  base::Value::List placeholder_list;
+  placeholder_list.Append(CreateElementPlaceholder(0));
+  dict.Set("value", WrapToJson(base::Value(std::move(placeholder_list)), 0));
+  base::Value::List serialized_list;
+  serialized_list.Append(std::move(dict));
+  serialized_list.Append(std::move(weak_ref));
+  base::Value::Dict response;
+  response.SetByDottedPath("result.deepSerializedValue.value",
+                           std::move(serialized_list));
+
+  std::unique_ptr<FakeDevToolsClient> client_uptr =
+      std::make_unique<FakeDevToolsClient>("root");
+  client_uptr->SetResult(response);
+
+  BrowserInfo browser_info;
+  WebViewImpl view("root", true, nullptr, &browser_info, std::move(client_uptr),
+                   absl::nullopt, PageLoadStrategy::kEager);
+  view.GetFrameTracker()->SetContextIdForFrame("root", "irrelevant");
+
+  std::unique_ptr<base::Value> result;
+  Status status =
+      view.CallUserSyncScript("root", "some_code", base::Value::List(),
+                              base::TimeDelta::Max(), &result);
+  EXPECT_TRUE(status.IsError());
+}

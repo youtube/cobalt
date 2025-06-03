@@ -29,21 +29,15 @@ class AwBackgroundTracingMetricsProvider
   ~AwBackgroundTracingMetricsProvider() override;
 
   // metrics::MetricsProvider:
-  void Init() override;
+  void DoInit() override;
+
+  void RecordCoreSystemProfileMetrics(
+      metrics::SystemProfileProto* system_profile_proto) override;
 
  private:
   // BackgroundTracingMetricsProvider:
-  void ProvideEmbedderMetrics(
-      metrics::ChromeUserMetricsExtension& uma_proto,
-      std::string&& serialized_trace,
-      metrics::TraceLog& log,
-      base::HistogramSnapshotManager* snapshot_manager,
-      base::OnceCallback<void(bool)> done_callback) override;
-
-  void OnTraceCompressed(metrics::ChromeUserMetricsExtension& uma_proto,
-                         metrics::TraceLog& log,
-                         base::OnceCallback<void(bool)> done_callback,
-                         absl::optional<std::string> serialized_trace);
+  base::OnceCallback<bool(metrics::ChromeUserMetricsExtension*, std::string&&)>
+  GetEmbedderMetricsProvider() override;
 
   base::WeakPtrFactory<AwBackgroundTracingMetricsProvider> weak_factory_{this};
 };

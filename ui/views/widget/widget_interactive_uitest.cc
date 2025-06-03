@@ -53,10 +53,6 @@
 #include "ui/views/win/hwnd_util.h"
 #endif
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
-
 namespace views::test {
 
 namespace {
@@ -629,12 +625,6 @@ TEST_F(WidgetTestInteractive, MAYBE_ChildStackedRelativeToParent) {
 }
 
 TEST_F(WidgetTestInteractive, ChildWidgetStackAbove) {
-#if BUILDFLAG(IS_MAC)
-  // MacOS 10.13 and before don't report window z-ordering reliably.
-  if (base::mac::IsAtMostOS10_13())
-    GTEST_SKIP();
-#endif
-
   WidgetAutoclosePtr toplevel(CreateTopLevelPlatformWidget());
   Widget* children[] = {CreateChildPlatformWidget(toplevel->GetNativeView()),
                         CreateChildPlatformWidget(toplevel->GetNativeView()),
@@ -661,12 +651,6 @@ TEST_F(WidgetTestInteractive, ChildWidgetStackAbove) {
 }
 
 TEST_F(WidgetTestInteractive, ChildWidgetStackAtTop) {
-#if BUILDFLAG(IS_MAC)
-  // MacOS 10.13 and before don't report window z-ordering reliably.
-  if (base::mac::IsAtMostOS10_13())
-    GTEST_SKIP();
-#endif
-
   WidgetAutoclosePtr toplevel(CreateTopLevelPlatformWidget());
   Widget* children[] = {CreateChildPlatformWidget(toplevel->GetNativeView()),
                         CreateChildPlatformWidget(toplevel->GetNativeView()),
@@ -938,7 +922,7 @@ TEST_F(DesktopWidgetTestInteractive, WindowModalWindowDestroyedActivationTest) {
 
   gfx::NativeView modal_native_view = modal_dialog_widget->GetNativeView();
   ASSERT_EQ(3u, focus_changes.size());
-  EXPECT_EQ(gfx::kNullNativeView, focus_changes[1]);
+  EXPECT_EQ(gfx::NativeView(), focus_changes[1]);
   EXPECT_EQ(modal_native_view, focus_changes[2]);
 
 #if BUILDFLAG(IS_MAC)
@@ -954,7 +938,7 @@ TEST_F(DesktopWidgetTestInteractive, WindowModalWindowDestroyedActivationTest) {
 #endif
 
   ASSERT_EQ(5u, focus_changes.size());
-  EXPECT_EQ(gfx::kNullNativeView, focus_changes[3]);
+  EXPECT_EQ(gfx::NativeView(), focus_changes[3]);
   EXPECT_EQ(top_level_native_view, focus_changes[4]);
 
   top_level_widget->Close();
@@ -1127,8 +1111,7 @@ TEST_F(WidgetTestInteractive, WidgetShouldBeActiveWhenShow) {
 }
 
 #if BUILDFLAG(ENABLE_DESKTOP_AURA) || BUILDFLAG(IS_MAC)
-// TODO(crbug.com/1438286): Re-enable this test
-TEST_F(WidgetTestInteractive, DISABLED_InactiveWidgetDoesNotGrabActivation) {
+TEST_F(WidgetTestInteractive, InactiveWidgetDoesNotGrabActivation) {
   UniqueWidgetPtr widget = base::WrapUnique(CreateTopLevelPlatformWidget());
   ShowSync(widget.get());
   EXPECT_EQ(GetWidgetShowState(widget.get()), ui::SHOW_STATE_NORMAL);
@@ -1437,7 +1420,7 @@ class CaptureLostTrackingWidget : public Widget {
 
  private:
   // Weak. Stores whether OnMouseCaptureLost has been invoked for this widget.
-  raw_ptr<CaptureLostState> capture_lost_state_;
+  raw_ptr<CaptureLostState, AcrossTasksDanglingUntriaged> capture_lost_state_;
 };
 
 }  // namespace
@@ -1990,6 +1973,9 @@ TEST_F(WidgetCaptureTest, MouseEventDispatchedToRightWindow) {
   UniqueWidgetPtrT widget1 = std::make_unique<MouseEventTrackingWidget>();
   Widget::InitParams params1 =
       CreateParams(views::Widget::InitParams::TYPE_WINDOW);
+  // Not setting bounds on Win64 Arm results in a 0 height window, which
+  // won't get mouse events. See https://crbug.com/1418180.
+  params1.bounds = gfx::Rect(0, 0, 200, 200);
   params1.native_widget = new DesktopNativeWidgetAura(widget1.get());
   widget1->Init(std::move(params1));
   widget1->Show();
@@ -1997,6 +1983,7 @@ TEST_F(WidgetCaptureTest, MouseEventDispatchedToRightWindow) {
   UniqueWidgetPtrT widget2 = std::make_unique<MouseEventTrackingWidget>();
   Widget::InitParams params2 =
       CreateParams(views::Widget::InitParams::TYPE_WINDOW);
+  params2.bounds = gfx::Rect(0, 0, 200, 200);
   params2.native_widget = new DesktopNativeWidgetAura(widget2.get());
   widget2->Init(std::move(params2));
   widget2->Show();
@@ -2049,7 +2036,7 @@ class WidgetInputMethodInteractiveTest : public DesktopWidgetTestInteractive {
   }
 
  private:
-  raw_ptr<Widget> deactivate_widget_ = nullptr;
+  raw_ptr<Widget, AcrossTasksDanglingUntriaged> deactivate_widget_ = nullptr;
 };
 
 #if BUILDFLAG(IS_MAC)

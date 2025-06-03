@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/core/css/css_grid_integer_repeat_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_image_set_value.h"
+#include "third_party/blink/renderer/core/css/css_repeat_style_value.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
@@ -330,51 +331,6 @@ TEST(CSSPropertyParserTest, ClipPathEllipse) {
   EXPECT_FALSE(doc->IsUseCounted(WebFeature::kBasicShapeEllipseNoRadius));
   CSSParser::ParseSingleValue(CSSPropertyID::kClipPath, "ellipse()", context);
   EXPECT_TRUE(doc->IsUseCounted(WebFeature::kBasicShapeEllipseNoRadius));
-}
-
-TEST(CSSPropertyParserTest, ScrollCustomizationPropertySingleValue) {
-  ScopedScrollCustomizationForTest scoped_feature(true);
-  const CSSValue* value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-down",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  const auto* list = To<CSSValueList>(value);
-  EXPECT_EQ(1U, list->length());
-  EXPECT_EQ(CSSValueID::kPanDown,
-            To<CSSIdentifierValue>(list->Item(0U)).GetValueID());
-}
-
-TEST(CSSPropertyParserTest, ScrollCustomizationPropertyTwoValuesCombined) {
-  ScopedScrollCustomizationForTest scoped_feature(true);
-  const CSSValue* value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-left pan-y",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  const auto* list = To<CSSValueList>(value);
-  EXPECT_EQ(2U, list->length());
-  EXPECT_EQ(CSSValueID::kPanLeft,
-            To<CSSIdentifierValue>(list->Item(0U)).GetValueID());
-  EXPECT_EQ(CSSValueID::kPanY,
-            To<CSSIdentifierValue>(list->Item(1U)).GetValueID());
-}
-
-TEST(CSSPropertyParserTest, ScrollCustomizationPropertyInvalidEntries) {
-  // We expect exactly one property value per coordinate.
-  ScopedScrollCustomizationForTest scoped_feature(true);
-  const CSSValue* value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-left pan-right",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  EXPECT_FALSE(value);
-  value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-up pan-down",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  EXPECT_FALSE(value);
-  value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-x pan-left",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  EXPECT_FALSE(value);
-  value = CSSParser::ParseSingleValue(
-      CSSPropertyID::kScrollCustomization, "pan-x pan-x",
-      StrictCSSParserContext(SecureContextMode::kSecureContext));
-  EXPECT_FALSE(value);
 }
 
 TEST(CSSPropertyParserTest, GradientUseCount) {
@@ -716,13 +672,14 @@ TEST(CSSPropertyParserTest, ImageSetZeroResolution) {
   TestImageSetParsing("image-set(url(foo) 0x)", "image-set(url(\"foo\") 0x)");
 }
 
-TEST(CSSPropertyParserTest, ImageSetNegativeResolution) {
-  TestImageSetParsing("image-set(url(foo) -1x)", "image-set(url(\"foo\") -1x)");
-}
-
 TEST(CSSPropertyParserTest, ImageSetCalcResolutionUnitX) {
   TestImageSetParsing("image-set(url(foo) calc(1x))",
                       "image-set(url(\"foo\") calc(1dppx))");
+}
+
+TEST(CSSPropertyParserTest, ImageSetCalcNegativerResolution) {
+  TestImageSetParsing("image-set(url(foo) calc(-1x))",
+                      "image-set(url(\"foo\") calc(-1dppx))");
 }
 
 TEST(CSSPropertyParserTest, ImageSetAddCalcResolutionUnitX) {
@@ -738,6 +695,16 @@ TEST(CSSPropertyParserTest, ImageSetSubCalcResolutionUnitX) {
 TEST(CSSPropertyParserTest, ImageSetMultCalcResolutionUnitX) {
   TestImageSetParsing("image-set(url(foo) calc(2x * 3))",
                       "image-set(url(\"foo\") calc(6dppx))");
+}
+
+TEST(CSSPropertyParserTest, ImageSetMultCalcNegativeResolution) {
+  TestImageSetParsing("image-set(url(foo) calc(1 * -1x))",
+                      "image-set(url(\"foo\") calc(-1dppx))");
+}
+
+TEST(CSSPropertyParserTest, ImageSetMultCalcNegativeNumberResolution) {
+  TestImageSetParsing("image-set(url(foo) calc(-1 * 1x))",
+                      "image-set(url(\"foo\") calc(-1dppx))");
 }
 
 TEST(CSSPropertyParserTest, ImageSetDivCalcResolutionUnitX) {
@@ -885,6 +852,10 @@ TEST(CSSPropertyParserTest, ImageSetMissingUrl) {
   TestImageSetParsingFailure("image-set(1x)");
 }
 
+TEST(CSSPropertyParserTest, ImageSetNegativeResolution) {
+  TestImageSetParsingFailure("image-set(url(foo) -1x)");
+}
+
 TEST(CSSPropertyParserTest, ImageSetOnlyOneGradientColor) {
   TestImageSetParsingFailure("image-set(linear-gradient(red) 1x)");
 }
@@ -945,6 +916,7 @@ TEST(CSSPropertyParserTest, UAInternalLightDarkColor) {
       {"-internal-light-dark(rgba(0, 0, 0, 0.5), hsla(180, 75%, 50%, "
        "0.7))",
        true},
+      {"-internal-light-dark(ff0000, green)", false},
   };
 
   for (const auto& test : tests) {
@@ -1065,7 +1037,7 @@ TEST(CSSPropertyParserTest, ParseRevertLayer) {
 
 // anchor() and anchor-size() shouldn't parse when the feature is disabled.
 TEST(CSSPropertyParserTest, AnchorPositioningDisabled) {
-  ScopedHTMLSelectMenuElementForTest select_menu_disabled(false);
+  ScopedHTMLSelectListElementForTest select_list_disabled(false);
   ScopedCSSAnchorPositioningForTest anchor_positioning_disabled(false);
 
   auto* context = MakeGarbageCollected<CSSParserContext>(
@@ -1079,6 +1051,160 @@ TEST(CSSPropertyParserTest, AnchorPositioningDisabled) {
                              context));
   EXPECT_FALSE(ParseCSSValue(CSSPropertyID::kHeight,
                              "anchor-size(--foo height)", context));
+}
+
+void TestRepeatStyleParsing(const String& testValue,
+                            const String& expectedCssText,
+                            const CSSPropertyID& propID) {
+  const CSSValue* value = CSSParser::ParseSingleValue(
+      propID, testValue,
+      StrictCSSParserContext(SecureContextMode::kSecureContext));
+  ASSERT_NE(value, nullptr);
+
+  const CSSValueList* val_list = To<CSSValueList>(value);
+  ASSERT_EQ(val_list->length(), 1U);
+
+  const CSSRepeatStyleValue& repeat_style_value =
+      To<CSSRepeatStyleValue>(val_list->First());
+  EXPECT_EQ(expectedCssText, repeat_style_value.CssText());
+}
+
+void TestRepeatStylesParsing(const String& testValue,
+                             const String& expectedCssText) {
+  TestRepeatStyleParsing(testValue, expectedCssText,
+                         CSSPropertyID::kBackgroundRepeat);
+  TestRepeatStyleParsing(testValue, expectedCssText,
+                         CSSPropertyID::kMaskRepeat);
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeatX1) {
+  TestRepeatStylesParsing("repeat-x", "repeat-x");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeatX2) {
+  TestRepeatStylesParsing("repeat no-repeat", "repeat-x");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeatY1) {
+  TestRepeatStylesParsing("repeat-y", "repeat-y");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeatY2) {
+  TestRepeatStylesParsing("no-repeat repeat", "repeat-y");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeat1) {
+  TestRepeatStylesParsing("repeat", "repeat");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeat2) {
+  TestRepeatStylesParsing("repeat repeat", "repeat");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleNoRepeat1) {
+  TestRepeatStylesParsing("no-repeat", "no-repeat");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleNoRepeat2) {
+  TestRepeatStylesParsing("no-repeat no-repeat", "no-repeat");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleSpace1) {
+  TestRepeatStylesParsing("space", "space");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleSpace2) {
+  TestRepeatStylesParsing("space space", "space");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRound1) {
+  TestRepeatStylesParsing("round", "round");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRound2) {
+  TestRepeatStylesParsing("round round", "round");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyle2Val) {
+  TestRepeatStylesParsing("round space", "round space");
+}
+
+void TestRepeatStyleViaShorthandParsing(const String& testValue,
+                                        const String& expectedCssText,
+                                        const CSSPropertyID& propID) {
+  auto* style =
+      MakeGarbageCollected<MutableCSSPropertyValueSet>(kHTMLStandardMode);
+  CSSParser::ParseValue(style, propID, testValue, false /* important */);
+  ASSERT_NE(style, nullptr);
+  EXPECT_TRUE(style->AsText().Contains(expectedCssText));
+}
+
+void TestRepeatStyleViaShorthandsParsing(const String& testValue,
+                                         const String& expectedCssText) {
+  TestRepeatStyleViaShorthandParsing(testValue, expectedCssText,
+                                     CSSPropertyID::kBackground);
+  TestRepeatStyleViaShorthandParsing(testValue, expectedCssText,
+                                     CSSPropertyID::kAlternativeMask);
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRepeatXViaShorthand) {
+  TestRepeatStyleViaShorthandsParsing("url(foo) repeat no-repeat", "repeat-x");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyleRoundViaShorthand) {
+  TestRepeatStyleViaShorthandsParsing("url(foo) round round", "round");
+}
+
+TEST(CSSPropertyParserTest, RepeatStyle2ValViaShorthand) {
+  TestRepeatStyleViaShorthandsParsing("url(foo) space repeat", "space repeat");
+}
+
+void TestMaskPositionParsing(const String& testValue,
+                             const String& expectedCssText) {
+  auto* style =
+      MakeGarbageCollected<MutableCSSPropertyValueSet>(kHTMLStandardMode);
+  CSSParser::ParseValue(style, CSSPropertyID::kMaskPosition, testValue,
+                        false /* important */);
+  ASSERT_NE(style, nullptr);
+  EXPECT_TRUE(style->AsText().Contains(expectedCssText));
+}
+
+TEST(CSSPropertyParserTest, MaskPositionCenter) {
+  TestMaskPositionParsing("center", "center center");
+}
+
+TEST(CSSPropertyParserTest, MaskPositionTopRight) {
+  TestMaskPositionParsing("top right", "right top");
+}
+
+TEST(CSSPropertyParserTest, MaskPositionBottomLeft) {
+  TestMaskPositionParsing("bottom 10% left -13px", "left -13px bottom 10%");
+}
+
+void TestMaskModeParsing(const String& testValue,
+                         const String& expectedCssText) {
+  const CSSValue* value = CSSParser::ParseSingleValue(
+      CSSPropertyID::kMaskMode, testValue,
+      StrictCSSParserContext(SecureContextMode::kSecureContext));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(expectedCssText, value->CssText());
+}
+
+TEST(CSSPropertyParserTest, MaskModeAlpha) {
+  TestMaskModeParsing("alpha", "alpha");
+}
+
+TEST(CSSPropertyParserTest, MaskModeLuminance) {
+  TestMaskModeParsing("luminance", "luminance");
+}
+
+TEST(CSSPropertyParserTest, MaskModeMatchSource) {
+  TestMaskModeParsing("match-source", "match-source");
+}
+
+TEST(CSSPropertyParserTest, MaskModeMultipleValues) {
+  TestMaskModeParsing("alpha, luminance, match-source",
+                      "alpha, luminance, match-source");
 }
 
 }  // namespace blink

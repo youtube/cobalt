@@ -61,7 +61,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "skia/ext/image_operations.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 
 namespace {
@@ -71,6 +71,7 @@ constexpr char kFrameworkPackageName[] = "android";
 constexpr char kResizeLockState[] = "resize_lock_state";
 constexpr char kResizeLockNeedsConfirmation[] =
     "resize_lock_needs_confirmation";
+constexpr char kGameControlsOptOut[] = "game_controls_opt_out";
 constexpr char kIconResourceId[] = "icon_resource_id";
 constexpr char kIconVersion[] = "icon_version";
 constexpr char kInstallTime[] = "install_time";
@@ -95,6 +96,8 @@ constexpr char kUninstalled[] = "uninstalled";
 constexpr char kVPNProvider[] = "vpnprovider";
 constexpr char kPermissionStateGranted[] = "granted";
 constexpr char kPermissionStateManaged[] = "managed";
+constexpr char kPermissionStateDetails[] = "details";
+constexpr char kPermissionStateOneTime[] = "one_time";
 constexpr char kWebAppInfo[] = "web_app_info";
 constexpr char kTitle[] = "title";
 constexpr char kStartUrl[] = "start_url";
@@ -111,6 +114,9 @@ constexpr char kVersionName[] = "version_name";
 constexpr char kAppSizeBytesString[] = "app_size_bytes_string";
 constexpr char kDataSizeBytesString[] = "data_size_bytes_string";
 constexpr char kAppCategory[] = "app_category";
+constexpr char kLocaleInfo[] = "locale_info";
+constexpr char kSupportedLocales[] = "supported_locales";
+constexpr char kSelectedLocale[] = "selected_locale";
 // Deprecated perfs fields.
 constexpr char kDeprecatePackagePrefsSystem[] = "system";
 
@@ -852,10 +858,22 @@ std::unique_ptr<ArcAppListPrefs::PackageInfo> ArcAppListPrefs::GetPackage(
                            .value_or(false);
         bool managed = permission_state_dict->FindBool(kPermissionStateManaged)
                            .value_or(false);
+        const std::string* details =
+            permission_state_dict->FindString(kPermissionStateDetails);
+
+        absl::optional<std::string> details_opt;
+        if (details != nullptr) {
+          details_opt = *details;
+        }
+
+        bool one_time = permission_state_dict->FindBool(kPermissionStateOneTime)
+                            .value_or(false);
+
         arc::mojom::AppPermission permission =
             static_cast<arc::mojom::AppPermission>(permission_type);
         permissions.emplace(permission,
-                            arc::mojom::PermissionState::New(granted, managed));
+                            arc::mojom::PermissionState::New(
+                                granted, managed, details_opt, one_time));
       } else {
         LOG(ERROR) << "Permission state was not a dictionary.";
       }
@@ -878,14 +896,31 @@ std::unique_ptr<ArcAppListPrefs::PackageInfo> ArcAppListPrefs::GetPackage(
       web_app_info->certificate_sha256_fingerprint = *fingerprint;
     }
   }
+  arc::mojom::PackageLocaleInfoPtr locale_info;
+  if (const base::Value* locale_info_value = package->Find(kLocaleInfo)) {
+    const base::Value::Dict& locale_info_dict = locale_info_value->GetDict();
+    if (const base::Value::List* supported_locales =
+            locale_info_dict.FindList(kSupportedLocales)) {
+      locale_info = arc::mojom::PackageLocaleInfo::New();
+
+      locale_info->supported_locales.reserve(supported_locales->size());
+      for (const base::Value& locale : *supported_locales) {
+        locale_info->supported_locales.emplace_back(locale.GetString());
+      }
+
+      locale_info->selected_locale =
+          *locale_info_dict.FindString(kSelectedLocale);
+    }
+  }
 
   return std::make_unique<PackageInfo>(
       package_name, package->FindInt(kPackageVersion).value_or(0),
       last_backup_android_id, last_backup_time,
       package->FindBool(kShouldSync).value_or(false),
       package->FindBool(kVPNProvider).value_or(false),
-      package->FindBool(kPreinstalled).value_or(false), std::move(permissions),
-      std::move(web_app_info));
+      package->FindBool(kPreinstalled).value_or(false),
+      package->FindBool(kGameControlsOptOut).value_or(false),
+      std::move(permissions), std::move(web_app_info), std::move(locale_info));
 }
 
 bool ArcAppListPrefs::IsPackageInstalled(
@@ -1195,7 +1230,7 @@ void ArcAppListPrefs::OnArcPlayStoreEnabledChanged(bool enabled) {
 }
 
 void ArcAppListPrefs::OnArcSessionStopped(arc::ArcStopReason stop_reason) {
-  arc_app_metrics_util_->reportIncompleteInstalls();
+  arc_app_metrics_util_->reportMetrics();
 }
 
 void ArcAppListPrefs::SetDefaultAppsFilterLevel() {
@@ -1691,7 +1726,7 @@ void ArcAppListPrefs::AddAppAndShortcut(
     if (arc::IsArcForceCacheAppIcon() && app_id != arc::kPlayStoreAppId) {
       // Request full set of app icons.
       VLOG(1) << "Requested full set of app icons " << app_id;
-      for (auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
+      for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
         for (int dip_size : default_app_icon_dip_sizes) {
           MaybeRequestIcon(app_id,
                            ArcAppIconDescriptor(dip_size, scale_factor));
@@ -1776,6 +1811,7 @@ void ArcAppListPrefs::AddOrUpdatePackagePrefs(
   package_dict.Set(kUninstalled, false);
   package_dict.Set(kVPNProvider, package.vpn_provider);
   package_dict.Set(kPreinstalled, package.preinstalled);
+  package_dict.Set(kGameControlsOptOut, package.game_controls_opt_out);
   if (package.version_name)
     package_dict.Set(kVersionName, package.version_name.value());
   else
@@ -1783,15 +1819,23 @@ void ArcAppListPrefs::AddOrUpdatePackagePrefs(
 
   base::Value::Dict permissions_dict;
   if (package.permission_states.has_value()) {
-    // Support new format
-    for (const auto& permission : package.permission_states.value()) {
+    for (const auto& [permission_type, permission_state] :
+         package.permission_states.value()) {
       base::Value::Dict permission_state_dict;
       permission_state_dict.Set(kPermissionStateGranted,
-                                permission.second->granted);
+                                permission_state->granted);
       permission_state_dict.Set(kPermissionStateManaged,
-                                permission.second->managed);
+                                permission_state->managed);
+
+      if (permission_state->details.has_value()) {
+        permission_state_dict.Set(kPermissionStateDetails,
+                                  permission_state->details.value());
+      }
+      permission_state_dict.Set(kPermissionStateOneTime,
+                                permission_state->one_time);
+
       permissions_dict.Set(
-          base::NumberToString(static_cast<int64_t>(permission.first)),
+          base::NumberToString(static_cast<int64_t>(permission_type)),
           std::move(permission_state_dict));
     }
     package_dict.Set(kPermissionStates, std::move(permissions_dict));
@@ -1815,6 +1859,23 @@ void ArcAppListPrefs::AddOrUpdatePackagePrefs(
     package_dict.Set(kWebAppInfo, std::move(web_app_info_dict));
   } else {
     package_dict.Remove(kWebAppInfo);
+  }
+
+  if (package.locale_info) {
+    const arc::mojom::PackageLocaleInfo& package_locale_info =
+        *package.locale_info;
+    base::Value::List supported_locales;
+    for (const std::string& supported_locale :
+         package_locale_info.supported_locales) {
+      supported_locales.Append(supported_locale);
+    }
+    package_dict.Set(
+        kLocaleInfo,
+        base::Value::Dict()
+            .Set(kSupportedLocales, std::move(supported_locales))
+            .Set(kSelectedLocale, package_locale_info.selected_locale));
+  } else {
+    package_dict.Remove(kLocaleInfo);
   }
 
   if (old_package_version == -1 ||
@@ -2228,7 +2289,7 @@ void ArcAppListPrefs::OnNotificationsEnabledChanged(
     const std::string* app_package_name =
         app.second.GetDict().FindString(kPackageName);
     if (!app_package_name) {
-      NOTREACHED();
+      LOG(ERROR) << "App is malformed: " << app.first;
       continue;
     }
     if (*app_package_name != package_name) {
@@ -2414,10 +2475,27 @@ void ArcAppListPrefs::OnInstallationStarted(
   if (prefs_->GetBoolean(ash::prefs::kRecordArcAppSyncMetrics) &&
       !(sync_service_ && sync_service_->IsPackageSyncing(*package_name)) &&
       !IsDefaultPackage(*package_name)) {
-    arc_app_metrics_util_->recordAppInstallStartTime(*package_name);
+    arc_app_metrics_util_->recordAppInstallStartTime(
+        *package_name, IsControlledByPolicy(*package_name));
   }
   for (auto& observer : observer_list_)
     observer.OnInstallationStarted(*package_name);
+}
+
+void ArcAppListPrefs::OnInstallationProgressChanged(
+    const std::string& package_name,
+    float progress) {
+  for (auto& observer : observer_list_) {
+    observer.OnInstallationProgressChanged(package_name, progress);
+  }
+}
+
+void ArcAppListPrefs::OnInstallationActiveChanged(
+    const std::string& package_name,
+    bool active) {
+  for (auto& observer : observer_list_) {
+    observer.OnInstallationActiveChanged(package_name, active);
+  }
 }
 
 void ArcAppListPrefs::OnInstallationFinished(
@@ -2442,7 +2520,8 @@ void ArcAppListPrefs::OnInstallationFinished(
         reason = InstallationCounterReasonEnum::POLICY;
       }
       UMA_HISTOGRAM_ENUMERATION("Arc.AppInstalledReason", reason);
-      arc_app_metrics_util_->maybeReportInstallTimeDelta(result->package_name);
+      arc_app_metrics_util_->maybeReportInstallTimeDelta(
+          result->package_name, IsControlledByPolicy(result->package_name));
       packages_to_be_added_.insert(result->package_name);
     }
   }
@@ -2566,9 +2645,11 @@ ArcAppListPrefs::PackageInfo::PackageInfo(
     bool should_sync,
     bool vpn_provider,
     bool preinstalled,
+    bool game_controls_opt_out,
     base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
         permissions,
-    arc::mojom::WebAppInfoPtr web_app_info)
+    arc::mojom::WebAppInfoPtr web_app_info,
+    arc::mojom::PackageLocaleInfoPtr locale_info)
     : package_name(package_name),
       package_version(package_version),
       last_backup_android_id(last_backup_android_id),
@@ -2576,8 +2657,10 @@ ArcAppListPrefs::PackageInfo::PackageInfo(
       should_sync(should_sync),
       vpn_provider(vpn_provider),
       preinstalled(preinstalled),
+      game_controls_opt_out(game_controls_opt_out),
       permissions(std::move(permissions)),
-      web_app_info(std::move(web_app_info)) {}
+      web_app_info(std::move(web_app_info)),
+      locale_info(std::move(locale_info)) {}
 
 // Need to add explicit destructor for chromium style checker error:
 // Complex class/struct needs an explicit out-of-line destructor

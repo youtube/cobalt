@@ -11,6 +11,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/zone.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -695,7 +696,7 @@ TEST_F(IdentityMapTest, ExplicitGC) {
   }
 
   // Do an explicit, real GC.
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
 
   // Check that searching for the numbers finds the same values.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
@@ -727,7 +728,7 @@ TEST_F(IdentityMapTest, GCShortCutting) {
         factory->NewStringFromAsciiChecked("thin_string");
     Handle<String> internalized_string =
         factory->InternalizeString(thin_string);
-    DCHECK(thin_string->IsThinString());
+    DCHECK(IsThinString(*thin_string));
     DCHECK_NE(*thin_string, *internalized_string);
 
     // Insert both keys into the map.
@@ -735,9 +736,9 @@ TEST_F(IdentityMapTest, GCShortCutting) {
     t.map.Insert(internalized_string, &internalized_string);
 
     // Do an explicit, real GC, this should short-cut the thin string to point
-    // to the internalized string (this is not implemented for MinorMC).
-    CollectGarbage(i::NEW_SPACE);
-    DCHECK_IMPLIES(!v8_flags.minor_mc && !v8_flags.optimize_for_size,
+    // to the internalized string (this is not implemented for MinorMS).
+    InvokeMinorGC();
+    DCHECK_IMPLIES(!v8_flags.minor_ms && !v8_flags.optimize_for_size,
                    *thin_string == *internalized_string);
 
     // Check that getting the object points to one of the handles.

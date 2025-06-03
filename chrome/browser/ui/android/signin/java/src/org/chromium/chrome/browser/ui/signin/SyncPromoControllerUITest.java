@@ -39,8 +39,10 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.ui.signin.SyncConsentActivityLauncher.AccessPoint;
+import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
@@ -63,6 +65,10 @@ public class SyncPromoControllerUITest {
     private static List<ParameterSet> sClassParams =
             new NightModeTestUtils.NightModeParams().getParameters();
 
+    @Rule
+    public AutomotiveContextWrapperTestRule mAutomotiveContextWrapperTestRule =
+            new AutomotiveContextWrapperTestRule();
+
     private static final String TEST_EMAIL = "john.doe@gmail.com";
 
     @Rule
@@ -72,11 +78,9 @@ public class SyncPromoControllerUITest {
                     .setBugComponent(RenderTestRule.Component.SERVICES_SIGN_IN)
                     .build();
 
-    @Rule
-    public final SigninTestRule mSigninTestRule = new SigninTestRule();
+    @Rule public final SigninTestRule mSigninTestRule = new SigninTestRule();
 
-    @Rule
-    public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
     public final ChromeTabbedActivityTestRule mChromeActivityTestRule =
@@ -86,8 +90,7 @@ public class SyncPromoControllerUITest {
     public final BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    @Mock
-    private SyncConsentActivityLauncher mSyncConsentActivityLauncher;
+    @Mock private SyncConsentActivityLauncher mSyncConsentActivityLauncher;
 
     @Before
     public void setUp() {
@@ -110,11 +113,15 @@ public class SyncPromoControllerUITest {
     @Test
     @MediumTest
     public void testBookmarkSyncPromoViewSignedOutAndNoAccountAvailable() throws Throwable {
-        ProfileDataCache profileDataCache = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
-                    mActivityTestRule.getActivity());
-        });
-        setUpSyncPromoView(SigninAccessPoint.BOOKMARK_MANAGER, profileDataCache,
+        ProfileDataCache profileDataCache =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                                    mActivityTestRule.getActivity());
+                        });
+        setUpSyncPromoView(
+                SigninAccessPoint.BOOKMARK_MANAGER,
+                profileDataCache,
                 R.layout.sync_promo_view_bookmarks);
         onView(withText(R.string.sync_promo_title_bookmarks)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_bookmarks)).check(matches(isDisplayed()));
@@ -126,7 +133,9 @@ public class SyncPromoControllerUITest {
     public void testBookmarkSyncPromoViewSignedOutAndAccountAvailable() throws Throwable {
         mSigninTestRule.addAccount(TEST_EMAIL);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        setUpSyncPromoView(SigninAccessPoint.BOOKMARK_MANAGER, profileDataCache,
+        setUpSyncPromoView(
+                SigninAccessPoint.BOOKMARK_MANAGER,
+                profileDataCache,
                 R.layout.sync_promo_view_bookmarks);
         onView(withText(R.string.sync_promo_title_bookmarks)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_bookmarks)).check(matches(isDisplayed()));
@@ -139,7 +148,9 @@ public class SyncPromoControllerUITest {
         CoreAccountInfo coreAccountInfo = mSigninTestRule.addAccountAndWaitForSeeding(TEST_EMAIL);
         SigninTestUtil.signin(coreAccountInfo);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        setUpSyncPromoView(SigninAccessPoint.BOOKMARK_MANAGER, profileDataCache,
+        setUpSyncPromoView(
+                SigninAccessPoint.BOOKMARK_MANAGER,
+                profileDataCache,
                 R.layout.sync_promo_view_bookmarks);
         onView(withText(R.string.sync_promo_title_bookmarks)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_bookmarks)).check(matches(isDisplayed()));
@@ -149,10 +160,12 @@ public class SyncPromoControllerUITest {
     @Test
     @MediumTest
     public void testSettingsSyncPromoViewSignedOutAndNoAccountAvailable() throws Throwable {
-        ProfileDataCache profileDataCache = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
-                    mActivityTestRule.getActivity());
-        });
+        ProfileDataCache profileDataCache =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                                    mActivityTestRule.getActivity());
+                        });
         setUpSyncPromoView(
                 SigninAccessPoint.SETTINGS, profileDataCache, R.layout.sync_promo_view_settings);
         onView(withText(R.string.sync_promo_title_settings)).check(matches(isDisplayed()));
@@ -188,11 +201,15 @@ public class SyncPromoControllerUITest {
     @Test
     @MediumTest
     public void testRecentTabsSyncPromoViewSignedOutAndNoAccountAvailable() throws Throwable {
-        ProfileDataCache profileDataCache = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
-                    mActivityTestRule.getActivity());
-        });
-        setUpSyncPromoView(SigninAccessPoint.RECENT_TABS, profileDataCache,
+        ProfileDataCache profileDataCache =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                                    mActivityTestRule.getActivity());
+                        });
+        setUpSyncPromoView(
+                SigninAccessPoint.RECENT_TABS,
+                profileDataCache,
                 R.layout.sync_promo_view_recent_tabs);
         onView(withText(R.string.sync_promo_title_recent_tabs)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_recent_tabs)).check(matches(isDisplayed()));
@@ -204,7 +221,9 @@ public class SyncPromoControllerUITest {
     public void testRecentTabsSyncPromoViewSignedOutAndAccountAvailable() throws Throwable {
         mSigninTestRule.addAccount(TEST_EMAIL);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        setUpSyncPromoView(SigninAccessPoint.RECENT_TABS, profileDataCache,
+        setUpSyncPromoView(
+                SigninAccessPoint.RECENT_TABS,
+                profileDataCache,
                 R.layout.sync_promo_view_recent_tabs);
         onView(withText(R.string.sync_promo_title_recent_tabs)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_recent_tabs)).check(matches(isDisplayed()));
@@ -217,7 +236,9 @@ public class SyncPromoControllerUITest {
         CoreAccountInfo coreAccountInfo = mSigninTestRule.addAccountAndWaitForSeeding(TEST_EMAIL);
         SigninTestUtil.signin(coreAccountInfo);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        setUpSyncPromoView(SigninAccessPoint.RECENT_TABS, profileDataCache,
+        setUpSyncPromoView(
+                SigninAccessPoint.RECENT_TABS,
+                profileDataCache,
                 R.layout.sync_promo_view_recent_tabs);
         onView(withText(R.string.sync_promo_title_recent_tabs)).check(matches(isDisplayed()));
         onView(withText(R.string.sync_promo_description_recent_tabs)).check(matches(isDisplayed()));
@@ -226,15 +247,49 @@ public class SyncPromoControllerUITest {
 
     @Test
     @MediumTest
+    public void testSetUpSyncPromoView_onNonAutomotive_secondaryButtonShown() throws Throwable {
+        mAutomotiveContextWrapperTestRule.setIsAutomotive(false);
+        mSigninTestRule.addAccount(TEST_EMAIL);
+        ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
+        setUpSyncPromoView(
+                SigninAccessPoint.RECENT_TABS,
+                profileDataCache,
+                R.layout.sync_promo_view_recent_tabs);
+
+        onView(withId(R.id.sync_promo_choose_account_button)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    public void testSetUpSyncPromoView_onAutomotive_secondaryButtonHidden() throws Throwable {
+        mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
+        mSigninTestRule.addAccount(TEST_EMAIL);
+        ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
+        setUpSyncPromoView(
+                SigninAccessPoint.RECENT_TABS,
+                profileDataCache,
+                R.layout.sync_promo_view_recent_tabs);
+
+        onView(withId(R.id.sync_promo_choose_account_button)).check(matches(not(isDisplayed())));
+    }
+
+    @Test
+    @MediumTest
     @Feature("RenderTest")
     public void testNTPSyncPromoViewSignedOutAndNoAccountAvailable() throws Throwable {
-        ProfileDataCache profileDataCache = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
-                    mActivityTestRule.getActivity());
-        });
-        View view = setUpSyncPromoView(SigninAccessPoint.NTP_CONTENT_SUGGESTIONS, profileDataCache,
-                R.layout.sync_promo_view_content_suggestions);
-        mRenderTestRule.render(view,
+        ProfileDataCache profileDataCache =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            return ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                                    mActivityTestRule.getActivity());
+                        });
+        View view =
+                setUpSyncPromoView(
+                        SigninAccessPoint.NTP_CONTENT_SUGGESTIONS,
+                        profileDataCache,
+                        R.layout.sync_promo_view_content_suggestions);
+        mRenderTestRule.render(
+                view,
                 "ntp_content_suggestions_sync_promo_view_signed_out_and_no_account_available");
     }
 
@@ -244,8 +299,11 @@ public class SyncPromoControllerUITest {
     public void testNTPSyncPromoViewSignedOutAndAccountAvailable() throws Throwable {
         mSigninTestRule.addAccount(TEST_EMAIL);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        View view = setUpSyncPromoView(SigninAccessPoint.NTP_CONTENT_SUGGESTIONS, profileDataCache,
-                R.layout.sync_promo_view_content_suggestions);
+        View view =
+                setUpSyncPromoView(
+                        SigninAccessPoint.NTP_CONTENT_SUGGESTIONS,
+                        profileDataCache,
+                        R.layout.sync_promo_view_content_suggestions);
         mRenderTestRule.render(
                 view, "ntp_content_suggestions_sync_promo_view_signed_out_and_account_available");
     }
@@ -257,8 +315,11 @@ public class SyncPromoControllerUITest {
         CoreAccountInfo coreAccountInfo = mSigninTestRule.addAccountAndWaitForSeeding(TEST_EMAIL);
         SigninTestUtil.signin(coreAccountInfo);
         ProfileDataCache profileDataCache = createProfileDataCacheAndWaitForAccountData();
-        View view = setUpSyncPromoView(SigninAccessPoint.NTP_CONTENT_SUGGESTIONS, profileDataCache,
-                R.layout.sync_promo_view_content_suggestions);
+        View view =
+                setUpSyncPromoView(
+                        SigninAccessPoint.NTP_CONTENT_SUGGESTIONS,
+                        profileDataCache,
+                        R.layout.sync_promo_view_content_suggestions);
         mRenderTestRule.render(
                 view, "ntp_content_suggestions_sync_promo_view_signed_in_and_not_syncing");
     }
@@ -269,14 +330,19 @@ public class SyncPromoControllerUITest {
     // component. Then these tests can just wait for the right data to appear with espresso.
     private ProfileDataCache createProfileDataCacheAndWaitForAccountData() throws Throwable {
         CallbackHelper profileDataUpdatedWaiter = new CallbackHelper();
-        ProfileDataCache profileDataCache = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            ProfileDataCache profileData = ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
-                    mActivityTestRule.getActivity());
-            // Observing the  onProfileDataUpdated() event.
-            profileData.addObserver(
-                    (String accountEmail) -> { profileDataUpdatedWaiter.notifyCalled(); });
-            return profileData;
-        });
+        ProfileDataCache profileDataCache =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            ProfileDataCache profileData =
+                                    ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                                            mActivityTestRule.getActivity());
+                            // Observing the  onProfileDataUpdated() event.
+                            profileData.addObserver(
+                                    (String accountEmail) -> {
+                                        profileDataUpdatedWaiter.notifyCalled();
+                                    });
+                            return profileData;
+                        });
         // Waiting for onProfileDataUpdated() to be called.
         profileDataUpdatedWaiter.waitForFirst();
         return profileDataCache;
@@ -284,22 +350,31 @@ public class SyncPromoControllerUITest {
 
     private View setUpSyncPromoView(
             @AccessPoint int accessPoint, ProfileDataCache profileDataCache, int layoutResId) {
-        View view = TestThreadUtils.runOnUiThreadBlockingNoException(() -> {
-            View promoView =
-                    LayoutInflater.from(mActivityTestRule.getActivity()).inflate(layoutResId, null);
-            Activity activity = mActivityTestRule.getActivity();
-            LinearLayout content = new LinearLayout(activity);
-            content.addView(promoView,
-                    new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT));
-            activity.setContentView(content);
-            SyncPromoController syncPromoController =
-                    new SyncPromoController(accessPoint, mSyncConsentActivityLauncher);
-            syncPromoController.setUpSyncPromoView(profileDataCache,
-                    promoView.findViewById(R.id.signin_promo_view_container),
-                    accessPoint == SigninAccessPoint.RECENT_TABS ? null : () -> {});
-            return promoView;
-        });
+        View view =
+                TestThreadUtils.runOnUiThreadBlockingNoException(
+                        () -> {
+                            View promoView =
+                                    LayoutInflater.from(mActivityTestRule.getActivity())
+                                            .inflate(layoutResId, null);
+                            Activity activity = mActivityTestRule.getActivity();
+                            LinearLayout content = new LinearLayout(activity);
+                            content.addView(
+                                    promoView,
+                                    new LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.WRAP_CONTENT));
+                            activity.setContentView(content);
+                            SyncPromoController syncPromoController =
+                                    new SyncPromoController(
+                                            Profile.getLastUsedRegularProfile(),
+                                            accessPoint,
+                                            mSyncConsentActivityLauncher);
+                            syncPromoController.setUpSyncPromoView(
+                                    profileDataCache,
+                                    promoView.findViewById(R.id.signin_promo_view_container),
+                                    accessPoint == SigninAccessPoint.RECENT_TABS ? null : () -> {});
+                            return promoView;
+                        });
         return view;
     }
 }

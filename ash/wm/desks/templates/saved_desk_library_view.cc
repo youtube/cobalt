@@ -23,8 +23,8 @@
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "ash/wm/overview/overview_grid_event_handler.h"
+#include "ash/wm/window_properties.h"
 #include "base/functional/callback_helpers.h"
-#include "base/memory/raw_ptr.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/window_targeter.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -37,7 +37,6 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/layout/box_layout.h"
-#include "ui/views/view.h"
 #include "ui/wm/core/coordinate_conversion.h"
 #include "ui/wm/core/window_animations.h"
 #include "ui/wm/core/window_util.h"
@@ -64,6 +63,9 @@ constexpr int kGroupContentsBetweenChildSpacingDp = 20;
 
 // The size of the gradient applied to the top and bottom of the scroll view.
 constexpr int kScrollViewGradientSize = 32;
+
+// Elevation for the grid label text's shadow.
+constexpr int kLabelTextShadowElevation = 4;
 
 // Insets of Library page scroll content view. Note: the bottom inset is there
 // to slightly adjust the otherwise vertically centered scroll content up a tad.
@@ -131,6 +133,10 @@ std::unique_ptr<views::View> GetLabelAndGridGroupContents() {
 std::unique_ptr<views::Label> MakeGridLabel(int label_string_id) {
   auto label = std::make_unique<views::Label>(
       l10n_util::GetStringUTF16(label_string_id));
+  gfx::ShadowValues shadows =
+      gfx::ShadowValue::MakeChromeOSSystemUIShadowValues(
+          kLabelTextShadowElevation);
+  label->SetShadows(shadows);
   TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosTitle1, *label);
   label->SetEnabledColorId(cros_tokens::kCrosSysOnSurface);
   label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
@@ -246,7 +252,7 @@ SavedDeskLibraryView::CreateSavedDeskLibraryWidget(aura::Window* root) {
       root, desks_controller->GetDeskIndex(desks_controller->active_desk()));
   params.name = "SavedDeskLibraryWidget";
   params.init_properties_container.SetProperty(kHideInDeskMiniViewKey, true);
-  params.init_properties_container.SetProperty(kExcludeInMruKey, true);
+  params.init_properties_container.SetProperty(kOverviewUiKey, true);
 
   auto widget = std::make_unique<views::Widget>(std::move(params));
   widget->SetContentsView(std::make_unique<SavedDeskLibraryView>());
@@ -254,10 +260,8 @@ SavedDeskLibraryView::CreateSavedDeskLibraryWidget(aura::Window* root) {
   // Not opaque since we want to view the contents of the layer behind.
   widget->GetLayer()->SetFillsBoundsOpaquely(false);
 
-  widget->GetNativeWindow()->SetId(kShellWindowId_SavedDeskLibraryWindow);
-
-  ::wm::SetWindowVisibilityAnimationTransition(widget->GetNativeWindow(),
-                                               ::wm::ANIMATE_NONE);
+  wm::SetWindowVisibilityAnimationTransition(widget->GetNativeWindow(),
+                                             wm::ANIMATE_NONE);
   return widget;
 }
 
@@ -561,12 +565,16 @@ void SavedDeskLibraryView::Layout() {
 
   DCHECK_EQ(grid_views_.size(), grid_labels_.size());
   for (size_t i = 0; i != grid_views_.size(); ++i) {
-    // Make the grid label invisible if the corresponding grid view is
-    // empty. This will exclude it from the box layout.
-    grid_labels_[i]->SetVisible(!grid_views_[i]->grid_items().empty());
+    if (chromeos::features::IsJellyEnabled()) {
+      // Set label to be invisible to improve Jelly appearance(b/284210964).
+      grid_labels_[i]->SetVisible(false);
+    } else {
+      // Make the grid label invisible if the corresponding grid view is
+      // empty. This will exclude it from the box layout.
+      grid_labels_[i]->SetVisible(!grid_views_[i]->grid_items().empty());
+    }
     grid_labels_[i]->SetPreferredSize(landscape ? kLabelSizeLandscape
                                                 : kLabelSizePortrait);
-
     total_saved_desks += grid_views_[i]->grid_items().size();
   }
 
@@ -595,8 +603,7 @@ void SavedDeskLibraryView::OnKeyEvent(ui::KeyEvent* event) {
       is_scrolling_event = true;
       break;
     default:
-      // Ignore all other key events as arrow keys are used for moving
-      // highlight.
+      // Ignore all other key events as arrow keys are used for moving focus.
       is_scrolling_event = false;
       break;
   }

@@ -36,21 +36,10 @@ void AccountCapabilitiesTestMutator::set_can_run_chrome_privacy_sandbox_trials(
       value;
 }
 
-void AccountCapabilitiesTestMutator::
-    set_is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice(
-        bool value) {
-  // TODO(crbug.com/1430845): once the actual server-defined value is used,
-  // remove this override.
-  capabilities_
-      ->capabilities_map_[kCanRunChromePrivacySandboxTrialsCapabilityName] =
-      !value;
-  capabilities_->capabilities_map_[kIsSubjectToParentalControlsCapabilityName] =
-      !value;
-}
-
-void AccountCapabilitiesTestMutator::set_can_stop_parental_supervision(
+void AccountCapabilitiesTestMutator::set_is_opted_in_to_parental_supervision(
     bool value) {
-  capabilities_->capabilities_map_[kCanStopParentalSupervisionCapabilityName] =
+  capabilities_
+      ->capabilities_map_[kIsOptedInToParentalSupervisionCapabilityName] =
       value;
 }
 
@@ -58,10 +47,22 @@ void AccountCapabilitiesTestMutator::set_can_toggle_auto_updates(bool value) {
   capabilities_->capabilities_map_[kCanToggleAutoUpdatesName] = value;
 }
 
+void AccountCapabilitiesTestMutator::set_can_use_chrome_ip_protection(
+    bool value) {
+  capabilities_->capabilities_map_[kCanUseChromeIpProtectionName] = value;
+}
+
 void AccountCapabilitiesTestMutator::set_is_allowed_for_machine_learning(
     bool value) {
   capabilities_->capabilities_map_[kIsAllowedForMachineLearningCapabilityName] =
       value;
+}
+
+void AccountCapabilitiesTestMutator::
+    set_is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice(
+        bool value) {
+  capabilities_->capabilities_map_
+      [kIsSubjectToChromePrivacySandboxRestrictedMeasurementNotice] = value;
 }
 
 void AccountCapabilitiesTestMutator::set_is_subject_to_enterprise_policies(

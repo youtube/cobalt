@@ -20,7 +20,11 @@ source_set("automation_internal") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
-  public_deps = [ "//extensions/browser:browser_sources" ]
+  public_deps = [
+    "//extensions/browser:browser_sources",
+    "//extensions/browser/api/app_runtime:app_runtime",
+    "//services/accessibility/public/mojom:automation",
+  ]
 
   deps = [
     "//build:chromeos_buildflags",

@@ -10,8 +10,8 @@
 #include "build/chromeos_buildflags.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/webrtc/webrtc_content_browsertest_base.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
@@ -87,7 +87,10 @@ IN_PROC_BROWSER_TEST_F(MAYBE_WebRtcBrowserTest,
 
 // These tests will make a complete PeerConnection-based call and verify that
 // video is playing for the call.
-IN_PROC_BROWSER_TEST_F(MAYBE_WebRtcBrowserTest, CanSetupDefaultVideoCall) {
+//
+// TODO(crbug/1480170): Re-enable this test.
+IN_PROC_BROWSER_TEST_F(MAYBE_WebRtcBrowserTest,
+                       DISABLED_CanSetupDefaultVideoCall) {
   MakeTypicalPeerConnectionCall(
       "callAndExpectResolution({video: true}, 640, 480);");
 }
@@ -100,8 +103,9 @@ IN_PROC_BROWSER_TEST_F(MAYBE_WebRtcBrowserTest,
   MakeTypicalPeerConnectionCall(javascript);
 }
 
+// TODO(crbug/1480170): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(MAYBE_WebRtcBrowserTest,
-                       CanSetupVideoCallWith16To9AspectRatio) {
+                       DISABLED_CanSetupVideoCallWith16To9AspectRatio) {
 #if BUILDFLAG(IS_ANDROID)
   // Android requires 16x16 alignment for hardware encoding.
   constexpr int kExpectedAlignment = 16;

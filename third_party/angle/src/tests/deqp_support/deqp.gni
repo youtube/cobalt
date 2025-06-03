@@ -744,8 +744,7 @@ deqp_gles31_sources = [
   "$deqp_path/modules/gles31/stress/es31sTessellationGeometryInteractionTests.hpp",
   "$deqp_path/modules/gles31/stress/es31sVertexAttributeBindingTests.cpp",
   "$deqp_path/modules/gles31/stress/es31sVertexAttributeBindingTests.hpp",
-
-  #  "$deqp_path/modules/gles31/tes31Context.cpp",  # 3688/3687: Override to prevent 3.2 context creation
+  "$deqp_path/modules/gles31/tes31Context.cpp",
   "$deqp_path/modules/gles31/tes31Context.hpp",
   "$deqp_path/modules/gles31/tes31InfoTests.cpp",
   "$deqp_path/modules/gles31/tes31InfoTests.hpp",
@@ -757,10 +756,6 @@ deqp_gles31_sources = [
   "$deqp_path/modules/gles31/tes31TestPackageEntry.cpp",
   "$deqp_path/modules/gles31/tgl45es31TestPackage.cpp",
   "$deqp_path/modules/gles31/tgl45es31TestPackage.hpp",
-
-  # Overrides
-  "deqp_support/tes31Context_override.cpp",  # 3688/3687: Override to prevent
-                                             # 3.2 context creation
 ]
 
 deqp_egl_sources = [
@@ -917,6 +912,8 @@ deqp_khr_common_sources = [
   "$deqp_path/external/openglcts/modules/common/glcMultipleContextsTests.hpp",
   "$deqp_path/external/openglcts/modules/common/glcNearestEdgeTests.cpp",
   "$deqp_path/external/openglcts/modules/common/glcNearestEdgeTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/glcNoDefaultContextPackage.cpp",
+  "$deqp_path/external/openglcts/modules/common/glcNoDefaultContextPackage.hpp",
   "$deqp_path/external/openglcts/modules/common/glcNoErrorTests.cpp",
   "$deqp_path/external/openglcts/modules/common/glcNoErrorTests.hpp",
   "$deqp_path/external/openglcts/modules/common/glcPackedDepthStencilTests.cpp",
@@ -963,6 +960,8 @@ deqp_khr_common_sources = [
   "$deqp_path/external/openglcts/modules/common/glcShaderRenderCase.hpp",
   "$deqp_path/external/openglcts/modules/common/glcShaderStructTests.cpp",
   "$deqp_path/external/openglcts/modules/common/glcShaderStructTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/glcSingleConfigTestPackage.cpp",
+  "$deqp_path/external/openglcts/modules/common/glcSingleConfigTestPackage.hpp",
   "$deqp_path/external/openglcts/modules/common/glcSpirvUtils.cpp",
   "$deqp_path/external/openglcts/modules/common/glcSpirvUtils.hpp",
   "$deqp_path/external/openglcts/modules/common/glcTestCase.cpp",
@@ -986,6 +985,36 @@ deqp_khr_common_sources = [
   "$deqp_path/external/openglcts/modules/common/glcViewportArrayTests.cpp",
   "$deqp_path/external/openglcts/modules/common/glcViewportArrayTests.hpp",
   "$deqp_path/external/openglcts/modules/common/glcWaiver.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsArithmeticTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsArithmeticTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotBroadcastTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotBroadcastTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotOtherTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotOtherTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBallotTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBasicTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBasicTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBuiltinMaskVarTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBuiltinMaskVarTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBuiltinVarTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsBuiltinVarTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsClusteredTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsClusteredTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsPartitionedTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsPartitionedTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsQuadTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsQuadTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsShapeTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsShapeTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsShuffleTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsShuffleTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsTests.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsTestsUtils.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsTestsUtils.hpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsVoteTests.cpp",
+  "$deqp_path/external/openglcts/modules/common/subgroups/glcSubgroupsVoteTests.hpp",
   "$deqp_path/external/openglcts/modules/glesext/esextcTestCaseBase.cpp",
   "$deqp_path/external/openglcts/modules/glesext/esextcTestCaseBase.hpp",
   "$deqp_path/external/openglcts/modules/glesext/esextcTestPackage.cpp",
@@ -1560,6 +1589,10 @@ deqp_framework_xexml_sources = [
 ]
 
 deqp_framework_opengl_sources = [
+  "$deqp_path/framework/egl/wrapper/eglwDefs.hpp",
+  "$deqp_path/framework/egl/wrapper/eglwEnums.hpp",
+  "$deqp_path/framework/egl/wrapper/eglwEnums.inl",
+  "$deqp_path/framework/egl/wrapper/eglwTypes.inl",
   "$deqp_path/framework/opengl/gluCallLogUtil.inl",
   "$deqp_path/framework/opengl/gluCallLogWrapper.cpp",
   "$deqp_path/framework/opengl/gluCallLogWrapper.hpp",

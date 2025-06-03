@@ -45,7 +45,14 @@ message AutofillProfileSpecifics {
   }
 
   optional string guid = 15;
-  optional string origin = 16;
+  // Starting from M115, Autofill ignores the origin and doesn't distinguish
+  // between verified (meaning `deprecated_origin == kSettingsOrigin`) and
+  // unverified profiles anymore. However, clients prior to this milestone only
+  // accept updates to verified profiles through Sync if the remote profile is
+  // verified as well. For this reason, M115 clients and above always set the
+  // origin to kSettingsOrigin.
+  // TODO(crbug.com/1441905): Remove in a few milestones.
+  optional string deprecated_origin = 16;
   optional int64 use_count = 22;
 
   // The time_t value of the last time this profile was used. This
@@ -106,6 +113,9 @@ message AutofillProfileSpecifics {
   optional string address_home_state = 10;
   optional string address_home_zip = 11;
   optional string address_home_country = 12;
+  optional string address_home_landmark = 67;
+  optional string address_home_between_streets = 69;
+  optional string address_home_admin_level_2 = 71;
 
   // Additional address fields for i18n.
   optional string address_home_street_address = 17;
@@ -114,8 +124,7 @@ message AutofillProfileSpecifics {
   optional string address_home_language_code = 20;
   optional string address_home_thoroughfare_name = 38;
   optional string address_home_thoroughfare_number = 39;
-  optional string address_home_dependent_thoroughfare_name = 40;
-  optional string address_home_premise_name = 41;
+  optional string address_home_street_location = 73;
   optional string address_home_subpremise_name = 42;
   optional string address_home_apt_num = 56;
   optional string address_home_floor = 57;
@@ -125,15 +134,16 @@ message AutofillProfileSpecifics {
   optional VerificationStatus address_home_state_status = 44;
   optional VerificationStatus address_home_zip_status = 45;
   optional VerificationStatus address_home_country_status = 46;
+  optional VerificationStatus address_home_landmark_status = 68;
+  optional VerificationStatus address_home_between_streets_status = 70;
+  optional VerificationStatus address_home_admin_level_2_status = 72;
   optional VerificationStatus address_home_street_address_status = 47;
   optional VerificationStatus address_home_sorting_code_status = 48;
   optional VerificationStatus address_home_dependent_locality_status = 49;
   optional VerificationStatus address_home_language_code_status = 50;
   optional VerificationStatus address_home_thoroughfare_name_status = 51;
   optional VerificationStatus address_home_thoroughfare_number_status = 52;
-  optional VerificationStatus address_home_dependent_thoroughfare_name_status =
-      53;
-  optional VerificationStatus address_home_premise_name_status = 54;
+  optional VerificationStatus address_home_street_location_status = 74;
   optional VerificationStatus address_home_subpremise_name_status = 55;
   optional VerificationStatus address_home_apt_num_status = 58;
   optional VerificationStatus address_home_floor_status = 59;
@@ -141,11 +151,8 @@ message AutofillProfileSpecifics {
   // Phone.
   repeated string phone_home_whole_number = 13;
 
-  // The state indicates if the profile qualifies to get merged with a
-  // profile observed in a form submission. If true, the profile can still be
-  // updated silently, but it should not be considered for merges that need to
-  // involve user interactions.
-  optional bool disallow_settings_visible_updates = 63;
+  reserved 63;
+  reserved "disallow_settings_visible_updates";
 
   // Birthdate fields.
   optional int32 birthdate_day = 64;
@@ -160,6 +167,15 @@ message AutofillProfileSpecifics {
   // been removed in M100.
   optional int64 validity_state_bitfield = 24 [deprecated = true];
   optional bool is_client_validity_states_updated = 25 [deprecated = true];
+  // Removed in M118.
+  reserved 40;
+  reserved "address_home_dependent_thoroughfare_name";
+  reserved 41;
+  reserved "address_home_premise_name";
+  reserved 53;
+  reserved "address_home_dependent_thoroughfare_name_status";
+  reserved 54;
+  reserved "address_home_premise_name_status";
 }
 
 message AutofillSpecifics {
@@ -305,7 +321,7 @@ message WalletMaskedCreditCard {
   // The product description for the card. Used to be shown in the UI.
   optional string product_description = 18;
 
-  // The type of virtual card enrollment. TYPE_UNSPECIFIED indicates that the
+  // The type of virtual card enrollment. kTypeUnspecified indicates that the
   // card is unenrolled.
   optional VirtualCardEnrollmentType virtual_card_enrollment_type = 19;
 }
@@ -382,6 +398,59 @@ message WalletCreditCardCloudTokenData {
   optional string instrument_token = 6;
 }
 
+// Contains information of payment instruments that can be used by the user.
+message PaymentInstrument {
+  // Opaque identifier for the account stored in Payments Platform.
+  // This will be used to initiate the payment.
+  optional int64 instrument_id = 1;
+
+  // Supported payment infrastructures (rail) that allow users to send money
+  // between the payer and the payee. https://en.wikipedia.org/wiki/Payment_rail
+  enum SupportedRail {
+    SUPPORTED_RAIL_UNKNOWN = 0;
+    // Payment rails for Brazil Open Banking.
+    PIX = 1;
+  }
+  // The supported rails for which a payment can be made for the given account.
+  // For example, Pix is the open-banking rail in Brazil, UPI is the
+  // open-banking rail in India.
+  repeated SupportedRail supported_rails = 2;
+
+  // The URL for the image to be displayed when showing the account to the
+  // user.
+  optional string display_icon_url = 3;
+
+  // Nickname for the instrument.
+  optional string nickname = 4;
+
+  // The backing source for the applicable rails.
+  oneof instrument_details {
+    BankAccountDetails bank_account = 5;
+  }
+}
+
+// Details of a bank account required to show it in the payment instrument
+// selector.
+message BankAccountDetails {
+  // The name of the bank where the user has an account.
+  optional string bank_name = 1;
+
+  // The last four digits of the account number to help the user identify their
+  // account.
+  optional string account_number_suffix = 2;
+
+  enum AccountType {
+    ACCOUNT_TYPE_UNSPECIFIED = 0;
+    CHECKING = 1;
+    SAVINGS = 2;
+    CURRENT = 3;
+    SALARY = 4;
+    TRANSACTING_ACCOUNT = 5;
+  }
+  // The type of bank account.
+  optional AccountType account_type = 3;
+}
+
 message AutofillWalletSpecifics {
   enum WalletInfoType {
     UNKNOWN = 0;
@@ -389,6 +458,7 @@ message AutofillWalletSpecifics {
     POSTAL_ADDRESS = 2;
     CUSTOMER_DATA = 3;
     CREDIT_CARD_CLOUD_TOKEN_DATA = 4;
+    PAYMENT_INSTRUMENT = 5;
   }
 
   optional WalletInfoType type = 1;
@@ -406,6 +476,10 @@ message AutofillWalletSpecifics {
   // This field exists if and only if the "type" field equals to
   // CREDIT_CARD_CLOUD_TOKEN_DATA.
   optional WalletCreditCardCloudTokenData cloud_token_data = 5;
+
+  // This field exists if and only if the "type" field equals to
+  // PAYMENT_INSTRUMENT.
+  optional PaymentInstrument payment_instrument = 6;
 }
 
 // Wallet card and address usage information that can be synced.

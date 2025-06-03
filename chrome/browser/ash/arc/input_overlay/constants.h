@@ -26,6 +26,8 @@ constexpr int kAxisSize = 2;
 // Total key size for ActionMoveKey.
 constexpr size_t kActionMoveKeysSize = 4;
 
+constexpr char16_t kUnknownBind[] = u"?";
+
 // Directions from up, left, down, right.
 constexpr int kDirection[kActionMoveKeysSize][kAxisSize] = {{0, -1},
                                                             {-1, 0},
@@ -36,11 +38,21 @@ constexpr int kDirection[kActionMoveKeysSize][kAxisSize] = {{0, -1},
 // the edit mode.
 constexpr int kOffsetToTouchPoint = -1;  // 2 - 3(kDotOutsideStrokeThickness)
 
+// The space between EditingList and main window when EditingList is outside of
+// the game window.
+constexpr int kEditingListSpaceBetweenMainWindow = 5;
+// The offset from the game window content when EditingList is inside of the
+// game window.
+constexpr int kEditingListOffsetInsideMainWindow = 24;
+// The offset from the action view list item to the editing list border.
+constexpr int kEditingListInsideBorderInsets = 16;
+
 // Display mode for display overlay.
 enum class DisplayMode {
   kNone,
   // Display overlay can receive events but action labels can't be focused.
   // It shows educational dialog.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kEducation,
   // Display overlay can't receive any events. It shows input mappings as in
   // view mode and menu anchor.
@@ -49,19 +61,25 @@ enum class DisplayMode {
   // shows input mapping in edit mode.
   kEdit,
   // Display overlay can receive events. This is the mode before entering into
-  // |kMenu|.
+  // `kMenu`.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kPreMenu,
   // Display overlay can receive events but action labels can't be focused.
   // It shows expanded menu and input mapping as in view mode.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kMenu,
 
-  // Below are related to edit for |ActionView|.
+  // Below are related to edit for `ActionView`.
   // Edit mode when action is assigned a pending input binding.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kEditedSuccess,
   // Edit mode when an action is removed the input binding.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kEditedUnbound,
   // Edit mode when a wrong/unsupported input is trying to bind.
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   kEditedError,
+  // TODO(b/253646354): This will be removed when removing the Beta flag.
   // Restore mode when restoring the default input bindings.
   kRestore,
 };
@@ -79,11 +97,11 @@ enum class BindingOption {
 
 // Message types for UI displaying different types of messages.
 enum class MessageType {
-  // |kInfo| is the type for info message.
+  // `kInfo` is the type for info message.
   kInfo,
-  // |kError| is the type for error message.
+  // `kError` is the type for error message.
   kError,
-  // |kInfoLabelFocus| is the type for info message when the |ActionLabel| is
+  // `kInfoLabelFocus` is the type for info message when the `ActionLabel` is
   // focused.
   kInfoLabelFocus,
 };
@@ -108,6 +126,16 @@ enum class TapLabelPosition {
   kBottomRight = 3,
   // Undefined label position. Starts to use in AlphaV2.
   kNone = 4,
+};
+
+// The UI state related to user operations.
+enum class UIState {
+  // UI is not hovered or dragged.
+  kDefault = 0,
+  // UI is under dragging.
+  kDrag,
+  // UI is mouse hovered.
+  kHover,
 };
 
 // These values are about how the reposition is achieved for the metrics record.

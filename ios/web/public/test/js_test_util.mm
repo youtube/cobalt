@@ -6,7 +6,7 @@
 
 #import <WebKit/WebKit.h>
 
-#import "base/mac/bundle_locations.h"
+#import "base/apple/bundle_locations.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "ios/web/js_messaging/java_script_feature_manager.h"
@@ -17,10 +17,6 @@
 #import "ios/web/web_state/ui/wk_web_view_configuration_provider.h"
 #import "ios/web/web_state/web_state_impl.h"
 #import "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::kWaitForPageLoadTimeout;

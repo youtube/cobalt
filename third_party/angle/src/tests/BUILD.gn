@@ -17,6 +17,11 @@ declare_args() {
 declare_args() {
   build_angle_trace_tests = is_clang && (build_angle_trace_perf_tests ||
                                          checkout_angle_restricted_traces)
+  if (!build_with_chromium && is_android) {
+    assert(
+        !is_official_build,
+        "is_official_build not supported by ANGLE for Android (https://anglebug.com/7381)")
+  }
 }
 
 if (is_android) {
@@ -90,6 +95,9 @@ config("angle_common_test_utils_config") {
   defines = []
   if (angle_enable_gl_desktop_backend) {
     defines += [ "ANGLE_ENABLE_GL_DESKTOP_BACKEND" ]
+  }
+  if (angle_enable_swiftshader) {
+    defines += [ "ANGLE_ENABLE_SWIFTSHADER" ]
   }
 }
 
@@ -232,6 +240,7 @@ if (is_win || is_linux || is_chromeos || is_android || is_fuchsia || is_apple) {
 
     sources = angle_end2end_tests_sources + [ "angle_end2end_tests_main.cpp" ]
     libs = []
+    configs += [ "${angle_root}:libANGLE_config" ]
 
     if (is_ios) {
       sources += angle_end2end_tests_ios_sources
@@ -502,20 +511,37 @@ if (build_angle_trace_tests) {
       # shared libraries are hidden inside ios_framework_bundle, but we include headers from them
       check_includes = false
     }
+
     sources = [
       "angle_trace_tests_main.cpp",
       "perf_tests/TracePerfTest.cpp",
     ]
+
     deps = [
       ":angle_perftests_shared",
       "$angle_root:angle_compression",
       "$angle_root/util:angle_frame_capture_test_utils",
       "$angle_root/util:angle_png_utils",
-      "$angle_root/util:angle_trace_interpreter",
-      "restricted_traces:angle_restricted_traces",
     ]
 
+    # If this flag is set, we want to build the trace libraries independent of the APK, i.e. not packaged.
+    # We're doing this for size reasons - the APK is too large if you include all the traces.
+    if (restricted_traces_outside_of_apk) {
+      deps += [ "$angle_root/util:angle_trace_loader" ]
+    } else {
+      deps += [
+        "$angle_root/util:angle_trace_interpreter",
+        "restricted_traces:angle_restricted_traces",
+      ]
+    }
+
     data = [ "$angle_root/src/tests/py_utils/android_helper.py" ]
+
+    if (is_android) {
+      data += [ "$angle_root/src/tests/angle_android_test_runner.py" ]
+      android_test_runner_script =
+          "$angle_root/src/tests/angle_android_test_runner.py"
+    }
 
     data_deps = [ "${angle_root}:angle" ]
 
@@ -539,6 +565,10 @@ if (build_angle_trace_tests) {
       ":angle_trace_tests",
       "//testing:run_perf_test",
     ]
+
+    if (restricted_traces_outside_of_apk) {
+      deps = [ "restricted_traces:angle_restricted_traces__unpacked_libs" ]
+    }
   }
 
   group("angle_trace_interpreter_tests") {
@@ -547,7 +577,19 @@ if (build_angle_trace_tests) {
       "restricted_traces/gen_restricted_traces.py",
       "restricted_traces/retrace_restricted_traces.py",
     ]
-    data_deps = [ ":angle_trace_tests" ]
+    data_deps = [ ":angle_trace_perf_tests" ]
+  }
+
+  group("angle_capture_tests") {
+    testonly = true
+    data = [
+      "capture_tests/capture_tests.py",
+      "capture_tests/expected",
+    ]
+    if (is_android) {
+      data += [ "$angle_root/src/tests/angle_android_test_runner.py" ]
+    }
+    data_deps = [ ":angle_end2end_tests" ]
   }
 }
 
@@ -1265,6 +1307,7 @@ if (build_angle_deqp_tests && !is_fuchsia) {
 
   config("angle_deqp_framework_opengl_config") {
     include_dirs = [
+      "$deqp_path/framework/egl/wrapper",
       "$deqp_path/framework/opengl",
       "$deqp_path/framework/opengl/simplereference",
       "$deqp_path/framework/opengl/wrapper",
@@ -1447,12 +1490,16 @@ if (build_angle_deqp_tests && !is_fuchsia) {
   }
 
   _android_mustpass = "$deqp_path/android/cts/main"
-  _aosp_mustpass =
+  _aosp_egl_mustpass =
+      "$deqp_path/external/openglcts/data/mustpass/egl/aosp_mustpass/main"
+  _aosp_gles_mustpass =
       "$deqp_path/external/openglcts/data/mustpass/gles/aosp_mustpass/main"
   _khronos_gl_mustpass =
       "$deqp_path/external/openglcts/data/mustpass/gl/khronos_mustpass/main"
   _khronos_gles_mustpass =
       "$deqp_path/external/openglcts/data/mustpass/gles/khronos_mustpass/main"
+  _khronos_gles_noctx_mustpass = "$deqp_path/external/openglcts/data/mustpass/gles/khronos_mustpass_noctx/main"
+  _khronos_gles_single_mustpass = "$deqp_path/external/openglcts/data/mustpass/gles/khronos_mustpass_single/main"
 
   angle_deqp_source_set("angle_deqp_gles2_common") {
     sources = deqp_gles2_sources
@@ -1480,10 +1527,15 @@ if (build_angle_deqp_tests && !is_fuchsia) {
 
   template("angle_deqp_core_gtest") {
     _api = target_name
+    forward_variables_from(invoker, [ "mustpass_suffix" ])
+    if (mustpass_suffix != "master") {
+      target_name = "${_api}_${mustpass_suffix}"
+      target_name = string_replace(target_name, "-", "_")
+    }
     angle_deqp_gtest(target_name) {
       forward_variables_from(invoker, "*")
 
-      mustpass_name = "${_api}-master.txt"
+      mustpass_name = "${_api}-${mustpass_suffix}.txt"
 
       deps += angle_deqp_data_copy_targets
 
@@ -1504,25 +1556,59 @@ if (build_angle_deqp_tests && !is_fuchsia) {
   angle_deqp_core_gtest("gles2") {
     defines = [ "ANGLE_DEQP_GLES2_TESTS" ]
     deps = [ ":angle_deqp_gles2_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
+    mustpass_suffix = "master"
   }
 
   angle_deqp_core_gtest("gles3") {
     defines = [ "ANGLE_DEQP_GLES3_TESTS" ]
     deps = [ ":angle_deqp_gles3_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
+    mustpass_suffix = "master"
+  }
+
+  angle_deqp_core_gtest("gles3") {
+    defines = [ "ANGLE_DEQP_GLES3_MULTISAMPLE_TESTS" ]
+    deps = [ ":angle_deqp_gles3_common" ]
+    mustpass_dir = _aosp_gles_mustpass
+    mustpass_suffix = "multisample"
   }
 
   angle_deqp_core_gtest("gles31") {
     defines = [ "ANGLE_DEQP_GLES31_TESTS" ]
     deps = [ ":angle_deqp_gles31_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
+    mustpass_suffix = "master"
+  }
+
+  angle_deqp_core_gtest("gles31") {
+    defines = [ "ANGLE_DEQP_GLES31_MULTISAMPLE_TESTS" ]
+    deps = [ ":angle_deqp_gles31_common" ]
+    mustpass_dir = _aosp_gles_mustpass
+    mustpass_suffix = "multisample"
   }
 
   angle_deqp_core_gtest("egl") {
     defines = [ "ANGLE_DEQP_EGL_TESTS" ]
     sources = deqp_egl_sources
-    mustpass_dir = _android_mustpass
+    mustpass_dir = _aosp_egl_mustpass
+    mustpass_suffix = "master"
+  }
+
+  if (is_android) {
+    angle_deqp_core_gtest("gles3") {
+      defines = [ "ANGLE_DEQP_GLES3_565_NO_DEPTH_NO_STENCIL_TESTS" ]
+      deps = [ ":angle_deqp_gles3_common" ]
+      mustpass_dir = _aosp_gles_mustpass
+      mustpass_suffix = "565-no-depth-no-stencil"
+    }
+
+    angle_deqp_core_gtest("gles31") {
+      defines = [ "ANGLE_DEQP_GLES31_565_NO_DEPTH_NO_STENCIL_TESTS" ]
+      deps = [ ":angle_deqp_gles31_common" ]
+      mustpass_dir = _aosp_gles_mustpass
+      mustpass_suffix = "565-no-depth-no-stencil"
+    }
   }
 
   # The CTS also includes a set of "KHR" tests that are separate from the main body of dEQP tests.
@@ -1530,6 +1616,7 @@ if (build_angle_deqp_tests && !is_fuchsia) {
   config("angle_deqp_khr_common_config") {
     include_dirs = [
       "$deqp_path/external/openglcts/modules/common",
+      "$deqp_path/external/openglcts/modules/common/subgroups",
       "$deqp_path/external/openglcts/modules/gl",
       "$deqp_path/external/openglcts/modules/gles2",
       "$deqp_path/external/openglcts/modules/gles3",
@@ -1620,6 +1707,55 @@ if (build_angle_deqp_tests && !is_fuchsia) {
     api = "gl46"
   }
 
+  template("angle_deqp_khr_noctx_gtest") {
+    angle_deqp_gtest(target_name) {
+      forward_variables_from(invoker, "*")
+      deps = [ ":angle_deqp_khr_common" ]
+      deps += angle_deqp_data_copy_targets
+      if (api == "gles2") {
+        data = [ "$root_gen_dir/vk_gl_cts_data/data/gles2/shaders/misc.test" ]
+        mustpass_dir = _khronos_gles_noctx_mustpass
+      } else if (api == "gles32") {
+        data = angle_deqp_external_openglcts_data_gles32
+        mustpass_dir = _khronos_gles_noctx_mustpass
+      } else {
+        assert(false)
+      }
+    }
+  }
+
+  angle_deqp_khr_noctx_gtest("khr_noctx_gles2") {
+    defines = [ "ANGLE_DEQP_KHR_NOCTX_GLES2_TESTS" ]
+    mustpass_name = "gles2-khr-noctx-master.txt"
+    api = "gles2"
+  }
+
+  angle_deqp_khr_noctx_gtest("khr_noctx_gles32") {
+    defines = [ "ANGLE_DEQP_KHR_NOCTX_GLES32_TESTS" ]
+    mustpass_name = "gles32-khr-noctx-master.txt"
+    api = "gles32"
+  }
+
+  template("angle_deqp_khr_single_gtest") {
+    angle_deqp_gtest(target_name) {
+      forward_variables_from(invoker, "*")
+      deps = [ ":angle_deqp_khr_common" ]
+      deps += angle_deqp_data_copy_targets
+      if (api == "gles32") {
+        data = angle_deqp_external_openglcts_data_gles32
+        mustpass_dir = _khronos_gles_single_mustpass
+      } else {
+        assert(false)
+      }
+    }
+  }
+
+  angle_deqp_khr_single_gtest("khr_single_gles32") {
+    defines = [ "ANGLE_DEQP_KHR_SINGLE_GLES32_TESTS" ]
+    mustpass_name = "gles32-khr-single.txt"
+    api = "gles32"
+  }
+
   template("angle_deqp_rotate_gtest") {
     split_target = string_split(target_name, "_")
     _api = split_target[0]
@@ -1655,42 +1791,42 @@ if (build_angle_deqp_tests && !is_fuchsia) {
   angle_deqp_rotate_gtest("gles3_rotate90") {
     defines = [ "ANGLE_DEQP_GLES3_ROTATE90_TESTS" ]
     deps = [ ":angle_deqp_gles3_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles3_rotate_test_expectations.txt"
   }
 
   angle_deqp_rotate_gtest("gles3_rotate180") {
     defines = [ "ANGLE_DEQP_GLES3_ROTATE180_TESTS" ]
     deps = [ ":angle_deqp_gles3_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles3_rotate_test_expectations.txt"
   }
 
   angle_deqp_rotate_gtest("gles3_rotate270") {
     defines = [ "ANGLE_DEQP_GLES3_ROTATE270_TESTS" ]
     deps = [ ":angle_deqp_gles3_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles3_rotate_test_expectations.txt"
   }
 
   angle_deqp_rotate_gtest("gles31_rotate90") {
     defines = [ "ANGLE_DEQP_GLES31_ROTATE90_TESTS" ]
     deps = [ ":angle_deqp_gles31_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles31_rotate_test_expectations.txt"
   }
 
   angle_deqp_rotate_gtest("gles31_rotate180") {
     defines = [ "ANGLE_DEQP_GLES31_ROTATE180_TESTS" ]
     deps = [ ":angle_deqp_gles31_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles31_rotate_test_expectations.txt"
   }
 
   angle_deqp_rotate_gtest("gles31_rotate270") {
     defines = [ "ANGLE_DEQP_GLES31_ROTATE270_TESTS" ]
     deps = [ ":angle_deqp_gles31_common" ]
-    mustpass_dir = _aosp_mustpass
+    mustpass_dir = _aosp_gles_mustpass
     expectations_file = "deqp_gles31_rotate_test_expectations.txt"
   }
 }
@@ -1706,7 +1842,8 @@ group("angle_tests") {
     deps += [ ":angle_perftests" ]
   }
   if (build_angle_trace_tests) {
-    deps += [ ":angle_trace_tests" ]
+    deps += [ ":angle_trace_perf_tests" ]
+    deps += [ "capture_tests:angle_capture_tests_trace" ]
   }
   if (is_clang) {
     deps += [ "capture_replay_tests" ]
@@ -1722,9 +1859,31 @@ group("angle_tests") {
       ":angle_deqp_egl_tests",
       ":angle_deqp_gl46_tests",
       ":angle_deqp_gles2_tests",
+      ":angle_deqp_gles31_multisample_tests",
+      ":angle_deqp_gles31_rotate180_tests",
+      ":angle_deqp_gles31_rotate270_tests",
+      ":angle_deqp_gles31_rotate90_tests",
       ":angle_deqp_gles31_tests",
+      ":angle_deqp_gles3_multisample_tests",
+      ":angle_deqp_gles3_rotate180_tests",
+      ":angle_deqp_gles3_rotate270_tests",
+      ":angle_deqp_gles3_rotate90_tests",
       ":angle_deqp_gles3_tests",
+      ":angle_deqp_khr_gles2_tests",
+      ":angle_deqp_khr_gles31_tests",
+      ":angle_deqp_khr_gles32_tests",
+      ":angle_deqp_khr_gles3_tests",
+      ":angle_deqp_khr_noctx_gles2_tests",
+      ":angle_deqp_khr_noctx_gles32_tests",
+      ":angle_deqp_khr_single_gles32_tests",
     ]
+
+    if (is_android) {
+      deps += [
+        ":angle_deqp_gles31_565_no_depth_no_stencil_tests",
+        ":angle_deqp_gles3_565_no_depth_no_stencil_tests",
+      ]
+    }
   }
   if (build_angle_gles1_conform_tests) {
     deps += [

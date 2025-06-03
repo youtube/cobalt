@@ -6,17 +6,13 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/apple/bundle_locations.h"
 #include "base/check.h"
 #import "base/logging.h"
-#include "base/mac/bundle_locations.h"
 #include "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -25,8 +21,8 @@ namespace {
 NSString* GetPageScript(NSString* script_file_name) {
   DCHECK(script_file_name);
   NSString* path =
-      [base::mac::FrameworkBundle() pathForResource:script_file_name
-                                             ofType:@"js"];
+      [base::apple::FrameworkBundle() pathForResource:script_file_name
+                                               ofType:@"js"];
   DCHECK(path) << "Script file not found: "
                << base::SysNSStringToUTF8(script_file_name) << ".js";
   NSError* error = nil;
@@ -85,8 +81,8 @@ void JSTranslateWebFrameManager::HandleTranslateResponse(
     const std::string& response_text) {
   // Return the response details to function defined in translate_ios.js.
   std::string script = base::StringPrintf(
-      "__gCrWeb.translate.handleResponse('%s', %d, %d, '%s', '%s', '%s')",
-      url.c_str(), request_id, response_code, status_text.c_str(),
-      response_url.c_str(), response_text.c_str());
+      "__gCrWeb.translate.handleResponse(%d, %d, '%s', '%s', '%s')", request_id,
+      response_code, status_text.c_str(), response_url.c_str(),
+      response_text.c_str());
   web_frame_->ExecuteJavaScript(base::UTF8ToUTF16(script));
 }

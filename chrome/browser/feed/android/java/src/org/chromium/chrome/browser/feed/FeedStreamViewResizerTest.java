@@ -4,10 +4,10 @@
 package org.chromium.chrome.browser.feed;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
+import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -22,9 +22,7 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.test.util.browser.Features;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.components.browser_ui.widget.displaystyle.HorizontalDisplayStyle;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig.DisplayStyle;
@@ -33,13 +31,10 @@ import org.chromium.components.browser_ui.widget.displaystyle.VerticalDisplaySty
 /** Unit tests for {@link FeedStreamViewResizer}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public final class FeedStreamViewResizerTest {
-    @Rule
-    public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
+    @Rule public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
 
     private Activity mActivity;
-    @Mock
-    private RecyclerView mRecyclerView;
-    @Mock
+    @Mock private RecyclerView mRecyclerView;
     private UiConfig mUiConfig;
 
     private FeedStreamViewResizer mResizer;
@@ -48,35 +43,29 @@ public final class FeedStreamViewResizerTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         mActivity = Robolectric.buildActivity(Activity.class).get();
-
-        when(mUiConfig.getContext()).thenReturn(mActivity);
+        mUiConfig = new UiConfig(new View(mActivity));
         mResizer = FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
-        mResizer.onDisplayStyleChanged(
-                new DisplayStyle(HorizontalDisplayStyle.WIDE, VerticalDisplayStyle.REGULAR));
     }
 
     @Config(qualifiers = "sw600dp-w600dp")
-    @EnableFeatures(ChromeFeatureList.FEED_MULTI_COLUMN)
     @Test
-    public void computePaddingWidthLessThan840dpMultiColumnEnabled() {
+    public void computePaddingWidthLessThan840dp() {
         // expectedPadding = mMinWidePaddingPixels = 48
         int expectedPadding = 48;
         assertPaddingEquals(expectedPadding);
     }
 
     @Config(qualifiers = "sw840dp-w840dp")
-    @EnableFeatures(ChromeFeatureList.FEED_MULTI_COLUMN)
     @Test
-    public void computePaddingWidth840dpMultiColumnEnabled() {
+    public void computePaddingWidth840dp() {
         // expectedPadding = mMinWidePaddingPixels = 48
         int expectedPadding = 48;
         assertPaddingEquals(expectedPadding);
     }
 
     @Config(qualifiers = "sw1220dp-w1220dp")
-    @EnableFeatures(ChromeFeatureList.FEED_MULTI_COLUMN)
     @Test
-    public void computePaddingWidth1220dpMultiColumnEnabled() {
+    public void computePaddingWidth1220dp() {
         // expectedPadding = max((1220-ntp_wide_card_width_breakpoint)/2, mMinWidePaddingPixels) =
         // max(190, 48)
         int expectedPadding = 190;
@@ -84,9 +73,8 @@ public final class FeedStreamViewResizerTest {
     }
 
     @Config(qualifiers = "sw1820dp-w1820dp")
-    @EnableFeatures(ChromeFeatureList.FEED_MULTI_COLUMN)
     @Test
-    public void computePaddingWidth1820dpMultiColumnEnabled() {
+    public void computePaddingWidth1820dp() {
         // expectedPadding = max(ntp_wide_card_lateral_margins_max,
         // (1820-ntp_wide_card_width_max)/2) = max(200, (1820-1200)/2) = 310
         int expectedPadding = 310;
@@ -96,7 +84,7 @@ public final class FeedStreamViewResizerTest {
     @Config(qualifiers = "w390dp-h820dp-port")
     @Test
     public void computePaddingPhonePortrait() {
-        mResizer.onDisplayStyleChanged(
+        mUiConfig.setDisplayStyleForTesting(
                 new DisplayStyle(HorizontalDisplayStyle.REGULAR, VerticalDisplayStyle.REGULAR));
         int expectedPadding = 0;
         assertPaddingEquals(expectedPadding);
@@ -105,7 +93,7 @@ public final class FeedStreamViewResizerTest {
     @Config(qualifiers = "w390dp-h820dp-land")
     @Test
     public void computePaddingPhoneLandscape() {
-        mResizer.onDisplayStyleChanged(
+        mUiConfig.setDisplayStyleForTesting(
                 new DisplayStyle(HorizontalDisplayStyle.REGULAR, VerticalDisplayStyle.REGULAR));
         // expectedPadding = ((width - usableHeight * 1.778) / 2) = (820 - (390*1.778))/2 = 63;
         int expectedPadding = 63;
@@ -113,11 +101,10 @@ public final class FeedStreamViewResizerTest {
     }
 
     @Config(qualifiers = "sw840dp-w840dp")
-    @EnableFeatures(ChromeFeatureList.FEED_MULTI_COLUMN)
     @Test
-    public void computePaddingWidth840dpNonWideDisplayMultiColumnEnabled() {
+    public void computePaddingWidth840dpNonWideDisplay() {
         shadowOf(mActivity).setInMultiWindowMode(true);
-        mResizer.onDisplayStyleChanged(
+        mUiConfig.setDisplayStyleForTesting(
                 new DisplayStyle(HorizontalDisplayStyle.NARROW, VerticalDisplayStyle.REGULAR));
         // expectedPadding = mDefaultPaddingPixels = 0
         int expectedPadding = 0;

@@ -34,6 +34,7 @@
 #include "components/browsing_data/content/local_storage_helper.h"
 #include "components/browsing_data/content/service_worker_helper.h"
 #include "components/browsing_data/content/shared_worker_helper.h"
+#include "components/browsing_data/core/features.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -75,7 +76,7 @@
 #include "third_party/widevine/cdm/buildflags.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -330,9 +331,9 @@ class CookieSettingsTest
 
   // Set a cookie with JavaScript.
   void JSWriteCookie(Browser* browser) {
-    bool rv = content::ExecuteScript(
-        browser->tab_strip_model()->GetActiveWebContents(),
-        "document.cookie = 'name=Good;Max-Age=3600'");
+    bool rv =
+        content::ExecJs(browser->tab_strip_model()->GetActiveWebContents(),
+                        "document.cookie = 'name=Good;Max-Age=3600'");
     CHECK(rv);
   }
 
@@ -405,7 +406,7 @@ IN_PROC_BROWSER_TEST_P(CookieSettingsTest, PRE_BlockCookies) {
 IN_PROC_BROWSER_TEST_P(CookieSettingsTest, BlockCookies) {
   ASSERT_EQ(CONTENT_SETTING_BLOCK,
             CookieSettingsFactory::GetForProfile(browser()->profile())
-                ->GetDefaultCookieSetting(nullptr));
+                ->GetDefaultCookieSetting());
 }
 
 // Verify that cookies can be allowed and set using exceptions for particular
@@ -770,7 +771,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // This fails on ChromeOS because kRestoreOnStartup is ignored and the startup
 // preference is always "continue where I left off.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
 // Verify that cookies can be allowed and set using exceptions for particular
 // website(s) only for a session when all others are blocked.
@@ -1134,7 +1135,7 @@ IN_PROC_BROWSER_TEST_F(ContentSettingsTest, RendererUpdateWhilePendingCommit) {
       }));
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), second_url, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   delayer.Wait();
 
   EXPECT_TRUE(PageSpecificContentSettings::GetForFrame(
@@ -1385,7 +1386,8 @@ class ContentSettingsWithPrerenderingBrowserTest : public ContentSettingsTest {
             base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_test_helper().SetUp(embedded_test_server());
+    prerender_test_helper().RegisterServerRequestMonitor(
+        embedded_test_server());
     ContentSettingsTest::SetUp();
   }
 
@@ -1653,13 +1655,22 @@ IN_PROC_BROWSER_TEST_F(ContentSettingsWithFencedFrameBrowserTest,
     const browsing_data::LocalSharedObjectsContainer& container =
         pscs->allowed_local_shared_objects();
     EXPECT_TRUE(pscs->IsContentAllowed(ContentSettingsType::COOKIES));
-    EXPECT_EQ(container.local_storages()->GetCount(), 1u);
-    EXPECT_EQ(container.session_storages()->GetCount(), 1u);
-    EXPECT_EQ(container.cache_storages()->GetCount(), 1u);
-    EXPECT_EQ(container.file_systems()->GetCount(), 1u);
-    EXPECT_EQ(container.indexed_dbs()->GetCount(), 1u);
-    EXPECT_EQ(container.shared_workers()->GetSharedWorkerCount(), 1u);
-    EXPECT_EQ(container.service_workers()->GetCount(), 1u);
+
+    bool is_migrate_storage_to_bdm_enabled = base::FeatureList::IsEnabled(
+        browsing_data::features::kMigrateStorageToBDM);
+    if (is_migrate_storage_to_bdm_enabled) {
+      EXPECT_EQ(pscs->allowed_browsing_data_model()->size(), 1u);
+    }
+
+    size_t expected_size = is_migrate_storage_to_bdm_enabled ? 0u : 1u;
+    EXPECT_EQ(container.local_storages()->GetCount(), expected_size);
+    EXPECT_EQ(container.session_storages()->GetCount(), expected_size);
+    EXPECT_EQ(container.cache_storages()->GetCount(), expected_size);
+    EXPECT_EQ(container.file_systems()->GetCount(), expected_size);
+    EXPECT_EQ(container.indexed_dbs()->GetCount(), expected_size);
+    EXPECT_EQ(container.shared_workers()->GetSharedWorkerCount(),
+              expected_size);
+    EXPECT_EQ(container.service_workers()->GetCount(), expected_size);
   }
 }
 
@@ -1801,118 +1812,4 @@ IN_PROC_BROWSER_TEST_F(ContentSettingsWorkerModulesWithFencedFrameBrowserTest,
   EXPECT_TRUE(PageSpecificContentSettings::GetForFrame(
                   web_contents->GetPrimaryMainFrame())
                   ->IsContentBlocked(ContentSettingsType::JAVASCRIPT));
-}
-
-class SetRuntimeFeatureStateObserver : public content::WebContentsObserver {
- public:
-  explicit SetRuntimeFeatureStateObserver(content::WebContents* web_contents) {
-    WebContentsObserver::Observe(web_contents);
-  }
-
-  void SetThirdPartyCookiesUserBypassEnabled(bool enabled) {
-    third_party_cookies_user_bypass_enabled_ = enabled;
-  }
-
- protected:
-  void DidStartNavigation(content::NavigationHandle* handle) override {
-    handle->GetMutableRuntimeFeatureStateContext()
-        .SetThirdPartyCookiesUserBypassEnabled(
-            third_party_cookies_user_bypass_enabled_);
-  }
-
- private:
-  bool third_party_cookies_user_bypass_enabled_;
-};
-
-class RuntimeFeatureStateBrowserTest : public InProcessBrowserTest {
- protected:
-  RuntimeFeatureStateBrowserTest()
-      : https_server_(net::test_server::EmbeddedTestServer::TYPE_HTTPS) {}
-
-  void SetUpOnMainThread() override {
-    host_resolver()->AddRule("*", "127.0.0.1");
-    https_server_.SetSSLConfig(
-        net::test_server::EmbeddedTestServer::CERT_TEST_NAMES);
-    https_server_.AddDefaultHandlers(GetChromeTestDataDir());
-    ASSERT_TRUE(https_server_.Start());
-  }
-
-  void SetCrossSiteCookieOnHost(const std::string& host,
-                                const std::string& cookie) {
-    GURL host_url = https_server_.GetURL(host, "/");
-    content::SetCookie(browser()->profile(), host_url,
-                       base::StrCat({cookie, ";SameSite=None;Secure"}));
-    ASSERT_THAT(content::GetCookies(browser()->profile(), host_url),
-                testing::HasSubstr(cookie));
-  }
-
-  void SetBlockThirdPartyCookies(bool value) {
-    browser()->profile()->GetPrefs()->SetInteger(
-        prefs::kCookieControlsMode,
-        static_cast<int>(
-            value ? content_settings::CookieControlsMode::kBlockThirdParty
-                  : content_settings::CookieControlsMode::kOff));
-  }
-
-  void NavigateToPageWithFrame(const std::string& host) {
-    GURL main_url(https_server_.GetURL(host, "/iframe.html"));
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
-  }
-
-  void NavigateFrameTo(const std::string& host, const std::string& path) {
-    GURL page = https_server_.GetURL(host, path);
-    content::WebContents* web_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
-    EXPECT_TRUE(NavigateIframeToURL(web_contents, "test", page));
-  }
-
-  std::string ReadCookiesViaJS(content::RenderFrameHost* render_frame_host) {
-    return content::EvalJs(render_frame_host, "document.cookie")
-        .ExtractString();
-  }
-
-  content::RenderFrameHost* GetPrimaryMainFrame() {
-    content::WebContents* web_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
-    return web_contents->GetPrimaryMainFrame();
-  }
-
-  content::RenderFrameHost* GetFrame() {
-    return ChildFrameAt(GetPrimaryMainFrame(), 0);
-  }
-
-  net::test_server::EmbeddedTestServer& https_server() { return https_server_; }
-
- private:
-  net::test_server::EmbeddedTestServer https_server_;
-};
-
-IN_PROC_BROWSER_TEST_F(RuntimeFeatureStateBrowserTest,
-                       ThirdPartyCookieAllowedByUserBypass) {
-  SetBlockThirdPartyCookies(true);
-
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-
-  SetCrossSiteCookieOnHost("a.test", "foo=bar");
-
-  // Navigate to frame with 3P cookie. It is blocked.
-  NavigateToPageWithFrame("b.test");
-  NavigateFrameTo("a.test", "/empty.html");
-  EXPECT_EQ(ReadCookiesViaJS(GetFrame()), "");
-
-  // Now start setting the user bypass RFS on all subsequent navigations.
-  SetRuntimeFeatureStateObserver observer(web_contents);
-  observer.SetThirdPartyCookiesUserBypassEnabled(true);
-
-  // Navigate again to just the frame. The 3P is still blocked because the
-  // user bypass RFS comes from the top frame.
-  NavigateFrameTo("a.test", "/empty.html");
-  EXPECT_EQ(ReadCookiesViaJS(GetFrame()), "");
-
-  // Repeat the page navigation and then frame navigation. This time the
-  // top frame has the user bypass enabled, so the cookie is allowed.
-  NavigateToPageWithFrame("b.test");
-  NavigateFrameTo("a.test", "/empty.html");
-  EXPECT_EQ(ReadCookiesViaJS(GetFrame()), "foo=bar");
 }

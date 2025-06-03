@@ -14,6 +14,7 @@
 #include "ash/style/ash_color_id.h"
 #include "ash/style/ash_color_provider.h"
 #include "ash/style/icon_button.h"
+#include "ash/style/typography.h"
 #include "ash/system/phonehub/phone_hub_tray.h"
 #include "ash/system/phonehub/phone_hub_view_ids.h"
 #include "ash/system/status_area_widget.h"
@@ -23,7 +24,9 @@
 #include "base/i18n/number_formatting.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/color_utils.h"
@@ -109,8 +112,15 @@ PhoneStatusView::PhoneStatusView(phonehub::PhoneModel* phone_model,
   phone_name_label_->SetEnabledColor(
       AshColorProvider::Get()->GetContentLayerColor(
           AshColorProvider::ContentLayerType::kTextColorPrimary));
-  TrayPopupUtils::SetLabelFontList(phone_name_label_,
-                                   TrayPopupUtils::FontStyle::kSubHeader);
+
+  if (chromeos::features::IsJellyrollEnabled()) {
+    TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosHeadline1,
+                                          *phone_name_label_);
+  } else {
+    TrayPopupUtils::SetLabelFontList(phone_name_label_,
+                                     TrayPopupUtils::FontStyle::kSubHeader);
+  }
+
   phone_name_label_->SetElideBehavior(gfx::ElideBehavior::ELIDE_TAIL);
   AddView(TriView::Container::START, phone_name_label_);
 
@@ -126,9 +136,16 @@ PhoneStatusView::PhoneStatusView(phonehub::PhoneModel* phone_model,
   battery_label_->SetSubpixelRenderingEnabled(false);
   battery_label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
       AshColorProvider::ContentLayerType::kTextColorPrimary));
-  auto default_font = battery_label_->font_list();
-  battery_label_->SetFontList(default_font.DeriveWithSizeDelta(
-      kBatteryLabelFontSize - default_font.GetFontSize()));
+
+  if (chromeos::features::IsJellyrollEnabled()) {
+    TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosButton2,
+                                          *battery_label_);
+  } else {
+    auto default_font = battery_label_->font_list();
+    battery_label_->SetFontList(default_font.DeriveWithSizeDelta(
+        kBatteryLabelFontSize - default_font.GetFontSize()));
+  }
+
   battery_label_->SetBorder(
       views::CreateEmptyBorder(kBatteryLabelBorderInsets));
   AddView(TriView::Container::CENTER, battery_label_);
@@ -230,15 +247,14 @@ void PhoneStatusView::UpdateBatteryStatus() {
   const PhoneStatusModel& phone_status =
       phone_model_->phone_status_model().value();
 
-  const PowerStatus::BatteryImageInfo& info = CalculateBatteryInfo();
-
   const SkColor icon_fg_color = AshColorProvider::Get()->GetContentLayerColor(
       IsBatterySaverModeOn(phone_status)
           ? AshColorProvider::ContentLayerType::kIconColorWarning
           : AshColorProvider::ContentLayerType::kIconColorPrimary);
 
   battery_icon_->SetImage(PowerStatus::GetBatteryImage(
-      info, kUnifiedTrayBatteryIconSize, icon_fg_color));
+      CalculateBatteryInfo(icon_fg_color), kUnifiedTrayBatteryIconSize,
+      battery_icon_->GetColorProvider()));
   SetBatteryTooltipText();
   battery_label_->SetText(
       base::FormatPercent(phone_status.battery_percentage()));
@@ -247,12 +263,11 @@ void PhoneStatusView::UpdateBatteryStatus() {
       base::NumberToString16(phone_status.battery_percentage())));
 }
 
-PowerStatus::BatteryImageInfo PhoneStatusView::CalculateBatteryInfo() {
-  PowerStatus::BatteryImageInfo info;
-
+PowerStatus::BatteryImageInfo PhoneStatusView::CalculateBatteryInfo(
+    const SkColor icon_fg_color) {
   const PhoneStatusModel& phone_status =
       phone_model_->phone_status_model().value();
-
+  PowerStatus::BatteryImageInfo info(icon_fg_color);
   info.charge_percent = phone_status.battery_percentage();
 
   if (IsBatterySaverModeOn(phone_status)) {
@@ -320,6 +335,12 @@ void PhoneStatusView::ClearExistingStatus() {
   // Clear battery status.
   battery_icon_->SetImage(gfx::ImageSkia());
   battery_label_->SetText(std::u16string());
+
+  // TODO(b/281844561): When the phone is disconnected the |phone_name_label_|
+  // should have cros.sys.disabled. Setting that here and then re-setting the
+  // label to cros.sys.on-surface on Update() would handle this case, but it
+  // would also incorrectly show cros.sys.disabled for the Connecting and
+  // Onboarding UI states.
 }
 
 void PhoneStatusView::ConfigureTriViewContainer(TriView::Container container) {

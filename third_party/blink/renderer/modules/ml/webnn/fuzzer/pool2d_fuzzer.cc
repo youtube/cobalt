@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/modules/ml/webnn/fuzzer/webnn.pb.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph_builder_utils.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/testing/blink_fuzzer_test_support.h"
 
 namespace blink {
@@ -71,10 +70,15 @@ DEFINE_PROTO_FUZZER(const webnn_proto::pool2d& pool2d) {
     return page_holder.release();
   }();
 
-  auto* builder = CreateMLGraphBuilder(
-      page_holder->GetFrame().DomWindow()->GetExecutionContext());
+  ScriptState* script_state =
+      ToScriptStateForMainWorld(&page_holder->GetFrame());
 
   DummyExceptionStateForTesting exception_state;
+  auto* builder = CreateMLGraphBuilder(
+      page_holder->GetFrame().DomWindow()->GetExecutionContext(), script_state,
+      exception_state);
+  CHECK(builder);
+
   auto* input =
       BuildInput(builder, "input", Vector<uint32_t>(pool2d.input_dimensions()),
                  ToV8MLOperandType(pool2d.input_type()), exception_state);
@@ -95,8 +99,10 @@ DEFINE_PROTO_FUZZER(const webnn_proto::pool2d& pool2d) {
       break;
   }
 
-  V8PerIsolateData::MainThreadIsolate()->RequestGarbageCollectionForTesting(
-      v8::Isolate::kFullGarbageCollection);
+  page_holder->GetPage()
+      ->GetAgentGroupScheduler()
+      ->Isolate()
+      ->RequestGarbageCollectionForTesting(v8::Isolate::kFullGarbageCollection);
 }
 
 }  // namespace blink

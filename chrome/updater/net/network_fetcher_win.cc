@@ -19,7 +19,9 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/updater/policy/service.h"
+#include "chrome/updater/util/util.h"
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/user_info.h"
 #include "components/update_client/network.h"
@@ -76,12 +78,13 @@ class NetworkFetcher : public update_client::NetworkFetcher {
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       PostRequestCompleteCallback post_request_complete_callback) override;
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override;
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override;
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
@@ -124,7 +127,7 @@ void NetworkFetcher::PostRequest(
                      base::Unretained(this)));
 }
 
-void NetworkFetcher::DownloadToFile(
+base::OnceClosure NetworkFetcher::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     ResponseStartedCallback response_started_callback,
@@ -134,7 +137,7 @@ void NetworkFetcher::DownloadToFile(
   VLOG(2) << __func__;
   download_to_file_complete_callback_ =
       std::move(download_to_file_complete_callback);
-  winhttp_network_fetcher_->DownloadToFile(
+  return winhttp_network_fetcher_->DownloadToFile(
       url, file_path, std::move(response_started_callback),
       std::move(progress_callback),
       base::BindOnce(&NetworkFetcher::DownloadToFileComplete,
@@ -184,7 +187,7 @@ class NetworkFetcherFactory::Impl {
       : proxy_configuration_(
             GetProxyConfiguration(policy_service_proxy_configuration)),
         session_handle_(winhttp::CreateSessionHandle(
-            L"Chrome Updater",
+            base::ASCIIToWide(GetUpdaterUserAgent()).c_str(),
             proxy_configuration_->access_type())) {}
 
   std::unique_ptr<update_client::NetworkFetcher> Create() {

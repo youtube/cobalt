@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,9 +9,9 @@
 #include "third_party/blink/renderer/core/css/container_query_data.h"
 #include "third_party/blink/renderer/core/css/cssom/inline_style_property_map.h"
 #include "third_party/blink/renderer/core/css/inline_css_style_declaration.h"
+#include "third_party/blink/renderer/core/css/style_scope_data.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
 #include "third_party/blink/renderer/core/dom/attr.h"
-#include "third_party/blink/renderer/core/dom/css_toggle_map.h"
 #include "third_party/blink/renderer/core/dom/dataset_dom_string_map.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/has_invalidation_flags.h"
@@ -27,7 +27,7 @@
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/intersection_observer/element_intersection_observer_data.h"
-#include "third_party/blink/renderer/core/layout/anchor_scroll_data.h"
+#include "third_party/blink/renderer/core/layout/anchor_position_scroll_data.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observation.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -52,7 +52,7 @@ unsigned ElementRareDataVector::GetFieldIndex(FieldId field_id) const {
 ElementRareDataField* ElementRareDataVector::GetField(FieldId field_id) const {
   if (fields_bitfield_ &
       (static_cast<BitfieldType>(1) << static_cast<unsigned>(field_id)))
-    return fields_[GetFieldIndex(field_id)];
+    return fields_[GetFieldIndex(field_id)].Get();
   return nullptr;
 }
 
@@ -303,6 +303,13 @@ void ElementRareDataVector::ClearContainerQueryData() {
   SetField(FieldId::kContainerQueryData, nullptr);
 }
 
+StyleScopeData& ElementRareDataVector::EnsureStyleScopeData() {
+  return EnsureField<StyleScopeData>(FieldId::kStyleScopeData);
+}
+StyleScopeData* ElementRareDataVector::GetStyleScopeData() const {
+  return static_cast<StyleScopeData*>(GetField(FieldId::kStyleScopeData));
+}
+
 const RegionCaptureCropId* ElementRareDataVector::GetRegionCaptureCropId()
     const {
   auto* value = GetWrappedField<std::unique_ptr<RegionCaptureCropId>>(
@@ -311,11 +318,26 @@ const RegionCaptureCropId* ElementRareDataVector::GetRegionCaptureCropId()
 }
 void ElementRareDataVector::SetRegionCaptureCropId(
     std::unique_ptr<RegionCaptureCropId> crop_id) {
-  DCHECK(!GetRegionCaptureCropId());
-  DCHECK(crop_id);
-  DCHECK(!crop_id->value().is_zero());
+  CHECK(!GetRegionCaptureCropId());
+  CHECK(crop_id);
+  CHECK(!crop_id->value().is_zero());
   SetWrappedField<std::unique_ptr<RegionCaptureCropId>>(
       FieldId::kRegionCaptureCropId, std::move(crop_id));
+}
+
+const RestrictionTargetId* ElementRareDataVector::GetRestrictionTargetId()
+    const {
+  auto* value = GetWrappedField<std::unique_ptr<RestrictionTargetId>>(
+      FieldId::kRestrictionTargetId);
+  return value ? value->get() : nullptr;
+}
+void ElementRareDataVector::SetRestrictionTargetId(
+    std::unique_ptr<RestrictionTargetId> id) {
+  CHECK(!GetRestrictionTargetId());
+  CHECK(id);
+  CHECK(!id->value().is_zero());
+  SetWrappedField<std::unique_ptr<RestrictionTargetId>>(
+      FieldId::kRestrictionTargetId, std::move(id));
 }
 
 ElementRareDataVector::ResizeObserverDataMap*
@@ -367,26 +389,20 @@ void ElementRareDataVector::RemovePopoverData() {
   SetField(FieldId::kPopoverData, nullptr);
 }
 
-CSSToggleMap* ElementRareDataVector::GetToggleMap() const {
-  return static_cast<CSSToggleMap*>(GetField(FieldId::kToggleMap));
+AnchorPositionScrollData* ElementRareDataVector::GetAnchorPositionScrollData()
+    const {
+  return static_cast<AnchorPositionScrollData*>(
+      GetField(FieldId::kAnchorPositionScrollData));
 }
-CSSToggleMap& ElementRareDataVector::EnsureToggleMap(Element* owner_element) {
-  DCHECK(!GetToggleMap() || GetToggleMap()->OwnerElement() == owner_element);
-  return EnsureField<CSSToggleMap>(FieldId::kToggleMap, owner_element);
+void ElementRareDataVector::RemoveAnchorPositionScrollData() {
+  SetField(FieldId::kAnchorPositionScrollData, nullptr);
 }
-
-AnchorScrollData* ElementRareDataVector::GetAnchorScrollData() const {
-  return static_cast<AnchorScrollData*>(GetField(FieldId::kAnchorScrollData));
-}
-void ElementRareDataVector::RemoveAnchorScrollData() {
-  SetField(FieldId::kAnchorScrollData, nullptr);
-}
-AnchorScrollData& ElementRareDataVector::EnsureAnchorScrollData(
+AnchorPositionScrollData& ElementRareDataVector::EnsureAnchorPositionScrollData(
     Element* owner_element) {
-  DCHECK(!GetAnchorScrollData() ||
-         GetAnchorScrollData()->OwnerElement() == owner_element);
-  return EnsureField<AnchorScrollData>(FieldId::kAnchorScrollData,
-                                       owner_element);
+  DCHECK(!GetAnchorPositionScrollData() ||
+         GetAnchorPositionScrollData()->OwnerElement() == owner_element);
+  return EnsureField<AnchorPositionScrollData>(
+      FieldId::kAnchorPositionScrollData, owner_element);
 }
 
 AnchorElementObserver& ElementRareDataVector::EnsureAnchorElementObserver(

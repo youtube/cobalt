@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
+#include "third_party/blink/renderer/modules/ml/ml.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph_builder.h"
 
 namespace blink {
@@ -35,6 +36,9 @@ std::string TestVarietyToString(
       break;
     case BackendType::kModelLoader:
       name += "ModelLoader_";
+      break;
+    case BackendType::kWebNNService:
+      name += "WebNNService_";
       break;
   }
 
@@ -69,7 +73,7 @@ MLGraphTestBase::BuildResult MLGraphTestBase::BuildGraph(
                            .exception = nullptr};
       } else {
         return BuildResult{.graph = nullptr,
-                           .exception = V8DOMException::ToImplWithTypeCheck(
+                           .exception = V8DOMException::ToWrappable(
                                scope.GetIsolate(), tester.Value().V8Value())};
       }
     }
@@ -119,8 +123,8 @@ DOMException* MLGraphTestBase::ComputeGraph(V8TestingScope& scope,
         outputs = results->outputs();
         return nullptr;
       } else {
-        return V8DOMException::ToImplWithTypeCheck(scope.GetIsolate(),
-                                                   tester.Value().V8Value());
+        return V8DOMException::ToWrappable(scope.GetIsolate(),
+                                           tester.Value().V8Value());
       }
     }
     case ExecutionMode::kSync: {
@@ -136,6 +140,26 @@ DOMException* MLGraphTestBase::ComputeGraph(V8TestingScope& scope,
     default:
       NOTREACHED();
   }
+}
+
+ScriptPromise MLGraphTestBase::CreateContext(V8TestingScope& scope,
+                                             MLContextOptions* options) {
+  auto* ml = MakeGarbageCollected<ML>(scope.GetExecutionContext());
+  return ml->createContext(scope.GetScriptState(), options,
+                           scope.GetExceptionState());
+}
+
+// static
+MLGraphBuilder* MLGraphTestBase::CreateGraphBuilder(V8TestingScope& scope,
+                                                    MLContextOptions* options) {
+  ScriptPromiseTester tester(scope.GetScriptState(),
+                             CreateContext(scope, options));
+  tester.WaitUntilSettled();
+  CHECK(tester.IsFulfilled());
+
+  auto* context = NativeValueTraits<MLContext>::NativeValue(
+      scope.GetIsolate(), tester.Value().V8Value(), scope.GetExceptionState());
+  return MLGraphBuilder::Create(context);
 }
 
 }  // namespace blink

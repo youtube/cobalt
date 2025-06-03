@@ -23,6 +23,11 @@
 // before the view is loaded.
 @property(nonatomic, strong) UIView* titleView;
 
+// The view displayed above titles and subtitles, but under the navigation bar
+// and the image view. Nil if not needed. If needed, must be set before the view
+// is loaded.
+@property(nonatomic, strong) UIView* aboveTitleView;
+
 // The view displayed under titles and subtitles. Nil if not needed.
 // If needed, must be set before the view is loaded.
 @property(nonatomic, strong) UIView* underTitleView;
@@ -40,6 +45,9 @@
 // The subtitle below the title. Must be set before the view is loaded.
 @property(nonatomic, copy) NSString* subtitleString;
 
+// Text style for the subtitle. If nil, will default to UIFontTextStyleBody.
+@property(nonatomic, copy) UIFontTextStyle subtitleTextStyle;
+
 // The text for the primary action. Must be set before the view is loaded.
 @property(nonatomic, copy) NSString* primaryActionString;
 
@@ -51,25 +59,39 @@
 // not set.
 @property(nonatomic, copy) NSString* secondaryActionTextColor;
 
+// The icon for the secondary action. Must be set before the view is loaded.
+@property(nonatomic, strong) UIImage* secondaryActionImage;
+
 // The text for the tertiary action. Must be set before the view is loaded.
 @property(nonatomic, copy) NSString* tertiaryActionString;
 
 // The image. May be updated after the view is loaded.
 @property(nonatomic, strong) UIImage* image;
 
-// Sets the custom spacing between the top and the image, if there is no
-// navigation bar. Must be set before the view is loaded.
+// When set, this value will be set as the accessibility label for the image
+// view.
+@property(nonatomic, copy) NSString* imageViewAccessibilityLabel;
+
+// Sets the custom spacing at the top if there is no navigation bar. If image is
+// set, the spacing is before the image. Otherwise, the spacing is before the
+// title label. Must be set before the view is loaded.
 @property(nonatomic, assign) CGFloat customSpacingBeforeImageIfNoNavigationBar;
 
 // Sets the custom spacing between the image and the title / subtitle. Must be
 // set before the view is loaded.
 @property(nonatomic, assign) CGFloat customSpacingAfterImage;
 
+// Sets the custom size for the favicon.
+@property(nonatomic, assign) CGFloat customFaviconSideLength;
+
 // Sets the custom spacing of the stackview. Values for
 // `customSpacingBeforeImageIfNoNavigationBar` and `customSpacingAfterImage` are
 // honored around the image, so this applies to all the other items of the
 // stackview. Must be set before the view is loaded.
 @property(nonatomic, assign) CGFloat customSpacing;
+
+// Sets the custom height for the gradient view above the action buttons.
+@property(nonatomic, assign) CGFloat customGradientViewHeight;
 
 // When YES, the content is attached to the top of the view instead of being
 // centered.
@@ -85,6 +107,10 @@
 // Set to YES to enclose the image in a frame with a shadow and a corner badge
 // with a green checkmark. Must be set before the view is loaded. Default is NO.
 @property(nonatomic) BOOL imageEnclosedWithShadowAndBadge;
+
+// Set to YES to enclose the image in a frame with a shadow without a corner
+// green checkmark badge. Must be set before the view is loaded. Default is NO.
+@property(nonatomic, assign) BOOL imageEnclosedWithShadowWithoutBadge;
 
 // Set to NO to prevent the scroll view from showing a vertical scrollbar
 // indicator. Must be set before the view is loaded. Default is YES.
@@ -108,8 +134,24 @@
 // UIBarButtonSystemItemDone). Must be set before the view is loaded.
 @property(nonatomic, assign) UIBarButtonSystemItem dismissBarButtonSystemItem;
 
+// Sets a custom UIBarButtonItem for the dismiss bar button.
+@property(nonatomic, assign) UIImage* customDismissBarButtonImage;
+
 // The action handler for interactions in this View Controller.
 @property(nonatomic, weak) id<ConfirmationAlertActionHandler> actionHandler;
+
+// Sets the custom scroll view bottom insets.
+@property(nonatomic, assign) CGFloat customScrollViewBottomInsets;
+
+// Indicates whether information stack view items should horizontally fill the
+// space.
+@property(nonatomic) BOOL shouldFillInformationStack;
+
+// Bottom margin for the action stack view.
+@property(nonatomic, assign) CGFloat actionStackBottomMargin;
+
+// Button for the primary action string.
+@property(nonatomic, readonly) UIButton* primaryActionButton;
 
 // Designated initializer.
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
@@ -128,11 +170,20 @@
 // nothing.
 - (void)customizeSubtitle:(UITextView*)subtitle;
 
+// Show or hide the gradient view depending on the state of the bottom sheet.
+- (void)displayGradientView:(BOOL)shouldShow;
+
+// Returns YES if the scroll view is scrolled to the bottom.
+- (BOOL)isScrolledToBottom;
+
 // Detent that attempts to fit the preferred height of the content. Detent may
 // be inactive in some size classes, so it should be used together with at
 // least one other detent.
 - (UISheetPresentationControllerDetent*)
     preferredHeightDetent API_AVAILABLE(ios(16));
+
+// Calculates the preferred height of the content.
+- (CGFloat)preferredHeightForContent;
 
 @end
 

@@ -97,6 +97,14 @@ void FakeShillDeviceClient::SetProperty(const dbus::ObjectPath& device_path,
                                         const base::Value& value,
                                         base::OnceClosure callback,
                                         ErrorCallback error_callback) {
+  if (set_property_error_name_.has_value()) {
+    std::move(error_callback)
+        .Run(set_property_error_name_.value(),
+             /*error_message=*/std::string());
+    set_property_error_name_ = absl::nullopt;
+    return;
+  }
+
   if (property_change_delay_.has_value()) {
     // Return callback immediately and set property after delay.
     std::move(callback).Run();
@@ -365,6 +373,16 @@ void FakeShillDeviceClient::ClearDevices() {
   stub_devices_.clear();
 }
 
+base::Value* FakeShillDeviceClient::GetDeviceProperty(
+    const std::string& device_path,
+    const std::string& name) {
+  base::Value::Dict* device_properties = stub_devices_.FindDict(device_path);
+  if (!device_properties) {
+    return nullptr;
+  }
+  return device_properties->Find(name);
+}
+
 void FakeShillDeviceClient::SetDeviceProperty(const std::string& device_path,
                                               const std::string& name,
                                               const base::Value& value,
@@ -447,6 +465,11 @@ void FakeShillDeviceClient::SetSimulateInhibitScanning(
 void FakeShillDeviceClient::SetPropertyChangeDelay(
     absl::optional<base::TimeDelta> time_delay) {
   property_change_delay_ = time_delay;
+}
+
+void FakeShillDeviceClient::SetErrorForNextSetPropertyAttempt(
+    const std::string& error_name) {
+  set_property_error_name_ = error_name;
 }
 
 // Private Methods -------------------------------------------------------------
@@ -589,9 +612,11 @@ void FakeShillDeviceClient::NotifyObserversPropertyChanged(
     LOG(ERROR) << "Notify for unknown property: " << path << " : " << property;
     return;
   }
-  const base::Value* value = device_properties->Find(property);
+  // Notify using a clone instead of a pointer to the property to avoid the
+  // situation where an observer invalidates our pointer when notified.
+  const base::Value value = device_properties->Find(property)->Clone();
   for (auto& observer : GetObserverList(device_path)) {
-    observer.OnPropertyChanged(property, *value);
+    observer.OnPropertyChanged(property, value);
   }
 }
 

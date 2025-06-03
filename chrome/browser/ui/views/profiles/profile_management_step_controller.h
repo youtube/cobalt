@@ -8,12 +8,14 @@
 #include "base/functional/callback.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "components/signin/public/base/signin_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/views/profiles/profile_picker_dice_sign_in_provider.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+class SearchEngineChoiceService;
 #endif
 
 class ProfilePickerSignedInFlowController;
@@ -44,20 +46,30 @@ class ProfileManagementStepController {
   // where it can be completed.
   // `contents` should be the one used to render the Dice sign-in page. The
   // next steps of the flow will continue in that same `WebContents`.
-  // `finish_flow_callback` will be called by the controller to transfer the
-  // flow from the host, exit it and continue in a regular browser window.
+  // `finish_picker_section_callback` will be called by the controller to
+  // request the in-picker flow to be terminated, passing a
+  // `PostHostClearedCallback` that should then be executed to resume the flow
+  // in a regular browser window.
   static std::unique_ptr<ProfileManagementStepController>
   CreateForFinishSamlSignIn(ProfilePickerWebContentsHost* host,
                             Profile* profile,
                             std::unique_ptr<content::WebContents> contents,
-                            absl::optional<SkColor> profile_color,
-                            FinishFlowCallback finish_flow_callback);
+                            base::OnceCallback<void(PostHostClearedCallback)>
+                                finish_picker_section_callback);
 #endif
 
   static std::unique_ptr<ProfileManagementStepController>
   CreateForPostSignInFlow(
       ProfilePickerWebContentsHost* host,
       std::unique_ptr<ProfilePickerSignedInFlowController> signed_in_flow);
+
+#if BUILDFLAG(ENABLE_SEARCH_ENGINE_CHOICE)
+  static std::unique_ptr<ProfileManagementStepController>
+  CreateForSearchEngineChoice(
+      ProfilePickerWebContentsHost* host,
+      SearchEngineChoiceService* search_engine_choice_service,
+      base::OnceClosure callback);
+#endif
 
   explicit ProfileManagementStepController(ProfilePickerWebContentsHost* host);
   virtual ~ProfileManagementStepController();

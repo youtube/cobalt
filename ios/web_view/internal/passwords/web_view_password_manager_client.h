@@ -24,7 +24,7 @@
 #include "components/password_manager/ios/password_manager_client_bridge.h"
 #include "components/prefs/pref_member.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #import "ios/web/public/web_state.h"
 #include "ios/web_view/internal/passwords/web_view_password_feature_manager.h"
 #include "ios/web_view/internal/web_view_browser_state.h"
@@ -81,9 +81,10 @@ class WebViewPasswordManagerClient
       CredentialsCallback callback) override;
   void AutomaticPasswordSave(
       std::unique_ptr<password_manager::PasswordFormManagerForUI>
-          saved_form_manager) override;
+          saved_form_manager,
+      bool is_update_confirmation) override;
   void PromptUserToEnableAutosignin() override;
-  bool IsIncognito() const override;
+  bool IsOffTheRecord() const override;
   const password_manager::PasswordManager* GetPasswordManager() const override;
   const password_manager::PasswordFeatureManager* GetPasswordFeatureManager()
       const override;
@@ -127,7 +128,6 @@ class WebViewPasswordManagerClient
   GetPasswordRequirementsService() override;
   bool IsIsolationForPasswordSitesEnabled() const override;
   bool IsNewTabPage() const override;
-  password_manager::FieldInfoManager* GetFieldInfoManager() const override;
 
   void set_bridge(id<PasswordManagerClientBridge> bridge) { bridge_ = bridge; }
 

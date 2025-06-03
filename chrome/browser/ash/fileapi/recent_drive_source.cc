@@ -99,6 +99,10 @@ void RecentDriveSource::GetRecentFiles(Params params) {
       drivefs::mojom::QueryParameters::SortDirection::kDescending;
   std::vector<std::string> type_filters =
       RecentDriveSource::CreateTypeFilters(params_->file_type());
+  query_params->modified_time = params_->cutoff_time();
+  query_params->title = params_->query();
+  query_params->modified_time_operator =
+      drivefs::mojom::QueryParameters::DateComparisonOperator::kGreaterThan;
   if (type_filters.size() == 1) {
     query_params->mime_type = type_filters.front();
   } else if (type_filters.size() > 1) {

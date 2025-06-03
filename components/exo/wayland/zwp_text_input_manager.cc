@@ -10,6 +10,8 @@
 #include <wayland-server-protocol-core.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include "ash/constants/ash_features.h"
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
@@ -118,6 +120,16 @@ class WaylandTextInputDelegate : public TextInput::Delegate {
   absl::optional<ui::AutocorrectInfo> TakeAutocorrectInfo() {
     auto result = pending_autocorrect_info_;
     pending_autocorrect_info_.reset();
+    return result;
+  }
+
+  void SetSurroundingTextOffsetUtf16(uint32_t offset) {
+    pending_surrounding_text_offset_utf16_ = offset;
+  }
+
+  absl::optional<uint32_t> TakeSurroundingTextOffsetUtf16() {
+    auto result = pending_surrounding_text_offset_utf16_;
+    pending_surrounding_text_offset_utf16_.reset();
     return result;
   }
 
@@ -319,18 +331,48 @@ class WaylandTextInputDelegate : public TextInput::Delegate {
 
   void SetAutocorrectRange(base::StringPiece16 surrounding_text,
                            const gfx::Range& range) override {
-    if (!extended_text_input_)
+    if (!extended_text_input_) {
       return;
+    }
 
-    const uint32_t begin = range.GetMin();
-    const uint32_t end = range.GetMax();
+    if (wl_resource_get_version(extended_text_input_) <
+        ZCR_EXTENDED_TEXT_INPUT_V1_SET_AUTOCORRECT_RANGE_SINCE_VERSION) {
+      return;
+    }
+
+    if (base::FeatureList::IsEnabled(
+            ash::features::kExoSurroundingTextOffset)) {
+      std::vector<size_t> offsets{range.GetMin(), range.GetMax()};
+      base::UTF16ToUTF8AndAdjustOffsets(surrounding_text, &offsets);
+      zcr_extended_text_input_v1_send_set_autocorrect_range(
+          extended_text_input_, offsets[0], offsets[1]);
+    } else {
+      // Fallback to the old implementation for transition.
+      // TODO(crbug.com/1402906): Remove once new way is widely distributed.
+      zcr_extended_text_input_v1_send_set_autocorrect_range(
+          extended_text_input_, range.GetMin(), range.GetMax());
+    }
+    wl_client_flush(client());
+  }
+
+  bool HasImageInsertSupport() override {
+    if (!extended_text_input_) {
+      return false;
+    }
+
+    return wl_resource_get_version(extended_text_input_) >=
+           ZCR_EXTENDED_TEXT_INPUT_V1_INSERT_IMAGE_SINCE_VERSION;
+  }
+
+  void InsertImage(const GURL& src) override {
+    if (!extended_text_input_) {
+      return;
+    }
 
     if (wl_resource_get_version(extended_text_input_) >=
-        ZCR_EXTENDED_TEXT_INPUT_V1_SET_AUTOCORRECT_RANGE_SINCE_VERSION) {
-      // TODO(https://crbug.com/952757): Convert to UTF-8 offsets once the
-      // surrounding text is no longer stale.
-      zcr_extended_text_input_v1_send_set_autocorrect_range(
-          extended_text_input_, begin, end);
+        ZCR_EXTENDED_TEXT_INPUT_V1_INSERT_IMAGE_SINCE_VERSION) {
+      zcr_extended_text_input_v1_send_insert_image(extended_text_input_,
+                                                   src.spec().c_str());
       wl_client_flush(client());
     }
   }
@@ -383,9 +425,37 @@ class WaylandTextInputDelegate : public TextInput::Delegate {
     }
   }
 
-  raw_ptr<wl_resource, ExperimentalAsh> text_input_;
-  raw_ptr<wl_resource, ExperimentalAsh> extended_text_input_ = nullptr;
-  raw_ptr<wl_resource, ExperimentalAsh> surface_ = nullptr;
+  bool ConfirmComposition(bool keep_selection) override {
+    if (!extended_text_input_) {
+      return false;
+    }
+
+    if (wl_resource_get_version(extended_text_input_) <
+        ZCR_EXTENDED_TEXT_INPUT_V1_CONFIRM_PREEDIT_SINCE_VERSION) {
+      return false;
+    }
+
+    zcr_extended_text_input_v1_send_confirm_preedit(
+        extended_text_input_,
+        keep_selection
+            ? ZCR_EXTENDED_TEXT_INPUT_V1_CONFIRM_PREEDIT_SELECTION_BEHAVIOR_UNCHANGED
+            : ZCR_EXTENDED_TEXT_INPUT_V1_CONFIRM_PREEDIT_SELECTION_BEHAVIOR_AFTER_PREEDIT);
+    wl_client_flush(client());
+    return true;
+  }
+
+  bool SupportsConfirmPreedit() override {
+    // Note: until this is supported by crostini, crostini won't be able to add
+    // the new extension api.
+    return extended_text_input_ &&
+           wl_resource_get_version(extended_text_input_) >=
+               ZCR_EXTENDED_TEXT_INPUT_V1_CONFIRM_PREEDIT_SINCE_VERSION;
+  }
+
+  raw_ptr<wl_resource, DanglingUntriaged | ExperimentalAsh> text_input_;
+  raw_ptr<wl_resource, DanglingUntriaged | ExperimentalAsh>
+      extended_text_input_ = nullptr;
+  raw_ptr<wl_resource, DanglingUntriaged | ExperimentalAsh> surface_ = nullptr;
 
   // Owned by Seat, which is updated before calling the callbacks of this
   // class.
@@ -405,6 +475,7 @@ class WaylandTextInputDelegate : public TextInput::Delegate {
   bool pending_surrounding_text_supported_ = true;
   absl::optional<ui::GrammarFragment> pending_grammar_fragment_;
   absl::optional<ui::AutocorrectInfo> pending_autocorrect_info_;
+  absl::optional<std::uint32_t> pending_surrounding_text_offset_utf16_;
 
   base::WeakPtrFactory<WaylandTextInputDelegate> weak_factory_{this};
 };
@@ -430,6 +501,57 @@ class WaylandExtendedTextInput {
  private:
   base::WeakPtr<WaylandTextInputDelegate> delegate_;
 };
+
+void SetSurroundingTextImpl(TextInput* text_input,
+                            WaylandTextInputDelegate* delegate,
+                            base::StringPiece text,
+                            uint32_t cursor,
+                            uint32_t anchor) {
+  uint32_t offset_utf16 =
+      delegate->TakeSurroundingTextOffsetUtf16().value_or(0u);
+  auto grammar_fragment = delegate->TakeGrammarFragment();
+  auto autocorrect_info = delegate->TakeAutocorrectInfo();
+
+  // TODO(crbug.com/1227590): Selection range should keep cursor/anchor
+  // relationship.
+  auto minmax = std::minmax(cursor, anchor);
+  std::vector<size_t> offsets{minmax.first, minmax.second};
+  if (grammar_fragment.has_value()) {
+    offsets.push_back(grammar_fragment->range.start());
+    offsets.push_back(grammar_fragment->range.end());
+  }
+  if (autocorrect_info.has_value()) {
+    offsets.push_back(autocorrect_info->range.start());
+    offsets.push_back(autocorrect_info->range.end());
+  }
+
+  std::u16string u16_text = base::UTF8ToUTF16AndAdjustOffsets(text, &offsets);
+  if (offsets[0] == std::u16string::npos ||
+      offsets[1] == std::u16string::npos) {
+    return;
+  }
+
+  if (grammar_fragment.has_value()) {
+    grammar_fragment->range =
+        gfx::Range(offsets[2] + offset_utf16, offsets[3] + offset_utf16);
+  }
+
+  // Original implementation did not convert the range. Guard this by the
+  // feature flag to be reverted to old behavior just in case for transition
+  // period.
+  // TODO(crbug.com/1402906): Remove the guard once transition is done.
+  if (autocorrect_info.has_value() &&
+      base::FeatureList::IsEnabled(ash::features::kExoSurroundingTextOffset)) {
+    size_t index = grammar_fragment.has_value() ? 4u : 2u;
+    autocorrect_info->range = gfx::Range(offsets[index] + offset_utf16,
+                                         offsets[index + 1] + offset_utf16);
+  }
+
+  text_input->SetSurroundingText(
+      u16_text, offset_utf16,
+      gfx::Range(offsets[0] + offset_utf16, offsets[1] + offset_utf16),
+      grammar_fragment, autocorrect_info);
+}
 
 void text_input_activate(wl_client* client,
                          wl_resource* resource,
@@ -487,32 +609,7 @@ void text_input_set_surrounding_text(wl_client* client,
   TextInput* text_input = GetUserDataAs<TextInput>(resource);
   auto* delegate =
       static_cast<WaylandTextInputDelegate*>(text_input->delegate());
-  auto grammar_fragment = delegate->TakeGrammarFragment();
-  auto autocorrect_info = delegate->TakeAutocorrectInfo();
-
-  // TODO(crbug.com/1227590): Selection range should keep cursor/anchor
-  // relationship.
-  auto minmax = std::minmax(cursor, anchor);
-  std::vector<size_t> offsets{minmax.first, minmax.second};
-  if (grammar_fragment.has_value()) {
-    offsets.push_back(grammar_fragment->range.start());
-    offsets.push_back(grammar_fragment->range.end());
-  } else {
-    offsets.insert(offsets.end(), {0u, 0u});
-  }
-  // TODO(https://crbug.com/952757): Convert to UTF-16 offsets once the
-  // surrounding text is no longer stale.
-
-  std::u16string u16_text = base::UTF8ToUTF16AndAdjustOffsets(text, &offsets);
-  if (offsets[0] == std::u16string::npos ||
-      offsets[1] == std::u16string::npos) {
-    return;
-  }
-  if (grammar_fragment.has_value()) {
-    grammar_fragment->range = gfx::Range(offsets[2], offsets[3]);
-  }
-  text_input->SetSurroundingText(u16_text, gfx::Range(offsets[0], offsets[1]),
-                                 grammar_fragment, autocorrect_info);
+  SetSurroundingTextImpl(text_input, delegate, text, cursor, anchor);
 }
 
 void text_input_set_content_type(wl_client* client,
@@ -829,6 +926,47 @@ void extended_text_input_set_surrounding_text_support(wl_client* client,
   }
 }
 
+void extended_text_input_set_surrounding_text_offset_utf16(
+    wl_client* client,
+    wl_resource* resource,
+    uint32_t offset_utf16) {
+  auto* delegate =
+      GetUserDataAs<WaylandExtendedTextInput>(resource)->delegate();
+  if (!delegate) {
+    return;
+  }
+
+  delegate->SetSurroundingTextOffsetUtf16(offset_utf16);
+}
+
+void extended_text_input_set_large_surrounding_text(wl_client* client,
+                                                    wl_resource* resource,
+                                                    int32_t raw_fd,
+                                                    uint32_t size,
+                                                    uint32_t cursor,
+                                                    uint32_t anchor) {
+  std::string text;
+  {
+    text.resize(size);
+    base::ScopedFD fd(raw_fd);
+    if (!base::ReadFromFD(fd.get(), text.data(), size)) {
+      PLOG(ERROR) << "Failed to read file descriptor for surrounding text";
+      return;
+    }
+  }
+
+  auto* delegate =
+      GetUserDataAs<WaylandExtendedTextInput>(resource)->delegate();
+  if (!delegate) {
+    return;
+  }
+  auto* text_input = GetUserDataAs<TextInput>(delegate->resource());
+  if (!text_input) {
+    return;
+  }
+  SetSurroundingTextImpl(text_input, delegate, text, cursor, anchor);
+}
+
 constexpr struct zcr_extended_text_input_v1_interface
     extended_text_input_implementation = {
         extended_text_input_destroy,
@@ -839,6 +977,8 @@ constexpr struct zcr_extended_text_input_v1_interface
         extended_text_input_set_focus_reason,
         extended_text_input_set_input_type,
         extended_text_input_set_surrounding_text_support,
+        extended_text_input_set_surrounding_text_offset_utf16,
+        extended_text_input_set_large_surrounding_text,
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -89,11 +89,9 @@ public class TabGridDialogMenuCoordinator {
             }
         };
         listView.setAdapter(adapter);
-        // clang-format off
         adapter.registerType(ListItemType.MENU_ITEM,
                 new LayoutViewBuilder(R.layout.list_menu_item),
                 TabGridDialogMenuItemBinder::bind);
-        // clang-format on
         listView.setOnItemClickListener((p, v, pos, id) -> {
             if (mOnItemClickedCallback != null) {
                 mOnItemClickedCallback.onResult((int) id);
@@ -135,11 +133,9 @@ public class TabGridDialogMenuCoordinator {
         ModelList itemList = new ModelList();
         itemList.add(new ListItem(ListItemType.MENU_ITEM,
                 buildPropertyModel(context, R.string.menu_select_tabs, R.id.select_tabs)));
-        if (TabUiFeatureUtilities.isTabGroupsAndroidContinuationEnabled(mContext)) {
-            itemList.add(new ListItem(ListItemType.MENU_ITEM,
-                    buildPropertyModel(context, R.string.tab_grid_dialog_toolbar_edit_group_name,
-                            R.id.edit_group_name)));
-        }
+        itemList.add(new ListItem(ListItemType.MENU_ITEM,
+                buildPropertyModel(context, R.string.tab_grid_dialog_toolbar_edit_group_name,
+                        R.id.edit_group_name)));
         return itemList;
     }
 

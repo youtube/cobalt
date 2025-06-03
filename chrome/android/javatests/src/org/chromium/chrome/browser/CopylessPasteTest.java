@@ -4,10 +4,9 @@
 
 package org.chromium.chrome.browser;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,8 +36,10 @@ import java.util.concurrent.TimeoutException;
 /** Tests Copyless Paste AppIndexing using instrumented tests. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
-@CommandLineFlags.
-Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE, "enable-features=CopylessPaste"})
+@CommandLineFlags.Add({
+    ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
+    "enable-features=CopylessPaste"
+})
 @Restriction(Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE)
 public class CopylessPasteTest {
     @Rule
@@ -65,11 +66,6 @@ public class CopylessPasteTest {
 
         AppIndexingUtil.setCallbackForTesting(webpage -> mCallbackHelper.notifyCalled(webpage));
         mActivityTestRule.startMainActivityOnBlankPage();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AppIndexingUtil.setCallbackForTesting(null);
     }
 
     private static class CopylessHelper extends CallbackHelper {

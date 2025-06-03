@@ -67,11 +67,15 @@ class PrefService;
 // Records a `destination` click from the overflow menu carousel.
 - (void)recordClickForDestination:(overflow_menu::Destination)destination;
 
-// Returns a new frecency-sorted list of OverflowMenuDestination* given a list
-// of OverflowMenuDestination*.
-- (NSArray<OverflowMenuDestination*>*)
-    sortedDestinationsFromCarouselDestinations:
-        (NSArray<OverflowMenuDestination*>*)carouselDestinations;
+// Returns a new frecency-sorted list of overflow_menu::Destination given the
+// current ranking and a list of all available destinations.
+- (DestinationRanking)
+    sortedDestinationsFromCurrentRanking:(DestinationRanking)currentRanking
+                   availableDestinations:
+                       (DestinationRanking)availableDestinations;
+
+// Tells the object to clear any stored click data for all destinations.
+- (void)clearStoredClickData;
 
 // Stops the Destination Usage History.
 - (void)stop;

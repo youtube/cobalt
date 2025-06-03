@@ -149,6 +149,7 @@ SkiaOutputDeviceBufferQueue::SkiaOutputDeviceBufferQueue(
     gpu::MemoryTracker* memory_tracker,
     const DidSwapBufferCompleteCallback& did_swap_buffer_complete_callback)
     : SkiaOutputDevice(deps->GetSharedContextState()->gr_context(),
+                       deps->GetSharedContextState()->graphite_context(),
                        memory_tracker,
                        did_swap_buffer_complete_callback),
       presenter_(std::move(presenter)),
@@ -163,6 +164,12 @@ SkiaOutputDeviceBufferQueue::SkiaOutputDeviceBufferQueue(
       ui::OzonePlatform::GetInstance()
           ->GetPlatformRuntimeProperties()
           .supports_non_backed_solid_color_buffers;
+
+  capabilities_.supports_single_pixel_buffer =
+      ui::OzonePlatform::GetInstance()
+          ->GetPlatformRuntimeProperties()
+          .supports_single_pixel_buffer;
+
 #elif BUILDFLAG(IS_APPLE)
   capabilities_.supports_non_backed_solid_color_overlays = true;
 #endif  // BUILDFLAG(IS_OZONE)
@@ -171,7 +178,6 @@ SkiaOutputDeviceBufferQueue::SkiaOutputDeviceBufferQueue(
   capabilities_.preserve_buffer_content = true;
   capabilities_.only_invalidates_damage_rect = false;
   capabilities_.number_of_buffers = 3;
-  capabilities_.supports_gpu_vsync = presenter_->SupportsGpuVSync();
 
   capabilities_.renderer_allocates_images =
       ::features::ShouldRendererAllocateImages();
@@ -216,8 +222,12 @@ SkiaOutputDeviceBufferQueue::SkiaOutputDeviceBufferQueue(
 }
 
 SkiaOutputDeviceBufferQueue::~SkiaOutputDeviceBufferQueue() {
-  // TODO(vasilyt): We should not need this when we stop using
-  // GLImageBacking.
+  // GL textures are cached in IOSurfaceImageBacking/OzoneImageBacking and when
+  // overlay representations are destroyed, backing may get destroyed leading
+  // to GL texture destruction. This destruction needs GL context current.
+  // TODO(vasilyt): Eliminate this when neither IOSurfaceImageBacking nor
+  // OzoneImageBacking cache GLTextures and require the GLContext to be current
+  // when they are destroyed.
   if (context_state_->context_lost()) {
     for (auto& overlay : overlays_) {
       overlay.OnContextLost();
@@ -403,7 +413,8 @@ void SkiaOutputDeviceBufferQueue::ScheduleOverlays(
 #if BUILDFLAG(IS_OZONE)
     if (overlay.is_solid_color) {
       DCHECK(overlay.color.has_value());
-      DCHECK(capabilities_.supports_non_backed_solid_color_overlays);
+      DCHECK(capabilities_.supports_non_backed_solid_color_overlays ||
+        capabilities_.supports_single_pixel_buffer);
       presenter_->ScheduleOverlayPlane(overlay, nullptr, nullptr);
       continue;
     }
@@ -514,14 +525,22 @@ void SkiaOutputDeviceBufferQueue::DoFinishSwapBuffers(
 
   bool need_gl_context = false;
 #if BUILDFLAG(IS_APPLE)
-  // TODO(vasilyt): We shouldn't need this after we stop using
-  // GLImageBacking as backing.
+  // GL textures are cached in IOSurfaceImageBacking and when
+  // overlay representations are destroyed, backing may get destroyed leading to
+  // GL texture destruction. This destruction needs GL context current.
   need_gl_context = true;
 #elif BUILDFLAG(IS_OZONE)
   // GL textures are cached in OzoneImageBacking with this workaround and when
   // overlay representations are destroyed, backing may get destroyed leading to
-  // GL texture destruction. This destruction needs GL context current.
-  if (workarounds_.cache_texture_in_ozone_backing) {
+  // GL texture destruction. This destruction needs GL context current. Please
+  // note there are two type of caches as of now - one is per context cache that
+  // is only enabled when the feature is enabled, and another is a general cache
+  // that has some drawbacks and cannot be enabled by default. The cache that is
+  // used when the feature is enabled also supersedes the workaround and doesn't
+  // require a gl context as it is able to manage that by itself.
+  if (!base::FeatureList::IsEnabled(
+          features::kEnablePerContextGLTextureCache) &&
+      workarounds_.cache_texture_in_ozone_backing) {
     need_gl_context = true;
   }
 #endif
@@ -708,10 +727,6 @@ bool SkiaOutputDeviceBufferQueue::OverlayDataComparator::operator()(
     const gpu::Mailbox& lhs,
     const OverlayData& rhs) const {
   return lhs < rhs.mailbox();
-}
-
-void SkiaOutputDeviceBufferQueue::SetGpuVSyncEnabled(bool enabled) {
-  presenter_->SetGpuVSyncEnabled(enabled);
 }
 
 void SkiaOutputDeviceBufferQueue::SetVSyncDisplayID(int64_t display_id) {

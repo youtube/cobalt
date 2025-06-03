@@ -28,6 +28,7 @@
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GpuTypes.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
 #include "ui/gl/gl_switches.h"
 
 namespace {
@@ -233,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(BrowserGpuChannelHostFactoryTest,
 
   SkImageInfo info = SkImageInfo::MakeN32Premul(100, 100);
   sk_sp<SkSurface> surface =
-      SkSurface::MakeRenderTarget(gr_context.get(), skgpu::Budgeted::kNo, info);
+      SkSurfaces::RenderTarget(gr_context.get(), skgpu::Budgeted::kNo, info);
   EXPECT_TRUE(surface);
 
   // Destroy the GL context after we made a surface.
@@ -241,7 +242,7 @@ IN_PROC_BROWSER_TEST_F(BrowserGpuChannelHostFactoryTest,
 
   // New surfaces will fail to create now.
   sk_sp<SkSurface> surface2 =
-      SkSurface::MakeRenderTarget(gr_context.get(), skgpu::Budgeted::kNo, info);
+      SkSurfaces::RenderTarget(gr_context.get(), skgpu::Budgeted::kNo, info);
   EXPECT_FALSE(surface2);
 
   // Drop our reference to the gr_context also.
@@ -278,7 +279,7 @@ IN_PROC_BROWSER_TEST_F(BrowserGpuChannelHostFactoryTest,
       content::GpuBrowsertestCreateContext(GetGpuChannel());
   ContextLostRunLoop run_loop(provider.get());
   ASSERT_EQ(provider->BindToCurrentSequence(), gpu::ContextResult::kSuccess);
-  GpuProcessHost::CallOnIO(FROM_HERE, GPU_PROCESS_KIND_SANDBOXED,
+  GpuProcessHost::CallOnUI(FROM_HERE, GPU_PROCESS_KIND_SANDBOXED,
                            false /* force_create */,
                            base::BindOnce([](GpuProcessHost* host) {
                              if (host)
@@ -301,19 +302,11 @@ IN_PROC_BROWSER_TEST_F(BrowserGpuChannelHostFactoryTest,
   DCHECK(!IsChannelEstablished());
   EstablishAndWait();
 
-  // This is for an offscreen context, so the default framebuffer doesn't need
-  // any alpha, depth, stencil, antialiasing.
   gpu::ContextCreationAttribs attributes;
-  attributes.alpha_size = -1;
-  attributes.depth_size = 0;
-  attributes.stencil_size = 0;
-  attributes.samples = 0;
-  attributes.sample_buffers = 0;
   attributes.bind_generates_resource = false;
 
   auto impl = std::make_unique<gpu::CommandBufferProxyImpl>(
-      GetGpuChannel(), GetFactory()->GetGpuMemoryBufferManager(),
-      content::kGpuStreamIdDefault,
+      GetGpuChannel(), content::kGpuStreamIdDefault,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   ASSERT_EQ(
       impl->Initialize(gpu::kNullSurfaceHandle, nullptr,

@@ -18,9 +18,9 @@
 #include "components/sync/base/features.h"
 #include "components/sync/base/model_type.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/glue/sync_transport_data_prefs.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/engine/cycle/entity_change_metric_recording.h"
+#include "components/sync/service/glue/sync_transport_data_prefs.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "components/sync/test/bookmark_entity_builder.h"
 #include "components/sync/test/entity_builder_factory.h"
 #include "content/public/test/browser_test.h"
@@ -102,13 +102,7 @@ class EnableDisableSingleClientTest : public SyncTest {
         })));
 
     registered_data_types_ = GetSyncService(0)->GetRegisteredDataTypesForTest();
-    if (base::FeatureList::IsEnabled(syncer::kSyncEnableHistoryDataType)) {
-      // The "SyncEnableHistoryDataType" feature soft-disables TYPES_URLS: It'll
-      // still be technically registered, but will never actually become active
-      // (due to the controller's GetPreconditionState()). For the purposes of
-      // these tests, consider it not registered.
-      registered_data_types_.Remove(syncer::TYPED_URLS);
-    }
+
     multi_grouped_types_ = MultiGroupTypes(registered_data_types_);
     registered_selectable_types_ = GetRegisteredSelectableTypes(0);
   }
@@ -297,8 +291,8 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, EnableDisable) {
   // Enable all, and then disable immediately afterwards, before datatypes
   // have had the chance to finish startup (which usually involves task
   // posting).
-  GetClient(0)->EnableSyncForRegisteredDatatypes();
-  GetClient(0)->DisableSyncForAllDatatypes();
+  ASSERT_TRUE(GetClient(0)->EnableSyncForRegisteredDatatypes());
+  ASSERT_TRUE(GetClient(0)->DisableSyncForAllDatatypes());
 
   for (UserSelectableType type : UserSelectableTypeSet::All()) {
     for (ModelType grouped_type : ResolveGroup(type)) {
@@ -331,9 +325,9 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest, FastEnableDisableEnable) {
   // Enable all, and then disable+reenable immediately afterwards, before
   // datatypes have had the chance to finish startup (which usually involves
   // task posting).
-  GetClient(0)->EnableSyncForRegisteredDatatypes();
-  GetClient(0)->DisableSyncForAllDatatypes();
-  GetClient(0)->EnableSyncForRegisteredDatatypes();
+  ASSERT_TRUE(GetClient(0)->EnableSyncForRegisteredDatatypes());
+  ASSERT_TRUE(GetClient(0)->DisableSyncForAllDatatypes());
+  ASSERT_TRUE(GetClient(0)->EnableSyncForRegisteredDatatypes());
 
   for (UserSelectableType type : UserSelectableTypeSet::All()) {
     for (ModelType model_type : ResolveGroup(type)) {
@@ -379,7 +373,7 @@ IN_PROC_BROWSER_TEST_F(EnableDisableSingleClientTest,
 
   // Stop and restart Sync.
   GetClient(0)->StopSyncServiceAndClearData();
-  GetClient(0)->EnableSyncFeature();
+  ASSERT_TRUE(GetClient(0)->EnableSyncFeature());
   ASSERT_TRUE(GetSyncService(0)->IsSyncFeatureActive());
 
   // Everything should have been redownloaded.

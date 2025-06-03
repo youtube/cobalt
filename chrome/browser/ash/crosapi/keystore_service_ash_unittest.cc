@@ -63,10 +63,10 @@ using ::testing::WithArg;
 constexpr char kData[] = "\1\2\3\4\5\6\7";
 const char kDeprecatedMethodErr[] = "Deprecated method was called.";
 
-#define EXPECT_ERROR_LOG(matcher)                                \
-  if (DLOG_IS_ON(ERROR)) {                                       \
-    EXPECT_CALL(log_, Log(logging::LOG_ERROR, _, _, _, matcher)) \
-        .WillOnce(testing::Return(true)); /* suppress logging */ \
+#define EXPECT_ERROR_LOG(matcher)                                    \
+  if (DLOG_IS_ON(ERROR)) {                                           \
+    EXPECT_CALL(log_, Log(logging::LOGGING_ERROR, _, _, _, matcher)) \
+        .WillOnce(testing::Return(true)); /* suppress logging */     \
   }
 
 std::string GetSubjectPublicKeyInfo(
@@ -121,11 +121,6 @@ std::vector<uint8_t> CertToBlob(
       reinterpret_cast<const uint8_t*>(CRYPTO_BUFFER_data(cert->cert_buffer()));
   return std::vector<uint8_t>(
       cert_buffer, cert_buffer + CRYPTO_BUFFER_len(cert->cert_buffer()));
-}
-
-std::unique_ptr<std::vector<TokenId>> MakeTokenIds(
-    std::initializer_list<TokenId> init_list) {
-  return std::make_unique<std::vector<TokenId>>(init_list);
 }
 
 void AssertBlobEq(const mojom::KeystoreBinaryResultPtr& result,
@@ -290,11 +285,11 @@ TEST_F(KeystoreServiceAshTest, UserKeystoreUnsupportedEcCurveGenerateKeyFail) {
 TEST_F(KeystoreServiceAshTest, SignRsaSuccess) {
   // Accepted and returned data are the same. This is not realistic, but doesn't
   // matter here.
-  EXPECT_CALL(platform_keys_service_,
-              SignRSAPKCS1Digest(absl::optional<TokenId>(TokenId::kUser),
-                                 GetDataBin(), GetPublicKeyBin(),
-                                 HashAlgorithm::HASH_ALGORITHM_SHA256,
-                                 /*callback=*/_))
+  EXPECT_CALL(
+      platform_keys_service_,
+      SignRsaPkcs1(absl::optional<TokenId>(TokenId::kUser), GetDataBin(),
+                   GetPublicKeyBin(), HashAlgorithm::HASH_ALGORITHM_SHA256,
+                   /*callback=*/_))
       .WillOnce(RunOnceCallback<4>(GetDataBin(), Status::kSuccess));
 
   CallbackObserver<mojom::KeystoreBinaryResultPtr> observer;
@@ -310,11 +305,10 @@ TEST_F(KeystoreServiceAshTest, SignRsaSuccess) {
 TEST_F(KeystoreServiceAshTest, SignEcSuccess) {
   // Accepted and returned data are the same. This is not realistic, but doesn't
   // matter here.
-  EXPECT_CALL(
-      platform_keys_service_,
-      SignECDSADigest(absl::optional<TokenId>(TokenId::kSystem), GetDataBin(),
-                      GetPublicKeyBin(), HashAlgorithm::HASH_ALGORITHM_SHA512,
-                      /*callback=*/_))
+  EXPECT_CALL(platform_keys_service_,
+              SignEcdsa(absl::optional<TokenId>(TokenId::kSystem), GetDataBin(),
+                        GetPublicKeyBin(), HashAlgorithm::HASH_ALGORITHM_SHA512,
+                        /*callback=*/_))
       .WillOnce(RunOnceCallback<4>(GetDataBin(), Status::kSuccess));
 
   CallbackObserver<mojom::KeystoreBinaryResultPtr> observer;
@@ -347,7 +341,7 @@ TEST_F(KeystoreServiceAshTest, UsingkRsassaPkcs1V15NoneSignSuccess) {
 }
 
 TEST_F(KeystoreServiceAshTest, KeyNotAllowedSignFail) {
-  EXPECT_CALL(platform_keys_service_, SignECDSADigest)
+  EXPECT_CALL(platform_keys_service_, SignEcdsa)
       .WillOnce(RunOnceCallback<4>(std::vector<uint8_t>(),
                                    Status::kErrorKeyNotAllowedForSigning));
 
@@ -575,7 +569,7 @@ TEST_F(KeystoreServiceAshTest, BadCertificateGetPublicKeyFail) {
 
 TEST_F(KeystoreServiceAshTest, GetKeyStoresEmptySuccess) {
   EXPECT_CALL(platform_keys_service_, GetTokens)
-      .WillOnce(RunOnceCallback<0>(MakeTokenIds({}), Status::kSuccess));
+      .WillOnce(RunOnceCallback<0>(std::vector<TokenId>({}), Status::kSuccess));
 
   CallbackObserver<mojom::GetKeyStoresResultPtr> observer;
   keystore_service_.GetKeyStores(observer.GetCallback());
@@ -587,8 +581,8 @@ TEST_F(KeystoreServiceAshTest, GetKeyStoresEmptySuccess) {
 
 TEST_F(KeystoreServiceAshTest, GetKeyStoresUserSuccess) {
   EXPECT_CALL(platform_keys_service_, GetTokens)
-      .WillOnce(
-          RunOnceCallback<0>(MakeTokenIds({TokenId::kUser}), Status::kSuccess));
+      .WillOnce(RunOnceCallback<0>(std::vector<TokenId>({TokenId::kUser}),
+                                   Status::kSuccess));
 
   CallbackObserver<mojom::GetKeyStoresResultPtr> observer;
   keystore_service_.GetKeyStores(observer.GetCallback());
@@ -601,7 +595,7 @@ TEST_F(KeystoreServiceAshTest, GetKeyStoresUserSuccess) {
 
 TEST_F(KeystoreServiceAshTest, GetKeyStoresDeviceSuccess) {
   EXPECT_CALL(platform_keys_service_, GetTokens)
-      .WillOnce(RunOnceCallback<0>(MakeTokenIds({TokenId::kSystem}),
+      .WillOnce(RunOnceCallback<0>(std::vector<TokenId>({TokenId::kSystem}),
                                    Status::kSuccess));
 
   CallbackObserver<mojom::GetKeyStoresResultPtr> observer;
@@ -616,7 +610,8 @@ TEST_F(KeystoreServiceAshTest, GetKeyStoresDeviceSuccess) {
 TEST_F(KeystoreServiceAshTest, GetKeyStoresDeviceUserSuccess) {
   EXPECT_CALL(platform_keys_service_, GetTokens)
       .WillOnce(RunOnceCallback<0>(
-          MakeTokenIds({TokenId::kUser, TokenId::kSystem}), Status::kSuccess));
+          std::vector<TokenId>({TokenId::kUser, TokenId::kSystem}),
+          Status::kSuccess));
 
   CallbackObserver<mojom::GetKeyStoresResultPtr> observer;
   keystore_service_.GetKeyStores(observer.GetCallback());
@@ -630,7 +625,8 @@ TEST_F(KeystoreServiceAshTest, GetKeyStoresDeviceUserSuccess) {
 
 TEST_F(KeystoreServiceAshTest, GetKeyStoresFail) {
   EXPECT_CALL(platform_keys_service_, GetTokens)
-      .WillOnce(RunOnceCallback<0>(MakeTokenIds({}), Status::kErrorInternal));
+      .WillOnce(
+          RunOnceCallback<0>(std::vector<TokenId>({}), Status::kErrorInternal));
 
   CallbackObserver<mojom::GetKeyStoresResultPtr> observer;
   keystore_service_.GetKeyStores(observer.GetCallback());
@@ -803,7 +799,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeUserKeyNoMigrateSuccess) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_USER,
+      BuildResponse(::attestation::ENTERPRISE_USER,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/false,
                     /*key_crypto_type=*/KEY_TYPE_RSA,
@@ -833,7 +829,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeUserKeyMigrateSuccess) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_USER,
+      BuildResponse(::attestation::ENTERPRISE_USER,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/true,
                     /*key_crypto_type=*/KEY_TYPE_RSA,
@@ -863,7 +859,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeDeviceKeyNoMigrateSuccess) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_DEVICE,
+      BuildResponse(::attestation::ENTERPRISE_MACHINE,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/false,
                     /*key_crypto_type=*/KEY_TYPE_RSA,
@@ -893,7 +889,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeDeviceKeyMigrateSuccess) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_DEVICE,
+      BuildResponse(::attestation::ENTERPRISE_MACHINE,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/true,
                     /*key_crypto_type=*/KEY_TYPE_RSA,
@@ -923,7 +919,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeUserEcdsaKeyMigrateSuccess) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_USER,
+      BuildResponse(::attestation::ENTERPRISE_USER,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/true,
                     /*key_crypto_type=*/KEY_TYPE_ECC,
@@ -952,7 +948,7 @@ TEST_F(KeystoreServiceAshTest, ChallengeKeyFail) {
 
   EXPECT_CALL(
       *challenge_key_ptr,
-      BuildResponse(ash::attestation::AttestationKeyType::KEY_USER,
+      BuildResponse(::attestation::ENTERPRISE_USER,
                     /*profile=*/_, /*callback=*/_, /*challenge=*/GetDataStr(),
                     /*register_key=*/false,
                     /*key_crypto_type=*/KEY_TYPE_RSA,

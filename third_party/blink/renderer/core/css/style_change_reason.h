@@ -14,6 +14,7 @@ namespace blink {
 class QualifiedName;
 
 namespace style_change_reason {
+extern const char kAccessibility[];
 extern const char kActiveStylesheetsUpdate[];
 extern const char kAnimation[];
 extern const char kAttribute[];
@@ -23,6 +24,7 @@ extern const char kControlValue[];
 extern const char kDeclarativeContent[];
 extern const char kDesignMode[];
 extern const char kDialog[];
+extern const char kEditContext[];
 extern const char kDisplayLock[];
 extern const char kViewTransition[];
 extern const char kFrame[];
@@ -65,7 +67,6 @@ extern const AtomicString& g_focus_visible;
 extern const AtomicString& g_focus_within;
 extern const AtomicString& g_hover;
 extern const AtomicString& g_past;
-extern const AtomicString& g_toggle;
 extern const AtomicString& g_unresolved;
 
 void Init();

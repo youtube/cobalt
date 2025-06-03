@@ -59,13 +59,11 @@ class CORE_EXPORT HTMLDialogElement final : public HTMLElement {
   void CloseWatcherFiredCancel(Event*);
   void CloseWatcherFiredClose();
 
-  bool IsMouseFocusable() const override {
-    return isConnected() && IsFocusableStyleAfterUpdate();
-  }
+  bool SupportsFocus() const override { return true; }
 
   // https://html.spec.whatwg.org/C/#the-dialog-element
   // Chooses the focused element when show() or showModal() is invoked.
-  void SetFocusForDialog(bool is_modal);
+  void SetFocusForDialog();
 
   // This is the old dialog initial focus behavior which is currently being
   // replaced by SetFocusForDialog.
@@ -74,8 +72,6 @@ class CORE_EXPORT HTMLDialogElement final : public HTMLElement {
   static void SetFocusForDialogLegacy(HTMLDialogElement* dialog);
 
  private:
-  void DefaultEventHandler(Event&) override;
-
   void SetIsModal(bool is_modal);
   void ScheduleCloseEvent();
 

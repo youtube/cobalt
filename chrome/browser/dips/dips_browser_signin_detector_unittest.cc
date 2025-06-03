@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
@@ -17,7 +16,6 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_file_util.h"
-#include "chrome/browser/dips/dips_features.h"
 #include "chrome/browser/dips/dips_service.h"
 #include "chrome/browser/dips/dips_test_utils.h"
 #include "chrome/browser/dips/dips_utils.h"
@@ -31,6 +29,7 @@
 #include "components/signin/public/identity_manager/account_managed_status_finder.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -89,39 +88,20 @@ class BrowserSigninDetectorServiceTest : public testing::Test {
     EXPECT_NE(dips_service_, nullptr);
   }
 
-  raw_ptr<TestingProfile> profile() { return profile_.get(); }
+  TestingProfile* profile() { return profile_.get(); }
 
-  raw_ptr<signin::IdentityManager> identity_manager() {
+  signin::IdentityManager* identity_manager() {
     return identity_test_env()->identity_manager();
   }
 
-  raw_ptr<signin::IdentityTestEnvironment> identity_test_env() {
+  signin::IdentityTestEnvironment* identity_test_env() {
     return identity_test_environment_profile_adaptor_->identity_test_env();
   }
 
-  raw_ptr<DIPSService> dips_service() { return dips_service_; }
-
-  void WaitOnStorage() {
-    dips_service_->storage()->FlushPostedTasksForTesting();
-  }
+  DIPSService* dips_service() { return dips_service_; }
 
   GURL GetURL(const std::string domain) {
     return GURL(base::StrCat({"http://", domain}));
-  }
-
-  absl::optional<StateValue> GetDIPSState(const GURL& url) {
-    absl::optional<StateValue> state;
-    dips_service_->storage()
-        ->AsyncCall(&DIPSStorage::Read)
-        .WithArgs(url)
-        .Then(base::BindLambdaForTesting([&](DIPSState loaded_state) {
-          if (loaded_state.was_loaded()) {
-            state = loaded_state.ToStateValue();
-          }
-        }));
-    WaitOnStorage();
-
-    return state;
   }
 
   void SimulateSuccessfulFetchOfAccountInfo(const TestAccount* test_account,
@@ -144,7 +124,7 @@ class BrowserSigninDetectorServiceTest : public testing::Test {
       base::StrCat({"foo@", kIdentityProviderDomain}), kIdentityProviderDomain};
 
  private:
-  ScopedInitFeature feature_{dips::kFeature,
+  ScopedInitFeature feature_{features::kDIPS,
                              /*enable:*/ true,
                              /*params:*/ {{"persist_database", "true"}}};
   network::TestURLLoaderFactory test_url_loader_factory_;
@@ -168,7 +148,8 @@ TEST_F(BrowserSigninDetectorServiceTest, AccountWithNoExtendedAccountInfo) {
             signin::AccountManagedStatusFinder::Outcome::kPending);
 
   // There should be no recorded interactions.
-  auto dips_state = GetDIPSState(GetURL(kIdentityProviderDomain));
+  auto dips_state =
+      GetDIPSState(dips_service(), GetURL(kIdentityProviderDomain));
   ASSERT_FALSE(dips_state.has_value());
 }
 
@@ -188,7 +169,8 @@ TEST_F(BrowserSigninDetectorServiceTest, NonEnterpriseAccount) {
             signin::AccountManagedStatusFinder::Outcome::kNonEnterprise);
 
   // There should be a recorded interaction for the`kIdentityProviderDomain`.
-  auto dips_state = GetDIPSState(GetURL(kIdentityProviderDomain));
+  auto dips_state =
+      GetDIPSState(dips_service(), GetURL(kIdentityProviderDomain));
   ASSERT_TRUE(dips_state.has_value());
   EXPECT_TRUE(dips_state->user_interaction_times.has_value());
 }
@@ -209,12 +191,14 @@ TEST_F(BrowserSigninDetectorServiceTest, EnterpriseAccount) {
             signin::AccountManagedStatusFinder::Outcome::kEnterprise);
 
   // There should be a recorded interaction for the`kIdentityProviderDomain`.
-  auto dips_state = GetDIPSState(GetURL(kIdentityProviderDomain));
+  auto dips_state =
+      GetDIPSState(dips_service(), GetURL(kIdentityProviderDomain));
   EXPECT_TRUE(dips_state.has_value());
 
   // There should be a recorded interaction for the
   // `kEnterpriseAccount.host_domain`.
-  dips_state = GetDIPSState(GetURL(kEnterpriseAccount.host_domain));
+  dips_state =
+      GetDIPSState(dips_service(), GetURL(kEnterpriseAccount.host_domain));
   ASSERT_TRUE(dips_state.has_value());
   EXPECT_TRUE(dips_state->user_interaction_times.has_value());
 }
@@ -239,7 +223,8 @@ TEST_F(BrowserSigninDetectorServiceTest,
       signin::AccountManagedStatusFinder::Outcome::kEnterpriseGoogleDotCom);
 
   // There should be a recorded interaction for the `kIdentityProviderDomain`.
-  auto dips_state = GetDIPSState(GetURL(kIdentityProviderDomain));
+  auto dips_state =
+      GetDIPSState(dips_service(), GetURL(kIdentityProviderDomain));
   ASSERT_TRUE(dips_state.has_value());
   EXPECT_TRUE(dips_state->user_interaction_times.has_value());
 }
@@ -262,13 +247,15 @@ TEST_F(BrowserSigninDetectorServiceTest, LateObservation) {
   InitDIPSService();
 
   // There should be a recorded interaction for the `kIdentityProviderDomain`.
-  auto dips_state = GetDIPSState(GetURL(kIdentityProviderDomain));
+  auto dips_state =
+      GetDIPSState(dips_service(), GetURL(kIdentityProviderDomain));
   ASSERT_TRUE(dips_state.has_value());
   EXPECT_TRUE(dips_state->user_interaction_times.has_value());
 
   // There should be a recorded interaction for the
   // `kEnterpriseAccount.host_domain`.
-  dips_state = GetDIPSState(GetURL(kEnterpriseAccount.host_domain));
+  dips_state =
+      GetDIPSState(dips_service(), GetURL(kEnterpriseAccount.host_domain));
   ASSERT_TRUE(dips_state.has_value());
   EXPECT_TRUE(dips_state->user_interaction_times.has_value());
 }

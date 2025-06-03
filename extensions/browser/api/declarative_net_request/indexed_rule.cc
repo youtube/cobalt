@@ -36,6 +36,7 @@ namespace dnr_api = extensions::api::declarative_net_request;
 constexpr char kAnchorCharacter = '|';
 constexpr char kSeparatorCharacter = '^';
 constexpr char kWildcardCharacter = '*';
+constexpr int kLargeRegexUMALimit = 1024 * 100;
 
 // Returns true if bitmask |sub| is a subset of |super|.
 constexpr bool IsSubset(unsigned sub, unsigned super) {
@@ -133,9 +134,9 @@ class UrlFilterParser {
 
 bool IsCaseSensitive(const dnr_api::Rule& parsed_rule) {
   // If case sensitivity is not explicitly specified, rules are considered case
-  // sensitive by default.
+  // insensitive by default.
   if (!parsed_rule.condition.is_url_filter_case_sensitive)
-    return true;
+    return false;
 
   return *parsed_rule.condition.is_url_filter_case_sensitive;
 }
@@ -416,17 +417,40 @@ void RecordLargeRegexUMA(bool is_large_regex) {
   UMA_HISTOGRAM_BOOLEAN(kIsLargeRegexHistogram, is_large_regex);
 }
 
+void RecordRegexRuleSizeUMA(int program_size) {
+  // Max reported size at 100KB.
+  UMA_HISTOGRAM_COUNTS_100000(kRegexRuleSizeHistogram, program_size);
+}
+
+void RecordRuleSizeForLargeRegex(const std::string& regex_string,
+                                 bool is_case_sensitive,
+                                 bool require_capturing) {
+  re2::RE2::Options large_regex_options =
+      CreateRE2Options(is_case_sensitive, require_capturing);
+
+  // Record the size of regex rules that exceed the 2Kb limit, with any rules
+  // exceeding 100Kb recorded as 100Kb. Note that these rules are not enabled.
+  large_regex_options.set_max_mem(kLargeRegexUMALimit);
+  re2::RE2 regex(regex_string, large_regex_options);
+  if (regex.error_code() == re2::RE2::ErrorPatternTooLarge) {
+    RecordRegexRuleSizeUMA(kLargeRegexUMALimit);
+  } else if (regex.ok()) {
+    RecordRegexRuleSizeUMA(regex.ProgramSize());
+  }
+}
+
 ParseResult ValidateHeaders(
     const std::vector<dnr_api::ModifyHeaderInfo>& headers,
     bool are_request_headers) {
   if (headers.empty()) {
-    return are_request_headers ? ParseResult::ERROR_EMPTY_REQUEST_HEADERS_LIST
-                               : ParseResult::ERROR_EMPTY_RESPONSE_HEADERS_LIST;
+    return are_request_headers
+               ? ParseResult::ERROR_EMPTY_MODIFY_REQUEST_HEADERS_LIST
+               : ParseResult::ERROR_EMPTY_MODIFY_RESPONSE_HEADERS_LIST;
   }
 
   for (const auto& header_info : headers) {
     if (!net::HttpUtil::IsValidHeaderName(header_info.header))
-      return ParseResult::ERROR_INVALID_HEADER_NAME;
+      return ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_NAME;
 
     if (are_request_headers &&
         header_info.operation == dnr_api::HeaderOperation::kAppend) {
@@ -437,8 +461,9 @@ ParseResult ValidateHeaders(
     }
 
     if (header_info.value) {
-      if (!net::HttpUtil::IsValidHeaderValue(*header_info.value))
-        return ParseResult::ERROR_INVALID_HEADER_VALUE;
+      if (!net::HttpUtil::IsValidHeaderValue(*header_info.value)) {
+        return ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_VALUE;
+      }
 
       // Check that a remove operation must not specify a value.
       if (header_info.operation == dnr_api::HeaderOperation::kRemove) {
@@ -556,6 +581,10 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
 
     if (regex.error_code() == re2::RE2::ErrorPatternTooLarge) {
       RecordLargeRegexUMA(true);
+      RecordRuleSizeForLargeRegex(*parsed_rule.condition.regex_filter,
+                                  IsCaseSensitive(parsed_rule),
+                                  require_capturing);
+
       return ParseResult::ERROR_REGEX_TOO_LARGE;
     }
 
@@ -568,6 +597,7 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
       return ParseResult::ERROR_INVALID_REGEX_SUBSTITUTION;
     }
 
+    RecordRegexRuleSizeUMA(regex.ProgramSize());
     RecordLargeRegexUMA(false);
   }
 
@@ -697,25 +727,28 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
 
   if (parsed_rule.action.type == dnr_api::RuleActionType::kModifyHeaders) {
     if (!parsed_rule.action.request_headers &&
-        !parsed_rule.action.response_headers)
-      return ParseResult::ERROR_NO_HEADERS_SPECIFIED;
+        !parsed_rule.action.response_headers) {
+      return ParseResult::ERROR_NO_HEADERS_TO_MODIFY_SPECIFIED;
+    }
 
     if (parsed_rule.action.request_headers) {
-      indexed_rule->request_headers =
+      indexed_rule->request_headers_to_modify =
           std::move(*parsed_rule.action.request_headers);
 
-      ParseResult result = ValidateHeaders(indexed_rule->request_headers,
-                                           true /* are_request_headers */);
+      ParseResult result =
+          ValidateHeaders(indexed_rule->request_headers_to_modify,
+                          true /* are_request_headers */);
       if (result != ParseResult::SUCCESS)
         return result;
     }
 
     if (parsed_rule.action.response_headers) {
-      indexed_rule->response_headers =
+      indexed_rule->response_headers_to_modify =
           std::move(*parsed_rule.action.response_headers);
 
-      ParseResult result = ValidateHeaders(indexed_rule->response_headers,
-                                           false /* are_request_headers */);
+      ParseResult result =
+          ValidateHeaders(indexed_rule->response_headers_to_modify,
+                          false /* are_request_headers */);
       if (result != ParseResult::SUCCESS)
         return result;
     }

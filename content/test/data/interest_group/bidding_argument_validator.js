@@ -20,8 +20,8 @@ function generateBid(
       'adCost': 3,
       'bidCurrency':
           interestGroup.owner.startsWith("https://a.test") ? 'USD' : 'CAD',
-      'render': ad.renderUrl,
-      'adComponents': [interestGroup.adComponents[0].renderUrl]
+      'render': ad.renderURL,
+      'adComponents': [interestGroup.adComponents[0].renderURL]
   };
 }
 
@@ -40,7 +40,7 @@ function validateInterestGroup(interestGroup) {
   if (!interestGroup)
     throw 'No interest group';
 
-  if (Object.keys(interestGroup).length !== 12) {
+  if (Object.keys(interestGroup).length !== 15) {
     throw 'Wrong number of interestGroupFields ' +
         JSON.stringify(interestGroup);
   }
@@ -62,14 +62,24 @@ function validateInterestGroup(interestGroup) {
         JSON.stringify(interestGroup.priorityVector);
   }
 
+  if (!interestGroup.biddingLogicURL.startsWith('https://a.test') ||
+      !interestGroup.biddingLogicURL.endsWith(
+          '/bidding_argument_validator.js')) {
+    throw 'Incorrect biddingLogicURL ' + interestGroup.biddingLogicURL;
+  }
+
   if (!interestGroup.biddingLogicUrl.startsWith('https://a.test') ||
       !interestGroup.biddingLogicUrl.endsWith(
           '/bidding_argument_validator.js')) {
     throw 'Incorrect biddingLogicUrl ' + interestGroup.biddingLogicUrl;
   }
 
-  if (!interestGroup.updateUrl.startsWith('https://a.test') ||
-      !interestGroup.updateUrl.endsWith('/not_found_update_url.json')) {
+  if (!interestGroup.updateURL.startsWith('https://a.test') ||
+      !interestGroup.updateURL.endsWith('/not_found_update_url.json')) {
+    throw 'Incorrect updateURL ' + interestGroup.updateURL;
+  }
+
+  if (interestGroup.updateUrl !== interestGroup.updateURL) {
     throw 'Incorrect updateUrl ' + interestGroup.updateUrl;
   }
 
@@ -78,6 +88,16 @@ function validateInterestGroup(interestGroup) {
   if (!interestGroup.dailyUpdateUrl.startsWith('https://a.test') ||
       !interestGroup.dailyUpdateUrl.endsWith('/not_found_update_url.json')) {
     throw 'Incorrect dailyUpdateUrl ' + interestGroup.dailyUpdateUrl;
+  }
+
+  if (!interestGroup.trustedBiddingSignalsURL.startsWith('https://a.test') ||
+      (!interestGroup.trustedBiddingSignalsURL.includes(
+          'trusted_bidding_signals.json') &&
+       // TODO(mmenke): Remove this once v1 format is no longer supported.
+       !interestGroup.trustedBiddingSignalsURL.includes(
+          'trusted_bidding_signals_v1.json'))) {
+    throw 'Incorrect trustedBiddingSignalsURL ' +
+        interestGroup.trustedBiddingSignalsURL;
   }
 
   if (!interestGroup.trustedBiddingSignalsUrl.startsWith('https://a.test') ||
@@ -109,6 +129,8 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.ads.length !== 1)
     throw 'Wrong ads.length ' + interestGroup.ads.length;
+  if (interestGroup.ads[0].renderURL !== 'https://example.com/render')
+    throw 'Wrong ads[0].renderURL ' + interestGroup.ads[0].renderURL;
   if (interestGroup.ads[0].renderUrl !== 'https://example.com/render')
     throw 'Wrong ads[0].renderUrl ' + interestGroup.ads[0].renderUrl;
   const adMetadataJSON = JSON.stringify(interestGroup.ads[0].metadata);
@@ -117,6 +139,11 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.adComponents.length !== 1)
     throw 'Wrong adComponents.length ' + interestGroup.adComponents.length;
+  if (interestGroup.adComponents[0].renderURL !==
+        'https://example.com/render-component') {
+    throw 'Wrong adComponents[0].renderURL ' +
+        interestGroup.adComponents[0].renderURL;
+  }
   if (interestGroup.adComponents[0].renderUrl !==
         'https://example.com/render-component') {
     throw 'Wrong adComponents[0].renderUrl ' +
@@ -143,13 +170,15 @@ function validatePerBuyerSignals(perBuyerSignals) {
 function validateDirectFromSellerSignals(directFromSellerSignals) {
   const perBuyerSignalsJSON =
       JSON.stringify(directFromSellerSignals.perBuyerSignals);
-  if (perBuyerSignalsJSON !== '{"json":"for","buyer":[1]}') {
+  if (perBuyerSignalsJSON !== '{"json":"for","buyer":[1]}' &&
+      perBuyerSignalsJSON !== '{"buyer":[1],"json":"for"}') {
     throw 'Wrong directFromSellerSignals.perBuyerSignals ' +
         perBuyerSignalsJSON;
   }
   const auctionSignalsJSON =
       JSON.stringify(directFromSellerSignals.auctionSignals);
-  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}') {
+  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}' &&
+      auctionSignalsJSON !== '{"all":["parties"],"json":"for"}') {
     throw 'Wrong directFromSellerSignals.auctionSignals ' +
         auctionSignalsJSON;
   }
@@ -171,7 +200,7 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
     throw 'Wrong topLevelSeller ' + browserSignals.topLevelSeller;
 
   if (isGenerateBid) {
-    if (Object.keys(browserSignals).length !== 5) {
+    if (Object.keys(browserSignals).length !== 7) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -181,8 +210,16 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong bidCount ' + bidCount;
     if (browserSignals.prevWins.length !== 0)
       throw 'Wrong prevWins ' + JSON.stringify(browserSignals.prevWins);
+    if (browserSignals.prevWinsMs.length !== 0)
+      throw 'Wrong prevWinsMs ' + JSON.stringify(browserSignals.prevWinsMs);
   } else {
-    if (Object.keys(browserSignals).length !== 13) {
+    // FledgePassKAnonStatusToReportWin feature adds a new parameter
+    // KAnonStatus to reportWin(), which is under a Finch trial for some enabled
+    // tests.
+    // TODO(xtlsheep): Check length only equals to 15 after
+    // FledgePassKAnonStatusToReportWin is completely turned on.
+    if (Object.keys(browserSignals).length !== 14 &&
+        Object.keys(browserSignals).length !== 15) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -190,6 +227,8 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong interestGroupOwner ' + browserSignals.interestGroupOwner;
     if (browserSignals.interestGroupName !== 'cars')
       throw 'Wrong interestGroupName ' + browserSignals.interestGroupName;
+    if (browserSignals.renderURL !== "https://example.com/render")
+      throw 'Wrong renderURL ' + browserSignals.renderURL;
     if (browserSignals.renderUrl !== "https://example.com/render")
       throw 'Wrong renderUrl ' + browserSignals.renderUrl;
     if (browserSignals.bid !== 2)

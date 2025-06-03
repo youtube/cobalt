@@ -42,12 +42,12 @@
 #include "third_party/blink/renderer/core/html/parser/css_preload_scanner.h"
 #include "third_party/blink/renderer/core/html/parser/html_token.h"
 #include "third_party/blink/renderer/core/html/parser/preload_request.h"
+#include "third_party/blink/renderer/core/lcp_critical_path_predictor/element_locator.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/text/segmented_string.h"
 #include "third_party/blink/renderer/platform/wtf/sequence_bound.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
-
 namespace blink {
 
 class HTMLDocumentParser;
@@ -104,9 +104,9 @@ class TokenPreloadScanner {
 
   TokenPreloadScanner(const KURL& document_url,
                       std::unique_ptr<CachedDocumentParameters>,
-                      const MediaValuesCached::MediaValuesCachedData&,
+                      std::unique_ptr<MediaValuesCached::MediaValuesCachedData>,
                       const ScannerType,
-                      bool priority_hints_origin_trial_enabled);
+                      Vector<ElementLocator>);
   TokenPreloadScanner(const TokenPreloadScanner&) = delete;
   TokenPreloadScanner& operator=(const TokenPreloadScanner&) = delete;
   ~TokenPreloadScanner();
@@ -138,6 +138,14 @@ class TokenPreloadScanner {
 
   void UpdatePredictedBaseURL(const HTMLToken&);
 
+  MediaValuesCached* EnsureMediaValues() {
+    if (!media_values_) {
+      media_values_ =
+          MakeGarbageCollected<MediaValuesCached>(*media_values_cached_data_);
+    }
+    return media_values_.Get();
+  }
+
   struct PictureData {
     PictureData() : source_size(0.0), source_size_set(false), picked(false) {}
     String source_url;
@@ -159,14 +167,11 @@ class TokenPreloadScanner {
   PictureData picture_data_;
   size_t template_count_;
   std::unique_ptr<CachedDocumentParameters> document_parameters_;
-  CrossThreadPersistent<MediaValuesCached> media_values_;
+  std::unique_ptr<MediaValuesCached::MediaValuesCachedData>
+      media_values_cached_data_;
+  Persistent<MediaValuesCached> media_values_;
   ScannerType scanner_type_;
-  // TODO(domfarolino): Remove this once Priority Hints is no longer in Origin
-  // Trial (see https://crbug.com/821464). This member exists because
-  // HTMLPreloadScanner has no access to an ExecutionContext*, and therefore
-  // cannot determine an Origin Trial's status, so we accept this information in
-  // the constructor and set this flag accordingly.
-  bool priority_hints_origin_trial_enabled_;
+  element_locator::TokenStreamMatcher lcp_element_matcher_;
 };
 
 class CORE_EXPORT HTMLPreloadScanner
@@ -199,14 +204,14 @@ class CORE_EXPORT HTMLPreloadScanner
       TakePreloadFn take_preload);
 
   HTMLPreloadScanner(std::unique_ptr<HTMLTokenizer>,
-                     bool priority_hints_origin_trial_enabled,
                      const KURL& document_url,
                      std::unique_ptr<CachedDocumentParameters>,
-                     const MediaValuesCached::MediaValuesCachedData&,
+                     std::unique_ptr<MediaValuesCached::MediaValuesCachedData>,
                      const TokenPreloadScanner::ScannerType,
                      std::unique_ptr<BackgroundHTMLScanner::ScriptTokenScanner>
                          script_token_scanner,
-                     TakePreloadFn take_preload = TakePreloadFn());
+                     TakePreloadFn take_preload = TakePreloadFn(),
+                     Vector<ElementLocator> locators = {});
   HTMLPreloadScanner(const HTMLPreloadScanner&) = delete;
   HTMLPreloadScanner& operator=(const HTMLPreloadScanner&) = delete;
   ~HTMLPreloadScanner();

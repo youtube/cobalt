@@ -6,11 +6,14 @@
 #define COMPONENTS_AUTOFILL_CONTENT_RENDERER_FORM_TRACKER_H_
 
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "content/public/renderer/render_frame_observer.h"
+#include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/public/web/web_input_element.h"
 #include "third_party/blink/public/web/web_local_frame_observer.h"
 
@@ -19,6 +22,41 @@ class WebFormElementObserver;
 }
 
 namespace autofill {
+
+// Reference to a WebFormElement, represented as such and as a FormRendererId.
+// TODO(crbug.com/1427131): Replace with FormRendererId when
+// `kAutofillUseDomNodeIdForRendererId` launches.
+class FormRef {
+ public:
+  FormRef() = default;
+  explicit FormRef(blink::WebFormElement form);
+
+  blink::WebFormElement GetForm() const;
+  FormRendererId GetId() const;
+
+ private:
+  blink::WebFormElement form_;
+  FormRendererId form_renderer_id_;
+};
+
+// Reference to a WebFormControlElement, represented as such and as a
+// FieldRendererId.
+// TODO(crbug.com/1427131): Replace with FieldRendererId when
+// `kAutofillUseDomNodeIdForRendererId` launches.
+class FieldRef {
+ public:
+  FieldRef() = default;
+  explicit FieldRef(blink::WebFormControlElement form_control);
+  explicit FieldRef(blink::WebElement content_editable);
+
+  blink::WebFormControlElement GetField() const;
+  blink::WebElement GetContentEditable() const;
+  FieldRendererId GetId() const;
+
+ private:
+  blink::WebElement field_;
+  FieldRendererId field_renderer_id_;
+};
 
 // TODO(crbug.com/785531): Track the select and checkbox change.
 // This class is used to track user's change of form or WebFormControlElement,
@@ -46,7 +84,7 @@ class FormTracker : public content::RenderFrameObserver,
         const blink::WebFormControlElement& element,
         ElementChangeSource source) = 0;
 
-    // Invoked when the form is probably submitted, the submmited form could be
+    // Invoked when the form is probably submitted, the submitted form could be
     // the one saved in OnProvisionallySaveForm() or others in the page.
     virtual void OnProbablyFormSubmitted() = 0;
 
@@ -61,10 +99,10 @@ class FormTracker : public content::RenderFrameObserver,
     virtual void OnInferredFormSubmission(mojom::SubmissionSource source) = 0;
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
-  FormTracker(content::RenderFrame* render_frame);
+  explicit FormTracker(content::RenderFrame* render_frame);
 
   FormTracker(const FormTracker&) = delete;
   FormTracker& operator=(const FormTracker&) = delete;
@@ -109,6 +147,22 @@ class FormTracker : public content::RenderFrameObserver,
   void WillSubmitForm(const blink::WebFormElement& form) override;
   void OnDestruct() override;
 
+  // The RenderFrame* is nullptr while the AutofillAgent that owns this
+  // FormTracker is pending deletion, between OnDestruct() and ~FormTracker().
+  content::RenderFrame* unsafe_render_frame() const {
+    return content::RenderFrameObserver::render_frame();
+  }
+
+  // Use unsafe_render_frame() instead.
+  template <typename T = int>
+  content::RenderFrame* render_frame(T* = 0) const {
+    static_assert(
+        std::is_void_v<T>,
+        "Beware that the RenderFrame may become nullptr by OnDestruct() "
+        "because AutofillAgent destructs itself asynchronously. Use "
+        "unsafe_render_frame() instead and make test that it is non-nullptr.");
+  }
+
   // content::WebLocalFrameObserver:
   void OnFrameDetached() override;
   void WillSendSubmitEvent(const blink::WebFormElement& form) override;
@@ -123,6 +177,9 @@ class FormTracker : public content::RenderFrameObserver,
   void FireInferredFormSubmission(mojom::SubmissionSource source);
   void FireSubmissionIfFormDisappear(mojom::SubmissionSource source);
   bool CanInferFormSubmitted();
+
+  // Tracks the cached element, as well as its ancestors, until it disappears
+  // (removed or hidden), then directly infers submission.
   void TrackElement();
 
   void ResetLastInteractedElements();
@@ -134,9 +191,10 @@ class FormTracker : public content::RenderFrameObserver,
   base::ObserverList<Observer>::Unchecked observers_;
   bool ignore_control_changes_ = false;
   bool user_gesture_required_ = true;
-  blink::WebFormElement last_interacted_form_;
-  blink::WebFormControlElement last_interacted_formless_element_;
-  blink::WebFormElementObserver* form_element_observer_ = nullptr;
+  FormRef last_interacted_form_;
+  FieldRef last_interacted_formless_element_;
+  raw_ptr<blink::WebFormElementObserver, ExperimentalRenderer>
+      form_element_observer_ = nullptr;
 
   SEQUENCE_CHECKER(form_tracker_sequence_checker_);
 

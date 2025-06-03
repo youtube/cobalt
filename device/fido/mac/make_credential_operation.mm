@@ -8,11 +8,11 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/device_event_log/device_event_log.h"
@@ -30,9 +30,7 @@
 #include "device/fido/strings/grit/fido_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
-namespace device {
-namespace fido {
-namespace mac {
+namespace device::fido::mac {
 
 MakeCredentialOperation::MakeCredentialOperation(
     CtapMakeCredentialRequest request,
@@ -56,8 +54,6 @@ void MakeCredentialOperation::Run() {
   }
 
   const bool require_uv =
-      !base::FeatureList::IsEnabled(
-          kWebAuthnMacPlatformAuthenticatorOptionalUv) ||
       DeviceHasBiometricsAvailable() ||
       request_.user_verification == UserVerificationRequirement::kRequired;
   if (require_uv) {
@@ -119,7 +115,7 @@ void MakeCredentialOperation::CreateCredential(bool has_uv) {
   //
   // New credentials are always discoverable. But older non-discoverable
   // credentials may exist.
-  absl::optional<std::pair<Credential, base::ScopedCFTypeRef<SecKeyRef>>>
+  absl::optional<std::pair<Credential, base::apple::ScopedCFTypeRef<SecKeyRef>>>
       credential_result = credential_store_->CreateCredential(
           request_.rp.id, request_.user, TouchIdCredentialStore::kDiscoverable);
   if (!credential_result) {
@@ -167,6 +163,4 @@ void MakeCredentialOperation::CreateCredential(bool has_uv) {
                            std::move(response));
 }
 
-}  // namespace mac
-}  // namespace fido
-}  // namespace device
+}  // namespace device::fido::mac

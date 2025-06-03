@@ -48,9 +48,11 @@ void TextControlElementTest::SetUp() {
   document_->documentElement()->setInnerHTML(
       "<body><textarea id=textarea></textarea><input id=input /></body>");
   UpdateAllLifecyclePhases();
-  text_control_ = ToTextControl(document_->getElementById("textarea"));
+  text_control_ =
+      ToTextControl(document_->getElementById(AtomicString("textarea")));
   text_control_->Focus();
-  input_ = To<HTMLInputElement>(document_->getElementById("input"));
+  input_ =
+      To<HTMLInputElement>(document_->getElementById(AtomicString("input")));
 }
 
 TEST_F(TextControlElementTest, SetSelectionRange) {
@@ -89,8 +91,8 @@ TEST_F(TextControlElementTest, IndexForPosition) {
 }
 
 TEST_F(TextControlElementTest, ReadOnlyAttributeChangeEditability) {
-  Input().setAttribute(html_names::kStyleAttr, "all:initial");
-  Input().setAttribute(html_names::kReadonlyAttr, "");
+  Input().setAttribute(html_names::kStyleAttr, AtomicString("all:initial"));
+  Input().setAttribute(html_names::kReadonlyAttr, g_empty_atom);
   UpdateAllLifecyclePhases();
   EXPECT_EQ(EUserModify::kReadOnly,
             Input().InnerEditorElement()->GetComputedStyle()->UsedUserModify());
@@ -102,8 +104,8 @@ TEST_F(TextControlElementTest, ReadOnlyAttributeChangeEditability) {
 }
 
 TEST_F(TextControlElementTest, DisabledAttributeChangeEditability) {
-  Input().setAttribute(html_names::kStyleAttr, "all:initial");
-  Input().setAttribute(html_names::kDisabledAttr, "");
+  Input().setAttribute(html_names::kStyleAttr, AtomicString("all:initial"));
+  Input().setAttribute(html_names::kDisabledAttr, g_empty_atom);
   UpdateAllLifecyclePhases();
   EXPECT_EQ(EUserModify::kReadOnly,
             Input().InnerEditorElement()->GetComputedStyle()->UsedUserModify());
@@ -112,6 +114,25 @@ TEST_F(TextControlElementTest, DisabledAttributeChangeEditability) {
   UpdateAllLifecyclePhases();
   EXPECT_EQ(EUserModify::kReadWritePlaintextOnly,
             Input().InnerEditorElement()->GetComputedStyle()->UsedUserModify());
+}
+
+TEST_F(TextControlElementTest, PlaceholderElement) {
+  EXPECT_EQ(Input().PlaceholderElement(), nullptr);
+  EXPECT_EQ(TextControl().PlaceholderElement(), nullptr);
+
+  Input().setAttribute(html_names::kPlaceholderAttr, g_empty_atom);
+  TextControl().setAttribute(html_names::kPlaceholderAttr, g_empty_atom);
+  UpdateAllLifecyclePhases();
+
+  EXPECT_NE(Input().PlaceholderElement(), nullptr);
+  EXPECT_NE(TextControl().PlaceholderElement(), nullptr);
+
+  Input().removeAttribute(html_names::kPlaceholderAttr);
+  TextControl().removeAttribute(html_names::kPlaceholderAttr);
+  UpdateAllLifecyclePhases();
+
+  EXPECT_EQ(Input().PlaceholderElement(), nullptr);
+  EXPECT_EQ(TextControl().PlaceholderElement(), nullptr);
 }
 
 }  // namespace blink

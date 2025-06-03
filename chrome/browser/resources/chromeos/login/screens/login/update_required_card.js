@@ -49,7 +49,7 @@ const UpdateRequiredUIState = {
  * @implements {OobeI18nBehaviorInterface}
  */
 const UpdateRequiredBase = mixinBehaviors(
-    [OobeI18nBehavior, MultiStepBehavior, LoginScreenBehavior], PolymerElement);
+    [OobeI18nBehavior, LoginScreenBehavior, MultiStepBehavior], PolymerElement);
 
 /**
  * @typedef {{
@@ -165,7 +165,7 @@ class UpdateRequired extends UpdateRequiredBase {
    * @param {string} eolMessage Not sanitized end of life message from policy
    */
   setEolMessage(eolMessage) {
-    this.eolAdminMessage_ = sanitizeInnerHtml(eolMessage);
+    this.eolAdminMessage_ = sanitizeInnerHtml(eolMessage).toString();
   }
 
   /** @param {boolean} connected */

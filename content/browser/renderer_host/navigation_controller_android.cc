@@ -15,6 +15,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "content/browser/android/additional_navigation_params_utils.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/public/android/content_jni_headers/NavigationControllerImpl_jni.h"
@@ -67,7 +68,7 @@ JNI_NavigationControllerImpl_CreateJavaNavigationEntry(
     j_bitmap = gfx::ConvertToJavaBitmap(*status.image.ToSkBitmap(),
                                         gfx::OomBehavior::kReturnNullOnOom);
   }
-  jlong j_timestamp = entry->GetTimestamp().ToJavaTime();
+  jlong j_timestamp = entry->GetTimestamp().InMillisecondsSinceUnixEpoch();
 
   return content::Java_NavigationControllerImpl_createNavigationEntry(
       env, index, j_url, j_virtual_url, j_original_url, j_title, j_bitmap,
@@ -255,6 +256,7 @@ NavigationControllerAndroid::LoadUrl(
     const JavaParamRef<jobject>& j_initiator_origin,
     jboolean has_user_gesture,
     jboolean should_clear_history_list,
+    const base::android::JavaParamRef<jobject>& j_additional_navigation_params,
     jlong input_start,
     jlong navigation_ui_data_ptr) {
   DCHECK(url);
@@ -274,6 +276,31 @@ NavigationControllerAndroid::LoadUrl(
   params.should_replace_current_entry = should_replace_current_entry;
   params.has_user_gesture = has_user_gesture;
   params.should_clear_history_list = should_clear_history_list;
+
+  if (j_additional_navigation_params) {
+    params.initiator_frame_token =
+        GetInitiatorFrameTokenFromJavaAdditionalNavigationParams(
+            env, j_additional_navigation_params);
+    params.initiator_process_id =
+        GetInitiatorProcessIdFromJavaAdditionalNavigationParams(
+            env, j_additional_navigation_params);
+
+    // If the attribution src token exists, then an impression exists with this
+    // navigation.
+    if (GetAttributionSrcTokenFromJavaAdditionalNavigationParams(
+            env, j_additional_navigation_params)
+            .has_value()) {
+      blink::Impression impression;
+      impression.attribution_src_token =
+          GetAttributionSrcTokenFromJavaAdditionalNavigationParams(
+              env, j_additional_navigation_params)
+              .value();
+      impression.runtime_features =
+          GetAttributionRuntimeFeaturesFromJavaAdditionalNavigationParams(
+              env, j_additional_navigation_params);
+      params.impression = impression;
+    }
+  }
 
   if (extra_headers)
     params.extra_headers = ConvertJavaStringToUTF8(env, extra_headers);
@@ -456,7 +483,7 @@ void NavigationControllerAndroid::SetUseDesktopUserAgentInternal(
   if (reload_on_state_change) {
     // Reloading the page will send the override down as part of the
     // navigation IPC message.
-    navigation_controller_->Reload(ReloadType::ORIGINAL_REQUEST_URL, true);
+    navigation_controller_->LoadOriginalRequestURL();
   }
 }
 

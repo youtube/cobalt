@@ -32,10 +32,10 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
@@ -57,8 +57,6 @@
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/browser_process.h"
-#include "components/metrics/structured/neutrino_logging.h"       // nogncheck
-#include "components/metrics/structured/neutrino_logging_util.h"  // nogncheck
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace {
@@ -156,11 +154,6 @@ class SessionCrashedBubbleDelegate : public ui::DialogModelDelegate {
     if (dialog_model()
             ->GetCheckboxByUniqueId(kUmaConsentCheckboxId)
             ->is_checked()) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-      metrics::structured::NeutrinoDevicesLogWithLocalState(
-          g_browser_process->local_state(),
-          metrics::structured::NeutrinoDevicesLocation::kMaybeEnableUma);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
       ChangeMetricsReportingState(true);
       RecordBubbleHistogramValue(SESSION_CRASHED_BUBBLE_UMA_OPTIN);
     }

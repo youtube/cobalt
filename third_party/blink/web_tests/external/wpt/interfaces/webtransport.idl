@@ -19,7 +19,7 @@ interface WebTransportDatagramDuplexStream {
 interface WebTransport {
   constructor(USVString url, optional WebTransportOptions options = {});
 
-  Promise<WebTransportStats> getStats();
+  Promise<WebTransportConnectionStats> getStats();
   readonly attribute Promise<undefined> ready;
   readonly attribute WebTransportReliabilityMode reliability;
   readonly attribute WebTransportCongestionControl congestionControl;
@@ -73,13 +73,12 @@ dictionary WebTransportSendStreamOptions {
   long long? sendOrder = null;
 };
 
-dictionary WebTransportStats {
+dictionary WebTransportConnectionStats {
   DOMHighResTimeStamp timestamp;
   unsigned long long bytesSent;
   unsigned long long packetsSent;
+  unsigned long long bytesLost;
   unsigned long long packetsLost;
-  unsigned long numOutgoingStreamsCreated;
-  unsigned long numIncomingStreamsCreated;
   unsigned long long bytesReceived;
   unsigned long long packetsReceived;
   DOMHighResTimeStamp smoothedRtt;
@@ -98,6 +97,7 @@ dictionary WebTransportDatagramStats {
 
 [Exposed=(Window,Worker), SecureContext, Transferable]
 interface WebTransportSendStream : WritableStream {
+  attribute long long? sendOrder;
   Promise<WebTransportSendStreamStats> getStats();
 };
 
@@ -130,12 +130,12 @@ interface WebTransportError : DOMException {
   constructor(optional DOMString message = "", optional WebTransportErrorOptions options = {});
 
   readonly attribute WebTransportErrorSource source;
-  readonly attribute octet? streamErrorCode;
+  readonly attribute unsigned long? streamErrorCode;
 };
 
 dictionary WebTransportErrorOptions {
   WebTransportErrorSource source = "stream";
-  [Clamp] octet? streamErrorCode = null;
+  [Clamp] unsigned long? streamErrorCode = null;
 };
 
 enum WebTransportErrorSource {

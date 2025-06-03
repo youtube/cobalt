@@ -51,10 +51,6 @@ void ImageInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeImage);
 }
 
-const AtomicString& ImageInputType::FormControlType() const {
-  return input_type_names::kImage;
-}
-
 bool ImageInputType::IsFormDataAppendable() const {
   return true;
 }
@@ -120,8 +116,8 @@ LayoutObject* ImageInputType::CreateLayoutObject(
 
 void ImageInputType::AltAttributeChanged() {
   if (GetElement().UserAgentShadowRoot()) {
-    Element* text =
-        GetElement().UserAgentShadowRoot()->getElementById("alttext");
+    Element* text = GetElement().UserAgentShadowRoot()->getElementById(
+        AtomicString("alttext"));
     String value = GetElement().AltText();
     if (text && text->textContent() != value)
       text->setTextContent(GetElement().AltText());
@@ -129,6 +125,9 @@ void ImageInputType::AltAttributeChanged() {
 }
 
 void ImageInputType::SrcAttributeChanged() {
+  if (!GetElement().GetExecutionContext()) {
+    return;
+  }
   if (!GetElement().GetLayoutObject() &&
       !RuntimeEnabledFeatures::LoadInputImageWithoutObjectEnabled()) {
     return;
@@ -226,10 +225,6 @@ bool ImageInputType::HasLegalLinkAttribute(const QualifiedName& name) const {
          BaseButtonInputType::HasLegalLinkAttribute(name);
 }
 
-const QualifiedName& ImageInputType::SubResourceAttributeName() const {
-  return html_names::kSrcAttr;
-}
-
 void ImageInputType::EnsureFallbackContent() {
   if (use_fallback_content_)
     return;
@@ -277,11 +272,15 @@ void ImageInputType::CreateShadowSubtree() {
   HTMLImageFallbackHelper::CreateAltTextShadowTree(GetElement());
 }
 
-void ImageInputType::AdjustStyle(ComputedStyleBuilder& builder) {
+// TODO(crbug.com/953707): Avoid marking style dirty in
+// HTMLImageFallbackHelper and use AdjustStyle instead.
+const ComputedStyle* ImageInputType::CustomStyleForLayoutObject(
+    const ComputedStyle* original_style) const {
   if (!use_fallback_content_)
-    return;
-
+    return original_style;
+  ComputedStyleBuilder builder(*original_style);
   HTMLImageFallbackHelper::CustomStyleForAltText(GetElement(), builder);
+  return builder.TakeStyle();
 }
 
 }  // namespace blink

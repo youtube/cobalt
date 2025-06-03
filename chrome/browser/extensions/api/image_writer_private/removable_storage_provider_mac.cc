@@ -11,8 +11,8 @@
 #include <IOKit/storage/IOStorageProtocolCharacteristics.h>
 #include <stdint.h>
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/sys_string_conversions.h"
@@ -27,7 +27,7 @@ RemovableStorageProvider::PopulateDeviceList() {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
   // Match only writable whole-disks.
-  base::ScopedCFTypeRef<CFMutableDictionaryRef> matching(
+  base::apple::ScopedCFTypeRef<CFMutableDictionaryRef> matching(
       IOServiceMatching(kIOMediaClass));
   CFDictionaryAddValue(matching, CFSTR(kIOMediaWholeKey), kCFBooleanTrue);
   CFDictionaryAddValue(matching, CFSTR(kIOMediaWritableKey), kCFBooleanTrue);
@@ -54,7 +54,7 @@ RemovableStorageProvider::PopulateDeviceList() {
     if (!is_suitable)
       continue;
 
-    base::ScopedCFTypeRef<CFMutableDictionaryRef> dict;
+    base::apple::ScopedCFTypeRef<CFMutableDictionaryRef> dict;
     if (IORegistryEntryCreateCFProperties(disk_obj, dict.InitializeInto(),
                                           kCFAllocatorDefault,
                                           0) != KERN_SUCCESS) {
@@ -62,12 +62,10 @@ RemovableStorageProvider::PopulateDeviceList() {
       continue;
     }
 
-    base::ScopedCFTypeRef<CFDictionaryRef> characteristics(
+    base::apple::ScopedCFTypeRef<CFDictionaryRef> characteristics(
         static_cast<CFDictionaryRef>(IORegistryEntrySearchCFProperty(
-            disk_obj,
-            kIOServicePlane,
-            CFSTR(kIOPropertyDeviceCharacteristicsKey),
-            kCFAllocatorDefault,
+            disk_obj, kIOServicePlane,
+            CFSTR(kIOPropertyDeviceCharacteristicsKey), kCFAllocatorDefault,
             kIORegistryIterateParents | kIORegistryIterateRecursively)));
 
     if (!characteristics) {
@@ -75,11 +73,11 @@ RemovableStorageProvider::PopulateDeviceList() {
       continue;
     }
 
-    CFStringRef cf_vendor = base::mac::GetValueFromDictionary<CFStringRef>(
+    CFStringRef cf_vendor = base::apple::GetValueFromDictionary<CFStringRef>(
         characteristics, CFSTR(kIOPropertyVendorNameKey));
     std::string vendor = base::SysCFStringRefToUTF8(cf_vendor);
 
-    CFStringRef cf_model = base::mac::GetValueFromDictionary<CFStringRef>(
+    CFStringRef cf_model = base::apple::GetValueFromDictionary<CFStringRef>(
         characteristics, CFSTR(kIOPropertyProductNameKey));
     std::string model = base::SysCFStringRefToUTF8(cf_model);
 

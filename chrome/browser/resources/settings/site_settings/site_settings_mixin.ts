@@ -8,6 +8,7 @@
 
 // clang-format off
 import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+
 import {ContentSetting,ContentSettingsTypes, SiteSettingSource} from './constants.js';
 import {RawSiteException,SiteException,SiteSettingsPrefsBrowserProxy,SiteSettingsPrefsBrowserProxyImpl} from './site_settings_prefs_browser_proxy.js';
 // clang-format on
@@ -156,6 +157,7 @@ export const SiteSettingsMixin = dedupingMixin(
             origin: origin,
             displayName: exception.displayName,
             setting: exception.setting,
+            description: exception.description,
             enforcement: enforcement,
             controlledBy: controlledBy,
           };

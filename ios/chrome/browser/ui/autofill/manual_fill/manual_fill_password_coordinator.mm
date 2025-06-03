@@ -4,25 +4,21 @@
 
 #import "ios/chrome/browser/ui/autofill/manual_fill/manual_fill_password_coordinator.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/password_store_interface.h"
 #import "ios/chrome/browser/favicon/favicon_loader.h"
 #import "ios/chrome/browser/favicon/ios_chrome_favicon_loader_factory.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/passwords/ios_chrome_account_password_store_factory.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/ui/autofill/manual_fill/manual_fill_injection_handler.h"
 #import "ios/chrome/browser/ui/autofill/manual_fill/manual_fill_password_mediator.h"
 #import "ios/chrome/browser/ui/autofill/manual_fill/password_list_navigator.h"
 #import "ios/chrome/browser/ui/autofill/manual_fill/password_view_controller.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ManualFillPasswordCoordinator () <PasswordListNavigator>
 
@@ -60,7 +56,7 @@
         [[PasswordViewController alloc] initWithSearchController:nil];
 
     auto profilePasswordStore =
-        IOSChromePasswordStoreFactory::GetForBrowserState(
+        IOSChromeProfilePasswordStoreFactory::GetForBrowserState(
             browser->GetBrowserState(), ServiceAccessType::EXPLICIT_ACCESS);
     auto accountPasswordStore =
         IOSChromeAccountPasswordStoreFactory::GetForBrowserState(
@@ -68,8 +64,8 @@
     FaviconLoader* faviconLoader =
         IOSChromeFaviconLoaderFactory::GetForBrowserState(
             browser->GetBrowserState());
-    SyncSetupService* syncService = SyncSetupServiceFactory::GetForBrowserState(
-        self.browser->GetBrowserState());
+    syncer::SyncService* syncService =
+        SyncServiceFactory::GetForBrowserState(self.browser->GetBrowserState());
 
     _passwordMediator = [[ManualFillPasswordMediator alloc]
         initWithProfilePasswordStore:profilePasswordStore

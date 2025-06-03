@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
 #include "content/browser/back_forward_cache_browsertest.h"
 
 #include "base/task/single_thread_task_runner.h"
@@ -63,8 +64,9 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, FetchWhileStoring) {
 
 // Eviction is triggered when a normal fetch request gets redirected while the
 // page is in back-forward cache.
+// TODO(https://crbug.com/1494692): Disabled due to flakiness.
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
-                       FetchRedirectedWhileStoring) {
+                       DISABLED_FetchRedirectedWhileStoring) {
   net::test_server::ControllableHttpResponse fetch_response(
       embedded_test_server(), "/fetch");
   net::test_server::ControllableHttpResponse fetch2_response(
@@ -170,8 +172,10 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
 // Tests the case when the header was received before the page is frozen,
 // but parts of the response body is received when the page is frozen.
-IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
-                       PageWithDrainedDatapipeRequestsForFetchShouldBeEvicted) {
+// TODO(https://crbug.com/1494692): Disabled due to flakiness.
+IN_PROC_BROWSER_TEST_F(
+    BackForwardCacheBrowserTest,
+    DISABLED_PageWithDrainedDatapipeRequestsForFetchShouldBeEvicted) {
   net::test_server::ControllableHttpResponse fetch_response(
       embedded_test_server(), "/fetch");
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -400,9 +404,16 @@ IN_PROC_BROWSER_TEST_F(
   ExpectRestored(FROM_HERE);
 }
 
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit \
+  DISABLED_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit
+#else
+#define MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit \
+  ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit
+#endif
 IN_PROC_BROWSER_TEST_F(
     BackForwardCacheNetworkLimitBrowserTest,
-    ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit) {
+    MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit) {
   net::test_server::ControllableHttpResponse image1_response(
       embedded_test_server(), "/image1.png");
   net::test_server::ControllableHttpResponse image2_response(
@@ -467,9 +478,16 @@ IN_PROC_BROWSER_TEST_F(
                     {}, FROM_HERE);
 }
 
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe \
+  DISABLED_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe
+#else
+#define MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe \
+  ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe
+#endif
 IN_PROC_BROWSER_TEST_F(
     BackForwardCacheNetworkLimitBrowserTest,
-    ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe) {
+    MAYBE_ImageStillLoading_ResponseStartedWhileFrozen_ExceedsPerProcessBytesLimit_SameSiteSubframe) {
   net::test_server::ControllableHttpResponse image1_response(
       embedded_test_server(), "/image1.png");
   net::test_server::ControllableHttpResponse image2_response(
@@ -731,9 +749,16 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheNetworkLimitBrowserTest,
                     FROM_HERE);
 }
 
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit \
+  DISABLED_ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit
+#else
+#define MAYBE_ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit \
+  ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit
+#endif
 IN_PROC_BROWSER_TEST_F(
     BackForwardCacheNetworkLimitBrowserTest,
-    ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit) {
+    MAYBE_ImageStillLoading_ResponseStartedBeforeFreezing_ExceedsPerProcessBytesLimit) {
   net::test_server::ControllableHttpResponse image1_response(
       embedded_test_server(), "/image1.png");
   net::test_server::ControllableHttpResponse image2_response(

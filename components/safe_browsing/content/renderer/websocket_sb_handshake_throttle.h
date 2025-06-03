@@ -11,8 +11,10 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/common/safe_browsing_url_checker.mojom.h"
+#include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -26,6 +28,14 @@ class WebSocketSBHandshakeThrottle : public blink::WebSocketHandshakeThrottle,
  public:
   WebSocketSBHandshakeThrottle(mojom::SafeBrowsing* safe_browsing,
                                int render_frame_id);
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // |extension_web_request_reporter_pending_remote| is used for sending
+  // extension web requests to the browser.
+  WebSocketSBHandshakeThrottle(
+      mojom::SafeBrowsing* safe_browsing,
+      int render_frame_id,
+      mojom::ExtensionWebRequestReporter* extension_web_request_reporter);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   WebSocketSBHandshakeThrottle(const WebSocketSBHandshakeThrottle&) = delete;
   WebSocketSBHandshakeThrottle& operator=(const WebSocketSBHandshakeThrottle&) =
@@ -34,6 +44,7 @@ class WebSocketSBHandshakeThrottle : public blink::WebSocketHandshakeThrottle,
   ~WebSocketSBHandshakeThrottle() override;
 
   void ThrottleHandshake(const blink::WebURL& url,
+                         const blink::WebSecurityOrigin& creator_origin,
                          blink::WebSocketHandshakeThrottle::OnCompletion
                              completion_callback) override;
 
@@ -47,25 +58,25 @@ class WebSocketSBHandshakeThrottle : public blink::WebSocketHandshakeThrottle,
   };
 
   // mojom::UrlCheckNotifier implementation.
-  void OnCompleteCheck(bool proceed,
-                       bool showed_interstitial,
-                       bool did_perform_real_time_check,
-                       bool did_check_allowlist) override;
+  void OnCompleteCheck(bool proceed, bool showed_interstitial) override;
 
   void OnCheckResult(
       mojo::PendingReceiver<mojom::UrlCheckNotifier> slow_check_notifier,
       bool proceed,
-      bool showed_interstitial,
-      bool did_perform_real_time_check,
-      bool did_check_allowlist);
+      bool showed_interstitial);
   void OnMojoDisconnect();
 
   const int render_frame_id_;
   GURL url_;
   blink::WebSocketHandshakeThrottle::OnCompletion completion_callback_;
   mojo::Remote<mojom::SafeBrowsingUrlChecker> url_checker_;
-  mojom::SafeBrowsing* safe_browsing_;
+  raw_ptr<mojom::SafeBrowsing, ExperimentalRenderer> safe_browsing_;
   std::unique_ptr<mojo::Receiver<mojom::UrlCheckNotifier>> notifier_receiver_;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  raw_ptr<mojom::ExtensionWebRequestReporter, ExperimentalRenderer>
+      extension_web_request_reporter_;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   // |state_| is used to validate that events happen in the right order. It
   // isn't used to control the behaviour of the class.

@@ -6,17 +6,13 @@
 
 #import <Foundation/Foundation.h>
 
-#import "base/mac/bundle_locations.h"
+#import "base/apple/bundle_locations.h"
 #import "base/memory/ref_counted_memory.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/shared/ui/util/terms_util.h"
 #import "ios/web/public/webui/url_data_source_ios.h"
 #import "ios/web/public/webui/web_ui_ios.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -62,7 +58,7 @@ void TermsUIHTMLSource::StartDataRequest(
     web::URLDataSourceIOS::GotDataCallback callback) {
   NSString* terms_of_service_path =
       base::SysUTF8ToNSString(GetTermsOfServicePath());
-  NSString* bundle_path = [base::mac::FrameworkBundle() bundlePath];
+  NSString* bundle_path = [base::apple::FrameworkBundle() bundlePath];
   NSString* full_path =
       [bundle_path stringByAppendingPathComponent:terms_of_service_path];
   DCHECK(full_path);

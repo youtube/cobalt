@@ -14,21 +14,24 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PackageUtils;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.chrome.browser.browserservices.intents.WebappInfo;
 import org.chromium.chrome.browser.browserservices.metrics.WebApkUmaRecorder;
 import org.chromium.chrome.browser.browserservices.permissiondelegation.InstalledWebappPermissionStore;
 import org.chromium.chrome.browser.browsing_data.UrlFilter;
 import org.chromium.chrome.browser.browsing_data.UrlFilterBridge;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.embedder_support.util.Origin;
+import org.chromium.components.sync.protocol.WebApkSpecifics;
 import org.chromium.webapk.lib.common.WebApkConstants;
 
 import java.util.ArrayList;
@@ -118,7 +121,6 @@ public class WebappRegistry {
         getInstance().initStorages(null);
     }
 
-    @VisibleForTesting
     public static void refreshSharedPrefsForTesting() {
         Holder.sInstance = new WebappRegistry();
         getInstance().clearStoragesForTesting();
@@ -205,9 +207,6 @@ public class WebappRegistry {
 
         String scope = storage.getScope();
 
-        // Scope shouldn't be empty.
-        assert (!scope.isEmpty());
-
         return scope;
     }
 
@@ -240,6 +239,89 @@ public class WebappRegistry {
     }
 
     /**
+     * Returns an array of all origins that have an installed WebAPK.
+     */
+    @CalledByNative
+    private static String[] getOriginsWithWebApkAsArray() {
+        Set<String> origins = WebappRegistry.getInstance().getOriginsWithWebApk();
+        String[] originsArray = new String[origins.size()];
+        return origins.toArray(originsArray);
+    }
+
+    /*
+     * Returns an array of serialized |WebApkSpecifics| protos in byte[] format.
+     */
+    @CalledByNative
+    public static byte[][] getWebApkSpecifics() {
+        List<WebApkSpecifics> webApkSpecifics =
+                WebappRegistry.getInstance()
+                        .getWebApkSpecificsImpl(null /* setWebappInfoForTesting */);
+        List<byte[]> specificsBytes = new ArrayList<byte[]>();
+        for (WebApkSpecifics specifics : webApkSpecifics) {
+            specificsBytes.add(specifics.toByteArray());
+        }
+
+        byte[][] specificsBytesArray = new byte[specificsBytes.size()][];
+        return specificsBytes.toArray(specificsBytesArray);
+    }
+
+    /*
+     * Callback interface used for testing getWebApkSpecificsImpl().
+     */
+    public interface GetWebApkSpecificsImplSetWebappInfoForTesting {
+        void run(String scope);
+    }
+
+    /*
+     * Returns a List of |WebApkSpecifics| protos.
+     */
+    public List<WebApkSpecifics> getWebApkSpecificsImpl(
+            GetWebApkSpecificsImplSetWebappInfoForTesting setWebappInfoForTesting) {
+        List<WebApkSpecifics> webApkSpecificsList = new ArrayList<WebApkSpecifics>();
+        for (WebappDataStorage storage : mStorages.values()) {
+            String scope = getWebApkScopeFromStorage(storage);
+            if (scope.isEmpty()) {
+                continue;
+            }
+
+            if (setWebappInfoForTesting != null) {
+                setWebappInfoForTesting.run(scope);
+            }
+
+            WebappInfo webApkInfo = WebApkDataProvider.getPartialWebappInfo(scope);
+            if (webApkInfo == null) {
+                continue;
+            }
+
+            WebApkSpecifics.Builder webApkSpecificsBuilder = WebApkSpecifics.newBuilder();
+            if (webApkInfo.manifestId() != null) {
+                webApkSpecificsBuilder.setManifestId(webApkInfo.manifestId());
+            }
+            if (webApkInfo.manifestStartUrl() != null) {
+                webApkSpecificsBuilder.setStartUrl(webApkInfo.manifestStartUrl());
+            }
+            if (webApkInfo.name() != null) {
+                webApkSpecificsBuilder.setName(webApkInfo.name());
+            }
+            if ((webApkInfo.name() == null || webApkInfo.name().equals(""))
+                    && webApkInfo.shortName() != null) {
+                webApkSpecificsBuilder.setName(webApkInfo.shortName());
+            }
+            if (webApkInfo.hasValidToolbarColor()) {
+                webApkSpecificsBuilder.setThemeColor((int) webApkInfo.toolbarColor());
+            }
+            if (webApkInfo.scopeUrl() != null) {
+                webApkSpecificsBuilder.setScope(webApkInfo.scopeUrl());
+            }
+
+            // TODO(hartmanng): support icons and last used timestamp
+
+            webApkSpecificsList.add(webApkSpecificsBuilder.build());
+        }
+        return webApkSpecificsList;
+    }
+
+    /**
      * Checks whether a TWA is installed for the origin, and no WebAPK.
      */
     public boolean isTwaInstalled(String origin) {
@@ -256,6 +338,16 @@ public class WebappRegistry {
         origins.addAll(getOriginsWithWebApk());
         origins.addAll(mPermissionStore.getStoredOrigins());
         return origins;
+    }
+
+    /**
+     * Returns an array of all origins that have a WebAPK or TWA installed.
+     */
+    @CalledByNative
+    public static String[] getOriginsWithInstalledAppAsArray() {
+        Set<String> origins = WebappRegistry.getInstance().getOriginsWithInstalledApp();
+        String[] originsArray = new String[origins.size()];
+        return origins.toArray(originsArray);
     }
 
     /**
@@ -310,14 +402,12 @@ public class WebappRegistry {
     /**
      * Returns the list of web app IDs which are written to SharedPreferences.
      */
-    @VisibleForTesting
     public static Set<String> getRegisteredWebappIdsForTesting() {
         // Wrap with unmodifiableSet to ensure it's never modified. See crbug.com/568369.
         return Collections.unmodifiableSet(
                 openSharedPreferences().getStringSet(KEY_WEBAPP_SET, Collections.emptySet()));
     }
 
-    @VisibleForTesting
     void clearForTesting() {
         Iterator<HashMap.Entry<String, WebappDataStorage>> it = mStorages.entrySet().iterator();
         while (it.hasNext()) {
@@ -376,7 +466,7 @@ public class WebappRegistry {
 
         // Do not delete WebappDataStorage if we still need it for UKM logging.
         Set<String> webApkPackagesWithPendingUkm =
-                SharedPreferencesManager.getInstance().readStringSet(
+                ChromeSharedPreferences.getInstance().readStringSet(
                         ChromePreferenceKeys.WEBAPK_UNINSTALLED_PACKAGES);
         if (webApkPackagesWithPendingUkm.contains(webApkPackageName)) return false;
 

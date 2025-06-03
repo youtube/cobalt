@@ -7,13 +7,14 @@
 
 #include "ash/public/cpp/login_accelerators.h"
 #include "ash/public/cpp/login_screen_client.h"
-#include "ash/public/cpp/system_tray_observer.h"
+#include "ash/system/tray/system_tray_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation_traits.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/ui/ash/login_screen_shown_observer.h"
+#include "components/user_manager/user_manager.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 
 namespace ash {
@@ -24,7 +25,8 @@ class LoginAuthRecorder;
 
 // Handles method calls sent from ash to chrome. Also sends messages from chrome
 // to ash.
-class LoginScreenClientImpl : public ash::LoginScreenClient {
+class LoginScreenClientImpl : public ash::LoginScreenClient,
+                              public user_manager::UserManager::Observer {
  public:
   // Handles method calls coming from ash into chrome.
   class Delegate {
@@ -46,7 +48,6 @@ class LoginScreenClientImpl : public ash::LoginScreenClient {
         const AccountId& account_id,
         base::OnceCallback<void(bool)> callback) = 0;
     virtual void HandleOnFocusPod(const AccountId& account_id) = 0;
-    virtual void HandleOnNoPodFocused() = 0;
     // Handles request to focus a lock screen app window. Returns whether the
     // focus has been handed over to a lock screen app. For example, this might
     // fail if a hander for lock screen apps focus has not been set.
@@ -104,11 +105,7 @@ class LoginScreenClientImpl : public ash::LoginScreenClient {
       const std::string& access_code,
       base::Time validation_time) override;
   void OnFocusPod(const AccountId& account_id) override;
-  void OnNoPodFocused() override;
-  void LoadWallpaper(const AccountId& account_id) override;
-  void SignOutUser() override;
   void CancelAddUser() override;
-  void LoginAsGuest() override;
   void ShowGuestTosScreen() override;
   void OnMaxIncorrectPasswordAttempted(const AccountId& account_id) override;
   void FocusLockScreenApps(bool reverse) override;
@@ -131,7 +128,11 @@ class LoginScreenClientImpl : public ash::LoginScreenClient {
   void OnLoginScreenShown() override;
   views::Widget* GetLoginWindowWidget() override;
 
+  // user_manager::UserManager::Observer:
+  void OnUserImageChanged(const user_manager::User& user) override;
+
  private:
+  void LoginAsGuest();
   void SetPublicSessionKeyboardLayout(const AccountId& account_id,
                                       const std::string& locale,
                                       base::Value::List keyboard_layouts);

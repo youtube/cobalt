@@ -14,6 +14,7 @@
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/contact_info_sync_util.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/test_autofill_clock.h"
 #include "components/autofill/core/browser/webdata/autofill_table.h"
 #include "components/autofill/core/browser/webdata/mock_autofill_webdata_backend.h"
 #include "components/sync/base/features.h"
@@ -64,8 +65,7 @@ std::vector<AutofillProfile> ExtractAutofillProfilesFromDataBatch(
 }
 
 AutofillProfile TestProfile(base::StringPiece guid) {
-  return AutofillProfile(std::string(guid), /*origin=*/"",
-                         AutofillProfile::Source::kAccount);
+  return AutofillProfile(std::string(guid), AutofillProfile::Source::kAccount);
 }
 
 }  // namespace
@@ -116,8 +116,8 @@ class ContactInfoSyncBridgeTest : public testing::Test {
   // how the PersonalDataManager will access the profiles.
   std::vector<AutofillProfile> GetAllDataFromTable() {
     std::vector<std::unique_ptr<AutofillProfile>> profile_ptrs;
-    EXPECT_TRUE(table_.GetAutofillProfiles(&profile_ptrs,
-                                           AutofillProfile::Source::kAccount));
+    EXPECT_TRUE(table_.GetAutofillProfiles(AutofillProfile::Source::kAccount,
+                                           &profile_ptrs));
     // In tests, it's more convenient to work without `std::unique_ptr`.
     std::vector<AutofillProfile> profiles;
     for (const std::unique_ptr<AutofillProfile>& profile_ptr : profile_ptrs) {
@@ -189,8 +189,7 @@ TEST_F(ContactInfoSyncBridgeTest, MergeFullSyncData) {
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(backend(), CommitChanges);
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges);
-  EXPECT_CALL(backend(), NotifyThatSyncHasStarted(syncer::CONTACT_INFO));
+  EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(syncer::CONTACT_INFO));
 
   EXPECT_TRUE(StartSyncing({remote1, remote2}));
 
@@ -219,7 +218,7 @@ TEST_F(ContactInfoSyncBridgeTest, ApplyIncrementalSyncChanges) {
   EXPECT_CALL(mock_processor(), Delete).Times(0);
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(backend(), CommitChanges());
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges);
+  EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(syncer::CONTACT_INFO));
 
   // `ApplyIncrementalSyncChanges()` returns an error if it fails.
   EXPECT_FALSE(bridge().ApplyIncrementalSyncChanges(
@@ -227,6 +226,30 @@ TEST_F(ContactInfoSyncBridgeTest, ApplyIncrementalSyncChanges) {
 
   // Expect that the local profiles have changed.
   EXPECT_THAT(GetAllDataFromTable(), ElementsAre(remote));
+}
+
+// Regression test checking that the modification date of incoming profiles is
+// kept.
+TEST_F(ContactInfoSyncBridgeTest,
+       ApplyIncrementalSyncChanges_ModificationDate) {
+  ASSERT_TRUE(StartSyncing(/*remote_profiles=*/{}));
+
+  // Create a profile and advance time. Incoming profiles through Sync shouldn't
+  // care about the current time.
+  TestAutofillClock test_clock;
+  const AutofillProfile profile = TestProfile(kGUID1);
+  test_clock.Advance(base::Minutes(123));
+
+  // Receive a profile through Sync and expect that the `modification_date()`
+  // hasn't changed.
+  syncer::EntityChangeList entity_change_list;
+  entity_change_list.push_back(syncer::EntityChange::CreateAdd(
+      profile.guid(), ProfileToEntity(profile)));
+  EXPECT_FALSE(bridge().ApplyIncrementalSyncChanges(
+      bridge().CreateMetadataChangeList(), std::move(entity_change_list)));
+  std::vector<AutofillProfile> profiles = GetAllDataFromTable();
+  ASSERT_EQ(profiles.size(), 1u);
+  EXPECT_EQ(profiles[0].modification_date(), profile.modification_date());
 }
 
 // Tests that `GetData()` returns all local profiles of matching GUID.
@@ -272,7 +295,7 @@ TEST_F(ContactInfoSyncBridgeTest, AutofillProfileChange_Add) {
 
   const AutofillProfile profile = TestProfile(kGUID1);
   const AutofillProfileChange change(AutofillProfileChange::ADD, kGUID1,
-                                     &profile);
+                                     profile);
   EXPECT_CALL(mock_processor(),
               Put(kGUID1, ContactInfoSpecificsEqualsProfile(profile), _));
   // The bridge does not need to commit when reacting to a notification about a
@@ -288,7 +311,7 @@ TEST_F(ContactInfoSyncBridgeTest, AutofillProfileChange_Update) {
 
   const AutofillProfile profile = TestProfile(kGUID1);
   const AutofillProfileChange change(AutofillProfileChange::UPDATE, kGUID1,
-                                     &profile);
+                                     profile);
   EXPECT_CALL(mock_processor(),
               Put(kGUID1, ContactInfoSpecificsEqualsProfile(profile), _));
   EXPECT_CALL(backend(), CommitChanges()).Times(0);
@@ -300,9 +323,8 @@ TEST_F(ContactInfoSyncBridgeTest, AutofillProfileChange_Update) {
 TEST_F(ContactInfoSyncBridgeTest, AutofillProfileChange_Remove) {
   ASSERT_TRUE(StartSyncing(/*remote_profiles=*/{}));
 
-  const AutofillProfile profile = TestProfile(kGUID1);
   const AutofillProfileChange change(AutofillProfileChange::REMOVE, kGUID1,
-                                     &profile);
+                                     TestProfile(kGUID1));
   EXPECT_CALL(mock_processor(), Delete(kGUID1, _));
   EXPECT_CALL(backend(), CommitChanges()).Times(0);
 
@@ -317,7 +339,7 @@ TEST_F(ContactInfoSyncBridgeTest, ApplyDisableSyncChanges) {
   ASSERT_THAT(GetAllDataFromTable(), ElementsAre(remote));
 
   EXPECT_CALL(backend(), CommitChanges());
-  EXPECT_CALL(backend(), NotifyOfMultipleAutofillChanges);
+  EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(syncer::CONTACT_INFO));
 
   bridge().ApplyDisableSyncChanges(bridge().CreateMetadataChangeList());
 

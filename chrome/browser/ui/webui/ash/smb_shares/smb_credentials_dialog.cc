@@ -6,10 +6,12 @@
 
 #include <utility>
 
+#include "ash/webui/common/trusted_types_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "chrome/browser/ui/webui/ash/smb_shares/smb_handler.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
@@ -115,8 +117,7 @@ SmbCredentialsDialogUI::SmbCredentialsDialogUI(content::WebUI* web_ui)
     : ui::WebDialogUI(web_ui) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUISmbCredentialsHost);
-
-  source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(source);
 
   AddSmbCredentialsDialogStrings(source);
 

@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
@@ -67,7 +67,7 @@ class CertProvisioningInvalidationHandler
   // invalidation::InvalidationHandler:
   void OnInvalidatorStateChange(invalidation::InvalidatorState state) override;
   void OnIncomingInvalidation(
-      const invalidation::TopicInvalidationMap& invalidation_map) override;
+      const invalidation::Invalidation& invalidation) override;
   std::string GetOwnerName() const override;
   bool IsPublicTopic(const invalidation::Topic& topic) const override;
 

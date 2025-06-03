@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "android_webview/nonembedded/net/network_impl.h"
+#include "base/android/path_utils.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/version.h"
@@ -89,7 +91,8 @@ base::Version AwComponentUpdaterConfigurator::GetBrowserVersion() const {
 }
 
 std::string AwComponentUpdaterConfigurator::GetChannel() const {
-  return version_info::GetChannelString(version_info::android::GetChannel());
+  return std::string(
+      version_info::GetChannelString(version_info::android::GetChannel()));
 }
 
 std::string AwComponentUpdaterConfigurator::GetLang() const {
@@ -196,6 +199,15 @@ scoped_refptr<update_client::Configurator> MakeAwComponentUpdaterConfigurator(
     PrefService* pref_service) {
   return base::MakeRefCounted<AwComponentUpdaterConfigurator>(cmdline,
                                                               pref_service);
+}
+
+absl::optional<base::FilePath> AwComponentUpdaterConfigurator::GetCrxCachePath()
+    const {
+  base::FilePath path;
+  return base::android::GetCacheDirectory(&path)
+             ? absl::optional<base::FilePath>(
+                   path.AppendASCII(("webview_crx_cache")))
+             : absl::nullopt;
 }
 
 }  // namespace android_webview

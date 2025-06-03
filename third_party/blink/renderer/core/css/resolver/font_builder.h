@@ -80,6 +80,7 @@ class CORE_EXPORT FontBuilder {
   void SetFontSynthesisSmallCaps(FontDescription::FontSynthesisSmallCaps);
   void SetTextRendering(TextRenderingMode);
   void SetKerning(FontDescription::Kerning);
+  void SetTextSpacingTrim(TextSpacingTrim);
   void SetFontPalette(scoped_refptr<FontPalette>);
   void SetFontVariantAlternates(scoped_refptr<FontVariantAlternates>);
   void SetFontOpticalSizing(OpticalSizing);
@@ -88,7 +89,9 @@ class CORE_EXPORT FontBuilder {
   void SetVariantPosition(FontDescription::FontVariantPosition);
 
   // FIXME: These need to just vend a Font object eventually.
-  void UpdateFontDescription(FontDescription&,
+  // UpdateFontDescription() returns true if any properties were actually
+  // changed.
+  bool UpdateFontDescription(FontDescription&,
                              FontOrientation = FontOrientation::kHorizontal);
   void CreateFont(ComputedStyleBuilder&, const ComputedStyle* parent_style);
   void CreateInitialFont(ComputedStyleBuilder&);
@@ -129,12 +132,21 @@ class CORE_EXPORT FontBuilder {
   static FontDescription::Kerning InitialKerning() {
     return FontDescription::kAutoKerning;
   }
+  static TextSpacingTrim InitialTextSpacingTrim() {
+    return TextSpacingTrim::kSpaceFirst;
+  }
   static OpticalSizing InitialFontOpticalSizing() { return kAutoOpticalSizing; }
   static FontSmoothingMode InitialFontSmoothing() { return kAutoSmoothing; }
 
-  static FontSelectionValue InitialStretch() { return NormalWidthValue(); }
-  static FontSelectionValue InitialStyle() { return NormalSlopeValue(); }
-  static FontSelectionValue InitialWeight() { return NormalWeightValue(); }
+  static constexpr FontSelectionValue InitialStretch() {
+    return kNormalWidthValue;
+  }
+  static constexpr FontSelectionValue InitialStyle() {
+    return kNormalSlopeValue;
+  }
+  static constexpr FontSelectionValue InitialWeight() {
+    return kNormalWeightValue;
+  }
   static FontDescription::FontSynthesisWeight InitialFontSynthesisWeight() {
     return FontDescription::kAutoFontSynthesisWeight;
   }
@@ -189,6 +201,7 @@ class CORE_EXPORT FontBuilder {
     kVariationSettings,
     kTextRendering,
     kKerning,
+    kTextSpacingTrim,
     kFontOpticalSizing,
     kFontPalette,
     kFontVariantAlternates,
@@ -199,7 +212,9 @@ class CORE_EXPORT FontBuilder {
 
     kEffectiveZoom,
     kTextOrientation,
-    kWritingMode
+    kWritingMode,
+
+    kNumFlags,
   };
 
   void Set(PropertySetFlag flag) { flags_ |= (1 << unsigned(flag)); }
@@ -208,6 +223,8 @@ class CORE_EXPORT FontBuilder {
   }
 
   unsigned flags_{0};
+  static_assert(static_cast<int>(PropertySetFlag::kNumFlags) <=
+                sizeof(flags_) * 8);
 };
 
 }  // namespace blink

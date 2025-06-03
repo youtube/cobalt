@@ -33,6 +33,7 @@ namespace egl
 {
 class Image;
 class Display;
+class ContextMutex;
 
 // Only currently Renderbuffers and Textures can be bound with images. This makes the relationship
 // explicit, and also ensures that an image sibling can determine if it's been initialized or not,
@@ -201,6 +202,8 @@ class Image final : public RefCountObject, public LabeledObject
 
     Error exportVkImage(void *vkImage, void *vkImageCreateInfo);
 
+    ContextMutex *getContextMutex() const { return mContextMutex; }
+
   private:
     friend class ImageSibling;
 
@@ -219,6 +222,8 @@ class Image final : public RefCountObject, public LabeledObject
     bool mOrphanedAndNeedsInit;
     bool mIsTexturable = false;
     bool mIsRenderable = false;
+
+    ContextMutex *mContextMutex;  // Reference counted
 };
 }  // namespace egl
 

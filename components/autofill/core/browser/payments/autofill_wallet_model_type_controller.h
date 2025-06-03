@@ -9,8 +9,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "components/sync/driver/model_type_controller.h"
-#include "components/sync/driver/sync_service_observer.h"
+#include "components/sync/service/model_type_controller.h"
+#include "components/sync/service/sync_service_observer.h"
 
 class PrefService;
 
@@ -26,12 +26,6 @@ class AutofillWalletModelTypeController : public syncer::ModelTypeController,
  public:
   // The delegates and |sync_client| must not be null. Furthermore,
   // |sync_client| must outlive this object.
-  AutofillWalletModelTypeController(
-      syncer::ModelType type,
-      std::unique_ptr<syncer::ModelTypeControllerDelegate>
-          delegate_for_full_sync_mode,
-      PrefService* pref_service,
-      syncer::SyncService* sync_service);
   AutofillWalletModelTypeController(
       syncer::ModelType type,
       std::unique_ptr<syncer::ModelTypeControllerDelegate>

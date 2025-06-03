@@ -7,7 +7,9 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/feature_list.h"
@@ -21,10 +23,6 @@ namespace autofill {
 // the length used for server autofill data.
 constexpr int kLocalGuidSize = 36;
 
-// Returns true when command line switch |kEnableSuggestionsWithSubstringMatch|
-// is on.
-bool IsFeatureSubstringMatchEnabled();
-
 // Returns true if showing autofill signature as HTML attributes is enabled.
 bool IsShowAutofillSignaturesEnabled();
 
@@ -33,14 +31,6 @@ bool IsKeyboardAccessoryEnabled();
 
 // A token is a sequences of contiguous characters separated by any of the
 // characters that are part of delimiter set {' ', '.', ',', '-', '_', '@'}.
-
-// Returns true if the |field_contents| is a substring of the |suggestion|
-// starting at token boundaries. |field_contents| can span multiple |suggestion|
-// tokens.
-bool FieldIsSuggestionSubstringStartingOnTokenBoundary(
-    const std::u16string& suggestion,
-    const std::u16string& field_contents,
-    bool case_sensitive);
 
 // Currently, a token for the purposes of this method is defined as {'@'}.
 // Returns true if the |full_string| has a |prefix| as a prefix and the prefix
@@ -73,6 +63,19 @@ std::vector<std::string> LowercaseAndTokenizeAttributeString(
 // formatting characters. This means that the field value is a formatting string
 // entered by the website and not a real value entered by the user.
 bool SanitizedFieldIsEmpty(const std::u16string& value);
+
+// Returns the Levenshtein distance of `a` and `b`.
+// If `k = max_distance` is provided, the distance is only correctly calculated
+// up to k. In case the actual Levenshtein distance is larger than k, k+1 is
+// returned instead. This is useful for checking whether the distance is at most
+// some small constant, since the algorithm is more efficient in this case.
+// Edits, inserts and removes each count as one step.
+// Complexity:
+// - Without k: O(|a| * |b|) time and O(max(|a|, |b|)) memory.
+// - With k: O(min(|a|, |b|) * k + k) time and O(k) memory.
+size_t LevenshteinDistance(std::u16string_view a,
+                           std::u16string_view b,
+                           std::optional<size_t> max_distance = std::nullopt);
 
 // Returns true if the first suggestion should be autoselected when the autofill
 // dropdown is shown due to an arrow down event. Enabled on desktop only.

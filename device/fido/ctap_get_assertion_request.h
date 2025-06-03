@@ -17,8 +17,10 @@
 #include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/device_public_key_extension.h"
 #include "device/fido/fido_constants.h"
+#include "device/fido/json_request.h"
 #include "device/fido/large_blob.h"
 #include "device/fido/pin.h"
+#include "device/fido/prf_input.h"
 #include "device/fido/public_key_credential_descriptor.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -27,20 +29,6 @@ class Value;
 }
 
 namespace device {
-
-// PRFInput contains salts for the hmac-secret or prf extension, potentially
-// specific to a given credential ID.
-struct COMPONENT_EXPORT(DEVICE_FIDO) PRFInput {
-  PRFInput();
-  PRFInput(const PRFInput&);
-  PRFInput(PRFInput&&);
-  PRFInput& operator=(const PRFInput&);
-  ~PRFInput();
-
-  absl::optional<std::vector<uint8_t>> credential_id;
-  std::array<uint8_t, 32> salt1;
-  absl::optional<std::array<uint8_t, 32>> salt2;
-};
 
 // CtapGetAssertionOptions contains values that are pertinent to a
 // |GetAssertionTask|, but are not specific to an individual
@@ -51,6 +39,9 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) CtapGetAssertionOptions {
   CtapGetAssertionOptions(const CtapGetAssertionOptions&);
   CtapGetAssertionOptions(CtapGetAssertionOptions&&);
   ~CtapGetAssertionOptions();
+
+  // The JSON form of the request. (May be nullptr.)
+  scoped_refptr<JSONRequest> json;
 
   // The PUAT used for the request. The caller is expected to set this if needed
   // with the correct permissions. Obtain from |FidoAuthenticator::GetPINToken|.
@@ -93,7 +84,8 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) CtapGetAssertionRequest {
   struct HMACSecret {
     HMACSecret(base::span<const uint8_t, kP256X962Length> public_key_x962,
                base::span<const uint8_t> encrypted_salts,
-               base::span<const uint8_t> salts_auth);
+               base::span<const uint8_t> salts_auth,
+               absl::optional<PINUVAuthProtocol> pin_protocol);
     HMACSecret(const HMACSecret&);
     ~HMACSecret();
     HMACSecret& operator=(const HMACSecret&);
@@ -101,6 +93,9 @@ struct COMPONENT_EXPORT(DEVICE_FIDO) CtapGetAssertionRequest {
     std::array<uint8_t, kP256X962Length> public_key_x962;
     std::vector<uint8_t> encrypted_salts;
     std::vector<uint8_t> salts_auth;
+    // pin_protocol is ignored during serialisation and the request's PIN
+    // protocol will be used instead.
+    absl::optional<PINUVAuthProtocol> pin_protocol;
   };
 
   // Decodes a CTAP2 authenticatorGetAssertion request message. The request's

@@ -6,7 +6,6 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_window.h"
-#include "third_party/blink/renderer/core/dom/context_features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -21,7 +20,8 @@ namespace {
 void PagePopupControllerAttributeGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Object> holder = info.Holder();
-  LocalFrame* frame = To<LocalDOMWindow>(V8Window::ToImpl(holder))->GetFrame();
+  LocalFrame* frame =
+      To<LocalDOMWindow>(V8Window::ToWrappableUnsafe(holder))->GetFrame();
   if (!frame) {
     V8SetReturnValue(info, v8::Null(info.GetIsolate()));
     return;
@@ -46,8 +46,9 @@ void V8PagePopupControllerBinding::InstallPagePopupController(
     v8::Local<v8::Object> window_wrapper) {
   Document* document =
       ToLocalDOMWindow(window_wrapper->GetCreationContextChecked())->document();
-  if (!document || !ContextFeatures::PagePopupEnabled(document))
+  if (!document) {
     return;
+  }
 
   window_wrapper
       ->SetAccessor(

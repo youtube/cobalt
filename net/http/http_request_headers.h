@@ -95,6 +95,7 @@ class NET_EXPORT HttpRequestHeaders {
   static const char kIfUnmodifiedSince[];
   static const char kOrigin[];
   static const char kPragma[];
+  static const char kPriority[];
   static const char kProxyAuthorization[];
   static const char kProxyConnection[];
   static const char kRange[];
@@ -177,9 +178,6 @@ class NET_EXPORT HttpRequestHeaders {
   // Calls SetHeader() on each header from |other|, maintaining order.
   void MergeFrom(const HttpRequestHeaders& other);
 
-  // Copies from |other| to |this|.
-  void CopyFrom(const HttpRequestHeaders& other) { *this = other; }
-
   void Swap(HttpRequestHeaders* other) { headers_.swap(other->headers_); }
 
   // Serializes HttpRequestHeaders to a string representation.  Joins all the
@@ -200,7 +198,8 @@ class NET_EXPORT HttpRequestHeaders {
       const GURL& url,
       const absl::optional<base::flat_set<SourceStream::SourceType>>&
           accepted_stream_types,
-      bool enable_brotli);
+      bool enable_brotli,
+      bool enable_zstd);
 
  private:
   HeaderVector::iterator FindHeader(base::StringPiece key);
@@ -209,12 +208,6 @@ class NET_EXPORT HttpRequestHeaders {
   void SetHeaderInternal(base::StringPiece key, std::string&& value);
 
   HeaderVector headers_;
-
-  // Allow the copy construction and operator= to facilitate copying in
-  // HttpRequestHeaders.
-  // TODO(willchan): Investigate to see if we can remove the need to copy
-  // HttpRequestHeaders.
-  // DISALLOW_COPY_AND_ASSIGN(HttpRequestHeaders);
 };
 
 }  // namespace net

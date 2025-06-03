@@ -44,7 +44,6 @@ constexpr char kFakeHostname[] = "fake-hostname";
 constexpr char kFakeDirectoryApiID[] = "fake directory API ID";
 constexpr char kFakeObfuscatedCustomerID[] = "fake obfuscated customer ID";
 constexpr char kFakeLogoURL[] = "www.fakelogo.com/url";
-constexpr char kFakeRealm[] = "fake realm";
 constexpr char kFakeDeviceID[] = "fake device ID";
 
 }  // namespace
@@ -75,7 +74,6 @@ IN_PROC_BROWSER_TEST_F(DeviceAttributesTest, ReturnsAttributes) {
   EXPECT_EQ("", attributes_.GetEnterpriseEnrollmentDomain());
   EXPECT_EQ("", attributes_.GetEnterpriseDomainManager());
   EXPECT_EQ("", attributes_.GetSSOProfile());
-  EXPECT_EQ("", attributes_.GetRealm());
   EXPECT_EQ("", attributes_.GetDeviceAssetID());
   EXPECT_EQ("", attributes_.GetDeviceSerialNumber());
   EXPECT_EQ("", attributes_.GetMachineName());
@@ -111,7 +109,6 @@ IN_PROC_BROWSER_TEST_F(DeviceAttributesTest, ReturnsAttributes) {
   EXPECT_EQ(kFakeDomain, attributes_.GetEnterpriseEnrollmentDomain());
   EXPECT_EQ(kFakeDisplayDomain, attributes_.GetEnterpriseDomainManager());
   EXPECT_EQ(kFakeSSOProfile, attributes_.GetSSOProfile());
-  EXPECT_EQ("", attributes_.GetRealm());
   EXPECT_EQ(kFakeAssetId, attributes_.GetDeviceAssetID());
   EXPECT_EQ(kFakeSerialNumber, attributes_.GetDeviceSerialNumber());
   EXPECT_EQ(kFakeMachineName, attributes_.GetMachineName());
@@ -122,11 +119,6 @@ IN_PROC_BROWSER_TEST_F(DeviceAttributesTest, ReturnsAttributes) {
   EXPECT_EQ(kFakeLogoURL, attributes_.GetCustomerLogoURL());
   EXPECT_EQ(MarketSegment::ENTERPRISE,
             attributes_.GetEnterpriseMarketSegment());
-
-  // Set a fake active directory realm and verify it is returned.
-  stub_install_attributes()->SetActiveDirectoryManaged(kFakeRealm,
-                                                       kFakeDeviceID);
-  EXPECT_EQ(kFakeRealm, attributes_.GetRealm());
 }
 
 }  // namespace policy

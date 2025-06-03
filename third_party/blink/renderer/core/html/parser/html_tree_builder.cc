@@ -281,8 +281,14 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                                  Document& document,
                                  ParserContentPolicy parser_content_policy,
                                  const HTMLParserOptions& options,
-                                 bool include_shadow_roots)
-    : tree_(parser->ReentryPermit(), document, parser_content_policy),
+                                 bool include_shadow_roots,
+                                 DocumentFragment* for_fragment,
+                                 Element* fragment_context_element)
+    : tree_(parser->ReentryPermit(),
+            document,
+            parser_content_policy,
+            for_fragment,
+            fragment_context_element),
       insertion_mode_(kInitialMode),
       original_insertion_mode_(kInitialMode),
       should_skip_leading_newline_(false),
@@ -291,7 +297,18 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
       parser_(parser),
       script_to_process_start_position_(UninitializedPositionValue1()),
       options_(options) {}
-
+HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
+                                 Document& document,
+                                 ParserContentPolicy parser_content_policy,
+                                 const HTMLParserOptions& options,
+                                 bool include_shadow_roots)
+    : HTMLTreeBuilder(parser,
+                      document,
+                      parser_content_policy,
+                      options,
+                      include_shadow_roots,
+                      nullptr,
+                      nullptr) {}
 HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                                  DocumentFragment* fragment,
                                  Element* context_element,
@@ -302,10 +319,10 @@ HTMLTreeBuilder::HTMLTreeBuilder(HTMLDocumentParser* parser,
                       fragment->GetDocument(),
                       parser_content_policy,
                       options,
-                      include_shadow_roots) {
+                      include_shadow_roots,
+                      fragment,
+                      context_element) {
   DCHECK(IsMainThread());
-  DCHECK(context_element);
-  tree_.InitFragmentParsing(fragment, context_element);
   fragment_context_.Init(fragment, context_element);
 
   // Steps 4.2-4.6 of the HTML5 Fragment Case parsing algorithm:
@@ -391,6 +408,9 @@ void HTMLTreeBuilder::ConstructTree(AtomicHTMLToken* token) {
   parser_->tokenizer().SetForceNullCharacterReplacement(
       GetInsertionMode() == kTextMode || in_foreign_content);
   parser_->tokenizer().SetShouldAllowCDATA(in_foreign_content);
+  if (RuntimeEnabledFeatures::DOMPartsAPIEnabled()) {
+    parser_->tokenizer().SetShouldAllowDOMParts(tree_.InParsePartsScope());
+  }
 
   tree_.ExecuteQueuedTasks();
   // We might be detached now.
@@ -427,6 +447,9 @@ void HTMLTreeBuilder::ProcessToken(AtomicHTMLToken* token) {
       break;
     case HTMLToken::kEndOfFile:
       ProcessEndOfFile(token);
+      break;
+    case HTMLToken::kDOMPart:
+      ProcessDOMPart(token);
       break;
   }
 }
@@ -521,7 +544,7 @@ void MapLoweredLocalNameToName(PrefixedNameToQualifiedNameMap* map,
 }
 
 void AddManualLocalName(PrefixedNameToQualifiedNameMap* map, const char* name) {
-  const QualifiedName item(g_null_atom, name, g_null_atom);
+  const QualifiedName item{AtomicString(name)};
   const blink::QualifiedName* const names = &item;
   MapLoweredLocalNameToName<QualifiedName>(map, &names, 1);
 }
@@ -613,8 +636,9 @@ void AdjustForeignAttributes(AtomicHTMLToken* token) {
                        xml_names::kAttrsCount);
 
     map->insert(WTF::g_xmlns_atom, xmlns_names::kXmlnsAttr);
-    map->insert("xmlns:xlink", QualifiedName(g_xmlns_atom, g_xlink_atom,
-                                             xmlns_names::kNamespaceURI));
+    map->insert(
+        AtomicString("xmlns:xlink"),
+        QualifiedName(g_xmlns_atom, g_xlink_atom, xmlns_names::kNamespaceURI));
   }
 
   for (unsigned i = 0; i < token->Attributes().size(); ++i) {
@@ -705,6 +729,7 @@ void HTMLTreeBuilder::ProcessStartTagForInBody(AtomicHTMLToken* token) {
     case HTMLTag::kNav:
     case HTMLTag::kOl:
     case HTMLTag::kP:
+    case HTMLTag::kSearch:
     case HTMLTag::kSection:
     case HTMLTag::kSummary:
     case HTMLTag::kUl:
@@ -947,6 +972,14 @@ void HTMLTreeBuilder::ProcessStartTagForInBody(AtomicHTMLToken* token) {
     case HTMLTag::kTr:
       ParseError(token);
       break;
+    case HTMLTag::kPermission:
+      if (RuntimeEnabledFeatures::PermissionElementEnabled()) {
+        tree_.ReconstructTheActiveFormattingElements();
+        tree_.InsertSelfClosingHTMLElementDestroyingToken(token);
+        frameset_ok_ = false;
+        break;
+      }
+      [[fallthrough]];
     default:
       if (token->GetName() == mathml_names::kMathTag.LocalName()) {
         tree_.ReconstructTheActiveFormattingElements();
@@ -960,6 +993,12 @@ void HTMLTreeBuilder::ProcessStartTagForInBody(AtomicHTMLToken* token) {
         tree_.InsertForeignElement(token, svg_names::kNamespaceURI);
       } else {
         tree_.ReconstructTheActiveFormattingElements();
+        if (RuntimeEnabledFeatures::
+                FlushParserBeforeCreatingCustomElementsEnabled()) {
+          // Flush before creating custom elements. NOTE: Flush() can cause any
+          // queued tasks to execute, possibly re-entering the parser.
+          tree_.Flush();
+        }
         tree_.InsertHTMLElement(token);
       }
       break;
@@ -986,11 +1025,8 @@ DeclarativeShadowRootType DeclarativeShadowRootTypeFromToken(
   // crbug.com/1396384 tracks the eventual removal of the old behavior.
   Attribute* type_attribute_streaming =
       token->GetAttributeItem(html_names::kShadowrootmodeAttr);
-  bool streaming =
-      type_attribute_streaming &&
-      RuntimeEnabledFeatures::StreamingDeclarativeShadowDOMEnabled();
   String shadow_mode;
-  if (streaming) {
+  if (type_attribute_streaming) {
     shadow_mode = type_attribute_streaming->Value();
   } else {
     Attribute* type_attribute_non_streaming =
@@ -998,19 +1034,33 @@ DeclarativeShadowRootType DeclarativeShadowRootTypeFromToken(
     if (!type_attribute_non_streaming) {
       return DeclarativeShadowRootType::kNone;
     }
+    if (!RuntimeEnabledFeatures::
+            DeprecatedNonStreamingDeclarativeShadowDOMEnabled()) {
+      document.AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+          mojom::blink::ConsoleMessageSource::kDeprecation,
+          mojom::blink::ConsoleMessageLevel::kError,
+          "Found an old-style declarative `shadowroot` attribute on a "
+          "template, but that style was deprecated and has been removed. "
+          "Please use the `shadowrootmode` attribute instead. Please see "
+          "https://chromestatus.com/feature/6239658726391808."));
+      return DeclarativeShadowRootType::kNone;
+    }
     shadow_mode = type_attribute_non_streaming->Value();
   }
 
   if (include_shadow_roots) {
     if (EqualIgnoringASCIICase(shadow_mode, "open")) {
-      return streaming ? DeclarativeShadowRootType::kStreamingOpen
-                       : DeclarativeShadowRootType::kOpen;
+      return type_attribute_streaming
+                 ? DeclarativeShadowRootType::kStreamingOpen
+                 : DeclarativeShadowRootType::kOpen;
     } else if (EqualIgnoringASCIICase(shadow_mode, "closed")) {
-      return streaming ? DeclarativeShadowRootType::kStreamingClosed
-                       : DeclarativeShadowRootType::kClosed;
+      return type_attribute_streaming
+                 ? DeclarativeShadowRootType::kStreamingClosed
+                 : DeclarativeShadowRootType::kClosed;
     }
   }
-  String attribute_in_use = streaming ? "shadowrootmode" : "shadowroot";
+  String attribute_in_use =
+      type_attribute_streaming ? "shadowrootmode" : "shadowroot";
   if (!include_shadow_roots) {
     document.AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kOther,
@@ -1063,37 +1113,45 @@ bool HTMLTreeBuilder::ProcessTemplateEndTag(AtomicHTMLToken* token) {
     DCHECK(template_stack_item->IsElementNode());
     HTMLTemplateElement* template_element =
         DynamicTo<HTMLTemplateElement>(template_stack_item->GetElement());
-    // 9. If the start tag for the declarative template element did not have an
-    // attribute with the name "shadowroot" whose value was an ASCII
-    // case-insensitive match for the strings "open" or "closed", then stop this
-    // algorithm.
+    DocumentFragment* template_content = nullptr;
     if (template_element->IsDeclarativeShadowRoot()) {
-      if (shadow_host_stack_item->GetNode() ==
-          tree_.OpenElements()->RootNode()) {
-        // 10. If the adjusted current node is the topmost element in the stack
-        // of open elements, then stop this algorithm.
-        template_element->SetDeclarativeShadowRootType(
-            DeclarativeShadowRootType::kNone);
-      } else {
-        DCHECK(shadow_host_stack_item);
-        DCHECK(shadow_host_stack_item->IsElementNode());
-        if (template_element->IsNonStreamingDeclarativeShadowRoot()) {
-          auto focus_delegation = template_stack_item->GetAttributeItem(
-                                      html_names::kShadowrootdelegatesfocusAttr)
-                                      ? FocusDelegation::kDelegateFocus
-                                      : FocusDelegation::kNone;
-          // TODO(crbug.com/1063157): Add an attribute for imperative slot
-          // assignment.
-          auto slot_assignment_mode = SlotAssignmentMode::kNamed;
-          shadow_host_stack_item->GetElement()->AttachDeclarativeShadowRoot(
-              template_element,
-              template_element->GetDeclarativeShadowRootType() ==
-                      DeclarativeShadowRootType::kOpen
-                  ? ShadowRootType::kOpen
-                  : ShadowRootType::kClosed,
-              focus_delegation, slot_assignment_mode);
+      if (RuntimeEnabledFeatures::
+              DeprecatedNonStreamingDeclarativeShadowDOMEnabled()) {
+        if (shadow_host_stack_item->GetNode() ==
+            tree_.OpenElements()->RootNode()) {
+          // 10. If the adjusted current node is the topmost element in the
+          // stack of open elements, then stop this algorithm.
+          template_element->SetDeclarativeShadowRootType(
+              DeclarativeShadowRootType::kNone);
+        } else {
+          DCHECK(shadow_host_stack_item);
+          DCHECK(shadow_host_stack_item->IsElementNode());
+          if (template_element->IsNonStreamingDeclarativeShadowRoot()) {
+            template_content = template_element->DeclarativeShadowContent();
+            auto focus_delegation =
+                template_stack_item->GetAttributeItem(
+                    html_names::kShadowrootdelegatesfocusAttr)
+                    ? FocusDelegation::kDelegateFocus
+                    : FocusDelegation::kNone;
+            // TODO(crbug.com/1063157): Add an attribute for imperative slot
+            // assignment.
+            auto slot_assignment_mode = SlotAssignmentMode::kNamed;
+            shadow_host_stack_item->GetElement()
+                ->AttachDeprecatedNonStreamingDeclarativeShadowRoot(
+                    *template_element,
+                    template_element->GetDeclarativeShadowRootType() ==
+                            DeclarativeShadowRootType::kOpen
+                        ? ShadowRootType::kOpen
+                        : ShadowRootType::kClosed,
+                    focus_delegation, slot_assignment_mode);
+          }
         }
       }
+    } else {
+      template_content = template_element->content();
+    }
+    if (template_content) {
+      tree_.FinishedTemplateElement(template_content);
     }
   }
   return true;
@@ -1520,6 +1578,21 @@ void HTMLTreeBuilder::ProcessStartTag(AtomicHTMLToken* token) {
             ProcessEndTag(&end_optgroup);
           }
           tree_.InsertHTMLElement(token);
+          return;
+        case HTMLTag::kHr:
+          if (!RuntimeEnabledFeatures::SelectHrEnabled()) {
+            break;
+          }
+          if (tree_.CurrentStackItem()->MatchesHTMLTag(HTMLTag::kOption)) {
+            AtomicHTMLToken end_option(HTMLToken::kEndTag, HTMLTag::kOption);
+            ProcessEndTag(&end_option);
+          }
+          if (tree_.CurrentStackItem()->MatchesHTMLTag(HTMLTag::kOptgroup)) {
+            AtomicHTMLToken end_optgroup(HTMLToken::kEndTag,
+                                         HTMLTag::kOptgroup);
+            ProcessEndTag(&end_optgroup);
+          }
+          tree_.InsertSelfClosingHTMLElementDestroyingToken(token);
           return;
         case HTMLTag::kSelect: {
           ParseError(token);
@@ -1989,6 +2062,7 @@ void HTMLTreeBuilder::ProcessEndTagForInBody(AtomicHTMLToken* token) {
     case HTMLTag::kNav:
     case HTMLTag::kOl:
     case HTMLTag::kPre:
+    case HTMLTag::kSearch:
     case HTMLTag::kSection:
     case HTMLTag::kSummary:
     case HTMLTag::kUl:
@@ -2461,6 +2535,12 @@ void HTMLTreeBuilder::ProcessComment(AtomicHTMLToken* token) {
   tree_.InsertComment(token);
 }
 
+void HTMLTreeBuilder::ProcessDOMPart(AtomicHTMLToken* token) {
+  DCHECK_EQ(token->GetType(), HTMLToken::kDOMPart);
+  DCHECK(tree_.InParsePartsScope());
+  tree_.InsertDOMPart(token);
+}
+
 void HTMLTreeBuilder::ProcessCharacter(AtomicHTMLToken* token) {
   DCHECK_EQ(token->GetType(), HTMLToken::kCharacter);
   CharacterTokenBuffer buffer(token);
@@ -2912,6 +2992,9 @@ void HTMLTreeBuilder::ProcessTokenInForeignContent(AtomicHTMLToken* token) {
       NOTREACHED();
       break;
     case HTMLToken::DOCTYPE:
+    // TODO(crbug.com/1453291) This needs to be expanded to properly handle
+    // foreign content (e.g. <svg>) inside an element with `parseparts`.
+    case HTMLToken::kDOMPart:
       ParseError(token);
       break;
     case HTMLToken::kStartTag: {

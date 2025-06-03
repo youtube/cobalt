@@ -13,8 +13,9 @@ namespace ash {
 
 // Test input controller that can be used to track haptics events sent out in
 // tests. The input controller will be set as the input controller that should
-// be used by haptics util using `haptics_util::SetInputControllerForTesting()`.
-// Only one should be initialized at a time.
+// be used by haptics util using
+// `chromeos::haptics_util::SetInputControllerForTesting()`. Only one should be
+// initialized at a time.
 class HapticsTrackingTestInputController : public ui::InputController {
  public:
   HapticsTrackingTestInputController();
@@ -83,6 +84,7 @@ class HapticsTrackingTestInputController : public ui::InputController {
   void GetTouchDeviceStatus(GetTouchDeviceStatusReply reply) override;
   void GetTouchEventLog(const base::FilePath& out_dir,
                         GetTouchEventLogReply reply) override;
+  void DescribeForLog(DescribeForLogReply reply) const override;
   void SetTouchEventLoggingEnabled(bool enabled) override;
   void SetTapToClickPaused(bool state) override;
   void SetInternalTouchpadEnabled(bool enabled) override;
@@ -105,6 +107,8 @@ class HapticsTrackingTestInputController : public ui::InputController {
   void GetGesturePropertiesService(
       mojo::PendingReceiver<ui::ozone::mojom::GesturePropertiesService>
           receiver) override;
+  bool AreAnyKeysPressed() override;
+  void DisableKeyboardImposterCheck() override;
 
   // Returns haptic count for effect/strength combination for testing.
   int GetSentHapticCount(ui::HapticTouchpadEffect effect,

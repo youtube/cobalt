@@ -13,6 +13,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "components/metrics/structured/event.h"
 #include "components/metrics/structured/structured_metrics_client.h"
+#include "components/metrics/structured/structured_metrics_validator.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
@@ -20,6 +21,11 @@ class FilePath;
 }
 
 namespace metrics::structured {
+namespace {
+
+using ::metrics::ChromeUserMetricsExtension;
+
+}
 
 // Recorder is a singleton to help communicate with the
 // StructuredMetricsProvider. It serves three purposes:
@@ -37,6 +43,10 @@ namespace metrics::structured {
 //
 // Recorder is embedded within StructuredMetricsClient for Ash Chrome and should
 // only be used in Ash Chrome.
+//
+// TODO(b/282031543): Remove this class and merge remaining logic into
+// structured_metrics_recorder.h since the Record() is exposed via
+// StructuredMetricsClient interface now.
 class Recorder {
  public:
   class RecorderImpl : public base::CheckedObserver {
@@ -49,8 +59,6 @@ class Recorder {
     virtual void OnReportingStateChanged(bool enabled) = 0;
     // Called when SystemProfile has finished loading
     virtual void OnSystemProfileInitialized() {}
-    // Called on a call to LastKeyRotation.
-    virtual absl::optional<int> LastKeyRotation(uint64_t project_name_hash) = 0;
   };
 
   Recorder(const Recorder&) = delete;
@@ -71,10 +79,6 @@ class Recorder {
   // investigate whether initialization can be simplified for Chrome.
   void ProfileAdded(const base::FilePath& profile_path);
 
-  // Returns when the key for |event| was last rotated, in days since epoch.
-  // Returns nullopt if the information is not available.
-  absl::optional<int> LastKeyRotation(const Event& event);
-
   // Notifies observers that metrics reporting has been enabled or disabled.
   void OnReportingStateChanged(bool enabled);
 
@@ -91,6 +95,12 @@ class Recorder {
   // listen to recorded events.
   void AddEventsProcessor(
       std::unique_ptr<EventsProcessorInterface> events_processor);
+
+  // Modifies |uma_proto| before the log is sent.
+  void OnProvideIndependentMetrics(ChromeUserMetricsExtension* uma_proto);
+
+  // Modifies |event| once after the proto has been built.
+  void OnEventRecorded(StructuredEventProto* event);
 
  private:
   friend class base::NoDestructor<Recorder>;

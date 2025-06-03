@@ -19,7 +19,25 @@ enum class WhatsNewType {
   kUseChromeByDefault = 4,
   kPasswordsInOtherApps = 5,
   kAutofill = 6,
-  kMaxValue = kAutofill,
+  kIncognitoTabsFromOtherApps = 7,
+  kIncognitoLock = 8,
+  kCalendarEvent = 9,
+  kChromeActions = 10,
+  kMiniMaps = 11,
+  kMaxValue = kMiniMaps,
+};
+
+// An enum representing the different primary button actions for features in
+// What's New.
+enum class WhatsNewPrimaryAction {
+  kError = -1,
+  kMinValue = 0,
+  kNoAction = kMinValue,
+  kIOSSettings = 1,
+  kPrivacySettings = 2,
+  kChromeSettings = 3,
+  kIOSSettingsPasswords = 4,
+  kMaxValue = kIOSSettingsPasswords,
 };
 
 class GURL;
@@ -29,6 +47,8 @@ class GURL;
 
 // What's New entry type.
 @property(nonatomic, assign) WhatsNewType type;
+// What's New entry type.
+@property(nonatomic, assign) WhatsNewPrimaryAction primaryAction;
 // What's New entry title.
 @property(nonatomic, copy) NSString* title;
 // What's New entry subtitle.
@@ -43,12 +63,14 @@ class GURL;
 @property(nonatomic, copy) UIColor* backgroundColor;
 // What's New entry instruction steps.
 @property(nonatomic, copy) NSArray<NSString*>* instructionSteps;
-// Whether the What's New entry has a pimiary action button.
-@property(nonatomic, assign) BOOL hasPrimaryAction;
 // Title of the pimiary action button if the What's New entry has one.
 @property(nonatomic, copy) NSString* primaryActionTitle;
 // What's New entry URL to learn more about the feature or chrome tip.
 @property(nonatomic, assign) const GURL& learnMoreURL;
+// What's New entry screenshot name.
+@property(nonatomic, copy) NSString* screenshotName;
+// What's New entry screenshot text provier for localization.
+@property(nonatomic, copy) NSDictionary* screenshotTextProvider;
 
 @end
 

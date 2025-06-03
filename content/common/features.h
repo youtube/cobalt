@@ -7,87 +7,125 @@
 
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
-#include "base/time/time.h"
+#include "base/metrics/field_trial_params.h"
 #include "content/common/content_export.h"
 
-namespace content {
+namespace features {
 
 // Please keep features in alphabetical order.
-
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAllowContentInitiatedDataUrlNavigations);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDownloadableFontsMatching);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAvoidUnnecessaryBeforeUnloadCheckSync);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kBackForwardCacheTimeToLiveControl);
 #if BUILDFLAG(IS_ANDROID)
-// Enables ADPF (Android Dynamic Performance Framework) for the browser IO
-// thread.
-BASE_DECLARE_FEATURE(kADPFForBrowserIOThread);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-// When enabled, RenderFrameHostManager::CommitPending will also update the
-// visibility of all child views, not just that of the main frame.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kNavigationUpdatesChildViewsVisibility);
-
-#if BUILDFLAG(IS_ANDROID)
-// Unifies RenderWidgetHostViewAndroid with the other platforms in their usage
-// of OnShowWithPageVisibility. Disabling will revert the refactor and use the
-// direct ShowInternal path.
-BASE_DECLARE_FEATURE(kOnShowWithPageVisibility);
-
-// Enables skipping of calls to hideSoftInputFromWindow when there is not a
-// keyboard currently visible.
-BASE_DECLARE_FEATURE(kOptimizeImmHideCalls);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-// When enabled, when creating new proxies for all nodes in a `FrameTree`, one
-// IPC is sent to create all child frame proxies instead of sending one IPC per
-// proxy.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kBackgroundMediaRendererHasModerateBinding);
+#endif
+BASE_DECLARE_FEATURE(kBeforeUnloadBrowserResponseQueue);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kBlockInsecurePrivateNetworkRequestsFromUnknown);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kBrowserVerifiedUserActivationKeyboard);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCanvas2DImageChromium);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeClipPathAnimation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCodeCacheDeletionWithoutFilter);
 BASE_DECLARE_FEATURE(kConsolidatedIPCForProxyCreation);
-
-// TODO(https://crbug.com/1442346): Feature flag to guard extra CHECKs put in
-// place to ensure that the AllowBindings API on RenderFrameHost is not called
-// for documents outside of WebUI ones.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kConsolidatedMovementXY);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kCriticalClientHint);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDesktopCaptureChangeSource);
+#if BUILDFLAG(IS_MAC)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDeviceMonitorMac);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDocumentPolicyNegotiation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnumerateDevicesHideDeviceIDs);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableBackForwardCacheForScreenReader);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableDevToolsJsErrorReporting);
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnsureAllowBindingsIsAlwaysForWebUI);
-
-// When enabled, queues navigations instead of cancelling the previous
-// navigation if the previous navigation is already waiting for commit.
-// See https://crbug.com/838348 and https://crbug.com/1220337.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kQueueNavigationsWhileWaitingForCommit);
-
-// The levels for the kQueueNavigationsWhileWaitingForCommit feature.
-enum class NavigationQueueingFeatureLevel {
-  // Feature is disabled.
-  kNone,
-  // Navigation code attempts to avoid unnecessary cancellations; otherwise,
-  // queueing navigations is pointless because the slow-to-commit page will
-  // simply cancel the queued navigation request.
-  kAvoidRedundantCancellations,
-  // Navigation code attempts to queue navigations rather than clobbering a
-  // speculative RenderFrameHost that is waiting for the renderer to acknowledge
-  // the navigation commit.
-  kFull,
-};
-
-CONTENT_EXPORT NavigationQueueingFeatureLevel
-GetNavigationQueueingFeatureLevel();
-
-// Returns true if GetNavigationQueueingFeatureLevel() returns at least
-// kAvoidRedundantCancellations.
-CONTENT_EXPORT bool ShouldAvoidRedundantNavigationCancellations();
-
-// Returns true if GetNavigationQueueingFeatureLevel() is kFull.
-CONTENT_EXPORT bool ShouldQueueNavigationsWhenPendingCommitRFHExists();
-
-// When enabled, CanAccessDataForOrigin can only be called from the UI thread.
-// This is related to Citadel desktop protections. See
-// https://crbug.com/1286501.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnumerateDevicesHideDeviceIDs);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEmbeddingRequiresOptIn);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kExperimentalContentSecurityPolicyFeatures);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmIdAssertionCORS);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmIdpSigninStatusMetrics);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFledgeLimitNumAuctions);
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kFledgeLimitNumAuctionsParam;
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFledgeUseInterestGroupCache);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFontSrcLocalMatching);
+#if !BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kForwardMemoryPressureEventsToGpuProcess);
+#endif
+#if BUILDFLAG(IS_WIN)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kGpuInfoCollectionSeparatePrefetch);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kGroupNIKByJoiningOrigin);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kHandleChildThreadTypeChangesInBrowser);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kHighPriorityBeforeUnload);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kInMemoryCodeCache);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kInnerFrameCompositorSurfaceEviction);
+#if BUILDFLAG(IS_MAC)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kIOSurfaceCapturer);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kJavaScriptArrayGrouping);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kLazyFrameLoading);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kMacImeLiveConversionFix);
+#if BUILDFLAG(IS_MAC)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kMacWebContentsOcclusion);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kMediaDevicesSystemMonitorCache);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kMediaStreamTrackTransfer);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kMojoDedicatedThread);
+#if BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kOptimizeImmHideCalls);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPreloadingConfig);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPreloadCookies);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrivacySandboxAdsAPIsM1Override);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrivateNetworkAccessForIframesWarningOnly);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kProactivelySwapBrowsingInstance);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kProcessSharingWithDefaultSiteInstances);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kProcessSharingWithStrictSiteInstances);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kReloadHiddenTabsWithCrashedSubframes);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kRunStableVideoDecoderFactoryProcessServiceOnIOThread);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kResourceTimingForCancelledNavigationInFrame);
 BASE_DECLARE_FEATURE(kRestrictCanAccessDataForOriginToUIThread);
-
-// When enabled, ensures that an unlocked process cannot access data for
-// sites that require a dedicated process.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kReuseInitialRenderFrameHostForWebUI);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSendBeaconThrowForBlobWithNonSimpleType);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerAutoPreload);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kServiceWorkerStaticRouterStartServiceWorker);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kServiceWorkerBypassFetchHandlerHashStrings);
+CONTENT_EXPORT extern const base::FeatureParam<std::string>
+    kServiceWorkerBypassFetchHandlerBypassedHashStrings;
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSignedExchangeReportingForDistributors);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSiteIsolationCitadelEnforcement);
-
-// (crbug/1377753): Speculatively start service worker before BeforeUnload runs.
-BASE_DECLARE_FEATURE(kSpeculativeServiceWorkerStartup);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSpeculativeServiceWorkerStartup);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kStopVideoCaptureOnScreenLock);
+#if BUILDFLAG(IS_MAC)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClient);
+CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kTextInputClientIPCTimeout;
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadAsyncPinchEvents);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadOverscrollHistoryNavigation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kTrustedTypesFromLiteral);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kVideoPlaybackQuality);
+#if BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWarmUpNetworkProcess);
+#endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebAssemblyDynamicTiering);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebGLImageChromium);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebOTPAssertionFeaturePolicy);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebRtcUseGpuMemoryBufferVideoFrames);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWindowOpenFileSelectFix);
 
 // Please keep features in alphabetical order.
 
-}  // namespace content
+}  // namespace features
 
 #endif  // CONTENT_COMMON_FEATURES_H_

@@ -214,14 +214,6 @@ class ConciergeClientImpl : public ConciergeClient {
     concierge_proxy_->WaitForServiceToBeAvailable(std::move(callback));
   }
 
-  void GetContainerSshKeys(
-      const concierge::ContainerSshKeysRequest& request,
-      chromeos::DBusMethodCallback<concierge::ContainerSshKeysResponse>
-          callback) override {
-    CallMethod(concierge::kGetContainerSshKeysMethod, request,
-               std::move(callback));
-  }
-
   void AttachUsbDevice(
       base::ScopedFD fd,
       const concierge::AttachUsbDeviceRequest& request,
@@ -301,6 +293,14 @@ class ConciergeClientImpl : public ConciergeClient {
           callback) override {
     CallMethodWithFd(concierge::kInstallPflashMethod, request, std::move(fd),
                      std::move(callback));
+  }
+
+  void AggressiveBalloon(
+      const vm_tools::concierge::AggressiveBalloonRequest& request,
+      chromeos::DBusMethodCallback<
+          vm_tools::concierge::AggressiveBalloonResponse> callback) override {
+    CallMethod(concierge::kAggressiveBalloonMethod, request,
+               std::move(callback));
   }
 
   void Init(dbus::Bus* bus) override {

@@ -8,9 +8,12 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "pdf/pdf_engine.h"
+#include "pdf/pdf_features.h"
 #include "pdf/pdf_init.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size_f.h"
 
@@ -18,11 +21,18 @@ namespace chrome_pdf {
 
 namespace {
 
+absl::optional<bool> g_use_skia_renderer_enabled_by_policy;
+
 class ScopedSdkInitializer {
  public:
   explicit ScopedSdkInitializer(bool enable_v8) {
-    if (!IsSDKInitializedViaPlugin())
-      InitializeSDK(enable_v8, FontMappingMode::kNoMapping);
+    if (!IsSDKInitializedViaPlugin()) {
+      InitializeSDK(
+          enable_v8,
+          g_use_skia_renderer_enabled_by_policy.value_or(
+              base::FeatureList::IsEnabled(features::kPdfUseSkiaRenderer)),
+          FontMappingMode::kNoMapping);
+    }
   }
 
   ScopedSdkInitializer(const ScopedSdkInitializer&) = delete;
@@ -35,6 +45,10 @@ class ScopedSdkInitializer {
 };
 
 }  // namespace
+
+void SetUseSkiaRendererPolicy(bool use_skia) {
+  g_use_skia_renderer_enabled_by_policy = use_skia;
+}
 
 #if BUILDFLAG(IS_CHROMEOS)
 std::vector<uint8_t> CreateFlattenedPdf(

@@ -23,11 +23,11 @@
 class Browser;
 class BrowserWindow;
 class Profile;
-struct WebAppInstallInfo;
 
 namespace web_app {
 class WebAppUrlLoader;
 class WebAppDataRetriever;
+struct WebAppInstallInfo;
 }  // namespace web_app
 
 namespace ash {
@@ -37,7 +37,6 @@ class WebKioskAppData;
 // Object responsible for preparing and launching web kiosk app. Is destroyed
 // upon app launch.
 class WebKioskAppLauncher : public KioskAppLauncher,
-                            public crosapi::BrowserManagerObserver,
                             public exo::WMHelper::ExoWindowObserver,
                             public ProfileObserver {
  public:
@@ -54,10 +53,10 @@ class WebKioskAppLauncher : public KioskAppLauncher,
       base::RepeatingCallback<std::unique_ptr<web_app::WebAppDataRetriever>()>
           data_retriever_factory);
 
-  // Replaces default browser window with |window| during launch.
+  // Replaces default browser window with `window` during launch.
   void SetBrowserWindowForTesting(BrowserWindow* window);
 
-  // Replaces current |url_loader_| with one provided.
+  // Replaces current `url_loader_` with one provided.
   void SetUrlLoaderForTesting(
       std::unique_ptr<web_app::WebAppUrlLoader> url_loader);
 
@@ -69,9 +68,6 @@ class WebKioskAppLauncher : public KioskAppLauncher,
   void LaunchApp() override;
 
  private:
-  // crosapi::BrowserManagerObserver:
-  void OnStateChanged() override;
-
   // exo::WMHelper::ExoWindowObserver:
   void OnExoWindowCreated(aura::Window* window) override;
 
@@ -82,8 +78,8 @@ class WebKioskAppLauncher : public KioskAppLauncher,
 
   // Callback method triggered after web application and its icon are
   // obtained from `WebKioskAppManager`.
-  void OnAppDataObtained(
-      absl::variant<WebAppInstallInfo, webapps::InstallResultCode> result);
+  void OnAppDataObtained(absl::variant<web_app::WebAppInstallInfo,
+                                       webapps::InstallResultCode> result);
 
   // Callback method triggered after the lacros-chrome window is created.
   void OnLacrosWindowCreated(crosapi::mojom::CreationResult result);
@@ -97,14 +93,14 @@ class WebKioskAppLauncher : public KioskAppLauncher,
   void NotifyAppWindowCreated();
 
   bool is_installed_ = false;  // Whether the installation was completed.
-  // |profile_| may become nullptr if the profile is being destroyed.
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  // `profile_` may become nullptr if the profile is being destroyed.
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_;
   const AccountId account_id_;
   const bool should_skip_install_;
   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
 
   KioskAppLauncher::ObserverList observers_;
-  raw_ptr<Browser, ExperimentalAsh> browser_ =
+  raw_ptr<Browser, DanglingUntriaged | ExperimentalAsh> browser_ =
       nullptr;  // Browser instance that runs the web kiosk app.
 
   // Web contents used for loading app info.
@@ -119,12 +115,6 @@ class WebKioskAppLauncher : public KioskAppLauncher,
       data_retriever_factory_;
 
   raw_ptr<BrowserWindow, ExperimentalAsh> test_browser_window_ = nullptr;
-
-  // Observe the launch state of `BrowserManager`, and launch the lacros-chrome
-  // when it is ready. This object is only used when Lacros is enabled.
-  base::ScopedObservation<crosapi::BrowserManager,
-                          crosapi::BrowserManagerObserver>
-      observation_{this};
 
   base::WeakPtrFactory<WebKioskAppLauncher> weak_ptr_factory_{this};
 };

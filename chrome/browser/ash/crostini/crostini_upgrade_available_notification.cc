@@ -6,6 +6,7 @@
 
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -14,7 +15,6 @@
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/webui/ash/crostini_upgrader/crostini_upgrader_dialog.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/vector_icons/vector_icons.h"
@@ -110,7 +110,7 @@ CrostiniUpgradeAvailableNotification::CrostiniUpgradeAvailableNotification(
   rich_notification_data.small_image = gfx::Image(gfx::CreateVectorIcon(
       vector_icons::kFileDownloadIcon, 64, gfx::kGoogleBlue800));
   if (chromeos::features::IsJellyEnabled()) {
-    rich_notification_data.accent_color_id = cros_tokens::kCrosSysOnPrimary;
+    rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
   } else {
     rich_notification_data.accent_color = ash::kSystemNotificationColorNormal;
   }

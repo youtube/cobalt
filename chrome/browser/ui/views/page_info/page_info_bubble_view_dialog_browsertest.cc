@@ -18,11 +18,17 @@
 #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
+#include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
+#include "components/content_settings/core/common/cookie_blocking_3pcd_status.h"
+#include "components/content_settings/core/common/cookie_controls_status.h"
+#include "components/content_settings/core/common/features.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/page_info/core/about_this_site_service.h"
@@ -34,19 +40,32 @@
 #include "components/safe_browsing/content/browser/password_protection/password_protection_test_util.h"
 #include "components/safe_browsing/core/browser/password_protection/metrics_util.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/strings/grit/components_strings.h"
+#include "components/webapps/common/web_app_id.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/cert_test_util.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/test_certificate_data.h"
 #include "net/test/test_data_directory.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/test/test_event.h"
+#include "url/gurl.h"
+#include "url/origin.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/base_paths_win.h"
+#include "base/test/scoped_path_override.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace {
+
+constexpr int kTopicsAPITestTaxonomyVersion = 1;
 
 constexpr char kExpiredCertificateFile[] = "expired_cert.pem";
 constexpr char kAboutThisSiteUrl[] = "a.test";
 constexpr char kHistoryUrl[] = "b.test";
-constexpr char kIsolatedWebAppUrl[] = "iwa.test";
 
 // Clicks the location icon to open the page info bubble.
 void OpenPageInfoBubble(Browser* browser) {
@@ -79,16 +98,11 @@ views::View* GetView(Browser* browser, int view_id) {
 class PageInfoBubbleViewDialogBrowserTest : public DialogBrowserTest {
  public:
   PageInfoBubbleViewDialogBrowserTest() {
-    // TODO(crbug.com/1344787): Clean up when PageSpecificSiteDataDialog is
-    // launched. Disable features for the new version of "Cookies in use"
-    // dialog. The new UI is covered by
-    // PageInfoBubbleViewCookiesSubpageBrowserTest.
     feature_list_.InitWithFeatures(
-        {}, {page_info::kPageSpecificSiteDataDialog,
-             page_info::kPageInfoCookiesSubpage,
-             // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having
-             // to disable this feature.
-             features::kHttpsUpgrades});
+        {},
+        {// TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having
+         // to disable this feature.
+         features::kHttpsUpgrades, safe_browsing::kRedInterstitialFacelift});
   }
 
   PageInfoBubbleViewDialogBrowserTest(
@@ -259,9 +273,9 @@ class PageInfoBubbleViewDialogBrowserTest : public DialogBrowserTest {
       // force an update by clearing the existing permission views here.
       bubble_view->GetFocusManager()->SetFocusedView(nullptr);
 
-        auto* main_page = static_cast<PageInfoMainView*>(current_ui);
-        main_page->toggle_rows_.clear();
-        main_page->permissions_view_->RemoveAllChildViews();
+      auto* main_page = static_cast<PageInfoMainView*>(current_ui);
+      main_page->toggle_rows_.clear();
+      main_page->permissions_view_->RemoveAllChildViews();
 
       current_ui->SetPermissionInfo(permissions_list,
                                     std::move(chosen_object_list));
@@ -298,15 +312,17 @@ class PageInfoBubbleViewDialogBrowserTest : public DialogBrowserTest {
   }
 
   bool VerifyUi() override {
-    if (!DialogBrowserTest::VerifyUi())
+    if (!DialogBrowserTest::VerifyUi()) {
       return false;
+    }
     // Check that each expected View is present in the Page Info bubble.
     views::View* page_info_bubble_view =
         PageInfoBubbleView::GetPageInfoBubbleForTesting()->GetContentsView();
     for (auto id : expected_identifiers_) {
       views::View* view = GetView(browser(), id);
-      if (!page_info_bubble_view->Contains(view))
+      if (!page_info_bubble_view->Contains(view)) {
         return false;
+      }
     }
     return true;
   }
@@ -413,8 +429,8 @@ IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewDialogBrowserTest,
 // set. All permissions will show regardless of its factory default value.
 IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewDialogBrowserTest,
                        InvokeUi_AllowAllPermissions) {
-  // Last updated in crrev.com/c/4150491.
-  set_baseline("4150491");
+  // Last updated in crrev.com/c/4804826.
+  set_baseline("4804826");
   ShowAndVerifyUi();
 }
 
@@ -422,8 +438,8 @@ IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewDialogBrowserTest,
 // set. All permissions will show regardless of its factory default value.
 IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewDialogBrowserTest,
                        InvokeUi_BlockAllPermissions) {
-  // Last updated in crrev.com/c/4150491.
-  set_baseline("4150491");
+  // Last updated in crrev.com/c/4804826.
+  set_baseline("4804826");
   ShowAndVerifyUi();
 }
 
@@ -461,12 +477,8 @@ class PageInfoBubbleViewAboutThisSiteDialogBrowserTest
     : public DialogBrowserTest {
  public:
   PageInfoBubbleViewAboutThisSiteDialogBrowserTest() {
-    // TODO(crbug.com/1344787): Clean up when PageSpecificSiteDataDialog is
-    // launched.
-    feature_list_.InitWithFeatures({page_info::kPageInfoAboutThisSiteEn,
-                                    page_info::kPageInfoAboutThisSiteNonEn},
-                                   {page_info::kPageSpecificSiteDataDialog,
-                                    page_info::kPageInfoCookiesSubpage});
+    feature_list_.InitWithFeatures({page_info::kPageInfoAboutThisSiteMoreLangs},
+                                   {});
   }
 
   void SetUpOnMainThread() override {
@@ -520,9 +532,8 @@ class PageInfoBubbleViewAboutThisSiteDialogBrowserTest
         PageInfoBubbleView::GetPageInfoBubbleForTesting());
     std::u16string site_name = u"Example site";
     bubble_view->presenter_for_testing()->SetSiteNameForTesting(site_name);
-    ASSERT_EQ(
-        bubble_view->presenter_for_testing()->GetSiteNameOrAppNameToDisplay(),
-        site_name);
+    ASSERT_EQ(bubble_view->presenter_for_testing()->GetSubjectNameForDisplay(),
+              site_name);
 
     if (name == "AboutThisSite") {
       // No further action needed, default case.
@@ -550,13 +561,10 @@ class PageInfoBubbleViewPrivacySandboxDialogBrowserTest
       public testing::WithParamInterface<bool> {
  public:
   PageInfoBubbleViewPrivacySandboxDialogBrowserTest() {
-    // TODO(crbug.com/1344787): Clean up when PageSpecificSiteDataDialog is
-    // launched.
     feature_list_.InitWithFeatures(
         {GetParam() ? privacy_sandbox::kPrivacySandboxSettings4
                     : privacy_sandbox::kPrivacySandboxSettings3},
-        {page_info::kPageSpecificSiteDataDialog,
-         page_info::kPageInfoCookiesSubpage});
+        {});
   }
 
   void SetUpOnMainThread() override {
@@ -588,9 +596,8 @@ class PageInfoBubbleViewPrivacySandboxDialogBrowserTest
 
     pscs->OnTopicAccessed(
         url::Origin::Create(GURL("https://a.test")), false,
-        privacy_sandbox::CanonicalTopic(
-            browsing_topics::Topic(1),
-            privacy_sandbox::CanonicalTopic::AVAILABLE_TAXONOMY));
+        privacy_sandbox::CanonicalTopic(browsing_topics::Topic(1),
+                                        kTopicsAPITestTaxonomyVersion));
 
     OpenPageInfoBubble(browser());
 
@@ -598,9 +605,8 @@ class PageInfoBubbleViewPrivacySandboxDialogBrowserTest
         PageInfoBubbleView::GetPageInfoBubbleForTesting());
     std::u16string site_name = u"Example site";
     bubble_view->presenter_for_testing()->SetSiteNameForTesting(site_name);
-    ASSERT_EQ(
-        bubble_view->presenter_for_testing()->GetSiteNameOrAppNameToDisplay(),
-        site_name);
+    ASSERT_EQ(bubble_view->presenter_for_testing()->GetSubjectNameForDisplay(),
+              site_name);
 
     if (name == "PrivacySandboxMain") {
       // No further action needed, default case.
@@ -636,11 +642,7 @@ INSTANTIATE_TEST_SUITE_P(All,
 class PageInfoBubbleViewHistoryDialogBrowserTest : public DialogBrowserTest {
  public:
   PageInfoBubbleViewHistoryDialogBrowserTest() {
-    // TODO(crbug.com/1344787): Clean up when PageSpecificSiteDataDialog is
-    // launched.
-    feature_list_.InitWithFeatures({page_info::kPageInfoHistoryDesktop},
-                                   {page_info::kPageSpecificSiteDataDialog,
-                                    page_info::kPageInfoCookiesSubpage});
+    feature_list_.InitWithFeatures({page_info::kPageInfoHistoryDesktop}, {});
   }
 
   void SetUpOnMainThread() override {
@@ -670,9 +672,8 @@ class PageInfoBubbleViewHistoryDialogBrowserTest : public DialogBrowserTest {
         PageInfoBubbleView::GetPageInfoBubbleForTesting());
     std::u16string site_name = u"Example site";
     bubble_view->presenter_for_testing()->SetSiteNameForTesting(site_name);
-    ASSERT_EQ(
-        bubble_view->presenter_for_testing()->GetSiteNameOrAppNameToDisplay(),
-        site_name);
+    ASSERT_EQ(bubble_view->presenter_for_testing()->GetSubjectNameForDisplay(),
+              site_name);
   }
 
   GURL GetUrl(const std::string& host) {
@@ -689,14 +690,44 @@ IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewHistoryDialogBrowserTest,
   ShowAndVerifyUi();
 }
 
-class PageInfoBubbleViewCookiesSubpageBrowserTest : public DialogBrowserTest {
+enum class UserBypassFeatureState {
+  kOff = 0,
+  kOnTemporaryExceptions = 1,
+  kOnPermanentExceptions = 2,
+};
+
+class PageInfoBubbleViewCookiesSubpageBrowserTest
+    : public DialogBrowserTest,
+      public testing::WithParamInterface<UserBypassFeatureState> {
  public:
   PageInfoBubbleViewCookiesSubpageBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {page_info::kPageSpecificSiteDataDialog,
-         page_info::kPageInfoCookiesSubpage,
-         privacy_sandbox::kPrivacySandboxFirstPartySetsUI},
-        {});
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    enabled_features.push_back(
+        {privacy_sandbox::kPrivacySandboxFirstPartySetsUI, {}});
+
+    switch (GetParam()) {
+      case UserBypassFeatureState::kOff:
+        disabled_features.push_back(content_settings::features::kUserBypassUI);
+        break;
+      case UserBypassFeatureState::kOnTemporaryExceptions:
+        enabled_features.push_back({content_settings::features::kUserBypassUI,
+                                    {{"expiration", "30d"}}});
+        break;
+      case UserBypassFeatureState::kOnPermanentExceptions:
+        enabled_features.push_back({content_settings::features::kUserBypassUI,
+                                    {{"expiration", "0d"}}});
+        break;
+    }
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
+  }
+
+  static base::Time GetReferenceTime() {
+    base::Time time;
+    EXPECT_TRUE(base::Time::FromString("Sat, 1 Sep 2023 11:00:00 UTC", &time));
+    return time;
   }
 
   // DialogBrowserTest:
@@ -725,15 +756,15 @@ class PageInfoBubbleViewCookiesSubpageBrowserTest : public DialogBrowserTest {
     constexpr char kCookiesSubpageFpsManaged3pcAllowed[] =
         "CookiesSubpageFpsManaged3pcAllowed";
 
-    const int blocked_sites_count = 8;
-    const int allowed_sites_count = 9;
     const std::u16string kSiteOrigin = u"example.com";
 
     PageInfoUI::CookiesNewInfo cookie_info;
-    cookie_info.allowed_sites_count = allowed_sites_count;
-    cookie_info.blocked_sites_count = blocked_sites_count;
+    cookie_info.allowed_sites_count = 9;
+    cookie_info.allowed_third_party_sites_count = 5;
+    cookie_info.blocked_third_party_sites_count = 8;
     cookie_info.enforcement = CookieControlsEnforcement::kNoEnforcement;
     cookie_info.status = CookieControlsStatus::kEnabled;
+    cookie_info.blocking_status = CookieBlocking3pcdStatus::kNotIn3pcd;
     // TODO(crbug.com/1346305): Add fps enforcement info when finished
     // implementing it.
     if (name == kCookiesSubpageFpsAllowed3pcAllowed ||
@@ -745,8 +776,9 @@ class PageInfoBubbleViewCookiesSubpageBrowserTest : public DialogBrowserTest {
       cookie_info.fps_info = {PageInfoUI::CookiesFpsInfo(kSiteOrigin)};
 
       // Otherwise it's by default false
-      if (name == kCookiesSubpageFpsManaged3pcAllowed)
+      if (name == kCookiesSubpageFpsManaged3pcAllowed) {
         cookie_info.fps_info->is_managed = true;
+      }
 
     }  // Otherwise by default it's null
 
@@ -770,6 +802,11 @@ class PageInfoBubbleViewCookiesSubpageBrowserTest : public DialogBrowserTest {
                name == kCookiesSubpageFpsManaged3pcAllowed) {
       cookie_info.status = CookieControlsStatus::kDisabled;
     }
+
+    if (GetParam() == UserBypassFeatureState::kOnTemporaryExceptions) {
+      cookie_info.expiration = GetReferenceTime() + base::Days(30);
+    }
+    cookie_info.confidence = CookieControlsBreakageConfidenceLevel::kMedium;
 
     // Open Page Info and wait for it to be fully initialized.
     base::RunLoop run_loop;
@@ -799,64 +836,115 @@ class PageInfoBubbleViewCookiesSubpageBrowserTest : public DialogBrowserTest {
     // Removing the focus as with tests run in parallel it causes different
     // outputs.
     bubble_view->GetFocusManager()->SetFocusedView(nullptr);
+
+    auto third_party_cookies_title =
+        cookies_subpage_content->third_party_cookies_title_->GetText();
+    auto third_party_cookies_description =
+        cookies_subpage_content->third_party_cookies_description_->GetText();
+    if (cookie_info.status != CookieControlsStatus::kDisabled &&
+        cookie_info.status != CookieControlsStatus::kEnabled) {
+      EXPECT_EQ(third_party_cookies_title,
+                l10n_util::GetPluralStringFUTF16(
+                    IDS_PAGE_INFO_COOKIES_BLOCKING_RESTART_TITLE, 30));
+      EXPECT_EQ(third_party_cookies_description,
+                l10n_util::GetStringUTF16(
+                    IDS_PAGE_INFO_COOKIES_BLOCKING_RESTART_DESCRIPTION_TODAY));
+    }
   }
 
  private:
+  // Overriding `base::Time::Now()` to obtain a consistent X days until
+  // exception expiration calculation regardless of the time the test runs.
+  base::subtle::ScopedTimeClockOverrides time_override_{
+      &PageInfoBubbleViewCookiesSubpageBrowserTest::GetReferenceTime,
+      /*time_ticks_override=*/nullptr, /*thread_ticks_override=*/nullptr};
   base::test::ScopedFeatureList feature_list_;
 };
+
+// TODO(crbug.com/1491942): This fails with the field trial testing config.
+class PageInfoBubbleViewCookiesSubpageBrowserTestNoTestingConfig
+    : public PageInfoBubbleViewCookiesSubpageBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    PageInfoBubbleViewCookiesSubpageBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch("disable-field-trial-config");
+  }
+};
+INSTANTIATE_TEST_SUITE_P(
+    /*no prefix*/,
+    PageInfoBubbleViewCookiesSubpageBrowserTestNoTestingConfig,
+    testing::ValuesIn({UserBypassFeatureState::kOff,
+                       UserBypassFeatureState::kOnTemporaryExceptions,
+                       UserBypassFeatureState::kOnPermanentExceptions}));
 
 // Show different sets of buttons in cookies subpage with different
 // enforcements:
 
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsBlocked3pcAllowed) {
+IN_PROC_BROWSER_TEST_P(
+    PageInfoBubbleViewCookiesSubpageBrowserTestNoTestingConfig,
+    InvokeUi_CookiesSubpageFpsBlocked3pcAllowed) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsAllowed3pcBlocked) {
+// Test is failing on M120 bot and can't be fixed (https://crbug.com/40076122)
+IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewCookiesSubpageBrowserTest,
+                       DISABLED_InvokeUi_CookiesSubpageFpsAllowed3pcBlocked) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsBlocked3pcBlocked) {
+// Test is failing on M120 bot and can't be fixed (https://crbug.com/40076122)
+IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewCookiesSubpageBrowserTest,
+                       DISABLED_InvokeUi_CookiesSubpageFpsBlocked3pcBlocked) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsAllowed3pcAllowed) {
+// Test is failing on M120 bot and can't be fixed (https://crbug.com/40076122)
+IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewCookiesSubpageBrowserTest,
+                       DISABLED_InvokeUi_CookiesSubpageFpsAllowed3pcAllowed) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsAllowed3pcEnforcedByPolicy) {
-  ShowAndVerifyUi();
-}
-IN_PROC_BROWSER_TEST_F(
+// Test is failing on M120 bot and can't be fixed (https://crbug.com/40076122)
+IN_PROC_BROWSER_TEST_P(
     PageInfoBubbleViewCookiesSubpageBrowserTest,
+    DISABLED_InvokeUi_CookiesSubpageFpsAllowed3pcEnforcedByPolicy) {
+  ShowAndVerifyUi();
+}
+IN_PROC_BROWSER_TEST_P(
+    PageInfoBubbleViewCookiesSubpageBrowserTestNoTestingConfig,
     InvokeUi_CookiesSubpageFpsAllowed3pcEnforcedByExtension) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(
-    PageInfoBubbleViewCookiesSubpageBrowserTest,
+IN_PROC_BROWSER_TEST_P(
+    PageInfoBubbleViewCookiesSubpageBrowserTestNoTestingConfig,
     InvokeUi_CookiesSubpageFpsAllowed3pcEnforcedByCookieSetting) {
   ShowAndVerifyUi();
 }
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewCookiesSubpageBrowserTest,
-                       InvokeUi_CookiesSubpageFpsManaged3pcAllowed) {
+// Test is failing on M120 bot and can't be fixed (https://crbug.com/40076122)
+IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewCookiesSubpageBrowserTest,
+                       DISABLED_InvokeUi_CookiesSubpageFpsManaged3pcAllowed) {
   ShowAndVerifyUi();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    /*no prefix*/,
+    PageInfoBubbleViewCookiesSubpageBrowserTest,
+    testing::ValuesIn({UserBypassFeatureState::kOff,
+                       UserBypassFeatureState::kOnTemporaryExceptions,
+                       UserBypassFeatureState::kOnPermanentExceptions}));
 
 class PageInfoBubbleViewIsolatedWebAppBrowserTest : public DialogBrowserTest {
  public:
   PageInfoBubbleViewIsolatedWebAppBrowserTest() {
-    // TODO(crbug.com/1344787): Clean up when PageSpecificSiteDataDialog is
-    // launched.
-    feature_list_.InitWithFeatures({}, {page_info::kPageSpecificSiteDataDialog,
-                                        page_info::kPageInfoCookiesSubpage});
+    feature_list_.InitWithFeatures(
+        {features::kIsolatedWebApps, features::kIsolatedWebAppDevMode}, {});
   }
 
   void SetUpOnMainThread() override {
-    https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
-    https_server_.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-    ASSERT_TRUE(https_server_.Start());
-    host_resolver()->AddRule("*", "127.0.0.1");
+    auto dev_server = web_app::CreateAndStartDevServer(
+        FILE_PATH_LITERAL("web_apps/simple_isolated_app"));
+
+    auto url_info = web_app::InstallDevModeProxyIsolatedWebApp(
+        browser()->profile(), dev_server->GetOrigin());
+
+    start_url_ = url_info.origin().GetURL();
+    app_id_ = url_info.app_id();
   }
 
   // DialogBrowserTest:
@@ -865,29 +953,36 @@ class PageInfoBubbleViewIsolatedWebAppBrowserTest : public DialogBrowserTest {
     // https://crbug.com/893292.
     set_should_verify_dialog_bounds(false);
 
-    ASSERT_TRUE(
-        ui_test_utils::NavigateToURL(browser(), GetUrl(kIsolatedWebAppUrl)));
-    OpenPageInfoBubble(browser());
+    Browser* iwa_browser =
+        web_app::LaunchWebAppBrowserAndWait(browser()->profile(), app_id_);
+
+    ASSERT_TRUE(iwa_browser);
+    OpenPageInfoBubble(iwa_browser);
 
     auto* bubble_view = static_cast<PageInfoBubbleView*>(
         PageInfoBubbleView::GetPageInfoBubbleForTesting());
-    std::u16string app_name = u"Google IWA";
-    bubble_view->presenter_for_testing()->SetIsolatedWebAppNameForTesting(
-        app_name);
     bubble_view->presenter_for_testing()->UpdateSecurityState();
     // For Isolated Web Apps, normal site name gets overridden by app name.
-    ASSERT_EQ(
-        bubble_view->presenter_for_testing()->GetSiteNameOrAppNameToDisplay(),
-        app_name);
-  }
+    EXPECT_EQ(bubble_view->presenter_for_testing()->GetSubjectNameForDisplay(),
+              u"Simple Isolated App");
 
-  GURL GetUrl(const std::string& host) {
-    return https_server_.GetURL(host, "/title1.html");
+    EXPECT_EQ(bubble_view->presenter_for_testing()->site_identity_status(),
+              PageInfo::SITE_IDENTITY_STATUS_ISOLATED_WEB_APP);
+    EXPECT_EQ(bubble_view->presenter_for_testing()->site_connection_status(),
+              PageInfo::SITE_CONNECTION_STATUS_ISOLATED_WEB_APP);
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
   net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
+  GURL start_url_;
+  webapps::AppId app_id_;
+
+#if BUILDFLAG(IS_WIN)
+  // This stops web app installation from creating a shortcut in the real
+  // desktop start menu dir.
+  base::ScopedPathOverride override_start_menu_dir_{base::DIR_START_MENU};
+#endif  // BUILDFLAG(IS_WIN)
 };
 
 // Test renamed, as currently Skia Gold doesn't support resetting test
@@ -895,6 +990,6 @@ class PageInfoBubbleViewIsolatedWebAppBrowserTest : public DialogBrowserTest {
 // crbug.com/1403038
 IN_PROC_BROWSER_TEST_F(
     PageInfoBubbleViewIsolatedWebAppBrowserTest,
-    InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV1) {
+    InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2) {
   ShowAndVerifyUi();
 }

@@ -6,8 +6,6 @@ import("//build/config/features.gni")
 import("//ios/web/public/js_messaging/optimize_js.gni")
 
 component("ios") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   public_deps = [ ":password_manager_feature_header" ]
 
   deps = [
@@ -18,6 +16,7 @@ component("ios") {
     "//components/autofill/core/common",
     "//components/autofill/ios/browser",
     "//components/autofill/ios/browser:util",
+    "//components/autofill/ios/common",
     "//components/autofill/ios/form_util",
     "//components/autofill/ios/form_util:form_util_feature",
     "//components/password_manager/core/browser",
@@ -33,6 +32,8 @@ component("ios") {
     "//ui/base",
     "//url",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   sources = [
     "ios_password_manager_driver.h",
@@ -62,13 +63,13 @@ component("ios") {
 }
 
 source_set("password_manager_feature_header") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//components/autofill/core/common",
     "//ios/web/public/js_messaging",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   sources = [ "password_manager_java_script_feature.h" ]
 }
@@ -81,6 +82,8 @@ source_set("account_select_fill_data") {
     "//url",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   sources = [
     "account_select_fill_data.cc",
     "account_select_fill_data.h",
@@ -90,6 +93,11 @@ source_set("account_select_fill_data") {
 optimize_js("password_controller_js") {
   primary_script = "resources/password_controller.js"
   sources = [ "resources/password_controller.js" ]
+
+  deps = [
+    "//components/autofill/ios/form_util:fill_js_dependencies",
+    "//ios/web/public/js_messaging:gcrweb",
+  ]
 }
 
 static_library("test_support") {
@@ -109,15 +117,13 @@ static_library("test_support") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "account_select_fill_data_unittest.cc",
     "ios_password_manager_driver_factory_unittest.mm",
     "ios_password_manager_driver_unittest.mm",
     "password_controller_driver_helper_unittest.mm",
-    "password_form_helper_unittest.mm",
-    "shared_password_controller_unittest.mm",
+    "password_suggestion_helper_unittest.mm",
   ]
   deps = [
     ":account_select_fill_data",
@@ -127,6 +133,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/autofill/core/common",
     "//components/autofill/ios/browser",
+    "//components/autofill/ios/browser:test_support",
     "//components/autofill/ios/form_util",
     "//components/autofill/ios/form_util:form_handler_feature",
     "//components/autofill/ios/form_util:form_util_feature",
@@ -135,6 +142,7 @@ source_set("unit_tests") {
     "//components/password_manager/core/browser:test_support",
     "//components/password_manager/core/common:features",
     "//components/password_manager/ios:password_manager_feature_header",
+    "//components/password_manager/ios:test_support",
     "//components/ukm:test_support",
     "//components/ukm/ios:ukm_url_recorder",
     "//ios/web/public/js_messaging",
@@ -148,7 +156,25 @@ source_set("unit_tests") {
   ]
 
   # TODO(crbug.com/1427365): Test currently fails on iOS blink.
-  if (is_ios && use_blink) {
-    sources -= [ "password_form_helper_unittest.mm" ]
+  if (!use_blink) {
+    sources += [
+      "password_form_helper_unittest.mm",
+
+      # TODO(crbug.com/1481427): SharedPasswordControllerTest fails on iOS
+      # blink.
+      "shared_password_controller_unittest.mm",
+    ]
   }
+}
+
+source_set("fake_bulk_leak_check_service") {
+  testonly = true
+  sources = [
+    "fake_bulk_leak_check_service.h",
+    "fake_bulk_leak_check_service.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/password_manager/core/browser/leak_detection:leak_detection_interface_headers",
+  ]
 }

@@ -11,13 +11,13 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "third_party/blink/public/platform/resource_load_info_notifier_wrapper.h"
 #include "third_party/blink/public/platform/url_conversion.h"
-#include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/platform/web_url_request_extra_data.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/url_loader_client.h"
 #include "third_party/blink/renderer/platform/scheduler/test/fake_task_runner.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory_impl.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 
 namespace blink {
@@ -83,11 +83,12 @@ WebURL URLLoaderMock::ServeRedirect(const WebString& method,
   base::WeakPtr<URLLoaderMock> self = weak_factory_.GetWeakPtr();
 
   bool report_raw_headers = false;
+  net::HttpRequestHeaders modified_headers;
   bool follow = client_->WillFollowRedirect(
       redirect_url, net::SiteForCookies::FromUrl(GURL(redirect_url)),
       WebString(), network::mojom::ReferrerPolicy::kDefault, method,
       redirect_response, report_raw_headers, nullptr /* removed_headers */,
-      false /* insecure_scheme_was_upgraded */);
+      modified_headers, false /* insecure_scheme_was_upgraded */);
   // |this| might be deleted in willFollowRedirect().
   if (!self) {
     return redirect_url;
@@ -102,8 +103,8 @@ WebURL URLLoaderMock::ServeRedirect(const WebString& method,
 
 void URLLoaderMock::LoadSynchronously(
     std::unique_ptr<network::ResourceRequest> request,
-    scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
-    bool pass_response_pipe_to_client,
+    scoped_refptr<const SecurityOrigin> top_frame_origin,
+    bool download_to_blob,
     bool no_mime_sniffing,
     base::TimeDelta timeout_interval,
     URLLoaderClient* client,
@@ -122,10 +123,11 @@ void URLLoaderMock::LoadSynchronously(
 
 void URLLoaderMock::LoadAsynchronously(
     std::unique_ptr<network::ResourceRequest> request,
-    scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+    scoped_refptr<const SecurityOrigin> top_frame_origin,
     bool no_mime_sniffing,
     std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
         resource_load_info_notifier_wrapper,
+    CodeCacheHost* code_cache_host,
     URLLoaderClient* client) {
   DCHECK(client);
   DCHECK(factory_->IsMockedURL(WebURL(KURL(request->url)))) << request->url;

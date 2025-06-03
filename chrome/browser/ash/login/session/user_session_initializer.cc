@@ -6,8 +6,8 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
-#include "ash/glanceables/glanceables_util.h"
-#include "base/feature_list.h"
+#include "ash/shell.h"
+#include "ash/system/media/media_notification_provider.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/system/sys_info.h"
@@ -40,13 +40,13 @@
 #include "chrome/browser/net/nss_service.h"
 #include "chrome/browser/net/nss_service_factory.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/scalable_iph/scalable_iph_factory.h"
+#include "chrome/browser/screen_ai/screen_ai_dlc_installer.h"
 #include "chrome/browser/ui/ash/calendar/calendar_keyed_service_factory.h"
-#include "chrome/browser/ui/ash/clipboard_image_model_factory_impl.h"
-#include "chrome/browser/ui/ash/glanceables/chrome_glanceables_delegate.h"
 #include "chrome/browser/ui/ash/glanceables/glanceables_keyed_service_factory.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service_factory.h"
 #include "chrome/browser/ui/ash/media_client_impl.h"
-#include "chrome/browser/ui/webui/settings/ash/peripheral_data_access_handler.h"
+#include "chrome/browser/ui/webui/ash/settings/pages/privacy/peripheral_data_access_handler.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/pciguard/pciguard_client.h"
@@ -58,6 +58,7 @@
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "media/base/media_switches.h"
 
 #if BUILDFLAG(ENABLE_RLZ)
 #include "chrome/browser/rlz/chrome_rlz_tracker_delegate.h"
@@ -220,6 +221,12 @@ void UserSessionInitializer::InitializeCRLSetFetcher() {
 void UserSessionInitializer::InitializePrimaryProfileServices(
     Profile* profile,
     const user_manager::User* user) {
+  // We should call this method at most once, when a user logs in. Logging out
+  // kills the chrome process.
+  static int call_count = 0;
+  ++call_count;
+  CHECK_EQ(call_count, 1);
+
   lock_screen_apps::StateController::Get()->SetPrimaryProfile(profile);
 
   if (user->GetType() == user_manager::USER_TYPE_REGULAR) {
@@ -239,15 +246,18 @@ void UserSessionInitializer::InitializePrimaryProfileServices(
   if (crostini_manager)
     crostini_manager->MaybeUpdateCrostini();
 
-  clipboard_image_model_factory_impl_ =
-      std::make_unique<ClipboardImageModelFactoryImpl>(profile);
-
   if (captions::IsLiveCaptionFeatureSupported() &&
-      base::FeatureList::IsEnabled(features::kSystemLiveCaption)) {
+      features::IsSystemLiveCaptionEnabled()) {
     SystemLiveCaptionServiceFactory::GetInstance()->GetForProfile(profile);
   }
 
   g_browser_process->platform_part()->InitializePrimaryProfileServices(profile);
+}
+
+void UserSessionInitializer::InitializeScalableIph(Profile* profile) {
+  ScalableIphFactory* scalable_iph_factory = ScalableIphFactory::GetInstance();
+  CHECK(scalable_iph_factory);
+  scalable_iph_factory->InitializeServiceForProfile(profile);
 }
 
 void UserSessionInitializer::OnUserSessionStarted(bool is_primary_user) {
@@ -261,25 +271,24 @@ void UserSessionInitializer::OnUserSessionStarted(bool is_primary_user) {
   // created one per user in a multiprofile session.
   CalendarKeyedServiceFactory::GetInstance()->GetService(profile);
 
+  // Ensure that the `GlanceablesKeyedService` for `profile` is created. It is
+  // created one per user in a multiprofile session.
+  GlanceablesKeyedServiceFactory::GetInstance()->GetService(profile);
+
+  screen_ai::dlc_installer::ManageInstallation(
+      g_browser_process->local_state());
+
   if (is_primary_user) {
     DCHECK_EQ(primary_profile_, profile);
-
-    if (features::AreGlanceablesEnabled()) {
-      // Must be called after CalenderKeyedServiceFactory is initialized.
-      ChromeGlanceablesDelegate::Get()->OnPrimaryUserSessionStarted(profile);
-    }
-
-    // TODO(b/270948434): Temporary cleanup logic.
-    glanceables_util::DeleteScreenshot();
-
-    // Ensure that the `GlanceablesKeyedService` for `primary_profile_` is
-    // created.
-    GlanceablesKeyedServiceFactory::GetInstance()->GetService(primary_profile_);
 
     // Ensure that PhoneHubManager and EcheAppManager are created for the
     // primary profile.
     phonehub::PhoneHubManagerFactory::GetForProfile(profile);
     eche_app::EcheAppManagerFactory::GetForProfile(profile);
+
+    // `ScalableIph` depends on `PhoneHubManager`. Initialize after
+    // `PhoneHubManager`.
+    InitializeScalableIph(profile);
 
     plugin_vm::PluginVmManager* plugin_vm_manager =
         plugin_vm::PluginVmManagerFactory::GetForProfile(primary_profile_);
@@ -300,6 +309,11 @@ void UserSessionInitializer::OnUserSessionStarted(bool is_primary_user) {
         settings::PeripheralDataAccessHandler::GetPrefState());
 
     CrasAudioHandler::Get()->RefreshNoiseCancellationState();
+
+    Shell::Get()->media_notification_provider()->OnPrimaryUserSessionStarted();
+    if (base::FeatureList::IsEnabled(media::kShowForceRespectUiGainsToggle)) {
+      CrasAudioHandler::Get()->RefreshForceRespectUiGainsState();
+    }
   }
 }
 

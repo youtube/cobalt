@@ -6,9 +6,9 @@
 
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/geometry/writing_mode_converter.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/layout_ng_text_combine.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/ng/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_fragment.h"
@@ -24,16 +24,16 @@ namespace blink {
 PhysicalRect NGLayoutOverflowCalculator::RecalculateLayoutOverflowForFragment(
     const NGPhysicalBoxFragment& fragment,
     bool has_block_fragmentation) {
-  DCHECK(!fragment.IsLegacyLayoutRoot() ||
-         fragment.GetLayoutObject()->IsMedia());
   const NGBlockNode node(const_cast<LayoutBox*>(
       To<LayoutBox>(fragment.GetSelfOrContainerLayoutObject())));
+  DCHECK(!node.IsReplaced() || node.IsMedia());
+
   const WritingDirectionMode writing_direction =
       node.Style().GetWritingDirection();
 
   // TODO(ikilpatrick): The final computed scrollbars for a fragment should
   // likely live on the NGPhysicalBoxFragment.
-  NGPhysicalBoxStrut scrollbar;
+  PhysicalBoxStrut scrollbar;
   if (fragment.IsCSSBox()) {
     scrollbar = ComputeScrollbarsForNonAnonymous(node).ConvertToPhysical(
         writing_direction);
@@ -43,8 +43,9 @@ PhysicalRect NGLayoutOverflowCalculator::RecalculateLayoutOverflowForFragment(
       node, fragment.IsCSSBox(), has_block_fragmentation, fragment.Borders(),
       scrollbar, fragment.Padding(), fragment.Size(), writing_direction);
 
-  if (const NGFragmentItems* items = fragment.Items())
+  if (const FragmentItems* items = fragment.Items()) {
     calculator.AddItems(fragment, *items);
+  }
 
   for (const auto& child : fragment.PostLayoutChildren()) {
     const auto* box_fragment =
@@ -75,9 +76,9 @@ NGLayoutOverflowCalculator::NGLayoutOverflowCalculator(
     const NGBlockNode& node,
     bool is_css_box,
     bool has_block_fragmentation,
-    const NGPhysicalBoxStrut& borders,
-    const NGPhysicalBoxStrut& scrollbar,
-    const NGPhysicalBoxStrut& padding,
+    const PhysicalBoxStrut& borders,
+    const PhysicalBoxStrut& scrollbar,
+    const PhysicalBoxStrut& padding,
     PhysicalSize size,
     WritingDirectionMode writing_direction)
     : node_(node),
@@ -134,8 +135,9 @@ void NGLayoutOverflowCalculator::AddItemsInternal(
 
   // |LayoutNGTextCombine| doesn't not cause layout overflow because combined
   // text fits in 1em by using width variant font or scaling.
-  if (UNLIKELY(IsA<LayoutNGTextCombine>(layout_object)))
+  if (UNLIKELY(IsA<LayoutTextCombine>(layout_object))) {
     return;
+  }
 
   for (const auto& item : items) {
     if (const auto* line_box = item->LineBoxFragment()) {
@@ -179,13 +181,13 @@ void NGLayoutOverflowCalculator::AddItemsInternal(
 
 void NGLayoutOverflowCalculator::AddItems(
     const LayoutObject* layout_object,
-    const NGFragmentItemsBuilder::ItemWithOffsetList& items) {
+    const FragmentItemsBuilder::ItemWithOffsetList& items) {
   AddItemsInternal(layout_object, items);
 }
 
 void NGLayoutOverflowCalculator::AddItems(
     const NGPhysicalBoxFragment& box_fragment,
-    const NGFragmentItems& items) {
+    const FragmentItems& items) {
   AddItemsInternal(box_fragment.GetLayoutObject(), items.Items());
 }
 

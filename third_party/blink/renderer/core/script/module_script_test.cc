@@ -43,7 +43,7 @@ class ModuleScriptTestModulator final : public DummyModulator {
   }
 
  private:
-  ScriptState* GetScriptState() override { return script_state_; }
+  ScriptState* GetScriptState() override { return script_state_.Get(); }
 
   Member<ScriptState> script_state_;
 };
@@ -90,7 +90,8 @@ class ModuleScriptTest : public ::testing::Test, public ModuleTestBase {
     ModuleScriptCreationParams params(
         KURL("https://fox.url/script.js"), KURL("https://fox.url/"),
         ScriptSourceLocationType::kInline, ModuleType::kJavaScript,
-        ParkableString(source_text.Impl()->IsolatedCopy()), cache_handler);
+        ParkableString(source_text.Impl()->IsolatedCopy()), cache_handler,
+        network::mojom::ReferrerPolicy::kDefault);
     return JSModuleScript::Create(params, modulator, ScriptFetchOptions());
   }
 

@@ -23,8 +23,8 @@ namespace viz {
 struct FrameTimingDetails;
 }
 
-namespace cc {
-class LayerTreeFrameSink;
+namespace cc::mojo_embedder {
+class AsyncLayerTreeFrameSink;
 }
 
 namespace exo {
@@ -39,14 +39,27 @@ class SurfaceTreeHost;
 // requests. crbug.com/1408614
 BASE_DECLARE_FEATURE(kExoReactiveFrameSubmission);
 
+// When this feature is enabled, unsolicited compositor frame submission via
+// LayerTreeFrameSinkHolder::SubmitCompositorFrame() will also be treated as the
+// client wishes to receive subsequent BeginFrame events, as if
+// CompositorFrameSink::SetNeedsBeginFrame(true) is called. Also, if the client
+// does not produce frames for a few consecutive BeginFrame requests,
+// CompositorFrameSink::SetNeedsBeginFrame(false) will be called to stop
+// subsequent BeginFrame requests.
+//
+// Note: Enabling kExoAutoNeedsBeginFrame only takes effect if
+// kExoReactiveFrameSubmission is also enabled.
+BASE_DECLARE_FEATURE(kExoAutoNeedsBeginFrame);
+
 // This class talks to CompositorFrameSink and keeps track of references to
 // the contents of Buffers.
 class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
                                  public WMHelper::LifetimeManager::Observer,
                                  public viz::BeginFrameObserverBase {
  public:
-  LayerTreeFrameSinkHolder(SurfaceTreeHost* surface_tree_host,
-                           std::unique_ptr<cc::LayerTreeFrameSink> frame_sink);
+  LayerTreeFrameSinkHolder(
+      SurfaceTreeHost* surface_tree_host,
+      std::unique_ptr<cc::mojo_embedder::AsyncLayerTreeFrameSink> frame_sink);
 
   LayerTreeFrameSinkHolder(const LayerTreeFrameSinkHolder&) = delete;
   LayerTreeFrameSinkHolder& operator=(const LayerTreeFrameSinkHolder&) = delete;
@@ -60,7 +73,17 @@ class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
   static void DeleteWhenLastResourceHasBeenReclaimed(
       std::unique_ptr<LayerTreeFrameSinkHolder> holder);
 
-  void SubmitCompositorFrame(viz::CompositorFrame frame);
+  // If a frame is submitted "now" (meaning before returning to event loop)
+  // via SubmitCompositorFrame(), whether it needs full damage.
+  bool NeedsFullDamageForNextFrame() const { return cached_frame_.has_value(); }
+  void SubmitCompositorFrame(viz::CompositorFrame frame,
+                             bool submit_now = false);
+  void SetLocalSurfaceId(const viz::LocalSurfaceId& local_surface_id);
+
+  // Properties of the `frame` from the last `SubmitCompositorFrame()` call,
+  // either from `cached_frame_`, or `frame_sink_`.
+  float LastDeviceScaleFactor() const;
+  const gfx::Size& LastSizeInPixels() const;
 
   // Returns true if owned LayerTreeFrameSink has been lost.
   bool is_lost() const { return is_lost_; }
@@ -86,6 +109,8 @@ class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
       const gfx::Rect& viewport_rect,
       const gfx::Transform& transform) override {}
 
+  void ClearPendingBeginFramesForTesting();
+
  private:
   struct PendingBeginFrame {
     viz::BeginFrameAck begin_frame_ack;
@@ -105,7 +130,7 @@ class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
 
   // Discards `cached_frame_`, reclaims resources and returns failure
   // presentation feedback.
-  void DiscardCachedFrame();
+  void DiscardCachedFrame(const viz::CompositorFrame* new_frame);
   void SendDiscardedFrameNotifications(uint32_t frame_token);
 
   void StopProcessingPendingFrames();
@@ -120,16 +145,24 @@ class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
 
   bool ShouldSubmitFrameNow() const;
 
+  void ObserveBeginFrameSource(bool start);
+
+  // Returns true if the feature AutoNeedsBeginFrame is enabled, and currently
+  // we are not receiving BeginFrame requests. In this case, it is allowed to
+  // submit an unsolicited frame.
+  bool UnsolicitedFrameAllowed() const;
+
   raw_ptr<SurfaceTreeHost, ExperimentalAsh> surface_tree_host_;
-  std::unique_ptr<cc::LayerTreeFrameSink> frame_sink_;
+  std::unique_ptr<cc::mojo_embedder::AsyncLayerTreeFrameSink> frame_sink_;
 
   FrameSinkResourceManager resource_manager_;
 
-  gfx::Size last_frame_size_in_pixels_;
-  float last_frame_device_scale_factor_ = 1.0f;
   std::vector<viz::ResourceId> last_frame_resources_;
 
   absl::optional<viz::CompositorFrame> cached_frame_;
+
+  // Resources that are submitted and still in use by the remote side.
+  std::set<viz::ResourceId> in_use_resources_;
 
   bool is_lost_ = false;
   bool delete_pending_ = false;
@@ -138,6 +171,7 @@ class LayerTreeFrameSinkHolder : public cc::LayerTreeFrameSinkClient,
       nullptr;
 
   raw_ptr<viz::BeginFrameSource, ExperimentalAsh> begin_frame_source_ = nullptr;
+  bool observing_begin_frame_source_ = false;
 
   base::queue<PendingBeginFrame> pending_begin_frames_;
 

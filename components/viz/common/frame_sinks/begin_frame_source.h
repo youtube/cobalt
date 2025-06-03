@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <vector>
 
 #include "base/check.h"
 #include "base/containers/flat_set.h"
@@ -16,6 +17,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/viz/common/display/update_vsync_parameters_callback.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/delay_based_time_source.h"
 
@@ -148,7 +150,7 @@ class VIZ_COMMON_EXPORT BeginFrameSource {
 
     BeginFrameArgs GenerateBeginFrameArgs(uint64_t source_id,
                                           base::TimeTicks frame_time,
-                                          base::TimeTicks next_frame_time,
+                                          base::TimeTicks deadline,
                                           base::TimeDelta vsync_interval);
 
     void set_dynamic_begin_frame_deadline_offset_source(
@@ -227,6 +229,13 @@ class VIZ_COMMON_EXPORT BeginFrameSource {
       DynamicBeginFrameDeadlineOffsetSource*
           dynamic_begin_frame_deadline_offset_source);
 
+  // Update the display ID for the source. This can change, e.g, as a window
+  // moves across displays.
+  virtual void SetVSyncDisplayID(int64_t display_id) {}
+
+  virtual void SetUpdateVSyncParametersCallback(
+      UpdateVSyncParametersCallback callback) {}
+
  protected:
   // Returns whether begin-frames to clients should be withheld (because the gpu
   // is still busy, for example). If this returns true, then OnGpuNoLongerBusy()
@@ -234,6 +243,9 @@ class VIZ_COMMON_EXPORT BeginFrameSource {
   // dispatched to clients again.
   bool RequestCallbackOnGpuAvailable();
   virtual void OnGpuNoLongerBusy() = 0;
+#if BUILDFLAG(IS_MAC)
+  void RecordBeginFrameSourceAccuracy(base::TimeDelta delta);
+#endif
 
  private:
   // The higher 32 bits are used for a process restart id that changes if a
@@ -260,6 +272,13 @@ class VIZ_COMMON_EXPORT BeginFrameSource {
   };
   GpuBusyThrottlingState gpu_busy_response_state_ =
       GpuBusyThrottlingState::kIdle;
+
+#if BUILDFLAG(IS_MAC)
+  base::TimeDelta total_delta_;
+  // The frame count since this histogram was recorded last time. It is recorded
+  // every 3600 frames, which is equivalent to every minute on a 60Hz monitors .
+  int frames_since_last_recording_ = 0;
+#endif
 };
 
 // A BeginFrameSource that does nothing.
@@ -281,6 +300,8 @@ class VIZ_COMMON_EXPORT SyntheticBeginFrameSource : public BeginFrameSource {
 
   virtual void OnUpdateVSyncParameters(base::TimeTicks timebase,
                                        base::TimeDelta interval) = 0;
+  virtual void SetMaxVrrInterval(
+      const absl::optional<base::TimeDelta>& max_vrr_interval) = 0;
 };
 
 // A frame source which calls BeginFrame (at the next possible time) as soon as
@@ -306,18 +327,20 @@ class VIZ_COMMON_EXPORT BackToBackBeginFrameSource
 
   // SyntheticBeginFrameSource implementation.
   void OnUpdateVSyncParameters(base::TimeTicks timebase,
-                               base::TimeDelta interval) override {}
+                               base::TimeDelta interval) override;
+  void SetMaxVrrInterval(
+      const absl::optional<base::TimeDelta>& max_vrr_interval) override;
 
   // DelayBasedTimeSourceClient implementation.
   void OnTimerTick() override;
 
  private:
-  void SetActive(bool active);
-
   std::unique_ptr<DelayBasedTimeSource> time_source_;
   base::flat_set<BeginFrameObserver*> observers_;
   base::flat_set<BeginFrameObserver*> pending_begin_frame_observers_;
   uint64_t next_sequence_number_;
+  base::TimeDelta vsync_interval_ = BeginFrameArgs::DefaultInterval();
+  absl::optional<base::TimeDelta> max_vrr_interval_ = absl::nullopt;
   base::WeakPtrFactory<BackToBackBeginFrameSource> weak_factory_{this};
 };
 
@@ -348,16 +371,23 @@ class VIZ_COMMON_EXPORT DelayBasedBeginFrameSource
   // SyntheticBeginFrameSource implementation.
   void OnUpdateVSyncParameters(base::TimeTicks timebase,
                                base::TimeDelta interval) override;
+  void SetMaxVrrInterval(
+      const absl::optional<base::TimeDelta>& max_vrr_interval) override;
 
   // DelayBasedTimeSourceClient implementation.
   void OnTimerTick() override;
 
+  const BeginFrameArgs& last_begin_frame_args() const {
+    return last_begin_frame_args_;
+  }
+  const DelayBasedTimeSource* time_source() const { return time_source_.get(); }
+
  private:
   // The created BeginFrameArgs' sequence_number is calculated based on what
   // interval |frame_time| is in. For example, if |last_frame_time_| is 100,
-  // |next_sequence_number_| is 5, |last_timebase_| is 110 and the interval is
-  // 20, then a |frame_time| of 175 would result in the sequence number being 8
-  // (3 intervals since 110).
+  // |next_sequence_number_| is 5, |last_timebase_| is 110 and the interval
+  // is 20, then a |frame_time| of 175 would result in the sequence number
+  // being 8 (3 intervals since 110).
   BeginFrameArgs CreateBeginFrameArgs(base::TimeTicks frame_time);
   void IssueBeginFrameToObserver(BeginFrameObserver* obs,
                                  const BeginFrameArgs& args);
@@ -366,8 +396,9 @@ class VIZ_COMMON_EXPORT DelayBasedBeginFrameSource
   std::unique_ptr<DelayBasedTimeSource> time_source_;
   base::flat_set<BeginFrameObserver*> observers_;
   base::TimeTicks last_timebase_;
+  absl::optional<base::TimeDelta> max_vrr_interval_ = absl::nullopt;
+  int vrr_tick_count_ = 0;
   BeginFrameArgs last_begin_frame_args_;
-
   BeginFrameArgsGenerator begin_frame_args_generator_;
 };
 
@@ -416,10 +447,11 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSource : public BeginFrameSource {
   // observers.
   virtual void SetPreferredInterval(base::TimeDelta interval) {}
 
-  virtual void SetVSyncDisplayID(int64_t display_id) {}
-
   // Returns the maximum supported refresh rate interval for a given BFS.
   virtual base::TimeDelta GetMaximumRefreshFrameInterval();
+
+  virtual std::vector<base::TimeDelta> GetSupportedFrameIntervals(
+      base::TimeDelta interval);
 
  protected:
   // Called on AddObserver and gets missed BeginFrameArgs for the given

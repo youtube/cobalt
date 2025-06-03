@@ -23,7 +23,8 @@ AppRestoreArcTaskHandler* AppRestoreArcTaskHandlerFactory::GetForProfile(
 // static
 AppRestoreArcTaskHandlerFactory*
 AppRestoreArcTaskHandlerFactory::GetInstance() {
-  return base::Singleton<AppRestoreArcTaskHandlerFactory>::get();
+  static base::NoDestructor<AppRestoreArcTaskHandlerFactory> instance;
+  return instance.get();
 }
 
 AppRestoreArcTaskHandlerFactory::AppRestoreArcTaskHandlerFactory()
@@ -41,12 +42,14 @@ AppRestoreArcTaskHandlerFactory::AppRestoreArcTaskHandlerFactory()
 
 AppRestoreArcTaskHandlerFactory::~AppRestoreArcTaskHandlerFactory() = default;
 
-KeyedService* AppRestoreArcTaskHandlerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppRestoreArcTaskHandlerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!arc::IsArcAllowedForProfile(Profile::FromBrowserContext(context)))
     return nullptr;
 
-  return new AppRestoreArcTaskHandler(Profile::FromBrowserContext(context));
+  return std::make_unique<AppRestoreArcTaskHandler>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace ash::app_restore

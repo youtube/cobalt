@@ -2,7 +2,6 @@
 # Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """Utility for checking and processing licensing information in third_party
 directories.
 
@@ -18,7 +17,10 @@ from __future__ import print_function
 
 import argparse
 import codecs
+import csv
+import io
 import json
+import logging
 import os
 import pathlib
 import shutil
@@ -40,7 +42,6 @@ _REPOSITORY_ROOT = os.path.abspath(
 sys.path.insert(0, os.path.join(_REPOSITORY_ROOT, 'build'))
 import action_helpers
 
-
 # Paths from the root of the tree to directories to skip.
 PRUNE_PATHS = set([
     # Placeholder directory only, not third-party code.
@@ -58,7 +59,6 @@ PRUNE_PATHS = set([
     # Used for development and test, not in the shipping product.
     os.path.join('build', 'secondary'),
     os.path.join('third_party', 'bison'),
-    os.path.join('third_party', 'blanketjs'),
     os.path.join('third_party', 'chromite'),
     os.path.join('third_party', 'cygwin'),
     os.path.join('third_party', 'gles2_conform'),
@@ -148,136 +148,152 @@ ADDITIONAL_PATHS = (
     os.path.join('v8', 'fdlibm'),
 )
 
-
 # Directories where we check out directly from upstream, and therefore
 # can't provide a README.chromium.  Please prefer a README.chromium
 # wherever possible.
 SPECIAL_CASES = {
     os.path.join('native_client'): {
         "Name": "native client",
-        "URL": "http://code.google.com/p/nativeclient",
+        "URL": "https://code.google.com/p/nativeclient",
+        "Shipped": "yes",
         "License": "BSD",
     },
     os.path.join('testing', 'gmock'): {
         "Name": "gmock",
-        "URL": "http://code.google.com/p/googlemock",
+        "URL": "https://github.com/google/googlemock",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('testing', 'gtest'): {
         "Name": "gtest",
-        "URL": "http://code.google.com/p/googletest",
+        "URL": "https://github.com/google/googletest",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'angle'): {
         "Name": "Almost Native Graphics Layer Engine",
-        "URL": "http://code.google.com/p/angleproject/",
+        "URL": "https://chromium.googlesource.com/angle/angle/",
+        "Shipped": "yes",
         "License": "BSD",
     },
     os.path.join('third_party', 'cros_system_api'): {
         "Name": "Chromium OS system API",
-        "URL": "http://www.chromium.org/chromium-os",
+        "URL": "https://www.chromium.org/chromium-os",
+        "Shipped": "yes",
         "License": "BSD",
         # Absolute path here is resolved as relative to the source root.
-        "License File": "/LICENSE.chromium_os",
+        "License File": ["//LICENSE.chromium_os"],
     },
     os.path.join('third_party', 'ipcz'): {
         "Name": "ipcz",
-        "URL": "https://chromium.googlesource.com/chromium/src/third_party/ipcz",
+        "URL": (
+            "https://chromium.googlesource.com/chromium/src/third_party/ipcz"),
+        "Shipped": "yes",
         "License": "BSD",
-        "License File": "/third_party/ipcz/LICENSE",
+        "License File": ["//third_party/ipcz/LICENSE"],
     },
     os.path.join('third_party', 'lss'): {
         "Name": "linux-syscall-support",
-        "URL": "http://code.google.com/p/linux-syscall-support/",
+        "URL": "https://chromium.googlesource.com/linux-syscall-support/",
+        "Shipped": "yes",
         "License": "BSD",
-        "License File": "/LICENSE",
+        "License File": ["//third_party/lss/LICENSE"],
     },
     os.path.join('third_party', 'openscreen', 'src', 'third_party', 'abseil'): {
         "Name": "abseil",
         "URL": "https://github.com/abseil/abseil-cpp/",
+        "Shipped": "yes",
         "License": "Apache 2.0",
-        "License File": "/third_party/abseil-cpp/LICENSE",
+        "License File": ["//third_party/abseil-cpp/LICENSE"],
     },
     os.path.join('third_party', 'openscreen', 'src', 'third_party',
-                 'boringssl'):
-    {
+                 'boringssl'): {
         "Name": "BoringSSL",
         "URL": "https://boringssl.googlesource.com/boringssl/",
+        "Shipped": "yes",
         "License": "BSDish",
-        "License File": "/third_party/boringssl/src/LICENSE",
+        "License File": ["//third_party/boringssl/src/LICENSE"],
     },
-    os.path.join('third_party', 'openscreen', 'src', 'third_party', 'jsoncpp'):
-    {
+    os.path.join('third_party', 'openscreen', 'src', 'third_party',
+                 'jsoncpp'): {
         "Name": "jsoncpp",
         "URL": "https://github.com/open-source-parsers/jsoncpp",
+        "Shipped": "yes",
         "License": "MIT",
-        "License File": "/third_party/jsoncpp/LICENSE",
+        "License File": ["//third_party/jsoncpp/LICENSE"],
     },
-    os.path.join('third_party', 'openscreen', 'src', 'third_party', 'mozilla'):
-    {
+    os.path.join('third_party', 'openscreen', 'src', 'third_party',
+                 'mozilla'): {
         "Name": "mozilla",
         "URL": "https://github.com/mozilla",
+        "Shipped": "yes",
         "License": "MPL 1.1/GPL 2.0/LGPL 2.1",
-        "License File": "LICENSE.txt",
+        "License File": ["LICENSE.txt"],
     },
     os.path.join('third_party', 'pdfium'): {
         "Name": "PDFium",
-        "URL": "http://code.google.com/p/pdfium/",
+        "URL": "https://pdfium.googlesource.com/pdfium/",
+        "Shipped": "yes",
         "License": "BSD",
     },
     os.path.join('third_party', 'ppapi'): {
         "Name": "ppapi",
-        "URL": "http://code.google.com/p/ppapi/",
+        "URL": "https://code.google.com/p/ppapi/",
+        "Shipped": "yes",
     },
     os.path.join('third_party', 'scons-2.0.1'): {
         "Name": "scons-2.0.1",
-        "URL": "http://www.scons.org",
+        "URL": "https://www.scons.org/",
+        "Shipped": "no",
         "License": "MIT",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'catapult'): {
         "Name": "catapult",
         "URL": "https://github.com/catapult-project/catapult",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
-    os.path.join('third_party', 'crashpad', 'crashpad', 'third_party', 'getopt'): {
+    os.path.join('third_party', 'crashpad', 'crashpad', 'third_party',
+                 'getopt'): {
         "Name": "getopt",
         "URL": "https://sourceware.org/ml/newlib/2005/msg00758.html",
+        "Shipped": "yes",
         "License": "Public domain",
-        "License File": "/third_party/crashpad/crashpad/third_party/getopt/LICENSE",
+        "License File": [
+            "//third_party/crashpad/crashpad/third_party/getopt/LICENSE",
+        ],
     },
     os.path.join('third_party', 'crashpad', 'crashpad', 'third_party', 'lss'): {
         "Name": "linux-syscall-support",
         "URL": "https://chromium.googlesource.com/linux-syscall-support/",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'crashpad', 'crashpad', 'third_party',
                  'mini_chromium'): {
         "Name": "mini_chromium",
         "URL": "https://chromium.googlesource.com/chromium/mini_chromium/",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'crashpad', 'crashpad', 'third_party', 'xnu'): {
         "Name": "xnu",
         "URL": "https://opensource.apple.com/source/xnu/",
+        "Shipped": "yes",
         "License": "Apple Public Source License 2.0",
-        "License File": "APPLE_LICENSE",
+        "License File": ["APPLE_LICENSE"],
     },
-    os.path.join('third_party', 'crashpad', 'crashpad', 'third_party', 'zlib'):
-    {
+    os.path.join('third_party', 'crashpad', 'crashpad', 'third_party',
+                 'zlib'): {
         "Name": "zlib",
         "URL": "https://zlib.net/",
+        "Shipped": "no",
         "License": "zlib",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'v8-i18n'): {
         "Name": "Internationalization Library for v8",
-        "URL": "http://code.google.com/p/v8-i18n/",
+        "URL": "https://code.google.com/p/v8-i18n/",
+        "Shipped": "yes",
         "License": "Apache 2.0",
     },
     os.path.join('third_party', 'blink'): {
@@ -286,41 +302,45 @@ SPECIAL_CASES = {
         # since the fork.  about:credits needs to mention the code before
         # the fork.
         "Name": "WebKit",
-        "URL": "http://webkit.org/",
+        "URL": "https://webkit.org/",
+        "Shipped": "yes",
         "License": "BSD and LGPL v2 and LGPL v2.1",
         # Absolute path here is resolved as relative to the source root.
-        "License File": "/third_party/blink/LICENSE_FOR_ABOUT_CREDITS",
+        "License File": ["//third_party/blink/LICENSE_FOR_ABOUT_CREDITS"],
     },
     os.path.join('third_party', 'webpagereplay'): {
         "Name": "webpagereplay",
-        "URL": "http://code.google.com/p/web-page-replay",
+        "URL": "https://github.com/chromium/web-page-replay",
+        "Shipped": "no",
         "License": "Apache 2.0",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('tools', 'gyp'): {
         "Name": "gyp",
-        "URL": "http://code.google.com/p/gyp",
+        "URL": "https://gyp.gsrc.io/",
+        "Shipped": "no",
         "License": "BSD",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('v8'): {
         "Name": "V8 JavaScript Engine",
-        "URL": "http://code.google.com/p/v8",
+        "URL": "https://v8.dev/",
+        "Shipped": "yes",
         "License": "BSD",
     },
     os.path.join('v8', 'strongtalk'): {
         "Name": "Strongtalk",
-        "URL": "http://www.strongtalk.org/",
+        "URL": "https://www.strongtalk.org/",
+        "Shipped": "yes",
         "License": "BSD",
         # Absolute path here is resolved as relative to the source root.
-        "License File": "/v8/LICENSE.strongtalk",
+        "License File": ["//v8/LICENSE.strongtalk"],
     },
     os.path.join('v8', 'fdlibm'): {
         "Name": "fdlibm",
-        "URL": "http://www.netlib.org/fdlibm/",
+        "URL": "https://www.netlib.org/fdlibm/",
+        "Shipped": "yes",
         "License": "Freely Distributable",
         # Absolute path here is resolved as relative to the source root.
-        "License File": "/v8/LICENSE.fdlibm",
+        "License File": ["//v8/LICENSE.fdlibm"],
         "License Android Compatible": "yes",
     },
     os.path.join('third_party', 'khronos_glcts'): {
@@ -328,66 +348,122 @@ SPECIAL_CASES = {
         # clear why they're tripping the license check.
         "Name": "khronos_glcts",
         "URL": "http://no-public-url",
+        "Shipped": "no",
         "License": "Khronos",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('tools', 'telemetry', 'third_party', 'gsutil'): {
         "Name": "gsutil",
         "URL": "https://cloud.google.com/storage/docs/gsutil",
+        "Shipped": "no",
         "License": "Apache 2.0",
-        "License File": "NOT_SHIPPED",
     },
     os.path.join('third_party', 'swiftshader'): {
         "Name": "SwiftShader",
         "URL": "https://swiftshader.googlesource.com/SwiftShader",
+        "Shipped": "yes",
         "License": "Apache 2.0 and compatible licenses",
         "License Android Compatible": "yes",
-        "License File": "/third_party/swiftshader/LICENSE.txt",
+        "License File": ["//third_party/swiftshader/LICENSE.txt"],
     },
     os.path.join('third_party', 'swiftshader', 'third_party', 'SPIRV-Tools'): {
         "Name": "SPIRV-Tools",
         "URL": "https://github.com/KhronosGroup/SPIRV-Tools",
+        "Shipped": "yes",
         "License": "Apache 2.0",
-        "License File":
-        "/third_party/swiftshader/third_party/SPIRV-Tools/LICENSE",
+        "License File": [
+            "//third_party/swiftshader/third_party/SPIRV-Tools/LICENSE",
+        ],
     },
-    os.path.join('third_party', 'swiftshader', 'third_party', 'SPIRV-Headers'): {
+    os.path.join('third_party', 'swiftshader', 'third_party',
+                 'SPIRV-Headers'): {
         "Name": "SPIRV-Headers",
         "URL": "https://github.com/KhronosGroup/SPIRV-Headers",
+        "Shipped": "yes",
         "License": "Apache 2.0",
-        "License File":
-        "/third_party/swiftshader/third_party/SPIRV-Headers/LICENSE",
+        "License File": [
+            "//third_party/swiftshader/third_party/SPIRV-Headers/LICENSE",
+        ],
     },
     os.path.join('third_party', 'dawn', 'third_party', 'khronos'): {
         "Name": "khronos_platform",
-        "URL": "http://www.khronos.org/registry/egl",
+        "URL": "https://registry.khronos.org/EGL/",
+        "Shipped": "yes",
         "License": "Apache 2.0",
-        "License File": "/third_party/dawn/third_party/khronos/LICENSE",
+        "License File": ["//third_party/dawn/third_party/khronos/LICENSE"],
     },
     # Dependencies of Selenium Atoms
     os.path.join('third_party', 'selenium-atoms', 'sizzle'): {
         "Name": "Sizzle",
-        "URL": "http://sizzlejs.com/",
+        "URL": "https://sizzlejs.com/",
+        "Shipped": "yes",
         "License": "MIT, BSD and GPL v2",
-        "License File": "/third_party/selenium-atoms/LICENSE.sizzle",
+        "License File": ["//third_party/selenium-atoms/LICENSE.sizzle"],
     },
     os.path.join('third_party', 'selenium-atoms', 'wgxpath'): {
         "Name": "Wicked Good XPath",
         "URL": "https://github.com/google/wicked-good-xpath",
+        "Shipped": "yes",
         "License": "MIT",
-        "License File": "/third_party/selenium-atoms/LICENSE.wgxpath",
+        "License File": ["//third_party/selenium-atoms/LICENSE.wgxpath"],
     },
     os.path.join('third_party', 'selenium-atoms', 'closure-lib'): {
         "Name": "Closure Library",
         "URL": "https://developers.google.com/closure/library",
+        "Shipped": "yes",
         "License": "Apache 2.0",
-        "License File": "/third_party/selenium-atoms/LICENSE.closure",
+        "License File": ["//third_party/selenium-atoms/LICENSE.closure"],
     },
 }
 
-# Special value for 'License File' field used to indicate that the license file
-# should not be used in about:credits.
+# These buildtools/third_party directories only contain
+# chromium build files. The actual third_party source files and their
+# README.chromium files are under third_party/libc*/.
+# So we do not include licensing metadata for these directories.
+# See crbug.com/1458042 for more details.
+THIRD_PARTY_FOR_BUILD_FILES_ONLY = {
+    os.path.join('buildtools', 'third_party', 'libc++'),
+    os.path.join('buildtools', 'third_party', 'libc++abi'),
+    os.path.join('buildtools', 'third_party', 'libunwind'),
+}
+
+# The mandatory metadata fields for a single dependency.
+MANDATORY_FIELDS = {
+    "Name",  # Short name (for header on about:credits).
+    "URL",  # Project home page.
+    "License",  # Software license.
+    "License File",  # Relative paths to license texts.
+    "Shipped",  # Whether the package is in the shipped product.
+}
+
+# Field aliases (key is the alias, value is the field to map to).
+# Note: if both fields are provided, the alias field value will be used.
+ALIAS_FIELDS = {
+    "Shipped in Chromium": "Shipped",
+}
+
+# The metadata fields that can have multiple values.
+MULTIVALUE_FIELDS = {
+    "License File",
+}
+
+# Line used to separate dependencies within the same metadata file.
+PATTERN_DEPENDENCY_DIVIDER = re.compile(r"^-{20} DEPENDENCY DIVIDER -{20}$")
+
+# The delimiter used to separate multiple values for one metadata field.
+VALUE_DELIMITER = ","
+
+# Soon-to-be-deprecated special value for 'License File' field used to indicate
+# that the library is not shipped so the license file should not be used in
+# about:credits.
+# This value is still supported, but the preferred method is to set the
+# 'Shipped' field to 'no' in the library's README.chromium.
 NOT_SHIPPED = "NOT_SHIPPED"
+
+# Valid values for the 'Shipped' field used to indicate whether the library is
+# shipped and consequently whether the license file should be used in
+# about:credits.
+YES = "yes"
+NO = "no"
 
 # Paths for libraries that we have checked are not shipped on iOS. These are
 # left out of the licenses file primarily because we don't want to cause a
@@ -398,8 +474,6 @@ KNOWN_NON_IOS_LIBRARIES = set([
     os.path.join('base', 'third_party', 'symbolize'),
     os.path.join('base', 'third_party', 'xdg_mime'),
     os.path.join('base', 'third_party', 'xdg_user_dirs'),
-    os.path.join('buildtools', 'third_party', 'libc++'),
-    os.path.join('buildtools', 'third_party', 'libc++abi'),
     os.path.join('chrome', 'installer', 'mac', 'third_party', 'bsdiff'),
     os.path.join('chrome', 'installer', 'mac', 'third_party', 'xz'),
     os.path.join('chrome', 'test', 'data', 'third_party', 'kraken'),
@@ -419,6 +493,8 @@ KNOWN_NON_IOS_LIBRARIES = set([
     os.path.join('third_party', 'isimpledom'),
     os.path.join('third_party', 'jsoncpp'),
     os.path.join('third_party', 'khronos'),
+    os.path.join('third_party', 'libcxx', 'libc++'),
+    os.path.join('third_party', 'libcxx', 'libc++abi'),
     os.path.join('third_party', 'libevent'),
     os.path.join('third_party', 'libjpeg'),
     os.path.join('third_party', 'libusb'),
@@ -449,9 +525,15 @@ KNOWN_NON_IOS_LIBRARIES = set([
 ])
 
 
+class InvalidMetadata(Exception):
+  """This exception is raised when metadata is invalid."""
+  pass
+
+
 class LicenseError(Exception):
-  """We raise this exception when a directory's licensing info isn't
-    fully filled out."""
+  """We raise this exception when a dependency's licensing info isn't
+  fully filled out.
+  """
   pass
 
 
@@ -461,74 +543,244 @@ def AbsolutePath(path, filename, root):
   if filename.startswith('/'):
     # Absolute-looking paths are relative to the source root
     # (which is the directory we're run from).
-    absolute_path = os.path.join(root, filename[1:])
+    absolute_path = os.path.join(root, os.path.normpath(filename.lstrip('/')))
   else:
-    absolute_path = os.path.join(root, path, filename)
+    absolute_path = os.path.join(root, path, os.path.normpath(filename))
   if os.path.exists(absolute_path):
     return absolute_path
   return None
 
 
-def ParseDir(path, root, require_license_file=True, optional_keys=None):
-  """Examine a third_party/foo component and extract its metadata."""
-  # Parse metadata fields out of README.chromium.
-  # We examine "LICENSE" for the license file by default.
-  metadata = {
-      "License File": "LICENSE",  # Relative path to license text.
-      "Name": None,  # Short name (for header on about:credits).
-      "URL": None,  # Project home page.
-      "License": None,  # Software license.
-  }
+def ParseMetadataFile(filepath: str,
+                      optional_fields: List[str] = []) -> List[Dict[str, Any]]:
+  """Parses the metadata from the file.
 
-  if optional_keys is None:
-    optional_keys = []
+  Args:
+    filepath: the path to a file from which to parse metadata.
+    optional_fields: list of optional metadata fields.
 
+  Returns: the metadata for all dependencies described in the file.
+
+  Raises:
+    InvalidMetadata - if the metadata in the file has duplicate fields
+                      for a dependency.
+  """
+  known_fields = (list(MANDATORY_FIELDS) + list(ALIAS_FIELDS.keys()) +
+                  optional_fields)
+  field_lookup = {name.lower(): name for name in known_fields}
+
+  dependencies = []
+  metadata = {}
+  with codecs.open(filepath, encoding="utf-8") as readme:
+    for line in readme:
+      line = line.strip()
+      # Skip empty lines.
+      if not line:
+        continue
+
+      # Check if a new dependency will be described.
+      if re.match(PATTERN_DEPENDENCY_DIVIDER, line):
+        # Save the metadata for the previous dependency.
+        if metadata:
+          dependencies.append(metadata)
+        metadata = {}
+        continue
+
+      # Otherwise, try to parse the field name and field value.
+      parts = line.split(": ", 1)
+      if len(parts) == 2:
+        raw_field, value = parts
+        field = field_lookup.get(raw_field.lower())
+        if field:
+          if field in metadata:
+            # Duplicate field for this dependency.
+            raise InvalidMetadata(f"duplicate '{field}' in {filepath}")
+          if field in MULTIVALUE_FIELDS:
+            metadata[field] = [
+                entry.strip() for entry in value.split(VALUE_DELIMITER)
+            ]
+          else:
+            metadata[field] = value
+
+    # The end of the file has been reached. Save the metadata for the
+    # last dependency, if available.
+    if metadata:
+      dependencies.append(metadata)
+
+  return dependencies
+
+
+def ProcessMetadata(metadata: Dict[str, Any],
+                    readme_path: str,
+                    path: str,
+                    root: str,
+                    require_license_file: bool = True,
+                    enable_warnings: bool = False) -> List[str]:
+  """Process a single dependency's metadata in-place. This function will
+  update the given metadata to use fallback field values, and update
+  filepaths to absolute paths.
+
+  Args:
+    metadata: a single dependency's metadata.
+    readme_path: the source of the metadata (either a metadata file
+                 or a SPECIAL_CASES entry).
+    path: the source directory for the metadata.
+    root: the root directory of the repo.
+    require_license_file: whether a license file is required.
+    enable_warnings: whether warnings should be displayed.
+
+  Returns: error messages, if there were any issues processing the
+           metadata for license information.
+  """
+  errors = []
+
+  # The dependency reference, for more precise error messages.
+  dep_ref = readme_path
+  dep_name = metadata.get("Name")
+  if dep_name:
+    dep_ref = f"{readme_path}>>{dep_name}"
+
+  # Set field values for fields with aliases.
+  for alias, field in ALIAS_FIELDS.items():
+    if alias in metadata:
+      metadata[field] = metadata[alias]
+      metadata.pop(alias)
+
+  # Set the default "License File" value.
+  if metadata.get("License File") is None:
+    metadata["License File"] = ["LICENSE"]
+
+  # If the "Shipped" field isn't present (or is empty), set it based on
+  # the value of the "License File" field.
+  if not metadata.get("Shipped"):
+    shipped = YES
+    if NOT_SHIPPED in metadata.get("License File"):
+      shipped = NO
+    metadata["Shipped"] = shipped
+
+  # Check all mandatory fields have a non-empty value.
+  for field in MANDATORY_FIELDS:
+    if not metadata.get(field):
+      errors.append(f"couldn't find '{field}' line in README.chromium or "
+                    "licenses.py SPECIAL_CASES")
+
+  license_file_value = metadata.get("License File")
+  shipped_value = metadata.get("Shipped")
+  if enable_warnings:
+    # Check for the deprecated special value used in the "License File"
+    # field.
+    if NOT_SHIPPED in license_file_value:
+      logging.warning(
+          f"{dep_ref} is using deprecated {NOT_SHIPPED} value "
+          "in 'License File' field - remove this and instead specify "
+          f"'Shipped: {NO}'.")
+
+      # Check the "Shipped" field does not contradict the "License File"
+      # field.
+      if shipped_value == YES:
+        logging.warning(
+            f"Contradictory metadata for {dep_ref} - 'Shipped: {YES}' "
+            f"but 'License File' includes '{NOT_SHIPPED}'")
+
+  # For the modules that are in the shipping product, we need their
+  # license in about:credits, so update the license files to be the
+  # full paths.
+  license_paths = process_license_files(root, path, license_file_value)
+  if shipped_value == YES and require_license_file and not license_paths:
+    errors.append(
+        f"License file not found for {dep_ref}. Either add a file named "
+        "LICENSE, import upstream's COPYING if available, or add a "
+        "'License File:' line to README.chromium with the appropriate paths.")
+  metadata["License File"] = license_paths
+
+  return errors
+
+
+def ParseDir(path,
+             root,
+             require_license_file=True,
+             optional_keys=[],
+             enable_warnings=False):
+  """Examine a third_party path and extract that directory's metadata.
+
+  Note: directory metadata can contain metadata for multiple
+  dependencies.
+  """
+  if path in THIRD_PARTY_FOR_BUILD_FILES_ONLY:
+    return []
+
+  # Get the metadata values, from
+  # (a) looking up the path in SPECIAL_CASES; or
+  # (b) parsing the metadata from a README.chromium file.
+  readme_path = ""
   if path in SPECIAL_CASES:
-    metadata.update(SPECIAL_CASES[path])
+    readme_path = f"licenses.py SPECIAL_CASES entry for {path}"
+    directory_metadata = [dict(SPECIAL_CASES[path])]
   else:
     # Try to find README.chromium.
-    readme_path = os.path.join(root, path, 'README.chromium')
+    readme_path = os.path.join(root, path, "README.chromium")
     if not os.path.exists(readme_path):
       raise LicenseError("missing README.chromium or licenses.py "
                          "SPECIAL_CASES entry in %s\n" % path)
 
-    for line in codecs.open(readme_path, encoding='utf-8'):
-      line = line.strip()
-      if not line:
-        break
-      for key in list(metadata.keys()) + optional_keys:
-        field = key + ": "
-        if line.startswith(field):
-          metadata[key] = line[len(field):]
+    try:
+      directory_metadata = ParseMetadataFile(readme_path,
+                                             optional_fields=optional_keys)
+    except InvalidMetadata as e:
+      raise LicenseError(f"Invalid metadata file: {e}")
 
-  # Check that all expected metadata is present.
   errors = []
-  for key, value in metadata.items():
-    if not value:
-      errors.append("couldn't find '" + key + "' line "
-                    "in README.chromium or licences.py "
-                    "SPECIAL_CASES")
-
-  # Special-case modules that aren't in the shipping product, so don't need
-  # their license in about:credits.
-  if metadata["License File"] != NOT_SHIPPED:
-    # Check that the license file exists.
-    for filename in (metadata["License File"], "COPYING"):
-      license_path = AbsolutePath(path, filename, root)
-      if license_path is not None:
-        break
-
-    if require_license_file and not license_path:
-      errors.append("License file not found. "
-                    "Either add a file named LICENSE, "
-                    "import upstream's COPYING if available, "
-                    "or add a 'License File:' line to "
-                    "README.chromium with the appropriate path.")
-    metadata["License File"] = license_path
+  for dependency_metadata in directory_metadata:
+    # Process the metadata for licensing info.
+    dependency_errors = ProcessMetadata(
+        dependency_metadata,
+        readme_path,
+        path,
+        root,
+        require_license_file=require_license_file,
+        enable_warnings=enable_warnings)
+    errors.extend(dependency_errors)
 
   if errors:
     raise LicenseError("Errors in %s:\n %s\n" % (path, ";\n ".join(errors)))
-  return metadata
+
+  return directory_metadata
+
+
+def process_license_files(
+    root: str,
+    path: str,
+    license_files: List[str],
+) -> List[str]:
+  """
+  Convert a list of license file paths which were specified in a
+  README.chromium to be absolute paths based on the source root.
+
+  Args:
+    root: the repository source root.
+    path: the relative path from root.
+    license_files: list of values specified in the 'License File' field.
+
+  Returns: absolute paths to license files that exist.
+  """
+  license_paths = []
+  for file_path in license_files:
+    if file_path == NOT_SHIPPED:
+      continue
+
+    license_path = AbsolutePath(path, file_path, root)
+    # Check that the license file exists.
+    if license_path is not None:
+      license_paths.append(license_path)
+
+  # If there are no license files at all, check for the COPYING license file.
+  if not license_paths:
+    license_path = AbsolutePath(path, "COPYING", root)
+    # Check that the license file exists.
+    if license_path is not None:
+      license_paths.append(license_path)
+
+  return license_paths
 
 
 def ContainsFiles(path, root):
@@ -637,7 +889,9 @@ def GetThirdPartyDepsFromGNDepsOutput(
     Note that it always returns the direct sub-directory of third_party
     where README.chromium and LICENSE files are, so that it can be passed to
     ParseDir(). e.g.:
-        third_party/cld_3/src/src/BUILD.gn -> third_party/cld_3
+        third_party/cld_3/src/src/BUILD.gn -> third_party/cld_3/
+    Rust dependencies are a special case, with a deeper structure:
+        third_party/rust/foo/v1/crate/BUILD.gn -> third_party/rust/foo/v1/
 
     It returns relative paths from _REPOSITORY_ROOT, not absolute paths.
     """
@@ -647,8 +901,21 @@ def GetThirdPartyDepsFromGNDepsOutput(
 
   # Use non-capturing group with or's for all possible options.
   allowed_paths = '|'.join([re.escape(x) for x in allowed_paths_list])
-  path_regex = re.compile(r'^((.+[/\\])?(?:' + allowed_paths +
-                          r')[/\\][^/\\]+[/\\])(.+[/\\])?BUILD\.gn$')
+  sep = re.escape(os.path.sep)
+  path_regex = re.compile(
+      r'''^
+            (                                     # capture
+              (.+{sep})?                          # any prefix
+              (?:{allowed_paths})                 # any of the allowed paths
+              {sep}
+              (?:                                 # either..
+                rust{sep}{nonsep}+{sep}v{nonsep}+ #  rust/<crate>/v<version>
+                |{nonsep}+)                       #  or any single path element
+              {sep}
+            )
+            (.+{sep})?BUILD\.gn$                  # with filename BUILD.gn
+  '''.format(allowed_paths=allowed_paths, sep=sep, nonsep=f'[^{sep}]'),
+      re.VERBOSE)
 
   third_party_deps = set()
   for absolute_build_dep in gn_deps.split():
@@ -696,11 +963,12 @@ def FindThirdPartyDeps(gn_out_dir: str,
   except:
     if sys.platform == 'win32':
       print("""
-      ############################################################################
+      ##########################################################################
 
-      This is known issue, please report the failure to https://crbug.com/1208393.
+      This is a known issue; please report the failure to
+      https://crbug.com/1208393.
 
-      ############################################################################
+      ##########################################################################
       """)
       subprocess.check_call(['tasklist.exe'])
     raise
@@ -721,7 +989,7 @@ def ScanThirdPartyDirs(root=None):
   errors = []
   for path in sorted(third_party_dirs):
     try:
-      metadata = ParseDir(path, root)
+      ParseDir(path, root, enable_warnings=True)
     except LicenseError as e:
       errors.append((path, e.args[0]))
       continue
@@ -734,14 +1002,15 @@ def ScanThirdPartyDirs(root=None):
 
 def GenerateCredits(file_template_file,
                     entry_template_file,
+                    reciprocal_template_file,
                     output_file,
                     target_os,
                     gn_out_dir,
                     gn_target,
                     extra_third_party_dirs=None,
-                    depfile=None):
+                    depfile=None,
+                    enable_warnings=False):
   """Generate about:credits."""
-
   def EvaluateTemplate(template, env, escape=True):
     """Expand a template with variables like {{foo}} using a
         dictionary of expansions."""
@@ -752,12 +1021,17 @@ def GenerateCredits(file_template_file,
     return template
 
   def MetadataToTemplateEntry(metadata, entry_template):
+    licenses = []
+    for filepath in metadata['License File']:
+      licenses.append(codecs.open(filepath, encoding='utf-8').read())
+    license_content = '\n\n'.join(licenses)
+
     env = {
         'name': metadata['Name'],
         'url': metadata['URL'],
-        'license': codecs.open(metadata['License File'],
-                               encoding='utf-8').read(),
+        'license': license_content,
     }
+
     return {
         'name': metadata['Name'],
         'content': EvaluateTemplate(entry_template, env),
@@ -785,13 +1059,21 @@ def GenerateCredits(file_template_file,
                                        'about_ui', 'resources',
                                        'about_credits_entry.tmpl')
 
+  # Used to add a link at the top of credits for Chromium code to
+  # satisfy the requirements for reciprocal license types.
+  if not reciprocal_template_file:
+    reciprocal_template_file = os.path.join(_REPOSITORY_ROOT, 'components',
+                                            'about_ui', 'resources',
+                                            'about_credits_reciprocal.tmpl')
+
   entry_template = codecs.open(entry_template_file, encoding='utf-8').read()
   entries = []
   # Start from Chromium's LICENSE file
   chromium_license_metadata = {
       'Name': 'The Chromium Project',
-      'URL': 'http://www.chromium.org',
-      'License File': os.path.join(_REPOSITORY_ROOT, 'LICENSE')
+      'URL': 'https://www.chromium.org',
+      'Shipped': 'yes',
+      'License File': [os.path.join(_REPOSITORY_ROOT, 'LICENSE')],
   }
   entries.append(
       MetadataToTemplateEntry(chromium_license_metadata, entry_template))
@@ -799,39 +1081,59 @@ def GenerateCredits(file_template_file,
   entries_by_name = {}
   for path in third_party_dirs:
     try:
-      metadata = ParseDir(path, _REPOSITORY_ROOT)
+      # Directory metadata can be for multiple dependencies.
+      directory_metadata = ParseDir(path,
+                                    _REPOSITORY_ROOT,
+                                    enable_warnings=enable_warnings)
+      if not directory_metadata:
+        continue
     except LicenseError:
-      # TODO(phajdan.jr): Convert to fatal error (http://crbug.com/39240).
+      # TODO(phajdan.jr): Convert to fatal error (https://crbug.com/39240).
       continue
-    if metadata['License File'] == NOT_SHIPPED:
-      continue
-    if target_os == 'ios' and not gn_target:
-      # Skip over files that are known not to be used on iOS. But
-      # skipping is unnecessary if GN was used to query the actual
-      # dependencies.
-      # TODO(lambroslambrou): Remove this step once the iOS build is
-      # updated to provide --gn-target to this script.
-      if path in KNOWN_NON_IOS_LIBRARIES:
+
+    for dep_metadata in directory_metadata:
+      if dep_metadata['Shipped'] == NO:
+        continue
+      if target_os == 'ios' and not gn_target:
+        # Skip over files that are known not to be used on iOS. But
+        # skipping is unnecessary if GN was used to query the actual
+        # dependencies.
+        # TODO(lambroslambrou): Remove this step once the iOS build is
+        # updated to provide --gn-target to this script.
+        if path in KNOWN_NON_IOS_LIBRARIES:
+          continue
+
+      new_entry = MetadataToTemplateEntry(dep_metadata, entry_template)
+      # Skip entries that we've already seen (it exists in multiple
+      # directories).
+      prev_entry = entries_by_name.setdefault(new_entry['name'], new_entry)
+      if prev_entry is not new_entry and (prev_entry['content']
+                                          == new_entry['content']):
         continue
 
-    new_entry = MetadataToTemplateEntry(metadata, entry_template)
-    # Skip entries that we've already seen (it exists in multiple directories).
-    prev_entry = entries_by_name.setdefault(new_entry['name'], new_entry)
-    if prev_entry is not new_entry and (
-        prev_entry['content'] == new_entry['content']):
-      continue
-
-    entries.append(new_entry)
+      entries.append(new_entry)
 
   entries.sort(key=lambda entry: (entry['name'].lower(), entry['content']))
   for entry_id, entry in enumerate(entries):
     entry['content'] = entry['content'].replace('{{id}}', str(entry_id))
 
   entries_contents = '\n'.join([entry['content'] for entry in entries])
+
+  reciprocal_template = codecs.open(reciprocal_template_file,
+                                    encoding='utf-8').read()
+  reciprocal_contents = EvaluateTemplate(reciprocal_template, {
+      'opensource_project': 'Chromium',
+      'opensource_link': 'https://source.chromium.org/chromium'
+  },
+                                         escape=False)
+
   file_template = codecs.open(file_template_file, encoding='utf-8').read()
   template_contents = "<!-- Generated by licenses.py; do not edit. -->"
-  template_contents += EvaluateTemplate(
-      file_template, {'entries': entries_contents}, escape=False)
+  template_contents += EvaluateTemplate(file_template, {
+      'entries': entries_contents,
+      'reciprocal-license-statement': reciprocal_contents
+  },
+                                        escape=False)
 
   if output_file:
     changed = True
@@ -854,7 +1156,9 @@ def GenerateCredits(file_template_file,
     # This is still no perfect, as it will fail if no build files are changed,
     # but a new README.chromium / LICENSE is added. This shouldn't happen in
     # practice however.
-    license_file_list = (entry['license_file'] for entry in entries)
+    license_file_list = []
+    for entry in entries:
+      license_file_list.extend(entry['license_file'])
     license_file_list = (os.path.relpath(p) for p in license_file_list)
     license_file_list = sorted(set(license_file_list))
     action_helpers.write_depfile(depfile, output_file,
@@ -879,14 +1183,34 @@ def GenerateLicenseFile(args: argparse.Namespace):
         os.path.normpath(path) for path in extra_third_party_dirs
     ]
 
-  third_party_dirs = FindThirdPartyDeps(args.gn_out_dir, args.gn_target,
-                                        args.target_os, extra_third_party_dirs,
-                                        args.extra_allowed_dirs)
+  if args.gn_target is not None:
+    third_party_dirs = FindThirdPartyDeps(args.gn_out_dir, args.gn_target,
+                                          args.target_os,
+                                          extra_third_party_dirs,
+                                          args.extra_allowed_dirs)
 
-  metadatas = {
-      d: ParseDir(d, _REPOSITORY_ROOT, require_license_file=True)
-      for d in third_party_dirs
-  }
+    # Sanity-check to raise a build error if invalid gn_... settings are
+    # somehow passed to this script.
+    if not third_party_dirs:
+      raise RuntimeError("No deps found.")
+
+  else:
+    third_party_dirs = FindThirdPartyDirs(PRUNE_PATHS, _REPOSITORY_ROOT,
+                                          extra_third_party_dirs)
+
+  metadatas = {}
+  for d in third_party_dirs:
+    try:
+      directory_metadata = ParseDir(d,
+                                    _REPOSITORY_ROOT,
+                                    require_license_file=True,
+                                    enable_warnings=args.enable_warnings)
+      if directory_metadata:
+        metadatas[d] = directory_metadata
+    except LicenseError as lic_exp:
+      # TODO(phajdan.jr): Convert to fatal error (https://crbug.com/39240).
+      print(f"Error: {lic_exp}")
+      continue
 
   if args.format == 'spdx':
     license_txt = GenerateLicenseFileSpdx(metadatas, args.spdx_link,
@@ -894,6 +1218,10 @@ def GenerateLicenseFile(args: argparse.Namespace):
                                           args.spdx_doc_namespace)
   elif args.format == 'txt':
     license_txt = GenerateLicenseFilePlainText(metadatas)
+
+  elif args.format == 'csv':
+    license_txt = GenerateLicenseFileCsv(metadatas)
+
   else:
     raise ValueError(f'Unknown license format: {args.format}')
 
@@ -904,10 +1232,79 @@ def GenerateLicenseFile(args: argparse.Namespace):
     print(license_txt)
 
 
-def GenerateLicenseFilePlainText(
-    metadata: Dict[str, Dict[str, Any]],
+def GenerateLicenseFileCsv(
+    metadata: Dict[str, List[Dict[str, Any]]],
     repo_root: str = _REPOSITORY_ROOT,
-    read_file=lambda x: pathlib.Path(x).read_text(encoding='utf-8')) -> str:
+) -> str:
+  """Generates a CSV formatted file which contains license data to be used as
+    part of the submission to the Open Source Licensing Review process.
+  """
+  csv_content = io.StringIO()
+  csv_writer = csv.writer(csv_content, quoting=csv.QUOTE_NONNUMERIC)
+
+  # These values are applied statically to all dependencies which are included
+  # in the exported CSV.
+  # Static fields:
+  #   * Name of binary which uses dependency,
+  #   * License text for library included in product,
+  #   * Mirrored source for reciprocal licences.
+  #   * Signoff date.
+  static_data = ["Chromium", "Yes", "No", "N/A"]
+
+  # Add informative CSV header row to make it clear which columns represent
+  # which data in the review spreadsheet.
+  csv_writer.writerow([
+      "Library Name", "Link to LICENSE file", "License Name",
+      "Binary which uses library", "License text for library included?",
+      "Source code for library includes the mirrored source?",
+      "Authorization date"
+  ])
+
+  # Start with Chromium's LICENSE file
+  csv_writer.writerow([
+      "Chromium",
+      "https://source.chromium.org/chromium/chromium/src/+/main:LICENSE",
+      "BSD 3-Clause"
+  ] + static_data)
+
+  # Add necessary third_party.
+  for directory in sorted(metadata):
+    dir_metadata = metadata[directory]
+    for dep_metadata in dir_metadata:
+      # Only third party libraries which are shipped as part of a final
+      # product are in scope for license review.
+      if dep_metadata['Shipped'] == NO:
+        continue
+
+      data_row = [dep_metadata['Name'] or "UNKNOWN"]
+
+      urls = []
+      for lic in dep_metadata['License File']:
+        # The review process requires that a link is provided to each license
+        # which is included. We can achieve this by combining a static
+        # Chromium googlesource URL with the relative path to the license
+        # file from the top level Chromium src directory.
+        lic_url = ("https://source.chromium.org/chromium/chromium/src/+/main:" +
+                   os.path.relpath(lic, repo_root))
+
+        # Since these are URLs and not paths, replace any Windows path `\`
+        # separators with a `/`
+        urls.append(lic_url.replace("\\", "/"))
+
+      data_row.append(", ".join(urls) or "UNKNOWN")
+      data_row.append(dep_metadata["License"] or "UNKNOWN")
+
+      # Join the default data which applies to each row
+      csv_writer.writerow(data_row + static_data)
+
+  return csv_content.getvalue()
+
+
+def GenerateLicenseFilePlainText(
+    metadata: Dict[str, List[Dict[str, Any]]],
+    repo_root: str = _REPOSITORY_ROOT,
+    read_file=lambda x: pathlib.Path(x).read_text(encoding='utf-8')
+) -> str:
   """Generate a plain-text LICENSE file which can be used when you ship a part
     of Chromium code (specified by gn_target) as a stand-alone library
     (e.g., //ios/web_view).
@@ -920,24 +1317,28 @@ def GenerateLicenseFilePlainText(
   # Add necessary third_party.
   for directory in sorted(metadata):
     dir_metadata = metadata[directory]
-    license_file = dir_metadata['License File']
-    if license_file and license_file != NOT_SHIPPED:
-      content.append('-' * 20)
-      content.append(directory.split(os.sep)[-1])
-      content.append('-' * 20)
-      content.append(read_file(os.path.join(repo_root, license_file)))
+    for dep_metadata in dir_metadata:
+      shipped = dep_metadata['Shipped']
+      license_files = dep_metadata['License File']
+      if shipped == YES and license_files:
+        content.append('-' * 20)
+        content.append(dep_metadata["Name"])
+        content.append('-' * 20)
+        for license_file in license_files:
+          content.append(read_file(os.path.join(repo_root, license_file)))
 
   return '\n'.join(content)
 
 
 def GenerateLicenseFileSpdx(
-    metadata: Dict[str, Dict[str, Any]],
+    metadata: Dict[str, List[Dict[str, Any]]],
     spdx_link_prefix: str,
     spdx_root: str,
     doc_name: Optional[str],
     doc_namespace: Optional[str],
     repo_root: str = _REPOSITORY_ROOT,
-    read_file=lambda x: pathlib.Path(x).read_text(encoding='utf-8')) -> str:
+    read_file=lambda x: pathlib.Path(x).read_text(encoding='utf-8')
+) -> str:
   """Generates a LICENSE file in SPDX format.
 
   The SPDX output contains the following elements:
@@ -962,20 +1363,27 @@ def GenerateLicenseFileSpdx(
   # Add all third party libraries
   for directory in sorted(metadata):
     dir_metadata = metadata[directory]
-    license_file = dir_metadata['License File']
-    if license_file and license_file != NOT_SHIPPED:
-      license_file = os.path.join(repo_root, license_file)
-      spdx_writer.add_package(dir_metadata['Name'], license_file)
+    for dep_metadata in dir_metadata:
+      shipped = dep_metadata['Shipped']
+      license_files = dep_metadata['License File']
+      if shipped == YES and license_files:
+        for license_file in license_files:
+          license_path = os.path.join(repo_root, license_file)
+          spdx_writer.add_package(dep_metadata['Name'], license_path)
 
   return spdx_writer.write()
 
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--file-template', help='Template HTML to use for the license page.')
-  parser.add_argument(
-      '--entry-template', help='Template HTML to use for each license.')
+  parser.add_argument('--file-template',
+                      help='Template HTML to use for the license page.')
+  parser.add_argument('--entry-template',
+                      help='Template HTML to use for each license.')
+  parser.add_argument('--reciprocal-template',
+                      help=('Template HTML to use for adding a link to an open '
+                            'source code repository to satisfy reciprocal '
+                            'license requirements. eg Chromium.'))
   parser.add_argument(
       '--extra-third-party-dirs',
       help='Gn list of additional third_party dirs to look through.')
@@ -985,12 +1393,12 @@ def main():
             '(deps that will be picked up automatically) besides third_party'),
   )
   parser.add_argument('--target-os', help='OS that this build is targeting.')
-  parser.add_argument(
-      '--gn-out-dir', help='GN output directory for scanning dependencies.')
+  parser.add_argument('--gn-out-dir',
+                      help='GN output directory for scanning dependencies.')
   parser.add_argument('--gn-target', help='GN target to scan for dependencies.')
   parser.add_argument('--format',
                       default='txt',
-                      choices=['txt', 'spdx'],
+                      choices=['txt', 'spdx', 'csv'],
                       help='What format to output in')
   parser.add_argument('--spdx-root',
                       default=_REPOSITORY_ROOT,
@@ -1007,7 +1415,12 @@ def main():
       default='https://chromium.googlesource.com/chromium/src/tools/',
       help='Specify the document namespace for the SPDX doc')
   parser.add_argument(
-      'command', choices=['help', 'scan', 'credits', 'license_file'])
+      '--enable-warnings',
+      action='store_true',
+      help='Enables warning logs when processing directory metadata for '
+      'credits or license file generation.')
+  parser.add_argument('command',
+                      choices=['help', 'scan', 'credits', 'license_file'])
   parser.add_argument('output_file', nargs='?')
   action_helpers.add_depfile_arg(parser)
   args = parser.parse_args()
@@ -1020,10 +1433,10 @@ def main():
     if not ScanThirdPartyDirs():
       return 1
   elif args.command == 'credits':
-    if not GenerateCredits(args.file_template, args.entry_template,
-                           args.output_file, args.target_os, args.gn_out_dir,
-                           args.gn_target, args.extra_third_party_dirs,
-                           args.depfile):
+    if not GenerateCredits(
+        args.file_template, args.entry_template, args.reciprocal_template,
+        args.output_file, args.target_os, args.gn_out_dir, args.gn_target,
+        args.extra_third_party_dirs, args.depfile, args.enable_warnings):
       return 1
   elif args.command == 'license_file':
     try:

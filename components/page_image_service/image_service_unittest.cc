@@ -13,9 +13,11 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "components/omnibox/browser/remote_suggestions_service.h"
+#include "components/omnibox/browser/test_scheme_classifier.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/test_new_optimization_guide_decider.h"
+#include "components/optimization_guide/core/test_optimization_guide_decider.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/salient_image_metadata.pb.h"
@@ -23,7 +25,11 @@
 #include "components/page_image_service/metrics_util.h"
 #include "components/page_image_service/mojom/page_image_service.mojom-shared.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
+#include "components/search_engines/template_url_service.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/variations/scoped_variations_ids_provider.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,7 +38,7 @@ using testing::ElementsAre;
 namespace optimization_guide {
 namespace {
 
-class ImageServiceTestOptGuide : public TestNewOptimizationGuideDecider {
+class ImageServiceTestOptGuide : public TestOptimizationGuideDecider {
  public:
   void CanApplyOptimizationOnDemand(
       const std::vector<GURL>& urls,
@@ -69,26 +75,35 @@ class ImageServiceTest : public testing::Test {
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
         {kImageService, kImageServiceSuggestPoweredImages,
-         kImageServiceOptimizationGuideSalientImages},
+         kImageServiceOptimizationGuideSalientImages,
+         kImageServiceObserveSyncDownloadStatus},
         {});
 
+    template_url_service_ = std::make_unique<TemplateURLService>(nullptr, 0);
+    remote_suggestions_service_ = std::make_unique<RemoteSuggestionsService>(
+        /*document_suggestions_service=*/nullptr,
+        test_url_loader_factory_.GetSafeWeakWrapper());
     test_opt_guide_ =
         std::make_unique<optimization_guide::ImageServiceTestOptGuide>();
     test_sync_service_ = std::make_unique<syncer::TestSyncService>();
     image_service_ = std::make_unique<ImageService>(
-        nullptr, test_opt_guide_.get(), test_sync_service_.get());
+        template_url_service_.get(), remote_suggestions_service_.get(),
+        test_opt_guide_.get(), test_sync_service_.get(),
+        std::make_unique<TestSchemeClassifier>());
   }
 
-  bool GetConsentToFetchImageAwaitResult(mojom::ClientId client_id) {
-    bool out_consent = false;
+  PageImageServiceConsentStatus GetConsentStatusToFetchImageAwaitResult(
+      mojom::ClientId client_id) {
+    PageImageServiceConsentStatus out_status;
     base::RunLoop loop;
     image_service_->GetConsentToFetchImage(
-        client_id, base::BindLambdaForTesting([&](bool result) {
-          out_consent = result;
+        client_id,
+        base::BindLambdaForTesting([&](PageImageServiceConsentStatus status) {
+          out_status = status;
           loop.Quit();
         }));
     loop.Run();
-    return out_consent;
+    return out_status;
   }
 
   ImageServiceTest(const ImageServiceTest&) = delete;
@@ -98,7 +113,13 @@ class ImageServiceTest : public testing::Test {
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::SingleThreadTaskEnvironment task_environment{
       base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME};
+  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+      variations::VariationsIdsProvider::Mode::kUseSignedInState};
 
+  network::TestURLLoaderFactory test_url_loader_factory_;
+
+  std::unique_ptr<TemplateURLService> template_url_service_;
+  std::unique_ptr<RemoteSuggestionsService> remote_suggestions_service_;
   std::unique_ptr<optimization_guide::ImageServiceTestOptGuide> test_opt_guide_;
   std::unique_ptr<syncer::TestSyncService> test_sync_service_;
   std::unique_ptr<ImageService> image_service_;
@@ -112,6 +133,15 @@ void StoreImageUrlResponse(GURL* out_image_url, const GURL& image_url) {
   *out_image_url = image_url;
 }
 
+// Stores an image response and exits out of `loop` if it is defined.
+void QuitLoopAndStoreImageUrlResponse(base::RunLoop* loop,
+                                      GURL* out_image_url,
+                                      const GURL& image_url) {
+  DCHECK(out_image_url);
+  *out_image_url = image_url;
+  loop->Quit();
+}
+
 void AppendResponse(std::vector<GURL>* responses, const GURL& image_url) {
   DCHECK(responses);
   responses->push_back(image_url);
@@ -122,40 +152,51 @@ TEST_F(ImageServiceTest, DoesNotRegisterForNavigationRelatedMetadata) {
 }
 
 TEST_F(ImageServiceTest, GetConsentToFetchImage) {
-  test_sync_service_->GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet());
+  test_sync_service_->SetDownloadStatusFor(
+      {syncer::ModelType::BOOKMARKS,
+       syncer::ModelType::HISTORY_DELETE_DIRECTIVES},
+      syncer::SyncService::ModelTypeDownloadStatus::kWaitingForUpdates);
   test_sync_service_->FireStateChanged();
 
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::Journeys));
-  EXPECT_FALSE(
-      GetConsentToFetchImageAwaitResult(mojom::ClientId::JourneysSidePanel));
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::NtpRealbox));
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::NtpQuests));
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::Bookmarks));
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::Journeys),
+            PageImageServiceConsentStatus::kTimedOut);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(
+                mojom::ClientId::JourneysSidePanel),
+            PageImageServiceConsentStatus::kTimedOut);
+  EXPECT_EQ(
+      GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::NtpRealbox),
+      PageImageServiceConsentStatus::kFailure);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::NtpQuests),
+            PageImageServiceConsentStatus::kTimedOut);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::Bookmarks),
+            PageImageServiceConsentStatus::kTimedOut);
 
-  test_sync_service_->GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet(
-          syncer::UserSelectableType::kHistory));
+  test_sync_service_->SetDownloadStatusFor(
+      {syncer::ModelType::HISTORY_DELETE_DIRECTIVES},
+      syncer::SyncService::ModelTypeDownloadStatus::kUpToDate);
   test_sync_service_->FireStateChanged();
 
-  EXPECT_TRUE(GetConsentToFetchImageAwaitResult(mojom::ClientId::Journeys));
-  EXPECT_TRUE(
-      GetConsentToFetchImageAwaitResult(mojom::ClientId::JourneysSidePanel));
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::NtpRealbox));
-  EXPECT_TRUE(GetConsentToFetchImageAwaitResult(mojom::ClientId::NtpQuests));
-  EXPECT_FALSE(GetConsentToFetchImageAwaitResult(mojom::ClientId::Bookmarks));
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::Journeys),
+            PageImageServiceConsentStatus::kSuccess);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(
+                mojom::ClientId::JourneysSidePanel),
+            PageImageServiceConsentStatus::kSuccess);
+  // NTP Realbox still false as it does not have an approved privacy model yet.
+  EXPECT_EQ(
+      GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::NtpRealbox),
+      PageImageServiceConsentStatus::kFailure);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::NtpQuests),
+            PageImageServiceConsentStatus::kSuccess);
+  EXPECT_EQ(GetConsentStatusToFetchImageAwaitResult(mojom::ClientId::Bookmarks),
+            PageImageServiceConsentStatus::kTimedOut);
 }
 
 TEST_F(ImageServiceTest, SyncInitialization) {
   // Put Sync into the initializing state.
-  test_sync_service_->SetTransportState(
-      syncer::SyncService::TransportState::INITIALIZING);
-  test_sync_service_->GetUserSettings()->SetSelectedTypes(
-      /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet(
-          syncer::UserSelectableType::kHistory));
+  test_sync_service_->SetDownloadStatusFor(
+      {syncer::ModelType::BOOKMARKS,
+       syncer::ModelType::HISTORY_DELETE_DIRECTIVES},
+      syncer::SyncService::ModelTypeDownloadStatus::kWaitingForUpdates);
   test_sync_service_->FireStateChanged();
 
   mojom::Options options;
@@ -186,8 +227,10 @@ TEST_F(ImageServiceTest, SyncInitialization) {
   EXPECT_EQ(test_opt_guide_->requests_received_, 0U) << "Still throttled.";
 
   // Now set the test sync service to active.
-  test_sync_service_->SetTransportState(
-      syncer::SyncService::TransportState::ACTIVE);
+  test_sync_service_->SetDownloadStatusFor(
+      {syncer::ModelType::BOOKMARKS,
+       syncer::ModelType::HISTORY_DELETE_DIRECTIVES},
+      syncer::SyncService::ModelTypeDownloadStatus::kUpToDate);
   test_sync_service_->FireStateChanged();
   task_environment.FastForwardBy(kOptimizationGuideBatchingTimeout);
   EXPECT_EQ(test_opt_guide_->requests_received_, 1U)
@@ -198,6 +241,87 @@ TEST_F(ImageServiceTest, SyncInitialization) {
   // This test only covers sync unthrottling, so we don't care about fulfilling
   // the actual request. That's covered by
   // OptimizationGuideSalientImagesEndToEnd.
+}
+
+TEST_F(ImageServiceTest, SuggestBackendEndToEnd) {
+  mojom::Options options;
+  options.suggest_images = true;
+  options.optimization_guide_images = true;
+
+  base::RunLoop loop;
+
+  GURL response;
+  image_service_->FetchImageFor(
+      mojom::ClientId::Journeys,
+      GURL("https://www.google.com/search?q=santa+monica"), options,
+      base::BindOnce(&QuitLoopAndStoreImageUrlResponse, &loop, &response));
+
+  // Test histograms with literal names to validate client-sliced names.
+  // This also validates that the correct backend was selected.
+  EXPECT_EQ(histogram_tester_.GetBucketCount("PageImageService.Backend",
+                                             PageImageServiceBackend::kSuggest),
+            1);
+  EXPECT_EQ(
+      histogram_tester_.GetBucketCount("PageImageService.Backend.Journeys",
+                                       PageImageServiceBackend::kSuggest),
+      1);
+
+  ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
+  GURL request_url = test_url_loader_factory_.GetPendingRequest(0)->request.url;
+  EXPECT_EQ(request_url.host(), "www.google.com");
+
+  test_url_loader_factory_.AddResponse(request_url.spec(), R"([
+  "santa monica",
+  [
+    "santa monica"
+  ],
+  [
+    ""
+  ],
+  [],
+  {
+    "google:clientdata": {
+      "bpc": false,
+      "tlw": false
+    },
+    "google:suggestdetail": [
+      {
+        "google:entityinfo": "CggvbS8wNl9raBISQ2l0eSBpbiBDYWxpZm9ybmlhMnRodHRwczovL2VuY3J5cHRlZC10Ym4wLmdzdGF0aWMuY29tL2ltYWdlcz9xPXRibjpBTmQ5R2NTd3ZOaHc3cktRV2dqRG9vUC1zY1ptRHlTSlNJWWpCT1gwVkVDRDU1czM4dHA0eEZORWcwTTdQdUEmcz0xMDoMU2FudGEgTW9uaWNhSgcjNDI0MjQyUjVnc19zc3A9ZUp6ajR0RFAxVGN3aThfT01HRDA0aWxPekN0SlZNak56OHRNVGdRQVdDY0hxd3AMcBo="
+      }
+    ],
+    "google:suggestrelevance": [
+      1300
+    ],
+    "google:suggestsubtypes": [
+      [
+        131,
+        433,
+        512
+      ]
+    ],
+    "google:suggesttype": [
+      "ENTITY"
+    ],
+    "google:verbatimrelevance": 1300
+  }
+])");
+
+  // Successfully fetching the image quits this loop.
+  loop.Run();
+  // This expected value matches the hardcoded proto above.
+  EXPECT_EQ(response, GURL("https://encrypted-tbn0.gstatic.com/"
+                           "images?q=tbn:ANd9GcSwvNhw7rKQWgjDooP-"
+                           "scZmDySJSIYjBOX0VECD55s38tp4xFNEg0M7PuA&s=10"));
+
+  // Test histograms with literal names to validate client-sliced names.
+  EXPECT_EQ(histogram_tester_.GetBucketCount(
+                "PageImageService.Backend.Suggest.Result",
+                PageImageServiceResult::kSuccess),
+            1);
+  EXPECT_EQ(histogram_tester_.GetBucketCount(
+                "PageImageService.Backend.Suggest.Result.Journeys",
+                PageImageServiceResult::kSuccess),
+            1);
 }
 
 // This also tests batching, because it's an integral part of how Optimization
@@ -274,11 +398,11 @@ TEST_F(ImageServiceTest, OptimizationGuideSalientImagesEndToEnd) {
   // Test histograms with literal names to validate client-sliced names.
   EXPECT_EQ(histogram_tester_.GetBucketCount(
                 "PageImageService.Backend.OptimizationGuide.Result",
-                PageImageServiceOptimizationGuideResult::kSuccess),
+                PageImageServiceResult::kSuccess),
             2);
   EXPECT_EQ(histogram_tester_.GetBucketCount(
                 "PageImageService.Backend.OptimizationGuide.Result.Journeys",
-                PageImageServiceOptimizationGuideResult::kSuccess),
+                PageImageServiceResult::kSuccess),
             2);
 }
 
@@ -325,11 +449,17 @@ class DisabledOptGuideImageServiceTest : public ImageServiceTest {
         /*enabled_features=*/{kImageService, kImageServiceSuggestPoweredImages},
         /*disabled_features=*/{kImageServiceOptimizationGuideSalientImages});
 
+    template_url_service_ = std::make_unique<TemplateURLService>(nullptr, 0);
+    remote_suggestions_service_ = std::make_unique<RemoteSuggestionsService>(
+        /*document_suggestions_service=*/nullptr,
+        test_url_loader_factory_.GetSafeWeakWrapper());
     test_opt_guide_ =
         std::make_unique<optimization_guide::ImageServiceTestOptGuide>();
     test_sync_service_ = std::make_unique<syncer::TestSyncService>();
     image_service_ = std::make_unique<ImageService>(
-        nullptr, test_opt_guide_.get(), test_sync_service_.get());
+        template_url_service_.get(), remote_suggestions_service_.get(),
+        test_opt_guide_.get(), test_sync_service_.get(),
+        std::make_unique<TestSchemeClassifier>());
   }
 };
 

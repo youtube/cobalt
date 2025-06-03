@@ -7,9 +7,9 @@ package org.chromium.chrome.browser.tasks.tab_management;
 import android.app.Activity;
 import android.graphics.drawable.Drawable;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -93,6 +93,7 @@ public class TabSelectionEditorBookmarkAction extends TabSelectionEditorAction {
     public boolean performAction(List<Tab> tabs) {
         assert !tabs.isEmpty() : "Bookmark action should not be enabled for no tabs.";
         SnackbarManager snackbarManager = getActionDelegate().getSnackbarManager();
+        snackbarManager.dismissAllSnackbars();
 
         if (mDelegate != null) {
             assert snackbarManager != null;
@@ -108,8 +109,9 @@ public class TabSelectionEditorBookmarkAction extends TabSelectionEditorAction {
         return false;
     }
 
-    @VisibleForTesting
     void setDelegateForTesting(TabSelectionEditorBookmarkActionDelegate delegate) {
+        var oldValue = mDelegate;
         mDelegate = delegate;
+        ResettersForTesting.register(() -> mDelegate = oldValue);
     }
 }

@@ -46,7 +46,6 @@ namespace blink {
 class ExceptionState;
 class HTMLFormElement;
 class ImageCandidate;
-class LayoutSize;
 class ShadowRoot;
 
 class CORE_EXPORT HTMLImageElement final
@@ -65,19 +64,6 @@ class CORE_EXPORT HTMLImageElement final
   static HTMLImageElement* CreateForJSConstructor(Document&,
                                                   unsigned width,
                                                   unsigned height);
-
-  // Returns dimension type of the attribute value or inline dimensions usable
-  // for LazyLoad, whether the dimension is absolute or not and if the absolute
-  // value is small enough to be skipped for lazyloading.
-  enum class LazyLoadDimensionType {
-    kNotAbsolute,
-    kAbsoluteNotSmall,
-    kAbsoluteSmall,
-  };
-  static LazyLoadDimensionType GetAttributeLazyLoadDimensionType(
-      const String& attribute_value);
-  static LazyLoadDimensionType GetInlineStyleDimensionsType(
-      const CSSPropertyValueSet* property_set);
 
   HTMLImageElement(Document&, const CreateElementFlags);
   explicit HTMLImageElement(Document&, bool created_by_parser = false);
@@ -203,7 +189,14 @@ class CORE_EXPORT HTMLImageElement final
   static bool SupportedImageType(const String& type,
                                  const HashSet<String>* disabled_image_types);
 
-  bool is_lazy_loaded() const { return is_lazy_loaded_; }
+  // True if the `loading` attribute is present and the value is lazy. Note that
+  // additional conditions can prevent lazy loading even when this is true, such
+  // as script being disabled (see: `LazyImageHelper::ShouldDeferImageLoad`).
+  bool HasLazyLoadingAttribute() const;
+
+  // Returns script urls that were in execution while this element was being
+  // created, if LCPScriptObserver was active.
+  const HashSet<String>& creator_scripts() const { return creator_scripts_; }
 
  protected:
   // Controls how an image element appears in the layout. See:
@@ -238,7 +231,7 @@ class CORE_EXPORT HTMLImageElement final
       MutableCSSPropertyValueSet*) override;
   // For mapping attributes from the <source> element, if any.
   bool HasExtraStyleForPresentationAttribute() const override {
-    return source_;
+    return source_ != nullptr;
   }
   void CollectExtraStyleForPresentationAttribute(
       MutableCSSPropertyValueSet*) override;
@@ -251,7 +244,6 @@ class CORE_EXPORT HTMLImageElement final
 
   bool IsURLAttribute(const Attribute&) const override;
   bool HasLegalLinkAttribute(const QualifiedName&) const override;
-  const QualifiedName& SubResourceAttributeName() const override;
 
   bool draggable() const override;
 
@@ -266,7 +258,7 @@ class CORE_EXPORT HTMLImageElement final
   void ResetFormOwner();
   ImageCandidate FindBestFitImageFromPictureParent();
   void SetBestFitURLAndDPRFromImageCandidate(const ImageCandidate&);
-  LayoutSize DensityCorrectedIntrinsicDimensions() const;
+  PhysicalSize DensityCorrectedIntrinsicDimensions() const;
   HTMLImageLoader& GetImageLoader() const override { return *image_loader_; }
   void NotifyViewportChanged();
   void CreateMediaQueryListIfDoesNotExist();
@@ -293,7 +285,7 @@ class CORE_EXPORT HTMLImageElement final
   bool is_lcp_element_ : 1;
   bool is_changed_shortly_after_mouseover_ : 1;
   bool has_sizes_attribute_in_img_or_sibling_ : 1;
-  bool is_lazy_loaded_ : 1;
+  HashSet<String> creator_scripts_;
 
   std::unique_ptr<LazyLoadImageObserver::VisibleLoadTimeMetrics>
       visible_load_time_metrics_;

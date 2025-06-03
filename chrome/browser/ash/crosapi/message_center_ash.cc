@@ -119,6 +119,13 @@ std::unique_ptr<mc::Notification> FromMojo(
     if (notification->notifier_id->title.has_value())
       notifier_id.title = notification->notifier_id->title;
     notifier_id.profile_id = notification->notifier_id->profile_id;
+    if (notification->notifier_id->group_key.has_value()) {
+      notifier_id.group_key = notification->notifier_id->group_key.value();
+    }
+  }
+
+  if (notification->image_path) {
+    rich_data.image_path = notification->image_path;
   }
 
   return std::make_unique<mc::Notification>(

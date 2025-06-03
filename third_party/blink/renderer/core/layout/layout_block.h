@@ -41,10 +41,6 @@ typedef HeapLinkedHashSet<Member<LayoutBox>> TrackedLayoutBoxLinkedHashSet;
 typedef HeapHashMap<WeakMember<const LayoutBlock>,
                     Member<TrackedLayoutBoxLinkedHashSet>>
     TrackedDescendantsMap;
-typedef HeapHashMap<WeakMember<const LayoutBox>, Member<LayoutBlock>>
-    TrackedContainerMap;
-
-enum ContainingBlockState { kNewContainingBlock, kSameContainingBlock };
 
 // LayoutBlock is the class that is used by any LayoutObject
 // that is a containing block.
@@ -110,6 +106,8 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
  public:
   void Trace(Visitor*) const override;
 
+  bool IsLayoutNGObject() const override;
+
   LayoutObject* FirstChild() const {
     NOT_DESTROYED();
     DCHECK_EQ(Children(), VirtualChildren());
@@ -154,25 +152,7 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   void AddChild(LayoutObject* new_child,
                 LayoutObject* before_child = nullptr) override;
 
-  virtual void UpdateBlockLayout(bool relayout_children);
-
-  void InsertPositionedObject(LayoutBox*);
-  static void RemovePositionedObject(LayoutBox*);
-  void RemovePositionedObjects(LayoutObject*,
-                               ContainingBlockState = kSameContainingBlock);
-
-  TrackedLayoutBoxLinkedHashSet* PositionedObjects() const {
-    NOT_DESTROYED();
-    return UNLIKELY(HasPositionedObjects()) ? PositionedObjectsInternal()
-                                            : nullptr;
-  }
-  bool HasPositionedObjects() const {
-    NOT_DESTROYED();
-    DCHECK(has_positioned_objects_ ? (PositionedObjectsInternal() &&
-                                      !PositionedObjectsInternal()->empty())
-                                   : !PositionedObjectsInternal());
-    return has_positioned_objects_;
-  }
+  void RemovePositionedObjects(LayoutObject*);
 
   void AddSvgTextDescendant(LayoutBox& svg_text);
   void RemoveSvgTextDescendant(LayoutBox& svg_text);
@@ -192,25 +172,9 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   LayoutBox* CreateAnonymousBoxWithSameTypeAs(
       const LayoutObject* parent) const override;
 
-#if DCHECK_IS_ON()
-  void CheckPositionedObjectsNeedLayout();
-#endif
-
-  // This method returns the size that percentage logical heights should
-  // resolve against *if* this LayoutBlock is the containing block for the
-  // percentage calculation.
-  //
-  // A version of this function without the above restriction, (that will walk
-  // the ancestor chain in quirks mode), see:
-  // LayoutBox::ContainingBlockLogicalHeightForPercentageResolution
-  LayoutUnit AvailableLogicalHeightForPercentageComputation() const;
-  bool HasDefiniteLogicalHeight() const;
-
- protected:
-  void RecalcSelfVisualOverflow();
-
  public:
-  void RecalcChildVisualOverflow();
+  RecalcLayoutOverflowResult RecalcLayoutOverflow() override;
+
   void RecalcVisualOverflow() override;
 
   // An example explaining layout tree structure about first-line style:
@@ -236,20 +200,23 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
  protected:
   void WillBeDestroyed() override;
 
-  void UpdateLayout() override;
+  void UpdateLayout() override {
+    NOT_DESTROYED();
+    NOTREACHED_NORETURN();
+  }
 
  public:
   void Paint(const PaintInfo&) const override;
-  virtual void PaintObject(const PaintInfo&,
-                           const PhysicalOffset& paint_offset) const;
-  virtual void PaintChildren(const PaintInfo&,
-                             const PhysicalOffset& paint_offset) const;
-  MinMaxSizes PreferredLogicalWidths() const override;
 
   virtual bool HasLineIfEmpty() const;
   // Returns baseline offset if we can get |SimpleFontData| from primary font.
   // Or returns no value if we can't get font data.
   absl::optional<LayoutUnit> BaselineForEmptyLine() const;
+
+  bool NodeAtPoint(HitTestResult&,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
+                   HitTestPhase) override;
 
  protected:
   bool HitTestChildren(HitTestResult&,
@@ -263,10 +230,6 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   bool RespectsCSSOverflow() const override;
 
  protected:
-  virtual void ComputeVisualOverflow();
-  void AddVisualOverflowFromChildren();
-  virtual void AddVisualOverflowFromBlockChildren();
-
   void AddOutlineRects(OutlineRectCollector&,
                        OutlineInfo*,
                        const PhysicalOffset& additional_offset,
@@ -280,8 +243,6 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
     NOT_DESTROYED();
     return IsInline() && IsAtomicInlineLevel();
   }
-
-  bool NeedsPreferredWidthsRecalculation() const override;
 
   bool IsInSelfHitTestingPhase(HitTestPhase phase) const final {
     NOT_DESTROYED();
@@ -305,15 +266,13 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
 
   virtual void RemoveLeftoverAnonymousBlock(LayoutBlock* child);
 
-  TrackedLayoutBoxLinkedHashSet* PositionedObjectsInternal() const;
-
  protected:
   void InvalidatePaint(const PaintInvalidatorContext&) const override;
 
   void ImageChanged(WrappedImagePtr, CanDeferInvalidation) override;
 
  private:
-  LayoutRect LocalCaretRect(
+  PhysicalRect LocalCaretRect(
       int caret_offset,
       LayoutUnit* extra_width_to_end_of_line = nullptr) const final;
   bool IsInlineBoxWrapperActuallyChild() const;
@@ -328,12 +287,9 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
 
   LayoutObjectChildList children_;
 
-  // Note these quirk values can't be put in LayoutBlockRareData since they are
-  // set too frequently.
-  unsigned descendants_with_floats_marked_for_layout_ : 1;
-
-  unsigned has_positioned_objects_ : 1;
   unsigned has_svg_text_descendants_ : 1;
+
+  unsigned may_be_non_contiguous_ifc_ : 1 = false;
 
   // FIXME: This is temporary as we move code that accesses block flow
   // member variables out of LayoutBlock and into LayoutBlockFlow.

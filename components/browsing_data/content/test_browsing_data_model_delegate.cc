@@ -34,4 +34,30 @@ void TestBrowsingDataModelDelegate::RemoveDataKey(
   std::move(callback).Run();
 }
 
+absl::optional<BrowsingDataModel::DataOwner>
+TestBrowsingDataModelDelegate::GetDataOwner(
+    BrowsingDataModel::DataKey data_key,
+    BrowsingDataModel::StorageType storage_type) const {
+  if (static_cast<StorageType>(storage_type) ==
+          StorageType::kTestDelegateType &&
+      absl::holds_alternative<url::Origin>(data_key)) {
+    return absl::get<url::Origin>(data_key).host();
+  }
+  return absl::nullopt;
+}
+
+absl::optional<bool>
+TestBrowsingDataModelDelegate::IsBlockedByThirdPartyCookieBlocking(
+    BrowsingDataModel::StorageType storage_type) const {
+  switch (
+      static_cast<TestBrowsingDataModelDelegate::StorageType>(storage_type)) {
+    case StorageType::kTestDelegateType:
+      return true;
+    case StorageType::kTestDelegateTypePartitioned:
+      return false;
+    default:
+      return absl::nullopt;
+  }
+}
+
 }  // namespace browsing_data

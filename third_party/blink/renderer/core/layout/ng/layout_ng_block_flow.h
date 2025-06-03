@@ -7,31 +7,51 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
-#include "third_party/blink/renderer/core/layout/ng/layout_ng_block_flow_mixin.h"
 
 namespace blink {
 
-extern template class CORE_EXTERN_TEMPLATE_EXPORT
-    LayoutNGBlockFlowMixin<LayoutBlockFlow>;
-extern template class CORE_EXTERN_TEMPLATE_EXPORT
-    LayoutNGMixin<LayoutBlockFlow>;
+enum class NGBaselineAlgorithmType;
+struct InlineNodeData;
 
 // This overrides the default layout block algorithm to use Layout NG.
-class CORE_EXPORT LayoutNGBlockFlow
-    : public LayoutNGBlockFlowMixin<LayoutBlockFlow> {
+class CORE_EXPORT LayoutNGBlockFlow : public LayoutBlockFlow {
  public:
   explicit LayoutNGBlockFlow(ContainerNode*);
   ~LayoutNGBlockFlow() override;
-
-  void UpdateBlockLayout(bool relayout_children) override;
+  void Trace(Visitor*) const override;
 
   const char* GetName() const override {
     NOT_DESTROYED();
     return "LayoutNGBlockFlow";
   }
 
+  bool NodeAtPoint(HitTestResult&,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
+                   HitTestPhase) override;
+
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
+
+  // LayoutBlockFlow overrides:
+  InlineNodeData* TakeInlineNodeData() final;
+  InlineNodeData* GetInlineNodeData() const final;
+  void ResetInlineNodeData() final;
+  void ClearInlineNodeData() final;
+
  protected:
   bool IsOfType(LayoutObjectType) const override;
+  void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
+
+  void AddOutlineRects(OutlineRectCollector&,
+                       LayoutObject::OutlineInfo*,
+                       const PhysicalOffset& additional_offset,
+                       NGOutlineType) const final;
+
+  void DirtyLinesFromChangedChild(LayoutObject* child) final;
+
+  Member<InlineNodeData> ng_inline_node_data_;
+
+  friend class NGBaseLayoutAlgorithmTest;
 };
 
 template <>

@@ -11,17 +11,16 @@
 #include "modules/pacing/pacing_controller.h"
 
 #include <algorithm>
-#include <list>
+#include <cstddef>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "modules/pacing/packet_router.h"
 #include "system_wrappers/include/clock.h"
 #include "test/explicit_key_value_config.h"
 #include "test/gmock.h"
@@ -30,6 +29,7 @@
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::Field;
+using ::testing::NiceMock;
 using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::Return;
@@ -138,6 +138,7 @@ class MockPacingControllerCallback : public PacingController::PacketSender {
               GetRtxSsrcForMedia,
               (uint32_t),
               (const, override));
+  MOCK_METHOD(void, OnBatchComplete, (), (override));
 };
 
 // Mock callback implementing the raw api.
@@ -165,6 +166,7 @@ class MockPacketSender : public PacingController::PacketSender {
               GetRtxSsrcForMedia,
               (uint32_t),
               (const, override));
+  MOCK_METHOD(void, OnBatchComplete, (), (override));
 };
 
 class PacingControllerPadding : public PacingController::PacketSender {
@@ -201,6 +203,8 @@ class PacingControllerPadding : public PacingController::PacketSender {
   absl::optional<uint32_t> GetRtxSsrcForMedia(uint32_t) const override {
     return absl::nullopt;
   }
+
+  void OnBatchComplete() override {}
 
   size_t padding_sent() { return padding_sent_; }
   size_t total_bytes_sent() { return total_bytes_sent_; }
@@ -260,6 +264,7 @@ class PacingControllerProbing : public PacingController::PacketSender {
   absl::optional<uint32_t> GetRtxSsrcForMedia(uint32_t) const override {
     return absl::nullopt;
   }
+  void OnBatchComplete() override {}
 
   int packets_sent() const { return packets_sent_; }
   int padding_packets_sent() const { return padding_packets_sent_; }
@@ -1454,6 +1459,13 @@ TEST_F(PacingControllerTest, PaddingOveruse) {
   pacer->ProcessPackets();
 }
 
+TEST_F(PacingControllerTest, ProvidesOnBatchCompleteToPacketSender) {
+  MockPacketSender callback;
+  auto pacer = std::make_unique<PacingController>(&clock_, &callback, trials_);
+  EXPECT_CALL(callback, OnBatchComplete);
+  pacer->ProcessPackets();
+}
+
 TEST_F(PacingControllerTest, ProbeClusterId) {
   MockPacketSender callback;
   uint32_t ssrc = 12346;
@@ -2132,6 +2144,36 @@ TEST_F(PacingControllerTest, RespectsTargetRateWhenSendingPacketsInBursts) {
   }
   EXPECT_EQ(pacer.QueueSizePackets(), 88u);
   EXPECT_EQ(number_of_bursts, 4);
+}
+
+TEST_F(PacingControllerTest,
+       MaxBurstSizeLimitedAtHighPacingRateWhenSendingPacketsInBursts) {
+  NiceMock<MockPacketSender> callback;
+  PacingController pacer(&clock_, &callback, trials_);
+  pacer.SetSendBurstInterval(TimeDelta::Millis(100));
+  pacer.SetPacingRates(DataRate::KilobitsPerSec(10'000), DataRate::Zero());
+
+  size_t sent_size_in_burst = 0;
+  EXPECT_CALL(callback, SendPacket)
+      .WillRepeatedly([&](std::unique_ptr<RtpPacketToSend> packet,
+                          const PacedPacketInfo& cluster_info) {
+        sent_size_in_burst += packet->size();
+      });
+
+  // Enqueue 200 packets from a 200Kb encoded frame.
+  for (int i = 0; i < 200; ++i) {
+    pacer.EnqueuePacket(video_.BuildNextPacket(1000));
+  }
+
+  while (pacer.QueueSizePackets() > 70) {
+    pacer.ProcessPackets();
+    EXPECT_NEAR(sent_size_in_burst, PacingController::kMaxBurstSize.bytes(),
+                1000);
+    sent_size_in_burst = 0;
+    TimeDelta time_to_next = pacer.NextSendTime() - clock_.CurrentTime();
+    EXPECT_NEAR(time_to_next.ms(), 50, 2);
+    clock_.AdvanceTime(time_to_next);
+  }
 }
 
 TEST_F(PacingControllerTest, RespectsQueueTimeLimit) {

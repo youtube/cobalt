@@ -48,6 +48,7 @@
 #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/loader/url_loader_factory_bundle.h"
+#include "third_party/blink/public/common/performance/performance_timeline_constants.h"
 #include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
 #include "third_party/blink/public/common/subresource_load_metrics.h"
@@ -63,9 +64,11 @@
 #include "third_party/blink/public/mojom/loader/same_document_navigation_type.mojom-shared.h"
 #include "third_party/blink/public/mojom/media/renderer_audio_input_stream_factory.mojom-shared.h"
 #include "third_party/blink/public/mojom/portal/portal.mojom-shared.h"
+#include "third_party/blink/public/platform/child_url_loader_factory_bundle.h"
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider.h"
 #include "third_party/blink/public/platform/resource_load_info_notifier_wrapper.h"
+#include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_content_security_policy_struct.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
@@ -113,6 +116,7 @@ enum class TreeScopeType;
 
 class AssociatedInterfaceProvider;
 class BrowserInterfaceBrokerProxy;
+class WebBackgroundResourceFetchAssets;
 class WebComputedAXTree;
 class WebContentDecryptionModule;
 class WebDedicatedWorkerHostFactoryClient;
@@ -138,6 +142,7 @@ class WebURLResponse;
 class WebView;
 struct FramePolicy;
 struct Impression;
+struct JavaScriptFrameworkDetectionResult;
 struct WebConsoleMessage;
 struct ContextMenuData;
 struct WebPictureInPictureWindowOptions;
@@ -191,10 +196,9 @@ class BLINK_EXPORT WebLocalFrameClient {
     return nullptr;
   }
 
-  // May return null.
+  // May return null if speech recognition is not supported.
   virtual std::unique_ptr<media::SpeechRecognitionClient>
-  CreateSpeechRecognitionClient(
-      media::SpeechRecognitionClient::OnReadyCallback callback) {
+  CreateSpeechRecognitionClient() {
     return nullptr;
   }
 
@@ -554,11 +558,15 @@ class BLINK_EXPORT WebLocalFrameClient {
   // A performance timing event (e.g. first paint) occurred
   virtual void DidChangePerformanceTiming() {}
 
-  // An Input Event observed.
-  virtual void DidObserveInputDelay(base::TimeDelta input_delay) {}
-
-  // A user interaction is observed.
-  virtual void DidObserveUserInteraction(base::TimeDelta max_event_duration,
+  // A user interaction is observed. A user interaction can be built up from
+  // multiple input events (e.g. keydown then keyup). Each of these events has
+  // an input to next frame latency. This reports the timings of the max
+  // input-to-frame latency for each interaction. `max_event_start` is when
+  // input was received, and `max_event_end` is when the next frame was
+  // presented. See https://web.dev/inp/#whats-in-an-interaction for more
+  // detailed motivation and explanation.
+  virtual void DidObserveUserInteraction(base::TimeTicks max_event_start,
+                                         base::TimeTicks max_event_end,
                                          UserInteractionType interaction_type) {
   }
 
@@ -579,6 +587,11 @@ class BLINK_EXPORT WebLocalFrameClient {
   // use for segregated histograms.
   virtual void DidObserveLoadingBehavior(LoadingBehaviorFlag) {}
 
+  // Blink detected a JavaScript framework that the browser process will use for
+  // UKM.
+  virtual void DidObserveJavaScriptFrameworks(
+      const JavaScriptFrameworkDetectionResult&) {}
+
   // A subresource load is observed.
   // It is called when there is a subresouce load. The reported values via
   // arguments are cumulative. They are NOT a difference from the previous call.
@@ -592,7 +605,7 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual void DidObserveNewFeatureUsage(const UseCounterFeature&) {}
 
   // A new soft navigation was observed.
-  virtual void DidObserveSoftNavigation(uint32_t count) {}
+  virtual void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics) {}
 
   // Reports that visible elements in the frame shifted (bit.ly/lsm-explainer).
   virtual void DidObserveLayoutShift(double score, bool after_input_or_scroll) {
@@ -681,6 +694,21 @@ class BLINK_EXPORT WebLocalFrameClient {
     return nullptr;
   }
 
+  virtual blink::ChildURLLoaderFactoryBundle* GetLoaderFactoryBundle() {
+    NOTREACHED();
+    return nullptr;
+  }
+
+  virtual std::unique_ptr<WebURLLoaderThrottleProviderForFrame>
+  CreateWebURLLoaderThrottleProviderForFrame() {
+    return nullptr;
+  }
+
+  virtual scoped_refptr<WebBackgroundResourceFetchAssets>
+  MaybeGetBackgroundResourceFetchAssets() {
+    return nullptr;
+  }
+
   virtual std::unique_ptr<URLLoader> CreateURLLoaderForTesting();
 
   virtual void OnStopLoading() {}
@@ -696,10 +724,6 @@ class BLINK_EXPORT WebLocalFrameClient {
   CreateWebSocketHandshakeThrottle() {
     return nullptr;
   }
-
-  // AppCache ------------------------------------------------------------
-  virtual void UpdateSubresourceFactory(
-      std::unique_ptr<blink::PendingURLLoaderFactoryBundle> pending_factory) {}
 
   // Misc ----------------------------------------------------------------
 

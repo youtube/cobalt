@@ -96,8 +96,9 @@ bool AreDisplayListDrawingResultsSame(const gfx::Rect& layer_rect,
 
 Region ImageRectsToRegion(const DiscardableImageMap::Rects& rects) {
   Region region;
-  for (const auto& r : rects.container())
+  for (const auto& r : rects) {
     region.Union(r);
+  }
   return region;
 }
 
@@ -214,7 +215,7 @@ PaintImage CreateAnimatedImage(const gfx::Size& size,
       .set_paint_image_generator(sk_make_sp<FakePaintImageGenerator>(
           SkImageInfo::MakeN32Premul(size.width(), size.height()),
           std::move(frames)))
-      .set_animation_type(PaintImage::AnimationType::ANIMATED)
+      .set_animation_type(PaintImage::AnimationType::kAnimated)
       .set_repetition_count(repetition_count)
       .TakePaintImage();
 }

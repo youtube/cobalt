@@ -107,13 +107,6 @@ class PageActionIconView : public IconLabelBubbleView {
   const char* name_for_histograms() const { return name_for_histograms_; }
   bool ephemeral() const { return ephemeral_; }
 
-  bool should_record_metrics_if_shown() const {
-    return should_record_metrics_if_shown_;
-  }
-  void set_should_record_metrics_if_shown(bool record) {
-    should_record_metrics_if_shown_ = record;
-  }
-
   void ExecuteForTesting();
 
   // Creates and updates the loading indicator.
@@ -151,16 +144,16 @@ class PageActionIconView : public IconLabelBubbleView {
   // Returns true if the command is enabled.
   bool SetCommandEnabled(bool enabled) const;
 
-  // Sets the tooltip text.
-  void SetTooltipText(const std::u16string& tooltip);
-
   // Invoked prior to executing the command.
   virtual void OnExecuting(ExecuteSource execute_source) = 0;
+
+  // Invoked after executing the command.
+  virtual void DidExecute(ExecuteSource execute_source) {}
 
   // Invoked after the icon is pressed.
   virtual void OnPressed(bool activated) {}
 
-  // views::IconLabelBubbleView:
+  // IconLabelBubbleView:
   std::u16string GetTooltipText(const gfx::Point& p) const override;
   void ViewHierarchyChanged(
       const views::ViewHierarchyChangedDetails& details) override;
@@ -169,6 +162,7 @@ class PageActionIconView : public IconLabelBubbleView {
   void NotifyClick(const ui::Event& event) override;
   bool IsTriggerableEvent(const ui::Event& event) override;
   bool ShouldUpdateInkDropOnClickCanceled() const override;
+  void UpdateBorder() override;
 
  protected:
   // Calls OnExecuting and runs |command_id_| with a valid |command_updater_|.
@@ -205,8 +199,6 @@ class PageActionIconView : public IconLabelBubbleView {
   virtual void UpdateImpl() = 0;
 
  private:
-  void UpdatePageActionIconBorder();
-
   void InstallLoadingIndicator();
 
   // What color to paint the icon with.
@@ -231,9 +223,6 @@ class PageActionIconView : public IconLabelBubbleView {
   // subclass, but generally indicates that the associated feature is acting on
   // the web page.
   bool active_ = false;
-
-  // Whether metrics should be recorded when setting this to visible.
-  bool should_record_metrics_if_shown_ = false;
 
   // The loading indicator, showing a throbber animation on top of the icon.
   raw_ptr<PageActionIconLoadingIndicatorView> loading_indicator_ = nullptr;

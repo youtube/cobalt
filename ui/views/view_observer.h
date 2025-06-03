@@ -5,6 +5,8 @@
 #ifndef UI_VIEWS_VIEW_OBSERVER_H_
 #define UI_VIEWS_VIEW_OBSERVER_H_
 
+#include <stdint.h>
+
 #include "ui/views/views_export.h"
 
 namespace views {
@@ -34,8 +36,9 @@ class VIEWS_EXPORT ViewObserver {
   // Called when the bounds of |observed_view| change.
   virtual void OnViewBoundsChanged(View* observed_view) {}
 
-  // Called when the bounds of |observed_view|'s layer change.
-  virtual void OnLayerTargetBoundsChanged(View* observed_view) {}
+  // Called when the view layer's bounds are set, whether or not the bounds have
+  // changed.
+  virtual void OnViewLayerBoundsSet(View* observed_view) {}
 
   // Called when the `observed_view`'s layer transform changes.
   // TODO(crbug.com/1203386): This is temporarily added to support a migration.
@@ -73,6 +76,13 @@ class VIEWS_EXPORT ViewObserver {
 
   // Called immediately after |observed_view| has lost focus.
   virtual void OnViewBlurred(View* observed_view) {}
+
+  // Called immediately after the property associated with the specified
+  // |key| has been changed for the |observed_view|. The |old_value| must be
+  // cast to the appropriate type before use, see |ui::ClassPropertyCaster|.
+  virtual void OnViewPropertyChanged(View* observed_view,
+                                     const void* key,
+                                     int64_t old_value) {}
 
  protected:
   virtual ~ViewObserver() = default;

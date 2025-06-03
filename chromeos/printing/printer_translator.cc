@@ -204,8 +204,6 @@ base::Value::Dict GetCupsPrinterInfo(const Printer& printer) {
   if (!printer.uri().GetQueryEncodedAsString().empty())
     printer_queue += "?" + printer.uri().GetQueryEncodedAsString();
   printer_info.Set("printerQueue", printer_queue);
-  printer_info.Set("printerOnlineState",
-                   static_cast<int>(PrinterOnlineState::kUnknown));
 
   return printer_info;
 }
@@ -216,7 +214,8 @@ base::Value::Dict CreateCupsPrinterStatusDictionary(
 
   printer_status.Set("printerId", cups_printer_status.GetPrinterId());
   printer_status.Set("timestamp",
-                     cups_printer_status.GetTimestamp().ToJsTimeIgnoringNull());
+                     cups_printer_status.GetTimestamp()
+                         .InMillisecondsFSinceUnixEpochIgnoringNull());
 
   base::Value::List status_reasons;
   for (const auto& reason : cups_printer_status.GetStatusReasons()) {

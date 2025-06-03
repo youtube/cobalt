@@ -6,17 +6,23 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
+#include "base/values.h"
 #include "components/crx_file/id_util.h"
 #include "content/public/common/content_constants.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/messaging/messaging_endpoint.h"
-#include "extensions/common/api/messaging/serialization_format.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_messages.h"
-#include "extensions/common/value_builder.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/renderer/api/messaging/message_target.h"
 #include "extensions/renderer/api/messaging/messaging_util.h"
+#include "extensions/renderer/api/messaging/mock_message_port_host.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
 #include "extensions/renderer/bindings/api_response_validator.h"
@@ -76,8 +82,6 @@ class NativeRendererMessagingServiceTest
   // NativeExtensionBindingsSystemUnittest:
   void SetUp() override {
     NativeExtensionBindingsSystemUnittest::SetUp();
-    messaging_service_ =
-        std::make_unique<NativeRendererMessagingService>(bindings_system());
 
     extension_ = ExtensionBuilder("foo").Build();
     RegisterExtension(extension_);
@@ -93,29 +97,28 @@ class NativeRendererMessagingServiceTest
   void TearDown() override {
     script_context_ = nullptr;
     extension_ = nullptr;
-    messaging_service_.reset();
     NativeExtensionBindingsSystemUnittest::TearDown();
   }
   bool UseStrictIPCMessageSender() override { return true; }
 
   NativeRendererMessagingService* messaging_service() {
-    return messaging_service_.get();
+    return bindings_system()->messaging_service();
   }
   ScriptContext* script_context() { return script_context_; }
   const Extension* extension() { return extension_.get(); }
 
  private:
-  std::unique_ptr<NativeRendererMessagingService> messaging_service_;
-
-  ScriptContext* script_context_ = nullptr;
+  raw_ptr<ScriptContext, ExperimentalRenderer> script_context_ = nullptr;
   scoped_refptr<const Extension> extension_;
 };
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
 TEST_F(NativeRendererMessagingServiceTest, ValidateMessagePort) {
   v8::HandleScope handle_scope(isolate());
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id(other_context_id, 0, false, SerializationFormat::kJson);
+  const PortId port_id(other_context_id, 0, false,
+                       mojom::SerializationFormat::kJson);
 
   EXPECT_FALSE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
@@ -125,8 +128,13 @@ TEST_F(NativeRendererMessagingServiceTest, ValidateMessagePort) {
                                            nullptr);
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
 
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver;
+
   messaging_service()->CreatePortForTesting(script_context(), "channel",
-                                            port_id);
+                                            port_id, message_port_remote,
+                                            message_port_host_receiver);
   EXPECT_TRUE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 
@@ -134,6 +142,7 @@ TEST_F(NativeRendererMessagingServiceTest, ValidateMessagePort) {
   messaging_service()->ValidateMessagePort(script_context_set(), port_id,
                                            nullptr);
 }
+#endif
 
 TEST_F(NativeRendererMessagingServiceTest, OpenMessagePort) {
   RuntimeMessageValidationIgnorer message_validation_ignorer;
@@ -142,17 +151,19 @@ TEST_F(NativeRendererMessagingServiceTest, OpenMessagePort) {
   v8::Local<v8::Context> context = MainContext();
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id(other_context_id, 0, false, SerializationFormat::kJson);
+  const PortId port_id(other_context_id, 0, false,
+                       mojom::SerializationFormat::kJson);
   EXPECT_FALSE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 
   const std::string channel_name = "some channel";
-  ExtensionMsg_TabConnectionInfo tab_connection_info;
+  NativeRendererMessagingService::TabConnectionInfo tab_connection_info;
+  NativeRendererMessagingService::ExternalConnectionInfo
+      external_connection_info;
   tab_connection_info.frame_id = 0;
   const int tab_id = 10;
   GURL source_url("http://example.com");
-  tab_connection_info.tab = DictionaryBuilder().Set("tabId", tab_id).Build();
-  ExtensionMsg_ExternalConnectionInfo external_connection_info;
+  tab_connection_info.tab = base::Value::Dict().Set("tabId", tab_id);
   external_connection_info.target_id = extension()->id();
   external_connection_info.source_endpoint =
       MessagingEndpoint::ForExtension(extension()->id());
@@ -172,12 +183,28 @@ TEST_F(NativeRendererMessagingServiceTest, OpenMessagePort) {
       FunctionFromString(context, kAddListener);
   RunFunctionOnGlobal(add_listener, context, 0, nullptr);
 
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
               SendOpenMessagePort(MSG_ROUTING_NONE, port_id));
+#endif
+  mojo::PendingAssociatedRemote<mojom::MessagePortHost> port_host_remote;
+  auto port_host_receiver =
+      port_host_remote.InitWithNewEndpointAndPassReceiver();
+
+  mojo::PendingAssociatedReceiver<mojom::MessagePort> port_receiver;
+  auto port_remote = port_receiver.InitWithNewEndpointAndPassRemote();
+
+  bool port_opened = false;
   messaging_service()->DispatchOnConnect(
-      script_context_set(), port_id, ChannelType::kConnect, channel_name,
-      tab_connection_info, external_connection_info, nullptr);
+      script_context_set(), port_id, mojom::ChannelType::kConnect, channel_name,
+      tab_connection_info, external_connection_info, std::move(port_receiver),
+      std::move(port_host_remote), nullptr,
+      base::BindLambdaForTesting(
+          [&port_opened](bool success) { port_opened = success; }));
+  port_host_receiver.EnableUnassociatedUsage();
+  port_remote.EnableUnassociatedUsage();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  EXPECT_TRUE(port_opened);
 
   ASSERT_TRUE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
@@ -185,12 +212,11 @@ TEST_F(NativeRendererMessagingServiceTest, OpenMessagePort) {
   EXPECT_EQ("true", GetStringPropertyFromObject(context->Global(), context,
                                                 "eventFired"));
   base::Value::Dict expected_sender =
-      DictionaryBuilder()
+      base::Value::Dict()
           .Set("frameId", 0)
-          .Set("tab", DictionaryBuilder().Set("tabId", tab_id).Build())
+          .Set("tab", base::Value::Dict().Set("tabId", tab_id))
           .Set("url", source_url.spec())
-          .Set("id", extension()->id())
-          .Build();
+          .Set("id", extension()->id());
   EXPECT_EQ(ValueToString(base::Value(std::move(expected_sender))),
             GetStringPropertyFromObject(context->Global(), context, "sender"));
 }
@@ -200,13 +226,30 @@ TEST_F(NativeRendererMessagingServiceTest, DeliverMessageToPort) {
   v8::Local<v8::Context> context = MainContext();
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id1(other_context_id, 0, false, SerializationFormat::kJson);
-  const PortId port_id2(other_context_id, 1, false, SerializationFormat::kJson);
+  const PortId port_id1(other_context_id, 0, false,
+                        mojom::SerializationFormat::kJson);
+  const PortId port_id2(other_context_id, 1, false,
+                        mojom::SerializationFormat::kJson);
+
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote1;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver1;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote2;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver2;
 
   gin::Handle<GinPort> port1 = messaging_service()->CreatePortForTesting(
-      script_context(), "channel1", port_id1);
+      script_context(), "channel1", port_id1, message_port_remote1,
+      message_port_host_receiver1);
   gin::Handle<GinPort> port2 = messaging_service()->CreatePortForTesting(
-      script_context(), "channel2", port_id2);
+      script_context(), "channel2", port_id2, message_port_remote2,
+      message_port_host_receiver2);
+#if !BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+  message_port_remote1.EnableUnassociatedUsage();
+  message_port_host_receiver1.EnableUnassociatedUsage();
+  message_port_remote2.EnableUnassociatedUsage();
+  message_port_host_receiver2.EnableUnassociatedUsage();
+#endif
   ASSERT_FALSE(port1.IsEmpty());
 
   const char kOnMessageListenerTemplate[] =
@@ -243,7 +286,8 @@ TEST_F(NativeRendererMessagingServiceTest, DeliverMessageToPort) {
   const char kMessageString[] = R"({"data":"hello"})";
   messaging_service()->DeliverMessage(
       script_context_set(), port_id1,
-      Message(kMessageString, SerializationFormat::kJson, false), nullptr);
+      Message(kMessageString, mojom::SerializationFormat::kJson, false),
+      nullptr);
 
   // Only port1 should have been notified of the message (ports only receive
   // messages directed to themselves).
@@ -258,13 +302,29 @@ TEST_F(NativeRendererMessagingServiceTest, DisconnectMessagePort) {
   v8::Local<v8::Context> context = MainContext();
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id1(other_context_id, 0, false, SerializationFormat::kJson);
-  const PortId port_id2(other_context_id, 1, false, SerializationFormat::kJson);
+  const PortId port_id1(other_context_id, 0, false,
+                        mojom::SerializationFormat::kJson);
+  const PortId port_id2(other_context_id, 1, false,
+                        mojom::SerializationFormat::kJson);
 
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote1;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver1;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote2;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver2;
   gin::Handle<GinPort> port1 = messaging_service()->CreatePortForTesting(
-      script_context(), "channel1", port_id1);
+      script_context(), "channel1", port_id1, message_port_remote1,
+      message_port_host_receiver1);
   gin::Handle<GinPort> port2 = messaging_service()->CreatePortForTesting(
-      script_context(), "channel2", port_id2);
+      script_context(), "channel2", port_id2, message_port_remote2,
+      message_port_host_receiver2);
+#if !BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+  message_port_remote1.EnableUnassociatedUsage();
+  message_port_host_receiver1.EnableUnassociatedUsage();
+  message_port_remote2.EnableUnassociatedUsage();
+  message_port_host_receiver2.EnableUnassociatedUsage();
+#endif
 
   const char kOnDisconnectListenerTemplate[] =
       "(function(port) {\n"
@@ -311,10 +371,21 @@ TEST_F(NativeRendererMessagingServiceTest, PostMessageFromJS) {
   v8::Local<v8::Context> context = MainContext();
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id(other_context_id, 0, false, SerializationFormat::kJson);
+  const PortId port_id(other_context_id, 0, false,
+                       mojom::SerializationFormat::kJson);
 
+  MockMessagePortHost mock_message_port_host;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver;
   gin::Handle<GinPort> port = messaging_service()->CreatePortForTesting(
-      script_context(), "channel", port_id);
+      script_context(), "channel", port_id, message_port_remote,
+      message_port_host_receiver);
+#if !BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+  message_port_remote.EnableUnassociatedUsage();
+  message_port_host_receiver.EnableUnassociatedUsage();
+  mock_message_port_host.BindReceiver(std::move(message_port_host_receiver));
+#endif
   v8::Local<v8::Object> port_object = port.ToV8().As<v8::Object>();
 
   const char kDispatchMessage[] =
@@ -325,12 +396,23 @@ TEST_F(NativeRendererMessagingServiceTest, PostMessageFromJS) {
       FunctionFromString(context, kDispatchMessage);
   v8::Local<v8::Value> args[] = {port_object};
 
+  base::RunLoop run_loop;
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
               SendPostMessageToPort(
                   port_id, Message(R"({"data":"hello"})",
-                                   SerializationFormat::kJson, false)));
+                                   mojom::SerializationFormat::kJson, false)))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host,
+              PostMessage(Message(R"({"data":"hello"})",
+                                  mojom::SerializationFormat::kJson, false)))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#endif
   RunFunctionOnGlobal(post_message, context, std::size(args), args);
+  run_loop.Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
 }
 
 TEST_F(NativeRendererMessagingServiceTest, DisconnectFromJS) {
@@ -338,10 +420,21 @@ TEST_F(NativeRendererMessagingServiceTest, DisconnectFromJS) {
   v8::Local<v8::Context> context = MainContext();
 
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id(other_context_id, 0, false, SerializationFormat::kJson);
+  const PortId port_id(other_context_id, 0, false,
+                       mojom::SerializationFormat::kJson);
 
+  MockMessagePortHost mock_message_port_host;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> message_port_remote;
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      message_port_host_receiver;
   gin::Handle<GinPort> port = messaging_service()->CreatePortForTesting(
-      script_context(), "channel", port_id);
+      script_context(), "channel", port_id, message_port_remote,
+      message_port_host_receiver);
+#if !BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+  message_port_remote.EnableUnassociatedUsage();
+  message_port_host_receiver.EnableUnassociatedUsage();
+  mock_message_port_host.BindReceiver(std::move(message_port_host_receiver));
+#endif
   v8::Local<v8::Object> port_object = port.ToV8().As<v8::Object>();
 
   const char kDispatchMessage[] =
@@ -352,10 +445,19 @@ TEST_F(NativeRendererMessagingServiceTest, DisconnectFromJS) {
       FunctionFromString(context, kDispatchMessage);
   v8::Local<v8::Value> args[] = {port_object};
 
+  base::RunLoop run_loop;
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
-              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true));
+              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host, ClosePort(true))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#endif
   RunFunctionOnGlobal(post_message, context, std::size(args), args);
+  run_loop.Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
 }
 
 TEST_F(NativeRendererMessagingServiceTest, Connect) {
@@ -363,13 +465,14 @@ TEST_F(NativeRendererMessagingServiceTest, Connect) {
 
   const std::string kChannel = "channel";
   PortId expected_port_id(script_context()->context_id(), 0, true,
-                          SerializationFormat::kJson);
+                          mojom::SerializationFormat::kJson);
   MessageTarget target(MessageTarget::ForExtension(extension()->id()));
   EXPECT_CALL(*ipc_message_sender(),
               SendOpenMessageChannel(script_context(), expected_port_id, target,
-                                     ChannelType::kConnect, kChannel));
+                                     mojom::ChannelType::kConnect, kChannel,
+                                     testing::_, testing::_));
   gin::Handle<GinPort> new_port = messaging_service()->Connect(
-      script_context(), target, "channel", SerializationFormat::kJson);
+      script_context(), target, "channel", mojom::SerializationFormat::kJson);
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
   ASSERT_FALSE(new_port.IsEmpty());
 
@@ -386,9 +489,9 @@ TEST_F(NativeRendererMessagingServiceTest, SendOneTimeMessageWithCallback) {
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
-  const ChannelType kChannel = ChannelType::kSendMessage;
+  const mojom::ChannelType kChannel = mojom::ChannelType::kSendMessage;
   PortId port_id(script_context()->context_id(), 0, true,
-                 SerializationFormat::kJson);
+                 mojom::SerializationFormat::kJson);
   const char kEchoArgs[] =
       "(function() { this.replyArgs = Array.from(arguments); })";
   v8::Local<v8::Function> response_callback =
@@ -396,30 +499,64 @@ TEST_F(NativeRendererMessagingServiceTest, SendOneTimeMessageWithCallback) {
 
   // Send a message and expect a reply to a passed in callback. A new port
   // should be created, and should remain open until the response is sent.
-  const Message message("\"hi\"", SerializationFormat::kJson, false);
+  const Message message("\"hi\"", mojom::SerializationFormat::kJson, false);
   MessageTarget target(MessageTarget::ForExtension(extension()->id()));
+  MockMessagePortHost mock_message_port_host;
+  auto run_loop = std::make_unique<base::RunLoop>();
   EXPECT_CALL(*ipc_message_sender(),
               SendOpenMessageChannel(script_context(), port_id, target,
-                                     kChannel, "chrome.runtime.sendMessage"));
-  EXPECT_CALL(*ipc_message_sender(), SendPostMessageToPort(port_id, message));
+                                     kChannel, "chrome.runtime.sendMessage",
+                                     testing::_, testing::_))
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+      ;
+  EXPECT_CALL(*ipc_message_sender(), SendPostMessageToPort(port_id, message))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#else
+      .WillOnce([&mock_message_port_host](
+                    ScriptContext* script_context, const PortId& port_id,
+                    const MessageTarget& target,
+                    mojom::ChannelType channel_type,
+                    const std::string& channel_name,
+                    mojo::PendingAssociatedRemote<mojom::MessagePort> port,
+                    mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+                        port_host) {
+        port.EnableUnassociatedUsage();
+        port_host.EnableUnassociatedUsage();
+        mock_message_port_host.BindReceiver(std::move(port_host));
+      });
+  EXPECT_CALL(mock_message_port_host, PostMessage(message))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#endif
+
   v8::Local<v8::Promise> promise = messaging_service()->SendOneTimeMessage(
       script_context(), target, kChannel, message,
       binding::AsyncResponseType::kCallback, response_callback);
   // Since this is a callback based request, the returned promise should be
   // empty.
   EXPECT_TRUE(promise.IsEmpty());
+  run_loop->Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   EXPECT_TRUE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 
+  run_loop = std::make_unique<base::RunLoop>();
   // Respond to the message. The response callback should be triggered, and the
   // port should be closed.
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
-              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true));
+              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host, ClosePort(true))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#endif
   messaging_service()->DeliverMessage(
       script_context_set(), port_id,
-      Message("\"reply\"", SerializationFormat::kJson, false), nullptr);
+      Message("\"reply\"", mojom::SerializationFormat::kJson, false), nullptr);
+  run_loop->Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   EXPECT_EQ("[\"reply\"]", GetStringPropertyFromObject(context->Global(),
                                                        context, "replyArgs"));
   EXPECT_FALSE(
@@ -432,35 +569,68 @@ TEST_F(NativeRendererMessagingServiceTest, SendOneTimeMessageWithPromise) {
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
-  const ChannelType kChannel = ChannelType::kSendMessage;
+  const mojom::ChannelType kChannel = mojom::ChannelType::kSendMessage;
   PortId port_id(script_context()->context_id(), 0, true,
-                 SerializationFormat::kJson);
+                 mojom::SerializationFormat::kJson);
 
   // Send a message and expect a reply fulfilling a promise. A new port should
   // be created, and should remain open until the response is sent.
-  const Message message("\"hi\"", SerializationFormat::kJson, false);
+  const Message message("\"hi\"", mojom::SerializationFormat::kJson, false);
   MessageTarget target(MessageTarget::ForExtension(extension()->id()));
+  MockMessagePortHost mock_message_port_host;
+  auto run_loop = std::make_unique<base::RunLoop>();
   EXPECT_CALL(*ipc_message_sender(),
               SendOpenMessageChannel(script_context(), port_id, target,
-                                     kChannel, "chrome.runtime.sendMessage"));
-  EXPECT_CALL(*ipc_message_sender(), SendPostMessageToPort(port_id, message));
+                                     kChannel, "chrome.runtime.sendMessage",
+                                     testing::_, testing::_))
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+      ;
+  EXPECT_CALL(*ipc_message_sender(), SendPostMessageToPort(port_id, message))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#else
+      .WillRepeatedly(
+          [&mock_message_port_host](
+              ScriptContext* script_context, const PortId& port_id,
+              const MessageTarget& target, mojom::ChannelType channel_type,
+              const std::string& channel_name,
+              mojo::PendingAssociatedRemote<mojom::MessagePort> port,
+              mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+                  port_host) {
+            port.EnableUnassociatedUsage();
+            port_host.EnableUnassociatedUsage();
+            mock_message_port_host.BindReceiver(std::move(port_host));
+          });
+  EXPECT_CALL(mock_message_port_host, PostMessage(message))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#endif
   v8::Local<v8::Promise> promise = messaging_service()->SendOneTimeMessage(
       script_context(), target, kChannel, message,
       binding::AsyncResponseType::kPromise, v8::Local<v8::Function>());
   ASSERT_FALSE(promise.IsEmpty());
   EXPECT_EQ(v8::Promise::kPending, promise->State());
+  run_loop->Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   EXPECT_TRUE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 
+  run_loop = std::make_unique<base::RunLoop>();
   // Respond to the message. The response callback should be triggered, and the
   // port should be closed.
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
-              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true));
+              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host, ClosePort(true))
+      .WillOnce(base::test::RunClosure(run_loop->QuitClosure()));
+#endif
   messaging_service()->DeliverMessage(
       script_context_set(), port_id,
-      Message("\"reply\"", SerializationFormat::kJson, false), nullptr);
+      Message("\"reply\"", mojom::SerializationFormat::kJson, false), nullptr);
+  run_loop->Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   EXPECT_EQ(v8::Promise::kFulfilled, promise->State());
   EXPECT_EQ("\"reply\"", V8ToString(promise->Result(), context));
   EXPECT_FALSE(
@@ -490,14 +660,16 @@ TEST_F(NativeRendererMessagingServiceTest, ReceiveOneTimeMessage) {
 
   const std::string kChannel = "chrome.runtime.sendMessage";
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
-  const PortId port_id(other_context_id, 0, false, SerializationFormat::kJson);
+  const PortId port_id(other_context_id, 0, false,
+                       mojom::SerializationFormat::kJson);
 
-  ExtensionMsg_TabConnectionInfo tab_connection_info;
+  NativeRendererMessagingService::TabConnectionInfo tab_connection_info;
+  NativeRendererMessagingService::ExternalConnectionInfo
+      external_connection_info;
   tab_connection_info.frame_id = 0;
   const int tab_id = 10;
   GURL source_url("http://example.com");
-  tab_connection_info.tab = DictionaryBuilder().Set("tabId", tab_id).Build();
-  ExtensionMsg_ExternalConnectionInfo external_connection_info;
+  tab_connection_info.tab = base::Value::Dict().Set("tabId", tab_id);
   external_connection_info.target_id = extension()->id();
   external_connection_info.source_endpoint =
       MessagingEndpoint::ForExtension(extension()->id());
@@ -506,28 +678,59 @@ TEST_F(NativeRendererMessagingServiceTest, ReceiveOneTimeMessage) {
       content::kInvalidChildProcessUniqueId;
   external_connection_info.guest_render_frame_routing_id = 0;
 
+  mojo::PendingAssociatedRemote<mojom::MessagePortHost> port_host_remote;
+  auto port_host_receiver =
+      port_host_remote.InitWithNewEndpointAndPassReceiver();
+
+  mojo::PendingAssociatedReceiver<mojom::MessagePort> port_receiver;
+  auto port_remote = port_receiver.InitWithNewEndpointAndPassRemote();
+
   // Open a receiver for the message.
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
               SendOpenMessagePort(MSG_ROUTING_NONE, port_id));
+#endif
+  bool port_opened = false;
+  MockMessagePortHost mock_message_port_host;
   messaging_service()->DispatchOnConnect(
-      script_context_set(), port_id, ChannelType::kSendMessage, kChannel,
-      tab_connection_info, external_connection_info, nullptr);
+      script_context_set(), port_id, mojom::ChannelType::kSendMessage, kChannel,
+      tab_connection_info, external_connection_info, std::move(port_receiver),
+      std::move(port_host_remote), nullptr,
+      base::BindLambdaForTesting(
+          [&port_opened](bool success) { port_opened = success; }));
+  port_remote.EnableUnassociatedUsage();
+  port_host_receiver.EnableUnassociatedUsage();
+  mock_message_port_host.BindReceiver(std::move(port_host_receiver));
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  EXPECT_TRUE(port_opened);
   EXPECT_TRUE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 
+  base::RunLoop run_loop;
   // Post the message to the receiver. The receiver should respond, and the
   // port should close.
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
               SendPostMessageToPort(
                   port_id, Message(R"({"data":"hi"})",
-                                   SerializationFormat::kJson, false)));
+                                   mojom::SerializationFormat::kJson, false)));
   EXPECT_CALL(*ipc_message_sender(),
-              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true));
+              SendCloseMessagePort(MSG_ROUTING_NONE, port_id, true))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host,
+              PostMessage(Message(R"({"data":"hi"})",
+                                  mojom::SerializationFormat::kJson, false)));
+  EXPECT_CALL(mock_message_port_host, ClosePort(true))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#endif
   messaging_service()->DeliverMessage(
       script_context_set(), port_id,
-      Message("\"message\"", SerializationFormat::kJson, false), nullptr);
+      Message("\"message\"", mojom::SerializationFormat::kJson, false),
+      nullptr);
+  run_loop.Run();
   ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   EXPECT_FALSE(
       messaging_service()->HasPortForTesting(script_context(), port_id));
 }
@@ -559,58 +762,99 @@ TEST_F(NativeRendererMessagingServiceTest, TestExternalOneTimeMessages) {
   base::UnguessableToken other_context_id = base::UnguessableToken::Create();
   int next_port_id = 0;
   const PortId on_message_port_id(other_context_id, ++next_port_id, false,
-                                  SerializationFormat::kJson);
+                                  mojom::SerializationFormat::kJson);
   const PortId on_message_external_port_id(other_context_id, ++next_port_id,
-                                           false, SerializationFormat::kJson);
+                                           false,
+                                           mojom::SerializationFormat::kJson);
 
-  auto open_port = [this](const PortId& port_id, const ExtensionId& source_id) {
-    ExtensionMsg_TabConnectionInfo tab_connection_info;
-    tab_connection_info.frame_id = 0;
-    const int tab_id = 10;
-    GURL source_url("http://example.com");
-    tab_connection_info.tab = DictionaryBuilder().Set("tabId", tab_id).Build();
+  auto open_port =
+      [this](const PortId& port_id, const ExtensionId& source_id,
+             mojo::PendingAssociatedRemote<mojom::MessagePort>& port_remote,
+             mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
+                 port_host_receiver) {
+        NativeRendererMessagingService::TabConnectionInfo tab_connection_info;
+        NativeRendererMessagingService::ExternalConnectionInfo
+            external_connection_info;
+        tab_connection_info.frame_id = 0;
+        const int tab_id = 10;
+        GURL source_url("http://example.com");
+        tab_connection_info.tab = base::Value::Dict().Set("tabId", tab_id);
 
-    ExtensionMsg_ExternalConnectionInfo external_connection_info;
-    external_connection_info.target_id = extension()->id();
-    external_connection_info.source_endpoint =
-        MessagingEndpoint::ForExtension(source_id);
-    external_connection_info.source_url = source_url;
-    external_connection_info.guest_process_id =
-        content::kInvalidChildProcessUniqueId;
-    external_connection_info.guest_render_frame_routing_id = 0;
+        external_connection_info.target_id = extension()->id();
+        external_connection_info.source_endpoint =
+            MessagingEndpoint::ForExtension(source_id);
+        external_connection_info.source_url = source_url;
+        external_connection_info.guest_process_id =
+            content::kInvalidChildProcessUniqueId;
+        external_connection_info.guest_render_frame_routing_id = 0;
+
+        auto port_host_remote =
+            port_host_receiver.InitWithNewEndpointAndPassRemote();
+        auto port_receiver = port_remote.InitWithNewEndpointAndPassReceiver();
+        bool port_opened = false;
 
     // Open a receiver for the message.
-    EXPECT_CALL(*ipc_message_sender(),
-                SendOpenMessagePort(MSG_ROUTING_NONE, port_id));
-    messaging_service()->DispatchOnConnect(
-        script_context_set(), port_id, ChannelType::kSendMessage,
-        messaging_util::kSendMessageChannel, tab_connection_info,
-        external_connection_info, nullptr);
-    ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
-    EXPECT_TRUE(
-        messaging_service()->HasPortForTesting(script_context(), port_id));
-  };
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
+        EXPECT_CALL(*ipc_message_sender(),
+                    SendOpenMessagePort(MSG_ROUTING_NONE, port_id));
+#endif
+        messaging_service()->DispatchOnConnect(
+            script_context_set(), port_id, mojom::ChannelType::kSendMessage,
+            messaging_util::kSendMessageChannel, tab_connection_info,
+            external_connection_info, std::move(port_receiver),
+            std::move(port_host_remote), nullptr,
+            base::BindLambdaForTesting(
+                [&port_opened](bool success) { port_opened = success; }));
+        port_remote.EnableUnassociatedUsage();
+        port_host_receiver.EnableUnassociatedUsage();
+        ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+        EXPECT_TRUE(port_opened);
+        EXPECT_TRUE(
+            messaging_service()->HasPortForTesting(script_context(), port_id));
+      };
 
-  open_port(on_message_port_id, extension()->id());
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost> port_host_receiver;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> port_remote;
+
+  open_port(on_message_port_id, extension()->id(), port_remote,
+            port_host_receiver);
+
+  mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+      other_port_host_receiver;
+  mojo::PendingAssociatedRemote<mojom::MessagePort> other_port_remote;
   const ExtensionId other_extension =
       crx_file::id_util::GenerateId("different");
-  open_port(on_message_external_port_id, other_extension);
+  open_port(on_message_external_port_id, other_extension, other_port_remote,
+            other_port_host_receiver);
 
+  base::RunLoop run_loop;
+  MockMessagePortHost mock_message_port_host;
+  mock_message_port_host.BindReceiver(std::move(port_host_receiver));
+#if BUILDFLAG(ENABLE_EXTENSIONS_LEGACY_IPC)
   EXPECT_CALL(*ipc_message_sender(),
-              SendMessageResponsePending(MSG_ROUTING_NONE, on_message_port_id));
+              SendMessageResponsePending(MSG_ROUTING_NONE, on_message_port_id))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#else
+  EXPECT_CALL(mock_message_port_host, ResponsePending())
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+#endif
   messaging_service()->DeliverMessage(
       script_context_set(), on_message_port_id,
-      Message("\"onMessage\"", SerializationFormat::kJson, false), nullptr);
+      Message("\"onMessage\"", mojom::SerializationFormat::kJson, false),
+      nullptr);
   EXPECT_EQ("\"onMessage\"",
             GetStringPropertyFromObject(context->Global(), context,
                                         "onMessageReceived"));
   EXPECT_EQ("undefined",
             GetStringPropertyFromObject(context->Global(), context,
                                         "onMessageExternalReceived"));
-
+  run_loop.Run();
+  ::testing::Mock::VerifyAndClearExpectations(ipc_message_sender());
+  ::testing::Mock::VerifyAndClearExpectations(&mock_message_port_host);
   messaging_service()->DeliverMessage(
       script_context_set(), on_message_external_port_id,
-      Message("\"onMessageExternal\"", SerializationFormat::kJson, false),
+      Message("\"onMessageExternal\"", mojom::SerializationFormat::kJson,
+              false),
       nullptr);
   EXPECT_EQ("\"onMessage\"",
             GetStringPropertyFromObject(context->Global(), context,

@@ -73,6 +73,7 @@ by a child template that "extends" this file.
     <!-- TODO(https://crbug.com/1421346): Remove this tools:ignore attribute once it's no longer necessary. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:ignore="SystemPermissionTypo" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:ignore="SystemPermissionTypo" />
+    <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS" />
 
     <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -127,8 +128,6 @@ by a child template that "extends" this file.
     <permission android:name="{{ manifest_package }}.permission.DEBUG"
                 android:label="Debug web pages"
                 android:protectionLevel="signature" />
-    <permission android:name="{{ manifest_package }}.permission.TRANSLATE"
-        android:protectionLevel="signature" />
 
     <uses-permission android:name="{{ manifest_package }}.permission.C2D_MESSAGE" />
     <uses-permission android:name="{{ manifest_package }}.permission.READ_WRITE_BOOKMARK_FOLDERS" />
@@ -184,6 +183,7 @@ by a child template that "extends" this file.
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher_round"
         android:label="{% block application_label %}@string/app_name{% endblock %}"
+        android:memtagMode="async"
         android:largeHeap="false"
         android:manageSpaceActivity="@string/manage_space_activity"
         android:supportsRtl="true"
@@ -351,17 +351,6 @@ by a child template that "extends" this file.
             <meta-data android:name="android.app.searchable"
                 android:resource="@xml/searchable" />
         </activity-alias>
-        <activity-alias android:name="com.google.android.apps.chrome.TranslateDispatcher"
-            android:targetActivity="org.chromium.chrome.browser.document.ChromeLauncherActivity"
-            android:exported="true"
-            {% if channel == 'stable' %}
-            android:permission="{{ manifest_package }}.permission.TRANSLATE"
-            {% endif %} >
-            <intent-filter>
-                <action android:name="org.chromium.chrome.browser.translate.TRANSLATE_TAB" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity-alias>
 
         <activity android:name="org.chromium.chrome.browser.media.MediaLauncherActivity"
             android:theme="@style/Theme.BrowserUI.NoDisplay"
@@ -457,13 +446,13 @@ by a child template that "extends" this file.
         </receiver>
 
         <!-- Phishing Protection related -->
-        <receiver android:name="org.chromium.chrome.browser.safe_browsing.PasswordProtectionBroadcastReceiver" 
+        <receiver android:name="org.chromium.chrome.browser.safe_browsing.PasswordProtectionBroadcastReceiver"
         android:exported="true"
         android:permission="com.google.android.gms.permission.INTERNAL_BROADCAST">
             <intent-filter>
                 <action android:name="com.android.chrome.safe_browsing.LOGIN" />
             </intent-filter>
-        </receiver> 
+        </receiver>
 
         <!-- Upgrade related -->
         <receiver android:name="org.chromium.chrome.browser.upgrade.PackageReplacedBroadcastReceiver"
@@ -622,6 +611,11 @@ by a child template that "extends" this file.
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
             android:exported="false">
         </activity>
+        <activity android:name="org.chromium.chrome.browser.device_lock.DeviceLockActivity"
+            android:theme="@style/Theme.Chromium.DialogWhenLarge"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
+            android:exported="false">
+        </activity>
         <activity android:name="org.chromium.chrome.browser.settings.SettingsActivity"
             android:theme="@style/Theme.Chromium.Settings"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
@@ -661,12 +655,12 @@ by a child template that "extends" this file.
             android:exported="false"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize">
         </activity>
-
-        <!-- Activities for video tutorials. -->
-        <activity android:name="org.chromium.chrome.browser.app.video_tutorials.VideoTutorialListActivity"
-            android:theme="@style/Theme.Chromium.Activity.Fullscreen"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
-            android:exported="false">
+        <activity android:name="org.chromium.chrome.browser.app.bookmarks.BookmarkFolderPickerActivity"
+            android:theme="@style/Theme.Chromium.DialogWhenLarge"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            android:label="@string/bookmark_choose_folder"
+            android:exported="false"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize">
         </activity>
 
         <!-- Activities for downloads. -->
@@ -708,16 +702,6 @@ by a child template that "extends" this file.
             android:windowSoftInputMode="stateAlwaysHidden|adjustResize"
             android:exported="false"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize">
-        </activity>
-
-        <!-- Activities for video tutorials. -->
-        <activity android:name="org.chromium.chrome.browser.app.video_tutorials.VideoPlayerActivity"
-            android:theme="@style/Theme.Chromium.Activity.Fullscreen"
-            android:screenOrientation="portrait"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize"
-            android:exported="false"
-            tools:ignore="LockedOrientationActivity">
-            <!-- We want to explicitly disallow landscape UI for video tutorials. -->
         </activity>
 
         <!-- Activities for history. -->
@@ -820,12 +804,16 @@ by a child template that "extends" this file.
             android:process=":browser_restart_process">
         </activity>
 
-        <!-- This activity is used to show an error dialog without attempting to start up Chrome. -->
+        <!-- This activity is used to show an error dialog when Chrome fails to load the native
+             library. It must be in a separate process as when the native library fails to load an
+             exception is thrown and may crash the main process immediately. Being in a separate
+             process allows the dialog to remain visible to the user. -->
         <activity android:name="org.chromium.chrome.browser.init.LaunchFailedActivity"
             android:launchMode="singleInstance"
             android:exported="false"
             android:theme="@style/Theme.BrowserUI.Translucent.NoTitleBar"
-            android:excludeFromRecents="true">
+            android:excludeFromRecents="true"
+            android:process=":launch_failed">
         </activity>
 
         <!-- Components for Trusted Web Activities -->
@@ -1061,9 +1049,6 @@ by a child template that "extends" this file.
             </intent-filter>
         </service>
 
-        <service android:name="org.chromium.chrome.browser.prerender.ChromePrerenderService"
-            android:exported="true"
-            tools:ignore="ExportedService" />
         <service android:name="org.chromium.chrome.browser.customtabs.CustomTabsConnectionService"
             android:exported="true"
             tools:ignore="ExportedService">
@@ -1213,6 +1198,28 @@ by a child template that "extends" this file.
         <property android:name="android.adservices.AD_SERVICES_CONFIG"
             android:resource="@xml/ad_services_config" />
 
+        {% set enable_openxr = enable_openxr|default(0) %}
+        {% if enable_openxr == "true" %}
+          <!-- launchMode is set to singleTask because there should never be multiple copies of the app running. -->
+          <!-- Theme.Black.NoTitleBar.Fullscreen gives solid black instead of a (bad stereoscopic) gradient on app transition. -->
+          <activity
+            android:name="org.chromium.components.webxr.XrHostActivity"
+            {{ self.chrome_activity_common() }}
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleTask"
+            android:exported="false"
+            android:resizeableActivity="false"
+            android:screenOrientation="landscape"
+            android:label="WebXR"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            tools:ignore="NonResizeableActivity">
+            <intent-filter>
+              <category android:name="android.intent.category.XR" />
+            </intent-filter>
+          </activity>
+        {% endif %}
+
         {% block extra_application_definitions %}
         {% endblock %}
       {% endmacro %}
@@ -1283,6 +1290,9 @@ by a child template that "extends" this file.
       {% if enable_arcore == 'true' %}
       <!-- This tag indicates that this application optionally uses ARCore. -->
       <meta-data android:name="com.google.ar.core" android:value="optional" />
+      <meta-data
+          android:name="com.google.ar.core.load_32bit_so_from_split_module"
+          android:value="optional" />
 
       <!-- ARCore APK integration -->
       {% block base_application_extra_arcore_definitions %}

@@ -58,12 +58,13 @@ class NetworkFetcher : public base::RefCountedThreadSafe<NetworkFetcher> {
 
   // Downloads the content of the |url| to a file identified by |file_path|.
   // The content is written to the file as it is being retrieved from the
-  // network.
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      FetchStartedCallback fetch_started_callback,
-                      FetchProgressCallback fetch_progress_callback,
-                      FetchCompleteCallback fetch_complete_callback);
+  // network. Returns a closure that can be run to cancel the download.
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      FetchStartedCallback fetch_started_callback,
+      FetchProgressCallback fetch_progress_callback,
+      FetchCompleteCallback fetch_complete_callback);
 
   HRESULT QueryHeaderString(const std::wstring& name,
                             std::wstring* value) const;
@@ -115,7 +116,7 @@ class NetworkFetcher : public base::RefCountedThreadSafe<NetworkFetcher> {
   SEQUENCE_CHECKER(sequence_checker_);
   scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
 
-  const raw_ref<const HINTERNET>
+  const raw_ref<const HINTERNET, LeakedDanglingUntriaged>
       session_handle_;  // Owned by NetworkFetcherFactory.
   scoped_refptr<ProxyConfiguration> proxy_configuration_;
   ScopedHInternet connect_handle_;

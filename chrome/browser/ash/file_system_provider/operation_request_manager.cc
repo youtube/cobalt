@@ -15,33 +15,36 @@
 namespace ash::file_system_provider {
 namespace {
 
-// Timeout in seconds, before a file system operation request is considered as
-// stale and hence aborted.
-const int kDefaultOperationTimeout = 10;
-
 }  // namespace
 
 OperationRequestManager::OperationRequestManager(
     Profile* profile,
     const std::string& provider_id,
-    NotificationManagerInterface* notification_manager)
-    : RequestManager(profile,
-                     notification_manager,
-                     base::Seconds(kDefaultOperationTimeout)),
+    NotificationManagerInterface* notification_manager,
+    base::TimeDelta timeout)
+    : RequestManager(profile, notification_manager, timeout),
       provider_id_(provider_id) {}
 
 OperationRequestManager::~OperationRequestManager() = default;
 
 void OperationRequestManager::OnRequestTimeout(int request_id) {
   for (auto& observer : observers_)
-    observer.OnRequestTimeouted(request_id);
+    observer.OnRequestTimedOut(request_id);
 
   if (!notification_manager_) {
-    RejectRequest(request_id, RequestValue(), base::File::FILE_ERROR_ABORT);
+    RejectRequestInternal(request_id, RequestValue(),
+                          base::File::FILE_ERROR_ABORT,
+                          OperationCompletion::kAbortedInternally);
+    return;
+  }
+
+  auto request_it = requests_.find(request_id);
+  if (request_it == requests_.end()) {
     return;
   }
 
   if (!IsInteractingWithUser()) {
+    request_it->second->shown_unresponsive_notification = true;
     notification_manager_->ShowUnresponsiveNotification(
         request_id,
         base::BindOnce(
@@ -53,6 +56,10 @@ void OperationRequestManager::OnRequestTimeout(int request_id) {
 }
 
 bool OperationRequestManager::IsInteractingWithUser() const {
+  if (current_user_interactions_ > 0) {
+    return true;
+  }
+
   // First try for app windows. If not found, then fall back to browser windows
   // and tabs.
   const extensions::AppWindowRegistry* const registry =

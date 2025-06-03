@@ -7,6 +7,7 @@ import {InstanceChecker} from '../common/instance_checker.js';
 
 import {Autoclick} from './autoclick/autoclick.js';
 import {Dictation} from './dictation/dictation.js';
+import {GameFace} from './gameface/gameface.js';
 import {Magnifier} from './magnifier/magnifier.js';
 
 /**
@@ -21,12 +22,16 @@ export class AccessibilityCommon {
     this.magnifier_ = null;
     /** @private {Dictation} */
     this.dictation_ = null;
+    /** @private {GameFace} */
+    this.gameFace_ = null;
 
     // For tests.
     /** @private {?function()} */
     this.autoclickLoadCallbackForTest_ = null;
     /** @private {?function()} */
     this.magnifierLoadCallbackForTest_ = null;
+    /** @private {?function()} */
+    this.dictationLoadCallbackForTest_ = null;
 
     this.init_();
   }
@@ -36,16 +41,17 @@ export class AccessibilityCommon {
     globalThis.accessibilityCommon = new AccessibilityCommon();
   }
 
-  /**
-   * @return {Autoclick}
-   */
+  /** @return {Autoclick} */
   getAutoclickForTest() {
     return this.autoclick_;
   }
 
-  /**
-   * @return {Magnifier}
-   */
+  /** @return {GameFace} */
+  getGameFaceForTest() {
+    return this.gameFace_;
+  }
+
+  /** @return {Magnifier} */
   getMagnifierForTest() {
     return this.magnifier_;
   }
@@ -79,6 +85,12 @@ export class AccessibilityCommon {
     chrome.accessibilityFeatures.dictation.onChange.addListener(
         details => this.onDictationUpdated_(details));
 
+    const gameFaceFeature =
+        chrome.accessibilityPrivate.AccessibilityFeature.GAME_FACE_INTEGRATION;
+    chrome.accessibilityPrivate.isFeatureEnabled(gameFaceFeature, enabled => {
+      this.onGameFaceFetched_(enabled);
+    });
+
     // AccessibilityCommon is an IME so it shows in the input methods list
     // when it starts up. Remove from this list, Dictation will add it back
     // whenever needed.
@@ -104,6 +116,21 @@ export class AccessibilityCommon {
       // rather than relying on a destructor to clean up state.
       this.autoclick_.onAutoclickDisabled();
       this.autoclick_ = null;
+    }
+  }
+
+  /**
+   * Called when the GameFace feature status is fetched.
+   * @param {boolean} enabled
+   * @private
+   */
+  onGameFaceFetched_(enabled) {
+    if (enabled) {
+      // Initialize the GameFace extension.
+      this.gameFace_ = new GameFace();
+    } else if (!enabled && this.gameFace_) {
+      this.gameFace_.onGameFaceDisabled();
+      this.gameFace_ = null;
     }
   }
 
@@ -135,6 +162,10 @@ export class AccessibilityCommon {
   onDictationUpdated_(details) {
     if (details.value && !this.dictation_) {
       this.dictation_ = new Dictation();
+      if (this.dictationLoadCallbackForTest_) {
+        this.dictationLoadCallbackForTest_();
+        this.dictationLoadCallbackForTest_ = null;
+      }
     } else if (!details.value && this.dictation_) {
       this.dictation_.onDictationDisabled();
       this.dictation_ = null;
@@ -155,6 +186,13 @@ export class AccessibilityCommon {
       }
       // Autoclick already loaded.
       this.autoclick_.setOnLoadDesktopCallbackForTest(callback);
+    } else if (feature === 'dictation') {
+      if (!this.dictation_) {
+        this.dictationLoadCallbackForTest_ = callback;
+        return;
+      }
+      // Dictation already loaded.
+      callback();
     } else if (feature === 'magnifier') {
       if (!this.magnifier_) {
         this.magnifierLoadCallbackForTest_ = callback;

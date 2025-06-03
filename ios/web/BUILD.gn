@@ -4,6 +4,7 @@
 
 import("//ios/build/config.gni")
 import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 import("//testing/test.gni")
 import("//tools/grit/grit_rule.gni")
 
@@ -31,9 +32,7 @@ source_set("web") {
     ":core",
     ":message_js",
     ":navigation_resources",
-    ":plugin_placeholder_js",
     ":resources",
-    ":share_workaround_js",
     ":threads",
     "//base",
     "//components/leveldb_proto",
@@ -43,12 +42,14 @@ source_set("web") {
     "//ios/web/favicon",
     "//ios/web/init",
     "//ios/web/navigation",
+    "//ios/web/navigation:proto_util",
     "//ios/web/navigation:wk_navigation_util",
     "//ios/web/net",
     "//ios/web/public",
     "//ios/web/public/js_messaging:gcrweb_js",
     "//ios/web/public/security",
     "//ios/web/public/session",
+    "//ios/web/public/session/proto:proto_util",
     "//ios/web/security",
     "//ios/web/session",
     "//ios/web/thread",
@@ -65,8 +66,6 @@ source_set("web") {
     "network_context_owner.cc",
     "web_client.mm",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("threads") {
@@ -81,12 +80,9 @@ source_set("threads") {
     "web_thread_impl.cc",
     "web_thread_impl.h",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("core") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     "//base",
     "//url",
@@ -99,7 +95,6 @@ source_set("core") {
 }
 
 source_set("eg_app_support+eg2") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [
@@ -173,6 +168,7 @@ test("ios_web_unittests") {
     "//ios/web/js_features/context_menu:unittests",
     "//ios/web/js_features/window_error:unittests",
     "//ios/web/js_messaging:unittests",
+    "//ios/web/public/session/proto:unittests",
     "//ios/web/public/web_view_only:unittests",
     "//ios/web/security:unittests",
     "//ios/web/session:unittests",
@@ -181,11 +177,9 @@ test("ios_web_unittests") {
   ]
 
   assert_no_deps = ios_assert_no_deps
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("ios_web_general_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -201,6 +195,7 @@ source_set("ios_web_general_unittests") {
     "//ios/web/navigation:core",
     "//ios/web/public",
     "//ios/web/public/session",
+    "//ios/web/public/session/proto",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//ios/web/test:mojo_bindings",
@@ -225,7 +220,6 @@ source_set("ios_web_general_unittests") {
 }
 
 source_set("ios_web_navigation_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -242,9 +236,12 @@ source_set("ios_web_navigation_unittests") {
     "//ios/web/navigation:block_universal_links_buildflags",
     "//ios/web/navigation:core",
     "//ios/web/navigation:navigation_manager_util",
+    "//ios/web/navigation:proto_util",
     "//ios/web/navigation:wk_navigation_util",
     "//ios/web/public",
     "//ios/web/public/session",
+    "//ios/web/public/session/proto",
+    "//ios/web/public/session/proto:proto_util",
     "//ios/web/public/test",
     "//ios/web/public/test:test_fixture",
     "//ios/web/public/test/fakes",
@@ -270,11 +267,11 @@ source_set("ios_web_navigation_unittests") {
     "navigation/crw_wk_navigation_states_unittest.mm",
     "navigation/navigation_context_impl_unittest.mm",
     "navigation/navigation_item_impl_unittest.mm",
-    "navigation/navigation_item_storage_builder_unittest.mm",
     "navigation/navigation_manager_impl_unittest.mm",
     "navigation/navigation_manager_util_unittest.mm",
+    "navigation/navigation_util_unittest.mm",
     "navigation/nscoder_util_unittest.mm",
-    "navigation/session_storage_builder_unittest.mm",
+    "navigation/proto_util_unittest.mm",
     "navigation/synthesized_session_restore_unittest.mm",
     "navigation/wk_back_forward_list_item_holder_unittest.mm",
     "navigation/wk_navigation_action_policy_util_unittest.mm",
@@ -284,7 +281,6 @@ source_set("ios_web_navigation_unittests") {
 }
 
 source_set("ios_web_net_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -323,11 +319,8 @@ source_set("ios_web_net_unittests") {
 }
 
 source_set("test_support") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
-    "navigation/navigation_item_storage_test_util.h",
-    "navigation/navigation_item_storage_test_util.mm",
     "public/test/crw_fake_web_state_delegate.h",
     "public/test/crw_fake_web_state_delegate.mm",
   ]
@@ -338,7 +331,6 @@ source_set("test_support") {
 }
 
 source_set("ios_web_text_fragments_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     "//base",
@@ -365,7 +357,6 @@ source_set("ios_web_text_fragments_unittests") {
 }
 
 source_set("ios_web_web_state_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -392,6 +383,7 @@ source_set("ios_web_web_state_unittests") {
     "//ios/web/public/js_messaging",
     "//ios/web/public/security",
     "//ios/web/public/session",
+    "//ios/web/public/session/proto",
     "//ios/web/public/test",
     "//ios/web/public/test:test_fixture",
     "//ios/web/public/test/fakes",
@@ -402,7 +394,6 @@ source_set("ios_web_web_state_unittests") {
     "//ios/web/test:test_support",
     "//ios/web/test/fakes",
     "//ios/web/web_state",
-    "//ios/web/web_state:page_viewport_state",
     "//ios/web/web_state:policy_decision_state_tracker",
     "//ios/web/web_state:test_util",
     "//ios/web/web_state:web_state_impl_header",
@@ -417,7 +408,6 @@ source_set("ios_web_web_state_unittests") {
   ]
 
   sources = [
-    "web_state/page_viewport_state_unittest.mm",
     "web_state/policy_decision_state_tracker_unittest.mm",
     "web_state/web_state_context_menu_bridge_unittest.mm",
     "web_state/web_state_delegate_bridge_unittest.mm",
@@ -431,7 +421,6 @@ source_set("ios_web_web_state_unittests") {
 }
 
 source_set("ios_web_web_state_js_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -467,7 +456,6 @@ source_set("ios_web_web_state_js_unittests") {
 }
 
 source_set("ios_web_web_state_ui_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -481,6 +469,7 @@ source_set("ios_web_web_state_ui_unittests") {
     "//ios/web/common:uikit",
     "//ios/web/js_features/context_menu",
     "//ios/web/js_messaging",
+    "//ios/web/js_messaging:web_view_js_utils",
     "//ios/web/navigation",
     "//ios/web/navigation:block_universal_links_buildflags",
     "//ios/web/navigation:core",
@@ -516,7 +505,6 @@ source_set("ios_web_web_state_ui_unittests") {
 }
 
 source_set("ios_web_webui_unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":core",
@@ -552,7 +540,6 @@ source_set("ios_web_webui_unittests") {
 }
 
 test("ios_web_inttests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     ":web",
     "//base/test:test_support",
@@ -592,6 +579,7 @@ test("ios_web_inttests") {
     "//ios/web/test:resources",
     "//ios/web/test:test_constants",
     "//ios/web/test:test_support",
+    "//ios/web/test/fakes",
     "//ios/web/web_state",
     "//ios/web/web_state:test_util",
     "//ios/web/web_state:web_state_impl_header",
@@ -615,7 +603,6 @@ test("ios_web_inttests") {
     "navigation/history_state_operations_inttest.mm",
     "navigation/meta_tag_inttest.mm",
     "navigation/window_location_inttest.mm",
-    "plugin_placeholder_inttest.mm",
     "public/test/http_server_inttest.mm",
     "test/run_all_unittests.cc",
     "url_loader_inttest.mm",
@@ -633,20 +620,6 @@ test("ios_web_inttests") {
   assert_no_deps = ios_assert_no_deps
 }
 
-optimize_js("plugin_placeholder_js") {
-  visibility = [ ":web" ]
-
-  primary_script = "web_state/js/resources/plugin_placeholder.js"
-  sources = [ "web_state/js/resources/plugin_placeholder.js" ]
-}
-
-optimize_js("share_workaround_js") {
-  visibility = [ ":web" ]
-
-  primary_script = "web_state/js/resources/share_workaround.js"
-  sources = [ "web_state/js/resources/share_workaround.js" ]
-}
-
 optimize_js("common_js") {
   visibility = [ ":web" ]
 
@@ -654,11 +627,16 @@ optimize_js("common_js") {
   sources = [ "web_state/js/resources/common.js" ]
 }
 
-optimize_js("message_js") {
+optimize_ts("message_js") {
   visibility = [ ":web" ]
 
-  primary_script = "js_messaging/resources/message.js"
-  sources = [ "js_messaging/resources/message.js" ]
+  sources = [ "js_messaging/resources/message.ts" ]
+
+  deps = [
+    "//ios/web/public/js_messaging:frame_id",
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
 bundle_data("navigation_resources") {

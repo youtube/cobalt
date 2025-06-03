@@ -12,10 +12,6 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // Duration of button animations, in seconds.
 const CGFloat kButtonAnimationDuration = 0.2;
@@ -116,6 +112,10 @@ const CGFloat kButtonCircularCornerRadiusDivisor = 2.0;
       return accepted
                  ? kBadgeButtonPermissionsMicrophoneAcceptedAccessibilityIdentifier
                  : kBadgeButtonPermissionsMicrophoneAccessibilityIdentifier;
+    case kBadgeTypeParcelTracking:
+      return accepted
+                 ? kBadgeButtonParcelTrackingAcceptedAccessibilityIdentifier
+                 : kBadgeButtonParcelTrackingAccessibilityIdentifier;
   }
 }
 

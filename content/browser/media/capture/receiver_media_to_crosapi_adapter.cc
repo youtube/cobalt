@@ -33,16 +33,15 @@ void ReceiverMediaToCrosapiAdapter::OnNewBuffer(
                         ConvertToMediaVideoBuffer(std::move(buffer_handle)));
 }
 
-void ReceiverMediaToCrosapiAdapter::OnFrameReadyInBuffer(
+void ReceiverMediaToCrosapiAdapter::DEPRECATED_OnFrameReadyInBuffer(
     crosapi::mojom::ReadyFrameInBufferPtr buffer,
-    std::vector<crosapi::mojom::ReadyFrameInBufferPtr> scaled_buffers) {
-  std::vector<media::ReadyFrameInBuffer> media_scaled_buffers;
-  for (auto& b : scaled_buffers) {
-    media_scaled_buffers.push_back(ConvertToMediaReadyFrame(std::move(b)));
-  }
+    std::vector<crosapi::mojom::ReadyFrameInBufferPtr> /*scaled_buffers*/) {
+  OnFrameReadyInBuffer(std::move(buffer));
+}
 
-  handler_->OnFrameReadyInBuffer(ConvertToMediaReadyFrame(std::move(buffer)),
-                                 std::move(media_scaled_buffers));
+void ReceiverMediaToCrosapiAdapter::OnFrameReadyInBuffer(
+    crosapi::mojom::ReadyFrameInBufferPtr buffer) {
+  handler_->OnFrameReadyInBuffer(ConvertToMediaReadyFrame(std::move(buffer)));
 }
 
 void ReceiverMediaToCrosapiAdapter::OnBufferRetired(int buffer_id) {
@@ -58,8 +57,14 @@ void ReceiverMediaToCrosapiAdapter::OnFrameDropped(
   handler_->OnFrameDropped(reason);
 }
 
-void ReceiverMediaToCrosapiAdapter::OnNewCropVersion(uint32_t crop_version) {
-  handler_->OnNewCropVersion(crop_version);
+void ReceiverMediaToCrosapiAdapter::DEPRECATED_OnNewCropVersion(
+    uint32_t crop_version) {
+  OnNewSubCaptureTargetVersion(crop_version);
+}
+
+void ReceiverMediaToCrosapiAdapter::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {
+  handler_->OnNewSubCaptureTargetVersion(sub_capture_target_version);
 }
 
 void ReceiverMediaToCrosapiAdapter::OnFrameWithEmptyRegionCapture() {

@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/geometry_mapper.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
-#include "third_party/skia/include/core/SkColorFilter.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
@@ -25,7 +25,7 @@ namespace {
 
 // Snap |bounds| if within floating-point numeric limits of an integral rect.
 void PreserveNearIntegralBounds(gfx::RectF& bounds) {
-  constexpr float kTolerance = 1e-5f;
+  constexpr float kTolerance = 1e-3f;
   if (std::abs(std::round(bounds.x()) - bounds.x()) <= kTolerance &&
       std::abs(std::round(bounds.y()) - bounds.y()) <= kTolerance &&
       std::abs(std::round(bounds.right()) - bounds.right()) <= kTolerance &&
@@ -44,10 +44,12 @@ PendingLayer::PendingLayer(scoped_refptr<const PaintArtifact> artifact,
       draws_content_(first_chunk.DrawsContent()),
       text_known_to_be_on_opaque_background_(
           first_chunk.text_known_to_be_on_opaque_background),
-      is_solid_color_(first_chunk.background_color.is_solid_color),
+      solid_color_chunk_index_(
+          first_chunk.background_color.is_solid_color ? 0 : kNotFound),
       chunks_(std::move(artifact), first_chunk),
       property_tree_state_(
-          first_chunk.properties.GetPropertyTreeState().Unalias()) {
+          first_chunk.properties.GetPropertyTreeState().Unalias()),
+      hit_test_opaqueness_(first_chunk.hit_test_opaqueness) {
   DCHECK(!ChunkRequiresOwnLayer() || first_chunk.size() <= 1u);
   // Though text_known_to_be_on_opaque_background is only meaningful when
   // has_text is true, we expect text_known_to_be_on_opaque_background to be
@@ -120,7 +122,9 @@ std::unique_ptr<JSONObject> PendingLayer::ToJSON() const {
                    VectorAsJSONArray(offset_of_decomposited_transforms_));
   result->SetArray("paint_chunks", chunks_.ToJSON());
   result->SetBoolean("draws_content", DrawsContent());
-  result->SetBoolean("is_solid_color", is_solid_color_);
+  result->SetBoolean("is_solid_color", IsSolidColor());
+  result->SetString("hit_test_opaqueness",
+                    cc::HitTestOpaquenessToString(hit_test_opaqueness_));
   return result;
 }
 
@@ -155,7 +159,7 @@ void PendingLayer::Upcast(const PropertyTreeState& new_state) {
   bounds_ = float_clip_rect.Rect();
 
   property_tree_state_ = new_state;
-  is_solid_color_ = false;
+  solid_color_chunk_index_ = kNotFound;
 }
 
 const PaintChunk& PendingLayer::FirstPaintChunk() const {
@@ -179,17 +183,26 @@ bool PendingLayer::Matches(const PendingLayer& old_pending_layer) const {
 // merged_area - (home_area + guest_area) <= kMergeSparsityAreaTolerance
 static constexpr float kMergeSparsityAreaTolerance = 10000;
 
-bool PendingLayer::Merge(const PendingLayer& guest,
-                         LCDTextPreference lcd_text_preference,
-                         IsCompositedScrollFunction is_composited_scroll) {
-  absl::optional<PropertyTreeState> merged_state =
+bool PendingLayer::CanMerge(
+    const PendingLayer& guest,
+    LCDTextPreference lcd_text_preference,
+    IsCompositedScrollFunction is_composited_scroll,
+    gfx::RectF& merged_bounds,
+    PropertyTreeState& merged_state,
+    gfx::RectF& merged_rect_known_to_be_opaque,
+    bool& merged_text_known_to_be_on_opaque_background,
+    wtf_size_t& merged_solid_color_chunk_index,
+    cc::HitTestOpaqueness& merged_hit_test_opaqueness) const {
+  absl::optional<PropertyTreeState> optional_merged_state =
       CanUpcastWith(guest, guest.GetPropertyTreeState(), is_composited_scroll);
-  if (!merged_state) {
+  if (!optional_merged_state) {
     return false;
   }
 
+  merged_state = *optional_merged_state;
   const absl::optional<gfx::RectF>& merged_visibility_limit =
-      GeometryMapper::VisibilityLimit(*merged_state);
+      GeometryMapper::VisibilityLimit(merged_state);
+  merged_solid_color_chunk_index = kNotFound;
 
   // If the current bounds and known-to-be-opaque area already cover the entire
   // visible area of the merged state, and the current state is already equal
@@ -200,31 +213,31 @@ bool PendingLayer::Merge(const PendingLayer& guest,
       *merged_visibility_limit == bounds_ &&
       merged_state == property_tree_state_ &&
       rect_known_to_be_opaque_ == bounds_) {
-    chunks_.Merge(guest.Chunks());
-    draws_content_ |= guest.draws_content_;
-    text_known_to_be_on_opaque_background_ = true;
-    has_text_ |= guest.has_text_;
-    is_solid_color_ = false;
-    change_of_decomposited_transforms_ =
-        std::max(ChangeOfDecompositedTransforms(),
-                 guest.ChangeOfDecompositedTransforms());
+    merged_bounds = merged_rect_known_to_be_opaque = bounds_;
+    merged_text_known_to_be_on_opaque_background = true;
+    if (!guest.draws_content_) {
+      merged_solid_color_chunk_index = solid_color_chunk_index_;
+    }
+    merged_hit_test_opaqueness = cc::UnionHitTestOpaqueness(
+        gfx::ToRoundedRect(bounds_), hit_test_opaqueness_,
+        gfx::ToRoundedRect(guest.bounds_), guest.hit_test_opaqueness_);
     return true;
   }
 
   FloatClipRect new_home_bounds(bounds_);
   GeometryMapper::LocalToAncestorVisualRect(GetPropertyTreeState(),
-                                            *merged_state, new_home_bounds);
+                                            merged_state, new_home_bounds);
   if (merged_visibility_limit) {
     new_home_bounds.Rect().Intersect(*merged_visibility_limit);
   }
   FloatClipRect new_guest_bounds(guest.bounds_);
   GeometryMapper::LocalToAncestorVisualRect(guest.GetPropertyTreeState(),
-                                            *merged_state, new_guest_bounds);
+                                            merged_state, new_guest_bounds);
   if (merged_visibility_limit) {
     new_guest_bounds.Rect().Intersect(*merged_visibility_limit);
   }
 
-  gfx::RectF merged_bounds =
+  merged_bounds =
       gfx::UnionRects(new_home_bounds.Rect(), new_guest_bounds.Rect());
 
   // If guest.has_decomposited_blend_mode_ is true, this function must merge
@@ -235,8 +248,6 @@ bool PendingLayer::Merge(const PendingLayer& guest,
   // - the src and dest layers are unlikely to be far away (sparse),
   // - the blend mode may make the merged layer not opaque,
   // - LCD text will be disabled with exotic blend mode.
-  gfx::RectF merged_rect_known_to_be_opaque;
-  bool merged_text_known_to_be_on_opaque_background = false;
   if (!guest.has_decomposited_blend_mode_) {
     float sum_area = new_home_bounds.Rect().size().GetArea() +
                      new_guest_bounds.Rect().size().GetArea();
@@ -246,9 +257,9 @@ bool PendingLayer::Merge(const PendingLayer& guest,
     }
 
     gfx::RectF home_rect_known_to_be_opaque =
-        MapRectKnownToBeOpaque(*merged_state, new_home_bounds);
+        MapRectKnownToBeOpaque(merged_state, new_home_bounds);
     gfx::RectF guest_rect_known_to_be_opaque =
-        guest.MapRectKnownToBeOpaque(*merged_state, new_guest_bounds);
+        guest.MapRectKnownToBeOpaque(merged_state, new_guest_bounds);
     merged_rect_known_to_be_opaque = gfx::MaximumCoveredRect(
         home_rect_known_to_be_opaque, guest_rect_known_to_be_opaque);
     merged_text_known_to_be_on_opaque_background =
@@ -274,24 +285,72 @@ bool PendingLayer::Merge(const PendingLayer& guest,
         return false;
       }
     }
+    if (IsSolidColor() && new_home_bounds.IsTight() && !guest.draws_content_ &&
+        new_home_bounds.Rect() == merged_bounds) {
+      // Home's solid color fills the merged layer, and is the only drawing.
+      merged_solid_color_chunk_index = solid_color_chunk_index_;
+    } else if (guest.IsSolidColor() && new_guest_bounds.IsTight() &&
+               new_guest_bounds.Rect() == merged_bounds &&
+               (!draws_content_ || guest.GetSolidColor().isOpaque())) {
+      // Guest's solid color fills the merged layer, and is the only drawing or
+      // obscures all home's drawing.
+      merged_solid_color_chunk_index =
+          chunks_.size() + guest.solid_color_chunk_index_;
+    }
+  }
+
+  cc::HitTestOpaqueness home_hit_test_opaqueness = hit_test_opaqueness_;
+  if (home_hit_test_opaqueness == cc::HitTestOpaqueness::kOpaque &&
+      !new_home_bounds.IsTight()) {
+    home_hit_test_opaqueness = cc::HitTestOpaqueness::kMixed;
+  }
+  cc::HitTestOpaqueness guest_hit_test_opaqueness = guest.hit_test_opaqueness_;
+  if (guest_hit_test_opaqueness == cc::HitTestOpaqueness::kOpaque &&
+      !new_guest_bounds.IsTight()) {
+    guest_hit_test_opaqueness = cc::HitTestOpaqueness::kMixed;
+  }
+  merged_hit_test_opaqueness = cc::UnionHitTestOpaqueness(
+      gfx::ToRoundedRect(new_home_bounds.Rect()), home_hit_test_opaqueness,
+      gfx::ToRoundedRect(new_guest_bounds.Rect()), guest_hit_test_opaqueness);
+
+  // GeometryMapper::LocalToAncestorVisualRect can introduce floating-point
+  // error to the bounds. Integral bounds are important for reducing
+  // blurriness (see: PendingLayer::LayerOffset) so preserve that here.
+  PreserveNearIntegralBounds(merged_bounds);
+  PreserveNearIntegralBounds(merged_rect_known_to_be_opaque);
+  return true;
+}
+
+bool PendingLayer::Merge(const PendingLayer& guest,
+                         LCDTextPreference lcd_text_preference,
+                         IsCompositedScrollFunction is_composited_scroll) {
+  gfx::RectF merged_bounds;
+  PropertyTreeState merged_state = PropertyTreeState::Uninitialized();
+  gfx::RectF merged_rect_known_to_be_opaque;
+  bool merged_text_known_to_be_on_opaque_background = false;
+  wtf_size_t merged_solid_color_chunk_index = kNotFound;
+  cc::HitTestOpaqueness merged_hit_test_opaqueness =
+      cc::HitTestOpaqueness::kMixed;
+
+  if (!CanMerge(guest, lcd_text_preference, is_composited_scroll, merged_bounds,
+                merged_state, merged_rect_known_to_be_opaque,
+                merged_text_known_to_be_on_opaque_background,
+                merged_solid_color_chunk_index, merged_hit_test_opaqueness)) {
+    return false;
   }
 
   chunks_.Merge(guest.Chunks());
   bounds_ = merged_bounds;
-  property_tree_state_ = *merged_state;
+  property_tree_state_ = merged_state;
   draws_content_ |= guest.draws_content_;
   rect_known_to_be_opaque_ = merged_rect_known_to_be_opaque;
   text_known_to_be_on_opaque_background_ =
       merged_text_known_to_be_on_opaque_background;
   has_text_ |= guest.has_text_;
-  is_solid_color_ = false;
+  solid_color_chunk_index_ = merged_solid_color_chunk_index;
   change_of_decomposited_transforms_ = std::max(
       ChangeOfDecompositedTransforms(), guest.ChangeOfDecompositedTransforms());
-  // GeometryMapper::LocalToAncestorVisualRect can introduce floating-point
-  // error to the bounds. Integral bounds are important for reducing
-  // blurriness (see: PendingLayer::LayerOffset) so preserve that here.
-  PreserveNearIntegralBounds(bounds_);
-  PreserveNearIntegralBounds(rect_known_to_be_opaque_);
+  hit_test_opaqueness_ = merged_hit_test_opaqueness;
   return true;
 }
 
@@ -400,7 +459,7 @@ void PendingLayer::DecompositeTransforms(Vector<PendingLayer>& pending_layers) {
         break;
       }
       DCHECK(!node->GetStickyConstraint());
-      DCHECK(!node->GetAnchorScrollContainersData());
+      DCHECK(!node->GetAnchorPositionScrollersData());
       DCHECK(!node->IsAffectedByOuterViewportBoundsDelta());
       can_be_decomposited.insert(node, true);
     }
@@ -485,8 +544,9 @@ void PendingLayer::UpdateScrollHitTestLayer(PendingLayer* old_pending_layer) {
   } else {
     cc_layer_ = cc::Layer::Create();
     cc_layer_->SetElementId(scroll_node.GetCompositorElementId());
-    cc_layer_->SetHitTestable(true);
   }
+
+  UpdateCcLayerHitTestOpaqueness();
 
   cc_layer_->SetOffsetToTransformParent(
       gfx::Vector2dF(scroll_node.ContainerRect().OffsetFromOrigin()));
@@ -555,10 +615,34 @@ void PendingLayer::UpdateSolidColorLayer(PendingLayer* old_pending_layer) {
   }
   cc_layer_->SetOffsetToTransformParent(LayerOffset());
   cc_layer_->SetBounds(LayerBounds());
-  cc_layer_->SetHitTestable(true);
-  DCHECK(FirstPaintChunk().background_color.is_solid_color);
-  cc_layer_->SetBackgroundColor(FirstPaintChunk().background_color.color);
+  UpdateCcLayerHitTestOpaqueness();
+  cc_layer_->SetBackgroundColor(GetSolidColor());
   cc_layer_->SetIsDrawable(draws_content_);
+}
+
+bool PendingLayer::UsesSolidColorLayer() const {
+  if (!RuntimeEnabledFeatures::SolidColorLayersEnabled() || !IsSolidColor()) {
+    return false;
+  }
+  // We need a PictureLayer for the backdrop filter mask.
+  if (property_tree_state_.Effect()
+          .RequiresCompositingForBackdropFilterMask()) {
+    return false;
+  }
+#if BUILDFLAG(IS_MAC)
+  // TODO(crbug.com/922899): Additionally, on Mac, we require that the color is
+  // opaque due to the bug. Remove this condition once that bug is fixed.
+  if (GetSolidColor().fA != 1.0f) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_MAC)
+  return true;
+}
+
+SkColor4f PendingLayer::GetSolidColor() const {
+  CHECK_NE(solid_color_chunk_index_, kNotFound);
+  DCHECK(chunks_[solid_color_chunk_index_].background_color.is_solid_color);
+  return chunks_[solid_color_chunk_index_].background_color.color;
 }
 
 void PendingLayer::UpdateCompositedLayer(PendingLayer* old_pending_layer,
@@ -595,6 +679,19 @@ void PendingLayer::UpdateCompositedLayer(PendingLayer* old_pending_layer,
   }
 }
 
+void PendingLayer::UpdateCcLayerHitTestOpaqueness() const {
+  if (RuntimeEnabledFeatures::HitTestOpaquenessEnabled()) {
+    auto hit_test_opaqueness = GetHitTestOpaqueness();
+    if (hit_test_opaqueness == cc::HitTestOpaqueness::kTransparent &&
+        !RuntimeEnabledFeatures::HitTestTransparencyEnabled()) {
+      hit_test_opaqueness = cc::HitTestOpaqueness::kMixed;
+    }
+    CcLayer().SetHitTestOpaqueness(hit_test_opaqueness);
+  } else {
+    CcLayer().SetHitTestable(true);
+  }
+}
+
 void PendingLayer::UpdateCompositedLayerForRepaint(
     scoped_refptr<const PaintArtifact> repainted_artifact,
     cc::LayerSelection& layer_selection) {
@@ -621,8 +718,7 @@ void PendingLayer::UpdateCompositedLayerForRepaint(
     if (UsesSolidColorLayer()) {
       DCHECK(cc_layer_);
       if (!chunks_unchanged) {
-        DCHECK(FirstPaintChunk().background_color.is_solid_color);
-        cc_layer_->SetBackgroundColor(FirstPaintChunk().background_color.color);
+        cc_layer_->SetBackgroundColor(GetSolidColor());
       }
     } else {
       DCHECK(content_layer_client_);
@@ -694,12 +790,10 @@ SkColor4f PendingLayer::ComputeBackgroundColor() const {
   }
   SkColor4f background_color = background_colors.back();
   background_colors.pop_back();
+
   for (const SkColor4f& color : base::Reversed(background_colors)) {
-    if (auto color_filter =
-            SkColorFilters::Blend(color, nullptr, SkBlendMode::kSrcOver)) {
-      background_color =
-          color_filter->filterColor4f(background_color, nullptr, nullptr);
-    }
+    background_color = SkColor4f::FromColor(color_utils::GetResultingPaintColor(
+        color.toSkColor(), background_color.toSkColor()));
   }
   return background_color;
 }

@@ -9,19 +9,8 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 assert(use_blink)
 
 if (is_android) {
-  import("//build/config/android/rules.gni")  # For generate_jni().
-}
-
-if (is_win) {
-  config("usb_linker_flags") {
-    ldflags = [
-      "/DELAYLOAD:advapi32.dll",
-      "/DELAYLOAD:cfgmgr32.dll",
-      "/DELAYLOAD:ole32.dll",
-      "/DELAYLOAD:setupapi.dll",
-      "/DELAYLOAD:winusb.dll",
-    ]
-  }
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 static_library("usb") {
@@ -97,8 +86,6 @@ static_library("usb") {
       "setupapi.lib",
       "winusb.lib",
     ]
-
-    all_dependent_configs = [ ":usb_linker_flags" ]
 
     deps += [ "//third_party/re2" ]
   }
@@ -240,13 +227,13 @@ if (is_android) {
   }
 
   android_library("java") {
+    srcjar_deps = [ ":jni_headers" ]
     sources = java_sources_needing_jni
     deps = [
       "//base:base_java",
-      "//base:jni_java",
       "//build/android:build_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
-    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
   }
 }

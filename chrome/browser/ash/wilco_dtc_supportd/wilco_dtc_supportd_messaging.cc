@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
@@ -27,10 +28,9 @@
 #include "extensions/browser/api/messaging/message_service.h"
 #include "extensions/browser/api/messaging/native_message_host.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/common/api/messaging/channel_type.h"
 #include "extensions/common/api/messaging/messaging_endpoint.h"
-#include "extensions/common/api/messaging/serialization_format.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "mojo/public/cpp/system/handle.h"
 #include "url/gurl.h"
 
@@ -204,7 +204,9 @@ class WilcoDtcSupportdExtensionOwnedMessageHost final
       base::SingleThreadTaskRunner::GetCurrentDefault();
 
   // Unowned.
-  Client* client_ = nullptr;
+  // This field is not a raw_ptr<> because it was filtered by the rewriter
+  // for: #constexpr-ctor-field-initializer
+  RAW_PTR_EXCLUSION Client* client_ = nullptr;
 
   // Whether a message has already been received from the extension.
   bool message_from_extension_received_ = false;
@@ -348,9 +350,9 @@ void DeliverMessageToExtension(
     const std::string& json_message,
     base::OnceCallback<void(const std::string& response)>
         send_response_callback) {
-  const extensions::PortId port_id(base::UnguessableToken::Create(),
-                                   1 /* port_number */, true /* is_opener */,
-                                   extensions::SerializationFormat::kJson);
+  const extensions::PortId port_id(
+      base::UnguessableToken::Create(), 1 /* port_number */,
+      true /* is_opener */, extensions::mojom::SerializationFormat::kJson);
   extensions::MessageService* const message_service =
       extensions::MessageService::Get(profile);
   auto native_message_host =
@@ -364,7 +366,8 @@ void DeliverMessageToExtension(
       extensions::MessagingEndpoint::ForNativeApp(
           kWilcoDtcSupportdUiMessageHost),
       std::move(native_message_port), extension_id, GURL(),
-      extensions::ChannelType::kNative, std::string() /* channel_name */);
+      extensions::mojom::ChannelType::kNative,
+      std::string() /* channel_name */);
 }
 
 }  // namespace

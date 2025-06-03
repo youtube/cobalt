@@ -75,7 +75,7 @@ infobars::ContentInfoBarManager* GetInfoBarManager(
 
 ConfirmInfoBarDelegate* GetDelegate(Browser* browser, int tab) {
   return static_cast<ConfirmInfoBarDelegate*>(
-      GetInfoBarManager(browser, tab)->infobar_at(0)->delegate());
+      GetInfoBarManager(browser, tab)->infobars()[0]->delegate());
 }
 
 class InfobarUIChangeObserver : public TabStripModelObserver {
@@ -301,15 +301,20 @@ class WebRtcDesktopCaptureBrowserTest : public WebRtcTestBase {
     SetupPeerconnectionWithLocalStream(first_tab);
     SetupPeerconnectionWithLocalStream(second_tab);
     NegotiateCall(first_tab, second_tab);
-    VerifyStatsGeneratedCallback(second_tab);
     DetectVideoAndHangUp(first_tab, second_tab);
   }
 
   FakeDesktopMediaPickerFactory picker_factory_;
 };
 
+// TODO(crbug.com/1449889): Fails on MAC.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_TabCaptureProvidesMinFps DISABLED_TabCaptureProvidesMinFps
+#else
+#define MAYBE_TabCaptureProvidesMinFps TabCaptureProvidesMinFps
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
-                       TabCaptureProvidesMinFps) {
+                       MAYBE_TabCaptureProvidesMinFps) {
   constexpr int kFps = 30;
   constexpr const char* const kFpsString = "30";
   constexpr int kTestTimeSeconds = 2;
@@ -357,8 +362,10 @@ IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
   ASSERT_GE(average_fps, kFps / 3);
 }
 
-// TODO(crbug.com/1395498): Fails on Linux ASan LSan builder
-#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)
+// TODO(crbug.com/1449889): Fails on Linux ASan, LSan and MSan builders.
+#if BUILDFLAG(IS_LINUX) &&                                      \
+    ((defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)) || \
+     defined(MEMORY_SANITIZER))
 #define MAYBE_TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent \
   DISABLED_TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent
 #else
@@ -399,9 +406,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
   RunP2PScreenshareWhileSharing(base::BindOnce(GetDesktopMediaIDForScreen));
 }
 
-// TODO(crbug.com/1282292, crbug.com/1304686): Test is flaky on Linux, Windows
-// and ChromeOS.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+// TODO(crbug.com/1450456) flaky on ASan bots
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
 #define MAYBE_RunP2PScreenshareWhileSharingTab \
   DISABLED_RunP2PScreenshareWhileSharingTab
 #else

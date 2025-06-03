@@ -45,11 +45,11 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/uninstall_reason.h"
+#include "extensions/common/api/types.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/feature_switch.h"
 #include "extensions/common/features/feature_channel.h"
-#include "extensions/common/value_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using extensions::mojom::ManifestLocation;
@@ -187,7 +187,7 @@ class FakeExtensionMessageBubble {
 
   bool is_closed_;
   ExtensionBubbleAction action_;
-  raw_ptr<ExtensionMessageBubbleController> controller_;
+  raw_ptr<ExtensionMessageBubbleController, DanglingUntriaged> controller_;
 };
 
 class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
@@ -198,11 +198,10 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
                                                 const std::string& id,
                                                 ManifestLocation location) {
     ExtensionBuilder builder;
-    builder.SetManifest(DictionaryBuilder()
+    builder.SetManifest(base::Value::Dict()
                             .Set("name", std::string("Extension " + index))
                             .Set("version", "1.0")
-                            .Set("manifest_version", 2)
-                            .Build());
+                            .Set("manifest_version", 2));
     builder.SetLocation(location);
     builder.SetID(id);
     service_->AddExtension(builder.Build().get());
@@ -217,14 +216,12 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
                                                    ManifestLocation location) {
     ExtensionBuilder builder;
     builder.SetManifest(
-        DictionaryBuilder()
+        base::Value::Dict()
             .Set("name", std::string("Extension " + index))
             .Set("version", "1.0")
             .Set("manifest_version", 2)
-            .Set("browser_action", DictionaryBuilder()
-                                       .Set("default_title", "Default title")
-                                       .Build())
-            .Build());
+            .Set("browser_action",
+                 base::Value::Dict().Set("default_title", "Default title")));
     builder.SetLocation(location);
     builder.SetID(id);
     service_->AddExtension(builder.Build().get());
@@ -239,15 +236,13 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
       const std::string& id,
       ManifestLocation location) {
     ExtensionBuilder builder;
-    builder.SetManifest(DictionaryBuilder()
-                            .Set("name", std::string("Extension " + index))
-                            .Set("version", "1.0")
-                            .Set("manifest_version", 2)
-                            .Set("chrome_settings_overrides",
-                                 DictionaryBuilder()
-                                     .Set("homepage", "http://www.google.com")
-                                     .Build())
-                            .Build());
+    builder.SetManifest(
+        base::Value::Dict()
+            .Set("name", std::string("Extension " + index))
+            .Set("version", "1.0")
+            .Set("manifest_version", 2)
+            .Set("chrome_settings_overrides",
+                 base::Value::Dict().Set("homepage", "http://www.google.com")));
     builder.SetLocation(location);
     builder.SetID(id);
     service_->AddExtension(builder.Build().get());
@@ -263,16 +258,14 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
       ManifestLocation location) {
     ExtensionBuilder builder;
     builder.SetManifest(
-        DictionaryBuilder()
+        base::Value::Dict()
             .Set("name", std::string("Extension " + index))
             .Set("version", "1.0")
             .Set("manifest_version", 2)
             .Set("chrome_settings_overrides",
-                 DictionaryBuilder()
-                     .Set("startup_pages",
-                          ListBuilder().Append("http://www.google.com").Build())
-                     .Build())
-            .Build());
+                 base::Value::Dict().Set(
+                     "startup_pages",
+                     base::Value::List().Append("http://www.google.com"))));
     builder.SetLocation(location);
     builder.SetID(id);
     service_->AddExtension(builder.Build().get());
@@ -288,13 +281,12 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
       ManifestLocation location) {
     ExtensionBuilder builder;
     builder.SetManifest(
-        DictionaryBuilder()
+        base::Value::Dict()
             .Set("name", std::string("Extension " + index))
             .Set("version", "1.0")
             .Set("manifest_version", 2)
             .Set("chrome_url_overrides",
-                 DictionaryBuilder().Set("newtab", "Default.html").Build())
-            .Build());
+                 base::Value::Dict().Set("newtab", "Default.html")));
 
     builder.SetLocation(location);
     builder.SetID(id);
@@ -311,12 +303,11 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
       ManifestLocation location) {
     ExtensionBuilder builder;
     builder.SetManifest(
-        DictionaryBuilder()
+        base::Value::Dict()
             .Set("name", std::string("Extension " + index))
             .Set("version", "1.0")
             .Set("manifest_version", 2)
-            .Set("permissions", ListBuilder().Append("proxy").Build())
-            .Build());
+            .Set("permissions", base::Value::List().Append("proxy")));
 
     builder.SetLocation(location);
     builder.SetID(id);
@@ -333,9 +324,9 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
         base::Time::Now(),
         true,    // is_enabled.
         false);  // is_incognito_enabled.
-    extension_prefs_value_map->SetExtensionPref(id, proxy_config::prefs::kProxy,
-                                                kExtensionPrefsScopeRegular,
-                                                base::Value(id));
+    extension_prefs_value_map->SetExtensionPref(
+        id, proxy_config::prefs::kProxy,
+        extensions::api::types::ChromeSettingScope::kRegular, base::Value(id));
 
     if (ExtensionRegistry::Get(profile())->enabled_extensions().GetByID(id))
       return testing::AssertionSuccess();
@@ -435,7 +426,7 @@ class ExtensionMessageBubbleTest : public BrowserWithTestWindowTest {
   }
 
  protected:
-  raw_ptr<ExtensionService> service_;
+  raw_ptr<ExtensionService, DanglingUntriaged> service_;
 
  private:
   std::unique_ptr<base::CommandLine> command_line_;

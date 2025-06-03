@@ -36,10 +36,10 @@ function validatePasswordsSubsection(
     const matchingDomain =
         expectedGroup.entries
             .find(
-                cred => cred.affiliatedDomains?.some(
+                cred => cred.affiliatedDomains.some(
                     domain => domain.name.includes(searchTerm)))
             ?.affiliatedDomains
-            ?.find(domain => domain.name.includes(searchTerm))
+            .find(domain => domain.name.includes(searchTerm))
             ?.name;
 
     assertTrue(!!listItemElement);
@@ -276,6 +276,35 @@ suite('PasswordsSectionTest', function() {
 
     validatePasswordsSubsection(
         section, passwordManager.data.groups.slice(1), 'bar.uk');
+  });
+
+  test('search by group name ranked higher', async function() {
+    passwordManager.data.groups = [
+      createCredentialGroup({
+        name: 'bar.com',
+        credentials: [
+          createPasswordEntry({
+            username: 'test@foo.com',
+          }),
+        ],
+      }),
+      createCredentialGroup({
+        name: 'foo.com',
+      }),
+    ];
+
+    const section = await createPasswordsSection();
+
+    validatePasswordsSubsection(section, passwordManager.data.groups, '');
+
+    const query = new URLSearchParams();
+    query.set(UrlParam.SEARCH_TERM, 'foo');
+    Router.getInstance().updateRouterParams(query);
+    await flushTasks();
+
+    // Now foo.com is the first item because the group name matches query.
+    validatePasswordsSubsection(
+        section, passwordManager.data.groups.reverse(), 'foo');
   });
 
   test('clicking add button opens an add password dialog', async function() {
@@ -566,4 +595,39 @@ suite('PasswordsSectionTest', function() {
 
     assertFalse(isVisible(section.$.noPasswordsFound));
   });
+
+  test(
+      'clicking group navigates to details page and keeps old query',
+      async function() {
+        const query = new URLSearchParams();
+        query.set(UrlParam.SEARCH_TERM, 'test');
+        Router.getInstance().navigateTo(Page.PASSWORDS, null, query);
+
+        passwordManager.data.groups = [createCredentialGroup({
+          name: 'test.com',
+          credentials: [
+            createPasswordEntry({id: 0}),
+            createPasswordEntry({id: 1}),
+          ],
+        })];
+        passwordManager.setRequestCredentialsDetailsResponse(
+            passwordManager.data.groups[0]!.entries.slice());
+
+        const section = await createPasswordsSection();
+
+        const listEntry = section.shadowRoot!.querySelector<HTMLElement>(
+            'password-list-item');
+        assertTrue(!!listEntry);
+        listEntry.click();
+        assertEquals(
+            PasswordViewPageInteractions.CREDENTIAL_ROW_CLICKED,
+            await passwordManager.whenCalled('recordPasswordViewInteraction'));
+        assertArrayEquals(
+            [0, 1],
+            await passwordManager.whenCalled('requestCredentialsDetails'));
+
+        assertEquals(
+            Page.PASSWORD_DETAILS, Router.getInstance().currentRoute.page);
+        assertEquals(query, Router.getInstance().currentRoute.queryParameters);
+      });
 });

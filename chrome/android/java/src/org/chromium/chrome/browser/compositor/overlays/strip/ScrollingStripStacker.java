@@ -11,9 +11,7 @@ package org.chromium.chrome.browser.compositor.overlays.strip;
  */
 public class ScrollingStripStacker extends StripStacker {
     @Override
-    public void setTabOffsets(int selectedIndex, StripLayoutTab[] indexOrderedTabs,
-            float tabStackWidth, int maxTabsToStack, float tabOverlapWidth, float stripLeftMargin,
-            float stripRightMargin, float stripWidth, boolean inReorderMode, boolean tabClosing,
+    public void setTabOffsets(StripLayoutTab[] indexOrderedTabs, boolean tabClosing,
             boolean tabCreating, float cachedTabWidth) {
         for (int i = 0; i < indexOrderedTabs.length; i++) {
             StripLayoutTab tab = indexOrderedTabs[i];
@@ -24,14 +22,11 @@ public class ScrollingStripStacker extends StripStacker {
                 if (!tabCreating) tab.setWidth(cachedTabWidth);
             }
             tab.setDrawY(tab.getOffsetY());
-            tab.setVisiblePercentage(1.f);
-            tab.setContentOffsetX(0.f);
         }
     }
 
     @Override
-    public void performOcclusionPass(
-            int selectedIndex, StripLayoutTab[] indexOrderedTabs, float stripWidth) {
+    public void performOcclusionPass(StripLayoutTab[] indexOrderedTabs, float stripWidth) {
         for (int i = 0; i < indexOrderedTabs.length; i++) {
             StripLayoutTab tab = indexOrderedTabs[i];
             tab.setVisible((tab.getDrawX() + tab.getWidth()) >= 0 && tab.getDrawX() <= stripWidth);

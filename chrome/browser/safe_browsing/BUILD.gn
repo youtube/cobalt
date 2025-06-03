@@ -52,6 +52,7 @@ static_library("safe_browsing") {
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/browser/db:database_manager",
     "//components/safe_browsing/core/browser/db:v4_local_database_manager",
+    "//components/safe_browsing/core/browser/password_protection:password_protection_metrics_util",
     "//components/safe_browsing/core/browser/sync",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:interfaces",
@@ -67,35 +68,6 @@ static_library("safe_browsing") {
     "//mojo/public/cpp/system",
     "//services/preferences/public/cpp",
   ]
-
-  if (enable_extensions) {
-    sources += [
-      "settings_reset_prompt/default_settings_fetcher.cc",
-      "settings_reset_prompt/default_settings_fetcher.h",
-      "settings_reset_prompt/settings_reset_prompt_config.cc",
-      "settings_reset_prompt/settings_reset_prompt_config.h",
-      "settings_reset_prompt/settings_reset_prompt_controller.cc",
-      "settings_reset_prompt/settings_reset_prompt_controller.h",
-      "settings_reset_prompt/settings_reset_prompt_model.cc",
-      "settings_reset_prompt/settings_reset_prompt_model.h",
-      "settings_reset_prompt/settings_reset_prompt_prefs_manager.cc",
-      "settings_reset_prompt/settings_reset_prompt_prefs_manager.h",
-    ]
-    if (is_win) {
-      sources += [
-        "settings_reset_prompt/settings_reset_prompt_util_win.cc",
-        "settings_reset_prompt/settings_reset_prompt_util_win.h",
-      ]
-    }
-    deps += [
-      # TODO(crbug.com/1216213): Adding ":ntp_background_proto" is a band-aid
-      # fix, figure out a better solution.
-      "//chrome/browser:ntp_background_proto",
-      "//chrome/browser/profiles:profile",
-      "//components/paint_preview/buildflags",
-      "//extensions/browser",
-    ]
-  }
 
   if (safe_browsing_mode != 0) {
     # "Safe Browsing Basic" files used for safe browsing in full mode
@@ -137,6 +109,8 @@ static_library("safe_browsing") {
       "network_context_service.h",
       "network_context_service_factory.cc",
       "network_context_service_factory.h",
+      "phishy_interaction_tracker.cc",
+      "phishy_interaction_tracker.h",
       "safe_browsing_navigation_observer_manager_factory.cc",
       "safe_browsing_navigation_observer_manager_factory.h",
       "safe_browsing_service.cc",
@@ -220,6 +194,8 @@ static_library("safe_browsing") {
         "chrome_enterprise_url_lookup_service.h",
         "chrome_enterprise_url_lookup_service_factory.cc",
         "chrome_enterprise_url_lookup_service_factory.h",
+        "chrome_safe_browsing_hats_delegate.cc",
+        "chrome_safe_browsing_hats_delegate.h",
         "cloud_content_scanning/binary_fcm_service.cc",
         "cloud_content_scanning/binary_fcm_service.h",
         "cloud_content_scanning/binary_upload_service.cc",
@@ -294,6 +270,8 @@ static_library("safe_browsing") {
         "extension_telemetry/extension_telemetry_service_factory.h",
         "extension_telemetry/extension_telemetry_uploader.cc",
         "extension_telemetry/extension_telemetry_uploader.h",
+        "extension_telemetry/extension_web_request_reporter_impl.cc",
+        "extension_telemetry/extension_web_request_reporter_impl.h",
         "extension_telemetry/password_reuse_signal.cc",
         "extension_telemetry/password_reuse_signal.h",
         "extension_telemetry/potential_password_theft_signal_processor.cc",
@@ -302,6 +280,10 @@ static_library("safe_browsing") {
         "extension_telemetry/remote_host_contacted_signal.h",
         "extension_telemetry/remote_host_contacted_signal_processor.cc",
         "extension_telemetry/remote_host_contacted_signal_processor.h",
+        "extension_telemetry/tabs_api_signal.cc",
+        "extension_telemetry/tabs_api_signal.h",
+        "extension_telemetry/tabs_api_signal_processor.cc",
+        "extension_telemetry/tabs_api_signal_processor.h",
         "extension_telemetry/tabs_execute_script_signal.cc",
         "extension_telemetry/tabs_execute_script_signal.h",
         "extension_telemetry/tabs_execute_script_signal_processor.cc",
@@ -389,15 +371,19 @@ static_library("safe_browsing") {
         "//chrome/services/file_util/public/cpp",
         "//components/content_settings/core/browser",
         "//components/enterprise/common/proto:connectors_proto",
+        "//components/file_access",
         "//components/gcm_driver",
         "//components/gcm_driver/instance_id",
         "//components/keyed_service/content",
         "//components/language/core/common",
         "//components/policy/core/browser",
         "//components/prefs",
+        "//components/safe_browsing/content/common:interfaces",
         "//components/safe_browsing/core/browser:verdict_cache_manager",
         "//components/safe_browsing/core/browser/db",
+        "//components/safe_browsing/core/browser/db:v4_store",
         "//components/safe_browsing/core/browser/hashprefix_realtime:hash_realtime_service",
+        "//components/safe_browsing/core/browser/hashprefix_realtime:hash_realtime_utils",
         "//components/safe_browsing/core/browser/realtime:policy_engine",
         "//components/safe_browsing/core/browser/realtime:url_lookup_service_base",
         "//components/safe_browsing/core/common/proto:client_model_proto",
@@ -407,8 +393,10 @@ static_library("safe_browsing") {
         "//components/security_interstitials/core:unsafe_resource",
         "//components/sync",
         "//content/public/browser",
+        "//extensions/browser",
         "//net",
         "//services/network/public/cpp:cpp",
+        "//third_party/abseil-cpp:absl",
       ]
       if (is_mac) {
         deps += [ "//chrome/common/safe_browsing:disk_image_type_sniffer_mac" ]

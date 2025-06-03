@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.password_manager.settings;
 
+import static org.chromium.chrome.browser.password_manager.PasswordMetricsUtil.PASSWORD_SETTINGS_EXPORT_METRICS_ID;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -19,30 +21,28 @@ import android.view.View;
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
-import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceGroup;
 
+import org.chromium.base.BuildInfo;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.feedback.FragmentHelpAndFeedbackLauncher;
-import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
 import org.chromium.chrome.browser.password_check.PasswordCheck;
 import org.chromium.chrome.browser.password_check.PasswordCheckFactory;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
 import org.chromium.chrome.browser.password_manager.PasswordCheckReferrer;
 import org.chromium.chrome.browser.password_manager.PasswordManagerHelper;
 import org.chromium.chrome.browser.preferences.Pref;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsLauncherImpl;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SearchUtils;
@@ -51,6 +51,7 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.sync.PassphraseType;
+import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.text.SpanApplier;
 
@@ -62,10 +63,9 @@ import java.util.Locale;
  * The "Passwords" screen in Settings, which allows the user to enable or disable password saving,
  * to view saved passwords (just the username and URL), and to delete saved passwords.
  */
-public class PasswordSettings extends PreferenceFragmentCompat
-        implements PasswordManagerHandler.PasswordListObserver,
-                   Preference.OnPreferenceClickListener, SyncService.SyncStateChangedListener,
-                   FragmentHelpAndFeedbackLauncher {
+public class PasswordSettings extends ChromeBaseSettingsFragment
+        implements PasswordListObserver, Preference.OnPreferenceClickListener,
+                   SyncService.SyncStateChangedListener {
     @IntDef({TrustedVaultBannerState.NOT_SHOWN, TrustedVaultBannerState.OFFER_OPT_IN,
             TrustedVaultBannerState.OPTED_IN})
     @Retention(RetentionPolicy.SOURCE)
@@ -91,8 +91,6 @@ public class PasswordSettings extends PreferenceFragmentCompat
     public static final String PREF_CHECK_PASSWORDS = "check_passwords";
     public static final String PREF_TRUSTED_VAULT_BANNER = "trusted_vault_banner";
     public static final String PREF_KEY_MANAGE_ACCOUNT_LINK = "manage_account_link";
-    public static final String PASSWORD_EXPORT_EVENT_HISTOGRAM =
-            "PasswordManager.PasswordExport.Event";
 
     private static final String PREF_KEY_CATEGORY_SAVED_PASSWORDS = "saved_passwords";
     private static final String PREF_KEY_CATEGORY_EXCEPTIONS = "exceptions";
@@ -103,7 +101,6 @@ public class PasswordSettings extends PreferenceFragmentCompat
     private static final int ORDER_CHECK_PASSWORDS = 2;
     private static final int ORDER_TRUSTED_VAULT_BANNER = 3;
     private static final int ORDER_MANAGE_ACCOUNT_LINK = 4;
-    private static final int ORDER_SECURITY_KEY = 5;
     private static final int ORDER_SAVED_PASSWORDS = 6;
     private static final int ORDER_EXCEPTIONS = 7;
     private static final int ORDER_SAVED_PASSWORDS_NO_TEXT = 8;
@@ -111,6 +108,9 @@ public class PasswordSettings extends PreferenceFragmentCompat
     // This request code is not actually consumed today in onActivityResult() but is defined here to
     // avoid bugs in the future if the request code is reused.
     private static final int REQUEST_CODE_TRUSTED_VAULT_OPT_IN = 1;
+
+    // Unique request code for the password exporting activity.
+    private static final int PASSWORD_EXPORT_INTENT_REQUEST_CODE = 3485764;
 
     private boolean mNoPasswords;
     private boolean mNoPasswordExceptions;
@@ -126,7 +126,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
 
     private @Nullable PasswordCheck mPasswordCheck;
     private @ManagePasswordsReferrer int mManagePasswordsReferrer;
-    private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
+    private BottomSheetController mBottomSheetController;
 
     /**
      * For controlling the UX flow of exporting passwords.
@@ -154,13 +154,18 @@ public class PasswordSettings extends PreferenceFragmentCompat
             public int getViewId() {
                 return getView().getId();
             }
-        });
-        getActivity().setTitle(R.string.password_settings_title);
+
+            @Override
+            public void runCreateFileOnDiskIntent(Intent intent) {
+                startActivityForResult(intent, PASSWORD_EXPORT_INTENT_REQUEST_CODE);
+            }
+        }, PASSWORD_SETTINGS_EXPORT_METRICS_ID);
+        getActivity().setTitle(R.string.password_manager_settings_title);
         setPreferenceScreen(getPreferenceManager().createPreferenceScreen(getStyledContext()));
         PasswordManagerHandlerProvider.getInstance().addObserver(this);
 
-        if (SyncService.get() != null) {
-            SyncService.get().addSyncStateChangedListener(this);
+        if (SyncServiceFactory.getForProfile(getProfile()) != null) {
+            SyncServiceFactory.getForProfile(getProfile()).addSyncStateChangedListener(this);
         }
 
         setHasOptionsMenu(true); // Password Export might be optional but Search is always present.
@@ -227,7 +232,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.export_passwords) {
-            RecordHistogram.recordEnumeratedHistogram(PASSWORD_EXPORT_EVENT_HISTOGRAM,
+            RecordHistogram.recordEnumeratedHistogram(mExportFlow.getExportEventHistogramName(),
                     ExportFlow.PasswordExportEvent.EXPORT_OPTION_SELECTED,
                     ExportFlow.PasswordExportEvent.COUNT);
             mExportFlow.startExporting();
@@ -238,7 +243,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
             return true;
         }
         if (id == R.id.menu_id_targeted_help) {
-            mHelpAndFeedbackLauncher.show(
+            getHelpAndFeedbackLauncher().show(
                     getActivity(), getString(R.string.help_context_passwords), null);
             return true;
         }
@@ -294,7 +299,9 @@ public class PasswordSettings extends PreferenceFragmentCompat
         }
 
         createSavePasswordsSwitch();
-        createAutoSignInCheckbox();
+        if (shouldShowAutoSigninOption()) {
+            createAutoSignInCheckbox();
+        }
         if (mPasswordCheck != null) {
             createCheckPasswords();
         }
@@ -309,6 +316,10 @@ public class PasswordSettings extends PreferenceFragmentCompat
         PasswordManagerHandlerProvider.getInstance()
                 .getPasswordManagerHandler()
                 .updatePasswordLists();
+    }
+
+    private boolean shouldShowAutoSigninOption() {
+        return !BuildInfo.getInstance().isAutomotive;
     }
 
     /**
@@ -351,7 +362,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
         if (mSearchQuery == null) {
             PreferenceCategory profileCategory = new PreferenceCategory(getStyledContext());
             profileCategory.setKey(PREF_KEY_CATEGORY_SAVED_PASSWORDS);
-            profileCategory.setTitle(R.string.password_settings_title);
+            profileCategory.setTitle(R.string.password_list_title);
             profileCategory.setOrder(ORDER_SAVED_PASSWORDS);
             getPreferenceScreen().addPreference(profileCategory);
             passwordParent = profileCategory;
@@ -394,6 +405,12 @@ public class PasswordSettings extends PreferenceFragmentCompat
                 getView().announceForAccessibility(
                         getString(R.string.accessible_find_in_page_no_results));
             }
+        }
+
+        if (!mNoPasswords) {
+            PasswordManagerHandlerProvider.getInstance()
+                    .getPasswordManagerHandler()
+                    .showMigrationWarning(getActivity(), mBottomSheetController);
         }
     }
 
@@ -454,6 +471,16 @@ public class PasswordSettings extends PreferenceFragmentCompat
     }
 
     @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        if (requestCode != PASSWORD_EXPORT_INTENT_REQUEST_CODE) return;
+        if (resultCode != Activity.RESULT_OK) return;
+        if (intent == null || intent.getData() == null) return;
+
+        mExportFlow.savePasswordsToDownloads(intent.getData());
+    }
+
+    @Override
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         mExportFlow.onSaveInstanceState(outState);
@@ -467,8 +494,8 @@ public class PasswordSettings extends PreferenceFragmentCompat
     public void onDestroy() {
         super.onDestroy();
 
-        if (SyncService.get() != null) {
-            SyncService.get().removeSyncStateChangedListener(this);
+        if (SyncServiceFactory.getForProfile(getProfile()) != null) {
+            SyncServiceFactory.getForProfile(getProfile()).removeSyncStateChangedListener(this);
         }
         // The component should only be destroyed when the activity has been closed by the user
         // (e.g. by pressing on the back button) and not when the activity is temporarily destroyed
@@ -522,9 +549,13 @@ public class PasswordSettings extends PreferenceFragmentCompat
             if ((boolean) newValue) PasswordManagerHelper.resetUpmUnenrollment();
             return true;
         });
-        savePasswordsSwitch.setManagedPreferenceDelegate(
-                (ChromeManagedPreferenceDelegate) preference
-                -> getPrefService().isManagedPreference(Pref.CREDENTIALS_ENABLE_SERVICE));
+        savePasswordsSwitch.setManagedPreferenceDelegate(new ChromeManagedPreferenceDelegate(
+                getProfile()) {
+            @Override
+            public boolean isPreferenceControlledByPolicy(Preference preference) {
+                return getPrefService().isManagedPreference(Pref.CREDENTIALS_ENABLE_SERVICE);
+            }
+        });
 
         try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
             getPreferenceScreen().addPreference(savePasswordsSwitch);
@@ -551,8 +582,13 @@ public class PasswordSettings extends PreferenceFragmentCompat
                     "PasswordManager.Settings.ToggleAutoSignIn", (boolean) newValue);
             return true;
         });
-        autoSignInSwitch.setManagedPreferenceDelegate((ChromeManagedPreferenceDelegate) preference
-                -> getPrefService().isManagedPreference(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN));
+        autoSignInSwitch.setManagedPreferenceDelegate(new ChromeManagedPreferenceDelegate(
+                getProfile()) {
+            @Override
+            public boolean isPreferenceControlledByPolicy(Preference preference) {
+                return getPrefService().isManagedPreference(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN);
+            }
+        });
         getPreferenceScreen().addPreference(autoSignInSwitch);
         autoSignInSwitch.setChecked(
                 getPrefService().getBoolean(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN));
@@ -587,11 +623,11 @@ public class PasswordSettings extends PreferenceFragmentCompat
     }
 
     private void displayManageAccountLink() {
-        SyncService syncService = SyncService.get();
+        SyncService syncService = SyncServiceFactory.getForProfile(getProfile());
         if (syncService == null || !syncService.isEngineInitialized()) {
             return;
         }
-        if (!PasswordManagerHelper.isSyncingPasswordsWithNoCustomPassphrase(SyncService.get())) {
+        if (!PasswordManagerHelper.isSyncingPasswordsWithNoCustomPassphrase(syncService)) {
             return;
         }
         if (mSearchQuery != null && !mNoPasswords) {
@@ -622,7 +658,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
     }
 
     private PrefService getPrefService() {
-        return UserPrefs.get(Profile.getLastUsedRegularProfile());
+        return UserPrefs.get(getProfile());
     }
 
     @Override
@@ -635,7 +671,7 @@ public class PasswordSettings extends PreferenceFragmentCompat
     }
 
     private void computeTrustedVaultBannerState() {
-        final SyncService syncService = SyncService.get();
+        final SyncService syncService = SyncServiceFactory.getForProfile(getProfile());
         if (syncService == null) {
             mTrustedVaultBannerState = TrustedVaultBannerState.NOT_SHOWN;
             return;
@@ -657,8 +693,9 @@ public class PasswordSettings extends PreferenceFragmentCompat
     }
 
     private boolean openTrustedVaultOptInDialog(Preference unused) {
-        assert SyncService.get() != null;
-        CoreAccountInfo accountInfo = SyncService.get().getAccountInfo();
+        assert SyncServiceFactory.getForProfile(getProfile()) != null;
+        CoreAccountInfo accountInfo =
+                SyncServiceFactory.getForProfile(getProfile()).getAccountInfo();
         assert accountInfo != null;
         SyncSettingsUtils.openTrustedVaultOptInDialog(
                 this, accountInfo, REQUEST_CODE_TRUSTED_VAULT_OPT_IN);
@@ -675,17 +712,14 @@ public class PasswordSettings extends PreferenceFragmentCompat
         return true;
     }
 
-    @Override
-    public void setHelpAndFeedbackLauncher(HelpAndFeedbackLauncher helpAndFeedbackLauncher) {
-        mHelpAndFeedbackLauncher = helpAndFeedbackLauncher;
+    public void setBottomSheetController(BottomSheetController bottomSheetController) {
+        mBottomSheetController = bottomSheetController;
     }
 
-    @VisibleForTesting
     Menu getMenuForTesting() {
         return mMenu;
     }
 
-    @VisibleForTesting
     Toolbar getToolbarForTesting() {
         return getActivity().findViewById(R.id.action_bar);
     }

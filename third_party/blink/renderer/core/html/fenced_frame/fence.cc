@@ -6,15 +6,16 @@
 
 #include "base/feature_list.h"
 #include "base/ranges/algorithm.h"
+#include "services/network/public/cpp/attribution_reporting_runtime_features.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
 #include "third_party/blink/public/common/frame/frame_policy.h"
-#include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
 #include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_fence_event.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_fenceevent_string.h"
+#include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/frame_owner.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -44,6 +45,23 @@ blink::FencedFrame::ReportingDestination ToPublicDestination(
     case V8FenceReportingDestination::Enum::kSharedStorageSelectUrl:
       return blink::FencedFrame::ReportingDestination::kSharedStorageSelectUrl;
   }
+}
+
+absl::optional<mojom::blink::AutomaticBeaconType> GetAutomaticBeaconType(
+    const WTF::String& input) {
+  if (input == blink::kDeprecatedFencedFrameTopNavigationBeaconType) {
+    return mojom::blink::AutomaticBeaconType::kDeprecatedTopNavigation;
+  }
+  if (base::FeatureList::IsEnabled(
+          blink::features::kFencedFramesM120FeaturesPart2)) {
+    if (input == blink::kFencedFrameTopNavigationStartBeaconType) {
+      return mojom::blink::AutomaticBeaconType::kTopNavigationStart;
+    }
+    if (input == blink::kFencedFrameTopNavigationCommitBeaconType) {
+      return mojom::blink::AutomaticBeaconType::kTopNavigationCommit;
+    }
+  }
+  return absl::nullopt;
 }
 
 }  // namespace
@@ -78,6 +96,28 @@ void Fence::reportEvent(ScriptState* script_state,
         "fully active");
     return;
   }
+
+  if (event->hasDestinationURL() &&
+      base::FeatureList::IsEnabled(
+          blink::features::kAdAuctionReportingWithMacroApi)) {
+    reportEventToDestinationURL(script_state, event, exception_state);
+  } else {
+    reportEventToDestinationEnum(script_state, event, exception_state);
+  }
+}
+
+void Fence::reportEventToDestinationEnum(ScriptState* script_state,
+                                         const FenceEvent* event,
+                                         ExceptionState& exception_state) {
+  if (!event->hasDestination()) {
+    exception_state.ThrowTypeError("Missing required 'destination' property.");
+    return;
+  }
+  if (!event->hasEventType()) {
+    exception_state.ThrowTypeError("Missing required 'eventType' property.");
+    return;
+  }
+
   if (event->hasEventData() &&
       event->eventData().length() > blink::kFencedFrameMaxBeaconLength) {
     exception_state.ThrowSecurityError(
@@ -105,8 +145,81 @@ void Fence::reportEvent(ScriptState* script_state,
                           std::back_inserter(destinations),
                           ToPublicDestination);
 
+  network::AttributionReportingRuntimeFeatures
+      attribution_reporting_runtime_features;
+  if (AttributionSrcLoader* attribution_src_loader =
+          frame->GetAttributionSrcLoader()) {
+    attribution_reporting_runtime_features =
+        attribution_src_loader->GetRuntimeFeatures();
+  }
   frame->GetLocalFrameHostRemote().SendFencedFrameReportingBeacon(
-      event->getEventDataOr(String{""}), event->eventType(), destinations);
+      event->getEventDataOr(String{""}), event->eventType(), destinations,
+      attribution_reporting_runtime_features);
+}
+
+void Fence::reportEventToDestinationURL(ScriptState* script_state,
+                                        const FenceEvent* event,
+                                        ExceptionState& exception_state) {
+  if (event->hasEventType()) {
+    exception_state.ThrowTypeError(
+        "When reporting to a custom destination URL, 'eventType' is not "
+        "allowed.");
+    return;
+  }
+  if (event->hasEventData()) {
+    exception_state.ThrowTypeError(
+        "When reporting to a custom destination URL, 'eventData' is not "
+        "allowed.");
+    return;
+  }
+  if (event->hasDestination()) {
+    exception_state.ThrowTypeError(
+        "When reporting to a custom destination URL, 'destination' is not "
+        "allowed.");
+    return;
+  }
+  if (event->destinationURL().length() > blink::kFencedFrameMaxBeaconLength) {
+    exception_state.ThrowSecurityError(
+        "The destination URL provided to reportEvent() exceeds the maximum "
+        "length, which is 64KB.");
+    return;
+  }
+
+  KURL destinationURL(event->destinationURL());
+  if (!destinationURL.IsValid()) {
+    exception_state.ThrowTypeError(
+        "The destination URL provided to reportEvent() is not a valid URL.");
+    return;
+  }
+  if (!destinationURL.ProtocolIs(url::kHttpsScheme)) {
+    exception_state.ThrowTypeError(
+        "The destination URL provided to reportEvent() does not have the "
+        "required scheme (https).");
+    return;
+  }
+
+  LocalFrame* frame = DomWindow()->GetFrame();
+  DCHECK(frame->GetDocument());
+  bool has_fenced_frame_reporting =
+      frame->GetDocument()->Loader()->FencedFrameProperties().has_value() &&
+      frame->GetDocument()
+          ->Loader()
+          ->FencedFrameProperties()
+          ->has_fenced_frame_reporting();
+  if (!has_fenced_frame_reporting) {
+    AddConsoleMessage("This frame did not register reporting metadata.");
+    return;
+  }
+
+  network::AttributionReportingRuntimeFeatures
+      attribution_reporting_runtime_features;
+  if (AttributionSrcLoader* attribution_src_loader =
+          frame->GetAttributionSrcLoader()) {
+    attribution_reporting_runtime_features =
+        attribution_src_loader->GetRuntimeFeatures();
+  }
+  frame->GetLocalFrameHostRemote().SendFencedFrameReportingBeaconToCustomURL(
+      destinationURL, attribution_reporting_runtime_features);
 }
 
 void Fence::setReportEventDataForAutomaticBeacons(
@@ -119,7 +232,17 @@ void Fence::setReportEventDataForAutomaticBeacons(
         "fully active");
     return;
   }
-  if (event->eventType() != blink::kFencedFrameTopNavigationBeaconType) {
+  if (!event->hasDestination()) {
+    exception_state.ThrowTypeError("Missing required 'destination' property.");
+    return;
+  }
+  if (!event->hasEventType()) {
+    exception_state.ThrowTypeError("Missing required 'eventType' property.");
+    return;
+  }
+  absl::optional<mojom::blink::AutomaticBeaconType> beacon_type =
+      GetAutomaticBeaconType(event->eventType());
+  if (!beacon_type.has_value()) {
     AddConsoleMessage(event->eventType() +
                       " is not a valid automatic beacon event type.");
     return;
@@ -130,6 +253,14 @@ void Fence::setReportEventDataForAutomaticBeacons(
         "The data provided to setReportEventDataForAutomaticBeacons() exceeds "
         "the maximum length, which is 64KB.");
     return;
+  }
+  if (base::FeatureList::IsEnabled(
+          blink::features::kFencedFramesM120FeaturesPart2) &&
+      event->eventType() ==
+          blink::kDeprecatedFencedFrameTopNavigationBeaconType) {
+    AddConsoleMessage(event->eventType() + " is deprecated in favor of " +
+                          kFencedFrameTopNavigationCommitBeaconType + ".",
+                      mojom::blink::ConsoleMessageLevel::kWarning);
   }
   LocalFrame* frame = DomWindow()->GetFrame();
   DCHECK(frame->GetDocument());
@@ -150,8 +281,20 @@ void Fence::setReportEventDataForAutomaticBeacons(
                           std::back_inserter(destinations),
                           ToPublicDestination);
 
+  // TODO(crbug.com/1485222) The attribution reporting runtime features should
+  // be sent to the browser separately from the automatic beacon data, since
+  // it's not guaranteed that any beacon data will be set before an automatic
+  // beacon is sent out.
+  network::AttributionReportingRuntimeFeatures
+      attribution_reporting_runtime_features;
+  if (AttributionSrcLoader* attribution_src_loader =
+          frame->GetAttributionSrcLoader()) {
+    attribution_reporting_runtime_features =
+        attribution_src_loader->GetRuntimeFeatures();
+  }
   frame->GetLocalFrameHostRemote().SetFencedFrameAutomaticBeaconReportEventData(
-      event->getEventDataOr(String{""}), destinations);
+      beacon_type.value(), event->getEventDataOr(String{""}), destinations,
+      attribution_reporting_runtime_features, event->once());
 }
 
 HeapVector<Member<FencedFrameConfig>> Fence::getNestedConfigs(
@@ -180,11 +323,10 @@ void Fence::reportPrivateAggregationEvent(ScriptState* script_state,
                                           const String& event,
                                           ExceptionState& exception_state) {
   if (!base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi) ||
-      !blink::features::kPrivateAggregationApiEnabledInFledge.Get() ||
-      (!blink::features::kPrivateAggregationApiFledgeExtensionsEnabled.Get() &&
-       !base::FeatureList::IsEnabled(
-           blink::features::
-               kPrivateAggregationApiFledgeExtensionsLocalTestingOverride))) {
+      !blink::features::kPrivateAggregationApiEnabledInProtectedAudience
+           .Get() ||
+      !blink::features::kPrivateAggregationApiProtectedAudienceExtensionsEnabled
+           .Get()) {
     exception_state.ThrowSecurityError(
         "FLEDGE extensions must be enabled to use reportEvent() for private "
         "aggregation events.");
@@ -220,11 +362,11 @@ void Fence::reportPrivateAggregationEvent(ScriptState* script_state,
       .SendPrivateAggregationRequestsForFencedFrameEvent(event);
 }
 
-void Fence::AddConsoleMessage(const String& message) {
+void Fence::AddConsoleMessage(const String& message,
+                              mojom::blink::ConsoleMessageLevel level) {
   DCHECK(DomWindow());
   DomWindow()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-      mojom::blink::ConsoleMessageSource::kJavaScript,
-      mojom::blink::ConsoleMessageLevel::kError, message));
+      mojom::blink::ConsoleMessageSource::kJavaScript, level, message));
 }
 
 }  // namespace blink

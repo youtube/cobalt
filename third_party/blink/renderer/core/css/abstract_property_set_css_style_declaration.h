@@ -49,6 +49,7 @@ class CORE_EXPORT AbstractPropertySetCSSStyleDeclaration
   void Trace(Visitor*) const override;
 
  private:
+  bool IsAbstractPropertySet() const final { return true; }
   CSSRule* parentRule() const override { return nullptr; }
   unsigned length() const final;
   String item(unsigned index) const final;
@@ -78,7 +79,7 @@ class CORE_EXPORT AbstractPropertySetCSSStyleDeclaration
                                      unsigned index) final;
   void SetPropertyInternal(CSSPropertyID,
                            const String& custom_property_name,
-                           const String& value,
+                           StringView value,
                            bool important,
                            SecureContextMode,
                            ExceptionState&) final;
@@ -101,6 +102,13 @@ class CORE_EXPORT AbstractPropertySetCSSStyleDeclaration
   virtual bool IsKeyframeStyle() const { return false; }
   bool FastPathSetProperty(CSSPropertyID unresolved_property,
                            double value) override;
+};
+
+template <>
+struct DowncastTraits<AbstractPropertySetCSSStyleDeclaration> {
+  static bool AllowFrom(const CSSStyleDeclaration& declaration) {
+    return declaration.IsAbstractPropertySet();
+  }
 };
 
 }  // namespace blink

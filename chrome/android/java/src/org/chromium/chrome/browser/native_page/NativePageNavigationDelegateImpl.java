@@ -16,7 +16,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.document.TabDelegate;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.mojom.WindowOpenDisposition;
@@ -25,7 +25,6 @@ import org.chromium.ui.mojom.WindowOpenDisposition;
  * {@link NativePageNavigationDelegate} implementation.
  */
 public class NativePageNavigationDelegateImpl implements NativePageNavigationDelegate {
-    private static final String TAG = "PageNavDelegate";
     private final Profile mProfile;
     private final TabModelSelector mTabModelSelector;
     private final Tab mTab;
@@ -49,8 +48,7 @@ public class NativePageNavigationDelegateImpl implements NativePageNavigationDel
     }
 
     @Override
-    @Nullable
-    public Tab openUrl(int windowOpenDisposition, LoadUrlParams loadUrlParams) {
+    public @Nullable Tab openUrl(int windowOpenDisposition, LoadUrlParams loadUrlParams) {
         Tab loadingTab = null;
 
         switch (windowOpenDisposition) {
@@ -87,8 +85,11 @@ public class NativePageNavigationDelegateImpl implements NativePageNavigationDel
     }
 
     private void openUrlInNewWindow(LoadUrlParams loadUrlParams) {
-        TabDelegate tabDelegate = new TabDelegate(false);
-        tabDelegate.createTabInOtherWindow(loadUrlParams, mActivity, mHost.getParentId(),
+        ChromeAsyncTabLauncher chromeAsyncTabLauncher = new ChromeAsyncTabLauncher(false);
+        chromeAsyncTabLauncher.launchTabInOtherWindow(
+                loadUrlParams,
+                mActivity,
+                mHost.getParentId(),
                 MultiWindowUtils.getAdjacentWindowActivity(mActivity));
     }
 

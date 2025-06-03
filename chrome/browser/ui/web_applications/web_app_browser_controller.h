@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -16,13 +17,12 @@
 #include "base/scoped_observation.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-#include "chrome/browser/web_applications/app_registrar_observer.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/liburlpattern/options.h"
 #include "third_party/liburlpattern/pattern.h"
@@ -67,7 +67,7 @@ class WebAppBrowserController : public AppBrowserController,
  public:
   WebAppBrowserController(WebAppProvider& provider,
                           Browser* browser,
-                          AppId app_id,
+                          webapps::AppId app_id,
 #if BUILDFLAG(IS_CHROMEOS_ASH)
                           const ash::SystemWebAppDelegate* system_app,
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -79,8 +79,8 @@ class WebAppBrowserController : public AppBrowserController,
   // AppBrowserController:
   using HomeTabCallbackList = base::OnceCallbackList<void()>;
   bool HasMinimalUiButtons() const override;
-  bool DoesHomeTabIconExist() const;
   gfx::ImageSkia GetHomeTabIcon() const;
+  gfx::ImageSkia GetFallbackHomeTabIcon() const;
   ui::ImageModel GetWindowAppIcon() const override;
   ui::ImageModel GetWindowIcon() const override;
   absl::optional<SkColor> GetThemeColor() const override;
@@ -90,7 +90,9 @@ class WebAppBrowserController : public AppBrowserController,
   std::u16string GetFormattedUrlOrigin() const override;
   GURL GetAppStartUrl() const override;
   GURL GetAppNewTabUrl() const override;
+  bool ShouldHideNewTabButton() const override;
   bool IsUrlInHomeTabScope(const GURL& url) const override;
+  bool ShouldShowAppIconOnTab(int index) const override;
   bool IsUrlInAppScope(const GURL& url) const override;
   WebAppBrowserController* AsWebAppBrowserController() override;
   bool CanUserUninstall() const override;
@@ -127,10 +129,9 @@ class WebAppBrowserController : public AppBrowserController,
 
   // WebAppInstallManagerObserver:
   void OnWebAppUninstalled(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source) override;
-  void OnWebAppManifestUpdated(const AppId& app_id,
-                               base::StringPiece old_name) override;
+  void OnWebAppManifestUpdated(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
 
   base::CallbackListSubscription AddHomeTabIconLoadCallbackForTesting(
@@ -189,10 +190,9 @@ class WebAppBrowserController : public AppBrowserController,
   bool is_isolated_web_app_for_testing_ = false;
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  raw_ptr<const ash::SystemWebAppDelegate> system_app_;
+  raw_ptr<const ash::SystemWebAppDelegate> system_app_ = nullptr;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   mutable absl::optional<ui::ImageModel> app_icon_;
-  mutable absl::optional<gfx::ImageSkia> home_tab_icon_;
 
   mutable absl::optional<RE2::Set> home_tab_scope_;
 

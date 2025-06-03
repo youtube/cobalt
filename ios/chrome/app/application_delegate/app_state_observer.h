@@ -80,10 +80,15 @@ typedef NS_ENUM(NSUInteger, InitStage) {
     willTransitionToInitStage:(InitStage)nextInitStage;
 
 // Called right after the app is transitioned out of to the
-// `previousInitStage`. he init stage of the app at that
+// `previousInitStage`. The init stage of the app at that
 // moment is `previousInitStage` + 1.
 - (void)appState:(AppState*)appState
     didTransitionFromInitStage:(InitStage)previousInitStage;
+
+// Called when Scene with activation level SceneActivationLevelForegroundActive
+// is available.
+- (void)appState:(AppState*)appState
+    sceneDidBecomeActive:(SceneState*)sceneState;
 
 @end
 

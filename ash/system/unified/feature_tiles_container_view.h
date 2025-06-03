@@ -36,9 +36,6 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   ~FeatureTilesContainerView() override;
 
   // Adds feature tiles to display in the tiles container.
-  // This function temporarily adds a primary and a compact tile along with
-  // other empty FeatureTile placeholders.
-  // TODO(b/252871301): Apply each feature tile.
   void AddTiles(std::vector<std::unique_ptr<FeatureTile>> tiles);
 
   // Lays out the existing tiles into rows. Used when the visibility of a tile
@@ -48,6 +45,10 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   // Sets the number of rows of feature tiles based on the max height the
   // container can have.
   void SetRowsFromHeight(int max_height);
+
+  // Caps the number of rows of feature tiles when media view is shown, based on
+  // the `max_height` the container can have.
+  void AdjustRowsForMediaViewVisibility(bool visible, int max_height);
 
   // PaginationModelObserver:
   void SelectedPageChanged(int old_selected, int new_selected) override;
@@ -111,6 +112,8 @@ class ASH_EXPORT FeatureTilesContainerView : public views::View,
   // Number of rows that can be displayed based on the available
   // max height.
   int displayable_rows_ = 0;
+
+  bool is_media_view_shown_ = false;
 
   // Used for preventing reentrancy issue in ChildVisibilityChanged. Should be
   // always false if FeatureTilesContainerView is not in the call stack.

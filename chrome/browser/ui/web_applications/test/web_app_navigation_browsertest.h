@@ -12,8 +12,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/content_mock_cert_verifier.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "url/gurl.h"
@@ -56,6 +56,16 @@ class WebAppNavigationBrowserTest : public WebAppControllerBrowserTest {
   // respectively, adds it to the DOM, and clicks on it with |modifiers|.
   // Returns once |target_url| has loaded. |modifiers| should be based on
   // blink::WebInputEvent::Modifiers.
+  static void ClickLink(
+      content::WebContents* web_contents,
+      const GURL& link_url,
+      const GURL& target_url,
+      LinkTarget target = LinkTarget::SELF,
+      const std::string& rel = "",
+      int modifiers = blink::WebInputEvent::Modifiers::kNoModifiers,
+      blink::WebMouseEvent::Button button =
+          blink::WebMouseEvent::Button::kLeft);
+
   static void ClickLinkWithModifiersAndWaitForURL(
       content::WebContents* web_contents,
       const GURL& link_url,
@@ -96,8 +106,8 @@ class WebAppNavigationBrowserTest : public WebAppControllerBrowserTest {
   Profile* profile();
 
   void InstallTestWebApp();
-  AppId InstallTestWebApp(const std::string& app_host,
-                          const std::string& app_scope);
+  webapps::AppId InstallTestWebApp(const std::string& app_host,
+                                   const std::string& app_scope);
 
   Browser* OpenTestWebApp();
 
@@ -119,7 +129,7 @@ class WebAppNavigationBrowserTest : public WebAppControllerBrowserTest {
 
   net::EmbeddedTestServer& https_server() { return https_server_; }
 
-  const AppId& test_web_app_id() const { return test_web_app_; }
+  const webapps::AppId& test_web_app_id() const { return test_web_app_; }
 
   const GURL& test_web_app_start_url();
 
@@ -129,7 +139,7 @@ class WebAppNavigationBrowserTest : public WebAppControllerBrowserTest {
   // used by the NetworkService.
   content::ContentMockCertVerifier cert_verifier_;
   raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
-  AppId test_web_app_;
+  webapps::AppId test_web_app_;
   base::HistogramTester histogram_tester_;
 };
 

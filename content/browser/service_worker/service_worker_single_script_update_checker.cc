@@ -93,7 +93,8 @@ constexpr net::NetworkTrafficAnnotationTag kUpdateCheckTrafficAnnotation =
 class ServiceWorkerSingleScriptUpdateChecker::WrappedIOBuffer
     : public net::WrappedIOBuffer {
  public:
-  WrappedIOBuffer(const char* data) : net::WrappedIOBuffer(data) {}
+  WrappedIOBuffer(const char* data, size_t size)
+      : net::WrappedIOBuffer(data, size) {}
 
  private:
   ~WrappedIOBuffer() override = default;
@@ -120,6 +121,7 @@ ServiceWorkerSingleScriptUpdateChecker::ServiceWorkerSingleScriptUpdateChecker(
     mojo::Remote<storage::mojom::ServiceWorkerResourceWriter> writer,
     int64_t writer_resource_id,
     ScriptChecksumUpdateOption script_checksum_update_option,
+    const blink::StorageKey& storage_key,
     ResultCallback callback)
     : script_url_(script_url),
       is_main_script_(is_main_script),
@@ -143,8 +145,8 @@ ServiceWorkerSingleScriptUpdateChecker::ServiceWorkerSingleScriptUpdateChecker(
 
   network::ResourceRequest resource_request =
       service_worker_loader_helpers::CreateRequestForServiceWorkerScript(
-          script_url, url::Origin::Create(main_script_url), is_main_script_,
-          worker_script_type, *fetch_client_settings_object, *browser_context);
+          script_url, storage_key, is_main_script_, worker_script_type,
+          *fetch_client_settings_object, *browser_context);
 
   uint32_t options = network::mojom::kURLLoadOptionNone;
   if (is_main_script_) {
@@ -512,9 +514,10 @@ void ServiceWorkerSingleScriptUpdateChecker::OnNetworkDataAvailable(
             ServiceWorkerUpdatedScriptLoader::WriterState::kCompleted);
   DCHECK(network_consumer_.is_valid());
   scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer;
-  uint32_t bytes_available = 0;
   MojoResult result = network::MojoToNetPendingBuffer::BeginRead(
-      &network_consumer_, &pending_buffer, &bytes_available);
+      &network_consumer_, &pending_buffer);
+
+  const uint32_t bytes_available = pending_buffer ? pending_buffer->size() : 0;
   TRACE_EVENT_WITH_FLOW2(
       "ServiceWorker",
       "ServiceWorkerSingleScriptUpdateChecker::OnNetworkDataAvailable", this,
@@ -558,7 +561,8 @@ void ServiceWorkerSingleScriptUpdateChecker::CompareData(
 
   DCHECK(pending_buffer || bytes_to_compare == 0);
   auto buffer = base::MakeRefCounted<WrappedIOBuffer>(
-      pending_buffer ? pending_buffer->buffer() : nullptr);
+      pending_buffer ? pending_buffer->buffer() : nullptr,
+      pending_buffer ? pending_buffer->size() : 0);
 
   // Compare the network data and the stored data.
   net::Error error = cache_writer_->MaybeWriteData(

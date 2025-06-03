@@ -16,6 +16,8 @@ const char kAppProcessName[] = "app-process-name";
 
 const char kAndroidSdkInt[] = "android-sdk-int";
 
+const char kContextLossReason[] = "context-loss-reason";
+
 const char kSupportLibraryWebkitVersion[] = "androidx-webkit-version";
 
 extern const char kWeblayerWebViewCompatMode[] =
@@ -27,6 +29,7 @@ const char* const kWebViewCrashKeyAllowList[] = {
     kAppPackageVersionCode,
     kAppProcessName,
     kAndroidSdkInt,
+    kContextLossReason,
     kSupportLibraryWebkitVersion,
 
     // process type
@@ -34,6 +37,9 @@ const char* const kWebViewCrashKeyAllowList[] = {
 
     // Java exception stack traces
     "exception_info",
+
+    // base
+    "base-OpenApkAssetError",
 
     // gpu
     "gpu-driver",
@@ -44,6 +50,11 @@ const char* const kWebViewCrashKeyAllowList[] = {
     "gr-context-type",
     "oop_read_failure",
     "gpu-gl-error-message",
+
+    // components/android_autofill
+    "crbug1479006-form_ token",
+    "crbug1479006-form token",
+    "crbug1479006-manager token",
 
     // components/viz
     "viz_deserialization",
@@ -138,11 +149,22 @@ const char* const kWebViewCrashKeyAllowList[] = {
     // crash keys needed for recording finch trials
     "variations",
     "num-experiments",
+    "variations-seed-version",
 
     // sandbox/linux
     "seccomp-sigsys",
 
     kWeblayerWebViewCompatMode,
+
+    // Temporary keys for crbug.com/1430313:
+    "db_init_error-diagnostics",
+    "db_init_error-path",
+
+    // Used to report switches/feature flags overridden in the DevUI
+    "commandline-enabled-feature-*",
+    "commandline-disabled-feature-*",
+    "switch-*",
+    "num-switches",
 
     nullptr};
 // clang-format on

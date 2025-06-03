@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/ranges/algorithm.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -20,13 +21,16 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/optimization_guide/core/model_store_metadata_entry.h"
+#include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/prediction_manager.h"
+#include "components/optimization_guide/core/prediction_model_fetch_timer.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
@@ -79,6 +83,11 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
 
     models_server_ = std::make_unique<net::EmbeddedTestServer>(
         net::EmbeddedTestServer::TYPE_HTTPS);
+    net::EmbeddedTestServer::ServerCertificateConfig models_server_cert_config;
+    models_server_cert_config.dns_names = {
+        GURL(kOptimizationGuideServiceGetModelsDefaultURL).host()};
+    models_server_cert_config.ip_addresses = {net::IPAddress::IPv4Localhost()};
+    models_server_->SetSSLConfig(models_server_cert_config);
     models_server_->ServeFilesFromSourceDirectory(
         "chrome/test/data/optimization_guide");
     models_server_->RegisterRequestHandler(base::BindRepeating(
@@ -90,17 +99,14 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
   }
 
   void SetUpOnMainThread() override {
-    download_server_ = std::make_unique<net::EmbeddedTestServer>(
-        net::EmbeddedTestServer::TYPE_HTTPS);
-    download_server_->ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-    ASSERT_TRUE(download_server_->Start());
+    host_resolver()->AddRule("*", "127.0.0.1");
+
     model_file_url_ = models_server_->GetURL("/signed_valid_model.crx3");
 
     InProcessBrowserTest::SetUpOnMainThread();
   }
 
   void TearDownOnMainThread() override {
-    EXPECT_TRUE(download_server_->ShutdownAndWaitUntilComplete());
     EXPECT_TRUE(models_server_->ShutdownAndWaitUntilComplete());
     InProcessBrowserTest::TearDownOnMainThread();
   }
@@ -113,7 +119,6 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
             ->GetURL(GURL(kOptimizationGuideServiceGetModelsDefaultURL).host(),
                      "/")
             .spec());
-    cmd->AppendSwitchASCII("host-rules", "MAP * 127.0.0.1");
     cmd->AppendSwitchASCII("force-variation-ids", "4");
     cmd->AppendSwitch(switches::kDebugLoggingEnabled);
 #if BUILDFLAG(IS_CHROMEOS_ASH)
@@ -136,11 +141,14 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
   void RegisterAndWaitForModelUpdate(ModelFileObserver* model_file_observer,
                                      Profile* profile = nullptr) {
     std::unique_ptr<base::RunLoop> run_loop = std::make_unique<base::RunLoop>();
-    model_file_observer->set_model_file_received_callback(
-        base::BindOnce([](base::RunLoop* run_loop,
-                          proto::OptimizationTarget optimization_target,
-                          const ModelInfo& model_info) { run_loop->Quit(); },
-                       run_loop.get()));
+    model_file_observer->set_model_file_received_callback(base::BindOnce(
+        [](base::RunLoop* run_loop,
+           proto::OptimizationTarget optimization_target,
+           base::optional_ref<const ModelInfo> model_info) {
+          EXPECT_TRUE(model_info.has_value());
+          run_loop->Quit();
+        },
+        run_loop.get()));
 
     RegisterModelFileObserverWithKeyedService(
         model_file_observer, profile ? profile : browser()->profile());
@@ -149,16 +157,38 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
     run_loop->Run();
   }
 
+  PredictionManager* GetPredictionManager(Profile* profile) {
+    return OptimizationGuideKeyedServiceFactory::GetForProfile(profile)
+        ->GetPredictionManager();
+  }
+
   void SetModelCacheKey(Profile* profile,
                         const proto::ModelCacheKey& model_cache_key) {
-    OptimizationGuideKeyedServiceFactory::GetForProfile(profile)
-        ->GetPredictionManager()
-        ->SetModelCacheKeyForTesting(model_cache_key);
+    GetPredictionManager(profile)->SetModelCacheKeyForTesting(model_cache_key);
   }
 
   void set_server_model_cache_key(
       absl::optional<proto::ModelCacheKey> server_model_cache_key) {
     server_model_cache_key_ = server_model_cache_key;
+  }
+
+  base::FilePath GetModelStoreBaseDir() {
+    return PredictionModelStore::GetInstance()->GetBaseStoreDirForTesting();
+  }
+
+  size_t ComputeModelsInStore() {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    size_t models_count = 0;
+    base::FileEnumerator model_file_enumerator(GetModelStoreBaseDir(),
+                                               /*recursive=*/true,
+                                               base::FileEnumerator::FILES);
+    for (base::FilePath model_file = model_file_enumerator.Next();
+         !model_file.empty(); model_file = model_file_enumerator.Next()) {
+      if (model_file.BaseName() == GetBaseFileNameForModels()) {
+        models_count++;
+      }
+    }
+    return models_count;
   }
 
  protected:
@@ -206,7 +236,6 @@ class PredictionModelStoreBrowserTestBase : public InProcessBrowserTest {
 
   base::test::ScopedFeatureList scoped_feature_list_;
   GURL model_file_url_;
-  std::unique_ptr<net::EmbeddedTestServer> download_server_;
   std::unique_ptr<net::EmbeddedTestServer> models_server_;
   base::HistogramTester histogram_tester_;
 
@@ -470,7 +499,89 @@ IN_PROC_BROWSER_TEST_F(PredictionModelStoreBrowserTest,
     histogram_tester_bar.ExpectUniqueSample(
         "OptimizationGuide.PredictionModelUpdateVersion.PainfulPageLoad",
         kSuccessfulModelVersion, 1);
+    histogram_tester_bar.ExpectUniqueSample(
+        "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
+        PredictionModelStoreModelRemovalReason::kNewModelUpdate, 1);
   }
+}
+
+IN_PROC_BROWSER_TEST_F(PredictionModelStoreBrowserTest,
+                       PRE_TestOldModelRemovedOnModelUpdate) {
+  auto model_cache_key =
+      CreateModelCacheKey(g_browser_process->GetApplicationLocale());
+  base::FilePath old_model_dir, new_model_dir;
+  ModelFileObserver model_file_observer;
+  {
+    base::HistogramTester histogram_tester;
+    RegisterAndWaitForModelUpdate(&model_file_observer);
+    EXPECT_EQ(model_file_observer.optimization_target(),
+              proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD);
+    EXPECT_TRUE(
+        model_file_observer.model_info()->GetModelFilePath().IsAbsolute());
+    histogram_tester.ExpectUniqueSample(
+        "OptimizationGuide.PredictionModelDownloadManager.DownloadStatus",
+        PredictionModelDownloadStatus::kSuccess, 1);
+  }
+  {
+    // Mark the downloaded model as old version, to simulate model version
+    // update.
+    ModelStoreMetadataEntryUpdater updater(
+        g_browser_process->local_state(),
+        proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD, model_cache_key);
+    updater.SetVersion(kSuccessfulModelVersion - 1);
+    old_model_dir = GetModelStoreBaseDir().Append(*updater.GetModelBaseDir());
+  }
+  {
+    // Trigger the periodic fetch timer.
+    base::HistogramTester histogram_tester;
+    auto* prediction_model_fetch_timer =
+        GetPredictionManager(browser()->profile())
+            ->GetPredictionModelFetchTimerForTesting();
+    EXPECT_EQ(PredictionModelFetchTimer::PredictionModelFetchTimerState::
+                  kPeriodicFetch,
+              prediction_model_fetch_timer->GetStateForTesting());
+    prediction_model_fetch_timer->ScheduleImmediateFetchForTesting();
+
+    // Updated model is downloaded, causing the old model to be scheduled for
+    // deletion.
+    RetryForHistogramUntilCountReached(
+        &histogram_tester,
+        "OptimizationGuide.PredictionModelDownloadManager.DownloadStatus", 1);
+    RetryForHistogramUntilCountReached(
+        &histogram_tester,
+        "OptimizationGuide.PredictionModelStore.ModelRemovalReason", 1);
+    histogram_tester.ExpectUniqueSample(
+        "OptimizationGuide.PredictionModelDownloadManager.DownloadStatus",
+        PredictionModelDownloadStatus::kSuccess, 1);
+    GetPredictionManager(browser()->profile())
+        ->RemoveObserverForOptimizationTargetModel(
+            proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD, &model_file_observer);
+    histogram_tester.ExpectUniqueSample(
+        "OptimizationGuide.PredictionModelStore.ModelRemovalReason",
+        PredictionModelStoreModelRemovalReason::kNewModelUpdate, 1);
+  }
+
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    auto entry = ModelStoreMetadataEntry::GetModelMetadataEntryIfExists(
+        g_browser_process->local_state(),
+        proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD, model_cache_key);
+    new_model_dir = GetModelStoreBaseDir().Append(*entry->GetModelBaseDir());
+    EXPECT_TRUE(base::DirectoryExists(old_model_dir));
+    EXPECT_TRUE(base::DirectoryExists(new_model_dir));
+  }
+  DCHECK_NE(old_model_dir, new_model_dir);
+  EXPECT_EQ(2U, ComputeModelsInStore());
+}
+
+IN_PROC_BROWSER_TEST_F(PredictionModelStoreBrowserTest,
+                       TestOldModelRemovedOnModelUpdate) {
+  ModelFileObserver model_file_observer;
+  RegisterAndWaitForModelUpdate(&model_file_observer);
+  EXPECT_EQ(model_file_observer.optimization_target(),
+            proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD);
+  // The old model should be removed.
+  EXPECT_EQ(1U, ComputeModelsInStore());
 }
 
 // Tests the case when local state is inconsistent with the model directory,

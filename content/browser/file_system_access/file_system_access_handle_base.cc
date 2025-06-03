@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/barrier_callback.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -19,12 +20,11 @@
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
 #include "content/browser/file_system_access/file_system_access_safe_move_helper.h"
 #include "content/browser/file_system_access/file_system_access_transfer_token_impl.h"
-#include "content/browser/renderer_host/back_forward_cache_disable.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/file_system_access_permission_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
+#include "mojo/public/cpp/bindings/message.h"
 #include "storage/browser/file_system/file_system_operation.h"
 #include "storage/browser/file_system/file_system_url.h"
 #include "storage/common/file_system/file_system_types.h"
@@ -33,8 +33,7 @@
 
 namespace content {
 
-using WriteLock = FileSystemAccessWriteLockManager::WriteLock;
-using WriteLockType = FileSystemAccessWriteLockManager::WriteLockType;
+using LockHandle = FileSystemAccessLockManager::LockHandle;
 
 namespace {
 std::string GetURLDisplayName(const storage::FileSystemURL& url) {
@@ -70,15 +69,6 @@ FileSystemAccessHandleBase::FileSystemAccessHandleBase(
         WebContentsImpl::FromRenderFrameHostID(context_.frame_id);
     if (web_contents) {
       web_contents_ = web_contents->GetWeakPtr();
-    }
-
-    // Disable back-forward cache as File System Access's usage of
-    // RenderFrameHost::IsActive at the moment is not compatible with bfcache.
-    BackForwardCache::DisableForRenderFrameHost(
-        context_.frame_id,
-        BackForwardCacheDisable::DisabledReason(
-            BackForwardCacheDisable::DisabledReasonId::kFileSystemAccess));
-    if (web_contents_) {
       static_cast<WebContentsImpl*>(web_contents_.get())
           ->IncrementFileSystemAccessHandleCount();
     }
@@ -107,8 +97,9 @@ FileSystemAccessHandleBase::GetWritePermissionStatus() {
   // read permission status. See also:
   // http://wicg.github.io/file-system-access/#api-filesystemhandle-querypermission
   PermissionStatus read_status = GetReadPermissionStatus();
-  if (read_status != PermissionStatus::GRANTED)
+  if (read_status != PermissionStatus::GRANTED) {
     return read_status;
+  }
 
   return handle_state_.write_grant->GetStatus();
 }
@@ -200,6 +191,7 @@ void FileSystemAccessHandleBase::DidRequestPermission(
     case Outcome::kGrantedByContentSetting:
     case Outcome::kGrantedByPersistentPermission:
     case Outcome::kGrantedByAncestorPersistentPermission:
+    case Outcome::kGrantedByRestorePrompt:
       std::move(callback).Run(
           file_system_access_error::Ok(),
           writable ? GetWritePermissionStatus() : GetReadPermissionStatus());
@@ -225,13 +217,6 @@ void FileSystemAccessHandleBase::DoMove(
           blink::mojom::FileSystemAccessStatus::kNotSupportedError));
       return;
     }
-  }
-
-  if (!FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
-          new_entry_name)) {
-    std::move(callback).Run(file_system_access_error::FromStatus(
-        blink::mojom::FileSystemAccessStatus::kInvalidArgument));
-    return;
   }
 
   manager()->ResolveTransferToken(
@@ -261,7 +246,7 @@ void FileSystemAccessHandleBase::DoRename(
   }
 
   if (!FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
-          new_entry_name)) {
+          url().type(), new_entry_name)) {
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kInvalidArgument));
     return;
@@ -297,6 +282,13 @@ void FileSystemAccessHandleBase::DidResolveTokenToMove(
       FileSystemAccessPermissionContext::HandleType::kDirectory) {
     mojo::ReportBadMessage(
         "FileSystemHandle::move() was passed a token which is not a directory");
+    std::move(callback).Run(file_system_access_error::FromStatus(
+        blink::mojom::FileSystemAccessStatus::kInvalidArgument));
+    return;
+  }
+
+  if (!FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(
+          resolved_destination_directory->url().type(), new_entry_name)) {
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kInvalidArgument));
     return;
@@ -399,12 +391,31 @@ void FileSystemAccessHandleBase::DidCreateDestinationDirectoryHandle(
     return;
   }
 
-  // The file can only be moved if we can acquire exclusive write locks to both
-  // the source and destination URLs.
-  std::vector<scoped_refptr<WriteLock>> locks;
-  auto source_write_lock =
-      manager()->TakeWriteLock(url(), WriteLockType::kExclusive);
-  if (!source_write_lock) {
+  // The file can only be moved if we can acquire exclusive locks to both the
+  // source and destination URLs.
+  CHECK(dest_url != url());
+  auto barrier_callback = base::BarrierCallback<scoped_refptr<LockHandle>>(
+      2, base::BindOnce(&FileSystemAccessHandleBase::DidTakeMoveLocks,
+                        AsWeakPtr(), dest_url, has_transient_user_activation,
+                        has_write_access, std::move(callback)));
+  manager()->TakeLock(url(), manager()->GetExclusiveLockType(),
+                      barrier_callback);
+  manager()->TakeLock(dest_url, manager()->GetExclusiveLockType(),
+                      barrier_callback);
+}
+
+void FileSystemAccessHandleBase::DidTakeMoveLocks(
+    storage::FileSystemURL dest_url,
+    bool has_transient_user_activation,
+    bool has_write_access,
+    base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
+    std::vector<scoped_refptr<LockHandle>> locks) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  const auto& source_lock = locks[0];
+  const auto& dest_lock = locks[1];
+
+  if (!source_lock) {
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kNoModificationAllowedError,
         base::StrCat(
@@ -412,13 +423,7 @@ void FileSystemAccessHandleBase::DidCreateDestinationDirectoryHandle(
              ". A FileSystemHandle cannot be moved while it is locked."})));
     return;
   }
-  locks.emplace_back(std::move(source_write_lock));
-
-  // Acquire an exclusive lock to the destination URL.
-  DCHECK(dest_url != url());
-  auto dest_write_lock =
-      manager()->TakeWriteLock(dest_url, WriteLockType::kExclusive);
-  if (!dest_write_lock) {
+  if (!dest_lock) {
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kNoModificationAllowedError,
         base::StrCat({"Failed to move ", GetURLDisplayName(url()), " to ",
@@ -427,8 +432,6 @@ void FileSystemAccessHandleBase::DidCreateDestinationDirectoryHandle(
                       "which is locked."})));
     return;
   }
-  locks.emplace_back(std::move(dest_write_lock));
-
   // Only allow overwriting moves if we have write access to the destination or
   // its parent.
   if (has_write_access &&
@@ -452,7 +455,7 @@ void FileSystemAccessHandleBase::DidCreateDestinationDirectoryHandle(
 void FileSystemAccessHandleBase::ConfirmMoveWillNotOverwriteDestination(
     const bool has_write_access,
     const storage::FileSystemURL& destination_url,
-    std::vector<scoped_refptr<WriteLock>> locks,
+    std::vector<scoped_refptr<LockHandle>> locks,
     bool has_transient_user_activation,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
     base::File::Error result) {
@@ -476,7 +479,7 @@ void FileSystemAccessHandleBase::ConfirmMoveWillNotOverwriteDestination(
 
 void FileSystemAccessHandleBase::DoPerformMoveOperation(
     const storage::FileSystemURL& destination_url,
-    std::vector<scoped_refptr<WriteLock>> locks,
+    std::vector<scoped_refptr<LockHandle>> locks,
     bool has_transient_user_activation,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -499,7 +502,7 @@ void FileSystemAccessHandleBase::DoPerformMoveOperation(
 
 void FileSystemAccessHandleBase::DidMove(
     storage::FileSystemURL destination_url,
-    std::vector<scoped_refptr<WriteLock>> write_locks,
+    std::vector<scoped_refptr<LockHandle>> locks,
     std::unique_ptr<FileSystemAccessSafeMoveHelper> /*move_helper*/,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
     blink::mojom::FileSystemAccessErrorPtr result) {
@@ -523,7 +526,7 @@ void FileSystemAccessHandleBase::DidMove(
   }
 
   // Destroy locks so they are released by the time the callback runs.
-  write_locks.clear();
+  locks.clear();
 
   std::move(callback).Run(std::move(result));
 }
@@ -531,7 +534,6 @@ void FileSystemAccessHandleBase::DidMove(
 void FileSystemAccessHandleBase::DoRemove(
     const storage::FileSystemURL& url,
     bool recurse,
-    WriteLockType lock_type,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_EQ(GetWritePermissionStatus(),
@@ -543,32 +545,71 @@ void FileSystemAccessHandleBase::DoRemove(
     return;
   }
 
-  // A locked file cannot be removed. Acquire a write lock and release it
-  // after the remove operation completes.
-  auto write_lock = manager()->TakeWriteLock(url, lock_type);
-  if (!write_lock) {
+  // A locked file cannot be removed. Acquire a lock and release it after the
+  // remove operation completes.
+  manager()->TakeLock(
+      url, manager()->GetExclusiveLockType(),
+      base::BindOnce(&FileSystemAccessHandleBase::DidTakeRemoveLock,
+                     AsWeakPtr(), url, recurse, std::move(callback)));
+}
+
+void FileSystemAccessHandleBase::DidTakeRemoveLock(
+    const storage::FileSystemURL& url,
+    bool recurse,
+    base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)> callback,
+    scoped_refptr<LockHandle> lock) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!lock) {
     std::move(callback).Run(file_system_access_error::FromStatus(
         blink::mojom::FileSystemAccessStatus::kNoModificationAllowedError));
     return;
   }
 
-  // Bind the `write_lock` to the Remove callback to guarantee the lock is
-  // held until the operation completes.
+  // Bind the `lock` to the Remove callback to guarantee the lock is held until
+  // the operation completes.
   auto wrapped_callback = base::BindOnce(
-      [](scoped_refptr<WriteLock> write_lock,
+      [](scoped_refptr<LockHandle> lock,
          base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr)>
              callback,
          base::File::Error result) {
         // Destroy lock so it is released by the time the callback runs.
-        write_lock.reset();
+        lock.reset();
         std::move(callback).Run(
             file_system_access_error::FromFileError(result));
       },
-      std::move(write_lock), std::move(callback));
+      std::move(lock), std::move(callback));
 
   manager()->DoFileSystemOperation(FROM_HERE,
                                    &storage::FileSystemOperationRunner::Remove,
                                    std::move(wrapped_callback), url, recurse);
+}
+
+void FileSystemAccessHandleBase::DoGetCloudIdentifiers(
+    FileSystemAccessPermissionContext::HandleType handle_type,
+    ContentBrowserClient::GetCloudIdentifiersCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kFileSystemAccessGetCloudIdentifiers)) {
+    mojo::ReportBadMessage(
+        "feature 'FileSystemAccessGetCloudIdentifiers' not enabled");
+    std::move(callback).Run(
+        file_system_access_error::FromStatus(
+            blink::mojom::FileSystemAccessStatus::kSecurityError),
+        {});
+    return;
+  }
+
+  if (GetReadPermissionStatus() != PermissionStatus::GRANTED) {
+    std::move(callback).Run(
+        file_system_access_error::FromStatus(
+            blink::mojom::FileSystemAccessStatus::kPermissionDenied),
+        {});
+    return;
+  }
+
+  GetContentClient()->browser()->GetCloudIdentifiers(url_, handle_type,
+                                                     std::move(callback));
 }
 
 // Calculates the parent URL fom current context, propagating any

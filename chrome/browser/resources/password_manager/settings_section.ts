@@ -8,11 +8,12 @@ import './prefs/pref_toggle_button.js';
 import './user_utils_mixin.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
 
+import {HelpBubbleMixin} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
 import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
 import {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -36,8 +37,13 @@ export interface SettingsSectionElement {
   };
 }
 
-const SettingsSectionElementBase = RouteObserverMixin(
-    PrefsMixin(UserUtilMixin(WebUiListenerMixin(I18nMixin(PolymerElement)))));
+const PASSWORD_MANAGER_ADD_SHORTCUT_ELEMENT_ID =
+    'PasswordManagerUI::kAddShortcutElementId';
+const PASSWORD_MANAGER_ADD_SHORTCUT_CUSTOM_EVENT_ID =
+    'PasswordManagerUI::kAddShortcutCustomEventId';
+
+const SettingsSectionElementBase = HelpBubbleMixin(RouteObserverMixin(
+    PrefsMixin(UserUtilMixin(WebUiListenerMixin(I18nMixin(PolymerElement))))));
 
 export class SettingsSectionElement extends SettingsSectionElementBase {
   static get is() {
@@ -70,6 +76,16 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
         type: Boolean,
         value: false,
       },
+
+      // <if expr="is_macosx">
+      createPasskeysInICloudKeychainToggleVisible_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean(
+              'createPasskeysInICloudKeychainToggleVisible');
+        },
+      },
+      // </if>
 
       hasPasskeys_: {
         type: Boolean,
@@ -176,13 +192,19 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     }
   }
 
-  private getBlockedSitesDescription_() {
-    return this.i18n(
-        this.blockedSites_.length ? 'blockedSitesDescription' :
-                                    'blockedSitesEmptyDescription');
+  private onShortcutBannerDomChanged_() {
+    const addShortcutBanner = this.root!.querySelector('#addShortcutBanner');
+    if (addShortcutBanner) {
+      this.registerHelpBubble(
+          PASSWORD_MANAGER_ADD_SHORTCUT_ELEMENT_ID, addShortcutBanner);
+    }
   }
 
   private onAddShortcutClick_() {
+    this.notifyHelpBubbleAnchorCustomEvent(
+        PASSWORD_MANAGER_ADD_SHORTCUT_ELEMENT_ID,
+        PASSWORD_MANAGER_ADD_SHORTCUT_CUSTOM_EVENT_ID,
+    );
     // TODO(crbug.com/1358448): Record metrics on all entry points usage.
     // TODO(crbug.com/1358448): Hide the button for users after the shortcut is
     // installed.
@@ -265,12 +287,11 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     }
   }
 
+  // <if expr="is_win or is_macosx">
   private onManagePasskeysClick_() {
-    // In the future this may, e.g., open System Settings on macOS for iCloud
-    // Keychain, or open Control Panel on Windows for Hello. Currently passkey
-    // management is filled in via Chrome settings.
-    OpenWindowProxyImpl.getInstance().openUrl('chrome://settings/passkeys');
+    PasskeysBrowserProxyImpl.getInstance().managePasskeys();
   }
+  // </if>
 
   private computePasswordManagerDisabled_(): boolean {
     const pref = this.getPref('credentials_enable_service');

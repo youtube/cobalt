@@ -348,7 +348,7 @@ SignedExchangeHandler::ParsePrologueBeforeFallbackUrl() {
   prologue_before_fallback_url_ =
       signed_exchange_prologue::BeforeFallbackUrl::Parse(
           base::make_span(
-              reinterpret_cast<uint8_t*>(header_buf_->data()),
+              header_buf_->bytes(),
               signed_exchange_prologue::BeforeFallbackUrl::kEncodedSizeInBytes),
           devtools_proxy_.get());
 
@@ -370,7 +370,7 @@ SignedExchangeHandler::ParsePrologueFallbackUrlAndAfter() {
   prologue_fallback_url_and_after_ =
       signed_exchange_prologue::FallbackUrlAndAfter::Parse(
           base::make_span(
-              reinterpret_cast<uint8_t*>(header_buf_->data()),
+              header_buf_->bytes(),
               prologue_before_fallback_url_.ComputeFallbackUrlAndAfterLength()),
           prologue_before_fallback_url_, devtools_proxy_.get());
 
@@ -622,7 +622,7 @@ void SignedExchangeHandler::OnVerifyCert(
       error_message = base::StringPrintf(
           "CT verification failed. result: %s, policy compliance: %d",
           net::ErrorToShortString(error_code).c_str(),
-          cv_result.policy_compliance);
+          static_cast<int>(cv_result.policy_compliance));
       result = SignedExchangeLoadResult::kCTVerificationError;
     } else {
       error_message =
@@ -744,7 +744,7 @@ void SignedExchangeHandler::CheckAbsenceOfCookies(base::OnceClosure callback) {
   cookie_manager_->GetAllForUrl(
       envelope_->request_url().url, isolation_info.site_for_cookies(),
       *isolation_info.top_frame_origin(), /*has_storage_access=*/true,
-      std::move(match_options),
+      std::move(match_options), /*is_ad_tagged=*/false,
       base::BindOnce(&SignedExchangeHandler::OnGetCookies,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }

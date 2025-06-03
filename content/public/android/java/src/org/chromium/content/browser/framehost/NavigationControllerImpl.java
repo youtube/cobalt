@@ -9,11 +9,13 @@ import android.os.SystemClock;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.content_public.browser.AdditionalNavigationParams;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.NavigationEntry;
@@ -184,7 +186,8 @@ import org.chromium.url.Origin;
                     params.getDataUrlAsString(), params.getCanLoadLocalResources(),
                     params.getIsRendererInitiated(), params.getShouldReplaceCurrentEntry(),
                     params.getInitiatorOrigin(), params.getHasUserGesture(),
-                    params.getShouldClearHistoryList(), inputStart,
+                    params.getShouldClearHistoryList(), params.getAdditionalNavigationParams(),
+                    inputStart,
                     params.getNavigationUIDataSupplier() == null
                             ? 0
                             : params.getNavigationUIDataSupplier().get());
@@ -376,7 +379,9 @@ import org.chromium.url.Origin;
                 ResourceRequestBody postData, String baseUrlForDataUrl, String virtualUrlForDataUrl,
                 String dataUrlAsString, boolean canLoadLocalResources, boolean isRendererInitiated,
                 boolean shouldReplaceCurrentEntry, Origin initiatorOrigin, boolean hasUserGesture,
-                boolean shouldClearHistoryList, long inputStart, long navigationUIDataPtr);
+                boolean shouldClearHistoryList,
+                AdditionalNavigationParams additionalNavigationParams, long inputStart,
+                long navigationUIDataPtr);
         void clearHistory(long nativeNavigationControllerAndroid, NavigationControllerImpl caller);
         int getNavigationHistory(long nativeNavigationControllerAndroid,
                 NavigationControllerImpl caller, Object history);

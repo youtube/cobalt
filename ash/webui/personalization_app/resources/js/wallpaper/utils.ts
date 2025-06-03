@@ -4,13 +4,18 @@
 
 /** @fileoverview Wallpaper related utility functions in personalization app */
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 
-import {CurrentWallpaper, GooglePhotosAlbum, GooglePhotosPhoto, WallpaperImage, WallpaperLayout, WallpaperType} from '../../personalization_app.mojom-webui.js';
+import {CurrentAttribution, CurrentWallpaper, GooglePhotosAlbum, GooglePhotosPhoto, WallpaperImage, WallpaperLayout, WallpaperType} from '../../personalization_app.mojom-webui.js';
 import {getNumberOfGridItemsPerRow, isNonEmptyArray, isNonEmptyString} from '../utils.js';
 
 import {DefaultImageSymbol, DisplayableImage, kDefaultImageSymbol} from './constants.js';
+import {SeaPenTemplate} from './sea_pen/sea_pen_collection_element.js';
+import {DailyRefreshState} from './wallpaper_state.js';
+
+export const QUERY: string = 'query';
 
 export function isWallpaperImage(obj: any): obj is WallpaperImage {
   return !!obj && typeof obj.unitId === 'bigint';
@@ -104,7 +109,7 @@ export function getLoadingPlaceholderAnimationDelay(index: number): string {
  */
 export function getLoadingPlaceholders<T>(factory: () => T): T[] {
   const x = getNumberOfGridItemsPerRow();
-  const y = Math.floor(window.innerHeight / /*tileHeightPx=*/ 136);
+  const y = Math.max(Math.floor(window.innerHeight / /*tileHeightPx=*/ 136), 2);
   return Array.from({length: x * y}, factory);
 }
 
@@ -120,6 +125,49 @@ export function getLocalStorageAttribution(key: string): string[] {
     console.warn('Unable to get attribution from local storage.', key);
   }
   return attribution;
+}
+
+/**
+ * Get the aria label of the currently selected wallpaper.
+ */
+export function getWallpaperAriaLabel(
+    image: CurrentWallpaper|null, attribution: CurrentAttribution|null,
+    dailyRefreshState: DailyRefreshState|null): string {
+  if (!image || !attribution || image.key !== attribution.key) {
+    return `${loadTimeData.getString('currentlySet')} ${
+        loadTimeData.getString('unknownImageAttribution')}`;
+  }
+  if (image.type === WallpaperType.kDefault) {
+    return `${loadTimeData.getString('currentlySet')} ${
+        loadTimeData.getString('defaultWallpaper')}`;
+  }
+  const isDailyRefreshActive = !!dailyRefreshState;
+  if (isNonEmptyArray(attribution.attribution)) {
+    return isDailyRefreshActive ?
+        [
+          loadTimeData.getString('currentlySet'),
+          loadTimeData.getString('dailyRefresh'),
+          ...attribution.attribution,
+        ].join(' ') :
+        [
+          loadTimeData.getString('currentlySet'),
+          ...attribution.attribution,
+        ].join(' ');
+  }
+  // Fallback to cached attribution.
+  const cachedAttribution = getLocalStorageAttribution(image.key);
+  if (isNonEmptyArray(cachedAttribution)) {
+    return isDailyRefreshActive ?
+        [
+          loadTimeData.getString('currentlySet'),
+          loadTimeData.getString('dailyRefresh'),
+          ...attribution.attribution,
+        ].join(' ') :
+        [loadTimeData.getString('currentlySet'), ...cachedAttribution].join(
+            ' ');
+  }
+  return `${loadTimeData.getString('currentlySet')} ${
+      loadTimeData.getString('unknownImageAttribution')}`;
 }
 
 /**
@@ -155,4 +203,65 @@ export function findAlbumById(
     return albums.find(album => album.id === albumId) ?? null;
   }
   return null;
+}
+
+export function getSampleSeaPenTemplates(): SeaPenTemplate[] {
+  return [
+    {
+      preview: [{
+        url: 'chrome://personalization/images/google_photos.svg',
+      }],
+      text: 'the',
+      id: '1',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/ambient_mode_disabled.svg',
+      }],
+      text: 'faster',
+      id: '2',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/google_photos.svg',
+      }],
+      text: 'you',
+      id: '3',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/no_google_photos_images.svg',
+      }],
+      text: 'go',
+      id: '4',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/ambient_mode_disabled_dark.svg',
+      }],
+      text: 'the',
+      id: '5',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/no_google_photos_images.svg',
+      }],
+      text: 'shorter',
+      id: '6',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/no_images.svg',
+      }],
+      text: 'you',
+      id: '7',
+    },
+    {
+      preview: [{
+        url: 'chrome://personalization/images/no_google_photos_images_dark.svg',
+      }],
+      text: 'are',
+      id: '8',
+    },
+  ];
 }

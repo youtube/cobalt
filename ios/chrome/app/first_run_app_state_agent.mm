@@ -10,12 +10,12 @@
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/application_delegate/app_state_observer.h"
 #import "ios/chrome/app/application_delegate/startup_information.h"
-#import "ios/chrome/browser/main/browser.h"
-#import "ios/chrome/browser/main/browser_provider.h"
-#import "ios/chrome/browser/main/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_observer.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/public/commands/browsing_data_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -24,10 +24,6 @@
 #import "ios/chrome/browser/ui/first_run/first_run_screen_provider.h"
 #import "ios/chrome/browser/ui/first_run/orientation_limiting_navigation_controller.h"
 #import "ios/chrome/browser/ui/scoped_ui_blocker/scoped_ui_blocker.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface FirstRunAppAgent () <AppStateObserver,
                                 FirstRunCoordinatorDelegate,
@@ -90,7 +86,10 @@
   // Important: do not add code after this block because its purpose is to
   // clear `self` when not needed anymore.
   if (previousInitStage == InitStageFirstRun) {
-    // Nothing left to do; clean up.
+    if (self.appState.startupInformation.isFirstRun) {
+      [self unlockInterfaceOrientation];
+    }
+    // Clean up.
     [self.appState removeAgent:self];
   }
 }
@@ -162,7 +161,8 @@
   _firstRunUIBlocker =
       std::make_unique<ScopedUIBlocker>(self.presentingSceneState);
 
-  FirstRunScreenProvider* provider = [[FirstRunScreenProvider alloc] init];
+  FirstRunScreenProvider* provider = [[FirstRunScreenProvider alloc]
+      initForBrowserState:self.mainBrowser->GetBrowserState()];
 
   self.firstRunCoordinator = [[FirstRunCoordinator alloc]
       initWithBaseViewController:self.presentingInterface.viewController
@@ -170,6 +170,15 @@
                   screenProvider:provider];
   self.firstRunCoordinator.delegate = self;
   [self.firstRunCoordinator start];
+}
+
+// The FRE only displays in "portrait" on iPhone. When the FRE is done, iOS
+// must be notified that the supported interface orientations have changed.
+- (void)unlockInterfaceOrientation {
+  if (@available(iOS 16, *)) {
+    [self.presentingInterface
+            .viewController setNeedsUpdateOfSupportedInterfaceOrientations];
+  }
 }
 
 #pragma mark - FirstRunCoordinatorDelegate

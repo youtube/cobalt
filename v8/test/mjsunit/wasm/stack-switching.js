@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 function ToPromising(wasm_export) {
-  let sig = WebAssembly.Function.type(wasm_export);
+  let sig = wasm_export.type();
   assertTrue(sig.parameters.length > 0);
   assertEquals('externref', sig.parameters[0]);
   let wrapper_sig = {
@@ -93,12 +93,12 @@ function ToPromising(wasm_export) {
       /Incompatible signature for promising function/);
 
   // Check the wrapped export's signature.
-  let export_sig = WebAssembly.Function.type(export_wrapper);
+  let export_sig = export_wrapper.type();
   assertEquals(['i32'], export_sig.parameters);
   assertEquals(['externref'], export_sig.results);
 
   // Check the wrapped import's signature.
-  let import_sig = WebAssembly.Function.type(import_wrapper);
+  let import_sig = import_wrapper.type();
   assertEquals(['externref', 'i32'], import_sig.parameters);
   assertEquals([], import_sig.results);
 })();
@@ -342,7 +342,8 @@ function ToPromising(wasm_export) {
   assertPromiseResult(combined_promise, v => assertEquals(0.5, v));
 })();
 
-// Throw an exception after the initial prompt.
+// Throw an exception before suspending. The export wrapper should return a
+// promise rejected with the exception.
 (function TestStackSwitchException1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -351,12 +352,7 @@ function ToPromising(wasm_export) {
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.throw);
-  try {
-    wrapper();
-    assertUnreachable();
-  } catch (e) {
-    assertTrue(e instanceof WebAssembly.Exception);
-  }
+  assertThrowsAsync(wrapper(), WebAssembly.Exception);
 })();
 
 // Throw an exception after the first resume event, which propagates to the
@@ -423,8 +419,8 @@ function TestNestedSuspenders(suspend) {
   // the outer wasm function, which returns a Promise. The inner Promise
   // resolves first, which resumes the inner continuation. Then the outer
   // promise resolves which resumes the outer continuation.
-  // If 'suspend' is false, the inner JS function returns a regular value and
-  // no computation is suspended.
+  // If 'suspend' is false, the inner and outer JS functions return a regular
+  // value and no computation is suspended.
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_r);
   outer_index = builder.addImport('m', 'outer', kSig_i_r);
@@ -447,17 +443,13 @@ function TestNestedSuspenders(suspend) {
   let export_inner;
   let outer = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']},
-      () => export_inner(),
+      () => suspend ? export_inner() : 42,
       {suspending: 'first'});
 
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = ToPromising(instance.exports.inner);
   let export_outer = ToPromising(instance.exports.outer);
-  if (suspend) {
-    assertPromiseResult(export_outer(), v => assertEquals(42, v));
-  } else {
-    assertEquals(export_outer(), 42);
-  }
+  assertPromiseResult(export_outer(), v => assertEquals(42, v));
 }
 
 (function TestNestedSuspendersSuspend() {
@@ -478,7 +470,7 @@ function TestNestedSuspenders(suspend) {
   builder.addFunction("export", sig_v_r).addBody([]).exportFunc();
   let instance = builder.instantiate();
   let export_wrapper = ToPromising(instance.exports.export);
-  let export_sig = WebAssembly.Function.type(export_wrapper);
+  let export_sig = export_wrapper.type();
   assertEquals([], export_sig.parameters);
   assertEquals(['externref'], export_sig.results);
 })();
@@ -493,7 +485,7 @@ function TestNestedSuspenders(suspend) {
           ]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.test);
-  assertThrows(wrapper, RangeError, /Maximum call stack size exceeded/);
+  assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
 })();
 
 (function TestBadSuspender() {
@@ -622,6 +614,56 @@ function TestNestedSuspenders(suspend) {
       {parameters: [], results: ['externref']},
       instance.exports.export1,
       {promising: 'first'});
-  assertThrows(wrapper, WebAssembly.RuntimeError,
+  assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
       /trying to suspend JS frames/);
+})();
+
+// Regression test for v8:14094.
+// Pass an invalid (null) suspender to the suspending wrapper, but return a
+// non-promise. The import should not trap.
+(function TestImportCheckOrder() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => 42,
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  assertEquals(42, instance.exports.test(null));
+})();
+
+(function TestSwitchingToTheCentralStack() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let table = builder.addTable(kWasmExternRef, 1);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kNumericPrefix, kExprTableGrow, table.index]).exportFunc();
+  builder.addFunction("test2", kSig_i_r)
+      .addBody([
+        kExprI32Const, 1]).exportFunc();
+  let instance = builder.instantiate();
+  let wrapper = ToPromising(instance.exports.test);
+  let wrapper2 = ToPromising(instance.exports.test2);
+  function switchesToCS(fn) {
+    const beforeCall = %WasmSwitchToTheCentralStackCount();
+    fn();
+    return %WasmSwitchToTheCentralStackCount() - beforeCall;
+  }
+  // Calling exported functions from the central stack.
+  assertEquals(switchesToCS(() => instance.exports.test({})), 0);
+  assertEquals(switchesToCS(() => instance.exports.test2({})), 0);
+
+  // Runtime call to table.grow.
+  assertEquals(switchesToCS(wrapper), 1);
+  // No runtime calls.
+  assertEquals(switchesToCS(wrapper2), 0);
 })();

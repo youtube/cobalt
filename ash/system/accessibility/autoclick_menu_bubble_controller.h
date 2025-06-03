@@ -72,6 +72,7 @@ class ASH_EXPORT AutoclickMenuBubbleController
   // TrayBubbleView::Delegate:
   void BubbleViewDestroyed() override;
   std::u16string GetAccessibleNameForBubble() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // LocaleChangeObserver:
   void OnLocaleChanged() override;
@@ -83,8 +84,8 @@ class ASH_EXPORT AutoclickMenuBubbleController
  private:
   friend class AutoclickMenuBubbleControllerTest;
   friend class AutoclickTest;
+  friend class AutoclickTestUtils;
   friend class FloatingAccessibilityControllerTest;
-  friend class AutoclickBrowserTest;
 
   // Owned by views hierarchy.
   raw_ptr<TrayBubbleView, ExperimentalAsh> bubble_view_ = nullptr;

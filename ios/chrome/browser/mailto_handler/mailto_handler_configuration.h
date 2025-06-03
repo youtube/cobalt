@@ -11,23 +11,12 @@
 
 class AuthenticationService;
 class PrefService;
-class SyncSetupService;
-
-namespace syncer {
-class SyncService;
-}
 
 // Configuration object used by the MailtoHandlerService.
 @interface MailtoHandlerConfiguration : NSObject
 
 // AuthenticationService used by MailtoHandlerService.
 @property(nonatomic, assign) AuthenticationService* authService;
-
-// SyncService used by MailtoHandlerService.
-@property(nonatomic, assign) syncer::SyncService* syncService;
-
-// SyncSetupService used by MailtoHandlerService.
-@property(nonatomic, assign) SyncSetupService* syncSetupService;
 
 // PrefService used by MailtoHandlerService.
 @property(nonatomic, assign) PrefService* localState;

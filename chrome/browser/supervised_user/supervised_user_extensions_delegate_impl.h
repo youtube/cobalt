@@ -9,10 +9,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/supervised_user/supervised_user_extensions_manager.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/supervised_user/chromeos/parent_access_extension_approvals_manager.h"
 #endif
 
@@ -42,7 +43,7 @@ class SupervisedUserExtensionsDelegateImpl
     : public SupervisedUserExtensionsDelegate {
  public:
   explicit SupervisedUserExtensionsDelegateImpl(
-      content::BrowserContext* browser_context);
+      content::BrowserContext* context);
   ~SupervisedUserExtensionsDelegateImpl() override;
 
   // SupervisedUserExtensionsDelegate overrides
@@ -57,6 +58,7 @@ class SupervisedUserExtensionsDelegateImpl
       const Extension& extension,
       content::WebContents* web_contents,
       ExtensionApprovalDoneCallback extension_approval_callback) override;
+  void UpdateManagementPolicyRegistration() override;
   bool CanInstallExtensions() const override;
   void AddExtensionApproval(const extensions::Extension& extension) override;
   void RemoveExtensionApproval(const extensions::Extension& extension) override;
@@ -106,13 +108,14 @@ class SupervisedUserExtensionsDelegateImpl
 
   const raw_ptr<content::BrowserContext> context_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Manages the platform specific V2 approval flow.
   // The extension approvals manager is destroyed when a new ParentAccessDialog
   // is created or this delegate is destroyed.
   std::unique_ptr<ParentAccessExtensionApprovalsManager>
       extension_approvals_manager_;
 #endif
+  SupervisedUserExtensionsManager extensions_manager_;
 };
 
 }  // namespace extensions

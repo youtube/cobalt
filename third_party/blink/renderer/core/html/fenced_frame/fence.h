@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FENCED_FRAME_FENCE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FENCED_FRAME_FENCE_H_
 
+#include "base/gtest_prod_util.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -29,8 +31,9 @@ class CORE_EXPORT Fence final : public ScriptWrappable,
  public:
   explicit Fence(LocalDOMWindow& window);
 
-  // If `event` is a FenceEvent, calls reportEvent() to send a beacon with the
-  // data in event to the registered reporting URL.
+  // If `event` is a FenceEvent, calls reportEvent() to send a beacon to a
+  // registered destination (referenced by destination enum and event name),
+  // or a custom destination URL as appropriate.
   // If `event` is a string of the name of the event (i.e.
   // FenceEvent.eventType), calls reportPrivateAggregationEvent() to trigger
   // sending the contributions associated with the given event.
@@ -40,7 +43,8 @@ class CORE_EXPORT Fence final : public ScriptWrappable,
 
   // Saves the event data that will be used when an automatic beacon of type
   // event.eventType is sent. Right now, it only supports saving data for the
-  // "reserved.top_navigation" beacon.
+  // "reserved.top_navigation_start", "reserved.top_navigation_commit", and the
+  // deprecated "reserved.top_navigation" beacons.
   void setReportEventDataForAutomaticBeacons(ScriptState* script_state,
                                              const FenceEvent* event,
                                              ExceptionState& exception_state);
@@ -55,10 +59,22 @@ class CORE_EXPORT Fence final : public ScriptWrappable,
   void Trace(Visitor*) const override;
 
  private:
-  // Sends a beacon with the data in `event` to the registered reporting URL.
+  // Dispatches to `reportEventToDestinationEnum` or
+  // `reportEventToDestinationURL` depending on the format of `event`.
   void reportEvent(ScriptState* script_state,
                    const FenceEvent* event,
                    ExceptionState& exception_state);
+
+  // Sends a report with `eventData` to the reporting destinations specified by
+  // `destination`.
+  void reportEventToDestinationEnum(ScriptState* script_state,
+                                    const FenceEvent* event,
+                                    ExceptionState& exception_state);
+
+  // Sends a report to `destinationURL`, with substitution of buyer macros.
+  void reportEventToDestinationURL(ScriptState* script_state,
+                                   const FenceEvent* event,
+                                   ExceptionState& exception_state);
 
   // Triggers the sending of any contributions associated with the given event.
   // This function simply passes off the work to the fenced frame reporter in
@@ -67,7 +83,9 @@ class CORE_EXPORT Fence final : public ScriptWrappable,
                                      const String& event,
                                      ExceptionState& exception_state);
 
-  void AddConsoleMessage(const String& message);
+  void AddConsoleMessage(const String& message,
+                         mojom::blink::ConsoleMessageLevel level =
+                             mojom::blink::ConsoleMessageLevel::kError);
 
   FRIEND_TEST_ALL_PREFIXES(FenceTest, ReportPrivateAggregationEvent);
   FRIEND_TEST_ALL_PREFIXES(FenceTest, ReportPrivateAggregationReservedEvent);

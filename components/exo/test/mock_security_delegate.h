@@ -16,12 +16,11 @@ class MockSecurityDelegate : public SecurityDelegate {
   MockSecurityDelegate();
   ~MockSecurityDelegate() override;
 
-  MOCK_METHOD(std::string, GetSecurityContext, (), (const, override));
   MOCK_METHOD(bool, CanSelfActivate, (aura::Window*), (const, override));
   MOCK_METHOD(bool, CanLockPointer, (aura::Window*), (const, override));
-  MOCK_METHOD(bool,
-              CanSetBoundsWithServerSideDecoration,
-              (aura::Window*),
+  MOCK_METHOD(SetBoundsPolicy,
+              CanSetBounds,
+              (aura::Window * window),
               (const, override));
 };
 

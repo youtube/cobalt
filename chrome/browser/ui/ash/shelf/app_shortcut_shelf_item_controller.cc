@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "ash/public/cpp/shelf_types.h"
 #include "base/containers/contains.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
@@ -62,7 +63,7 @@ bool IsAppBrowser(Browser* browser) {
 // performed by activating the content.
 ash::ShelfAction ActivateContentOrMinimize(content::WebContents* content,
                                            bool allow_minimize) {
-  Browser* browser = chrome::FindBrowserWithWebContents(content);
+  Browser* browser = chrome::FindBrowserWithTab(content);
   TabStripModel* tab_strip = browser->tab_strip_model();
   int index = tab_strip->GetIndexOfWebContents(content);
   DCHECK_NE(TabStripModel::kNoTab, index);
@@ -253,12 +254,48 @@ AppShortcutShelfItemController::~AppShortcutShelfItemController() {
   BrowserList::RemoveObserver(this);
 }
 
+// This function is responsible for handling mouse and key events that are
+// triggered when Ash is the Chrome browser and when an SWA or PWA icon on
+// the shelf is clicked, or when the Alt+N accelerator is triggered for the
+// SWA or PWA. For Ash-chrome please refer to
+// BrowserShortcutShelfItemController. For Lacros please refer to
+// BrowserAppShelfItemController.
 void AppShortcutShelfItemController::ItemSelected(
     std::unique_ptr<ui::Event> event,
     int64_t display_id,
     ash::ShelfLaunchSource source,
     ItemSelectedCallback callback,
     const ItemFilterPredicate& filter_predicate) {
+  // Here we check the implicit assumption that the type of the event that gets
+  // passed in is never ui::ET_KEY_PRESSED. One may find it strange as usually
+  // ui::ET_KEY_RELEASED comes in pair with ui::ET_KEY_PRESSED, i.e, if we need
+  // to handle ui::ET_KEY_RELEASED, then we probably need to handle
+  // ui::ET_KEY_PRESSED too. However this is not the case here. The ui::KeyEvent
+  // that gets passed in is manufactured as an ui::ET_KEY_RELEASED typed
+  // KeyEvent right before being passed in. This is similar to the situations of
+  // BrowserShortcutShelfItemController and BrowserAppShelfItemController.
+  //
+  // One other thing regarding the KeyEvent here that one may find confusing is
+  // that even though the code here says ET_KEY_RELEASED, one only needs to
+  // conduct a press action (e.g., pressing Alt+1 on a physical device without
+  // letting go) to trigger this ItemSelected() function call. The subsequent
+  // key release action is not required. This naming disparity comes from the
+  // fact that while the key accelerator is triggered and handled by
+  // ui::AcceleratorManager::Process() with a KeyEvent instance as one of its
+  // inputs, further down the callstack, the same KeyEvent instance is not
+  // passed over into ash::Shelf::ActivateShelfItemOnDisplay(). Instead, a new
+  // KeyEvent instance is fabricated inside
+  // ash::Shelf::ActivateShelfItemOnDisplay(), with its type being
+  // ET_KEY_RELEASED, to represent the original KeyEvent, whose type is
+  // ET_KEY_PRESSED.
+  //
+  // The fabrication of the release typed key event was first introduced in this
+  // CL in 2013.
+  // https://chromiumcodereview.appspot.com/14551002/patch/41001/42001
+  //
+  // A bug is filed to track future works for fixing this confusing naming
+  // disparity. https://crbug.com/1473895
+  DCHECK(!(event && event->type() == ui::ET_KEY_PRESSED));
   // In case of a keyboard event, we were called by a hotkey. In that case we
   // activate the next item in line if an item of our list is already active.
   if (event && event->type() == ui::ET_KEY_RELEASED) {
@@ -285,8 +322,13 @@ void AppShortcutShelfItemController::ItemSelected(
     // LaunchApp may replace and destroy this item controller instance. Run the
     // callback first and copy the id to avoid crashes.
     std::move(callback).Run(ash::SHELF_ACTION_NEW_WINDOW_CREATED, {});
-    ChromeShelfController::instance()->LaunchApp(
-        ash::ShelfID(shelf_id()), source, ui::EF_NONE, display_id);
+
+    ChromeShelfController* chrome_shelf_controller =
+        ChromeShelfController::instance();
+    MaybeRecordAppLaunchForScalableIph(
+        shelf_id().app_id, chrome_shelf_controller->profile(), source);
+    chrome_shelf_controller->LaunchApp(ash::ShelfID(shelf_id()), source,
+                                       ui::EF_NONE, display_id);
     return;
   }
 
@@ -387,7 +429,7 @@ void AppShortcutShelfItemController::ExecuteCommand(bool from_context_menu,
     // invalid pointer cached in |app_menu_web_contents_| should yield a null
     // browser or kNoTab.
     content::WebContents* web_contents = app_menu_web_contents_[command_id];
-    Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* browser = chrome::FindBrowserWithTab(web_contents);
     TabStripModel* tab_strip = browser ? browser->tab_strip_model() : nullptr;
     const int index = tab_strip ? tab_strip->GetIndexOfWebContents(web_contents)
                                 : TabStripModel::kNoTab;
@@ -411,7 +453,7 @@ void AppShortcutShelfItemController::Close() {
       browser->tab_strip_model()->CloseAllTabs();
   } else {
     for (content::WebContents* item : GetAppWebContents(base::NullCallback())) {
-      Browser* browser = chrome::FindBrowserWithWebContents(item);
+      Browser* browser = chrome::FindBrowserWithTab(item);
       if (!browser ||
           !multi_user_util::IsProfileFromActiveUser(browser->profile())) {
         continue;
@@ -522,7 +564,7 @@ AppShortcutShelfItemController::AdvanceToNextApp(
       base::BindOnce([](const std::vector<content::WebContents*>& web_contents,
                         aura::Window** out_window) -> content::WebContents* {
         for (auto* web_content : web_contents) {
-          Browser* browser = chrome::FindBrowserWithWebContents(web_content);
+          Browser* browser = chrome::FindBrowserWithTab(web_content);
           // The active web contents is on the active browser, and matches the
           // index of the current active tab.
           if (browser->window()->IsActive()) {

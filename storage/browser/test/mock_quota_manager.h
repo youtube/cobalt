@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "components/services/storage/public/mojom/quota_client.mojom.h"
@@ -94,6 +95,10 @@ class MockQuotaManager : public QuotaManager {
   void GetUsageAndQuota(const blink::StorageKey& storage_key,
                         blink::mojom::StorageType type,
                         UsageAndQuotaCallback callback) override;
+
+  int64_t GetQuotaForStorageKey(const blink::StorageKey& storage_key,
+                                blink::mojom::StorageType type,
+                                const QuotaSettings& settings) const override;
 
   // Overrides QuotaManager's implementation with a canned implementation that
   // allows clients to set up the storage key database that should be queried.
@@ -223,7 +228,7 @@ class MockQuotaManager : public QuotaManager {
       blink::mojom::StorageType type);
 
   // This must be called via MockQuotaManagerProxy.
-  void UpdateUsage(const BucketLocator& bucket, int64_t delta);
+  void UpdateUsage(const BucketLocator& bucket, absl::optional<int64_t> delta);
 
   void DidGetBucket(base::OnceCallback<void(QuotaErrorOr<BucketInfo>)> callback,
                     QuotaErrorOr<BucketInfo> result);

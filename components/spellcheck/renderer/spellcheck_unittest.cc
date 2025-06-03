@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -35,8 +36,10 @@ const int kNoTag = 0;
 
 base::FilePath GetHunspellDirectory() {
   base::FilePath hunspell_directory;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &hunspell_directory))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
+                              &hunspell_directory)) {
     return base::FilePath();
+  }
 
   hunspell_directory = hunspell_directory.AppendASCII("third_party");
   hunspell_directory = hunspell_directory.AppendASCII("hunspell_dictionaries");
@@ -149,7 +152,7 @@ class MockTextCheckingCompletion : public blink::WebTextCheckingCompletion {
 
   void DidCancelCheckingText() override { result_->completion_count_++; }
 
-  MockTextCheckingResult* result_;
+  raw_ptr<MockTextCheckingResult, ExperimentalRenderer> result_;
 };
 
 // Operates unit tests for the content::SpellCheck::SpellCheckWord() function

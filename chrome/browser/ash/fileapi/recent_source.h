@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/i18n/string_search.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "storage/browser/file_system/file_system_context.h"
@@ -49,7 +50,9 @@ class RecentSource {
     Params(storage::FileSystemContext* file_system_context,
            const GURL& origin,
            size_t max_files,
+           const std::string& query,
            const base::Time& cutoff_time,
+           const base::TimeTicks& end_time,
            FileType file_type,
            GetRecentFilesCallback callback);
 
@@ -72,6 +75,10 @@ class RecentSource {
     // filtered out by RecentModel.
     size_t max_files() const { return max_files_; }
 
+    // The query to be applied to recent files to further narrow the returned
+    // matches.
+    const std::string& query() const { return query_; }
+
     // Cut-off last modified time. RecentSource is expected to return files
     // modified at this time or later. It is fine to return older files than
     // requested here, but they will be filtered out by RecentModel.
@@ -81,6 +88,15 @@ class RecentSource {
     // expected to return files which matches the specified file type.
     FileType file_type() const { return file_type_; }
 
+    // Returns the time by which recent scan operation should terminate (with or
+    // without results).
+    base::TimeTicks end_time() const { return end_time_; }
+
+    // If maximum duration was set, this method checks if a recent source is
+    // late with delivery of recent files or still on schedule. If maximum
+    // duration was never set, this method always returns false.
+    bool IsLate() const;
+
     // Callback to be called for the result of GetRecentFiles().
     GetRecentFilesCallback& callback() { return callback_; }
 
@@ -88,8 +104,10 @@ class RecentSource {
     scoped_refptr<storage::FileSystemContext> file_system_context_;
     GURL origin_;
     size_t max_files_;
+    std::string query_;
     base::Time cutoff_time_;
     FileType file_type_;
+    const base::TimeTicks end_time_;
     GetRecentFilesCallback callback_;
   };
 
@@ -105,6 +123,15 @@ class RecentSource {
  protected:
   RecentSource();
 };
+
+// A common to all recent sources function for checking a file name against the
+// query. This function returns true if the query is contained in the given file
+// name. This function does case-insensitive, accent-insensitive comparison.
+inline bool FileNameMatches(const std::u16string& file_name,
+                            const std::u16string& query) {
+  return query.empty() || base::i18n::StringSearchIgnoringCaseAndAccents(
+                              query, file_name, nullptr, nullptr);
+}
 
 }  // namespace ash
 

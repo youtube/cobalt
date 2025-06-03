@@ -210,10 +210,11 @@ class CONTENT_EXPORT PlatformNotificationContextImpl
       std::set<std::string>* close_notification_ids,
       const NotificationDatabaseData& data);
 
-  // Tries to get a list of displayed notification ids if the platform supports
-  // synchronizing them. Calls |callback| with the result after initializing the
-  // database on the |task_runner_| thread.
-  void TryGetDisplayedNotifications(InitializeGetDisplayedCallback callback);
+  // Tries to get a list of displayed notification ids for `origin` if the
+  // platform supports synchronizing them. Calls `callback` with the result
+  // after initializing the database on the `task_runner_` thread.
+  void TryGetDisplayedNotifications(const GURL& origin,
+                                    InitializeGetDisplayedCallback callback);
 
   // Called after getting a list of |displayed_notifications| on the UI thread.
   // Calls |callback| after initializing the database on the |task_runner_|
@@ -334,7 +335,7 @@ class CONTENT_EXPORT PlatformNotificationContextImpl
       const scoped_refptr<base::SequencedTaskRunner>& task_runner);
 
   base::FilePath path_;
-  raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
+  raw_ptr<BrowserContext, AcrossTasksDanglingUntriaged> browser_context_;
 
   scoped_refptr<ServiceWorkerContextWrapper> service_worker_context_;
 

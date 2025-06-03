@@ -10,7 +10,7 @@ import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
 import '../../css/common.css.js';
 import './info_svg_element.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -67,7 +67,7 @@ const enum MaxImageCount {
   DEFAULT = 2,
 }
 
-export class WallpaperGridItem extends PolymerElement {
+export class WallpaperGridItemElement extends PolymerElement {
   static get is(): 'wallpaper-grid-item' {
     return 'wallpaper-grid-item';
   }
@@ -287,8 +287,8 @@ export class WallpaperGridItem extends PolymerElement {
   }
 
   /** Returns the delay to use for the grid item's placeholder animation. */
-  private getItemPlaceholderAnimationDelay_(index: WallpaperGridItem['index']):
-      string {
+  private getItemPlaceholderAnimationDelay_(
+      index: WallpaperGridItemElement['index']): string {
     return getLoadingPlaceholderAnimationDelay(index);
   }
 
@@ -320,8 +320,8 @@ export class WallpaperGridItem extends PolymerElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    [WallpaperGridItem.is]: WallpaperGridItem;
+    [WallpaperGridItemElement.is]: WallpaperGridItemElement;
   }
 }
 
-customElements.define(WallpaperGridItem.is, WallpaperGridItem);
+customElements.define(WallpaperGridItemElement.is, WallpaperGridItemElement);

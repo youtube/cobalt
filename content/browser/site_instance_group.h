@@ -11,7 +11,9 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/observer_list.h"
 #include "base/types/id_type.h"
+#include "base/unguessable_token.h"
 #include "content/browser/browsing_instance.h"
+#include "content/browser/coop_related_group.h"
 #include "content/browser/renderer_host/agent_scheduling_group_host.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/browsing_instance_id.h"
@@ -69,7 +71,7 @@ class CONTENT_EXPORT SiteInstanceGroup
     : public base::RefCounted<SiteInstanceGroup>,
       public RenderProcessHostObserver {
  public:
-  class CONTENT_EXPORT Observer {
+  class CONTENT_EXPORT Observer : public base::CheckedObserver {
    public:
     // Called when this SiteInstanceGroup transitions to having no active
     // frames, as measured by active_frame_count().
@@ -118,6 +120,12 @@ class CONTENT_EXPORT SiteInstanceGroup
   // used when a SiteInstanceGroup is available.
   bool IsRelatedSiteInstanceGroup(SiteInstanceGroup* group);
 
+  // Returns true if `group` is in the same CoopRelatedGroup as `this`. This can
+  // be true even though IsRelatedSiteInstanceGroup returns false, if the two
+  // SiteInstanceGroups are for different BrowsingInstances in the same
+  // CoopRelatedGroup.
+  bool IsCoopRelatedSiteInstanceGroup(SiteInstanceGroup* group);
+
   // Get the number of active frames which belong to this SiteInstanceGroup. If
   // there are no active frames left, all frames in this SiteInstanceGroup can
   // be safely discarded.
@@ -127,6 +135,18 @@ class CONTENT_EXPORT SiteInstanceGroup
 
   BrowsingInstanceId browsing_instance_id() const {
     return browsing_instance_->isolation_context().browsing_instance_id();
+  }
+
+  // Returns the token uniquely identifying the BrowsingInstance this
+  // SiteInstanceGroup belongs to.
+  base::UnguessableToken browsing_instance_token() const {
+    return browsing_instance_->token();
+  }
+
+  // Returns the token uniquely identifying the CoopRelatedGroup this
+  // SiteInstanceGroup belongs to.
+  base::UnguessableToken coop_related_group_token() const {
+    return browsing_instance_->coop_related_group_token();
   }
 
   AgentSchedulingGroupHost& agent_scheduling_group() {
@@ -182,9 +202,10 @@ class CONTENT_EXPORT SiteInstanceGroup
   // List of SiteInstanceImpls that belong in this group. When any SiteInstance
   // in the set goes away, it must also be removed from `site_instances_` to
   // prevent UaF.
-  base::flat_set<SiteInstanceImpl*> site_instances_;
+  base::flat_set<raw_ptr<SiteInstanceImpl>> site_instances_;
 
-  base::ObserverList<Observer, true>::Unchecked observers_;
+  base::ObserverList<Observer> observers_;
+  bool is_notifying_observers_ = false;
 
   base::WeakPtrFactory<SiteInstanceGroup> weak_ptr_factory_{this};
 };

@@ -7,9 +7,10 @@ package org.chromium.chrome.browser.app.download.home;
 import android.app.Activity;
 import android.os.Bundle;
 
-import org.chromium.chrome.browser.BackPressHelper;
 import org.chromium.chrome.browser.SnackbarActivity;
+import org.chromium.chrome.browser.back_press.BackPressHelper;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.back_press.SecondaryActivityBackPressUma.SecondaryActivity;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.download.home.DownloadManagerCoordinator;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
@@ -53,6 +54,9 @@ public class DownloadActivity extends SnackbarActivity implements ModalDialogMan
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // If the profile doesn't exist, then do not perform any action.
+        if (!DownloadUtils.doesProfileExistFromIntent(getIntent())) finish();
+
         mCurrentUrl = savedInstanceState == null
                 ? UrlConstants.DOWNLOADS_URL
                 : savedInstanceState.getString(BUNDLE_KEY_CURRENT_URL);
@@ -81,10 +85,10 @@ public class DownloadActivity extends SnackbarActivity implements ModalDialogMan
         mDownloadCoordinator.addObserver(mUiObserver);
         if (BackPressManager.isSecondaryActivityEnabled()) {
             BackPressHelper.create(this, getOnBackPressedDispatcher(),
-                    mDownloadCoordinator.getBackPressHandlers());
+                    mDownloadCoordinator.getBackPressHandlers(), SecondaryActivity.DOWNLOAD);
         } else {
-            BackPressHelper.create(
-                    this, getOnBackPressedDispatcher(), mDownloadCoordinator::onBackPressed);
+            BackPressHelper.create(this, getOnBackPressedDispatcher(),
+                    mDownloadCoordinator::onBackPressed, SecondaryActivity.DOWNLOAD);
         }
     }
 

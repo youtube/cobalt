@@ -4,10 +4,10 @@
 
 import {EmojiPickerApiProxyImpl} from 'chrome://emoji-picker/emoji_picker_api_proxy.js';
 import {EmojiSearch} from 'chrome://emoji-picker/emoji_search.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {assertEquals, assertGT} from 'chrome://webui-test/chai_assert.js';
 
-import {initialiseEmojiPickerForTest, timeout, waitForCondition, assertEmojiImageAlt} from './emoji_picker_test_util.js';
+import {assertEmojiImageAlt, initialiseEmojiPickerForTest, timeout, waitForCondition} from './emoji_picker_test_util.js';
 import {TestEmojiPickerApiProxyImpl} from './test_emoji_picker_api_proxy.js';
 
 
@@ -206,5 +206,18 @@ suite('emoji-search-gif', () => {
     assertEmojiImageAlt(rightColResults[3], 'Right 4');
     assertEmojiImageAlt(rightColResults[4], 'Right 5');
     assertEmojiImageAlt(rightColResults[5], 'Right 6');
+  });
+
+  test('Blank search queries should be prevented in API Proxy', async () => {
+    // Given a real API proxy.
+    const apiProxy = new EmojiPickerApiProxyImpl();
+
+    // When blank queries are sent.
+    const {status, searchGifs} = await apiProxy.searchGifs('   ');
+
+    // Then empty result should be returned.
+    assertEquals(status, 0);
+    assertEquals(searchGifs.next, '');
+    assertEquals(searchGifs.results.length, 0);
   });
 });

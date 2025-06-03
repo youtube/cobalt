@@ -11,7 +11,9 @@
 #include "base/observer_list.h"
 #include "base/ranges/algorithm.h"
 #include "ui/display/types/display_constants.h"
+#include "ui/events/devices/input_device.h"
 #include "ui/events/devices/input_device_event_observer.h"
+#include "ui/events/devices/keyboard_device.h"
 #include "ui/events/devices/touch_device_transform.h"
 #include "ui/events/devices/touchscreen_device.h"
 #include "ui/gfx/geometry/point3_f.h"
@@ -140,7 +142,8 @@ const std::vector<TouchscreenDevice>& DeviceDataManager::GetTouchscreenDevices()
   return touchscreen_devices_;
 }
 
-const std::vector<InputDevice>& DeviceDataManager::GetKeyboardDevices() const {
+const std::vector<KeyboardDevice>& DeviceDataManager::GetKeyboardDevices()
+    const {
   return keyboard_devices_;
 }
 
@@ -153,8 +156,14 @@ const std::vector<InputDevice>& DeviceDataManager::GetPointingStickDevices()
   return pointing_stick_devices_;
 }
 
-const std::vector<InputDevice>& DeviceDataManager::GetTouchpadDevices() const {
+const std::vector<TouchpadDevice>& DeviceDataManager::GetTouchpadDevices()
+    const {
   return touchpad_devices_;
+}
+
+const std::vector<InputDevice>& DeviceDataManager::GetGraphicsTabletDevices()
+    const {
+  return graphics_tablet_devices_;
 }
 
 const std::vector<InputDevice>& DeviceDataManager::GetUncategorizedDevices()
@@ -190,7 +199,7 @@ void DeviceDataManager::OnTouchscreenDevicesUpdated(
 }
 
 void DeviceDataManager::OnKeyboardDevicesUpdated(
-    const std::vector<InputDevice>& devices) {
+    const std::vector<KeyboardDevice>& devices) {
   if (base::ranges::equal(devices, keyboard_devices_, InputDeviceEquals)) {
     return;
   }
@@ -218,12 +227,22 @@ void DeviceDataManager::OnPointingStickDevicesUpdated(
 }
 
 void DeviceDataManager::OnTouchpadDevicesUpdated(
-    const std::vector<InputDevice>& devices) {
+    const std::vector<TouchpadDevice>& devices) {
   if (base::ranges::equal(devices, touchpad_devices_, InputDeviceEquals)) {
     return;
   }
   touchpad_devices_ = devices;
   NotifyObserversTouchpadDeviceConfigurationChanged();
+}
+
+void DeviceDataManager::OnGraphicsTabletDevicesUpdated(
+    const std::vector<InputDevice>& devices) {
+  if (base::ranges::equal(devices, graphics_tablet_devices_,
+                          InputDeviceEquals)) {
+    return;
+  }
+  graphics_tablet_devices_ = devices;
+  NotifyObserversGraphicsTabletDeviceConfigurationChanged();
 }
 
 void DeviceDataManager::OnUncategorizedDevicesUpdated(
@@ -261,6 +280,10 @@ NOTIFY_OBSERVERS(
 NOTIFY_OBSERVERS(
     NotifyObserversTouchpadDeviceConfigurationChanged(),
     OnInputDeviceConfigurationChanged(InputDeviceEventObserver::kTouchpad))
+
+NOTIFY_OBSERVERS(NotifyObserversGraphicsTabletDeviceConfigurationChanged(),
+                 OnInputDeviceConfigurationChanged(
+                     InputDeviceEventObserver::kGraphicsTablet))
 
 NOTIFY_OBSERVERS(
     NotifyObserversUncategorizedDeviceConfigurationChanged(),

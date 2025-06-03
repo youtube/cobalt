@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "chromeos/ash/services/libassistant/libassistant_service.h"
 #include "chromeos/ash/services/libassistant/public/mojom/authentication_state_observer.mojom.h"
 #include "chromeos/ash/services/libassistant/test_support/libassistant_service_tester.h"
@@ -28,8 +26,9 @@ std::vector<int> GetAuthenticationErrorCodes() {
 
   std::vector<int> result;
   for (int code = kMinErrorCode; code <= kMaxErrorCode; ++code) {
-    if (chromeos::assistant::IsAuthError(code))
+    if (chromeos::assistant::IsAuthError(code)) {
       result.push_back(code);
+    }
   }
 
   return result;
@@ -78,10 +77,6 @@ class AuthenticationStateObserverTest : public ::testing::Test {
   ~AuthenticationStateObserverTest() override = default;
 
   void SetUp() override {
-    // TODO(b/269803444): Reenable tests for LibAssistantV2.
-    feature_list_.InitAndDisableFeature(
-        assistant::features::kEnableLibAssistantV2);
-
     service_tester_.service().AddAuthenticationStateObserver(
         observer_mock_.BindNewPipeAndPassRemote());
 
@@ -101,17 +96,32 @@ class AuthenticationStateObserverTest : public ::testing::Test {
 
   void FlushMojomPipes() { service_tester_.FlushForTesting(); }
 
+  void OnCommunicationError(int error_code) {
+    if (!chromeos::assistant::IsAuthError(error_code)) {
+      return;
+    }
+
+    ::assistant::api::OnDeviceStateEventRequest request;
+    auto* communication_error =
+        request.mutable_event()->mutable_on_communication_error();
+    communication_error->set_error_code(
+        ::assistant::api::events::DeviceStateEvent::OnCommunicationError::
+            AUTH_TOKEN_FAIL);
+
+    service_tester_.service().conversation_controller().OnGrpcMessageForTesting(
+        request);
+  }
+
  private:
   base::test::SingleThreadTaskEnvironment environment_;
-  base::test::ScopedFeatureList feature_list_;
   ::testing::StrictMock<AuthenticationStateObserverMock> observer_mock_;
   LibassistantServiceTester service_tester_;
 };
 
-TEST_F(AuthenticationStateObserverTest, ShouldReportAuthenticationErrors_V1) {
+TEST_F(AuthenticationStateObserverTest, ShouldReportAuthenticationErrors) {
   for (int code : GetAuthenticationErrorCodes()) {
     EXPECT_CALL(observer_mock(), OnAuthenticationError());
-    assistant_manager_delegate().OnCommunicationError(code);
+    OnCommunicationError(code);
 
     FlushMojomPipes();
     ASSERT_TRUE(testing::Mock::VerifyAndClearExpectations(&observer_mock()))
@@ -119,18 +129,14 @@ TEST_F(AuthenticationStateObserverTest, ShouldReportAuthenticationErrors_V1) {
   }
 }
 
-TEST_F(AuthenticationStateObserverTest,
-       ShouldIgnoreNonAuthenticationErrors_V1) {
+TEST_F(AuthenticationStateObserverTest, ShouldIgnoreNonAuthenticationErrors) {
   std::vector<int> non_authentication_errors = GetNonAuthenticationErrorCodes();
 
-  // check to ensure these are not authentication errors.
-  for (int code : non_authentication_errors)
+  for (int code : non_authentication_errors) {
+    // check to ensure these are not authentication errors.
     ASSERT_FALSE(chromeos::assistant::IsAuthError(code));
-
-  // Run the actual unittest
-  for (int code : GetAuthenticationErrorCodes()) {
-    EXPECT_CALL(observer_mock(), OnAuthenticationError());
-    assistant_manager_delegate().OnCommunicationError(code);
+    EXPECT_CALL(observer_mock(), OnAuthenticationError()).Times(0);
+    OnCommunicationError(code);
 
     FlushMojomPipes();
     ASSERT_TRUE(testing::Mock::VerifyAndClearExpectations(&observer_mock()))

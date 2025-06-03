@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/ranges/algorithm.h"
@@ -25,6 +26,7 @@
 #include "chrome/common/extensions/api/chrome_web_view_internal.h"
 #include "chrome/common/extensions/api/context_menus.h"
 #include "chrome/common/extensions/api/url_handlers/url_handlers_parser.h"
+#include "components/guest_view/common/guest_view_constants.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/web_contents.h"
@@ -61,6 +63,9 @@ const char kTargetURLPatternsKey[] = "target_url_patterns";
 const char kTitleKey[] = "title";
 const char kMenuManagerTypeKey[] = "type";
 const char kVisibleKey[] = "visible";
+
+// The time by which to delay writing updated menu items to storage.
+constexpr int kWriteDelayInSeconds = 1;
 
 void SetIdKeyValue(base::Value::Dict& properties,
                    const char* key,
@@ -374,7 +379,8 @@ bool MenuManager::AddContextItem(const Extension* extension,
   if (key.empty() || base::Contains(items_by_id_, item->id()))
     return false;
 
-  DCHECK_EQ(extension->id(), key.extension_id);
+  const std::string& extension_id = extension ? extension->id() : "";
+  DCHECK_EQ(extension_id, key.extension_id);
 
   bool first_item = !base::Contains(context_items_, key);
   context_items_[key].push_back(std::move(item));
@@ -388,8 +394,9 @@ bool MenuManager::AddContextItem(const Extension* extension,
   }
 
   // If this is the first item for this extension, start loading its icon.
-  if (first_item)
+  if (first_item && extension) {
     icon_manager_.LoadIcon(browser_context_, extension);
+  }
 
   return true;
 }
@@ -734,7 +741,7 @@ void MenuManager::ExecuteCommand(content::BrowserContext* context,
         ->GrantIfRequested(extension);
   }
 
-  {
+  if (!item->extension_id().empty()) {
     // Dispatch to menu item's .onclick handler (this is the legacy API, from
     // before chrome.contextMenus.onClicked existed).
     auto event = std::make_unique<Event>(
@@ -759,8 +766,13 @@ void MenuManager::ExecuteCommand(content::BrowserContext* context,
       event->filter_info->has_instance_id = true;
       event->filter_info->instance_id = webview_guest->view_instance_id();
     }
-    event_router->DispatchEventToExtension(item->extension_id(),
-                                           std::move(event));
+    if (item->extension_id().empty() && webview_guest) {
+      event_router->DispatchEventToURL(
+          webview_guest->owner_rfh()->GetLastCommittedURL(), std::move(event));
+    } else {
+      event_router->DispatchEventToExtension(item->extension_id(),
+                                             std::move(event));
+    }
   }
 }
 
@@ -824,11 +836,30 @@ bool MenuManager::ItemUpdated(const MenuItem::Id& id) {
 
 void MenuManager::WriteToStorage(const Extension* extension,
                                  const MenuItem::ExtensionKey& extension_key) {
-  if (!BackgroundInfo::HasLazyContext(extension))
-    return;
   // <webview> menu items are transient and not stored in storage.
-  if (extension_key.webview_instance_id)
+  if (extension_key.webview_instance_id != kInstanceIDNone) {
     return;
+  }
+
+  // Test |BackgroundInfo::HasLazyContext()| after checking
+  // |webview_instance_id| to be an invalid ID. It's possible for |extension| to
+  // be null in the case that |webview_instance_id| is valid.
+  DCHECK(extension);
+  if (!BackgroundInfo::HasLazyContext(extension)) {
+    return;
+  }
+
+  // Schedule a task to write to storage since there could be many calls in a
+  // short span of time. See crbug.com/1476858.
+  write_tasks_[extension_key].Start(
+      FROM_HERE, base::Seconds(kWriteDelayInSeconds),
+      base::BindOnce(&MenuManager::WriteToStorageInternal,
+                     weak_ptr_factory_.GetWeakPtr(), extension_key));
+}
+
+void MenuManager::WriteToStorageInternal(
+    const MenuItem::ExtensionKey& extension_key) {
+  write_tasks_.erase(extension_key);
   const MenuItem::OwnedList* top_items = MenuItems(extension_key);
   MenuItem::List all_items;
   if (top_items) {
@@ -839,10 +870,10 @@ void MenuManager::WriteToStorage(const Extension* extension,
   }
 
   for (TestObserver& observer : observers_)
-    observer.WillWriteToStorage(extension->id());
+    observer.WillWriteToStorage(extension_key.extension_id);
 
   if (store_) {
-    store_->SetExtensionValue(extension->id(), kContextMenusKey,
+    store_->SetExtensionValue(extension_key.extension_id, kContextMenusKey,
                               base::Value(MenuItemsToValue(all_items)));
   }
 }
@@ -856,6 +887,8 @@ void MenuManager::ReadFromStorage(const std::string& extension_id,
     return;
 
   MenuItem::OwnedList items = MenuItemsFromValue(extension_id, value);
+  base::UmaHistogramCounts1000("Extensions.MenuManager.MenuItemsCount",
+                               items.size());
   for (auto& item : items) {
     if (item->parent_id()) {
       // Parent IDs are stored in the parent_id field for convenience, but
@@ -968,8 +1001,8 @@ bool MenuItem::ExtensionKey::operator<(const ExtensionKey& other) const {
   if (webview_instance_id != other.webview_instance_id)
     return webview_instance_id < other.webview_instance_id;
 
-  // If either extension ID is empty, then these ExtensionKeys will be compared
-  // only based on the other IDs.
+  // If either extension ID is empty, then these ExtensionKeys will be
+  // compared only based on the other IDs.
   if (extension_id.empty() || other.extension_id.empty())
     return false;
 

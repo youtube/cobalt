@@ -31,14 +31,13 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/content_settings/core/browser/content_settings_uma_util.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "components/ukm/test_ukm_recorder.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
@@ -72,7 +71,7 @@ class ToggledNotificationBlocker : public message_center::NotificationBlocker {
   ToggledNotificationBlocker(const ToggledNotificationBlocker&) = delete;
   ToggledNotificationBlocker& operator=(const ToggledNotificationBlocker&) =
       delete;
-  ~ToggledNotificationBlocker() override {}
+  ~ToggledNotificationBlocker() override = default;
 
   void SetNotificationsEnabled(bool enabled) {
     if (notifications_enabled_ != enabled) {
@@ -135,7 +134,7 @@ IN_PROC_BROWSER_TEST_F(NotificationsTest, DISABLED_TestUserGestureInfobar) {
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(
           browser()->tab_strip_model()->GetWebContentsAt(0));
-  EXPECT_EQ(1U, infobar_manager->infobar_count());
+  EXPECT_EQ(1U, infobar_manager->infobars().size());
 }
 
 IN_PROC_BROWSER_TEST_F(NotificationsTest, TestCreateSimpleNotification) {
@@ -158,6 +157,7 @@ IN_PROC_BROWSER_TEST_F(NotificationsTest, TestCreateSimpleNotification) {
 
 IN_PROC_BROWSER_TEST_F(NotificationsTest, NotificationBlockerTest) {
   ToggledNotificationBlocker blocker;
+  blocker.Init();
   TestMessageCenterObserver observer;
 
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -414,10 +414,9 @@ IN_PROC_BROWSER_TEST_F(NotificationsTest, InlinePermissionRevokeUkm) {
   EXPECT_EQ(
       *ukm_recorder.GetEntryMetric(entry, "Source"),
       static_cast<int64_t>(permissions::PermissionSourceUI::INLINE_SETTINGS));
-  size_t num_values = 0;
   EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "PermissionType"),
-            ContentSettingTypeToHistogramValue(
-                ContentSettingsType::NOTIFICATIONS, &num_values));
+            content_settings_uma_util::ContentSettingTypeToHistogramValue(
+                ContentSettingsType::NOTIFICATIONS));
   EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "Action"),
             static_cast<int64_t>(permissions::PermissionAction::REVOKED));
 }
@@ -795,9 +794,7 @@ IN_PROC_BROWSER_TEST_F(NotificationsTestWithFakeMediaStream,
 
   // Start a screen capture session.
   content::WebContents* web_contents = GetActiveWebContents(browser());
-  EXPECT_TRUE(content::ExecuteScriptAndExtractString(
-      web_contents, "startScreenCapture();", &result));
-  ASSERT_EQ("success", result);
+  ASSERT_EQ("success", content::EvalJs(web_contents, "startScreenCapture();"));
 
   // Showing a notification during the screen capture session should show the
   // "Notifications muted" notification.
@@ -828,9 +825,7 @@ IN_PROC_BROWSER_TEST_F(NotificationsTestWithFakeMediaStream,
 
   // Stop the screen capture session.
   browser()->tab_strip_model()->ActivateTabAt(screen_capture_tab);
-  EXPECT_TRUE(content::ExecuteScriptAndExtractString(
-      web_contents, "stopScreenCapture();", &result));
-  ASSERT_EQ("success", result);
+  ASSERT_EQ("success", content::EvalJs(web_contents, "stopScreenCapture();"));
 
   // Stopping the screen capture session should display the queued notifications
   // and close the "Notifications muted" notification.

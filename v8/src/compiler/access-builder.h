@@ -89,14 +89,14 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::context() field.
   static FieldAccess ForJSFunctionContext();
 
+  // Provides access to JSFunction::code() field.
+  static FieldAccess ForJSFunctionCode();
+
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
   // Provides access to JSFunction::feedback_cell() field.
   static FieldAccess ForJSFunctionFeedbackCell();
-
-  // Provides access to JSFunction::code() field.
-  static FieldAccess ForJSFunctionCode();
 
   // Provides access to JSBoundFunction::bound_target_function() field.
   static FieldAccess ForJSBoundFunctionBoundTargetFunction();
@@ -370,6 +370,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFeedbackVectorInvocationCount();
   static FieldAccess ForFeedbackVectorFlags();
   static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
+
+#if V8_ENABLE_WEBASSEMBLY
+  static FieldAccess ForWasmArrayLength();
+#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

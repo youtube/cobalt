@@ -19,6 +19,7 @@
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/common/surfaces/surface_range.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/overlay_transform.h"
@@ -335,18 +336,19 @@ TEST_F(SlimLayerTreeTest, ReferencedSurfaceRange) {
   layer->SetSurfaceId(end, cc::DeadlinePolicy::UseDefaultDeadline());
 
   layer_tree_->SetRoot(layer);
-  EXPECT_EQ(layer_tree_->referenced_surfaces(),
-            base::flat_set<viz::SurfaceRange>{viz::SurfaceRange(start, end)});
+  EXPECT_THAT(layer_tree_->referenced_surfaces(),
+              testing::UnorderedElementsAre(
+                  std::make_pair(viz::SurfaceRange(start, end), 1)));
 
   viz::SurfaceId new_end(viz::FrameSinkId(1u, 2u),
                          viz::LocalSurfaceId(7u, 8u, token));
   layer->SetSurfaceId(new_end, cc::DeadlinePolicy::UseDefaultDeadline());
-  EXPECT_EQ(layer_tree_->referenced_surfaces(),
-            std::vector<viz::SurfaceRange>{viz::SurfaceRange(start, new_end)});
+  EXPECT_THAT(layer_tree_->referenced_surfaces(),
+              testing::UnorderedElementsAre(
+                  std::make_pair(viz::SurfaceRange(start, new_end), 1)));
 
   layer_tree_->SetRoot(nullptr);
-  EXPECT_EQ(layer_tree_->referenced_surfaces(),
-            std::vector<viz::SurfaceRange>());
+  EXPECT_TRUE(layer_tree_->referenced_surfaces().empty());
 }
 
 TEST_F(SlimLayerTreeTest, DestroyTreeBeforeLayer) {
@@ -368,6 +370,20 @@ TEST_F(SlimLayerTreeTest, DestroyTreeBeforeLayer) {
 
   EXPECT_EQ(root_layer->layer_tree(), nullptr);
   EXPECT_EQ(surface_layer->layer_tree(), nullptr);
+}
+
+TEST_F(SlimLayerTreeTest, NewLocalSurfaceIdForNewSink) {
+  auto weak_frame_sink = SetupLayerTreeForDraw();
+  viz::LocalSurfaceId old_id = weak_frame_sink->GetCurrentLocalSurfaceId();
+
+  auto frame_sink = TestFrameSinkImpl::Create();
+  weak_frame_sink = frame_sink->GetWeakPtr();
+  layer_tree_->SetFrameSink(std::move(frame_sink));
+  EXPECT_TRUE(weak_frame_sink);
+
+  viz::LocalSurfaceId new_id = weak_frame_sink->GetCurrentLocalSurfaceId();
+  EXPECT_NE(old_id, new_id);
+  EXPECT_TRUE(new_id.IsNewerThan(old_id));
 }
 
 }  // namespace

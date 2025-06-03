@@ -520,7 +520,7 @@ IN_PROC_BROWSER_TEST_F(EnrollmentScreenTest,
   enrollment_screen()->Show(&context);
   enrollment_ui_.WaitForStep(test::ui::kEnrollmentStepError);
 
-  enrollment_helper_.VerifyAndClear();
+  enrollment_helper_.ResetMock();
   enrollment_ui_.RetryAfterError();
   enrollment_ui_.WaitForStep(test::ui::kEnrollmentStepWorking);
 }
@@ -547,8 +547,8 @@ class EnrollmentErrorScreenTest
   bool IsManualEnrollmentMode(policy::EnrollmentConfig::Mode mode) const {
     switch (mode) {
       case policy::EnrollmentConfig::MODE_NONE:
-      case policy::EnrollmentConfig::OBSOLETE_MODE_ENROLLED_ROLLBACK:
-      case policy::EnrollmentConfig::MODE_OFFLINE_DEMO_DEPRECATED:
+      case policy::EnrollmentConfig::DEPRECATED_MODE_ENROLLED_ROLLBACK:
+      case policy::EnrollmentConfig::DEPRECATED_MODE_OFFLINE_DEMO:
         break;
       case policy::EnrollmentConfig::MODE_MANUAL:
       case policy::EnrollmentConfig::MODE_MANUAL_REENROLLMENT:
@@ -587,8 +587,8 @@ IN_PROC_BROWSER_TEST_P(ManualEnrollmentErrorScreenTest,
   enrollment_helper_.ExpectEnrollmentMode(enrollment_config.mode);
   // The test expects the error screen to be shown. Avoid automatic fallback
   enrollment_helper_.ExpectOAuthEnrollmentError(
-      policy::EnrollmentStatus::ForStatus(
-          policy::EnrollmentStatus::REGISTRATION_FAILED));
+      policy::EnrollmentStatus::ForEnrollmentCode(
+          policy::EnrollmentStatus::Code::kRegistrationFailed));
   enrollment_helper_.SetupClearAuth();
 
   enrollment_screen()->SetEnrollmentConfig(enrollment_config);
@@ -795,45 +795,6 @@ class EnrollmentScreenHandsOffTest : public EnrollmentScreenTest {
 // culprit CL.
 IN_PROC_BROWSER_TEST_F(EnrollmentScreenHandsOffTest,
                        DISABLED_SkipEnrollmentCompleteScreen) {
-  enrollment_ui_.SetExitHandler();
-  enrollment_screen()->OnDeviceAttributeUpdatePermission(false /* granted */);
-  EnrollmentScreen::Result screen_result = enrollment_ui_.WaitForScreenExit();
-  EXPECT_EQ(EnrollmentScreen::Result::COMPLETED, screen_result);
-
-  EXPECT_TRUE(StartupUtils::IsDeviceRegistered());
-}
-
-class EnrollmentScreenChromadMigrationTest : public EnrollmentScreenTest {
- public:
-  EnrollmentScreenChromadMigrationTest() = default;
-  ~EnrollmentScreenChromadMigrationTest() override = default;
-
-  EnrollmentScreenChromadMigrationTest(
-      const EnrollmentScreenChromadMigrationTest&) = delete;
-  EnrollmentScreenChromadMigrationTest& operator=(
-      const EnrollmentScreenChromadMigrationTest&) = delete;
-
-  // EnrollmentScreenTest:
-  bool SetUpUserDataDirectory() override {
-    if (!EnrollmentScreenTest::SetUpUserDataDirectory())
-      return false;
-
-    base::FilePath preinstalled_components_dir;
-    EXPECT_TRUE(base::PathService::Get(DIR_PREINSTALLED_COMPONENTS,
-                                       &preinstalled_components_dir));
-
-    base::FilePath preserve_dir =
-        preinstalled_components_dir.AppendASCII("preserve/");
-    EXPECT_TRUE(base::CreateDirectory(preserve_dir));
-    EXPECT_TRUE(base::WriteFile(
-        preserve_dir.AppendASCII("chromad_migration_skip_oobe"), "1"));
-
-    return true;
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(EnrollmentScreenChromadMigrationTest,
-                       SkipEnrollmentCompleteScreen) {
   enrollment_ui_.SetExitHandler();
   enrollment_screen()->OnDeviceAttributeUpdatePermission(false /* granted */);
   EnrollmentScreen::Result screen_result = enrollment_ui_.WaitForScreenExit();

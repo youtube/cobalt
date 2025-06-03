@@ -42,7 +42,7 @@ class MODULES_EXPORT MediaStreamRemoteVideoSource
 
   // MediaStreamVideoSource overrides.
   bool SupportsEncodedOutput() const override;
-  void RequestRefreshFrame() override;
+  void RequestKeyFrame() override;
   base::WeakPtr<MediaStreamVideoSource> GetWeakPtr() override;
 
  protected:
@@ -50,7 +50,8 @@ class MODULES_EXPORT MediaStreamRemoteVideoSource
   void StartSourceImpl(
       VideoCaptureDeliverFrameCB frame_callback,
       EncodedVideoFrameCB encoded_frame_callback,
-      VideoCaptureCropVersionCB crop_version_callback) override;
+      VideoCaptureSubCaptureTargetVersionCB sub_capture_target_version_callback,
+      VideoCaptureNotifyFrameDroppedCB frame_dropped_callback) override;
   void StopSourceImpl() override;
   void OnEncodedSinkEnabled() override;
   void OnEncodedSinkDisabled() override;

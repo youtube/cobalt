@@ -136,13 +136,25 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
 
     if (window) {
 #if BUILDFLAG(IS_CHROMEOS)
-      if (window->IsVisible())
+      if (window->IsVisible()) {
         *bounds = window->GetRestoredBounds();
+      }
 #else
       *bounds = window->GetRestoredBounds();
 #endif
-      if (*show_state == ui::SHOW_STATE_DEFAULT && window->IsMaximized())
+
+      // On Mac GetRestoredBounds already returns the maximized bounds for
+      // maximized windows. Additionally creating a window with a maximized
+      // show state results in an invisible window if the window is a PWA
+      // (i.e. out-of-process remote cocoa) window (https://crbug.com/1441966).
+      // Never using SHOW_STATE_MAXIMIZED on Mac is also consistent with
+      // NativeWidgetMac::Show, which does not support SHOW_STATE_MAXIMIZED
+      // either.
+#if !BUILDFLAG(IS_MAC)
+      if (*show_state == ui::SHOW_STATE_DEFAULT && window->IsMaximized()) {
         *show_state = ui::SHOW_STATE_MAXIMIZED;
+      }
+#endif
       return true;
     }
 
@@ -177,9 +189,10 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
   raw_ptr<const Browser> browser_;
 };
 
-// This function, unlike base::clamp(), does not check if `min` is greater than
-// `max`, and returns a bogus answer if it is. TODO(crbug.com/1235666) migrate
-// all code that calls this function to use base::clamp() instead.
+// This function, unlike hardened std::clamp(), does not check if `min` is
+// greater than `max`, and returns a bogus answer if it is.
+// TODO(crbug.com/1235666) migrate all code that calls this function to use
+// std::clamp() instead.
 constexpr int BrokenClampThatShouldNotBeUsed(int value, int min, int max) {
   return std::min(std::max(value, min), max);
 }
@@ -360,7 +373,7 @@ void WindowSizer::AdjustBoundsToBeVisibleOnDisplay(
     bounds->set_width(std::min(bounds->width(), work_area.width()));
     bounds->set_height(std::min(bounds->height(), work_area.height()));
     // TODO(crbug.com/1235666): Make sure these use correct ranges (lo <= hi)
-    // and migrate to base::clamp().
+    // and migrate to std::clamp().
     bounds->set_x(BrokenClampThatShouldNotBeUsed(
         bounds->x(), work_area.x(), work_area.right() - bounds->width()));
     bounds->set_y(BrokenClampThatShouldNotBeUsed(
@@ -393,7 +406,7 @@ void WindowSizer::AdjustBoundsToBeVisibleOnDisplay(
   const int max_y = work_area.bottom() - kMinVisibleHeight;
   const int max_x = work_area.right() - kMinVisibleWidth;
   // TODO(crbug.com/1235666): Make sure these use correct ranges (lo <= hi)
-  // and migrate to base::clamp().
+  // and migrate to std::clamp().
   bounds->set_y(BrokenClampThatShouldNotBeUsed(bounds->y(), min_y, max_y));
   bounds->set_x(BrokenClampThatShouldNotBeUsed(bounds->x(), min_x, max_x));
 #endif  // BUILDFLAG(IS_MAC)

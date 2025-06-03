@@ -181,16 +181,6 @@ TraceConfig BackgroundTracingConfigImpl::GetTraceConfig() const {
   return chrome_config;
 }
 
-size_t BackgroundTracingConfigImpl::GetTraceUploadLimitKb() const {
-#if BUILDFLAG(IS_ANDROID)
-  auto type = net::NetworkChangeNotifier::GetConnectionType();
-  if (net::NetworkChangeNotifier::IsConnectionCellular(type)) {
-    return upload_limit_network_kb_;
-  }
-#endif
-  return upload_limit_kb_;
-}
-
 // static
 std::unique_ptr<BackgroundTracingConfigImpl>
 BackgroundTracingConfigImpl::FromDict(base::Value::Dict&& dict) {
@@ -356,8 +346,12 @@ TraceConfig BackgroundTracingConfigImpl::GetConfigForCategoryPreset(
     base::trace_event::TraceRecordMode record_mode) {
   switch (preset) {
     case BackgroundTracingConfigImpl::CategoryPreset::BENCHMARK_STARTUP: {
+      // This config should match exactly the one set in
+      // TraceStartupConfig::EnableFromBackgroundTracing, otherwise the
+      // startup session will not be adopted.
       auto config =
           tracing::TraceStartupConfig::GetDefaultBrowserStartupConfig();
+      config.EnableArgumentFilter();
       config.SetTraceRecordMode(record_mode);
       return config;
     }

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/lens/lens_core_tab_side_panel_helper.h"
 
+#include "chrome/browser/companion/core/constants.h"
+#include "chrome/browser/companion/core/features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -37,7 +39,7 @@ bool IsSidePanelEnabled(content::WebContents* web_contents) {
 
 bool IsInProgressiveWebApp(content::WebContents* web_contents) {
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   return browser && (browser->is_type_app() || browser->is_type_app_popup());
 #else
   return false;
@@ -59,7 +61,7 @@ TemplateURLService* GetTemplateURLService(content::WebContents* web_contents) {
 gfx::Size GetSidePanelInitialContentSizeUpperBound(
     content::WebContents* web_contents) {
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   const SidePanel* side_panel =
       BrowserView::GetBrowserViewForBrowser(browser)->unified_side_panel();
   return side_panel->GetContentSizeUpperBound();
@@ -69,15 +71,10 @@ gfx::Size GetSidePanelInitialContentSizeUpperBound(
 }
 
 bool IsSidePanelEnabledForLens(content::WebContents* web_contents) {
-  // Companion feature being enabled should disable Lens in the side panel.
-  bool is_companion_enabled = false;
-#if !BUILDFLAG(IS_ANDROID)
-  is_companion_enabled = companion::IsCompanionFeatureEnabled();
-#endif
   return search::DefaultSearchProviderIsGoogle(
              lens::internal::GetTemplateURLService(web_contents)) &&
          lens::internal::IsSidePanelEnabled(web_contents) &&
-         lens::features::IsLensSidePanelEnabled() && !is_companion_enabled;
+         lens::features::IsLensSidePanelEnabled();
 }
 
 bool IsSidePanelEnabledForLensRegionSearch(content::WebContents* web_contents) {

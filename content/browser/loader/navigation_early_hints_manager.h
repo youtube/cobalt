@@ -8,6 +8,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "content/common/content_export.h"
@@ -116,6 +117,10 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
   // True when there are at least one inflight preloads.
   bool HasInflightPreloads() const;
 
+  absl::optional<base::TimeTicks> first_early_hints_receive_time() const {
+    return first_early_hints_receive_time_;
+  }
+
   void WaitForPreloadsFinishedForTesting(
       base::OnceCallback<void(PreloadedResources)> callback);
 
@@ -186,7 +191,7 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   // Set to true when HandleEarlyHints() is called for the first time. Used to
   // ignore following responses.
-  bool was_first_early_hints_received_ = false;
+  absl::optional<base::TimeTicks> first_early_hints_receive_time_;
   // Set to true when preload or preconnect Link headers are received. Used for
   // metrics recording.
   bool was_resource_hints_received_ = false;
@@ -194,8 +199,8 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
   base::OnceCallback<void(PreloadedResources)>
       preloads_completion_callback_for_testing_;
 
-  raw_ptr<network::mojom::NetworkContext> network_context_for_testing_ =
-      nullptr;
+  raw_ptr<network::mojom::NetworkContext, DanglingUntriaged>
+      network_context_for_testing_ = nullptr;
 };
 
 }  // namespace content

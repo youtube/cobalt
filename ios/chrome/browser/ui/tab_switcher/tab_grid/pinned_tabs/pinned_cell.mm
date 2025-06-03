@@ -9,18 +9,17 @@
 
 #import "base/check.h"
 #import "base/notreached.h"
+#import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/ui/tab_switcher/tab_grid/pinned_tabs/pinned_tabs_constants.h"
-#import "ios/chrome/browser/ui/tab_switcher/tab_grid/transitions/grid_transition_animation.h"
+#import "ios/chrome/browser/ui/tab_switcher/tab_grid/transitions/legacy_grid_transition_animation.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/gradient_view.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/gfx/ios/uikit_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // TODO(crbug.com/1412115): Refactor this method.
@@ -144,8 +143,6 @@ UIColor* GetInterfaceStyleDarkColor(UIColor* dynamicColor) {
 
 - (void)prepareForReuse {
   [super prepareForReuse];
-
-  self.itemIdentifier = nil;
   self.icon = nil;
   self.title = nil;
   self.snapshot = nil;
@@ -183,7 +180,7 @@ UIColor* GetInterfaceStyleDarkColor(UIColor* dynamicColor) {
 
   _titleLabel.text = [title copy];
   _titleLabel.textAlignment = titleTextAligment;
-  self.accessibilityLabel = [title copy];
+  self.accessibilityLabel = [self accessibilityLabelWithTitle:title];
 
   [self updateTitleLabelAppearance];
   [self updateTitleLabelFaderAppearance];
@@ -520,6 +517,11 @@ UIColor* GetInterfaceStyleDarkColor(UIColor* dynamicColor) {
     }
   }
   return NSTextAlignmentLeft;
+}
+
+- (NSString*)accessibilityLabelWithTitle:(NSString*)title {
+  return l10n_util::GetNSStringF(IDS_IOS_PINNED_TAB_ACCESSIBILITY_LABEL,
+                                 base::SysNSStringToUTF16(title));
 }
 
 @end

@@ -40,6 +40,13 @@ struct TestParams {
   bool alpha;
   bool desynchronized;
 };
+
+class AcceleratedCompositingTestPlatform
+    : public blink::TestingPlatformSupport {
+ public:
+  bool IsGpuCompositingDisabled() const override { return false; }
+};
+
 }  // unnamed namespace
 
 class OffscreenCanvasTest : public ::testing::Test,
@@ -58,7 +65,7 @@ class OffscreenCanvasTest : public ::testing::Test,
   }
 
   LocalDOMWindow* GetWindow() const {
-    return web_view_helper_.GetWebView()
+    return web_view_helper_->GetWebView()
         ->MainFrameImpl()
         ->GetFrame()
         ->DomWindow();
@@ -67,35 +74,41 @@ class OffscreenCanvasTest : public ::testing::Test,
   Document& GetDocument() const { return *GetWindow()->document(); }
 
  private:
-  frame_test_helpers::WebViewHelper web_view_helper_;
+  std::unique_ptr<frame_test_helpers::WebViewHelper> web_view_helper_;
   Persistent<OffscreenCanvas> offscreen_canvas_;
   Persistent<OffscreenCanvasRenderingContext2D> context_;
   FakeGLES2Interface gl_;
+  std::unique_ptr<
+      ScopedTestingPlatformSupport<AcceleratedCompositingTestPlatform>>
+      accelerated_compositing_scope_;
 };
 
 OffscreenCanvasTest::OffscreenCanvasTest() = default;
 
 void OffscreenCanvasTest::SetUp() {
-  auto factory = [](FakeGLES2Interface* gl, bool* gpu_compositing_disabled)
+  auto factory = [](FakeGLES2Interface* gl)
       -> std::unique_ptr<WebGraphicsContext3DProvider> {
-    *gpu_compositing_disabled = false;
     gl->SetIsContextLost(false);
     return std::make_unique<FakeWebGraphicsContext3DProvider>(gl);
   };
   SharedGpuContext::SetContextProviderFactoryForTesting(
       WTF::BindRepeating(factory, WTF::Unretained(&gl_)));
 
-  web_view_helper_.Initialize();
+  web_view_helper_ = std::make_unique<frame_test_helpers::WebViewHelper>();
+  web_view_helper_->Initialize();
+  accelerated_compositing_scope_ = std::make_unique<
+      ScopedTestingPlatformSupport<AcceleratedCompositingTestPlatform>>();
 
   GetDocument().documentElement()->setInnerHTML(
       String::FromUTF8("<body><canvas id='c'></canvas></body>"));
 
   auto* canvas_element =
-      To<HTMLCanvasElement>(GetDocument().getElementById("c"));
+      To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
 
   DummyExceptionStateForTesting exception_state;
   offscreen_canvas_ = HTMLCanvasElementModule::transferControlToOffscreen(
-      GetWindow(), *canvas_element, exception_state);
+      ToScriptStateForMainWorld(GetWindow()->GetFrame()), *canvas_element,
+      exception_state);
   // |offscreen_canvas_| should inherit the FrameSinkId from |canvas_element|s
   // SurfaceLayerBridge, but in tests this id is zero; fill it up by hand.
   offscreen_canvas_->SetFrameSinkId(kClientId, kSinkId);
@@ -112,6 +125,9 @@ void OffscreenCanvasTest::SetUp() {
 
 void OffscreenCanvasTest::TearDown() {
   SharedGpuContext::ResetForTesting();
+  // destruction order matters due to nested TestPlatformSupport instance.
+  accelerated_compositing_scope_ = nullptr;
+  web_view_helper_ = nullptr;
 }
 
 TEST_F(OffscreenCanvasTest, AnimationNotInitiallySuspended) {

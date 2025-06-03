@@ -19,7 +19,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "content/browser/loader/prefetch_url_loader_service.h"
+#include "content/browser/loader/prefetch_url_loader_service_context.h"
+#include "content/browser/loader/subresource_proxying_url_loader_service.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
@@ -37,13 +38,13 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_paths.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/common/page_type.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -239,7 +240,9 @@ class SignedExchangeRequestHandlerBrowserTestBase
                                                ->web_contents()
                                                ->GetBrowserContext()
                                                ->GetDefaultStoragePartition());
-    partition->GetPrefetchURLLoaderService()->SetAcceptLanguages(langs);
+    partition->GetSubresourceProxyingURLLoaderService()
+        ->prefetch_url_loader_service_context_for_testing()
+        .SetAcceptLanguages(langs);
   }
 
   std::unique_ptr<InactiveRenderFrameHostDeletionObserver>

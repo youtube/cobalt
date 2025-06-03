@@ -12,6 +12,7 @@
 #include "chrome/browser/enterprise/idle/action.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/enterprise/idle/idle_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/test/browser_task_environment.h"
@@ -181,16 +182,16 @@ TEST(IdleActionRunnerTest, DoNothingWithEmptyPref) {
   // "IdleTimeoutActions" is deliberately unset.
   auto clear_browsing_history =
       std::make_unique<MockAction>(ActionType::kClearBrowsingHistory);
-  auto clear_download_history =
-      std::make_unique<MockAction>(ActionType::kClearDownloadHistory);
+  auto clear_cookies_and_site_data =
+      std::make_unique<MockAction>(ActionType::kClearCookiesAndOtherSiteData);
 
   EXPECT_CALL(*clear_browsing_history, Run(_, _)).Times(0);
-  EXPECT_CALL(*clear_download_history, Run(_, _)).Times(0);
+  EXPECT_CALL(*clear_cookies_and_site_data, Run(_, _)).Times(0);
 
   action_factory.Associate(ActionType::kClearBrowsingHistory,
                            std::move(clear_browsing_history));
-  action_factory.Associate(ActionType::kClearDownloadHistory,
-                           std::move(clear_download_history));
+  action_factory.Associate(ActionType::kClearCookiesAndOtherSiteData,
+                           std::move(clear_cookies_and_site_data));
   runner.Run();
 }
 
@@ -327,6 +328,11 @@ class FakeBrowsingDataRemover : public BrowsingDataRemover {
   uint64_t GetLastUsedOriginTypeMaskForTesting() override {
     return origin_type_mask_;
   }
+  absl::optional<content::StoragePartitionConfig>
+  GetLastUsedStoragePartitionConfigForTesting() override {
+    return absl::nullopt;
+  }
+  uint64_t GetPendingTaskCountForTesting() override { return 0; }
 
   void SetFailedDataTypesForTesting(uint64_t failed_data_types) {
     failed_data_types_ = failed_data_types;
@@ -513,6 +519,8 @@ TEST_F(IdleActionRunnerClearDataTest, MultipleTypesAndFailure) {
       {ActionType::kClearBrowsingHistory, ActionType::kClearDownloadHistory,
        ActionType::kClearAutofill});
   ASSERT_EQ(1u, actions.size());
+  EXPECT_EQ(static_cast<int>(ActionType::kClearBrowsingHistory),
+            actions.top()->priority());
 
   // The callback should run with success=false.
   base::MockCallback<Action::Continuation> cb;

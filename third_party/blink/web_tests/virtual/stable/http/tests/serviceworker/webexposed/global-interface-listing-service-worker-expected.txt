@@ -10,6 +10,7 @@ interface AbortPaymentEvent : ExtendableEvent
     method respondWith
 interface AbortSignal : EventTarget
     static method abort
+    static method any
     static method timeout
     attribute @@toStringTag
     getter aborted
@@ -1048,10 +1049,12 @@ interface PerformanceResourceTiming : PerformanceEntry
     getter connectEnd
     getter connectStart
     getter decodedBodySize
+    getter deliveryType
     getter domainLookupEnd
     getter domainLookupStart
     getter encodedBodySize
     getter fetchStart
+    getter firstInterimResponseStart
     getter initiatorType
     getter nextHopProtocol
     getter redirectEnd
@@ -1358,8 +1361,11 @@ interface TextMetrics
     getter actualBoundingBoxDescent
     getter actualBoundingBoxLeft
     getter actualBoundingBoxRight
+    getter alphabeticBaseline
     getter fontBoundingBoxAscent
     getter fontBoundingBoxDescent
+    getter hangingBaseline
+    getter ideographicBaseline
     getter width
     method constructor
 interface TransformStream
@@ -1410,6 +1416,7 @@ interface TrustedTypePolicyFactory : EventTarget
     method isScript
     method isScriptURL
 interface URL
+    static method canParse
     attribute @@toStringTag
     getter hash
     getter host

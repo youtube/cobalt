@@ -13,7 +13,9 @@
 #include "base/types/strong_alias.h"
 #include "components/attribution_reporting/aggregation_keys.h"
 #include "components/attribution_reporting/destination_set.h"
+#include "components/attribution_reporting/event_report_windows.h"
 #include "components/attribution_reporting/filters.h"
+#include "components/attribution_reporting/trigger_config.h"
 #include "content/browser/attribution_reporting/common_source_info.h"
 #include "content/common/content_export.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -42,25 +44,26 @@ class CONTENT_EXPORT StoredSource {
     kReachedEventLevelAttributionLimit = 2,
     kMaxValue = kReachedEventLevelAttributionLimit,
   };
-
-  static bool IsExpiryOrReportWindowTimeValid(
-      base::Time expiry_or_report_window_time,
-      base::Time source_time);
-
-  StoredSource(CommonSourceInfo common_info,
-               uint64_t source_event_id,
-               attribution_reporting::DestinationSet,
-               base::Time expiry_time,
-               base::Time event_report_window_time,
-               base::Time aggregatable_report_window_time,
-               int64_t priority,
-               attribution_reporting::FilterData,
-               absl::optional<uint64_t> debug_key,
-               attribution_reporting::AggregationKeys,
-               AttributionLogic,
-               ActiveState,
-               Id source_id,
-               int64_t aggregatable_budget_consumed);
+  static absl::optional<StoredSource> Create(
+      CommonSourceInfo common_info,
+      uint64_t source_event_id,
+      attribution_reporting::DestinationSet,
+      base::Time source_time,
+      base::Time expiry_time,
+      attribution_reporting::EventReportWindows,
+      base::Time aggregatable_report_window_time,
+      int max_event_level_reports,
+      int64_t priority,
+      attribution_reporting::FilterData,
+      absl::optional<uint64_t> debug_key,
+      attribution_reporting::AggregationKeys,
+      AttributionLogic,
+      ActiveState,
+      Id source_id,
+      int64_t aggregatable_budget_consumed,
+      double randomized_response_rate,
+      attribution_reporting::TriggerConfig,
+      bool debug_cookie_set);
 
   ~StoredSource();
 
@@ -78,15 +81,20 @@ class CONTENT_EXPORT StoredSource {
     return destination_sites_;
   }
 
-  base::Time expiry_time() const { return expiry_time_; }
+  base::Time source_time() const { return source_time_; }
 
-  base::Time event_report_window_time() const {
-    return event_report_window_time_;
-  }
+  base::Time expiry_time() const { return expiry_time_; }
 
   base::Time aggregatable_report_window_time() const {
     return aggregatable_report_window_time_;
   }
+
+  const attribution_reporting::EventReportWindows& event_report_windows()
+      const {
+    return event_report_windows_;
+  }
+
+  int max_event_level_reports() const { return max_event_level_reports_; }
 
   int64_t priority() const { return priority_; }
 
@@ -116,6 +124,14 @@ class CONTENT_EXPORT StoredSource {
     return aggregatable_dedup_keys_;
   }
 
+  double randomized_response_rate() const { return randomized_response_rate_; }
+
+  const attribution_reporting::TriggerConfig& trigger_config() const {
+    return trigger_config_;
+  }
+
+  bool debug_cookie_set() const { return debug_cookie_set_; }
+
   void SetDedupKeys(std::vector<uint64_t> dedup_keys) {
     dedup_keys_ = std::move(dedup_keys);
   }
@@ -125,13 +141,35 @@ class CONTENT_EXPORT StoredSource {
   }
 
  private:
+  StoredSource(CommonSourceInfo common_info,
+               uint64_t source_event_id,
+               attribution_reporting::DestinationSet,
+               base::Time source_time,
+               base::Time expiry_time,
+               attribution_reporting::EventReportWindows,
+               base::Time aggregatable_report_window_time,
+               int max_event_level_reports,
+               int64_t priority,
+               attribution_reporting::FilterData,
+               absl::optional<uint64_t> debug_key,
+               attribution_reporting::AggregationKeys,
+               AttributionLogic,
+               ActiveState,
+               Id source_id,
+               int64_t aggregatable_budget_consumed,
+               double randomized_response_rate,
+               attribution_reporting::TriggerConfig,
+               bool debug_cookie_set);
+
   CommonSourceInfo common_info_;
 
   uint64_t source_event_id_;
   attribution_reporting::DestinationSet destination_sites_;
+  base::Time source_time_;
   base::Time expiry_time_;
-  base::Time event_report_window_time_;
+  attribution_reporting::EventReportWindows event_report_windows_;
   base::Time aggregatable_report_window_time_;
+  int max_event_level_reports_;
   int64_t priority_;
   attribution_reporting::FilterData filter_data_;
   absl::optional<uint64_t> debug_key_;
@@ -150,6 +188,12 @@ class CONTENT_EXPORT StoredSource {
   std::vector<uint64_t> dedup_keys_;
 
   std::vector<uint64_t> aggregatable_dedup_keys_;
+
+  double randomized_response_rate_;
+
+  attribution_reporting::TriggerConfig trigger_config_;
+
+  bool debug_cookie_set_;
 
   // When adding new members, the corresponding `operator==()` definition in
   // `attribution_test_utils.h` should also be updated.

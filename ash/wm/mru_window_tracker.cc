@@ -3,12 +3,9 @@
 // found in the LICENSE file.
 
 #include "ash/wm/mru_window_tracker.h"
-#include "base/memory/raw_ptr.h"
 
 #include "ash/constants/app_types.h"
-#include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/window_properties.h"
-#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/wm/ash_focus_rules.h"
 #include "ash/wm/desks/desk.h"
@@ -16,14 +13,14 @@
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/switchable_windows.h"
+#include "ash/wm/window_properties.h"
 #include "ash/wm/window_restore/window_restore_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
+#include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
-#include "chromeos/ui/wm/features.h"
 #include "components/app_restore/window_properties.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
@@ -34,6 +31,8 @@
 namespace ash {
 
 namespace {
+
+using WindowList = MruWindowTracker::WindowList;
 
 // A class that observes a window that should not be destroyed inside a certain
 // scope. This class is added to investigate crbug.com/937381 to see if it's
@@ -62,8 +61,13 @@ class ScopedWindowClosingObserver : public aura::WindowObserver {
 };
 
 bool IsNonSysModalWindowConsideredActivatable(aura::Window* window) {
-  if (window->GetProperty(ash::kExcludeInMruKey))
+  if (window->GetProperty(kExcludeInMruKey)) {
     return false;
+  }
+
+  if (window->GetProperty(kOverviewUiKey)) {
+    return false;
+  }
 
   ScopedWindowClosingObserver observer(window);
   AshFocusRules* focus_rules = Shell::Get()->focus_rules();
@@ -217,7 +221,8 @@ bool CanIncludeWindowInMruList(aura::Window* window) {
     return true;
 
   return wm::CanActivateWindow(window) &&
-         !window->GetProperty(ash::kExcludeInMruKey);
+         !window->GetProperty(kExcludeInMruKey) &&
+         !window->GetProperty(kOverviewUiKey);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -233,7 +238,7 @@ MruWindowTracker::~MruWindowTracker() {
     window->RemoveObserver(this);
 }
 
-MruWindowTracker::WindowList MruWindowTracker::BuildAppWindowList(
+WindowList MruWindowTracker::BuildAppWindowList(
     DesksMruType desks_mru_type) const {
   return BuildWindowListInternal(
       &mru_windows_, desks_mru_type, [](aura::Window* w) {
@@ -242,25 +247,25 @@ MruWindowTracker::WindowList MruWindowTracker::BuildAppWindowList(
       });
 }
 
-MruWindowTracker::WindowList MruWindowTracker::BuildMruWindowList(
+WindowList MruWindowTracker::BuildMruWindowList(
     DesksMruType desks_mru_type) const {
   return BuildWindowListInternal(&mru_windows_, desks_mru_type,
                                  CanIncludeWindowInMruList);
 }
 
-MruWindowTracker::WindowList MruWindowTracker::BuildWindowListIgnoreModal(
+WindowList MruWindowTracker::BuildWindowListIgnoreModal(
     DesksMruType desks_mru_type) const {
   return BuildWindowListInternal(&mru_windows_, desks_mru_type,
                                  IsNonSysModalWindowConsideredActivatable);
 }
 
-MruWindowTracker::WindowList MruWindowTracker::BuildWindowForCycleList(
+WindowList MruWindowTracker::BuildWindowForCycleList(
     DesksMruType desks_mru_type) const {
   return BuildWindowListInternal(&mru_windows_, desks_mru_type,
                                  CanIncludeWindowInCycleList);
 }
 
-MruWindowTracker::WindowList MruWindowTracker::BuildWindowForCycleWithPipList(
+WindowList MruWindowTracker::BuildWindowForCycleWithPipList(
     DesksMruType desks_mru_type) const {
   return BuildWindowListInternal(&mru_windows_, desks_mru_type,
                                  CanIncludeWindowInCycleWithPipList);

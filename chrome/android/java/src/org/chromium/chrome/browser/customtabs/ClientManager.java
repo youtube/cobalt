@@ -39,6 +39,7 @@ import org.chromium.chrome.browser.browserservices.PostMessageHandler;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifier;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifierFactory;
 import org.chromium.chrome.browser.browserservices.verification.ChromeOriginVerifierFactoryImpl;
+import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
 import org.chromium.components.content_relationship_verification.OriginVerifier.OriginVerificationListener;
 import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -61,7 +62,8 @@ import java.util.Set;
 class ClientManager {
     // Values for the "CustomTabs.MayLaunchUrlType" UMA histogram. Append-only.
     @IntDef({MayLaunchUrlType.NO_MAY_LAUNCH_URL, MayLaunchUrlType.LOW_CONFIDENCE,
-            MayLaunchUrlType.HIGH_CONFIDENCE, MayLaunchUrlType.BOTH})
+            MayLaunchUrlType.HIGH_CONFIDENCE, MayLaunchUrlType.BOTH,
+            MayLaunchUrlType.INVALID_SESSION, MayLaunchUrlType.NUM_ENTRIES})
     @Retention(RetentionPolicy.SOURCE)
     @interface MayLaunchUrlType {
         @VisibleForTesting
@@ -72,7 +74,8 @@ class ClientManager {
         int HIGH_CONFIDENCE = 2;
         @VisibleForTesting
         int BOTH = 3; // LOW + HIGH.
-        int NUM_ENTRIES = 4;
+        int INVALID_SESSION = 4;
+        int NUM_ENTRIES = 5;
     }
 
     // Values for the "CustomTabs.PredictionStatus" UMA histogram. Append-only.
@@ -230,12 +233,13 @@ class ClientManager {
         private boolean mShouldGetPageLoadMetrics;
         private boolean mCustomTabIsInForeground;
         private boolean mWasSessionDisconnectStatusLogged;
-        private Supplier<Integer> mGreatestScrollPercentageSupplier;
         private Supplier<Boolean> mEngagementSignalsAvailableSupplier;
+        private final EngagementSignalsHandler mEngagementSignalsHandler;
 
         public SessionParams(Context context, int uid, CustomTabsCallback customTabsCallback,
                 DisconnectCallback callback, PostMessageHandler postMessageHandler,
-                PostMessageServiceConnection serviceConnection) {
+                PostMessageServiceConnection serviceConnection,
+                EngagementSignalsHandler engagementSignalsHandler) {
             this.uid = uid;
             mPackageName = getPackageName(context, uid);
             mCustomTabsCallback = customTabsCallback;
@@ -243,6 +247,7 @@ class ClientManager {
             this.postMessageHandler = postMessageHandler;
             this.serviceConnection = serviceConnection;
             if (postMessageHandler != null) this.serviceConnection.setPackageName(mPackageName);
+            mEngagementSignalsHandler = engagementSignalsHandler;
         }
 
         /**
@@ -324,20 +329,16 @@ class ClientManager {
             mEngagementSignalsCallback = callback;
         }
 
-        public void setGreatestScrollPercentageSupplier(Supplier<Integer> supplier) {
-            mGreatestScrollPercentageSupplier = supplier;
-        }
-
-        public Supplier<Integer> getGreatestScrollPercentageSupplier() {
-            return mGreatestScrollPercentageSupplier;
-        }
-
         public void setEngagementSignalsAvailableSupplier(Supplier<Boolean> supplier) {
             mEngagementSignalsAvailableSupplier = supplier;
         }
 
         public Supplier<Boolean> getEngagementSignalsAvailableSupplier() {
             return mEngagementSignalsAvailableSupplier;
+        }
+
+        public EngagementSignalsHandler getEngagementSignalsHandler() {
+            return mEngagementSignalsHandler;
         }
     }
 
@@ -376,7 +377,8 @@ class ClientManager {
         RequestThrottler.loadInBackground();
     }
 
-    /** Creates a new session.
+    /**
+     * Creates a new session.
      *
      * @param session Session provided by the client.
      * @param uid Client UID, as returned by Binder.getCallingUid(),
@@ -386,7 +388,8 @@ class ClientManager {
      */
     public synchronized boolean newSession(CustomTabsSessionToken session, int uid,
             DisconnectCallback onDisconnect, @NonNull PostMessageHandler postMessageHandler,
-            @NonNull PostMessageServiceConnection serviceConnection) {
+            @NonNull PostMessageServiceConnection serviceConnection,
+            @NonNull EngagementSignalsHandler engagementSignalsHandler) {
         if (session == null || session.getCallback() == null) return false;
         if (mSessionParams.containsKey(session)) {
             SessionParams params = mSessionParams.get(session);
@@ -394,7 +397,8 @@ class ClientManager {
             params.mWasSessionDisconnectStatusLogged = false;
         } else {
             SessionParams params = new SessionParams(ContextUtils.getApplicationContext(), uid,
-                    session.getCallback(), onDisconnect, postMessageHandler, serviceConnection);
+                    session.getCallback(), onDisconnect, postMessageHandler, serviceConnection,
+                    engagementSignalsHandler);
             mSessionParams.put(session, params);
         }
 
@@ -499,7 +503,11 @@ class ClientManager {
         RecordHistogram.recordEnumeratedHistogram("CustomTabs.WarmupStateOnLaunch",
                 getWarmupState(session), CalledWarmup.NUM_ENTRIES);
 
-        if (params == null) return;
+        if (params == null) {
+            RecordHistogram.recordEnumeratedHistogram("CustomTabs.MayLaunchUrlType",
+                    MayLaunchUrlType.INVALID_SESSION, MayLaunchUrlType.NUM_ENTRIES);
+            return;
+        }
 
         @MayLaunchUrlType
         int value = (params.lowConfidencePrediction ? MayLaunchUrlType.LOW_CONFIDENCE : 0)
@@ -525,32 +533,35 @@ class ClientManager {
     }
 
     /**
-     * See {@link PostMessageHandler#initializeWithPostMessageUri(Uri)}.
+     * See {@link PostMessageHandler#initializeWithPostMessageUri(Uri, Uri)}.
      */
     public void initializeWithPostMessageOriginForSession(
-            CustomTabsSessionToken session, Uri origin) {
-        callOnSession(
-                session, params -> params.postMessageHandler.initializeWithPostMessageUri(origin));
+            CustomTabsSessionToken session, Uri origin, Uri targetOrigin) {
+        callOnSession(session,
+                params
+                -> params.postMessageHandler.initializeWithPostMessageUri(origin, targetOrigin));
     }
 
     public synchronized boolean validateRelationship(
             CustomTabsSessionToken session, int relation, Origin origin, Bundle extras) {
-        return validateRelationshipInternal(session, relation, origin, false);
+        return validateRelationshipInternal(session, relation, origin, null, false);
     }
 
     /**
      * Validates the link between the client and the origin.
      */
     public synchronized void verifyAndInitializeWithPostMessageOriginForSession(
-            CustomTabsSessionToken session, Origin origin, @Relation int relation) {
-        validateRelationshipInternal(session, relation, origin, true);
+            CustomTabsSessionToken session, Origin origin, Origin targetOrigin,
+            @Relation int relation) {
+        validateRelationshipInternal(session, relation, origin, targetOrigin, true);
     }
 
     /**
      * Can't be called on UI Thread.
      */
     private synchronized boolean validateRelationshipInternal(CustomTabsSessionToken session,
-            int relation, Origin origin, boolean initializePostMessageChannel) {
+            int relation, Origin origin, @Nullable Origin targetOrigin,
+            boolean initializePostMessageChannel) {
         SessionParams params = mSessionParams.get(session);
         if (params == null || TextUtils.isEmpty(params.getPackageName())) return false;
 
@@ -567,8 +578,11 @@ class ClientManager {
                 callback.onRelationshipValidationResult(relation, origin.uri(), verified, extras);
             }
             if (initializePostMessageChannel) {
-                params.postMessageHandler
-                        .onOriginVerified(packageName, verifiedOrigin, verified, online);
+                if (targetOrigin != null) {
+                    params.postMessageHandler.setPostMessageTargetUri(targetOrigin.uri());
+                }
+                params.postMessageHandler.onOriginVerified(
+                        packageName, verifiedOrigin, verified, online);
             }
         };
 
@@ -588,10 +602,18 @@ class ClientManager {
     /**
      * @return The postMessage origin for the given session.
      */
-    @VisibleForTesting
     Uri getPostMessageOriginForSessionForTesting(CustomTabsSessionToken session) {
         return callOnSession(session, null,
                 params -> params.postMessageHandler.getPostMessageUriForTesting() // IN-TEST
+        );
+    }
+
+    /**
+     * @return The postMessage target origin for the given session.
+     */
+    Uri getPostMessageTargetOriginForSessionForTesting(CustomTabsSessionToken session) {
+        return callOnSession(session, null,
+                params -> params.postMessageHandler.getPostMessageTargetUriForTesting() // IN-TEST
         );
     }
 
@@ -760,19 +782,6 @@ class ClientManager {
         return callOnSession(session, false, params -> params.mShouldGetPageLoadMetrics);
     }
 
-    public void setGreatestScrollPercentageSupplierForSession(
-            CustomTabsSessionToken session, Supplier<Integer> supplier) {
-        callOnSession(session, params -> params.setGreatestScrollPercentageSupplier(supplier));
-    }
-
-    public int getGreatestScrollPercentageForSession(
-            CustomTabsSessionToken session, Bundle extras) {
-        return callOnSession(session, 0, params -> {
-            Supplier<Integer> supplier = params.getGreatestScrollPercentageSupplier();
-            return supplier != null ? supplier.get() : 0;
-        });
-    }
-
     /**
      * Returns the uid associated with the session, {@code -1} if there is no matching session.
      */
@@ -797,7 +806,7 @@ class ClientManager {
     /** Tries to bind to a client to keep it alive, and returns true for success. */
     public synchronized boolean keepAliveForSession(CustomTabsSessionToken session, Intent intent) {
         // When an application is bound to a service, its priority is raised to
-        // be at least equal to the application's one. This binds to a dummy
+        // be at least equal to the application's one. This binds to a placeholder
         // service (no calls to this service are made).
         if (intent == null || intent.getComponent() == null) return false;
         SessionParams params = mSessionParams.get(session);
@@ -933,6 +942,11 @@ class ClientManager {
     public @Nullable Supplier<Boolean> getEngagementSignalsAvailableSupplierForSession(
             CustomTabsSessionToken session) {
         return callOnSession(session, null, SessionParams::getEngagementSignalsAvailableSupplier);
+    }
+
+    public @Nullable EngagementSignalsHandler getEngagementSignalsHandlerForSession(
+            CustomTabsSessionToken session) {
+        return callOnSession(session, null, SessionParams::getEngagementSignalsHandler);
     }
 
     private void logConnectionClosed(SessionParams sessionParams) {

@@ -1,12 +1,13 @@
 {
   "name": "Borderless Isolated Web App",
+  "version": "1.0.0",
   "id": "/",
   "scope": "/",
   "start_url": "/index.html",
   "display": "standalone",
   "display_override": ["borderless"],
   "permissions_policy": {
-    "window-placement": [ "*" ]
+    "window-management": [ "*" ]
   },
   "icons": [
     {

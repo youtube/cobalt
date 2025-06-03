@@ -19,8 +19,6 @@
 #include "base/one_shot_event.h"
 #include "base/time/time.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
 #include "extensions/common/api/events.h"
 #include "extensions/common/extension_id.h"
 
@@ -242,7 +240,7 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
                            const std::string& error);
 
   // The context to which this rules registry belongs.
-  raw_ptr<content::BrowserContext> browser_context_;
+  raw_ptr<content::BrowserContext, LeakedDanglingUntriaged> browser_context_;
 
   // The ID of the thread on which the rules registry lives.
   const content::BrowserThread::ID owner_thread_;

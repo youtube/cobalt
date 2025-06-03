@@ -13,6 +13,7 @@
 #include "ash/quick_pair/common/mock_quick_pair_browser_delegate.h"
 #include "ash/quick_pair/common/pair_failure.h"
 #include "ash/quick_pair/common/protocol.h"
+#include "ash/quick_pair/companion_app/mock_companion_app_broker.h"
 #include "ash/quick_pair/fast_pair_handshake/fake_fast_pair_handshake.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_data_encryptor.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_gatt_service_client.h"
@@ -41,6 +42,7 @@
 #include "chromeos/ash/services/bluetooth_config/adapter_state_controller.h"
 #include "chromeos/ash/services/bluetooth_config/fake_adapter_state_controller.h"
 #include "chromeos/ash/services/bluetooth_config/fake_discovery_session_manager.h"
+#include "chromeos/ash/services/bluetooth_config/in_process_instance.h"
 #include "chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom.h"
 #include "chromeos/ash/services/quick_pair/quick_pair_process_manager_impl.h"
 #include "components/prefs/pref_registry.h"
@@ -86,7 +88,10 @@ class MediatorTest : public AshTestBase {
       : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
+    set_create_quick_pair_mediator(false);
+
     AshTestBase::SetUp();
+
     adapter_ =
         base::MakeRefCounted<testing::NiceMock<device::MockBluetoothAdapter>>();
     ON_CALL(*adapter_, IsPresent()).WillByDefault(testing::Return(true));
@@ -133,25 +138,23 @@ class MediatorTest : public AshTestBase {
     std::unique_ptr<UIBroker> ui_broker = std::make_unique<MockUIBroker>();
     mock_ui_broker_ = static_cast<MockUIBroker*>(ui_broker.get());
 
+    std::unique_ptr<CompanionAppBroker> companion_app_broker =
+        std::make_unique<MockCompanionAppBroker>();
+    mock_companion_app_broker_ =
+        static_cast<MockCompanionAppBroker*>(companion_app_broker.get());
+
     std::unique_ptr<FastPairRepository> fast_pair_repository =
         std::make_unique<MockFastPairRepository>();
     mock_fast_pair_repository_ =
         static_cast<MockFastPairRepository*>(fast_pair_repository.get());
 
-    browser_delegate_ = std::make_unique<MockQuickPairBrowserDelegate>();
-    ON_CALL(*browser_delegate_, GetActivePrefService())
-        .WillByDefault(testing::Return(&pref_service_));
-    pref_service_.registry()->RegisterBooleanPref(ash::prefs::kFastPairEnabled,
-                                                  /*default_value=*/true);
-
-    FastPairHandshakeLookup::SetCreateFunctionForTesting(base::BindRepeating(
-        &MediatorTest::CreateHandshake, base::Unretained(this)));
-
+    FastPairHandshakeLookup::UseFakeInstance();
     mediator_ = std::make_unique<Mediator>(
         std::move(tracker), std::move(scanner_broker),
         std::move(retroactive_pairing_detector),
         std::make_unique<FakeMessageStreamLookup>(), std::move(pairer_broker),
-        std::move(ui_broker), std::move(fast_pair_repository),
+        std::move(ui_broker), std::move(companion_app_broker),
+        std::move(fast_pair_repository),
         std::make_unique<QuickPairProcessManagerImpl>());
 
     initial_device_ = base::MakeRefCounted<Device>(
@@ -194,16 +197,20 @@ class MediatorTest : public AshTestBase {
   scoped_refptr<Device> subsequent_device_;
   scoped_refptr<Device> retroactive_device_;
   scoped_refptr<testing::NiceMock<device::MockBluetoothAdapter>> adapter_;
-  raw_ptr<FakeFeatureStatusTracker, ExperimentalAsh> feature_status_tracker_;
-  raw_ptr<MockScannerBroker, ExperimentalAsh> mock_scanner_broker_;
-  raw_ptr<FakeRetroactivePairingDetector, ExperimentalAsh>
+  raw_ptr<FakeFeatureStatusTracker, DanglingUntriaged | ExperimentalAsh>
+      feature_status_tracker_;
+  raw_ptr<MockScannerBroker, DanglingUntriaged | ExperimentalAsh>
+      mock_scanner_broker_;
+  raw_ptr<FakeRetroactivePairingDetector, DanglingUntriaged | ExperimentalAsh>
       fake_retroactive_pairing_detector_;
-  raw_ptr<MockPairerBroker, ExperimentalAsh> mock_pairer_broker_;
-  raw_ptr<MockUIBroker, ExperimentalAsh> mock_ui_broker_;
-  raw_ptr<MockFastPairRepository, ExperimentalAsh> mock_fast_pair_repository_;
+  raw_ptr<MockPairerBroker, DanglingUntriaged | ExperimentalAsh>
+      mock_pairer_broker_;
+  raw_ptr<MockUIBroker, DanglingUntriaged | ExperimentalAsh> mock_ui_broker_;
+  raw_ptr<MockCompanionAppBroker, DanglingUntriaged | ExperimentalAsh>
+      mock_companion_app_broker_;
+  raw_ptr<MockFastPairRepository, DanglingUntriaged | ExperimentalAsh>
+      mock_fast_pair_repository_;
   bluetooth_config::FakeAdapterStateController fake_adapter_state_controller_;
-  std::unique_ptr<MockQuickPairBrowserDelegate> browser_delegate_;
-  TestingPrefServiceSimple pref_service_;
   std::unique_ptr<Mediator> mediator_;
 };
 
@@ -628,28 +635,100 @@ TEST_F(MediatorTest, AssociateAccountKeyAction_Dismissed) {
       initial_device_, AssociateAccountAction::kDismissedByUser);
 }
 
-TEST_F(MediatorTest, CompanionAppAction_DownloadApp) {
+TEST_F(MediatorTest, CompanionAppAction_DownloadApp_Disabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{ash::features::kFastPairPwaCompanion});
+
   feature_status_tracker_->SetIsFastPairEnabled(true);
-  EXPECT_CALL(*mock_pairer_broker_, PairDevice).Times(0);
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mock_ui_broker_->NotifyCompanionAppAction(
+            initial_device_, CompanionAppAction::kDownloadAndLaunchApp);
+      },
+      "");
+}
+
+TEST_F(MediatorTest, CompanionAppAction_DownloadApp_Enabled) {
+  base::test::ScopedFeatureList feature_list{
+      ash::features::kFastPairPwaCompanion};
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_companion_app_broker_, InstallCompanionApp).Times(1);
   mock_ui_broker_->NotifyCompanionAppAction(
       initial_device_, CompanionAppAction::kDownloadAndLaunchApp);
 }
 
-TEST_F(MediatorTest, CompanionAppAction_LaunchApp) {
+TEST_F(MediatorTest, CompanionAppAction_LaunchApp_Disabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{ash::features::kFastPairPwaCompanion});
+
   feature_status_tracker_->SetIsFastPairEnabled(true);
-  EXPECT_CALL(*mock_pairer_broker_, PairDevice).Times(0);
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mock_ui_broker_->NotifyCompanionAppAction(
+            initial_device_, CompanionAppAction::kLaunchApp);
+      },
+      "");
+}
+
+TEST_F(MediatorTest, CompanionAppAction_LaunchApp_Enabled) {
+  base::test::ScopedFeatureList feature_list{
+      ash::features::kFastPairPwaCompanion};
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_companion_app_broker_, LaunchCompanionApp).Times(1);
   mock_ui_broker_->NotifyCompanionAppAction(initial_device_,
                                             CompanionAppAction::kLaunchApp);
 }
 
-TEST_F(MediatorTest, CompanionAppAction_DismissedByUser) {
+TEST_F(MediatorTest, CompanionAppAction_DismissedByUser_Disabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{ash::features::kFastPairPwaCompanion});
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mock_ui_broker_->NotifyCompanionAppAction(
+            initial_device_, CompanionAppAction::kDismissedByUser);
+      },
+      "");
+}
+
+TEST_F(MediatorTest, CompanionAppAction_DismissedByUser_Enabled) {
+  base::test::ScopedFeatureList feature_list{
+      ash::features::kFastPairPwaCompanion};
+
   feature_status_tracker_->SetIsFastPairEnabled(true);
   EXPECT_CALL(*mock_pairer_broker_, PairDevice).Times(0);
   mock_ui_broker_->NotifyCompanionAppAction(
       initial_device_, CompanionAppAction::kDismissedByUser);
 }
 
-TEST_F(MediatorTest, CompanionAppAction_Dismissed) {
+TEST_F(MediatorTest, CompanionAppAction_Dismissed_Disabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{ash::features::kFastPairPwaCompanion});
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        mock_ui_broker_->NotifyCompanionAppAction(
+            initial_device_, CompanionAppAction::kDismissed);
+      },
+      "");
+}
+
+TEST_F(MediatorTest, CompanionAppAction_Dismissed_Enabled) {
+  base::test::ScopedFeatureList feature_list{
+      ash::features::kFastPairPwaCompanion};
+
   feature_status_tracker_->SetIsFastPairEnabled(true);
   EXPECT_CALL(*mock_pairer_broker_, PairDevice).Times(0);
   mock_ui_broker_->NotifyCompanionAppAction(initial_device_,
@@ -770,11 +849,22 @@ TEST_F(MediatorTest, DiscoveryBanLogic_InitialParing) {
   EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(0);
   mock_scanner_broker_->NotifyDeviceFound(initial_device_);
 
-  // We only expect the notification to be shown again when the Fast Pair
+  // We expect the notification to be shown again when the Fast Pair
   // state is reset. Simulate the Fast Pair toggle being turned off then on
   // again.
   feature_status_tracker_->SetIsFastPairEnabled(false);
   feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(1);
+  mock_scanner_broker_->NotifyDeviceFound(initial_device_);
+
+  // We also expect the notification to be shown again after a successful
+  // pairing. Trigger the ban logic.
+  mock_ui_broker_->NotifyDiscoveryAction(initial_device_,
+                                         DiscoveryAction::kDismissedByUser);
+  EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(0);
+  mock_scanner_broker_->NotifyDeviceFound(initial_device_);
+  // Trigger a successful pairing
+  mock_pairer_broker_->NotifyDevicePaired(initial_device_);
   EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(1);
   mock_scanner_broker_->NotifyDeviceFound(initial_device_);
 }
@@ -825,11 +915,22 @@ TEST_F(MediatorTest, DiscoveryBan_SubsequentParing) {
   EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(0);
   mock_scanner_broker_->NotifyDeviceFound(subsequent_device_);
 
-  // We only expect the notification to be shown again when the Fast Pair
+  // We expect the notification to be shown again when the Fast Pair
   // state is reset. Simulate the Fast Pair toggle being turned off then on
   // again.
   feature_status_tracker_->SetIsFastPairEnabled(false);
   feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(1);
+  mock_scanner_broker_->NotifyDeviceFound(subsequent_device_);
+
+  // We also expect the notification to be shown again after a successful
+  // pairing. Trigger the ban logic.
+  mock_ui_broker_->NotifyDiscoveryAction(subsequent_device_,
+                                         DiscoveryAction::kDismissedByUser);
+  EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(0);
+  mock_scanner_broker_->NotifyDeviceFound(subsequent_device_);
+  // Trigger a successful pairing
+  mock_pairer_broker_->NotifyDevicePaired(subsequent_device_);
   EXPECT_CALL(*mock_ui_broker_, ShowDiscovery).Times(1);
   mock_scanner_broker_->NotifyDeviceFound(subsequent_device_);
 }
@@ -945,6 +1046,28 @@ TEST_F(MediatorTest, NoShowAssociateAccount_OnInitialPairAccountKeyWrite) {
   EXPECT_CALL(*mock_ui_broker_, ShowAssociateAccount).Times(0);
   mock_pairer_broker_->NotifyAccountKeyWrite(initial_device_,
                                              /*error=*/absl::nullopt);
+}
+
+TEST_F(MediatorTest, ShowCompanionApp_OnDevicePaired_Disabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{ash::features::kFastPairPwaCompanion});
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_companion_app_broker_, MaybeShowCompanionAppActions)
+      .Times(0);
+  mock_pairer_broker_->NotifyDevicePaired(initial_device_);
+}
+
+TEST_F(MediatorTest, ShowCompanionApp_OnDevicePaired_Enabled) {
+  base::test::ScopedFeatureList feature_list{
+      ash::features::kFastPairPwaCompanion};
+
+  feature_status_tracker_->SetIsFastPairEnabled(true);
+  EXPECT_CALL(*mock_companion_app_broker_, MaybeShowCompanionAppActions)
+      .Times(1);
+  mock_pairer_broker_->NotifyDevicePaired(initial_device_);
 }
 
 }  // namespace quick_pair

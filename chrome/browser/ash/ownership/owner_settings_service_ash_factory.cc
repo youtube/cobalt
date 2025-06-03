@@ -33,12 +33,11 @@ DeviceSettingsService* GetDeviceSettingsService() {
 }  // namespace
 
 OwnerSettingsServiceAshFactory::OwnerSettingsServiceAshFactory()
-    : ProfileKeyedServiceFactory(
-          "OwnerSettingsService",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {}
+    : ProfileKeyedServiceFactory("OwnerSettingsService",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {}
 
 OwnerSettingsServiceAshFactory::~OwnerSettingsServiceAshFactory() = default;
 
@@ -51,7 +50,8 @@ OwnerSettingsServiceAsh* OwnerSettingsServiceAshFactory::GetForBrowserContext(
 
 // static
 OwnerSettingsServiceAshFactory* OwnerSettingsServiceAshFactory::GetInstance() {
-  return base::Singleton<OwnerSettingsServiceAshFactory>::get();
+  static base::NoDestructor<OwnerSettingsServiceAshFactory> instance;
+  return instance.get();
 }
 
 // static

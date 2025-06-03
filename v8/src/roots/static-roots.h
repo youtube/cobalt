@@ -12,7 +12,6 @@
 
 #if V8_STATIC_ROOTS_BOOL
 
-#include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
 
 // Disabling Wasm or Intl invalidates the contents of static-roots.h.
@@ -25,750 +24,759 @@ namespace v8 {
 namespace internal {
 
 struct StaticReadOnlyRoot {
-  static constexpr Tagged_t kMetaMap = 0x61;
-  static constexpr Tagged_t kFixedArrayMap = 0x89;
-  static constexpr Tagged_t kWeakFixedArrayMap = 0xb1;
-  static constexpr Tagged_t kWeakArrayListMap = 0xd9;
-  static constexpr Tagged_t kFixedCOWArrayMap = 0x101;
-  static constexpr Tagged_t kDescriptorArrayMap = 0x129;
-  static constexpr Tagged_t kUndefinedMap = 0x151;
-  static constexpr Tagged_t kNullMap = 0x179;
-  static constexpr Tagged_t kTheHoleMap = 0x1a1;
-  static constexpr Tagged_t kCallSiteInfoMap = 0x1c9;
-  static constexpr Tagged_t kEnumCacheMap = 0x1f1;
-  static constexpr Tagged_t kEmptyFixedArray = 0x219;
-  static constexpr Tagged_t kEmptyWeakFixedArray = 0x221;
-  static constexpr Tagged_t kEmptyWeakArrayList = 0x229;
-  static constexpr Tagged_t kNullValue = 0x235;
-  static constexpr Tagged_t kUndefinedValue = 0x251;
-  static constexpr Tagged_t kTheHoleValue = 0x26d;
-  static constexpr Tagged_t kEmptyEnumCache = 0x289;
-  static constexpr Tagged_t kEmptyDescriptorArray = 0x295;
-  static constexpr Tagged_t kScopeInfoMap = 0x2a5;
-  static constexpr Tagged_t kModuleInfoMap = 0x2cd;
-  static constexpr Tagged_t kClosureFeedbackCellArrayMap = 0x2f5;
-  static constexpr Tagged_t kFeedbackVectorMap = 0x31d;
-  static constexpr Tagged_t kHeapNumberMap = 0x345;
-  static constexpr Tagged_t kForeignMap = 0x36d;
-  static constexpr Tagged_t kMegaDomHandlerMap = 0x395;
-  static constexpr Tagged_t kBooleanMap = 0x3bd;
-  static constexpr Tagged_t kUninitializedMap = 0x3e5;
-  static constexpr Tagged_t kArgumentsMarkerMap = 0x40d;
-  static constexpr Tagged_t kExceptionMap = 0x435;
-  static constexpr Tagged_t kTerminationExceptionMap = 0x45d;
-  static constexpr Tagged_t kOptimizedOutMap = 0x485;
-  static constexpr Tagged_t kStaleRegisterMap = 0x4ad;
-  static constexpr Tagged_t kSelfReferenceMarkerMap = 0x4d5;
-  static constexpr Tagged_t kBasicBlockCountersMarkerMap = 0x4fd;
-  static constexpr Tagged_t kBigIntMap = 0x525;
-  static constexpr Tagged_t kSymbolMap = 0x54d;
-  static constexpr Tagged_t kStringMap = 0x575;
-  static constexpr Tagged_t kOneByteStringMap = 0x59d;
-  static constexpr Tagged_t kConsStringMap = 0x5c5;
-  static constexpr Tagged_t kConsOneByteStringMap = 0x5ed;
-  static constexpr Tagged_t kSlicedStringMap = 0x615;
-  static constexpr Tagged_t kSlicedOneByteStringMap = 0x63d;
-  static constexpr Tagged_t kExternalStringMap = 0x665;
-  static constexpr Tagged_t kExternalOneByteStringMap = 0x68d;
-  static constexpr Tagged_t kUncachedExternalStringMap = 0x6b5;
-  static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0x6dd;
-  static constexpr Tagged_t kSharedExternalStringMap = 0x705;
-  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0x72d;
-  static constexpr Tagged_t kSharedUncachedExternalStringMap = 0x755;
-  static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0x77d;
-  static constexpr Tagged_t kExternalInternalizedStringMap = 0x7a5;
-  static constexpr Tagged_t kExternalOneByteInternalizedStringMap = 0x7cd;
-  static constexpr Tagged_t kUncachedExternalInternalizedStringMap = 0x7f5;
-  static constexpr Tagged_t kUncachedExternalOneByteInternalizedStringMap =
-      0x81d;
-  static constexpr Tagged_t kInternalizedStringMap = 0x845;
-  static constexpr Tagged_t kOneByteInternalizedStringMap = 0x86d;
-  static constexpr Tagged_t kThinStringMap = 0x895;
-  static constexpr Tagged_t kSharedStringMap = 0x8bd;
-  static constexpr Tagged_t kSharedOneByteStringMap = 0x8e5;
-  static constexpr Tagged_t kFixedDoubleArrayMap = 0x90d;
-  static constexpr Tagged_t kFeedbackMetadataArrayMap = 0x935;
-  static constexpr Tagged_t kByteArrayMap = 0x95d;
-  static constexpr Tagged_t kBytecodeArrayMap = 0x985;
-  static constexpr Tagged_t kFreeSpaceMap = 0x9ad;
-  static constexpr Tagged_t kPropertyArrayMap = 0x9d5;
-  static constexpr Tagged_t kSmallOrderedHashMapMap = 0x9fd;
-  static constexpr Tagged_t kSmallOrderedHashSetMap = 0xa25;
-  static constexpr Tagged_t kSmallOrderedNameDictionaryMap = 0xa4d;
-  static constexpr Tagged_t kInstructionStreamMap = 0xa75;
-  static constexpr Tagged_t kCellMap = 0xa9d;
-  static constexpr Tagged_t kInvalidPrototypeValidityCell = 0xac5;
-  static constexpr Tagged_t kGlobalPropertyCellMap = 0xacd;
-  static constexpr Tagged_t kOnePointerFillerMap = 0xaf5;
-  static constexpr Tagged_t kTwoPointerFillerMap = 0xb1d;
-  static constexpr Tagged_t kNoClosuresCellMap = 0xb45;
-  static constexpr Tagged_t kOneClosureCellMap = 0xb6d;
-  static constexpr Tagged_t kManyClosuresCellMap = 0xb95;
-  static constexpr Tagged_t kTransitionArrayMap = 0xbbd;
-  static constexpr Tagged_t kHashTableMap = 0xbe5;
-  static constexpr Tagged_t kOrderedNameDictionaryMap = 0xc0d;
-  static constexpr Tagged_t kNameDictionaryMap = 0xc35;
-  static constexpr Tagged_t kSwissNameDictionaryMap = 0xc5d;
-  static constexpr Tagged_t kGlobalDictionaryMap = 0xc85;
-  static constexpr Tagged_t kNumberDictionaryMap = 0xcad;
-  static constexpr Tagged_t kRegisteredSymbolTableMap = 0xcd5;
-  static constexpr Tagged_t kArrayListMap = 0xcfd;
-  static constexpr Tagged_t kAccessorInfoMap = 0xd25;
-  static constexpr Tagged_t kPreparseDataMap = 0xd4d;
-  static constexpr Tagged_t kSharedFunctionInfoMap = 0xd75;
-  static constexpr Tagged_t kCodeMap = 0xd9d;
-  static constexpr Tagged_t kTrueValue = 0xdc5;
-  static constexpr Tagged_t kFalseValue = 0xde1;
-  static constexpr Tagged_t kHashSeed = 0xdfd;
-  static constexpr Tagged_t kempty_string = 0xe0d;
-  static constexpr Tagged_t klength_string = 0xe19;
-  static constexpr Tagged_t kprototype_string = 0xe2d;
-  static constexpr Tagged_t kname_string = 0xe45;
-  static constexpr Tagged_t kenumerable_string = 0xe55;
-  static constexpr Tagged_t kconfigurable_string = 0xe6d;
-  static constexpr Tagged_t kvalue_string = 0xe85;
-  static constexpr Tagged_t kwritable_string = 0xe99;
-  static constexpr Tagged_t knot_mapped_symbol = 0xead;
-  static constexpr Tagged_t kuninitialized_symbol = 0xebd;
-  static constexpr Tagged_t kmegamorphic_symbol = 0xecd;
-  static constexpr Tagged_t kelements_transition_symbol = 0xedd;
-  static constexpr Tagged_t kmega_dom_symbol = 0xeed;
-  static constexpr Tagged_t kEmptyPropertyDictionary = 0xefd;
-  static constexpr Tagged_t kEmptyOrderedPropertyDictionary = 0xf29;
-  static constexpr Tagged_t kEmptySwissPropertyDictionary = 0xf4d;
-  static constexpr Tagged_t kEmptyByteArray = 0xf6d;
-  static constexpr Tagged_t kEmptyScopeInfo = 0xf75;
-  static constexpr Tagged_t kEmptyPropertyArray = 0xf85;
-  static constexpr Tagged_t kMinusZeroValue = 0xf8d;
-  static constexpr Tagged_t kNanValue = 0xf99;
-  static constexpr Tagged_t kHoleNanValue = 0xfa5;
-  static constexpr Tagged_t kInfinityValue = 0xfb1;
-  static constexpr Tagged_t kMinusInfinityValue = 0xfbd;
-  static constexpr Tagged_t kMaxSafeInteger = 0xfc9;
-  static constexpr Tagged_t kMaxUInt32 = 0xfd5;
-  static constexpr Tagged_t kSmiMinValue = 0xfe1;
-  static constexpr Tagged_t kSmiMaxValuePlusOne = 0xfed;
-  static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap = 0xff9;
-  static constexpr Tagged_t kPromiseRejectReactionJobTaskMap = 0x1021;
-  static constexpr Tagged_t kCallableTaskMap = 0x1049;
-  static constexpr Tagged_t kCallbackTaskMap = 0x1071;
-  static constexpr Tagged_t kPromiseResolveThenableJobTaskMap = 0x1099;
-  static constexpr Tagged_t kFunctionTemplateInfoMap = 0x10c1;
-  static constexpr Tagged_t kObjectTemplateInfoMap = 0x10e9;
-  static constexpr Tagged_t kAccessCheckInfoMap = 0x1111;
-  static constexpr Tagged_t kAccessorPairMap = 0x1139;
-  static constexpr Tagged_t kAliasedArgumentsEntryMap = 0x1161;
-  static constexpr Tagged_t kAllocationMementoMap = 0x1189;
-  static constexpr Tagged_t kArrayBoilerplateDescriptionMap = 0x11b1;
-  static constexpr Tagged_t kAsmWasmDataMap = 0x11d9;
-  static constexpr Tagged_t kAsyncGeneratorRequestMap = 0x1201;
-  static constexpr Tagged_t kBreakPointMap = 0x1229;
-  static constexpr Tagged_t kBreakPointInfoMap = 0x1251;
-  static constexpr Tagged_t kClassPositionsMap = 0x1279;
-  static constexpr Tagged_t kDebugInfoMap = 0x12a1;
-  static constexpr Tagged_t kErrorStackDataMap = 0x12c9;
-  static constexpr Tagged_t kFunctionTemplateRareDataMap = 0x12f1;
-  static constexpr Tagged_t kInterceptorInfoMap = 0x1319;
-  static constexpr Tagged_t kInterpreterDataMap = 0x1341;
-  static constexpr Tagged_t kModuleRequestMap = 0x1369;
-  static constexpr Tagged_t kPromiseCapabilityMap = 0x1391;
-  static constexpr Tagged_t kPromiseOnStackMap = 0x13b9;
-  static constexpr Tagged_t kPromiseReactionMap = 0x13e1;
-  static constexpr Tagged_t kPropertyDescriptorObjectMap = 0x1409;
-  static constexpr Tagged_t kPrototypeInfoMap = 0x1431;
-  static constexpr Tagged_t kRegExpBoilerplateDescriptionMap = 0x1459;
-  static constexpr Tagged_t kScriptMap = 0x1481;
-  static constexpr Tagged_t kScriptOrModuleMap = 0x14a9;
-  static constexpr Tagged_t kSourceTextModuleInfoEntryMap = 0x14d1;
-  static constexpr Tagged_t kStackFrameInfoMap = 0x14f9;
-  static constexpr Tagged_t kTemplateObjectDescriptionMap = 0x1521;
-  static constexpr Tagged_t kTuple2Map = 0x1549;
-  static constexpr Tagged_t kWasmExceptionTagMap = 0x1571;
-  static constexpr Tagged_t kWasmIndirectFunctionTableMap = 0x1599;
-  static constexpr Tagged_t kAllocationSiteWithWeakNextMap = 0x15c1;
-  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap = 0x15e9;
-  static constexpr Tagged_t kLoadHandler1Map = 0x1611;
-  static constexpr Tagged_t kLoadHandler2Map = 0x1639;
-  static constexpr Tagged_t kLoadHandler3Map = 0x1661;
-  static constexpr Tagged_t kStoreHandler0Map = 0x1689;
-  static constexpr Tagged_t kStoreHandler1Map = 0x16b1;
-  static constexpr Tagged_t kStoreHandler2Map = 0x16d9;
-  static constexpr Tagged_t kStoreHandler3Map = 0x1701;
-  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x1729;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x1751;
+  static constexpr Tagged_t kUndefinedValue = 0x61;
+  static constexpr Tagged_t kNullValue = 0x7d;
+  static constexpr Tagged_t kempty_string = 0x99;
+  static constexpr Tagged_t kFalseValue = 0xa5;
+  static constexpr Tagged_t kTrueValue = 0xc1;
+  static constexpr Tagged_t kSeqTwoByteStringMap = 0xdd;
+  static constexpr Tagged_t kSeqOneByteStringMap = 0x105;
+  static constexpr Tagged_t kConsTwoByteStringMap = 0x12d;
+  static constexpr Tagged_t kConsOneByteStringMap = 0x155;
+  static constexpr Tagged_t kSlicedTwoByteStringMap = 0x17d;
+  static constexpr Tagged_t kSlicedOneByteStringMap = 0x1a5;
+  static constexpr Tagged_t kExternalTwoByteStringMap = 0x1cd;
+  static constexpr Tagged_t kExternalOneByteStringMap = 0x1f5;
+  static constexpr Tagged_t kUncachedExternalTwoByteStringMap = 0x21d;
+  static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0x245;
+  static constexpr Tagged_t kSharedExternalTwoByteStringMap = 0x26d;
+  static constexpr Tagged_t kSharedExternalOneByteStringMap = 0x295;
+  static constexpr Tagged_t kSharedUncachedExternalTwoByteStringMap = 0x2bd;
+  static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0x2e5;
+  static constexpr Tagged_t kExternalInternalizedTwoByteStringMap = 0x30d;
+  static constexpr Tagged_t kExternalInternalizedOneByteStringMap = 0x335;
+  static constexpr Tagged_t kUncachedExternalInternalizedTwoByteStringMap =
+      0x35d;
+  static constexpr Tagged_t kUncachedExternalInternalizedOneByteStringMap =
+      0x385;
+  static constexpr Tagged_t kInternalizedTwoByteStringMap = 0x3ad;
+  static constexpr Tagged_t kInternalizedOneByteStringMap = 0x3d5;
+  static constexpr Tagged_t kThinTwoByteStringMap = 0x3fd;
+  static constexpr Tagged_t kThinOneByteStringMap = 0x425;
+  static constexpr Tagged_t kSharedSeqTwoByteStringMap = 0x44d;
+  static constexpr Tagged_t kSharedSeqOneByteStringMap = 0x475;
+  static constexpr Tagged_t kSymbolMap = 0x49d;
+  static constexpr Tagged_t kMetaMap = 0x4c5;
+  static constexpr Tagged_t kUndefinedMap = 0x4ed;
+  static constexpr Tagged_t kNullMap = 0x515;
+  static constexpr Tagged_t kBooleanMap = 0x53d;
+  static constexpr Tagged_t kFixedArrayMap = 0x565;
+  static constexpr Tagged_t kWeakFixedArrayMap = 0x58d;
+  static constexpr Tagged_t kWeakArrayListMap = 0x5b5;
+  static constexpr Tagged_t kFixedCOWArrayMap = 0x5dd;
+  static constexpr Tagged_t kDescriptorArrayMap = 0x605;
+  static constexpr Tagged_t kHoleMap = 0x62d;
+  static constexpr Tagged_t kCallSiteInfoMap = 0x655;
+  static constexpr Tagged_t kEnumCacheMap = 0x67d;
+  static constexpr Tagged_t kEmptyFixedArray = 0x6a5;
+  static constexpr Tagged_t kEmptyWeakFixedArray = 0x6ad;
+  static constexpr Tagged_t kEmptyWeakArrayList = 0x6b5;
+  static constexpr Tagged_t kTheHoleValue = 0x6c1;
+  static constexpr Tagged_t kEmptyEnumCache = 0x6cd;
+  static constexpr Tagged_t kEmptyDescriptorArray = 0x6d9;
+  static constexpr Tagged_t kScopeInfoMap = 0x6e9;
+  static constexpr Tagged_t kModuleInfoMap = 0x711;
+  static constexpr Tagged_t kClosureFeedbackCellArrayMap = 0x739;
+  static constexpr Tagged_t kFeedbackVectorMap = 0x761;
+  static constexpr Tagged_t kHeapNumberMap = 0x789;
+  static constexpr Tagged_t kBigIntMap = 0x7b1;
+  static constexpr Tagged_t kForeignMap = 0x7d9;
+  static constexpr Tagged_t kMegaDomHandlerMap = 0x801;
+  static constexpr Tagged_t kFixedDoubleArrayMap = 0x829;
+  static constexpr Tagged_t kFeedbackMetadataArrayMap = 0x851;
+  static constexpr Tagged_t kByteArrayMap = 0x879;
+  static constexpr Tagged_t kBytecodeArrayMap = 0x8a1;
+  static constexpr Tagged_t kFreeSpaceMap = 0x8c9;
+  static constexpr Tagged_t kPropertyArrayMap = 0x8f1;
+  static constexpr Tagged_t kSmallOrderedHashMapMap = 0x919;
+  static constexpr Tagged_t kSmallOrderedHashSetMap = 0x941;
+  static constexpr Tagged_t kSmallOrderedNameDictionaryMap = 0x969;
+  static constexpr Tagged_t kInstructionStreamMap = 0x991;
+  static constexpr Tagged_t kCellMap = 0x9b9;
+  static constexpr Tagged_t kInvalidPrototypeValidityCell = 0x9e1;
+  static constexpr Tagged_t kGlobalPropertyCellMap = 0x9e9;
+  static constexpr Tagged_t kOnePointerFillerMap = 0xa11;
+  static constexpr Tagged_t kTwoPointerFillerMap = 0xa39;
+  static constexpr Tagged_t kNoClosuresCellMap = 0xa61;
+  static constexpr Tagged_t kOneClosureCellMap = 0xa89;
+  static constexpr Tagged_t kManyClosuresCellMap = 0xab1;
+  static constexpr Tagged_t kTransitionArrayMap = 0xad9;
+  static constexpr Tagged_t kHashTableMap = 0xb01;
+  static constexpr Tagged_t kOrderedNameDictionaryMap = 0xb29;
+  static constexpr Tagged_t kNameDictionaryMap = 0xb51;
+  static constexpr Tagged_t kSwissNameDictionaryMap = 0xb79;
+  static constexpr Tagged_t kGlobalDictionaryMap = 0xba1;
+  static constexpr Tagged_t kNumberDictionaryMap = 0xbc9;
+  static constexpr Tagged_t kRegisteredSymbolTableMap = 0xbf1;
+  static constexpr Tagged_t kArrayListMap = 0xc19;
+  static constexpr Tagged_t kAccessorInfoMap = 0xc41;
+  static constexpr Tagged_t kPreparseDataMap = 0xc69;
+  static constexpr Tagged_t kSharedFunctionInfoMap = 0xc91;
+  static constexpr Tagged_t kCodeMap = 0xcb9;
+  static constexpr Tagged_t kHashSeed = 0xce1;
+  static constexpr Tagged_t klength_string = 0xcf1;
+  static constexpr Tagged_t kprototype_string = 0xd05;
+  static constexpr Tagged_t kname_string = 0xd1d;
+  static constexpr Tagged_t kenumerable_string = 0xd2d;
+  static constexpr Tagged_t kconfigurable_string = 0xd45;
+  static constexpr Tagged_t kvalue_string = 0xd5d;
+  static constexpr Tagged_t kwritable_string = 0xd71;
+  static constexpr Tagged_t knot_mapped_symbol = 0xd85;
+  static constexpr Tagged_t kuninitialized_symbol = 0xd95;
+  static constexpr Tagged_t kmegamorphic_symbol = 0xda5;
+  static constexpr Tagged_t kelements_transition_symbol = 0xdb5;
+  static constexpr Tagged_t kmega_dom_symbol = 0xdc5;
+  static constexpr Tagged_t kEmptyPropertyDictionary = 0xdd5;
+  static constexpr Tagged_t kEmptyOrderedPropertyDictionary = 0xe01;
+  static constexpr Tagged_t kEmptyByteArray = 0xe19;
+  static constexpr Tagged_t kEmptyScopeInfo = 0xe21;
+  static constexpr Tagged_t kEmptyPropertyArray = 0xe31;
+  static constexpr Tagged_t kMinusZeroValue = 0xe39;
+  static constexpr Tagged_t kNanValue = 0xe45;
+  static constexpr Tagged_t kHoleNanValue = 0xe51;
+  static constexpr Tagged_t kInfinityValue = 0xe5d;
+  static constexpr Tagged_t kMinusInfinityValue = 0xe69;
+  static constexpr Tagged_t kMaxSafeInteger = 0xe75;
+  static constexpr Tagged_t kMaxUInt32 = 0xe81;
+  static constexpr Tagged_t kSmiMinValue = 0xe8d;
+  static constexpr Tagged_t kSmiMaxValuePlusOne = 0xe99;
+  static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap = 0xea5;
+  static constexpr Tagged_t kPromiseRejectReactionJobTaskMap = 0xecd;
+  static constexpr Tagged_t kCallableTaskMap = 0xef5;
+  static constexpr Tagged_t kCallbackTaskMap = 0xf1d;
+  static constexpr Tagged_t kPromiseResolveThenableJobTaskMap = 0xf45;
+  static constexpr Tagged_t kFunctionTemplateInfoMap = 0xf6d;
+  static constexpr Tagged_t kObjectTemplateInfoMap = 0xf95;
+  static constexpr Tagged_t kAccessCheckInfoMap = 0xfbd;
+  static constexpr Tagged_t kAccessorPairMap = 0xfe5;
+  static constexpr Tagged_t kAliasedArgumentsEntryMap = 0x100d;
+  static constexpr Tagged_t kAllocationMementoMap = 0x1035;
+  static constexpr Tagged_t kArrayBoilerplateDescriptionMap = 0x105d;
+  static constexpr Tagged_t kAsmWasmDataMap = 0x1085;
+  static constexpr Tagged_t kAsyncGeneratorRequestMap = 0x10ad;
+  static constexpr Tagged_t kBreakPointMap = 0x10d5;
+  static constexpr Tagged_t kBreakPointInfoMap = 0x10fd;
+  static constexpr Tagged_t kClassBoilerplateMap = 0x1125;
+  static constexpr Tagged_t kClassPositionsMap = 0x114d;
+  static constexpr Tagged_t kDebugInfoMap = 0x1175;
+  static constexpr Tagged_t kErrorStackDataMap = 0x119d;
+  static constexpr Tagged_t kFunctionTemplateRareDataMap = 0x11c5;
+  static constexpr Tagged_t kInterceptorInfoMap = 0x11ed;
+  static constexpr Tagged_t kInterpreterDataMap = 0x1215;
+  static constexpr Tagged_t kModuleRequestMap = 0x123d;
+  static constexpr Tagged_t kPromiseCapabilityMap = 0x1265;
+  static constexpr Tagged_t kPromiseOnStackMap = 0x128d;
+  static constexpr Tagged_t kPromiseReactionMap = 0x12b5;
+  static constexpr Tagged_t kPropertyDescriptorObjectMap = 0x12dd;
+  static constexpr Tagged_t kPrototypeInfoMap = 0x1305;
+  static constexpr Tagged_t kRegExpBoilerplateDescriptionMap = 0x132d;
+  static constexpr Tagged_t kScriptMap = 0x1355;
+  static constexpr Tagged_t kScriptOrModuleMap = 0x137d;
+  static constexpr Tagged_t kSourceTextModuleInfoEntryMap = 0x13a5;
+  static constexpr Tagged_t kStackFrameInfoMap = 0x13cd;
+  static constexpr Tagged_t kTemplateObjectDescriptionMap = 0x13f5;
+  static constexpr Tagged_t kTuple2Map = 0x141d;
+  static constexpr Tagged_t kWasmExceptionTagMap = 0x1445;
+  static constexpr Tagged_t kWasmIndirectFunctionTableMap = 0x146d;
+  static constexpr Tagged_t kAllocationSiteWithWeakNextMap = 0x1495;
+  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap = 0x14bd;
+  static constexpr Tagged_t kLoadHandler1Map = 0x14e5;
+  static constexpr Tagged_t kLoadHandler2Map = 0x150d;
+  static constexpr Tagged_t kLoadHandler3Map = 0x1535;
+  static constexpr Tagged_t kStoreHandler0Map = 0x155d;
+  static constexpr Tagged_t kStoreHandler1Map = 0x1585;
+  static constexpr Tagged_t kStoreHandler2Map = 0x15ad;
+  static constexpr Tagged_t kStoreHandler3Map = 0x15d5;
+  static constexpr Tagged_t kUncompiledDataWithoutPreparseDataMap = 0x15fd;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataMap = 0x1625;
   static constexpr Tagged_t kUncompiledDataWithoutPreparseDataWithJobMap =
-      0x1779;
-  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x17a1;
-  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x17c9;
-  static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x17f1;
-  static constexpr Tagged_t kTurbofanUnionTypeMap = 0x1819;
-  static constexpr Tagged_t kTurbofanRangeTypeMap = 0x1841;
-  static constexpr Tagged_t kTurbofanHeapConstantTypeMap = 0x1869;
-  static constexpr Tagged_t kTurbofanOtherNumberConstantTypeMap = 0x1891;
-  static constexpr Tagged_t kTurboshaftWord32TypeMap = 0x18b9;
-  static constexpr Tagged_t kTurboshaftWord32RangeTypeMap = 0x18e1;
-  static constexpr Tagged_t kTurboshaftWord64TypeMap = 0x1909;
-  static constexpr Tagged_t kTurboshaftWord64RangeTypeMap = 0x1931;
-  static constexpr Tagged_t kTurboshaftFloat64TypeMap = 0x1959;
-  static constexpr Tagged_t kTurboshaftFloat64RangeTypeMap = 0x1981;
-  static constexpr Tagged_t kInternalClassMap = 0x19a9;
-  static constexpr Tagged_t kSmiPairMap = 0x19d1;
-  static constexpr Tagged_t kSmiBoxMap = 0x19f9;
-  static constexpr Tagged_t kExportedSubClassBaseMap = 0x1a21;
-  static constexpr Tagged_t kExportedSubClassMap = 0x1a49;
-  static constexpr Tagged_t kAbstractInternalClassSubclass1Map = 0x1a71;
-  static constexpr Tagged_t kAbstractInternalClassSubclass2Map = 0x1a99;
-  static constexpr Tagged_t kExportedSubClass2Map = 0x1ac1;
-  static constexpr Tagged_t kSortStateMap = 0x1ae9;
-  static constexpr Tagged_t kWasmStringViewIterMap = 0x1b11;
-  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1b39;
-  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x1b61;
-  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x1b89;
-  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x1bb1;
-  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1bd9;
-  static constexpr Tagged_t kInternalClassWithSmiElementsMap = 0x1c01;
-  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1c29;
-  static constexpr Tagged_t kOrderedHashMapMap = 0x1c51;
-  static constexpr Tagged_t kOrderedHashSetMap = 0x1c79;
-  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1ca1;
-  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1cc9;
-  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1cf1;
-  static constexpr Tagged_t kEphemeronHashTableMap = 0x1d19;
-  static constexpr Tagged_t kScriptContextTableMap = 0x1d41;
-  static constexpr Tagged_t kObjectBoilerplateDescriptionMap = 0x1d69;
-  static constexpr Tagged_t kCoverageInfoMap = 0x1d91;
-  static constexpr Tagged_t kSideEffectCallHandlerInfoMap = 0x1db9;
-  static constexpr Tagged_t kSideEffectFreeCallHandlerInfoMap = 0x1de1;
-  static constexpr Tagged_t kSourceTextModuleMap = 0x1e09;
-  static constexpr Tagged_t kSyntheticModuleMap = 0x1e31;
-  static constexpr Tagged_t kWasmApiFunctionRefMap = 0x1e59;
-  static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1e81;
-  static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1ea9;
-  static constexpr Tagged_t kWasmInternalFunctionMap = 0x1ed1;
-  static constexpr Tagged_t kWasmJSFunctionDataMap = 0x1ef9;
-  static constexpr Tagged_t kWasmResumeDataMap = 0x1f21;
-  static constexpr Tagged_t kWasmTypeInfoMap = 0x1f49;
-  static constexpr Tagged_t kWasmContinuationObjectMap = 0x1f71;
-  static constexpr Tagged_t kWasmNullMap = 0x1f99;
-  static constexpr Tagged_t kWeakCellMap = 0x1fc1;
-  static constexpr Tagged_t kNoOpInterceptorInfo = 0x1fe9;
-  static constexpr Tagged_t kEmptyArrayList = 0x2011;
-  static constexpr Tagged_t kEmptyObjectBoilerplateDescription = 0x201d;
-  static constexpr Tagged_t kEmptyArrayBoilerplateDescription = 0x2029;
-  static constexpr Tagged_t kEmptyClosureFeedbackCellArray = 0x2035;
-  static constexpr Tagged_t kSingleCharacterStringTable = 0x203d;
-  static constexpr Tagged_t kdot_string = 0x2725;
-  static constexpr Tagged_t kzero_string = 0x2745;
-  static constexpr Tagged_t kone_string = 0x2755;
-  static constexpr Tagged_t kadoptText_string = 0x3445;
-  static constexpr Tagged_t kapproximatelySign_string = 0x345d;
-  static constexpr Tagged_t kbaseName_string = 0x347d;
-  static constexpr Tagged_t kaccounting_string = 0x3491;
-  static constexpr Tagged_t kbreakType_string = 0x34a9;
-  static constexpr Tagged_t kcalendars_string = 0x34c1;
-  static constexpr Tagged_t kcardinal_string = 0x34d9;
-  static constexpr Tagged_t kcaseFirst_string = 0x34ed;
-  static constexpr Tagged_t kceil_string = 0x3505;
-  static constexpr Tagged_t kcompare_string = 0x3515;
-  static constexpr Tagged_t kcollation_string = 0x3529;
-  static constexpr Tagged_t kcollations_string = 0x3541;
-  static constexpr Tagged_t kcompact_string = 0x3559;
-  static constexpr Tagged_t kcompactDisplay_string = 0x356d;
-  static constexpr Tagged_t kcurrency_string = 0x3589;
-  static constexpr Tagged_t kcurrencyDisplay_string = 0x359d;
-  static constexpr Tagged_t kcurrencySign_string = 0x35b9;
-  static constexpr Tagged_t kdateStyle_string = 0x35d1;
-  static constexpr Tagged_t kdateTimeField_string = 0x35e9;
-  static constexpr Tagged_t kdayPeriod_string = 0x3605;
-  static constexpr Tagged_t kdaysDisplay_string = 0x361d;
-  static constexpr Tagged_t kdecimal_string = 0x3635;
-  static constexpr Tagged_t kdialect_string = 0x3649;
-  static constexpr Tagged_t kdigital_string = 0x365d;
-  static constexpr Tagged_t kdirection_string = 0x3671;
-  static constexpr Tagged_t kendRange_string = 0x3689;
-  static constexpr Tagged_t kengineering_string = 0x369d;
-  static constexpr Tagged_t kexceptZero_string = 0x36b5;
-  static constexpr Tagged_t kexpand_string = 0x36cd;
-  static constexpr Tagged_t kexponentInteger_string = 0x36e1;
-  static constexpr Tagged_t kexponentMinusSign_string = 0x36fd;
-  static constexpr Tagged_t kexponentSeparator_string = 0x371d;
-  static constexpr Tagged_t kfallback_string = 0x373d;
-  static constexpr Tagged_t kfirst_string = 0x3751;
-  static constexpr Tagged_t kfirstDay_string = 0x3765;
-  static constexpr Tagged_t kfloor_string = 0x3779;
-  static constexpr Tagged_t kformat_string = 0x378d;
-  static constexpr Tagged_t kfraction_string = 0x37a1;
-  static constexpr Tagged_t kfractionalDigits_string = 0x37b5;
-  static constexpr Tagged_t kfractionalSecond_string = 0x37d1;
-  static constexpr Tagged_t kfull_string = 0x37ed;
-  static constexpr Tagged_t kgranularity_string = 0x37fd;
-  static constexpr Tagged_t kgrapheme_string = 0x3815;
-  static constexpr Tagged_t kgroup_string = 0x3829;
-  static constexpr Tagged_t kh11_string = 0x383d;
-  static constexpr Tagged_t kh12_string = 0x384d;
-  static constexpr Tagged_t kh23_string = 0x385d;
-  static constexpr Tagged_t kh24_string = 0x386d;
-  static constexpr Tagged_t khalfCeil_string = 0x387d;
-  static constexpr Tagged_t khalfEven_string = 0x3891;
-  static constexpr Tagged_t khalfExpand_string = 0x38a5;
-  static constexpr Tagged_t khalfFloor_string = 0x38bd;
-  static constexpr Tagged_t khalfTrunc_string = 0x38d5;
-  static constexpr Tagged_t khour12_string = 0x38ed;
-  static constexpr Tagged_t khourCycle_string = 0x3901;
-  static constexpr Tagged_t khourCycles_string = 0x3919;
-  static constexpr Tagged_t khoursDisplay_string = 0x3931;
-  static constexpr Tagged_t kideo_string = 0x3949;
-  static constexpr Tagged_t kignorePunctuation_string = 0x3959;
-  static constexpr Tagged_t kInvalid_Date_string = 0x3979;
-  static constexpr Tagged_t kinteger_string = 0x3991;
-  static constexpr Tagged_t kisWordLike_string = 0x39a5;
-  static constexpr Tagged_t kkana_string = 0x39bd;
-  static constexpr Tagged_t klanguage_string = 0x39cd;
-  static constexpr Tagged_t klanguageDisplay_string = 0x39e1;
-  static constexpr Tagged_t klessPrecision_string = 0x39fd;
-  static constexpr Tagged_t kletter_string = 0x3a19;
-  static constexpr Tagged_t klist_string = 0x3a2d;
-  static constexpr Tagged_t kliteral_string = 0x3a3d;
-  static constexpr Tagged_t klocale_string = 0x3a51;
-  static constexpr Tagged_t kloose_string = 0x3a65;
-  static constexpr Tagged_t klower_string = 0x3a79;
-  static constexpr Tagged_t kltr_string = 0x3a8d;
-  static constexpr Tagged_t kmaximumFractionDigits_string = 0x3a9d;
-  static constexpr Tagged_t kmaximumSignificantDigits_string = 0x3ac1;
-  static constexpr Tagged_t kmicrosecondsDisplay_string = 0x3ae5;
-  static constexpr Tagged_t kmillisecondsDisplay_string = 0x3b05;
-  static constexpr Tagged_t kmin2_string = 0x3b25;
-  static constexpr Tagged_t kminimalDays_string = 0x3b35;
-  static constexpr Tagged_t kminimumFractionDigits_string = 0x3b4d;
-  static constexpr Tagged_t kminimumIntegerDigits_string = 0x3b71;
-  static constexpr Tagged_t kminimumSignificantDigits_string = 0x3b91;
-  static constexpr Tagged_t kminus_0 = 0x3bb5;
-  static constexpr Tagged_t kminusSign_string = 0x3bc5;
-  static constexpr Tagged_t kminutesDisplay_string = 0x3bdd;
-  static constexpr Tagged_t kmonthsDisplay_string = 0x3bf9;
-  static constexpr Tagged_t kmorePrecision_string = 0x3c15;
-  static constexpr Tagged_t knan_string = 0x3c31;
-  static constexpr Tagged_t knanosecondsDisplay_string = 0x3c41;
-  static constexpr Tagged_t knarrowSymbol_string = 0x3c61;
-  static constexpr Tagged_t knegative_string = 0x3c79;
-  static constexpr Tagged_t knever_string = 0x3c8d;
-  static constexpr Tagged_t knone_string = 0x3ca1;
-  static constexpr Tagged_t knotation_string = 0x3cb1;
-  static constexpr Tagged_t knormal_string = 0x3cc5;
-  static constexpr Tagged_t knumberingSystem_string = 0x3cd9;
-  static constexpr Tagged_t knumberingSystems_string = 0x3cf5;
-  static constexpr Tagged_t knumeric_string = 0x3d11;
-  static constexpr Tagged_t kordinal_string = 0x3d25;
-  static constexpr Tagged_t kpercentSign_string = 0x3d39;
-  static constexpr Tagged_t kplusSign_string = 0x3d51;
-  static constexpr Tagged_t kquarter_string = 0x3d65;
-  static constexpr Tagged_t kregion_string = 0x3d79;
-  static constexpr Tagged_t krelatedYear_string = 0x3d8d;
-  static constexpr Tagged_t kroundingMode_string = 0x3da5;
-  static constexpr Tagged_t kroundingPriority_string = 0x3dbd;
-  static constexpr Tagged_t krtl_string = 0x3dd9;
-  static constexpr Tagged_t kscientific_string = 0x3de9;
-  static constexpr Tagged_t ksecondsDisplay_string = 0x3e01;
-  static constexpr Tagged_t ksegment_string = 0x3e1d;
-  static constexpr Tagged_t kSegmentIterator_string = 0x3e31;
-  static constexpr Tagged_t kSegments_string = 0x3e4d;
-  static constexpr Tagged_t ksensitivity_string = 0x3e61;
-  static constexpr Tagged_t ksep_string = 0x3e79;
-  static constexpr Tagged_t kshared_string = 0x3e89;
-  static constexpr Tagged_t ksignDisplay_string = 0x3e9d;
-  static constexpr Tagged_t kstandard_string = 0x3eb5;
-  static constexpr Tagged_t kstartRange_string = 0x3ec9;
-  static constexpr Tagged_t kstrict_string = 0x3ee1;
-  static constexpr Tagged_t kstripIfInteger_string = 0x3ef5;
-  static constexpr Tagged_t kstyle_string = 0x3f11;
-  static constexpr Tagged_t kterm_string = 0x3f25;
-  static constexpr Tagged_t ktextInfo_string = 0x3f35;
-  static constexpr Tagged_t ktimeStyle_string = 0x3f49;
-  static constexpr Tagged_t ktimeZones_string = 0x3f61;
-  static constexpr Tagged_t ktimeZoneName_string = 0x3f79;
-  static constexpr Tagged_t ktrailingZeroDisplay_string = 0x3f91;
-  static constexpr Tagged_t ktrunc_string = 0x3fb1;
-  static constexpr Tagged_t ktwo_digit_string = 0x3fc5;
-  static constexpr Tagged_t ktype_string = 0x3fd9;
-  static constexpr Tagged_t kunknown_string = 0x3fe9;
-  static constexpr Tagged_t kupper_string = 0x3ffd;
-  static constexpr Tagged_t kusage_string = 0x4011;
-  static constexpr Tagged_t kuseGrouping_string = 0x4025;
-  static constexpr Tagged_t kunitDisplay_string = 0x403d;
-  static constexpr Tagged_t kweekday_string = 0x4055;
-  static constexpr Tagged_t kweekend_string = 0x4069;
-  static constexpr Tagged_t kweeksDisplay_string = 0x407d;
-  static constexpr Tagged_t kweekInfo_string = 0x4095;
-  static constexpr Tagged_t kyearName_string = 0x40a9;
-  static constexpr Tagged_t kyearsDisplay_string = 0x40bd;
-  static constexpr Tagged_t kadd_string = 0x40d5;
-  static constexpr Tagged_t kAggregateError_string = 0x40e5;
-  static constexpr Tagged_t kalways_string = 0x4101;
-  static constexpr Tagged_t kanonymous_function_string = 0x4115;
-  static constexpr Tagged_t kanonymous_string = 0x4135;
-  static constexpr Tagged_t kapply_string = 0x414d;
-  static constexpr Tagged_t kArguments_string = 0x4161;
-  static constexpr Tagged_t karguments_string = 0x4179;
-  static constexpr Tagged_t karguments_to_string = 0x4191;
-  static constexpr Tagged_t kArray_string = 0x41b1;
-  static constexpr Tagged_t karray_to_string = 0x41c5;
-  static constexpr Tagged_t kArrayBuffer_string = 0x41e1;
-  static constexpr Tagged_t kArrayIterator_string = 0x41f9;
-  static constexpr Tagged_t kas_string = 0x4215;
-  static constexpr Tagged_t kassert_string = 0x4225;
-  static constexpr Tagged_t kasync_string = 0x4239;
-  static constexpr Tagged_t kAtomicsCondition_string = 0x424d;
-  static constexpr Tagged_t kAtomicsMutex_string = 0x426d;
-  static constexpr Tagged_t kauto_string = 0x4289;
-  static constexpr Tagged_t kawait_string = 0x4299;
-  static constexpr Tagged_t kBigInt_string = 0x42ad;
-  static constexpr Tagged_t kbigint_string = 0x42c1;
-  static constexpr Tagged_t kBigInt64Array_string = 0x42d5;
-  static constexpr Tagged_t kBigUint64Array_string = 0x42f1;
-  static constexpr Tagged_t kbind_string = 0x430d;
-  static constexpr Tagged_t kblank_string = 0x431d;
-  static constexpr Tagged_t kBoolean_string = 0x4331;
-  static constexpr Tagged_t kboolean_string = 0x4345;
-  static constexpr Tagged_t kboolean_to_string = 0x4359;
-  static constexpr Tagged_t kbound__string = 0x4375;
-  static constexpr Tagged_t kbuffer_string = 0x4389;
-  static constexpr Tagged_t kbyte_length_string = 0x439d;
-  static constexpr Tagged_t kbyte_offset_string = 0x43b5;
-  static constexpr Tagged_t kCompileError_string = 0x43cd;
-  static constexpr Tagged_t kcalendar_string = 0x43e5;
-  static constexpr Tagged_t kcallee_string = 0x43f9;
-  static constexpr Tagged_t kcaller_string = 0x440d;
-  static constexpr Tagged_t kcause_string = 0x4421;
-  static constexpr Tagged_t kcharacter_string = 0x4435;
-  static constexpr Tagged_t kclosure_string = 0x444d;
-  static constexpr Tagged_t kcode_string = 0x4465;
-  static constexpr Tagged_t kcolumn_string = 0x4475;
-  static constexpr Tagged_t kcomputed_string = 0x4489;
-  static constexpr Tagged_t kconjunction_string = 0x44a1;
-  static constexpr Tagged_t kconsole_string = 0x44b9;
-  static constexpr Tagged_t kconstrain_string = 0x44cd;
-  static constexpr Tagged_t kconstruct_string = 0x44e5;
-  static constexpr Tagged_t kcurrent_string = 0x44fd;
-  static constexpr Tagged_t kDate_string = 0x4511;
-  static constexpr Tagged_t kdate_to_string = 0x4521;
-  static constexpr Tagged_t kdateAdd_string = 0x453d;
-  static constexpr Tagged_t kdateFromFields_string = 0x4551;
-  static constexpr Tagged_t kdateUntil_string = 0x456d;
-  static constexpr Tagged_t kday_string = 0x4585;
-  static constexpr Tagged_t kdayOfWeek_string = 0x4595;
-  static constexpr Tagged_t kdayOfYear_string = 0x45ad;
-  static constexpr Tagged_t kdays_string = 0x45c5;
-  static constexpr Tagged_t kdaysInMonth_string = 0x45d5;
-  static constexpr Tagged_t kdaysInWeek_string = 0x45ed;
-  static constexpr Tagged_t kdaysInYear_string = 0x4605;
-  static constexpr Tagged_t kdefault_string = 0x461d;
-  static constexpr Tagged_t kdefineProperty_string = 0x4631;
-  static constexpr Tagged_t kdeleteProperty_string = 0x464d;
-  static constexpr Tagged_t kdetached_string = 0x4669;
-  static constexpr Tagged_t kdisjunction_string = 0x467d;
-  static constexpr Tagged_t kdone_string = 0x4695;
-  static constexpr Tagged_t kdot_brand_string = 0x46a5;
-  static constexpr Tagged_t kdot_catch_string = 0x46b9;
-  static constexpr Tagged_t kdot_default_string = 0x46cd;
-  static constexpr Tagged_t kdot_for_string = 0x46e1;
-  static constexpr Tagged_t kdot_generator_object_string = 0x46f1;
-  static constexpr Tagged_t kdot_home_object_string = 0x4711;
-  static constexpr Tagged_t kdot_new_target_string = 0x4729;
-  static constexpr Tagged_t knew_target_string = 0x4729;
-  static constexpr Tagged_t kdot_result_string = 0x4741;
-  static constexpr Tagged_t kdot_repl_result_string = 0x4755;
-  static constexpr Tagged_t kdot_static_home_object_string = 0x476d;
-  static constexpr Tagged_t kdot_switch_tag_string = 0x478d;
-  static constexpr Tagged_t kdotAll_string = 0x47a5;
-  static constexpr Tagged_t kError_string = 0x47b9;
-  static constexpr Tagged_t kEvalError_string = 0x47cd;
-  static constexpr Tagged_t kelement_string = 0x47e5;
-  static constexpr Tagged_t kepochMicroseconds_string = 0x47f9;
-  static constexpr Tagged_t kepochMilliseconds_string = 0x4819;
-  static constexpr Tagged_t kepochNanoseconds_string = 0x4839;
-  static constexpr Tagged_t kepochSeconds_string = 0x4855;
-  static constexpr Tagged_t kera_string = 0x486d;
-  static constexpr Tagged_t keraYear_string = 0x487d;
-  static constexpr Tagged_t kerrors_string = 0x4891;
-  static constexpr Tagged_t kerror_to_string = 0x48a5;
-  static constexpr Tagged_t keval_string = 0x48c1;
-  static constexpr Tagged_t kexception_string = 0x48d1;
-  static constexpr Tagged_t kexec_string = 0x48e9;
-  static constexpr Tagged_t kfalse_string = 0x48f9;
-  static constexpr Tagged_t kfields_string = 0x490d;
-  static constexpr Tagged_t kFinalizationRegistry_string = 0x4921;
-  static constexpr Tagged_t kflags_string = 0x4941;
-  static constexpr Tagged_t kFloat32Array_string = 0x4955;
-  static constexpr Tagged_t kFloat64Array_string = 0x496d;
-  static constexpr Tagged_t kfractionalSecondDigits_string = 0x4985;
-  static constexpr Tagged_t kfrom_string = 0x49a9;
-  static constexpr Tagged_t kFunction_string = 0x49b9;
-  static constexpr Tagged_t kfunction_native_code_string = 0x49cd;
-  static constexpr Tagged_t kfunction_string = 0x49f9;
-  static constexpr Tagged_t kfunction_to_string = 0x4a0d;
-  static constexpr Tagged_t kGenerator_string = 0x4a2d;
-  static constexpr Tagged_t kget_space_string = 0x4a45;
-  static constexpr Tagged_t kget_string = 0x4a55;
-  static constexpr Tagged_t kgetOffsetNanosecondsFor_string = 0x4a65;
-  static constexpr Tagged_t kgetOwnPropertyDescriptor_string = 0x4a89;
-  static constexpr Tagged_t kgetPossibleInstantsFor_string = 0x4aad;
-  static constexpr Tagged_t kgetPrototypeOf_string = 0x4ad1;
-  static constexpr Tagged_t kglobal_string = 0x4aed;
-  static constexpr Tagged_t kglobalThis_string = 0x4b01;
-  static constexpr Tagged_t kgroups_string = 0x4b19;
-  static constexpr Tagged_t kgrowable_string = 0x4b2d;
-  static constexpr Tagged_t khas_string = 0x4b41;
-  static constexpr Tagged_t khasIndices_string = 0x4b51;
-  static constexpr Tagged_t khour_string = 0x4b69;
-  static constexpr Tagged_t khours_string = 0x4b79;
-  static constexpr Tagged_t khoursInDay_string = 0x4b8d;
-  static constexpr Tagged_t kignoreCase_string = 0x4ba5;
-  static constexpr Tagged_t kid_string = 0x4bbd;
-  static constexpr Tagged_t killegal_access_string = 0x4bcd;
-  static constexpr Tagged_t killegal_argument_string = 0x4be9;
-  static constexpr Tagged_t kinLeapYear_string = 0x4c05;
-  static constexpr Tagged_t kindex_string = 0x4c1d;
-  static constexpr Tagged_t kindices_string = 0x4c31;
-  static constexpr Tagged_t kInfinity_string = 0x4c45;
-  static constexpr Tagged_t kinfinity_string = 0x4c59;
-  static constexpr Tagged_t kinput_string = 0x4c6d;
-  static constexpr Tagged_t kInt16Array_string = 0x4c81;
-  static constexpr Tagged_t kInt32Array_string = 0x4c99;
-  static constexpr Tagged_t kInt8Array_string = 0x4cb1;
-  static constexpr Tagged_t kisExtensible_string = 0x4cc9;
-  static constexpr Tagged_t kiso8601_string = 0x4ce1;
-  static constexpr Tagged_t kisoDay_string = 0x4cf5;
-  static constexpr Tagged_t kisoHour_string = 0x4d09;
-  static constexpr Tagged_t kisoMicrosecond_string = 0x4d1d;
-  static constexpr Tagged_t kisoMillisecond_string = 0x4d39;
-  static constexpr Tagged_t kisoMinute_string = 0x4d55;
-  static constexpr Tagged_t kisoMonth_string = 0x4d6d;
-  static constexpr Tagged_t kisoNanosecond_string = 0x4d81;
-  static constexpr Tagged_t kisoSecond_string = 0x4d9d;
-  static constexpr Tagged_t kisoYear_string = 0x4db5;
-  static constexpr Tagged_t kjsMemoryEstimate_string = 0x4dc9;
-  static constexpr Tagged_t kjsMemoryRange_string = 0x4de5;
-  static constexpr Tagged_t kkeys_string = 0x4e01;
-  static constexpr Tagged_t klargestUnit_string = 0x4e11;
-  static constexpr Tagged_t klastIndex_string = 0x4e29;
-  static constexpr Tagged_t klet_string = 0x4e41;
-  static constexpr Tagged_t kline_string = 0x4e51;
-  static constexpr Tagged_t klinear_string = 0x4e61;
-  static constexpr Tagged_t kLinkError_string = 0x4e75;
-  static constexpr Tagged_t klong_string = 0x4e8d;
-  static constexpr Tagged_t kMap_string = 0x4e9d;
-  static constexpr Tagged_t kMapIterator_string = 0x4ead;
-  static constexpr Tagged_t kmax_byte_length_string = 0x4ec5;
-  static constexpr Tagged_t kmedium_string = 0x4ee1;
-  static constexpr Tagged_t kmergeFields_string = 0x4ef5;
-  static constexpr Tagged_t kmessage_string = 0x4f0d;
-  static constexpr Tagged_t kmeta_string = 0x4f21;
-  static constexpr Tagged_t kminus_Infinity_string = 0x4f31;
-  static constexpr Tagged_t kmicrosecond_string = 0x4f49;
-  static constexpr Tagged_t kmicroseconds_string = 0x4f61;
-  static constexpr Tagged_t kmillisecond_string = 0x4f79;
-  static constexpr Tagged_t kmilliseconds_string = 0x4f91;
-  static constexpr Tagged_t kminute_string = 0x4fa9;
-  static constexpr Tagged_t kminutes_string = 0x4fbd;
-  static constexpr Tagged_t kModule_string = 0x4fd1;
-  static constexpr Tagged_t kmonth_string = 0x4fe5;
-  static constexpr Tagged_t kmonthDayFromFields_string = 0x4ff9;
-  static constexpr Tagged_t kmonths_string = 0x5019;
-  static constexpr Tagged_t kmonthsInYear_string = 0x502d;
-  static constexpr Tagged_t kmonthCode_string = 0x5045;
-  static constexpr Tagged_t kmultiline_string = 0x505d;
-  static constexpr Tagged_t kNaN_string = 0x5075;
-  static constexpr Tagged_t knanosecond_string = 0x5085;
-  static constexpr Tagged_t knanoseconds_string = 0x509d;
-  static constexpr Tagged_t knarrow_string = 0x50b5;
-  static constexpr Tagged_t knative_string = 0x50c9;
-  static constexpr Tagged_t kNFC_string = 0x50dd;
-  static constexpr Tagged_t kNFD_string = 0x50ed;
-  static constexpr Tagged_t kNFKC_string = 0x50fd;
-  static constexpr Tagged_t kNFKD_string = 0x510d;
-  static constexpr Tagged_t knot_equal_string = 0x511d;
-  static constexpr Tagged_t knull_string = 0x5135;
-  static constexpr Tagged_t knull_to_string = 0x5145;
-  static constexpr Tagged_t kNumber_string = 0x5161;
-  static constexpr Tagged_t knumber_string = 0x5175;
-  static constexpr Tagged_t knumber_to_string = 0x5189;
-  static constexpr Tagged_t kObject_string = 0x51a5;
-  static constexpr Tagged_t kobject_string = 0x51b9;
-  static constexpr Tagged_t kobject_to_string = 0x51cd;
-  static constexpr Tagged_t kObject_prototype_string = 0x51e9;
-  static constexpr Tagged_t kof_string = 0x5205;
-  static constexpr Tagged_t koffset_string = 0x5215;
-  static constexpr Tagged_t koffsetNanoseconds_string = 0x5229;
-  static constexpr Tagged_t kok_string = 0x5249;
-  static constexpr Tagged_t kother_string = 0x5259;
-  static constexpr Tagged_t koverflow_string = 0x526d;
-  static constexpr Tagged_t kownKeys_string = 0x5281;
-  static constexpr Tagged_t kpercent_string = 0x5295;
-  static constexpr Tagged_t kplainDate_string = 0x52a9;
-  static constexpr Tagged_t kplainTime_string = 0x52c1;
-  static constexpr Tagged_t kposition_string = 0x52d9;
-  static constexpr Tagged_t kpreventExtensions_string = 0x52ed;
-  static constexpr Tagged_t kprivate_constructor_string = 0x530d;
-  static constexpr Tagged_t kPromise_string = 0x5325;
-  static constexpr Tagged_t kproto_string = 0x5339;
-  static constexpr Tagged_t kproxy_string = 0x5351;
-  static constexpr Tagged_t kProxy_string = 0x5365;
-  static constexpr Tagged_t kquery_colon_string = 0x5379;
-  static constexpr Tagged_t kRangeError_string = 0x5389;
-  static constexpr Tagged_t kraw_json_string = 0x53a1;
-  static constexpr Tagged_t kraw_string = 0x53b5;
-  static constexpr Tagged_t kReferenceError_string = 0x53c5;
-  static constexpr Tagged_t kReflectGet_string = 0x53e1;
-  static constexpr Tagged_t kReflectHas_string = 0x53f9;
-  static constexpr Tagged_t kRegExp_string = 0x5411;
-  static constexpr Tagged_t kregexp_to_string = 0x5425;
-  static constexpr Tagged_t kreject_string = 0x5441;
-  static constexpr Tagged_t krelativeTo_string = 0x5455;
-  static constexpr Tagged_t kresizable_string = 0x546d;
-  static constexpr Tagged_t kResizableArrayBuffer_string = 0x5485;
-  static constexpr Tagged_t kreturn_string = 0x54a5;
-  static constexpr Tagged_t krevoke_string = 0x54b9;
-  static constexpr Tagged_t kroundingIncrement_string = 0x54cd;
-  static constexpr Tagged_t kRuntimeError_string = 0x54ed;
-  static constexpr Tagged_t kWebAssemblyException_string = 0x5505;
-  static constexpr Tagged_t kScript_string = 0x5529;
-  static constexpr Tagged_t kscript_string = 0x553d;
-  static constexpr Tagged_t ksecond_string = 0x5551;
-  static constexpr Tagged_t kseconds_string = 0x5565;
-  static constexpr Tagged_t kshort_string = 0x5579;
-  static constexpr Tagged_t kSet_string = 0x558d;
-  static constexpr Tagged_t ksentence_string = 0x559d;
-  static constexpr Tagged_t kset_space_string = 0x55b1;
-  static constexpr Tagged_t kset_string = 0x55c1;
-  static constexpr Tagged_t kSetIterator_string = 0x55d1;
-  static constexpr Tagged_t ksetPrototypeOf_string = 0x55e9;
-  static constexpr Tagged_t kShadowRealm_string = 0x5605;
-  static constexpr Tagged_t kSharedArray_string = 0x561d;
-  static constexpr Tagged_t kSharedArrayBuffer_string = 0x5635;
-  static constexpr Tagged_t kSharedStruct_string = 0x5655;
-  static constexpr Tagged_t ksign_string = 0x566d;
-  static constexpr Tagged_t ksmallestUnit_string = 0x567d;
-  static constexpr Tagged_t ksource_string = 0x5695;
-  static constexpr Tagged_t ksourceText_string = 0x56a9;
-  static constexpr Tagged_t kstack_string = 0x56c1;
-  static constexpr Tagged_t kstackTraceLimit_string = 0x56d5;
-  static constexpr Tagged_t ksticky_string = 0x56f1;
-  static constexpr Tagged_t kString_string = 0x5705;
-  static constexpr Tagged_t kstring_string = 0x5719;
-  static constexpr Tagged_t kstring_to_string = 0x572d;
-  static constexpr Tagged_t kSymbol_iterator_string = 0x5749;
-  static constexpr Tagged_t kSymbol_replace_string = 0x5765;
-  static constexpr Tagged_t ksymbol_species_string = 0x5781;
-  static constexpr Tagged_t kSymbol_species_string = 0x579d;
-  static constexpr Tagged_t kSymbol_string = 0x57b9;
-  static constexpr Tagged_t ksymbol_string = 0x57cd;
-  static constexpr Tagged_t kSyntaxError_string = 0x57e1;
-  static constexpr Tagged_t ktarget_string = 0x57f9;
-  static constexpr Tagged_t kthis_function_string = 0x580d;
-  static constexpr Tagged_t kthis_string = 0x5829;
-  static constexpr Tagged_t kthrow_string = 0x5839;
-  static constexpr Tagged_t ktimed_out_string = 0x584d;
-  static constexpr Tagged_t ktimeZone_string = 0x5865;
-  static constexpr Tagged_t ktoJSON_string = 0x5879;
-  static constexpr Tagged_t ktoString_string = 0x588d;
-  static constexpr Tagged_t ktrue_string = 0x58a1;
-  static constexpr Tagged_t ktotal_string = 0x58b1;
-  static constexpr Tagged_t kTypeError_string = 0x58c5;
-  static constexpr Tagged_t kUint16Array_string = 0x58dd;
-  static constexpr Tagged_t kUint32Array_string = 0x58f5;
-  static constexpr Tagged_t kUint8Array_string = 0x590d;
-  static constexpr Tagged_t kUint8ClampedArray_string = 0x5925;
-  static constexpr Tagged_t kundefined_string = 0x5945;
-  static constexpr Tagged_t kundefined_to_string = 0x595d;
-  static constexpr Tagged_t kunicode_string = 0x597d;
-  static constexpr Tagged_t kunicodeSets_string = 0x5991;
-  static constexpr Tagged_t kunit_string = 0x59a9;
-  static constexpr Tagged_t kURIError_string = 0x59b9;
-  static constexpr Tagged_t kUTC_string = 0x59cd;
-  static constexpr Tagged_t kvalueOf_string = 0x59dd;
-  static constexpr Tagged_t kWeakMap_string = 0x59f1;
-  static constexpr Tagged_t kWeakRef_string = 0x5a05;
-  static constexpr Tagged_t kWeakSet_string = 0x5a19;
-  static constexpr Tagged_t kweek_string = 0x5a2d;
-  static constexpr Tagged_t kweeks_string = 0x5a3d;
-  static constexpr Tagged_t kweekOfYear_string = 0x5a51;
-  static constexpr Tagged_t kword_string = 0x5a69;
-  static constexpr Tagged_t kyearMonthFromFields_string = 0x5a79;
-  static constexpr Tagged_t kyear_string = 0x5a99;
-  static constexpr Tagged_t kyears_string = 0x5aa9;
-  static constexpr Tagged_t kUninitializedValue = 0x5acd;
-  static constexpr Tagged_t kArgumentsMarker = 0x5b05;
-  static constexpr Tagged_t kTerminationException = 0x5b3d;
-  static constexpr Tagged_t kException = 0x5b7d;
-  static constexpr Tagged_t kOptimizedOut = 0x5b99;
-  static constexpr Tagged_t kStaleRegister = 0x5bd1;
-  static constexpr Tagged_t kSelfReferenceMarker = 0x5c09;
-  static constexpr Tagged_t kBasicBlockCountersMarker = 0x5c49;
-  static constexpr Tagged_t karray_buffer_wasm_memory_symbol = 0x5c8d;
-  static constexpr Tagged_t kcall_site_info_symbol = 0x5c9d;
-  static constexpr Tagged_t kconsole_context_id_symbol = 0x5cad;
-  static constexpr Tagged_t kconsole_context_name_symbol = 0x5cbd;
-  static constexpr Tagged_t kclass_fields_symbol = 0x5ccd;
-  static constexpr Tagged_t kclass_positions_symbol = 0x5cdd;
-  static constexpr Tagged_t kerror_end_pos_symbol = 0x5ced;
-  static constexpr Tagged_t kerror_script_symbol = 0x5cfd;
-  static constexpr Tagged_t kerror_stack_symbol = 0x5d0d;
-  static constexpr Tagged_t kerror_start_pos_symbol = 0x5d1d;
-  static constexpr Tagged_t kfrozen_symbol = 0x5d2d;
-  static constexpr Tagged_t kinterpreter_trampoline_symbol = 0x5d3d;
-  static constexpr Tagged_t knative_context_index_symbol = 0x5d4d;
-  static constexpr Tagged_t knonextensible_symbol = 0x5d5d;
-  static constexpr Tagged_t kpromise_debug_marker_symbol = 0x5d6d;
-  static constexpr Tagged_t kpromise_debug_message_symbol = 0x5d7d;
-  static constexpr Tagged_t kpromise_forwarding_handler_symbol = 0x5d8d;
-  static constexpr Tagged_t kpromise_handled_by_symbol = 0x5d9d;
-  static constexpr Tagged_t kpromise_awaited_by_symbol = 0x5dad;
-  static constexpr Tagged_t kregexp_result_names_symbol = 0x5dbd;
-  static constexpr Tagged_t kregexp_result_regexp_input_symbol = 0x5dcd;
-  static constexpr Tagged_t kregexp_result_regexp_last_index_symbol = 0x5ddd;
-  static constexpr Tagged_t ksealed_symbol = 0x5ded;
-  static constexpr Tagged_t kstrict_function_transition_symbol = 0x5dfd;
+      0x164d;
+  static constexpr Tagged_t kUncompiledDataWithPreparseDataAndJobMap = 0x1675;
+  static constexpr Tagged_t kOnHeapBasicBlockProfilerDataMap = 0x169d;
+  static constexpr Tagged_t kTurbofanBitsetTypeMap = 0x16c5;
+  static constexpr Tagged_t kTurbofanUnionTypeMap = 0x16ed;
+  static constexpr Tagged_t kTurbofanRangeTypeMap = 0x1715;
+  static constexpr Tagged_t kTurbofanHeapConstantTypeMap = 0x173d;
+  static constexpr Tagged_t kTurbofanOtherNumberConstantTypeMap = 0x1765;
+  static constexpr Tagged_t kTurboshaftWord32TypeMap = 0x178d;
+  static constexpr Tagged_t kTurboshaftWord32RangeTypeMap = 0x17b5;
+  static constexpr Tagged_t kTurboshaftWord64TypeMap = 0x17dd;
+  static constexpr Tagged_t kTurboshaftWord64RangeTypeMap = 0x1805;
+  static constexpr Tagged_t kTurboshaftFloat64TypeMap = 0x182d;
+  static constexpr Tagged_t kTurboshaftFloat64RangeTypeMap = 0x1855;
+  static constexpr Tagged_t kInternalClassMap = 0x187d;
+  static constexpr Tagged_t kSmiPairMap = 0x18a5;
+  static constexpr Tagged_t kSmiBoxMap = 0x18cd;
+  static constexpr Tagged_t kExportedSubClassBaseMap = 0x18f5;
+  static constexpr Tagged_t kExportedSubClassMap = 0x191d;
+  static constexpr Tagged_t kAbstractInternalClassSubclass1Map = 0x1945;
+  static constexpr Tagged_t kAbstractInternalClassSubclass2Map = 0x196d;
+  static constexpr Tagged_t kExportedSubClass2Map = 0x1995;
+  static constexpr Tagged_t kSortStateMap = 0x19bd;
+  static constexpr Tagged_t kWasmStringViewIterMap = 0x19e5;
+  static constexpr Tagged_t kSloppyArgumentsElementsMap = 0x1a0d;
+  static constexpr Tagged_t kStrongDescriptorArrayMap = 0x1a35;
+  static constexpr Tagged_t kTurboshaftWord32SetTypeMap = 0x1a5d;
+  static constexpr Tagged_t kTurboshaftWord64SetTypeMap = 0x1a85;
+  static constexpr Tagged_t kTurboshaftFloat64SetTypeMap = 0x1aad;
+  static constexpr Tagged_t kInternalClassWithStructElementsMap = 0x1ad5;
+  static constexpr Tagged_t kOrderedHashMapMap = 0x1afd;
+  static constexpr Tagged_t kOrderedHashSetMap = 0x1b25;
+  static constexpr Tagged_t kSimpleNumberDictionaryMap = 0x1b4d;
+  static constexpr Tagged_t kNameToIndexHashTableMap = 0x1b75;
+  static constexpr Tagged_t kEmbedderDataArrayMap = 0x1b9d;
+  static constexpr Tagged_t kEphemeronHashTableMap = 0x1bc5;
+  static constexpr Tagged_t kScriptContextTableMap = 0x1bed;
+  static constexpr Tagged_t kObjectBoilerplateDescriptionMap = 0x1c15;
+  static constexpr Tagged_t kCoverageInfoMap = 0x1c3d;
+  static constexpr Tagged_t kRegExpMatchInfoMap = 0x1c65;
+  static constexpr Tagged_t kSideEffectCallHandlerInfoMap = 0x1c8d;
+  static constexpr Tagged_t kSideEffectFreeCallHandlerInfoMap = 0x1cb5;
+  static constexpr Tagged_t kSourceTextModuleMap = 0x1cdd;
+  static constexpr Tagged_t kSyntheticModuleMap = 0x1d05;
+  static constexpr Tagged_t kWasmApiFunctionRefMap = 0x1d2d;
+  static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1d55;
+  static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1d7d;
+  static constexpr Tagged_t kWasmInternalFunctionMap = 0x1da5;
+  static constexpr Tagged_t kWasmJSFunctionDataMap = 0x1dcd;
+  static constexpr Tagged_t kWasmResumeDataMap = 0x1df5;
+  static constexpr Tagged_t kWasmTypeInfoMap = 0x1e1d;
+  static constexpr Tagged_t kWasmContinuationObjectMap = 0x1e45;
+  static constexpr Tagged_t kWasmNullMap = 0x1e6d;
+  static constexpr Tagged_t kWeakCellMap = 0x1e95;
+  static constexpr Tagged_t kExternalPointerArrayMap = 0x1ebd;
+  static constexpr Tagged_t kNoOpInterceptorInfo = 0x1ee5;
+  static constexpr Tagged_t kEmptyArrayList = 0x1f0d;
+  static constexpr Tagged_t kEmptyObjectBoilerplateDescription = 0x1f19;
+  static constexpr Tagged_t kEmptyArrayBoilerplateDescription = 0x1f29;
+  static constexpr Tagged_t kEmptyClosureFeedbackCellArray = 0x1f35;
+  static constexpr Tagged_t kEmptySwissPropertyDictionary = 0x1f49;
+  static constexpr Tagged_t kSingleCharacterStringTable = 0x1f69;
+  static constexpr Tagged_t kdot_string = 0x2651;
+  static constexpr Tagged_t kzero_string = 0x2671;
+  static constexpr Tagged_t kone_string = 0x2681;
+  static constexpr Tagged_t kadoptText_string = 0x3371;
+  static constexpr Tagged_t kapproximatelySign_string = 0x3389;
+  static constexpr Tagged_t kbaseName_string = 0x33a9;
+  static constexpr Tagged_t kaccounting_string = 0x33bd;
+  static constexpr Tagged_t kbreakType_string = 0x33d5;
+  static constexpr Tagged_t kcalendars_string = 0x33ed;
+  static constexpr Tagged_t kcardinal_string = 0x3405;
+  static constexpr Tagged_t kcaseFirst_string = 0x3419;
+  static constexpr Tagged_t kceil_string = 0x3431;
+  static constexpr Tagged_t kcompare_string = 0x3441;
+  static constexpr Tagged_t kcollation_string = 0x3455;
+  static constexpr Tagged_t kcollations_string = 0x346d;
+  static constexpr Tagged_t kcompact_string = 0x3485;
+  static constexpr Tagged_t kcompactDisplay_string = 0x3499;
+  static constexpr Tagged_t kcurrency_string = 0x34b5;
+  static constexpr Tagged_t kcurrencyDisplay_string = 0x34c9;
+  static constexpr Tagged_t kcurrencySign_string = 0x34e5;
+  static constexpr Tagged_t kdateStyle_string = 0x34fd;
+  static constexpr Tagged_t kdateTimeField_string = 0x3515;
+  static constexpr Tagged_t kdayPeriod_string = 0x3531;
+  static constexpr Tagged_t kdaysDisplay_string = 0x3549;
+  static constexpr Tagged_t kdecimal_string = 0x3561;
+  static constexpr Tagged_t kdialect_string = 0x3575;
+  static constexpr Tagged_t kdigital_string = 0x3589;
+  static constexpr Tagged_t kdirection_string = 0x359d;
+  static constexpr Tagged_t kendRange_string = 0x35b5;
+  static constexpr Tagged_t kengineering_string = 0x35c9;
+  static constexpr Tagged_t kexceptZero_string = 0x35e1;
+  static constexpr Tagged_t kexpand_string = 0x35f9;
+  static constexpr Tagged_t kexponentInteger_string = 0x360d;
+  static constexpr Tagged_t kexponentMinusSign_string = 0x3629;
+  static constexpr Tagged_t kexponentSeparator_string = 0x3649;
+  static constexpr Tagged_t kfallback_string = 0x3669;
+  static constexpr Tagged_t kfirst_string = 0x367d;
+  static constexpr Tagged_t kfirstDay_string = 0x3691;
+  static constexpr Tagged_t kfloor_string = 0x36a5;
+  static constexpr Tagged_t kformat_string = 0x36b9;
+  static constexpr Tagged_t kfraction_string = 0x36cd;
+  static constexpr Tagged_t kfractionalDigits_string = 0x36e1;
+  static constexpr Tagged_t kfractionalSecond_string = 0x36fd;
+  static constexpr Tagged_t kfull_string = 0x3719;
+  static constexpr Tagged_t kgranularity_string = 0x3729;
+  static constexpr Tagged_t kgrapheme_string = 0x3741;
+  static constexpr Tagged_t kgroup_string = 0x3755;
+  static constexpr Tagged_t kh11_string = 0x3769;
+  static constexpr Tagged_t kh12_string = 0x3779;
+  static constexpr Tagged_t kh23_string = 0x3789;
+  static constexpr Tagged_t kh24_string = 0x3799;
+  static constexpr Tagged_t khalfCeil_string = 0x37a9;
+  static constexpr Tagged_t khalfEven_string = 0x37bd;
+  static constexpr Tagged_t khalfExpand_string = 0x37d1;
+  static constexpr Tagged_t khalfFloor_string = 0x37e9;
+  static constexpr Tagged_t khalfTrunc_string = 0x3801;
+  static constexpr Tagged_t khour12_string = 0x3819;
+  static constexpr Tagged_t khourCycle_string = 0x382d;
+  static constexpr Tagged_t khourCycles_string = 0x3845;
+  static constexpr Tagged_t khoursDisplay_string = 0x385d;
+  static constexpr Tagged_t kideo_string = 0x3875;
+  static constexpr Tagged_t kignorePunctuation_string = 0x3885;
+  static constexpr Tagged_t kInvalid_Date_string = 0x38a5;
+  static constexpr Tagged_t kinteger_string = 0x38bd;
+  static constexpr Tagged_t kisWordLike_string = 0x38d1;
+  static constexpr Tagged_t kkana_string = 0x38e9;
+  static constexpr Tagged_t klanguage_string = 0x38f9;
+  static constexpr Tagged_t klanguageDisplay_string = 0x390d;
+  static constexpr Tagged_t klessPrecision_string = 0x3929;
+  static constexpr Tagged_t kletter_string = 0x3945;
+  static constexpr Tagged_t klist_string = 0x3959;
+  static constexpr Tagged_t kliteral_string = 0x3969;
+  static constexpr Tagged_t klocale_string = 0x397d;
+  static constexpr Tagged_t kloose_string = 0x3991;
+  static constexpr Tagged_t klower_string = 0x39a5;
+  static constexpr Tagged_t kltr_string = 0x39b9;
+  static constexpr Tagged_t kmaximumFractionDigits_string = 0x39c9;
+  static constexpr Tagged_t kmaximumSignificantDigits_string = 0x39ed;
+  static constexpr Tagged_t kmicrosecondsDisplay_string = 0x3a11;
+  static constexpr Tagged_t kmillisecondsDisplay_string = 0x3a31;
+  static constexpr Tagged_t kmin2_string = 0x3a51;
+  static constexpr Tagged_t kminimalDays_string = 0x3a61;
+  static constexpr Tagged_t kminimumFractionDigits_string = 0x3a79;
+  static constexpr Tagged_t kminimumIntegerDigits_string = 0x3a9d;
+  static constexpr Tagged_t kminimumSignificantDigits_string = 0x3abd;
+  static constexpr Tagged_t kminus_0 = 0x3ae1;
+  static constexpr Tagged_t kminusSign_string = 0x3af1;
+  static constexpr Tagged_t kminutesDisplay_string = 0x3b09;
+  static constexpr Tagged_t kmonthsDisplay_string = 0x3b25;
+  static constexpr Tagged_t kmorePrecision_string = 0x3b41;
+  static constexpr Tagged_t knan_string = 0x3b5d;
+  static constexpr Tagged_t knanosecondsDisplay_string = 0x3b6d;
+  static constexpr Tagged_t knarrowSymbol_string = 0x3b8d;
+  static constexpr Tagged_t knegative_string = 0x3ba5;
+  static constexpr Tagged_t knever_string = 0x3bb9;
+  static constexpr Tagged_t knone_string = 0x3bcd;
+  static constexpr Tagged_t knotation_string = 0x3bdd;
+  static constexpr Tagged_t knormal_string = 0x3bf1;
+  static constexpr Tagged_t knumberingSystem_string = 0x3c05;
+  static constexpr Tagged_t knumberingSystems_string = 0x3c21;
+  static constexpr Tagged_t knumeric_string = 0x3c3d;
+  static constexpr Tagged_t kordinal_string = 0x3c51;
+  static constexpr Tagged_t kpercentSign_string = 0x3c65;
+  static constexpr Tagged_t kplusSign_string = 0x3c7d;
+  static constexpr Tagged_t kquarter_string = 0x3c91;
+  static constexpr Tagged_t kregion_string = 0x3ca5;
+  static constexpr Tagged_t krelatedYear_string = 0x3cb9;
+  static constexpr Tagged_t kroundingMode_string = 0x3cd1;
+  static constexpr Tagged_t kroundingPriority_string = 0x3ce9;
+  static constexpr Tagged_t krtl_string = 0x3d05;
+  static constexpr Tagged_t kscientific_string = 0x3d15;
+  static constexpr Tagged_t ksecondsDisplay_string = 0x3d2d;
+  static constexpr Tagged_t ksegment_string = 0x3d49;
+  static constexpr Tagged_t kSegmentIterator_string = 0x3d5d;
+  static constexpr Tagged_t kSegments_string = 0x3d79;
+  static constexpr Tagged_t ksensitivity_string = 0x3d8d;
+  static constexpr Tagged_t ksep_string = 0x3da5;
+  static constexpr Tagged_t kshared_string = 0x3db5;
+  static constexpr Tagged_t ksignDisplay_string = 0x3dc9;
+  static constexpr Tagged_t kstandard_string = 0x3de1;
+  static constexpr Tagged_t kstartRange_string = 0x3df5;
+  static constexpr Tagged_t kstrict_string = 0x3e0d;
+  static constexpr Tagged_t kstripIfInteger_string = 0x3e21;
+  static constexpr Tagged_t kstyle_string = 0x3e3d;
+  static constexpr Tagged_t kterm_string = 0x3e51;
+  static constexpr Tagged_t ktextInfo_string = 0x3e61;
+  static constexpr Tagged_t ktimeStyle_string = 0x3e75;
+  static constexpr Tagged_t ktimeZones_string = 0x3e8d;
+  static constexpr Tagged_t ktimeZoneName_string = 0x3ea5;
+  static constexpr Tagged_t ktrailingZeroDisplay_string = 0x3ebd;
+  static constexpr Tagged_t ktrunc_string = 0x3edd;
+  static constexpr Tagged_t ktwo_digit_string = 0x3ef1;
+  static constexpr Tagged_t ktype_string = 0x3f05;
+  static constexpr Tagged_t kunknown_string = 0x3f15;
+  static constexpr Tagged_t kupper_string = 0x3f29;
+  static constexpr Tagged_t kusage_string = 0x3f3d;
+  static constexpr Tagged_t kuseGrouping_string = 0x3f51;
+  static constexpr Tagged_t kunitDisplay_string = 0x3f69;
+  static constexpr Tagged_t kweekday_string = 0x3f81;
+  static constexpr Tagged_t kweekend_string = 0x3f95;
+  static constexpr Tagged_t kweeksDisplay_string = 0x3fa9;
+  static constexpr Tagged_t kweekInfo_string = 0x3fc1;
+  static constexpr Tagged_t kyearName_string = 0x3fd5;
+  static constexpr Tagged_t kyearsDisplay_string = 0x3fe9;
+  static constexpr Tagged_t kadd_string = 0x4001;
+  static constexpr Tagged_t kAggregateError_string = 0x4011;
+  static constexpr Tagged_t kalways_string = 0x402d;
+  static constexpr Tagged_t kanonymous_function_string = 0x4041;
+  static constexpr Tagged_t kanonymous_string = 0x4061;
+  static constexpr Tagged_t kapply_string = 0x4079;
+  static constexpr Tagged_t kArguments_string = 0x408d;
+  static constexpr Tagged_t karguments_string = 0x40a5;
+  static constexpr Tagged_t karguments_to_string = 0x40bd;
+  static constexpr Tagged_t kArray_string = 0x40dd;
+  static constexpr Tagged_t karray_to_string = 0x40f1;
+  static constexpr Tagged_t kArrayBuffer_string = 0x410d;
+  static constexpr Tagged_t kArrayIterator_string = 0x4125;
+  static constexpr Tagged_t kas_string = 0x4141;
+  static constexpr Tagged_t kassert_string = 0x4151;
+  static constexpr Tagged_t kasync_string = 0x4165;
+  static constexpr Tagged_t kAtomicsCondition_string = 0x4179;
+  static constexpr Tagged_t kAtomicsMutex_string = 0x4199;
+  static constexpr Tagged_t kauto_string = 0x41b5;
+  static constexpr Tagged_t kawait_string = 0x41c5;
+  static constexpr Tagged_t kBigInt_string = 0x41d9;
+  static constexpr Tagged_t kbigint_string = 0x41ed;
+  static constexpr Tagged_t kBigInt64Array_string = 0x4201;
+  static constexpr Tagged_t kBigUint64Array_string = 0x421d;
+  static constexpr Tagged_t kbind_string = 0x4239;
+  static constexpr Tagged_t kblank_string = 0x4249;
+  static constexpr Tagged_t kBoolean_string = 0x425d;
+  static constexpr Tagged_t kboolean_string = 0x4271;
+  static constexpr Tagged_t kboolean_to_string = 0x4285;
+  static constexpr Tagged_t kbound__string = 0x42a1;
+  static constexpr Tagged_t kbuffer_string = 0x42b5;
+  static constexpr Tagged_t kbyte_length_string = 0x42c9;
+  static constexpr Tagged_t kbyte_offset_string = 0x42e1;
+  static constexpr Tagged_t kCompileError_string = 0x42f9;
+  static constexpr Tagged_t kcalendar_string = 0x4311;
+  static constexpr Tagged_t kcallee_string = 0x4325;
+  static constexpr Tagged_t kcaller_string = 0x4339;
+  static constexpr Tagged_t kcause_string = 0x434d;
+  static constexpr Tagged_t kcharacter_string = 0x4361;
+  static constexpr Tagged_t kclosure_string = 0x4379;
+  static constexpr Tagged_t kcode_string = 0x4391;
+  static constexpr Tagged_t kcolumn_string = 0x43a1;
+  static constexpr Tagged_t kcomputed_string = 0x43b5;
+  static constexpr Tagged_t kconjunction_string = 0x43cd;
+  static constexpr Tagged_t kconsole_string = 0x43e5;
+  static constexpr Tagged_t kconstrain_string = 0x43f9;
+  static constexpr Tagged_t kconstruct_string = 0x4411;
+  static constexpr Tagged_t kcurrent_string = 0x4429;
+  static constexpr Tagged_t kDate_string = 0x443d;
+  static constexpr Tagged_t kdate_to_string = 0x444d;
+  static constexpr Tagged_t kdateAdd_string = 0x4469;
+  static constexpr Tagged_t kdateFromFields_string = 0x447d;
+  static constexpr Tagged_t kdateUntil_string = 0x4499;
+  static constexpr Tagged_t kday_string = 0x44b1;
+  static constexpr Tagged_t kdayOfWeek_string = 0x44c1;
+  static constexpr Tagged_t kdayOfYear_string = 0x44d9;
+  static constexpr Tagged_t kdays_string = 0x44f1;
+  static constexpr Tagged_t kdaysInMonth_string = 0x4501;
+  static constexpr Tagged_t kdaysInWeek_string = 0x4519;
+  static constexpr Tagged_t kdaysInYear_string = 0x4531;
+  static constexpr Tagged_t kdefault_string = 0x4549;
+  static constexpr Tagged_t kdefineProperty_string = 0x455d;
+  static constexpr Tagged_t kdeleteProperty_string = 0x4579;
+  static constexpr Tagged_t kdetached_string = 0x4595;
+  static constexpr Tagged_t kdisjunction_string = 0x45a9;
+  static constexpr Tagged_t kdone_string = 0x45c1;
+  static constexpr Tagged_t kdot_brand_string = 0x45d1;
+  static constexpr Tagged_t kdot_catch_string = 0x45e5;
+  static constexpr Tagged_t kdot_default_string = 0x45f9;
+  static constexpr Tagged_t kdot_for_string = 0x460d;
+  static constexpr Tagged_t kdot_generator_object_string = 0x461d;
+  static constexpr Tagged_t kdot_home_object_string = 0x463d;
+  static constexpr Tagged_t kdot_new_target_string = 0x4655;
+  static constexpr Tagged_t knew_target_string = 0x4655;
+  static constexpr Tagged_t kdot_result_string = 0x466d;
+  static constexpr Tagged_t kdot_repl_result_string = 0x4681;
+  static constexpr Tagged_t kdot_static_home_object_string = 0x4699;
+  static constexpr Tagged_t kdot_switch_tag_string = 0x46b9;
+  static constexpr Tagged_t kdotAll_string = 0x46d1;
+  static constexpr Tagged_t kError_string = 0x46e5;
+  static constexpr Tagged_t kEvalError_string = 0x46f9;
+  static constexpr Tagged_t kelement_string = 0x4711;
+  static constexpr Tagged_t kepochMicroseconds_string = 0x4725;
+  static constexpr Tagged_t kepochMilliseconds_string = 0x4745;
+  static constexpr Tagged_t kepochNanoseconds_string = 0x4765;
+  static constexpr Tagged_t kepochSeconds_string = 0x4781;
+  static constexpr Tagged_t kera_string = 0x4799;
+  static constexpr Tagged_t keraYear_string = 0x47a9;
+  static constexpr Tagged_t kerrors_string = 0x47bd;
+  static constexpr Tagged_t kerror_to_string = 0x47d1;
+  static constexpr Tagged_t keval_string = 0x47ed;
+  static constexpr Tagged_t kexception_string = 0x47fd;
+  static constexpr Tagged_t kexec_string = 0x4815;
+  static constexpr Tagged_t kfalse_string = 0x4825;
+  static constexpr Tagged_t kfields_string = 0x4839;
+  static constexpr Tagged_t kFinalizationRegistry_string = 0x484d;
+  static constexpr Tagged_t kflags_string = 0x486d;
+  static constexpr Tagged_t kFloat32Array_string = 0x4881;
+  static constexpr Tagged_t kFloat64Array_string = 0x4899;
+  static constexpr Tagged_t kfractionalSecondDigits_string = 0x48b1;
+  static constexpr Tagged_t kfrom_string = 0x48d5;
+  static constexpr Tagged_t kFunction_string = 0x48e5;
+  static constexpr Tagged_t kfunction_native_code_string = 0x48f9;
+  static constexpr Tagged_t kfunction_string = 0x4925;
+  static constexpr Tagged_t kfunction_to_string = 0x4939;
+  static constexpr Tagged_t kGenerator_string = 0x4959;
+  static constexpr Tagged_t kget_space_string = 0x4971;
+  static constexpr Tagged_t kget_string = 0x4981;
+  static constexpr Tagged_t kgetOffsetNanosecondsFor_string = 0x4991;
+  static constexpr Tagged_t kgetOwnPropertyDescriptor_string = 0x49b5;
+  static constexpr Tagged_t kgetPossibleInstantsFor_string = 0x49d9;
+  static constexpr Tagged_t kgetPrototypeOf_string = 0x49fd;
+  static constexpr Tagged_t kglobal_string = 0x4a19;
+  static constexpr Tagged_t kglobalThis_string = 0x4a2d;
+  static constexpr Tagged_t kgroups_string = 0x4a45;
+  static constexpr Tagged_t kgrowable_string = 0x4a59;
+  static constexpr Tagged_t khas_string = 0x4a6d;
+  static constexpr Tagged_t khasIndices_string = 0x4a7d;
+  static constexpr Tagged_t khour_string = 0x4a95;
+  static constexpr Tagged_t khours_string = 0x4aa5;
+  static constexpr Tagged_t khoursInDay_string = 0x4ab9;
+  static constexpr Tagged_t kignoreCase_string = 0x4ad1;
+  static constexpr Tagged_t kid_string = 0x4ae9;
+  static constexpr Tagged_t killegal_access_string = 0x4af9;
+  static constexpr Tagged_t killegal_argument_string = 0x4b15;
+  static constexpr Tagged_t kinLeapYear_string = 0x4b31;
+  static constexpr Tagged_t kindex_string = 0x4b49;
+  static constexpr Tagged_t kindices_string = 0x4b5d;
+  static constexpr Tagged_t kInfinity_string = 0x4b71;
+  static constexpr Tagged_t kinfinity_string = 0x4b85;
+  static constexpr Tagged_t kinput_string = 0x4b99;
+  static constexpr Tagged_t kinstance_members_initializer_string = 0x4bad;
+  static constexpr Tagged_t kInt16Array_string = 0x4bd9;
+  static constexpr Tagged_t kInt32Array_string = 0x4bf1;
+  static constexpr Tagged_t kInt8Array_string = 0x4c09;
+  static constexpr Tagged_t kisExtensible_string = 0x4c21;
+  static constexpr Tagged_t kiso8601_string = 0x4c39;
+  static constexpr Tagged_t kisoDay_string = 0x4c4d;
+  static constexpr Tagged_t kisoHour_string = 0x4c61;
+  static constexpr Tagged_t kisoMicrosecond_string = 0x4c75;
+  static constexpr Tagged_t kisoMillisecond_string = 0x4c91;
+  static constexpr Tagged_t kisoMinute_string = 0x4cad;
+  static constexpr Tagged_t kisoMonth_string = 0x4cc5;
+  static constexpr Tagged_t kisoNanosecond_string = 0x4cd9;
+  static constexpr Tagged_t kisoSecond_string = 0x4cf5;
+  static constexpr Tagged_t kisoYear_string = 0x4d0d;
+  static constexpr Tagged_t kjsMemoryEstimate_string = 0x4d21;
+  static constexpr Tagged_t kjsMemoryRange_string = 0x4d3d;
+  static constexpr Tagged_t kkeys_string = 0x4d59;
+  static constexpr Tagged_t klargestUnit_string = 0x4d69;
+  static constexpr Tagged_t klastIndex_string = 0x4d81;
+  static constexpr Tagged_t klet_string = 0x4d99;
+  static constexpr Tagged_t kline_string = 0x4da9;
+  static constexpr Tagged_t klinear_string = 0x4db9;
+  static constexpr Tagged_t kLinkError_string = 0x4dcd;
+  static constexpr Tagged_t klong_string = 0x4de5;
+  static constexpr Tagged_t kMap_string = 0x4df5;
+  static constexpr Tagged_t kMapIterator_string = 0x4e05;
+  static constexpr Tagged_t kmax_byte_length_string = 0x4e1d;
+  static constexpr Tagged_t kmedium_string = 0x4e39;
+  static constexpr Tagged_t kmergeFields_string = 0x4e4d;
+  static constexpr Tagged_t kmessage_string = 0x4e65;
+  static constexpr Tagged_t kmeta_string = 0x4e79;
+  static constexpr Tagged_t kminus_Infinity_string = 0x4e89;
+  static constexpr Tagged_t kmicrosecond_string = 0x4ea1;
+  static constexpr Tagged_t kmicroseconds_string = 0x4eb9;
+  static constexpr Tagged_t kmillisecond_string = 0x4ed1;
+  static constexpr Tagged_t kmilliseconds_string = 0x4ee9;
+  static constexpr Tagged_t kminute_string = 0x4f01;
+  static constexpr Tagged_t kminutes_string = 0x4f15;
+  static constexpr Tagged_t kModule_string = 0x4f29;
+  static constexpr Tagged_t kmonth_string = 0x4f3d;
+  static constexpr Tagged_t kmonthDayFromFields_string = 0x4f51;
+  static constexpr Tagged_t kmonths_string = 0x4f71;
+  static constexpr Tagged_t kmonthsInYear_string = 0x4f85;
+  static constexpr Tagged_t kmonthCode_string = 0x4f9d;
+  static constexpr Tagged_t kmultiline_string = 0x4fb5;
+  static constexpr Tagged_t kNaN_string = 0x4fcd;
+  static constexpr Tagged_t knanosecond_string = 0x4fdd;
+  static constexpr Tagged_t knanoseconds_string = 0x4ff5;
+  static constexpr Tagged_t knarrow_string = 0x500d;
+  static constexpr Tagged_t knative_string = 0x5021;
+  static constexpr Tagged_t kNFC_string = 0x5035;
+  static constexpr Tagged_t kNFD_string = 0x5045;
+  static constexpr Tagged_t kNFKC_string = 0x5055;
+  static constexpr Tagged_t kNFKD_string = 0x5065;
+  static constexpr Tagged_t knot_equal_string = 0x5075;
+  static constexpr Tagged_t knull_string = 0x508d;
+  static constexpr Tagged_t knull_to_string = 0x509d;
+  static constexpr Tagged_t kNumber_string = 0x50b9;
+  static constexpr Tagged_t knumber_string = 0x50cd;
+  static constexpr Tagged_t knumber_to_string = 0x50e1;
+  static constexpr Tagged_t kObject_string = 0x50fd;
+  static constexpr Tagged_t kobject_string = 0x5111;
+  static constexpr Tagged_t kobject_to_string = 0x5125;
+  static constexpr Tagged_t kObject_prototype_string = 0x5141;
+  static constexpr Tagged_t kof_string = 0x515d;
+  static constexpr Tagged_t koffset_string = 0x516d;
+  static constexpr Tagged_t koffsetNanoseconds_string = 0x5181;
+  static constexpr Tagged_t kok_string = 0x51a1;
+  static constexpr Tagged_t kother_string = 0x51b1;
+  static constexpr Tagged_t koverflow_string = 0x51c5;
+  static constexpr Tagged_t kownKeys_string = 0x51d9;
+  static constexpr Tagged_t kpercent_string = 0x51ed;
+  static constexpr Tagged_t kplainDate_string = 0x5201;
+  static constexpr Tagged_t kplainTime_string = 0x5219;
+  static constexpr Tagged_t kposition_string = 0x5231;
+  static constexpr Tagged_t kpreventExtensions_string = 0x5245;
+  static constexpr Tagged_t kprivate_constructor_string = 0x5265;
+  static constexpr Tagged_t kPromise_string = 0x527d;
+  static constexpr Tagged_t kpromise_string = 0x5291;
+  static constexpr Tagged_t kproto_string = 0x52a5;
+  static constexpr Tagged_t kproxy_string = 0x52bd;
+  static constexpr Tagged_t kProxy_string = 0x52d1;
+  static constexpr Tagged_t kquery_colon_string = 0x52e5;
+  static constexpr Tagged_t kRangeError_string = 0x52f5;
+  static constexpr Tagged_t kraw_json_string = 0x530d;
+  static constexpr Tagged_t kraw_string = 0x5321;
+  static constexpr Tagged_t kReferenceError_string = 0x5331;
+  static constexpr Tagged_t kReflectGet_string = 0x534d;
+  static constexpr Tagged_t kReflectHas_string = 0x5365;
+  static constexpr Tagged_t kRegExp_string = 0x537d;
+  static constexpr Tagged_t kregexp_to_string = 0x5391;
+  static constexpr Tagged_t kreject_string = 0x53ad;
+  static constexpr Tagged_t krelativeTo_string = 0x53c1;
+  static constexpr Tagged_t kresizable_string = 0x53d9;
+  static constexpr Tagged_t kResizableArrayBuffer_string = 0x53f1;
+  static constexpr Tagged_t kreturn_string = 0x5411;
+  static constexpr Tagged_t krevoke_string = 0x5425;
+  static constexpr Tagged_t kroundingIncrement_string = 0x5439;
+  static constexpr Tagged_t kRuntimeError_string = 0x5459;
+  static constexpr Tagged_t kWebAssemblyException_string = 0x5471;
+  static constexpr Tagged_t kScript_string = 0x5495;
+  static constexpr Tagged_t kscript_string = 0x54a9;
+  static constexpr Tagged_t ksecond_string = 0x54bd;
+  static constexpr Tagged_t kseconds_string = 0x54d1;
+  static constexpr Tagged_t kshort_string = 0x54e5;
+  static constexpr Tagged_t kSet_string = 0x54f9;
+  static constexpr Tagged_t ksentence_string = 0x5509;
+  static constexpr Tagged_t kset_space_string = 0x551d;
+  static constexpr Tagged_t kset_string = 0x552d;
+  static constexpr Tagged_t kSetIterator_string = 0x553d;
+  static constexpr Tagged_t ksetPrototypeOf_string = 0x5555;
+  static constexpr Tagged_t kShadowRealm_string = 0x5571;
+  static constexpr Tagged_t kSharedArray_string = 0x5589;
+  static constexpr Tagged_t kSharedArrayBuffer_string = 0x55a1;
+  static constexpr Tagged_t kSharedStruct_string = 0x55c1;
+  static constexpr Tagged_t ksign_string = 0x55d9;
+  static constexpr Tagged_t ksize_string = 0x55e9;
+  static constexpr Tagged_t ksmallestUnit_string = 0x55f9;
+  static constexpr Tagged_t ksource_string = 0x5611;
+  static constexpr Tagged_t ksourceText_string = 0x5625;
+  static constexpr Tagged_t kstack_string = 0x563d;
+  static constexpr Tagged_t kstackTraceLimit_string = 0x5651;
+  static constexpr Tagged_t kstatic_initializer_string = 0x566d;
+  static constexpr Tagged_t ksticky_string = 0x568d;
+  static constexpr Tagged_t kString_string = 0x56a1;
+  static constexpr Tagged_t kstring_string = 0x56b5;
+  static constexpr Tagged_t kstring_to_string = 0x56c9;
+  static constexpr Tagged_t kSymbol_iterator_string = 0x56e5;
+  static constexpr Tagged_t kSymbol_match_all_string = 0x5701;
+  static constexpr Tagged_t kSymbol_replace_string = 0x571d;
+  static constexpr Tagged_t ksymbol_species_string = 0x5739;
+  static constexpr Tagged_t kSymbol_species_string = 0x5755;
+  static constexpr Tagged_t kSymbol_split_string = 0x5771;
+  static constexpr Tagged_t kSymbol_string = 0x5789;
+  static constexpr Tagged_t ksymbol_string = 0x579d;
+  static constexpr Tagged_t kSyntaxError_string = 0x57b1;
+  static constexpr Tagged_t ktarget_string = 0x57c9;
+  static constexpr Tagged_t kthis_function_string = 0x57dd;
+  static constexpr Tagged_t kthis_string = 0x57f9;
+  static constexpr Tagged_t kthrow_string = 0x5809;
+  static constexpr Tagged_t ktimed_out_string = 0x581d;
+  static constexpr Tagged_t ktimeZone_string = 0x5835;
+  static constexpr Tagged_t ktoJSON_string = 0x5849;
+  static constexpr Tagged_t ktoString_string = 0x585d;
+  static constexpr Tagged_t ktrue_string = 0x5871;
+  static constexpr Tagged_t ktotal_string = 0x5881;
+  static constexpr Tagged_t kTypeError_string = 0x5895;
+  static constexpr Tagged_t kUint16Array_string = 0x58ad;
+  static constexpr Tagged_t kUint32Array_string = 0x58c5;
+  static constexpr Tagged_t kUint8Array_string = 0x58dd;
+  static constexpr Tagged_t kUint8ClampedArray_string = 0x58f5;
+  static constexpr Tagged_t kundefined_string = 0x5915;
+  static constexpr Tagged_t kundefined_to_string = 0x592d;
+  static constexpr Tagged_t kunicode_string = 0x594d;
+  static constexpr Tagged_t kunicodeSets_string = 0x5961;
+  static constexpr Tagged_t kunit_string = 0x5979;
+  static constexpr Tagged_t kURIError_string = 0x5989;
+  static constexpr Tagged_t kUTC_string = 0x599d;
+  static constexpr Tagged_t kvalueOf_string = 0x59ad;
+  static constexpr Tagged_t kWeakMap_string = 0x59c1;
+  static constexpr Tagged_t kWeakRef_string = 0x59d5;
+  static constexpr Tagged_t kWeakSet_string = 0x59e9;
+  static constexpr Tagged_t kweek_string = 0x59fd;
+  static constexpr Tagged_t kweeks_string = 0x5a0d;
+  static constexpr Tagged_t kweekOfYear_string = 0x5a21;
+  static constexpr Tagged_t kwith_string = 0x5a39;
+  static constexpr Tagged_t kword_string = 0x5a49;
+  static constexpr Tagged_t kyearMonthFromFields_string = 0x5a59;
+  static constexpr Tagged_t kyear_string = 0x5a79;
+  static constexpr Tagged_t kyears_string = 0x5a89;
+  static constexpr Tagged_t kPropertyCellHoleValue = 0x5a9d;
+  static constexpr Tagged_t kHashTableHoleValue = 0x5aa9;
+  static constexpr Tagged_t kUninitializedValue = 0x5ab5;
+  static constexpr Tagged_t kArgumentsMarker = 0x5ac1;
+  static constexpr Tagged_t kTerminationException = 0x5acd;
+  static constexpr Tagged_t kException = 0x5ad9;
+  static constexpr Tagged_t kOptimizedOut = 0x5ae5;
+  static constexpr Tagged_t kStaleRegister = 0x5af1;
+  static constexpr Tagged_t kSelfReferenceMarker = 0x5afd;
+  static constexpr Tagged_t kBasicBlockCountersMarker = 0x5b09;
+  static constexpr Tagged_t karray_buffer_wasm_memory_symbol = 0x5b15;
+  static constexpr Tagged_t kcall_site_info_symbol = 0x5b25;
+  static constexpr Tagged_t kconsole_context_id_symbol = 0x5b35;
+  static constexpr Tagged_t kconsole_context_name_symbol = 0x5b45;
+  static constexpr Tagged_t kclass_fields_symbol = 0x5b55;
+  static constexpr Tagged_t kclass_positions_symbol = 0x5b65;
+  static constexpr Tagged_t kerror_end_pos_symbol = 0x5b75;
+  static constexpr Tagged_t kerror_script_symbol = 0x5b85;
+  static constexpr Tagged_t kerror_stack_symbol = 0x5b95;
+  static constexpr Tagged_t kerror_start_pos_symbol = 0x5ba5;
+  static constexpr Tagged_t kfrozen_symbol = 0x5bb5;
+  static constexpr Tagged_t kinterpreter_trampoline_symbol = 0x5bc5;
+  static constexpr Tagged_t knative_context_index_symbol = 0x5bd5;
+  static constexpr Tagged_t knonextensible_symbol = 0x5be5;
+  static constexpr Tagged_t kpromise_debug_marker_symbol = 0x5bf5;
+  static constexpr Tagged_t kpromise_debug_message_symbol = 0x5c05;
+  static constexpr Tagged_t kpromise_forwarding_handler_symbol = 0x5c15;
+  static constexpr Tagged_t kpromise_handled_by_symbol = 0x5c25;
+  static constexpr Tagged_t kpromise_awaited_by_symbol = 0x5c35;
+  static constexpr Tagged_t kregexp_result_names_symbol = 0x5c45;
+  static constexpr Tagged_t kregexp_result_regexp_input_symbol = 0x5c55;
+  static constexpr Tagged_t kregexp_result_regexp_last_index_symbol = 0x5c65;
+  static constexpr Tagged_t ksealed_symbol = 0x5c75;
+  static constexpr Tagged_t kstrict_function_transition_symbol = 0x5c85;
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
-      0x5e0d;
-  static constexpr Tagged_t ktemplate_literal_slot_id_symbol = 0x5e1d;
-  static constexpr Tagged_t kwasm_exception_tag_symbol = 0x5e2d;
-  static constexpr Tagged_t kwasm_exception_values_symbol = 0x5e3d;
-  static constexpr Tagged_t kwasm_uncatchable_symbol = 0x5e4d;
-  static constexpr Tagged_t kwasm_wrapped_object_symbol = 0x5e5d;
-  static constexpr Tagged_t kwasm_debug_proxy_cache_symbol = 0x5e6d;
-  static constexpr Tagged_t kwasm_debug_proxy_names_symbol = 0x5e7d;
-  static constexpr Tagged_t kasync_iterator_symbol = 0x5e8d;
-  static constexpr Tagged_t kintl_fallback_symbol = 0x5ebd;
-  static constexpr Tagged_t kmatch_all_symbol = 0x5ef5;
-  static constexpr Tagged_t kmatch_symbol = 0x5f21;
-  static constexpr Tagged_t ksearch_symbol = 0x5f49;
-  static constexpr Tagged_t ksplit_symbol = 0x5f75;
-  static constexpr Tagged_t kto_primitive_symbol = 0x5f9d;
-  static constexpr Tagged_t kunscopables_symbol = 0x5fcd;
-  static constexpr Tagged_t khas_instance_symbol = 0x5ffd;
-  static constexpr Tagged_t kto_string_tag_symbol = 0x602d;
-  static constexpr Tagged_t kconstructor_string = 0x6085;
-  static constexpr Tagged_t knext_string = 0x609d;
-  static constexpr Tagged_t kresolve_string = 0x60ad;
-  static constexpr Tagged_t kthen_string = 0x60c1;
-  static constexpr Tagged_t kiterator_symbol = 0x60d1;
-  static constexpr Tagged_t kreplace_symbol = 0x60e1;
-  static constexpr Tagged_t kspecies_symbol = 0x60f1;
-  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x6101;
-  static constexpr Tagged_t kEmptySlowElementDictionary = 0x6111;
-  static constexpr Tagged_t kEmptySymbolTable = 0x6135;
-  static constexpr Tagged_t kEmptyOrderedHashMap = 0x6151;
-  static constexpr Tagged_t kEmptyOrderedHashSet = 0x6165;
-  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x6179;
-  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x6185;
-  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x61a5;
-  static constexpr Tagged_t kNativeScopeInfo = 0x61c9;
-  static constexpr Tagged_t kShadowRealmScopeInfo = 0x61e1;
-  static constexpr Tagged_t kWasmNullPadding = 0x61f9;
+      0x5c95;
+  static constexpr Tagged_t ktemplate_literal_slot_id_symbol = 0x5ca5;
+  static constexpr Tagged_t kwasm_exception_tag_symbol = 0x5cb5;
+  static constexpr Tagged_t kwasm_exception_values_symbol = 0x5cc5;
+  static constexpr Tagged_t kwasm_uncatchable_symbol = 0x5cd5;
+  static constexpr Tagged_t kwasm_wrapped_object_symbol = 0x5ce5;
+  static constexpr Tagged_t kwasm_debug_proxy_cache_symbol = 0x5cf5;
+  static constexpr Tagged_t kwasm_debug_proxy_names_symbol = 0x5d05;
+  static constexpr Tagged_t kasync_iterator_symbol = 0x5d15;
+  static constexpr Tagged_t kintl_fallback_symbol = 0x5d45;
+  static constexpr Tagged_t kmatch_symbol = 0x5d7d;
+  static constexpr Tagged_t ksearch_symbol = 0x5da5;
+  static constexpr Tagged_t kto_primitive_symbol = 0x5dd1;
+  static constexpr Tagged_t kunscopables_symbol = 0x5e01;
+  static constexpr Tagged_t khas_instance_symbol = 0x5e31;
+  static constexpr Tagged_t kto_string_tag_symbol = 0x5e61;
+  static constexpr Tagged_t kconstructor_string = 0x5eb9;
+  static constexpr Tagged_t knext_string = 0x5ed1;
+  static constexpr Tagged_t kresolve_string = 0x5ee1;
+  static constexpr Tagged_t kthen_string = 0x5ef5;
+  static constexpr Tagged_t kiterator_symbol = 0x5f05;
+  static constexpr Tagged_t kmatch_all_symbol = 0x5f15;
+  static constexpr Tagged_t kreplace_symbol = 0x5f25;
+  static constexpr Tagged_t kspecies_symbol = 0x5f35;
+  static constexpr Tagged_t ksplit_symbol = 0x5f45;
+  static constexpr Tagged_t kis_concat_spreadable_symbol = 0x5f55;
+  static constexpr Tagged_t kEmptySlowElementDictionary = 0x5f65;
+  static constexpr Tagged_t kEmptySymbolTable = 0x5f89;
+  static constexpr Tagged_t kEmptyOrderedHashMap = 0x5fa5;
+  static constexpr Tagged_t kEmptyOrderedHashSet = 0x5fb9;
+  static constexpr Tagged_t kEmptyFeedbackMetadata = 0x5fcd;
+  static constexpr Tagged_t kGlobalThisBindingScopeInfo = 0x5fd9;
+  static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x5ff9;
+  static constexpr Tagged_t kNativeScopeInfo = 0x601d;
+  static constexpr Tagged_t kShadowRealmScopeInfo = 0x6035;
+  static constexpr Tagged_t kEmptyExternalPointerArray = 0x604d;
+  static constexpr Tagged_t kWasmNullPadding = 0x6055;
   static constexpr Tagged_t kWasmNull = 0xfffd;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
 };
 
-static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 746> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -786,8 +794,8 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFixedDoubleArrayMap,
     StaticReadOnlyRoot::kHashTableMap,
     StaticReadOnlyRoot::kSymbolMap,
-    StaticReadOnlyRoot::kOneByteStringMap,
-    StaticReadOnlyRoot::kOneByteInternalizedStringMap,
+    StaticReadOnlyRoot::kSeqOneByteStringMap,
+    StaticReadOnlyRoot::kInternalizedOneByteStringMap,
     StaticReadOnlyRoot::kScopeInfoMap,
     StaticReadOnlyRoot::kSharedFunctionInfoMap,
     StaticReadOnlyRoot::kInstructionStreamMap,
@@ -805,6 +813,8 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kTerminationException,
     StaticReadOnlyRoot::kOptimizedOut,
     StaticReadOnlyRoot::kStaleRegister,
+    StaticReadOnlyRoot::kPropertyCellHoleValue,
+    StaticReadOnlyRoot::kHashTableHoleValue,
     StaticReadOnlyRoot::kScriptContextTableMap,
     StaticReadOnlyRoot::kClosureFeedbackCellArrayMap,
     StaticReadOnlyRoot::kFeedbackMetadataArrayMap,
@@ -830,6 +840,7 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kPreparseDataMap,
     StaticReadOnlyRoot::kPropertyArrayMap,
     StaticReadOnlyRoot::kAccessorInfoMap,
+    StaticReadOnlyRoot::kRegExpMatchInfoMap,
     StaticReadOnlyRoot::kSideEffectCallHandlerInfoMap,
     StaticReadOnlyRoot::kSideEffectFreeCallHandlerInfoMap,
     StaticReadOnlyRoot::kSimpleNumberDictionaryMap,
@@ -853,42 +864,40 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEphemeronHashTableMap,
     StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
-    StaticReadOnlyRoot::kStringMap,
+    StaticReadOnlyRoot::kExternalPointerArrayMap,
+    StaticReadOnlyRoot::kSeqTwoByteStringMap,
+    StaticReadOnlyRoot::kConsTwoByteStringMap,
     StaticReadOnlyRoot::kConsOneByteStringMap,
-    StaticReadOnlyRoot::kConsStringMap,
-    StaticReadOnlyRoot::kThinStringMap,
-    StaticReadOnlyRoot::kSlicedStringMap,
+    StaticReadOnlyRoot::kThinTwoByteStringMap,
+    StaticReadOnlyRoot::kThinOneByteStringMap,
+    StaticReadOnlyRoot::kSlicedTwoByteStringMap,
     StaticReadOnlyRoot::kSlicedOneByteStringMap,
-    StaticReadOnlyRoot::kExternalStringMap,
+    StaticReadOnlyRoot::kExternalTwoByteStringMap,
     StaticReadOnlyRoot::kExternalOneByteStringMap,
-    StaticReadOnlyRoot::kUncachedExternalStringMap,
-    StaticReadOnlyRoot::kInternalizedStringMap,
-    StaticReadOnlyRoot::kExternalInternalizedStringMap,
-    StaticReadOnlyRoot::kExternalOneByteInternalizedStringMap,
-    StaticReadOnlyRoot::kUncachedExternalInternalizedStringMap,
-    StaticReadOnlyRoot::kUncachedExternalOneByteInternalizedStringMap,
+    StaticReadOnlyRoot::kInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kExternalInternalizedOneByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalInternalizedOneByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kUncachedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedOneByteStringMap,
-    StaticReadOnlyRoot::kSharedStringMap,
+    StaticReadOnlyRoot::kSharedSeqOneByteStringMap,
+    StaticReadOnlyRoot::kSharedSeqTwoByteStringMap,
     StaticReadOnlyRoot::kSharedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedExternalStringMap,
+    StaticReadOnlyRoot::kSharedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kSharedUncachedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedUncachedExternalStringMap,
+    StaticReadOnlyRoot::kSharedUncachedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kUndefinedMap,
-    StaticReadOnlyRoot::kTheHoleMap,
     StaticReadOnlyRoot::kNullMap,
     StaticReadOnlyRoot::kBooleanMap,
-    StaticReadOnlyRoot::kUninitializedMap,
-    StaticReadOnlyRoot::kArgumentsMarkerMap,
-    StaticReadOnlyRoot::kExceptionMap,
-    StaticReadOnlyRoot::kTerminationExceptionMap,
-    StaticReadOnlyRoot::kOptimizedOutMap,
-    StaticReadOnlyRoot::kStaleRegisterMap,
-    StaticReadOnlyRoot::kSelfReferenceMarkerMap,
-    StaticReadOnlyRoot::kBasicBlockCountersMarkerMap,
+    StaticReadOnlyRoot::kHoleMap,
+    StaticReadOnlyRoot::kJSSharedArrayMap,
+    StaticReadOnlyRoot::kJSAtomicsMutexMap,
+    StaticReadOnlyRoot::kJSAtomicsConditionMap,
     StaticReadOnlyRoot::kEmptyEnumCache,
     StaticReadOnlyRoot::kEmptyPropertyArray,
     StaticReadOnlyRoot::kEmptyByteArray,
+    StaticReadOnlyRoot::kEmptyExternalPointerArray,
     StaticReadOnlyRoot::kEmptyObjectBoilerplateDescription,
     StaticReadOnlyRoot::kEmptyArrayBoilerplateDescription,
     StaticReadOnlyRoot::kEmptyClosureFeedbackCellArray,
@@ -1203,6 +1212,7 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kInfinity_string,
     StaticReadOnlyRoot::kinfinity_string,
     StaticReadOnlyRoot::kinput_string,
+    StaticReadOnlyRoot::kinstance_members_initializer_string,
     StaticReadOnlyRoot::kInt16Array_string,
     StaticReadOnlyRoot::kInt32Array_string,
     StaticReadOnlyRoot::kInt8Array_string,
@@ -1283,6 +1293,7 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kpreventExtensions_string,
     StaticReadOnlyRoot::kprivate_constructor_string,
     StaticReadOnlyRoot::kPromise_string,
+    StaticReadOnlyRoot::kpromise_string,
     StaticReadOnlyRoot::kproto_string,
     StaticReadOnlyRoot::kproxy_string,
     StaticReadOnlyRoot::kProxy_string,
@@ -1320,19 +1331,23 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSharedArrayBuffer_string,
     StaticReadOnlyRoot::kSharedStruct_string,
     StaticReadOnlyRoot::ksign_string,
+    StaticReadOnlyRoot::ksize_string,
     StaticReadOnlyRoot::ksmallestUnit_string,
     StaticReadOnlyRoot::ksource_string,
     StaticReadOnlyRoot::ksourceText_string,
     StaticReadOnlyRoot::kstack_string,
     StaticReadOnlyRoot::kstackTraceLimit_string,
+    StaticReadOnlyRoot::kstatic_initializer_string,
     StaticReadOnlyRoot::ksticky_string,
     StaticReadOnlyRoot::kString_string,
     StaticReadOnlyRoot::kstring_string,
     StaticReadOnlyRoot::kstring_to_string,
     StaticReadOnlyRoot::kSymbol_iterator_string,
+    StaticReadOnlyRoot::kSymbol_match_all_string,
     StaticReadOnlyRoot::kSymbol_replace_string,
     StaticReadOnlyRoot::ksymbol_species_string,
     StaticReadOnlyRoot::kSymbol_species_string,
+    StaticReadOnlyRoot::kSymbol_split_string,
     StaticReadOnlyRoot::kSymbol_string,
     StaticReadOnlyRoot::ksymbol_string,
     StaticReadOnlyRoot::kSyntaxError_string,
@@ -1365,6 +1380,7 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kweek_string,
     StaticReadOnlyRoot::kweeks_string,
     StaticReadOnlyRoot::kweekOfYear_string,
+    StaticReadOnlyRoot::kwith_string,
     StaticReadOnlyRoot::kword_string,
     StaticReadOnlyRoot::kyearMonthFromFields_string,
     StaticReadOnlyRoot::kyear_string,
@@ -1409,10 +1425,8 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kwasm_debug_proxy_names_symbol,
     StaticReadOnlyRoot::kasync_iterator_symbol,
     StaticReadOnlyRoot::kintl_fallback_symbol,
-    StaticReadOnlyRoot::kmatch_all_symbol,
     StaticReadOnlyRoot::kmatch_symbol,
     StaticReadOnlyRoot::ksearch_symbol,
-    StaticReadOnlyRoot::ksplit_symbol,
     StaticReadOnlyRoot::kto_primitive_symbol,
     StaticReadOnlyRoot::kunscopables_symbol,
     StaticReadOnlyRoot::khas_instance_symbol,
@@ -1434,6 +1448,7 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kBreakPointMap,
     StaticReadOnlyRoot::kBreakPointInfoMap,
     StaticReadOnlyRoot::kCallSiteInfoMap,
+    StaticReadOnlyRoot::kClassBoilerplateMap,
     StaticReadOnlyRoot::kClassPositionsMap,
     StaticReadOnlyRoot::kDebugInfoMap,
     StaticReadOnlyRoot::kEnumCacheMap,
@@ -1485,7 +1500,6 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kExportedSubClassMap,
     StaticReadOnlyRoot::kAbstractInternalClassSubclass1Map,
     StaticReadOnlyRoot::kAbstractInternalClassSubclass2Map,
-    StaticReadOnlyRoot::kInternalClassWithSmiElementsMap,
     StaticReadOnlyRoot::kInternalClassWithStructElementsMap,
     StaticReadOnlyRoot::kExportedSubClass2Map,
     StaticReadOnlyRoot::kSortStateMap,
@@ -1497,8 +1511,10 @@ static constexpr std::array<Tagged_t, 738> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kresolve_string,
     StaticReadOnlyRoot::kthen_string,
     StaticReadOnlyRoot::kiterator_symbol,
+    StaticReadOnlyRoot::kmatch_all_symbol,
     StaticReadOnlyRoot::kreplace_symbol,
     StaticReadOnlyRoot::kspecies_symbol,
+    StaticReadOnlyRoot::ksplit_symbol,
     StaticReadOnlyRoot::kis_concat_spreadable_symbol,
     StaticReadOnlyRoot::kLoadHandler1Map,
     StaticReadOnlyRoot::kLoadHandler2Map,

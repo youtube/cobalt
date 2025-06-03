@@ -50,6 +50,7 @@ class WebContentsViewIOS : public WebContentsView,
   void RestoreFocus() override;
   void FocusThroughTabTraversal(bool reverse) override;
   DropData* GetDropData() const override;
+  void TransferDragSecurityInfo(WebContentsView* view) override;
   gfx::Rect GetViewBounds() const override;
   void CreateView(gfx::NativeView context) override;
   RenderWidgetHostViewBase* CreateViewForWidget(
@@ -64,6 +65,13 @@ class WebContentsViewIOS : public WebContentsView,
   void OnCapturerCountChanged() override;
   void FullscreenStateChanged(bool is_fullscreen) override;
   void UpdateWindowControlsOverlay(const gfx::Rect& bounding_rect) override;
+  int GetTopControlsHeight() const override;
+  int GetTopControlsMinHeight() const override;
+  int GetBottomControlsHeight() const override;
+  int GetBottomControlsMinHeight() const override;
+  bool ShouldAnimateBrowserControlsHeightChanges() const override;
+  bool DoBrowserControlsShrinkRendererSize() const override;
+  bool OnlyExpandTopControlsAtPageTop() const override;
 
   // RenderViewHostDelegateView:
   void GotFocus(RenderWidgetHostImpl* render_widget_host) override;
@@ -96,6 +104,9 @@ class WebContentsViewIOS : public WebContentsView,
   std::unique_ptr<WebContentsUIViewHolder> ui_view_;
 
   std::unique_ptr<PopupMenuHelper> popup_menu_helper_;
+
+  // Our optional delegate.
+  std::unique_ptr<WebContentsViewDelegate> delegate_;
 };
 
 }  // namespace content

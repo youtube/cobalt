@@ -43,10 +43,10 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard::android::shared")

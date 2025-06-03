@@ -15,6 +15,10 @@
 #include "ui/gfx/gpu_extra_info.h"
 #include "ui/gfx/native_widget_types.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "ui/linux/linux_ui.h"
+#endif
+
 namespace base {
 class TimeDelta;
 }  // namespace base
@@ -131,10 +135,6 @@ class COMPONENT_EXPORT(OZONE_BASE) PlatformScreen {
   // other system properties related to the compositing.
   virtual base::Value::List GetGpuExtraInfo(
       const gfx::GpuExtraInfo& gpu_extra_info);
-
-  // Sets device scale factor received from external sources such as toolkits.
-  // Currently only used by Linux.
-  virtual void SetDeviceScaleFactor(float scale);
 
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   // Called when tablet state is changed.

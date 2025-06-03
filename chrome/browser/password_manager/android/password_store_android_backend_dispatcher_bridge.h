@@ -63,6 +63,17 @@ class PasswordStoreAndroidBackendDispatcherBridge {
                                        const std::string& signon_realm,
                                        Account account) = 0;
 
+  // Triggers an asynchronous request to retrieve stored affiliated passwords
+  // matching |signon_realm| or affiliated with |signon_realm| or grouped with
+  // |signon_realm|. The registered `Consumer` is notified with
+  // `OnCompleteWithLogins` via the receiver bridge when the job with the given
+  // JobId succeeds. `syncing_account` is used to decide which storage to use.
+  // If `syncing_account` is absl::nullopt local storage will be used.
+  virtual void GetAffiliatedLoginsForSignonRealm(
+      JobId job_id,
+      const std::string& signon_realm,
+      Account account) = 0;
+
   // Triggers an asynchronous request to add |form| to store. The
   // registered `Consumer` is notified with `OnLoginsChanged` via the receiver
   // bridge when the job with the given JobId succeeds. `syncing_account` is
@@ -90,14 +101,6 @@ class PasswordStoreAndroidBackendDispatcherBridge {
                            const PasswordForm& form,
                            Account account) = 0;
 
-  // Displays a notification when a store backend request finishes with an
-  // unrecoverable error. TODO(crbug.com/1344576) Remove when not required
-  // anymore.
-  // This method interacts with the UI but should also be called on the
-  // background thread as native bridge does not have JNIEnv for the UI thread.
-  // Operation will be actually be executed on the UI thread by the Java bridge.
-  virtual void ShowErrorNotification() = 0;
-
   // Factory function for creating the bridge. Implementation is pulled in by
   // including an implementation or by defining it explicitly in tests.
   // Ensure `CanCreateBackend` returns true before calling this method.
@@ -108,6 +111,9 @@ class PasswordStoreAndroidBackendDispatcherBridge {
   // fulfilled. E.g. if the backend requires a minimum GMS version this method
   // would return false.
   static bool CanCreateBackend();
+
+  // Returns true if GMS Core supports new GetAffiliatedPasswordsAPI API.
+  static bool CanUseGetAffiliatedPasswordsAPI();
 };
 
 }  // namespace password_manager

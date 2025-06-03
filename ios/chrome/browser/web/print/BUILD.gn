@@ -5,7 +5,6 @@
 import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("print") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "print_java_script_feature.h",
     "print_java_script_feature.mm",
@@ -17,8 +16,8 @@ source_set("print") {
     ":print_js",
     "//base",
     "//components/prefs",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
   ]
@@ -27,7 +26,6 @@ source_set("print") {
 
 source_set("unit_tests") {
   testonly = true
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "print_java_script_feature_unittest.mm",
     "print_tab_helper_unittest.mm",
@@ -38,9 +36,9 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/sync_preferences",
     "//components/sync_preferences:test_support",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/prefs:browser_prefs",
-    "//ios/chrome/browser/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/prefs:browser_prefs",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/test/fakes",
     "//ios/web/public/test",
     "//testing/gtest",

@@ -237,8 +237,8 @@ class Framebuffer final : public angle::ObserverInterface,
                                 GLint baseViewIndex);
     void resetAttachment(const Context *context, GLenum binding);
 
-    bool detachTexture(const Context *context, TextureID texture);
-    bool detachRenderbuffer(const Context *context, RenderbufferID renderbuffer);
+    bool detachTexture(Context *context, TextureID texture);
+    bool detachRenderbuffer(Context *context, RenderbufferID renderbuffer);
 
     const FramebufferAttachment *getColorAttachment(size_t colorAttachment) const;
     const FramebufferAttachment *getDepthAttachment() const;
@@ -412,6 +412,11 @@ class Framebuffer final : public angle::ObserverInterface,
         return mFloat32ColorAttachmentBits & getDrawBufferMask();
     }
 
+    DrawBufferMask getActiveSharedExponentColorAttachmentDrawBufferMask() const
+    {
+        return mSharedExponentColorAttachmentBits & getDrawBufferMask();
+    }
+
     bool hasResourceThatNeedsInit() const { return mState.mResourceNeedsInit.any(); }
 
     angle::Result syncState(const Context *context,
@@ -442,15 +447,15 @@ class Framebuffer final : public angle::ObserverInterface,
     // Lazily creates a PixelLocalStorage object for this Framebuffer.
     PixelLocalStorage &getPixelLocalStorage(const Context *);
     // Returns nullptr if the pixel local storage object has not been created yet.
-    const PixelLocalStorage *peekPixelLocalStorage() const { return mPixelLocalStorage.get(); }
+    PixelLocalStorage *peekPixelLocalStorage() const { return mPixelLocalStorage.get(); }
     // Detaches the the pixel local storage object so the Context can call deleteContextObjects().
     std::unique_ptr<PixelLocalStorage> detachPixelLocalStorage();
 
     static const FramebufferID kDefaultDrawFramebufferHandle;
 
   private:
-    bool detachResourceById(const Context *context, GLenum resourceType, GLuint resourceId);
-    bool detachMatchingAttachment(const Context *context,
+    bool detachResourceById(Context *context, GLenum resourceType, GLuint resourceId);
+    bool detachMatchingAttachment(Context *context,
                                   FramebufferAttachment *attachment,
                                   GLenum matchType,
                                   GLuint matchId);
@@ -507,10 +512,18 @@ class Framebuffer final : public angle::ObserverInterface,
 
     FramebufferAttachment *getAttachmentFromSubjectIndex(angle::SubjectIndex index);
 
-    ANGLE_INLINE void updateFloat32ColorAttachmentBits(size_t index, const InternalFormat *format)
+    ANGLE_INLINE void updateFloat32AndSharedExponentColorAttachmentBits(
+        size_t index,
+        const InternalFormat *format)
     {
         mFloat32ColorAttachmentBits.set(index, format->type == GL_FLOAT);
+        mSharedExponentColorAttachmentBits.set(index, format->type == GL_UNSIGNED_INT_5_9_9_9_REV);
     }
+
+    angle::Result syncAllDrawAttachmentState(const Context *context, Command command) const;
+    angle::Result syncAttachmentState(const Context *context,
+                                      Command command,
+                                      const FramebufferAttachment *attachment) const;
 
     FramebufferState mState;
     rx::FramebufferImpl *mImpl;
@@ -522,6 +535,7 @@ class Framebuffer final : public angle::ObserverInterface,
 
     mutable DirtyBits mDirtyBits;
     DrawBufferMask mFloat32ColorAttachmentBits;
+    DrawBufferMask mSharedExponentColorAttachmentBits;
 
     // The dirty bits guard is checked when we get a dependent state change message. We verify that
     // we don't set a dirty bit that isn't already set, when inside the dirty bits syncState.

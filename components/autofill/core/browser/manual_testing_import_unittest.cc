@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "base/test/scoped_feature_list.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/manual_testing_import.h"
 
 #include "base/files/file_path.h"
@@ -14,6 +16,7 @@
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -106,9 +109,7 @@ TEST_F(ManualTestingImportTest, LoadCreditCardsFromFile_Valid) {
   expected_card2.SetRawInfoWithVerificationStatus(
       CREDIT_CARD_VERIFICATION_CODE, u"321", VerificationStatus::kUserVerified);
 
-  absl::optional<std::vector<CreditCard>> loaded_cards =
-      LoadCreditCardsFromFile(file_path);
-  EXPECT_THAT(loaded_cards,
+  EXPECT_THAT(LoadCreditCardsFromFile(file_path),
               testing::Optional(testing::Pointwise(
                   DataModelsCompareEqual(), {expected_card1, expected_card2})));
 }
@@ -180,7 +181,8 @@ TEST_F(ManualTestingImportTest, LoadProfilesFromFile_Valid) {
       {
         "NAME_FULL" : "first last",
         "NAME_FIRST" : "first",
-        "NAME_LAST" : "last"
+        "NAME_LAST" : "last",
+        "NAME_LAST_SECOND" : "last"
       },
       {
         "source" : "account",
@@ -199,6 +201,8 @@ TEST_F(ManualTestingImportTest, LoadProfilesFromFile_Valid) {
       NAME_FIRST, u"first", VerificationStatus::kObserved);
   expected_profile1.SetRawInfoWithVerificationStatus(
       NAME_LAST, u"last", VerificationStatus::kObserved);
+  expected_profile1.SetRawInfoWithVerificationStatus(
+      NAME_LAST_SECOND, u"last", VerificationStatus::kObserved);
 
   AutofillProfile expected_profile2(AutofillProfile::Source::kAccount);
   expected_profile2.set_initial_creator_id(999);
@@ -295,9 +299,10 @@ TEST_F(ManualTestingImportTest, LoadProfilesFromFile_InvalidInitialCreatorId) {
   EXPECT_FALSE(LoadProfilesFromFile(file_path2).has_value());
 }
 
+// TODO(1445454): Re-enable this test.
 // Tests that the conversion fails for non-fully structured profiles.
 TEST_F(ManualTestingImportTest,
-       LoadProfilesFromFile_Invalid_NotFullyStructured) {
+       DISABLED_LoadProfilesFromFile_Invalid_NotFullyStructured) {
   base::FilePath file_path = GetFilePath();
   base::WriteFile(file_path, R"({
     "profiles" : [
@@ -308,6 +313,60 @@ TEST_F(ManualTestingImportTest,
     ]
   })");
   EXPECT_FALSE(LoadProfilesFromFile(file_path).has_value());
+}
+
+class ManualTestingImportTesti18n : public ManualTestingImportTest {
+ public:
+  base::test::ScopedFeatureList features_{
+      features::kAutofillUseI18nAddressModel};
+};
+
+// Tests that i18n profiles are converted correctly.
+TEST_F(ManualTestingImportTesti18n, Loadi18nProfilesFromFile_Valid) {
+  base::FilePath file_path = GetFilePath();
+  base::WriteFile(file_path, R"({
+    "profiles" : [
+      {
+        "NAME_FULL" : "first last",
+        "NAME_FIRST" : "first",
+        "NAME_LAST" : "last",
+        "NAME_LAST_SECOND" : "last"
+      },
+      {
+        "ADDRESS_HOME_COUNTRY" : "BR",
+        "ADDRESS_HOME_STREET_ADDRESS" : "street 123",
+        "ADDRESS_HOME_STREET_NAME" : "street",
+        "ADDRESS_HOME_HOUSE_NUMBER" : "123"
+      }
+    ]
+  })");
+
+  AutofillProfile expected_profile1(AutofillProfile::Source::kLocalOrSyncable);
+  expected_profile1.SetRawInfoWithVerificationStatus(
+      NAME_FULL, u"first last", VerificationStatus::kObserved);
+  expected_profile1.SetRawInfoWithVerificationStatus(
+      NAME_FIRST, u"first", VerificationStatus::kObserved);
+  expected_profile1.SetRawInfoWithVerificationStatus(
+      NAME_LAST, u"last", VerificationStatus::kObserved);
+  expected_profile1.SetRawInfoWithVerificationStatus(
+      NAME_LAST_SECOND, u"last", VerificationStatus::kObserved);
+
+  AutofillProfile expected_profile2(AutofillProfile::Source::kLocalOrSyncable,
+                                    AddressCountryCode("BR"));
+  expected_profile2.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_ADDRESS, u"street 123",
+      VerificationStatus::kObserved);
+  expected_profile2.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_STREET_NAME, u"street", VerificationStatus::kObserved);
+  expected_profile2.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_HOUSE_NUMBER, u"123", VerificationStatus::kObserved);
+  absl::optional<std::vector<AutofillProfile>> loaded_profiles =
+      LoadProfilesFromFile(file_path);
+  EXPECT_THAT(loaded_profiles, testing::Optional(testing::Pointwise(
+                                   DataModelsCompareEqual(),
+                                   {expected_profile1, expected_profile2})));
+  EXPECT_TRUE(loaded_profiles.value().at(0).GetAddress().IsLegacyAddress());
+  EXPECT_FALSE(loaded_profiles.value().at(1).GetAddress().IsLegacyAddress());
 }
 
 }  // namespace autofill

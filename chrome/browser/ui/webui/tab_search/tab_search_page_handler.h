@@ -58,11 +58,23 @@ class TabSearchPageHandler : public tab_search::mojom::PageHandler,
 
   // tab_search::mojom::PageHandler:
   void CloseTab(int32_t tab_id) override;
+  void AcceptTabOrganization(
+      int32_t session_id,
+      int32_t organization_id,
+      const std::string& name,
+      std::vector<tab_search::mojom::TabPtr> tabs) override;
+  void RejectTabOrganization(int32_t session_id,
+                             int32_t organization_id) override;
   void GetProfileData(GetProfileDataCallback callback) override;
+  void GetTabOrganizationSession(
+      GetTabOrganizationSessionCallback callback) override;
   void SwitchToTab(
       tab_search::mojom::SwitchToTabInfoPtr switch_to_tab_info) override;
   void OpenRecentlyClosedEntry(int32_t session_id) override;
+  void RequestTabOrganization() override;
   void SaveRecentlyClosedExpandedPref(bool expanded) override;
+  void SetTabIndex(int32_t index) override;
+  void StartTabGroupTutorial() override;
   void ShowUI() override;
 
   // TabStripModelObserver:
@@ -73,6 +85,8 @@ class TabSearchPageHandler : public tab_search::mojom::PageHandler,
   void TabChangedAt(content::WebContents* contents,
                     int index,
                     TabChangeType change_type) override;
+
+  void OnTabOrganizationSessionChanged();
 
   // BrowserTabStripTrackerDelegate:
   bool ShouldTrackBrowser(Browser* browser) override;
@@ -148,7 +162,8 @@ class TabSearchPageHandler : public tab_search::mojom::PageHandler,
   mojo::Receiver<tab_search::mojom::PageHandler> receiver_;
   mojo::Remote<tab_search::mojom::Page> page_;
   const raw_ptr<content::WebUI> web_ui_;
-  const raw_ptr<ui::MojoBubbleWebUIController> webui_controller_;
+  const raw_ptr<ui::MojoBubbleWebUIController, DanglingUntriaged>
+      webui_controller_;
   const raw_ptr<MetricsReporter> metrics_reporter_;
   BrowserTabStripTracker browser_tab_strip_tracker_{this, this};
   std::unique_ptr<base::RetainingOneShotTimer> debounce_timer_;

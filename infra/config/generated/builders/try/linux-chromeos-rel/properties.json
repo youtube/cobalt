@@ -1,7 +1,8 @@
 {
   "$build/chromium_orchestrator": {
     "compilator": "linux-chromeos-rel-compilator",
-    "compilator_watcher_git_revision": "e3cad57252d996ab02463019e7f49343d739b885"
+    "compilator_watcher_git_revision": "e3cad57252d996ab02463019e7f49343d739b885",
+    "propagate_properties_to_compilator": true
   },
   "$build/chromium_tests_builder_config": {
     "builder_config": {
@@ -11,7 +12,7 @@
             "builder_id": {
               "bucket": "ci",
               "builder": "linux-chromeos-rel",
-              "project": "chromium-m114"
+              "project": "chromium-m120"
             },
             "builder_spec": {
               "build_gs_bucket": "chromium-chromiumos-archive",
@@ -41,7 +42,7 @@
         {
           "bucket": "ci",
           "builder": "linux-chromeos-rel",
-          "project": "chromium-m114"
+          "project": "chromium-m120"
         }
       ]
     }
@@ -52,6 +53,16 @@
       "overall"
     ],
     "use_clang_coverage": true
+  },
+  "$build/flakiness": {
+    "check_for_flakiness": true,
+    "check_for_flakiness_with_resultdb": true
+  },
+  "$build/reclient": {
+    "instance": "rbe-chromium-untrusted",
+    "jobs": 500,
+    "metrics_project": "chromium-reclient-metrics",
+    "scandeps_server": true
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],

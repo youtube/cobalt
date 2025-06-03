@@ -21,8 +21,6 @@
 
 namespace ash {
 
-class JitterCalculator;
-
 // AmbientBackgroundImageView--------------------------------------------------
 // A custom ImageView to display photo image and details information on ambient.
 // It also handles specific mouse/gesture events to dismiss ambient when user
@@ -32,9 +30,7 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
  public:
   METADATA_HEADER(AmbientBackgroundImageView);
 
-  AmbientBackgroundImageView(
-      AmbientViewDelegate* delegate,
-      JitterCalculator* glanceable_info_jitter_calculator);
+  explicit AmbientBackgroundImageView(AmbientViewDelegate* delegate);
   AmbientBackgroundImageView(const AmbientBackgroundImageView&) = delete;
   AmbientBackgroundImageView& operator=(const AmbientBackgroundImageView&) =
       delete;
@@ -58,6 +54,8 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
 
   // Shows/Hides the peripheral ui.
   void SetPeripheralUiVisibility(bool visible);
+
+  void SetForceResizeToFit(bool force_resize_to_fit);
 
   gfx::ImageSkia GetCurrentImage();
 
@@ -83,8 +81,6 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
   // Owned by |AmbientController| and should always outlive |this|.
   raw_ptr<AmbientViewDelegate, ExperimentalAsh> delegate_ = nullptr;
 
-  const base::raw_ptr<JitterCalculator> glanceable_info_jitter_calculator_;
-
   // View to display current image(s) on ambient. Owned by the view hierarchy.
   raw_ptr<views::View, ExperimentalAsh> image_container_ = nullptr;
   raw_ptr<views::FlexLayout, ExperimentalAsh> image_layout_ = nullptr;
@@ -99,6 +95,10 @@ class ASH_EXPORT AmbientBackgroundImageView : public views::View,
   std::u16string related_details_;
 
   bool is_portrait_ = false;
+
+  // Flag that changes the resize behavior such that full image is always shown
+  // without any cropping. False by default.
+  bool force_resize_to_fit_ = false;
 
   ::ambient::TopicType topic_type_ = ::ambient::TopicType::kOther;
 

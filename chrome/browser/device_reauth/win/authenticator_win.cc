@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -150,4 +150,8 @@ void AuthenticatorWin::CheckIfBiometricsAvailable(
       FROM_HERE,
       base::BindOnce(&GetBiometricAvailabilityFromWindows, std::move(callback),
                      base::SequencedTaskRunner::GetCurrentDefault()));
+}
+
+bool AuthenticatorWin::CanAuthenticateWithScreenLock() {
+  return password_manager_util_win::CanAuthenticateWithScreenLock();
 }

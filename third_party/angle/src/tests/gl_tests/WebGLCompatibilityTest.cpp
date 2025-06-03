@@ -611,7 +611,7 @@ TEST_P(WebGLCompatibilityTest, EnablePixelBufferObjectExtensions)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() >= 3);
 
     // http://anglebug.com/5268
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsIntelUHD630Mobile() && IsDesktopOpenGL());
 
     GLBuffer buffer;
     glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer);
@@ -2755,7 +2755,7 @@ void main() {
 TEST_P(WebGLCompatibilityTest, TextureCopyingFeedbackLoops)
 {
     // TODO(anglebug.com/5360): Failing on ARM-based Apple DTKs.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsARM64() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsARM64() && IsDesktopOpenGL());
 
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D, texture.get());
@@ -2823,10 +2823,10 @@ TEST_P(WebGL2CompatibilityTest, CopyMip1ToMip0)
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
     // http://anglebug.com/4805
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsIntel() && (IsWindows() || IsOSX()));
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsIntel() && (IsWindows() || IsMac()));
 
     // TODO(anglebug.com/5360): Failing on ARM64-based Apple DTKs.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsARM64() && IsDesktopOpenGL());
+    ANGLE_SKIP_TEST_IF(IsMac() && IsARM64() && IsDesktopOpenGL());
 
     GLFramebuffer framebuffer;
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -2864,7 +2864,7 @@ TEST_P(WebGL2CompatibilityTest, CopyMip1ToMip0)
     ANGLE_SKIP_TEST_IF(IsOpenGL() && IsNVIDIA());
 
     // http://anglebug.com/4803
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsAMD() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsAMD() && IsMac());
 
     // Bind framebuffer to mip 0 and make sure the copy was done.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -3377,7 +3377,7 @@ TEST_P(WebGLCompatibilityTest, RGB32FTextures)
 TEST_P(WebGLCompatibilityTest, RGBA32FTextures)
 {
     // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float data[] = {7000.0f, 100.0f, 33.0f, -1.0f};
 
@@ -3683,7 +3683,7 @@ TEST_P(WebGLCompatibilityTest, HalfFloatBlend)
 TEST_P(WebGLCompatibilityTest, R16FTextures)
 {
     // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float readPixelsData[] = {-5000.0f, 0.0f, 0.0f, 1.0f};
     const GLushort textureData[]     = {
@@ -3744,7 +3744,7 @@ TEST_P(WebGLCompatibilityTest, R16FTextures)
 TEST_P(WebGLCompatibilityTest, RG16FTextures)
 {
     // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     constexpr float readPixelsData[] = {7108.0f, -10.0f, 0.0f, 1.0f};
     const GLushort textureData[]     = {
@@ -3805,7 +3805,7 @@ TEST_P(WebGLCompatibilityTest, RG16FTextures)
 TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 {
     // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
 
@@ -3868,7 +3868,7 @@ TEST_P(WebGLCompatibilityTest, RGB16FTextures)
 TEST_P(WebGLCompatibilityTest, RGBA16FTextures)
 {
     // http://anglebug.com/5357
-    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsOSX());
+    ANGLE_SKIP_TEST_IF(IsOpenGL() && IsMac());
 
     ANGLE_SKIP_TEST_IF(IsOzone() && IsIntel());
 
@@ -4441,6 +4441,24 @@ TEST_P(WebGL2CompatibilityTest, ClearBufferDefaultFramebuffer)
 
     glClearBufferuiv(GL_COLOR, 0, clearUint);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
+// Test that clearing a non-existent drawbuffer of the default
+// framebuffer does not cause an assertion in WebGL validation
+TEST_P(WebGL2CompatibilityTest, ClearBuffer1OnDefaultFramebufferNoAssert)
+{
+    constexpr float clearFloat[]   = {0.0f, 0.0f, 0.0f, 0.0f};
+    constexpr int32_t clearInt[]   = {0, 0, 0, 0};
+    constexpr uint32_t clearUint[] = {0, 0, 0, 0};
+
+    glClearBufferfv(GL_COLOR, 1, clearFloat);
+    EXPECT_GL_NO_ERROR();
+
+    glClearBufferiv(GL_COLOR, 1, clearInt);
+    EXPECT_GL_NO_ERROR();
+
+    glClearBufferuiv(GL_COLOR, 1, clearUint);
+    EXPECT_GL_NO_ERROR();
 }
 
 // Verify that errors are generate when trying to blit from an image to itself
@@ -6101,6 +6119,259 @@ TEST_P(WebGL2CompatibilityTest, TexImageSyncWithIncompleteFramebufferBug)
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 8, 8, 0, GL_RED_EXT, GL_UNSIGNED_BYTE, nullptr);
+}
+
+// Test that "depth_unchanged" layout qualifier is rejected for WebGL contexts.
+TEST_P(WebGL2CompatibilityTest, FragDepthLayoutUnchanged)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_conservative_depth"));
+
+    constexpr char kFS[] = R"(#version 300 es
+#extension GL_EXT_conservative_depth: enable
+out highp vec4 color;
+layout (depth_unchanged) out highp float gl_FragDepth;
+void main() {
+    color = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_FragDepth = 1.0;
+})";
+
+    GLProgram prg;
+    prg.makeRaster(essl3_shaders::vs::Simple(), kFS);
+    EXPECT_FALSE(prg.valid());
+}
+
+// Test that EXT_blend_func_extended does not allow omitting locations in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedNoLocations)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    constexpr char kFS[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+out highp vec4 color0;
+out highp vec4 color1;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+
+    GLProgram prg;
+    prg.makeRaster(essl3_shaders::vs::Simple(), kFS);
+    EXPECT_FALSE(prg.valid());
+}
+
+// Test that fragment outputs may be omitted when enabling
+// SRC1 blend functions with all color channels masked out.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputsWithAllChannelsMaskedOut)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    glColorMask(false, false, false, false);
+
+    // Secondary output missing
+    {
+        constexpr char kFragColor[] = R"(
+            void main() {
+                gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+            })";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+
+    // Primary output missing
+    {
+        constexpr char kSecondaryFragColor[] = R"(#extension GL_EXT_blend_func_extended : enable
+            void main() {
+                gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+            })";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+
+    // Both outputs missing
+    {
+        constexpr char kNone[] = "void main() {}";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kNone);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5, 1.0, true);
+        EXPECT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 1.0 contexts.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputs)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kFragColor[] = R"(
+void main() {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kSecondaryFragColor[] = R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kFragColorAndSecondaryFragColor[] =
+            R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_FragColor             = vec4(1.0, 0.0, 0.0, 1.0);
+    gl_SecondaryFragColorEXT = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragColorAndSecondaryFragColor);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 1.0 contexts.
+TEST_P(WebGLCompatibilityTest, EXTBlendFuncExtendedMissingOutputsArrays)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kFragData[] = R"(
+void main() {
+    gl_FragData[0] = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kSecondaryFragData[] = R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_SecondaryFragDataEXT[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kSecondaryFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kFragDataAndSecondaryFragData[] =
+            R"(#extension GL_EXT_blend_func_extended : require
+void main() {
+    gl_FragData[0]             = vec4(1.0, 0.0, 0.0, 1.0);
+    gl_SecondaryFragDataEXT[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), kFragDataAndSecondaryFragData);
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedMissingOutputs)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kColor0[] = R"(#version 300 es
+out mediump vec4 color0;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 1) out mediump vec4 color1;
+void main() {
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kColor0AndColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 0) out mediump vec4 color0;
+layout(location = 0, index = 1) out mediump vec4 color1;
+void main() {
+    color0 = vec4(1.0, 0.0, 0.0, 1.0);
+    color1 = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kColor0AndColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
+}
+
+// Test that both fragment outputs must be statically used
+// when enabling SRC1 blend functions in WebGL 2.0 contexts.
+TEST_P(WebGL2CompatibilityTest, EXTBlendFuncExtendedMissingOutputsArrays)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_blend_func_extended"));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC1_COLOR_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    {
+        constexpr char kArrayColor0[] = R"(#version 300 es
+out mediump vec4 color0[1];
+void main() {
+    color0[0] = vec4(1.0, 0.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kArrayColor1[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 1) out mediump vec4 color1[1];
+void main() {
+    color1[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor1);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_ERROR(GL_INVALID_OPERATION);
+    }
+    {
+        constexpr char kArrayColor0AndColor0[] = R"(#version 300 es
+#extension GL_EXT_blend_func_extended : require
+layout(location = 0, index = 0) out mediump vec4 color0[1];
+layout(location = 0, index = 1) out mediump vec4 color1[1];
+void main() {
+    color0[0] = vec4(1.0, 0.0, 0.0, 1.0);
+    color1[0] = vec4(0.0, 1.0, 0.0, 1.0);
+})";
+        ANGLE_GL_PROGRAM(program, essl3_shaders::vs::Simple(), kArrayColor0AndColor0);
+        drawQuad(program, essl3_shaders::PositionAttrib(), 0.5f, 1.0f, true);
+        ASSERT_GL_NO_ERROR();
+    }
 }
 
 // Test for a mishandling of instanced vertex attributes with zero-sized buffers bound on Apple

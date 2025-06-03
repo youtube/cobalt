@@ -6,6 +6,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/web_identity.h"
@@ -41,15 +42,12 @@ class IdentityUrlLoaderThrottleTest : public testing::Test {
 
 class IdentityUrlLoaderThrottleTestParameterized
     : public IdentityUrlLoaderThrottleTest,
-      public testing::WithParamInterface<
-          std::tuple<IdpSigninStatus, bool, bool>> {};
+      public testing::WithParamInterface<std::tuple<IdpSigninStatus, bool>> {};
 
 TEST_F(IdentityUrlLoaderThrottleTest, DisabledByKillSwitch) {
   base::test::ScopedFeatureList list;
-  list.InitAndEnableFeatureWithParameters(
-      features::kFedCm,
-      {{features::kFedCmIdpSigninStatusMetricsOnlyFieldTrialParamName,
-        "false"}});
+  list.InitWithFeatures({}, {features::kFedCmIdpSigninStatusMetrics,
+                             features::kFedCmIdpSigninStatusEnabled});
 
   std::unique_ptr<blink::URLLoaderThrottle> throttle =
       MaybeCreateIdentityUrlLoaderThrottle(CreateCallback());
@@ -59,32 +57,22 @@ TEST_F(IdentityUrlLoaderThrottleTest, DisabledByKillSwitch) {
 TEST_P(IdentityUrlLoaderThrottleTestParameterized, Headers) {
   IdpSigninStatus signin_status = std::get<0>(GetParam());
   bool has_user_gesture = std::get<1>(GetParam());
-  bool is_google_header = std::get<2>(GetParam());
 
   std::unique_ptr<blink::URLLoaderThrottle> throttle =
       MaybeCreateIdentityUrlLoaderThrottle(CreateCallback());
   ASSERT_NE(nullptr, throttle);
 
   network::ResourceRequest request;
-  request.url = GURL("https://accounts.google.com/");
+  request.url = GURL("https://accounts.idp.example/");
   request.has_user_gesture = has_user_gesture;
   bool defer = false;
 
   throttle->WillStartRequest(&request, &defer);
   EXPECT_FALSE(defer);
 
-  std::string header;
-  if (is_google_header) {
-    base::SStringPrintf(
-        &header,
-        "Google-Accounts-Sign%s: email=\"foo@example.com\", sessionindex=0, "
-        "obfuscatedid=123\n",
-        signin_status == IdpSigninStatus::kSignedIn ? "In" : "Out");
-  } else {
-    base::SStringPrintf(
-        &header, "idp-signin-status: action=sign%s",
-        signin_status == IdpSigninStatus::kSignedIn ? "in" : "out-all");
-  }
+  std::string header = base::StringPrintf(
+      "set-login: logged-%s; foo=bar",
+      signin_status == IdpSigninStatus::kSignedIn ? "in" : "out");
 
   network::mojom::URLResponseHead response_head;
   response_head.headers = net::HttpResponseHeaders::TryToCreate(
@@ -94,7 +82,7 @@ TEST_P(IdentityUrlLoaderThrottleTestParameterized, Headers) {
 
   EXPECT_EQ(1, cb_num_calls_);
   EXPECT_EQ(signin_status, cb_signin_status_);
-  EXPECT_EQ(url::Origin::Create(GURL("https://accounts.google.com/")),
+  EXPECT_EQ(url::Origin::Create(GURL("https://accounts.idp.example/")),
             cb_origin_);
   if (signin_status == IdpSigninStatus::kSignedIn) {
     histogram_tester_.ExpectUniqueSample(
@@ -110,7 +98,6 @@ INSTANTIATE_TEST_SUITE_P(
     IdentityUrlLoaderThrottleTestParameterized,
     testing::Combine(testing::Values(IdpSigninStatus::kSignedIn,
                                      IdpSigninStatus::kSignedOut),
-                     testing::Values(false, true),
                      testing::Values(false, true)));
 
 TEST_F(IdentityUrlLoaderThrottleTest, NoRelevantHeader) {
@@ -119,7 +106,7 @@ TEST_F(IdentityUrlLoaderThrottleTest, NoRelevantHeader) {
   ASSERT_NE(nullptr, throttle);
 
   network::ResourceRequest request;
-  request.url = GURL("https://accounts.google.com/");
+  request.url = GURL("https://accounts.idp.example/");
   request.has_user_gesture = true;
   bool defer = false;
 
@@ -133,6 +120,33 @@ TEST_F(IdentityUrlLoaderThrottleTest, NoRelevantHeader) {
   EXPECT_FALSE(defer);
 
   EXPECT_EQ(0, cb_num_calls_);
+}
+
+TEST_F(IdentityUrlLoaderThrottleTest, HeaderHasToken) {
+  scoped_refptr<net::HttpResponseHeaders> headers =
+      net::HttpResponseHeaders::TryToCreate("HTTP/1.1 200 OK\n");
+  EXPECT_FALSE(
+      IdentityUrlLoaderThrottle::HeaderHasToken(*headers, "Signin", "val"));
+
+  headers =
+      net::HttpResponseHeaders::TryToCreate("HTTP/1.1 200 OK\nSignin: val");
+  EXPECT_TRUE(
+      IdentityUrlLoaderThrottle::HeaderHasToken(*headers, "Signin", "val"));
+
+  headers = net::HttpResponseHeaders::TryToCreate(
+      "HTTP/1.1 200 OK\nSignIn: val; foo=bar");
+  EXPECT_TRUE(
+      IdentityUrlLoaderThrottle::HeaderHasToken(*headers, "Signin", "val"));
+
+  headers = net::HttpResponseHeaders::TryToCreate(
+      "HTTP/1.1 200 OK\nSignin:  val ; foo=bar");
+  EXPECT_TRUE(
+      IdentityUrlLoaderThrottle::HeaderHasToken(*headers, "Signin", "val"));
+
+  headers = net::HttpResponseHeaders::TryToCreate(
+      "HTTP/1.1 200 OK\nSignin:  val ; type=idp; foo=bar");
+  EXPECT_TRUE(IdentityUrlLoaderThrottle::HeaderHasToken(*headers, "Signin",
+                                                        "type=idp"));
 }
 
 }  // namespace content

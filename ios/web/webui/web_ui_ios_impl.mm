@@ -12,15 +12,11 @@
 #import "base/strings/utf_string_conversions.h"
 #import "base/values.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_client.h"
 #import "ios/web/public/webui/web_ui_ios_controller.h"
 #import "ios/web/public/webui/web_ui_ios_controller_factory.h"
 #import "ios/web/public/webui/web_ui_ios_message_handler.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using web::WebUIIOSController;
 
@@ -124,7 +120,8 @@ void WebUIIOSImpl::AddMessageHandler(
 }
 
 void WebUIIOSImpl::ExecuteJavascript(const std::u16string& javascript) {
-  web::WebFrame* main_frame = web::GetMainFrame(web_state_);
+  web::WebFrame* main_frame =
+      web_state_->GetPageWorldWebFramesManager()->GetMainWebFrame();
   if (!main_frame) {
     return;
   }

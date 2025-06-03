@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.ANIMATE_VISIBILITY_CHANGES;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.BLOCK_TOUCH_INPUT;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.BOTTOM_CONTROLS_HEIGHT;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.BOTTOM_PADDING;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.INITIAL_SCROLL_INDEX;
@@ -30,8 +31,8 @@ import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
-import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -44,8 +45,12 @@ import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
+import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingUtilities;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -59,7 +64,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tasks.ReturnToChromeUtil;
 import org.chromium.chrome.browser.tasks.pseudotab.PseudoTab;
-import org.chromium.chrome.browser.tasks.tab_groups.TabGroupModelFilter;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabManagementDelegate.TabSwitcherType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcher.TabSwitcherViewObserver;
@@ -82,12 +86,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
                                      TabSwitcherCustomViewManager.Delegate, BackPressHandler {
     private static final String TAG = "TabSwitcherMediator";
 
-    private static final int DEFAULT_TOP_PADDING = 0;
-
-    /** Field trial parameter for the {@link TabListRecyclerView} cleanup delay. */
-    private static final String SOFT_CLEANUP_DELAY_PARAM = "soft-cleanup-delay";
     private static final int DEFAULT_SOFT_CLEANUP_DELAY_MS = 3_000;
-    private static final String CLEANUP_DELAY_PARAM = "cleanup-delay";
     private static final int DEFAULT_CLEANUP_DELAY_MS = 30_000;
 
     private final Handler mHandler;
@@ -114,6 +113,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
     private final ObservableSupplierImpl<Boolean> mIsDialogVisibleSupplier =
             new ObservableSupplierImpl<>();
     private final Callback<Boolean> mNotifyBackPressedCallback = this::notifyBackPressStateChanged;
+    private Runnable mOnTabSwitcherShownCallback;
 
     /**
      * The callback which is supplied to the {@link IncognitoReauthController} that takes care of
@@ -134,6 +134,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
                                                            .getCurrentTabModelFilter(),
                             false, mShowTabsInMruOrder);
                     setInitialScrollIndexOffset();
+                    requestAccessibilityFocusOnCurrentTab();
                 }
 
                 @Override
@@ -184,6 +185,15 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
     private Context mContext;
     private SnackbarManager mSnackbarManager;
     private boolean mIsTransitionInProgress;
+    private boolean mIsTabSwitcherShowing;
+
+    @Nullable
+    private LayoutStateProvider mLayoutStateProvider;
+    @Nullable
+    private LayoutStateObserver mLayoutStateObserver;
+    // The layout type of the last active layout which was shown before showing the TAB_SWITCHER
+    // layout.
+    private @LayoutType int mLastActiveLayoutType;
 
     /**
      * Interface to delegate resetting the tab grid.
@@ -278,6 +288,11 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
      * @param backPressManager {@link BackPressManager} to handle back press gesture.
      * @param tabGridDialogControllerSupplier {@link TabGridDialogMediator.DialogController}
      *         supplier for lazy initialization on first use.
+     * @param onTabSwitcherShownCallback is a callback method to notify {@link
+     *         TabSwitcherCoordinator} class to attach empty view when #showTabSwitcherView is
+     *         invoked.
+     * @param layoutStateProviderSupplier {@link OneshotSupplier<LayoutStateProvider>} to provide
+     *         layout state changes.
      */
     TabSwitcherMediator(Context context, ResetHandler resetHandler,
             PropertyModel containerViewModel, TabModelSelector tabModelSelector,
@@ -288,7 +303,9 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
             @Nullable OneshotSupplier<IncognitoReauthController> incognitoReauthControllerSupplier,
             @Nullable BackPressManager backPressManager,
             @Nullable OneshotSupplier<TabGridDialogMediator.DialogController>
-                    tabGridDialogControllerSupplier) {
+                    tabGridDialogControllerSupplier,
+            Runnable onTabSwitcherShownCallback,
+            @Nullable OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier) {
         mResetHandler = resetHandler;
         mContainerViewModel = containerViewModel;
         mTabModelSelector = tabModelSelector;
@@ -300,6 +317,16 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         mIsStartSurfaceEnabled = ReturnToChromeUtil.isStartSurfaceEnabled(context);
         mIsStartSurfaceRefactorEnabled = ReturnToChromeUtil.isStartSurfaceRefactorEnabled(context);
         mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+        mOnTabSwitcherShownCallback = onTabSwitcherShownCallback;
+        if (layoutStateProviderSupplier != null) {
+            if (layoutStateProviderSupplier.hasValue()) {
+                onLayoutStateProviderAvailable(layoutStateProviderSupplier.get());
+            } else {
+                // Only use onAvailable if no value is available as waiting for the Promise to
+                // resolve risks getActiveLayoutType changing before the value is supplied.
+                layoutStateProviderSupplier.onAvailable(this::onLayoutStateProviderAvailable);
+            }
+        }
 
         if (incognitoReauthControllerSupplier != null) {
             mCallbackController = new CallbackController();
@@ -330,6 +357,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
                 if (clearIncognitoTabListForReauth()) return;
                 mResetHandler.resetWithTabList(currentTabModelFilter, false, mShowTabsInMruOrder);
                 setInitialScrollIndexOffset();
+                requestAccessibilityFocusOnCurrentTab();
             }
         };
         mTabModelSelector.addObserver(mTabModelSelectorObserver);
@@ -359,11 +387,6 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
                 }
                 if (mIsSelectingInTabSwitcher) {
                     mIsSelectingInTabSwitcher = false;
-                    TabModelFilter modelFilter = mTabModelSelector.getTabModelFilterProvider()
-                                                         .getCurrentTabModelFilter();
-                    if (modelFilter instanceof TabGroupModelFilter) {
-                        ((TabGroupModelFilter) modelFilter).recordSessionsCount(tab);
-                    }
 
                     // Use TabSelectionType.From_USER to filter the new tab creation case.
                     if (type == TabSelectionType.FROM_USER) recordUserSwitchedTab(tab, lastId);
@@ -561,36 +584,24 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         }
     }
 
-    @VisibleForTesting
     int getSoftCleanupDelayForTesting() {
         return getSoftCleanupDelay();
     }
 
     private int getSoftCleanupDelay() {
         if (mSoftCleanupDelayMsForTesting != null) return mSoftCleanupDelayMsForTesting;
-        if (!LibraryLoader.getInstance().isInitialized()) {
-            return 0;
-        }
 
-        return ChromeFeatureList.getFieldTrialParamByFeatureAsInt(
-                ChromeFeatureList.TAB_GRID_LAYOUT_ANDROID, SOFT_CLEANUP_DELAY_PARAM,
-                DEFAULT_SOFT_CLEANUP_DELAY_MS);
+        return DEFAULT_SOFT_CLEANUP_DELAY_MS;
     }
 
-    @VisibleForTesting
     int getCleanupDelayForTesting() {
         return getCleanupDelay();
     }
 
     private int getCleanupDelay() {
         if (mCleanupDelayMsForTesting != null) return mCleanupDelayMsForTesting;
-        if (!LibraryLoader.getInstance().isInitialized()) {
-            return 0;
-        }
 
-        return ChromeFeatureList.getFieldTrialParamByFeatureAsInt(
-                ChromeFeatureList.TAB_GRID_LAYOUT_ANDROID, CLEANUP_DELAY_PARAM,
-                DEFAULT_CLEANUP_DELAY_MS);
+        return DEFAULT_CLEANUP_DELAY_MS;
     }
 
     private void setVisibility(boolean isVisible) {
@@ -600,6 +611,10 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
         mContainerViewModel.set(IS_VISIBLE, isVisible);
         notifyBackPressStateChangedInternal();
+    }
+
+    private void blockTouchInput(boolean blockTouchInput) {
+        mContainerViewModel.set(BLOCK_TOUCH_INPUT, blockTouchInput);
     }
 
     private void updateTopControlsProperties() {
@@ -684,15 +699,15 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
                 RecordUserAction.record("MobileTabSwitched");
             }
             // Only log when you switch a tab page directly from tab switcher.
-            if (!TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mContext)
-                    || getRelatedTabs(tab.getId()).size() == 1) {
+            if (getRelatedTabs(tab.getId()).size() == 1) {
                 RecordUserAction.record(
                         "MobileTabSwitched." + TabSwitcherCoordinator.COMPONENT_NAME);
             }
         }
         if (mMode == TabListCoordinator.TabListMode.GRID
                 && !mTabModelSelector.getCurrentModel().getProfile().isOffTheRecord()
-                && PriceTrackingUtilities.isTrackPricesOnTabsEnabled()) {
+                && PriceTrackingUtilities.isTrackPricesOnTabsEnabled(
+                        Profile.getLastUsedRegularProfile())) {
             RecordUserAction.record("Commerce.TabGridSwitched."
                     + (ShoppingPersistedTabData.hasPriceDrop(tab) ? "HasPriceDrop"
                                                                   : "NoPriceDrop"));
@@ -721,24 +736,27 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
     @Override
     public void prepareHideTabSwitcherView() {
-        if (mTabGridDialogControllerSupplier != null
-                && mTabGridDialogControllerSupplier.hasValue()) {
-            // Don't wait until switcher container view hides.
-            // Hide dialog before GTS hides.
-            mTabGridDialogControllerSupplier.get().hideDialog(false);
-        }
+        hideTabSwitcherViewInternal(/*animate=*/false, /*skipVisibility=*/true);
     }
 
     @Override
     public void hideTabSwitcherView(boolean animate) {
+        hideTabSwitcherViewInternal(animate, /*skipVisibility=*/false);
+    }
+
+    private void hideTabSwitcherViewInternal(boolean animate, boolean skipVisibility) {
         if (mMode == TabListMode.GRID) {
             mIsTransitionInProgress = true;
             notifyBackPressStateChangedInternal();
         }
 
-        if (!animate) mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, false);
-        setVisibility(false);
-        mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, true);
+        blockTouchInput(true);
+
+        if (!skipVisibility) {
+            if (!animate) mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, false);
+            setVisibility(false);
+            mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, true);
+        }
 
         if (mTabGridDialogControllerSupplier != null
                 && mTabGridDialogControllerSupplier.hasValue()) {
@@ -780,11 +798,14 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         notifyBackPressStateChangedInternal();
     }
 
+    // @Todo(crbug.com/1464856) clean up empty state implementation after Start Surface Refactor is
+    // fully launched.
     @Override
     public void showTabSwitcherView(boolean animate) {
         mIsTransitionInProgress = false;
         mHandler.removeCallbacks(mSoftClearTabListRunnable);
         mHandler.removeCallbacks(mClearTabListRunnable);
+        mOnTabSwitcherShownCallback.run();
 
         if (!mTabModelSelector.isIncognitoSelected() || !clearIncognitoTabListForReauth()) {
             if (mTabModelSelector.isTabStateInitialized()) {
@@ -810,6 +831,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
         if (!animate) mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, false);
         setVisibility(true);
+        blockTouchInput(false);
         mModelIndexWhenShown = mTabModelSelector.getCurrentModelIndex();
         mTabIdWhenShown = mTabModelSelector.getCurrentTabId();
         mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, true);
@@ -824,6 +846,10 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
     @Override
     public void finishedShowing() {
+        mIsTabSwitcherShowing = true;
+
+        requestAccessibilityFocusOnCurrentTab();
+
         for (TabSwitcherViewObserver observer : mObservers) {
             observer.finishedShowing();
         }
@@ -838,6 +864,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
     @Override
     public void finishedHiding() {
+        mIsTabSwitcherShowing = false;
         for (TabSwitcherViewObserver observer : mObservers) {
             observer.finishedHiding();
         }
@@ -867,10 +894,11 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
             return true;
         }
 
-        if (mIsTransitionInProgress && mMode == TabListCoordinator.TabListMode.GRID) {
-            // crbug.com/1420410: intentionally do nothing to wait for transition to be finished.
-            // Note this has to be before following if-branch since during transition, the container
-            // is still invisible.
+        if (!mIsTablet && mIsTransitionInProgress && mMode == TabListCoordinator.TabListMode.GRID) {
+            // crbug.com/1420410: intentionally do nothing to wait for tab-to-GTS transition to be
+            // finished. Note this has to be before following if-branch since during transition, the
+            // container is still invisible. On tablet, the translation transition replaces the
+            // tab-to-GTS (expand/shrink) animation, which does not suffer from the same issue.
             return true;
         }
 
@@ -889,6 +917,13 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
         if (mTabModelSelector.getCurrentTab() == null) {
             assert !BackPressManager.isEnabled() : "No tab: Backpress must be handled";
+            return false;
+        }
+
+        // Going back to the Start surface isn't handled by the TabSwitcherMediator any more, but in
+        // {@link ReturnToChromeBackPressHandler} when it isn't in incognito mode.
+        if (mLastActiveLayoutType == LayoutType.START_SURFACE
+                && !mTabModelSelector.isIncognitoSelected()) {
             return false;
         }
 
@@ -957,19 +992,27 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
      * A method to handle signal from outside world that a client is requesting to show a custom
      * view inside the tab switcher.
      *
-     * @param customView A {@link View} view that needs to be shown.
+     * @param customView        A {@link View} view that needs to be shown.
      * @param backPressRunnable A {@link Runnable} which can be supplied if clients also wish to
-     *         handle back presses while the custom view is shown. A null value can be passed to not
-     *         intercept back presses.
+     *                          handle back presses while the custom view is shown. A null value
+     *                          can be passed to not
+     *                          intercept back presses.
+     * @param clearTabList      A boolean to indicate whether we should clear the tab list when
+     *                          showing the custom view.
      */
     @Override
-    public void addCustomView(@NonNull View customView, @Nullable Runnable backPressRunnable) {
+    public void addCustomView(
+            @NonNull View customView, @Nullable Runnable backPressRunnable, boolean clearTabList) {
         assert mCustomView == null : "Only one client at a time is supported to add a custom view.";
 
         // Hide any tab grid dialog before we add the custom view.
         if (mTabGridDialogControllerSupplier != null
                 && mTabGridDialogControllerSupplier.hasValue()) {
             mTabGridDialogControllerSupplier.get().hideDialog(false);
+        }
+
+        if (clearTabList) {
+            mResetHandler.resetWithTabList(null, false, mShowTabsInMruOrder);
         }
 
         // The grid tab switcher for tablets translates up over top of the browser controls, causing
@@ -1003,6 +1046,9 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         mCustomView = null;
         mCustomViewBackPressRunnable = null;
         notifyBackPressStateChangedInternal();
+        mResetHandler.resetWithTabList(
+                mTabModelSelector.getTabModelFilterProvider().getCurrentTabModelFilter(),
+                /*quickMode=*/false, mShowTabsInMruOrder);
     }
 
     /**
@@ -1016,6 +1062,16 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         mHandler.postDelayed(mClearTabListRunnable, getCleanupDelay());
         mIsTransitionInProgress = false;
         notifyBackPressStateChangedInternal();
+        if (ChromeFeatureList.sGridTabSwitcherAndroidAnimations.isEnabled()
+                && ReturnToChromeUtil.isStartSurfaceRefactorEnabled(mContext)) {
+            // Ensure we skip animating here as the UI is entirely occluded already.
+            boolean previousAnimateVisibilityChangesValue =
+                    mContainerViewModel.get(ANIMATE_VISIBILITY_CHANGES);
+            mContainerViewModel.set(ANIMATE_VISIBILITY_CHANGES, false);
+            setVisibility(false);
+            mContainerViewModel.set(
+                    ANIMATE_VISIBILITY_CHANGES, previousAnimateVisibilityChangesValue);
+        }
     }
 
     /**
@@ -1023,6 +1079,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
      */
     void setSoftCleanupDelayForTesting(int timeoutMs) {
         mSoftCleanupDelayMsForTesting = timeoutMs;
+        ResettersForTesting.register(() -> mSoftCleanupDelayMsForTesting = null);
     }
 
     /**
@@ -1030,6 +1087,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
      */
     void setCleanupDelayForTesting(int timeoutMs) {
         mCleanupDelayMsForTesting = timeoutMs;
+        ResettersForTesting.register(() -> mCleanupDelayMsForTesting = null);
     }
 
     /**
@@ -1056,6 +1114,10 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
             mCallbackController.destroy();
         }
 
+        if (mLayoutStateProvider != null) {
+            mLayoutStateProvider.removeObserver(mLayoutStateObserver);
+        }
+
         mTabModelSelector.removeObserver(mTabModelSelectorObserver);
         mBrowserControlsStateProvider.removeObserver(mBrowserControlsObserver);
         mTabModelSelector.getTabModelFilterProvider().removeTabModelFilterObserver(
@@ -1069,6 +1131,20 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
 
     void setPriceMessageService(PriceMessageService priceMessageService) {
         mPriceMessageService = priceMessageService;
+    }
+
+    void requestAccessibilityFocusOnCurrentTab() {
+        if (!mIsTabSwitcherShowing || !mTabModelSelector.isTabStateInitialized()) {
+            return;
+        }
+
+        if (mTabModelSelector.isIncognitoSelected() && mIncognitoReauthController != null
+                && mIncognitoReauthController.isReauthPageShowing()) {
+            return;
+        }
+
+        mContainerViewModel.set(TabListContainerProperties.FOCUS_TAB_INDEX_FOR_ACCESSIBILITY,
+                mTabModelSelector.getTabModelFilterProvider().getCurrentTabModelFilter().index());
     }
 
     // GridCardOnClickListenerProvider implementation.
@@ -1110,8 +1186,7 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
     }
 
     private boolean ableToOpenDialog(Tab tab) {
-        return TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mContext)
-                && mTabModelSelector.isIncognitoSelected() == tab.isIncognito()
+        return mTabModelSelector.isIncognitoSelected() == tab.isIncognito()
                 && getRelatedTabs(tab.getId()).size() != 1;
     }
 
@@ -1146,7 +1221,9 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         if (isDialogVisible()) return true;
         if (mCustomViewBackPressRunnable != null) return true;
 
-        if (mIsTransitionInProgress && mMode == TabListCoordinator.TabListMode.GRID) return true;
+        if (!mIsTablet && mIsTransitionInProgress && mMode == TabListCoordinator.TabListMode.GRID) {
+            return true;
+        }
 
         if (!mContainerViewModel.get(IS_VISIBLE)) return false;
 
@@ -1154,6 +1231,13 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         if (mMode == TabListCoordinator.TabListMode.CAROUSEL) return false;
 
         if (mTabModelSelector.getCurrentTab() == null) return false;
+
+        // Going back to the Start surface isn't handled by the TabSwitcherMediator any more, but in
+        // {@link ReturnToChromeBackPressHandler} when it isn't in incognito mode.
+        if (mLastActiveLayoutType == LayoutType.START_SURFACE
+                && !mTabModelSelector.isIncognitoSelected()) {
+            return false;
+        }
 
         return true;
     }
@@ -1173,5 +1257,23 @@ class TabSwitcherMediator implements TabSwitcher.Controller, TabListRecyclerView
         }
 
         return false;
+    }
+
+    private void onLayoutStateProviderAvailable(LayoutStateProvider layoutStateProvider) {
+        mLayoutStateProvider = layoutStateProvider;
+        mLastActiveLayoutType = mLayoutStateProvider.getActiveLayoutType();
+        if (mLayoutStateObserver == null) {
+            mLayoutStateObserver = new LayoutStateObserver() {
+                @Override
+                public void onFinishedHiding(int layoutType) {
+                    mLastActiveLayoutType = layoutType;
+                }
+            };
+        }
+        mLayoutStateProvider.addObserver(mLayoutStateObserver);
+    }
+
+    public void setLastActiveLayoutTypeForTesting(@LayoutType int lastActiveLayoutType) {
+        mLastActiveLayoutType = lastActiveLayoutType;
     }
 }

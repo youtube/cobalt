@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/format_macros.h"
 #include "base/i18n/number_formatting.h"
 #include "base/memory/ref_counted_memory.h"
@@ -19,8 +20,8 @@
 #include "base/values.h"
 #include "components/grit/components_resources.h"
 #include "google_apis/gaia/google_service_auth_error.h"
-#include "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#include "ios/chrome/browser/url/chrome_url_constants.h"
+#include "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#include "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #include "ios/web/public/webui/url_data_source_ios.h"
 #include "ui/base/device_form_factor.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -136,7 +137,7 @@ void AboutUIHTMLSource::StartDataRequest(
     for (base::HistogramBase* histogram : base::StatisticsRecorder::Sort(
              base::StatisticsRecorder::GetHistograms())) {
       std::string histogram_name = histogram->histogram_name();
-      if (histogram_name.find(path) == std::string::npos) {
+      if (!base::Contains(histogram_name, path)) {
         continue;
       }
       base::Value::Dict histogram_dict = histogram->ToGraphDict();

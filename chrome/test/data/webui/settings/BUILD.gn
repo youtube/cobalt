@@ -5,15 +5,7 @@
 import("../build_webui_tests.gni")
 
 build_webui_tests("build") {
-  resource_path_prefix = "settings"
-
   files = [
-    "a11y/about_a11y_test.ts",
-    "a11y/accessibility_a11y_test.ts",
-    "a11y/basic_a11y_test.ts",
-    "a11y/manage_profile_a11y_test.ts",
-    "a11y/passwords_a11y_test.ts",
-    "a11y/sign_out_a11y_test.ts",
     "about_page_test.ts",
     "advanced_page_test.ts",
     "all_sites_test.ts",
@@ -24,12 +16,11 @@ build_webui_tests("build") {
     "autofill_section_address_validation_test.ts",
     "autofill_section_test_utils.ts",
     "autofill_section_test.ts",
-    "avatar_icon_test.ts",
     "basic_page_test.ts",
     "battery_page_test.ts",
-    "category_default_setting_test.ts",
     "category_setting_exceptions_test.ts",
     "checkbox_test.ts",
+    "checkbox_list_entry_test.ts",
     "chooser_exception_list_entry_test.ts",
     "chooser_exception_list_test.ts",
     "clear_browsing_data_test.ts",
@@ -41,26 +32,20 @@ build_webui_tests("build") {
     "downloads_page_test.ts",
     "dropdown_menu_test.ts",
     "extension_controlled_indicator_test.ts",
+    "file_system_site_details_test.ts",
     "file_system_site_entry_test.ts",
     "file_system_site_entry_item_test.ts",
     "file_system_site_list_test.ts",
     "help_page_test.ts",
     "idle_load_test.ts",
     "on_startup_page_test.ts",
-    "password_check_test.ts",
-    "password_edit_dialog_test.ts",
-    "passwords_and_autofill_fake_data.ts",
-    "passwords_device_section_test.ts",
-    "passwords_export_dialog_test.ts",
-    "passwords_import_dialog_test.ts",
-    "passwords_section_test.ts",
-    "password_view_test.ts",
+    "autofill_fake_data.ts",
     "payments_section_card_rows_test.ts",
     "payments_section_card_dialogs_test.ts",
+    "payments_section_focus_test.ts",
     "payments_section_iban_test.ts",
     "payments_section_interactive_test.ts",
     "payments_section_test.ts",
-    "payments_section_upi_test.ts",
     "payments_section_utils.ts",
     "people_page_sync_controls_test.ts",
     "people_page_sync_page_interactive_test.ts",
@@ -86,6 +71,13 @@ build_webui_tests("build") {
     "safety_check_page_test.ts",
     "safety_check_permissions_test.ts",
     "safety_check_test_utils.ts",
+    "safety_hub_card_test.ts",
+    "safety_hub_entry_point_test.ts",
+    "safety_hub_module_test.ts",
+    "safety_hub_notification_permissions_module_test.ts",
+    "safety_hub_extensions_module_test.ts",
+    "safety_hub_page_test.ts",
+    "safety_hub_unused_site_permissions_module_test.ts",
     "search_engines_page_test.ts",
     "search_page_test.ts",
     "search_settings_test.ts",
@@ -120,7 +112,11 @@ build_webui_tests("build") {
     "site_list_entry_test.ts",
     "site_list_test.ts",
     "site_settings_page_test.ts",
+    "speed_page_test.ts",
     "startup_urls_page_test.ts",
+    "storage_access_static_site_list_entry_test.ts",
+    "storage_access_site_list_entry_test.ts",
+    "storage_access_site_list_test.ts",
     "sync_account_control_test.ts",
     "sync_test_util.ts",
     "tab_discard_exception_dialog_test.ts",
@@ -128,6 +124,7 @@ build_webui_tests("build") {
     "test_clear_browsing_data_browser_proxy.ts",
     "test_extension_control_browser_proxy.ts",
     "test_hats_browser_proxy.ts",
+    "test_extensions_browser_proxy.ts",
     "test_lifetime_browser_proxy.ts",
     "test_metrics_browser_proxy.ts",
     "test_password_manager_proxy.ts",
@@ -139,7 +136,7 @@ build_webui_tests("build") {
     "test_reset_browser_proxy.ts",
     "test_search_engines_browser_proxy.ts",
     "test_security_keys_browser_proxy.ts",
-    "test_site_settings_permissions_browser_proxy.ts",
+    "test_safety_hub_browser_proxy.ts",
     "test_site_settings_prefs_browser_proxy.ts",
     "test_sync_browser_proxy.ts",
     "test_util.ts",
@@ -149,11 +146,7 @@ build_webui_tests("build") {
   ]
 
   if (is_chromeos_ash) {
-    files += [
-      "people_page_test_cros.ts",
-      "site_list_tests_cros.ts",
-      "test_android_info_browser_proxy.ts",
-    ]
+    files += [ "people_page_test_cros.ts" ]
   } else {
     files += [
       "fake_language_settings_private.ts",
@@ -172,9 +165,7 @@ build_webui_tests("build") {
     ]
   }
 
-  if (is_chromeos) {
-    files += [ "passwords_section_test_cros.ts" ]
-  } else {
+  if (!is_chromeos) {
     files += [
       "live_caption_section_test.ts",
       "live_translate_section_test.ts",
@@ -234,7 +225,6 @@ build_webui_tests("build") {
         [ "//tools/typescript/definitions/quick_unlock_private.d.ts" ]
   }
 
-  ts_tsconfig_base = "tsconfig_base.json"
   ts_deps = [
     "//chrome/browser/resources/settings:build_ts",
     "//third_party/polymer/v3_0:library",

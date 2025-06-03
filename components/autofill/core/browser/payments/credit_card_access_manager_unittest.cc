@@ -6,23 +6,14 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "base/base64.h"
-#include "base/command_line.h"
-#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial.h"
-#include "base/metrics/metrics_hashes.h"
-#include "base/run_loop.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -32,48 +23,30 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_download_manager.h"
 #include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/credit_card.h"
-#include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
-#include "components/autofill/core/browser/metrics/form_events/form_events.h"
 #include "components/autofill/core/browser/metrics/payments/better_auth_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_unmask_flow_metrics.h"
 #include "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
 #include "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 #include "components/autofill/core/browser/payments/credit_card_cvc_authenticator.h"
-#include "components/autofill/core/browser/payments/payments_requests/unmask_card_request.h"
+#include "components/autofill/core/browser/payments/credit_card_risk_based_authenticator.h"
 #include "components/autofill/core/browser/payments/test/test_credit_card_otp_authenticator.h"
 #include "components/autofill/core/browser/payments/test_payments_client.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/autofill/core/browser/test_autofill_client.h"
-#include "components/autofill/core/browser/test_autofill_clock.h"
 #include "components/autofill/core/browser/test_autofill_driver.h"
 #include "components/autofill/core/browser/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/test_personal_data_manager.h"
 #include "components/autofill/core/browser/validation.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/common/autofill_clock.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
-#include "components/autofill/core/common/autofill_switches.h"
-#include "components/autofill/core/common/autofill_util.h"
-#include "components/autofill/core/common/form_data.h"
-#include "components/device_reauth/mock_device_authenticator.h"
-#include "components/prefs/pref_service.h"
-#include "components/security_state/core/security_state.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/variations/scoped_variations_ids_provider.h"
-#include "components/version_info/channel.h"
-#include "net/base/url_util.h"
-#include "services/metrics/public/cpp/ukm_builders.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/gfx/geometry/rect.h"
-#include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #include "components/autofill/core/browser/payments/test_credit_card_fido_authenticator.h"
@@ -82,30 +55,34 @@
 #include "content/public/test/mock_navigation_handle.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
+#endif
+
 using base::ASCIIToUTF16;
 using testing::NiceMock;
 
 namespace autofill {
 namespace {
 
-const char kTestGUID[] = "00000000-0000-0000-0000-000000000001";
-const char kTestGUID2[] = "00000000-0000-0000-0000-000000000002";
-const char kTestNumber[] = "4234567890123456";  // Visa
-const char kTestNumber2[] = "5454545454545454";
-const char16_t kTestNumber16[] = u"4234567890123456";
-const char16_t kTestCvc16[] = u"123";
-const char kTestServerId[] = "server_id_1";
-const char kTestServerId2[] = "server_id_2";
+constexpr char kTestGUID[] = "00000000-0000-0000-0000-000000000001";
+constexpr char kTestGUID2[] = "00000000-0000-0000-0000-000000000002";
+constexpr char kTestNumber[] = "4234567890123456";  // Visa
+constexpr char kTestNumber2[] = "5454545454545454";
+constexpr char16_t kTestNumber16[] = u"4234567890123456";
+constexpr char16_t kTestCvc16[] = u"123";
+constexpr char kTestServerId[] = "server_id_1";
+constexpr char kTestServerId2[] = "server_id_2";
 
 using autofill_metrics::CreditCardFormEventLogger;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-const char kTestCvc[] = "123";
+constexpr char kTestCvc[] = "123";
 // Base64 encoding of "This is a test challenge".
 constexpr char kTestChallenge[] = "VGhpcyBpcyBhIHRlc3QgY2hhbGxlbmdl";
 // Base64 encoding of "This is a test Credential ID".
-const char kCredentialId[] = "VGhpcyBpcyBhIHRlc3QgQ3JlZGVudGlhbCBJRC4=";
-const char kGooglePaymentsRpid[] = "google.com";
+constexpr char kCredentialId[] = "VGhpcyBpcyBhIHRlc3QgQ3JlZGVudGlhbCBJRC4=";
+constexpr char kGooglePaymentsRpid[] = "google.com";
 
 std::string BytesToBase64(const std::vector<uint8_t> bytes) {
   std::string base64;
@@ -123,13 +100,12 @@ class TestAccessor : public CreditCardAccessManager::Accessor {
   }
 
   void OnCreditCardFetched(CreditCardFetchResult result,
-                           const CreditCard* card,
-                           const std::u16string& cvc) override {
+                           const CreditCard* card) override {
     result_ = result;
     if (result == CreditCardFetchResult::kSuccess) {
       DCHECK(card);
       number_ = card->number();
-      cvc_ = cvc;
+      cvc_ = card->cvc();
       expiry_month_ = card->Expiration2DigitMonthAsString();
       expiry_year_ = card->Expiration4DigitYearAsString();
     }
@@ -187,36 +163,29 @@ class CreditCardAccessManagerTest : public testing::Test {
                          /*local_state=*/autofill_client_.GetPrefs(),
                          /*identity_manager=*/nullptr,
                          /*history_service=*/nullptr,
-                         /*sync_service=*/nullptr,
+                         /*sync_service=*/&sync_service_,
                          /*strike_database=*/nullptr,
-                         /*image_fetcher=*/nullptr,
-                         /*is_off_the_record=*/false);
+                         /*image_fetcher=*/nullptr);
     personal_data().SetPrefService(autofill_client_.GetPrefs());
 
     accessor_ = std::make_unique<TestAccessor>();
     autofill_driver_ = std::make_unique<TestAutofillDriver>();
 
-    payments_client_ = new payments::TestPaymentsClient(
-        autofill_client_.GetURLLoaderFactory(),
-        autofill_client_.GetIdentityManager(), &personal_data());
     autofill_client_.set_test_payments_client(
-        std::unique_ptr<payments::TestPaymentsClient>(payments_client_));
+        std::make_unique<payments::TestPaymentsClient>(
+            autofill_client_.GetURLLoaderFactory(),
+            autofill_client_.GetIdentityManager(), &personal_data()));
     autofill_client_.set_test_strike_database(
         std::make_unique<TestStrikeDatabase>());
-    browser_autofill_manager_ = std::make_unique<TestBrowserAutofillManager>(
-        autofill_driver_.get(), &autofill_client_);
-    credit_card_access_manager_ =
-        browser_autofill_manager_->GetCreditCardAccessManager();
+    autofill_driver_->set_autofill_manager(
+        std::make_unique<TestBrowserAutofillManager>(autofill_driver_.get(),
+                                                     &autofill_client_));
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-    autofill_driver_->set_autofill_manager(
-        std::move(browser_autofill_manager_));
     autofill_driver_->SetAuthenticator(new TestInternalAuthenticator());
-    auto fido_authenticator = std::make_unique<TestCreditCardFidoAuthenticator>(
-        autofill_driver_.get(), &autofill_client_);
-    fido_authenticator_ = fido_authenticator.get();
-    credit_card_access_manager_->set_fido_authenticator_for_testing(
-        std::move(fido_authenticator));
+    credit_card_access_manager().set_fido_authenticator_for_testing(
+        std::make_unique<TestCreditCardFidoAuthenticator>(
+            autofill_driver_.get(), &autofill_client_));
 #endif
     auto otp_authenticator =
         std::make_unique<TestCreditCardOtpAuthenticator>(&autofill_client_);
@@ -224,24 +193,15 @@ class CreditCardAccessManagerTest : public testing::Test {
     autofill_client_.set_otp_authenticator(std::move(otp_authenticator));
   }
 
-  void TearDown() override {
-    // Order of destruction is important as AutofillDriver relies on
-    // PersonalDataManager to be around when it gets destroyed.
-    autofill_driver_.reset();
-
-    personal_data().SetPrefService(nullptr);
-    personal_data().ClearCreditCards();
-  }
-
   bool IsAuthenticationInProgress() {
-    return credit_card_access_manager_->is_authentication_in_progress();
+    return credit_card_access_manager().is_authentication_in_progress();
   }
 
   void ResetFetchCreditCard() {
     // Resets all variables related to credit card fetching.
-    credit_card_access_manager_->is_authentication_in_progress_ = false;
-    credit_card_access_manager_->can_fetch_unmask_details_ = true;
-    credit_card_access_manager_->is_user_verifiable_ = absl::nullopt;
+    credit_card_access_manager().is_authentication_in_progress_ = false;
+    credit_card_access_manager().can_fetch_unmask_details_ = true;
+    credit_card_access_manager().is_user_verifiable_ = absl::nullopt;
   }
 
   void ClearCards() { personal_data().ClearCreditCards(); }
@@ -250,9 +210,9 @@ class CreditCardAccessManagerTest : public testing::Test {
     CreditCard local_card = CreditCard();
     test::SetCreditCardInfo(&local_card, "Elvis Presley", number.c_str(),
                             test::NextMonth().c_str(), test::NextYear().c_str(),
-                            "1");
+                            "1", kTestCvc16);
     local_card.set_guid(guid);
-    local_card.set_record_type(CreditCard::LOCAL_CARD);
+    local_card.set_record_type(CreditCard::RecordType::kLocalCard);
 
     personal_data().AddCreditCard(local_card);
   }
@@ -264,10 +224,11 @@ class CreditCardAccessManagerTest : public testing::Test {
     CreditCard server_card = CreditCard();
     test::SetCreditCardInfo(&server_card, "Elvis Presley", number.c_str(),
                             test::NextMonth().c_str(), test::NextYear().c_str(),
-                            "1");
+                            "1", kTestCvc16);
     server_card.set_guid(guid);
-    server_card.set_record_type(masked ? CreditCard::MASKED_SERVER_CARD
-                                       : CreditCard::FULL_SERVER_CARD);
+    server_card.set_record_type(masked
+                                    ? CreditCard::RecordType::kMaskedServerCard
+                                    : CreditCard::RecordType::kFullServerCard);
     server_card.set_server_id(server_id);
     personal_data().AddServerCreditCard(server_card);
   }
@@ -325,19 +286,22 @@ class CreditCardAccessManagerTest : public testing::Test {
   void AddMaxStrikes() {
     auto* strike_database =
         GetFIDOAuthenticator()->GetOrCreateFidoAuthenticationStrikeDatabase();
+    CHECK(strike_database);
     strike_database->AddStrikes(strike_database->GetMaxStrikesLimit());
   }
 
   void ClearStrikes() {
-    return GetFIDOAuthenticator()
-        ->GetOrCreateFidoAuthenticationStrikeDatabase()
-        ->ClearAllStrikes();
+    auto* strike_database =
+        GetFIDOAuthenticator()->GetOrCreateFidoAuthenticationStrikeDatabase();
+    CHECK(strike_database);
+    strike_database->ClearAllStrikes();
   }
 
   int GetStrikes() {
-    return GetFIDOAuthenticator()
-        ->GetOrCreateFidoAuthenticationStrikeDatabase()
-        ->GetStrikes();
+    auto* strike_database =
+        GetFIDOAuthenticator()->GetOrCreateFidoAuthenticationStrikeDatabase();
+    CHECK(strike_database);
+    return strike_database->GetStrikes();
   }
 
   base::Value::Dict GetTestRequestOptions() {
@@ -397,7 +361,7 @@ class CreditCardAccessManagerTest : public testing::Test {
 
   TestCreditCardFidoAuthenticator* GetFIDOAuthenticator() {
     return static_cast<TestCreditCardFidoAuthenticator*>(
-        credit_card_access_manager_->GetOrCreateFidoAuthenticator());
+        credit_card_access_manager().GetOrCreateFidoAuthenticator());
   }
 #endif
 
@@ -409,14 +373,14 @@ class CreditCardAccessManagerTest : public testing::Test {
 #endif
 
   void InvokeDelayedGetUnmaskDetailsResponse() {
-    credit_card_access_manager_->OnDidGetUnmaskDetails(
+    credit_card_access_manager().OnDidGetUnmaskDetails(
         AutofillClient::PaymentsRpcResult::kSuccess,
-        *payments_client_->unmask_details());
+        *payments_client().unmask_details());
   }
 
   void InvokeUnmaskDetailsTimeout() {
-    credit_card_access_manager_->ready_to_start_authentication_.Signal();
-    credit_card_access_manager_->can_fetch_unmask_details_ = true;
+    credit_card_access_manager().ready_to_start_authentication_.Signal();
+    credit_card_access_manager().can_fetch_unmask_details_ = true;
   }
 
   void WaitForCallbacks() { task_environment_.RunUntilIdle(); }
@@ -430,7 +394,7 @@ class CreditCardAccessManagerTest : public testing::Test {
   }
 
   UnmaskAuthFlowType getUnmaskAuthFlowType() {
-    return credit_card_access_manager_->unmask_auth_flow_type_;
+    return credit_card_access_manager().unmask_auth_flow_type_;
   }
 
   void MockCardUnmaskFlowUpToAuthenticationSelectionDialogAccepted(
@@ -440,26 +404,24 @@ class CreditCardAccessManagerTest : public testing::Test {
       int selected_index) {
     CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
     CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-    virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+    virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-    fido_authenticator_->set_is_user_opted_in(
+    fido_authenticator().set_is_user_opted_in(
         fido_authenticator_is_user_opted_in);
 #endif
 
     // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
     // |is_user_verifiable_| related logic from CreditCardAccessManager to
     // CreditCardFidoAuthenticator.
-    credit_card_access_manager_->is_user_verifiable_ = is_user_verifiable;
-    credit_card_access_manager_->FetchCreditCard(virtual_card,
+    credit_card_access_manager().is_user_verifiable_ = is_user_verifiable;
+    credit_card_access_manager().FetchCreditCard(virtual_card,
                                                  accessor_->GetWeakPtr());
 
-    // Ensures the UnmaskRequestDetails is populated with correct contents.
-    EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-    EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-    EXPECT_TRUE(payments_client_->unmask_request()
-                    ->last_committed_primary_main_frame_origin.has_value());
-
+    // This checks risk-based authentication flow is successfully invoked,
+    // because it is always the very first authentication flow in a VCN
+    // unmasking flow.
+    EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
     // Mock server response with information regarding VCN auth.
     payments::PaymentsClient::UnmaskResponseDetails response;
     response.context_token = "fake_context_token";
@@ -468,33 +430,33 @@ class CreditCardAccessManagerTest : public testing::Test {
     if (fido_authenticator_is_user_opted_in)
       response.fido_request_options = GetTestRequestOptions();
 #endif
-    credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-        AutofillClient::PaymentsRpcResult::kSuccess, response);
+    credit_card_access_manager()
+        .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+            AutofillClient::PaymentsRpcResult::kSuccess, response);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
     // This if-statement ensures that fido-related flows run correctly.
     if (fido_authenticator_is_user_opted_in) {
       // Expect the CreditCardAccessManager invokes the FIDO authenticator
       // first.
-      DCHECK(fido_authenticator_);
-      ASSERT_TRUE(fido_authenticator_->authenticate_invoked());
-      EXPECT_EQ(fido_authenticator_->card().number(),
+      ASSERT_TRUE(fido_authenticator().authenticate_invoked());
+      EXPECT_EQ(fido_authenticator().card().number(),
                 base::UTF8ToUTF16(std::string(kTestNumber)));
-      EXPECT_EQ(fido_authenticator_->card().record_type(),
-                CreditCard::VIRTUAL_CARD);
-      ASSERT_TRUE(fido_authenticator_->context_token().has_value());
-      EXPECT_EQ(fido_authenticator_->context_token().value(),
+      EXPECT_EQ(fido_authenticator().card().record_type(),
+                CreditCard::RecordType::kVirtualCard);
+      ASSERT_TRUE(fido_authenticator().context_token().has_value());
+      EXPECT_EQ(fido_authenticator().context_token().value(),
                 "fake_context_token");
 
       CreditCardFidoAuthenticator::FidoAuthenticationResponse fido_response{
           .did_succeed = false};
-      credit_card_access_manager_->OnFIDOAuthenticationComplete(fido_response);
+      credit_card_access_manager().OnFIDOAuthenticationComplete(fido_response);
     }
 #endif
 
     const CardUnmaskChallengeOption& challenge_option =
         response.card_unmask_challenge_options[selected_index];
-    credit_card_access_manager_->OnUserAcceptedAuthenticationSelectionDialog(
+    credit_card_access_manager().OnUserAcceptedAuthenticationSelectionDialog(
         challenge_option.id.value());
 
     switch (challenge_option.type) {
@@ -505,7 +467,7 @@ class CreditCardAccessManagerTest : public testing::Test {
         payments::PaymentsClient::UnmaskRequestDetails* request_details =
             cvc_authenticator->GetFullCardRequest()->request_.get();
         EXPECT_EQ(request_details->card.record_type(),
-                  CreditCard::VIRTUAL_CARD);
+                  CreditCard::RecordType::kVirtualCard);
         EXPECT_EQ(request_details->card.number(),
                   base::UTF8ToUTF16(std::string(kTestNumber)));
         EXPECT_EQ(request_details->context_token, "fake_context_token");
@@ -547,11 +509,24 @@ class CreditCardAccessManagerTest : public testing::Test {
     EXPECT_EQ(otp_authenticator_->card().number(),
               base::UTF8ToUTF16(std::string(kTestNumber)));
     EXPECT_EQ(otp_authenticator_->card().record_type(),
-              CreditCard::VIRTUAL_CARD);
+              CreditCard::RecordType::kVirtualCard);
     EXPECT_EQ(otp_authenticator_->context_token(), "fake_context_token");
   }
 
  protected:
+  CreditCardAccessManager& credit_card_access_manager() {
+    return *autofill_driver_->GetAutofillManager().GetCreditCardAccessManager();
+  }
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+  TestCreditCardFidoAuthenticator& fido_authenticator() {
+    return static_cast<TestCreditCardFidoAuthenticator&>(
+        *credit_card_access_manager().GetOrCreateFidoAuthenticator());
+  }
+#endif
+  payments::TestPaymentsClient& payments_client() {
+    return static_cast<payments::TestPaymentsClient&>(
+        *autofill_client_.GetPaymentsClient());
+  }
   TestPersonalDataManager& personal_data() {
     return *autofill_client_.GetPersonalDataManager();
   }
@@ -560,19 +535,11 @@ class CreditCardAccessManagerTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
-  raw_ptr<payments::TestPaymentsClient> payments_client_;
+  syncer::TestSyncService sync_service_;
   TestAutofillClient autofill_client_;
   std::unique_ptr<TestAutofillDriver> autofill_driver_;
   scoped_refptr<AutofillWebDataService> database_;
-  // TODO(crbug.com/1249665): Remove this member variable and use test-local
-  // feature lists.
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<BrowserAutofillManager> browser_autofill_manager_;
-  raw_ptr<CreditCardAccessManager> credit_card_access_manager_;
   raw_ptr<TestCreditCardOtpAuthenticator> otp_authenticator_;
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  raw_ptr<TestCreditCardFidoAuthenticator> fido_authenticator_;
-#endif
 };
 
 // Ensures DeleteCard() successfully removes local cards.
@@ -581,7 +548,7 @@ TEST_F(CreditCardAccessManagerTest, RemoveLocalCreditCard) {
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
   EXPECT_TRUE(personal_data().GetCreditCardByGUID(kTestGUID));
-  EXPECT_TRUE(credit_card_access_manager_->DeleteCard(card));
+  EXPECT_TRUE(credit_card_access_manager().DeleteCard(card));
   EXPECT_FALSE(personal_data().GetCreditCardByGUID(kTestGUID));
 }
 
@@ -591,7 +558,7 @@ TEST_F(CreditCardAccessManagerTest, RemoveServerCreditCard) {
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
   EXPECT_TRUE(personal_data().GetCreditCardByGUID(kTestGUID));
-  EXPECT_FALSE(credit_card_access_manager_->DeleteCard(card));
+  EXPECT_FALSE(credit_card_access_manager().DeleteCard(card));
 
   // Cannot delete server cards.
   EXPECT_TRUE(personal_data().GetCreditCardByGUID(kTestGUID));
@@ -605,11 +572,11 @@ TEST_F(CreditCardAccessManagerTest, LocalCardGetDeletionConfirmationText) {
 
   std::u16string title = std::u16string();
   std::u16string body = std::u16string();
-  EXPECT_TRUE(credit_card_access_manager_->GetDeletionConfirmationText(
+  EXPECT_TRUE(credit_card_access_manager().GetDeletionConfirmationText(
       card, &title, &body));
 
   // |title| and |body| should be updated appropriately.
-  EXPECT_EQ(title, card->CardIdentifierStringForAutofillDisplay());
+  EXPECT_EQ(title, card->CardNameAndLastFourDigits());
   EXPECT_EQ(body,
             l10n_util::GetStringUTF16(
                 IDS_AUTOFILL_DELETE_CREDIT_CARD_SUGGESTION_CONFIRMATION_BODY));
@@ -622,7 +589,7 @@ TEST_F(CreditCardAccessManagerTest, ServerCardGetDeletionConfirmationText) {
 
   std::u16string title = std::u16string();
   std::u16string body = std::u16string();
-  EXPECT_FALSE(credit_card_access_manager_->GetDeletionConfirmationText(
+  EXPECT_FALSE(credit_card_access_manager().GetDeletionConfirmationText(
       card, &title, &body));
 
   // |title| and |body| should remain unchanged.
@@ -638,17 +605,31 @@ TEST_F(CreditCardAccessManagerTest, ServerCardGetDeletionConfirmationText) {
 // off.
 // - bool mandatory_reauth_response_is_success: Whether the response from the
 // mandatory re-auth is a success or failure.
+// - bool authentication_method_is_biometric: Whether the authentication method
+// is biometric. If false, it's using screen lock.
 class CreditCardAccessManagerMandatoryReauthTest
     : public CreditCardAccessManagerTest,
-      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+      public testing::WithParamInterface<std::tuple<bool, bool, bool, bool>> {
  public:
   CreditCardAccessManagerMandatoryReauthTest() = default;
   ~CreditCardAccessManagerMandatoryReauthTest() override = default;
 
   void SetUp() override {
     CreditCardAccessManagerTest::SetUp();
-    feature_list_.InitWithFeatureState(
-        features::kAutofillEnablePaymentsMandatoryReauth, FeatureFlagIsOn());
+    feature_list_.InitWithFeatureStates(
+        {{features::kAutofillEnablePaymentsMandatoryReauth, FeatureFlagIsOn()},
+         {features::kAutofillEnableFpanRiskBasedAuthentication, true}});
+#if BUILDFLAG(IS_ANDROID)
+    if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+      autofill_client_.GetPrefs()->SetBoolean(
+          prefs::kAutofillPaymentMethodsMandatoryReauth,
+          /*value=*/true);
+      return;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
+    autofill_client_.GetPrefs()->SetBoolean(
+        prefs::kAutofillPaymentMethodsMandatoryReauth,
+        /*value=*/PrefIsEnabled());
   }
 
   bool FeatureFlagIsOn() const { return std::get<0>(GetParam()); }
@@ -659,7 +640,61 @@ class CreditCardAccessManagerMandatoryReauthTest
     return std::get<2>(GetParam());
   }
 
+  bool isBiometric() const { return std::get<3>(GetParam()); }
+
+  bool IsMandatoryReauthEnabled() {
+#if BUILDFLAG(IS_ANDROID)
+    if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+      return true;
+    }
+#endif
+    return FeatureFlagIsOn() && PrefIsEnabled();
+  }
+
+  void SetUpDeviceAuthenticatorResponseMock() {
+    if (isBiometric()) {
+      ON_CALL(mandatory_reauth_manager(), GetAuthenticationMethod)
+          .WillByDefault(testing::Return(
+              payments::MandatoryReauthAuthenticationMethod::kBiometric));
+    } else {
+      ON_CALL(mandatory_reauth_manager(), GetAuthenticationMethod)
+          .WillByDefault(testing::Return(
+              payments::MandatoryReauthAuthenticationMethod::kScreenLock));
+    }
+
+    // We should only expect an AuthenticateWithMessage() call if the feature
+    // flag is on and the pref is enabled, or if the device is automotive.
+    if (IsMandatoryReauthEnabled()) {
+      ON_CALL(mandatory_reauth_manager(),
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+              AuthenticateWithMessage)
+          .WillByDefault(testing::WithArg<1>(
+#elif BUILDFLAG(IS_ANDROID)
+              Authenticate)
+          .WillByDefault(testing::WithArg<0>(
+#endif
+              testing::Invoke([mandatory_reauth_response_is_success =
+                                   MandatoryReauthResponseIsSuccess()](
+                                  base::OnceCallback<void(bool)> callback) {
+                std::move(callback).Run(mandatory_reauth_response_is_success);
+              })));
+    } else {
+      EXPECT_CALL(mandatory_reauth_manager(),
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+                  AuthenticateWithMessage)
+#elif BUILDFLAG(IS_ANDROID)
+                  Authenticate)
+#endif
+          .Times(0);
+    }
+  }
+
  private:
+  payments::MockMandatoryReauthManager& mandatory_reauth_manager() {
+    return *static_cast<payments::MockMandatoryReauthManager*>(
+        autofill_client_.GetOrCreatePaymentsMandatoryReauthManager());
+  }
+
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -667,53 +702,174 @@ class CreditCardAccessManagerMandatoryReauthTest
 // Mandatory Re-Auth feature.
 TEST_P(CreditCardAccessManagerMandatoryReauthTest,
        MandatoryReauth_FetchLocalCard) {
-  autofill_client_.GetPrefs()->SetBoolean(
-      prefs::kAutofillPaymentMethodsMandatoryReauth, /*value=*/PrefIsEnabled());
+  base::HistogramTester histogram_tester;
   CreateLocalCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  // We should only expect an AuthenticateWithMessage() call if the feature flag
-  // is on and the pref is enabled.
-  if (FeatureFlagIsOn() && PrefIsEnabled()) {
-    ON_CALL(*static_cast<device_reauth::MockDeviceAuthenticator*>(
-                autofill_client_.GetDeviceAuthenticator().get()),
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-            AuthenticateWithMessage)
-#elif BUILDFLAG(IS_ANDROID)
-            Authenticate)
-#endif
-        .WillByDefault(testing::WithArg<1>(
-            testing::Invoke([mandatory_reauth_response_is_success =
-                                 MandatoryReauthResponseIsSuccess()](
-                                base::OnceCallback<void(bool)> callback) {
-              std::move(callback).Run(mandatory_reauth_response_is_success);
-            })));
-  } else {
-    EXPECT_CALL(*static_cast<device_reauth::MockDeviceAuthenticator*>(
-                    autofill_client_.GetDeviceAuthenticator().get()),
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-                AuthenticateWithMessage)
-#elif BUILDFLAG(IS_ANDROID)
-                Authenticate)
-#endif
-        .Times(0);
-  }
+  // TODO(crbug/1489440): Extract shared boilerplate code out for
+  // CreditCardAccessManagerMandatoryReauthTest tests.
+  SetUpDeviceAuthenticatorResponseMock();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
-
-  // The only time we should expect an error is if the feature flag is on, the
-  // pref is enabled, but the mandatory re-auth authentication was not
-  // successful.
-  if (FeatureFlagIsOn() && PrefIsEnabled() &&
-      !MandatoryReauthResponseIsSuccess()) {
+  // The only time we should expect an error is if mandatory re-auth is
+  // enabled, but the mandatory re-auth authentication was not successful.
+  if (IsMandatoryReauthEnabled() && !MandatoryReauthResponseIsSuccess()) {
     EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
     EXPECT_TRUE(accessor_->number().empty());
   } else {
     EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
     EXPECT_EQ(kTestNumber16, accessor_->number());
+  }
+  std::string histogram_name =
+      "Autofill.PaymentMethods.CheckoutFlow.ReauthUsage.LocalCard";
+  histogram_name += isBiometric() ? ".Biometric" : ".ScreenLock";
+  if (IsMandatoryReauthEnabled()) {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        1);
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        MandatoryReauthResponseIsSuccess()
+            ? autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowSucceeded
+            : autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowFailed,
+        1);
+  } else {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        0);
+  }
+}
+
+// Tests that retrieving virtual cards works correctly in the context of the
+// Mandatory Re-Auth feature.
+TEST_P(CreditCardAccessManagerMandatoryReauthTest,
+       MandatoryReauth_FetchVirtualCard) {
+  base::HistogramTester histogram_tester;
+  CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
+  CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
+
+  credit_card_access_manager().FetchCreditCard(virtual_card,
+                                               accessor_->GetWeakPtr());
+
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
+  // Mock server response with valid card information.
+  payments::PaymentsClient::UnmaskResponseDetails response;
+  response.real_pan = "4111111111111111";
+  response.dcvv = "321";
+  response.expiration_month = test::NextMonth();
+  response.expiration_year = test::NextYear();
+  response.card_type = AutofillClient::PaymentsRpcCardType::kVirtualCard;
+
+  // TODO(crbug/1489440): Extract shared boilerplate code out for
+  // CreditCardAccessManagerMandatoryReauthTest tests.
+  SetUpDeviceAuthenticatorResponseMock();
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kSuccess, response);
+
+  // Ensure the accessor received the correct response.
+  if (IsMandatoryReauthEnabled() && !MandatoryReauthResponseIsSuccess()) {
+    EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
+  } else {
+    EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
+    EXPECT_EQ(accessor_->number(), u"4111111111111111");
+    EXPECT_EQ(accessor_->cvc(), u"321");
+    EXPECT_EQ(accessor_->expiry_month(), base::UTF8ToUTF16(test::NextMonth()));
+    EXPECT_EQ(accessor_->expiry_year(), base::UTF8ToUTF16(test::NextYear()));
+  }
+  std::string histogram_name =
+      "Autofill.PaymentMethods.CheckoutFlow.ReauthUsage.VirtualCard";
+  histogram_name += isBiometric() ? ".Biometric" : ".ScreenLock";
+  if (IsMandatoryReauthEnabled()) {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        1);
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        MandatoryReauthResponseIsSuccess()
+            ? autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowSucceeded
+            : autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowFailed,
+        1);
+  } else {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        0);
+  }
+}
+
+// Tests that retrieving masked server cards triggers mandatory reauth (if
+// applicable) when risk-based auth returned the card.
+TEST_P(CreditCardAccessManagerMandatoryReauthTest,
+       MandatoryReauth_FetchMaskedServerCard) {
+  std::string test_number = "4444333322221111";
+  base::HistogramTester histogram_tester;
+  CreateServerCard(kTestGUID, test_number, /*masked=*/true, kTestServerId);
+  CreditCard* masked_server_card =
+      personal_data().GetCreditCardByGUID(kTestGUID);
+
+  credit_card_access_manager().FetchCreditCard(masked_server_card,
+                                               accessor_->GetWeakPtr());
+
+  // Ensures CreditCardRiskBasedAuthenticator::Authenticate is successfully
+  // invoked.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
+
+  // Mock CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse to
+  // successfully return the valid card number.
+  CreditCard card = *masked_server_card;
+  card.set_record_type(CreditCard::RecordType::kFullServerCard);
+
+  // TODO(crbug/1489440): Extract shared boilerplate code out for
+  // CreditCardAccessManagerMandatoryReauthTest tests.
+  SetUpDeviceAuthenticatorResponseMock();
+  credit_card_access_manager().OnRiskBasedAuthenticationResponseReceived(
+      CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse()
+          .with_did_succeed(true)
+          .with_card(card));
+
+  // Ensure the accessor received the correct response.
+  if (IsMandatoryReauthEnabled() && !MandatoryReauthResponseIsSuccess()) {
+    EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
+  } else {
+    EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
+    EXPECT_EQ(accessor_->number(), base::UTF8ToUTF16(test_number));
+  }
+  std::string histogram_name =
+      "Autofill.PaymentMethods.CheckoutFlow.ReauthUsage.ServerCard";
+  histogram_name += isBiometric() ? ".Biometric" : ".ScreenLock";
+  if (IsMandatoryReauthEnabled()) {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        1);
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        MandatoryReauthResponseIsSuccess()
+            ? autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowSucceeded
+            : autofill_metrics::MandatoryReauthAuthenticationFlowEvent::
+                  kFlowFailed,
+        1);
+  } else {
+    histogram_tester.ExpectBucketCount(
+        histogram_name,
+        autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowStarted,
+        0);
   }
 }
 
@@ -721,31 +877,47 @@ INSTANTIATE_TEST_SUITE_P(,
                          CreditCardAccessManagerMandatoryReauthTest,
                          testing::Combine(testing::Bool(),
                                           testing::Bool(),
+                                          testing::Bool(),
                                           testing::Bool()));
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 
 // Tests retrieving local cards.
 TEST_F(CreditCardAccessManagerTest, FetchLocalCardSuccess) {
+#if BUILDFLAG(IS_ANDROID)
+  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    GTEST_SKIP() << "This test should not run on automotive.";
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreateLocalCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
   EXPECT_EQ(kTestNumber16, accessor_->number());
+  EXPECT_EQ(kTestCvc16, accessor_->cvc());
+
+  // There was no interactive authentication in this flow, so check that this
+  // is signaled correctly.
+  absl::optional<CreditCard::RecordType> card_identifier =
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted();
+  ASSERT_TRUE(card_identifier.has_value());
+  ASSERT_EQ(card_identifier.value(), CreditCard::RecordType::kLocalCard);
 }
 
 // Ensures that FetchCreditCard() reports a failure when a card does not exist.
 TEST_F(CreditCardAccessManagerTest, FetchNullptrFailure) {
   personal_data().ClearCreditCards();
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(nullptr,
+  credit_card_access_manager().FetchCreditCard(nullptr,
                                                accessor_->GetWeakPtr());
   EXPECT_NE(accessor_->result(), CreditCardFetchResult::kSuccess);
 }
@@ -768,10 +940,10 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardCVCSuccess) {
     std::string flow_events_histogram_name =
         "Autofill.BetterAuth.FlowEvents.Cvc";
 
-    credit_card_access_manager_->PrepareToFetchCreditCard();
+    credit_card_access_manager().PrepareToFetchCreditCard();
     WaitForCallbacks();
 
-    credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+    credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
     histogram_tester.ExpectUniqueSample(
         flow_events_histogram_name,
         CreditCardFormEventLogger::UnmaskAuthFlowEvent::kPromptShown, 1);
@@ -792,6 +964,12 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardCVCSuccess) {
       histogram_tester.ExpectBucketCount(
           "Autofill.ServerCardUnmask.ServerCard.Attempt", true, 0);
     }
+    // Expect that we did not signal that there was no interactive
+    // authentication.
+    EXPECT_FALSE(
+        autofill_client_.GetFormDataImporter()
+            ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+            .has_value());
   }
 }
 
@@ -801,10 +979,10 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardCVCNetworkError) {
   CreateServerCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   EXPECT_TRUE(GetRealPanForCVCAuth(
       AutofillClient::PaymentsRpcResult::kNetworkError, std::string()));
@@ -817,10 +995,10 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardCVCPermanentFailure) {
   CreateServerCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   EXPECT_TRUE(GetRealPanForCVCAuth(
       AutofillClient::PaymentsRpcResult::kPermanentFailure, std::string()));
@@ -832,7 +1010,7 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardCVCTryAgainFailure) {
   CreateServerCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   EXPECT_TRUE(GetRealPanForCVCAuth(
       AutofillClient::PaymentsRpcResult::kTryAgainFailure, std::string()));
@@ -886,7 +1064,7 @@ TEST_P(CreditCardAccessManagerBetterAuthLogTest,
   fido_authenticator->SetUserVerifiable(/*is_user_verifiable=*/true);
   fido_authenticator->set_is_user_opted_in(IsUserOptedIn());
   ResetFetchCreditCard();
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
   histogram_tester.ExpectTotalCount(/*name=*/kVerifiabilityCheckDurationMetrics,
@@ -912,7 +1090,7 @@ TEST_P(CreditCardAccessManagerBetterAuthLogTest,
   base::HistogramTester histogram_tester;
   GetFIDOAuthenticator()->SetUserVerifiable(/*is_user_verifiable=*/false);
   ResetFetchCreditCard();
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
   if (HasServerCard()) {
@@ -955,13 +1133,13 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardFIDOSuccess) {
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
   histogram_tester.ExpectUniqueSample(
       flow_events_histogram_name,
@@ -979,6 +1157,7 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardFIDOSuccess) {
   EXPECT_EQ(kCredentialId,
             BytesToBase64(GetFIDOAuthenticator()->GetCredentialId()));
   EXPECT_EQ(kTestNumber16, accessor_->number());
+  EXPECT_EQ(kTestCvc16, accessor_->cvc());
 
   histogram_tester.ExpectUniqueSample(
       unmask_decision_histogram_name,
@@ -995,26 +1174,56 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardFIDOSuccess) {
       CreditCardFormEventLogger::UnmaskAuthFlowEvent::kPromptCompleted, 1);
 }
 
+// Ensures that accessor retrieve empty CVC upon a successful
+// WebAuthn verification and response from payments using masked server card
+// without CVC.
+TEST_F(CreditCardAccessManagerTest, FetchServerCardWithoutCvcFIDOSuccess) {
+  CreditCard server_card = CreditCard();
+  test::SetCreditCardInfo(&server_card, "Elvis Presley", kTestNumber,
+                          test::NextMonth().c_str(), test::NextYear().c_str(),
+                          "1", u"");
+  server_card.set_guid(kTestGUID);
+  server_card.set_record_type(CreditCard::RecordType::kMaskedServerCard);
+  personal_data().AddServerCreditCard(server_card);
+  CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
+  GetFIDOAuthenticator()->SetUserVerifiable(true);
+  SetCreditCardFIDOAuthEnabled(true);
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
+                                        kGooglePaymentsRpid);
+
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  WaitForCallbacks();
+
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
+  WaitForCallbacks();
+
+  // FIDO Success.
+  EXPECT_EQ(CreditCardFidoAuthenticator::Flow::AUTHENTICATION_FLOW,
+            GetFIDOAuthenticator()->current_flow());
+  TestCreditCardFidoAuthenticator::GetAssertion(GetFIDOAuthenticator(),
+                                                /*did_succeed=*/true);
+  EXPECT_TRUE(GetRealPanForFIDOAuth(AutofillClient::PaymentsRpcResult::kSuccess,
+                                    kTestNumber));
+  EXPECT_EQ(u"", accessor_->cvc());
+}
+
 // Ensures that FetchCreditCard() returns the full PAN upon a successful
 // WebAuthn verification and response from payments.
 TEST_F(CreditCardAccessManagerTest, FetchServerCardFIDOSuccessWithDcvv) {
-  // Enable both features and opt user in for FIDO auth.
-  scoped_feature_list_.Reset();
-  scoped_feature_list_.InitAndEnableFeature(
-      features::kAutofillAlwaysReturnCloudTokenizedCard);
+  // Opt user in for FIDO auth.
   prefs::SetCreditCardFIDOAuthEnabled(autofill_client_.GetPrefs(), true);
 
   // General setup.
   CreateServerCard(kTestGUID, kTestNumber);
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // FIDO Success.
@@ -1046,13 +1255,13 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
   histogram_tester.ExpectUniqueSample(
       flow_events_fido_histogram_name,
@@ -1104,13 +1313,13 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // FIDO Failure.
@@ -1148,13 +1357,13 @@ TEST_F(CreditCardAccessManagerTest,
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
   // Don't set Credential ID.
-  payments_client_->AddFidoEligibleCard(card->server_id(), /*credential_id=*/"",
+  payments_client().AddFidoEligibleCard(card->server_id(), /*credential_id=*/"",
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // FIDO Failure.
@@ -1178,7 +1387,7 @@ TEST_F(CreditCardAccessManagerTest, FetchServerCardFIDOTimeoutCVCFallback) {
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1213,11 +1422,11 @@ TEST_F(CreditCardAccessManagerTest,
       base::HistogramTester histogram_tester;
 
       ResetFetchCreditCard();
-      credit_card_access_manager_->PrepareToFetchCreditCard();
+      credit_card_access_manager().PrepareToFetchCreditCard();
       task_environment_.FastForwardBy(base::Seconds(4));
       WaitForCallbacks();
 
-      credit_card_access_manager_->FetchCreditCard(local_card,
+      credit_card_access_manager().FetchCreditCard(local_card,
                                                    accessor_->GetWeakPtr());
       WaitForCallbacks();
 
@@ -1229,11 +1438,11 @@ TEST_F(CreditCardAccessManagerTest,
     {
       // Preflight call returned after card was chosen.
       base::HistogramTester histogram_tester;
-      payments_client_->ShouldReturnUnmaskDetailsImmediately(false);
+      payments_client().ShouldReturnUnmaskDetailsImmediately(false);
 
       ResetFetchCreditCard();
-      credit_card_access_manager_->PrepareToFetchCreditCard();
-      credit_card_access_manager_->FetchCreditCard(server_card,
+      credit_card_access_manager().PrepareToFetchCreditCard();
+      credit_card_access_manager().FetchCreditCard(server_card,
                                                    accessor_->GetWeakPtr());
       task_environment_.FastForwardBy(base::Seconds(4));
       WaitForCallbacks();
@@ -1258,13 +1467,13 @@ TEST_F(CreditCardAccessManagerTest,
       base::HistogramTester histogram_tester;
       // This is important because CreditCardFidoAuthenticator will update the
       // opted-in pref according to GetDetailsForGetRealPan response.
-      payments_client_->AllowFidoRegistration(!user_is_opted_in);
+      payments_client().AllowFidoRegistration(!user_is_opted_in);
 
       ResetFetchCreditCard();
-      credit_card_access_manager_->PrepareToFetchCreditCard();
+      credit_card_access_manager().PrepareToFetchCreditCard();
       WaitForCallbacks();
 
-      credit_card_access_manager_->FetchCreditCard(server_card,
+      credit_card_access_manager().FetchCreditCard(server_card,
                                                    accessor_->GetWeakPtr());
       WaitForCallbacks();
 
@@ -1286,7 +1495,7 @@ TEST_F(CreditCardAccessManagerTest, Metrics_LoggingTimedOutCvcFallback) {
   CreditCard* server_card = personal_data().GetCreditCardByGUID(server_guid);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->ShouldReturnUnmaskDetailsImmediately(false);
+  payments_client().ShouldReturnUnmaskDetailsImmediately(false);
 
   std::string existence_perceived_latency_histogram_name =
       "Autofill.BetterAuth.UserPerceivedLatencyOnCardSelection.OptedIn";
@@ -1302,8 +1511,8 @@ TEST_F(CreditCardAccessManagerTest, Metrics_LoggingTimedOutCvcFallback) {
     base::HistogramTester histogram_tester;
 
     ResetFetchCreditCard();
-    credit_card_access_manager_->PrepareToFetchCreditCard();
-    credit_card_access_manager_->FetchCreditCard(server_card,
+    credit_card_access_manager().PrepareToFetchCreditCard();
+    credit_card_access_manager().FetchCreditCard(server_card,
                                                  accessor_->GetWeakPtr());
 
     // Mock a delayed response.
@@ -1328,8 +1537,8 @@ TEST_F(CreditCardAccessManagerTest, Metrics_LoggingTimedOutCvcFallback) {
     base::HistogramTester histogram_tester;
 
     ResetFetchCreditCard();
-    credit_card_access_manager_->PrepareToFetchCreditCard();
-    credit_card_access_manager_->FetchCreditCard(server_card,
+    credit_card_access_manager().PrepareToFetchCreditCard();
+    credit_card_access_manager().FetchCreditCard(server_card,
                                                  accessor_->GetWeakPtr());
     task_environment_.FastForwardBy(base::Seconds(4));
     WaitForCallbacks();
@@ -1363,15 +1572,15 @@ TEST_F(CreditCardAccessManagerTest, FIDONewCardAuthorization) {
   std::string other_server_id = "00000000-0000-0000-0000-000000000034";
   // Add other FIDO eligible card, it will return RequestOptions in unmask
   // details.
-  payments_client_->AddFidoEligibleCard(other_server_id, kCredentialId,
+  payments_client().AddFidoEligibleCard(other_server_id, kCredentialId,
                                         kGooglePaymentsRpid);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
   histogram_tester.ExpectUniqueSample(
@@ -1421,13 +1630,13 @@ TEST_F(CreditCardAccessManagerTest, FetchExpiredServerCardInvokesCvcPrompt) {
   card->SetExpirationYearFromString(u"2010");
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // Expect CVC prompt to be invoked.
@@ -1450,7 +1659,7 @@ TEST_F(CreditCardAccessManagerTest, FIDOOptInSuccess_Android) {
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1502,7 +1711,7 @@ TEST_F(CreditCardAccessManagerTest, FIDOOptInUserVerificationFailure) {
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1543,7 +1752,7 @@ TEST_F(CreditCardAccessManagerTest, FIDOOptInServerFailure) {
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1581,7 +1790,7 @@ TEST_F(CreditCardAccessManagerTest, FIDOOptIn_CheckboxDeclined) {
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1612,11 +1821,11 @@ TEST_F(CreditCardAccessManagerTest, FIDOSettingsPageOptInSuccess_Android) {
   // has the opt-in state to false - this shows the user opted-in through the
   // settings page.
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AllowFidoRegistration(true);
-  payments_client_->ShouldReturnUnmaskDetailsImmediately(true);
+  payments_client().AllowFidoRegistration(true);
+  payments_client().ShouldReturnUnmaskDetailsImmediately(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1626,7 +1835,7 @@ TEST_F(CreditCardAccessManagerTest, FIDOSettingsPageOptInSuccess_Android) {
   // the user request, because of the previous opt-in intention, the client must
   // request to opt-in.
   EXPECT_TRUE(
-      payments_client_->unmask_request()->user_response.enable_fido_auth);
+      payments_client().unmask_request()->user_response.enable_fido_auth);
 }
 
 #else   // BUILDFLAG(IS_ANDROID)
@@ -1650,10 +1859,10 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
-  payments_client_->AllowFidoRegistration(true);
+  payments_client().AllowFidoRegistration(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // Mock user and payments response.
@@ -1709,10 +1918,10 @@ TEST_F(CreditCardAccessManagerTest, FIDOEnrollment_OfferDeclined_Desktop) {
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
-  payments_client_->AllowFidoRegistration(true);
+  payments_client().AllowFidoRegistration(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // Mock user and payments response.
@@ -1746,10 +1955,10 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
-  payments_client_->AllowFidoRegistration(true);
+  payments_client().AllowFidoRegistration(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // Mock user and payments response.
@@ -1784,10 +1993,10 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
-  payments_client_->AllowFidoRegistration(true);
+  payments_client().AllowFidoRegistration(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   InvokeUnmaskDetailsTimeout();
   WaitForCallbacks();
 
@@ -1831,10 +2040,10 @@ TEST_F(CreditCardAccessManagerTest,
   CreditCard* card = personal_data().GetCreditCardByGUID(kTestGUID);
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(false);
-  payments_client_->AllowFidoRegistration(true);
+  payments_client().AllowFidoRegistration(true);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   WaitForCallbacks();
 
   // Mock user and payments response.
@@ -1890,7 +2099,7 @@ TEST_F(CreditCardAccessManagerTest, SettingsPage_FIDOEnrollment) {
 
   for (bool did_succeed : {false, true}) {
     SetCreditCardFIDOAuthEnabled(false);
-    credit_card_access_manager_->OnSettingsPageFIDOAuthToggled(true);
+    credit_card_access_manager().OnSettingsPageFIDOAuthToggled(true);
 
     // Mock user and payments response.
     AcceptWebauthnOfferDialog(/*did_accept=*/true);
@@ -1931,7 +2140,7 @@ TEST_F(CreditCardAccessManagerTest, SettingsPage_OptOut) {
   SetCreditCardFIDOAuthEnabled(true);
 
   EXPECT_TRUE(IsCreditCardFIDOAuthEnabled());
-  credit_card_access_manager_->OnSettingsPageFIDOAuthToggled(false);
+  credit_card_access_manager().OnSettingsPageFIDOAuthToggled(false);
   EXPECT_TRUE(GetFIDOAuthenticator()->IsOptOutCalled());
   OptChange(AutofillClient::PaymentsRpcResult::kSuccess,
             /*user_is_opted_in=*/false);
@@ -1972,22 +2181,21 @@ class CreditCardAccessManagerBetterAuthOptInLogTest
 #else
     SetCreditCardFIDOAuthEnabled(false);
 #endif  // BUILDFLAG(OS_ANDROID)
-    payments_client_->AllowFidoRegistration(
+    payments_client().AllowFidoRegistration(
         /*offer_fido_opt_in=*/UnmaskDetailsOfferFidoOptIn());
-    card_ = personal_data().GetCreditCardByGUID(kTestGUID);
     if (IsVirtualCard()) {
-      card_->set_record_type(CreditCard::VIRTUAL_CARD);
+      GetCreditCard()->set_record_type(CreditCard::RecordType::kVirtualCard);
     }
     if (IsOptedIntoFido()) {
       // If user and device are already opted into FIDO, then add an eligible
       // card to ensure that the `unmask_details_` contains fido request
       // options.
-      payments_client_->AddFidoEligibleCard("random_id", kCredentialId,
+      payments_client().AddFidoEligibleCard("random_id", kCredentialId,
                                             kGooglePaymentsRpid);
     }
 
-    credit_card_access_manager_->PrepareToFetchCreditCard();
-    credit_card_access_manager_->FetchCreditCard(card_,
+    credit_card_access_manager().PrepareToFetchCreditCard();
+    credit_card_access_manager().FetchCreditCard(GetCreditCard(),
                                                  accessor_->GetWeakPtr());
   }
 
@@ -2013,12 +2221,13 @@ class CreditCardAccessManagerBetterAuthOptInLogTest
     return fido_opt_in_not_offered_histogram;
   }
 
-  CreditCard* GetCreditCard() { return card_; }
+  CreditCard* GetCreditCard() {
+    return personal_data().GetCreditCardByGUID(kTestGUID);
+  }
 
  private:
   const std::string fido_opt_in_not_offered_histogram =
       "Autofill.BetterAuth.OptInPromoNotOfferedReason";
-  raw_ptr<CreditCard> card_;
 };
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -2029,7 +2238,7 @@ TEST_P(CreditCardAccessManagerBetterAuthOptInLogTest,
   base::HistogramTester histogram_tester;
 
   EXPECT_EQ(
-      credit_card_access_manager_->ShouldOfferFidoOptInDialogForTesting(
+      credit_card_access_manager().ShouldOfferFidoOptInDialogForTesting(
           CreditCardCvcAuthenticator::CvcAuthenticationResponse()
               .with_did_succeed(true)
               .with_card(GetCreditCard())
@@ -2086,7 +2295,7 @@ TEST_P(CreditCardAccessManagerBetterAuthOptInLogTest,
        FidoOptInNotShown_Android) {
   base::HistogramTester histogram_tester;
 
-  EXPECT_EQ(credit_card_access_manager_->ShouldOfferFidoAuthForTesting(),
+  EXPECT_EQ(credit_card_access_manager().ShouldOfferFidoAuthForTesting(),
             ShouldOfferFidoOptInAndroid());
 
   if (IsOptedIntoFido()) {
@@ -2141,17 +2350,17 @@ TEST_F(CreditCardAccessManagerTest,
   // The user is FIDO-enabled from Payments.
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
   // Mock the user manually opt-out from Settings page, and Payments did not
   // update user status in time. The mismatch will set user INTENT_TO_OPT_OUT.
   SetCreditCardFIDOAuthEnabled(/*enabled=*/false);
   // Delay the UnmaskDetailsResponse so that we can't discover the mismatch,
   // which will use local pref and fall back to CVC.
-  payments_client_->ShouldReturnUnmaskDetailsImmediately(false);
+  payments_client().ShouldReturnUnmaskDetailsImmediately(false);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   // Ensure the auth flow type is CVC because no unmask detail response is
   // returned and local pref denotes that user is opted out.
@@ -2186,14 +2395,14 @@ TEST_F(CreditCardAccessManagerTest, IntentToOptOut_OptOutAfterUnmaskSucceeds) {
   // The user is FIDO-enabled from Payments.
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
   // Mock the user manually opt-out from Settings page, and Payments did not
   // update user status in time. The mismatch will set user INTENT_TO_OPT_OUT.
   SetCreditCardFIDOAuthEnabled(/*enabled=*/false);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   // Ensure that the local pref is still unchanged after unmask detail returns.
   EXPECT_FALSE(IsCreditCardFIDOAuthEnabled());
@@ -2222,14 +2431,14 @@ TEST_F(CreditCardAccessManagerTest, IntentToOptOut_OptOutAfterUnmaskFails) {
   // The user is FIDO-enabled from Payments.
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
   // Mock the user manually opt-out from Settings page, and Payments did not
   // update user status in time. The mismatch will set user INTENT_TO_OPT_OUT.
   SetCreditCardFIDOAuthEnabled(/*enabled=*/false);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   // Ensure that the local pref is still unchanged after unmask detail returns.
   EXPECT_FALSE(IsCreditCardFIDOAuthEnabled());
@@ -2257,14 +2466,14 @@ TEST_F(CreditCardAccessManagerTest, IntentToOptOut_OptOutFailure) {
   // The user is FIDO-enabled from Payments.
   GetFIDOAuthenticator()->SetUserVerifiable(true);
   SetCreditCardFIDOAuthEnabled(true);
-  payments_client_->AddFidoEligibleCard(card->server_id(), kCredentialId,
+  payments_client().AddFidoEligibleCard(card->server_id(), kCredentialId,
                                         kGooglePaymentsRpid);
   // Mock the user manually opt-out from Settings page, and Payments did not
   // update user status in time. The mismatch will set user INTENT_TO_OPT_OUT.
   SetCreditCardFIDOAuthEnabled(/*enabled=*/false);
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().PrepareToFetchCreditCard();
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
 
   // Ensure that the local pref is still unchanged after unmask detail returns.
   EXPECT_FALSE(IsCreditCardFIDOAuthEnabled());
@@ -2286,14 +2495,14 @@ TEST_F(CreditCardAccessManagerTest, IntentToOptOut_OptOutFailure) {
 // TODO(crbug.com/1409172): Extend the FIDOAuthOptChange tests to more
 // use-cases.
 TEST_F(CreditCardAccessManagerTest, FIDOAuthOptChange_OptOut) {
-  credit_card_access_manager_->FIDOAuthOptChange(/*opt_in=*/false);
-  ASSERT_TRUE(fido_authenticator_->IsOptOutCalled());
+  credit_card_access_manager().FIDOAuthOptChange(/*opt_in=*/false);
+  ASSERT_TRUE(fido_authenticator().IsOptOutCalled());
 }
 
 TEST_F(CreditCardAccessManagerTest, FIDOAuthOptChange_OptOut_OffTheRecord) {
-  personal_data().set_is_off_the_record_for_testing(/*is_off_the_record=*/true);
-  credit_card_access_manager_->FIDOAuthOptChange(/*opt_in=*/false);
-  ASSERT_FALSE(fido_authenticator_->IsOptOutCalled());
+  autofill_client_.set_is_off_the_record(true);
+  credit_card_access_manager().FIDOAuthOptChange(/*opt_in=*/false);
+  ASSERT_FALSE(fido_authenticator().IsOptOutCalled());
 }
 
 // TODO(crbug.com/1109296) Debug issues and re-enable this test on MacOS.
@@ -2311,15 +2520,15 @@ TEST_F(CreditCardAccessManagerTest, PreflightCallRateLimited) {
   ResetFetchCreditCard();
 
   // First call to PrepareToFetchCreditCard() should make RPC.
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   histogram_tester.ExpectTotalCount(preflight_call_metric, 1);
 
   // Calling PrepareToFetchCreditCard() without a prior preflight call should
   // have set |can_fetch_unmask_details_| to false to prevent further ones.
-  EXPECT_FALSE(credit_card_access_manager_->can_fetch_unmask_details_);
+  EXPECT_FALSE(credit_card_access_manager().can_fetch_unmask_details_);
 
   // Any subsequent calls should not make a RPC.
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   histogram_tester.ExpectTotalCount(preflight_call_metric, 1);
 }
 #endif  // !BUILDFLAG(IS_APPLE)
@@ -2335,10 +2544,10 @@ TEST_F(CreditCardAccessManagerTest,
   std::string flow_events_histogram_name =
       "Autofill.BetterAuth.FlowEvents.Cvc.ServerCard";
 
-  credit_card_access_manager_->PrepareToFetchCreditCard();
+  credit_card_access_manager().PrepareToFetchCreditCard();
   WaitForCallbacks();
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   histogram_tester.ExpectUniqueSample(
       flow_events_histogram_name,
       CreditCardFormEventLogger::UnmaskAuthFlowEvent::kPromptShown, 1);
@@ -2359,7 +2568,7 @@ TEST_F(CreditCardAccessManagerTest, AuthenticationInProgress) {
 
   EXPECT_FALSE(IsAuthenticationInProgress());
 
-  credit_card_access_manager_->FetchCreditCard(card, accessor_->GetWeakPtr());
+  credit_card_access_manager().FetchCreditCard(card, accessor_->GetWeakPtr());
   EXPECT_TRUE(IsAuthenticationInProgress());
 
   EXPECT_TRUE(GetRealPanForCVCAuth(AutofillClient::PaymentsRpcResult::kSuccess,
@@ -2372,16 +2581,16 @@ TEST_F(CreditCardAccessManagerTest, FetchCreditCardUsesUnmaskedCardCache) {
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false);
   CreditCard* unmasked_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  credit_card_access_manager_->CacheUnmaskedCardInfo(*unmasked_card,
+  credit_card_access_manager().CacheUnmaskedCardInfo(*unmasked_card,
                                                      kTestCvc16);
 
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/true);
   CreditCard* masked_card = personal_data().GetCreditCardByGUID(kTestGUID);
 
-  credit_card_access_manager_->FetchCreditCard(masked_card,
+  credit_card_access_manager().FetchCreditCard(masked_card,
                                                accessor_->GetWeakPtr());
   histogram_tester.ExpectBucketCount("Autofill.UsedCachedServerCard", 1, 1);
-  credit_card_access_manager_->FetchCreditCard(masked_card,
+  credit_card_access_manager().FetchCreditCard(masked_card,
                                                accessor_->GetWeakPtr());
   histogram_tester.ExpectBucketCount("Autofill.UsedCachedServerCard", 2, 1);
 
@@ -2390,12 +2599,12 @@ TEST_F(CreditCardAccessManagerTest, FetchCreditCardUsesUnmaskedCardCache) {
   test::SetCreditCardInfo(&virtual_card, "Elvis Presley", kTestNumber,
                           test::NextMonth().c_str(), test::NextYear().c_str(),
                           "1");
-  virtual_card.set_record_type(CreditCard::VIRTUAL_CARD);
-  credit_card_access_manager_->CacheUnmaskedCardInfo(virtual_card, kTestCvc16);
+  virtual_card.set_record_type(CreditCard::RecordType::kVirtualCard);
+  credit_card_access_manager().CacheUnmaskedCardInfo(virtual_card, kTestCvc16);
 
   // Mocks that user selects the virtual card option of the masked card.
-  masked_card->set_record_type(CreditCard::VIRTUAL_CARD);
-  credit_card_access_manager_->FetchCreditCard(masked_card,
+  masked_card->set_record_type(CreditCard::RecordType::kVirtualCard);
+  credit_card_access_manager().FetchCreditCard(masked_card,
                                                accessor_->GetWeakPtr());
 
   histogram_tester.ExpectBucketCount("Autofill.UsedCachedVirtualCard", 1, 1);
@@ -2403,19 +2612,19 @@ TEST_F(CreditCardAccessManagerTest, FetchCreditCardUsesUnmaskedCardCache) {
 
 TEST_F(CreditCardAccessManagerTest, GetCachedUnmaskedCards) {
   // Assert that there are no cards cached initially.
-  EXPECT_EQ(0U, credit_card_access_manager_->GetCachedUnmaskedCards().size());
+  EXPECT_EQ(0U, credit_card_access_manager().GetCachedUnmaskedCards().size());
 
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreateServerCard(kTestGUID2, kTestNumber2, /*masked=*/true, kTestServerId2);
   // Add a card to the cache.
   CreditCard* unmasked_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  credit_card_access_manager_->CacheUnmaskedCardInfo(*unmasked_card,
+  credit_card_access_manager().CacheUnmaskedCardInfo(*unmasked_card,
                                                      kTestCvc16);
 
   // Verify that only the card added to the cache is returned.
-  ASSERT_EQ(1U, credit_card_access_manager_->GetCachedUnmaskedCards().size());
+  ASSERT_EQ(1U, credit_card_access_manager().GetCachedUnmaskedCards().size());
   EXPECT_EQ(*unmasked_card,
-            credit_card_access_manager_->GetCachedUnmaskedCards()[0]->card);
+            credit_card_access_manager().GetCachedUnmaskedCards()[0]->card);
 }
 
 TEST_F(CreditCardAccessManagerTest, IsCardPresentInUnmaskedCache) {
@@ -2423,45 +2632,167 @@ TEST_F(CreditCardAccessManagerTest, IsCardPresentInUnmaskedCache) {
   CreateServerCard(kTestGUID2, kTestNumber2, /*masked=*/true, kTestServerId2);
   // Add a card to the cache.
   CreditCard* unmasked_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  credit_card_access_manager_->CacheUnmaskedCardInfo(*unmasked_card,
+  credit_card_access_manager().CacheUnmaskedCardInfo(*unmasked_card,
                                                      kTestCvc16);
 
   // Verify that only one card is present in the cache.
-  EXPECT_TRUE(credit_card_access_manager_->IsCardPresentInUnmaskedCache(
+  EXPECT_TRUE(credit_card_access_manager().IsCardPresentInUnmaskedCache(
       *unmasked_card));
-  EXPECT_FALSE(credit_card_access_manager_->IsCardPresentInUnmaskedCache(
+  EXPECT_FALSE(credit_card_access_manager().IsCardPresentInUnmaskedCache(
       *personal_data().GetCreditCardByGUID(kTestGUID2)));
+}
+
+class CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest
+    : public CreditCardAccessManagerTest {
+ public:
+  CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest() = default;
+  ~CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest() override =
+      default;
+
+  base::test::ScopedFeatureList feature_list_{
+      features::kAutofillEnableFpanRiskBasedAuthentication};
+};
+
+// Test the flow when the masked server card is successfully returned from
+// the server during a risk-based retrieval.
+TEST_F(CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest,
+       RiskBasedMaskedServerCardUnmasking_Success) {
+  std::string test_number = "4444333322221111";
+  CreateServerCard(kTestGUID, test_number, /*masked=*/true, kTestServerId);
+  CreditCard* masked_server_card =
+      personal_data().GetCreditCardByGUID(kTestGUID);
+
+  credit_card_access_manager().FetchCreditCard(masked_server_card,
+                                               accessor_->GetWeakPtr());
+
+  // Ensures CreditCardRiskBasedAuthenticator::Authenticate is successfully
+  // invoked.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
+  EXPECT_TRUE(autofill_client_.autofill_progress_dialog_shown());
+
+  CreditCard card = *masked_server_card;
+  card.set_record_type(CreditCard::RecordType::kFullServerCard);
+  // Mock CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse to
+  // successfully return the valid card number.
+  credit_card_access_manager().OnRiskBasedAuthenticationResponseReceived(
+      CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse()
+          .with_did_succeed(true)
+          .with_card(card));
+
+  // Ensure the accessor received the correct response.
+  EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
+  EXPECT_EQ(accessor_->number(), base::UTF8ToUTF16(test_number));
+
+  // There was no interactive authentication in this flow, so check that this
+  // is signaled correctly.
+  absl::optional<CreditCard::RecordType> card_identifier =
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted();
+  ASSERT_TRUE(card_identifier.has_value());
+  EXPECT_EQ(card_identifier.value(), CreditCard::RecordType::kMaskedServerCard);
+}
+
+// Ensures that the masked server card risk-based unmasking response is
+// handled correctly if the retrieval failed.
+TEST_F(CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest,
+       RiskBasedMaskedServerCardUnmasking_RetrievalError) {
+  CreateServerCard(kTestGUID, kTestNumber, /*masked=*/true, kTestServerId);
+  CreditCard* masked_server_card =
+      personal_data().GetCreditCardByGUID(kTestGUID);
+
+  credit_card_access_manager().FetchCreditCard(masked_server_card,
+                                               accessor_->GetWeakPtr());
+
+  // Ensures CreditCardRiskBasedAuthenticator::Authenticate is successfully
+  // invoked.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
+  EXPECT_TRUE(autofill_client_.autofill_progress_dialog_shown());
+
+  // Mock an error being returned from the server side.
+  credit_card_access_manager().OnRiskBasedAuthenticationResponseReceived(
+      CreditCardRiskBasedAuthenticator::RiskBasedAuthenticationResponse()
+          .with_did_succeed(false));
+
+  // Expect the CreditCardAccessManager to end the session.
+  EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
+}
+
+// Ensures that the masked server card risk-based unmasking response is
+// handled correctly if the flow is cancelled.
+TEST_F(CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest,
+       RiskBasedMaskedServerCardUnmasking_FlowCancelled) {
+  CreateServerCard(kTestGUID, kTestNumber, /*masked=*/true, kTestServerId);
+  CreditCard* masked_server_card =
+      personal_data().GetCreditCardByGUID(kTestGUID);
+
+  credit_card_access_manager().FetchCreditCard(masked_server_card,
+                                               accessor_->GetWeakPtr());
+
+  // Ensures CreditCardRiskBasedAuthenticator::Authenticate is successfully
+  // invoked.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
+  EXPECT_TRUE(autofill_client_.autofill_progress_dialog_shown());
+
+  // Mock the flow is cancelled.
+  credit_card_access_manager().OnRiskBasedAuthenticationCancelledForTesting();
+
+  // Expect the CreditCardAccessManager to end the session.
+  EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
+}
+
+// Ensures that the masked server card risk-based authentication is not invoked
+// when the feature is disabled.
+TEST_F(
+    CreditCardAccessManagerRiskBasedMaskedServerCardUnmaskingTest,
+    RiskBasedMaskedServerCardUnmasking_RiskBasedAuthenticationNotInvoked_FeatureDisabled) {
+  feature_list_.Reset();
+  feature_list_.InitAndDisableFeature(
+      features::kAutofillEnableFpanRiskBasedAuthentication);
+  CreateServerCard(kTestGUID, kTestNumber, /*masked=*/true, kTestServerId);
+  CreditCard* masked_server_card =
+      personal_data().GetCreditCardByGUID(kTestGUID);
+
+  credit_card_access_manager().FetchCreditCard(masked_server_card,
+                                               accessor_->GetWeakPtr());
+
+  // Ensures CreditCardRiskBasedAuthenticator::Authenticate is not invoked.
+  ASSERT_FALSE(autofill_client_.risk_based_authentication_invoked());
 }
 
 TEST_F(CreditCardAccessManagerTest, IsVirtualCardPresentInUnmaskedCache) {
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* unmasked_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  unmasked_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  unmasked_card->set_record_type(CreditCard::RecordType::kVirtualCard);
 
   // Add the virtual card to the cache.
-  credit_card_access_manager_->CacheUnmaskedCardInfo(*unmasked_card,
+  credit_card_access_manager().CacheUnmaskedCardInfo(*unmasked_card,
                                                      kTestCvc16);
 
   // Verify that the virtual card is present in the cache.
-  EXPECT_TRUE(credit_card_access_manager_->IsCardPresentInUnmaskedCache(
+  EXPECT_TRUE(credit_card_access_manager().IsCardPresentInUnmaskedCache(
       *unmasked_card));
 }
 
 TEST_F(CreditCardAccessManagerTest, RiskBasedVirtualCardUnmasking_Success) {
   base::HistogramTester histogram_tester;
+#if BUILDFLAG(IS_ANDROID)
+  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    GTEST_SKIP() << "This test should not run on automotive.";
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with valid card information.
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.real_pan = "4111111111111111";
@@ -2469,15 +2800,24 @@ TEST_F(CreditCardAccessManagerTest, RiskBasedVirtualCardUnmasking_Success) {
   response.expiration_month = test::NextMonth();
   response.expiration_year = test::NextYear();
   response.card_type = AutofillClient::PaymentsRpcCardType::kVirtualCard;
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kSuccess, response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kSuccess, response);
 
-  // Expect the accessor receives the correct response.
+  // Ensure the accessor received the correct response.
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kSuccess);
   EXPECT_EQ(accessor_->number(), u"4111111111111111");
   EXPECT_EQ(accessor_->cvc(), u"321");
   EXPECT_EQ(accessor_->expiry_month(), base::UTF8ToUTF16(test::NextMonth()));
   EXPECT_EQ(accessor_->expiry_year(), base::UTF8ToUTF16(test::NextYear()));
+
+  // There was no interactive authentication in this flow, so check that this
+  // is signaled correctly.
+  absl::optional<CreditCard::RecordType> card_identifier =
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted();
+  ASSERT_TRUE(card_identifier.has_value());
+  EXPECT_EQ(card_identifier.value(), CreditCard::RecordType::kVirtualCard);
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2502,13 +2842,22 @@ TEST_F(CreditCardAccessManagerTest,
       /*fido_authenticator_is_user_opted_in=*/false,
       /*is_user_verifiable=*/false, challenge_options, /*selected_index=*/0);
 
-  CreditCardOtpAuthenticator::OtpAuthenticationResponse otp_response;
-  otp_response.result =
-      CreditCardOtpAuthenticator::OtpAuthenticationResponse::Result::kSuccess;
   CreditCard card = test::GetCreditCard();
-  otp_response.card = &card;
-  otp_response.cvc = u"123";
-  credit_card_access_manager_->OnOtpAuthenticationComplete(otp_response);
+  credit_card_access_manager().OnOtpAuthenticationComplete(
+      CreditCardOtpAuthenticator::OtpAuthenticationResponse()
+          .with_result(CreditCardOtpAuthenticator::OtpAuthenticationResponse::
+                           Result::kSuccess)
+          .with_card(&card)
+          .with_cvc(kTestCvc16));
+
+  // Expect that we did not signal that there was no interactive authentication.
+  EXPECT_FALSE(
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+          .has_value());
+
+  // Expect accessor to successfully retrieve the CVC.
+  EXPECT_EQ(kTestCvc16, accessor_->cvc());
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2532,11 +2881,17 @@ TEST_F(CreditCardAccessManagerTest,
       /*is_user_verifiable=*/false, challenge_options, /*selected_index=*/0);
 
   CreditCard card = test::GetCreditCard();
-  credit_card_access_manager_->OnCvcAuthenticationComplete(
+  credit_card_access_manager().OnCvcAuthenticationComplete(
       CreditCardCvcAuthenticator::CvcAuthenticationResponse()
           .with_did_succeed(true)
           .with_card(&card)
           .with_cvc(u"123"));
+
+  // Expect that we did not signal that there was no interactive authentication.
+  EXPECT_FALSE(
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+          .has_value());
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2563,18 +2918,18 @@ TEST_F(CreditCardAccessManagerTest,
 
     switch (challenge_options[selected_index].type) {
       case CardUnmaskChallengeOptionType::kSmsOtp: {
-        CreditCardOtpAuthenticator::OtpAuthenticationResponse otp_response;
-        otp_response.result = CreditCardOtpAuthenticator::
-            OtpAuthenticationResponse::Result::kSuccess;
         CreditCard card = test::GetCreditCard();
-        otp_response.card = &card;
-        otp_response.cvc = u"123";
-        credit_card_access_manager_->OnOtpAuthenticationComplete(otp_response);
+        credit_card_access_manager().OnOtpAuthenticationComplete(
+            CreditCardOtpAuthenticator::OtpAuthenticationResponse()
+                .with_result(CreditCardOtpAuthenticator::
+                                 OtpAuthenticationResponse::Result::kSuccess)
+                .with_card(&card)
+                .with_cvc(u"123"));
         break;
       }
       case CardUnmaskChallengeOptionType::kCvc: {
         CreditCard card = test::GetCreditCard();
-        credit_card_access_manager_->OnCvcAuthenticationComplete(
+        credit_card_access_manager().OnCvcAuthenticationComplete(
             CreditCardCvcAuthenticator::CvcAuthenticationResponse()
                 .with_did_succeed(true)
                 .with_card(&card)
@@ -2587,6 +2942,12 @@ TEST_F(CreditCardAccessManagerTest,
         break;
     }
   }
+
+  // Expect that we did not signal that there was no interactive authentication.
+  EXPECT_FALSE(
+      autofill_client_.GetFormDataImporter()
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+          .has_value());
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2612,7 +2973,7 @@ TEST_F(
   // checking here helps show this test works correctly.
   EXPECT_TRUE(otp_authenticator_->on_challenge_option_selected_invoked());
 
-  credit_card_access_manager_->OnVirtualCardUnmaskCancelled();
+  credit_card_access_manager().OnVirtualCardUnmaskCancelled();
   EXPECT_FALSE(otp_authenticator_->on_challenge_option_selected_invoked());
 }
 
@@ -2625,45 +2986,46 @@ TEST_F(CreditCardAccessManagerTest,
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // is_user_veriable_ related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
-  fido_authenticator_->set_is_user_opted_in(true);
+  credit_card_access_manager().is_user_verifiable_ = true;
+  fido_authenticator().set_is_user_opted_in(true);
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with information regarding FIDO auth.
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.context_token = "fake_context_token";
   response.fido_request_options = GetTestRequestOptions();
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kSuccess, response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kSuccess, response);
 
   // Expect the CreditCardAccessManager invokes the FIDO authenticator.
-  ASSERT_TRUE(fido_authenticator_->authenticate_invoked());
-  EXPECT_EQ(fido_authenticator_->card().number(),
+  ASSERT_TRUE(fido_authenticator().authenticate_invoked());
+  EXPECT_EQ(fido_authenticator().card().number(),
             base::UTF8ToUTF16(std::string(kTestNumber)));
-  EXPECT_EQ(fido_authenticator_->card().record_type(),
-            CreditCard::VIRTUAL_CARD);
-  ASSERT_TRUE(fido_authenticator_->context_token().has_value());
-  EXPECT_EQ(fido_authenticator_->context_token().value(), "fake_context_token");
+  EXPECT_EQ(fido_authenticator().card().record_type(),
+            CreditCard::RecordType::kVirtualCard);
+  ASSERT_TRUE(fido_authenticator().context_token().has_value());
+  EXPECT_EQ(fido_authenticator().context_token().value(), "fake_context_token");
 
   // Mock FIDO authentication completed.
   CreditCardFidoAuthenticator::FidoAuthenticationResponse fido_response;
   fido_response.did_succeed = true;
-  CreditCard card = test::GetCreditCard();
+  CreditCard card = test::WithCvc(test::GetCreditCard(), u"234");
   fido_response.card = &card;
-  fido_response.cvc = u"123";
-  credit_card_access_manager_->OnFIDOAuthenticationComplete(fido_response);
+  credit_card_access_manager().OnFIDOAuthenticationComplete(fido_response);
+
+  // Expect accessor to successfully retrieve the virtual card CVC.
+  EXPECT_EQ(u"234", accessor_->cvc());
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2682,22 +3044,20 @@ TEST_F(
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // is_user_veriable_ related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
-  fido_authenticator_->set_is_user_opted_in(true);
+  credit_card_access_manager().is_user_verifiable_ = true;
+  fido_authenticator().set_is_user_opted_in(true);
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with information regarding both FIDO and OTP auth.
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.context_token = "fake_context_token";
@@ -2706,18 +3066,18 @@ TEST_F(
           {CardUnmaskChallengeOptionType::kSmsOtp})[0];
   response.card_unmask_challenge_options.emplace_back(challenge_option);
   response.fido_request_options = GetTestRequestOptions();
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kSuccess, response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kSuccess, response);
 
   // Expect the CreditCardAccessManager invokes the FIDO authenticator.
-  DCHECK(fido_authenticator_);
-  ASSERT_TRUE(fido_authenticator_->authenticate_invoked());
-  EXPECT_EQ(fido_authenticator_->card().number(),
+  ASSERT_TRUE(fido_authenticator().authenticate_invoked());
+  EXPECT_EQ(fido_authenticator().card().number(),
             base::UTF8ToUTF16(std::string(kTestNumber)));
-  EXPECT_EQ(fido_authenticator_->card().record_type(),
-            CreditCard::VIRTUAL_CARD);
-  ASSERT_TRUE(fido_authenticator_->context_token().has_value());
-  EXPECT_EQ(fido_authenticator_->context_token().value(), "fake_context_token");
+  EXPECT_EQ(fido_authenticator().card().record_type(),
+            CreditCard::RecordType::kVirtualCard);
+  ASSERT_TRUE(fido_authenticator().context_token().has_value());
+  EXPECT_EQ(fido_authenticator().context_token().value(), "fake_context_token");
 
   // Mock FIDO authentication completed.
   CreditCardFidoAuthenticator::FidoAuthenticationResponse fido_response;
@@ -2725,7 +3085,7 @@ TEST_F(
   CreditCard card = test::GetCreditCard();
   fido_response.card = &card;
   fido_response.cvc = u"123";
-  credit_card_access_manager_->OnFIDOAuthenticationComplete(fido_response);
+  credit_card_access_manager().OnFIDOAuthenticationComplete(fido_response);
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2756,7 +3116,7 @@ TEST_F(
   CreditCard card = test::GetCreditCard();
   otp_response.card = &card;
   otp_response.cvc = u"123";
-  credit_card_access_manager_->OnOtpAuthenticationComplete(otp_response);
+  credit_card_access_manager().OnOtpAuthenticationComplete(otp_response);
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2787,7 +3147,7 @@ TEST_F(
   CreditCard card = test::GetCreditCard();
   otp_response.card = &card;
   otp_response.cvc = u"123";
-  credit_card_access_manager_->OnOtpAuthenticationComplete(otp_response);
+  credit_card_access_manager().OnOtpAuthenticationComplete(otp_response);
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2806,33 +3166,32 @@ TEST_F(
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // is_user_veriable_ related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
-  fido_authenticator_->set_is_user_opted_in(false);
+  credit_card_access_manager().is_user_verifiable_ = true;
+  fido_authenticator().set_is_user_opted_in(false);
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with information regarding FIDO auth.
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.context_token = "fake_context_token";
   response.fido_request_options = GetTestRequestOptions();
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kSuccess, response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kSuccess, response);
 
   // Expect the CreditCardAccessManager to end the session.
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
   EXPECT_FALSE(otp_authenticator_->on_challenge_option_selected_invoked());
-  EXPECT_FALSE(fido_authenticator_->authenticate_invoked());
+  EXPECT_FALSE(fido_authenticator().authenticate_invoked());
 
   // Expect the metrics are logged correctly.
   histogram_tester.ExpectUniqueSample(
@@ -2853,35 +3212,34 @@ TEST_F(CreditCardAccessManagerTest,
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // |is_user_verifiable_| related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
+  credit_card_access_manager().is_user_verifiable_ = true;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  fido_authenticator_->set_is_user_opted_in(true);
+  fido_authenticator().set_is_user_opted_in(true);
 #endif
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with no challenge options.
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.context_token = "fake_context_token";
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kPermanentFailure, response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kPermanentFailure, response);
 
   // Expect the CreditCardAccessManager to end the session.
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
   EXPECT_FALSE(otp_authenticator_->on_challenge_option_selected_invoked());
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  EXPECT_FALSE(fido_authenticator_->authenticate_invoked());
+  EXPECT_FALSE(fido_authenticator().authenticate_invoked());
 #endif
 
   // Expect the metrics are logged correctly.
@@ -2899,36 +3257,35 @@ TEST_F(CreditCardAccessManagerTest,
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // is_user_veriable_ related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
+  credit_card_access_manager().is_user_verifiable_ = true;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  fido_authenticator_->set_is_user_opted_in(true);
+  fido_authenticator().set_is_user_opted_in(true);
 #endif
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock server response with no challenge options.
   payments::PaymentsClient::UnmaskResponseDetails response;
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kVcnRetrievalPermanentFailure,
-      response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kVcnRetrievalPermanentFailure,
+          response);
 
   // Expect the CreditCardAccessManager to end the session.
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
   EXPECT_FALSE(otp_authenticator_->on_challenge_option_selected_invoked());
-  EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  EXPECT_FALSE(fido_authenticator_->authenticate_invoked());
+  EXPECT_FALSE(fido_authenticator().authenticate_invoked());
 #endif
 
   // Expect the metrics are logged correctly.
@@ -2944,8 +3301,8 @@ TEST_F(CreditCardAccessManagerTest,
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
   AutofillErrorDialogContext autofill_error_dialog_context;
@@ -2956,11 +3313,12 @@ TEST_F(CreditCardAccessManagerTest,
 
   payments::PaymentsClient::UnmaskResponseDetails response;
   response.autofill_error_dialog_context = autofill_error_dialog_context;
-  credit_card_access_manager_->OnVirtualCardUnmaskResponseReceived(
-      AutofillClient::PaymentsRpcResult::kVcnRetrievalTryAgainFailure,
-      response);
+  credit_card_access_manager()
+      .OnVirtualCardRiskBasedAuthenticationResponseReceived(
+          AutofillClient::PaymentsRpcResult::kVcnRetrievalTryAgainFailure,
+          response);
 
-  EXPECT_TRUE(autofill_client_.virtual_card_error_dialog_shown());
+  EXPECT_TRUE(autofill_client_.autofill_error_dialog_shown());
   const AutofillErrorDialogContext& displayed_error_dialog_context =
       autofill_client_.autofill_error_dialog_context();
   EXPECT_EQ(*displayed_error_dialog_context.server_returned_title,
@@ -2978,31 +3336,29 @@ TEST_F(CreditCardAccessManagerTest,
   base::HistogramTester histogram_tester;
   CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
   CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
+  virtual_card->set_record_type(CreditCard::RecordType::kVirtualCard);
   // TODO(crbug.com/1249665): Switch to SetUserVerifiable after moving all
   // is_user_veriable_ related logic from CreditCardAccessManager to
   // CreditCardFidoAuthenticator.
-  credit_card_access_manager_->is_user_verifiable_ = true;
+  credit_card_access_manager().is_user_verifiable_ = true;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  fido_authenticator_->set_is_user_opted_in(true);
+  fido_authenticator().set_is_user_opted_in(true);
 #endif
 
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
+  credit_card_access_manager().FetchCreditCard(virtual_card,
                                                accessor_->GetWeakPtr());
 
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-
+  // This checks risk-based authentication flow is successfully invoked,
+  // because it is always the very first authentication flow in a VCN
+  // unmasking flow.
+  EXPECT_TRUE(autofill_client_.risk_based_authentication_invoked());
   // Mock that the flow was cancelled by the user.
-  credit_card_access_manager_->OnVirtualCardUnmaskCancelled();
+  credit_card_access_manager().OnVirtualCardUnmaskCancelled();
 
   EXPECT_EQ(accessor_->result(), CreditCardFetchResult::kTransientError);
   EXPECT_FALSE(otp_authenticator_->on_challenge_option_selected_invoked());
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-  EXPECT_FALSE(fido_authenticator_->authenticate_invoked());
+  EXPECT_FALSE(fido_authenticator().authenticate_invoked());
 #endif
 
   // Expect the metrics are logged correctly.
@@ -3013,70 +3369,23 @@ TEST_F(CreditCardAccessManagerTest,
       autofill_metrics::ServerCardUnmaskResult::kFlowCancelled, 1);
 }
 
-// Params of the CreditCardAccessManagerCardMetadataTest:
-// -- bool card_name_available;
-// -- bool card_art_available;
-// -- bool metadata_enabled;
-class CreditCardAccessManagerCardMetadataTest
-    : public CreditCardAccessManagerTest,
-      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
- public:
-  CreditCardAccessManagerCardMetadataTest() = default;
-  ~CreditCardAccessManagerCardMetadataTest() override = default;
-
-  bool CardNameAvailable() { return std::get<0>(GetParam()); }
-  bool CardArtAvailable() { return std::get<1>(GetParam()); }
-  bool MetadataEnabled() { return std::get<2>(GetParam()); }
-};
-
-INSTANTIATE_TEST_SUITE_P(,
-                         CreditCardAccessManagerCardMetadataTest,
-                         testing::Combine(testing::Bool(),
-                                          testing::Bool(),
-                                          testing::Bool()));
-
-TEST_P(CreditCardAccessManagerCardMetadataTest, MetadataSignal) {
-  base::test::ScopedFeatureList metadata_feature_list;
-  CreateServerCard(kTestGUID, kTestNumber, /*masked=*/false, kTestServerId);
-  CreditCard* virtual_card = personal_data().GetCreditCardByGUID(kTestGUID);
-  virtual_card->set_record_type(CreditCard::VIRTUAL_CARD);
-  if (MetadataEnabled()) {
-    metadata_feature_list.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillEnableCardProductName,
-                              features::kAutofillEnableCardArtImage},
-        /*disabled_features=*/{});
-  } else {
-    metadata_feature_list.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{features::kAutofillEnableCardProductName,
-                               features::kAutofillEnableCardArtImage});
-  }
-  if (CardNameAvailable()) {
-    virtual_card->set_product_description(u"Fake card product name");
-  }
-  if (CardArtAvailable()) {
-    virtual_card->set_card_art_url(GURL("https://www.example.com"));
-  }
-
-  credit_card_access_manager_->FetchCreditCard(virtual_card,
-                                               accessor_->GetWeakPtr());
-
-  // Ensures the UnmaskRequestDetails is populated with correct contents.
-  EXPECT_TRUE(payments_client_->unmask_request()->context_token.empty());
-  EXPECT_FALSE(payments_client_->unmask_request()->risk_data.empty());
-  EXPECT_TRUE(payments_client_->unmask_request()
-                  ->last_committed_primary_main_frame_origin.has_value());
-  std::vector<ClientBehaviorConstants> signals =
-      payments_client_->unmask_request()->client_behavior_signals;
-  if (MetadataEnabled() && CardNameAvailable() && CardArtAvailable()) {
-    EXPECT_NE(
-        signals.end(),
-        base::ranges::find(
-            signals,
-            ClientBehaviorConstants::kShowingCardArtImageAndCardProductName));
-  } else {
-    EXPECT_TRUE(signals.empty());
-  }
+// Test that the CreditCardAccessManager's destructor resets the record type of
+// the card that had no interactive authentication flows completed in the
+// associated FormDataImporter.
+TEST_F(CreditCardAccessManagerTest, DestructorResetsCardIdentifier) {
+  auto* form_data_importer = autofill_client_.GetFormDataImporter();
+  form_data_importer
+      ->SetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted(
+          CreditCard::RecordType::kLocalCard);
+  EXPECT_TRUE(
+      form_data_importer
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+          .has_value());
+  autofill_driver_.reset();
+  EXPECT_FALSE(
+      form_data_importer
+          ->GetCardRecordTypeIfNonInteractiveAuthenticationFlowCompleted()
+          .has_value());
 }
 
 }  // namespace autofill

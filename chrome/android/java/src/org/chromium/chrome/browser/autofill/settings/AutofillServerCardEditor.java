@@ -5,8 +5,6 @@
 package org.chromium.chrome.browser.autofill.settings;
 
 import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getCardIcon;
-import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getSettingsPageIconHeightId;
-import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getSettingsPageIconWidthId;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -26,11 +24,13 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.UsedByReflection;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeStringConstants;
+import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.ProfileDependentSetting;
+import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.VirtualCardEnrollmentLinkType;
 import org.chromium.components.autofill.VirtualCardEnrollmentState;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
@@ -44,10 +44,12 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Server credit card settings.
  */
-public class AutofillServerCardEditor extends AutofillCreditCardEditor {
+public class AutofillServerCardEditor
+        extends AutofillCreditCardEditor implements ProfileDependentSetting {
     private static final String SETTINGS_PAGE_ENROLLMENT_HISTOGRAM_TEXT =
             "Autofill.VirtualCard.SettingsPageEnrollment";
 
+    private Profile mProfile;
     private View mLocalCopyLabel;
     private View mClearLocalCopy;
     private TextView mVirtualCardEnrollmentButton;
@@ -118,7 +120,7 @@ public class AutofillServerCardEditor extends AutofillCreditCardEditor {
         super.onCreate(savedInstanceState);
         if (ChromeFeatureList.isEnabled(
                     ChromeFeatureList.AUTOFILL_ENABLE_UPDATE_VIRTUAL_CARD_ENROLLMENT)) {
-            mDelegate = new AutofillPaymentMethodsDelegate(Profile.getLastUsedRegularProfile());
+            mDelegate = new AutofillPaymentMethodsDelegate(mProfile);
             mVirtualCardEnrollmentUpdateResponseCallback = isUpdateSuccessful -> {
                 // If the server card editor page was closed when the server call was in progress,
                 // cleanup the delegate. Else, update the enrollment button.
@@ -152,8 +154,7 @@ public class AutofillServerCardEditor extends AutofillCreditCardEditor {
         // Set card icon. It can be either a custom card art or the network icon.
         ImageView cardIconContainer = v.findViewById(R.id.settings_page_card_icon);
         cardIconContainer.setImageDrawable(getCardIcon(getContext(), mCard.getCardArtUrl(),
-                mCard.getIssuerIconDrawableId(), getSettingsPageIconWidthId(),
-                getSettingsPageIconHeightId(), R.dimen.card_art_corner_radius,
+                mCard.getIssuerIconDrawableId(), AutofillUiUtils.CardIconSize.LARGE,
                 ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_CARD_ART_IMAGE)));
 
         ((TextView) v.findViewById(R.id.settings_page_card_name))
@@ -161,7 +162,7 @@ public class AutofillServerCardEditor extends AutofillCreditCardEditor {
         ((TextView) v.findViewById(R.id.card_last_four))
                 .setText(mCard.getObfuscatedLastFourDigits());
         ((TextView) v.findViewById(R.id.settings_page_card_expiration))
-                .setText(mCard.getFormattedExpirationDateWithTwoDigitYear(getActivity()));
+                .setText(mCard.getFormattedExpirationDate(getActivity()));
         v.findViewById(R.id.edit_server_card).setOnClickListener(view -> {
             logServerCardEditorButtonClicks(showVirtualCardEnrollmentButton()
                             ? CardType.VIRTUAL_CARD
@@ -343,5 +344,10 @@ public class AutofillServerCardEditor extends AutofillCreditCardEditor {
     @Override
     protected boolean getIsDeletable() {
         return false;
+    }
+
+    @Override
+    public void setProfile(Profile profile) {
+        mProfile = profile;
     }
 }

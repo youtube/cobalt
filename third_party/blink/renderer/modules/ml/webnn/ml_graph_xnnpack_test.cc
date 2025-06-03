@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_conv_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_elu_options.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph.h"
@@ -33,7 +34,9 @@ TEST_P(MLGraphXnnpackTest, SharedXnnpackContextTest) {
     // Test building MLGraphXnnpack with default options. The promise should be
     // resoveld with an MLGraphXnnpack object. The XNNPACK library should be
     // initialized successfully.
-    auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+    auto* builder =
+        CreateMLGraphBuilder(scope.GetExecutionContext(),
+                             scope.GetScriptState(), scope.GetExceptionState());
     auto* input =
         BuildInput(builder, "input", {3, 4, 5}, V8MLOperandType::Enum::kFloat32,
                    scope.GetExceptionState());
@@ -43,13 +46,14 @@ TEST_P(MLGraphXnnpackTest, SharedXnnpackContextTest) {
     EXPECT_NE(graph, nullptr);
   }
   {
-    // Test building MLGraphXnnpack with devicePreference = "cpu". The promise
+    // Test building MLGraphXnnpack with deviceType = "cpu". The promise
     // should be resoveld with an MLGraphXnnpack object. The XNNPACK library
     // should be initialized successfully.
     auto* context_options = MLContextOptions::Create();
-    context_options->setDevicePreference(V8MLDevicePreference::Enum::kCpu);
-    auto* builder =
-        CreateMLGraphBuilder(scope.GetExecutionContext(), context_options);
+    context_options->setDeviceType(V8MLDeviceType::Enum::kCpu);
+    auto* builder = CreateMLGraphBuilder(
+        scope.GetExecutionContext(), scope.GetScriptState(),
+        scope.GetExceptionState(), context_options);
     auto* input =
         BuildInput(builder, "input", {3, 4, 5}, V8MLOperandType::Enum::kFloat32,
                    scope.GetExceptionState());
@@ -62,7 +66,9 @@ TEST_P(MLGraphXnnpackTest, SharedXnnpackContextTest) {
 
 TEST_F(MLGraphXnnpackTest, TopoSortOperatorsTest) {
   V8TestingScope scope;
-  auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
   {
     // Test sorting a graph in the following topology:
     //   conv2d
@@ -124,7 +130,9 @@ TEST_F(MLGraphXnnpackTest, TopoSortOperatorsTest) {
 
 TEST_P(MLGraphXnnpackTest, DefineXnnpackValuesTest) {
   V8TestingScope scope;
-  auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
   Vector<uint32_t> shape({1, 4, 4, 3});
   // TODO(crbug.com/1273291): Test float16 data type once the XNNPACK Subgraph
   // Add Node supports it.
@@ -315,9 +323,30 @@ void CheckExternalValues(const MLGraphXnnpack* xnnpack_graph,
   }
 }
 
+// Add an unit test to validate the value of exponent for pow operator.
+TEST_P(MLGraphXnnpackTest, PowTest) {
+  V8TestingScope scope;
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
+  auto* input0 =
+      BuildInput(builder, "input0", {1, 2, 2, 1},
+                 V8MLOperandType::Enum::kFloat32, scope.GetExceptionState());
+  auto* input1 = BuildConstant(builder, {1}, V8MLOperandType::Enum::kFloat32,
+                               Vector<float>({3.0}), scope.GetExceptionState());
+  auto* output = BuildElementWiseBinary(
+      scope, builder, ElementWiseBinaryKind::kPow, input0, input1);
+  auto [graph, exception] = BuildGraph(scope, builder, {{"output", output}});
+  ASSERT_EQ(graph, nullptr);
+  EXPECT_EQ(exception->message(),
+            "The value of scalar operand b must be 2 or 0.5 for pow.");
+}
+
 TEST_P(MLGraphXnnpackTest, InvokeXnnpackRuntimeTest) {
   V8TestingScope scope;
-  auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
   Vector<uint32_t> shape({1, 2, 2, 1});
   // Create an MLGraphXnnpack with the following topology:
   //       [input0] [input1]
@@ -436,7 +465,9 @@ TEST_P(MLGraphXnnpackTest, InvokeXnnpackRuntimeTest) {
 // name.
 TEST_P(MLGraphXnnpackTest, InputAndOutputUseSameNameTest) {
   V8TestingScope scope;
-  auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
   Vector<uint32_t> shape({1, 2, 2, 1});
   {
     // Create an MLGraphXnnpack with the following topology:
@@ -499,7 +530,9 @@ TEST_P(MLGraphXnnpackTest, InputAndOutputUseSameNameTest) {
 
 TEST_F(MLGraphXnnpackTest, ComputeAsyncTest) {
   V8TestingScope scope;
-  auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+  auto* builder =
+      CreateMLGraphBuilder(scope.GetExecutionContext(), scope.GetScriptState(),
+                           scope.GetExceptionState());
   // Build an MLGraphXnnpack with the following topology:
   //        [a]     [b]
   //           \    /
@@ -539,8 +572,8 @@ TEST_F(MLGraphXnnpackTest, ComputeAsyncTest) {
                         scope.GetExceptionState());
     tester.WaitUntilSettled();
     EXPECT_NE(tester.IsFulfilled(), true);
-    auto* exception = V8DOMException::ToImplWithTypeCheck(
-        scope.GetIsolate(), tester.Value().V8Value());
+    auto* exception = V8DOMException::ToWrappable(scope.GetIsolate(),
+                                                  tester.Value().V8Value());
     EXPECT_NE(exception, nullptr);
     EXPECT_EQ(exception->name(),
               DOMException::GetErrorName(DOMExceptionCode::kDataError));
@@ -566,8 +599,8 @@ TEST_F(MLGraphXnnpackTest, ComputeAsyncTest) {
                         scope.GetExceptionState());
     tester.WaitUntilSettled();
     EXPECT_NE(tester.IsFulfilled(), true);
-    auto* exception = V8DOMException::ToImplWithTypeCheck(
-        scope.GetIsolate(), tester.Value().V8Value());
+    auto* exception = V8DOMException::ToWrappable(scope.GetIsolate(),
+                                                  tester.Value().V8Value());
     EXPECT_NE(exception, nullptr);
     EXPECT_EQ(exception->name(),
               DOMException::GetErrorName(DOMExceptionCode::kDataError));
@@ -593,8 +626,8 @@ TEST_F(MLGraphXnnpackTest, ComputeAsyncTest) {
                         scope.GetExceptionState());
     tester.WaitUntilSettled();
     EXPECT_NE(tester.IsFulfilled(), true);
-    auto* exception = V8DOMException::ToImplWithTypeCheck(
-        scope.GetIsolate(), tester.Value().V8Value());
+    auto* exception = V8DOMException::ToWrappable(scope.GetIsolate(),
+                                                  tester.Value().V8Value());
     EXPECT_NE(exception, nullptr);
     EXPECT_EQ(exception->name(),
               DOMException::GetErrorName(DOMExceptionCode::kDataError));
@@ -688,6 +721,110 @@ TEST_F(MLGraphXnnpackTest, ComputeAsyncTest) {
   }
 }
 
+// The outputs of elu function are floating-point numbers
+// with mantissa when the input data is negative. The WPT WebNN conformance test
+// cases of elu operator,
+// https://github.com/web-platform-tests/wpt/blob/master/webnn/resources/test_data/elu.json,
+// will test the accuracy loss of the results against the expected values with
+// the WG-agreed tolerance setting.
+//
+// For MLGraphXnnpack unit testing, EluTester instead checks the compute
+// results of an MLGraph containing a elu MLOperator against the results of
+// calling XNNPACK elu operator API for the same input. With that, the
+// expected values are not needed.
+struct EluTester {
+  OperandInfo<float> input;
+
+  void Test(MLGraphXnnpackTest& helper,
+            V8TestingScope& scope,
+            MLEluOptions* options = MLEluOptions::Create()) {
+    // Create and run XNNPACK elu operator.
+    ASSERT_EQ(xnn_status_success, xnn_initialize(/*allocator=*/nullptr));
+
+    const uint32_t batch_size = 1;
+    uint32_t channels = input.dimensions[0];
+    for (uint32_t i = 1; i < input.dimensions.size(); i++) {
+      channels *= input.dimensions[i];
+    }
+
+    xnn_operator_t elu_op = nullptr;
+    const xnn_status status = xnn_create_elu_nc_f32(
+        channels, channels, channels, options->alpha(), /*flags=*/0, &elu_op);
+    ASSERT_EQ(xnn_status_success, status);
+    ASSERT_NE(nullptr, elu_op);
+    std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(
+        elu_op, xnn_delete_operator);
+
+    // XNNPACK may access beyond array bounds. The caller must allocate at least
+    // XNN_EXTRA_BYTES extra bytes after the tensor data passed to XNNPACK.
+    Vector<float> xnnpack_input(input.values);
+    xnnpack_input.Grow(input.values.size() + XNN_EXTRA_BYTES / sizeof(float));
+    Vector<float> xnnpack_output(batch_size * channels +
+                                 XNN_EXTRA_BYTES / sizeof(float));
+    ASSERT_EQ(xnn_status_success,
+              xnn_reshape_elu_nc_f32(elu_op, batch_size,
+                                     /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_setup_elu_nc_f32(elu_op, xnnpack_input.data(),
+                                   xnnpack_output.data()));
+
+    ASSERT_EQ(xnn_status_success,
+              xnn_run_operator(elu_op, /*threadpool=*/nullptr));
+    // Remove the extra bytes of XNNPACK output.
+    xnnpack_output.Shrink(batch_size * channels);
+
+    // Build WebNN graph with elu operator.
+    auto* builder =
+        CreateMLGraphBuilder(scope.GetExecutionContext(),
+                             scope.GetScriptState(), scope.GetExceptionState());
+    auto* input_operand = BuildInput(builder, "input", input.dimensions,
+                                     input.type, scope.GetExceptionState());
+    auto* output_operand =
+        builder->elu(input_operand, options, scope.GetExceptionState());
+    auto [graph, build_exception] =
+        helper.BuildGraph(scope, builder, {{"output", output_operand}});
+    EXPECT_NE(graph, nullptr);
+
+    // Compute WebNN graph.
+    MLNamedArrayBufferViews inputs(
+        {{"input",
+          CreateArrayBufferViewForOperand(input_operand, input.values)}});
+    MLNamedArrayBufferViews outputs(
+        {{"output", CreateArrayBufferViewForOperand(output_operand)}});
+    auto* compute_exception =
+        helper.ComputeGraph(scope, graph, inputs, outputs);
+    EXPECT_EQ(compute_exception, nullptr);
+    auto results = GetArrayBufferViewValues<float>(outputs[0].second);
+
+    // Compare the results of WebNN graph and XNNPACK operator.
+    EXPECT_EQ(results, xnnpack_output);
+  }
+};
+
+TEST_P(MLGraphXnnpackTest, EluTest) {
+  V8TestingScope scope;
+  {
+    // Test elu operator with default options.
+    // There is no need to set expected results, because EluTester will
+    // calculate the expected results by calling XNNPACK elu operator
+    // APIs.
+    auto* options = MLEluOptions::Create();
+    EluTester{.input = {.type = V8MLOperandType::Enum::kFloat32,
+                        .dimensions = {2, 2},
+                        .values = {-1.0, 0.5, 0.5, 1.0}}}
+        .Test(*this, scope, options);
+  }
+  {
+    // Test elu operator with alpha = 2.0.
+    auto* options = MLEluOptions::Create();
+    options->setAlpha(2.0);
+    EluTester{.input = {.type = V8MLOperandType::Enum::kFloat32,
+                        .dimensions = {2, 2},
+                        .values = {-1.0, -0.5, 0.5, 1.0}}}
+        .Test(*this, scope, options);
+  }
+}
+
 // The outputs of softmax function,
 // https://en.wikipedia.org/wiki/Softmax_function, are floating-point numbers
 // with mantissa. The WPT WebNN conformance test cases of softmax operator,
@@ -724,11 +861,12 @@ struct SoftmaxTester {
     xnnpack_input.Grow(input.values.size() + XNN_EXTRA_BYTES / sizeof(float));
     Vector<float> xnnpack_output(batch_size * channels +
                                  XNN_EXTRA_BYTES / sizeof(float));
-    ASSERT_EQ(
-        xnn_status_success,
-        xnn_setup_softmax_nc_f32(softmax_op, batch_size, xnnpack_input.data(),
-                                 xnnpack_output.data(),
-                                 /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_reshape_softmax_nc_f32(softmax_op, batch_size,
+                                         /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_setup_softmax_nc_f32(softmax_op, xnnpack_input.data(),
+                                       xnnpack_output.data()));
 
     ASSERT_EQ(xnn_status_success,
               xnn_run_operator(softmax_op, /*threadpool=*/nullptr));
@@ -736,7 +874,9 @@ struct SoftmaxTester {
     xnnpack_output.Shrink(batch_size * channels);
 
     // Build WebNN graph with softmax operator.
-    auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+    auto* builder =
+        CreateMLGraphBuilder(scope.GetExecutionContext(),
+                             scope.GetScriptState(), scope.GetExceptionState());
     auto* input_operand = BuildInput(builder, "input", input.dimensions,
                                      input.type, scope.GetExceptionState());
     auto* output_operand =
@@ -821,11 +961,12 @@ struct SigmoidTester {
     xnnpack_input.Grow(input.values.size() + XNN_EXTRA_BYTES / sizeof(float));
     Vector<float> xnnpack_output(batch_size * channels +
                                  XNN_EXTRA_BYTES / sizeof(float));
-    ASSERT_EQ(
-        xnn_status_success,
-        xnn_setup_sigmoid_nc_f32(sigmoid_op, batch_size, xnnpack_input.data(),
-                                 xnnpack_output.data(),
-                                 /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_reshape_sigmoid_nc_f32(sigmoid_op, batch_size,
+                                         /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_setup_sigmoid_nc_f32(sigmoid_op, xnnpack_input.data(),
+                                       xnnpack_output.data()));
 
     ASSERT_EQ(xnn_status_success,
               xnn_run_operator(sigmoid_op, /*threadpool=*/nullptr));
@@ -833,7 +974,9 @@ struct SigmoidTester {
     xnnpack_output.Shrink(batch_size * channels);
 
     // Build WebNN graph with sigmoid operator.
-    auto* builder = CreateMLGraphBuilder(scope.GetExecutionContext());
+    auto* builder =
+        CreateMLGraphBuilder(scope.GetExecutionContext(),
+                             scope.GetScriptState(), scope.GetExceptionState());
     auto* input_operand = BuildInput(builder, "input", input.dimensions,
                                      input.type, scope.GetExceptionState());
     auto* output_operand =
@@ -891,6 +1034,157 @@ TEST_P(MLGraphXnnpackTest, SigmoidTest) {
                             .values = {-10.0, -0.5, 0.5, 10.0}}}
         .Test(*this, scope);
   }
+}
+
+// The outputs of tanh function,
+// https://en.wikipedia.org/wiki/Hyperbolic_functions#Tanh, are floating-point
+// numbers with mantissa follow the formula: y = (exp(2 * x) - 1) / (exp(2 * x)
+// + 1). The WPT WebNN conformance test cases of tanh operator,
+// https://github.com/web-platform-tests/wpt/blob/master/webnn/resources/test_data/tanh.json,
+// will test the accuracy loss of the results against the expected values with
+// the WG-agreed tolerance setting.
+//
+// For MLGraphXnnpack unit testing, TanhTester instead checks the compute
+// results of an MLGraph containing a tanh MLOperator against the results of
+// calling XNNPACK tanh operator API for the same input. With that, the
+// expected values are not needed.
+struct TanhTester {
+  OperandInfo<float> input;
+
+  void Test(MLGraphXnnpackTest& helper, V8TestingScope& scope) {
+    // Create and run XNNPACK tanh operator.
+    ASSERT_EQ(xnn_status_success, xnn_initialize(/*allocator=*/nullptr));
+
+    const uint32_t batch_size = 1;
+    uint32_t channels = input.dimensions[0];
+    for (uint32_t i = 1; i < input.dimensions.size(); i++) {
+      channels *= input.dimensions[i];
+    }
+
+    xnn_operator_t tanh_op = nullptr;
+    const xnn_status status = xnn_create_tanh_nc_f32(
+        channels, channels, channels, /*flags=*/0, &tanh_op);
+    ASSERT_EQ(xnn_status_success, status);
+    ASSERT_NE(nullptr, tanh_op);
+    std::unique_ptr<xnn_operator, decltype(&xnn_delete_operator)> auto_op(
+        tanh_op, xnn_delete_operator);
+
+    // XNNPACK may access beyond array bounds. The caller must allocate at least
+    // XNN_EXTRA_BYTES extra bytes after the tensor data passed to XNNPACK.
+    Vector<float> xnnpack_input(input.values);
+    xnnpack_input.Grow(input.values.size() + XNN_EXTRA_BYTES / sizeof(float));
+    Vector<float> xnnpack_output(batch_size * channels +
+                                 XNN_EXTRA_BYTES / sizeof(float));
+    ASSERT_EQ(xnn_status_success,
+              xnn_reshape_tanh_nc_f32(tanh_op, batch_size,
+                                      /*threadpool=*/nullptr));
+    ASSERT_EQ(xnn_status_success,
+              xnn_setup_tanh_nc_f32(tanh_op, xnnpack_input.data(),
+                                    xnnpack_output.data()));
+
+    ASSERT_EQ(xnn_status_success,
+              xnn_run_operator(tanh_op, /*threadpool=*/nullptr));
+    // Remove the extra bytes of XNNPACK output.
+    xnnpack_output.Shrink(batch_size * channels);
+
+    // Build WebNN graph with tanh operator.
+    auto* builder =
+        CreateMLGraphBuilder(scope.GetExecutionContext(),
+                             scope.GetScriptState(), scope.GetExceptionState());
+    auto* input_operand = BuildInput(builder, "input", input.dimensions,
+                                     input.type, scope.GetExceptionState());
+    auto* output_operand =
+        builder->tanh(input_operand, scope.GetExceptionState());
+    auto [graph, build_exception] =
+        helper.BuildGraph(scope, builder, {{"output", output_operand}});
+    EXPECT_NE(graph, nullptr);
+
+    // Compute WebNN graph.
+    MLNamedArrayBufferViews inputs(
+        {{"input",
+          CreateArrayBufferViewForOperand(input_operand, input.values)}});
+    MLNamedArrayBufferViews outputs(
+        {{"output", CreateArrayBufferViewForOperand(output_operand)}});
+    auto* compute_exception =
+        helper.ComputeGraph(scope, graph, inputs, outputs);
+    EXPECT_EQ(compute_exception, nullptr);
+    auto results = GetArrayBufferViewValues<float>(outputs[0].second);
+
+    // Compare the results of WebNN graph and XNNPACK operator.
+    EXPECT_EQ(results, xnnpack_output);
+  }
+};
+
+TEST_P(MLGraphXnnpackTest, TanhTest) {
+  V8TestingScope scope;
+  {
+    // Test tanh operator for 1-D tensor.
+    // There is no need to set expected results, because TanhTester will
+    // calculate the expected results by calling XNNPACK tanh operator
+    // APIs.
+    TanhTester{.input = {.type = V8MLOperandType::Enum::kFloat32,
+                         .dimensions = {2},
+                         .values = {-1.0, 1.0}}}
+        .Test(*this, scope);
+  }
+  {
+    // Test tanh operator for 2-D tensor.
+    TanhTester{.input = {.type = V8MLOperandType::Enum::kFloat32,
+                         .dimensions = {2, 2},
+                         .values = {-2.0, 2.0, -3.0, 3.0}}}
+        .Test(*this, scope);
+  }
+}
+
+// ThreadPoolTester checks the compute results of an MLGraphXnnpack which
+// creates a pthreadpool to schedule `num_threads` parallel work items with
+// `base::ThreadPool` for XNNPACK operator execution.
+struct ThreadPoolTester {
+  uint32_t num_threads;
+
+  void Test(MLGraphXnnpackTest& helper, V8TestingScope& scope) {
+    // Create MLContextOptions and set the numThreads to `num_threads`.
+    auto* context_options = MLContextOptions::Create();
+    context_options->setNumThreads(num_threads);
+
+    // Build a simple WebNN graph with the options. A pthreadpool will be
+    // created internally with `num_threads`.
+    auto* builder = CreateMLGraphBuilder(
+        scope.GetExecutionContext(), scope.GetScriptState(),
+        scope.GetExceptionState(), context_options);
+    auto* input_operand =
+        BuildInput(builder, "input", {1, 2, 2, 1},
+                   V8MLOperandType::Enum::kFloat32, scope.GetExceptionState());
+    auto* output_operand =
+        builder->relu(input_operand, scope.GetExceptionState());
+    auto [graph, build_exception] =
+        helper.BuildGraph(scope, builder, {{"output", output_operand}});
+    EXPECT_NE(graph, nullptr);
+
+    // Compute the graph and compare the result.
+    MLNamedArrayBufferViews inputs(
+        {{"input",
+          CreateArrayBufferViewForOperand(
+              input_operand, Vector<float>({-10.0, -1.0, 1.0, 10.0}))}});
+    MLNamedArrayBufferViews outputs(
+        {{"output", CreateArrayBufferViewForOperand(output_operand)}});
+    auto* compute_exception =
+        helper.ComputeGraph(scope, graph, inputs, outputs);
+    EXPECT_EQ(compute_exception, nullptr);
+    auto results = GetArrayBufferViewValues<float>(outputs[0].second);
+    EXPECT_EQ(results, Vector<float>({0.0, 0.0, 1.0, 10.0}));
+  }
+};
+
+TEST_P(MLGraphXnnpackTest, ThreadPoolTest) {
+  V8TestingScope scope;
+  // Test executing WebNN graph with a pthreadpool for different number of
+  // threads.
+  { ThreadPoolTester{.num_threads = 0}.Test(*this, scope); }
+  { ThreadPoolTester{.num_threads = 1}.Test(*this, scope); }
+  { ThreadPoolTester{.num_threads = 2}.Test(*this, scope); }
+  { ThreadPoolTester{.num_threads = 3}.Test(*this, scope); }
+  { ThreadPoolTester{.num_threads = 4}.Test(*this, scope); }
 }
 
 INSTANTIATE_TEST_SUITE_P(

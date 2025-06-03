@@ -5,10 +5,10 @@
 #import <WebKit/WebKit.h>
 #import <vector>
 
+#import "base/apple/foundation_util.h"
 #import "base/files/file_enumerator.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/memory/ptr_util.h"
 #import "base/path_service.h"
 #import "base/strings/string_util.h"
@@ -35,12 +35,12 @@
 #import "components/sync_user_events/fake_user_event_service.h"
 #import "ios/chrome/browser/autofill/address_normalizer_factory.h"
 #import "ios/chrome/browser/autofill/form_suggestion_controller.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/infobars/infobar_manager_impl.h"
-#import "ios/chrome/browser/passwords/ios_chrome_password_store_factory.h"
-#import "ios/chrome/browser/passwords/password_controller.h"
-#import "ios/chrome/browser/paths/paths.h"
-#import "ios/chrome/browser/sync/ios_user_event_service_factory.h"
+#import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
+#import "ios/chrome/browser/passwords/model/password_controller.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
+#import "ios/chrome/browser/sync/model/ios_user_event_service_factory.h"
 #import "ios/chrome/browser/ui/autofill/chrome_autofill_client_ios.h"
 #import "ios/chrome/browser/web/chrome_web_client.h"
 #import "ios/web/public/js_messaging/web_frame.h"
@@ -54,10 +54,6 @@
 #import "ios/web/public/web_state.h"
 #import "testing/data_driven_testing/data_driven_test.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
@@ -77,7 +73,7 @@ base::FilePath GetTestDataDir() {
 
 base::FilePath GetIOSInputDirectory() {
   base::FilePath dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir));
 
   return dir.AppendASCII("components")
       .AppendASCII("test")
@@ -89,7 +85,7 @@ base::FilePath GetIOSInputDirectory() {
 
 base::FilePath GetIOSOutputDirectory() {
   base::FilePath dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &dir));
 
   return dir.AppendASCII("components")
       .AppendASCII("test")
@@ -186,7 +182,7 @@ FormStructureBrowserTest::FormStructureBrowserTest()
       web_client_(std::make_unique<ChromeWebClient>()) {
   TestChromeBrowserState::Builder builder;
   builder.AddTestingFactory(
-      IOSChromePasswordStoreFactory::GetInstance(),
+      IOSChromeProfilePasswordStoreFactory::GetInstance(),
       base::BindRepeating(&password_manager::BuildPasswordStoreInterface<
                           web::BrowserState,
                           password_manager::MockPasswordStoreInterface>));
@@ -202,30 +198,40 @@ FormStructureBrowserTest::FormStructureBrowserTest()
   web_state_ = web::WebState::Create(params);
   feature_list_.InitWithFeatures(
       // Enabled
-      {// TODO(crbug.com/1076175) Remove once launched.
-       autofill::features::kAutofillUseNewSectioningMethod,
-       // TODO(crbug.com/1157405) Remove once launched.
-       features::kAutofillEnableDependentLocalityParsing,
-       // TODO(crbug.com/1165780): Remove once shared labels are launched.
-       features::kAutofillEnableSupportForParsingWithSharedLabels,
-       // TODO(crbug.com/1150895) Remove once launched.
-       features::kAutofillParsingPatternProvider,
-       features::kAutofillPageLanguageDetection,
-       // TODO(crbug.com/1335549): Remove once launched.
-       features::kAutofillParseIBANFields,
-       // TODO(crbug.com/1311937): Remove once launched.
-       features::kAutofillEnableSupportForPhoneNumberTrunkTypes,
-       features::kAutofillInferCountryCallingCode,
-       // TODO(crbug.com/1355264): Remove once launched.
-       features::kAutofillLabelAffixRemoval},
+      {
+          // TODO(crbug.com/1076175) Remove once launched.
+          autofill::features::kAutofillUseNewSectioningMethod,
+          // TODO(crbug.com/1157405) Remove once launched.
+          features::kAutofillEnableDependentLocalityParsing,
+          // TODO(crbug.com/1165780): Remove once shared labels are launched.
+          features::kAutofillEnableSupportForParsingWithSharedLabels,
+          // TODO(crbug.com/1150895) Remove once launched.
+          features::kAutofillParsingPatternProvider,
+          features::kAutofillPageLanguageDetection,
+          // TODO(crbug.com/1311937): Remove once launched.
+          features::kAutofillEnableSupportForPhoneNumberTrunkTypes,
+          features::kAutofillInferCountryCallingCode,
+          // TODO(crbug.com/1355264): Remove once launched.
+          features::kAutofillLabelAffixRemoval,
+          // TODO(crbug.com/1441057): Remove once launched.
+          features::kAutofillEnableExpirationDateImprovements,
+          // TODO(crbug.com/1474308): Clean up when launched.
+          features::kAutofillDefaultToCityAndNumber,
+      },
       // Disabled
-      {// TODO(crbug.com/1311937): Remove once launched.
-       // This feature is part of the AutofillRefinedPhoneNumberTypes rollout.
-       // As it is not supported on iOS yet, it is disabled.
-       features::kAutofillConsiderPhoneNumberSeparatorsValidLabels,
-       // TODO(crbug.com/1317961): Remove once launched. This feature is
-       // disabled since it is not supported on iOS.
-       features::kAutofillAlwaysParsePlaceholders});
+      {
+          // TODO(crbug.com/1311937): Remove once launched.
+          // This feature is part of the AutofillRefinedPhoneNumberTypes
+          // rollout. As it is not supported on iOS yet, it is disabled.
+          features::kAutofillConsiderPhoneNumberSeparatorsValidLabels,
+          // TODO(crbug.com/1317961): Remove once launched. This feature is
+          // disabled since it is not supported on iOS.
+          features::kAutofillAlwaysParsePlaceholders,
+          // TODO(crbug.com/1493145): Remove when/if launched. This feature
+          // changes default parsing behavior, so must be disabled to avoid
+          // fieldtrial_testing_config interference.
+          features::kAutofillEnableEmailHeuristicOnlyAddressForms,
+      });
 }
 
 void FormStructureBrowserTest::SetUp() {
@@ -252,8 +258,7 @@ void FormStructureBrowserTest::SetUp() {
   infobars::InfoBarManager* infobar_manager =
       InfoBarManagerImpl::FromWebState(web_state());
   autofill_client_ = std::make_unique<TestAutofillClient>(
-      browser_state_.get(), web_state(), infobar_manager, autofill_agent_,
-      /*password_generation_manager=*/nullptr);
+      browser_state_.get(), web_state(), infobar_manager, autofill_agent_);
 
   std::string locale("en");
   autofill::AutofillDriverIOSFactory::CreateForWebState(

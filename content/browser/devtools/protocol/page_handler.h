@@ -103,12 +103,15 @@ class PageHandler : public DevToolsDomainHandler,
   void DownloadWillBegin(FrameTreeNode* ftn, download::DownloadItem* item);
 
   void OnFrameDetached(const base::UnguessableToken& frame_id);
+  void DidChangeFrameLoadingState(const FrameTreeNode& ftn);
 
   bool ShouldBypassCSP();
   void BackForwardCacheNotUsed(
       const NavigationRequest* nav_request,
       const BackForwardCacheCanStoreDocumentResult* result,
       const BackForwardCacheCanStoreTreeResult* tree_result);
+
+  void IsPrerenderingAllowed(bool& is_allowed);
 
   Response Enable() override;
   Response Disable() override;
@@ -175,6 +178,8 @@ class PageHandler : public DevToolsDomainHandler,
   Response SetBypassCSP(bool enabled) override;
   Response AddCompilationCache(const std::string& url,
                                const Binary& data) override;
+
+  Response SetPrerenderingAllowed(bool is_allowed) override;
 
   Response AssureTopLevelActiveFrame();
 
@@ -265,6 +270,8 @@ class PageHandler : public DevToolsDomainHandler,
   base::flat_map<base::UnguessableToken, std::unique_ptr<NavigateCallback>>
       navigate_callbacks_;
   base::flat_set<download::DownloadItem*> pending_downloads_;
+
+  bool is_prerendering_allowed_ = true;
 
   base::WeakPtrFactory<PageHandler> weak_factory_{this};
 };

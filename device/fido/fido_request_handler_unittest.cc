@@ -30,6 +30,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "device/fido/win/fake_webauthn_api.h"
+#include "device/fido/win/webauthn_api.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 using ::testing::_;
@@ -227,7 +228,8 @@ class FakeFidoRequestHandler : public FidoRequestHandlerBase {
 
   void GetPlatformCredentialStatus(
       FidoAuthenticator* platform_authenticator) override {
-    OnHavePlatformCredentialStatus(/*user_entities=*/{},
+    OnHavePlatformCredentialStatus(AuthenticatorType::kOther,
+                                   /*user_entities=*/{},
                                    has_platform_credential_);
   }
 
@@ -314,7 +316,7 @@ class FidoRequestHandlerTest : public ::testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   test::FakeFidoDiscoveryFactory fake_discovery_factory_;
   scoped_refptr<::testing::NiceMock<MockBluetoothAdapter>> mock_adapter_;
-  raw_ptr<test::FakeFidoDiscovery> discovery_;
+  raw_ptr<test::FakeFidoDiscovery, DanglingUntriaged> discovery_;
   FakeHandlerCallbackReceiver cb_;
 };
 
@@ -634,7 +636,7 @@ TEST_F(FidoRequestHandlerTest, TransportAvailabilityOfWindowsAuthenticator) {
       /* clang-format on */
   };
   FakeWinWebAuthnApi api;
-  fake_discovery_factory_.set_win_webauthn_api(&api);
+  device::WinWebAuthnApi::ScopedOverride win_webauthn_api_override(&api);
   for (const auto& test_case : kTestCases) {
     SCOPED_TRACE(::testing::Message()
                  << "api_available=" << test_case.api_available);
@@ -644,6 +646,7 @@ TEST_F(FidoRequestHandlerTest, TransportAvailabilityOfWindowsAuthenticator) {
 
     TestObserver observer;
     ForgeNextHidDiscovery();
+    fake_discovery_factory_.set_discover_win_webauthn_api_authenticator(true);
     EmptyRequestHandler request_handler(
         {FidoTransportProtocol::kUsbHumanInterfaceDevice},
         &fake_discovery_factory_);
@@ -661,8 +664,6 @@ TEST_F(FidoRequestHandlerTest, TransportAvailabilityOfWindowsAuthenticator) {
               test_case.api_available);
     EXPECT_EQ(transport_availability_info.has_win_native_api_authenticator,
               test_case.api_available);
-    EXPECT_EQ(transport_availability_info.win_native_api_authenticator_id,
-              test_case.api_available ? "WinWebAuthnApiAuthenticator" : "");
     EXPECT_EQ(transport_availability_info.win_is_uvpaa, test_case.is_uvpaa);
   }
 }

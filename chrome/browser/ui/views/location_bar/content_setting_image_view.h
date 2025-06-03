@@ -9,13 +9,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/content_settings/content_setting_image_model.h"
+#include "chrome/browser/ui/content_settings/content_setting_image_model_states.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
-#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/user_education/common/help_bubble.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/animation_delegate.h"
-#include "ui/gfx/animation/slide_animation.h"
-#include "ui/views/painter.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -100,6 +98,10 @@ class ContentSettingImageView : public IconLabelBubbleView,
 
   const gfx::VectorIcon* get_icon_for_testing() const {
     return content_setting_image_model_->get_icon_for_testing();
+  }
+
+  const gfx::VectorIcon* get_icon_badge_for_testing() const {
+    return content_setting_image_model_->get_icon_badge();
   }
 
  private:

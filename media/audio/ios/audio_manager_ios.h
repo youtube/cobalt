@@ -16,7 +16,6 @@
 #include "base/memory/weak_ptr.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/fake_audio_manager.h"
-#include "media/audio/ios/audio_private_api.h"
 #include "media/audio/mac/audio_auhal_mac.h"
 
 namespace media {
@@ -78,6 +77,11 @@ class MEDIA_EXPORT AudioManagerIOS : public AudioManagerBase,
                              AudioUnit audio_unit,
                              AudioUnitElement element,
                              size_t desired_buffer_size) override;
+
+  // Gain
+  float GetInputGain();
+  bool SetInputGain(float volume);
+  bool IsInputMuted();
 
  protected:
   AudioParameters GetPreferredOutputStreamParameters(

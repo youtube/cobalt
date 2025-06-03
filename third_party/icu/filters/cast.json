@@ -151,6 +151,11 @@
     ]
   },
   "featureFilters": {
+    "brkitr_adaboost": {
+      "includelist": [
+        "jaml"
+      ]
+    },
 // Based on the ICU63 version of
 // https://cs.chromium.org/chromium/src/third_party/icu/source/data/brkitr/brklocal.mk?rcl=797b7c
 // # List of dictionary files (dict).

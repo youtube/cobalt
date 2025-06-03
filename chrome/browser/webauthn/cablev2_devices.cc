@@ -11,10 +11,10 @@
 #include "base/base64.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/i18n/time_formatting.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
@@ -30,6 +30,7 @@
 #include "device/fido/cable/v2_constants.h"
 #include "device/fido/cable/v2_handshake.h"
 #include "device/fido/features.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
 using device::cablev2::Pairing;
 
@@ -81,11 +82,13 @@ const char kWebAuthnCablePairingsPrefName[] = "webauthn.cablev2_pairings";
 // where each dict has these keys:
 const char kPairingPrefName[] = "name";
 const char kPairingPrefContactId[] = "contact_id";
-const char kPairingPrefTunnelServer[] = "tunnel_server";
+// This used to be "tunnel_server" and contain the decoded domain as a string.
+const char kPairingPrefEncodedTunnelServer[] = "encoded_tunnel_server";
 const char kPairingPrefId[] = "id";
 const char kPairingPrefSecret[] = "secret";
 const char kPairingPrefPublicKey[] = "pub_key";
 const char kPairingPrefTime[] = "time";
+const char kPairingPrefNewImpl[] = "new_impl";
 
 // NameForDisplay removes line-breaking characters from `raw_name` to ensure
 // that the transport-selection UI isn't too badly broken by nonsense names.
@@ -158,8 +161,6 @@ std::vector<std::unique_ptr<Pairing>> GetLinkedDevices(Profile* const profile) {
     const base::Value::Dict& dict = pairing.GetDict();
     auto out_pairing = std::make_unique<Pairing>();
     if (!CopyString(&out_pairing->name, dict.FindString(kPairingPrefName)) ||
-        !CopyString(&out_pairing->tunnel_server_domain,
-                    dict.FindString(kPairingPrefTunnelServer)) ||
         !CopyBytestring(&out_pairing->contact_id,
                         dict.FindString(kPairingPrefContactId)) ||
         !CopyBytestring(&out_pairing->id, dict.FindString(kPairingPrefId)) ||
@@ -170,7 +171,24 @@ std::vector<std::unique_ptr<Pairing>> GetLinkedDevices(Profile* const profile) {
       continue;
     }
 
+    const absl::optional<bool> is_new_impl = dict.FindBool(kPairingPrefNewImpl);
+    out_pairing->from_new_implementation = is_new_impl && *is_new_impl;
     out_pairing->name = NameForDisplay(out_pairing->name);
+    const absl::optional<uint16_t> maybe_tunnel_server =
+        dict.FindInt(kPairingPrefEncodedTunnelServer);
+    if (maybe_tunnel_server) {
+      absl::optional<device::cablev2::tunnelserver::KnownDomainID>
+          maybe_domain_id = device::cablev2::tunnelserver::ToKnownDomainID(
+              *maybe_tunnel_server);
+      if (!maybe_domain_id) {
+        continue;
+      }
+      out_pairing->tunnel_server_domain = *maybe_domain_id;
+    } else {
+      // Pairings stored before we started tracking the encoded tunnel server
+      // domain are known to be Android phones.
+      out_pairing->tunnel_server_domain = device::cablev2::kTunnelServer;
+    }
     ret.emplace_back(std::move(out_pairing));
   }
 
@@ -235,8 +253,7 @@ std::unique_ptr<Pairing> PairingFromSyncedDevice(syncer::DeviceInfo* device,
     return nullptr;
   }
 
-  pairing->tunnel_server_domain =
-      device::cablev2::tunnelserver::DecodeDomain(*tunnel_server_domain);
+  pairing->tunnel_server_domain = *tunnel_server_domain;
   pairing->contact_id = paask_info.contact_id;
   pairing->peer_public_key_x962 = paask_info.peer_public_key_x962;
   pairing->secret.assign(paask_info.secret.begin(), paask_info.secret.end());
@@ -359,9 +376,34 @@ void AddPairing(Profile* profile, std::unique_ptr<Pairing> pairing) {
       base::Base64Encode(pairing->peer_public_key_x962);
   DeletePairingByPublicKey(*update, public_key_base64);
 
+  // As an exception to the above rule, we allow a new pairing to replace a
+  // previous one with the same name if the new pairing is from the new
+  // implementation and the old one isn't. When we transition the implementation
+  // on Android to the new implementation, it's not feasible to port the
+  // identity key across. Rather than have duplicate pairings, we allow this
+  // replacement once.
+  //
+  // TODO(crbug.com/1442040): remove once the transition is firmly complete.
+  // Probably by May 2024.
+  const std::string& claimed_name = pairing->name;
+  if (pairing->from_new_implementation) {
+    update->EraseIf([&claimed_name](const auto& value) {
+      if (!value.is_dict()) {
+        return false;
+      }
+      const absl::optional<bool> pref_new_impl =
+          value.GetDict().FindBool(kPairingPrefNewImpl);
+      const std::string* const pref_name =
+          value.GetDict().FindString(kPairingPrefName);
+      return pref_name && *pref_name == claimed_name &&
+             (!pref_new_impl || !*pref_new_impl);
+    });
+  }
+
   base::Value::Dict dict;
   dict.Set(kPairingPrefPublicKey, std::move(public_key_base64));
-  dict.Set(kPairingPrefTunnelServer, pairing->tunnel_server_domain);
+  dict.Set(kPairingPrefEncodedTunnelServer,
+           pairing->tunnel_server_domain.value());
   // `Names` is called without calling `MergeDevices` because that function will
   // discard linked entries with duplicate public keys, which can hide some
   // names that we would still like to avoid colliding with.
@@ -371,14 +413,13 @@ void AddPairing(Profile* profile, std::unique_ptr<Pairing> pairing) {
   dict.Set(kPairingPrefContactId, base::Base64Encode(pairing->contact_id));
   dict.Set(kPairingPrefId, base::Base64Encode(pairing->id));
   dict.Set(kPairingPrefSecret, base::Base64Encode(pairing->secret));
+  if (pairing->from_new_implementation) {
+    dict.Set(kPairingPrefNewImpl, true);
+  }
 
-  base::Time::Exploded now;
-  base::Time::Now().UTCExplode(&now);
-  dict.Set(
-      kPairingPrefTime,
-      // RFC 3339 time format.
-      base::StringPrintf("%04d-%02d-%02dT%02d:%02d:%02dZ", now.year, now.month,
-                         now.day_of_month, now.hour, now.minute, now.second));
+  dict.Set(kPairingPrefTime, base::UnlocalizedTimeFormatWithPattern(
+                                 base::Time::Now(), "yyyy-MM-dd'T'HH:mm:ssX",
+                                 icu::TimeZone::getGMT()));
 
   update->Append(std::move(dict));
 }

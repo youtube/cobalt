@@ -16,6 +16,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
@@ -25,6 +26,7 @@
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
+#include "chromeos/components/kiosk/kiosk_test_utils.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/reporting/client/mock_report_queue.h"
 #include "components/reporting/util/status.h"
@@ -108,13 +110,14 @@ class DeviceCommandFetchSupportPacketTest : public ::testing::Test {
   ash::system::FakeStatisticsProvider statistics_provider_;
   base::TimeTicks test_start_time_;
   base::ScopedTempDir temp_dir_;
+  base::HistogramTester histogram_tester_;
 };
 
 TEST_F(DeviceCommandFetchSupportPacketTest, Success) {
-  // Set LoginState as kiosk device.
-  ash::LoginState::Get()->SetLoggedInState(
-      ash::LoginState::LoggedInState::LOGGED_IN_ACTIVE,
-      ash::LoginState::LoggedInUserType::LOGGED_IN_USER_KIOSK);
+  // Set up as kiosk device.
+  user_manager::ScopedUserManager user_manager(
+      std::make_unique<user_manager::FakeUserManager>());
+  chromeos::SetUpFakeKioskSession();
 
   std::unique_ptr<DeviceCommandFetchSupportPacketJob> job =
       std::make_unique<DeviceCommandFetchSupportPacketJob>();
@@ -160,10 +163,16 @@ TEST_F(DeviceCommandFetchSupportPacketTest, Success) {
       *enqueued_event.mutable_upload_settings()->mutable_upload_parameters());
   EXPECT_EQ(exported_file.value(),
             *enqueued_event.mutable_upload_settings()->mutable_origin_path());
+  EXPECT_TRUE(enqueued_event.has_command_id());
+  EXPECT_EQ(enqueued_event.command_id(), kUniqueID);
 
   int64_t file_size;
   ASSERT_TRUE(base::GetFileSize(exported_file, &file_size));
   EXPECT_GT(file_size, 0);
+
+  histogram_tester_.ExpectUniqueSample(
+      kFetchSupportPacketFailureHistogramName,
+      EnterpriseFetchSupportPacketFailureType::kNoFailure, 1);
 }
 
 TEST_F(DeviceCommandFetchSupportPacketTest, FailWithWrongPayload) {
@@ -185,6 +194,9 @@ TEST_F(DeviceCommandFetchSupportPacketTest, FailWithWrongPayload) {
       base::TimeTicks::Now(),
       GenerateCommandProto(kUniqueID, test_start_time_, kWrongPayload),
       em::SignedData()));
+  histogram_tester_.ExpectUniqueSample(
+      kFetchSupportPacketFailureHistogramName,
+      EnterpriseFetchSupportPacketFailureType::kFailedOnWrongCommandPayload, 1);
 }
 
 TEST_F(DeviceCommandFetchSupportPacketTest, FailForNonKioskDevice) {
@@ -214,6 +226,10 @@ TEST_F(DeviceCommandFetchSupportPacketTest, FailForNonKioskDevice) {
   // Expect the job to fail for non-kiosk device.
   EXPECT_EQ(job->status(), RemoteCommandJob::FAILED);
   EXPECT_EQ(*job->GetResultPayload(), kCommandNotEnabledForUserMessage);
+  histogram_tester_.ExpectUniqueSample(kFetchSupportPacketFailureHistogramName,
+                                       EnterpriseFetchSupportPacketFailureType::
+                                           kFailedOnCommandEnabledForUserCheck,
+                                       1);
 }
 
 }  // namespace policy

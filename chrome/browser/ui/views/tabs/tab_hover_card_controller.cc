@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
@@ -23,8 +24,10 @@
 #include "chrome/browser/ui/views/tabs/tab_hover_card_thumbnail_observer.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
+#include "chrome/common/pref_names.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_popup_view.h"
+#include "components/performance_manager/public/features.h"
 #include "components/user_education/common/help_bubble_factory_registry.h"
 #include "components/user_education/views/help_bubble_factory_views.h"
 #include "components/user_education/views/help_bubble_view.h"
@@ -245,6 +248,23 @@ bool TabHoverCardController::disable_animations_for_testing_ = false;
 
 TabHoverCardController::TabHoverCardController(TabStrip* tab_strip)
     : tab_strip_(tab_strip) {
+  if (PrefService* pref_service = g_browser_process->local_state()) {
+    // Hovercard image previews are still not fully rolled out to all platforms
+    // so we default the pref to the state of the feature rollout.
+    pref_service->SetDefaultPrefValue(prefs::kHoverCardImagesEnabled,
+                                      base::Value(base::FeatureList::IsEnabled(
+                                          features::kTabHoverCardImages)));
+
+    // Register for previews enabled pref change events.
+    hover_card_image_previews_enabled_ = AreHoverCardImagesEnabled();
+    pref_change_registrar_.Init(pref_service);
+    pref_change_registrar_.Add(
+        prefs::kHoverCardImagesEnabled,
+        base::BindRepeating(
+            &TabHoverCardController::OnHovercardImagesEnabledChanged,
+            base::Unretained(this)));
+  }
+
   // Possibly apply memory pressure override for testing.
   auto override = GetMemoryPressureOverride();
   if (override) {
@@ -255,13 +275,21 @@ TabHoverCardController::TabHoverCardController(TabStrip* tab_strip)
         base::BindRepeating(&TabHoverCardController::OnMemoryPressureChanged,
                             base::Unretained(this)));
   }
+
+  hover_card_tab_memory_usage_enabled_ = base::FeatureList::IsEnabled(
+      performance_manager::features::kMemoryUsageInHovercards);
 }
 
 TabHoverCardController::~TabHoverCardController() = default;
 
 // static
 bool TabHoverCardController::AreHoverCardImagesEnabled() {
-  return base::FeatureList::IsEnabled(features::kTabHoverCardImages);
+  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages) ||
+      base::FeatureList::IsEnabled(features::kTabHoverCardImageSettings)) {
+    PrefService* pref_service = g_browser_process->local_state();
+    return pref_service->GetBoolean(prefs::kHoverCardImagesEnabled);
+  }
+  return false;
 }
 
 // static
@@ -345,7 +373,10 @@ void TabHoverCardController::UpdateOrShowCard(
   // If a hover card is being updated because of a data change, the hover card
   // had better already be showing for the affected tab.
   if (update_type == TabSlotController::HoverCardUpdateType::kTabDataChanged) {
-    DCHECK(IsHoverCardShowingForTab(tab));
+    if (!IsHoverCardShowingForTab(tab)) {
+      return;
+    }
+
     UpdateCardContent(tab);
 
     // When a tab has been discarded, the thumbnail is moved to a new
@@ -465,6 +496,11 @@ void TabHoverCardController::HideHoverCard() {
 
 void TabHoverCardController::OnViewIsDeleting(views::View* observed_view) {
   if (hover_card_ == observed_view) {
+    if (hover_card_tab_memory_usage_enabled_) {
+      performance_manager::user_tuning::UserPerformanceTuningManager::
+          GetInstance()
+              ->RemoveObserver(this);
+    }
     delayed_show_timer_.Stop();
     hover_card_observation_.Reset();
     event_sniffer_.reset();
@@ -488,8 +524,9 @@ void TabHoverCardController::OnViewVisibilityChanged(
     views::View* observed_view,
     views::View* starting_view) {
   // Only care about target tab becoming invisible.
-  if (observed_view != target_tab_)
+  if (observed_view != target_tab_) {
     return;
+  }
   // Visibility comes from `starting_view` or the widget, if no starting view;
   // see documentation for ViewObserver::OnViewVisibilityChanged().
   const bool visible = starting_view
@@ -498,8 +535,16 @@ void TabHoverCardController::OnViewVisibilityChanged(
                               observed_view->GetWidget()->IsVisible());
   // If visibility changed to false, treat it as if the target tab had gone
   // away.
-  if (!visible)
+  if (!visible) {
     OnViewIsDeleting(observed_view);
+  }
+}
+
+void TabHoverCardController::OnMemoryMetricsRefreshed() {
+  if (hover_card_ != nullptr && target_tab_ != nullptr) {
+    UpdateHoverCard(target_tab_,
+                    TabSlotController::HoverCardUpdateType::kTabDataChanged);
+  }
 }
 
 bool TabHoverCardController::ArePreviewsEnabled() const {
@@ -525,11 +570,17 @@ void TabHoverCardController::CreateHoverCard(Tab* tab) {
       base::BindRepeating(&TabHoverCardController::OnFadeAnimationEnded,
                           weak_ptr_factory_.GetWeakPtr()));
 
-  if (!thumbnail_observer_ && AreHoverCardImagesEnabled()) {
+  if (!thumbnail_observer_ && hover_card_image_previews_enabled_) {
     thumbnail_observer_ = std::make_unique<TabHoverCardThumbnailObserver>();
     thumbnail_subscription_ = thumbnail_observer_->AddCallback(
-        base::BindRepeating(&TabHoverCardController::OnPreviewImageAvaialble,
+        base::BindRepeating(&TabHoverCardController::OnPreviewImageAvailable,
                             weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  if (hover_card_tab_memory_usage_enabled_) {
+    performance_manager::user_tuning::UserPerformanceTuningManager::
+        GetInstance()
+            ->AddObserver(this);
   }
 }
 
@@ -552,6 +603,12 @@ void TabHoverCardController::MaybeStartThumbnailObservation(
 
   // Active tabs don't get thumbnails.
   if (tab->IsActive()) {
+    thumbnail_observer_->Observe(nullptr);
+    return;
+  }
+
+  // Discarded tabs that don't already have a thumbnail won't get one.
+  if (tab->IsDiscarded() && !tab->HasThumbnail()) {
     thumbnail_observer_->Observe(nullptr);
     return;
   }
@@ -632,6 +689,12 @@ void TabHoverCardController::MaybeStartThumbnailObservation(
 void TabHoverCardController::StartThumbnailObservation(Tab* tab) {
   if (tab != target_tab_)
     return;
+
+  // If the preview image feature is not enabled, |thumbnail_observer_| will be
+  // null.
+  if (!thumbnail_observer_) {
+    return;
+  }
 
   DCHECK(tab);
   DCHECK(hover_card_);
@@ -755,7 +818,7 @@ void TabHoverCardController::OnSlideAnimationComplete(
   OnCardFullyVisible();
 }
 
-void TabHoverCardController::OnPreviewImageAvaialble(
+void TabHoverCardController::OnPreviewImageAvailable(
     TabHoverCardThumbnailObserver* observer,
     gfx::ImageSkia thumbnail_image) {
   DCHECK_EQ(thumbnail_observer_.get(), observer);
@@ -790,4 +853,12 @@ void TabHoverCardController::OnMemoryPressureChanged(
   // memory pressure drops back to zero; however, the user is unlikely to be
   // hovering a card through an entire CRITICAL -> NORMAL transition so as a
   // simplification we simply don't care.
+}
+
+void TabHoverCardController::OnHovercardImagesEnabledChanged() {
+  hover_card_image_previews_enabled_ = AreHoverCardImagesEnabled();
+  if (!hover_card_image_previews_enabled_) {
+    thumbnail_subscription_ = base::CallbackListSubscription();
+    thumbnail_observer_.reset();
+  }
 }

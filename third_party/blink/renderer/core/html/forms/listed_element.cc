@@ -269,6 +269,8 @@ void ListedElement::FormOwnerSetNeedsValidityCheck() {
   if (HTMLFormElement* form = Form()) {
     form->PseudoStateChanged(CSSSelector::kPseudoValid);
     form->PseudoStateChanged(CSSSelector::kPseudoInvalid);
+    form->PseudoStateChanged(CSSSelector::kPseudoUserValid);
+    form->PseudoStateChanged(CSSSelector::kPseudoUserInvalid);
   }
 }
 
@@ -283,6 +285,8 @@ void ListedElement::FieldSetAncestorsSetNeedsValidityCheck(Node* node) {
        field_set = Traversal<HTMLFieldSetElement>::FirstAncestor(*field_set)) {
     field_set->PseudoStateChanged(CSSSelector::kPseudoValid);
     field_set->PseudoStateChanged(CSSSelector::kPseudoInvalid);
+    field_set->PseudoStateChanged(CSSSelector::kPseudoUserValid);
+    field_set->PseudoStateChanged(CSSSelector::kPseudoUserInvalid);
   }
 }
 
@@ -309,10 +313,12 @@ void ListedElement::FormAttributeChanged() {
 bool ListedElement::RecalcWillValidate() const {
   const HTMLElement& element = ToHTMLElement();
   if (data_list_ancestor_state_ == DataListAncestorState::kUnknown) {
-    if (Traversal<HTMLDataListElement>::FirstAncestor(element))
+    if (element.GetDocument().HasAtLeastOneDataList() &&
+        Traversal<HTMLDataListElement>::FirstAncestor(element)) {
       data_list_ancestor_state_ = DataListAncestorState::kInsideDataList;
-    else
+    } else {
       data_list_ancestor_state_ = DataListAncestorState::kNotInsideDataList;
+    }
   }
   return data_list_ancestor_state_ ==
              DataListAncestorState::kNotInsideDataList &&
@@ -439,7 +445,7 @@ void ListedElement::FindCustomValidationMessageTextDirection(
 }
 
 void ListedElement::UpdateVisibleValidationMessage() {
-  const Element& element = ValidationAnchor();
+  Element& element = ValidationAnchor();
   Page* page = element.GetDocument().GetPage();
   if (!page || !page->IsPageVisible() || element.GetDocument().UnloadStarted())
     return;
@@ -521,9 +527,9 @@ void ListedElement::ShowValidationMessage() {
   Element& element = ValidationAnchor();
   element.scrollIntoViewIfNeeded(false);
   if (element.IsFocusable())
-    element.Focus(FocusParams(/*gate_on_user_activation=*/true));
+    element.Focus();
   else
-    ToHTMLElement().Focus(FocusParams(/*gate_on_user_activation=*/true));
+    ToHTMLElement().Focus();
   UpdateVisibleValidationMessage();
 }
 
@@ -564,6 +570,8 @@ void ListedElement::SetNeedsValidityCheck() {
     FieldSetAncestorsSetNeedsValidityCheck(element.parentNode());
     element.PseudoStateChanged(CSSSelector::kPseudoValid);
     element.PseudoStateChanged(CSSSelector::kPseudoInvalid);
+    element.PseudoStateChanged(CSSSelector::kPseudoUserValid);
+    element.PseudoStateChanged(CSSSelector::kPseudoUserInvalid);
   }
 
   // Updates only if this control already has a validation message.

@@ -186,10 +186,8 @@ TEST_F(NavigationEntryTest, NavigationEntrySSLStatus) {
 // Test other basic accessors
 TEST_F(NavigationEntryTest, NavigationEntryAccessors) {
   // SiteInstance
-  EXPECT_TRUE(entry1_->site_instance() == nullptr);
+  EXPECT_EQ(nullptr, entry1_->site_instance());
   EXPECT_EQ(instance_, entry2_->site_instance());
-  entry1_->set_site_instance(instance_);
-  EXPECT_EQ(instance_, entry1_->site_instance());
 
   // Page type
   EXPECT_EQ(PAGE_TYPE_NORMAL, entry1_->GetPageType());
@@ -367,7 +365,8 @@ TEST_F(NavigationEntryTest, SetPageStateWithDefaultSequenceNumbers) {
 // Test that content URIs correctly show the file display name as the title.
 TEST_F(NavigationEntryTest, DISABLED_NavigationEntryContentUri) {
   base::FilePath image_path;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &image_path));
+  EXPECT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &image_path));
   image_path = image_path.Append(FILE_PATH_LITERAL("content"));
   image_path = image_path.Append(FILE_PATH_LITERAL("test"));
   image_path = image_path.Append(FILE_PATH_LITERAL("data"));

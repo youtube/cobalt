@@ -16,6 +16,7 @@
 #include "components/page_info/page_info_ui.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -42,8 +43,7 @@ class PageInfoMainView : public views::View,
                          public PermissionToggleRowViewObserver,
                          public ChosenObjectViewObserver {
  public:
-  // The width of the column size for permissions and chosen object icons.
-  static constexpr int kIconColumnWidth = 16;
+  METADATA_HEADER(PageInfoMainView);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCookieButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMainLayoutElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kPermissionsElementId);
@@ -51,6 +51,7 @@ class PageInfoMainView : public views::View,
   // updating the layout.
   class ContainerView : public views::View {
    public:
+    METADATA_HEADER(ContainerView);
     ContainerView();
 
     // Notifies that preferred size changed and updates the layout.
@@ -65,12 +66,12 @@ class PageInfoMainView : public views::View,
   ~PageInfoMainView() override;
 
   // PageInfoUI implementations.
-  void SetCookieInfo(const CookieInfoList& cookie_info_list) override;
   void SetPermissionInfo(const PermissionInfoList& permission_info_list,
                          ChosenObjectInfoList chosen_object_info_list) override;
   void SetIdentityInfo(const IdentityInfo& identity_info) override;
   void SetPageFeatureInfo(const PageFeatureInfo& info) override;
   void SetAdPersonalizationInfo(const AdPersonalizationInfo& info) override;
+  void SetCookieInfo(const CookiesNewInfo& cookie_info) override;
 
   gfx::Size CalculatePreferredSize() const override;
   void ChildPreferredSizeChanged(views::View* child) override;
@@ -93,10 +94,6 @@ class PageInfoMainView : public views::View,
  private:
   friend class PageInfoBubbleViewDialogBrowserTest;
   friend class test::PageInfoBubbleViewTestApi;
-
-  // Ensures the cookie information UI is present, with placeholder information
-  // if necessary.
-  void EnsureCookieInfo();
 
   // Creates a view with vertical box layout that will used a container for
   // other views.
@@ -128,9 +125,9 @@ class PageInfoMainView : public views::View,
   // subpage and a separator.
   [[nodiscard]] std::unique_ptr<views::View> CreateAdPersonalizationSection();
 
-  raw_ptr<PageInfo, DanglingUntriaged> presenter_;
+  raw_ptr<PageInfo, AcrossTasksDanglingUntriaged> presenter_;
 
-  raw_ptr<ChromePageInfoUiDelegate, DanglingUntriaged> ui_delegate_;
+  raw_ptr<ChromePageInfoUiDelegate, AcrossTasksDanglingUntriaged> ui_delegate_;
 
   raw_ptr<PageInfoNavigationHandler> navigation_handler_;
 
@@ -138,12 +135,13 @@ class PageInfoMainView : public views::View,
   std::u16string details_text_ = std::u16string();
 
   // The button that opens the "Connection" subpage.
-  raw_ptr<RichHoverButton, DanglingUntriaged> connection_button_ = nullptr;
+  raw_ptr<RichHoverButton, AcrossTasksDanglingUntriaged> connection_button_ =
+      nullptr;
 
   // The view that contains the certificate, cookie, and permissions sections.
   raw_ptr<views::View> site_settings_view_ = nullptr;
 
-  // The button that opens the "Cookies" dialog.
+  // The button that opens the "Cookies" subpage.
   raw_ptr<RichHoverButton> cookie_button_ = nullptr;
 
   // The button that opens up "Site Settings".
@@ -158,7 +156,7 @@ class PageInfoMainView : public views::View,
   raw_ptr<views::View> about_this_site_section_ = nullptr;
 
   // The view that contains `SecurityInformationView` and a certificate button.
-  raw_ptr<PageInfoSecurityContentView, DanglingUntriaged>
+  raw_ptr<PageInfoSecurityContentView, AcrossTasksDanglingUntriaged>
       security_content_view_ = nullptr;
 
   // The section that contains 'Ad personalization' button that opens a
@@ -182,7 +180,8 @@ class PageInfoMainView : public views::View,
 
   raw_ptr<views::View> security_container_view_ = nullptr;
 
-  raw_ptr<views::LabelButton> reset_button_ = nullptr;
+  raw_ptr<views::LabelButton, AcrossTasksDanglingUntriaged> reset_button_ =
+      nullptr;
 
   base::WeakPtrFactory<PageInfoMainView> weak_factory_{this};
 };

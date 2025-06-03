@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_style_sheet.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "third_party/blink/renderer/bindings/core/v8/script_regexp.h"
 #include "third_party/blink/renderer/core/css/css_container_rule.h"
@@ -37,6 +38,7 @@
 #include "third_party/blink/renderer/core/css/css_media_rule.h"
 #include "third_party/blink/renderer/core/css/css_position_fallback_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/css/css_property_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/css_scope_rule.h"
@@ -44,11 +46,14 @@
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/css_supports_rule.h"
 #include "third_party/blink/renderer/core/css/css_try_rule.h"
+#include "third_party/blink/renderer/core/css/parser/css_at_rule_id.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_local_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_observer.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
+#include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/properties/shorthand.h"
+#include "third_party/blink/renderer/core/css/property_registry.h"
 #include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -59,6 +64,7 @@
 #include "third_party/blink/renderer/core/html/html_style_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
+#include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
 #include "third_party/blink/renderer/core/inspector/inspector_css_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_network_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_resource_container.h"
@@ -160,13 +166,21 @@ class StyleSheetHandler final : public CSSParserObserver {
   STACK_ALLOCATED();
 
  public:
-  StyleSheetHandler(const String& parsed_text,
-                    Document* document,
-                    CSSRuleSourceDataList* result)
+  struct IssueReportingContext {
+    KURL DocumentURL;
+    TextPosition OffsetInSource;
+  };
+  StyleSheetHandler(
+      const String& parsed_text,
+      Document* document,
+      CSSRuleSourceDataList* result,
+      absl::optional<IssueReportingContext> issueReportingContext = {})
       : parsed_text_(parsed_text),
         document_(document),
         result_(result),
-        current_rule_data_(nullptr) {
+        current_rule_data_(nullptr),
+        issueReportingContext_(issueReportingContext),
+        line_endings_(std::make_unique<LineEndings>()) {
     DCHECK(result_);
   }
 
@@ -181,17 +195,42 @@ class StyleSheetHandler final : public CSSParserObserver {
                        bool is_important,
                        bool is_parsed) override;
   void ObserveComment(unsigned start_offset, unsigned end_offset) override;
+  void ObserveErroneousAtRule(
+      unsigned start_offset,
+      CSSAtRuleID id,
+      const Vector<CSSPropertyID, 2>& invalid_properties = {}) override;
 
+  TextPosition GetTextPosition(unsigned start_offset);
   void AddNewRuleToSourceTree(CSSRuleSourceData*);
+  void RemoveLastRuleFromSourceTree();
   CSSRuleSourceData* PopRuleData();
   template <typename CharacterType>
   inline void SetRuleHeaderEnd(const CharacterType*, unsigned);
+  const LineEndings* GetLineEndings();
+  void ReportPropertyRuleFailure(unsigned start_offset,
+                                 CSSPropertyID invalid_property);
 
   const String& parsed_text_;
   Document* document_;
   CSSRuleSourceDataList* result_;
   CSSRuleSourceDataList current_rule_data_stack_;
   CSSRuleSourceData* current_rule_data_;
+  absl::optional<IssueReportingContext> issueReportingContext_;
+  std::unique_ptr<LineEndings> line_endings_;
+  // A property that fails to parse (ObserveProperty with is_parsed=false)
+  // temporarily becomes a replaceable property. A replaceable property can be
+  // replaced by a (valid) style rule at the same offset. This is needed to
+  // interpret the parsing behavior seen with nested style rules that start with
+  // <ident-token>, where we first try to parse the token sequence as a
+  // property, and then (if that fails) restart parsing as a style rule. This
+  // means that we'll see both a ObserveProperty event and a StartRuleHeader
+  // event at the same offset.
+  //
+  // When this situation happens, we remove the CSSPropertySourceData previously
+  // produced by ObserveProperty once we've seen a valid style rule at the same
+  // offset. Note that we do not consider a rule valid until we see the
+  // StartRuleBody event, so the actual replacement takes place there.
+  absl::optional<unsigned> replaceable_property_offset_;
 };
 
 void StyleSheetHandler::StartRuleHeader(StyleRule::RuleType type,
@@ -244,6 +283,22 @@ void StyleSheetHandler::StartRuleBody(unsigned offset) {
   if (parsed_text_[offset] == '{')
     ++offset;  // Skip the rule body opening brace.
   current_rule_data_stack_.back()->rule_body_range.start = offset;
+
+  // If this style rule appears on the same offset as a failed property,
+  // we need to remove the corresponding CSSPropertySourceData.
+  // See `replaceable_property_offset_` for more information.
+  if (replaceable_property_offset_.has_value() &&
+      current_rule_data_stack_.size() >= 2) {
+    if (replaceable_property_offset_ ==
+        current_rule_data_stack_.back()->rule_header_range.start) {
+      // The outer rule holds a property at the same offset. Remove it.
+      CSSRuleSourceData& outer_rule =
+          *current_rule_data_stack_[current_rule_data_stack_.size() - 2];
+      DCHECK(!outer_rule.property_data.empty());
+      outer_rule.property_data.pop_back();
+      replaceable_property_offset_ = absl::nullopt;
+    }
+  }
 }
 
 void StyleSheetHandler::EndRuleBody(unsigned offset) {
@@ -258,10 +313,46 @@ void StyleSheetHandler::EndRuleBody(unsigned offset) {
 }
 
 void StyleSheetHandler::AddNewRuleToSourceTree(CSSRuleSourceData* rule) {
-  if (current_rule_data_stack_.empty())
+  // After a rule is parsed, if it doesn't have a header range
+  // and if it is a style rule it means that this is a "nested group
+  // rule"[1][2]. When there are property declarations in this rule there is an
+  // implicit nested rule is created for this to hold these declarations[3].
+  // However, when there aren't any property declarations in this rule
+  // there won't be an implicit nested rule for it and it will only
+  // contain parsed child rules[3].
+  // So, for that case, we are not adding the source data for the non
+  // existent implicit nested rule since it won't exist in the parsed
+  // CSS rules from the parser itself.
+  //
+  // [1]: https://drafts.csswg.org/css-nesting-1/#nested-group-rules
+  // [2]:
+  // https://source.chromium.org/chromium/chromium/src/+/refs/heads/main:third_party/blink/renderer/core/css/parser/css_parser_impl.cc;l=2122;drc=255b4e7036f1326f2219bd547d3d6dcf76064870
+  // [3]:
+  // https://source.chromium.org/chromium/chromium/src/+/refs/heads/main:third_party/blink/renderer/core/css/parser/css_parser_impl.cc;l=2131;drc=255b4e7036f1326f2219bd547d3d6dcf76064870
+  if (rule->rule_header_range.length() == 0 &&
+      (rule->type == StyleRule::RuleType::kStyle &&
+       rule->property_data.empty())) {
+    // Add the source data for the child rules since they exist in the
+    // rule data coming from the parser.
+    for (auto& child_rule : rule->child_rules) {
+      AddNewRuleToSourceTree(child_rule);
+    }
+    return;
+  }
+
+  if (current_rule_data_stack_.empty()) {
     result_->push_back(rule);
-  else
+  } else {
     current_rule_data_stack_.back()->child_rules.push_back(rule);
+  }
+}
+
+void StyleSheetHandler::RemoveLastRuleFromSourceTree() {
+  if (current_rule_data_stack_.empty()) {
+    result_->pop_back();
+  } else {
+    current_rule_data_stack_.back()->child_rules.pop_back();
+  }
 }
 
 CSSRuleSourceData* StyleSheetHandler::PopRuleData() {
@@ -276,6 +367,12 @@ void StyleSheetHandler::ObserveProperty(unsigned start_offset,
                                         unsigned end_offset,
                                         bool is_important,
                                         bool is_parsed) {
+  // Pop off data for a previous invalid rule.
+  if (current_rule_data_) {
+    current_rule_data_ = nullptr;
+    current_rule_data_stack_.pop_back();
+  }
+
   if (current_rule_data_stack_.empty() ||
       !current_rule_data_stack_.back()->HasProperties())
     return;
@@ -302,10 +399,22 @@ void StyleSheetHandler::ObserveProperty(unsigned start_offset,
   current_rule_data_stack_.back()->property_data.push_back(
       CSSPropertySourceData(name, value, is_important, false, is_parsed,
                             SourceRange(start_offset, end_offset)));
+
+  // Any property with is_parsed=false becomes a replaceable property.
+  // A replaceable property can be replaced by a (valid) style rule
+  // at the same offset.
+  replaceable_property_offset_ = is_parsed
+                                     ? absl::optional<unsigned>()
+                                     : absl::optional<unsigned>(start_offset);
 }
 
 void StyleSheetHandler::ObserveComment(unsigned start_offset,
                                        unsigned end_offset) {
+  // Pop off data for a previous invalid rule.
+  if (current_rule_data_) {
+    current_rule_data_ = nullptr;
+    current_rule_data_stack_.pop_back();
+  }
   DCHECK_LE(end_offset, parsed_text_.length());
 
   if (current_rule_data_stack_.empty() ||
@@ -354,6 +463,127 @@ void StyleSheetHandler::ObserveComment(unsigned start_offset,
                             true, true, SourceRange(start_offset, end_offset)));
 }
 
+static OrdinalNumber AddOrdinalNumbers(OrdinalNumber a, OrdinalNumber b) {
+  if (a == OrdinalNumber::BeforeFirst() || b == OrdinalNumber::BeforeFirst()) {
+    return a;
+  }
+  return OrdinalNumber::FromZeroBasedInt(a.ZeroBasedInt() + b.ZeroBasedInt());
+}
+
+TextPosition StyleSheetHandler::GetTextPosition(unsigned start_offset) {
+  if (!issueReportingContext_) {
+    return TextPosition::BelowRangePosition();
+  }
+  const LineEndings* line_endings = GetLineEndings();
+  TextPosition start =
+      TextPosition::FromOffsetAndLineEndings(start_offset, *line_endings);
+  if (start.line_.ZeroBasedInt() == 0) {
+    start.column_ = AddOrdinalNumbers(
+        start.column_, issueReportingContext_->OffsetInSource.column_);
+  }
+  start.line_ = AddOrdinalNumbers(start.line_,
+                                  issueReportingContext_->OffsetInSource.line_);
+  return start;
+}
+
+void StyleSheetHandler::ObserveErroneousAtRule(
+    unsigned start_offset,
+    CSSAtRuleID id,
+    const Vector<CSSPropertyID, 2>& invalid_properties) {
+  if (!issueReportingContext_) {
+    return;
+  }
+  switch (id) {
+    case CSSAtRuleID::kCSSAtRuleImport: {
+      TextPosition start = GetTextPosition(start_offset);
+      AuditsIssue::ReportStylesheetLoadingLateImportIssue(
+          document_, issueReportingContext_->DocumentURL, start.line_,
+          start.column_);
+      break;
+    }
+    case CSSAtRuleID::kCSSAtRuleProperty: {
+      if (invalid_properties.empty()) {
+        // Invoked from the prelude handling, which means the name is invalid.
+        TextPosition start = GetTextPosition(start_offset);
+        AuditsIssue::ReportPropertyRuleIssue(
+            document_, issueReportingContext_->DocumentURL, start.line_,
+            start.column_,
+            protocol::Audits::PropertyRuleIssueReasonEnum::InvalidName, {});
+      } else {
+        // The rule is being dropped because it lacks required descriptors, or
+        // some descriptors have invalid values. The rule has already been
+        // committed and must be removed.
+        for (CSSPropertyID invalid_property : invalid_properties) {
+          ReportPropertyRuleFailure(start_offset, invalid_property);
+        }
+        RemoveLastRuleFromSourceTree();
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+static CSSPropertySourceData* GetPropertySourceData(
+    CSSRuleSourceData& source_data,
+    StringView propertyName) {
+  auto property = std::find_if(
+      source_data.property_data.rbegin(), source_data.property_data.rend(),
+      [propertyName](auto&& prop) { return prop.name == propertyName; });
+  if (property == source_data.property_data.rend()) {
+    return nullptr;
+  }
+  return &*property;
+}
+
+static std::pair<const char*, const char*> GetPropertyNameAndIssueReason(
+    CSSPropertyID invalid_property) {
+  switch (invalid_property) {
+    case CSSPropertyID::kInitialValue:
+      return std::make_pair(
+          "initial-value",
+          protocol::Audits::PropertyRuleIssueReasonEnum::InvalidInitialValue);
+    case CSSPropertyID::kSyntax:
+      return std::make_pair(
+          "syntax",
+          protocol::Audits::PropertyRuleIssueReasonEnum::InvalidSyntax);
+    case CSSPropertyID::kInherits:
+      return std::make_pair(
+          "inherits",
+          protocol::Audits::PropertyRuleIssueReasonEnum::InvalidInherits);
+    default:
+      return std::make_pair(nullptr, nullptr);
+  }
+}
+
+void StyleSheetHandler::ReportPropertyRuleFailure(
+    unsigned start_offset,
+    CSSPropertyID invalid_property) {
+  auto [property_name, issue_reason] =
+      GetPropertyNameAndIssueReason(invalid_property);
+  if (!property_name) {
+    return;
+  }
+
+  // We expect AddNewRuleToSourceTree to have been called
+  DCHECK((current_rule_data_stack_.empty() && !result_->empty()) ||
+         (!current_rule_data_stack_.empty() &&
+          !current_rule_data_stack_.back()->child_rules.empty()));
+  auto source_data = current_rule_data_stack_.empty()
+                         ? result_->back()
+                         : current_rule_data_stack_.back()->child_rules.back();
+
+  CSSPropertySourceData* property_data =
+      GetPropertySourceData(*source_data, property_name);
+  TextPosition start = GetTextPosition(
+      property_data ? property_data->range.start : start_offset);
+  String value = property_data ? property_data->value : String();
+  AuditsIssue::ReportPropertyRuleIssue(
+      document_, issueReportingContext_->DocumentURL, start.line_,
+      start.column_, issue_reason, value);
+}
+
 bool VerifyRuleText(Document* document, const String& rule_text) {
   DEFINE_STATIC_LOCAL(String, bogus_property_name, ("-webkit-boguz-propertee"));
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
@@ -391,6 +621,28 @@ bool VerifyRuleText(Document* document, const String& rule_text) {
 
 bool VerifyStyleText(Document* document, const String& text) {
   return VerifyRuleText(document, "div {" + text + "}");
+}
+
+bool VerifyPropertyNameText(Document* document, const String& name_text) {
+  auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
+      ParserContextForDocument(document));
+  CSSRuleSourceDataList* source_data =
+      MakeGarbageCollected<CSSRuleSourceDataList>();
+  String text =
+      "@property " + name_text + " { syntax: \"*\"; inherits: false; }";
+  StyleSheetHandler handler(text, document, source_data);
+  CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
+                                    style_sheet, text, handler);
+
+  unsigned rule_count = source_data->size();
+  if (rule_count != 1 || source_data->at(0)->type != StyleRule::kProperty)
+    return false;
+
+  const CSSRuleSourceData& property_data = *source_data->at(0);
+  if (property_data.property_data.size() != 2)
+    return false;
+
+  return true;
 }
 
 bool VerifyKeyframeKeyText(Document* document, const String& key_text) {
@@ -617,6 +869,7 @@ void FlattenSourceData(const CSSRuleSourceDataList& data_list,
       case StyleRule::kKeyframe:
       case StyleRule::kFontFeature:
       case StyleRule::kTry:
+      case StyleRule::kViewTransitions:
         result->push_back(data);
         break;
       case StyleRule::kStyle:
@@ -628,6 +881,7 @@ void FlattenSourceData(const CSSRuleSourceDataList& data_list,
       case StyleRule::kLayerBlock:
       case StyleRule::kFontFeatureValues:
       case StyleRule::kPositionFallback:
+      case StyleRule::kProperty:
         result->push_back(data);
         FlattenSourceData(data->child_rules, result);
         break;
@@ -667,6 +921,9 @@ CSSRuleList* AsCSSRuleList(CSSRule* rule) {
     return position_fallback_rule->cssRules();
   }
 
+  if (auto* property_rule = DynamicTo<CSSPropertyRule>(rule))
+    return property_rule->cssRules();
+
   return nullptr;
 }
 
@@ -689,6 +946,7 @@ void CollectFlatRules(RuleList rule_list, CSSRuleVector* result) {
       case CSSRule::kKeyframeRule:
       case CSSRule::kFontFeatureRule:
       case CSSRule::kTryRule:
+      case CSSRule::kViewTransitionsRule:
         result->push_back(rule);
         break;
       case CSSRule::kStyleRule:
@@ -700,6 +958,7 @@ void CollectFlatRules(RuleList rule_list, CSSRuleVector* result) {
       case CSSRule::kLayerBlockRule:
       case CSSRule::kFontFeatureValuesRule:
       case CSSRule::kPositionFallbackRule:
+      case CSSRule::kPropertyRule:
         result->push_back(rule);
         CollectFlatRules(AsCSSRuleList(rule), result);
         break;
@@ -1026,6 +1285,13 @@ const LineEndings* InspectorStyleSheetBase::GetLineEndings() {
   return line_endings_.get();
 }
 
+const LineEndings* StyleSheetHandler::GetLineEndings() {
+  if (line_endings_->size() > 0)
+    return line_endings_.get();
+  line_endings_ = WTF::GetLineEndings(parsed_text_);
+  return line_endings_.get();
+}
+
 void InspectorStyleSheetBase::ResetLineEndings() {
   line_endings_ = std::make_unique<LineEndings>();
 }
@@ -1137,6 +1403,50 @@ CSSStyleRule* InspectorStyleSheet::SetRuleSelector(
   return style_rule;
 }
 
+CSSPropertyRule* InspectorStyleSheet::SetPropertyName(
+    const SourceRange& range,
+    const String& text,
+    SourceRange* new_range,
+    String* old_text,
+    ExceptionState& exception_state) {
+  if (!VerifyPropertyNameText(page_style_sheet_->OwnerDocument(), text)) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
+                                      "Property name text is not valid.");
+    return nullptr;
+  }
+
+  CSSRuleSourceData* source_data = FindRuleByHeaderRange(range);
+  if (!source_data || !source_data->HasProperties()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotFoundError,
+        "Source range didn't match existing source range");
+    return nullptr;
+  }
+
+  CSSRule* rule = RuleForSourceData(source_data);
+  if (!rule || !rule->parentStyleSheet() ||
+      rule->GetType() != CSSRule::kPropertyRule) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotFoundError,
+        "Source range didn't match existing style source range");
+    return nullptr;
+  }
+
+  CSSPropertyRule* property_rule = To<CSSPropertyRule>(rule);
+  if (!property_rule->SetNameText(
+          page_style_sheet_->OwnerDocument()->GetExecutionContext(), text)) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kSyntaxError,
+        "The property name '" + text + "' is invalid and cannot be parsed");
+    return nullptr;
+  }
+
+  ReplaceText(source_data->rule_header_range, text, new_range, old_text);
+  OnStyleSheetTextChanged();
+
+  return property_rule;
+}
+
 CSSKeyframeRule* InspectorStyleSheet::SetKeyframeKey(
     const SourceRange& range,
     const String& text,
@@ -1199,7 +1509,7 @@ CSSRule* InspectorStyleSheet::SetStyleText(const SourceRange& range,
   CSSRule* rule = RuleForSourceData(source_data);
   if (!rule || !rule->parentStyleSheet() ||
       (!IsA<CSSStyleRule>(rule) && !IsA<CSSKeyframeRule>(rule) &&
-       !IsA<CSSTryRule>(rule))) {
+       !IsA<CSSPropertyRule>(rule) && !IsA<CSSTryRule>(rule))) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotFoundError,
         "Source range didn't match existing style source range");
@@ -1209,8 +1519,10 @@ CSSRule* InspectorStyleSheet::SetStyleText(const SourceRange& range,
   CSSStyleDeclaration* style = nullptr;
   if (auto* style_rule = DynamicTo<CSSStyleRule>(rule)) {
     style = style_rule->style();
-  } else if (IsA<CSSTryRule>(rule)) {
-    style = To<CSSTryRule>(rule)->style();
+  } else if (auto* try_rule = DynamicTo<CSSTryRule>(rule)) {
+    style = try_rule->style();
+  } else if (auto* property_rule = DynamicTo<CSSPropertyRule>(rule)) {
+    style = property_rule->Style();
   } else {
     style = To<CSSKeyframeRule>(rule)->style();
   }
@@ -1630,8 +1942,11 @@ void InspectorStyleSheet::ParseText(const String& text) {
       MakeGarbageCollected<CSSRuleSourceDataList>();
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
       page_style_sheet_->Contents()->ParserContext());
-  StyleSheetHandler handler(text, page_style_sheet_->OwnerDocument(),
-                            rule_tree);
+  Document* owner_document = page_style_sheet_->OwnerDocument();
+  StyleSheetHandler handler(text, owner_document, rule_tree,
+                            StyleSheetHandler::IssueReportingContext{
+                                page_style_sheet_->BaseURL(),
+                                page_style_sheet_->StartPositionInSource()});
   CSSParser::ParseSheetForInspector(
       page_style_sheet_->Contents()->ParserContext(), style_sheet, text,
       handler);
@@ -1654,9 +1969,44 @@ void InspectorStyleSheet::ParseText(const String& text) {
 
   source_data_ = MakeGarbageCollected<CSSRuleSourceDataList>();
   FlattenSourceData(*rule_tree, source_data_.Get());
+
   // The number of rules parsed should be equal to the number of source data
   // entries:
   DCHECK_EQ(parsed_flat_rules_.size(), source_data_->size());
+
+  if (owner_document) {
+    const auto* property_registry = owner_document->GetPropertyRegistry();
+
+    if (property_registry) {
+      for (const auto& rule_source_data : *source_data_) {
+        for (auto& property_source_data : rule_source_data->property_data) {
+          if (!property_source_data.name.StartsWith("--") ||
+              !property_source_data.parsed_ok) {
+            continue;
+          }
+
+          // The defaulting keywords are always allowed
+          if (css_parsing_utils::IsCSSWideKeyword(property_source_data.value)) {
+            continue;
+          }
+
+          const auto* registration = property_registry->Registration(
+              AtomicString(property_source_data.name));
+          if (!registration) {
+            continue;
+          }
+          CSSTokenizer tokenizer(property_source_data.value);
+          Vector<CSSParserToken, 32> tokens = tokenizer.TokenizeToEOF();
+          CSSTokenizedValue tokenized_value{CSSParserTokenRange(tokens),
+                                            property_source_data.name};
+          if (!registration->Syntax().Parse(
+                  tokenized_value, *style_sheet->ParserContext(), false)) {
+            property_source_data.parsed_ok = false;
+          }
+        }
+      }
+    }
+  }
 }
 
 // The stylesheet text might be out of sync with `page_style_sheet_` rules.
@@ -1705,14 +2055,15 @@ void InspectorStyleSheet::InnerSetText(const String& text,
 
   if (mark_as_locally_modified) {
     Element* element = OwnerStyleElement();
-    if (element)
+    if (element) {
+      resource_container_->StoreStyleElementContent(element->GetDomNodeId(),
+                                                    text);
+    } else if (origin_ == protocol::CSS::StyleSheetOriginEnum::Inspector) {
       resource_container_->StoreStyleElementContent(
-          DOMNodeIds::IdForNode(element), text);
-    else if (origin_ == protocol::CSS::StyleSheetOriginEnum::Inspector)
-      resource_container_->StoreStyleElementContent(
-          DOMNodeIds::IdForNode(page_style_sheet_->OwnerDocument()), text);
-    else
+          page_style_sheet_->OwnerDocument()->GetDomNodeId(), text);
+    } else {
       resource_container_->StoreStyleSheetContent(FinalURL(), text);
+    }
   }
 }
 
@@ -1808,12 +2159,16 @@ InspectorStyleSheet::BuildObjectForStyleSheetInfo() {
 
 std::unique_ptr<protocol::Array<protocol::CSS::Value>>
 InspectorStyleSheet::SelectorsFromSource(CSSRuleSourceData* source_data,
-                                         const String& sheet_text) {
+                                         const String& sheet_text,
+                                         CSSStyleRule* rule) {
   auto* comment = MakeGarbageCollected<ScriptRegexp>(
       "/\\*[^]*?\\*/", kTextCaseSensitive, MultilineMode::kMultilineEnabled);
   auto result = std::make_unique<protocol::Array<protocol::CSS::Value>>();
   const Vector<SourceRange>& ranges = source_data->selector_ranges;
-  for (wtf_size_t i = 0, size = ranges.size(); i < size; ++i) {
+  const CSSSelector* obj_selector = rule->GetStyleRule()->FirstSelector();
+
+  for (wtf_size_t i = 0, size = ranges.size(); i < size && obj_selector;
+       ++i, obj_selector = CSSSelectorList::Next(*obj_selector)) {
     const SourceRange& range = ranges.at(i);
     String selector = sheet_text.Substring(range.start, range.length());
 
@@ -1829,6 +2184,14 @@ InspectorStyleSheet::SelectorsFromSource(CSSRuleSourceData* source_data,
             .setText(selector.StripWhiteSpace())
             .build();
     simple_selector->setRange(BuildSourceRangeObject(range));
+
+    std::array<uint8_t, 3> specificity_tuple = obj_selector->SpecificityTuple();
+    simple_selector->setSpecificity(protocol::CSS::Specificity::create()
+                                        .setA(specificity_tuple[0])
+                                        .setB(specificity_tuple[1])
+                                        .setC(specificity_tuple[2])
+                                        .build());
+
     result->emplace_back(std::move(simple_selector));
   }
   return result;
@@ -1844,14 +2207,27 @@ InspectorStyleSheet::BuildObjectForSelectorList(CSSStyleRule* rule) {
   String selector_text = rule->selectorText();
 
   if (source_data) {
-    selectors = SelectorsFromSource(source_data, text_);
+    selectors = SelectorsFromSource(source_data, text_, rule);
   } else {
     selectors = std::make_unique<protocol::Array<protocol::CSS::Value>>();
     for (const CSSSelector* selector = rule->GetStyleRule()->FirstSelector();
          selector; selector = CSSSelectorList::Next(*selector)) {
-      selectors->emplace_back(protocol::CSS::Value::create()
-                                  .setText(selector->SelectorText())
-                                  .build());
+      std::array<uint8_t, 3> specificity_tuple = selector->SpecificityTuple();
+
+      std::unique_ptr<protocol::CSS::Specificity> reworked_specificity =
+          protocol::CSS::Specificity::create()
+              .setA(specificity_tuple[0])
+              .setB(specificity_tuple[1])
+              .setC(specificity_tuple[2])
+              .build();
+
+      std::unique_ptr<protocol::CSS::Value> simple_selector =
+          protocol::CSS::Value::create()
+              .setText(selector->SelectorText())
+              .setSpecificity(std::move(reworked_specificity))
+              .build();
+
+      selectors->emplace_back(std::move(simple_selector));
     }
   }
   return protocol::CSS::SelectorList::create()
@@ -1874,18 +2250,6 @@ InspectorStyleSheet::BuildObjectForRuleWithoutAncestorData(CSSStyleRule* rule) {
           .setStyle(BuildObjectForStyle(rule->style()))
           .build();
 
-  auto nesting_selectors = std::make_unique<protocol::Array<String>>();
-  CSSRule* ancestor_rule = rule->parentRule();
-  while (ancestor_rule) {
-    if (auto* style_rule = DynamicTo<CSSStyleRule>(ancestor_rule)) {
-      nesting_selectors->emplace_back(style_rule->selectorText());
-    }
-    ancestor_rule = ancestor_rule->parentRule();
-  }
-  if (nesting_selectors->size() > 0) {
-    result->setNestingSelectors(std::move(nesting_selectors));
-  }
-
   if (CanBind(origin_)) {
     if (!Id().empty())
       result->setStyleSheetId(Id());
@@ -1903,6 +2267,12 @@ InspectorStyleSheet::BuildObjectForRuleUsage(CSSRule* rule, bool was_used) {
 
   SourceRange whole_rule_range(source_data->rule_header_range.start,
                                source_data->rule_body_range.end + 1);
+  auto type = rule->GetType();
+  if (type == CSSRule::kMediaRule || type == CSSRule::kSupportsRule ||
+      type == CSSRule::kScopeRule || type == CSSRule::kContainerRule) {
+    whole_rule_range.end = source_data->rule_header_range.end + 1;
+  }
+
   std::unique_ptr<protocol::CSS::RuleUsage> result =
       protocol::CSS::RuleUsage::create()
           .setStyleSheetId(Id())
@@ -1924,6 +2294,25 @@ InspectorStyleSheet::BuildObjectForTryRule(CSSTryRule* try_rule) {
   if (CanBind(origin_) && !Id().empty()) {
     result->setStyleSheetId(Id());
   }
+  return result;
+}
+
+std::unique_ptr<protocol::CSS::CSSPropertyRule>
+InspectorStyleSheet::BuildObjectForPropertyRule(
+    CSSPropertyRule* property_rule) {
+  std::unique_ptr<protocol::CSS::Value> name_text =
+      protocol::CSS::Value::create().setText(property_rule->name()).build();
+  CSSRuleSourceData* source_data = SourceDataForRule(property_rule);
+  if (source_data)
+    name_text->setRange(BuildSourceRangeObject(source_data->rule_header_range));
+  std::unique_ptr<protocol::CSS::CSSPropertyRule> result =
+      protocol::CSS::CSSPropertyRule::create()
+          .setPropertyName(std::move(name_text))
+          .setOrigin(origin_)
+          .setStyle(BuildObjectForStyle(property_rule->Style()))
+          .build();
+  if (CanBind(origin_) && !Id().empty())
+    result->setStyleSheetId(Id());
   return result;
 }
 
@@ -2307,7 +2696,7 @@ bool InspectorStyleSheet::InlineStyleSheetText(String* out) {
     return result;
 
   result = resource_container_->LoadStyleElementContent(
-      DOMNodeIds::IdForNode(owner_element), out);
+      owner_element->GetDomNodeId(), out);
 
   if (!result) {
     *out = owner_element->textContent();
@@ -2328,8 +2717,9 @@ bool InspectorStyleSheet::InspectorStyleSheetText(String* result) {
   if (!page_style_sheet_->OwnerDocument())
     return false;
   if (resource_container_->LoadStyleElementContent(
-          DOMNodeIds::IdForNode(page_style_sheet_->OwnerDocument()), result))
+          page_style_sheet_->OwnerDocument()->GetDomNodeId(), result)) {
     return true;
+  }
   *result = "";
   return true;
 }
@@ -2359,7 +2749,8 @@ bool InspectorStyleSheetForInlineStyle::SetText(
   {
     InspectorCSSAgent::InlineStyleOverrideScope override_scope(
         element_->GetExecutionContext());
-    element_->setAttribute("style", AtomicString(text), exception_state);
+    element_->setAttribute(html_names::kStyleAttr, AtomicString(text),
+                           exception_state);
   }
   if (!exception_state.HadException())
     OnStyleSheetTextChanged();
@@ -2378,7 +2769,7 @@ InspectorStyle* InspectorStyleSheetForInlineStyle::GetInspectorStyle(
         element_->style(), RuleSourceData(), this);
   }
 
-  return inspector_style_;
+  return inspector_style_.Get();
 }
 
 CSSRuleSourceData* InspectorStyleSheetForInlineStyle::RuleSourceData() {
@@ -2406,7 +2797,7 @@ CSSStyleDeclaration* InspectorStyleSheetForInlineStyle::InlineStyle() {
 }
 
 const String& InspectorStyleSheetForInlineStyle::ElementStyleText() {
-  return element_->getAttribute("style").GetString();
+  return element_->getAttribute(html_names::kStyleAttr).GetString();
 }
 
 void InspectorStyleSheetForInlineStyle::Trace(Visitor* visitor) const {

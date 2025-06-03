@@ -10,6 +10,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/containers/unique_ptr_adapters.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
@@ -214,11 +215,17 @@ class NetworkHandler : public DevToolsDomainHandler,
       bool* disable_cache,
       absl::optional<std::vector<net::SourceStream::SourceType>>*
           accepted_stream_types);
-  void PrefetchRequestWillBeSent(const std::string& request_id,
-                                 const network::ResourceRequest& request,
-                                 const GURL& initiator_url,
-                                 Maybe<std::string> frame_token,
-                                 base::TimeTicks timestamp);
+  void PrefetchRequestWillBeSent(
+      const std::string& request_id,
+      const network::ResourceRequest& request,
+      const GURL& initiator_url,
+      Maybe<std::string> frame_token,
+      base::TimeTicks timestamp,
+      absl::optional<
+          std::pair<const GURL&,
+                    const network::mojom::URLResponseHeadDevToolsInfo&>>
+          redirect_info);
+
   void NavigationRequestWillBeSent(const NavigationRequest& nav_request,
                                    base::TimeTicks timestamp);
   void RequestSent(const std::string& request_id,
@@ -304,10 +311,10 @@ class NetworkHandler : public DevToolsDomainHandler,
 
   // Protocol builders.
   static String BuildPrivateNetworkRequestPolicy(
-      network::mojom::LocalNetworkRequestPolicy policy);
+      network::mojom::PrivateNetworkRequestPolicy policy);
   static protocol::Network::IPAddressSpace BuildIpAddressSpace(
       network::mojom::IPAddressSpace space);
-  static Maybe<protocol::Network::ClientSecurityState>
+  static std::unique_ptr<protocol::Network::ClientSecurityState>
   MaybeBuildClientSecurityState(
       const network::mojom::ClientSecurityStatePtr& state);
   static std::unique_ptr<protocol::Network::CorsErrorStatus>
@@ -339,7 +346,7 @@ class NetworkHandler : public DevToolsDomainHandler,
   DevToolsIOContext* const io_context_;
 
   std::unique_ptr<Network::Frontend> frontend_;
-  BrowserContext* browser_context_;
+  raw_ptr<BrowserContext> browser_context_;
   StoragePartition* storage_partition_;
   RenderFrameHostImpl* host_;
   bool enabled_;

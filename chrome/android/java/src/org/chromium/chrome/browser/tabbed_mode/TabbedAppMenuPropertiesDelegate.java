@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
@@ -25,7 +26,7 @@ import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -55,10 +56,12 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             WebFeedSnackbarController.FeedLauncher feedLauncher,
             ModalDialogManager modalDialogManager, SnackbarManager snackbarManager,
             @NonNull OneshotSupplier<IncognitoReauthController>
-                    incognitoReauthControllerOneshotSupplier) {
+                    incognitoReauthControllerOneshotSupplier,
+            Supplier<ReadAloudController> readAloudControllerSupplier) {
         super(context, activityTabProvider, multiWindowModeStateDispatcher, tabModelSelector,
                 toolbarManager, decorView, layoutStateProvider, startSurfaceSupplier,
-                bookmarkModelSupplier, incognitoReauthControllerOneshotSupplier);
+                bookmarkModelSupplier, incognitoReauthControllerOneshotSupplier,
+                readAloudControllerSupplier);
         mAppMenuDelegate = appMenuDelegate;
         mFeedLauncher = feedLauncher;
         mModalDialogManager = modalDialogManager;
@@ -114,8 +117,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
     @Override
     protected boolean shouldShowManagedByMenuItem(Tab currentTab) {
-        Profile profile = Profile.fromWebContents(currentTab.getWebContents());
-        return profile != null && ManagedBrowserUtils.isBrowserManaged(profile);
+        return ManagedBrowserUtils.isBrowserManaged(currentTab.getProfile());
     }
 
     @Override

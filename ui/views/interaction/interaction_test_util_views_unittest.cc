@@ -119,7 +119,7 @@ class InteractionTestUtilViewsTest
     Widget::InitParams params =
         CreateParams(Widget::InitParams::TYPE_WINDOW_FRAMELESS);
     params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
-    params.bounds = gfx::Rect(0, 0, 650, 650);
+    params.bounds = gfx::Rect(0, 0, 300, 300);
     widget->Init(std::move(params));
     auto* contents = widget->SetContentsView(std::make_unique<View>());
     auto* layout = contents->SetLayoutManager(std::make_unique<FlexLayout>());
@@ -203,10 +203,10 @@ class InteractionTestUtilViewsTest
  protected:
   std::unique_ptr<ui::test::InteractionTestUtil> test_util_;
   std::unique_ptr<Widget> widget_;
-  raw_ptr<View> contents_ = nullptr;
+  raw_ptr<View, DanglingUntriaged> contents_ = nullptr;
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
   std::unique_ptr<MenuRunner> menu_runner_;
-  raw_ptr<MenuItemView> menu_item_ = nullptr;
+  raw_ptr<MenuItemView, DanglingUntriaged> menu_item_ = nullptr;
 };
 
 TEST_P(InteractionTestUtilViewsTest, PressButton) {

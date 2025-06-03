@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.ui.signin;
 
-import android.accounts.Account;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -12,11 +11,9 @@ import android.os.Build;
 import android.provider.Settings;
 import android.text.TextUtils;
 
-import org.chromium.base.CommandLine;
 import org.chromium.base.IntentUtils;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
+import org.chromium.components.signin.AccountUtils;
 
 /**
  * Helper functions for sign-in and accounts.
@@ -30,16 +27,17 @@ public final class SigninUtils {
     /**
      * Opens a Settings page to configure settings for a single account.
      * @param activity Activity to use when starting the Activity.
-     * @param account The account for which the Settings page should be opened.
+     * @param accountEmail The account email for which the Settings page should be opened.
      * @return Whether or not Android accepted the Intent.
      */
-    public static boolean openSettingsForAccount(Activity activity, Account account) {
+    public static boolean openSettingsForAccount(Activity activity, String accountEmail) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // ACCOUNT_SETTINGS_ACTION no longer works on Android O+, always open all accounts page.
             return openSettingsForAllAccounts(activity);
         }
         Intent intent = new Intent(ACCOUNT_SETTINGS_ACTION);
-        intent.putExtra(ACCOUNT_SETTINGS_ACCOUNT_KEY, account);
+        intent.putExtra(
+                ACCOUNT_SETTINGS_ACCOUNT_KEY, AccountUtils.createAccountFromName(accountEmail));
         return IntentUtils.safeStartActivity(activity, intent);
     }
 
@@ -70,12 +68,21 @@ public final class SigninUtils {
         if (!TextUtils.isEmpty(profileData.getFullName())) {
             return context.getString(R.string.sync_promo_continue_as, profileData.getFullName());
         }
-        if (!profileData.hasDisplayableEmailAddress()
-                && (CommandLine.getInstance().hasSwitch(
-                            ChromeSwitches.FORCE_HIDE_NON_DISPLAYABLE_ACCOUNT_EMAIL_FRE)
-                        || ChromeFeatureList.sHideNonDisplayableAccountEmail.isEnabled())) {
+        if (!profileData.hasDisplayableEmailAddress()) {
             return context.getString(R.string.sync_promo_continue);
         }
         return context.getString(R.string.sync_promo_continue_as, profileData.getAccountEmail());
+    }
+
+    /**
+     * Returns the accessibility label for the the account picker.
+     */
+    public static String getChooseAccountLabel(
+            final Context context, DisplayableProfileData profileData) {
+        if (profileData.hasDisplayableEmailAddress()) {
+            return context.getString(R.string.signin_account_picker_description_with_email,
+                    profileData.getAccountEmail());
+        }
+        return context.getString(R.string.signin_account_picker_description);
     }
 }

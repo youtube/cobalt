@@ -53,6 +53,7 @@
 #include "third_party/blink/public/mojom/page/widget.mojom-blink.h"
 #include "third_party/blink/public/mojom/widget/platform_widget.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/public/web/web_frame_owner_properties.h"
@@ -73,6 +74,7 @@ class TickClock;
 }
 
 namespace blink {
+class AgentGroupScheduler;
 class WebFrame;
 class WebLocalFrameImpl;
 struct WebNavigationParams;
@@ -207,12 +209,6 @@ class TestWebFrameWidgetHost : public mojom::blink::WidgetHost,
   void AutoscrollStart(const gfx::PointF& position) override;
   void AutoscrollFling(const gfx::Vector2dF& position) override;
   void AutoscrollEnd() override;
-  void StartDragging(const blink::WebDragData& drag_data,
-                     blink::DragOperationsMask operations_allowed,
-                     const SkBitmap& bitmap,
-                     const gfx::Vector2d& cursor_offset_in_dip,
-                     const gfx::Rect& drag_obj_rect_in_dip,
-                     mojom::blink::DragEventSourceInfoPtr event_info) override;
 
   void BindWidgetHost(
       mojo::PendingAssociatedReceiver<mojom::blink::WidgetHost>,
@@ -396,6 +392,9 @@ class WebViewHelper : public ScopedMockOverlayScrollbars {
           remote_frame_host,
       mojo::PendingAssociatedReceiver<mojom::blink::RemoteFrame> receiver);
 
+  // Creates a new uninitialized WebView.
+  WebViewImpl* CreateWebView(WebViewClient*, bool compositing_enabled);
+
   // Helper for creating a local child frame of a remote parent frame.
   WebLocalFrameImpl* CreateLocalChild(
       WebRemoteFrame& parent,
@@ -465,8 +464,8 @@ class WebViewHelper : public ScopedMockOverlayScrollbars {
         is_for_scalable_page);
   }
 
-  blink::scheduler::WebAgentGroupScheduler& GetAgentGroupScheduler() {
-    return *agent_group_scheduler_;
+  AgentGroupScheduler& GetAgentGroupScheduler() {
+    return agent_group_scheduler_->GetAgentGroupScheduler();
   }
 
  private:
@@ -603,7 +602,8 @@ class TestWidgetInputHandlerHost : public mojom::blink::WidgetInputHandlerHost {
   void ImeCancelComposition() override;
   void ImeCompositionRangeChanged(
       const gfx::Range& range,
-      const WTF::Vector<gfx::Rect>& bounds) override;
+      const absl::optional<WTF::Vector<gfx::Rect>>& character_bounds,
+      const absl::optional<WTF::Vector<gfx::Rect>>& line_bounds) override;
   void SetMouseCapture(bool capture) override;
   void RequestMouseLock(bool from_user_gesture,
                         bool unadjusted_movement,

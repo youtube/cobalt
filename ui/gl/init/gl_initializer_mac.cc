@@ -4,11 +4,11 @@
 
 #include "ui/gl/init/gl_initializer.h"
 
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
 #include "base/native_library.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
@@ -43,8 +43,8 @@ bool InitializeStaticEGLInternalFromLibrary(GLImplementation implementation) {
   // Some unit test targets depend on Angle/SwiftShader but aren't built
   // as app bundles. In that case, the .dylib is next to the executable.
   base::FilePath base_dir;
-  if (base::mac::AmIBundled()) {
-    base_dir = base::mac::FrameworkBundlePath().Append("Libraries");
+  if (base::apple::AmIBundled()) {
+    base_dir = base::apple::FrameworkBundlePath().Append("Libraries");
   } else {
     if (!base::PathService::Get(base::FILE_EXE, &base_dir)) {
       LOG(ERROR) << "PathService::Get failed.";

@@ -9,7 +9,6 @@
         },
         "name": "bar_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
           }
@@ -22,7 +21,6 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
           }

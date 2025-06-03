@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Yn symud i'r cyfeiriad chwith uchaf</translation>
 <translation id="3573890771273113519">Newid i'r modd sganio</translation>
 <translation id="3583444040776960729">Cornel chwith isaf y ddogfen</translation>
+<translation id="3642192109456033823">Yn prosesu fideo…</translation>
 <translation id="3789724198583203151">Cylchdroi 90 gradd yn wrthglocwedd</translation>
 <translation id="3810838688059735925">Fideo</translation>
 <translation id="3892148308691398805">Copïo'r testun</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Seibio recordio</translation>
 <translation id="4121305183798804752">Mae dogfen wedi'i chanfod</translation>
 <translation id="414641094616694804">Ni all y camera hwn newid cydraniad</translation>
+<translation id="4176463684765177261">Mae wedi'i analluogi</translation>
 <translation id="4269820728363426813">Copïo cyfeiriad y ddolen</translation>
-<translation id="4281620174117014503">Cydraniad canolig</translation>
 <translation id="428234092390943511">Mân-lun tudalen</translation>
+<translation id="4349714250734879769">Graddio fframiau gan Chrome</translation>
 <translation id="4383571725254449280">Argraffu logiau perfformiad</translation>
 <translation id="4445542136948522167">Stopio tynnu llun</translation>
 <translation id="4570032796877367747">Camera blaen</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Wrthi'n sganio tudalen <ph name="COUNT" /></translation>
 <translation id="5671277269877808209">Sgwâr</translation>
+<translation id="574392208103952083">Canolig</translation>
 <translation id="5746169159649715125">Cadw fel PDF</translation>
 <translation id="5753488212459587150">Galluogi'r modd arbenigwr</translation>
 <translation id="5759254179196327752">Sganio'r ddogfen</translation>
@@ -148,6 +151,7 @@ Os yw'ch adborth yn ymwneud ag ansawdd lluniau neu fideos, atodwch lun neu fideo
 <translation id="8145038249676204903">Newid i dynnu llun</translation>
 <translation id="8167081290930651932">Cadw fel Llun</translation>
 <translation id="8239780215768881278">Tynnu llun o'r fideo</translation>
+<translation id="8346544573713510785">Graddio fframiau gan Camera HAL</translation>
 <translation id="8425673304802773841">Gogwyddo i lawr</translation>
 <translation id="8428213095426709021">Gosodiadau</translation>
 <translation id="8629662593426079630">360p</translation>

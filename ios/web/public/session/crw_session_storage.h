@@ -8,8 +8,15 @@
 #import <Foundation/Foundation.h>
 
 #include "base/time/time.h"
-#include "components/sessions/core/session_id.h"
 #include "ios/web/common/user_agent.h"
+
+namespace web {
+class WebStateID;
+namespace proto {
+class WebStateMetadataStorage;
+class WebStateStorage;
+}  // namespace proto
+}  // namespace web
 
 @class CRWNavigationItemStorage;
 @class CRWSessionUserData;
@@ -27,9 +34,18 @@
 @property(nonatomic, strong) CRWSessionUserData* userData;
 @property(nonatomic, assign) web::UserAgentType userAgentType;
 @property(nonatomic, copy) NSString* stableIdentifier;
-@property(nonatomic, assign) SessionID uniqueIdentifier;
+@property(nonatomic, assign) web::WebStateID uniqueIdentifier;
 @property(nonatomic, assign) base::Time lastActiveTime;
 @property(nonatomic, assign) base::Time creationTime;
+
+// Convenience initializer that creates an instance from proto representation.
+- (instancetype)initWithProto:(const web::proto::WebStateStorage&)storage;
+
+// Serializes the CRWSessionStorage into `storage`.
+- (void)serializeToProto:(web::proto::WebStateStorage&)storage;
+
+// Serializes the metadata part of the CRWSessionStorage into `metadata`.
+- (void)serializeMetadataToProto:(web::proto::WebStateMetadataStorage&)metadata;
 
 @end
 

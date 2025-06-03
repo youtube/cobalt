@@ -6,12 +6,15 @@
 
 #include <string>
 
+#include "base/containers/contains.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_model/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
+#include "components/autofill/core/browser/webdata/autofill_table.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -285,6 +288,23 @@ TEST(PhoneNumberTest, PhoneCombineHelper) {
   EXPECT_TRUE(number7.SetInfo(AutofillType(PHONE_HOME_NUMBER_SUFFIX), u"5682"));
   EXPECT_TRUE(number7.ParseNumber(AutofillProfile(), kLocale, &parsed_phone));
   EXPECT_EQ(u"(650) 234-5682", parsed_phone);
+}
+
+TEST(PhoneNumberTest, HelperSetsAllPhoneFieldTypes) {
+  AutofillProfile profile;
+  PhoneNumber phone_number(&profile);
+
+  ServerFieldTypeSet types;
+  profile.GetSupportedTypes(&types);
+  std::vector<ServerFieldType> fields{types.begin(), types.end()};
+  base::EraseIf(fields, [](ServerFieldType type) {
+    return GroupTypeOfServerFieldType(type) != FieldTypeGroup::kPhone;
+  });
+
+  base::ranges::for_each(fields, [](ServerFieldType type) {
+    PhoneNumber::PhoneCombineHelper helper;
+    EXPECT_TRUE(helper.SetInfo(AutofillType(type), u"123"));
+  });
 }
 
 TEST(PhoneNumberTest, InternationalPhoneHomeCityAndNumber_US) {

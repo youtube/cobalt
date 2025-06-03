@@ -32,7 +32,6 @@
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
-#include "chrome/browser/ui/omnibox/chrome_omnibox_edit_model_delegate.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_profile.h"
@@ -73,9 +72,7 @@ class TestingOmniboxView;
 
 class TestingOmniboxView : public OmniboxViewViews {
  public:
-  TestingOmniboxView(OmniboxEditModelDelegate* edit_model_delegate,
-                     TestLocationBarModel* location_bar_model,
-                     std::unique_ptr<OmniboxClient> client);
+  explicit TestingOmniboxView(std::unique_ptr<OmniboxClient> client);
   TestingOmniboxView(const TestingOmniboxView&) = delete;
   TestingOmniboxView& operator=(const TestingOmniboxView&) = delete;
 
@@ -152,15 +149,8 @@ class TestingOmniboxView : public OmniboxViewViews {
   bool base_text_emphasis_;
 };
 
-TestingOmniboxView::TestingOmniboxView(
-    OmniboxEditModelDelegate* edit_model_delegate,
-    TestLocationBarModel* location_bar_model,
-    std::unique_ptr<OmniboxClient> client)
-    : OmniboxViewViews(edit_model_delegate,
-                       std::move(client),
-                       false,
-                       nullptr,
-                       gfx::FontList()) {}
+TestingOmniboxView::TestingOmniboxView(std::unique_ptr<OmniboxClient> client)
+    : OmniboxViewViews(std::move(client), false, nullptr, gfx::FontList()) {}
 
 void TestingOmniboxView::ResetEmphasisTestState() {
   base_text_emphasis_ = false;
@@ -252,40 +242,40 @@ void TestingOmniboxView::ApplyStyle(gfx::TextStyle style,
   OmniboxViewViews::ApplyStyle(style, value, range);
 }
 
-// TestingOmniboxEditModelDelegate ---------------------------------------------
+// TestLocationBar -------------------------------------------------------------
 
-class TestingOmniboxEditModelDelegate : public ChromeOmniboxEditModelDelegate {
+class TestLocationBar : public LocationBar {
  public:
-  TestingOmniboxEditModelDelegate(Browser* browser,
-                                  Profile* profile,
-                                  CommandUpdater* command_updater,
-                                  LocationBarModel* location_bar_model)
-      : ChromeOmniboxEditModelDelegate(browser, profile, command_updater),
-        location_bar_model_(location_bar_model) {}
-  TestingOmniboxEditModelDelegate(const TestingOmniboxEditModelDelegate&) =
-      delete;
-  TestingOmniboxEditModelDelegate& operator=(
-      const TestingOmniboxEditModelDelegate&) = delete;
+  TestLocationBar(CommandUpdater* command_updater,
+                  LocationBarModel* location_bar_model)
+      : LocationBar(command_updater), location_bar_model_(location_bar_model) {}
+  TestLocationBar(const TestLocationBar&) = delete;
+  TestLocationBar& operator=(const TestLocationBar&) = delete;
+  ~TestLocationBar() override = default;
 
   void set_omnibox_view(OmniboxViewViews* view) { omnibox_view_ = view; }
 
- private:
-  // ChromeOmniboxEditModelDelegate:
+  // LocationBar:
+  void FocusLocation(bool select_all) override {}
+  void FocusSearch() override {}
+  void UpdateContentSettingsIcons() override {}
+  void SaveStateToContents(content::WebContents* contents) override {}
+  void Revert() override {}
+  const OmniboxView* GetOmniboxView() const override { return nullptr; }
+  OmniboxView* GetOmniboxView() override { return nullptr; }
+  LocationBarTesting* GetLocationBarForTesting() override { return nullptr; }
   LocationBarModel* GetLocationBarModel() override {
     return location_bar_model_;
   }
-  const LocationBarModel* GetLocationBarModel() const override {
-    return location_bar_model_;
-  }
+  content::WebContents* GetWebContents() override { return nullptr; }
   void OnChanged() override {}
   void OnPopupVisibilityChanged() override {}
-
-  content::WebContents* GetWebContents() override { return nullptr; }
   void UpdateWithoutTabRestore() override {
     // This is a minimal amount of what LocationBarView does. Not all tests
     // set |omnibox_view_|.
-    if (omnibox_view_)
+    if (omnibox_view_) {
       omnibox_view_->Update();
+    }
   }
 
   raw_ptr<LocationBarModel> location_bar_model_;
@@ -333,15 +323,17 @@ class OmniboxViewViewsTest : public OmniboxViewViewsTestBase {
   views::Textfield* omnibox_textfield() const { return omnibox_view(); }
   views::View* omnibox_textfield_view() const { return omnibox_view(); }
 
-  views::TextfieldTestApi* textfield_test_api() { return test_api_.get(); }
+  views::TextfieldTestApi GetTextfieldTestApi() {
+    return views::TextfieldTestApi(omnibox_view());
+  }
 
   // Sets |new_text| as the omnibox text, and emphasizes it appropriately.  If
   // |accept_input| is true, pretends that the user has accepted this input
   // (i.e. it's been navigated to).
   void SetAndEmphasizeText(const std::string& new_text, bool accept_input);
 
-  bool IsCursorEnabled() const {
-    return test_api_->GetRenderText()->cursor_enabled();
+  bool IsCursorEnabled() {
+    return GetTextfieldTestApi().GetRenderText()->cursor_enabled();
   }
 
   ui::MouseEvent CreateMouseEvent(ui::EventType type,
@@ -354,9 +346,7 @@ class OmniboxViewViewsTest : public OmniboxViewViewsTestBase {
  protected:
   Browser* browser() { return browser_.get(); }
   Profile* profile() { return profile_.get(); }
-  TestingOmniboxEditModelDelegate* edit_model_delegate() {
-    return &omnibox_edit_model_delegate_;
-  }
+  TestLocationBar* location_bar() { return &location_bar_; }
 
   // Updates the models' URL and display text to |new_url|.
   void UpdateDisplayURL(base::StringPiece16 new_url) {
@@ -383,15 +373,13 @@ class OmniboxViewViewsTest : public OmniboxViewViewsTestBase {
   std::unique_ptr<TemplateURLServiceFactoryTestUtil> util_;
   CommandUpdaterImpl command_updater_;
   TestLocationBarModel location_bar_model_;
-  TestingOmniboxEditModelDelegate omnibox_edit_model_delegate_;
+  TestLocationBar location_bar_;
   content::RenderViewHostTestEnabler rvh_test_enabler_;
 
   std::unique_ptr<views::Widget> widget_;
 
   // Owned by |widget_|.
-  raw_ptr<TestingOmniboxView> omnibox_view_;
-
-  std::unique_ptr<views::TextfieldTestApi> test_api_;
+  raw_ptr<TestingOmniboxView> omnibox_view_ = nullptr;
 };
 
 OmniboxViewViewsTest::OmniboxViewViewsTest(
@@ -402,10 +390,7 @@ OmniboxViewViewsTest::OmniboxViewViewsTest(
                                disabled_features,
                                is_rtl_ui_test),
       command_updater_(nullptr),
-      omnibox_edit_model_delegate_(browser(),
-                                   profile(),
-                                   &command_updater_,
-                                   &location_bar_model_) {}
+      location_bar_(&command_updater_, &location_bar_model_) {}
 
 void OmniboxViewViewsTest::SetAndEmphasizeText(const std::string& new_text,
                                                bool accept_input) {
@@ -446,10 +431,8 @@ void OmniboxViewViewsTest::SetUp() {
       profile_.get(),
       base::BindRepeating(&AutocompleteClassifierFactory::BuildInstanceFor));
   auto omnibox_view = std::make_unique<TestingOmniboxView>(
-      &omnibox_edit_model_delegate_, location_bar_model(),
-      std::make_unique<ChromeOmniboxClient>(&omnibox_edit_model_delegate_,
-                                            profile_.get()));
-  test_api_ = std::make_unique<views::TextfieldTestApi>(omnibox_view.get());
+      std::make_unique<ChromeOmniboxClient>(&location_bar_, browser(),
+                                            profile()));
   omnibox_view->Init();
 
   omnibox_view_ = widget_->SetContentsView(std::move(omnibox_view));
@@ -460,6 +443,8 @@ void OmniboxViewViewsTest::TearDown() {
   if (omnibox_view_->GetInputMethod())
     omnibox_view_->GetInputMethod()->DetachTextInputClient(omnibox_view_);
 
+  location_bar()->set_omnibox_view(nullptr);
+  omnibox_view_ = nullptr;
   browser_->tab_strip_model()->CloseAllTabs();
   browser_ = nullptr;
   browser_window_ = nullptr;
@@ -511,12 +496,12 @@ TEST_F(OmniboxViewViewsTest, ScheduledTextEditCommand) {
   omnibox_textfield()->SetTextEditCommandForNextKeyEvent(
       ui::TextEditCommand::MOVE_UP);
   EXPECT_EQ(ui::TextEditCommand::MOVE_UP,
-            textfield_test_api()->scheduled_text_edit_command());
+            GetTextfieldTestApi().scheduled_text_edit_command());
 
   ui::KeyEvent up_pressed(ui::ET_KEY_PRESSED, ui::VKEY_UP, 0);
   omnibox_textfield()->OnKeyEvent(&up_pressed);
   EXPECT_EQ(ui::TextEditCommand::INVALID_COMMAND,
-            textfield_test_api()->scheduled_text_edit_command());
+            GetTextfieldTestApi().scheduled_text_edit_command());
 }
 
 // Test that Shift+Up and Shift+Down are not captured and let selection mode
@@ -830,7 +815,7 @@ TEST_F(OmniboxViewViewsTest, SelectAllCommand) {
 // Verifies |OmniboxEditModel::State::needs_revert_and_select_all|, and verifies
 // a recent regression in this logic (see https://crbug.com/923290).
 TEST_F(OmniboxViewViewsTest, SelectAllOnReactivateTabAfterDeleteAll) {
-  edit_model_delegate()->set_omnibox_view(omnibox_view());
+  location_bar()->set_omnibox_view(omnibox_view());
 
   auto web_contents1 =
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
@@ -997,7 +982,7 @@ TEST_P(OmniboxViewViewsClipboardTest, ClipboardCopyOrCutURL) {
 
   clipboard->Clear(clipboard_buffer);
   ui::TextEditCommand clipboard_command = GetParam();
-  textfield_test_api()->ExecuteTextEditCommand(clipboard_command);
+  GetTextfieldTestApi().ExecuteTextEditCommand(clipboard_command);
 
   std::u16string expected_text;
   if (clipboard_command == ui::TextEditCommand::COPY)
@@ -1037,7 +1022,7 @@ TEST_P(OmniboxViewViewsClipboardTest, ClipboardCopyOrCutUserText) {
 
   clipboard->Clear(clipboard_buffer);
   ui::TextEditCommand clipboard_command = GetParam();
-  textfield_test_api()->ExecuteTextEditCommand(clipboard_command);
+  GetTextfieldTestApi().ExecuteTextEditCommand(clipboard_command);
 
   if (clipboard_command == ui::TextEditCommand::CUT)
     EXPECT_EQ(std::u16string(), omnibox_view()->GetText());

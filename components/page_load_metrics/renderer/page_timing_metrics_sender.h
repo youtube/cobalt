@@ -9,6 +9,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
+#include "components/page_load_metrics/common/page_load_metrics.mojom-forward.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
 #include "components/page_load_metrics/renderer/page_resource_data_use.h"
 #include "components/page_load_metrics/renderer/page_timing_metadata_recorder.h"
@@ -25,9 +26,17 @@ namespace base {
 class OneShotTimer;
 }  // namespace base
 
+namespace blink {
+struct JavaScriptFrameworkDetectionResult;
+}  // namespace blink
+
 namespace network {
 struct URLLoaderCompletionStatus;
 }  // namespace network
+
+namespace blink {
+struct SoftNavigationMetrics;
+}  // namespace blink
 
 namespace page_load_metrics {
 
@@ -51,10 +60,12 @@ class PageTimingMetricsSender {
   ~PageTimingMetricsSender();
 
   void DidObserveLoadingBehavior(blink::LoadingBehaviorFlag behavior);
+  void DidObserveJavaScriptFrameworks(
+      const blink::JavaScriptFrameworkDetectionResult&);
   void DidObserveSubresourceLoad(
       const blink::SubresourceLoadMetrics& subresource_load_metrics);
   void DidObserveNewFeatureUsage(const blink::UseCounterFeature& feature);
-  void DidObserveSoftNavigation(uint32_t count);
+  void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics);
   void DidObserveLayoutShift(double score, bool after_input_or_scroll);
 
   void DidStartResponse(const url::SchemeHostPort& final_response_url,
@@ -76,8 +87,8 @@ class PageTimingMetricsSender {
   void OnMainFrameImageAdRectangleChanged(int element_id,
                                           const gfx::Rect& image_ad_rect);
 
-  void DidObserveInputDelay(base::TimeDelta input_delay);
-  void DidObserveUserInteraction(base::TimeDelta max_event_duration,
+  void DidObserveUserInteraction(base::TimeTicks max_event_start,
+                                 base::TimeTicks max_event_end,
                                  blink::UserInteractionType interaction_type);
   // Updates the timing information. Buffers |timing| to be sent over mojo
   // sometime 'soon'.
@@ -97,6 +108,12 @@ class PageTimingMetricsSender {
                               bool completed_before_fcp);
   void SetUpSmoothnessReporting(base::ReadOnlySharedMemoryRegion shared_memory);
   void InitiateUserInteractionTiming();
+  mojom::SoftNavigationMetricsPtr GetSoftNavigationMetrics() {
+    return soft_navigation_metrics_->Clone();
+  }
+
+  void UpdateSoftNavigationMetrics(
+      mojom::SoftNavigationMetricsPtr soft_navigation_metrics);
 
  protected:
   base::OneShotTimer* timer() const { return timer_.get(); }
@@ -123,7 +140,7 @@ class PageTimingMetricsSender {
 
   blink::UseCounterFeatureTracker feature_tracker_;
 
-  uint32_t soft_navigation_count_ = 0;
+  mojom::SoftNavigationMetricsPtr soft_navigation_metrics_;
 
   bool have_sent_ipc_ = false;
 

@@ -5,14 +5,10 @@
 #import <UIKit/UIKit.h>
 
 #import "base/check.h"
-#import "ios/chrome/browser/ui/content_suggestions/content_suggestions_feature.h"
+#import "ios/chrome/browser/ntp/home/features.h"
 #import "ios/chrome/browser/ui/content_suggestions/ntp_home_constant.h"
 #import "ios/chrome/browser/ui/ntp/feed_wrapper_view_controller.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @implementation FeedWrapperViewController {
   __weak id<FeedWrapperViewControllerDelegate> _delegate;
@@ -78,7 +74,7 @@
   [self.view addSubview:feedView];
   [self.feedViewController didMoveToParentViewController:self];
   feedView.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(feedView, self.view);
+  AddSameConstraints(feedView, self.view.safeAreaLayoutGuide);
 }
 
 // If the feed is not visible, we prepare the empty collection view to be used
@@ -91,9 +87,11 @@
   [emptyCollectionView setShowsVerticalScrollIndicator:NO];
   [self.view addSubview:emptyCollectionView];
   self.contentCollectionView = emptyCollectionView;
-  self.contentCollectionView.backgroundColor = ntp_home::NTPBackgroundColor();
+  self.contentCollectionView.backgroundColor =
+      IsMagicStackEnabled() ? [UIColor clearColor]
+                            : ntp_home::NTPBackgroundColor();
   self.contentCollectionView.translatesAutoresizingMaskIntoConstraints = NO;
-  AddSameConstraints(self.contentCollectionView, self.view);
+  AddSameConstraints(self.contentCollectionView, self.view.safeAreaLayoutGuide);
 }
 
 @end

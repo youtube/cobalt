@@ -184,7 +184,7 @@ const GpuFeatureData GetGpuFeatureData(
 #if BUILDFLAG(ENABLE_VULKAN)
     {"vulkan",
      SafeGetFeatureStatus(gpu_feature_info, gpu::GPU_FEATURE_TYPE_VULKAN),
-     !features::IsUsingVulkan() &&
+     !::features::IsUsingVulkan() &&
          !command_line.HasSwitch(switches::kUseVulkan) /* disabled */,
      DisableInfo::NotProblem(), false /* fallback_to_software */},
 #endif
@@ -208,25 +208,24 @@ const GpuFeatureData GetGpuFeatureData(
      DisableInfo::Problem(
          "WebGL2 has been disabled via blocklist or the command line."),
      false},
-    {"raw_draw", gpu::kGpuFeatureStatusEnabled, !features::IsUsingRawDraw(),
+    {"raw_draw", gpu::kGpuFeatureStatusEnabled, !::features::IsUsingRawDraw(),
      DisableInfo::NotProblem(), false},
     {"direct_rendering_display_compositor", gpu::kGpuFeatureStatusEnabled,
-     !features::IsDrDcEnabled(), DisableInfo::NotProblem(), false},
+     !::features::IsDrDcEnabled(), DisableInfo::NotProblem(), false},
     {"webgpu",
      SafeGetFeatureStatus(gpu_feature_info,
                           gpu::GPU_FEATURE_TYPE_ACCELERATED_WEBGPU),
      !command_line.HasSwitch(switches::kEnableUnsafeWebGPU) &&
-         !base::FeatureList::IsEnabled(features::kWebGPUService),
+         !base::FeatureList::IsEnabled(::features::kWebGPUService),
      DisableInfo::Problem(
          "WebGPU has been disabled via blocklist or the command line."),
      false},
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
     {"skia_graphite",
      SafeGetFeatureStatus(gpu_feature_info,
                           gpu::GPU_FEATURE_TYPE_SKIA_GRAPHITE),
-     !base::FeatureList::IsEnabled(features::kSkiaGraphite),
+     !base::FeatureList::IsEnabled(features::kSkiaGraphite) &&
+         !command_line.HasSwitch(switches::kEnableSkiaGraphite),
      DisableInfo::NotProblem(), false},
-#endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE)
   };
   DCHECK(index < std::size(kGpuFeatureData));
   *eof = (index == std::size(kGpuFeatureData) - 1);
@@ -455,8 +454,9 @@ bool IsZeroCopyUploadEnabled() {
 
 bool IsPartialRasterEnabled() {
   // Partial raster is not supported with RawDraw.
-  if (features::IsUsingRawDraw())
+  if (features::IsUsingRawDraw()) {
     return false;
+  }
   const auto& command_line = *base::CommandLine::ForCurrentProcess();
   return !command_line.HasSwitch(blink::switches::kDisablePartialRaster);
 }

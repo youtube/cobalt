@@ -67,7 +67,7 @@ void CertDbInitializerImpl::Start() {
     return InitializeReadOnlyCertDb();
   }
 
-  if (lacros_service->GetInterfaceVersion(CrosapiCertDb::Uuid_) >=
+  if (lacros_service->GetInterfaceVersion<CrosapiCertDb>() >=
       kAddAshCertDatabaseObserverMinVersion) {
     lacros_service->GetRemote<CrosapiCertDb>()->AddAshCertDatabaseObserver(
         receiver_.BindNewPipeAndPassRemote());
@@ -165,7 +165,19 @@ CertDbInitializerImpl::CreateNssCertDatabaseGetterForIOThread() {
                         base::Unretained(cert_db_initializer_io_.get()));
 }
 
-void CertDbInitializerImpl::OnCertsChangedInAsh() {
+void CertDbInitializerImpl::OnCertsChangedInAsh(
+    crosapi::mojom::CertDatabaseChangeType change_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  net::CertDatabase::GetInstance()->NotifyObserversCertDBChanged();
+  switch (change_type) {
+    case crosapi::mojom::CertDatabaseChangeType::kUnknown:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+    case crosapi::mojom::CertDatabaseChangeType::kTrustStore:
+      net::CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+      break;
+    case crosapi::mojom::CertDatabaseChangeType::kClientCertStore:
+      net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
+      break;
+  }
 }

@@ -19,6 +19,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -30,8 +31,8 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_thread.h"
@@ -164,10 +165,12 @@ void NaClDomHandler::OnJavascriptDisallowed() {
 void AddPair(base::Value::List* list,
              const std::u16string& key,
              const std::u16string& value) {
-  base::Value::Dict results;
-  results.Set("key", key);
-  results.Set("value", value);
-  list->Append(std::move(results));
+  // clang-format off
+  list->Append(
+      base::Value::Dict()
+          .Set("key", key)
+          .Set("value", value));
+  // clang-format on
 }
 
 // Generate an empty data-pair which acts as a line break.
@@ -187,15 +190,16 @@ bool NaClDomHandler::isPluginEnabled(size_t plugin_index) {
 
 void NaClDomHandler::AddOperatingSystemInfo(base::Value::List* list) {
   // Obtain the Chrome version info.
-  AddPair(list, l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
-          ASCIIToUTF16(
-              version_info::GetVersionNumber() + " (" +
-              chrome::GetChannelName(chrome::WithExtendedStable(true)) + ")"));
+  AddPair(
+      list, l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
+      ASCIIToUTF16(base::StrCat(
+          {version_info::GetVersionNumber(), " (",
+           chrome::GetChannelName(chrome::WithExtendedStable(true)), ")"})));
 
   // OS version information.
   // TODO(jvoung): refactor this to share the extra windows labeling
   // with about:flash, or something.
-  std::string os_label = version_info::GetOSType();
+  std::string os_label(version_info::GetOSType());
 #if BUILDFLAG(IS_WIN)
   base::win::OSInfo* os = base::win::OSInfo::GetInstance();
   switch (os->version()) {
@@ -330,9 +334,7 @@ base::Value::Dict NaClDomHandler::GetPageInformation() {
   // Display information relevant to NaCl (non-portable.
   AddNaClInfo(&list);
   // naclInfo will take ownership of list, and clean it up on destruction.
-  base::Value::Dict dict;
-  dict.Set("naclInfo", std::move(list));
-  return dict;
+  return base::Value::Dict().Set("naclInfo", std::move(list));
 }
 
 void NaClDomHandler::DidCheckPathAndVersion(const std::string* version,

@@ -27,9 +27,9 @@
 #include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/profile_picker.h"
-#include "chrome/browser/ui/profile_ui_test_utils.h"
-#include "chrome/browser/ui/signin/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
 #include "chrome/browser/ui/startup/first_run_test_util.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -294,24 +294,15 @@ IN_PROC_BROWSER_TEST_F(FirstRunServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(FirstRunServiceBrowserTest,
-                       FinishedSilentlyDeviceEphemeralUsersEnabled) {
+                       FinishedSilentlyIsCurrentUserEphemeral) {
   signin::IdentityManager* identity_manager =
       identity_test_env()->identity_manager();
   base::HistogramTester histogram_tester;
 
-  // The `DeviceEphemeralUsersEnabled` is read through DeviceSettings provided
-  // on startup.
+  // Setup the ephemeral for Lacros.
   auto init_params = chromeos::BrowserInitParams::GetForTests()->Clone();
-  init_params->device_settings->device_ephemeral_users_enabled =
-      crosapi::mojom::DeviceSettings::OptionalBool::kTrue;
-  auto device_settings = init_params->device_settings.Clone();
-
+  init_params->is_current_user_ephemeral = true;
   chromeos::BrowserInitParams::SetInitParamsForTests(std::move(init_params));
-  // TODO(crbug.com/1330310): Ideally this should be done as part of
-  // `SetInitParamsForTests()`.
-  g_browser_process->browser_policy_connector()
-      ->device_settings_lacros()
-      ->UpdateDeviceSettings(std::move(device_settings));
 
   ASSERT_TRUE(profile()->IsMainProfile());
   EXPECT_TRUE(ShouldOpenFirstRun(profile()));

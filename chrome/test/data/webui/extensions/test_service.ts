@@ -32,6 +32,8 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'deleteActivitiesFromExtension',
       'deleteErrors',
       'deleteItem',
+      'deleteItems',
+      'uninstallItem',
       'downloadActivities',
       'getExtensionActivityLog',
       'getExtensionsInfo',
@@ -61,6 +63,8 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'setItemCollectsErrors',
       'setItemEnabled',
       'setItemHostAccess',
+      'setItemPinnedToToolbar',
+      'setItemSafetyCheckWarningAcknowledged',
       'setProfileInDevMode',
       'setShortcutHandlingSuspended',
       'setShowAccessRequestsInToolbar',
@@ -152,6 +156,11 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('setItemAllowedOnFileUrls', [id, isAllowedOnFileUrls]);
   }
 
+
+  setItemSafetyCheckWarningAcknowledged(id: string) {
+    this.methodCalled('setItemSafetyCheckWarningAcknowledged', id);
+  }
+
   setItemEnabled(id: string, isEnabled: boolean) {
     this.methodCalled('setItemEnabled', [id, isEnabled]);
   }
@@ -162,6 +171,10 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
 
   setItemHostAccess(id: string, access: chrome.developerPrivate.HostAccess) {
     this.methodCalled('setItemHostAccess', [id, access]);
+  }
+
+  setItemPinnedToToolbar(id: string, pinnedToToolbar: boolean) {
+    this.methodCalled('setItemPinnedToToolbar', [id, pinnedToToolbar]);
   }
 
   setShortcutHandlingSuspended(enable: boolean) {
@@ -303,6 +316,16 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
 
   deleteItem(id: string) {
     this.methodCalled('deleteItem', id);
+  }
+
+  deleteItems(ids: string[]) {
+    this.methodCalled('deleteItems', ids);
+    return Promise.resolve();
+  }
+
+  uninstallItem(id: string) {
+    this.methodCalled('uninstallItem', id);
+    return Promise.resolve();
   }
 
   getOnExtensionActivity() {

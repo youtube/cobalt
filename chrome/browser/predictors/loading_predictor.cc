@@ -7,14 +7,17 @@
 #include <algorithm>
 #include <vector>
 
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
+#include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 #include "chrome/browser/predictors/loading_data_collector.h"
 #include "chrome/browser/predictors/loading_stats_collector.h"
 #include "chrome/browser/predictors/predictors_features.h"
 #include "chrome/browser/predictors/resource_prefetch_predictor.h"
 #include "content/public/browser/browser_thread.h"
 #include "net/base/network_anonymization_key.h"
+#include "services/network/public/cpp/request_destination.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -121,27 +124,57 @@ bool LoadingPredictor::PrepareForPageLoad(
     return true;
   }
 
-  PreconnectPrediction prediction;
-  bool has_local_preconnect_prediction = false;
-  if (features::ShouldUseLocalPredictions()) {
-    has_local_preconnect_prediction =
-        resource_prefetch_predictor_->PredictPreconnectOrigins(url,
-                                                               &prediction);
-  }
-  if (active_hints_.find(url) != active_hints_.end() &&
-      has_local_preconnect_prediction && !preconnect_prediction) {
-    // We are currently preconnecting using the local preconnect prediction. Do
-    // not proceed further.
+  if (origin == HintOrigin::BOOKMARK_BAR) {
+    // Bookmark hints are lightweight and need a special treatment.
+    HandleBookmarkBarHint(url, preconnectable);
     return true;
   }
 
-  if (preconnect_prediction) {
-    // Overwrite the prediction if we were provided with a non-empty one.
+  PreconnectPrediction prediction;
+  bool has_local_preconnect_prediction = false;
+  if (origin == HintOrigin::OPTIMIZATION_GUIDE) {
+    CHECK(preconnect_prediction);
     prediction = *preconnect_prediction;
   } else {
+    CHECK(!preconnect_prediction);
+    if (features::ShouldUseLocalPredictions()) {
+      has_local_preconnect_prediction =
+          resource_prefetch_predictor_->PredictPreconnectOrigins(url,
+                                                                 &prediction);
+    }
+    if (active_hints_.find(url) != active_hints_.end() &&
+        has_local_preconnect_prediction) {
+      // We are currently preconnecting using the local preconnect prediction.
+      // Do not proceed further.
+      return true;
+    }
     // Try to preconnect to the |url| even if the predictor has no
     // prediction.
     AddInitialUrlToPreconnectPrediction(url, &prediction);
+  }
+
+  // LCPP: set fonts to be prefetched to prefetch_requests.
+  // TODO(crbug.com/1493768): make prefetch work for platforms without the
+  // optimization guide.
+  if (base::FeatureList::IsEnabled(blink::features::kLCPPFontURLPredictor) &&
+      base::FeatureList::IsEnabled(features::kLoadingPredictorPrefetch) &&
+      features::kLoadingPredictorPrefetchSubresourceType.Get() ==
+          features::PrefetchSubresourceType::kAll) {
+    absl::optional<LcppData> lcpp_data =
+        resource_prefetch_predictor()->GetLcppData(url);
+    if (lcpp_data) {
+      auto network_anonymization_key =
+          net::NetworkAnonymizationKey::CreateSameSite(
+              net::SchemefulSite(url::Origin::Create(url)));
+      size_t count = 0;
+      for (const GURL& font_url : PredictFetchedFontUrls(*lcpp_data)) {
+        prediction.prefetch_requests.emplace_back(
+            font_url, network_anonymization_key,
+            network::mojom::RequestDestination::kFont);
+        ++count;
+      }
+      base::UmaHistogramCounts1000("Blink.LCPP.PrefetchFontCount", count);
+    }
   }
 
   // Return early if we do not have any requests.
@@ -151,7 +184,7 @@ bool LoadingPredictor::PrepareForPageLoad(
   ++total_hints_activated_;
   active_hints_.emplace(url, base::TimeTicks::Now());
   if (IsPreconnectAllowed(profile_))
-    MaybeAddPreconnect(url, std::move(prediction), origin);
+    MaybeAddPreconnect(url, std::move(prediction));
   return has_local_preconnect_prediction || preconnect_prediction;
 }
 
@@ -178,8 +211,9 @@ ResourcePrefetchPredictor* LoadingPredictor::resource_prefetch_predictor() {
 }
 
 PreconnectManager* LoadingPredictor::preconnect_manager() {
-  if (shutdown_ || !IsPreconnectFeatureEnabled())
+  if (shutdown_) {
     return nullptr;
+  }
 
   if (!preconnect_manager_) {
     preconnect_manager_ =
@@ -193,8 +227,9 @@ PrefetchManager* LoadingPredictor::prefetch_manager() {
   if (!base::FeatureList::IsEnabled(features::kLoadingPredictorPrefetch))
     return nullptr;
 
-  if (shutdown_ || !IsPreconnectFeatureEnabled())
+  if (shutdown_) {
     return nullptr;
+  }
 
   if (!prefetch_manager_) {
     prefetch_manager_ =
@@ -288,8 +323,7 @@ void LoadingPredictor::CleanupAbandonedHintsAndNavigations(
 }
 
 void LoadingPredictor::MaybeAddPreconnect(const GURL& url,
-                                          PreconnectPrediction prediction,
-                                          HintOrigin origin) {
+                                          PreconnectPrediction prediction) {
   DCHECK(!shutdown_);
   if (!prediction.prefetch_requests.empty()) {
     DCHECK(base::FeatureList::IsEnabled(features::kLoadingPredictorPrefetch));
@@ -338,6 +372,36 @@ void LoadingPredictor::HandleOmniboxHint(const GURL& url, bool preconnectable) {
   if (is_new_origin || now - last_omnibox_preresolve_time_ >=
                            kMinDelayBetweenPreresolveRequests) {
     last_omnibox_preresolve_time_ = now;
+    preconnect_manager()->StartPreresolveHost(url, network_anonymization_key);
+  }
+}
+
+void LoadingPredictor::HandleBookmarkBarHint(const GURL& url,
+                                             bool preconnectable) {
+  if (!url.is_valid() || !url.has_host() || !IsPreconnectAllowed(profile_)) {
+    return;
+  }
+
+  url::Origin origin = url::Origin::Create(url);
+  bool is_new_origin = origin != last_bookmark_bar_origin_;
+  last_bookmark_bar_origin_ = origin;
+  net::SchemefulSite site = net::SchemefulSite(origin);
+  auto network_anonymization_key =
+      net::NetworkAnonymizationKey::CreateSameSite(site);
+  base::TimeTicks now = base::TimeTicks::Now();
+  if (preconnectable && url.SchemeIs("https")) {
+    if (is_new_origin || now - last_bookmark_bar_preconnect_time_ >=
+                             kMinDelayBetweenPreconnectRequests) {
+      last_bookmark_bar_preconnect_time_ = now;
+      preconnect_manager()->StartPreconnectUrl(url, true,
+                                               network_anonymization_key);
+    }
+    return;
+  }
+
+  if (is_new_origin || now - last_bookmark_bar_preresolve_time_ >=
+                           kMinDelayBetweenPreresolveRequests) {
+    last_bookmark_bar_preresolve_time_ = now;
     preconnect_manager()->StartPreresolveHost(url, network_anonymization_key);
   }
 }

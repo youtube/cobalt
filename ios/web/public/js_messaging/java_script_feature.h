@@ -12,12 +12,12 @@
 
 #import "base/functional/callback.h"
 #import "base/memory/weak_ptr.h"
+#import "base/values.h"
 #import "ios/web/public/js_messaging/content_world.h"
 #import "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class TimeDelta;
-class Value;
 }  // namespace base
 
 namespace web {
@@ -93,6 +93,19 @@ class JavaScriptFeature {
         const PlaceholderReplacementsCallback& replacements_callback =
             PlaceholderReplacementsCallback());
 
+    // Creates a FeatureScript with the string `script` to be injected at
+    // `injection_time` into `target_frames` using `reinjection_behavior`. If
+    // `replacements` is provided, it will be used to replace placeholder with
+    // the corresponding string values.
+    static FeatureScript CreateWithString(
+        const std::string& script,
+        InjectionTime injection_time,
+        TargetFrames target_frames,
+        ReinjectionBehavior reinjection_behavior =
+            ReinjectionBehavior::kInjectOncePerWindow,
+        const PlaceholderReplacementsCallback& replacements_callback =
+            PlaceholderReplacementsCallback());
+
     FeatureScript(const FeatureScript& other);
     FeatureScript& operator=(const FeatureScript&);
 
@@ -108,7 +121,9 @@ class JavaScriptFeature {
     ~FeatureScript();
 
    private:
-    FeatureScript(const std::string& filename,
+    FeatureScript(absl::optional<std::string> filename,
+                  absl::optional<std::string> script,
+                  NSString* injection_token,
                   InjectionTime injection_time,
                   TargetFrames target_frames,
                   ReinjectionBehavior reinjection_behavior,
@@ -118,7 +133,9 @@ class JavaScriptFeature {
     // instructed by `replacements_callback_`.
     NSString* ReplacePlaceholders(NSString* script) const;
 
-    std::string script_filename_;
+    absl::optional<std::string> script_filename_;
+    absl::optional<std::string> script_;
+    NSString* injection_token_;
     InjectionTime injection_time_;
     TargetFrames target_frames_;
     ReinjectionBehavior reinjection_behavior_;
@@ -182,7 +199,7 @@ class JavaScriptFeature {
   // See WebFrame::CallJavaScriptFunction for more details.
   bool CallJavaScriptFunction(WebFrame* web_frame,
                               const std::string& function_name,
-                              const std::vector<base::Value>& parameters);
+                              const base::Value::List& parameters);
 
   // Calls `function_name` with `parameters` in `web_frame` within the content
   // world that this feature has been configured. `callback` will be called with
@@ -192,7 +209,7 @@ class JavaScriptFeature {
   bool CallJavaScriptFunction(
       WebFrame* web_frame,
       const std::string& function_name,
-      const std::vector<base::Value>& parameters,
+      const base::Value::List& parameters,
       base::OnceCallback<void(const base::Value*)> callback,
       base::TimeDelta timeout);
 

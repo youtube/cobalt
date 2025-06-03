@@ -27,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/scoped_async_trace.h"
 #include "media/base/status.h"
+#include "media/base/supported_types.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_codecs.h"
@@ -61,34 +62,43 @@ bool IsSurfaceControlEnabled(const gpu::GpuFeatureInfo& info) {
 
 std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
     DeviceInfo* device_info,
-    bool allow_software_codecs = false) {
+    const bool allow_media_codec_software_decoder) {
   std::vector<SupportedVideoDecoderConfig> supported_configs;
   for (const auto& info : GetDecoderInfoCache()) {
     const auto codec = VideoCodecProfileToVideoCodec(info.profile);
+    // Some DRM key system doesn't require a secure decoder to decrypt the
+    // stream (e.g. Widevine L3). When this function is called, we have no idea
+    // on which key system will be used. So we simply declare all the decoders
+    // to support encrypted content playback. If the playback does require a
+    // secure decoder, it will fail when creating MediaCodec.
+    constexpr bool kAllowEncrypted = true;
     if ((codec == VideoCodec::kVP8 && device_info->IsVp8DecoderAvailable()) ||
         (codec == VideoCodec::kVP9 && device_info->IsVp9DecoderAvailable()) ||
         (codec == VideoCodec::kAV1 && device_info->IsAv1DecoderAvailable())) {
-      // We don't compile support into libvpx for these profiles, so allow them
-      // for all resolutions. Tests require availability of software codecs.
-      const bool require_encrypted = !allow_software_codecs &&
-                                     info.profile != VP9PROFILE_PROFILE2 &&
-                                     info.profile != VP9PROFILE_PROFILE3;
-      supported_configs.emplace_back(
-          info.profile, info.profile, info.coded_size_min, info.coded_size_max,
-          /*allow_encrypted=*/true, require_encrypted);
-
       // Don't allow software decoding since we bundle VP8, VP9, AV1 decoders.
-      if (!info.is_software_codec && require_encrypted) {
-        // Require a minimum of 360p even for hardware decoding of VP8, VP9.
-        auto coded_size_min = info.coded_size_min;
-        if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9) {
-          coded_size_min.SetToMax(gfx::Size(360, 360));
-        }
-        supported_configs.emplace_back(info.profile, info.profile,
-                                       coded_size_min, info.coded_size_max,
-                                       /*allow_encrypted=*/false,
-                                       /*require_encrypted=*/false);
+      const bool can_use_builtin_software_decoder =
+          info.profile != VP9PROFILE_PROFILE2 &&
+          info.profile != VP9PROFILE_PROFILE3 &&
+          info.secure_codec_capability == SecureCodecCapability::kClear;
+      const bool is_os_software_decoder_allowed =
+          !can_use_builtin_software_decoder ||
+          allow_media_codec_software_decoder;
+      if (info.is_software_codec && !is_os_software_decoder_allowed) {
+        continue;
       }
+
+      // Require a minimum of 360p even for hardware decoding of VP8, VP9.
+      auto coded_size_min = info.coded_size_min;
+      if (!info.is_software_codec && can_use_builtin_software_decoder &&
+          (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9)) {
+        coded_size_min.SetToMax(gfx::Size(360, 360));
+      }
+
+      supported_configs.emplace_back(
+          info.profile, info.profile, coded_size_min, info.coded_size_max,
+          kAllowEncrypted,
+          /*require_encrypted=*/info.secure_codec_capability ==
+              SecureCodecCapability::kEncrypted);
       continue;
     }
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
@@ -101,10 +111,11 @@ std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
         || codec == VideoCodec::kDolbyVision
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
     ) {
-      supported_configs.emplace_back(info.profile, info.profile,
-                                     info.coded_size_min, info.coded_size_max,
-                                     /*allow_encrypted=*/true,
-                                     /*require_encrypted=*/false);
+      supported_configs.emplace_back(
+          info.profile, info.profile, info.coded_size_min, info.coded_size_max,
+          kAllowEncrypted,
+          /*require_encrypted=*/info.secure_codec_capability ==
+              SecureCodecCapability::kEncrypted);
     }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
   }
@@ -113,8 +124,13 @@ std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
 }
 
 // Return the name of the decoder that will be used to create MediaCodec.
-std::string SelectMediaCodec(const VideoDecoderConfig& config,
-                             bool requires_secure_codec) {
+void SelectMediaCodec(const VideoDecoderConfig& config,
+                      bool requires_secure_codec,
+                      std::string* out_codec_name,
+                      bool* out_is_software_codec) {
+  *out_is_software_codec = false;
+  *out_codec_name = "";
+
   std::string software_decoder;
   for (const auto& info : GetDecoderInfoCache()) {
     VideoCodec codec = VideoCodecProfileToVideoCodec(info.profile);
@@ -127,14 +143,15 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
       continue;
     }
 
-    if (config.level() != kNoVideoCodecLevel && config.level() > info.level) {
+    if (config.level() != kNoVideoCodecLevel &&
+        info.level != kNoVideoCodecLevel && config.level() > info.level) {
       continue;
     }
 
     if (config.coded_size().width() < info.coded_size_min.width() ||
         config.coded_size().height() < info.coded_size_min.height() ||
         config.coded_size().width() > info.coded_size_max.width() ||
-        config.coded_size().height() > info.coded_size_max.width()) {
+        config.coded_size().height() > info.coded_size_max.height()) {
       continue;
     }
 
@@ -157,7 +174,9 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
       continue;
     }
 
-    return info.name;
+    *out_is_software_codec = false;
+    *out_codec_name = info.name;
+    return;
   }
 
   // Allow software decoder if either:
@@ -175,13 +194,13 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
         )) {
-    software_decoder = "";
+    DVLOG(2) << "Can't find proper video decoder from decoder info cache, "
+                "fallback to the default decoder selection path.";
+    return;
   }
 
-  DVLOG_IF(2, software_decoder.empty())
-      << "Can't find proper video decoder from decoder info cache, "
-         "fallback to the default decoder selection path.";
-  return software_decoder;
+  *out_is_software_codec = true;
+  *out_codec_name = software_decoder;
 }
 
 }  // namespace
@@ -205,8 +224,9 @@ PendingDecode::~PendingDecode() = default;
 // static
 std::vector<SupportedVideoDecoderConfig>
 MediaCodecVideoDecoder::GetSupportedConfigs() {
-  static const auto configs =
-      GetSupportedConfigsInternal(DeviceInfo::GetInstance());
+  static const auto configs = GetSupportedConfigsInternal(
+      DeviceInfo::GetInstance(),
+      base::FeatureList::IsEnabled(media::kAllowMediaCodecSoftwareDecoder));
   return configs;
 }
 
@@ -339,11 +359,16 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
   // which is statically cached for faster Initialize().
   //
   // The tests also require the presence of software codecs.
-  const auto configs = device_info_ == DeviceInfo::GetInstance()
-                           ? GetSupportedConfigs()
-                           : GetSupportedConfigsInternal(
-                                 device_info_, /*allow_software_codecs=*/true);
-  if (!IsVideoDecoderConfigSupported(configs, config)) {
+  const auto configs =
+      device_info_ == DeviceInfo::GetInstance()
+          ? GetSupportedConfigs()
+          : GetSupportedConfigsInternal(
+                device_info_, /*allow_media_codec_software_decoder=*/true);
+
+  // If we don't have support support for a given codec, try to initialize
+  // anyways -- otherwise we're certain to fail playback.
+  if (!IsVideoDecoderConfigSupported(configs, config) &&
+      IsBuiltInVideoCodec(config.codec())) {
     DVLOG(1) << "Unsupported configuration.";
     MEDIA_LOG(INFO, media_log_) << "Video configuration is not valid: "
                                 << config.AsHumanReadableString();
@@ -677,7 +702,8 @@ void MediaCodecVideoDecoder::CreateCodec() {
   config->initial_expected_coded_size = decoder_config_.coded_size();
   config->container_color_space = decoder_config_.color_space_info();
   config->hdr_metadata = decoder_config_.hdr_metadata();
-  config->name = SelectMediaCodec(decoder_config_, requires_secure_codec_);
+  SelectMediaCodec(decoder_config_, requires_secure_codec_, &config->name,
+                   &is_software_codec_);
 
   // Use the asynchronous API if we can.
   if (device_info_->IsAsyncApiSupported()) {
@@ -743,6 +769,27 @@ void MediaCodecVideoDecoder::OnCodecConfigured(
     return;
   }
 
+  const auto name = codec->GetName();
+  MEDIA_LOG(INFO, media_log_) << "Created MediaCodec " << name
+                              << ", is_software_codec=" << is_software_codec_;
+
+  // Since we can't get the coded size w/o rendering the frame, we try to guess
+  // in cases where we are unable to render the frame (resolution changes). If
+  // we can't guess, there will be a visible rendering glitch.
+  absl::optional<gfx::Size> coded_size_alignment;
+  if (base::FeatureList::IsEnabled(kMediaCodecCodedSizeGuessing)) {
+    coded_size_alignment = MediaCodecUtil::LookupCodedSizeAlignment(name);
+    if (coded_size_alignment) {
+      MEDIA_LOG(INFO, media_log_) << "Using a coded size alignment of "
+                                  << coded_size_alignment->ToString();
+    } else {
+      // TODO(crbug.com/1456427): If the known cases work well, we can try
+      // guessing generically since we get a glitch either way.
+      MEDIA_LOG(WARNING, media_log_)
+          << "Unable to lookup coded size alignment for codec " << name;
+    }
+  }
+
   max_input_size_ = codec->GetMaxInputSize();
   codec_ = std::make_unique<CodecWrapper>(
       CodecSurfacePair(std::move(codec), std::move(surface_bundle)),
@@ -752,7 +799,7 @@ void MediaCodecVideoDecoder::OnCodecConfigured(
               &MediaCodecVideoDecoder::StartTimerOrPumpCodec,
               weak_factory_.GetWeakPtr()))),
       base::SequencedTaskRunner::GetCurrentDefault(),
-      decoder_config_.coded_size());
+      decoder_config_.coded_size(), coded_size_alignment);
 
   // If the target surface changed while codec creation was in progress,
   // transition to it immediately.
@@ -1247,14 +1294,12 @@ bool MediaCodecVideoDecoder::NeedsBitstreamConversion() const {
 }
 
 bool MediaCodecVideoDecoder::CanReadWithoutStalling() const {
-  // MediaCodec gives us no indication that it will stop producing outputs
-  // until we provide more inputs or release output buffers back to it, so
-  // we have to always return false.
-  // TODO(watk): This puts all MCVD playbacks into low delay mode (i.e., the
-  // renderer won't try to preroll). Ideally we'd be smarter about
-  // this and attempt preroll but be able to give up if we can't produce
-  // enough frames.
-  return false;
+  // We should always be able to get at least two outputs, one in the front
+  // buffer slot and one in the back buffer slot unless we're waiting for
+  // rendering to happen.
+  const auto buffer_count =
+      codec_ ? codec_->GetUnreleasedOutputBufferCount() : 0;
+  return !video_frame_factory_->IsStalled() && buffer_count < 2;
 }
 
 int MediaCodecVideoDecoder::GetMaxDecodeRequests() const {

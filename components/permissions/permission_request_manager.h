@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/check_is_test.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
@@ -23,6 +24,8 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/geometry/rect.h"
 
 class GURL;
 
@@ -75,6 +78,7 @@ class PermissionRequestManager
  public:
   class Observer : public base::CheckedObserver {
    public:
+    virtual void OnTabVisibilityChanged(content::Visibility visibility) {}
     virtual void OnPromptAdded() {}
     virtual void OnPromptRemoved() {}
     // Called when recreation of the permission prompt is not possible. It means
@@ -159,6 +163,8 @@ class PermissionRequestManager
   void Deny() override;
   void Dismiss() override;
   void Ignore() override;
+  void FinalizeCurrentRequests() override;
+  void OpenHelpCenterLink(const ui::Event& event) override;
   void PreIgnoreQuietPrompt() override;
   bool WasCurrentRequestAlreadyDisplayed() override;
   bool ShouldDropCurrentRequestIfCannotShowQuietly() const override;
@@ -173,6 +179,10 @@ class PermissionRequestManager
   base::WeakPtr<PermissionPrompt::Delegate> GetWeakPtr() override;
   content::WebContents* GetAssociatedWebContents() override;
   bool RecreateView() override;
+
+  // Returns the bounds of the active permission prompt view if we're
+  // displaying one.
+  absl::optional<gfx::Rect> GetPromptBubbleViewBoundsInScreen() const;
 
   void set_manage_clicked() { did_click_manage_ = true; }
   void set_learn_more_clicked() { did_click_learn_more_ = true; }
@@ -235,6 +245,10 @@ class PermissionRequestManager
 
   void set_enabled_app_level_notification_permission_for_testing(bool enabled) {
     enabled_app_level_notification_permission_for_testing_ = enabled;
+  }
+
+  void set_embedding_origin_for_testing(const GURL& embedding_origin) {
+    embedding_origin_for_testing_ = embedding_origin;
   }
 
   base::ObserverList<Observer>* get_observer_list_for_testing() {
@@ -313,9 +327,11 @@ class PermissionRequestManager
   // Finalize request.
   void ResetViewStateForCurrentRequest();
 
-  // Delete the view object, finalize requests, asynchronously show a queued
-  // request if present.
-  void FinalizeCurrentRequests(PermissionAction permission_action);
+  // Records metrics and informs embargo and autoblocker about the requests
+  // being decided. Based on |view_->ShouldFinalizeRequestAfterDecided()| it
+  // will also call |FinalizeCurrentRequests()|. Otherwise a separate
+  // |FinalizeCurrentRequests()| call must be made to release the |view_|.
+  void CurrentRequestsDecided(PermissionAction permission_action);
 
   // Cancel all pending or active requests and destroy the PermissionPrompt if
   // one exists. This is called if the WebContents is destroyed or navigates its
@@ -358,6 +374,7 @@ class PermissionRequestManager
   // Calls RequestFinished on a request and all its duplicates.
   void RequestFinishedIncludingDuplicates(PermissionRequest* request);
 
+  void NotifyTabVisibilityChanged(content::Visibility visibility);
   void NotifyPromptAdded();
   void NotifyPromptRemoved();
   void NotifyPromptRecreateFailed();
@@ -380,6 +397,14 @@ class PermissionRequestManager
   void DoAutoResponseForTesting();
 
   void PreIgnoreQuietPromptInternal();
+
+  // Returns true if there is a request in progress that is initiated by an
+  // embedded permission element.
+  bool IsCurrentRequestEmbeddedPermissionElementInitiated() const;
+
+  // Returns true when the current request should be finalized together with the
+  // permission decision.
+  bool ShouldFinalizeRequestAfterDecided(PermissionAction action) const;
 
   // Factory to be used to create views when needed.
   PermissionPrompt::Factory view_factory_;
@@ -493,6 +518,8 @@ class PermissionRequestManager
   absl::optional<base::TimeDelta> time_to_decision_for_test_;
 
   absl::optional<bool> enabled_app_level_notification_permission_for_testing_;
+
+  absl::optional<GURL> embedding_origin_for_testing_;
 
   // A timer is used to pre-ignore the permission request if it's been displayed
   // as a quiet chip.

@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("tabs") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "background_tab_animation_view.h",
     "background_tab_animation_view.mm",
@@ -13,7 +12,6 @@ source_set("tabs") {
     "switch_to_tab_animation_view.mm",
     "tab_strip_container_view.h",
     "tab_strip_container_view.mm",
-    "tab_strip_containing.h",
     "tab_strip_controller.h",
     "tab_strip_controller.mm",
     "tab_strip_view.h",
@@ -24,7 +22,7 @@ source_set("tabs") {
     "target_frame_cache.h",
     "target_frame_cache.mm",
   ]
-  public_deps = [ "//ios/chrome/browser/tabs" ]
+  public_deps = [ "//ios/chrome/browser/tabs/model" ]
   deps = [
     ":constants",
     "resources:open_new_tab_background",
@@ -35,34 +33,36 @@ source_set("tabs") {
     "//components/bookmarks/browser",
     "//components/bookmarks/common",
     "//components/favicon/ios",
+    "//components/feature_engagement/public",
     "//components/prefs",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/bookmarks",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/drag_and_drop",
-    "//ios/chrome/browser/flags:system_flags",
-    "//ios/chrome/browser/main:public",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/drag_and_drop/model",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/ntp:util",
+    "//ios/chrome/browser/ntp/home:features",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_browser_agent",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/shared/ui/elements",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util/image",
-    "//ios/chrome/browser/snapshots",
-    "//ios/chrome/browser/tabs:features",
+    "//ios/chrome/browser/snapshots/model",
     "//ios/chrome/browser/ui/bookmarks",
     "//ios/chrome/browser/ui/bubble",
     "//ios/chrome/browser/ui/fullscreen",
-    "//ios/chrome/browser/ui/gestures",
     "//ios/chrome/browser/ui/menu",
     "//ios/chrome/browser/ui/popup_menu/public",
     "//ios/chrome/browser/ui/tab_switcher:tab_utils",
     "//ios/chrome/browser/ui/tab_switcher/tab_grid/tab_context_menu:tab_item",
     "//ios/chrome/browser/ui/tabs/requirements",
-    "//ios/chrome/browser/url_loading",
+    "//ios/chrome/browser/url_loading/model",
     "//ios/chrome/browser/web_state_list",
     "//ios/chrome/common",
     "//ios/chrome/common:button_config",
@@ -80,25 +80,23 @@ source_set("tabs") {
 }
 
 source_set("coordinator") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "tab_strip_legacy_coordinator.h",
     "tab_strip_legacy_coordinator.mm",
   ]
   deps = [
     ":tabs",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/coordinator/layout_guide",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/ui/bubble",
-    "//ios/chrome/browser/ui/gestures",
     "//ios/chrome/browser/ui/tabs/requirements",
   ]
 }
 
 source_set("constants") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "tab_strip_constants.h",
     "tab_strip_constants.mm",
@@ -106,22 +104,22 @@ source_set("constants") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "tab_strip_controller_unittest.mm" ]
   deps = [
     ":tabs",
     "//base",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/main:public",
-    "//ios/chrome/browser/main:test_support",
     "//ios/chrome/browser/sessions:test_support",
+    "//ios/chrome/browser/shared/coordinator/layout_guide",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_browser_agent",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/model/web_state_list/test:test_support",
     "//ios/chrome/browser/shared/public/commands",
-    "//ios/chrome/browser/tabs",
-    "//ios/chrome/browser/web_state_list",
-    "//ios/chrome/browser/web_state_list:test_support",
+    "//ios/chrome/browser/tabs/model",
     "//ios/web/public",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
@@ -132,10 +130,7 @@ source_set("unit_tests") {
 }
 
 source_set("eg2_tests") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "tab_strip_egtest.mm" ]
   deps = [

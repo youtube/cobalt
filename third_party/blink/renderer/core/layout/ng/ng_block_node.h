@@ -14,16 +14,16 @@
 
 namespace blink {
 
+class FragmentItems;
+class InlineNode;
 class LayoutBox;
 class NGBlockBreakToken;
 class NGColumnSpannerPath;
 class NGConstraintSpace;
 class NGEarlyBreak;
-class NGFragmentItems;
 class NGLayoutResult;
 class NGPhysicalBoxFragment;
 class NGPhysicalFragment;
-struct NGBoxStrut;
 struct NGLayoutAlgorithmParams;
 
 enum class MathScriptType;
@@ -125,29 +125,23 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       const NGConstraintSpace&,
       const MinMaxSizesFloatInput float_input = MinMaxSizesFloatInput()) const;
 
-  MinMaxSizes ComputeMinMaxSizesFromLegacy(const MinMaxSizesType,
-                                           const NGConstraintSpace&) const;
-
   NGLayoutInputNode FirstChild() const;
 
   NGBlockNode GetRenderedLegend() const;
   NGBlockNode GetFieldsetContent() const;
 
-  bool IsNGTableCell() const { return box_->IsTableCell(); }
+  bool IsTableCell() const { return box_->IsTableCell(); }
 
-  bool IsContainingBlockNGGrid() const {
-    return box_->ContainingBlock()->IsLayoutNGGrid();
-  }
   bool IsFrameSet() const { return box_->IsFrameSet(); }
   bool IsParentNGFrameSet() const { return box_->Parent()->IsFrameSet(); }
-  bool IsParentNGGrid() const { return box_->Parent()->IsLayoutNGGrid(); }
+  bool IsParentGrid() const { return box_->Parent()->IsLayoutGrid(); }
 
   // Return true if this block node establishes an inline formatting context.
   // This will only be the case if there is actual inline content. Empty nodes
   // or nodes consisting purely of block-level, floats, and/or out-of-flow
   // positioned children will return false.
   bool IsInlineFormattingContextRoot(
-      NGLayoutInputNode* first_child_out = nullptr) const;
+      InlineNode* first_child_out = nullptr) const;
 
   bool IsInlineLevel() const;
   bool IsAtomicInlineLevel() const;
@@ -156,10 +150,6 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
 
   // Returns the aspect ratio of a replaced element.
   LogicalSize GetAspectRatio() const;
-
-  // SVG roots sometimes have sizing peculiarities that override regular sizing.
-  // Returns {0,0} if there's no override.
-  LogicalSize GetReplacedSizeOverrideIfAny(const NGConstraintSpace&) const;
 
   // Returns the transform to apply to a child (e.g. for layout-overflow).
   absl::optional<gfx::Transform> GetTransformForChildFragment(
@@ -214,18 +204,9 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       bool use_first_line_style,
       NGBaselineAlgorithmType baseline_algorithm_type);
 
-  void InsertIntoLegacyPositionedObjectsOf(LayoutBlock*) const;
-
-  // Write back resolved margins to legacy.
-  void StoreMargins(const NGConstraintSpace&, const NGBoxStrut& margins);
-  void StoreMargins(const NGPhysicalBoxStrut& margins);
-
   // Write the inline-size and number of columns in a multicol container to
   // legacy.
   void StoreColumnSizeAndCount(LayoutUnit inline_size, int count);
-
-  static bool CanUseNewLayout(const LayoutBox&);
-  bool CanUseNewLayout() const;
 
   bool ShouldApplyLayoutContainment() const {
     return box_->ShouldApplyLayoutContainment();
@@ -271,7 +252,7 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
                     const NGConstraintSpace&,
                     const NGBlockBreakToken*,
                     const NGLayoutResult*,
-                    LayoutSize old_box_size) const;
+                    const absl::optional<PhysicalSize>& old_box_size) const;
 
   // Update the layout results vector in LayoutBox with the new result.
   void StoreResultInLayoutBox(const NGLayoutResult*,
@@ -286,7 +267,7 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       const NGBlockBreakToken* previous_break_token) const;
   void CopyFragmentItemsToLayoutBox(
       const NGPhysicalBoxFragment& container,
-      const NGFragmentItems& items,
+      const FragmentItems& items,
       const NGBlockBreakToken* previous_break_token) const;
   void PlaceChildrenInLayoutBox(const NGPhysicalBoxFragment&,
                                 const NGBlockBreakToken* previous_break_token,
@@ -297,11 +278,13 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       const NGPhysicalBoxFragment&,
       const NGBlockBreakToken* previous_container_break_token) const;
 
-  void UpdateMarginPaddingInfoIfNeeded(const NGConstraintSpace&) const;
+  void UpdateMarginPaddingInfoIfNeeded(
+      const NGConstraintSpace&,
+      const NGPhysicalFragment& fragment) const;
 
   void UpdateShapeOutsideInfoIfNeeded(
       const NGLayoutResult&,
-      LayoutUnit percentage_resolution_inline_size) const;
+      const NGConstraintSpace& constraint_space) const;
 };
 
 template <>

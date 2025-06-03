@@ -5,30 +5,38 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_H_
 
+#include <stdint.h>
 #include <iosfwd>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "base/version.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_location.h"
-#include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
+#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-forward.h"
+#include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
+#include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/web_app_chromeos_data.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
-#include "chrome/browser/web_applications/web_app_sources.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
+#include "components/services/app_service/public/cpp/icon_info.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "components/services/app_service/public/cpp/share_target.h"
 #include "components/services/app_service/public/cpp/url_handler_info.h"
 #include "components/sync/model/string_ordinal.h"
-#include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
+#include "third_party/blink/public/common/manifest/manifest.h"
+#include "third_party/blink/public/common/permissions_policy/permissions_policy_declaration.h"
+#include "third_party/blink/public/mojom/manifest/capture_links.mojom-shared.h"
+#include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
@@ -36,11 +44,15 @@
 #include "chrome/browser/ash/system_web_apps/types/system_web_app_data.h"
 #endif
 
+namespace webapps {
+enum class WebappInstallSource;
+}
+
 namespace web_app {
 
 class WebApp {
  public:
-  explicit WebApp(const AppId& app_id);
+  explicit WebApp(const webapps::AppId& app_id);
   ~WebApp();
 
   // Copyable and move-assignable to support Copy-on-Write with Commit.
@@ -51,7 +63,7 @@ class WebApp {
   WebApp(WebApp&&) = delete;
   WebApp& operator=(const WebApp&) = delete;
 
-  const AppId& app_id() const { return app_id_; }
+  const webapps::AppId& app_id() const { return app_id_; }
 
   // UTF8 encoded application name. This name is not translated, use
   // WebAppRegistrar.GetAppShortName to get the translated name.
@@ -138,7 +150,7 @@ class WebApp {
   // Represents the last time this app is launched.
   const base::Time& last_launch_time() const { return last_launch_time_; }
   // Represents the time when this app is installed.
-  const base::Time& install_time() const { return install_time_; }
+  const base::Time& first_install_time() const { return first_install_time_; }
   // Represents the time when this app is updated.
   const base::Time& manifest_update_time() const {
     return manifest_update_time_;
@@ -250,25 +262,19 @@ class WebApp {
     return shortcuts_menu_item_infos_;
   }
 
-  // Represents which shortcuts menu icon sizes we successfully downloaded for
-  // each WebAppShortcutsMenuItemInfo.shortcuts_menu_manifest_icons.
-  const std::vector<IconSizes>& downloaded_shortcuts_menu_icons_sizes() const {
-    return downloaded_shortcuts_menu_icons_sizes_;
-  }
-
   blink::mojom::CaptureLinks capture_links() const { return capture_links_; }
 
   const GURL& manifest_url() const { return manifest_url_; }
 
-  const absl::optional<std::string>& manifest_id() const {
-    return manifest_id_;
-  }
+  webapps::ManifestId manifest_id() const;
 
   const absl::optional<LaunchHandler>& launch_handler() const {
     return launch_handler_;
   }
 
-  const absl::optional<AppId>& parent_app_id() const { return parent_app_id_; }
+  const absl::optional<webapps::AppId>& parent_app_id() const {
+    return parent_app_id_;
+  }
 
   const blink::ParsedPermissionsPolicy& permissions_policy() const {
     return permissions_policy_;
@@ -308,6 +314,9 @@ class WebApp {
     // Note that list is not meant to be an exhaustive enumeration of all
     // possible policy_ids but rather just a supplement for tricky cases.
     base::flat_set<std::string> additional_policy_ids;
+
+    // Any new fields added should consider adding config merge logic to
+    // BuildOperationsToDedupeInstallUrlConfigsIntoSelectedApp().
   };
 
   using ExternalConfigMap =
@@ -333,7 +342,36 @@ class WebApp {
   // If present, signals that this app is an Isolated Web App, and contains
   // IWA-specific information like bundle location.
   struct IsolationData {
-    explicit IsolationData(IsolatedWebAppLocation location);
+    // If present, signals that an update for this app is available locally and
+    // waiting to be applied.
+    struct PendingUpdateInfo {
+      PendingUpdateInfo(IsolatedWebAppLocation location, base::Version version);
+      ~PendingUpdateInfo();
+      PendingUpdateInfo(const PendingUpdateInfo&);
+      PendingUpdateInfo& operator=(const PendingUpdateInfo&);
+
+      bool operator==(const PendingUpdateInfo&) const;
+      bool operator!=(const PendingUpdateInfo&) const;
+
+      base::Value AsDebugValue() const;
+      friend std::ostream& operator<<(std::ostream& os,
+                                      const PendingUpdateInfo& update_info) {
+        return os << update_info.AsDebugValue();
+      }
+
+      IsolatedWebAppLocation location;
+      base::Version version;
+
+      // TODO(cmfcmf): Add further information about the update here, such as
+      // whether it should be applied immediately, or only once the IWA is
+      // closed.
+    };
+
+    IsolationData(IsolatedWebAppLocation location, base::Version version);
+    IsolationData(IsolatedWebAppLocation location,
+                  base::Version version,
+                  const std::set<std::string>& controlled_frame_partitions,
+                  const absl::optional<PendingUpdateInfo>& pending_update_info);
     ~IsolationData();
     IsolationData(const IsolationData&);
     IsolationData& operator=(const IsolationData&);
@@ -342,12 +380,48 @@ class WebApp {
 
     bool operator==(const IsolationData&) const;
     bool operator!=(const IsolationData&) const;
+
     base::Value AsDebugValue() const;
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const IsolationData& isolation_data) {
+      return os << isolation_data.AsDebugValue();
+    }
+
+    // Sets the pending update info. Will `CHECK` if the type of
+    // `pending_update_info.location` is not the same as `location`. In other
+    // words, a `DevModeBundle` app cannot be updated to, e.g.,
+    // `InstalledBundle`.
+    void SetPendingUpdateInfo(
+        const absl::optional<PendingUpdateInfo>& pending_update_info);
+
+    const absl::optional<PendingUpdateInfo>& pending_update_info() const {
+      return pending_update_info_;
+    }
 
     IsolatedWebAppLocation location;
+    base::Version version;
+    std::set<std::string> controlled_frame_partitions;
+
+   private:
+    absl::optional<PendingUpdateInfo> pending_update_info_;
   };
   const absl::optional<IsolationData>& isolation_data() const {
     return isolation_data_;
+  }
+
+  bool is_user_selected_app_for_capturing_links() const {
+    return is_user_selected_app_for_capturing_links_;
+  }
+
+  const base::Time& latest_install_time() const { return latest_install_time_; }
+
+  const absl::optional<GeneratedIconFix>& generated_icon_fix() const;
+
+  int supported_links_offer_ignore_count() const {
+    return supported_links_offer_ignore_count_;
+  }
+  int supported_links_offer_dismiss_count() const {
+    return supported_links_offer_dismiss_count_;
   }
 
   // A Web App can be installed from multiple sources simultaneously. Installs
@@ -356,9 +430,11 @@ class WebApp {
   void RemoveSource(WebAppManagement::Type source);
   bool HasAnySources() const;
   bool HasOnlySource(WebAppManagement::Type source) const;
-  WebAppSources GetSources() const;
+  WebAppManagementTypes GetSources() const;
 
   bool IsSynced() const;
+  // Returns true if the app is preinstalled through PreinstalledWebAppManager.
+  // Does not include apps preloaded through the App Preload Service.
   bool IsPreinstalledApp() const;
   bool IsPolicyInstalledApp() const;
   bool IsSystemApp() const;
@@ -394,9 +470,9 @@ class WebApp {
   // Performs sorting and uniquifying of |sizes| if passed as vector.
   void SetDownloadedIconSizes(IconPurpose purpose, SortedSizesPx sizes);
   void SetIsGeneratedIcon(bool is_generated_icon);
-  void SetShortcutsMenuItemInfos(
-      std::vector<WebAppShortcutsMenuItemInfo> shortcuts_menu_item_infos);
-  void SetDownloadedShortcutsMenuIconsSizes(std::vector<IconSizes> icon_sizes);
+  // Sets information about the shortcuts menu for the app.
+  void SetShortcutsMenuInfo(
+      std::vector<WebAppShortcutsMenuItemInfo> shortcuts_menu_infos);
   void SetFileHandlers(apps::FileHandlers file_handlers);
   void SetFileHandlerApprovalState(ApiApprovalState approval_state);
   void SetFileHandlerOsIntegrationState(
@@ -418,17 +494,17 @@ class WebApp {
   void SetNoteTakingNewNoteUrl(const GURL& note_taking_new_note_url);
   void SetLastBadgingTime(const base::Time& time);
   void SetLastLaunchTime(const base::Time& time);
-  void SetInstallTime(const base::Time& time);
+  void SetFirstInstallTime(const base::Time& time);
   void SetManifestUpdateTime(const base::Time& time);
   void SetRunOnOsLoginMode(RunOnOsLoginMode mode);
   void SetRunOnOsLoginOsIntegrationState(RunOnOsLoginMode os_integration_state);
   void SetSyncFallbackData(SyncFallbackData sync_fallback_data);
   void SetCaptureLinks(blink::mojom::CaptureLinks capture_links);
   void SetManifestUrl(const GURL& manifest_url);
-  void SetManifestId(const absl::optional<std::string>& manifest_id);
+  void SetManifestId(const webapps::ManifestId& manifest_id);
   void SetWindowControlsOverlayEnabled(bool enabled);
   void SetLaunchHandler(absl::optional<LaunchHandler> launch_handler);
-  void SetParentAppId(const absl::optional<AppId>& parent_app_id);
+  void SetParentAppId(const absl::optional<webapps::AppId>& parent_app_id);
   void SetPermissionsPolicy(blink::ParsedPermissionsPolicy permissions_policy);
   void SetLatestInstallSource(
       absl::optional<webapps::WebappInstallSource> latest_install_source);
@@ -440,6 +516,10 @@ class WebApp {
   void SetCurrentOsIntegrationStates(
       proto::WebAppOsIntegrationState current_os_integration_states);
   void SetIsolationData(IsolationData isolation_data);
+  void SetIsUserSelectedAppForSupportedLinks(
+      bool is_user_selected_app_for_capturing_links);
+  void SetSupportedLinksOfferIgnoreCount(int ignore_count);
+  void SetSupportedLinksOfferDismissCount(int dismiss_count);
 
   void AddPlaceholderInfoToManagementExternalConfigMap(
       WebAppManagement::Type source_type,
@@ -453,7 +533,7 @@ class WebApp {
   // This adds a policy_id per management type (source) for the
   // ExternalConfigMap.
   void AddPolicyIdToManagementExternalConfigMap(WebAppManagement::Type type,
-                                                const std::string& policy_id);
+                                                std::string policy_id);
 
   // Encapsulate the addition of install_url and is_placeholder information
   // for cases where both need to be added.
@@ -461,11 +541,16 @@ class WebApp {
                                     GURL install_url,
                                     bool is_placeholder);
 
-  bool RemoveInstallUrlForSource(WebAppManagement::Type type, GURL install_url);
+  bool RemoveInstallUrlForSource(WebAppManagement::Type type,
+                                 const GURL& install_url);
 
   // Only used on Mac, determines if the toolbar should be permanently shown
   // when in fullscreen.
   void SetAlwaysShowToolbarInFullscreen(bool show);
+
+  void SetLatestInstallTime(const base::Time& latest_install_time);
+
+  void SetGeneratedIconFix(absl::optional<GeneratedIconFix> generated_icon_fix);
 
   // For logging and debug purposes.
   bool operator==(const WebApp&) const;
@@ -480,10 +565,10 @@ class WebApp {
   friend class WebAppDatabase;
   friend std::ostream& operator<<(std::ostream&, const WebApp&);
 
-  AppId app_id_;
+  webapps::AppId app_id_;
 
   // This set always contains at least one source.
-  WebAppSources sources_;
+  WebAppManagementTypes sources_{};
 
   std::string name_;
   std::string description_;
@@ -513,7 +598,6 @@ class WebApp {
   SortedSizesPx downloaded_icon_sizes_maskable_;
   bool is_generated_icon_ = false;
   std::vector<WebAppShortcutsMenuItemInfo> shortcuts_menu_item_infos_;
-  std::vector<IconSizes> downloaded_shortcuts_menu_icons_sizes_;
   apps::FileHandlers file_handlers_;
   absl::optional<apps::ShareTarget> share_target_;
   std::vector<std::string> additional_search_terms_;
@@ -528,7 +612,7 @@ class WebApp {
   GURL note_taking_new_note_url_;
   base::Time last_badging_time_;
   base::Time last_launch_time_;
-  base::Time install_time_;
+  base::Time first_install_time_;
   base::Time manifest_update_time_;
   RunOnOsLoginMode run_on_os_login_mode_ = RunOnOsLoginMode::kNotRun;
   // Tracks if the app run on os login mode has been registered with the OS.
@@ -542,7 +626,7 @@ class WebApp {
       blink::mojom::CaptureLinks::kUndefined;
   ClientData client_data_;
   GURL manifest_url_;
-  absl::optional<std::string> manifest_id_;
+  webapps::ManifestId manifest_id_;
   // The state of the user's approval of the app's use of the File Handler API.
   ApiApprovalState file_handler_approval_state_ =
       ApiApprovalState::kRequiresPrompt;
@@ -553,7 +637,7 @@ class WebApp {
       OsIntegrationState::kDisabled;
   bool window_controls_overlay_enabled_ = false;
   absl::optional<LaunchHandler> launch_handler_;
-  absl::optional<AppId> parent_app_id_;
+  absl::optional<webapps::AppId> parent_app_id_;
   blink::ParsedPermissionsPolicy permissions_policy_;
   // The source of the latest install. WebAppRegistrar provides range
   // validation. Optional only to support legacy installations, since this used
@@ -578,6 +662,15 @@ class WebApp {
 
   absl::optional<IsolationData> isolation_data_;
 
+  bool is_user_selected_app_for_capturing_links_ = false;
+
+  base::Time latest_install_time_;
+
+  absl::optional<GeneratedIconFix> generated_icon_fix_;
+
+  int supported_links_offer_ignore_count_ = 0;
+  int supported_links_offer_dismiss_count_ = 0;
+
   // New fields must be added to:
   //  - |operator==|
   //  - AsDebugValue()
@@ -591,7 +684,7 @@ class WebApp {
   //  - GetManifestDataChanges() inside manifest_update_utils.h
   //  - SetWebAppManifestFields()
   // If the field relates to the app icons, add revert logic for it in:
-  // - ManifestUpdateCheckCommand::RevertAppIconChanges()
+  // - ManifestUpdateCheckCommand::RevertIdentityChangesIfNeeded()
 };
 
 // For logging and debug purposes.

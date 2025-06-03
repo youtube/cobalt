@@ -13,8 +13,6 @@ import {Msgs} from '../common/msgs.js';
 import {SettingsManager} from '../common/settings_manager.js';
 import {Personality} from '../common/tts_types.js';
 
-import {ChromeVox} from './chromevox.js';
-import {ConsoleTts} from './console_tts.js';
 import {EventStreamLogger} from './logging/event_stream_logger.js';
 import {LogUrlWatcher} from './logging/log_url_watcher.js';
 import {Output} from './output/output.js';
@@ -24,9 +22,8 @@ const Action = BridgeConstants.ChromeVoxPrefs.Action;
 const TARGET = BridgeConstants.ChromeVoxPrefs.TARGET;
 
 /**
- * This object has default values of preferences and contains the common
- * code for working with preferences shared by the Options and Background
- * pages.
+ * Handles access and setting of preferences, regardless of whether they live in
+ * system Settings or the ChromeVox Options page.
  */
 export class ChromeVoxPrefs {
   constructor() {

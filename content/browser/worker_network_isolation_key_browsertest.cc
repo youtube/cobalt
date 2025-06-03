@@ -148,6 +148,19 @@ class WorkerImportScriptsAndFetchRequestNetworkIsolationKeyBrowserTest
     : public WorkerNetworkIsolationKeyBrowserTest,
       public ::testing::WithParamInterface<
           std::tuple<bool /* test_same_network_isolation_key */, WorkerType>> {
+ public:
+  WorkerImportScriptsAndFetchRequestNetworkIsolationKeyBrowserTest() {
+    // This test was written assuming that iframes/workers corresponding to
+    // different cross-origin frames (same top-level site) would not share an
+    // HTTP cache partition, but this is not the case when the experiment to
+    // replace the frame origin with an "is-cross-site" bit in the Network
+    // Isolation Key is active. Therefore, disable it for this test.
+    feature_list_.InitAndDisableFeature(
+        net::features::kEnableCrossSiteFlagNetworkIsolationKey);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Test that network isolation key is filled in correctly for service/shared
@@ -321,7 +334,8 @@ using SharedWorkerMainScriptRequestNetworkIsolationKeyBrowserTest =
 // "b.test" and creates an iframe also having origin "c.test" that creates
 // |worker1| again.
 //
-// We expect the second creation request for |worker1| to exist in the cache.
+// We expect the second creation request for |worker1| to not exist in the
+// cache since the workers should be partitioned by top-level site.
 //
 // Note that it's sufficient not to test the cache miss when subframe origins
 // are different as in that case the two script urls must be different.
@@ -348,7 +362,7 @@ IN_PROC_BROWSER_TEST_F(
               if (num_completed == 1) {
                 EXPECT_FALSE(status.exists_in_cache);
               } else if (num_completed == 2) {
-                EXPECT_TRUE(status.exists_in_cache);
+                EXPECT_FALSE(status.exists_in_cache);
                 cache_status_waiter.Quit();
               } else {
                 NOTREACHED();

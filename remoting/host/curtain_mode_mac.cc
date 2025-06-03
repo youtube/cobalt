@@ -9,10 +9,10 @@
 #include <Security/Security.h>
 #include <unistd.h>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "remoting/host/client_session_control.h"
@@ -160,7 +160,7 @@ void SessionWatcher::ActivateCurtain() {
     return;
   }
 
-  base::ScopedCFTypeRef<CFDictionaryRef> session(
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> session(
       CGSessionCopyCurrentDictionary());
 
   // CGSessionCopyCurrentDictionary has been observed to return nullptr in some

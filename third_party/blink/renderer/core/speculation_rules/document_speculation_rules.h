@@ -15,10 +15,6 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
-namespace base {
-class UnguessableToken;
-}  // namespace base
-
 namespace blink {
 
 class HTMLAnchorElement;
@@ -70,6 +66,9 @@ class CORE_EXPORT DocumentSpeculationRules
   void DidStyleChildren(Element* root);
   void DisplayLockedElementDisconnected(Element* root);
 
+  void DocumentRestoredFromBFCache();
+  void InitiatePreview(const KURL& url);
+
   const HeapVector<Member<StyleRule>>& selectors() { return selectors_; }
 
   void Trace(Visitor*) const override;
@@ -81,9 +80,14 @@ class CORE_EXPORT DocumentSpeculationRules
 
   // Requests a future call to UpdateSpeculationCandidates, if none is yet
   // scheduled.
-  void QueueUpdateSpeculationCandidates();
+  void QueueUpdateSpeculationCandidates(bool force_style_update = false);
+
+  // Executes in a microtask after QueueUpdateSpeculationCandidates.
+  void UpdateSpeculationCandidatesMicrotask();
 
   // Pushes the current speculation candidates to the browser, immediately.
+  // Can be entered either through `UpdateSpeculationCandidatesMicrotask` or
+  // `DocumentStyleUpdated`.
   void UpdateSpeculationCandidates();
 
   // Appends all candidates populated from links in the document (based on
@@ -109,22 +113,30 @@ class CORE_EXPORT DocumentSpeculationRules
   // Populates |selectors_| and notifies the StyleEngine.
   void UpdateSelectors();
 
-  // Tracks the state of a pending update of speculation candidates
-  // (UpdateSpeculationCandidates); and whether it requires style to be clean.
-  enum class PendingUpdateState {
-    // There is no update queued (either as a microtask or after the next style
-    // update).
-    kNoUpdatePending,
-    // There is a microtask queued to perform an update. A style update will
-    // not run UpdateSpeculationCandidates in this state.
-    kUpdatePending,
-    // An update will be performed after the next style update. We should
-    // never reach this state unless there are 'selector_matches' predicates
-    // present. There will be no microtask queued to perform an update in this
-    // state.
-    kUpdateWithCleanStylePending
+  // Tracks when the next update to speculation candidates is scheduled to
+  // occur. See `SetPendingUpdateState` for details.
+  enum class PendingUpdateState : uint8_t {
+    kNoUpdate = 0,
+
+    // A microtask to run `UpdateSpeculationRulesMicrotask` is queued.
+    // It does not need a forced style update.
+    kMicrotaskQueued,
+
+    // Candidates should be updated the next time the style engine updates
+    // style.
+    kOnNextStyleUpdate,
+
+    // A microtask to run `UpdateSpeculationRulesMicrotask` is queued.
+    // It must update style when it does so.
+    kMicrotaskQueuedWithForcedStyleUpdate,
   };
+  friend std::ostream& operator<<(std::ostream&, const PendingUpdateState&);
   void SetPendingUpdateState(PendingUpdateState state);
+  bool IsMicrotaskQueued() const {
+    return pending_update_state_ == PendingUpdateState::kMicrotaskQueued ||
+           pending_update_state_ ==
+               PendingUpdateState::kMicrotaskQueuedWithForcedStyleUpdate;
+  }
 
   // Checks the RuntimeEnabledFeature to see if the feature is enabled. If the
   // feature is found to be enabled once, it is considered to be enabled for the
@@ -162,18 +174,15 @@ class CORE_EXPORT DocumentSpeculationRules
   bool initialized_ = false;
   bool sent_is_part_of_no_vary_search_trial_ = false;
   bool was_selector_matches_enabled_ = false;
-  PendingUpdateState pending_update_state_ =
-      PendingUpdateState::kNoUpdatePending;
-
-  // devtools_navigation_token_ is usually non-null because a null token implies
-  // the document is detached and will be destroyed shortly
-  const absl::optional<base::UnguessableToken> devtools_navigation_token_;
+  PendingUpdateState pending_update_state_ = PendingUpdateState::kNoUpdate;
 
   // Set to true if the EventHandlerRegistry has recorded this object's need to
   // observe pointer events.
   // TODO(crbug.com/1425870): This can be deleted when/if these discrete events
   // are no longer filtered by default.
   bool wants_pointer_events_ = false;
+
+  bool first_update_after_restored_from_bfcache_ = false;
 };
 
 }  // namespace blink

@@ -5,6 +5,7 @@
 #include "chrome/browser/lacros/desk_template_client_lacros.h"
 
 #include "base/ranges/algorithm.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/apps/icon_standardizer.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -66,6 +67,7 @@ bool ValidateTabRange(const tab_groups::TabGroupInfo& group_info,
 void ImageResultToImageSkia(
     base::OnceCallback<void(const gfx::ImageSkia&)> callback,
     const favicon_base::FaviconRawBitmapResult& result) {
+  TRACE_EVENT0("ui", "desk_template_client_lacros::ImageResultToImageSkia");
   if (!result.is_valid()) {
     std::move(callback).Run(gfx::ImageSkia());
     return;
@@ -157,7 +159,7 @@ DeskTemplateClientLacros::~DeskTemplateClientLacros() = default;
 
 void DeskTemplateClientLacros::CreateBrowserWithRestoredData(
     const gfx::Rect& bounds,
-    const ui::mojom::WindowShowState show_state,
+    const ui::WindowShowState show_state,
     crosapi::mojom::DeskTemplateStatePtr additional_state) {
   Profile* profile = ProfileManager::GetLastUsedProfileAllowedByPolicy();
   DCHECK(profile) << "No last used profile is found.";
@@ -174,12 +176,16 @@ void DeskTemplateClientLacros::CreateBrowserWithRestoredData(
           : Browser::CreateParams(Browser::TYPE_NORMAL, profile,
                                   /*user_gesture=*/false);
   create_params.should_trigger_session_restore = false;
-  create_params.initial_show_state =
-      static_cast<ui::WindowShowState>(show_state);
+  create_params.initial_show_state = show_state;
   create_params.initial_bounds = bounds;
   create_params.restore_id = additional_state->restore_window_id;
   create_params.creation_source = Browser::CreationSource::kDeskTemplate;
   Browser* browser = Browser::Create(create_params);
+
+  // TODO(crbug.com/1442076): Remove after issue is root caused.
+  LOG(ERROR) << "window " << additional_state->restore_window_id
+             << " created by lacros with " << additional_state->urls.size()
+             << " tabs";
 
   for (size_t i = 0; i < additional_state->urls.size(); i++) {
     chrome::AddTabAt(
@@ -194,7 +200,7 @@ void DeskTemplateClientLacros::CreateBrowserWithRestoredData(
 
   SetPinnedTabs(additional_state->first_non_pinned_index, browser);
 
-  if (show_state == ui::mojom::WindowShowState::SHOW_STATE_MINIMIZED) {
+  if (show_state == ui::SHOW_STATE_MINIMIZED) {
     browser->window()->Minimize();
   } else {
     browser->window()->ShowInactive();

@@ -668,8 +668,9 @@ bool CollectContextGraphicsInfo(GPUInfo* gpu_info) {
 
   DCHECK(gpu_info);
 
-  if (!CollectGraphicsInfoGL(gpu_info, gl::GetDefaultDisplayEGL()))
+  if (!CollectGraphicsInfoGL(gpu_info, gl::GetDefaultDisplayEGL())) {
     return false;
+  }
 
   // ANGLE's renderer strings are of the form:
   // ANGLE (<adapter_identifier> Direct3D<version> vs_x_x ps_x_x)
@@ -678,27 +679,19 @@ bool CollectContextGraphicsInfo(GPUInfo* gpu_info) {
   int vertex_shader_minor_version = 0;
   int pixel_shader_major_version = 0;
   int pixel_shader_minor_version = 0;
-  if (RE2::FullMatch(gpu_info->gl_renderer,
-                     "ANGLE \\(.*\\)") &&
-      RE2::PartialMatch(gpu_info->gl_renderer,
-                        " Direct3D(\\w+)",
+  if (RE2::FullMatch(gpu_info->gl_renderer, "ANGLE \\(.*\\)") &&
+      RE2::PartialMatch(gpu_info->gl_renderer, " Direct3D(\\w+)",
                         &direct3d_version) &&
-      RE2::PartialMatch(gpu_info->gl_renderer,
-                        " vs_(\\d+)_(\\d+)",
+      RE2::PartialMatch(gpu_info->gl_renderer, " vs_(\\d+)_(\\d+)",
                         &vertex_shader_major_version,
                         &vertex_shader_minor_version) &&
-      RE2::PartialMatch(gpu_info->gl_renderer,
-                        " ps_(\\d+)_(\\d+)",
+      RE2::PartialMatch(gpu_info->gl_renderer, " ps_(\\d+)_(\\d+)",
                         &pixel_shader_major_version,
                         &pixel_shader_minor_version)) {
-    gpu_info->vertex_shader_version =
-        base::StringPrintf("%d.%d",
-                           vertex_shader_major_version,
-                           vertex_shader_minor_version);
-    gpu_info->pixel_shader_version =
-        base::StringPrintf("%d.%d",
-                           pixel_shader_major_version,
-                           pixel_shader_minor_version);
+    gpu_info->vertex_shader_version = base::StringPrintf(
+        "%d.%d", vertex_shader_major_version, vertex_shader_minor_version);
+    gpu_info->pixel_shader_version = base::StringPrintf(
+        "%d.%d", pixel_shader_major_version, pixel_shader_minor_version);
 
     DCHECK(!gpu_info->vertex_shader_version.empty());
     // Note: do not reorder, used by UMA_HISTOGRAM below

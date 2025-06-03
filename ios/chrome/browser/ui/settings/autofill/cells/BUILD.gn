@@ -14,15 +14,15 @@ source_set("cells") {
   deps = [
     "//base",
     "//base:i18n",
+    "//ios/chrome/app/strings",
     "//ios/chrome/browser/shared/ui/table_view:styler",
     "//ios/chrome/browser/shared/ui/table_view/cells",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/ui/autofill:autofill_ui_type",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/table_view:cells_constants",
+    "//ui/base",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("unit_tests") {
@@ -37,6 +37,4 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/ocmock:ocmock",
   ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }

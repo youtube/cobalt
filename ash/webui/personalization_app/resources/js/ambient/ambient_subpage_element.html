@@ -1,7 +1,4 @@
 <style include="common">
-  :host {
-    flex-grow: 1;
-  }
   #container {
     display: grid;
     grid-template-areas:
@@ -13,11 +10,12 @@
   }
   :host-context(body.jelly-enabled) #container {
     grid-template-areas:
-      '. leftspacertop    preview rightspacertop    .'
-      '. leftspacerbottom content rightspacerbottom .';
-    grid-template-columns: 1fr 16px minmax(568px, 920px) 16px 1fr;
+      'leftspacertop    preview rightspacertop   '
+      'leftspacerbottom content rightspacerbottom';
+    grid-template-columns: minmax(16px, 1fr) minmax(568px, 920px) minmax(16px, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     margin-block-end: 0;
+    min-height: var(--personalization-app-subpage-container-min-height);
   }
   #mainSettings {
     display: flex;
@@ -28,17 +26,22 @@
   #toggleRowPlaceholder {
     margin: 0 8px;
   }
+  ambient-duration,
+  #durationPlaceholder {
+    border-top: var(--cr-separator-line);
+    margin-bottom: 0;
+  }
   .ambient-toggle-label-placeholder {
     height: 20px;
     margin-bottom: 2px;
     width: 10%;
   }
   /* TODO(b/253470553): Remove after Ambient subpage UI change is released. */
-  ambient-preview-small.jelly-disabled {
-    margin: 20px 8px 0 8px;
-  }
   ambient-preview-small {
     grid-area: preview;
+    margin: 20px 8px 0 8px;
+  }
+  :host-context(body.jelly-enabled) ambient-preview-small {
     margin: 0 8px;
   }
   albums-subpage {
@@ -49,10 +52,10 @@
     background-color: var(--cros-bg-color);
     padding: 20px 0 24px 0;
   }
-  .animation-placeholder-list {
+  .ambient-theme-placeholder-list {
     width: 516px;
   }
-  .animation-placeholder-container {
+  .ambient-theme-placeholder-container {
     box-sizing: border-box;
     overflow: hidden;
     padding: calc(var(--personalization-app-grid-item-spacing) / 2);
@@ -61,7 +64,7 @@
      * parent width. */
     width: calc(100% / 3 - 0.34px);
   }
-  .animation-item-placeholder {
+  .ambient-theme-item-placeholder {
     align-items: center;
     border-radius: var(--personalization-app-grid-item-border-radius);
     box-sizing: border-box;
@@ -73,7 +76,7 @@
     position: relative;
     width: 100%;
   }
-  .animation-item-title-placeholder {
+  .ambient-theme-item-title-placeholder {
     margin-top: 8px;
   }
   div[class^='ambient-text-placeholder'] {
@@ -86,10 +89,10 @@
     padding-inline: var(--cr-section-padding) var(--cr-icon-ripple-padding);
     width: 100%;
   }
-  #topicSourceTextPlaceholder {
+  .topic-source-placeholder {
     height: 64px;
   }
-  #weatherUnitTextPlaceholder {
+  .weather-unit-placeholder {
     height: 48px;
   }
   .ambient-text-placeholder-0 {
@@ -124,15 +127,25 @@
               </div>
             </div>
           </div>
-          <div id="animationThemePlaceholder">
-            <h3 id="animationTitle" class="ambient-subpage-element-title" aria-hidden="true">
+          <template is="dom-if" if="[[isScreenSaverDurationEnabled_]]">
+            <div id="durationPlaceholder">
+              <div class="ambient-toggle-row">
+                <h3 class="ambient-subpage-element-title" aria-hidden="true">
+                  $i18n{ambientModeDurationTitle}
+                </h3>
+                <div class="ambient-secondary-text-placeholder placeholder"></div>
+              </div>
+            </div>
+          </template>
+          <div id="ambientThemePlaceholder">
+            <h3 id="ambientThemeTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeAnimationTitle}
             </h3>
-            <iron-list class="animation-placeholder-list" items="[[getPlaceholders_(3)]]" grid>
+            <iron-list class="ambient-theme-placeholder-list" items="[[getPlaceholders_(3)]]" grid>
               <template>
-                <div class="animation-placeholder-container">
-                  <div class="animation-item-placeholder placeholder"></div>
-                  <div class="animation-item-title-placeholder
+                <div class="ambient-theme-placeholder-container">
+                  <div class="ambient-theme-item-placeholder placeholder"></div>
+                  <div class="ambient-theme-item-title-placeholder
                       ambient-primary-text-placeholder placeholder"></div>
                 </div>
               </template>
@@ -142,47 +155,44 @@
             <h3 id="topicSourceTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeTopicSourceTitle}
             </h3>
-            <iron-list items="[[getPlaceholders_(2)]]" grid>
-              <template>
-                  <div id="topicSourceTextPlaceholder" class$="{{getClassContainer_(index)}}">
-                    <div class="ambient-primary-text-placeholder placeholder"></div>
-                    <div class="ambient-secondary-text-placeholder placeholder"></div>
-                  </div>
-              </template>
-            </iron-list>
+            <div class="ambient-text-placeholder-0 topic-source-placeholder">
+              <div class="ambient-primary-text-placeholder placeholder"></div>
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
+            <div class="ambient-text-placeholder-1 topic-source-placeholder">
+              <div class="ambient-primary-text-placeholder placeholder"></div>
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
           </div>
           <div id="weatherUnitPlaceholder">
             <h3 id="weatherTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeWeatherTitle}
             </h3>
-            <iron-list items="[[getPlaceholders_(2)]]" grid>
-              <template>
-                <div id="weatherUnitTextPlaceholder" class$="{{getClassContainer_(index)}}">
-                  <div class="ambient-secondary-text-placeholder placeholder"></div>
-                </div>
-              </template>
-            </iron-list>
+            <div class="ambient-text-placeholder-0 weather-unit-placeholder">
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
+            <div class="ambient-text-placeholder-1 weather-unit-placeholder">
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
           </div>
         </template>
         <template is="dom-if" if="[[!loading_]]">
-          <toggle-row id="ambientToggleRow" checked="[[ambientModeEnabled_]]"
-              on-click="onClickAmbientModeButton_" on-change="onToggleStateChanged_">
-          </toggle-row>
+          <toggle-row id="ambientToggleRow"></toggle-row>
           <template is="dom-if" if="[[ambientModeEnabled_]]">
-            <animation-theme-list
-                selected-animation-theme="[[animationTheme_]]">
-            </animation-theme-list>
+            <template is="dom-if" if="[[isScreenSaverDurationEnabled_]]">
+              <ambient-duration duration="[[duration_]]">
+              </ambient-duration>
+            </template>
+            <ambient-theme-list
+                selected-ambient-theme="[[ambientTheme_]]">
+            </ambient-theme-list>
             <topic-source-list selected-topic-source="[[topicSource_]]"
-                selected-animation-theme="[[animationTheme_]]"
+                selected-ambient-theme="[[ambientTheme_]]"
                 has-google-photos-albums="[[hasGooglePhotosAlbums_(albums_)]]">
             </topic-source-list>
             <ambient-weather-unit
                 selected-temperature-unit="[[temperatureUnitToString_(temperatureUnit_)]]">
             </ambient-weather-unit>
-            <template is="dom-if" if="[[isScreenSaverDurationEnabled_]]">
-              <duration-list duration="[[duration_]]">
-              </duration-list>
-            </template>
           </template>
         </template>
       </div>
@@ -205,16 +215,16 @@
               <div class="ambient-primary-text-placeholder placeholder"></div>
             </div>
           </div>
-          <ambient-preview-small class="jelly-disabled"></ambient-preview-small>
-          <div id="animationThemePlaceholder">
-            <h3 id="animationTitle" class="ambient-subpage-element-title" aria-hidden="true">
+          <ambient-preview-small></ambient-preview-small>
+          <div id="ambientThemePlaceholder">
+            <h3 id="ambientThemeTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeAnimationTitle}
             </h3>
-            <iron-list class="animation-placeholder-list" items="[[getPlaceholders_(3)]]" grid>
+            <iron-list class="ambient-theme-placeholder-list" items="[[getPlaceholders_(3)]]" grid>
               <template>
-                <div class="animation-placeholder-container">
-                  <div class="animation-item-placeholder placeholder"></div>
-                  <div class="animation-item-title-placeholder
+                <div class="ambient-theme-placeholder-container">
+                  <div class="ambient-theme-item-placeholder placeholder"></div>
+                  <div class="ambient-theme-item-title-placeholder
                       ambient-primary-text-placeholder placeholder"></div>
                 </div>
               </template>
@@ -224,42 +234,39 @@
             <h3 id="topicSourceTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeTopicSourceTitle}
             </h3>
-            <iron-list items="[[getPlaceholders_(2)]]" grid>
-              <template>
-                  <div id="topicSourceTextPlaceholder" class$="{{getClassContainer_(index)}}">
-                    <div class="ambient-primary-text-placeholder placeholder"></div>
-                    <div class="ambient-secondary-text-placeholder placeholder"></div>
-                  </div>
-              </template>
-            </iron-list>
+            <div class="ambient-text-placeholder-0 topic-source-placeholder">
+              <div class="ambient-primary-text-placeholder placeholder"></div>
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
+            <div class="ambient-text-placeholder-1 topic-source-placeholder">
+              <div class="ambient-primary-text-placeholder placeholder"></div>
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
           </div>
           <div id="weatherUnitPlaceholder">
             <h3 id="weatherTitle" class="ambient-subpage-element-title" aria-hidden="true">
               $i18n{ambientModeWeatherTitle}
             </h3>
-            <iron-list items="[[getPlaceholders_(2)]]" grid>
-              <template>
-                <div id="weatherUnitTextPlaceholder" class$="{{getClassContainer_(index)}}">
-                  <div class="ambient-secondary-text-placeholder placeholder"></div>
-                </div>
-              </template>
-            </iron-list>
+            <div class="ambient-text-placeholder-0 weather-unit-placeholder">
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
+            <div class="ambient-text-placeholder-1 weather-unit-placeholder">
+              <div class="ambient-secondary-text-placeholder placeholder"></div>
+            </div>
           </div>
         </template>
         <template is="dom-if" if="[[!loading_]]">
-          <toggle-row id="ambientToggleRow" class="clickable" checked="[[ambientModeEnabled_]]"
-              on-click="onClickAmbientModeButton_" on-change="onToggleStateChanged_">
-          </toggle-row>
+          <toggle-row id="ambientToggleRow"></toggle-row>
           <template is="dom-if" if="[[!ambientModeEnabled_]]">
             <ambient-zero-state id="zeroState"></ambient-zero-state>
           </template>
           <template is="dom-if" if="[[ambientModeEnabled_]]">
-            <ambient-preview-small class="jelly-disabled"></ambient-preview-small>
-            <animation-theme-list
-                selected-animation-theme="[[animationTheme_]]">
-            </animation-theme-list>
+            <ambient-preview-small></ambient-preview-small>
+            <ambient-theme-list
+                selected-ambient-theme="[[ambientTheme_]]">
+            </ambient-theme-list>
             <topic-source-list selected-topic-source="[[topicSource_]]"
-                selected-animation-theme="[[animationTheme_]]"
+                selected-ambient-theme="[[ambientTheme_]]"
                 has-google-photos-albums="[[hasGooglePhotosAlbums_(albums_)]]">
             </topic-source-list>
             <ambient-weather-unit

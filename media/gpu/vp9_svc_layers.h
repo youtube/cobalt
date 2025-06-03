@@ -40,7 +40,8 @@ class MEDIA_GPU_EXPORT VP9SVCLayers {
                 "VP9SVCLayers uses six reference frames");
 
   using SpatialLayer = VideoEncodeAccelerator::Config::SpatialLayer;
-  explicit VP9SVCLayers(const std::vector<SpatialLayer>& spatial_layers);
+  explicit VP9SVCLayers(const std::vector<SpatialLayer>& spatial_layers,
+                        SVCInterLayerPredMode inter_layer_pred);
   ~VP9SVCLayers();
 
   // Returns true if EncodeJob needs to produce key frame.
@@ -63,6 +64,8 @@ class MEDIA_GPU_EXPORT VP9SVCLayers {
   }
 
  private:
+  friend class VP9SVCLayersTest;
+
   // Useful functions to construct refresh flag and detect reference frames
   // from the flag.
   void FillVp9MetadataForEncoding(
@@ -84,15 +87,14 @@ class MEDIA_GPU_EXPORT VP9SVCLayers {
   // Resolutions for all spatial layers and active spatial layers.
   std::vector<gfx::Size> spatial_layer_resolutions_;
   std::vector<gfx::Size> active_spatial_layer_resolutions_;
-
-  // Stores the active layer range, only used to judge whether active range has
-  // changed in |MaybeUpdateActiveLayer|, then
-  // |active_spatial_layer_resolutions_| needs update.
   size_t begin_active_layer_;
   size_t end_active_layer_;
 
   // The pattern index used for reference frames slots.
   uint8_t pattern_index_of_ref_frames_slots_[kMaxNumUsedReferenceFrames] = {};
+
+  // Inter layer prediction mode.
+  const SVCInterLayerPredMode inter_layer_pred_;
 };
 
 }  // namespace media

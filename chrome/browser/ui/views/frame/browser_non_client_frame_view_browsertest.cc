@@ -8,7 +8,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/scoped_disable_client_side_decorations_for_test.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -34,6 +33,7 @@
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/gfx/color_utils.h"
 
 namespace {
 
@@ -89,12 +89,12 @@ class BrowserNonClientFrameViewBrowserTest
     manifest.has_theme_color = true;
     manifest.theme_color = app_theme_color_;
 
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
+    auto web_app_info = std::make_unique<web_app::WebAppInstallInfo>();
     GURL manifest_url = embedded_test_server()->GetURL("/manifest");
     web_app::UpdateWebAppInfoFromManifest(manifest, manifest_url,
                                           web_app_info.get());
 
-    web_app::AppId app_id =
+    webapps::AppId app_id =
         web_app::test::InstallWebApp(profile(), std::move(web_app_info));
     app_browser_ = web_app::LaunchWebAppBrowser(profile(), app_id);
     web_contents_ = app_browser_->tab_strip_model()->GetActiveWebContents();
@@ -114,9 +114,11 @@ class BrowserNonClientFrameViewBrowserTest
 
  protected:
   SkColor app_theme_color_ = SK_ColorBLUE;
-  raw_ptr<Browser, DanglingUntriaged> app_browser_ = nullptr;
-  raw_ptr<BrowserView, DanglingUntriaged> app_browser_view_ = nullptr;
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> app_browser_ = nullptr;
+  raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> app_browser_view_ =
+      nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
   autofill::TestAutofillManagerInjector<TestAutofillManager>
       autofill_manager_injector_;
 
@@ -213,6 +215,29 @@ IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
 #endif
 }
 
+// Verifies that the incognito window frame is always the right color.
+IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
+                       IncognitoIsCorrectColor) {
+  // Set the color that's expected to be ignored.
+  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
+  theme->set_user_color(gfx::kGoogleBlue400);
+  theme->NotifyOnNativeThemeUpdated();
+
+  Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
+
+  BrowserView* view = BrowserView::GetBrowserViewForBrowser(incognito_browser);
+  BrowserFrame* frame = view->frame();
+  BrowserNonClientFrameView* frame_view = frame->GetFrameView();
+
+  color_utils::HSL frame_color_hsl;
+  SkColorToHSL(frame_view->GetFrameColor(BrowserFrameActiveState::kActive),
+               &frame_color_hsl);
+  // Ensure that the frame color is very dark in Incognito.
+  EXPECT_LT(frame_color_hsl.l, 0.2);
+
+  incognito_browser->window()->Close();
+}
+
 // Checks that the title bar for hosted app windows is hidden when in fullscreen
 // for tab mode.
 IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
@@ -249,11 +274,6 @@ IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
 // Tests that hosted app frames reflect the theme color set by HTML meta tags.
 IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
                        HTMLMetaThemeColorOverridesManifest) {
-  // TODO(crbug.com/1240482): the test expectations fail if the window gets CSD
-  // and becomes smaller because of that.  Investigate this and remove the line
-  // below if possible.
-  ui::ScopedDisableClientSideDecorationsForTest scoped_disabled_csd;
-
   // Ensure we're not using the system theme on Linux.
   ThemeService* theme_service =
       ThemeServiceFactory::GetForProfile(browser()->profile());
@@ -337,7 +357,7 @@ IN_PROC_BROWSER_TEST_F(BrowserNonClientFrameViewBrowserTest,
     // color should be picked.
     content::ThemeChangeWaiter waiter(web_contents_);
     std::string width =
-        content::EvalJs(web_contents_.get(), "outerWidth.toString()")
+        content::EvalJs(web_contents_.get(), "innerWidth.toString()")
             .ExtractString();
     EXPECT_TRUE(content::ExecJs(web_contents_.get(),
                                 "document.getElementById('first')."
@@ -368,9 +388,9 @@ class SaveCardOfferObserver
   explicit SaveCardOfferObserver(content::WebContents* web_contents) {
     manager_ = autofill::ContentAutofillDriver::GetForRenderFrameHost(
                    web_contents->GetPrimaryMainFrame())
-                   ->autofill_manager()
-                   ->client()
-                   ->GetFormDataImporter()
+                   ->GetAutofillManager()
+                   .client()
+                   .GetFormDataImporter()
                    ->credit_card_save_manager_.get();
     manager_->SetEventObserverForTesting(this);
   }

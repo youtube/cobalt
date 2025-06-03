@@ -182,7 +182,8 @@ UnmaskCardRequest::UnmaskCardRequest(
     : request_details_(request_details),
       full_sync_enabled_(full_sync_enabled),
       callback_(std::move(callback)) {
-  DCHECK_NE(CreditCard::LOCAL_CARD, request_details.card.record_type());
+  DCHECK_NE(CreditCard::RecordType::kLocalCard,
+            request_details.card.record_type());
 }
 
 UnmaskCardRequest::~UnmaskCardRequest() = default;
@@ -208,15 +209,10 @@ std::string UnmaskCardRequest::GetRequestContent() {
         "instrument_id",
         base::NumberToString(request_details_.card.instrument_id()));
   }
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillAlwaysReturnCloudTokenizedCard)) {
-    // See b/140727361.
-    request_dict.Set("instrument_token", "INSTRUMENT_TOKEN_FOR_TEST");
-  }
   request_dict.Set("risk_data_encoded",
                    BuildRiskDictionary(request_details_.risk_data));
   base::Value::Dict context;
-  context.Set("billable_service", kUnmaskCardBillableServiceNumber);
+  context.Set("billable_service", kUnmaskPaymentMethodBillableServiceNumber);
   if (request_details_.billing_customer_number != 0) {
     context.Set("customer_context",
                 BuildCustomerContextDictionary(
@@ -294,6 +290,14 @@ std::string UnmaskCardRequest::GetRequestContent() {
             .spec());
     request_dict.Set("virtual_card_request_info",
                      std::move(virtual_card_request_info));
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableMerchantDomainInUnmaskCardRequest) &&
+      request_details_.merchant_domain_for_footprints.has_value()) {
+    request_dict.Set(
+        "merchant_domain",
+        request_details_.merchant_domain_for_footprints->Serialize());
   }
 
   std::string json_request;
@@ -376,11 +380,12 @@ void UnmaskCardRequest::ParseResponse(const base::Value::Dict& response) {
   const std::string* flow_status = response.FindString("flow_status");
   response_details_.flow_status = flow_status ? *flow_status : std::string();
 
-  if (request_details_.card.record_type() == CreditCard::VIRTUAL_CARD) {
+  if (request_details_.card.record_type() ==
+      CreditCard::RecordType::kVirtualCard) {
     response_details_.card_type =
         AutofillClient::PaymentsRpcCardType::kVirtualCard;
   } else if (request_details_.card.record_type() ==
-             CreditCard::MASKED_SERVER_CARD) {
+             CreditCard::RecordType::kMaskedServerCard) {
     response_details_.card_type =
         AutofillClient::PaymentsRpcCardType::kServerCard;
   } else {
@@ -444,8 +449,10 @@ bool UnmaskCardRequest::IsRetryableFailure(const std::string& error_code) {
   // The additional case where this can be a retryable failure is only for
   // virtual cards, so if we are not in the virtual card unmasking case at this
   // point, return false.
-  if (request_details_.card.record_type() != CreditCard::VIRTUAL_CARD)
+  if (request_details_.card.record_type() !=
+      CreditCard::RecordType::kVirtualCard) {
     return false;
+  }
 
   // If a challenge option was not selected, we are not in the virtual card
   // unmasking case, so return false.

@@ -54,7 +54,6 @@ void IdentityRequestDialogController::SetIsInterceptionEnabled(bool enabled) {
 }
 
 void IdentityRequestDialogController::ShowAccountsDialog(
-    WebContents* rp_web_contents,
     const std::string& top_frame_for_display,
     const absl::optional<std::string>& iframe_for_display,
     const std::vector<IdentityProviderData>& identity_provider_data,
@@ -68,12 +67,27 @@ void IdentityRequestDialogController::ShowAccountsDialog(
 }
 
 void IdentityRequestDialogController::ShowFailureDialog(
-    WebContents* rp_web_contents,
     const std::string& top_frame_for_display,
     const absl::optional<std::string>& iframe_for_display,
     const std::string& idp_for_display,
+    const blink::mojom::RpContext& rp_context,
     const IdentityProviderMetadata& idp_metadata,
-    DismissCallback dismiss_callback) {
+    DismissCallback dismiss_callback,
+    SigninToIdPCallback signin_callback) {
+  if (!is_interception_enabled_) {
+    std::move(dismiss_callback).Run(DismissReason::kOther);
+  }
+}
+
+void IdentityRequestDialogController::ShowErrorDialog(
+    const std::string& top_frame_for_display,
+    const absl::optional<std::string>& iframe_for_display,
+    const std::string& idp_for_display,
+    const blink::mojom::RpContext& rp_context,
+    const IdentityProviderMetadata& idp_metadata,
+    const absl::optional<IdentityCredentialTokenError>& error,
+    DismissCallback dismiss_callback,
+    MoreDetailsCallback more_details_callback) {
   if (!is_interception_enabled_) {
     std::move(dismiss_callback).Run(DismissReason::kOther);
   }
@@ -95,13 +109,15 @@ void IdentityRequestDialogController::ShowIdpSigninFailureDialog(
   }
 }
 
-void IdentityRequestDialogController::ShowPopUpWindow(
+WebContents* IdentityRequestDialogController::ShowModalDialog(
     const GURL& url,
-    TokenCallback on_resolve,
     DismissCallback dismiss_callback) {
   if (!is_interception_enabled_) {
     std::move(dismiss_callback).Run(DismissReason::kOther);
   }
+  return nullptr;
 }
+
+void IdentityRequestDialogController::CloseModalDialog() {}
 
 }  // namespace content

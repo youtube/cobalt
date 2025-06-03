@@ -18,6 +18,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "net/base/features.h"
 
 namespace first_party_sets {
 
@@ -80,10 +81,13 @@ FirstPartySetsNavigationThrottle::MaybeCreateNavigationThrottle(
 
   FirstPartySetsPolicyService* service =
       FirstPartySetsPolicyServiceFactory::GetForBrowserContext(profile);
-  DCHECK(service);
-  if (!features::kFirstPartySetsClearSiteDataOnChangedSets.Get() ||
-      navigation_handle->GetParentFrameOrOuterDocument() ||
-      service->is_ready()) {
+  CHECK(service);
+  if (service->is_ready() ||
+      !base::FeatureList::IsEnabled(
+          net::features::kWaitForFirstPartySetsInit) ||
+      features::kFirstPartySetsNavigationThrottleTimeout.Get().is_zero() ||
+      !features::kFirstPartySetsClearSiteDataOnChangedSets.Get() ||
+      navigation_handle->GetParentFrameOrOuterDocument()) {
     return nullptr;
   }
   return std::make_unique<FirstPartySetsNavigationThrottle>(navigation_handle,
@@ -92,7 +96,7 @@ FirstPartySetsNavigationThrottle::MaybeCreateNavigationThrottle(
 
 void FirstPartySetsNavigationThrottle::OnTimeOut() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!resume_navigation_timer_.IsRunning());
+  CHECK(!resume_navigation_timer_.IsRunning());
   RecordResumeOnTimeout(true);
   Resume();
 }
@@ -103,7 +107,7 @@ void FirstPartySetsNavigationThrottle::OnReadyToResume() {
   // navigation has been resumed by `OnTimeOut`, so we don't need to resume
   // again.
   if (!resume_navigation_timer_.IsRunning()) {
-    DCHECK(resumed_);
+    CHECK(resumed_);
     return;
   }
   // Stop the timer to make sure we won't try to resume again due to hitting
@@ -115,7 +119,7 @@ void FirstPartySetsNavigationThrottle::OnReadyToResume() {
 
 void FirstPartySetsNavigationThrottle::Resume() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!resumed_);
+  CHECK(!resumed_);
   resumed_ = true;
 
   CHECK(throttle_navigation_timer_.has_value());

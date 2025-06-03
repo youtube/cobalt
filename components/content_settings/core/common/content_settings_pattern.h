@@ -88,6 +88,8 @@ class ContentSettingsPattern {
     PatternParts& operator=(const PatternParts& other);
     PatternParts& operator=(PatternParts&& other);
 
+    bool operator==(const PatternParts& other) const;
+
     // Lowercase string of the URL scheme to match. This string is empty if the
     // |is_scheme_wildcard| flag is set.
     std::string scheme;
@@ -123,7 +125,7 @@ class ContentSettingsPattern {
 
   class BuilderInterface {
    public:
-    virtual ~BuilderInterface() {}
+    virtual ~BuilderInterface() = default;
 
     virtual BuilderInterface* WithPort(const std::string& port) = 0;
 
@@ -163,6 +165,10 @@ class ContentSettingsPattern {
 
   // Returns a pattern that matches exactly this URL.
   static ContentSettingsPattern FromURLNoWildcard(const GURL& url);
+
+  // Converts a given url to a ContentSettingsPattern that represents a site,
+  // i.e. with domain, path, and port wildcards.
+  static ContentSettingsPattern FromURLToSchemefulSitePattern(const GURL& url);
 
   // Returns a pattern that matches the given pattern specification.
   // Valid patterns specifications are:
@@ -247,6 +253,11 @@ class ContentSettingsPattern {
 
   // Returns true if the pattern has a higher priority than the |other| pattern.
   bool operator>(const ContentSettingsPattern& other) const;
+
+  // Formatter method for Google Test
+  friend void PrintTo(const ContentSettingsPattern& pattern, std::ostream* os) {
+    *os << pattern.ToString();
+  }
 
  private:
   friend class content_settings::PatternParser;

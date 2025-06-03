@@ -101,27 +101,19 @@ AddressType BluetoothDeviceFloss::GetAddressType() const {
 }
 
 VendorIDSource BluetoothDeviceFloss::GetVendorIDSource() const {
-  NOTIMPLEMENTED();
-
-  return VendorIDSource::VENDOR_ID_UNKNOWN;
+  return static_cast<VendorIDSource>(vpi_.vendorIdSrc);
 }
 
 uint16_t BluetoothDeviceFloss::GetVendorID() const {
-  NOTIMPLEMENTED();
-
-  return 0;
+  return vpi_.vendorId;
 }
 
 uint16_t BluetoothDeviceFloss::GetProductID() const {
-  NOTIMPLEMENTED();
-
-  return 0;
+  return vpi_.productId;
 }
 
 uint16_t BluetoothDeviceFloss::GetDeviceID() const {
-  NOTIMPLEMENTED();
-
-  return 0;
+  return vpi_.version;
 }
 
 uint16_t BluetoothDeviceFloss::GetAppearance() const {
@@ -731,6 +723,18 @@ void BluetoothDeviceFloss::OnGetRemoteUuids(DBusResult<UUIDList> ret) {
   TriggerInitDevicePropertiesCallback();
 }
 
+void BluetoothDeviceFloss::OnGetRemoteVendorProductInfo(
+    DBusResult<FlossAdapterClient::VendorProductInfo> ret) {
+  if (ret.has_value()) {
+    vpi_ = *ret;
+  } else {
+    BLUETOOTH_LOG(ERROR) << "GetRemoteVendorProductInfo() failed: "
+                         << ret.error();
+  }
+
+  TriggerInitDevicePropertiesCallback();
+}
+
 void BluetoothDeviceFloss::OnConnectAllEnabledProfiles(DBusResult<Void> ret) {
   if (!ret.has_value()) {
     BLUETOOTH_LOG(ERROR) << "Failed to connect all enabled profiles: "
@@ -828,18 +832,19 @@ void BluetoothDeviceFloss::OnConnectToServiceError(
 }
 
 void BluetoothDeviceFloss::InitializeDeviceProperties(
+    PropertiesState state,
     base::OnceClosure callback) {
   // If a property read is already active, don't re-run it.
-  if (property_reads_triggered_) {
+  if (IsReadingProperties()) {
     return;
   }
 
-  property_reads_triggered_ = true;
+  property_reads_triggered_ = state;
   pending_callback_on_init_props_ = std::move(callback);
   // This must be incremented when adding more properties below
   // and followed up with a TriggerInitDevicePropertiesCallback()
   // in the callback.
-  num_pending_properties_ += 4;
+  num_pending_properties_ += 5;
   // TODO(b/204708206): Update with property framework when available
   FlossDBusManager::Get()->GetAdapterClient()->GetRemoteType(
       base::BindOnce(&BluetoothDeviceFloss::OnGetRemoteType,
@@ -857,12 +862,17 @@ void BluetoothDeviceFloss::InitializeDeviceProperties(
       base::BindOnce(&BluetoothDeviceFloss::OnGetRemoteUuids,
                      weak_ptr_factory_.GetWeakPtr()),
       AsFlossDeviceId());
+  FlossDBusManager::Get()->GetAdapterClient()->GetRemoteVendorProductInfo(
+      base::BindOnce(&BluetoothDeviceFloss::OnGetRemoteVendorProductInfo,
+                     weak_ptr_factory_.GetWeakPtr()),
+      AsFlossDeviceId());
 }
 
 void BluetoothDeviceFloss::TriggerInitDevicePropertiesCallback() {
   if (--num_pending_properties_ == 0 && pending_callback_on_init_props_) {
-    property_reads_completed_ = true;
-    property_reads_triggered_ = false;
+    property_reads_completed_ = static_cast<PropertiesState>(
+        property_reads_completed_ | property_reads_triggered_);
+    property_reads_triggered_ = PropertiesState::kNotRead;
     std::move(*pending_callback_on_init_props_).Run();
     pending_callback_on_init_props_ = absl::nullopt;
   }
@@ -989,5 +999,15 @@ void BluetoothDeviceFloss::GattConfigureMtu(std::string address,
 
   DidConnectGatt(absl::nullopt);
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+void BluetoothDeviceFloss::GattServiceChanged(std::string address) {
+  if (address != GetAddress()) {
+    return;
+  }
+
+  adapter()->NotifyGattNeedsDiscovery(this);
+}
+#endif
 
 }  // namespace floss

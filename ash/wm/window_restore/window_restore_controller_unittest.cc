@@ -26,8 +26,6 @@
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/scoped_observation.h"
-#include "base/test/scoped_feature_list.h"
-#include "chromeos/ui/wm/features.h"
 #include "components/account_id/account_id.h"
 #include "components/app_restore/app_restore_info.h"
 #include "components/app_restore/full_restore_utils.h"
@@ -65,8 +63,7 @@ class WindowRestoreControllerTest : public AshTestBase,
     std::unique_ptr<app_restore::WindowInfo> info;
   };
 
-  WindowRestoreControllerTest()
-      : scoped_feature_list_(chromeos::wm::features::kWindowLayoutMenu) {}
+  WindowRestoreControllerTest() = default;
   WindowRestoreControllerTest(const WindowRestoreControllerTest&) = delete;
   WindowRestoreControllerTest& operator=(const WindowRestoreControllerTest&) =
       delete;
@@ -272,7 +269,7 @@ class WindowRestoreControllerTest : public AshTestBase,
 
   void TearDown() override {
     env_observation_.Reset();
-
+    WindowRestoreController::Get()->SetSaveWindowCallbackForTesting({});
     AshTestBase::TearDown();
   }
 
@@ -332,8 +329,6 @@ class WindowRestoreControllerTest : public AshTestBase,
   base::flat_map<int32_t, WindowInfo> fake_window_restore_file_;
 
   base::ScopedObservation<aura::Env, aura::EnvObserver> env_observation_{this};
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests window save with setting on or off.
@@ -389,7 +384,7 @@ TEST_F(WindowRestoreControllerTest, WindowStateChanged) {
   window_state->Restore();
   EXPECT_EQ(7, GetSaveWindowsCount(window.get()));
 
-  PerformAcceleratorAction(WINDOW_CYCLE_SNAP_LEFT, {});
+  PerformAcceleratorAction(AcceleratorAction::kWindowCycleSnapLeft, {});
   EXPECT_EQ(8, GetSaveWindowsCount(window.get()));
 }
 
@@ -407,13 +402,13 @@ TEST_F(WindowRestoreControllerTest, WindowMovedDesks) {
   // Move the window to the desk on the right. Test that we save the window in
   // the database.
   PerformAcceleratorAction(
-      DESKS_MOVE_ACTIVE_ITEM_RIGHT,
+      AcceleratorAction::kDesksMoveActiveItemRight,
       {ui::VKEY_OEM_6, ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN});
   ASSERT_NE(previous_parent, window->parent());
   EXPECT_EQ(1, GetSaveWindowsCount(window.get()));
 }
 
-// Tests that data gets saved when assigning a window to all desks.
+// Tests that data gets saved correctly when assigning a window to all desks.
 TEST_F(WindowRestoreControllerTest, AssignToAllDesks) {
   auto* desks_controller = DesksController::Get();
   desks_controller->NewDesk(DesksCreationRemovalSource::kButton);
@@ -428,10 +423,22 @@ TEST_F(WindowRestoreControllerTest, AssignToAllDesks) {
                       aura::client::kWindowWorkspaceVisibleOnAllWorkspaces);
   EXPECT_EQ(1, GetSaveWindowsCount(window.get()));
 
+  // An all desks window should have a populated `desk_id` but not `desk_guid`.
+  app_restore::WindowInfo* window_info = GetWindowInfo(window.get());
+  ASSERT_TRUE(window_info);
+  EXPECT_EQ(aura::client::kWindowWorkspaceVisibleOnAllWorkspaces,
+            window_info->desk_id);
+  EXPECT_FALSE(window_info->desk_guid.is_valid());
+
   // Unassign |window| from all desks. This should trigger a save.
   window->SetProperty(aura::client::kWindowWorkspaceKey,
                       aura::client::kWindowWorkspaceUnassignedWorkspace);
   EXPECT_EQ(2, GetSaveWindowsCount(window.get()));
+
+  // A non-all desks window should not have a populated `desk_id`.
+  app_restore::WindowInfo* window_info2 = GetWindowInfo(window.get());
+  ASSERT_TRUE(window_info2);
+  EXPECT_FALSE(window_info2->desk_id);
 }
 
 // Tests that data gets saved when moving a window to another display using the
@@ -444,7 +451,8 @@ TEST_F(WindowRestoreControllerTest, WindowMovedDisplay) {
 
   // Move the window to the next display. Test that we save the window in
   // the database.
-  PerformAcceleratorAction(MOVE_ACTIVE_WINDOW_BETWEEN_DISPLAYS, {});
+  PerformAcceleratorAction(AcceleratorAction::kMoveActiveWindowBetweenDisplays,
+                           {});
   ASSERT_TRUE(
       gfx::Rect(801, 0, 800, 800).Contains(window->GetBoundsInScreen()));
   EXPECT_EQ(1, GetSaveWindowsCount(window.get()));
@@ -495,7 +503,7 @@ TEST_F(WindowRestoreControllerTest, TabletModeChange) {
 }
 
 TEST_F(WindowRestoreControllerTest, DisplayAddRemove) {
-  UpdateDisplay("800x700,801+0-800x700");
+  UpdateDisplay("800x700, 800x700");
 
   auto window = CreateAppWindow(gfx::Rect(800, 0, 400, 400), AppType::BROWSER);
   ResetSaveWindowsCount();
@@ -511,6 +519,7 @@ TEST_F(WindowRestoreControllerTest, DisplayAddRemove) {
   // window and activate it, resulting in a double save.
   std::vector<display::ManagedDisplayInfo> display_info_list;
   display_info_list.push_back(primary_info);
+  EXPECT_EQ(0, GetSaveWindowsCount(window.get()));
   display_manager()->OnNativeDisplaysChanged(display_info_list);
   EXPECT_EQ(2, GetSaveWindowsCount(window.get()));
 
@@ -722,9 +731,9 @@ TEST_F(WindowRestoreControllerTest, ClamshellFloatWindow) {
   EXPECT_TRUE(floated_window_state->IsFloated());
 
   auto* float_controller = Shell::Get()->float_controller();
-  EXPECT_EQ(
-      float_controller->GetPreferredFloatWindowClamshellBounds(floated_window),
-      floated_window->GetBoundsInScreen());
+  EXPECT_EQ(float_controller->GetFloatWindowClamshellBounds(
+                floated_window, chromeos::FloatStartLocation::kBottomRight),
+            floated_window->GetBoundsInScreen());
 
   // Test that after restoring the floated windows, they have the bounds we
   // saved into the fake file.

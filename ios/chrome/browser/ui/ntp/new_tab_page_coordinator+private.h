@@ -8,18 +8,24 @@
 #import "ios/chrome/browser/ui/ntp/new_tab_page_coordinator.h"
 
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_observer.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_header_commands.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/web_state_list/web_state_list_observer_bridge.h"
 
 @class ContentSuggestionsCoordinator;
+@class FeedHeaderViewController;
+@class FeedTopSectionCoordinator;
+@class FeedWrapperViewController;
+@protocol FeedWrapperViewControllerDelegate;
 @class NewTabPageHeaderViewController;
 @class NewTabPageMetricsRecorder;
+@class NewTabPageMediator;
 @class NewTabPageViewController;
 
 // This is a private category that is intended to only be imported in
 // new_tab_page_coordinator.mm and tests.
-@interface NewTabPageCoordinator (Private) <NewTabPageHeaderCommands,
+@interface NewTabPageCoordinator (Private) <FeedWrapperViewControllerDelegate,
+                                            NewTabPageHeaderCommands,
                                             SceneStateObserver,
                                             WebStateListObserving>
 
@@ -39,7 +45,19 @@
 
 @property(nonatomic, strong) NewTabPageMetricsRecorder* NTPMetricsRecorder;
 
+@property(nonatomic, strong) NewTabPageMediator* NTPMediator;
+
+@property(nonatomic, strong)
+    FeedWrapperViewController* feedWrapperViewController;
+
+@property(nonatomic, strong)
+    FeedTopSectionCoordinator* feedTopSectionCoordinator;
+
+@property(nonatomic, strong) FeedHeaderViewController* feedHeaderViewController;
+
 - (void)configureNTPViewController;
+
+- (void)restoreNTPState;
 
 @end
 

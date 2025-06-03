@@ -730,7 +730,7 @@ bool AXNode::IsText() const {
   // - The list marker itself is ignored but the descendants are not
   // - Or the list marker contains images
   if (GetRole() == ax::mojom::Role::kListMarker)
-    return !GetUnignoredChildCount();
+    return !IsIgnored() && !GetUnignoredChildCount();
   return ui::IsText(GetRole());
 }
 
@@ -1063,27 +1063,12 @@ const std::u16string& AXNode::GetHypertext() const {
   return hypertext_.hypertext;
 }
 
-void AXNode::SetNeedsToUpdateHypertext() {
-  old_hypertext_ = hypertext_;
-  hypertext_.needs_update = true;
-  // TODO(nektar): Introduce proper caching of hypertext via
-  // `AXHypertext::needs_update`.
-  GetHypertext();  // Forces `hypertext_` to immediately update.
-}
-
 const std::map<int, int>& AXNode::GetHypertextOffsetToHyperlinkChildIndex()
     const {
   // TODO(nektar): Introduce proper caching of hypertext via
   // `AXHypertext::needs_update`.
   GetHypertext();  // Update `hypertext_` if not up-to-date.
   return hypertext_.hypertext_offset_to_hyperlink_child_index;
-}
-
-const AXHypertext& AXNode::GetOldHypertext() const {
-  // TODO(nektar): Introduce proper caching of hypertext via
-  // `AXHypertext::needs_update`.
-  GetHypertext();  // Update `hypertext_` if not up-to-date.
-  return old_hypertext_;
 }
 
 const std::string& AXNode::GetTextContentUTF8() const {
@@ -1249,6 +1234,10 @@ std::string AXNode::GetValueForControl() const {
 
 std::ostream& operator<<(std::ostream& stream, const AXNode& node) {
   stream << node.data().ToString(/*verbose*/ false);
+  if (node.tree()->GetTreeUpdateInProgressState()) {
+    // Prevent calling node traversal methods when it's illegal to do so.
+    return stream;
+  }
   if (node.GetUnignoredChildCountCrossingTreeBoundary()) {
     stream << " unignored_child_ids=";
     bool needs_comma = false;
@@ -1261,6 +1250,12 @@ std::ostream& operator<<(std::ostream& stream, const AXNode& node) {
       }
       stream << it.get()->data().id;
     }
+  }
+  if (node.IsLeaf()) {
+    stream << " is_leaf";
+  }
+  if (node.IsChildOfLeaf()) {
+    stream << " is_child_of_leaf";
   }
   return stream;
 }
@@ -1538,6 +1533,14 @@ absl::optional<int> AXNode::GetTableCellRowIndex() const {
   if (!table_info)
     return absl::nullopt;
 
+  // If it's a table row, use the first cell within.
+  if (IsTableRow()) {
+    if (const AXNode* first_cell = table_info->GetFirstCellInRow(this)) {
+      return first_cell->GetTableCellRowIndex();
+    }
+    return absl::nullopt;
+  }
+
   absl::optional<int> index = GetTableCellIndex();
   if (!index)
     return absl::nullopt;
@@ -1593,9 +1596,18 @@ absl::optional<int> AXNode::GetTableCellAriaRowIndex() const {
   if (!table_info)
     return absl::nullopt;
 
-  absl::optional<int> index = GetTableCellIndex();
-  if (!index)
+  // If it's a table row, use the first cell within.
+  if (IsTableRow()) {
+    if (const AXNode* first_cell = table_info->GetFirstCellInRow(this)) {
+      return first_cell->GetTableCellAriaRowIndex();
+    }
     return absl::nullopt;
+  }
+
+  absl::optional<int> index = GetTableCellIndex();
+  if (!index) {
+    return absl::nullopt;
+  }
 
   int aria_row_index =
       static_cast<int>(table_info->cell_data_vector[*index].aria_row_index);
@@ -1868,6 +1880,14 @@ bool AXNode::IsReadOnlyOrDisabled() const {
   }
 }
 
+bool AXNode::IsView() const {
+  const AXTreeManager* manager = GetManager();
+  if (!manager) {
+    return false;
+  }
+  return manager->IsView();
+}
+
 AXNode* AXNode::ComputeLastUnignoredChildRecursive() const {
   DCHECK(!tree_->GetTreeUpdateInProgressState());
   if (children().empty())
@@ -1962,8 +1982,9 @@ bool AXNode::IsChildOfLeaf() const {
   // TODO(nektar): Cache this state in `AXComputedNodeData`.
   for (const AXNode* ancestor = GetUnignoredParent(); ancestor;
        ancestor = ancestor->GetUnignoredParent()) {
-    if (ancestor->IsLeaf())
+    if (ancestor->IsLeaf()) {
       return true;
+    }
   }
   return false;
 }

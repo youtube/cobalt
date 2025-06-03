@@ -4,15 +4,15 @@
 
 #include "chrome/browser/password_manager/android/credential_leak_controller_android.h"
 
+#include <memory>
 #include <string>
 
-#include "base/strings/utf_string_conversions.h"
+#include "base/android/build_info.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "chrome/browser/password_manager/android/mock_password_checkup_launcher_helper.h"
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -28,6 +28,8 @@ using password_manager::IsSyncing;
 using password_manager::metrics_util::LeakDialogDismissalReason;
 using password_manager::metrics_util::LeakDialogMetricsRecorder;
 using password_manager::metrics_util::LeakDialogType;
+using testing::_;
+using testing::StrictMock;
 using UkmEntry = ukm::builders::PasswordManager_LeakWarningDialog;
 
 namespace {
@@ -37,9 +39,11 @@ constexpr char16_t kUsername[] = u"test_username";
 
 // The On*Dialog() methods used by the tests below all invoke `delete this;`,
 // thus there is no memory leak here.
-CredentialLeakControllerAndroid* MakeController(IsSaved is_saved,
-                                                IsReused is_reused,
-                                                IsSyncing is_syncing) {
+CredentialLeakControllerAndroid* MakeController(
+    std::unique_ptr<MockPasswordCheckupLauncherHelper> check_launcher,
+    IsSaved is_saved,
+    IsReused is_reused,
+    IsSyncing is_syncing) {
   password_manager::CredentialLeakType leak_type =
       CreateLeakType(is_saved, is_reused, is_syncing);
   auto recorder = std::make_unique<LeakDialogMetricsRecorder>(
@@ -48,7 +52,8 @@ CredentialLeakControllerAndroid* MakeController(IsSaved is_saved,
   recorder->SetSamplingRateForTesting(1.0);
   return new CredentialLeakControllerAndroid(
       leak_type, GURL(kOrigin), kUsername,
-      /*window_android=*/nullptr, std::move(recorder));
+      /*window_android=*/nullptr, std::move(check_launcher),
+      std::move(recorder));
 }
 
 void CheckUkmMetricsExpectations(
@@ -71,11 +76,15 @@ void CheckUkmMetricsExpectations(
 }  // namespace
 
 TEST(CredentialLeakControllerAndroidTest, ClickedCancel) {
+  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    GTEST_SKIP() << "This test should not run on automotive.";
+  }
+
   base::test::TaskEnvironment task_environment;
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-
-  MakeController(IsSaved(false), IsReused(true), IsSyncing(true))
+  MakeController(std::make_unique<MockPasswordCheckupLauncherHelper>(),
+                 IsSaved(false), IsReused(true), IsSyncing(true))
       ->OnCancelDialog();
 
   histogram_tester.ExpectUniqueSample(
@@ -91,12 +100,14 @@ TEST(CredentialLeakControllerAndroidTest, ClickedCancel) {
                               LeakDialogDismissalReason::kClickedClose);
 }
 
-TEST(CredentialLeakControllerAndroidTest, ClickedOk) {
+TEST(CredentialLeakControllerAndroidTest, ClickedOkDoesNotLaunchCheckup) {
   base::test::TaskEnvironment task_environment;
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-
-  MakeController(IsSaved(false), IsReused(false), IsSyncing(false))
+  std::unique_ptr<StrictMock<MockPasswordCheckupLauncherHelper>> mock_launcher =
+      std::make_unique<StrictMock<MockPasswordCheckupLauncherHelper>>();
+  MakeController(std::move(mock_launcher), IsSaved(false), IsReused(false),
+                 IsSyncing(false))
       ->OnAcceptDialog();
 
   histogram_tester.ExpectUniqueSample(
@@ -111,12 +122,22 @@ TEST(CredentialLeakControllerAndroidTest, ClickedOk) {
                               LeakDialogDismissalReason::kClickedOk);
 }
 
-TEST(CredentialLeakControllerAndroidTest, ClickedCheckPasswords) {
+TEST(CredentialLeakControllerAndroidTest,
+     ClickedCheckPasswordsLaunchesCheckup) {
+  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    GTEST_SKIP() << "This test should not run on automotive.";
+  }
   base::test::TaskEnvironment task_environment;
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-
-  MakeController(IsSaved(true), IsReused(true), IsSyncing(true))
+  std::unique_ptr<MockPasswordCheckupLauncherHelper> mock_launcher =
+      std::make_unique<MockPasswordCheckupLauncherHelper>();
+  EXPECT_CALL(
+      *mock_launcher,
+      LaunchLocalCheckup(
+          _, _, password_manager::PasswordCheckReferrerAndroid::kLeakDialog));
+  MakeController(std::move(mock_launcher), IsSaved(true), IsReused(true),
+                 IsSyncing(true))
       ->OnAcceptDialog();
 
   histogram_tester.ExpectUniqueSample(
@@ -132,12 +153,44 @@ TEST(CredentialLeakControllerAndroidTest, ClickedCheckPasswords) {
       LeakDialogDismissalReason::kClickedCheckPasswords);
 }
 
+TEST(CredentialLeakControllerAndroidTest,
+     AutomotiveShowsOkButtonForSavedReusedSynced) {
+  if (!base::android::BuildInfo::GetInstance()->is_automotive()) {
+    GTEST_SKIP() << "This test should only run on automotive.";
+  }
+  base::test::TaskEnvironment task_environment;
+  base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  std::unique_ptr<MockPasswordCheckupLauncherHelper> mock_launcher =
+      std::make_unique<MockPasswordCheckupLauncherHelper>();
+  EXPECT_CALL(
+      *mock_launcher,
+      LaunchLocalCheckup(
+          _, _, password_manager::PasswordCheckReferrerAndroid::kLeakDialog))
+      .Times(0);
+  MakeController(std::move(mock_launcher), IsSaved(true), IsReused(true),
+                 IsSyncing(true))
+      ->OnAcceptDialog();
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.LeakDetection.DialogDismissalReason",
+      LeakDialogDismissalReason::kClickedOk, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.LeakDetection.DialogDismissalReason.Change",
+      LeakDialogDismissalReason::kClickedOk, 1);
+
+  CheckUkmMetricsExpectations(test_ukm_recorder, LeakDialogType::kChange,
+                              LeakDialogDismissalReason::kClickedOk);
+}
+
 TEST(CredentialLeakControllerAndroidTest, NoDirectInteraction) {
   base::test::TaskEnvironment task_environment;
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
 
-  MakeController(IsSaved(false), IsReused(false), IsSyncing(false))
+  MakeController(std::make_unique<MockPasswordCheckupLauncherHelper>(),
+                 IsSaved(false), IsReused(false), IsSyncing(false))
       ->OnCloseDialog();
 
   histogram_tester.ExpectUniqueSample(

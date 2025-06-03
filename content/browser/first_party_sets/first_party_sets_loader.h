@@ -10,7 +10,6 @@
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
 #include "base/timer/elapsed_timer.h"
-#include "content/browser/first_party_sets/first_party_set_parser.h"
 #include "content/browser/first_party_sets/local_set_declaration.h"
 #include "content/common/content_export.h"
 #include "net/first_party_sets/global_first_party_sets.h"
@@ -36,7 +35,7 @@ class CONTENT_EXPORT FirstPartySetsLoader {
   FirstPartySetsLoader& operator=(const FirstPartySetsLoader&) = delete;
 
   // Stores the First-Party Set that was provided via the `kUseFirstPartySet`
-  // flag/switch.
+  // flag/switch. Only the first call has any effect.
   void SetManuallySpecifiedSet(const LocalSetDeclaration& local_set);
 
   // Asynchronously parses and stores the sets from `sets_file`, and merges with
@@ -47,8 +46,8 @@ class CONTENT_EXPORT FirstPartySetsLoader {
   // invocations are ignored.
   void SetComponentSets(base::Version version, base::File sets_file);
 
-  // Close the file on thread pool that allows blocking.
-  void DisposeFile(base::File sets_file);
+  // Closes the given file safely.
+  static void DisposeFile(base::File file);
 
  private:
   // Parses the contents of `raw_sets` as a collection of First-Party Set

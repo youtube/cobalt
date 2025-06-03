@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui_resource_manager.h"
+#include "ash/frame_sink/ui_resource_manager.h"
 
 #include <memory>
 #include <vector>
 
 #include "ash/frame_sink/ui_resource.h"
 #include "base/test/gtest_util.h"
-#include "components/viz/common/resources/resource_format.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/resources/transferable_resource.h"

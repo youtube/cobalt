@@ -4,6 +4,8 @@
 
 source_set("manual_fill") {
   sources = [
+    "password_list_sorter.h",
+    "password_list_sorter.mm",
     "passwords_fetcher.h",
     "passwords_fetcher.mm",
   ]
@@ -12,19 +14,20 @@ source_set("manual_fill") {
     "//components/autofill/core/common",
     "//components/keyed_service/core",
     "//components/password_manager/core/browser",
-    "//components/password_manager/core/browser:affiliation",
-    "//ios/chrome/browser/browser_state:browser_state",
-    "//ios/chrome/browser/passwords",
-    "//ios/chrome/browser/passwords:save_passwords_consumer",
+    "//components/password_manager/core/browser/affiliation",
+    "//ios/chrome/browser/passwords/model",
+    "//ios/chrome/browser/passwords/model:save_passwords_consumer",
+    "//ios/chrome/browser/shared/model/browser_state",
   ]
   frameworks = [ "UIKit.framework" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
-  sources = [ "passwords_fetcher_unittest.mm" ]
+  sources = [
+    "password_list_sorter_unittest.mm",
+    "passwords_fetcher_unittest.mm",
+  ]
   deps = [
     ":manual_fill",
     "//base/test:test_support",
@@ -32,8 +35,8 @@ source_set("unit_tests") {
     "//components/keyed_service/core",
     "//components/password_manager/core/browser:test_support",
     "//components/password_manager/core/common:features",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/passwords",
+    "//ios/chrome/browser/passwords/model",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
     "//testing/gtest",
   ]
 }

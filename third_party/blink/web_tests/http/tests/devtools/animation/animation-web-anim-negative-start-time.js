@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+import * as UI from 'devtools/ui/legacy/legacy.js';
+import * as Animation from 'devtools/panels/animation/animation.js';
+
 (async function() {
   TestRunner.addResult(`Tests that animation with negative start delay gets added.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   await TestRunner.loadHTML(`
       <div id="node" style="background-color: red; height: 100px"></div>
@@ -23,12 +27,12 @@
   `);
 
   // Override timeline width for testing
-  Animation.AnimationTimeline.prototype.width = function() {
+  Animation.AnimationTimeline.AnimationTimeline.prototype.width = function() {
     return 50;
   };
 
-  await UI.viewManager.showView('animations');
-  var timeline = Animation.AnimationTimeline.instance();
+  await UI.ViewManager.ViewManager.instance().showView('animations');
+  var timeline = Animation.AnimationTimeline.AnimationTimeline.instance();
   TestRunner.evaluateInPage('startAnimation()');
   ElementsTestRunner.waitForAnimationAdded(step2);
 

@@ -56,10 +56,10 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTrip) {
 
   input->window_mode = apps::WindowMode::kWindow;
 
-  input->permissions.push_back(std::make_unique<apps::Permission>(
-      apps::PermissionType::kCamera,
-      std::make_unique<apps::PermissionValue>(/*bool_value=*/true),
-      /*is_managed=*/true));
+  input->permissions.push_back(
+      std::make_unique<apps::Permission>(apps::PermissionType::kCamera,
+                                         /*value=*/true,
+                                         /*is_managed=*/true));
 
   input->allow_uninstall = true;
   input->handles_intents = true;
@@ -116,8 +116,8 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTrip) {
   ASSERT_EQ(output->permissions.size(), 1U);
   auto& out_permission = output->permissions[0];
   EXPECT_EQ(out_permission->permission_type, apps::PermissionType::kCamera);
-  ASSERT_TRUE(absl::holds_alternative<bool>(out_permission->value->value));
-  EXPECT_TRUE(absl::get<bool>(out_permission->value->value));
+  ASSERT_TRUE(absl::holds_alternative<bool>(out_permission->value));
+  EXPECT_TRUE(absl::get<bool>(out_permission->value));
   EXPECT_TRUE(out_permission->is_managed);
 
   EXPECT_TRUE(output->allow_uninstall.value());
@@ -584,7 +584,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIntentFilters) {
   auto intent_filter = std::make_unique<apps::IntentFilter>();
   intent_filter->AddSingleValueCondition(apps::ConditionType::kScheme, "1",
                                          apps::PatternMatchType::kLiteral);
-  intent_filter->AddSingleValueCondition(apps::ConditionType::kHost, "2",
+  intent_filter->AddSingleValueCondition(apps::ConditionType::kAuthority, "2",
                                          apps::PatternMatchType::kLiteral);
   intent_filter->AddSingleValueCondition(apps::ConditionType::kPath, "3",
                                          apps::PatternMatchType::kPrefix);
@@ -596,7 +596,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIntentFilters) {
                                          apps::PatternMatchType::kMimeType);
   intent_filter->AddSingleValueCondition(
       apps::ConditionType::kFile, "7", apps::PatternMatchType::kFileExtension);
-  intent_filter->AddSingleValueCondition(apps::ConditionType::kHost, "8",
+  intent_filter->AddSingleValueCondition(apps::ConditionType::kAuthority, "8",
                                          apps::PatternMatchType::kSuffix);
   input->intent_filters.push_back(std::move(intent_filter));
 
@@ -617,7 +617,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIntentFilters) {
   }
   {
     auto& condition = filter->conditions[1];
-    EXPECT_EQ(condition->condition_type, apps::ConditionType::kHost);
+    EXPECT_EQ(condition->condition_type, apps::ConditionType::kAuthority);
     ASSERT_EQ(condition->condition_values.size(), 1U);
     EXPECT_EQ(condition->condition_values[0]->match_type,
               apps::PatternMatchType::kLiteral);
@@ -665,7 +665,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIntentFilters) {
   }
   {
     auto& condition = filter->conditions[7];
-    EXPECT_EQ(condition->condition_type, apps::ConditionType::kHost);
+    EXPECT_EQ(condition->condition_type, apps::ConditionType::kAuthority);
     ASSERT_EQ(condition->condition_values.size(), 1U);
     EXPECT_EQ(condition->condition_values[0]->match_type,
               apps::PatternMatchType::kSuffix);
@@ -757,10 +757,6 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIconValue) {
     auto input = std::make_unique<apps::IconValue>();
     input->icon_type = apps::IconType::kUnknown;
 
-    std::vector<float> scales;
-    scales.push_back(1.0f);
-    gfx::ImageSkia::SetSupportedScales(scales);
-
     gfx::ImageSkia image = gfx::test::CreateImageSkia(1, 2);
     input->uncompressed = image;
 
@@ -781,10 +777,6 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripIconValue) {
   {
     auto input = std::make_unique<apps::IconValue>();
     input->icon_type = apps::IconType::kUncompressed;
-
-    std::vector<float> scales;
-    scales.push_back(1.0f);
-    gfx::ImageSkia::SetSupportedScales(scales);
 
     gfx::ImageSkia image = gfx::test::CreateImageSkia(3, 4);
     input->uncompressed = image;
@@ -1043,8 +1035,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripLaunchSource) {
 TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kUnknown,
-        std::make_unique<apps::PermissionValue>(true),
+        apps::PermissionType::kUnknown, /*value=*/true,
         /*is_managed=*/false);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1053,8 +1044,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kCamera,
-        std::make_unique<apps::PermissionValue>(true),
+        apps::PermissionType::kCamera, /*value=*/true,
         /*is_managed=*/true);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1063,8 +1053,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kLocation,
-        std::make_unique<apps::PermissionValue>(apps::TriState::kAllow),
+        apps::PermissionType::kLocation, /*value=*/apps::TriState::kAllow,
         /*is_managed=*/false);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1073,8 +1062,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kMicrophone,
-        std::make_unique<apps::PermissionValue>(apps::TriState::kBlock),
+        apps::PermissionType::kMicrophone, /*value=*/apps::TriState::kBlock,
         /*is_managed=*/true);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1083,8 +1071,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kNotifications,
-        std::make_unique<apps::PermissionValue>(apps::TriState::kAsk),
+        apps::PermissionType::kNotifications, /*value=*/apps::TriState::kAsk,
         /*is_managed=*/false);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1093,8 +1080,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kContacts,
-        std::make_unique<apps::PermissionValue>(apps::TriState::kAllow),
+        apps::PermissionType::kContacts, /*value=*/apps::TriState::kAllow,
         /*is_managed=*/true);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1103,8 +1089,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kStorage,
-        std::make_unique<apps::PermissionValue>(apps::TriState::kBlock),
+        apps::PermissionType::kStorage, /*value=*/apps::TriState::kBlock,
         /*is_managed=*/false);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1113,8 +1098,7 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripPermissions) {
   }
   {
     auto permission = std::make_unique<apps::Permission>(
-        apps::PermissionType::kFileHandling,
-        std::make_unique<apps::PermissionValue>(true),
+        apps::PermissionType::kFileHandling, /*value=*/true,
         /*is_managed=*/false);
     apps::PermissionPtr output;
     ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::Permission>(
@@ -1146,7 +1130,7 @@ TEST(AppServiceTypesMojomTraitsTest, PreferredAppChanges) {
   intent_filter1->AddSingleValueCondition(apps::ConditionType::kScheme, "1",
                                           apps::PatternMatchType::kLiteral);
   auto intent_filter2 = std::make_unique<apps::IntentFilter>();
-  intent_filter2->AddSingleValueCondition(apps::ConditionType::kHost, "2",
+  intent_filter2->AddSingleValueCondition(apps::ConditionType::kAuthority, "2",
                                           apps::PatternMatchType::kLiteral);
   added_filters.push_back(std::move(intent_filter1));
   added_filters.push_back(std::move(intent_filter2));
@@ -1215,4 +1199,44 @@ TEST(AppServiceTypesMojomTraitsTest, RoundTripCapabilityAccess) {
     EXPECT_FALSE(output->camera.value_or(true));
     EXPECT_TRUE(output->microphone.value_or(false));
   }
+}
+
+// Test that every field in apps::Shortcut in correctly converted.
+TEST(AppServiceTypesMojomTraitsTest, ShortcutRoundTrip) {
+  auto input = std::make_unique<apps::Shortcut>("host_app_id", "local_id");
+  input->name = "lacros test name";
+  input->icon_key = apps::IconKey(
+      /*timeline=*/1, apps::IconKey::kInvalidResourceId, /*icon_effects=*/2);
+  input->icon_key->raw_icon_updated = true;
+
+  apps::ShortcutPtr output;
+  ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::AppShortcut>(
+      input, output));
+
+  EXPECT_EQ(output->host_app_id, "host_app_id");
+  EXPECT_EQ(output->local_id, "local_id");
+  EXPECT_EQ(output->shortcut_id,
+            apps::GenerateShortcutId("host_app_id", "local_id"));
+  EXPECT_EQ(output->name, "lacros test name");
+  EXPECT_EQ(output->shortcut_source, apps::ShortcutSource::kUser);
+
+  EXPECT_EQ(output->icon_key->timeline, 1U);
+  EXPECT_EQ(output->icon_key->icon_effects, 2U);
+  EXPECT_TRUE(output->icon_key->raw_icon_updated);
+}
+
+// Test that serialization and deserialization works with optional fields that
+// doesn't fill up.
+TEST(AppServiceTypesMojomTraitsTest, ShortcutRoundTripNoOptional) {
+  auto input = std::make_unique<apps::Shortcut>("host_app_id", "local_id");
+
+  apps::ShortcutPtr output;
+  ASSERT_TRUE(mojo::test::SerializeAndDeserialize<crosapi::mojom::AppShortcut>(
+      input, output));
+
+  EXPECT_EQ(output->host_app_id, "host_app_id");
+  EXPECT_EQ(output->local_id, "local_id");
+  EXPECT_EQ(output->shortcut_id,
+            apps::GenerateShortcutId("host_app_id", "local_id"));
+  EXPECT_EQ(output->shortcut_source, apps::ShortcutSource::kUser);
 }

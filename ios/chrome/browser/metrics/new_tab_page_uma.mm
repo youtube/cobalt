@@ -6,15 +6,11 @@
 
 #import "base/metrics/histogram_macros.h"
 #import "components/google/core/common/google_util.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
-#import "ios/chrome/browser/voice/voice_search_navigations_tab_helper.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/voice/model/voice_search_navigations_tab_helper.h"
 #import "ios/web/public/web_state.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace new_tab_page_uma {
 

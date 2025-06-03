@@ -69,6 +69,7 @@ class FakeSkiaOutputSurface : public SkiaOutputSurface {
   SkCanvas* BeginPaintRenderPass(const AggregatedRenderPassId& id,
                                  const gfx::Size& surface_size,
                                  SharedImageFormat format,
+                                 RenderPassAlphaType alpha_type,
                                  bool mipmap,
                                  bool scanout_dcomp_surface,
                                  sk_sp<SkColorSpace> color_space,
@@ -108,6 +109,7 @@ class FakeSkiaOutputSurface : public SkiaOutputSurface {
   gpu::Mailbox CreateSharedImage(SharedImageFormat format,
                                  const gfx::Size& size,
                                  const gfx::ColorSpace& color_space,
+                                 RenderPassAlphaType alpha_type,
                                  uint32_t usage,
                                  base::StringPiece debug_label,
                                  gpu::SurfaceHandle surface_handle) override;
@@ -115,6 +117,7 @@ class FakeSkiaOutputSurface : public SkiaOutputSurface {
       const SkColor4f& color,
       const gfx::ColorSpace& color_space) override;
   void DestroySharedImage(const gpu::Mailbox& mailbox) override {}
+  bool SupportsBGRA() const override;
 
   // ExternalUseClient implementation:
   gpu::SyncToken ReleaseImageContexts(
@@ -137,6 +140,7 @@ class FakeSkiaOutputSurface : public SkiaOutputSurface {
   void ScheduleGpuTaskForTesting(
       base::OnceClosure callback,
       std::vector<gpu::SyncToken> sync_tokens) override;
+  void CheckAsyncWorkCompletionForTesting() override;
 
   void UsePlatformDelegatedInkForTesting() {
     capabilities_.supports_delegated_ink = true;

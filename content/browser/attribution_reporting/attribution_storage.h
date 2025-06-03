@@ -5,6 +5,8 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_STORAGE_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_STORAGE_H_
 
+#include <memory>
+#include <set>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -19,6 +21,7 @@ class Time;
 
 namespace content {
 
+class AttributionStorageDelegate;
 class AttributionTrigger;
 class CreateReportResult;
 class StorableSource;
@@ -42,7 +45,11 @@ class AttributionStorage {
   // pair. When a source is stored, all matching sources that have already
   // converted are marked as inactive, and are no longer eligible for reporting.
   // Unconverted matching sources are not modified.
-  virtual StoreSourceResult StoreSource(const StorableSource& source) = 0;
+  //
+  // TODO(linnan): Remove default argument for `debug_cookie_set`.
+  // Alternatively, consider making this a field in `StorableSource`.
+  virtual StoreSourceResult StoreSource(const StorableSource& source,
+                                        bool debug_cookie_set = false) = 0;
 
   // Finds all stored sources matching a given `trigger`, and stores the
   // new associated report. Only active sources will receive new attributions.
@@ -74,10 +81,10 @@ class AttributionStorage {
   // a negative number for no limit.
   virtual std::vector<StoredSource> GetActiveSources(int limit = -1) = 0;
 
-  // Returns all distinct reporting_origins as DataKeys for the
+  // Returns all distinct reporting origins for the
   // Browsing Data Model. Partial data will still be returned
   // in the event of an error.
-  virtual std::vector<AttributionDataModel::DataKey> GetAllDataKeys() = 0;
+  virtual std::set<AttributionDataModel::DataKey> GetAllDataKeys() = 0;
 
   // Deletes all data in storage for storage keys matching the provided
   // reporting origin in the data key.
@@ -117,6 +124,8 @@ class AttributionStorage {
                          base::Time delete_end,
                          StoragePartition::StorageKeyMatcherFunction filter,
                          bool delete_rate_limit_data = true) = 0;
+
+  virtual void SetDelegate(std::unique_ptr<AttributionStorageDelegate>) = 0;
 };
 
 }  // namespace content

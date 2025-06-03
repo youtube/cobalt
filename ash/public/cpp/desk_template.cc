@@ -6,8 +6,10 @@
 
 #include "ash/constants/app_types.h"
 #include "ash/constants/ash_features.h"
+#include "base/i18n/time_formatting.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "components/sync_device_info/local_device_info_util.h"
 #include "components/tab_groups/tab_group_info.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
@@ -42,7 +44,25 @@ DeskTemplate::DeskTemplate(base::Uuid uuid,
       source_(source),
       type_(type),
       created_time_(created_time),
-      template_name_(base::UTF8ToUTF16(name)) {}
+      template_name_(base::UTF8ToUTF16(name)),
+      device_form_factor_(syncer::GetLocalDeviceFormFactor()) {}
+
+DeskTemplate::DeskTemplate(base::Uuid uuid,
+                           DeskTemplateSource source,
+                           const std::string& name,
+                           const base::Time created_time,
+                           DeskTemplateType type,
+                           bool should_launch_on_startup,
+                           base::Value policy)
+    : uuid_(std::move(uuid)),
+      source_(source),
+      type_(type),
+      created_time_(created_time),
+      template_name_(base::UTF8ToUTF16(name)),
+      should_launch_on_startup_(should_launch_on_startup),
+      device_form_factor_(syncer::GetLocalDeviceFormFactor()) {
+  policy_definition_ = std::move(policy);
+}
 
 DeskTemplate::~DeskTemplate() = default;
 
@@ -76,12 +96,15 @@ std::unique_ptr<DeskTemplate> DeskTemplate::Clone() const {
   if (desk_restore_data_)
     desk_template->set_desk_restore_data(desk_restore_data_->Clone());
   desk_template->set_launch_id(launch_id_);
+  desk_template->set_client_cache_guid(client_cache_guid_);
+  desk_template->should_launch_on_startup_ = should_launch_on_startup_;
+  desk_template->policy_definition_ = policy_definition_.Clone();
   return desk_template;
 }
 
-void DeskTemplate::SetDeskIndex(int desk_index) {
+void DeskTemplate::SetDeskUuid(base::Uuid desk_uuid) {
   DCHECK(desk_restore_data_);
-  desk_restore_data_->SetDeskIndex(desk_index);
+  desk_restore_data_->SetDeskUuid(desk_uuid);
 }
 
 std::string DeskTemplate::ToString() const {
@@ -98,6 +121,8 @@ std::string DeskTemplate::ToDebugString() const {
   result += "Time created: " + base::TimeFormatHTTP(created_time_) + "\n";
   result += "Time updated: " + base::TimeFormatHTTP(updated_time_) + "\n";
   result += "launch id: " + base::NumberToString(launch_id_) + "\n";
+  result += "auto launch: ";
+  result += should_launch_on_startup_ ? "yes\n" : "no\n";
 
   // Converting to value and printing the debug string may be more
   // intensive but gives more complete information which increases

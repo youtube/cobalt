@@ -4,7 +4,8 @@
 
 #import "ios/chrome/browser/ui/authentication/signed_in_accounts/signed_in_accounts_table_view_controller.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
+#import "base/memory/raw_ptr.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service_factory.h"
@@ -12,10 +13,6 @@
 #import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/system_identity.h"
 #import "ios/chrome/browser/ui/authentication/cells/table_view_identity_item.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -36,26 +33,36 @@ typedef NS_ENUM(NSInteger, ItemType) {
 @end
 
 @implementation SignedInAccountsTableViewController {
-  ChromeBrowserState* _browserState;  // Weak.
   std::unique_ptr<ChromeAccountManagerServiceObserverBridge>
       _accountManagerServiceObserver;
   // Enable lookup of item corresponding to a given identity GAIA ID string.
   NSDictionary<NSString*, TableViewIdentityItem*>* _identityMap;
   // Account manager service to retrieve Chrome identities.
-  ChromeAccountManagerService* _accountManagerService;
+  raw_ptr<ChromeAccountManagerService> _accountManagerService;
+  raw_ptr<signin::IdentityManager> _identityManager;
 }
 
-- (instancetype)initWithBrowserState:(ChromeBrowserState*)browserState {
+- (instancetype)initWithIdentityManager:
+                    (signin::IdentityManager*)identityManager
+                  accountManagerService:
+                      (ChromeAccountManagerService*)accountManagerService {
   self = [super initWithStyle:UITableViewStylePlain];
   if (self) {
-    _browserState = browserState;
-    _accountManagerService =
-        ChromeAccountManagerServiceFactory::GetForBrowserState(_browserState);
+    CHECK(identityManager);
+    CHECK(accountManagerService);
+    _identityManager = identityManager;
+    _accountManagerService = accountManagerService;
     _accountManagerServiceObserver.reset(
         new ChromeAccountManagerServiceObserverBridge(self,
                                                       _accountManagerService));
   }
   return self;
+}
+
+- (void)teardownUI {
+  _accountManagerServiceObserver.reset();
+  _accountManagerService = nullptr;
+  _identityManager = nullptr;
 }
 
 #pragma mark - UIViewController
@@ -80,9 +87,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   NSMutableDictionary<NSString*, TableViewIdentityItem*>* mutableIdentityMap =
       [[NSMutableDictionary alloc] init];
 
-  signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForBrowserState(_browserState);
-  for (const auto& account : identityManager->GetAccountsWithRefreshTokens()) {
+  for (const auto& account : _identityManager->GetAccountsWithRefreshTokens()) {
     id<SystemIdentity> identity =
         _accountManagerService->GetIdentityWithGaiaID(account.gaia);
 
@@ -102,7 +107,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
 - (void)identityUpdated:(id<SystemIdentity>)identity {
   TableViewIdentityItem* item =
-      base::mac::ObjCCastStrict<TableViewIdentityItem>(
+      base::apple::ObjCCastStrict<TableViewIdentityItem>(
           [_identityMap objectForKey:identity.gaiaID]);
   [self updateAccountItem:item withIdentity:identity];
   [self reconfigureCellsForItems:@[ item ]];

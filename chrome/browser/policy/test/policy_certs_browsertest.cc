@@ -132,24 +132,6 @@ class NetworkCertLoaderTestObserver : public ash::NetworkCertLoader::Observer {
   base::RunLoop run_loop_;
 };
 
-// Allows waiting until the |CertDatabase| notifies its observers that it has
-// changd.
-class CertDatabaseChangedObserver : public net::CertDatabase::Observer {
- public:
-  CertDatabaseChangedObserver() {}
-
-  CertDatabaseChangedObserver(const CertDatabaseChangedObserver&) = delete;
-  CertDatabaseChangedObserver& operator=(const CertDatabaseChangedObserver&) =
-      delete;
-
-  void OnCertDBChanged() override { run_loop_.Quit(); }
-
-  void Wait() { run_loop_.Run(); }
-
- private:
-  base::RunLoop run_loop_;
-};
-
 // Retrieves the path to the directory containing certificates designated for
 // testing of policy-provided certificates into *|out_test_certs_path|.
 base::FilePath GetTestCertsPath() {
@@ -364,7 +346,7 @@ class MultiProfilePolicyProviderHelper {
 
  private:
   raw_ptr<Profile, DanglingUntriaged> profile_1_ = nullptr;
-  raw_ptr<Profile, ExperimentalAsh> profile_2_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> profile_2_ = nullptr;
 
   testing::NiceMock<MockConfigurationPolicyProvider> policy_for_profile_1_;
   testing::NiceMock<MockConfigurationPolicyProvider> policy_for_profile_2_;
@@ -454,6 +436,21 @@ IN_PROC_BROWSER_TEST_F(PolicyProvidedCertsRegularUserTest, TrustAnchorApplied) {
   EXPECT_EQ(net::OK,
             VerifyTestServerCert(multi_profile_policy_helper_.profile_1(),
                                  user_policy_certs_helper_.server_cert()));
+}
+
+// Test that policy provided trust anchors are available in Incognito mode.
+IN_PROC_BROWSER_TEST_F(PolicyProvidedCertsRegularUserTest,
+                       TrustAnchorAppliedInIncognito) {
+  user_policy_certs_helper_.SetRootCertONCUserPolicy(
+      multi_profile_policy_helper_.profile_1(),
+      multi_profile_policy_helper_.policy_for_profile_1());
+
+  Profile* otr_profile =
+      multi_profile_policy_helper_.profile_1()->GetPrimaryOTRProfile(
+          /*create_if_needed=*/true);
+
+  EXPECT_EQ(net::OK, VerifyTestServerCert(
+                         otr_profile, user_policy_certs_helper_.server_cert()));
 }
 
 IN_PROC_BROWSER_TEST_F(PolicyProvidedCertsRegularUserTest,

@@ -4,6 +4,9 @@
 
 #ifndef COMPONENTS_METRICS_STRUCTURED_HISTOGRAM_UTIL_H_
 #define COMPONENTS_METRICS_STRUCTURED_HISTOGRAM_UTIL_H_
+
+#include <string_view>
+
 #include "components/prefs/persistent_pref_store.h"
 
 namespace metrics::structured {
@@ -40,7 +43,8 @@ enum class EventRecordingState {
   kRecordingDisabled = 2,
   kProviderMissing = 3,
   kProjectDisallowed = 4,
-  kMaxValue = kProjectDisallowed,
+  kLogSizeExceeded = 5,
+  kMaxValue = kLogSizeExceeded,
 };
 
 // Describes the action taken by KeyData::ValidateAndGetKey on a particular user
@@ -87,6 +91,17 @@ void LogUploadSizeBytes(int64_t upload_size_bytes);
 
 // Logs the number of external metrics were scanned for an upload.
 void LogExternalMetricsScanInUpload(int num_scans);
+
+// Logs the number of external metrics that were dropped.
+void LogDroppedExternalMetrics(int num_dropped);
+
+// Logs the number of external metrics that were dropped per-project.
+void LogDroppedProjectExternalMetrics(std::string_view project_name,
+                                      int num_dropped);
+
+// Logs the number of external metrics produced per-project.
+void LogProducedProjectExternalMetrics(std::string_view project_name,
+                                       int num_produced);
 
 }  // namespace metrics::structured
 

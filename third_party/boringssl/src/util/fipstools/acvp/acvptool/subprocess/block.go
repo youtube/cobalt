@@ -288,7 +288,7 @@ type blockCipherMCTResult struct {
 	Key3Hex string `json:"key3,omitempty"`
 }
 
-func (b *blockCipher) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (b *blockCipher) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed blockCipherVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -299,6 +299,7 @@ func (b *blockCipher) Process(vectorSet []byte, m Transactable) (interface{}, er
 	// http://usnistgov.github.io/ACVP/artifacts/draft-celi-acvp-block-ciph-00.html#rfc.section.5.2
 	// for details about the tests.
 	for _, group := range parsed.Groups {
+		group := group
 		response := blockCipherTestGroupResponse{
 			ID: group.ID,
 		}
@@ -346,6 +347,8 @@ func (b *blockCipher) Process(vectorSet []byte, m Transactable) (interface{}, er
 		}
 
 		for _, test := range group.Tests {
+			test := test
+
 			if len(test.KeyHex) == 0 && len(test.Key1Hex) > 0 {
 				// 3DES encodes the key differently.
 				test.KeyHex = test.Key1Hex + test.Key2Hex + test.Key3Hex
@@ -397,31 +400,35 @@ func (b *blockCipher) Process(vectorSet []byte, m Transactable) (interface{}, er
 
 			testResp := blockCipherTestResponse{ID: test.ID}
 			if !mct {
-				var result [][]byte
-				var err error
-
+				var args [][]byte
 				if b.hasIV {
-					result, err = m.Transact(op, b.numResults, key, input, iv, uint32le(1))
+					args = [][]byte{key, input, iv, uint32le(1)}
 				} else {
-					result, err = m.Transact(op, b.numResults, key, input, uint32le(1))
-				}
-				if err != nil {
-					panic("block operation failed: " + err.Error())
+					args = [][]byte{key, input, uint32le(1)}
 				}
 
-				if encrypt {
-					testResp.CiphertextHex = hex.EncodeToString(result[0])
-				} else {
-					testResp.PlaintextHex = hex.EncodeToString(result[0])
-				}
+				m.TransactAsync(op, b.numResults, args, func(result [][]byte) error {
+					if encrypt {
+						testResp.CiphertextHex = hex.EncodeToString(result[0])
+					} else {
+						testResp.PlaintextHex = hex.EncodeToString(result[0])
+					}
+					response.Tests = append(response.Tests, testResp)
+					return nil
+				})
 			} else {
 				testResp.MCTResults = b.mctFunc(transact, encrypt, key, input, iv)
+				response.Tests = append(response.Tests, testResp)
 			}
-
-			response.Tests = append(response.Tests, testResp)
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

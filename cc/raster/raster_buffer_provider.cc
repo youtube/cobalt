@@ -10,6 +10,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cc/raster/raster_source.h"
 #include "components/viz/common/resources/platform_color.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
@@ -81,7 +82,7 @@ void RasterBufferProvider::PlaybackToMemory(
       (format == viz::SinglePlaneFormat::kBGRA_8888) ||
       (format == viz::SinglePlaneFormat::kRGBA_F16)) {
     sk_sp<SkSurface> surface =
-        SkSurface::MakeRasterDirect(info, memory, stride, &surface_props);
+        SkSurfaces::WrapPixels(info, memory, stride, &surface_props);
     // There are some rare crashes where this doesn't succeed and may be
     // indicative of memory stomps elsewhere.  Instead of displaying
     // invalid content, just crash the renderer and try again.
@@ -94,7 +95,7 @@ void RasterBufferProvider::PlaybackToMemory(
   }
 
   if (format == viz::SinglePlaneFormat::kRGBA_4444) {
-    sk_sp<SkSurface> surface = SkSurface::MakeRaster(info, &surface_props);
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(info, &surface_props);
     // TODO(reveman): Improve partial raster support by reducing the size of
     // playback rect passed to PlaybackToCanvas. crbug.com/519070
     raster_source->PlaybackToCanvas(surface->getCanvas(), content_size,
@@ -116,6 +117,15 @@ void RasterBufferProvider::PlaybackToMemory(
   }
 
   NOTREACHED();
+}
+
+void RasterBufferProvider::FlushIfNeeded() {
+  if (!needs_flush_) {
+    return;
+  }
+
+  Flush();
+  needs_flush_ = false;
 }
 
 }  // namespace cc

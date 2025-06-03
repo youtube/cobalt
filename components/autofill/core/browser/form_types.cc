@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/autofill/core/browser/form_types.h"
+
+#include <string_view>
+
 #include "base/containers/contains.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
@@ -13,13 +16,10 @@ namespace autofill {
 FormType FieldTypeGroupToFormType(FieldTypeGroup field_type_group) {
   switch (field_type_group) {
     case FieldTypeGroup::kName:
-    case FieldTypeGroup::kNameBilling:
     case FieldTypeGroup::kEmail:
     case FieldTypeGroup::kCompany:
-    case FieldTypeGroup::kAddressHome:
-    case FieldTypeGroup::kAddressBilling:
-    case FieldTypeGroup::kPhoneHome:
-    case FieldTypeGroup::kPhoneBilling:
+    case FieldTypeGroup::kAddress:
+    case FieldTypeGroup::kPhone:
     case FieldTypeGroup::kBirthdateField:
       return FormType::kAddressForm;
     case FieldTypeGroup::kCreditCard:
@@ -35,7 +35,7 @@ FormType FieldTypeGroupToFormType(FieldTypeGroup field_type_group) {
   }
 }
 
-base::StringPiece FormTypeToStringPiece(FormType form_type) {
+std::string_view FormTypeToStringView(FormType form_type) {
   switch (form_type) {
     case FormType::kAddressForm:
       return "Address";

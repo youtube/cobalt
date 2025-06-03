@@ -14,12 +14,13 @@ namespace ash {
 ArcKioskAppService* ArcKioskAppServiceFactory::GetForBrowserContext(
     content::BrowserContext* context) {
   return static_cast<ArcKioskAppService*>(
-      GetInstance()->GetServiceForBrowserContext(context, true /* create */));
+      GetInstance()->GetServiceForBrowserContext(context, /*create=*/true));
 }
 
 // static
 ArcKioskAppServiceFactory* ArcKioskAppServiceFactory::GetInstance() {
-  return base::Singleton<ArcKioskAppServiceFactory>::get();
+  static base::NoDestructor<ArcKioskAppServiceFactory> instance;
+  return instance.get();
 }
 
 ArcKioskAppServiceFactory::ArcKioskAppServiceFactory()

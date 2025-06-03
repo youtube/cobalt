@@ -19,6 +19,7 @@
 #include "dbus/object_path.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/cros_system_api/dbus/audio/dbus-constants.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 using ::testing::_;
@@ -32,11 +33,13 @@ namespace {
 // Audio nodes for GetNodes unit test.
 const uint64_t kInternalSpeakerId = 10001;
 const uint64_t kInternalMicId = 20001;
+const uint64_t kNbsMicId = 30001;
 
 const uint32_t kInputMaxSupportedChannels = 1;
 const uint32_t kOutputMaxSupportedChannels = 2;
 
 const uint32_t kInputAudioEffect = cras::EFFECT_TYPE_NOISE_CANCELLATION;
+const uint32_t kNbsMicAudioEffect = cras::EFFECT_TYPE_HFP_MIC_SR;
 const uint32_t kOutputAudioEffect = 0;
 
 const int32_t kInputNumberOfVolumeSteps = 0;
@@ -103,6 +106,20 @@ const AudioNode kInternalMicV2(true,
                                kInputAudioEffect,
                                kInputNumberOfVolumeSteps);
 
+const AudioNode kNbsMic(true,
+                        kNbsMicId,
+                        false /* has_v2_stable_device_id */,
+                        kNbsMicId /* stable_device_id_v1*/,
+                        0 /* stable_device_id_v2 */,
+                        "Fake Nbs Mic",
+                        "BLUETOOTH_NB_MIC",
+                        "Bluetooth Nb Mic",
+                        false,
+                        0,
+                        kInputMaxSupportedChannels,
+                        kNbsMicAudioEffect,
+                        kInputNumberOfVolumeSteps);
+
 // A mock CrasAudioClient Observer.
 class MockObserver : public CrasAudioClient::Observer {
  public:
@@ -127,6 +144,7 @@ class MockObserver : public CrasAudioClient::Observer {
                         survey_specific_data));
   MOCK_METHOD0(SpeakOnMuteDetected, void());
   MOCK_METHOD0(NumberOfNonChromeOutputStreamsChanged, void());
+  MOCK_METHOD1(NumStreamIgnoreUiGains, void(int32_t num));
 };
 
 // Expect the reader to be empty.
@@ -507,6 +525,15 @@ class CrasAudioClientTest : public testing::Test {
         .WillRepeatedly(
             Invoke(this, &CrasAudioClientTest::OnSpeakOnMuteDetected));
 
+    // Set an expectation so mock_cras_proxy's monitoring
+    // SurveyTrigger ConnectToSignal will use
+    // OnNumStreamIgnoreUiGains() to run the callback.
+    EXPECT_CALL(*mock_cras_proxy_.get(),
+                DoConnectToSignal(interface_name_,
+                                  cras::kNumStreamIgnoreUiGainsChanged, _, _))
+        .WillRepeatedly(Invoke(
+            this, &CrasAudioClientTest::OnNumStreamIgnoreUiGainsChanged));
+
     // Set an expectation so mock_bus's GetObjectProxy() for the given
     // service name and the object path will return mock_cras_proxy_.
     EXPECT_CALL(*mock_bus_.get(),
@@ -629,6 +656,12 @@ class CrasAudioClientTest : public testing::Test {
     number_of_non_chrome_output_streams_changed_handler_.Run(signal);
   }
 
+  // Send num-stream-ignore-ui-gains changed signal to the tested client.
+  void SendNumStreamIgnoreUiGainsSignal(dbus::Signal* signal) {
+    ASSERT_FALSE(num_stream_ignore_ui_gains_handler_.is_null());
+    num_stream_ignore_ui_gains_handler_.Run(signal);
+  }
+
   CrasAudioClient* client() { return CrasAudioClient::Get(); }
 
   // The interface name.
@@ -672,10 +705,12 @@ class CrasAudioClientTest : public testing::Test {
   // tested client.
   dbus::ObjectProxy::SignalCallback
       number_of_non_chrome_output_streams_changed_handler_;
+  // The NumStreamIgnoreUiGains signal handler given by the tested client.
+  dbus::ObjectProxy::SignalCallback num_stream_ignore_ui_gains_handler_;
   // The name of the method which is expected to be called.
   std::string expected_method_name_;
   // The response which the mock cras proxy returns.
-  raw_ptr<dbus::Response, ExperimentalAsh> response_;
+  raw_ptr<dbus::Response, DanglingUntriaged | ExperimentalAsh> response_;
   // A callback to intercept and check the method call arguments.
   ArgumentCheckCallback argument_checker_;
 
@@ -865,6 +900,20 @@ class CrasAudioClientTest : public testing::Test {
       const dbus::ObjectProxy::SignalCallback& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback* on_connected_callback) {
     speak_on_mute_detected_handler_ = signal_callback;
+    constexpr bool success = true;
+    task_environment_.GetMainThreadTaskRunner()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(*on_connected_callback),
+                                  interface_name, signal_name, success));
+  }
+
+  // Checks the requested interface name and signal name.
+  // Used to implement the mock cras proxy.
+  void OnNumStreamIgnoreUiGainsChanged(
+      const std::string& interface_name,
+      const std::string& signal_name,
+      const dbus::ObjectProxy::SignalCallback& signal_callback,
+      dbus::ObjectProxy::OnConnectedCallback* on_connected_callback) {
+    num_stream_ignore_ui_gains_handler_ = signal_callback;
     constexpr bool success = true;
     task_environment_.GetMainThreadTaskRunner()->PostTask(
         FROM_HERE, base::BindOnce(std::move(*on_connected_callback),
@@ -1139,6 +1188,31 @@ TEST_F(CrasAudioClientTest, SpeakOnMuteDetected) {
   base::RunLoop().RunUntilIdle();
 }
 
+TEST_F(CrasAudioClientTest, NumStreamIgnoreUiGainsChanged) {
+  const int32_t kNumStream = 1;
+
+  dbus::Signal signal(cras::kCrasControlInterface,
+                      cras::kNumStreamIgnoreUiGainsChanged);
+  dbus::MessageWriter writer(&signal);
+  writer.AppendInt32(kNumStream);
+
+  MockObserver observer;
+  EXPECT_CALL(observer, NumStreamIgnoreUiGains(kNumStream)).Times(1);
+
+  client()->AddObserver(&observer);
+
+  SendNumStreamIgnoreUiGainsSignal(&signal);
+
+  client()->RemoveObserver(&observer);
+
+  EXPECT_CALL(observer, NumStreamIgnoreUiGains(kNumStream)).Times(0);
+
+  // Run the signal callback again and make sure the observer isn't called.
+  SendNumStreamIgnoreUiGainsSignal(&signal);
+
+  base::RunLoop().RunUntilIdle();
+}
+
 TEST_F(CrasAudioClientTest, NodesChanged) {
   // Create a signal.
   dbus::Signal signal(cras::kCrasControlInterface, cras::kNodesChanged);
@@ -1401,6 +1475,21 @@ TEST_F(CrasAudioClientTest, SetNoiseCancellationEnabled) {
   base::RunLoop().RunUntilIdle();
 }
 
+TEST_F(CrasAudioClientTest, SetHfpMicSrEnabled) {
+  const bool kHfpMicSrOn = true;
+  // Create response.
+  std::unique_ptr<dbus::Response> response(dbus::Response::CreateEmpty());
+
+  // Set expectations.
+  PrepareForMethodCall(cras::kSetHfpMicSrEnabled,
+                       base::BindRepeating(&ExpectBoolArgument, kHfpMicSrOn),
+                       response.get());
+  // Call method.
+  client()->SetHfpMicSrEnabled(kHfpMicSrOn);
+  // Run the message loop.
+  base::RunLoop().RunUntilIdle();
+}
+
 TEST_F(CrasAudioClientTest, SetActiveOutputNode) {
   const uint64_t kNodeId = 10004;
   // Create response.
@@ -1642,6 +1731,22 @@ TEST_F(CrasAudioClientTest, SetSpeakOnMuteDetection) {
       response.get());
   // Call method.
   client()->SetSpeakOnMuteDetection(kSpeakOnMuteDetectionOn);
+  // Run the message loop.
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(CrasAudioClientTest, SetForceRespectUiGainsEnabled) {
+  const bool kForceRespectUiGainsOn = true;
+  // Create response.
+  std::unique_ptr<dbus::Response> response(dbus::Response::CreateEmpty());
+
+  // Set expectations.
+  PrepareForMethodCall(
+      cras::kSetForceRespectUiGains,
+      base::BindRepeating(&ExpectBoolArgument, kForceRespectUiGainsOn),
+      response.get());
+  // Call method.
+  client()->SetForceRespectUiGains(kForceRespectUiGainsOn);
   // Run the message loop.
   base::RunLoop().RunUntilIdle();
 }

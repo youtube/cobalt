@@ -10,6 +10,7 @@
 #include "base/ranges/algorithm.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_data_util.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/ui/address_contact_form_label_formatter.h"
 #include "components/autofill/core/browser/ui/address_email_form_label_formatter.h"
@@ -31,36 +32,37 @@ using data_util::bit_field_type_groups::kEmail;
 using data_util::bit_field_type_groups::kName;
 using data_util::bit_field_type_groups::kPhone;
 
-LabelFormatter::LabelFormatter(const std::vector<AutofillProfile*>& profiles,
-                               const std::string& app_locale,
-                               ServerFieldType focused_field_type,
-                               uint32_t groups,
-                               const std::vector<ServerFieldType>& field_types)
+LabelFormatter::LabelFormatter(
+    const std::vector<const AutofillProfile*>& profiles,
+    const std::string& app_locale,
+    ServerFieldType focused_field_type,
+    uint32_t groups,
+    const ServerFieldTypeSet& field_types)
     : profiles_(profiles),
       app_locale_(app_locale),
       focused_field_type_(focused_field_type),
       groups_(groups) {
-  const FieldTypeGroup focused_group = AutofillType(focused_field_type).group();
+  const FieldTypeGroup focused_group =
+      GroupTypeOfServerFieldType(focused_field_type);
   DenseSet<FieldTypeGroup> groups_for_labels{
-      FieldTypeGroup::kName, FieldTypeGroup::kAddressHome,
-      FieldTypeGroup::kEmail, FieldTypeGroup::kPhoneHome};
+      FieldTypeGroup::kName, FieldTypeGroup::kAddress, FieldTypeGroup::kEmail,
+      FieldTypeGroup::kPhone};
 
   // If a user is focused on an address field, then parts of the address may be
   // shown in the label. For example, if the user is focusing on a street
   // address field, then it may be helpful to show the city in the label.
   // Otherwise, the focused field should not appear in the label.
-  if (focused_group != FieldTypeGroup::kAddressHome) {
+  if (focused_group != FieldTypeGroup::kAddress) {
     groups_for_labels.erase(focused_group);
   }
 
   // Countries are excluded to prevent them from appearing in labels with
   // national addresses.
   auto can_be_shown_in_label =
-      [&groups_for_labels](ServerFieldType type) -> bool {
-    return groups_for_labels.find(
-               AutofillType(AutofillType(type).GetStorableType()).group()) !=
+      [&groups_for_labels](ServerFieldType field_type) -> bool {
+    return groups_for_labels.find(GroupTypeOfServerFieldType(field_type)) !=
                groups_for_labels.end() &&
-           type != ADDRESS_HOME_COUNTRY;
+           field_type != ADDRESS_HOME_COUNTRY;
   };
 
   base::ranges::copy_if(field_types,
@@ -74,17 +76,17 @@ std::vector<std::u16string> LabelFormatter::GetLabels() const {
   std::vector<std::u16string> labels;
   for (const AutofillProfile* profile : *profiles_) {
     labels.push_back(GetLabelForProfile(
-        *profile, AutofillType(focused_field_type_).group()));
+        *profile, GroupTypeOfServerFieldType(focused_field_type_)));
   }
   return labels;
 }
 
 // static
 std::unique_ptr<LabelFormatter> LabelFormatter::Create(
-    const std::vector<AutofillProfile*>& profiles,
+    const std::vector<const AutofillProfile*>& profiles,
     const std::string& app_locale,
     ServerFieldType focused_field_type,
-    const std::vector<ServerFieldType>& field_types) {
+    const ServerFieldTypeSet& field_types) {
   const uint32_t groups = data_util::DetermineGroups(field_types);
   if (!data_util::IsSupportedFormType(groups)) {
     return nullptr;

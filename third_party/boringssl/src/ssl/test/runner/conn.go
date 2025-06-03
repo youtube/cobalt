@@ -74,8 +74,10 @@ type Conn struct {
 	clientProtocolFallback bool
 	usedALPN               bool
 
-	localApplicationSettings, peerApplicationSettings []byte
-	hasApplicationSettings                            bool
+	localApplicationSettings, peerApplicationSettings       []byte
+	hasApplicationSettings                                  bool
+	localApplicationSettingsOld, peerApplicationSettingsOld []byte
+	hasApplicationSettingsOld                               bool
 
 	// verify_data values for the renegotiation extension.
 	clientVerify []byte
@@ -174,13 +176,13 @@ type halfConn struct {
 	version     uint16 // protocol version
 	wireVersion uint16 // wire version
 	isDTLS      bool
-	cipher      interface{} // cipher algorithm
+	cipher      any // cipher algorithm
 	mac         macFunction
 	seq         [8]byte // 64-bit sequence number
 	outSeq      [8]byte // Mapped sequence number
 	bfree       *block  // list of free blocks
 
-	nextCipher interface{} // next encryption state
+	nextCipher any         // next encryption state
 	nextMac    macFunction // next MAC algorithm
 	nextSeq    [6]byte     // next epoch's starting sequence number in DTLS
 
@@ -207,7 +209,7 @@ func (hc *halfConn) error() error {
 
 // prepareCipherSpec sets the encryption and MAC states
 // that a subsequent changeCipherSpec will use.
-func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac macFunction) {
+func (hc *halfConn) prepareCipherSpec(version uint16, cipher any, mac macFunction) {
 	hc.wireVersion = version
 	protocolVersion, ok := wireToVersion(version, hc.isDTLS)
 	if !ok {
@@ -1336,7 +1338,7 @@ func (c *Conn) doReadHandshake() ([]byte, error) {
 // readHandshake reads the next handshake message from
 // the record layer.
 // c.in.Mutex < L; c.out.Mutex < L.
-func (c *Conn) readHandshake() (interface{}, error) {
+func (c *Conn) readHandshake() (any, error) {
 	data, err := c.doReadHandshake()
 	if err != nil {
 		return nil, err
@@ -1581,22 +1583,25 @@ func (c *Conn) processTLS13NewSessionTicket(newSessionTicket *newSessionTicketMs
 	}
 
 	session := &ClientSessionState{
-		sessionTicket:            newSessionTicket.ticket,
-		vers:                     c.vers,
-		wireVersion:              c.wireVersion,
-		cipherSuite:              cipherSuite,
-		secret:                   deriveSessionPSK(cipherSuite, c.wireVersion, c.resumptionSecret, newSessionTicket.ticketNonce),
-		serverCertificates:       c.peerCertificates,
-		sctList:                  c.sctList,
-		ocspResponse:             c.ocspResponse,
-		ticketCreationTime:       c.config.time(),
-		ticketExpiration:         c.config.time().Add(time.Duration(newSessionTicket.ticketLifetime) * time.Second),
-		ticketAgeAdd:             newSessionTicket.ticketAgeAdd,
-		maxEarlyDataSize:         newSessionTicket.maxEarlyDataSize,
-		earlyALPN:                c.clientProtocol,
-		hasApplicationSettings:   c.hasApplicationSettings,
-		localApplicationSettings: c.localApplicationSettings,
-		peerApplicationSettings:  c.peerApplicationSettings,
+		sessionTicket:               newSessionTicket.ticket,
+		vers:                        c.vers,
+		wireVersion:                 c.wireVersion,
+		cipherSuite:                 cipherSuite,
+		secret:                      deriveSessionPSK(cipherSuite, c.wireVersion, c.resumptionSecret, newSessionTicket.ticketNonce),
+		serverCertificates:          c.peerCertificates,
+		sctList:                     c.sctList,
+		ocspResponse:                c.ocspResponse,
+		ticketCreationTime:          c.config.time(),
+		ticketExpiration:            c.config.time().Add(time.Duration(newSessionTicket.ticketLifetime) * time.Second),
+		ticketAgeAdd:                newSessionTicket.ticketAgeAdd,
+		maxEarlyDataSize:            newSessionTicket.maxEarlyDataSize,
+		earlyALPN:                   c.clientProtocol,
+		hasApplicationSettings:      c.hasApplicationSettings,
+		localApplicationSettings:    c.localApplicationSettings,
+		peerApplicationSettings:     c.peerApplicationSettings,
+		hasApplicationSettingsOld:   c.hasApplicationSettingsOld,
+		localApplicationSettingsOld: c.localApplicationSettingsOld,
+		peerApplicationSettingsOld:  c.peerApplicationSettingsOld,
 	}
 
 	cacheKey := clientSessionCacheKey(c.conn.RemoteAddr(), c.config)
@@ -1858,6 +1863,8 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.QUICTransportParamsLegacy = c.quicTransportParamsLegacy
 		state.HasApplicationSettings = c.hasApplicationSettings
 		state.PeerApplicationSettings = c.peerApplicationSettings
+		state.HasApplicationSettingsOld = c.hasApplicationSettingsOld
+		state.PeerApplicationSettingsOld = c.peerApplicationSettingsOld
 		state.ECHAccepted = c.echAccepted
 	}
 
@@ -1983,17 +1990,20 @@ func (c *Conn) SendNewSessionTicket(nonce []byte) error {
 	}
 
 	state := sessionState{
-		vers:                     c.vers,
-		cipherSuite:              c.cipherSuite.id,
-		secret:                   deriveSessionPSK(c.cipherSuite, c.wireVersion, c.resumptionSecret, nonce),
-		certificates:             peerCertificatesRaw,
-		ticketCreationTime:       c.config.time(),
-		ticketExpiration:         c.config.time().Add(time.Duration(m.ticketLifetime) * time.Second),
-		ticketAgeAdd:             uint32(addBuffer[3])<<24 | uint32(addBuffer[2])<<16 | uint32(addBuffer[1])<<8 | uint32(addBuffer[0]),
-		earlyALPN:                []byte(c.clientProtocol),
-		hasApplicationSettings:   c.hasApplicationSettings,
-		localApplicationSettings: c.localApplicationSettings,
-		peerApplicationSettings:  c.peerApplicationSettings,
+		vers:                        c.vers,
+		cipherSuite:                 c.cipherSuite.id,
+		secret:                      deriveSessionPSK(c.cipherSuite, c.wireVersion, c.resumptionSecret, nonce),
+		certificates:                peerCertificatesRaw,
+		ticketCreationTime:          c.config.time(),
+		ticketExpiration:            c.config.time().Add(time.Duration(m.ticketLifetime) * time.Second),
+		ticketAgeAdd:                uint32(addBuffer[3])<<24 | uint32(addBuffer[2])<<16 | uint32(addBuffer[1])<<8 | uint32(addBuffer[0]),
+		earlyALPN:                   []byte(c.clientProtocol),
+		hasApplicationSettings:      c.hasApplicationSettings,
+		localApplicationSettings:    c.localApplicationSettings,
+		peerApplicationSettings:     c.peerApplicationSettings,
+		hasApplicationSettingsOld:   c.hasApplicationSettingsOld,
+		localApplicationSettingsOld: c.localApplicationSettingsOld,
+		peerApplicationSettingsOld:  c.peerApplicationSettingsOld,
 	}
 
 	if !c.config.Bugs.SendEmptySessionTicket {

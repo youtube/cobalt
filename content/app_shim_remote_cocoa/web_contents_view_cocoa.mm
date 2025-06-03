@@ -6,6 +6,7 @@
 
 #include <AppKit/AppKit.h>
 
+#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #import "base/mac/mac_util.h"
@@ -15,9 +16,9 @@
 #import "content/app_shim_remote_cocoa/web_drag_source_mac.h"
 #import "content/browser/web_contents/web_contents_view_mac.h"
 #import "content/browser/web_contents/web_drag_dest_mac.h"
+#include "content/common/features.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/clipboard/clipboard_util_mac.h"
 #include "ui/base/clipboard/custom_data_helper.h"
@@ -73,12 +74,12 @@ class DroppedScreenShotCopierMac {
  private:
   bool IsPathScreenShot(const base::FilePath& path) const {
     const std::string& value = path.value();
-    size_t found_var = value.find("/var");
-    if (found_var != 0)
+    if (!base::Contains(value, "/var")) {
       return false;
-    size_t found_screencaptureui = value.find("screencaptureui");
-    if (found_screencaptureui == std::string::npos)
+    }
+    if (!base::Contains(value, "screencaptureui")) {
       return false;
+    }
     return true;
   }
 
@@ -102,6 +103,28 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 // WebContentsViewCocoa
 
 @implementation WebContentsViewCocoa {
+  // Instances of this class are owned by both `_host` and AppKit. The `_host`
+  // must call `-setHost:nil` in its destructor.
+  raw_ptr<remote_cocoa::mojom::WebContentsNSViewHost> _host;
+
+  // The interface exported to views::Views that embed this as a sub-view.
+  raw_ptr<ui::ViewsHostableView> _viewsHostableView;
+
+  BOOL _mouseDownCanMoveWindow;
+
+  // Utility to copy screenshots to a usable directory for PWAs. This utility
+  // will maintain a temporary directory for such screenshot files until this
+  // WebContents is destroyed.
+  // https://crbug.com/1148078
+  std::unique_ptr<remote_cocoa::DroppedScreenShotCopierMac>
+      _droppedScreenShotCopier;
+
+  // Drag variables.
+  WebDragSource* __strong _dragSource;
+  NSDragOperation _dragOperation;
+
+  gfx::Rect _windowControlsOverlayRect;
+
   // TODO(https://crbug.com/883031): Remove this when kMacWebContentsOcclusion
   // is enabled by default.
   BOOL _inFullScreenTransition;
@@ -116,7 +139,7 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 }
 
 - (instancetype)initWithViewsHostableView:(ui::ViewsHostableView*)v {
-  self = [super initWithFrame:NSZeroRect];
+  self = [super initWithFrame:NSZeroRect tracking:YES];
   if (self != nil) {
     _viewsHostableView = v;
     [self registerDragTypes];
@@ -136,8 +159,6 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   [self cancelDelayedSetWebContentsOccluded];
-
-  [super dealloc];
 }
 
 - (void)enableDroppedScreenShotCopier {
@@ -161,11 +182,12 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
       gfx::PointF(screenPoint.x, screenFrame.size.height - screenPoint.y);
 
   NSPasteboard* pboard = [nsInfo draggingPasteboard];
-  NSArray<NSString*>* urls;
-  NSArray<NSString*>* titles;
-  if (ui::clipboard_util::URLsAndTitlesFromPasteboard(
-          pboard, /*include_files=*/true, &urls, &titles)) {
-    info->url = GURL(base::SysNSStringToUTF8(urls.firstObject));
+  NSArray<URLAndTitle*>* urls_and_titles =
+      ui::clipboard_util::URLsAndTitlesFromPasteboard(pboard,
+                                                      /*include_files=*/true);
+
+  if (urls_and_titles.count) {
+    info->url = GURL(base::SysNSStringToUTF8(urls_and_titles.firstObject.URL));
   }
   info->operation_mask = ui::DragDropTypes::NSDragOperationToDragOperation(
       [nsInfo draggingSourceOperationMask]);
@@ -211,6 +233,7 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 }
 
 - (void)startDragWithDropData:(const DropData&)dropData
+                 sourceOrigin:(const url::Origin&)sourceOrigin
             dragOperationMask:(NSDragOperation)operationMask
                         image:(NSImage*)image
                        offset:(NSPoint)offset
@@ -229,11 +252,12 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
                                         clickCount:1
                                           pressure:1.0];
 
-  _dragSource.reset([[WebDragSource alloc] initWithHost:_host
-                                               dropData:dropData
-                                           isPrivileged:isPrivileged]);
-  NSDraggingItem* draggingItem = [[[NSDraggingItem alloc]
-      initWithPasteboardWriter:_dragSource] autorelease];
+  _dragSource = [[WebDragSource alloc] initWithHost:_host
+                                           dropData:dropData
+                                       sourceOrigin:sourceOrigin
+                                       isPrivileged:isPrivileged];
+  NSDraggingItem* draggingItem =
+      [[NSDraggingItem alloc] initWithPasteboardWriter:_dragSource];
 
   if (!image) {
     image = content::GetContentClient()
@@ -291,7 +315,7 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 
   // The drag is complete. Disconnect the drag source.
   [_dragSource webContentsIsGone];
-  _dragSource.reset();
+  _dragSource = nil;
 }
 
 // NSDraggingDestination methods
@@ -384,8 +408,10 @@ STATIC_ASSERT_ENUM(NSDragOperationMove, ui::DragDropTypes::DRAG_MOVE);
 }
 
 - (void)setWebContentsVisibility:(remote_cocoa::mojom::Visibility)visibility {
-  if (_host && !content::GetContentClient()->browser()->IsShuttingDown())
+  if (_host && !(content::GetContentClient()->browser() &&
+                 content::GetContentClient()->browser()->IsShuttingDown())) {
     _host->OnWindowVisibilityChanged(visibility);
+  }
 }
 
 - (void)performDelayedSetWebContentsOccluded {

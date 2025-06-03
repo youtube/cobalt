@@ -32,6 +32,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 namespace {
 
 enum class AutoCompleteCategory {
@@ -146,7 +148,7 @@ bool HTMLFormControlElementWithState::ShouldAutocomplete() const {
 }
 
 bool HTMLFormControlElementWithState::IsWearingAutofillAnchorMantle() const {
-  return FormControlType() == input_type_names::kHidden;
+  return FormControlType() == FormControlType::kInputHidden;
 }
 
 String HTMLFormControlElementWithState::IDLExposedAutofillValue() const {

@@ -26,6 +26,7 @@
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_system_provider/mount_path_util.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_interface.h"
+#include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/drive/file_errors.h"
@@ -35,7 +36,6 @@
 #include "content/public/browser/storage_partition.h"
 #include "google_apis/common/task_util.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "storage/browser/file_system/file_system_backend.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "url/gurl.h"
 
@@ -179,54 +179,6 @@ void PrepareFileOnIOThread(
 
 }  // namespace
 
-bool IsNonNativeFileSystemType(storage::FileSystemType type) {
-  switch (type) {
-    // Public enum values, also exposed to JavaScript.
-    case storage::kFileSystemTypeTemporary:
-    case storage::kFileSystemTypePersistent:
-    case storage::kFileSystemTypeIsolated:
-    case storage::kFileSystemTypeExternal:
-      break;
-
-      // Everything else is a private (also known as internal) enum value.
-
-    case storage::kFileSystemInternalTypeEnumStart:
-    case storage::kFileSystemInternalTypeEnumEnd:
-      NOTREACHED();
-      break;
-
-    case storage::kFileSystemTypeLocal:
-    case storage::kFileSystemTypeRestrictedLocal:
-    case storage::kFileSystemTypeLocalMedia:
-    case storage::kFileSystemTypeLocalForPlatformApp:
-    case storage::kFileSystemTypeDriveFs:
-    case storage::kFileSystemTypeSmbFs:
-    case storage::kFileSystemTypeFuseBox:
-      return false;
-
-    case storage::kFileSystemTypeUnknown:
-    case storage::kFileSystemTypeTest:
-    case storage::kFileSystemTypeDragged:
-    case storage::kFileSystemTypeDeviceMedia:
-    case storage::kFileSystemTypeSyncable:
-    case storage::kFileSystemTypeSyncableForInternalSync:
-    case storage::kFileSystemTypeForTransientFile:
-    case storage::kFileSystemTypeProvided:
-    case storage::kFileSystemTypeDeviceMediaAsFileStorage:
-    case storage::kFileSystemTypeArcContent:
-    case storage::kFileSystemTypeArcDocumentsProvider:
-      break;
-
-      // We don't use a "default:" case. Whenever file_system_types.h gains a
-      // new enum value, raise a compiler error (with -Werror,-Wswitch) unless
-      // this switch statement is also updated.
-  }
-
-  // The path indeed corresponds to a mount point not associated with a native
-  // local path.
-  return true;
-}
-
 bool IsUnderNonNativeLocalPath(Profile* profile, const base::FilePath& path) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
@@ -243,7 +195,7 @@ bool IsUnderNonNativeLocalPath(Profile* profile, const base::FilePath& path) {
     return false;
   }
 
-  return IsNonNativeFileSystemType(filesystem_url.type());
+  return !filesystem_url.TypeImpliesPathIsReal();
 }
 
 bool IsDriveLocalPath(Profile* profile, const base::FilePath& path) {
@@ -413,8 +365,7 @@ void PrepareNonNativeLocalFileForWritableApp(
   scoped_refptr<storage::FileSystemContext> const file_system_context =
       GetFileManagerFileSystemContext(profile);
   DCHECK(file_system_context);
-  storage::ExternalFileSystemBackend* const backend =
-      file_system_context->external_backend();
+  auto* const backend = ash::FileSystemBackend::Get(*file_system_context);
   DCHECK(backend);
   const storage::FileSystemURL internal_url =
       backend->CreateInternalURL(file_system_context.get(), path);

@@ -126,7 +126,10 @@ class GLES1Renderer final : angle::NonCopyable
 
     void onDestroy(Context *context, State *state);
 
-    angle::Result prepareForDraw(PrimitiveMode mode, Context *context, State *glState);
+    angle::Result prepareForDraw(PrimitiveMode mode,
+                                 Context *context,
+                                 State *glState,
+                                 GLES1State *gles1State);
 
     static int VertexArrayIndex(ClientVertexArrayType type, const GLES1State &gles1);
     static ClientVertexArrayType VertexArrayType(int attribIndex);
@@ -134,6 +137,7 @@ class GLES1Renderer final : angle::NonCopyable
 
     void drawTexture(Context *context,
                      State *glState,
+                     GLES1State *gles1State,
                      float x,
                      float y,
                      float z,
@@ -158,42 +162,49 @@ class GLES1Renderer final : angle::NonCopyable
                               ShaderProgramID fshader,
                               const angle::HashMap<GLint, std::string> &attribLocs,
                               ShaderProgramID *programOut);
-    angle::Result initializeRendererProgram(Context *context, State *glState);
+    angle::Result initializeRendererProgram(Context *context,
+                                            State *glState,
+                                            GLES1State *gles1State);
 
     void setUniform1i(Context *context,
-                      Program *programObject,
+                      ProgramExecutable *executable,
                       UniformLocation location,
                       GLint value);
-    void setUniform1ui(Program *programObject, UniformLocation location, GLuint value);
+    void setUniform1ui(ProgramExecutable *executable, UniformLocation location, GLuint value);
     void setUniform1iv(Context *context,
-                       Program *programObject,
+                       ProgramExecutable *executable,
                        UniformLocation location,
                        GLint count,
                        const GLint *value);
-    void setUniformMatrix4fv(Program *programObject,
+    void setUniformMatrix4fv(ProgramExecutable *executable,
                              UniformLocation location,
                              GLint count,
                              GLboolean transpose,
                              const GLfloat *value);
-    void setUniform4fv(Program *programObject,
+    void setUniform4fv(ProgramExecutable *executable,
+
                        UniformLocation location,
                        GLint count,
                        const GLfloat *value);
-    void setUniform3fv(Program *programObject,
+    void setUniform3fv(ProgramExecutable *executable,
+
                        UniformLocation location,
                        GLint count,
                        const GLfloat *value);
-    void setUniform2fv(Program *programObject,
+    void setUniform2fv(ProgramExecutable *executable,
                        UniformLocation location,
                        GLint count,
                        const GLfloat *value);
-    void setUniform1f(Program *programObject, UniformLocation location, GLfloat value);
-    void setUniform1fv(Program *programObject,
+    void setUniform1f(ProgramExecutable *executable, UniformLocation location, GLfloat value);
+    void setUniform1fv(ProgramExecutable *executable,
                        UniformLocation location,
                        GLint count,
                        const GLfloat *value);
 
-    void setAttributesEnabled(Context *context, State *glState, AttributesMask mask);
+    void setAttributesEnabled(Context *context,
+                              State *glState,
+                              GLES1State *gles1State,
+                              AttributesMask mask);
 
     static constexpr int kVertexAttribIndex           = 0;
     static constexpr int kNormalAttribIndex           = 1;

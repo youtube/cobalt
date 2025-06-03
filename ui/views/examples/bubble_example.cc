@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "base/strings/utf_string_conversions.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -72,6 +74,7 @@ std::u16string GetArrowName(BubbleBorder::Arrow arrow) {
 
 class ExampleBubble : public BubbleDialogDelegateView {
  public:
+  METADATA_HEADER(ExampleBubble);
   ExampleBubble(View* anchor, BubbleBorder::Arrow arrow)
       : BubbleDialogDelegateView(anchor, arrow) {
     DialogDelegate::SetButtons(ui::DIALOG_BUTTON_NONE);
@@ -87,6 +90,9 @@ class ExampleBubble : public BubbleDialogDelegateView {
     AddChildView(std::make_unique<Label>(GetArrowName(arrow())));
   }
 };
+
+BEGIN_METADATA(ExampleBubble, BubbleDialogDelegateView)
+END_METADATA
 
 }  // namespace
 
@@ -141,5 +147,4 @@ void BubbleExample::ShowBubble(Button** button,
       "Click with optional modifiers: [Ctrl] for set_arrow(NONE), "
       "[Alt] for set_arrow(FLOAT), or [Shift] to reverse the arrow iteration.");
 }
-
 }  // namespace views::examples

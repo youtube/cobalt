@@ -1,15 +1,11 @@
 name: "googletest"
-description: "googletest is Google's C++ test framework."
+description: "Google Testing and Mocking Framework"
 
 third_party {
   url {
     type: HOMEPAGE
     value: "https://github.com/google/googletest"
   }
-  version: "389cb68b87193358358ae87cc56d257fd0d80189"
-  last_upgrade_date { year: 2021 month: 1 day: 6 }
-
-  local_modifications:
-      "Only googletest, not googlemock, is included."
-      "Applied https://github.com/google/googletest/pull/3206."
+  version: "8a6feabf04bec8fb125e0df0ad1195c42350725f"
+  last_upgrade_date { year: 2023 month: 9 day: 1 }
 }

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/login/screens/multidevice_setup_screen.h"
 
+#include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ash/multidevice_setup/oobe_completion_tracker_factory.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/multidevice_setup_screen_handler.h"
+#include "chromeos/ash/components/quick_start/quick_start_metrics.h"
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_client.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/oobe_completion_tracker.h"
@@ -78,9 +80,15 @@ void MultiDeviceSetupScreen::TryInitSetupClient() {
 }
 
 bool MultiDeviceSetupScreen::MaybeSkip(WizardContext& context) {
+  // Skip multidevice setup screen during oobe.SmokeEndToEnd test.
+  if (switches::ShouldMultideviceScreenBeSkippedForTesting()) {
+    exit_callback_.Run(Result::NOT_APPLICABLE);
+    return true;
+  }
+
   // Only attempt the setup flow for non-guest users.
   if (context.skip_post_login_screens_for_tests ||
-      chrome_user_manager_util::IsPublicSessionOrEphemeralLogin()) {
+      chrome_user_manager_util::IsManagedGuestSessionOrEphemeralLogin()) {
     exit_callback_.Run(Result::NOT_APPLICABLE);
     RecordOobeMultideviceScreenSkippedReasonHistogram(
         OobeMultideviceScreenSkippedReason::kPublicSessionOrEphemeralLogin);
@@ -114,6 +122,8 @@ bool MultiDeviceSetupScreen::MaybeSkip(WizardContext& context) {
   const std::string& phone_instance_id = context.quick_start_phone_instance_id;
   if (!phone_instance_id.empty()) {
     setup_client_->SetQuickStartPhoneInstanceID(phone_instance_id);
+    quick_start::QuickStartMetrics::RecordScreenOpened(
+        quick_start::QuickStartMetrics::ScreenName::kUnifiedSetup);
   }
 
   // Do not skip if potential host exists but none is set yet.

@@ -7,7 +7,7 @@
  */
 
 GEN_INCLUDE([
-  '//chrome/test/data/webui/polymer_browser_test_base.js',
+  '//chrome/test/data/webui/chromeos/polymer_browser_test_base.js',
 ]);
 
 GEN('#include "ash/constants/ash_features.h"');
@@ -46,6 +46,12 @@ var EmojiPickerExtensionBrowserTest = class extends PolymerTest {
   get browsePreload() {
     return 'chrome://emoji-picker/test_loader.html?module=' +
         'chromeos/emoji_picker/emoji_picker_extension_test.js';
+  }
+
+  // TODO(b/295426497): Make tests work with GIF support on.
+  /** @override */
+  get featureList() {
+    return {disabled: ['ash::features::kImeSystemEmojiPickerGIFSupport']};
   }
 };
 
@@ -94,6 +100,12 @@ var EmojiPickerExtensionSearchTest = class extends PolymerTest {
   get browsePreload() {
     return 'chrome://emoji-picker/test_loader.html?module=' +
         'chromeos/emoji_picker/emoji_picker_search_test.js';
+  }
+
+  // TODO(b/295426497): Make tests work with GIF support on.
+  /** @override */
+  get featureList() {
+    return {disabled: ['ash::features::kImeSystemEmojiPickerGIFSupport']};
   }
 };
 

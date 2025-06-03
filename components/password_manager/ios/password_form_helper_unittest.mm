@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 
-#include "base/mac/bundle_locations.h"
+#include "base/apple/bundle_locations.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/ios/wait_util.h"
@@ -32,10 +32,6 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -292,22 +288,21 @@ TEST_F(PasswordFormHelperTest, FillPasswordFormWithFillData) {
 TEST_F(PasswordFormHelperTest, FillPasswordFormWithFillDataFillingFailure) {
   ukm::TestAutoSetUkmRecorder test_recorder;
   base::HistogramTester histogram_tester;
-  LoadHtml(@"<form><input id='u1' type='text' name='un1'>"
-            "<input id='p1' type='password' name='pw1'></form>");
+  LoadHtml(@"<form><input id='p1' type='password' name='pw1'></form>");
 
   ASSERT_TRUE(SetUpUniqueIDs());
   const std::string base_url = BaseUrl();
-  FieldRendererId username_field_id(2);
+  FieldRendererId username_field_id(0);
   // The password renderer id does not exist, that's why the filling will fail
   FieldRendererId password_field_id(404);
   FillData fill_data;
-  SetFillData(base_url, 1, username_field_id.value(), "john.doe@gmail.com",
+  SetFillData(base_url, 1, username_field_id.value(), "",
               password_field_id.value(), "super!secret", &fill_data);
 
   __block int call_counter = 0;
   [helper_ fillPasswordFormWithFillData:fill_data
                                 inFrame:GetMainFrame()
-                       triggeredOnField:username_field_id
+                       triggeredOnField:password_field_id
                       completionHandler:^(BOOL complete) {
                         ++call_counter;
                       }];

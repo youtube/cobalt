@@ -31,7 +31,6 @@ source_set("core") {
     "//ui/base",
   ]
   frameworks = [ "UIKit.framework" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("main_eg2") {
@@ -47,10 +46,9 @@ source_set("main_eg2") {
     "//ios/chrome/test/earl_grey:hooks",
 
     # Needed for including ios/chrome/browser/ui.
-    "//ios/chrome/browser/tabs:tabs_internal",
+    "//ios/chrome/browser/tabs/model:tabs_internal",
   ]
   frameworks = [ "UIKit.framework" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("main") {
@@ -65,17 +63,13 @@ source_set("main") {
     "//ios/chrome/browser/ui/settings",
 
     # Needed for including ios/chrome/browser/ui.
-    "//ios/chrome/browser/tabs:tabs_internal",
+    "//ios/chrome/browser/tabs/model:tabs_internal",
   ]
   frameworks = [ "UIKit.framework" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("eg2_tests") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [ "showcase_egtest.mm" ]
   deps = [

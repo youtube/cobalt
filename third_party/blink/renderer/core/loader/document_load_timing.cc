@@ -73,7 +73,8 @@ void DocumentLoadTiming::NotifyDocumentTimingChanged() {
 
 void DocumentLoadTiming::EnsureReferenceTimesSet() {
   if (reference_wall_time_.is_zero()) {
-    reference_wall_time_ = base::Seconds(clock_->Now().ToDoubleT());
+    reference_wall_time_ =
+        base::Seconds(clock_->Now().InSecondsFSinceUnixEpoch());
   }
   if (reference_monotonic_time_.is_null())
     reference_monotonic_time_ = tick_clock_->NowTicks();
@@ -288,6 +289,12 @@ void DocumentLoadTiming::SetActivationStart(base::TimeTicks activation_start) {
   TRACE_EVENT_MARK_WITH_TIMESTAMP1("blink.user_timing", "activationtart",
                                    activation_start, "frame",
                                    GetFrameIdForTracing(GetFrame()));
+  NotifyDocumentTimingChanged();
+}
+
+void DocumentLoadTiming::SetCriticalCHRestart(
+    base::TimeTicks critical_ch_restart) {
+  critical_ch_restart_ = critical_ch_restart;
   NotifyDocumentTimingChanged();
 }
 

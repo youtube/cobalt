@@ -4,6 +4,7 @@
 
 #include "ui/views/examples/vector_example.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -18,6 +19,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/simple_combobox_model.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -44,6 +47,7 @@ namespace {
 
 class VectorIconGallery : public View, public TextfieldController {
  public:
+  METADATA_HEADER(VectorIconGallery);
   VectorIconGallery() {
     size_input_ = AddChildView(std::make_unique<Textfield>());
     color_input_ = AddChildView(std::make_unique<Textfield>());
@@ -55,7 +59,7 @@ class VectorIconGallery : public View, public TextfieldController {
     box->SetFlexForView(image_view_container_, 1);
 
     base::FilePath test_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &test_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_dir);
     std::u16string base_path = test_dir.AsUTF16Unsafe();
     std::vector<std::u16string> icon_dir = {
         base::FilePath(test_dir.AppendASCII("ash")
@@ -175,12 +179,7 @@ class VectorIconGallery : public View, public TextfieldController {
 
     base::ScopedAllowBlockingForTesting allow_blocking;
     base::ReadFileToString(path, &contents_);
-    // Skip over comments.
-    for (size_t slashes = contents_.find("//"); slashes != std::string::npos;
-         slashes = contents_.find("//")) {
-      size_t eol = contents_.find("\n", slashes);
-      contents_.erase(slashes, eol - slashes);
-    }
+    contents_ = CleanUpContents(contents_);
     Update();
   }
 
@@ -209,32 +208,24 @@ class VectorIconGallery : public View, public TextfieldController {
       base::ScopedAllowBlockingForTesting allow_blocking;
       base::FileEnumerator file_iter(path, false, base::FileEnumerator::FILES,
                                      FILE_PATH_LITERAL("*.icon"));
-      base::FilePath file = file_iter.Next();
+      std::vector<base::FilePath> files;
+      for (base::FilePath input_file = file_iter.Next(); !input_file.empty();
+           input_file = file_iter.Next()) {
+        files.push_back(input_file);
+      }
+      std::sort(files.begin(), files.end());
 
-      while (!file.empty() && count < max) {
-        count++;
+      for (base::FilePath file : files) {
+        if (count++ >= max) {
+          break;
+        }
         std::string file_content;
         base::ReadFileToString(file, &file_content);
 
-        // Skip over comments.
-        // This handles very basic cases of // and /*. More complicated edge
-        // cases such as /* /* */ */ are not handled.
-        for (size_t slashes = file_content.find("//");
-             slashes != std::string::npos; slashes = file_content.find("//")) {
-          size_t eol = file_content.find("\n", slashes);
-          file_content.erase(slashes, eol - slashes);
-        }
-
-        for (size_t slashes = file_content.find("/*");
-             slashes != std::string::npos; slashes = file_content.find("/*")) {
-          size_t eol = file_content.find("*/", slashes);
-          file_content.erase(slashes, eol - slashes + 2);
-        }
-
         ImageView* icon_view =
             image_view_container_->AddChildView(std::make_unique<ImageView>());
-        icon_view->SetImage(
-            gfx::CreateVectorIconFromSource(file_content, size_, color_));
+        icon_view->SetImage(gfx::CreateVectorIconFromSource(
+            CleanUpContents(file_content), size_, color_));
         icon_view->SetTooltipText(file.BaseName().AsUTF16Unsafe());
         file = file_iter.Next();
       }
@@ -250,6 +241,43 @@ class VectorIconGallery : public View, public TextfieldController {
     InvalidateLayout();
   }
 
+  std::string CleanUpContents(const std::string& file_content) {
+    // Skip over comments.
+    // This handles very basic cases of // and /*. More complicated edge
+    // cases such as /* /* */ */ are not handled.
+    std::string output = file_content;
+    for (size_t slashes = output.find("//"); slashes != std::string::npos;
+         slashes = output.find("//")) {
+      size_t eol = output.find("\n", slashes);
+      // Add 1 to erase the \n token at the end of the line.
+      output.erase(slashes, eol - slashes + 1);
+    }
+
+    for (size_t slashes = output.find("/*"); slashes != std::string::npos;
+         slashes = output.find("/*")) {
+      size_t eol = output.find("*/", slashes);
+      output.erase(slashes, eol - slashes + 2);
+    }
+
+    // CreateVectorIconFromSource does not work well if there are multiple icon
+    // sizes in the same file. Fetch the first icon source in the file.
+    std::string result = output;
+    size_t start = 0;
+    std::string token = "\n\n";
+    size_t end = output.find(token);
+    while (end != std::string::npos) {
+      std::string section = output.substr(start, end - start);
+      if (!section.empty() &&
+          section.find_first_not_of("\t\n\v\f\r") != std::string::npos) {
+        result = section;
+        break;
+      }
+      start = end;
+      end = output.find(token, end + token.length());
+    }
+    return result;
+  }
+
   // 36dp is one of the natural sizes for MD icons, and corresponds roughly to a
   // 32dp usable area.
   int size_ = 36;
@@ -263,6 +291,9 @@ class VectorIconGallery : public View, public TextfieldController {
   raw_ptr<Button> file_go_button_;
   std::string contents_;
 };
+
+BEGIN_METADATA(VectorIconGallery, View)
+END_METADATA
 
 }  // namespace
 

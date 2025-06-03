@@ -26,8 +26,18 @@ class LorgnetteScannerManager : public KeyedService {
  public:
   using GetScannerNamesCallback =
       base::OnceCallback<void(std::vector<std::string> scanner_names)>;
+  using GetScannerInfoListCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::ListScannersResponse>& response)>;
   using GetScannerCapabilitiesCallback = base::OnceCallback<void(
       const absl::optional<lorgnette::ScannerCapabilities>& capabilities)>;
+  using OpenScannerCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::OpenScannerResponse>& response)>;
+  using CloseScannerCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::CloseScannerResponse>& response)>;
+  using StartPreparedScanCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::StartPreparedScanResponse>& response)>;
+  using ReadScanDataCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::ReadScanDataResponse>& response)>;
   using ProgressCallback =
       base::RepeatingCallback<void(uint32_t progress_percent,
                                    uint32_t page_number)>;
@@ -36,6 +46,18 @@ class LorgnetteScannerManager : public KeyedService {
   using CompletionCallback =
       base::OnceCallback<void(lorgnette::ScanFailureMode failure_mode)>;
   using CancelCallback = base::OnceCallback<void(bool success)>;
+  using CancelScanCallback = base::OnceCallback<void(
+      const absl::optional<lorgnette::CancelScanResponse>& response)>;
+
+  enum class LocalScannerFilter {
+    kLocalScannersOnly = 0,
+    kIncludeNetworkScanners
+  };
+
+  enum class SecureScannerFilter {
+    kSecureScannersOnly = 0,
+    kIncludeUnsecureScanners
+  };
 
   ~LorgnetteScannerManager() override = default;
 
@@ -45,12 +67,40 @@ class LorgnetteScannerManager : public KeyedService {
   // Returns the names of all available, deduplicated scanners.
   virtual void GetScannerNames(GetScannerNamesCallback callback) = 0;
 
+  // Returns ScannerInfo objects for all of the available lorgnette scanners and
+  // zeroconf scanners, filtered by |local_only| and |secure_only|.
+  virtual void GetScannerInfoList(LocalScannerFilter local_only,
+                                  SecureScannerFilter secure_only,
+                                  GetScannerInfoListCallback callback) = 0;
+
   // Returns the capabilities of the scanner specified by |scanner_name|. If
   // |scanner_name| does not correspond to a known scanner, absl::nullopt is
   // returned in the callback.
   virtual void GetScannerCapabilities(
       const std::string& scanner_name,
       GetScannerCapabilitiesCallback callback) = 0;
+
+  // Opens the scanner described by |request|.  If an error occurs,
+  // absl::nullopt is returned in the callback.
+  virtual void OpenScanner(const lorgnette::OpenScannerRequest& request,
+                           OpenScannerCallback callback) = 0;
+
+  // Closes the scanner described by |request|.  If an error occurs,
+  // absl::nullopt is returned in the callback.
+  virtual void CloseScanner(const lorgnette::CloseScannerRequest& request,
+                            CloseScannerCallback callback) = 0;
+
+  // Starts a scan using information in |request| and returns the result using
+  // the provided |callback|.  If an error occurs, absl::nullopt is returned in
+  // the callback.
+  virtual void StartPreparedScan(
+      const lorgnette::StartPreparedScanRequest& request,
+      StartPreparedScanCallback callback) = 0;
+
+  // Reads the scan data described by |request|.  If an error occurs,
+  // absl::nullopt is returned in the callback.
+  virtual void ReadScanData(const lorgnette::ReadScanDataRequest& request,
+                            ReadScanDataCallback callback) = 0;
 
   // Returns whether or not an ADF scanner that flips alternate pages was
   // selected based on |scanner_name| and |source_name|.
@@ -73,6 +123,12 @@ class LorgnetteScannerManager : public KeyedService {
   // Request to cancel the currently running scan job. This function makes the
   // assumption that LorgnetteManagerClient only has one scan running at a time.
   virtual void CancelScan(CancelCallback cancel_callback) = 0;
+
+  // Request to cancel the scan specified by the JobHandle in |request| and
+  // return the result using the provided |callback|.  If an error occurs,
+  // absl::nullopt is returned in the callback.
+  virtual void CancelScan(const lorgnette::CancelScanRequest& request,
+                          CancelScanCallback callback) = 0;
 };
 
 }  // namespace ash

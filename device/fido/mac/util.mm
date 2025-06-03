@@ -10,13 +10,13 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
+#include "build/branding_buildflags.h"
 #include "components/cbor/writer.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_parsing_utils.h"
@@ -24,21 +24,23 @@
 #include "device/fido/p256_public_key.h"
 #include "device/fido/public_key.h"
 
-namespace device {
-namespace fido {
-namespace mac {
+namespace device::fido::mac {
 
-using base::ScopedCFTypeRef;
-using base::scoped_nsobject;
-using cbor::Writer;
+using base::apple::ScopedCFTypeRef;
 using cbor::Value;
+using cbor::Writer;
 
 // The Touch ID authenticator AAGUID value. Despite using self-attestation,
 // Chrome will return this non-zero AAGUID for all MakeCredential
 // responses coming from the Touch ID platform authenticator.
-constexpr std::array<uint8_t, 16> kAaguid = {0xad, 0xce, 0x00, 0x02, 0x35, 0xbc,
-                                             0xc6, 0x0a, 0x64, 0x8b, 0x0b, 0x25,
-                                             0xf1, 0xf0, 0x55, 0x03};
+constexpr std::array<uint8_t, 16> kAaguid =
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+    {0xad, 0xce, 0x00, 0x02, 0x35, 0xbc, 0xc6, 0x0a,
+     0x64, 0x8b, 0x0b, 0x25, 0xf1, 0xf0, 0x55, 0x03};
+#else
+    {0xb5, 0x39, 0x76, 0x66, 0x48, 0x85, 0xaa, 0x6b,
+     0xce, 0xbf, 0xe5, 0x22, 0x62, 0xa4, 0x39, 0xa2};
+#endif
 
 namespace {
 
@@ -53,7 +55,7 @@ std::array<uint8_t, 4> MakeSignatureCounter(
       // counter at 0 for old credentials. Because of the conversion to a 32-bit
       // unsigned integer, the counter will overflow in the year 2108.
       uint32_t sign_counter =
-          static_cast<uint32_t>(base::Time::Now().ToDoubleT());
+          static_cast<uint32_t>(base::Time::Now().InSecondsFSinceUnixEpoch());
       return std::array<uint8_t, 4>{
           static_cast<uint8_t>((sign_counter >> 24) & 0xff),
           static_cast<uint8_t>((sign_counter >> 16) & 0xff),
@@ -161,25 +163,23 @@ std::unique_ptr<PublicKey> SecKeyRefToECPublicKey(SecKeyRef public_key_ref) {
 }
 
 CodeSigningState ProcessIsSigned() {
-  base::ScopedCFTypeRef<SecTaskRef> task(SecTaskCreateFromSelf(nullptr));
+  base::apple::ScopedCFTypeRef<SecTaskRef> task(SecTaskCreateFromSelf(nullptr));
   if (!task) {
     return CodeSigningState::kNotSigned;
   }
 
-  base::ScopedCFTypeRef<CFStringRef> sign_id(
-      SecTaskCopySigningIdentifier(task.get(), /* error= */ nullptr));
+  base::apple::ScopedCFTypeRef<CFStringRef> sign_id(
+      SecTaskCopySigningIdentifier(task.get(), /*error=*/nullptr));
   return static_cast<bool>(sign_id) ? CodeSigningState::kSigned
                                     : CodeSigningState::kNotSigned;
 }
 
 bool DeviceHasBiometricsAvailable() {
-  base::scoped_nsobject<LAContext> context([[LAContext alloc] init]);
+  LAContext* context = [[LAContext alloc] init];
   NSError* nserr;
   return
       [context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
                            error:&nserr];
 }
 
-}  // namespace mac
-}  // namespace fido
-}  // namespace device
+}  // namespace device::fido::mac

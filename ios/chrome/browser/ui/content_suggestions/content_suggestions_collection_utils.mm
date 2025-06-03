@@ -6,6 +6,8 @@
 
 #import "base/i18n/rtl.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/ntp/features.h"
+#import "ios/chrome/browser/ntp/home/features.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -13,6 +15,7 @@
 #import "ios/chrome/browser/ui/location_bar/location_bar_constants.h"
 #import "ios/chrome/browser/ui/ntp/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ui/start_surface/start_surface_features.h"
+#import "ios/chrome/browser/ui/toolbar/public/toolbar_constants.h"
 #import "ios/chrome/browser/ui/toolbar/public/toolbar_utils.h"
 #import "ios/chrome/common/button_configuration_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -22,10 +25,7 @@
 #import "ios/components/ui_util/dynamic_type_util.h"
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ui/gfx/ios/uikit_util.h"
 
 namespace {
 
@@ -39,18 +39,17 @@ const CGFloat kTopSpacingMaterial = 24;
 
 // Top margin for the doodle.
 const CGFloat kDoodleTopMarginRegularXRegular = 162;
-const CGFloat kDoodleTopMarginOther = 48;
-const CGFloat kShrunkDoodleTopMarginOther = 65;
+const CGFloat kDoodleTopMarginOther = 65;
 // Size of the doodle top margin which is multiplied by the scaled font factor,
 // and added to `kDoodleTopMarginOther` on non Regular x Regular form factors.
 const CGFloat kDoodleScaledTopMarginOther = 10;
+const CGFloat kLargeFakeboxExtraDoodleTopMargin = 10;
 
 // Top margin for the search field
-const CGFloat kSearchFieldTopMargin = 32;
-const CGFloat kShrunkLogoSearchFieldTopMargin = 22;
+const CGFloat kSearchFieldTopMargin = 22;
+const CGFloat kLargeFakeboxSearchFieldTopMargin = 40;
 
 // Bottom margin for the search field.
-const CGFloat kNTPSearchFieldBottomPadding = 18;
 const CGFloat kNTPShrunkLogoSearchFieldBottomPadding = 20;
 
 // Height for the logo and doodle frame.
@@ -62,10 +61,42 @@ const CGFloat kGoogleSearchDoodleShrunkHeight = 68;
 
 // Height for the shrunk logo frame.
 // TODO(crbug.com/1170491): clean up post-launch.
-const CGFloat kGoogleSearchLogoShrunkHeight = 36;
+const CGFloat kGoogleSearchLogoHeight = 36;
+const CGFloat kLargeFakeboxGoogleSearchLogoHeight = 50;
 
 // The size of the symbol image.
 const CGFloat kSymbolContentSuggestionsPointSize = 18;
+
+// The height of the Fakebox.
+const CGFloat kFakeboxHeight = 65;
+const CGFloat kFakeboxHeightNonDynamic = 45;
+
+// The height of the Fakebox when it is pinned to the top.
+const CGFloat kPinnedFakeboxHeight = 48;
+const CGFloat kPinnedFakeboxHeightNonDynamic = 18;
+
+// Returns the amount of vertical margin to include in the Fake Toolbar.
+CGFloat FakeToolbarVerticalMargin() {
+  UIContentSizeCategory category =
+      [UIApplication sharedApplication].preferredContentSizeCategory;
+  CGFloat vertical_margin =
+      2 * kAdaptiveLocationBarVerticalMargin - kTopToolbarUnsplitMargin;
+  CGFloat dynamic_type_vertical_adjustment =
+      (ToolbarClampedFontSizeMultiplier(category) - 1) *
+      (kLocationBarVerticalMarginDynamicType +
+       kAdaptiveLocationBarVerticalMargin);
+  return vertical_margin + dynamic_type_vertical_adjustment;
+}
+
+// Returns the color to use for the Lens and Voice icons in the Fakebox.
+UIColor* FakeboxIconColor() {
+  if (IsIOSLargeFakeboxEnabled()) {
+    return [UIColor colorNamed:kGrey700Color];
+  } else if (IsMagicStackEnabled()) {
+    return [UIColor colorNamed:@"fake_omnibox_placeholder_color"];
+  }
+  return [UIColor colorNamed:kTextfieldPlaceholderColor];
+}
 }
 
 namespace content_suggestions {
@@ -81,12 +112,14 @@ CGFloat DoodleHeight(BOOL logo_is_showing,
     return 0;
   }
 
-  if (ShouldShrinkLogoForStartSurface() && logo_is_showing) {
+  if (logo_is_showing) {
     if (doodle_is_showing ||
         (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET)) {
       return kGoogleSearchDoodleShrunkHeight;
+    } else if (IsIOSLargeFakeboxEnabled()) {
+      return kLargeFakeboxGoogleSearchLogoHeight;
     } else {
-      return kGoogleSearchLogoShrunkHeight;
+      return kGoogleSearchLogoHeight;
     }
   }
 
@@ -97,23 +130,26 @@ CGFloat DoodleTopMargin(CGFloat top_inset,
                         UITraitCollection* trait_collection) {
   if (IsRegularXRegularSizeClass(trait_collection))
     return kDoodleTopMarginRegularXRegular;
-  if (IsCompactHeight(trait_collection) && !ShouldShrinkLogoForStartSurface())
-    return top_inset;
   CGFloat top_margin =
       top_inset +
       AlignValueToPixel(kDoodleScaledTopMarginOther *
                         ui_util::SystemSuggestedFontSizeMultiplier());
-  if (ShouldShrinkLogoForStartSurface() && !IsCompactHeight(trait_collection)) {
-    top_margin += kShrunkDoodleTopMarginOther;
-  } else {
-    top_margin += kDoodleTopMarginOther;
+  // If Magic Stack is not enabled, this value is zero (e.g. no-op).
+  top_margin -= ReducedNTPTopMarginSpaceForMagicStack();
+  if (IsIOSLargeFakeboxEnabled()) {
+    top_margin += kLargeFakeboxExtraDoodleTopMargin;
   }
+  top_margin += kDoodleTopMarginOther;
   return top_margin;
 }
 
+CGFloat HeaderSeparatorHeight() {
+  return ui::AlignValueToUpperPixel(kToolbarSeparatorHeight);
+}
+
 CGFloat SearchFieldTopMargin() {
-  return ShouldShrinkLogoForStartSurface() ? kShrunkLogoSearchFieldTopMargin
-                                           : kSearchFieldTopMargin;
+  return IsIOSLargeFakeboxEnabled() ? kLargeFakeboxSearchFieldTopMargin
+                                    : kSearchFieldTopMargin;
 }
 
 CGFloat SearchFieldWidth(CGFloat width, UITraitCollection* trait_collection) {
@@ -126,17 +162,45 @@ CGFloat SearchFieldWidth(CGFloat width, UITraitCollection* trait_collection) {
       std::min(kSearchFieldSmall, width - kSearchFieldMinMargin * 2));
 }
 
+CGFloat FakeOmniboxHeight() {
+  if (IsIOSLargeFakeboxEnabled()) {
+    CGFloat multiplier = ui_util::SystemSuggestedFontSizeMultiplier();
+    return AlignValueToPixel((kFakeboxHeight - kFakeboxHeightNonDynamic) *
+                                 multiplier +
+                             kFakeboxHeightNonDynamic);
+  }
+  return ToolbarExpandedHeight(
+      [UIApplication sharedApplication].preferredContentSizeCategory);
+}
+
+CGFloat PinnedFakeOmniboxHeight() {
+  if (IsIOSLargeFakeboxEnabled()) {
+    CGFloat multiplier = ui_util::SystemSuggestedFontSizeMultiplier();
+    return AlignValueToPixel(
+        (kPinnedFakeboxHeight - kPinnedFakeboxHeightNonDynamic) * multiplier +
+        kPinnedFakeboxHeightNonDynamic);
+  }
+  return LocationBarHeight(
+      [UIApplication sharedApplication].preferredContentSizeCategory);
+}
+
+CGFloat FakeToolbarHeight() {
+  if (IsIOSLargeFakeboxEnabled()) {
+    return PinnedFakeOmniboxHeight() + FakeToolbarVerticalMargin();
+  }
+  return ToolbarExpandedHeight(
+      [UIApplication sharedApplication].preferredContentSizeCategory);
+}
+
 CGFloat HeightForLogoHeader(BOOL logo_is_showing,
                             BOOL doodle_is_showing,
-                            CGFloat top_inset,
                             UITraitCollection* trait_collection) {
   CGFloat header_height =
-      DoodleTopMargin(top_inset, trait_collection) +
+      DoodleTopMargin(0, trait_collection) +
       DoodleHeight(logo_is_showing, doodle_is_showing, trait_collection) +
-      SearchFieldTopMargin() +
-      ToolbarExpandedHeight(
-          [UIApplication sharedApplication].preferredContentSizeCategory) +
-      HeaderBottomPadding();
+      SearchFieldTopMargin() + FakeOmniboxHeight() +
+      ntp_header::kScrolledToTopOmniboxBottomMargin +
+      ceil(HeaderSeparatorHeight());
   if (!IsRegularXRegularSizeClass(trait_collection)) {
     return header_height;
   }
@@ -153,9 +217,7 @@ CGFloat HeightForLogoHeader(BOOL logo_is_showing,
 }
 
 CGFloat HeaderBottomPadding() {
-  return ShouldShowReturnToMostRecentTabForStartSurface()
-             ? kNTPShrunkLogoSearchFieldBottomPadding
-             : kNTPSearchFieldBottomPadding;
+  return kNTPShrunkLogoSearchFieldBottomPadding;
 }
 
 UIImageView* CreateMagnifyingGlassView() {
@@ -181,7 +243,7 @@ void ConfigureSearchHintLabel(UILabel* search_hint_label,
   if (base::i18n::IsRTL()) {
     [search_hint_label setTextAlignment:NSTextAlignmentRight];
   }
-  search_hint_label.textColor = [UIColor colorNamed:kTextfieldPlaceholderColor];
+  search_hint_label.textColor = SearchHintLabelColor();
   search_hint_label.adjustsFontForContentSizeCategory = YES;
   search_hint_label.textAlignment = NSTextAlignmentCenter;
 }
@@ -191,13 +253,18 @@ void ConfigureVoiceSearchButton(UIButton* voice_search_button,
   [voice_search_button setTranslatesAutoresizingMaskIntoConstraints:NO];
   [search_tab_target addSubview:voice_search_button];
 
-  // TODO(crbug.com/1418068): Remove after minimum version required is >=
-  // iOS 15 and refactor with UIButtonConfiguration.
-  SetAdjustsImageWhenHighlighted(voice_search_button, NO);
+  if (IsUIButtonConfigurationEnabled()) {
+    UIButtonConfiguration* buttonConfig =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfig.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
+    voice_search_button.configuration = buttonConfig;
+  } else {
+    SetAdjustsImageWhenHighlighted(voice_search_button, NO);
+  }
 
   UIImage* mic_image = DefaultSymbolWithPointSize(
       kMicrophoneSymbol, kSymbolContentSuggestionsPointSize);
-  voice_search_button.tintColor = [UIColor colorNamed:kGrey600Color];
+  voice_search_button.tintColor = FakeboxIconColor();
 
   [voice_search_button setImage:mic_image forState:UIControlStateNormal];
   [voice_search_button setAccessibilityLabel:l10n_util::GetNSString(
@@ -214,15 +281,20 @@ void ConfigureLensButton(UIButton* lens_button, UIView* search_tap_target) {
   lens_button.translatesAutoresizingMaskIntoConstraints = NO;
   [search_tap_target addSubview:lens_button];
 
-  // TODO(crbug.com/1418068): Remove after minimum version required is >=
-  // iOS 15 and refactor with UIButtonConfiguration.
-  SetAdjustsImageWhenHighlighted(lens_button, NO);
+  if (IsUIButtonConfigurationEnabled()) {
+    UIButtonConfiguration* buttonConfig =
+        [UIButtonConfiguration plainButtonConfiguration];
+    buttonConfig.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
+    lens_button.configuration = buttonConfig;
+  } else {
+    SetAdjustsImageWhenHighlighted(lens_button, NO);
+  }
 
   UIImage* camera_image = CustomSymbolWithPointSize(
       kCameraLensSymbol, kSymbolContentSuggestionsPointSize);
 
   [lens_button setImage:camera_image forState:UIControlStateNormal];
-  lens_button.tintColor = [UIColor colorNamed:kGrey600Color];
+  lens_button.tintColor = FakeboxIconColor();
   lens_button.accessibilityLabel = l10n_util::GetNSString(IDS_IOS_ACCNAME_LENS);
   lens_button.accessibilityIdentifier = @"Lens";
 
@@ -240,6 +312,24 @@ UIView* NearestAncestor(UIView* view, Class of_class) {
     return view;
   }
   return NearestAncestor([view superview], of_class);
+}
+
+BOOL ShouldShowWiderMagicStackLayer(UITraitCollection* traitCollection,
+                                    UIWindow* window) {
+  // Some iphone devices in landscape mode are still small enough to have a
+  // Compact  UIUserInterfaceSizeClass.
+  return traitCollection.horizontalSizeClass ==
+             UIUserInterfaceSizeClassRegular ||
+         IsLandscape(window);
+}
+
+UIColor* SearchHintLabelColor() {
+  if (IsIOSLargeFakeboxEnabled()) {
+    return [UIColor colorNamed:kGrey800Color];
+  } else if (IsMagicStackEnabled()) {
+    return [UIColor colorNamed:@"fake_omnibox_placeholder_color"];
+  }
+  return [UIColor colorNamed:kTextfieldPlaceholderColor];
 }
 
 }  // namespace content_suggestions

@@ -12,7 +12,7 @@ import androidx.annotation.Nullable;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabCreator;
+import org.chromium.chrome.browser.tabmodel.AsyncTabLauncher;
 import org.chromium.url.GURL;
 
 import java.io.Serializable;
@@ -50,9 +50,8 @@ public interface HistoryClustersDelegate {
     @Nullable
     ViewGroup getToggleView(ViewGroup parent);
 
-    /** Returns an object that can create new tabs. */
-    @Nullable
-    default TabCreator getTabCreator(boolean isIncognito) {
+    /** Returns an object that can launch new tabs. */
+    default @Nullable AsyncTabLauncher getTabLauncher(boolean isIncognito) {
         return null;
     }
 
@@ -60,8 +59,7 @@ public interface HistoryClustersDelegate {
      * Returns a view containing a disclaimer about the presence of other forms of browsing
      * history.
      */
-    @Nullable
-    default ViewGroup getPrivacyDisclaimerView(ViewGroup parent) {
+    default @Nullable ViewGroup getPrivacyDisclaimerView(ViewGroup parent) {
         return null;
     }
 
@@ -82,8 +80,7 @@ public interface HistoryClustersDelegate {
     }
 
     /** Returns a view containing a link to a UI where the user can clear their browsing data. */
-    @Nullable
-    default ViewGroup getClearBrowsingDataView(ViewGroup parent) {
+    default @Nullable ViewGroup getClearBrowsingDataView(ViewGroup parent) {
         return null;
     }
 
@@ -106,8 +103,8 @@ public interface HistoryClustersDelegate {
      */
     default void onOptOut() {}
 
-    /** Whether tab group creation is enabled. */
-    default boolean areTabGroupsEnabled() {
+    /** Whether the rename from "Journeys" to "Groups" is enabled. */
+    default boolean isRenameEnabled() {
         return true;
     }
 }

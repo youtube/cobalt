@@ -33,8 +33,7 @@ import org.chromium.components.power_bookmarks.ShoppingSpecifics;
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class PowerBookmarkUtilsTest {
-    @Mock
-    private BookmarkModel mMockBookmarkModel;
+    @Mock private BookmarkModel mMockBookmarkModel;
 
     @Before
     public void setup() {
@@ -66,13 +65,38 @@ public class PowerBookmarkUtilsTest {
         Assert.assertEquals("us", subscription.userSeenOffer.countryCode);
     }
 
+    @Test
+    @SmallTest
+    public void testCreateCommerceSubscriptionForShoppingSpecifics() {
+        ShoppingSpecifics specifics =
+                ShoppingSpecifics.newBuilder()
+                        .setProductClusterId(123)
+                        .setOfferId(456)
+                        .setCountryCode("us")
+                        .setCurrentPrice(ProductPrice.newBuilder().setAmountMicros(100).build())
+                        .build();
+        CommerceSubscription subscription =
+                PowerBookmarkUtils.createCommerceSubscriptionForShoppingSpecifics(specifics);
+
+        Assert.assertEquals(IdentifierType.PRODUCT_CLUSTER_ID, subscription.idType);
+        Assert.assertEquals(ManagementType.USER_MANAGED, subscription.managementType);
+        Assert.assertEquals("123", subscription.id);
+        Assert.assertEquals("456", subscription.userSeenOffer.offerId);
+        Assert.assertEquals(100L, subscription.userSeenOffer.userSeenPrice);
+        Assert.assertEquals("us", subscription.userSeenOffer.countryCode);
+    }
+
     /**
      * @param clusterId The cluster ID the subscription should be created with.
      * @return A user-managed subscription with the specified ID.
      */
     private CommerceSubscription buildSubscription(String clusterId) {
-        return new CommerceSubscription(SubscriptionType.PRICE_TRACK,
-                IdentifierType.PRODUCT_CLUSTER_ID, clusterId, ManagementType.USER_MANAGED, null);
+        return new CommerceSubscription(
+                SubscriptionType.PRICE_TRACK,
+                IdentifierType.PRODUCT_CLUSTER_ID,
+                clusterId,
+                ManagementType.USER_MANAGED,
+                null);
     }
 
     /**
@@ -91,6 +115,7 @@ public class PowerBookmarkUtilsTest {
 
     /**
      * Create a mock bookmark and set up the mock model to have shopping meta for it.
+     *
      * @param bookmarkId The bookmark's ID.
      * @param clusterId The cluster ID for the product.
      * @param isPriceTracked Whether the product is price tracked.

@@ -17,8 +17,11 @@
 #include "components/performance_manager/graph/page_node_impl_describer.h"
 #include "components/performance_manager/graph/process_node_impl_describer.h"
 #include "components/performance_manager/graph/worker_node_impl_describer.h"
+#include "components/performance_manager/public/decorators/tab_connectedness_decorator.h"
+#include "components/performance_manager/public/decorators/tab_page_decorator.h"
 #include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/public/metrics/metrics_collector.h"
+#include "components/performance_manager/resource_attribution/query_scheduler.h"
 #include "components/performance_manager/v8_memory/v8_context_tracker.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -55,6 +58,9 @@ void GraphFeatures::ConfigureGraph(Graph* graph) const {
     Install<PageLoadTrackerDecorator>(graph);
   if (flags_.process_hosted_content_types_aggregator)
     Install<ProcessHostedContentTypesAggregator>(graph);
+  if (flags_.resource_attribution_scheduler) {
+    Install<resource_attribution::QueryScheduler>(graph);
+  }
 
 #if !BUILDFLAG(IS_ANDROID)
   if (flags_.site_data_recorder)
@@ -69,6 +75,13 @@ void GraphFeatures::ConfigureGraph(Graph* graph) const {
   }
   if (flags_.v8_context_tracker) {
     Install<v8_memory::V8ContextTracker>(graph);
+  }
+
+  if (flags_.tab_page_decorator) {
+    Install<TabPageDecorator>(graph);
+  }
+  if (flags_.tab_connectedness_decorator) {
+    Install<TabConnectednessDecorator>(graph);
   }
 }
 

@@ -437,6 +437,8 @@ void AppListBubbleAppsPage::AnimateHidePage() {
     return;
   }
 
+  scrollable_apps_grid_view_->CancelDragWithNoDropAnimation();
+
   // Update view visibility when the animation is done.
   auto set_visible_false = base::BindRepeating(
       [](base::WeakPtr<AppListBubbleAppsPage> self) {
@@ -687,7 +689,7 @@ void AppListBubbleAppsPage::InitContinueLabelContainer(
   bubble_utils::ApplyStyle(
       continue_label_, TypographyToken::kCrosAnnotation1,
       chromeos::features::IsJellyEnabled()
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysSecondary)
+          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurfaceVariant)
           : kColorAshTextColorSecondary);
   continue_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
 

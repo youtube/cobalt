@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -75,7 +76,7 @@ Re2RegExCache* Re2RegExCache::Instance() {
   return g_re2regex_cache.get();
 }
 
-const RE2* Re2RegExCache::GetRegEx(const std::string& pattern) {
+const RE2* Re2RegExCache::GetRegEx(std::string_view pattern) {
   // For thread safety, acquire a lock to prevent concurrent access.
   base::AutoLock lock(lock_);
 
@@ -95,40 +96,7 @@ const RE2* Re2RegExCache::GetRegEx(const std::string& pattern) {
   return result.first->second.get();
 }
 
-RewriterCache::RewriterCache() = default;
-
-// static
-RewriterCache* RewriterCache::GetInstance() {
-  static base::NoDestructor<RewriterCache> g_rewriter_cache;
-  return g_rewriter_cache.get();
-}
-
-// static
-std::u16string RewriterCache::Rewrite(const std::u16string& country_code,
-                                      const std::u16string& text) {
-  return GetInstance()->GetRewriter(country_code).Rewrite(NormalizeValue(text));
-}
-
-const AddressRewriter& RewriterCache::GetRewriter(
-    const std::u16string& country_code) {
-  // For thread safety, acquire a lock to prevent concurrent access.
-  base::AutoLock lock(lock_);
-
-  auto it = rewriter_map_.find(country_code);
-  if (it != rewriter_map_.end()) {
-    const AddressRewriter& rewriter = it->second;
-    return rewriter;
-  }
-
-  // Insert the expression into the map, check the success and return the
-  // pointer.
-  auto result = rewriter_map_.emplace(
-      country_code, AddressRewriter::ForCountryCode(country_code));
-  DCHECK(result.second);
-  return result.first->second;
-}
-
-std::unique_ptr<const RE2> BuildRegExFromPattern(const std::string& pattern) {
+std::unique_ptr<const RE2> BuildRegExFromPattern(std::string_view pattern) {
   RE2::Options opt;
   // By default, patters are case sensitive.
   // Note that, the named-capture-group patterns build with
@@ -139,7 +107,7 @@ std::unique_ptr<const RE2> BuildRegExFromPattern(const std::string& pattern) {
   auto regex = std::make_unique<const RE2>(pattern, opt);
 
   if (!regex->ok()) {
-    DEBUG_ALIAS_FOR_CSTR(pattern_copy, pattern.c_str(), 128);
+    DEBUG_ALIAS_FOR_CSTR(pattern_copy, pattern.data(), 128);
     base::debug::DumpWithoutCrashing();
   }
 
@@ -155,7 +123,7 @@ bool HasMiddleNameInitialsCharacteristics(const std::string& middle_name) {
                         RegEx::kMatchMiddleNameInitialsCharacteristics);
 }
 
-bool HasHispanicLatinxNameCharaceristics(const std::string& name) {
+bool HasHispanicLatinxNameCharacteristics(const std::string& name) {
   // Check if the name contains one of the most common Hispanic/Latinx
   // last names.
   if (IsPartialMatch(name, RegEx::kMatchHispanicCommonNameCharacteristics))
@@ -232,7 +200,7 @@ std::vector<std::string> GetAllPartialMatches(const std::string& value,
   const RE2* regex = Re2RegExCache::Instance()->GetRegEx(pattern);
   if (!regex || !regex->ok())
     return {};
-  re2::StringPiece input(value);
+  std::string_view input(value);
   std::string match;
   std::vector<std::string> matches;
   while (re2::RE2::FindAndConsume(&input, *regex, &match)) {
@@ -245,7 +213,7 @@ std::vector<std::string> ExtractAllPlaceholders(const std::string& value) {
   return GetAllPartialMatches(value, "\\${([\\w]+)}");
 }
 
-std::string GetPlaceholderToken(const std::string& value) {
+std::string GetPlaceholderToken(std::string_view value) {
   return base::StrCat({"${", value, "}"});
 }
 
@@ -310,9 +278,9 @@ std::string CaptureTypeWithAffixedPattern(const ServerFieldType& type,
 
   // By adding an "i" in the first group, the capturing is case insensitive.
   // Allow multiple separators to support the ", " case.
-  return base::StrCat(
-      {"(?i:", prefix, "(?P<", AutofillType::ServerFieldTypeToString(type), ">",
-       pattern, ")", suffix, "(?:", options.separator, ")+)", quantifier});
+  return base::StrCat({"(?i:", prefix, "(?P<", FieldTypeToStringView(type), ">",
+                       pattern, ")", suffix, "(?:", options.separator, ")+)",
+                       quantifier});
 }
 
 std::string CaptureTypeWithSuffixedPattern(const ServerFieldType& type,
@@ -338,6 +306,14 @@ std::string CaptureTypeWithPattern(const ServerFieldType& type,
                                        std::string(), options);
 }
 
+std::u16string NormalizeAndRewrite(const std::u16string& country_code,
+                                   const std::u16string& text,
+                                   bool keep_white_space) {
+  return AddressRewriter::RewriteForCountryCode(
+      country_code.empty() ? u"US" : country_code,
+      NormalizeValue(text, keep_white_space));
+}
+
 std::u16string NormalizeValue(base::StringPiece16 value,
                               bool keep_white_space) {
   return AutofillProfileComparator::NormalizeForComparison(
@@ -348,6 +324,14 @@ std::u16string NormalizeValue(base::StringPiece16 value,
 bool AreStringTokenEquivalent(const std::u16string& one,
                               const std::u16string& other) {
   return AreSortedTokensEqual(TokenizeValue(one), TokenizeValue(other));
+}
+
+bool AreStringTokenCompatible(const std::u16string& first,
+                              const std::u16string& second) {
+  SortedTokenComparisonResult result =
+      CompareSortedTokens(TokenizeValue(NormalizeValue(first)),
+                          TokenizeValue(NormalizeValue(second)));
+  return result.status == MATCH || result.status == SUBSET;
 }
 
 SortedTokenComparisonResult CompareSortedTokens(

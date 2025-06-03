@@ -15,7 +15,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "components/services/storage/public/cpp/big_io_buffer.h"
-#include "content/public/common/content_features.h"
+#include "content/common/features.h"
 #include "content/public/common/url_constants.h"
 #include "crypto/sha2.h"
 #include "net/base/completion_once_callback.h"
@@ -233,8 +233,12 @@ void GeneratedCodeCache::CollectStatistics(
     GeneratedCodeCache::CacheEntryStatus status) {
   switch (cache_type_) {
     case GeneratedCodeCache::CodeCacheType::kJavaScript:
+      UMA_HISTOGRAM_ENUMERATION("SiteIsolatedCodeCache.JS.Behaviour", status);
+      break;
     case GeneratedCodeCache::CodeCacheType::kWebUIJavaScript:
       UMA_HISTOGRAM_ENUMERATION("SiteIsolatedCodeCache.JS.Behaviour", status);
+      UMA_HISTOGRAM_ENUMERATION("SiteIsolatedCodeCache.JS.WebUI.Behaviour",
+                                status);
       break;
     case GeneratedCodeCache::CodeCacheType::kWebAssembly:
       UMA_HISTOGRAM_ENUMERATION("SiteIsolatedCodeCache.WASM.Behaviour", status);

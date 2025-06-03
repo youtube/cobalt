@@ -6,13 +6,13 @@
 
 #include <algorithm>
 #include <functional>
-#include <memory>
 #include <utility>
 
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/style/style_util.h"
-#include "ash/wallpaper/wallpaper_base_view.h"
+#include "ash/wallpaper/views/wallpaper_base_view.h"
 #include "ash/wm/desks/desk.h"
 #include "ash/wm/desks/desk_bar_view_base.h"
 #include "ash/wm/desks/desk_mini_view.h"
@@ -21,7 +21,6 @@
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/mru_window_tracker.h"
-#include "ash/wm/overview/overview_constants.h"
 #include "ash/wm/overview/overview_utils.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
@@ -29,24 +28,21 @@
 #include "ash/wm/workspace/workspace_layout_manager.h"
 #include "ash/wm/workspace_controller.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
-#include "base/memory/raw_ptr.h"
 #include "base/ranges/algorithm.h"
+#include "base/trace_event/trace_event.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/accessibility/ax_node_data.h"
-#include "ui/aura/client/aura_constants.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/compositor/layer_type.h"
-#include "ui/compositor/paint_recorder.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
-#include "ui/gfx/skia_paint_util.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
 
@@ -68,7 +64,8 @@ constexpr int kCornerRadius = 4;
 constexpr gfx::RoundedCornersF kCornerRadiiOld(kCornerRadius);
 
 // The rounded corner radii when feature flag Jellyroll is enabled.
-// TODO(conniekxu): After CrOS Next is launched, remove `kCornerRadiiOld`.
+// TODO(http://b/291622042): After CrOS Next is launched, remove
+// `kCornerRadiiOld`.
 constexpr gfx::RoundedCornersF kCornerRadii(8);
 
 // Used for painting the highlight when the context menu is open.
@@ -256,6 +253,16 @@ void MirrorLayerTree(
                     desk_container);
   }
 
+  // Disables rounded corners sync on the mirroring layer. Changes on its source
+  // layer's rounded corners shouldn't affect the rounded corners of the
+  // mirroring layer.
+  // On entering overview, the rounded corners of the windows get updated after
+  // the starting animation completes. These rounded corners are added
+  // specifically for the visuals of the windows inside overview, whereas the
+  // desk previews reflect the windows visuals outside of overview. Hence, these
+  // changes of the rounded corners on the source layers should not show up on
+  // the mirror layers. See http://b/293946863.
+  mirror->set_sync_rounded_corners_with_source(false);
   mirror->set_sync_bounds_with_source(true);
   if (layer_data.should_force_mirror_visible) {
     mirror->SetVisible(true);
@@ -344,12 +351,15 @@ DeskPreviewView::DeskPreviewView(PressedCallback callback,
       force_occlusion_tracker_visible_(
           std::make_unique<aura::WindowOcclusionTracker::ScopedForceVisible>(
               mini_view->GetDeskContainer())) {
+  TRACE_EVENT0("ui", "DeskPreviewView::DeskPreviewView");
+
   DCHECK(mini_view_);
 
   SetFocusPainter(nullptr);
   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
   SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   SetPaintToLayer(ui::LAYER_TEXTURED);
+  SetAccessibleName(l10n_util::GetStringUTF16(IDS_ASH_DESKS_DESK_PREVIEW));
   layer()->SetFillsBoundsOpaquely(false);
   layer()->SetMasksToBounds(false);
 
@@ -406,6 +416,8 @@ void DeskPreviewView::SetHighlightOverlayVisibility(bool visible) {
 }
 
 void DeskPreviewView::RecreateDeskContentsMirrorLayers() {
+  TRACE_EVENT0("ui", "DeskPreviewView::RecreateDeskContentsMirrorLayers");
+
   auto* desk_container = mini_view_->GetDeskContainer();
   DCHECK(desk_container);
   DCHECK(desk_container->layer());
@@ -419,11 +431,10 @@ void DeskPreviewView::RecreateDeskContentsMirrorLayers() {
 
   // If there is a floated window that belongs to this desk, since it doesn't
   // belong to `desk_container`, we need to add it separately.
-  aura::Window* floated_window = nullptr;
-  if (chromeos::wm::features::IsWindowLayoutMenuEnabled() &&
-      (floated_window =
-           Shell::Get()->float_controller()->FindFloatedWindowOfDesk(
-               mini_view_->desk()))) {
+  aura::Window* floated_window =
+      Shell::Get()->float_controller()->FindFloatedWindowOfDesk(
+          mini_view_->desk());
+  if (floated_window) {
     GetLayersData(floated_window, &layers_data);
   }
 
@@ -466,8 +477,29 @@ void DeskPreviewView::RecreateDeskContentsMirrorLayers() {
   Layout();
 }
 
-const char* DeskPreviewView::GetClassName() const {
-  return "DeskPreviewView";
+void DeskPreviewView::Close(bool primary_action) {
+  // The primary action (Ctrl + W) is to remove the desk and not close the
+  // windows (combine the desk with one on the right or left). The secondary
+  // action (Ctrl + Shift + W) is to close the desk and all its applications.
+  mini_view_->OnRemovingDesk(primary_action
+                                 ? DeskCloseType::kCombineDesks
+                                 : DeskCloseType::kCloseAllWindowsAndWait);
+}
+
+void DeskPreviewView::Swap(bool right) {
+  const int old_index = mini_view_->owner_bar()->GetMiniViewIndex(mini_view_);
+  CHECK_NE(old_index, -1);
+
+  int new_index = right ? old_index + 1 : old_index - 1;
+  if (new_index < 0 ||
+      new_index ==
+          static_cast<int>(mini_view_->owner_bar()->mini_views().size())) {
+    return;
+  }
+
+  auto* desks_controller = DesksController::Get();
+  desks_controller->ReorderDesk(old_index, new_index);
+  desks_controller->UpdateDesksDefaultNames();
 }
 
 void DeskPreviewView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
@@ -475,6 +507,35 @@ void DeskPreviewView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
   views::Button::GetAccessibleNodeData(node_data);
   if (GetAccessibleName().empty())
     node_data->SetNameExplicitlyEmpty();
+
+  // Note that the desk may have already been destroyed.
+  Desk* desk = mini_view_->desk();
+  if (desk) {
+    // Announce desk name.
+    node_data->AddStringAttribute(
+        ax::mojom::StringAttribute::kRoleDescription,
+        l10n_util::GetStringFUTF8(
+            IDS_ASH_DESKS_DESK_PREVIEW_A11Y_NAME,
+            l10n_util::GetStringUTF16(
+                desk->is_active()
+                    ? IDS_ASH_DESKS_ACTIVE_DESK_MINIVIEW_A11Y_EXTRA_TIP
+                    : IDS_ASH_DESKS_INACTIVE_DESK_MINIVIEW_A11Y_EXTRA_TIP),
+            desk->name()));
+  }
+
+  // If the desk can be combined or closed, add a tip to let the user know they
+  // can use an accelerator.
+  if (!DesksController::Get()->CanRemoveDesks()) {
+    return;
+  }
+
+  const std::u16string target_desk_name =
+      DesksController::Get()->GetCombineDesksTargetName(desk);
+  const std::string extra_tip = l10n_util::GetStringFUTF8(
+      IDS_ASH_OVERVIEW_CLOSABLE_DESK_MINIVIEW_A11Y_EXTRA_TIP, target_desk_name);
+
+  node_data->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
+                                extra_tip);
 }
 
 void DeskPreviewView::Layout() {
@@ -560,66 +621,63 @@ void DeskPreviewView::OnThemeChanged() {
 }
 
 void DeskPreviewView::OnFocus() {
-  if (mini_view_->owner_bar()->overview_grid()) {
-    UpdateOverviewHighlightForFocusAndSpokenFeedback(this);
+  if (mini_view_->owner_bar()->type() == DeskBarViewBase::Type::kOverview) {
+    MoveFocusToView(this);
   }
 
+  mini_view_->UpdateDeskButtonVisibility();
   mini_view_->UpdateFocusColor();
   View::OnFocus();
 }
 
 void DeskPreviewView::OnBlur() {
+  mini_view_->UpdateDeskButtonVisibility();
   mini_view_->UpdateFocusColor();
   View::OnBlur();
+}
+
+void DeskPreviewView::AboutToRequestFocusFromTabTraversal(bool reverse) {
+  if (reverse) {
+    mini_view_->OnPreviewAboutToBeFocusedByReverseTab();
+  }
 }
 
 views::View* DeskPreviewView::GetView() {
   return this;
 }
 
-void DeskPreviewView::MaybeActivateHighlightedView() {
-  DesksController::Get()->ActivateDesk(mini_view_->desk(),
-                                       DesksSwitchSource::kMiniViewButton);
+void DeskPreviewView::MaybeActivateFocusedView() {
+  DesksController::Get()->ActivateDesk(
+      mini_view_->desk(),
+      mini_view_->owner_bar()->type() == DeskBarViewBase::Type::kDeskButton
+          ? DesksSwitchSource::kDeskButtonMiniViewButton
+          : DesksSwitchSource::kMiniViewButton);
 }
 
-void DeskPreviewView::MaybeCloseHighlightedView(bool primary_action) {
-  // The primary action (Ctrl + W) is to remove the desk and not close the
-  // windows (combine the desk with one on the right or left). The secondary
-  // action (Ctrl + Shift + W) is to close the desk and all its applications.
-  mini_view_->OnRemovingDesk(primary_action
-                                 ? DeskCloseType::kCombineDesks
-                                 : DeskCloseType::kCloseAllWindowsAndWait);
+void DeskPreviewView::MaybeCloseFocusedView(bool primary_action) {
+  Close(primary_action);
 }
 
-void DeskPreviewView::MaybeSwapHighlightedView(bool right) {
-  const int old_index = mini_view_->owner_bar()->GetMiniViewIndex(mini_view_);
-  DCHECK_NE(old_index, -1);
-
-  int new_index = right ? old_index + 1 : old_index - 1;
-  if (new_index < 0 ||
-      new_index ==
-          static_cast<int>(mini_view_->owner_bar()->mini_views().size())) {
-    return;
-  }
-
-  auto* desks_controller = DesksController::Get();
-  desks_controller->ReorderDesk(old_index, new_index);
-  desks_controller->UpdateDesksDefaultNames();
+void DeskPreviewView::MaybeSwapFocusedView(bool right) {
+  Swap(right);
 }
 
-bool DeskPreviewView::MaybeActivateHighlightedViewOnOverviewExit(
+bool DeskPreviewView::MaybeActivateFocusedViewOnOverviewExit(
     OverviewSession* overview_session) {
-  MaybeActivateHighlightedView();
+  MaybeActivateFocusedView();
   return true;
 }
 
-void DeskPreviewView::OnViewHighlighted() {
+void DeskPreviewView::OnFocusableViewFocused() {
   mini_view_->UpdateFocusColor();
   mini_view_->owner_bar()->ScrollToShowViewIfNecessary(mini_view_);
 }
 
-void DeskPreviewView::OnViewUnhighlighted() {
+void DeskPreviewView::OnFocusableViewBlurred() {
   mini_view_->UpdateFocusColor();
 }
+
+BEGIN_METADATA(DeskPreviewView, views::Button)
+END_METADATA
 
 }  // namespace ash

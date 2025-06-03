@@ -23,7 +23,6 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/service_worker/embedded_worker_instance.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_getter.h"
@@ -31,16 +30,15 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/commit_message_delayer.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
-#include "content/public/test/frame_test_utils.h"
 #include "content/public/test/simple_url_loader_test_helper.h"
 #include "content/public/test/test_utils.h"
 #include "content/shell/browser/shell.h"
@@ -63,13 +61,14 @@
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 
 namespace content {
 
 namespace {
 
 const char kHostA[] = "a.test";
-const char kSamePartyCookieName[] = "SamePartyCookie";
+const char kCookieName[] = "Cookie";
 
 using SharedURLLoaderFactoryGetterCallback =
     base::OnceCallback<scoped_refptr<network::SharedURLLoaderFactory>()>;
@@ -1105,7 +1104,7 @@ class NetworkServiceRestartWithFirstPartySetBrowserTest
     if (IsFirstPartySetsEnabled()) {
       scoped_feature_list_.InitWithFeatures(
           {features::kFirstPartySets,
-           net::features::kSamePartyAttributeEnabled},
+           net::features::kWaitForFirstPartySetsInit},
           {});
     } else {
       scoped_feature_list_.InitAndDisableFeature(features::kFirstPartySets);
@@ -1116,7 +1115,7 @@ class NetworkServiceRestartWithFirstPartySetBrowserTest
     NetworkServiceRestartBrowserTest::SetUpCommandLine(command_line);
     if (IsFirstPartySetsEnabled()) {
       command_line->AppendSwitchASCII(
-          network::switches::kUseFirstPartySet,
+          network::switches::kUseRelatedWebsiteSet,
           R"({"primary": "https://a.test",)"
           R"("associatedSites": ["https://b.test","https://c.test"]})");
     }
@@ -1134,30 +1133,10 @@ class NetworkServiceRestartWithFirstPartySetBrowserTest
     return https_server_.GetURL(host, "/echoheader?Cookie");
   }
 
-  GURL HostURL(const std::string& host) {
-    return https_server()->GetURL(host, "/");
-  }
-
-  std::vector<std::string> ExpectedSamePartyCookieNames() const {
-    // This function assumes that it is used with a cross-site context which may
-    // or may not be same-party, depending on whether First-Party Sets is
-    // enabled or not.
-    if (IsFirstPartySetsEnabled())
-      return {kSamePartyCookieName};
-    return {};
-  }
-
-  void SetSamePartyCookie(const std::string& host) {
-    ASSERT_TRUE(content::SetCookie(
-        web_contents()->GetBrowserContext(), HostURL(host),
-        base::StrCat(
-            {kSamePartyCookieName, "=1; samesite=lax; secure; sameparty"})));
-  }
-
-  std::string EmbedFrameAndGetCookieString() {
-    return ArrangeFramesAndGetContentFromLeaf(web_contents(), https_server(),
-                                              "b.test(%s)", {0},
-                                              EchoCookiesUrl(kHostA));
+  void SetCookie(const std::string& host) {
+    ASSERT_TRUE(content::SetCookie(web_contents()->GetBrowserContext(),
+                                   https_server()->GetURL(host, "/"),
+                                   base::StrCat({kCookieName, "=1; secure"})));
   }
 
   net::EmbeddedTestServer* https_server() { return &https_server_; }
@@ -1174,25 +1153,30 @@ class NetworkServiceRestartWithFirstPartySetBrowserTest
 IN_PROC_BROWSER_TEST_P(NetworkServiceRestartWithFirstPartySetBrowserTest,
                        GetsUseFirstPartySetSwitch) {
   // Network service is not running out of process, so cannot be crashed.
-  if (!content::IsOutOfProcessNetworkService())
+  if (!content::IsOutOfProcessNetworkService()) {
     return;
+  }
 
-  SetSamePartyCookie(kHostA);
+  SetCookie(kHostA);
 
-  EXPECT_THAT(EmbedFrameAndGetCookieString(),
-              net::CookieStringIs(testing::UnorderedPointwise(
-                  net::NameIs(), ExpectedSamePartyCookieNames())));
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), EchoCookiesUrl(kHostA)));
+  EXPECT_THAT(content::EvalJs(web_contents(), "document.body.textContent")
+                  .ExtractString(),
+              net::CookieStringIs(
+                  testing::UnorderedElementsAre(testing::Key(kCookieName))));
 
   SimulateNetworkServiceCrash();
 
   // content_shell uses an in-memory cookie store, so cookies are not persisted,
-  // but that's ok. What matters is that the command-line set is re-plumbed to
-  // the network service upon restart.
-  SetSamePartyCookie(kHostA);
+  // but that's ok. What matters is that the FPS data is re-plumbed to the
+  // network service upon restart, so network requests don't deadlock.
+  SetCookie(kHostA);
 
-  EXPECT_THAT(EmbedFrameAndGetCookieString(),
-              net::CookieStringIs(testing::UnorderedPointwise(
-                  net::NameIs(), ExpectedSamePartyCookieNames())));
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), EchoCookiesUrl(kHostA)));
+  EXPECT_THAT(content::EvalJs(web_contents(), "document.body.textContent")
+                  .ExtractString(),
+              net::CookieStringIs(
+                  testing::UnorderedElementsAre(testing::Key(kCookieName))));
 }
 
 INSTANTIATE_TEST_SUITE_P(/* no prefix */,

@@ -33,10 +33,12 @@ SyncErrorNotifier* SyncErrorNotifierFactory::GetForProfile(Profile* profile) {
 
 // static
 SyncErrorNotifierFactory* SyncErrorNotifierFactory::GetInstance() {
-  return base::Singleton<SyncErrorNotifierFactory>::get();
+  static base::NoDestructor<SyncErrorNotifierFactory> instance;
+  return instance.get();
 }
 
-KeyedService* SyncErrorNotifierFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SyncErrorNotifierFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = static_cast<Profile*>(context);
   syncer::SyncService* sync_service =
@@ -46,7 +48,7 @@ KeyedService* SyncErrorNotifierFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new SyncErrorNotifier(sync_service, profile);
+  return std::make_unique<SyncErrorNotifier>(sync_service, profile);
 }
 
 }  // namespace ash

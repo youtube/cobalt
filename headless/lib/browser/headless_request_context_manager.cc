@@ -26,7 +26,7 @@
 
 #if defined(HEADLESS_USE_PREFS)
 #include "components/os_crypt/sync/os_crypt.h"  // nogncheck
-#include "content/public/common/network_service_util.h"
+#include "content/public/browser/network_service_util.h"
 #endif
 
 namespace headless {
@@ -217,6 +217,7 @@ HeadlessRequestContextManager::HeadlessRequestContextManager(
               switches::kDisableCookieEncryption)),
 #endif
       user_data_path_(std::move(user_data_path)),
+      disk_cache_dir_(options->disk_cache_dir()),
       accept_language_(options->accept_language()),
       user_agent_(options->user_agent()),
       proxy_config_(
@@ -275,17 +276,46 @@ void HeadlessRequestContextManager::ConfigureNetworkContextParamsInternal(
     context_params->file_paths->unsandboxed_data_path = user_data_path_;
     context_params->file_paths->cookie_database_name =
         base::FilePath(FILE_PATH_LITERAL("Cookies"));
-    // Headless should never perform a migration leaving it to the network
-    // service to decide which data directory (sandboxed or unsandboxed)
-    // it should pick.
+#if BUILDFLAG(IS_WIN)
+    // For the network sandbox to operate, the network data must be in the
+    // 'Network' directory and not the `unsandboxed_data_path`.
+    //
+    // On Windows, the majority of data dir is already residing in the 'Network'
+    // data dir. This is because there are three possible cases:
+    // 1. A data dir from headful is being used, and headful has migrated any
+    // data since M98 (Feb 2022). (data is in 'Network')
+    // 2. Headless has been using the 'Network' data dir since M96, since
+    // although headless never opted into migration, any new data was always in
+    // the 'Network' dir since ba2eb47b. (data is in 'Network')
+    // 3. Headless is using a data dir from before M96, and since migration was
+    // never enabled, it has been continuing to use this directory up until now.
+    // (data is in `unsandboxed_data_path` and sandbox will not function).
+    //
+    // The majority of users are in 1, or 2. For the small number of users in 3,
+    // setting `trigger_migration` will migrate their data dirs to 'Network' but
+    // this data will still interop between headless and headful as long as they
+    // are running M96 or later that understands both directories, the only
+    // noticeable difference will be that the files will move, as they have
+    // already been doing in headful.
+    context_params->file_paths->trigger_migration = true;
+#else
+    // On non-Windows platforms, trigger migration is not set, so there is no
+    // point (but equally no harm) in doing a migration since headful does not
+    // perform the migration. See
+    // ProfileNetworkContextService::ConfigureNetworkContextParamsInternal in
+    // src/chrome.
     context_params->file_paths->trigger_migration = false;
+#endif  // BUILDFLAG(IS_WIN)
   }
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDiskCacheDir)) {
-    context_params->http_cache_directory =
-        command_line->GetSwitchValuePath(switches::kDiskCacheDir);
+
+  if (!disk_cache_dir_.empty()) {
+    if (!context_params->file_paths) {
+      context_params->file_paths =
+          ::network::mojom::NetworkContextFilePaths::New();
+    }
+    context_params->file_paths->http_cache_directory = disk_cache_dir_;
   } else if (!user_data_path_.empty()) {
-    context_params->http_cache_directory =
+    context_params->file_paths->http_cache_directory =
         user_data_path_.Append(FILE_PATH_LITERAL("Cache"));
   }
   if (proxy_config_) {

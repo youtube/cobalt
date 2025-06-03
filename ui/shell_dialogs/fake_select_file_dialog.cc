@@ -32,9 +32,10 @@ void FakeSelectFileDialog::Factory::SetOpenCallback(
 
 // static
 FakeSelectFileDialog::Factory* FakeSelectFileDialog::RegisterFactory() {
-  Factory* factory = new Factory;
-  ui::SelectFileDialog::SetFactory(factory);
-  return factory;
+  auto factory = std::make_unique<Factory>();
+  Factory* result = factory.get();
+  ui::SelectFileDialog::SetFactory(std::move(factory));
+  return result;
 }
 
 FakeSelectFileDialog::FakeSelectFileDialog(
@@ -90,6 +91,10 @@ bool FakeSelectFileDialog::CallFileSelected(const base::FilePath& file_path,
 void FakeSelectFileDialog::CallMultiFilesSelected(
     const std::vector<base::FilePath>& files) {
   listener_->MultiFilesSelected(files, params_);
+}
+
+void FakeSelectFileDialog::ListenerDestroyed() {
+  listener_ = nullptr;
 }
 
 }  // namespace ui

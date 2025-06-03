@@ -8,10 +8,12 @@
 
 #import "base/functional/bind.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/scoped_feature_list.h"
+#import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
 #import "components/variations/scoped_variations_ids_provider.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/signin/authentication_service.h"
 #import "ios/chrome/browser/signin/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
@@ -19,19 +21,15 @@
 #import "ios/chrome/browser/signin/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/fake_system_identity.h"
 #import "ios/chrome/browser/signin/fake_system_identity_manager.h"
-#import "ios/chrome/browser/sync/mock_sync_service_utils.h"
-#import "ios/chrome/browser/sync/sync_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_factory.h"
-#import "ios/chrome/browser/sync/sync_setup_service_mock.h"
+#import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_factory.h"
+#import "ios/chrome/browser/sync/model/sync_setup_service_mock.h"
 #import "ios/chrome/test/block_cleanup_test.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 class SignedInAccountsViewControllerTest : public BlockCleanupTest {
  public:
@@ -62,7 +60,8 @@ class SignedInAccountsViewControllerTest : public BlockCleanupTest {
             browser_state_.get());
     AuthenticationService* auth_service =
         AuthenticationServiceFactory::GetForBrowserState(browser_state_.get());
-    auth_service->SignIn(account_manager_service->GetDefaultIdentity());
+    auth_service->SignIn(account_manager_service->GetDefaultIdentity(),
+                         signin_metrics::AccessPoint::ACCESS_POINT_UNKNOWN);
   }
 
  protected:
@@ -79,6 +78,9 @@ class SignedInAccountsViewControllerTest : public BlockCleanupTest {
 // accounts haven't changed.
 TEST_F(SignedInAccountsViewControllerTest,
        ShouldBePresentedForBrowserStateNotNecessary) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kRemoveSignedInAccountsDialog);
   EXPECT_FALSE([SignedInAccountsViewController
       shouldBePresentedForBrowserState:browser_state_.get()]);
 }
@@ -86,7 +88,10 @@ TEST_F(SignedInAccountsViewControllerTest,
 // Tests that the signed in accounts view should be presented when the accounts
 // have changed.
 TEST_F(SignedInAccountsViewControllerTest,
-       ShouldBePresentedForBrowserStateNecessary) {
+       ShouldBePresentedForBrowserStateNecessary_DialogShown) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kRemoveSignedInAccountsDialog);
   FakeSystemIdentityManager* system_identity_manager =
       FakeSystemIdentityManager::FromSystemIdentityManager(
           GetApplicationContext()->GetSystemIdentityManager());
@@ -94,5 +99,19 @@ TEST_F(SignedInAccountsViewControllerTest,
   system_identity_manager->FireSystemIdentityReloaded();
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE([SignedInAccountsViewController
+      shouldBePresentedForBrowserState:browser_state_.get()]);
+}
+
+TEST_F(SignedInAccountsViewControllerTest,
+       ShouldBePresentedForBrowserStateNecessary_DialogRemoved) {
+  ASSERT_TRUE(
+      base::FeatureList::IsEnabled(switches::kRemoveSignedInAccountsDialog));
+  FakeSystemIdentityManager* system_identity_manager =
+      FakeSystemIdentityManager::FromSystemIdentityManager(
+          GetApplicationContext()->GetSystemIdentityManager());
+  system_identity_manager->AddIdentities(@[ @"identity2" ]);
+  system_identity_manager->FireSystemIdentityReloaded();
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE([SignedInAccountsViewController
       shouldBePresentedForBrowserState:browser_state_.get()]);
 }

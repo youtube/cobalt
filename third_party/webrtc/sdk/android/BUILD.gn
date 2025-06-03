@@ -9,6 +9,7 @@
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
   import("../../webrtc.gni")
 
   group("android") {
@@ -55,7 +56,6 @@ if (is_android) {
       ":swcodecs_java",
       ":video_api_java",
       ":video_java",
-      "../../modules/audio_device:audio_device_java",
       "../../rtc_base:base_java",
     ]
   }
@@ -91,7 +91,6 @@ if (is_android) {
       ":surfaceviewrenderer_java",
       ":video_api_java",
       ":video_java",
-      "//modules/audio_device:audio_device_java",
       "//rtc_base:base_java",
     ]
   }
@@ -156,6 +155,7 @@ if (is_android) {
     sources = [
       "api/org/webrtc/Predicate.java",
       "api/org/webrtc/RefCounted.java",
+      "src/java/org/webrtc/ApplicationContextProvider.java",
       "src/java/org/webrtc/CalledByNative.java",
       "src/java/org/webrtc/CalledByNativeUnchecked.java",
       "src/java/org/webrtc/Histogram.java",
@@ -165,7 +165,10 @@ if (is_android) {
       "src/java/org/webrtc/WebRtcClassLoader.java",
     ]
 
-    deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
+    deps = [
+      "//rtc_base:base_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
   }
 
   rtc_android_library("audio_api_java") {
@@ -212,11 +215,13 @@ if (is_android) {
       "api/org/webrtc/EglBase10.java",
       "api/org/webrtc/EglBase14.java",
       "api/org/webrtc/EglRenderer.java",
+      "api/org/webrtc/EglThread.java",
       "api/org/webrtc/GlRectDrawer.java",
       "api/org/webrtc/GlShader.java",
       "api/org/webrtc/GlTextureFrameBuffer.java",
       "api/org/webrtc/GlUtil.java",
       "api/org/webrtc/JavaI420Buffer.java",
+      "api/org/webrtc/RenderSynchronizer.java",
       "api/org/webrtc/RendererCommon.java",
       "api/org/webrtc/SurfaceTextureHelper.java",
       "api/org/webrtc/TextureBufferImpl.java",
@@ -287,6 +292,7 @@ if (is_android) {
       "api/org/webrtc/RTCStatsCollectorCallback.java",
       "api/org/webrtc/RTCStatsReport.java",
       "api/org/webrtc/RtcCertificatePem.java",
+      "api/org/webrtc/RtpCapabilities.java",
       "api/org/webrtc/RtpParameters.java",
       "api/org/webrtc/RtpReceiver.java",
       "api/org/webrtc/RtpSender.java",
@@ -317,7 +323,6 @@ if (is_android) {
       ":swcodecs_java",
       ":video_api_java",
       ":video_java",
-      "//modules/audio_device:audio_device_java",
       "//rtc_base:base_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
     ]
@@ -565,7 +570,6 @@ if (current_os == "linux" || is_android) {
       ":internal_jni",
       ":native_api_jni",
       "../../api:field_trials_view",
-      "../../api:libjingle_peerconnection_api",
       "../../api:scoped_refptr",
       "../../api:sequence_checker",
       "../../api/task_queue:pending_task_safety_flag",
@@ -734,6 +738,8 @@ if (current_os == "linux" || is_android) {
       "src/jni/pc/rtc_certificate.h",
       "src/jni/pc/rtc_stats_collector_callback_wrapper.cc",
       "src/jni/pc/rtc_stats_collector_callback_wrapper.h",
+      "src/jni/pc/rtp_capabilities.cc",
+      "src/jni/pc/rtp_capabilities.h",
       "src/jni/pc/rtp_parameters.cc",
       "src/jni/pc/rtp_parameters.h",
       "src/jni/pc/rtp_receiver.cc",
@@ -915,6 +921,7 @@ if (current_os == "linux" || is_android) {
   rtc_library("native_api_jni") {
     visibility = [ "*" ]
     sources = [
+      "native_api/jni/application_context_provider.cc",
       "native_api/jni/class_loader.cc",
       "native_api/jni/java_types.cc",
       "native_api/jni/jvm.cc",
@@ -923,6 +930,7 @@ if (current_os == "linux" || is_android) {
     ]
 
     public = [
+      "native_api/jni/application_context_provider.h",
       "native_api/jni/class_loader.h",
       "native_api/jni/java_types.h",
       "native_api/jni/jni_int_wrapper.h",
@@ -967,10 +975,12 @@ if (current_os == "linux" || is_android) {
 
     deps = [
       ":base_jni",
+      ":internal_jni",
       ":java_audio_device_module",
+      ":native_api_jni",
       ":opensles_audio_device_module",
       "../../api:scoped_refptr",
-      "../../modules/audio_device",
+      "../../modules/audio_device:audio_device_api",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
       "../../rtc_base:refcount",
@@ -1175,7 +1185,7 @@ if (current_os == "linux" || is_android) {
       ":base_jni",
       ":generated_java_audio_device_module_native_jni",
       "../../api:sequence_checker",
-      "../../modules/audio_device",
+      "../../modules/audio_device:audio_device_api",
       "../../modules/audio_device:audio_device_buffer",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
@@ -1238,7 +1248,7 @@ if (current_os == "linux" || is_android) {
       "../../api:refcountedbase",
       "../../api:scoped_refptr",
       "../../api:sequence_checker",
-      "../../modules/audio_device",
+      "../../modules/audio_device:audio_device_api",
       "../../modules/audio_device:audio_device_buffer",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
@@ -1391,6 +1401,7 @@ if (current_os == "linux" || is_android) {
       "api/org/webrtc/RTCStatsCollectorCallback.java",
       "api/org/webrtc/RTCStatsReport.java",
       "api/org/webrtc/RtcCertificatePem.java",
+      "api/org/webrtc/RtpCapabilities.java",
       "api/org/webrtc/RtpParameters.java",
       "api/org/webrtc/RtpReceiver.java",
       "api/org/webrtc/RtpSender.java",
@@ -1425,6 +1436,7 @@ if (current_os == "linux" || is_android) {
 
   generate_jni("generated_native_api_jni") {
     sources = [
+      "src/java/org/webrtc/ApplicationContextProvider.java",
       "src/java/org/webrtc/JniHelper.java",
       "src/java/org/webrtc/WebRtcClassLoader.java",
     ]
@@ -1465,7 +1477,7 @@ if (is_android) {
       apk_name = "android_instrumentation_test_apk"
       android_manifest = "instrumentationtests/AndroidManifest.xml"
       min_sdk_version = 21
-      target_sdk_version = 21
+      target_sdk_version = 23
 
       sources = [
         "instrumentationtests/src/org/webrtc/AndroidVideoDecoderInstrumentationTest.java",
@@ -1486,6 +1498,7 @@ if (is_android) {
         "instrumentationtests/src/org/webrtc/PeerConnectionTest.java",
         "instrumentationtests/src/org/webrtc/RendererCommonTest.java",
         "instrumentationtests/src/org/webrtc/RtcCertificatePemTest.java",
+        "instrumentationtests/src/org/webrtc/RtpCapabilitiesTest.java",
         "instrumentationtests/src/org/webrtc/RtpSenderTest.java",
         "instrumentationtests/src/org/webrtc/RtpTransceiverTest.java",
         "instrumentationtests/src/org/webrtc/SoftwareVideoDecoderFactoryTest.java",
@@ -1591,8 +1604,6 @@ if (is_android) {
 
     sources = [
       "native_unittests/android_network_monitor_unittest.cc",
-      "native_unittests/application_context_provider.cc",
-      "native_unittests/application_context_provider.h",
       "native_unittests/audio_device/audio_device_unittest.cc",
       "native_unittests/codecs/wrapper_unittest.cc",
       "native_unittests/java_types_unittest.cc",
@@ -1664,7 +1675,6 @@ if (is_android) {
     testonly = true
 
     sources = [
-      "native_unittests/org/webrtc/ApplicationContextProvider.java",
       "native_unittests/org/webrtc/BuildInfo.java",
       "native_unittests/org/webrtc/CodecsWrapperTestHelper.java",
       "native_unittests/org/webrtc/FakeVideoEncoder.java",
@@ -1689,7 +1699,6 @@ if (is_android) {
     testonly = true
 
     sources = [
-      "native_unittests/org/webrtc/ApplicationContextProvider.java",
       "native_unittests/org/webrtc/BuildInfo.java",
       "native_unittests/org/webrtc/CodecsWrapperTestHelper.java",
       "native_unittests/org/webrtc/JavaTypesTestHelper.java",

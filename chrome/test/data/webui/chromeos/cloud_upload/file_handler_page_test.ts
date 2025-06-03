@@ -4,11 +4,13 @@
 
 import 'chrome://cloud-upload/file_handler_page.js';
 
-import {DialogPage, DialogTask, UserAction} from 'chrome://cloud-upload/cloud_upload.mojom-webui.js';
+import {DialogPage, DialogTask, OperationType, UserAction} from 'chrome://cloud-upload/cloud_upload.mojom-webui.js';
 import {CloudUploadBrowserProxy} from 'chrome://cloud-upload/cloud_upload_browser_proxy.js';
 import {AccordionTopCardElement} from 'chrome://cloud-upload/file_handler_card.js';
 import {FileHandlerPageElement} from 'chrome://cloud-upload/file_handler_page.js';
 import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {CloudUploadTestBrowserProxy, ProxyOptions} from './cloud_upload_test_browser_proxy.js';
@@ -25,6 +27,21 @@ suite('<file-handler-page>', () => {
   async function setUp(options: ProxyOptions) {
     testProxy = new CloudUploadTestBrowserProxy(options);
     CloudUploadBrowserProxy.setInstance(testProxy);
+
+    // Setup fake strings.
+    loadTimeData.resetForTesting({
+      'fileHandlerTitle': 'Test title',
+      'word': 'Word',
+      'excel': 'Excel',
+      'powerPoint': 'PowerPoint',
+      'googleDocs': 'Google Docs',
+      'googleSheets': 'Google Sheets',
+      'googleSlides': 'Google Slides',
+      'microsoft365': 'Microsoft 365',
+      'otherApps': 'Other apps',
+      'googleDriveStorage': 'Google Drive as storage',
+      'oneDriveStorage': 'OneDrive as storage',
+    });
 
     // Creates and attaches the <file-handler-page> element to the DOM tree.
     fileHandlerPageApp =
@@ -63,7 +80,9 @@ suite('<file-handler-page>', () => {
    * the <file-handler-page> component.
    */
   teardown(() => {
-    container.innerHTML = '';
+    loadTimeData.resetForTesting();
+    assert(window.trustedTypes);
+    container.innerHTML = window.trustedTypes.emptyHTML;
     testProxy.handler.reset();
   });
 
@@ -75,11 +94,12 @@ suite('<file-handler-page>', () => {
   test('Open file with Drive when Office PWA installed', async () => {
     const numTasks = 5;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled: true,
       installOfficeWebAppResult: false,
       odfsMounted: false,
       dialogPage: DialogPage.kFileHandlerDialog,
+      operationType: OperationType.kMove,
       localTasks: createTasks(numTasks),
     });
 
@@ -108,11 +128,12 @@ suite('<file-handler-page>', () => {
   test('Open file with Drive when Office PWA not installed', async () => {
     const numTasks = 5;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled: false,
       installOfficeWebAppResult: false,
       odfsMounted: false,
       dialogPage: DialogPage.kFileHandlerDialog,
+      operationType: OperationType.kMove,
       localTasks: createTasks(numTasks),
     });
 
@@ -140,11 +161,12 @@ suite('<file-handler-page>', () => {
   test('Open file with OneDrive when Office PWA installed', async () => {
     const numTasks = 5;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled: true,
       installOfficeWebAppResult: false,
       odfsMounted: false,
       dialogPage: DialogPage.kFileHandlerDialog,
+      operationType: OperationType.kMove,
       localTasks: createTasks(numTasks),
     });
 
@@ -173,11 +195,12 @@ suite('<file-handler-page>', () => {
   test('Open file with OneDrive when Office PWA not installed', async () => {
     const numTasks = 5;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled: false,
       installOfficeWebAppResult: false,
       odfsMounted: false,
       dialogPage: DialogPage.kFileHandlerDialog,
+      operationType: OperationType.kMove,
       localTasks: createTasks(numTasks),
     });
 
@@ -208,11 +231,12 @@ suite('<file-handler-page>', () => {
           async () => {
             const numTasks = 5;
             await setUp({
-              fileName: 'file.docx',
+              fileNames: ['file.docx'],
               officeWebAppInstalled: true,
               installOfficeWebAppResult: false,
               odfsMounted: false,
               dialogPage: DialogPage.kFileHandlerDialog,
+              operationType: OperationType.kMove,
               localTasks: createTasks(numTasks),
             });
             const accordionCard =
@@ -254,11 +278,12 @@ suite('<file-handler-page>', () => {
           async () => {
             const numTasks = 5;
             await setUp({
-              fileName: 'file.docx',
+              fileNames: ['file.docx'],
               officeWebAppInstalled: false,
               installOfficeWebAppResult: false,
               odfsMounted: false,
               dialogPage: DialogPage.kFileHandlerDialog,
+              operationType: OperationType.kMove,
               localTasks: createTasks(numTasks),
             });
             const accordionCard =
@@ -292,11 +317,12 @@ suite('<file-handler-page>', () => {
   test(`No accordion when no local task`, async () => {
     const numTasks = 0;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled: false,
       installOfficeWebAppResult: false,
       odfsMounted: false,
       dialogPage: DialogPage.kFileHandlerDialog,
+      operationType: OperationType.kMove,
       localTasks: [],
     });
     assertEquals(fileHandlerPageApp.cloudProviderCards.length, 2);
@@ -313,11 +339,12 @@ suite('<file-handler-page>', () => {
       async () => {
         const numTasks = 1;
         await setUp({
-          fileName: 'file.docx',
+          fileNames: ['file.docx'],
           officeWebAppInstalled: false,
           installOfficeWebAppResult: false,
           odfsMounted: false,
           dialogPage: DialogPage.kFileHandlerDialog,
+          operationType: OperationType.kMove,
           localTasks: createTasks(numTasks),
         });
         const accordionCard =

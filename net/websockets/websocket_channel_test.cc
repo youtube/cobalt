@@ -4,10 +4,10 @@
 
 #include "net/websockets/websocket_channel.h"
 
-#include <limits.h>
 #include <stddef.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <string>
@@ -15,9 +15,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
+#include "base/dcheck_is_on.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -26,15 +27,21 @@
 #include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "net/base/auth.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/isolation_info.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/log/net_log_with_source.h"
+#include "net/ssl/ssl_info.h"
 #include "net/test/test_with_task_environment.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
@@ -363,7 +370,8 @@ std::vector<std::unique_ptr<WebSocketFrame>> CreateFrameVector(
     if (source_frame.data) {
       auto buffer = base::MakeRefCounted<IOBuffer>(frame_length);
       result_frame_data->push_back(buffer);
-      memcpy(buffer->data(), source_frame.data, frame_length);
+      std::copy(source_frame.data, source_frame.data + frame_length,
+                buffer->data());
       result_frame->payload = buffer->data();
     }
     result_frames.push_back(std::move(result_frame));
@@ -599,7 +607,8 @@ class EchoeyFakeWebSocketStream : public FakeWebSocketStream {
     for (const auto& frame : *frames) {
       auto buffer = base::MakeRefCounted<IOBuffer>(
           static_cast<size_t>(frame->header.payload_length));
-      memcpy(buffer->data(), frame->payload, frame->header.payload_length);
+      std::copy(frame->payload, frame->payload + frame->header.payload_length,
+                buffer->data());
       frame->payload = buffer->data();
       buffers_.push_back(buffer);
     }
@@ -745,6 +754,7 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
       const std::vector<std::string>& requested_subprotocols,
       const url::Origin& new_origin,
       const SiteForCookies& new_site_for_cookies,
+      bool new_has_storage_access,
       const IsolationInfo& new_isolation_info,
       const HttpRequestHeaders& additional_headers,
       URLRequestContext* new_url_request_context,
@@ -754,6 +764,7 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
     socket_url = new_socket_url;
     origin = new_origin;
     site_for_cookies = new_site_for_cookies;
+    has_storage_access = new_has_storage_access;
     isolation_info = new_isolation_info;
     url_request_context = new_url_request_context;
     connect_delegate = std::move(new_connect_delegate);
@@ -763,6 +774,7 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
   GURL socket_url;
   url::Origin origin;
   SiteForCookies site_for_cookies;
+  bool has_storage_access;
   IsolationInfo isolation_info;
   raw_ptr<URLRequestContext> url_request_context;
   std::unique_ptr<WebSocketStream::ConnectDelegate> connect_delegate;
@@ -801,8 +813,8 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
     channel_->SendAddChannelRequestForTesting(
         connect_data_.socket_url, connect_data_.requested_subprotocols,
         connect_data_.origin, connect_data_.site_for_cookies,
-        connect_data_.isolation_info, HttpRequestHeaders(),
-        TRAFFIC_ANNOTATION_FOR_TESTS,
+        /*has_storage_access=*/false, connect_data_.isolation_info,
+        HttpRequestHeaders(), TRAFFIC_ANNOTATION_FOR_TESTS,
         base::BindOnce(&WebSocketStreamCreationCallbackArgumentSaver::Create,
                        base::Unretained(&connect_data_.argument_saver)));
   }
@@ -839,7 +851,8 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
         : url_request_context(CreateTestURLRequestContextBuilder()->Build()),
           socket_url("ws://ws/"),
           origin(url::Origin::Create(GURL("http://ws"))),
-          site_for_cookies(SiteForCookies::FromUrl(GURL("http://ws/"))) {
+          site_for_cookies(SiteForCookies::FromUrl(GURL("http://ws/"))),
+          has_storage_access(false) {
       this->isolation_info =
           IsolationInfo::Create(IsolationInfo::RequestType::kOther, origin,
                                 origin, SiteForCookies::FromOrigin(origin));
@@ -856,6 +869,8 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
     url::Origin origin;
     // First party for cookies for the request.
     net::SiteForCookies site_for_cookies;
+    // Whether the calling context has opted into the Storage Access API.
+    bool has_storage_access;
     // IsolationInfo created from the origin.
     net::IsolationInfo isolation_info;
 
@@ -996,6 +1011,7 @@ TEST_F(WebSocketChannelTest, EverythingIsPassedToTheCreatorFunction) {
   EXPECT_EQ(connect_data_.origin.Serialize(), actual.origin.Serialize());
   EXPECT_TRUE(
       connect_data_.site_for_cookies.IsEquivalent(actual.site_for_cookies));
+  EXPECT_EQ(connect_data_.has_storage_access, actual.has_storage_access);
   EXPECT_TRUE(
       connect_data_.isolation_info.IsEqualForTesting(actual.isolation_info));
 }

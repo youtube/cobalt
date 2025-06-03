@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/base/ui_base_features.h"
@@ -88,11 +89,16 @@ gfx::Insets ChromeLayoutProvider::GetInsetsMetric(int metric) const {
       const gfx::Insets insets =
           LayoutProvider::GetInsetsMetric(views::INSETS_LABEL_BUTTON);
       const int horizontal_padding =
-          GetDistanceMetric(views::DISTANCE_BUTTON_HORIZONTAL_PADDING);
+          features::IsChromeRefresh2023()
+              ? 20
+              : GetDistanceMetric(views::DISTANCE_BUTTON_HORIZONTAL_PADDING);
       // Hover button in page info requires double the height compared to the
       // label button because it behaves like a menu control.
       return gfx::Insets::VH(insets.height(), horizontal_padding);
     }
+    case INSETS_INFOBAR_VIEW:
+      return features::IsChromeRefresh2023() ? gfx::Insets::VH(4, 0)
+                                             : gfx::Insets::VH(0, 0);
     default:
       return LayoutProvider::GetInsetsMetric(metric);
   }
@@ -116,7 +122,11 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
       return 8;
     case DISTANCE_DROPDOWN_BUTTON_RIGHT_MARGIN:
       return 12;
+    case DISTANCE_EXTENSIONS_MENU_WIDTH:
+      return kMediumDialogWidth;
     case DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SIZE:
+      return features::IsChromeRefresh2023() ? 20 : 16;
+    case DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SMALL_SIZE:
       return 16;
     case DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE:
       return 28;
@@ -155,7 +165,7 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
     case DISTANCE_BETWEEN_PRIMARY_AND_SECONDARY_LABELS_HORIZONTAL:
       return 24;
     case DISTANCE_OMNIBOX_CELL_VERTICAL_PADDING:
-      return 8;
+      return OmniboxFieldTrial::IsCr23LayoutEnabled() ? 12 : 8;
     case DISTANCE_OMNIBOX_TWO_LINE_CELL_VERTICAL_PADDING:
       return 4;
     case DISTANCE_SIDE_PANEL_HEADER_VECTOR_ICON_SIZE:
@@ -163,7 +173,17 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
     case DISTANCE_SIDE_PANEL_HEADER_BUTTON_MINIMUM_SIZE:
       return 20;
     case DISTANCE_SIDE_PANEL_HEADER_INTERIOR_MARGIN_HORIZONTAL:
-      return 8;
+      return 4;
+    case DISTANCE_HORIZONTAL_SEPARATOR_PADDING_PAGE_INFO_VIEW:
+      return features::IsChromeRefresh2023() ? 20 : 0;
+    case DISTANCE_INFOBAR_HORIZONTAL_ICON_LABEL_PADDING:
+      return features::IsChromeRefresh2023() ? 16 : 12;
+    case DISTANCE_PERMISSION_PROMPT_HORIZONTAL_ICON_LABEL_PADDING:
+      return features::IsChromeRefresh2023()
+                 ? 8
+                 : GetDistanceMetric(views::DISTANCE_RELATED_LABEL_HORIZONTAL);
+    case DISTANCE_RICH_HOVER_BUTTON_ICON_HORIZONTAL:
+      return features::IsChromeRefresh2023() ? 8 : 12;
   }
   NOTREACHED_NORETURN();
 }

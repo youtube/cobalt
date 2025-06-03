@@ -26,10 +26,12 @@ constexpr char kTestFormName[] = "login_form";
 const std::u16string kTestFormName16(u"login_form");
 constexpr char kTestUsernameElementName[] = "username_element";
 const std::u16string kTestUsernameElementName16(u"username_element");
-constexpr char kTestUsernameElementType[] = "text";
+constexpr autofill::FormControlType kTestUsernameElementType =
+    autofill::FormControlType::kInputText;
 constexpr char kTestPasswordElementName[] = "password_element";
 const std::u16string kTestPasswordElementName16(u"password_element");
-constexpr char kTestPasswordElementType[] = "password";
+constexpr autofill::FormControlType kTestPasswordElementType =
+    autofill::FormControlType::kInputPassword;
 
 sync_pb::PasswordSpecificsData CreateSpecificsData(
     const std::string& origin,
@@ -65,6 +67,13 @@ sync_pb::PasswordSpecificsData CreateSpecificsData(
     // non-exists.
     password_specifics.mutable_notes();
   }
+  // The current code always populates shared password metadata for outgoing
+  // protos even when none exist.
+  password_specifics.set_sender_email("");
+  password_specifics.set_sender_name("");
+  password_specifics.set_date_received_windows_epoch_micros(0);
+  password_specifics.set_sharing_notification_displayed(false);
+  password_specifics.set_sender_profile_image_url("");
   return password_specifics;
 }
 
@@ -78,11 +87,15 @@ TEST(UnifiedPasswordManagerProtoUtilsTest,
       kTestPasswordElementName, "signon_realm");
   (*password_data.mutable_local_data())
       .set_previously_associated_sync_account_email("test@gmail.com");
+  const std::string kTestUsernameElementTypeStr(
+      autofill::FormControlTypeToString(kTestUsernameElementType));
+  const std::string kTestPasswordElementTypeStr(
+      autofill::FormControlTypeToString(kTestPasswordElementType));
   std::string opaque_metadata =
       "{\"form_data\":{\"action\":\"" + std::string(kTestAction) +
-      "\",\"fields\":[{\"form_control_type\":\"" + kTestUsernameElementType +
+      "\",\"fields\":[{\"form_control_type\":\"" + kTestUsernameElementTypeStr +
       "\",\"name\":\"" + kTestUsernameElementName +
-      "\"},{\"form_control_type\":\"" + kTestPasswordElementType +
+      "\"},{\"form_control_type\":\"" + kTestPasswordElementTypeStr +
       "\",\"name\":\"" + kTestPasswordElementName + "\"}],\"name\":\"" +
       kTestFormName + "\",\"url\":\"" + kTestOrigin +
       "\"},\"skip_zero_click\":false}";

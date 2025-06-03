@@ -4,12 +4,8 @@
 
 #import "ios/chrome/browser/signin/chrome_account_manager_service_observer_bridge.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/signin/chrome_account_manager_service.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 ChromeAccountManagerServiceObserverBridge::
     ChromeAccountManagerServiceObserverBridge(
@@ -35,5 +31,15 @@ void ChromeAccountManagerServiceObserverBridge::OnIdentityUpdated(
     id<SystemIdentity> identity) {
   if ([observer_ respondsToSelector:@selector(identityUpdated:)]) {
     [observer_ identityUpdated:identity];
+  }
+}
+
+void ChromeAccountManagerServiceObserverBridge::
+    OnChromeAccountManagerServiceShutdown(
+        ChromeAccountManagerService* chrome_account_manager_service) {
+  if ([observer_ respondsToSelector:@selector
+                 (onChromeAccountManagerServiceShutdown:)]) {
+    [observer_
+        onChromeAccountManagerServiceShutdown:chrome_account_manager_service];
   }
 }

@@ -12,8 +12,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/user_education/user_education_service.h"
-#include "chrome/browser/ui/user_education/user_education_service_factory.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "components/user_education/common/feature_promo_registry.h"
 #include "components/user_education/common/feature_promo_specification.h"
 #include "components/user_education/common/tutorial_description.h"
@@ -25,13 +25,13 @@
 namespace {
 
 user_education::TutorialService* GetTutorialService(Profile* profile) {
-  auto* service = UserEducationServiceFactory::GetForProfile(profile);
+  auto* service = UserEducationServiceFactory::GetForBrowserContext(profile);
   return service ? &service->tutorial_service() : nullptr;
 }
 
 user_education::FeaturePromoRegistry* GetFeaturePromoRegistry(
     Profile* profile) {
-  auto* service = UserEducationServiceFactory::GetForProfile(profile);
+  auto* service = UserEducationServiceFactory::GetForBrowserContext(profile);
   return service ? &service->feature_promo_registry() : nullptr;
 }
 
@@ -66,8 +66,9 @@ std::vector<std::string> GetSupportedPlatforms(
 std::vector<std::string> GetPromoInstructions(
     const user_education::FeaturePromoSpecification& spec) {
   std::vector<std::string> instructions;
-  if (!spec.bubble_title_text().empty()) {
-    instructions.emplace_back(base::UTF16ToUTF8(spec.bubble_title_text()));
+  if (spec.bubble_title_string_id()) {
+    instructions.emplace_back(
+        l10n_util::GetStringUTF8(spec.bubble_title_string_id()));
   }
   instructions.emplace_back(
       l10n_util::GetStringUTF8(spec.bubble_body_string_id()));
@@ -83,8 +84,8 @@ std::vector<std::string> GetTutorialInstructions(
     const user_education::TutorialDescription& desc) {
   std::vector<std::string> instructions;
   for (const auto& step : desc.steps) {
-    if (step.body_text_id) {
-      instructions.emplace_back(l10n_util::GetStringUTF8(step.body_text_id));
+    if (step.body_text_id()) {
+      instructions.emplace_back(l10n_util::GetStringUTF8(step.body_text_id()));
     }
   }
   return instructions;
@@ -204,18 +205,40 @@ void UserEducationInternalsPageHandlerImpl::ShowFeaturePromo(
   }
 
   user_education::FeaturePromoController* feature_promo_controller =
-      chrome::FindBrowserWithWebContents(web_ui_->GetWebContents())
+      chrome::FindBrowserWithTab(web_ui_->GetWebContents())
           ->window()
           ->GetFeaturePromoController();
 
-  bool showed_promo =
-      feature_promo_controller->MaybeShowPromoForDemoPage(feature);
+  const auto showed_promo =
+      feature_promo_controller->MaybeShowPromoForDemoPage(*feature);
 
-  if (showed_promo) {
-    std::move(callback).Run(std::string());
-  } else {
-    std::move(callback).Run(std::string("Failed to show IPH"));
+  std::string reason;
+  if (!showed_promo) {
+    using Failure = user_education::FeaturePromoResult::Failure;
+    switch (*showed_promo.failure()) {
+      case Failure::kBlockedByContext:
+        reason = "Cannot show IPH in this browser window.";
+        break;
+      case Failure::kBlockedByPromo:
+        reason = "Failed to show IPH due to high-priority IPH.";
+        break;
+      case Failure::kBlockedByUi:
+        reason = "Cannot show IPH due to conflicting UI or missing anchor.";
+        break;
+      case Failure::kCanceled:
+        reason = "IPH was canceled before it could be shown.";
+        break;
+      case Failure::kError:
+        reason = "Internal error.";
+        break;
+      case Failure::kBlockedByConfig:
+      case Failure::kFeatureDisabled:
+      case Failure::kPermanentlyDismissed:
+      case Failure::kSnoozed:
+        reason = "Unexpected failure (should not happen for demo).";
+    }
   }
+  std::move(callback).Run(reason);
 }
 
 const std::string

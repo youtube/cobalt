@@ -17,7 +17,6 @@
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_content_settings_container.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_menu_button.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_navigation_button_container.h"
-#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_origin_text.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_toolbar_button_container.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/window_controls_overlay_toggle_button.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -307,13 +306,11 @@ void WebAppFrameToolbarView::OnWindowControlsOverlayEnabledChanged() {
 void WebAppFrameToolbarView::UpdateBorderlessModeEnabled() {
   bool is_borderless_mode_enabled = browser_view_->IsBorderlessModeEnabled();
 
-  // The toolbar and menu button are hidden and not set to nullptrs,
-  // because there are many features that depend on the toolbar and would not
-  // work without it. For example all the shortcut commands (e.g. Ctrl+F, zoom)
-  // rely on the menu button and toolbar so when these are hidden, the shortcuts
-  // will still work.
+  // The toolbar is hidden and not set to null, because there are many features
+  // that depend on the toolbar and would not work without it. For example all
+  // the shortcut commands (e.g. Ctrl+F, zoom) rely on the menu button (child of
+  // toolbar) so when these are hidden, the shortcuts will still work.
   SetVisible(!is_borderless_mode_enabled);
-  GetAppMenuButton()->SetVisible(!is_borderless_mode_enabled);
 }
 
 void WebAppFrameToolbarView::SetWindowControlsOverlayToggleVisible(
@@ -365,8 +362,6 @@ void WebAppFrameToolbarView::UpdateChildrenColor(bool color_changed) {
   const SkColor foreground_color = paint_as_active_
                                        ? *active_foreground_color_
                                        : *inactive_foreground_color_;
-  if (left_container_)
-    left_container_->SetIconColor(foreground_color);
   const SkColor background_color = paint_as_active_
                                        ? *active_background_color_
                                        : *inactive_background_color_;

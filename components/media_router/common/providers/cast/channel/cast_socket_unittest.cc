@@ -105,7 +105,7 @@ CastMessage CreateTestMessage() {
 
 base::FilePath GetTestCertsDirectory() {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
   path = path.Append(FILE_PATH_LITERAL("components"));
   path = path.Append(FILE_PATH_LITERAL("test"));
   path = path.Append(FILE_PATH_LITERAL("data"));
@@ -244,7 +244,8 @@ class MockTestCastSocket : public TestCastSocketBase {
   }
 
  private:
-  raw_ptr<MockCastTransport> mock_transport_ = nullptr;
+  raw_ptr<MockCastTransport, AcrossTasksDanglingUntriaged> mock_transport_ =
+      nullptr;
 };
 
 // TODO(https://crbug.com/928467):  Remove this class.
@@ -411,7 +412,7 @@ class CastSocketTestBase : public testing::Test {
   std::unique_ptr<net::URLRequestContext> url_request_context_;
   std::unique_ptr<network::NetworkContext> network_context_;
   mojo::Remote<network::mojom::NetworkContext> network_context_remote_;
-  raw_ptr<Logger> logger_;
+  raw_ptr<Logger, AcrossTasksDanglingUntriaged> logger_;
   CompleteHandler handler_;
   std::unique_ptr<MockCastSocketObserver> observer_;
   CastSocketOpenParams socket_open_params_;
@@ -1003,7 +1004,8 @@ TEST_F(MockCastSocketTest, TestConnectEndToEndWithRealTransportSync) {
 
 TEST_F(MockCastSocketTest, TestObservers) {
   CreateCastSocketSecure();
-  // Test AddObserever
+
+  // Test adding observers.
   MockCastSocketObserver observer1;
   MockCastSocketObserver observer2;
   socket_->AddObserver(&observer1);
@@ -1011,11 +1013,15 @@ TEST_F(MockCastSocketTest, TestObservers) {
   socket_->AddObserver(&observer2);
   socket_->AddObserver(&observer2);
 
-  // Test notify observers
+  // Test notifying observers.
   EXPECT_CALL(observer1, OnError(_, cast_channel::ChannelError::CONNECT_ERROR));
   EXPECT_CALL(observer2, OnError(_, cast_channel::ChannelError::CONNECT_ERROR));
   CastSocketImpl::CastSocketMessageDelegate delegate(socket_.get());
   delegate.OnError(cast_channel::ChannelError::CONNECT_ERROR);
+
+  // Finally, remove the observers to avoid the CheckedObserver CHECK.
+  socket_->RemoveObserver(&observer1);
+  socket_->RemoveObserver(&observer2);
 }
 
 TEST_F(MockCastSocketTest, TestOpenChannelConnectingSocket) {

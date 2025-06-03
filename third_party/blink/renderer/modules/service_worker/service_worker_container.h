@@ -61,7 +61,7 @@ class LocalDOMWindow;
 class ServiceWorkerErrorForUpdate;
 
 class MODULES_EXPORT ServiceWorkerContainer final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public Supplement<LocalDOMWindow>,
       public ExecutionContextLifecycleObserver,
       public WebServiceWorkerProviderClient {
@@ -84,7 +84,7 @@ class MODULES_EXPORT ServiceWorkerContainer final
 
   void Trace(Visitor*) const override;
 
-  ServiceWorker* controller() { return controller_; }
+  ServiceWorker* controller() { return controller_.Get(); }
   ScriptPromise ready(ScriptState*, ExceptionState&);
 
   ScriptPromise registerServiceWorker(ScriptState*,

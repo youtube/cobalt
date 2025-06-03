@@ -838,8 +838,8 @@ TEST(GURLTest, DomainIs) {
 
   GURL url_with_escape_chars("https://www.,.test");
   EXPECT_TRUE(url_with_escape_chars.is_valid());
-  EXPECT_EQ(url_with_escape_chars.host(), "www.%2C.test");
-  EXPECT_TRUE(url_with_escape_chars.DomainIs("%2C.test"));
+  EXPECT_EQ(url_with_escape_chars.host(), "www.,.test");
+  EXPECT_TRUE(url_with_escape_chars.DomainIs(",.test"));
 }
 
 TEST(GURLTest, DomainIsTerminatingDotBehavior) {
@@ -1167,7 +1167,7 @@ class GURLTestTraits {
  public:
   using UrlType = GURL;
 
-  static UrlType CreateUrlFromString(base::StringPiece s) { return GURL(s); }
+  static UrlType CreateUrlFromString(std::string_view s) { return GURL(s); }
   static bool IsAboutBlank(const UrlType& url) { return url.IsAboutBlank(); }
   static bool IsAboutSrcdoc(const UrlType& url) { return url.IsAboutSrcdoc(); }
 

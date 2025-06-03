@@ -14,11 +14,13 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/no_destructor.h"
 #include "base/supports_user_data.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/timer/elapsed_timer.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service.h"
@@ -48,8 +50,8 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/unified_consent/unified_consent_service.h"
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -253,6 +255,9 @@ void TurnSyncOnHelper::TurnSyncOnInternal() {
   DCHECK(!account_info_.gaia.empty());
   DCHECK(!account_info_.email.empty());
 
+  DCHECK(!user_input_complete_timer_);
+  user_input_complete_timer_ = base::ElapsedTimer();
+
   if (HasCanOfferSigninError()) {
     AbortAndDelete();
     return;
@@ -267,8 +272,8 @@ void TurnSyncOnHelper::TurnSyncOnInternal() {
   // last authenticated account of the current profile, then Chrome will show a
   // confirmation dialog before starting sync.
   // TODO(skym): Warn for high risk upgrade scenario (https://crbug.com/572754).
-  std::string last_email =
-      profile_->GetPrefs()->GetString(prefs::kGoogleServicesLastUsername);
+  std::string last_email = profile_->GetPrefs()->GetString(
+      prefs::kGoogleServicesLastSyncingUsername);
   delegate_->ShowMergeSyncDataConfirmation(
       last_email, account_info_.email,
       base::BindOnce(&TurnSyncOnHelper::OnMergeAccountConfirmation,
@@ -288,6 +293,8 @@ bool TurnSyncOnHelper::HasCanOfferSigninError() {
 }
 
 void TurnSyncOnHelper::OnMergeAccountConfirmation(signin::SigninChoice choice) {
+  user_input_complete_timer_ = base::ElapsedTimer();
+
   switch (choice) {
     case signin::SIGNIN_CHOICE_NEW_PROFILE:
       base::RecordAction(
@@ -313,6 +320,8 @@ void TurnSyncOnHelper::OnMergeAccountConfirmation(signin::SigninChoice choice) {
 
 void TurnSyncOnHelper::OnEnterpriseAccountConfirmation(
     signin::SigninChoice choice) {
+  user_input_complete_timer_ = base::ElapsedTimer();
+
   enterprise_account_confirmed_ = choice == signin::SIGNIN_CHOICE_CONTINUE ||
                                   choice == signin::SIGNIN_CHOICE_NEW_PROFILE;
   signin_util::RecordEnterpriseProfileCreationUserChoice(
@@ -402,7 +411,6 @@ void TurnSyncOnHelper::CreateNewSignedInProfile() {
       std::make_unique<DiceSignedInProfileCreator>(
           profile_, account_info_.account_id,
           /*local_profile_name=*/std::u16string(), /*icon_index=*/absl::nullopt,
-          /*use_guest=*/false,
           base::BindOnce(&TurnSyncOnHelper::OnNewSignedInProfileCreated,
                          base::Unretained(this)));
 #else
@@ -577,6 +585,12 @@ bool TurnSyncOnHelper::HasCurrentTurnSyncOnHelperForTesting(Profile* profile) {
 }
 
 void TurnSyncOnHelper::ShowSyncConfirmationUI() {
+  // We have now gathered all the required async information to show either the
+  // sync confirmation UI, or another screen.
+  DCHECK(user_input_complete_timer_);
+  base::UmaHistogramMediumTimes("Signin.SyncOptIn.PreSyncConfirmationLatency",
+                                user_input_complete_timer_->Elapsed());
+
   if (g_show_sync_enabled_ui_for_testing_ || GetSyncService()) {
     signin_metrics::LogSyncOptInStarted(signin_access_point_);
     delegate_->ShowSyncConfirmation(
@@ -639,7 +653,7 @@ void TurnSyncOnHelper::FinishSyncSetupAndDelete(
                                                  signin::ConsentLevel::kSync,
                                                  signin_access_point_);
       if (auto* sync_service = GetSyncService()) {
-        sync_service->GetUserSettings()->SetFirstSetupComplete(
+        sync_service->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
             syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
       }
       if (consent_service) {

@@ -15,6 +15,7 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/schema.h"
 #include "components/policy/policy_export.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefValueMap;
 
@@ -158,16 +159,18 @@ class POLICY_EXPORT ListPolicyHandler : public TypeCheckingPolicyHandler {
 
   // Implement this method to apply the |filtered_list| of values of type
   // |list_entry_type_| as returned from CheckAndGetList() to |prefs|.
-  virtual void ApplyList(base::Value filtered_list, PrefValueMap* prefs) = 0;
+  virtual void ApplyList(base::Value::List filtered_list,
+                         PrefValueMap* prefs) = 0;
 
  private:
   // Checks whether the policy value is indeed a list, filters out all entries
   // that are not of type |list_entry_type_| or where CheckListEntry() returns
-  // false, and returns the |filtered_list| if not nullptr. Sets errors for
-  // filtered list entries if |errors| is not nullptr.
+  // false, and appends to |filtered_list| if present. If the value is missing,
+  // |filtered_list| is cleared. Sets errors for filtered list entries if
+  // |errors| is not nullptr.
   bool CheckAndGetList(const policy::PolicyMap& policies,
                        policy::PolicyErrorMap* errors,
-                       base::Value* filtered_list);
+                       absl::optional<base::Value::List>& filtered_list);
 
   // Expected value type for list entries. All other types are filtered out.
   base::Value::Type list_entry_type_;
@@ -230,6 +233,36 @@ class POLICY_EXPORT SimplePolicyHandler : public TypeCheckingPolicyHandler {
  private:
   // The DictionaryValue path of the preference the policy maps to.
   const char* pref_path_;
+};
+
+// ConfigurationPolicyHandler for policies that rely on another policy to take
+// effect.
+class POLICY_EXPORT PolicyWithDependencyHandler : public NamedPolicyHandler {
+ public:
+  PolicyWithDependencyHandler(const char* required_policy_name,
+                              std::unique_ptr<NamedPolicyHandler> handler);
+  PolicyWithDependencyHandler(const PolicyWithDependencyHandler&) = delete;
+  PolicyWithDependencyHandler& operator=(const PolicyWithDependencyHandler&) =
+      delete;
+  ~PolicyWithDependencyHandler() override;
+
+  // ConfigurationPolicyHandler methods:
+  bool CheckPolicySettings(const PolicyMap& policies,
+                           PolicyErrorMap* errors) override;
+
+  void ApplyPolicySettingsWithParameters(
+      const policy::PolicyMap& policies,
+      const policy::PolicyHandlerParameters& parameters,
+      PrefValueMap* prefs) override;
+
+ protected:
+  // ConfigurationPolicyHandler methods:
+  void ApplyPolicySettings(const PolicyMap& policies,
+                           PrefValueMap* prefs) override;
+
+ private:
+  const char* required_policy_name_;
+  std::unique_ptr<NamedPolicyHandler> handler_;
 };
 
 // Base class that encapsulates logic for mapping from a string enum list
@@ -531,6 +564,26 @@ class POLICY_EXPORT SimpleDeprecatingPolicyHandler
  private:
   std::unique_ptr<NamedPolicyHandler> legacy_policy_handler_;
   std::unique_ptr<NamedPolicyHandler> new_policy_handler_;
+};
+
+// A schema policy handler for complex policies that only accept cloud sources.
+class POLICY_EXPORT CloudOnlyPolicyHandler
+    : public SchemaValidatingPolicyHandler {
+ public:
+  CloudOnlyPolicyHandler(const char* policy_name,
+                         Schema schema,
+                         SchemaOnErrorStrategy strategy);
+  ~CloudOnlyPolicyHandler() override;
+
+  // Utility method for checking whether a policy is applied by a cloud-only
+  // source. Useful for cloud-only policy handlers which currently don't inherit
+  // from `CloudOnlyPolicyHandler`.
+  static bool CheckCloudOnlyPolicySettings(const char* policy_name,
+                                           const PolicyMap& policies,
+                                           PolicyErrorMap* errors);
+
+  bool CheckPolicySettings(const PolicyMap& policies,
+                           PolicyErrorMap* errors) override;
 };
 
 }  // namespace policy

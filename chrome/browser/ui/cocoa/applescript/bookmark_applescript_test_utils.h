@@ -7,7 +7,6 @@
 
 #import <Foundation/Foundation.h>
 
-#include "base/mac/scoped_nsobject.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_folder_applescript.h"
 #include "chrome/test/base/in_process_browser_test.h"
 
@@ -25,7 +24,7 @@ class BookmarkAppleScriptTest : public InProcessBrowserTest {
   Profile* profile() const;
 
  protected:
-  base::scoped_nsobject<BookmarkFolderAppleScript> bookmark_bar_;
+  BookmarkFolderAppleScript* __strong bookmark_bar_;
 };
 
 #endif  // CHROME_BROWSER_UI_COCOA_APPLESCRIPT_BOOKMARK_APPLESCRIPT_TEST_UTILS_H_

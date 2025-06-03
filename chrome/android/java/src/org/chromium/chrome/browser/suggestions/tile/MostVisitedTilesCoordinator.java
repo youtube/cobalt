@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.suggestions.SuggestionsConfig;
 import org.chromium.chrome.browser.suggestions.SuggestionsDependencyFactory;
 import org.chromium.chrome.browser.suggestions.SuggestionsUiDelegate;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
+import org.chromium.chrome.features.start_surface.StartSurfaceConfiguration;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
@@ -39,7 +40,8 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
      * The maximum number of tiles to try and fit in a row. On smaller screens, there may not be
      * enough space to fit all of them.
      */
-    private static final int MAX_TILE_COLUMNS_FOR_GRID = 4;
+    @VisibleForTesting
+    public static final int MAX_TILE_COLUMNS_FOR_GRID = 4;
 
     private final Activity mActivity;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
@@ -98,11 +100,12 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
         mRenderer = new TileRenderer(
                 mActivity, SuggestionsConfig.getTileStyle(mUiConfig), TITLE_LINES, null);
 
+        boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
         mMediator = new MostVisitedTilesMediator(activity.getResources(), mUiConfig, tilesLayout,
                 mvTilesContainerLayout.findViewById(R.id.tile_grid_placeholder_stub), mRenderer,
-                propertyModel, shouldShowSkeletonUIPreNative, isScrollableMVTEnabled,
-                DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity),
-                snapshotTileGridChangedRunnable, tileCountChangedRunnable);
+                propertyModel, shouldShowSkeletonUIPreNative, isScrollableMVTEnabled, isTablet,
+                snapshotTileGridChangedRunnable, tileCountChangedRunnable,
+                StartSurfaceConfiguration.isNtpAsHomeSurfaceEnabled(isTablet));
     }
 
     /**
@@ -165,7 +168,6 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
         mUiConfig.updateDisplayStyle();
     }
 
-    @VisibleForTesting
     public void onTemplateURLServiceChangedForTesting() {
         mMediator.onTemplateURLServiceChanged();
     }

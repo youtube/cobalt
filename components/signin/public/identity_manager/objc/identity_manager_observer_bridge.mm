@@ -7,10 +7,6 @@
 #include "base/feature_list.h"
 #include "components/signin/public/base/account_consistency_method.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace signin {
 
 IdentityManagerObserverBridge::IdentityManagerObserverBridge(
@@ -67,6 +63,13 @@ void IdentityManagerObserverBridge::OnEndBatchOfRefreshTokenStateChanges() {
   if ([delegate_
           respondsToSelector:@selector(onEndBatchOfRefreshTokenStateChanges)]) {
     [delegate_ onEndBatchOfRefreshTokenStateChanges];
+  }
+}
+
+void IdentityManagerObserverBridge::OnIdentityManagerShutdown(
+    IdentityManager* identity_manager) {
+  if ([delegate_ respondsToSelector:@selector(onIdentityManagerShutdown:)]) {
+    [delegate_ onIdentityManagerShutdown:identity_manager];
   }
 }
 

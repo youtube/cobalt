@@ -13,6 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/blink/blink_features.h"
 
 using blink::WebInputEvent;
@@ -115,7 +116,9 @@ FilterGestureEventResult TouchActionFilter::FilterGestureEvent(
           *gesture_event, touch_action, active_touch_action_.has_value());
       FilterGestureEventResult res;
       if (!drop_scroll_events_) {
-        SetCursorControlIfNecessary(gesture_event, touch_action);
+        if (allow_cursor_control_) {
+          SetCursorControlIfNecessary(gesture_event, touch_action);
+        }
         res = FilterGestureEventResult::kFilterGestureEventAllowed;
       } else if (active_touch_action_.has_value()) {
         res = FilterGestureEventResult::kFilterGestureEventFiltered;
@@ -256,6 +259,9 @@ FilterGestureEventResult TouchActionFilter::FilterGestureEvent(
 
     case WebInputEvent::Type::kGestureTapDown:
       gesture_sequence_in_progress_ = true;
+      allow_cursor_control_ =
+          !::features::IsTouchTextEditingRedesignEnabled() ||
+          gesture_event->data.tap_down.tap_down_count <= 1;
       if (allowed_touch_action_.has_value())
         gesture_sequence_.append("AY");
       else
@@ -272,6 +278,10 @@ FilterGestureEventResult TouchActionFilter::FilterGestureEvent(
       gesture_sequence_.append(
           base::NumberToString(gesture_event->unique_touch_event_id));
       DCHECK(!drop_current_tap_ending_event_);
+      break;
+
+    case WebInputEvent::Type::kGestureLongPress:
+      allow_cursor_control_ = false;
       break;
 
     case WebInputEvent::Type::kGestureLongTap:
@@ -367,8 +377,10 @@ void TouchActionFilter::ReportAndResetTouchAction() {
     gesture_sequence_.append("RY");
   else
     gesture_sequence_.append("RN");
-  if (num_of_active_touches_ <= 0)
+  if (num_of_active_touches_ <= 0) {
     ResetTouchAction();
+    allow_cursor_control_ = true;
+  }
 }
 
 void TouchActionFilter::AppendToGestureSequenceForDebugging(const char* str) {

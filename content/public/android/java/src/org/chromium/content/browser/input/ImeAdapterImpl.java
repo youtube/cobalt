@@ -20,6 +20,7 @@ import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.BackgroundColorSpan;
 import android.text.style.CharacterStyle;
+import android.text.style.ForegroundColorSpan;
 import android.text.style.SuggestionSpan;
 import android.text.style.UnderlineSpan;
 import android.util.SparseArray;
@@ -28,22 +29,32 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.DeleteGesture;
+import android.view.inputmethod.DeleteRangeGesture;
 import android.view.inputmethod.EditorBoundsInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.HandwritingGesture;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InsertGesture;
+import android.view.inputmethod.JoinOrSplitGesture;
+import android.view.inputmethod.RemoveSpaceGesture;
+import android.view.inputmethod.SelectGesture;
+import android.view.inputmethod.SelectRangeGesture;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.view.inputmethod.EditorInfoCompat;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UserData;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.blink.mojom.EventType;
 import org.chromium.blink.mojom.FocusType;
 import org.chromium.blink.mojom.HandwritingGestureResult;
@@ -74,6 +85,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -269,10 +281,17 @@ public class ImeAdapterImpl
             mWebContents.getStylusWritingHandler().updateEditorInfo(outAttrs);
         }
 
-        return StylusGestureHandler.maybeProxyInputConnection(inputConnection, this::handleGesture);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            List<Class<? extends HandwritingGesture>> supportedGestures =
+                    Arrays.asList(SelectGesture.class, InsertGesture.class, DeleteGesture.class,
+                            RemoveSpaceGesture.class, JoinOrSplitGesture.class,
+                            SelectRangeGesture.class, DeleteRangeGesture.class);
+            outAttrs.setSupportedHandwritingGestures(supportedGestures);
+        }
+        return inputConnection;
     }
 
-    private void handleGesture(OngoingGesture request) {
+    void handleGesture(OngoingGesture request) {
         if (request.getGestureData() == null) {
             request.onGestureHandled(HandwritingGestureResult.UNSUPPORTED);
             return;
@@ -281,8 +300,7 @@ public class ImeAdapterImpl
 
         // Offset the gesture rectangles to convert from screen coordinates to window coordinates.
         int[] screenLocation = new int[2];
-        mWebContents.getViewAndroidDelegate().getContainerView().getLocationOnScreen(
-                screenLocation);
+        getContainerView().getLocationOnScreen(screenLocation);
         request.getGestureData().startRect.x -= screenLocation[0];
         request.getGestureData().startRect.y -= screenLocation[1];
         if (request.getGestureData().endRect != null) {
@@ -416,12 +434,10 @@ public class ImeAdapterImpl
         mInputConnectionFactory = factory;
     }
 
-    @VisibleForTesting
     ChromiumBaseInputConnection.Factory getInputConnectionFactoryForTest() {
         return mInputConnectionFactory;
     }
 
-    @VisibleForTesting
     public void setTriggerDelayedOnCreateInputConnectionForTest(boolean trigger) {
         mInputConnectionFactory.setTriggerDelayedOnCreateInputConnection(trigger);
     }
@@ -500,10 +516,17 @@ public class ImeAdapterImpl
         TraceEvent.begin("ImeAdapter.updateState");
         try {
             if (DEBUG_LOGS) {
-                Log.i(TAG,
-                        "updateState: type [%d->%d], flags [%d], mode[%d], action[%d], show [%b], hide [%b]",
-                        mTextInputType, textInputType, textInputFlags, textInputMode,
-                        textInputAction, showIfNeeded, alwaysHide);
+                Log.i(
+                        TAG,
+                        "updateState: type [%d->%d], flags [%d], mode[%d], action[%d], show [%b],"
+                                + " hide [%b]",
+                        mTextInputType,
+                        textInputType,
+                        textInputFlags,
+                        textInputMode,
+                        textInputAction,
+                        showIfNeeded,
+                        alwaysHide);
             }
             boolean needsRestart = false;
             boolean hide = false;
@@ -1041,22 +1064,21 @@ public class ImeAdapterImpl
             mRestartInputOnNextStateUpdate = true;
         }
 
-        if (mWebContents.getStylusWritingHandler() != null) {
-            // Update edit bounds to stylus writing service.
-            Rect editableNodeBoundsPixOnScreen;
-            if (isEditable) {
-                float deviceScale = mWebContents.getRenderCoordinates().getDeviceScaleFactor();
-                editableNodeBoundsPixOnScreen = new Rect((int) (nodeLeftDip * deviceScale),
-                        (int) (nodeTopDip * deviceScale), (int) (nodeRightDip * deviceScale),
-                        (int) (nodeBottomDip * deviceScale));
-                editableNodeBoundsPixOnScreen.offset(
-                        0, mWebContents.getRenderCoordinates().getContentOffsetYPixInt());
-            } else {
-                editableNodeBoundsPixOnScreen = new Rect();
-            }
-            mWebContents.getStylusWritingHandler().onFocusedNodeChanged(
-                    editableNodeBoundsPixOnScreen, isEditable, mViewDelegate.getContainerView());
+        if (mWebContents.getStylusWritingHandler() == null) {
+            return;
         }
+        // Update edit bounds to stylus writing service.
+        Rect editableNodeBounds = new Rect();
+        if (isEditable) {
+            editableNodeBounds.set(nodeLeftDip, nodeTopDip, nodeRightDip, nodeBottomDip);
+        }
+        float deviceScale = mWebContents.getRenderCoordinates().getDeviceScaleFactor();
+        EditorBoundsInfo editorBoundsInfo =
+                mWebContents.getStylusWritingHandler().onFocusedNodeChanged(editableNodeBounds,
+                        isEditable, mViewDelegate.getContainerView(), deviceScale,
+                        mWebContents.getRenderCoordinates().getContentOffsetYPixInt());
+        mCursorAnchorInfoController.updateWithEditorBoundsInfo(
+                editorBoundsInfo, getContainerView());
     }
 
     @CalledByNative
@@ -1077,29 +1099,28 @@ public class ImeAdapterImpl
     @CalledByNative
     void onEditElementFocusedForStylusWriting(int focusedEditLeft, int focusedEditTop,
             int focusedEditRight, int focusedEditBottom, int caretX, int caretY) {
-        if (mWebContents.getStylusWritingHandler() == null) return;
-        Rect focusedEditBounds =
-                new Rect(focusedEditLeft, focusedEditTop, focusedEditRight, focusedEditBottom);
+        if (mWebContents.getStylusWritingHandler() == null) {
+            return;
+        }
+        float scaleFactor = mWebContents.getRenderCoordinates().getDeviceScaleFactor();
+        RectF focusedEditBounds =
+                new RectF(focusedEditLeft, focusedEditTop, focusedEditRight, focusedEditBottom);
         Point cursorPosition = new Point(caretX, caretY);
-        if (!focusedEditBounds.isEmpty()) {
-            int[] screenLocation = new int[2];
-            mWebContents.getViewAndroidDelegate().getContainerView().getLocationOnScreen(
-                    screenLocation);
-            int contentOffsetY = mWebContents.getRenderCoordinates().getContentOffsetYPixInt();
-            focusedEditBounds.offset(0, contentOffsetY);
-            cursorPosition.offset(screenLocation[0], screenLocation[1] + contentOffsetY);
-        }
+        if (focusedEditBounds.isEmpty()) return;
 
+        int[] screenLocation = new int[2];
+        getContainerView().getLocationOnScreen(screenLocation);
+        int contentOffsetY = mWebContents.getRenderCoordinates().getContentOffsetYPixInt();
+        cursorPosition.offset(screenLocation[0], screenLocation[1] + contentOffsetY);
+
+        Rect roundedBounds = new Rect();
+        focusedEditBounds.round(roundedBounds);
         // Send focused edit bounds and caret center position to Stylus writing service.
-        mWebContents.getStylusWritingHandler().onEditElementFocusedForStylusWriting(
-                focusedEditBounds, cursorPosition);
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU) {
-            RectF bounds = new RectF(focusedEditBounds);
-            EditorBoundsInfo editorBoundsInfo =
-                    new EditorBoundsInfo.Builder().setHandwritingBounds(bounds).build();
-            mCursorAnchorInfoController.updateWithEditorBoundsInfo(
-                    editorBoundsInfo, getContainerView());
-        }
+        EditorBoundsInfo editorBoundsInfo =
+                mWebContents.getStylusWritingHandler().onEditElementFocusedForStylusWriting(
+                        roundedBounds, cursorPosition, scaleFactor, contentOffsetY);
+        mCursorAnchorInfoController.updateWithEditorBoundsInfo(
+                editorBoundsInfo, getContainerView());
     }
 
     /**
@@ -1165,7 +1186,7 @@ public class ImeAdapterImpl
 
                 @Override
                 public View getContainerView() {
-                    return mWebContents.getViewAndroidDelegate().getContainerView();
+                    return ImeAdapterImpl.this.getContainerView();
                 }
 
                 @Override
@@ -1269,13 +1290,17 @@ public class ImeAdapterImpl
         if (!(text instanceof SpannableString)) return;
 
         SpannableString spannableString = ((SpannableString) text);
-        CharacterStyle spans[] = spannableString.getSpans(0, text.length(), CharacterStyle.class);
+        CharacterStyle[] spans = spannableString.getSpans(0, text.length(), CharacterStyle.class);
         for (CharacterStyle span : spans) {
             final int spanFlags = spannableString.getSpanFlags(span);
             if (span instanceof BackgroundColorSpan) {
                 ImeAdapterImplJni.get().appendBackgroundColorSpan(imeTextSpans,
                         spannableString.getSpanStart(span), spannableString.getSpanEnd(span),
                         ((BackgroundColorSpan) span).getBackgroundColor());
+            } else if (span instanceof ForegroundColorSpan) {
+                ImeAdapterImplJni.get().appendForegroundColorSpan(imeTextSpans,
+                        spannableString.getSpanStart(span), spannableString.getSpanEnd(span),
+                        ((ForegroundColorSpan) span).getForegroundColor());
             } else if (span instanceof UnderlineSpan) {
                 ImeAdapterImplJni.get().appendUnderlineSpan(imeTextSpans,
                         spannableString.getSpanStart(span), spannableString.getSpanEnd(span));
@@ -1332,9 +1357,8 @@ public class ImeAdapterImpl
     }
 
     @CalledByNative
-    private void setCharacterBounds(float[] characterBounds) {
-        mCursorAnchorInfoController.setCompositionCharacterBounds(
-                characterBounds, getContainerView());
+    private void setBounds(@Nullable float[] characterBounds, @Nullable float[] lineBounds) {
+        mCursorAnchorInfoController.setBounds(characterBounds, lineBounds, getContainerView());
     }
 
     @CalledByNative
@@ -1353,6 +1377,7 @@ public class ImeAdapterImpl
                 boolean isSystemKey, int unicodeChar);
         void appendUnderlineSpan(long spanPtr, int start, int end);
         void appendBackgroundColorSpan(long spanPtr, int start, int end, int backgroundColor);
+        void appendForegroundColorSpan(long spanPtr, int start, int end, int backgroundColor);
         void appendSuggestionSpan(long spanPtr, int start, int end, boolean isMisspelling,
                 boolean removeOnFinishComposing, int underlineColor, int suggestionHighlightColor,
                 String[] suggestions);

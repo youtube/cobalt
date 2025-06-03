@@ -83,6 +83,8 @@
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 namespace {
 
 std::ostream& operator<<(std::ostream& os, PositionMoveType type) {
@@ -194,11 +196,6 @@ static bool HasEditableLevel(const Node& node, EditableLevel editable_level) {
   for (const Node& ancestor : NodeTraversal::InclusiveAncestorsOf(node)) {
     if (!(ancestor.IsHTMLElement() || ancestor.IsDocumentNode()))
       continue;
-
-    if (auto* element = DynamicTo<Element>(&ancestor)) {
-      if (element->editContext())
-          return true;
-    }
 
     const ComputedStyle* style = ancestor.GetComputedStyle();
     if (!style)
@@ -1146,7 +1143,8 @@ static HTMLSpanElement* CreateTabSpanElement(Document& document,
                                              Text* tab_text_node) {
   // Make the span to hold the tab.
   auto* span_element = MakeGarbageCollected<HTMLSpanElement>(document);
-  span_element->setAttribute(html_names::kStyleAttr, "white-space:pre");
+  span_element->setAttribute(html_names::kStyleAttr,
+                             AtomicString("white-space:pre"));
 
   // Add tab text to that span.
   if (!tab_text_node)
@@ -1306,7 +1304,7 @@ bool IsMailHTMLBlockquoteElement(const Node* node) {
     return false;
 
   return element->HasTagName(html_names::kBlockquoteTag) &&
-         element->getAttribute("type") == "cite";
+         element->getAttribute(html_names::kTypeAttr) == "cite";
 }
 
 bool ElementCannotHaveEndTag(const Node& node) {
@@ -1479,8 +1477,8 @@ bool IsBlockFlowElement(const Node& node) {
 bool IsInPasswordField(const Position& position) {
   TextControlElement* text_control = EnclosingTextControl(position);
   auto* html_input_element = DynamicTo<HTMLInputElement>(text_control);
-  return html_input_element &&
-         html_input_element->type() == input_type_names::kPassword;
+  return html_input_element && html_input_element->FormControlType() ==
+                                   FormControlType::kInputPassword;
 }
 
 // If current position is at grapheme boundary, return 0; otherwise, return the
@@ -1648,8 +1646,7 @@ static scoped_refptr<Image> ImageFromNode(const Node& node) {
 
   if (layout_object->IsCanvas()) {
     return To<HTMLCanvasElement>(const_cast<Node&>(node))
-        .Snapshot(CanvasResourceProvider::FlushReason::kClipboard,
-                  kFrontBuffer);
+        .Snapshot(FlushReason::kClipboard, kFrontBuffer);
   }
 
   if (!layout_object->IsImage())
@@ -1675,6 +1672,14 @@ AtomicString GetUrlStringFromNode(const Node& node) {
   return AtomicString();
 }
 
+void WriteImageToClipboard(SystemClipboard& system_clipboard,
+                           const scoped_refptr<Image>& image,
+                           const KURL& url_string,
+                           const String& title) {
+  system_clipboard.WriteImageWithTag(image.get(), url_string, title);
+  system_clipboard.CommitWrite();
+}
+
 void WriteImageNodeToClipboard(SystemClipboard& system_clipboard,
                                const Node& node,
                                const String& title) {
@@ -1683,8 +1688,7 @@ void WriteImageNodeToClipboard(SystemClipboard& system_clipboard,
     return;
   const KURL url_string = node.GetDocument().CompleteURL(
       StripLeadingAndTrailingHTMLSpaces(GetUrlStringFromNode(node)));
-  system_clipboard.WriteImageWithTag(image.get(), url_string, title);
-  system_clipboard.CommitWrite();
+  WriteImageToClipboard(system_clipboard, image, url_string, title);
 }
 
 Element* FindEventTargetFrom(LocalFrame& frame,

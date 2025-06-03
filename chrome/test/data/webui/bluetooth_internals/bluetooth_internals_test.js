@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {adapterBroker, checkSystemPermissions, devices, initializeViews, pageManager, sidebarObj} from 'chrome://bluetooth-internals/bluetooth_internals.js';
 import {BluetoothInternalsHandler} from 'chrome://bluetooth-internals/bluetooth_internals.mojom-webui.js';
 import {connectedDevices} from 'chrome://bluetooth-internals/device_broker.js';
 import {dismissSnackbar, getSnackbarStateForTest, showSnackbar} from 'chrome://bluetooth-internals/snackbar.js';
 import {UUID} from 'chrome://bluetooth-internals/uuid.mojom-webui.js';
 import {ValueDataType} from 'chrome://bluetooth-internals/value_control.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {$} from 'chrome://resources/js/util_ts.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertThrows, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {fakeAdapterInfo, fakeCharacteristicInfo1, fakeDeviceInfo1, fakeDeviceInfo2, fakeDeviceInfo3, fakeServiceInfo1, fakeServiceInfo2, TestAdapter, TestBluetoothInternalsHandler, TestDevice} from './test_utils.js';
 

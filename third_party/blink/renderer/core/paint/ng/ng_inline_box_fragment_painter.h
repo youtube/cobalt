@@ -7,10 +7,9 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/inline/physical_line_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_physical_line_box_fragment.h"
-#include "third_party/blink/renderer/core/paint/inline_box_painter_base.h"
 #include "third_party/blink/renderer/core/paint/ng/ng_box_fragment_painter.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
@@ -22,7 +21,7 @@ struct PhysicalRect;
 
 // Common base class for NGInlineBoxFragmentPainter and
 // NGLineBoxFragmentPainter.
-class NGInlineBoxFragmentPainterBase : public InlineBoxPainterBase {
+class NGInlineBoxFragmentPainterBase {
   STACK_ALLOCATED();
 
  public:
@@ -32,17 +31,17 @@ class NGInlineBoxFragmentPainterBase : public InlineBoxPainterBase {
 
  protected:
   NGInlineBoxFragmentPainterBase(const NGPhysicalFragment& inline_box_fragment,
-                                 const NGInlineCursor* inline_box_cursor,
-                                 const NGFragmentItem& inline_box_item,
+                                 const InlineCursor* inline_box_cursor,
+                                 const FragmentItem& inline_box_item,
                                  const LayoutObject& layout_object,
                                  const ComputedStyle& style,
                                  const ComputedStyle& line_style,
                                  NGInlinePaintContext* inline_context)
-      : InlineBoxPainterBase(layout_object,
-                             &layout_object.GetDocument(),
-                             layout_object.GeneratingNode(),
-                             style,
-                             line_style),
+      : image_observer_(layout_object),
+        document_(&layout_object.GetDocument()),
+        node_(layout_object.GeneratingNode()),
+        style_(style),
+        line_style_(line_style),
         inline_box_fragment_(inline_box_fragment),
         inline_box_item_(inline_box_item),
         inline_box_cursor_(inline_box_cursor),
@@ -57,10 +56,10 @@ class NGInlineBoxFragmentPainterBase : public InlineBoxPainterBase {
 #endif
   }
 
-  // Constructor for |NGFragmentItem|.
+  // Constructor for |FragmentItem|.
   NGInlineBoxFragmentPainterBase(
-      const NGInlineCursor& inline_box_cursor,
-      const NGFragmentItem& inline_box_item,
+      const InlineCursor& inline_box_cursor,
+      const FragmentItem& inline_box_item,
       const NGPhysicalBoxFragment& inline_box_fragment,
       const LayoutObject& layout_object,
       const ComputedStyle& style,
@@ -82,27 +81,74 @@ class NGInlineBoxFragmentPainterBase : public InlineBoxPainterBase {
   virtual PhysicalBoxSides SidesToInclude() const = 0;
 
   PhysicalRect PaintRectForImageStrip(const PhysicalRect&,
-                                      TextDirection direction) const override;
+                                      TextDirection direction) const;
+  static PhysicalRect ClipRectForNinePieceImageStrip(
+      const ComputedStyle& style,
+      PhysicalBoxSides sides_to_include,
+      const NinePieceImage& image,
+      const PhysicalRect& paint_rect);
 
-  BorderPaintingType GetBorderPaintType(
-      const PhysicalRect& adjusted_frame_rect,
-      gfx::Rect& adjusted_clip_rect,
-      bool object_has_multiple_boxes) const override;
+  enum SlicePaintingType {
+    kDontPaint,
+    kPaintWithoutClip,
+    kPaintWithClip,
+  };
+  SlicePaintingType GetBorderPaintType(const PhysicalRect& adjusted_frame_rect,
+                                       gfx::Rect& adjusted_clip_rect,
+                                       bool object_has_multiple_boxes) const;
+  SlicePaintingType GetSlicePaintType(const NinePieceImage&,
+                                      const PhysicalRect& adjusted_frame_rect,
+                                      gfx::Rect& adjusted_clip_rect,
+                                      bool object_has_multiple_boxes) const;
+
   void PaintNormalBoxShadow(const PaintInfo&,
                             const ComputedStyle&,
-                            const PhysicalRect& paint_rect) override;
+                            const PhysicalRect& paint_rect);
   void PaintInsetBoxShadow(const PaintInfo&,
                            const ComputedStyle&,
-                           const PhysicalRect& paint_rect) override;
+                           const PhysicalRect& paint_rect);
 
   void PaintBackgroundBorderShadow(const PaintInfo&,
                                    const PhysicalOffset& paint_offset);
 
+  void PaintBoxDecorationBackground(BoxPainterBase&,
+                                    const PaintInfo&,
+                                    const PhysicalOffset& paint_offset,
+                                    const PhysicalRect& adjusted_frame_rect,
+                                    BackgroundImageGeometry,
+                                    bool object_has_multiple_boxes,
+                                    PhysicalBoxSides sides_to_include);
+
+  void PaintFillLayers(BoxPainterBase&,
+                       const PaintInfo&,
+                       const Color&,
+                       const FillLayer&,
+                       const PhysicalRect&,
+                       BackgroundImageGeometry& geometry,
+                       bool object_has_multiple_boxes);
+  void PaintFillLayer(BoxPainterBase&,
+                      const PaintInfo&,
+                      const Color&,
+                      const FillLayer&,
+                      const PhysicalRect&,
+                      BackgroundImageGeometry& geometry,
+                      bool object_has_multiple_boxes);
+
   gfx::Rect VisualRect(const PhysicalOffset& paint_offset);
 
+  const ImageResourceObserver& image_observer_;
+  const Document* document_;
+  Node* node_;
+
+  // Style for the corresponding node.
+  const ComputedStyle& style_;
+
+  // Style taking ::first-line into account.
+  const ComputedStyle& line_style_;
+
   const NGPhysicalFragment& inline_box_fragment_;
-  const NGFragmentItem& inline_box_item_;
-  const NGInlineCursor* inline_box_cursor_ = nullptr;
+  const FragmentItem& inline_box_item_;
+  const InlineCursor* inline_box_cursor_ = nullptr;
   NGInlinePaintContext* inline_context_ = nullptr;
 };
 
@@ -112,9 +158,9 @@ class NGInlineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
   STACK_ALLOCATED();
 
  public:
-  // Constructor for |NGFragmentItem|.
-  NGInlineBoxFragmentPainter(const NGInlineCursor& inline_box_cursor,
-                             const NGFragmentItem& inline_box_item,
+  // Constructor for |FragmentItem|.
+  NGInlineBoxFragmentPainter(const InlineCursor& inline_box_cursor,
+                             const FragmentItem& inline_box_item,
                              const NGPhysicalBoxFragment& inline_box_fragment,
                              NGInlinePaintContext* inline_context)
       : NGInlineBoxFragmentPainterBase(inline_box_cursor,
@@ -126,8 +172,8 @@ class NGInlineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
                                        inline_context) {
     CheckValid();
   }
-  NGInlineBoxFragmentPainter(const NGInlineCursor& inline_box_cursor,
-                             const NGFragmentItem& inline_box_item,
+  NGInlineBoxFragmentPainter(const InlineCursor& inline_box_cursor,
+                             const FragmentItem& inline_box_item,
                              NGInlinePaintContext* inline_context)
       : NGInlineBoxFragmentPainter(inline_box_cursor,
                                    inline_box_item,
@@ -138,10 +184,20 @@ class NGInlineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
 
   void Paint(const PaintInfo&, const PhysicalOffset& paint_offset);
 
+  // Paint all fragments generated for the inline within the given block
+  // container, specified as a fragment data index. The index is relative to the
+  // first block fragment where the inline occurs.
+  //
+  // TODO(crbug.com/1478119): If looking up a FragmentData were O(1) instead of
+  // O(n), there should be no need to pass both FragmentData and the index.
   static void PaintAllFragments(const LayoutInline& layout_inline,
+                                const FragmentData& fragment_data,
+                                wtf_size_t fragment_data_idx,
                                 const PaintInfo&);
 
  private:
+  void PaintMask(const PaintInfo&, const PhysicalOffset& paint_offset);
+
   const NGPhysicalBoxFragment& PhysicalFragment() const {
     return static_cast<const NGPhysicalBoxFragment&>(inline_box_fragment_);
   }
@@ -163,7 +219,7 @@ class NGLineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
 
  public:
   NGLineBoxFragmentPainter(const NGPhysicalFragment& line_box_fragment,
-                           const NGFragmentItem& line_box_item,
+                           const FragmentItem& line_box_item,
                            const NGPhysicalBoxFragment& block_fragment)
       : NGLineBoxFragmentPainter(line_box_fragment,
                                  line_box_item,
@@ -183,7 +239,7 @@ class NGLineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
 
  private:
   NGLineBoxFragmentPainter(const NGPhysicalFragment& line_box_fragment,
-                           const NGFragmentItem& line_box_item,
+                           const FragmentItem& line_box_item,
                            const NGPhysicalBoxFragment& block_fragment,
                            const LayoutObject& layout_block_flow)
       : NGInlineBoxFragmentPainterBase(
@@ -205,8 +261,8 @@ class NGLineBoxFragmentPainter : public NGInlineBoxFragmentPainterBase {
     DCHECK(layout_block_flow.IsLayoutNGObject());
   }
 
-  const NGPhysicalLineBoxFragment& PhysicalFragment() const {
-    return static_cast<const NGPhysicalLineBoxFragment&>(inline_box_fragment_);
+  const PhysicalLineBoxFragment& PhysicalFragment() const {
+    return static_cast<const PhysicalLineBoxFragment&>(inline_box_fragment_);
   }
 
   PhysicalBoxSides SidesToInclude() const final { return PhysicalBoxSides(); }

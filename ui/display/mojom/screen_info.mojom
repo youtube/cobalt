@@ -34,17 +34,11 @@ struct ScreenInfo {
 
   // The display frequency in Hz of the monitor. Set to 0 if it fails in the
   // monitor frequency query.
-  uint32 display_frequency;
+  float display_frequency;
 
   // The display monitor rectangle in virtual-screen coordinates. Note that
   // this may be negative.
   gfx.mojom.Rect rect;
-
-  // This lets `window.screen` provide viewport dimensions while the frame is
-  // fullscreen as a speculative site compatibility measure, because web authors
-  // may assume that screen dimensions match window.innerWidth/innerHeight while
-  // a page is fullscreen, but that is not always true. crbug.com/1367416
-  gfx.mojom.Size? size_override;
 
   // The portion of the monitor's rectangle that can be used by applications.
   gfx.mojom.Rect available_rect;

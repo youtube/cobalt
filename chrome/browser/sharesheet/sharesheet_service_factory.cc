@@ -25,7 +25,8 @@ SharesheetService* SharesheetServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 SharesheetServiceFactory* SharesheetServiceFactory::GetInstance() {
-  return base::Singleton<SharesheetServiceFactory>::get();
+  static base::NoDestructor<SharesheetServiceFactory> instance;
+  return instance.get();
 }
 
 SharesheetServiceFactory::SharesheetServiceFactory()
@@ -42,7 +43,8 @@ SharesheetServiceFactory::SharesheetServiceFactory()
 
 SharesheetServiceFactory::~SharesheetServiceFactory() = default;
 
-KeyedService* SharesheetServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SharesheetServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -56,7 +58,7 @@ KeyedService* SharesheetServiceFactory::BuildServiceInstanceFor(
     return nullptr;
   }
 
-  return new SharesheetService(profile);
+  return std::make_unique<SharesheetService>(profile);
 }
 
 bool SharesheetServiceFactory::ServiceIsCreatedWithBrowserContext() const {

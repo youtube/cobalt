@@ -444,7 +444,7 @@ class JavaScriptDialogForPrerenderTest : public JavaScriptDialogTest {
                                 base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     JavaScriptDialogTest::SetUp();
   }
 
@@ -456,7 +456,8 @@ class JavaScriptDialogForPrerenderTest : public JavaScriptDialogTest {
   content::WebContents* web_contents() { return web_contents_; }
 
  protected:
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_ =
+      nullptr;
   content::test::PrerenderTestHelper prerender_helper_;
 };
 

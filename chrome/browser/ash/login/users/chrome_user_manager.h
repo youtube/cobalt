@@ -7,21 +7,13 @@
 
 #include "base/containers/flat_set.h"
 #include "base/memory/ref_counted.h"
-#include "base/scoped_observation.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ash/login/users/user_manager_interface.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
-#include "chrome/browser/ash/policy/core/reporting_user_tracker.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager_base.h"
-
-class PrefRegistrySimple;
-
-namespace policy {
-class ReportingUserTrackerTest;
-}  // namespace policy
 
 namespace ash {
 
@@ -37,17 +29,6 @@ class ChromeUserManager : public user_manager::UserManagerBase,
 
   ~ChromeUserManager() override;
 
-  // Registers the preferences that this class uses.
-  static void RegisterPrefs(PrefRegistrySimple* registry);
-
-  // user_manager::UserManagerBase:
-  bool IsCurrentUserNew() const override;
-  void UpdateLoginState(const user_manager::User* active_user,
-                        const user_manager::User* primary_user,
-                        bool is_current_user_owner) const override;
-  bool GetPlatformKnownUserId(const std::string& user_email,
-                              AccountId* out_account_id) const override;
-
   // Returns current ChromeUserManager or NULL if instance hasn't been
   // yet initialized.
   static ChromeUserManager* Get();
@@ -60,26 +41,6 @@ class ChromeUserManager : public user_manager::UserManagerBase,
   virtual void SetUserAffiliation(
       const AccountId& account_id,
       const base::flat_set<std::string>& user_affiliation_ids) = 0;
-
-  // Return whether the given user should be reported (see
-  // policy::DeviceStatusCollector).
-  bool ShouldReportUser(const std::string& user_id) const;
-
-  // Checks whether full management disclosure is needed for the public/managed
-  // session login screen UI. Full disclosure is needed if the session is
-  // managed and any risky extensions or network certificates are forced
-  // through the policies.
-  virtual bool IsFullManagementDisclosureNeeded(
-      policy::DeviceLocalAccountPolicyBroker* broker) const = 0;
-
- protected:
-  // TODO(b/267685577): Move this out to DeviceCloudPolicyManagerAsh.
-  friend policy::ReportingUserTrackerTest;
-  policy::ReportingUserTracker reporting_user_tracker_;
-
-  base::ScopedObservation<user_manager::UserManager,
-                          user_manager::UserManager::Observer>
-      reporting_user_tracker_observation_{&reporting_user_tracker_};
 
  private:
   LoginState::LoggedInUserType GetLoggedInUserType(

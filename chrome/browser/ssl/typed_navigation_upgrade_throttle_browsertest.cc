@@ -21,6 +21,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/error_page/common/net_error_info.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
+#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/security_interstitials/content/ssl_error_handler.h"
@@ -374,7 +375,7 @@ class TypedNavigationUpgradeThrottleBrowserTest
 
   void WaitForAutocompleteControllerDone() {
     AutocompleteController* controller =
-        omnibox()->model()->autocomplete_controller();
+        omnibox()->controller()->autocomplete_controller();
     ASSERT_TRUE(controller);
 
     if (controller->done())
@@ -391,7 +392,7 @@ class TypedNavigationUpgradeThrottleBrowserTest
     WaitForAutocompleteControllerDone();
     ASSERT_TRUE(omnibox()->model()->PopupIsOpen());
     EXPECT_EQ(base::UTF8ToUTF16(text),
-              omnibox()->model()->result().match_at(0).fill_into_edit);
+              omnibox()->controller()->result().match_at(0).fill_into_edit);
   }
 
  private:
@@ -1060,11 +1061,11 @@ IN_PROC_BROWSER_TEST_P(
   if (!IsFeatureEnabled()) {
     return;
   }
-  // First test a redirect to an HTTPS site, then to an HTTP site.
-  const std::vector<GURL> target_url_test_cases = {
-      https_server()->GetURL(kSiteWithGoodHttps, "/title1.html"),
-      embedded_test_server()->GetURL(kSiteWithGoodHttps, "/title1.html")};
-  for (const GURL& target_url : target_url_test_cases) {
+
+  // First test a redirect from an HTTP site to an HTTPS site
+  {
+    const GURL target_url =
+        https_server()->GetURL(kSiteWithGoodHttps, "/title1.html");
     const GURL url = embedded_test_server()->GetURL(
         kSiteWithGoodHttpsRedirect, "/server-redirect?" + target_url.spec());
 
@@ -1088,6 +1089,41 @@ IN_PROC_BROWSER_TEST_P(
     histograms.ExpectBucketCount(kEventHistogram, Event::kHttpsLoadSucceeded,
                                  2);
     histograms.ExpectBucketCount(kEventHistogram, Event::kRedirected, 2);
+  }
+
+  // Then test a redirect from an HTTP site to an HTTP site. With HTTPS-Upgrades
+  // also enabled, this will result in an extra two redirects. (HTTPS-Upgrades
+  // will intercept the navigation to the HTTP page when the server does the
+  // redirect and inject an artificial redirect back to HTTPS, then the server
+  // will redirect back to HTTP once more. HTTPS-Upgrades will detect the
+  // redirect loop and fallback to HTTP at this point.)
+  {
+    const GURL target_url =
+        embedded_test_server()->GetURL(kSiteWithGoodHttps, "/title1.html");
+    const GURL url = embedded_test_server()->GetURL(
+        kSiteWithGoodHttpsRedirect, "/server-redirect?" + target_url.spec());
+
+    base::HistogramTester histograms;
+    TypeUrlAndCheckRedirectToGoodHttps(GetURLWithoutScheme(url), histograms,
+                                       target_url);
+
+    histograms.ExpectTotalCount(kEventHistogram, 5);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kHttpsLoadStarted, 1);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kHttpsLoadSucceeded,
+                                 1);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kRedirected, 3);
+
+    // Try again. The navigation will be upgraded again and metrics will be
+    // recorded. HTTPS-Upgrades *won't* trigger this time as the hostname was
+    // added to the allowlist on the previous failure.
+    TypeUrlAndCheckRedirectToGoodHttps(GetURLWithoutScheme(url), histograms,
+                                       target_url);
+
+    histograms.ExpectTotalCount(kEventHistogram, 8);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kHttpsLoadStarted, 2);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kHttpsLoadSucceeded,
+                                 2);
+    histograms.ExpectBucketCount(kEventHistogram, Event::kRedirected, 4);
   }
 }
 

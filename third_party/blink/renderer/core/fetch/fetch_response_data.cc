@@ -163,9 +163,9 @@ String FetchResponseData::MimeType() const {
 
 BodyStreamBuffer* FetchResponseData::InternalBuffer() const {
   if (internal_response_) {
-    return internal_response_->buffer_;
+    return internal_response_->buffer_.Get();
   }
-  return buffer_;
+  return buffer_.Get();
 }
 
 String FetchResponseData::InternalMIMEType() const {
@@ -315,7 +315,7 @@ void FetchResponseData::InitFromResourceResponse(
   if (response.CurrentRequestUrl().ProtocolIsAbout() ||
       response.CurrentRequestUrl().ProtocolIsData() ||
       response.CurrentRequestUrl().ProtocolIs("blob")) {
-    SetStatusMessage("OK");
+    SetStatusMessage(AtomicString("OK"));
   } else {
     SetStatusMessage(response.HttpStatusText());
   }

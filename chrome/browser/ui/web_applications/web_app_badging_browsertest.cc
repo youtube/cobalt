@@ -6,6 +6,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
+#include "chrome/browser/apps/app_service/app_registry_cache_waiter.h"
 #include "chrome/browser/badging/badge_manager.h"
 #include "chrome/browser/badging/badge_manager_factory.h"
 #include "chrome/browser/badging/test_badge_manager_delegate.h"
@@ -16,7 +17,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
-#include "chrome/browser/web_applications/test/app_registry_cache_waiter.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -24,6 +24,7 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 
 using content::RenderFrameHost;
 
@@ -51,15 +52,15 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
     main_app_id_ = InstallPWA(start_url);
 
     GURL sub_start_url = https_server()->GetURL("/web_app_badging/blank.html");
-    auto sub_app_info = std::make_unique<WebAppInstallInfo>();
-    sub_app_info->start_url = sub_start_url;
+    auto sub_app_info =
+        WebAppInstallInfo::CreateWithStartUrlForTesting(sub_start_url);
     sub_app_info->scope = sub_start_url;
     sub_app_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
     sub_app_id_ = InstallWebApp(std::move(sub_app_info));
 
-    AppReadinessWaiter(profile(), cross_site_app_id_).Await();
-    AppReadinessWaiter(profile(), main_app_id_).Await();
-    AppReadinessWaiter(profile(), sub_app_id_).Await();
+    apps::AppReadinessWaiter(profile(), cross_site_app_id_).Await();
+    apps::AppReadinessWaiter(profile(), main_app_id_).Await();
+    apps::AppReadinessWaiter(profile(), sub_app_id_).Await();
 
     content::WebContents* web_contents = OpenApplication(main_app_id_);
     // There should be exactly 4 frames:
@@ -126,7 +127,8 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
     WebAppRegistrar& registrar = provider().registrar_unsafe();
     for (const auto& app_id : registrar.GetAppIds()) {
       web_app::test::UninstallWebApp(profile(), app_id);
-      AppReadinessWaiter(profile(), app_id, apps::Readiness::kUninstalledByUser)
+      apps::AppReadinessWaiter(profile(), app_id,
+                               apps::Readiness::kUninstalledByUser)
           .Await();
     }
 
@@ -161,7 +163,7 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
         set_badge_change.was_flagged_ =
             set_badge_change.last_badge_content_ == absl::nullopt;
 
-        const AppId& set_app_id = set_app_badge.first;
+        const webapps::AppId& set_app_id = set_app_badge.first;
         ASSERT_TRUE(badge_change_map_.find(set_app_id) ==
                     badge_change_map_.end())
             << "ERROR: Cannot record badge set.  App with ID: '" << set_app_id
@@ -194,7 +196,7 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
     awaiter_ = std::make_unique<base::RunLoop>();
     delegate_->ResetBadges();
 
-    ASSERT_TRUE(content::ExecuteScript(on, script));
+    ASSERT_TRUE(content::ExecJs(on, script));
 
     if (badge_change_map_.size() >= expected_badge_change_count_)
       return;
@@ -234,14 +236,17 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
         main_frame_, expected_badge_change_count);
   }
 
-  const AppId& main_app_id() { return main_app_id_; }
-  const AppId& sub_app_id() { return sub_app_id_; }
-  const AppId& cross_site_app_id() { return cross_site_app_id_; }
+  const webapps::AppId& main_app_id() { return main_app_id_; }
+  const webapps::AppId& sub_app_id() { return sub_app_id_; }
+  const webapps::AppId& cross_site_app_id() { return cross_site_app_id_; }
 
-  raw_ptr<RenderFrameHost, DanglingUntriaged> main_frame_;
-  raw_ptr<RenderFrameHost, DanglingUntriaged> sub_app_frame_;
-  raw_ptr<RenderFrameHost, DanglingUntriaged> in_scope_frame_;
-  raw_ptr<RenderFrameHost, DanglingUntriaged> cross_site_frame_;
+  raw_ptr<RenderFrameHost, AcrossTasksDanglingUntriaged> main_frame_ = nullptr;
+  raw_ptr<RenderFrameHost, AcrossTasksDanglingUntriaged> sub_app_frame_ =
+      nullptr;
+  raw_ptr<RenderFrameHost, AcrossTasksDanglingUntriaged> in_scope_frame_ =
+      nullptr;
+  raw_ptr<RenderFrameHost, AcrossTasksDanglingUntriaged> cross_site_frame_ =
+      nullptr;
 
   // Use this script text with EvalJs() on |main_frame_| to register a service
   // worker.  Use ReplaceJs() to replace $1 with the service worker scope URL.
@@ -266,12 +271,12 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
   };
 
   // Records a single badge update for multiple apps.
-  std::unordered_map<AppId, BadgeChange> badge_change_map_;
+  std::unordered_map<webapps::AppId, BadgeChange> badge_change_map_;
 
   // Gets the recorded badge update for |app_id| from |badge_change_map_|.
   // Asserts when no recorded badge update exists for |app_id|.  Calls should be
   // wrapped in the ASSERT_NO_FATAL_FAILURE() macro.
-  void GetBadgeChange(const AppId& app_id, BadgeChange* result) {
+  void GetBadgeChange(const webapps::AppId& app_id, BadgeChange* result) {
     auto it = badge_change_map_.find(app_id);
 
     ASSERT_NE(it, badge_change_map_.end())
@@ -281,11 +286,12 @@ class WebAppBadgingBrowserTest : public WebAppControllerBrowserTest {
   }
 
  private:
-  AppId main_app_id_;
-  AppId sub_app_id_;
-  AppId cross_site_app_id_;
+  webapps::AppId main_app_id_;
+  webapps::AppId sub_app_id_;
+  webapps::AppId cross_site_app_id_;
   std::unique_ptr<base::RunLoop> awaiter_;
-  raw_ptr<badging::TestBadgeManagerDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<badging::TestBadgeManagerDelegate, AcrossTasksDanglingUntriaged>
+      delegate_ = nullptr;
   net::EmbeddedTestServer cross_origin_https_server_;
 };
 
@@ -490,10 +496,10 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingBrowserTest,
                                          ->GetActiveWebContents()
                                          ->GetPrimaryMainFrame();
 
-  ASSERT_TRUE(
-      content::ExecuteScript(incognito_frame, "navigator.setAppBadge()"));
-  ASSERT_TRUE(
-      content::ExecuteScript(incognito_frame, "navigator.clearAppBadge()"));
+  ASSERT_TRUE(content::ExecJs(incognito_frame, "navigator.setAppBadge()",
+                              content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
+  ASSERT_TRUE(content::ExecJs(incognito_frame, "navigator.clearAppBadge()",
+                              content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
 
   // Updating badges through a ServiceWorkerGlobalScope must not crash.
   const std::string register_app_service_worker_script = content::JsReplace(

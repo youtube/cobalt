@@ -131,7 +131,9 @@ class TabSlotController {
   // Continues dragging a Tab. May enter a nested event loop - returns
   // Liveness::kDeleted if `this` was destroyed during this nested event loop,
   // and Liveness::kAlive if `this` is still alive.
-  virtual Liveness ContinueDrag(views::View* view, const ui::LocatedEvent& event) = 0;
+  [[nodiscard]] virtual Liveness ContinueDrag(
+      views::View* view,
+      const ui::LocatedEvent& event) = 0;
 
   // Ends dragging a Tab. Returns whether the tab has been destroyed.
   virtual bool EndDrag(EndDragReason reason) = 0;
@@ -177,18 +179,8 @@ class TabSlotController {
   // frame.
   virtual bool HasVisibleBackgroundTabShapes() const = 0;
 
-  // Returns whether the tab strip should be painted as if the window frame is
-  // active.
-  virtual bool ShouldPaintAsActiveFrame() const = 0;
-
   // Returns the color of the separator between the tabs.
   virtual SkColor GetTabSeparatorColor() const = 0;
-
-  // Returns the tab background color based on both the |tab_state| and the
-  // |active_state| of the window.
-  virtual SkColor GetTabBackgroundColor(
-      TabActive active,
-      BrowserFrameActiveState active_state) const = 0;
 
   // Returns the tab foreground color of the the text based on `active` and the
   // activation state of the window.

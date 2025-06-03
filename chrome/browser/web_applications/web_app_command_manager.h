@@ -17,7 +17,8 @@
 #include "base/types/pass_key.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/locks/web_app_lock_manager.h"
+#include "components/webapps/common/web_app_id.h"
 
 class Profile;
 
@@ -28,9 +29,7 @@ class WebContents;
 namespace web_app {
 
 class WebAppProvider;
-class WebAppLockManager;
 class WebAppUrlLoader;
-enum class WebAppUrlLoaderResult;
 
 // The command manager is used to schedule commands or callbacks to write & read
 // from the WebAppProvider system. To use, simply call `ScheduleCommand` to
@@ -45,8 +44,10 @@ class WebAppCommandManager {
  public:
   using PassKey = base::PassKey<WebAppCommandManager>;
 
-  explicit WebAppCommandManager(Profile* profile, WebAppProvider* provider);
+  explicit WebAppCommandManager(Profile* profile);
   ~WebAppCommandManager();
+
+  void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
 
   // Starts running commands.
   void Start();
@@ -60,12 +61,6 @@ class WebAppCommandManager {
   // have been `Start()`ed.
   void Shutdown();
 
-  // Called by the sync integration when a list of apps have had their sync
-  // sources removed and `is_uninstalling()` set to true. Any commands
-  // whose `lock_description().app_ids()` match an id in `app_id` who have also
-  // been `StartWithLock()`ed will also be notified.
-  void NotifySyncSourceRemoved(const std::vector<AppId>& app_ids);
-
   // Outputs a debug value of the state of the commands system, including
   // running and queued commands.
   base::Value ToDebugValue();
@@ -77,18 +72,17 @@ class WebAppCommandManager {
   bool IsInstallingForWebContents(
       const content::WebContents* web_contents) const;
 
-  std::size_t GetCommandCountForTesting() { return commands_.size(); }
+  std::size_t GetCommandCountForTesting();
+
+  std::size_t GetCommandsInstallingForWebContentsForTesting();
 
   void AwaitAllCommandsCompleteForTesting();
-
-  // TODO(https://crbug.com/1329934): Figure out better ownership of this.
-  void SetUrlLoaderForTesting(std::unique_ptr<WebAppUrlLoader> url_loader);
 
   bool has_web_contents_for_testing() const {
     return shared_web_contents_.get();
   }
 
-  WebAppLockManager& lock_manager() const { return *lock_manager_; }
+  WebAppLockManager& lock_manager() { return lock_manager_; }
 
   // Only used by `WebAppLockManager` to give web contents access to certain
   // locks.
@@ -108,12 +102,8 @@ class WebAppCommandManager {
   void OnLockAcquired(WebAppCommand::Id command_id,
                       base::OnceClosure start_command);
 
-  void StartCommandOrPrepareForLoad(WebAppCommand* command,
-                                    base::OnceClosure start_command);
-
-  void OnAboutBlankLoadedForCommandStart(WebAppCommand* command,
-                                         base::OnceClosure start_command,
-                                         WebAppUrlLoaderResult result);
+  void StartCommand(base::WeakPtr<WebAppCommand> command,
+                    base::OnceClosure start_command);
 
   content::WebContents* EnsureWebContentsCreated();
 
@@ -121,19 +111,17 @@ class WebAppCommandManager {
 
   std::vector<std::unique_ptr<WebAppCommand>> commands_waiting_for_start_;
 
-  raw_ptr<Profile> profile_;
-  raw_ptr<WebAppProvider> provider_;
+  raw_ptr<Profile> profile_ = nullptr;
+  raw_ptr<WebAppProvider> provider_ = nullptr;
 
-  // TODO(https://crbug.com/1329934): Figure out better ownership of this.
-  // Perhaps set as subsystem?
-  std::unique_ptr<WebAppUrlLoader> url_loader_;
   std::unique_ptr<content::WebContents> shared_web_contents_;
+  std::unique_ptr<WebAppUrlLoader> url_loader_;
 
   bool started_ = false;
   bool is_in_shutdown_ = false;
   std::deque<base::Value> command_debug_log_;
 
-  std::unique_ptr<WebAppLockManager> lock_manager_;
+  WebAppLockManager lock_manager_;
 
   std::map<WebAppCommand::Id, std::unique_ptr<WebAppCommand>> commands_{};
 

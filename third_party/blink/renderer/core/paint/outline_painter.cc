@@ -199,8 +199,7 @@ FloatRoundedRect::Radii ComputeCornerRadii(
     const PhysicalRect& reference_border_rect,
     float offset) {
   return RoundedBorderGeometry::PixelSnappedRoundedBorderWithOutsets(
-             style, reference_border_rect,
-             NGPhysicalBoxStrut(LayoutUnit(offset)))
+             style, reference_border_rect, PhysicalBoxStrut(LayoutUnit(offset)))
       .GetRadii();
 }
 
@@ -444,9 +443,9 @@ class ComplexOutlinePainter {
                                outline_style_ == EBorderStyle::kGroove)) {
       outline_style_ = EBorderStyle::kSolid;
       Color dark = color_.Dark();
-      color_ = Color((color_.Red() + dark.Red()) / 2,
-                     (color_.Green() + dark.Green()) / 2,
-                     (color_.Blue() + dark.Blue()) / 2, color_.Alpha());
+      color_ = Color(
+          (color_.Red() + dark.Red()) / 2, (color_.Green() + dark.Green()) / 2,
+          (color_.Blue() + dark.Blue()) / 2, color_.AlphaAsInteger());
     }
   }
 
@@ -456,11 +455,11 @@ class ComplexOutlinePainter {
       return;
     }
 
-    bool use_alpha_layer = color_.HasAlpha() &&
+    bool use_alpha_layer = !color_.IsOpaque() &&
                            outline_style_ != EBorderStyle::kSolid &&
                            outline_style_ != EBorderStyle::kDouble;
     if (use_alpha_layer) {
-      context_.BeginLayer(color_.Alpha() / 255.0);
+      context_.BeginLayer(color_.Alpha());
       color_ = Color::FromRGB(color_.Red(), color_.Green(), color_.Blue());
     }
 
@@ -894,8 +893,8 @@ void OutlinePainter::PaintOutlineRects(
         AdjustedOutlineOffset(*united_outline_rect, info.offset);
     BoxBorderPainter::PaintSingleRectOutline(
         paint_info.context, style, outline_rects[0], info.width,
-        NGPhysicalBoxStrut(offset.top(), offset.right(), offset.bottom(),
-                           offset.left()));
+        PhysicalBoxStrut(offset.top(), offset.right(), offset.bottom(),
+                         offset.left()));
     return;
   }
 

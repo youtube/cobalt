@@ -91,6 +91,7 @@ const char kTabNotFoundError[] = "No tab with id: *.";
 const char kCannotDiscardTab[] = "Cannot discard tab with id: *.";
 const char kCannotDuplicateTab[] = "Cannot duplicate tab with id: *.";
 const char kCannotFindTabToDiscard[] = "Cannot find a tab to discard.";
+const char kSavedTabGroupNotEditableError[] = "Saved groups are not editable.";
 const char kTabStripNotEditableError[] =
     "Tabs cannot be edited right now (user may be dragging a tab).";
 const char kTabStripNotEditableQueryError[] =
@@ -124,9 +125,9 @@ const char kCannotDetermineLanguageOfUnloadedTab[] =
 const char kMissingLockWindowFullscreenPrivatePermission[] =
     "Cannot lock window to fullscreen or close a locked fullscreen window "
     "without lockWindowFullscreenPrivate manifest permission";
-const char kJavaScriptUrlsNotAllowedInTabsUpdate[] =
-    "JavaScript URLs are not allowed in chrome.tabs.update. Use "
-    "chrome.tabs.executeScript instead.";
+const char kJavaScriptUrlsNotAllowedInExtensionNavigations[] =
+    "JavaScript URLs are not allowed in API based extension navigations. Use "
+    "chrome.scripting.executeScript instead.";
 const char kBrowserWindowNotAllowed[] = "Browser windows not allowed.";
 const char kLockedFullscreenModeNewTabError[] =
     "You cannot create new tabs while in locked fullscreen mode.";
@@ -142,6 +143,8 @@ const char kCannotHighlightTabs[] =
     "progress.";
 const char kNotAllowedForDevToolsError[] =
     "Operation not allowed for DevTools windows";
+const char kFileUrlsNotAllowedInExtensionNavigations[] =
+    "Cannot navigate to a file URL without local file access.";
 
 }  // namespace tabs_constants
 }  // namespace extensions

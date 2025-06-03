@@ -320,7 +320,8 @@
 
   <hr>
 
-  <button id="present-button" class="dropdown-item" on-click="onPresentClick_">
+  <button id="present-button" class="dropdown-item" on-click="onPresentClick_"
+      disabled="[[!presentationModeAvailable_]]">
     <span class="check-container" aria-hidden="true"></span>
     $i18n{present}
   </button>

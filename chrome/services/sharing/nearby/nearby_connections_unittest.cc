@@ -5,10 +5,7 @@
 #include "chrome/services/sharing/nearby/nearby_connections.h"
 
 #include <stdint.h>
-#include <algorithm>
-#include <memory>
 #include <sstream>
-#include <utility>
 
 #include "ash/public/cpp/network_config_service.h"
 #include "base/files/file_util.h"
@@ -22,6 +19,7 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "chrome/services/sharing/nearby/nearby_connections_conversions.h"
+#include "chrome/services/sharing/nearby/nearby_presence_conversions.h"
 #include "chrome/services/sharing/nearby/test_support/fake_adapter.h"
 #include "chrome/services/sharing/nearby/test_support/mock_webrtc_dependencies.h"
 #include "chromeos/ash/services/nearby/public/cpp/fake_firewall_hole_factory.h"
@@ -38,9 +36,15 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/nearby/src/connections/implementation/mock_service_controller_router.h"
+#include "third_party/nearby/src/connections/implementation/service_controller_router.h"
+#include "third_party/nearby/src/connections/v3/bandwidth_info.h"
+#include "third_party/nearby/src/connections/v3/connection_result.h"
+#include "third_party/nearby/src/connections/v3/connections_device.h"
+#include "third_party/nearby/src/connections/v3/listeners.h"
 
-namespace nearby {
-namespace connections {
+namespace nearby::connections {
+
+using PresenceDevicePtr = ash::nearby::presence::mojom::PresenceDevicePtr;
 
 namespace {
 
@@ -50,6 +54,10 @@ const char kFastAdvertisementServiceUuid[] =
     "0000fef3-0000-1000-8000-00805f9b34fb";
 const size_t kEndpointIdLength = 4u;
 const char kEndpointInfo[] = {0x0d, 0x07, 0x07, 0x07, 0x07};
+const char kAccountName[] = "criscros@gmail.com";
+const char kUserName[] = "CrisCrOS";
+const char kDeviceName[] = "Cris Cros's Pixel";
+const char kDeviceProfileUrl[] = "cris_cros_url";
 const char kRemoteEndpointInfo[] = {0x0d, 0x07, 0x06, 0x08, 0x09};
 const char kAuthenticationToken[] = "authentication_token";
 const char kRawAuthenticationToken[] = {0x00, 0x05, 0x04, 0x03, 0x02};
@@ -61,16 +69,16 @@ const base::TimeDelta kKeepAliveTimeout = base::Milliseconds(31234);
 
 mojom::AdvertisingOptionsPtr CreateAdvertisingOptions() {
   bool use_ble = false;
-  auto allowed_mediums = mojom::MediumSelection::New(/*bluetooth=*/true,
-                                                     /*ble=*/use_ble,
-                                                     /*web_rtc=*/false,
-                                                     /*wifi_lan=*/true);
+  auto allowed_mediums = mojom::MediumSelection::New(/* bluetooth= */ true,
+                                                     /* ble= */ use_ble,
+                                                     /* web_rtc= */ false,
+                                                     /* wifi_lan= */ true);
   return mojom::AdvertisingOptions::New(
       mojom::Strategy::kP2pPointToPoint, std::move(allowed_mediums),
-      /*auto_upgrade_bandwidth=*/true,
-      /*enforce_topology_constraints=*/true,
-      /*enable_bluetooth_listening=*/use_ble,
-      /*enable_webrtc_listening=*/false,
+      /* auto_upgrade_bandwidth= */ true,
+      /* enforce_topology_constraints= */ true,
+      /* enable_bluetooth_listening= */ use_ble,
+      /* enable_webrtc_listening= */ false,
       /*fast_advertisement_service_uuid=*/
       device::BluetoothUUID(kFastAdvertisementServiceUuid));
 }
@@ -79,10 +87,10 @@ mojom::ConnectionOptionsPtr CreateConnectionOptions(
     absl::optional<std::vector<uint8_t>> bluetooth_mac_address,
     base::TimeDelta keep_alive_interval,
     base::TimeDelta keep_alive_timeout) {
-  auto allowed_mediums = mojom::MediumSelection::New(/*bluetooth=*/true,
-                                                     /*ble=*/false,
-                                                     /*web_rtc=*/false,
-                                                     /*wifi_lan=*/true);
+  auto allowed_mediums = mojom::MediumSelection::New(/* bluetooth= */ true,
+                                                     /* ble= */ false,
+                                                     /* web_rtc= */ false,
+                                                     /* wifi_lan= */ true);
   return mojom::ConnectionOptions::New(std::move(allowed_mediums),
                                        std::move(bluetooth_mac_address),
                                        keep_alive_interval, keep_alive_timeout);
@@ -100,14 +108,100 @@ const EndpointData CreateEndpointData(int id) {
   // |id| followed by spaces until the correct length is reached.
   std::stringstream ss;
   ss << id;
-  while (ss.str().size() < kEndpointIdLength)
+  while (ss.str().size() < kEndpointIdLength) {
     ss << " ";
+  }
   endpoint_data.remote_endpoint_id = ss.str();
 
   endpoint_data.remote_endpoint_info = std::vector<uint8_t>(
       std::begin(kRemoteEndpointInfo), std::end(kRemoteEndpointInfo));
   endpoint_data.remote_endpoint_info.push_back(id);
   return endpoint_data;
+}
+
+nearby::internal::Metadata CreateMetadata() {
+  nearby::internal::Metadata metadata;
+  metadata.set_device_type(nearby::internal::DeviceType::DEVICE_TYPE_PHONE);
+  metadata.set_account_name(kAccountName);
+  metadata.set_user_name(kUserName);
+  metadata.set_device_name(kDeviceName);
+  metadata.set_device_profile_url(kDeviceProfileUrl);
+  metadata.set_bluetooth_mac_address((char*)kBluetoothMacAddress);
+  return metadata;
+}
+
+v3::Quality GetMediumQuality(Medium medium) {
+  switch (medium) {
+    case location::nearby::proto::connections::USB:
+    case location::nearby::proto::connections::UNKNOWN_MEDIUM:
+      return v3::Quality::kUnknown;
+    case location::nearby::proto::connections::BLE:
+    case location::nearby::proto::connections::NFC:
+      return v3::Quality::kLow;
+    case location::nearby::proto::connections::BLUETOOTH:
+    case location::nearby::proto::connections::BLE_L2CAP:
+      return v3::Quality::kMedium;
+    case location::nearby::proto::connections::WIFI_HOTSPOT:
+    case location::nearby::proto::connections::WIFI_LAN:
+    case location::nearby::proto::connections::WIFI_AWARE:
+    case location::nearby::proto::connections::WIFI_DIRECT:
+    case location::nearby::proto::connections::WEB_RTC:
+      return v3::Quality::kHigh;
+    default:
+      return v3::Quality::kUnknown;
+  }
+}
+
+// A conversion is needed because `ClientProxy` was designed to support V3 APIs
+// by wrapping new listeners as the old ones. This allows us to align with the
+// Nearby library and mimics its behavior in the unit test.
+ConnectionListener ConvertConnectionListenerV3ToV1(
+    const NearbyDevice& remote_device,
+    v3::ConnectionListener v3_listener) {
+  return ConnectionListener({
+      .initiated_cb =
+          [&v3_listener, &remote_device](
+              const std::string& endpoint_id,
+              const ConnectionResponseInfo response_info) mutable {
+            v3::InitialConnectionInfo new_info{
+                .authentication_digits = response_info.authentication_token,
+                .raw_authentication_token =
+                    response_info.raw_authentication_token.string_data(),
+                .is_incoming_connection = response_info.is_incoming_connection,
+            };
+            v3_listener.initiated_cb(remote_device, new_info);
+          },
+      .accepted_cb =
+          [result_cb = v3_listener.result_cb](const std::string& endpoint_id) {
+            v3::ConnectionResult result = {
+                .status = {Status::kSuccess},
+            };
+            result_cb(v3::ConnectionsDevice(endpoint_id, "", {}), result);
+          },
+      .rejected_cb =
+          [result_cb = v3_listener.result_cb](const std::string& endpoint_id,
+                                              Status status) {
+            v3::ConnectionResult result = {
+                .status = status,
+            };
+            result_cb(v3::ConnectionsDevice(endpoint_id, "", {}), result);
+          },
+      .disconnected_cb =
+          [&v3_listener](const std::string& endpoint_id) mutable {
+            v3_listener.disconnected_cb(
+                v3::ConnectionsDevice(endpoint_id, "", {}));
+          },
+      .bandwidth_changed_cb =
+          [&v3_listener](const std::string& endpoint_id,
+                         Medium medium) mutable {
+            v3::BandwidthInfo bandwidth_info = {
+                .quality = GetMediumQuality(medium),
+                .medium = medium,
+            };
+            v3_listener.bandwidth_changed_cb(
+                v3::ConnectionsDevice(endpoint_id, "", {}), bandwidth_info);
+          },
+  });
 }
 
 }  // namespace
@@ -191,6 +285,22 @@ class FakePayloadListener : public mojom::PayloadListener {
       payload_progress_cb = base::DoNothing();
 };
 
+class FakeConnectionListenerV3 : public mojom::ConnectionListenerV3 {
+ public:
+  // TODO(b/287336280): Introduce functions when callback implementation begins.
+
+  mojo::Receiver<mojom::ConnectionListenerV3> receiver{this};
+  base::RepeatingCallback<void(PresenceDevicePtr,
+                               mojom::InitialConnectionInfoV3)>
+      initiated_cb = base::DoNothing();
+  base::RepeatingCallback<void(PresenceDevicePtr, mojom::Status)> result_cb =
+      base::DoNothing();
+  base::RepeatingCallback<void(PresenceDevicePtr)> disconnected_cb =
+      base::DoNothing();
+  base::RepeatingCallback<void(PresenceDevicePtr, mojom::BandwidthInfo)>
+      bandwidth_changed_cb = base::DoNothing();
+};
+
 using ::testing::_;
 using ::testing::Return;
 class MockInputStream : public InputStream {
@@ -216,10 +326,10 @@ class NearbyConnectionsTest : public testing::Test {
 
     // Called when Cores are destroyed.
     ON_CALL(*service_controller_router_ptr_, StopAllEndpoints)
-        .WillByDefault(
-            [&](ClientProxy* client, const ResultCallback& callback) {
-              callback.result_cb({Status::kSuccess});
-            });
+        .WillByDefault([&](ClientProxy* client, ResultCallback callback) {
+          EXPECT_TRUE(callback);
+          callback({Status::kSuccess});
+        });
   }
 
   void OnDisconnect() { disconnect_run_loop_.Quit(); }
@@ -231,8 +341,7 @@ class NearbyConnectionsTest : public testing::Test {
     EXPECT_CALL(*service_controller_router_ptr_, StartDiscovery)
         .WillOnce([&](ClientProxy* client, absl::string_view service_id,
                       const DiscoveryOptions& options,
-                      const DiscoveryListener& listener,
-                      const ResultCallback& callback) {
+                      DiscoveryListener listener, ResultCallback callback) {
           client_proxy = client;
           EXPECT_EQ(kServiceId, service_id);
           EXPECT_EQ(Strategy::kP2pPointToPoint, options.strategy);
@@ -248,19 +357,20 @@ class NearbyConnectionsTest : public testing::Test {
                       options.fast_advertisement_service_uuid);
           }
           client->StartedDiscovery(std::string{service_id}, options.strategy,
-                                   listener,
-                                   /*mediums=*/{});
-          callback.result_cb({Status::kAlreadyDiscovering});
+                                   std::move(listener),
+                                   /* mediums= */ {});
+          EXPECT_TRUE(callback);
+          callback({Status::kAlreadyDiscovering});
         });
     base::RunLoop start_discovery_run_loop;
     nearby_connections_->StartDiscovery(
         kServiceId,
         mojom::DiscoveryOptions::New(
             mojom::Strategy::kP2pPointToPoint,
-            mojom::MediumSelection::New(/*bluetooth=*/true,
-                                        /*ble=*/false,
-                                        /*web_rtc=*/false,
-                                        /*wifi_lan=*/true),
+            mojom::MediumSelection::New(/* bluetooth= */ true,
+                                        /* ble= */ false,
+                                        /* web_rtc= */ false,
+                                        /* wifi_lan= */ true),
             device::BluetoothUUID(kFastAdvertisementServiceUuid),
             is_out_of_band_connection),
         fake_discovery_listener.receiver.BindNewPipeAndPassRemote(),
@@ -283,7 +393,7 @@ class NearbyConnectionsTest : public testing::Test {
         .WillOnce([&](ClientProxy* client, absl::string_view service_id,
                       const AdvertisingOptions& options,
                       const ConnectionRequestInfo& info,
-                      const ResultCallback& callback) {
+                      ResultCallback callback) {
           client_proxy = client;
           EXPECT_EQ(kServiceId, service_id);
           EXPECT_EQ(Strategy::kP2pPointToPoint, options.strategy);
@@ -296,7 +406,7 @@ class NearbyConnectionsTest : public testing::Test {
 
           client_proxy->StartedAdvertising(std::string{service_id},
                                            options.strategy, info.listener,
-                                           /*mediums=*/{});
+                                           /* mediums= */ {});
           ConnectionOptions connection_options{
               .auto_upgrade_bandwidth = options.auto_upgrade_bandwidth,
               .enforce_topology_constraints =
@@ -317,7 +427,8 @@ class NearbyConnectionsTest : public testing::Test {
                    kRawAuthenticationToken, sizeof(kRawAuthenticationToken)),
                .is_incoming_connection = false},
               connection_options, info.listener, kConnectionToken);
-          callback.result_cb({Status::kSuccess});
+          EXPECT_TRUE(callback);
+          callback({Status::kSuccess});
         });
 
     base::RunLoop start_advertising_run_loop;
@@ -346,7 +457,7 @@ class NearbyConnectionsTest : public testing::Test {
         .WillOnce([&](ClientProxy* client, absl::string_view endpoint_id,
                       const ConnectionRequestInfo& info,
                       const ConnectionOptions& options,
-                      const ResultCallback& callback) {
+                      ResultCallback callback) {
           client_proxy = client;
           EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_id);
           EXPECT_EQ(endpoint_info, ByteArrayToMojom(info.endpoint_info));
@@ -372,7 +483,8 @@ class NearbyConnectionsTest : public testing::Test {
                    kRawAuthenticationToken, sizeof(kRawAuthenticationToken)),
                .is_incoming_connection = false},
               options, info.listener, kConnectionToken);
-          callback.result_cb({Status::kSuccess});
+          EXPECT_TRUE(callback);
+          callback({Status::kSuccess});
         });
 
     base::RunLoop request_connection_run_loop;
@@ -396,14 +508,14 @@ class NearbyConnectionsTest : public testing::Test {
     EXPECT_CALL(*service_controller_router_ptr_, AcceptConnection)
         .WillOnce([&client_proxy, &remote_endpoint_id](
                       ClientProxy* client, absl::string_view endpoint_id,
-                      const PayloadListener& listener,
-                      const ResultCallback& callback) {
+                      PayloadListener listener, ResultCallback callback) {
           client_proxy = client;
           EXPECT_EQ(remote_endpoint_id, endpoint_id);
           client_proxy->LocalEndpointAcceptedConnection(
-              std::string{endpoint_id}, listener);
+              std::string{endpoint_id}, std::move(listener));
           client_proxy->OnConnectionAccepted(std::string(endpoint_id));
-          callback.result_cb({Status::kSuccess});
+          EXPECT_TRUE(callback);
+          callback({Status::kSuccess});
         });
 
     base::RunLoop accept_connection_run_loop;
@@ -416,6 +528,61 @@ class NearbyConnectionsTest : public testing::Test {
         }));
     accept_connection_run_loop.Run();
 
+    return client_proxy;
+  }
+
+  ClientProxy* RequestConnectionV3(
+      FakeConnectionListenerV3& fake_connection_listener_v3,
+      PresenceDevicePtr remote_device,
+      absl::optional<std::vector<uint8_t>> bluetooth_mac_address =
+          std::vector<uint8_t>(std::begin(kBluetoothMacAddress),
+                               std::end(kBluetoothMacAddress))) {
+    ClientProxy* client_proxy;
+
+    EXPECT_CALL(*service_controller_router_ptr_, RequestConnectionV3)
+        .WillOnce([&](ClientProxy* client, const NearbyDevice& nearby_device,
+                      v3::ConnectionRequestInfo info,
+                      const ConnectionOptions& options,
+                      ResultCallback callback) {
+          client_proxy = client;
+
+          EXPECT_TRUE(options.allowed.bluetooth);
+          EXPECT_EQ(kKeepAliveInterval.InMilliseconds(),
+                    options.keep_alive_interval_millis);
+          EXPECT_EQ(kKeepAliveTimeout.InMilliseconds(),
+                    options.keep_alive_timeout_millis);
+          EXPECT_EQ(bluetooth_mac_address,
+                    ByteArrayToMojom(options.remote_bluetooth_mac_address));
+
+          client_proxy->OnConnectionInitiated(
+              std::string{nearby_device.GetEndpointId()},
+              {.remote_endpoint_info = ByteArrayFromMojom(
+                   std::vector<uint8_t>(std::begin(kRemoteEndpointInfo),
+                                        std::end(kRemoteEndpointInfo))),
+               .authentication_token = kAuthenticationToken,
+               .raw_authentication_token = ByteArray(
+                   kRawAuthenticationToken, sizeof(kRawAuthenticationToken)),
+               .is_incoming_connection = false},
+              options,
+              ConvertConnectionListenerV3ToV1(nearby_device,
+                                              std::move(info.listener)),
+              kConnectionToken);
+
+          EXPECT_TRUE(callback);
+          callback({Status::kSuccess});
+        });
+
+    base::RunLoop request_connection_run_loop;
+    nearby_connections_->RequestConnectionV3(
+        kServiceId, std::move(remote_device),
+        CreateConnectionOptions(bluetooth_mac_address, kKeepAliveInterval,
+                                kKeepAliveTimeout),
+        fake_connection_listener_v3.receiver.BindNewPipeAndPassRemote(),
+        base::BindLambdaForTesting([&](mojom::Status status) {
+          EXPECT_EQ(mojom::Status::kSuccess, status);
+          request_connection_run_loop.Quit();
+        }));
+    request_connection_run_loop.Run();
     return client_proxy;
   }
 
@@ -459,7 +626,7 @@ TEST_F(NearbyConnectionsTest, StartDiscovery) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
   endpoint_found_run_loop.Run();
 
   base::RunLoop endpoint_lost_run_loop;
@@ -477,8 +644,9 @@ TEST_F(NearbyConnectionsTest, StopDiscovery) {
   StartDiscovery(fake_discovery_listener);
 
   EXPECT_CALL(*service_controller_router_ptr_, StopDiscovery)
-      .WillOnce([](ClientProxy* client, const ResultCallback& callback) {
-        callback.result_cb({Status::kSuccess});
+      .WillOnce([](ClientProxy* client, ResultCallback callback) {
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop stop_discovery_run_loop;
@@ -507,12 +675,12 @@ TEST_F(NearbyConnectionsTest, InjectEndpoint) {
       });
 
   ClientProxy* client_proxy = StartDiscovery(
-      fake_discovery_listener, /*is_out_of_band_connection=*/true);
+      fake_discovery_listener, /* is_out_of_band_connection= */ true);
 
   EXPECT_CALL(*service_controller_router_ptr_, InjectEndpoint)
       .WillOnce([&](ClientProxy* client, absl::string_view service_id,
                     const OutOfBandConnectionMetadata& metadata,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         EXPECT_EQ(kServiceId, service_id);
         EXPECT_EQ(Medium::BLUETOOTH, metadata.medium);
         EXPECT_EQ(endpoint_data.remote_endpoint_id, metadata.endpoint_id);
@@ -523,8 +691,9 @@ TEST_F(NearbyConnectionsTest, InjectEndpoint) {
         client_proxy->OnEndpointFound(
             kServiceId, endpoint_data.remote_endpoint_id,
             ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-            /*medium=*/{});
-        callback.result_cb({Status::kSuccess});
+            /* medium= */ {});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop inject_run_loop;
@@ -547,7 +716,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionInitiated) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   base::RunLoop initiated_run_loop;
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
@@ -575,12 +744,12 @@ TEST_F(NearbyConnectionsTest,
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
 
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data,
-                    /*bluetooth_mac_address=*/absl::nullopt);
+                    /* bluetooth_mac_address= */ absl::nullopt);
 }
 
 TEST_F(NearbyConnectionsTest, RequestConnectionAccept) {
@@ -590,7 +759,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionAccept) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -614,7 +783,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionOnRejected) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   client_proxy =
@@ -640,7 +809,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionOnBandwidthUpgrade) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -662,12 +831,13 @@ TEST_F(NearbyConnectionsTest, RequestConnectionOnBandwidthUpgrade) {
   // Requesting a bandwidth upgrade should succeed.
   EXPECT_CALL(*service_controller_router_ptr_, InitiateBandwidthUpgrade)
       .WillOnce([&](ClientProxy* client, absl::string_view endpoint_id,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         client_proxy = client;
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_id);
         client_proxy->OnBandwidthChanged(std::string{endpoint_id},
                                          Medium::WEB_RTC);
-        callback.result_cb({Status::kSuccess});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
   base::RunLoop bandwidth_upgrade_run_loop;
   nearby_connections_->InitiateBandwidthUpgrade(
@@ -688,7 +858,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionOnDisconnected) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -705,7 +875,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionOnDisconnected) {
       });
 
   client_proxy->OnDisconnected(endpoint_data.remote_endpoint_id,
-                               /*notify=*/true);
+                               /* notify= */ true);
   disconnected_run_loop.Run();
 }
 
@@ -716,7 +886,7 @@ TEST_F(NearbyConnectionsTest, RequestConnectionDisconnect) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -726,10 +896,11 @@ TEST_F(NearbyConnectionsTest, RequestConnectionDisconnect) {
 
   EXPECT_CALL(*service_controller_router_ptr_, DisconnectFromEndpoint)
       .WillOnce([&](ClientProxy* client, absl::string_view endpoint_id,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         EXPECT_EQ(endpoint_data.remote_endpoint_id, std::string(endpoint_id));
-        client->OnDisconnected(std::string{endpoint_id}, /*notify=*/true);
-        callback.result_cb({Status::kSuccess});
+        client->OnDisconnected(std::string{endpoint_id}, /* notify= */ true);
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop disconnected_run_loop;
@@ -757,7 +928,7 @@ TEST_F(NearbyConnectionsTest, OnPayloadTransferUpdate) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -788,7 +959,7 @@ TEST_F(NearbyConnectionsTest, SendBytesPayload) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -799,13 +970,14 @@ TEST_F(NearbyConnectionsTest, SendBytesPayload) {
   EXPECT_CALL(*service_controller_router_ptr_, SendPayload)
       .WillOnce([&](ClientProxy* client,
                     absl::Span<const std::string> endpoint_ids, Payload payload,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         ASSERT_EQ(1u, endpoint_ids.size());
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_ids.front());
         EXPECT_EQ(PayloadType::kBytes, payload.GetType());
         std::string payload_bytes(payload.AsBytes());
         EXPECT_EQ(expected_payload, ByteArrayToMojom(payload.AsBytes()));
-        callback.result_cb({Status::kSuccess});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop send_payload_run_loop;
@@ -831,7 +1003,7 @@ TEST_F(NearbyConnectionsTest, SendBytesPayloadCancelled) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   client_proxy =
@@ -844,13 +1016,14 @@ TEST_F(NearbyConnectionsTest, SendBytesPayloadCancelled) {
   EXPECT_CALL(*service_controller_router_ptr_, SendPayload)
       .WillOnce([&](ClientProxy* client,
                     absl::Span<const std::string> endpoint_ids, Payload payload,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         ASSERT_EQ(1u, endpoint_ids.size());
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_ids.front());
         EXPECT_EQ(PayloadType::kBytes, payload.GetType());
         std::string payload_bytes(payload.AsBytes());
         EXPECT_EQ(expected_payload, ByteArrayToMojom(payload.AsBytes()));
-        callback.result_cb({Status::kSuccess});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop send_payload_run_loop;
@@ -869,8 +1042,9 @@ TEST_F(NearbyConnectionsTest, SendBytesPayloadCancelled) {
       *service_controller_router_ptr_,
       CancelPayload(testing::_, testing::Eq((uint64_t)kPayloadId), testing::_))
       .WillOnce([&](ClientProxy* client, std::uint64_t payload_id,
-                    const ResultCallback& callback) {
-        callback.result_cb({Status::kSuccess});
+                    ResultCallback callback) {
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop cancel_payload_run_loop;
@@ -893,7 +1067,7 @@ TEST_F(NearbyConnectionsTest, SendFilePayload) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
   RequestConnection(fake_connection_life_cycle_listener, endpoint_data);
@@ -904,7 +1078,7 @@ TEST_F(NearbyConnectionsTest, SendFilePayload) {
   EXPECT_CALL(*service_controller_router_ptr_, SendPayload)
       .WillOnce([&](ClientProxy* client,
                     absl::Span<const std::string> endpoint_ids, Payload payload,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         ASSERT_EQ(1u, endpoint_ids.size());
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_ids.front());
         EXPECT_EQ(PayloadType::kFile, payload.GetType());
@@ -913,7 +1087,8 @@ TEST_F(NearbyConnectionsTest, SendFilePayload) {
         ExceptionOr<ByteArray> bytes = file->Read(file->GetTotalSize());
         ASSERT_TRUE(bytes.ok());
         EXPECT_EQ(expected_payload, ByteArrayToMojom(bytes.result()));
-        callback.result_cb({Status::kSuccess});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::FilePath path;
@@ -922,7 +1097,7 @@ TEST_F(NearbyConnectionsTest, SendFilePayload) {
                                    base::File::Flags::FLAG_WRITE);
   ASSERT_TRUE(output_file.IsValid());
   EXPECT_TRUE(output_file.WriteAndCheck(
-      /*offset=*/0, base::make_span(expected_payload)));
+      /* offset= */ 0, base::make_span(expected_payload)));
   EXPECT_TRUE(output_file.Flush());
   output_file.Close();
 
@@ -1014,8 +1189,9 @@ TEST_F(NearbyConnectionsTest, StopAdvertising) {
   StartAdvertising(fake_connection_life_cycle_listener, endpoint_data);
 
   EXPECT_CALL(*service_controller_router_ptr_, StopAdvertising)
-      .WillOnce([](ClientProxy* client, const ResultCallback& callback) {
-        callback.result_cb({Status::kSuccess});
+      .WillOnce([](ClientProxy* client, ResultCallback callback) {
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop stop_advertising_run_loop;
@@ -1034,7 +1210,7 @@ TEST_F(NearbyConnectionsTest, DisconnectAllEndpoints) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   // Set up a connection to one endpoint.
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener;
@@ -1049,7 +1225,7 @@ TEST_F(NearbyConnectionsTest, DisconnectAllEndpoints) {
   client_proxy->OnEndpointFound(
       kServiceId, endpoint_data2.remote_endpoint_id,
       ByteArrayFromMojom(endpoint_data2.remote_endpoint_info),
-      /*medium=*/{});
+      /* medium= */ {});
 
   FakeConnectionLifecycleListener fake_connection_life_cycle_listener2;
   ConnectionListener connections_listener2;
@@ -1057,8 +1233,9 @@ TEST_F(NearbyConnectionsTest, DisconnectAllEndpoints) {
 
   EXPECT_CALL(*service_controller_router_ptr_, StopAllEndpoints)
       .Times(2)
-      .WillRepeatedly([&](ClientProxy* client, const ResultCallback& callback) {
-        callback.result_cb({Status::kSuccess});
+      .WillRepeatedly([&](ClientProxy* client, ResultCallback callback) {
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
 
   base::RunLoop stop_endpoints_run_loop;
@@ -1074,9 +1251,10 @@ TEST_F(NearbyConnectionsTest, InitiateBandwidthUpgrade) {
   EndpointData endpoint_data = CreateEndpointData(1);
   EXPECT_CALL(*service_controller_router_ptr_, InitiateBandwidthUpgrade)
       .WillOnce([&](ClientProxy* client, absl::string_view endpoint_id,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_id);
-        callback.result_cb({Status::kSuccess});
+        EXPECT_TRUE(callback);
+        callback({Status::kSuccess});
       });
   base::RunLoop bandwidth_upgrade_run_loop;
   nearby_connections_->InitiateBandwidthUpgrade(
@@ -1092,9 +1270,10 @@ TEST_F(NearbyConnectionsTest, InitiateBandwidthUpgradeFails) {
   EndpointData endpoint_data = CreateEndpointData(1);
   EXPECT_CALL(*service_controller_router_ptr_, InitiateBandwidthUpgrade)
       .WillOnce([&](ClientProxy* client, absl::string_view endpoint_id,
-                    const ResultCallback& callback) {
+                    ResultCallback callback) {
         EXPECT_EQ(endpoint_data.remote_endpoint_id, endpoint_id);
-        callback.result_cb({Status::kOutOfOrderApiCall});
+        EXPECT_TRUE(callback);
+        callback({Status::kOutOfOrderApiCall});
       });
   base::RunLoop bandwidth_upgrade_run_loop;
   nearby_connections_->InitiateBandwidthUpgrade(
@@ -1194,7 +1373,8 @@ TEST_F(NearbyConnectionsTest, ReceiveFilePayload) {
 
         base::File& file = payload->content->get_file()->file;
         std::vector<uint8_t> buffer(file.GetLength());
-        EXPECT_TRUE(file.ReadAndCheck(/*offset=*/0, base::make_span(buffer)));
+        EXPECT_TRUE(
+            file.ReadAndCheck(/* offset= */ 0, base::make_span(buffer)));
         EXPECT_EQ(expected_payload, buffer);
 
         payload_run_loop.Quit();
@@ -1234,15 +1414,19 @@ TEST_F(NearbyConnectionsTest, ReceiveFilePayloadNotRegistered) {
       *service_controller_router_ptr_,
       CancelPayload(testing::_, testing::Eq((uint64_t)kPayloadId), testing::_))
       .WillOnce([&](ClientProxy* client, std::uint64_t payload_id,
-                    const ResultCallback& callback) {
-        callback.result_cb({Status::kSuccess});
+                    ResultCallback callback) {
+        // Since ResultCallback is absl::AnyInvocable(), it may be invalid/not
+        // callable. Must do a full check else the callback will crash.
+        if (callback) {
+          callback({Status::kSuccess});
+        }
       });
 
   client_proxy->OnPayload(
       endpoint_data.remote_endpoint_id,
       Payload(kPayloadId, InputFile(kPayloadId, expected_payload.size())));
 
-  // All file oepeartion will throw IOException.
+  // All file operations will throw IOException.
   OutputFile core_output_file(kPayloadId);
   EXPECT_TRUE(core_output_file.Write(ByteArrayFromMojom(expected_payload))
                   .Raised(Exception::kIo));
@@ -1292,16 +1476,14 @@ TEST_F(NearbyConnectionsTest, ReceiveStreamPayload) {
 
   std::string expected_payload_str(expected_payload.begin(),
                                    expected_payload.end());
-  testing::NiceMock<MockInputStream> input_stream;
-  EXPECT_CALL(input_stream, Read(_))
+  auto input_stream = std::make_unique<testing::NiceMock<MockInputStream>>();
+  EXPECT_CALL(*input_stream, Read(_))
       .WillOnce(
           Return(ExceptionOr<ByteArray>(ByteArray(expected_payload_str))));
-  EXPECT_CALL(input_stream, Close());
+  EXPECT_CALL(*input_stream, Close());
 
-  client_proxy->OnPayload(
-      endpoint_data.remote_endpoint_id,
-      Payload(kPayloadId,
-              [&input_stream]() -> InputStream& { return input_stream; }));
+  client_proxy->OnPayload(endpoint_data.remote_endpoint_id,
+                          Payload(kPayloadId, std::move(input_stream)));
   int64_t expected_payload_size = expected_payload.size();
   client_proxy->OnPayloadProgress(
       endpoint_data.remote_endpoint_id,
@@ -1319,5 +1501,20 @@ TEST_F(NearbyConnectionsTest, ReceiveStreamPayload) {
   payload_run_loop.Run();
 }
 
-}  // namespace connections
-}  // namespace nearby
+TEST_F(NearbyConnectionsTest, RequestConnectionV3Initiated) {
+  nearby::presence::PresenceDevice presence_device(CreateMetadata());
+  PresenceDevicePtr presence_device_mojom =
+      ash::nearby::presence::BuildPresenceMojomDevice(presence_device);
+
+  FakeConnectionListenerV3 fake_connection_listener_v3;
+
+  // TODO(b/287336280): When callback functions are reintroduced, introduce an
+  // `initiated_run_loop` to check for the initiated_cb in
+  // `fake_connection_listener_v3` and run more assertions outside of the ones
+  // in `RequestConnectionV3()`.
+
+  RequestConnectionV3(fake_connection_listener_v3,
+                      std::move(presence_device_mojom));
+}
+
+}  // namespace nearby::connections

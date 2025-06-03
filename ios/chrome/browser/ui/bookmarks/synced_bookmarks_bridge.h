@@ -7,7 +7,7 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/browser/sync/sync_observer_bridge.h"
+#import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 
 class ChromeBrowserState;
 
@@ -29,8 +29,6 @@ class SyncedBookmarksObserverBridge : public SyncObserverBridge {
       const SyncedBookmarksObserverBridge&) = delete;
 
   ~SyncedBookmarksObserverBridge() override;
-  // Returns true if the user has consented to sync.
-  bool HasSyncConsent();
   // Returns true if it is undergoing the first sync cycle.
   bool IsPerformingInitialSync();
 

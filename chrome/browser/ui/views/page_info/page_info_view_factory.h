@@ -60,11 +60,15 @@ class PageInfoViewFactory {
     VIEW_ID_PAGE_INFO_AD_PERSONALIZATION_BUTTON,
     VIEW_ID_PAGE_INFO_MORE_ABOUT_THIS_PAGE_BUTTON,
     VIEW_ID_PERMISSION_TOGGLE_ROW_TOGGLE_BUTTON,
+    VIEW_ID_PAGE_INFO_RESET_DECISIONS_LABEL,
+    VIEW_ID_PAGE_INFO_THIRD_PARTY_COOKIES_ROW,
+    VIEW_ID_PAGE_INFO_THIRD_PARTY_COOKIES_TOGGLE,
   };
 
   // Creates a separator view with padding on top and bottom. Use with flex
   // layout only.
-  [[nodiscard]] static std::unique_ptr<views::View> CreateSeparator();
+  [[nodiscard]] static std::unique_ptr<views::View> CreateSeparator(
+      int horizontal_inset = 0);
 
   // Creates a label container view with padding on left and right side.
   // Supports multiple multiline labels in a column (ex. title and subtitle
@@ -98,11 +102,11 @@ class PageInfoViewFactory {
   // cookies dialog or site settings page).
   static const ui::ImageModel GetLaunchIcon();
 
-  // Returns the icon for the side panel.
-  static const ui::ImageModel GetSidePanelIcon();
-
   // Returns the not secure state icon for the SecurityInformationView.
   static const ui::ImageModel GetConnectionNotSecureIcon();
+
+  // Returns the dangerous icon for the SecurityInformationView.
+  static const ui::ImageModel GetConnectionDangerousIcon();
 
   // Returns the icon for the secure connection button.
   static const ui::ImageModel GetConnectionSecureIcon();
@@ -113,11 +117,6 @@ class PageInfoViewFactory {
   // Returns the icon for a permission in a state not managed by the user.
   static const ui::ImageModel GetManagedPermissionIcon(
       const PageInfo::PermissionInfo& info);
-
-  // Returns the icon for third party cookies control in a state not managed
-  // by the user.
-  static const ui::ImageModel GetEnforcedCookieControlsIcon(
-      CookieControlsEnforcement enforcement);
 
   // Returns the icon for 'About this site' button.
   static const ui::ImageModel GetAboutThisSiteIcon();
@@ -135,15 +134,25 @@ class PageInfoViewFactory {
   // Returns the icon for the 'Ad personalization' button.
   static const ui::ImageModel GetAdPersonalizationIcon();
 
+  // Returns the icon for the managed by policy state.
   static const ui::ImageModel GetEnforcedByPolicyIcon();
-  static const ui::ImageModel GetEnforcedByExtensionIcon();
-  static const ui::ImageModel GetEnforcedBySettingsIcon();
+
+  // Returns the icon for the 'Third-party cookies' toggle, depending on the
+  // state of the toggle.
+  static const ui::ImageModel GetThirdPartyCookiesIcon(
+      bool third_party_cookies_enabled);
 
   // Returns the icon for the 'Block third party cookies' button.
   static const ui::ImageModel GetBlockingThirdPartyCookiesIcon();
 
+  // Returns the icon for the 'Cookies and site data' button.
+  static const ui::ImageModel GetCookiesAndSiteDataIcon();
+
   // Returns the icon for the first party sets button.
   static const ui::ImageModel GetFpsIcon();
+
+  // Returns the image model for the vector icon.
+  static const ui::ImageModel GetImageModel(const gfx::VectorIcon& icon);
 
   [[nodiscard]] std::unique_ptr<views::View> CreateMainPageView(
       base::OnceClosure initialized_callback);

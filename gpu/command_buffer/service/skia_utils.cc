@@ -7,8 +7,6 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "build/build_config.h"
-#include "components/viz/common/resources/resource_format.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -21,8 +19,12 @@
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContextThreadSafeProxy.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
 #include "third_party/skia/include/gpu/gl/GrGLTypes.h"
+#include "third_party/skia/include/gpu/graphite/GraphiteTypes.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_gl_api_implementation.h"
@@ -53,6 +55,10 @@ void CleanupAfterSkiaFlush(void* context) {
   delete flush_context;
 }
 
+void CleanupAfterGraphiteRecording(void* context, skgpu::CallbackResult) {
+  CleanupAfterSkiaFlush(context);
+}
+
 template <class T>
 void DeleteSkObject(SharedContextState* context_state, sk_sp<T> sk_object) {
   DCHECK(sk_object && sk_object->unique());
@@ -74,6 +80,14 @@ void DeleteSkObject(SharedContextState* context_state, sk_sp<T> sk_object) {
 #endif
 }
 
+#if BUILDFLAG(ENABLE_VULKAN)
+constexpr bool VkFormatNeedsYcbcrSampler(VkFormat format) {
+  return format == VK_FORMAT_G8_B8R8_2PLANE_420_UNORM ||
+         format == VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM ||
+         format == VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
+}
+#endif
+
 }  // namespace
 
 GrContextOptions GetDefaultGrContextOptions() {
@@ -92,8 +106,6 @@ GrContextOptions GetDefaultGrContextOptions() {
   // in a more granular way.  For OOPR-Canvas we want 8, but for other purposes,
   // a texture atlas with sample count of 4 would be sufficient
   options.fInternalMultisampleCount = 8;
-  options.fAllowMSAAOnNewIntel =
-      base::FeatureList::IsEnabled(features::kEnableMSAAOnNewIntelGPUs);
 
   options.fSuppressMipmapSupport =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -105,17 +117,33 @@ GrContextOptions GetDefaultGrContextOptions() {
   return options;
 }
 
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
-skgpu::graphite::ContextOptions GetDefaultGraphiteContextOptions() {
+skgpu::graphite::ContextOptions GetDefaultGraphiteContextOptions(
+    const GpuDriverBugWorkarounds& workarounds) {
   skgpu::graphite::ContextOptions options;
   size_t max_resource_cache_bytes;
   size_t glyph_cache_max_texture_bytes;
   DetermineGrCacheLimitsFromAvailableMemory(&max_resource_cache_bytes,
                                             &glyph_cache_max_texture_bytes);
   options.fGlyphCacheTextureMaximumBytes = glyph_cache_max_texture_bytes;
+
+  // Disable multisampled antialiasing when it's slow.
+  // NOTE: `workarounds.msaa_is_slow` is true on all Intel devices.
+  // gpu::gles2::MSAAIsSlow() will return true on Intel devices unless the
+  // features::kEnableMSAAOnNewIntelGPUs base::Feature is enabled. If rolling
+  // out single-sampling for Graphite, we should consider whether to tie the
+  // rollout to the features::kEnableMSSAOnNewIntelGPUs experiment.
+  if (workarounds.msaa_is_slow) {
+    options.fInternalMultisampleCount = 1;
+  }
+
+  // Disable use of cached text uploads in Recordings to improve performance.
+  // NOTE: Currently Recordings are played back in the order they were
+  // created so use of this option is safe. Once Recordings are replayed or
+  // are played out of sequence this option should no longer be used.
+  options.fDisableCachedGlyphUploads = true;
+
   return options;
 }
-#endif
 
 GLuint GetGrGLBackendTextureFormat(
     const gles2::FeatureInfo* feature_info,
@@ -149,10 +177,9 @@ GLuint GetGrGLBackendTextureFormat(
 
   // Map ETC1 to ETC2 type depending on conversion by skia
   if (gl_storage_format == GL_ETC1_RGB8_OES) {
-    GrGLFormat gr_gl_format =
-        gr_context_thread_safe
-            ->compressedBackendFormat(SkTextureCompressionType::kETC1_RGB8)
-            .asGLFormat();
+    GrGLFormat gr_gl_format = GrBackendFormats::AsGLFormat(
+        gr_context_thread_safe->compressedBackendFormat(
+            SkTextureCompressionType::kETC1_RGB8));
     if (gr_gl_format == GrGLFormat::kCOMPRESSED_ETC1_RGB8) {
       internal_format = GL_ETC1_RGB8_OES;
     } else if (gr_gl_format == GrGLFormat::kCOMPRESSED_RGB8_ETC2) {
@@ -187,8 +214,8 @@ bool GetGrBackendTexture(const gles2::FeatureInfo* feature_info,
   texture_info.fTarget = target;
   texture_info.fFormat = GetGrGLBackendTextureFormat(
       feature_info, gl_storage_format, gr_context_thread_safe);
-  *gr_texture = GrBackendTexture(size.width(), size.height(), GrMipMapped::kNo,
-                                 texture_info);
+  *gr_texture = GrBackendTextures::MakeGL(size.width(), size.height(),
+                                          skgpu::Mipmapped::kNo, texture_info);
   return true;
 }
 
@@ -196,14 +223,31 @@ void AddCleanupTaskForSkiaFlush(base::OnceClosure task,
                                 GrFlushInfo* flush_info) {
   FlushCleanupContext* context;
   if (!flush_info->fFinishedProc) {
-    DCHECK(!flush_info->fFinishedContext);
+    CHECK(!flush_info->fFinishedContext);
     flush_info->fFinishedProc = &CleanupAfterSkiaFlush;
     context = new FlushCleanupContext();
     flush_info->fFinishedContext = context;
   } else {
-    DCHECK_EQ(flush_info->fFinishedProc, &CleanupAfterSkiaFlush);
-    DCHECK(flush_info->fFinishedContext);
+    CHECK_EQ(flush_info->fFinishedProc, &CleanupAfterSkiaFlush);
+    CHECK(flush_info->fFinishedContext);
     context = static_cast<FlushCleanupContext*>(flush_info->fFinishedContext);
+  }
+  context->cleanup_tasks.push_back(std::move(task));
+}
+
+void AddCleanupTaskForGraphiteRecording(
+    base::OnceClosure task,
+    skgpu::graphite::InsertRecordingInfo* info) {
+  FlushCleanupContext* context;
+  if (!info->fFinishedProc) {
+    CHECK(!info->fFinishedContext);
+    info->fFinishedProc = &CleanupAfterGraphiteRecording;
+    context = new FlushCleanupContext();
+    info->fFinishedContext = context;
+  } else {
+    CHECK_EQ(info->fFinishedProc, &CleanupAfterGraphiteRecording);
+    CHECK(info->fFinishedContext);
+    context = static_cast<FlushCleanupContext*>(info->fFinishedContext);
   }
   context->cleanup_tasks.push_back(std::move(task));
 }
@@ -261,12 +305,14 @@ void DeleteSkSurface(SharedContextState* context_state,
 }
 
 #if BUILDFLAG(ENABLE_VULKAN)
-GrVkImageInfo CreateGrVkImageInfo(VulkanImage* image) {
+GrVkImageInfo CreateGrVkImageInfo(VulkanImage* image,
+                                  const gfx::ColorSpace& color_space) {
   DCHECK(image);
   VkPhysicalDevice physical_device =
       image->device_queue()->GetVulkanPhysicalDevice();
   GrVkYcbcrConversionInfo gr_ycbcr_info = CreateGrVkYcbcrConversionInfo(
-      physical_device, image->image_tiling(), image->ycbcr_info());
+      physical_device, image->image_tiling(), image->format(), color_space,
+      image->ycbcr_info());
   GrVkAlloc alloc;
   alloc.fMemory = image->device_memory();
   alloc.fOffset = 0;
@@ -287,7 +333,9 @@ GrVkImageInfo CreateGrVkImageInfo(VulkanImage* image) {
       (image->format() == VK_FORMAT_R8G8B8A8_UNORM ||
        image->format() == VK_FORMAT_R8G8B8_UNORM ||
        image->format() == VK_FORMAT_B8G8R8A8_UNORM ||
-       image->format() == VK_FORMAT_B8G8R8_UNORM)) {
+       image->format() == VK_FORMAT_B8G8R8_UNORM ||
+       image->format() == VK_FORMAT_R8_UNORM ||
+       image->format() == VK_FORMAT_R8G8_UNORM)) {
     image_info.fImageTiling = VK_IMAGE_TILING_OPTIMAL;
   } else {
     image_info.fImageTiling = image->image_tiling();
@@ -301,19 +349,46 @@ GrVkImageInfo CreateGrVkImageInfo(VulkanImage* image) {
   image_info.fProtected = is_protected ? GrProtected::kYes : GrProtected::kNo;
   image_info.fYcbcrConversionInfo = gr_ycbcr_info;
 
+  // Skia currently requires all wrapped VkImages to have transfer src and dst
+  // usage. Note, that driver _should_ advertise transfer support if any usage
+  // is supported, but spec hasn't updated yet:
+  // https://github.com/KhronosGroup/Vulkan-Docs/issues/1223#issuecomment-1379078493
+  image_info.fImageUsageFlags |=
+      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
   return image_info;
 }
 
-GrVkYcbcrConversionInfo CreateGrVkYcbcrConversionInfo(
+GPU_GLES2_EXPORT GrVkYcbcrConversionInfo CreateGrVkYcbcrConversionInfo(
     VkPhysicalDevice physical_device,
     VkImageTiling tiling,
+    VkFormat format,
+    const gfx::ColorSpace& color_space,
     const absl::optional<VulkanYCbCrInfo>& ycbcr_info) {
-  if (!ycbcr_info)
-    return GrVkYcbcrConversionInfo();
+  auto valid_ycbcr_info = ycbcr_info;
+  if (!valid_ycbcr_info) {
+    if (!VkFormatNeedsYcbcrSampler(format)) {
+      return GrVkYcbcrConversionInfo();
+    }
 
-  VkFormat vk_format = static_cast<VkFormat>(ycbcr_info->image_format);
+    // YCbCr sampler is required
+    VkSamplerYcbcrModelConversion ycbcr_model =
+        (color_space.GetMatrixID() == gfx::ColorSpace::MatrixID::BT709)
+            ? VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709
+            : VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601;
+    VkSamplerYcbcrRange ycbcr_range =
+        (color_space.GetRangeID() == gfx::ColorSpace::RangeID::FULL)
+            ? VK_SAMPLER_YCBCR_RANGE_ITU_FULL
+            : VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
+
+    valid_ycbcr_info.emplace(format, 0, ycbcr_model, ycbcr_range,
+                             VK_CHROMA_LOCATION_COSITED_EVEN,
+                             VK_CHROMA_LOCATION_COSITED_EVEN, 0);
+  }
+
+  VkFormat vk_format = static_cast<VkFormat>(valid_ycbcr_info->image_format);
   VkFormatFeatureFlags format_features =
-      static_cast<VkFormatFeatureFlags>(ycbcr_info->format_features);
+      static_cast<VkFormatFeatureFlags>(valid_ycbcr_info->format_features);
 
   // |format_features| is expected to be set for external images. For regular
   // (non-external) images it may be set to 0. In that case we need to get the
@@ -343,15 +418,15 @@ GrVkYcbcrConversionInfo CreateGrVkYcbcrConversionInfo(
 
   GrVkYcbcrConversionInfo gr_ycbcr_info;
   gr_ycbcr_info.fFormat = vk_format;
-  gr_ycbcr_info.fExternalFormat = ycbcr_info->external_format;
+  gr_ycbcr_info.fExternalFormat = valid_ycbcr_info->external_format;
   gr_ycbcr_info.fYcbcrModel = static_cast<VkSamplerYcbcrModelConversion>(
-      ycbcr_info->suggested_ycbcr_model);
+      valid_ycbcr_info->suggested_ycbcr_model);
   gr_ycbcr_info.fYcbcrRange =
-      static_cast<VkSamplerYcbcrRange>(ycbcr_info->suggested_ycbcr_range);
+      static_cast<VkSamplerYcbcrRange>(valid_ycbcr_info->suggested_ycbcr_range);
   gr_ycbcr_info.fXChromaOffset =
-      static_cast<VkChromaLocation>(ycbcr_info->suggested_xchroma_offset),
+      static_cast<VkChromaLocation>(valid_ycbcr_info->suggested_xchroma_offset),
   gr_ycbcr_info.fYChromaOffset =
-      static_cast<VkChromaLocation>(ycbcr_info->suggested_ychroma_offset),
+      static_cast<VkChromaLocation>(valid_ycbcr_info->suggested_ychroma_offset),
   gr_ycbcr_info.fChromaFilter = chroma_filter;
   gr_ycbcr_info.fForceExplicitReconstruction = false;
   gr_ycbcr_info.fFormatFeatures = format_features;
@@ -385,15 +460,17 @@ uint64_t GrBackendTextureTracingID(const GrBackendTexture& backend_texture) {
   switch (backend_texture.backend()) {
     case GrBackendApi::kOpenGL: {
       GrGLTextureInfo tex_info;
-      if (backend_texture.getGLTextureInfo(&tex_info))
+      if (GrBackendTextures::GetGLTextureInfo(backend_texture, &tex_info)) {
         return tex_info.fID;
+      }
       break;
     }
 #if BUILDFLAG(ENABLE_VULKAN)
     case GrBackendApi::kVulkan: {
       GrVkImageInfo image_info;
-      if (backend_texture.getVkImageInfo(&image_info))
+      if (GrBackendTextures::GetVkImageInfo(backend_texture, &image_info)) {
         return reinterpret_cast<uint64_t>(image_info.fImage);
+      }
       break;
     }
 #endif

@@ -10,7 +10,7 @@
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "components/ui_metrics/canonical_url_share_metrics_types.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/scoped_testing_web_client.h"
 #import "ios/web/public/test/web_state_test_util.h"
@@ -18,10 +18,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Test fixture for the retrieving canonical URLs.
 class CanonicalURLRetrieverTest : public PlatformTest {

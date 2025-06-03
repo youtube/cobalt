@@ -57,6 +57,7 @@
 <translation id="3566302376254083266">Déplacement vers la partie supérieure gauche</translation>
 <translation id="3573890771273113519">Passer en mode numérisation</translation>
 <translation id="3583444040776960729">Coin inférieur gauche du document</translation>
+<translation id="3642192109456033823">Traitement de la vidéo en cours…</translation>
 <translation id="3789724198583203151">Faire pivoter de 90 degrés dans le sens inverse des aiguilles d'une montre</translation>
 <translation id="3810838688059735925">Vidéo</translation>
 <translation id="3892148308691398805">Copier le texte</translation>
@@ -65,9 +66,10 @@
 <translation id="4118525110028899586">Interrompre l'enregistrement</translation>
 <translation id="4121305183798804752">Document détecté</translation>
 <translation id="414641094616694804">La résolution de cette caméra n'est pas modifiable</translation>
+<translation id="4176463684765177261">Désactivé</translation>
 <translation id="4269820728363426813">Copier l'adresse du lien</translation>
-<translation id="4281620174117014503">Résolution moyenne</translation>
 <translation id="428234092390943511">Miniature de la page</translation>
+<translation id="4349714250734879769">Échelonner les cadres par Chrome</translation>
 <translation id="4383571725254449280">Imprimer les journaux de performance</translation>
 <translation id="4445542136948522167">Ne pas prendre la photo</translation>
 <translation id="4570032796877367747">Appareil photo avant</translation>
@@ -93,6 +95,7 @@
 <translation id="5374917190292010970">4K (2160p)</translation>
 <translation id="5662366948659129155">Numérisation de la page <ph name="COUNT" /> en cours…</translation>
 <translation id="5671277269877808209">Carré</translation>
+<translation id="574392208103952083">Moyenne</translation>
 <translation id="5746169159649715125">Enregistrer au format PDF</translation>
 <translation id="5753488212459587150">Activer le mode Expert</translation>
 <translation id="5759254179196327752">Numérisation de document</translation>
@@ -148,6 +151,7 @@ Si vos commentaires portaient sur la qualité de l'image ou de la vidéo, veuill
 <translation id="8145038249676204903">Passer au mode photo</translation>
 <translation id="8167081290930651932">Enregistrer en tant que photo</translation>
 <translation id="8239780215768881278">Prendre un instantané vidéo</translation>
+<translation id="8346544573713510785">Échelonner les cadres par l'appareil photo HAL</translation>
 <translation id="8425673304802773841">Incliner vers le bas</translation>
 <translation id="8428213095426709021">Paramètres</translation>
 <translation id="8629662593426079630">360p</translation>

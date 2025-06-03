@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ChromeVoxSubpageBrowserProxy} from 'chrome://os-settings/chromeos/os_settings.js';
+import {ChromeVoxSubpageBrowserProxy} from 'chrome://os-settings/os_settings.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -12,6 +12,8 @@ export class TestChromeVoxSubpageBrowserProxy extends TestBrowserProxy
     super([
       'getAllTtsVoiceData',
       'refreshTtsVoices',
+      'getDisplayNameForLocale',
+      'getApplicationLocale',
       'addDeviceAddedListener',
       'removeDeviceAddedListener',
       'addDeviceChangedListener',
@@ -64,6 +66,16 @@ export class TestChromeVoxSubpageBrowserProxy extends TestBrowserProxy
 
   refreshTtsVoices(): void {
     this.methodCalled('refreshTtsVoices');
+  }
+
+  getDisplayNameForLocale(locale: string): Promise<string> {
+    this.methodCalled('getDisplayNameForLocale');
+    return Promise.resolve(locale);
+  }
+
+  getApplicationLocale(): Promise<string> {
+    this.methodCalled('getApplicationLocale');
+    return Promise.resolve('');
   }
 
   addDeviceAddedListener(): void {

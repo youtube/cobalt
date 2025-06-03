@@ -9,7 +9,6 @@
 #include "base/functional/callback_helpers.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/apps/intent_helper/intent_picker_helpers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -20,6 +19,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/style/platform_style.h"
 #include "ui/views/view_class_properties.h"
 
@@ -34,6 +35,10 @@ IntentChipButton::IntentChipButton(Browser* browser,
   SetFocusBehavior(views::PlatformStyle::kDefaultFocusBehavior);
   SetTooltipText(l10n_util::GetStringUTF16(IDS_INTENT_CHIP_OPEN_IN_APP));
   SetProperty(views::kElementIdentifierKey, kIntentChipElementId);
+
+  if (features::IsChromeRefresh2023()) {
+    label()->SetTextStyle(views::style::STYLE_BODY_3_EMPHASIS);
+  }
 }
 
 IntentChipButton::~IntentChipButton() = default;
@@ -45,25 +50,27 @@ void IntentChipButton::Update() {
 
   if (is_visible) {
     bool expanded = GetChipExpanded();
-    ResetAnimation(expanded);
     SetTheme(expanded ? OmniboxChipTheme::kLowVisibility
                       : OmniboxChipTheme::kIconStyle);
-    UpdateIconAndColors();
+    // TODO(pkasting): This should animate in the way other OmniboxChipButtons
+    // are instructed to do (e.g. with non-zero duration when first expanding),
+    // but simply passing a non-zero duration here would animate even when
+    // that's undesirable (e.g. when switching tabs). In the meantime, we can't
+    // simply use ResetAnimation() here because that won't trigger
+    // end-of-animation updates like PreferredSizeChanged(). This should be
+    // refactored to use common logic with other chips. Note that if this begins
+    // to animate in some cases, the browsertests will likely need updates to
+    // disable those animations.
+    static constexpr auto kAnimationDuration = base::TimeDelta();
+    if (expanded) {
+      AnimateExpand(kAnimationDuration);
+    } else {
+      AnimateCollapse(kAnimationDuration);
+    }
   }
   if (browser_->window() && was_visible && !is_visible) {
     IntentPickerBubbleView::CloseCurrentBubble();
   }
-}
-
-ui::ImageModel IntentChipButton::GetIconImageModel() const {
-  auto icon = GetAppIcon();
-  if (icon.IsEmpty())
-    return OmniboxChipButton::GetIconImageModel();
-  return icon;
-}
-
-const gfx::VectorIcon& IntentChipButton::GetIcon() const {
-  return kOpenInNewIcon;
 }
 
 bool IntentChipButton::GetShowChip() const {
@@ -80,6 +87,10 @@ bool IntentChipButton::GetChipExpanded() const {
 }
 
 ui::ImageModel IntentChipButton::GetAppIcon() const {
+  if (features::IsChromeRefresh2023()) {
+    // The color and size are configured in OmniboxChipButton.
+    return ui::ImageModel::FromVectorIcon(kInstallDesktopChromeRefreshIcon);
+  }
   if (auto* tab_helper = GetTabHelper())
     return tab_helper->app_icon();
   return ui::ImageModel();
@@ -89,7 +100,7 @@ void IntentChipButton::HandlePressed() {
   content::WebContents* web_contents =
       delegate_->GetWebContentsForPageActionIconView();
   const GURL& url = web_contents->GetURL();
-  apps::ShowIntentPickerOrLaunchApp(web_contents, url);
+  GetTabHelper()->ShowIntentPickerBubbleOrLaunchApp(url);
 }
 
 IntentPickerTabHelper* IntentChipButton::GetTabHelper() const {
@@ -102,6 +113,47 @@ IntentPickerTabHelper* IntentChipButton::GetTabHelper() const {
     return nullptr;
 
   return IntentPickerTabHelper::FromWebContents(web_contents);
+}
+
+ui::ImageModel IntentChipButton::GetIconImageModel() const {
+  auto icon = GetAppIcon();
+  if (icon.IsEmpty()) {
+    return OmniboxChipButton::GetIconImageModel();
+  }
+  return icon;
+}
+
+const gfx::VectorIcon& IntentChipButton::GetIcon() const {
+  return kOpenInNewIcon;
+}
+
+SkColor IntentChipButton::GetBackgroundColor() const {
+  DCHECK(GetOmniboxChipTheme() != OmniboxChipTheme::kIconStyle);
+  if (features::IsChromeRefresh2023()) {
+    return GetColorProvider()->GetColor(kColorOmniboxIntentChipBackground);
+  }
+  return GetColorProvider()->GetColor(kColorOmniboxChipBackground);
+}
+
+SkColor IntentChipButton::GetForegroundColor() const {
+  if (features::IsChromeRefresh2023()) {
+    // Use the same color as the content setting icons.
+    if (GetOmniboxChipTheme() == OmniboxChipTheme::kIconStyle) {
+      return GetColorProvider()->GetColor(kColorOmniboxResultsIcon);
+    }
+
+    // The icon and label have the same color.
+    return GetColorProvider()->GetColor(kColorOmniboxIntentChipIcon);
+  }
+
+  if (GetOmniboxChipTheme() == OmniboxChipTheme::kIconStyle) {
+    return GetColorProvider()->GetColor(kColorOmniboxResultsIcon);
+  }
+
+  return GetColorProvider()->GetColor(
+      GetOmniboxChipTheme() == OmniboxChipTheme::kLowVisibility
+          ? kColorOmniboxChipForegroundLowVisibility
+          : kColorOmniboxChipForegroundNormalVisibility);
 }
 
 BEGIN_METADATA(IntentChipButton, OmniboxChipButton)

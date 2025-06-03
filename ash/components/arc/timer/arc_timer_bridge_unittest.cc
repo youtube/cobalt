@@ -13,7 +13,6 @@
 #include "ash/components/arc/session/connection_holder.h"
 #include "ash/components/arc/test/connection_holder_util.h"
 #include "ash/components/arc/test/fake_timer_instance.h"
-#include "ash/components/arc/test/test_browser_context.h"
 #include "ash/components/arc/timer/arc_timer_bridge.h"
 #include "ash/components/arc/timer/arc_timer_mojom_traits.h"
 #include "base/files/file_descriptor_watcher_posix.h"
@@ -23,9 +22,14 @@
 #include "base/memory/raw_ptr.h"
 #include "base/posix/unix_domain_socket.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
+#include "chromeos/ash/components/dbus/upstart/fake_upstart_client.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/keyed_service/content/browser_context_keyed_service_factory.h"
+#include "components/user_prefs/test/test_browser_context_with_prefs.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/system/handle.h"
 #include "mojo/public/cpp/system/platform_handle.h"
@@ -92,6 +96,7 @@ class ArcTimerTest : public testing::Test {
  public:
   ArcTimerTest()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP) {
+    ash::UpstartClient::InitializeFake();
     chromeos::PowerManagerClient::InitializeFake();
     timer_bridge_ = ArcTimerBridge::GetForBrowserContextForTesting(&context_);
     // This results in ArcTimerBridge::OnInstanceReady being called.
@@ -111,6 +116,7 @@ class ArcTimerTest : public testing::Test {
         &timer_instance_);
     timer_bridge_->Shutdown();
     chromeos::PowerManagerClient::Shutdown();
+    ash::UpstartClient::Shutdown();
   }
 
  protected:
@@ -124,6 +130,8 @@ class ArcTimerTest : public testing::Test {
   // signalling is incorrect returns false. Blocks otherwise.
   bool WaitForExpiration(clockid_t clock_id);
 
+  mojom::TimerHost* GetTimerHost() { return timer_instance_.GetTimerHost(); }
+
  private:
   // Stores |read_fds| corresponding to clock ids in |clocks| in
   // |arc_timer_store_|.
@@ -132,7 +140,7 @@ class ArcTimerTest : public testing::Test {
 
   content::BrowserTaskEnvironment task_environment_;
   ArcServiceManager arc_service_manager_;
-  TestBrowserContext context_;
+  user_prefs::TestBrowserContextWithPrefs context_;
   FakeTimerInstance timer_instance_;
 
   ArcTimerStore arc_timer_store_;
@@ -290,6 +298,58 @@ TEST_F(ArcTimerTest, CheckMultipleCreateTimersTest) {
   // The power manager implicitly deletes old timers associated with a tag
   // during a create call. Thus, consecutive create calls should succeed.
   EXPECT_TRUE(CreateTimers(clocks));
+}
+
+TEST_F(ArcTimerTest, SetTimeTest_RequestedTimeIsInvalid) {
+  // Time::Now() + 25 hours should be rejected.
+  base::Time time_to_set =
+      base::Time::Now() + kArcSetTimeMaxTimeDelta + base::Hours(1);
+  base::test::TestFuture<mojom::ArcTimerResult> future;
+  GetTimerHost()->SetTime(time_to_set, future.GetCallback());
+  EXPECT_EQ(future.Get(), mojom::ArcTimerResult::FAILURE);
+
+  // Time::Now() - 25 hours should be rejected.
+  time_to_set = base::Time::Now() - kArcSetTimeMaxTimeDelta - base::Hours(1);
+  base::test::TestFuture<mojom::ArcTimerResult> future2;
+  GetTimerHost()->SetTime(time_to_set, future2.GetCallback());
+  EXPECT_EQ(future2.Get(), mojom::ArcTimerResult::FAILURE);
+}
+
+TEST_F(ArcTimerTest, SetTimeTest_RequestedTimeIsValid) {
+  // Time::Now() + 23 hours should be accepted.
+  const base::Time time_to_set =
+      base::Time::Now() + kArcSetTimeMaxTimeDelta - base::Hours(1);
+
+  ash::FakeUpstartClient::Get()->set_start_job_cb(base::BindLambdaForTesting(
+      [time_to_set](const std::string& job_name,
+                    const std::vector<std::string>& env) {
+        EXPECT_EQ(job_name, kArcSetTimeJobName);
+        EXPECT_EQ(env.size(), 1U);  // Can't use ASSERT_EQ inside the closure.
+        if (env.size() >= 1) {
+          EXPECT_EQ(env[0], base::StringPrintf("UNIXTIME_TO_SET=%ld",
+                                               time_to_set.ToTimeT()));
+        }
+        return ash::FakeUpstartClient::StartJobResult(true /* success */);
+      }));
+
+  base::test::TestFuture<mojom::ArcTimerResult> future;
+  GetTimerHost()->SetTime(time_to_set, future.GetCallback());
+  EXPECT_EQ(future.Get(), mojom::ArcTimerResult::SUCCESS);
+}
+
+TEST_F(ArcTimerTest, SetTimeTest_UpstartJobFails) {
+  const base::Time time_to_set =
+      base::Time::Now() + kArcSetTimeMaxTimeDelta - base::Hours(1);
+
+  ash::FakeUpstartClient::Get()->set_start_job_cb(base::BindRepeating(
+      [](const std::string& job_name, const std::vector<std::string>& env) {
+        // Upstart job fails.
+        return ash::FakeUpstartClient::StartJobResult(false /* success */);
+      }));
+
+  base::test::TestFuture<mojom::ArcTimerResult> future;
+  GetTimerHost()->SetTime(time_to_set, future.GetCallback());
+  EXPECT_EQ(future.Get(), mojom::ArcTimerResult::FAILURE);
 }
 
 }  // namespace

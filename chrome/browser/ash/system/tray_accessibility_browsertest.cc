@@ -18,7 +18,6 @@
 #include "chrome/browser/ash/login/helper.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/session_controller_client_impl.h"
@@ -197,7 +196,7 @@ class TrayAccessibilityTest : public InProcessBrowserTest,
   bool IsMenuButtonVisible() {
     bool visible = tray_test_api_->IsBubbleViewVisible(
         base::FeatureList::IsEnabled(ash::features::kQsRevamp)
-            ? ash::VIEW_ID_ACCESSIBILITY_FEATURE_TILE
+            ? ash::VIEW_ID_FEATURE_TILE_ACCESSIBILITY
             : ash::VIEW_ID_ACCESSIBILITY_TRAY_ITEM,
         true /* open_tray */);
     tray_test_api_->CloseBubble();

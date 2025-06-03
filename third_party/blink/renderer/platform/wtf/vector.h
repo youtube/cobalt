@@ -166,9 +166,17 @@ struct VectorTypeOperations {
 
   static void Initialize(T* begin, T* end) {
     if constexpr (VectorTraits<T>::kCanInitializeWithMemset) {
-      // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-      memset(begin, 0,
-             reinterpret_cast<char*>(end) - reinterpret_cast<char*>(begin));
+      size_t size =
+          reinterpret_cast<char*>(end) - reinterpret_cast<char*>(begin);
+      if constexpr (!Allocator::kIsGarbageCollected ||
+                    !IsTraceableInCollectionTrait<VectorTraits<T>>::value) {
+        if (size != 0) {
+          // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
+          memset(begin, 0, size);
+        }
+      } else {
+        AtomicMemzero(begin, size);
+      }
     } else {
       for (T* cur = begin; cur != end; ++cur)
         ConstructTraits::Construct(cur);
@@ -307,9 +315,11 @@ struct VectorTypeOperations {
     } else {
       static_assert(VectorTraits<T>::kCanCopyWithMemcpy);
       // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-      memcpy(dst, src,
-             reinterpret_cast<const char*>(src_end) -
-                 reinterpret_cast<const char*>(src));
+      if (src != src_end) {
+        memcpy(dst, src,
+               reinterpret_cast<const char*>(src_end) -
+                   reinterpret_cast<const char*>(src));
+      }
     }
   }
 
@@ -347,7 +357,7 @@ struct VectorTypeOperations {
       static_assert(sizeof(T) == sizeof(char), "size of type should be one");
       static_assert(!Allocator::kIsGarbageCollected,
                     "memset is unsupported for garbage-collected vectors.");
-      memset(dst, val, dst_end - dst);
+      memset(dst, static_cast<unsigned char>(val), dst_end - dst);
     } else if (origin == VectorOperationOrigin::kConstruction) {
       while (dst != dst_end) {
         ConstructTraits::Construct(dst, T(val));
@@ -732,9 +742,6 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
                         VectorOperationOrigin this_origin) {
     using TypeOperations = VectorTypeOperations<T, Allocator>;
 
-    static_assert(VectorTraits<T>::kCanSwapUsingCopyOrMove,
-                  "Cannot swap using copy or move.");
-
     if (Buffer() != InlineBuffer() && other.Buffer() != other.InlineBuffer()) {
       Base::SwapBuffers(other, this_origin);
       return;
@@ -1094,6 +1101,8 @@ class Vector
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+  static constexpr bool SupportsInlineCapacity() { return INLINE_CAPACITY > 0; }
+
   // Create an empty vector.
   inline Vector();
   // Create a vector containing the specified number of default-initialized
@@ -1448,7 +1457,7 @@ class Vector
   template <typename U>
   U* ExpandCapacity(wtf_size_t new_min_capacity, U*);
   template <typename U>
-  void AppendSlowCase(U&&);
+  NOINLINE PRESERVE_MOST void AppendSlowCase(U&&);
 
   bool HasInlineBuffer() const {
     return INLINE_CAPACITY && !this->HasOutOfLineBuffer();
@@ -1967,7 +1976,8 @@ void Vector<T, inlineCapacity, Allocator>::Append(const U* data,
 
 template <typename T, wtf_size_t inlineCapacity, typename Allocator>
 template <typename U>
-NOINLINE void Vector<T, inlineCapacity, Allocator>::AppendSlowCase(U&& val) {
+NOINLINE PRESERVE_MOST void
+Vector<T, inlineCapacity, Allocator>::AppendSlowCase(U&& val) {
   DCHECK_EQ(size(), capacity());
 
   typename std::remove_reference<U>::type* ptr = &val;

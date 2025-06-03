@@ -34,14 +34,14 @@ TEST_F(LayoutViewTest, UpdateCountersLayout) {
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
-  Element* inc = GetDocument().getElementById("inc");
+  Element* inc = GetDocument().getElementById(AtomicString("inc"));
 
-  inc->setAttribute("class", "incX");
+  inc->setAttribute(html_names::kClassAttr, AtomicString("incX"));
   GetDocument().UpdateStyleAndLayoutTree();
   EXPECT_FALSE(GetDocument().View()->NeedsLayout());
 
   UpdateAllLifecyclePhasesForTest();
-  inc->setAttribute("class", "incY");
+  inc->setAttribute(html_names::kClassAttr, AtomicString("incY"));
   GetDocument().UpdateStyleAndLayoutTree();
   EXPECT_TRUE(GetDocument().View()->NeedsLayout());
 }
@@ -51,7 +51,8 @@ TEST_F(LayoutViewTest, DisplayNoneFrame) {
     <iframe id="iframe" style="display:none"></iframe>
   )HTML");
 
-  auto* iframe = To<HTMLIFrameElement>(GetDocument().getElementById("iframe"));
+  auto* iframe = To<HTMLIFrameElement>(
+      GetDocument().getElementById(AtomicString("iframe")));
   Document* frame_doc = iframe->contentDocument();
   ASSERT_TRUE(frame_doc);
   frame_doc->OverrideIsInitialEmptyDocument();
@@ -103,7 +104,7 @@ TEST_F(LayoutViewTest, NamedPages) {
   ASSERT_TRUE(view);
 
   ScopedPrintContext print_context(&GetDocument().View()->GetFrame());
-  print_context->BeginPrintMode(500, 500);
+  print_context->BeginPrintMode(WebPrintParams(gfx::SizeF(500, 500)));
 
   EXPECT_EQ(view->NamedPageAtIndex(0), AtomicString());
   EXPECT_EQ(view->NamedPageAtIndex(1), AtomicString());
@@ -139,7 +140,7 @@ TEST_F(LayoutViewTest, NamedPagesAbsPos) {
   ASSERT_TRUE(view);
 
   ScopedPrintContext print_context(&GetDocument().View()->GetFrame());
-  print_context->BeginPrintMode(500, 500);
+  print_context->BeginPrintMode(WebPrintParams(gfx::SizeF(500, 500)));
 
   EXPECT_EQ(view->NamedPageAtIndex(0), "woohoo");
   EXPECT_EQ(view->NamedPageAtIndex(1), "woohoo");
@@ -347,7 +348,7 @@ TEST_P(LayoutViewHitTestTest, FloatLeftLeft) {
       "#target { width: 70px; }"
       ".float { float: left; margin-right: 10px; }");
   SetBodyInnerHTML("<div id=target><div class=float>ab</div>xy</div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (30,0)x(20,10)
   //   [1] kBox/Floating (0,0)x(20,10)
   //   [2] kText "xy" (30,0)x(20,10)
@@ -382,7 +383,7 @@ TEST_P(LayoutViewHitTestTest, FloatLeftMiddle) {
       "#target { width: 70px; }"
       ".float { float: left; margin-right: 10px; }");
   SetBodyInnerHTML("<div id=target>x<div class=float>ab</div>y</div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (30,0)x(20,10)
   //   [1] kText "x" (30,0)x(10,10)
   //   [1] kBox/Floating (0,0)x(20,10)
@@ -417,7 +418,7 @@ TEST_P(LayoutViewHitTestTest, FloatLeftRight) {
       "#target { width: 70px; }"
       ".float { float: left; margin-right: 10px; }");
   SetBodyInnerHTML("<div id=target>xy<div class=float>ab</div></div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (30,0)x(20,10)
   //   [1] kText "xy" (30,0)x(20,10)
   //   [2] kBox/Floating (0,0)x(20,10)
@@ -452,7 +453,7 @@ TEST_P(LayoutViewHitTestTest, FloatRightLeft) {
       "#target { width: 50px; }"
       ".float { float: right; }");
   SetBodyInnerHTML("<div id=target>xy<div class=float>ab</div></div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (0,0)x(20,10)
   //   [1] kBox/Floating (30,0)x(20,10)
   auto& target = *GetElementById("target");
@@ -498,7 +499,7 @@ TEST_P(LayoutViewHitTestTest, FloatRightMiddle) {
       "#target { width: 50px; }"
       ".float { float: right; }");
   SetBodyInnerHTML("<div id=target>x<div class=float>ab</div>y</div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (0,0)x(20,10)
   //   [1] kText "x" (0,0)x(10,10)
   //   [2] kBox/Floating (30,0)x(20,10)
@@ -570,10 +571,10 @@ TEST_P(LayoutViewHitTestTest, PositionAbsolute) {
       "#target { width: 70px; }"
       ".abspos { position: absolute; left: 40px; top: 0px; }");
   SetBodyInnerHTML("<div id=target><div class=abspos>ab</div>xy</div>");
-  // NGFragmentItem
+  // FragmentItem
   //   [0] kLine (0,0)x(20,10)
   //   [2] kText "xy" (30,0)x(20,10)
-  // Note: position:absolute isn't in NGFragmentItems of #target.
+  // Note: position:absolute isn't in FragmentItems of #target.
   auto& target = *GetElementById("target");
   auto& ab = *To<Text>(target.firstChild()->firstChild());
   auto& xy = *To<Text>(target.lastChild());
@@ -623,9 +624,11 @@ TEST_P(LayoutViewHitTestTest, HitTestHorizontal) {
   //   |                  |
   //   |------------------|
   // (50, 180)         (250, 180)
-  auto* div = GetDocument().getElementById("div");
-  auto* text1 = GetDocument().getElementById("span1")->firstChild();
-  auto* text2 = GetDocument().getElementById("span2")->firstChild();
+  auto* div = GetDocument().getElementById(AtomicString("div"));
+  auto* text1 =
+      GetDocument().getElementById(AtomicString("span1"))->firstChild();
+  auto* text2 =
+      GetDocument().getElementById(AtomicString("span2"))->firstChild();
 
   HitTestResult result;
   // In body, but not in any descendants.
@@ -741,9 +744,11 @@ TEST_P(LayoutViewHitTestTest, HitTestVerticalLR) {
   //   |   Z              |
   //   |------------------|
   // (50, 180)         (250, 180)
-  auto* div = GetDocument().getElementById("div");
-  auto* text1 = GetDocument().getElementById("span1")->firstChild();
-  auto* text2 = GetDocument().getElementById("span2")->firstChild();
+  auto* div = GetDocument().getElementById(AtomicString("div"));
+  auto* text1 =
+      GetDocument().getElementById(AtomicString("span1"))->firstChild();
+  auto* text2 =
+      GetDocument().getElementById(AtomicString("span2"))->firstChild();
 
   HitTestResult result;
   // In body, but not in any descendants.
@@ -851,9 +856,11 @@ TEST_P(LayoutViewHitTestTest, HitTestVerticalRL) {
   //   |              Z   |
   //   |------------------|
   // (50, 180)         (250, 180)
-  auto* div = GetDocument().getElementById("div");
-  auto* text1 = GetDocument().getElementById("span1")->firstChild();
-  auto* text2 = GetDocument().getElementById("span2")->firstChild();
+  auto* div = GetDocument().getElementById(AtomicString("div"));
+  auto* text1 =
+      GetDocument().getElementById(AtomicString("span1"))->firstChild();
+  auto* text2 =
+      GetDocument().getElementById(AtomicString("span2"))->firstChild();
 
   HitTestResult result;
   // In body, but not in any descendants.
@@ -976,8 +983,8 @@ TEST_P(LayoutViewHitTestTest, HitTestVerticalRLRoot) {
   // .                           .
   // +----...--------------------+ (800, 600)
 
-  auto* div = GetDocument().getElementById("div");
-  auto* text = GetDocument().getElementById("span")->firstChild();
+  auto* div = GetDocument().getElementById(AtomicString("div"));
+  auto* text = GetDocument().getElementById(AtomicString("span"))->firstChild();
   HitTestResult result;
   // Not in any element. Should fallback to documentElement.
   GetLayoutView().HitTest(HitTestLocation(PhysicalOffset(1, 1)), result);

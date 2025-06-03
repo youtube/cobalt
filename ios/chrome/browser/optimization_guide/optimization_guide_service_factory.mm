@@ -6,22 +6,26 @@
 
 #import "base/feature_list.h"
 #import "base/no_destructor.h"
+#import "base/path_service.h"
 #import "components/keyed_service/ios/browser_state_dependency_manager.h"
 #import "components/optimization_guide/core/optimization_guide_features.h"
+#import "components/optimization_guide/core/optimization_guide_store.h"
 #import "components/optimization_guide/core/prediction_manager.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/browser_state_otr_helper.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/main/browser_list_factory.h"
 #import "ios/chrome/browser/optimization_guide/ios_chrome_hints_manager.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/browser_state_otr_helper.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
+#import "ios/chrome/browser/signin/identity_manager_factory.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
+
+// Prefix for the model store directory.
+const base::FilePath::CharType kOptimizationGuideModelStoreDirPrefix[] =
+    FILE_PATH_LITERAL("optimization_guide_model_store");
 
 std::unique_ptr<KeyedService> BuildOptimizationGuideService(
     web::BrowserState* context) {
@@ -65,7 +69,8 @@ std::unique_ptr<KeyedService> BuildOptimizationGuideService(
           // by PredictionManager which is a transitively owned by
           // OptimizationGuideService (a keyed service that is
           // killed before ChromeBrowserState is deallocated).
-          base::Unretained(chrome_browser_state)));
+          base::Unretained(chrome_browser_state)),
+      IdentityManagerFactory::GetForBrowserState(chrome_browser_state));
 }
 }
 
@@ -85,12 +90,25 @@ OptimizationGuideServiceFactory::GetInstance() {
   return instance.get();
 }
 
+// static
+void OptimizationGuideServiceFactory::InitializePredictionModelStore() {
+  if (optimization_guide::features::IsInstallWideModelStoreEnabled()) {
+    base::FilePath model_downloads_dir;
+    base::PathService::Get(ios::DIR_USER_DATA, &model_downloads_dir);
+    model_downloads_dir =
+        model_downloads_dir.Append(kOptimizationGuideModelStoreDirPrefix);
+    optimization_guide::PredictionModelStore::GetInstance()->Initialize(
+        GetApplicationContext()->GetLocalState(), model_downloads_dir);
+  }
+}
+
 OptimizationGuideServiceFactory::OptimizationGuideServiceFactory()
     : BrowserStateKeyedServiceFactory(
           "OptimizationGuideService",
           BrowserStateDependencyManager::GetInstance()) {
   DependsOn(BackgroundDownloadServiceFactory::GetInstance());
   DependsOn(BrowserListFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 OptimizationGuideServiceFactory::~OptimizationGuideServiceFactory() = default;

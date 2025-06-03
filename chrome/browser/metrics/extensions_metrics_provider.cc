@@ -13,6 +13,7 @@
 
 #include "base/hash/legacy_hash.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
@@ -218,7 +219,7 @@ ExtensionInstallProto::BackgroundScriptType GetBackgroundScriptType(
   return ExtensionInstallProto::NO_BACKGROUND_SCRIPT;
 }
 
-static_assert(extensions::disable_reason::DISABLE_REASON_LAST == (1LL << 22),
+static_assert(extensions::disable_reason::DISABLE_REASON_LAST == (1LL << 23),
               "Adding a new disable reason? Be sure to include the new reason "
               "below, update the test to exercise it, and then adjust this "
               "value for DISABLE_REASON_LAST");
@@ -261,6 +262,9 @@ std::vector<ExtensionInstallProto::DisableReason> GetDisableReasons(
        ExtensionInstallProto::NOT_ALLOWLISTED},
       {extensions::disable_reason::DISABLE_NOT_ASH_KEEPLISTED,
        ExtensionInstallProto::NOT_ASH_KEEPLISTED},
+      {extensions::disable_reason::
+           DISABLE_PUBLISHED_IN_STORE_REQUIRED_BY_POLICY,
+       ExtensionInstallProto::PUBLISHED_IN_STORE_REQUIRED_BY_POLICY},
   };
 
   int disable_reasons = prefs->GetDisableReasons(id);
@@ -276,8 +280,15 @@ std::vector<ExtensionInstallProto::DisableReason> GetDisableReasons(
       disable_reasons &= ~mask;
     }
   }
-  DCHECK_EQ(extensions::disable_reason::DisableReason::DISABLE_NONE,
-            disable_reasons);
+  if (disable_reasons !=
+      extensions::disable_reason::DisableReason::DISABLE_NONE) {
+    // Record any unexpected disable reasons - these are likely deprecated
+    // reason(s) that have not been migrated over in a few clients. Use this
+    // histogram to determine how many clients are affected to decide what
+    // action to take (if any).
+    base::UmaHistogramSparse("Extensions.DeprecatedDisableReasonsObserved",
+                             disable_reasons);
+  }
 
   return reasons;
 }

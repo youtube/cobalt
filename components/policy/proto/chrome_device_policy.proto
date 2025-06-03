@@ -167,6 +167,7 @@ message DeviceReportingProto {
   optional bool report_crd_sessions = 36 [default = false];
   optional bool report_peripherals = 37 [default = false];
   optional bool report_network_events = 41 [default = false];
+  optional bool report_runtime_counters = 42 [default = false];
 
   // Frequency to report device status, default to 3 hours.
   // If changed, the default value has to be updated in
@@ -188,6 +189,10 @@ message DeviceReportingProto {
   // Audio telemetry policy
   optional int64 report_device_audio_status_checking_rate_ms = 35
       [default = 600000];
+
+  // Runtime counters telemetry policy.
+  optional int64 device_report_runtime_counters_checking_rate_ms = 43
+      [default = 86400000];
 
   optional StringList report_signal_strength_event_driven_telemetry = 38;
 
@@ -1806,8 +1811,38 @@ message DeviceReportXDREventsProto {
   optional bool enabled = 1 [default = false];
 }
 
+message DeviceLowBatterySoundProto {
+  optional bool enabled = 1;
+}
+
+message DeviceChargingSoundsProto {
+  optional bool enabled = 1;
+}
+
+message DeviceSwitchFunctionKeysBehaviorEnabledProto {
+  optional bool enabled = 1;
+}
+
+message DeviceFlexHwDataForProductImprovementEnabledProto {
+  // Enable sending hardware data specifically for product improvement on
+  // managed ChromeOS Flex devices.
+  optional bool enabled = 1 [default = true];
+}
+
+// Mirrors ExtendedFkeysModifier from the extended_fkeys_modifier.mojom
+message ExtendedFkeysModifierProto {
+  enum ExtendedFkeysModifier {
+    DISABLED = 0;  // Default value for the F11/F12 settings.
+    ALT = 1;
+    SHIFT = 2;
+    CTRL_SHIFT = 3;
+  }
+
+  optional ExtendedFkeysModifier modifier = 1 [default = DISABLED];
+}
+
 message ChromeDeviceSettingsProto {
-  reserved 61, 71, 90;
+  reserved 61, 71, 90, 1194;
   optional DevicePolicyRefreshRateProto device_policy_refresh_rate = 1;
   optional UserWhitelistProto user_whitelist = 2;
   optional GuestModeEnabledProto guest_mode_enabled = 3;
@@ -2004,4 +2039,19 @@ message ChromeDeviceSettingsProto {
   optional DeviceSystemAecEnabledProto device_system_aec_enabled = 146;
   optional DeviceLoginScreenGeolocationAccessLevelProto
       device_login_screen_geolocation_access_level = 147;
+  optional StringPolicyProto device_login_screen_webhid_allow_devices_for_urls =
+      148;
+  optional DeviceLowBatterySoundProto device_low_battery_sound = 149;
+  optional DeviceChargingSoundsProto device_charging_sounds = 150;
+  optional StringListPolicyProto device_authentication_url_blocklist = 151;
+  optional StringListPolicyProto device_authentication_url_allowlist = 152;
+  optional DeviceSwitchFunctionKeysBehaviorEnabledProto
+      device_switch_function_keys_behavior_enabled = 153;
+  optional StringListPolicyProto device_dlc_predownload_list = 154;
+  optional BooleanPolicyProto device_ephemeral_network_policies_enabled = 155;
+  optional ExtendedFkeysModifierProto extended_fkeys_modifier = 156;
+  optional DeviceFlexHwDataForProductImprovementEnabledProto
+      device_flex_hw_data_for_product_improvement_enabled = 157;
+  optional BooleanPolicyProto DeviceHardwareVideoDecodingEnabled = 1185;
+  optional BooleanPolicyProto DeviceExtendedAutoUpdateEnabled = 1195;
 }

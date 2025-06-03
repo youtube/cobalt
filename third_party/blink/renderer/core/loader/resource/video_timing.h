@@ -63,6 +63,8 @@ class VideoTiming final : public GarbageCollected<VideoTiming>,
     // TODO(crbug.com/1379728): Revisit priority reporting also for videos.
     return absl::nullopt;
   }
+
+  bool IsBroken() const override { return false; }
   // Video timing does not have information about load start/end time. The
   // functions return 0 Timeticks as placeholders which would not be reported to
   // UKM.
@@ -73,6 +75,10 @@ class VideoTiming final : public GarbageCollected<VideoTiming>,
   base::TimeTicks LoadEnd() const override { return base::TimeTicks(); }
 
   base::TimeTicks DiscoveryTime() const override { return base::TimeTicks(); }
+
+  bool IsLoadedFromMemoryCache() const override { return false; }
+
+  bool IsPreloadedWithEarlyHints() const override { return false; }
 
  private:
   KURL url_;

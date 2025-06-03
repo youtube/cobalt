@@ -32,7 +32,7 @@ constexpr char kConnectionError[] =
 
 base::File OpenTestFile(const base::FilePath& path) {
   base::FilePath test_data_dir;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir);
   test_data_dir = test_data_dir.Append(
       base::FilePath(FILE_PATH_LITERAL("components/test/data/web_package")));
   test_data_dir = test_data_dir.Append(path);
@@ -64,7 +64,7 @@ class MockFactory final : public web_package::mojom::WebBundleParserFactory {
     void ParseIntegrityBlock(ParseIntegrityBlockCallback callback) override {
       integrity_block_callback_ = std::move(callback);
     }
-    void ParseMetadata(int64_t offset,
+    void ParseMetadata(absl::optional<uint64_t> offset,
                        ParseMetadataCallback callback) override {
       metadata_callback_ = std::move(callback);
     }
@@ -73,6 +73,8 @@ class MockFactory final : public web_package::mojom::WebBundleParserFactory {
                        ParseResponseCallback callback) override {
       response_callback_ = std::move(callback);
     }
+
+    void Close(CloseCallback callback) override {}
 
     ParseIntegrityBlockCallback integrity_block_callback_;
     ParseMetadataCallback metadata_callback_;
@@ -98,12 +100,6 @@ class MockFactory final : public web_package::mojom::WebBundleParserFactory {
 
  private:
   // web_package::mojom::WebBundleParserFactory implementation.
-  void GetParserForFile(
-      mojo::PendingReceiver<web_package::mojom::WebBundleParser> receiver,
-      const absl::optional<GURL>& base_url,
-      base::File file) override {
-    parser_ = std::make_unique<MockParser>(std::move(receiver));
-  }
   void GetParserForDataSource(
       mojo::PendingReceiver<web_package::mojom::WebBundleParser> receiver,
       const absl::optional<GURL>& base_url,
@@ -111,6 +107,9 @@ class MockFactory final : public web_package::mojom::WebBundleParserFactory {
       override {
     parser_ = std::make_unique<MockParser>(std::move(receiver));
   }
+  void BindFileDataSource(
+      mojo::PendingReceiver<web_package::mojom::BundleDataSource> receiver,
+      base::File file) override {}
 
   std::unique_ptr<MockParser> parser_;
   mojo::ReceiverSet<web_package::mojom::WebBundleParserFactory> receivers_;
@@ -125,6 +124,8 @@ class MockDataSource final : public web_package::mojom::BundleDataSource {
   MockDataSource(const MockDataSource&) = delete;
   MockDataSource& operator=(const MockDataSource&) = delete;
 
+  bool is_closed() const { return is_closed_; }
+
  private:
   // Implements web_package::mojom::BundledDataSource.
   void Read(uint64_t offset, uint64_t length, ReadCallback callback) override {}
@@ -133,7 +134,13 @@ class MockDataSource final : public web_package::mojom::BundleDataSource {
 
   void IsRandomAccessContext(IsRandomAccessContextCallback) override {}
 
+  void Close(CloseCallback callback) override {
+    is_closed_ = true;
+    std::move(callback).Run();
+  }
+
   mojo::Receiver<web_package::mojom::BundleDataSource> receiver_;
+  bool is_closed_ = false;
 };
 
 }  // namespace
@@ -166,7 +173,7 @@ TEST_F(SafeWebBundleParserTest, ParseGoldenFile) {
   base::test::TestFuture<web_package::mojom::BundleMetadataPtr,
                          web_package::mojom::BundleMetadataParseErrorPtr>
       metadata_future;
-  parser.ParseMetadata(/*offset=*/-1, metadata_future.GetCallback());
+  parser.ParseMetadata(/*offset=*/absl::nullopt, metadata_future.GetCallback());
   auto [metadata, metadata_error] = metadata_future.Take();
   ASSERT_TRUE(metadata);
   ASSERT_FALSE(metadata_error);
@@ -205,7 +212,7 @@ TEST_F(SafeWebBundleParserTest, CallWithoutOpen) {
   SafeWebBundleParser parser(/*base_url=*/absl::nullopt);
   bool metadata_parsed = false;
   parser.ParseMetadata(
-      /*offset=*/-1,
+      /*offset=*/absl::nullopt,
       base::BindOnce(
           [](bool* metadata_parsed,
              web_package::mojom::BundleMetadataPtr metadata,
@@ -255,7 +262,7 @@ TEST_F(SafeWebBundleParserTest, UseMockFactory) {
   EXPECT_FALSE(raw_factory->GetCreatedParser()->IsParseMetadataCalled());
   EXPECT_FALSE(raw_factory->GetCreatedParser()->IsParseResponseCalled());
 
-  parser.ParseMetadata(/*offset=*/-1, base::DoNothing());
+  parser.ParseMetadata(/*offset=*/absl::nullopt, base::DoNothing());
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(raw_factory->GetCreatedParser()->IsParseIntegrityBlockCalled());
   EXPECT_TRUE(raw_factory->GetCreatedParser()->IsParseMetadataCalled());
@@ -302,7 +309,8 @@ TEST_F(SafeWebBundleParserTest, ConnectionError) {
   base::test::TestFuture<web_package::mojom::BundleMetadataPtr,
                          web_package::mojom::BundleMetadataParseErrorPtr>
       metadata_future;
-  parser->ParseMetadata(/*offset=*/-1, metadata_future.GetCallback());
+  parser->ParseMetadata(/*offset=*/absl::nullopt,
+                        metadata_future.GetCallback());
   base::RunLoop().RunUntilIdle();
 
   base::test::TestFuture<web_package::mojom::BundleResponsePtr,
@@ -396,7 +404,7 @@ TEST_F(SafeWebBundleParserTest, ParseWebBundleWithRelativeUrls) {
   base::test::TestFuture<web_package::mojom::BundleMetadataPtr,
                          web_package::mojom::BundleMetadataParseErrorPtr>
       metadata_future;
-  parser.ParseMetadata(/*offset=*/-1, metadata_future.GetCallback());
+  parser.ParseMetadata(/*offset=*/absl::nullopt, metadata_future.GetCallback());
   auto [metadata, metadata_error] = metadata_future.Take();
   ASSERT_TRUE(metadata);
   ASSERT_FALSE(metadata_error);
@@ -409,6 +417,25 @@ TEST_F(SafeWebBundleParserTest, ParseWebBundleWithRelativeUrls) {
                             {GURL("https://test.example.org/absolute-url"),
                              GURL("https://example.com/relative-url-1"),
                              GURL("https://example.com/foo/relative-url-2")}));
+}
+
+TEST_F(SafeWebBundleParserTest, Close) {
+  auto parser =
+      std::make_unique<SafeWebBundleParser>(/*base_url=*/absl::nullopt);
+
+  mojo::PendingRemote<web_package::mojom::BundleDataSource> remote_data_source;
+  auto data_source = std::make_unique<MockDataSource>(
+      remote_data_source.InitWithNewPipeAndPassReceiver());
+  parser->OpenDataSource(std::move(remote_data_source));
+
+  EXPECT_FALSE(data_source->is_closed());
+
+  base::test::TestFuture<void> closed_callback;
+  parser->Close(closed_callback.GetCallback());
+  closed_callback.Get();
+
+  // Check that parser has closed the data source.
+  EXPECT_TRUE(data_source->is_closed());
 }
 
 }  // namespace data_decoder

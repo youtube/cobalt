@@ -47,26 +47,32 @@ class ProfileTestingHelper {
   content::BrowserTaskEnvironment task_environment_;
   TestingProfileManager manager_;
 
-  raw_ptr<TestingProfile> regular_profile_ = nullptr;
-  raw_ptr<Profile> incognito_profile_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged> regular_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> incognito_profile_ = nullptr;
 
-  raw_ptr<TestingProfile> guest_profile_ = nullptr;
-  raw_ptr<Profile> guest_profile_otr_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged> guest_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> guest_profile_otr_ = nullptr;
 
 #if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
-  raw_ptr<TestingProfile> system_profile_ = nullptr;
-  raw_ptr<Profile> system_profile_otr_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged> system_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> system_profile_otr_ = nullptr;
 #endif  // !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
-  raw_ptr<TestingProfile, ExperimentalAsh> signin_profile_ = nullptr;
-  raw_ptr<Profile, ExperimentalAsh> signin_profile_otr_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh> signin_profile_ =
+      nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh> signin_profile_otr_ =
+      nullptr;
 
-  raw_ptr<TestingProfile, ExperimentalAsh> lockscreen_profile_ = nullptr;
-  raw_ptr<Profile, ExperimentalAsh> lockscreen_profile_otr_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh>
+      lockscreen_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh>
+      lockscreen_profile_otr_ = nullptr;
 
-  raw_ptr<TestingProfile, ExperimentalAsh> lockscreenapp_profile_ = nullptr;
-  raw_ptr<Profile, ExperimentalAsh> lockscreenapp_profile_otr_ = nullptr;
+  raw_ptr<TestingProfile, DanglingUntriaged | ExperimentalAsh>
+      lockscreenapp_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged | ExperimentalAsh>
+      lockscreenapp_profile_otr_ = nullptr;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 };
 

@@ -4,14 +4,15 @@
 
 package org.chromium.components.background_task_scheduler.internal;
 
+import android.app.Notification;
 import android.app.job.JobParameters;
 import android.app.job.JobService;
+import android.os.Build;
 import android.os.SystemClock;
-
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.components.background_task_scheduler.BackgroundTask;
 import org.chromium.components.background_task_scheduler.TaskParameters;
@@ -25,9 +26,10 @@ public class BackgroundTaskJobService extends JobService {
 
     private BackgroundTaskSchedulerJobService.Clock mClock = System::currentTimeMillis;
 
-    @VisibleForTesting
     void setClockForTesting(BackgroundTaskSchedulerJobService.Clock clock) {
+        var oldValue = mClock;
         mClock = clock;
+        ResettersForTesting.register(() -> mClock = oldValue);
     }
 
     private static class TaskFinishedCallbackJobService
@@ -69,6 +71,21 @@ public class BackgroundTaskJobService extends JobService {
                     BackgroundTaskSchedulerUma.getInstance().reportTaskFinished(
                             mParams.getJobId(), SystemClock.uptimeMillis() - mTaskStartTimeMs);
                 }
+            });
+        }
+
+        @Override
+        public void setNotification(int notificationId, Notification notification) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return;
+            ThreadUtils.runOnUiThreadBlocking(() -> {
+                if (!isCurrentBackgroundTaskForJobId()) {
+                    Log.e(TAG, "Tried attaching notification for non-current BackgroundTask.");
+                    return;
+                }
+                mJobService.setNotification(mParams, notificationId, notification,
+                        JobService.JOB_END_NOTIFICATION_POLICY_DETACH);
+                BackgroundTaskSchedulerUma.getInstance().reportNotificationWasSet(
+                        mParams.getJobId(), SystemClock.uptimeMillis() - mTaskStartTimeMs);
             });
         }
 

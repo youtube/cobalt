@@ -1,0 +1,40 @@
+<style include="settings-shared"></style>
+
+<settings-card header-text="$i18n{osSearchPageTitle}">
+  <!-- Search -->
+  <template is="dom-if" if="[[!shouldShowQuickAnswersSettings_]]">
+    <settings-search-engine
+        deep-link-focus-id$="[[Setting.kPreferredSearchEngine]]">
+    </settings-search-engine>
+  </template>
+  <template is="dom-if" if="[[shouldShowQuickAnswersSettings_]]">
+    <cr-link-row
+        id="searchRow"
+        label="$i18n{searchSubpageTitle}"
+        on-click="onSearchClick_"
+        role-description="$i18n{subpageArrowRoleDescription}">
+    </cr-link-row>
+  </template>
+
+  <!-- Google Assistant -->
+  <template is="dom-if" if="[[isAssistantAllowed_]]">
+    <cr-link-row
+        id="assistantRow"
+        class="hr"
+        label="$i18n{searchGoogleAssistant}"
+        sub-label="[[getAssistantEnabledDisabledLabel_(
+            prefs.settings.voice_interaction.enabled.value)]]"
+        on-click="onGoogleAssistantClick_"
+        role-description="$i18n{subpageArrowRoleDescription}">
+    </cr-link-row>
+  </template>
+  <template is="dom-if" if="[[isRevampWayfindingEnabled_]]">
+    <settings-toggle-button id="contentRecommendationsToggle"
+        class="hr"
+        pref="{{prefs.settings.suggested_content_enabled}}"
+        label="$i18n{enableSuggestedContent}"
+        sub-label="$i18n{enableSuggestedContentDesc}"
+        learn-more-url="$i18n{suggestedContentLearnMoreURL}">
+    </settings-toggle-button>
+  </template>
+</settings-card>

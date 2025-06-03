@@ -4,17 +4,22 @@
 
 #import <XCTest/XCTest.h>
 
+#import "base/apple/foundation_util.h"
+#import "base/containers/contains.h"
 #import "base/functional/bind.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
+#import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "build/build_config.h"
+#import "components/feature_engagement/public/feature_constants.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/ui/content_suggestions/ntp_home_constant.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_app_interface.h"
 #import "ios/chrome/browser/ui/omnibox/omnibox_ui_features.h"
 #import "ios/chrome/browser/ui/omnibox/popup/omnibox_popup_accessibility_identifier_constants.h"
+#import "ios/chrome/browser/ui/toolbar/public/toolbar_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
@@ -30,10 +35,6 @@
 #import "net/test/embedded_test_server/http_request.h"
 #import "net/test/embedded_test_server/http_response.h"
 #import "ui/base/l10n/l10n_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForUIElementTimeout;
 using chrome_test_util::WebViewMatcher;
@@ -61,6 +62,36 @@ const char kLogoPagePath[] = "/chromium_logo_page.html";
 const char kLogoPageText[] = "Page with some text and the chromium logo image.";
 // The DOM element ID of the chromium image on the logo page.
 const char kLogoPageChromiumImageId[] = "chromium_image";
+// Y offset to tap on the middle of the text.
+const CGFloat kOmniboxTextFieldMidY = 18;
+// X offset to tap on the beginning of the text, tapping on the left edge
+// inserts a carret instead of showing the menu.
+const CGFloat kOmniboxTextFieldOffsetX = 30;
+
+// Defocus the omnibox.
+void DefocusOmnibox() {
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    // "escape" is a hardcoded key string in hardware_keyboard_util that maps to
+    // a HIDUsageCode.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"escape" flags:0];
+  } else {
+    id<GREYMatcher> cancel_button =
+        grey_accessibilityID(kToolbarCancelOmniboxEditButtonIdentifier);
+    [[EarlGrey
+        selectElementWithMatcher:grey_allOf(cancel_button,
+                                            grey_sufficientlyVisible(), nil)]
+        performAction:grey_tap()];
+  }
+  [ChromeEarlGreyUI waitForAppToIdle];
+}
+
+// Taps the pre edit text in the omnibox.
+void TapOnPreEditTextInOmnibox() {
+  // TODO(crbug.com/1442458): Find a better way to tap on the selected url.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      performAction:grey_tapAtPoint(CGPointMake(kOmniboxTextFieldOffsetX,
+                                                kOmniboxTextFieldMidY))];
+}
 
 // Provides responses for the different pages.
 std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
@@ -85,7 +116,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
   if (request.relative_url == kHeaderPageURL) {
     std::string result = kHeaderPageFailure;
-    if (request.headers.find("X-Client-Data") != request.headers.end()) {
+    if (base::Contains(request.headers, "X-Client-Data")) {
       result = kHeaderPageSuccess;
     }
     http_response->set_content("<html><body>" + result + "</body></html>");
@@ -131,6 +162,13 @@ id<GREYMatcher> CutButton() {
                     chrome_test_util::SystemSelectionCallout(), nil);
 }
 
+// Returns Copy button from UIMenuController.
+id<GREYMatcher> CopyButton() {
+  NSString* a11yLabelCopy = @"Copy";
+  return grey_allOf(grey_accessibilityLabel(a11yLabelCopy),
+                    chrome_test_util::SystemSelectionCallout(), nil);
+}
+
 // Returns Search Copied Text button from UIMenuController.
 id<GREYMatcher> SearchCopiedTextButton() {
   NSString* a11yLabelCopiedText =
@@ -160,18 +198,57 @@ id<GREYMatcher> PasteToSearchButton() {
   return grey_accessibilityHint(a11yHintPasteButton);
 }
 
-// Returns Copy button from the context menu.
+#pragma mark LocationBar context menu buttons
+
+// LocationBar context menu buttons can be showed in different orders depending
+// on the omnibox position (top or bottom toolbar). The context menu is
+// configured with UIContextMenuConfigurationElementOrderPriority that will
+// create the buttons two times (one for earch ordering) with one of them
+// hidden. The added `grey_hidden(NO)` prevents conflict when matching with
+// GREYMatcher.
+
+// Returns Copy button from the location bar context menu.
 id<GREYMatcher> CopyContextMenuButton() {
+  int copyButtonId = IDS_IOS_SHARE_MENU_COPY;
+  if ([ChromeEarlGrey isBottomOmniboxSteadyStateEnabled]) {
+    copyButtonId = IDS_IOS_COPY_LINK_ACTION_TITLE;
+  }
   return grey_allOf(
-      grey_accessibilityLabel(l10n_util::GetNSString(IDS_IOS_SHARE_MENU_COPY)),
-      grey_accessibilityTrait(UIAccessibilityTraitButton), nil);
+      chrome_test_util::ContextMenuItemWithAccessibilityLabelId(copyButtonId),
+      grey_accessibilityTrait(UIAccessibilityTraitButton), grey_hidden(NO),
+      nil);
 }
 
-// Returns Visit Copied Link button from the context menu.
+// Returns Visit Copied Link button from the location bar context menu.
 id<GREYMatcher> VisitCopiedLinkContextMenuButton() {
-  return grey_allOf(grey_accessibilityLabel(
-                        l10n_util::GetNSString(IDS_IOS_VISIT_COPIED_LINK)),
-                    grey_accessibilityTrait(UIAccessibilityTraitButton), nil);
+  return grey_allOf(chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
+                        IDS_IOS_VISIT_COPIED_LINK),
+                    grey_accessibilityTrait(UIAccessibilityTraitButton),
+                    grey_hidden(NO), nil);
+}
+
+// Returns Search Copied Text button from the location bar context menu.
+id<GREYMatcher> SearchCopiedTextContextMenuButton() {
+  return grey_allOf(chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
+                        IDS_IOS_SEARCH_COPIED_TEXT),
+                    grey_accessibilityTrait(UIAccessibilityTraitButton),
+                    grey_hidden(NO), nil);
+}
+
+// Returns Search Copied Image button from the location bar context menu.
+id<GREYMatcher> SearchCopiedImageContextMenuButton() {
+  return grey_allOf(chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
+                        IDS_IOS_SEARCH_COPIED_IMAGE),
+                    grey_accessibilityTrait(UIAccessibilityTraitButton),
+                    grey_hidden(NO), nil);
+}
+
+// Returns Search Copied Image button from the location bar context menu.
+id<GREYMatcher> SearchCopiedImageWithLensContextMenuButton() {
+  return grey_allOf(chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
+                        IDS_IOS_SEARCH_COPIED_IMAGE_WITH_LENS),
+                    grey_accessibilityTrait(UIAccessibilityTraitButton),
+                    grey_hidden(NO), nil);
 }
 
 // Taps the fake omnibox and waits for the real omnibox to be visible.
@@ -192,6 +269,12 @@ void FocusFakebox() {
 
 @implementation OmniboxTestCase
 
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  return config;
+}
+
 - (void)setUp {
   [super setUp];
 
@@ -208,6 +291,13 @@ void FocusFakebox() {
 
 #pragma mark - Helpers
 
+// Navigates to Page 1 in a tab and waits for it to load.
+- (void)openPage1 {
+  // Go to a web page to have a normal location bar.
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+}
+
 // Copies image from `kLogoPagePath` into the clipboard using web context menu
 // interactions.
 - (void)copyImageIntoClipboard {
@@ -219,9 +309,9 @@ void FocusFakebox() {
                         [ElementSelector
                             selectorWithElementID:kLogoPageChromiumImageId],
                         true /* menu should appear */)];
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_CONTENT_CONTEXT_COPYIMAGE)]
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
+                     IDS_IOS_CONTENT_CONTEXT_COPYIMAGE)]
       performAction:grey_tap()];
 
   GREYCondition* copyCondition =
@@ -263,7 +353,10 @@ void FocusFakebox() {
           .spec());
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText([NSString stringWithFormat:@"%@\n", URL])];
+      performAction:grey_replaceText(URL)];
+  // TODO(crbug.com/1454516): Use simulatePhysicalKeyboardEvent until
+  // replaceText can properly handle \n.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\n" flags:0];
 
   [ChromeEarlGrey waitForWebStateContainingText:kHeaderPageSuccess];
 }
@@ -354,7 +447,8 @@ void FocusFakebox() {
 
 // Tests that Search Copied Image menu button is shown with an image in the
 // clipboard and is starting an image search.
-- (void)testOmniboxMenuPasteImageToSearch {
+// TODO(crbug.com/1476912): Fix flakiness and re-enable.
+- (void)DISABLED_testOmniboxMenuPasteImageToSearch {
   [self copyImageIntoClipboard];
 
   // Wait for the context menu to dismiss, so the omnibox can be tapped.
@@ -457,6 +551,91 @@ void FocusFakebox() {
   }
 }
 
+// Tests that copying in the omnibox will trigger the share button IPH to be
+// displayed, if certain conditions are met, with bottom omnibox for phone form
+// factor.
+- (void)testCopyInOmniboxTriggersShareButtonIPHWithBottomOmnibox {
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad (no bottom omnibox in tablet)");
+  }
+  // Enable the IPH Demo Mode feature to ensure the IPH triggers
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.additional_args.push_back(
+      base::StringPrintf("--enable-features=%s:chosen_feature/"
+                         "IPH_iOSShareToolbarItemFeature,IPHForSafariSwitcher",
+                         feature_engagement::kIPHDemoMode.name));
+  // Force the conditions that allow the iph to show.
+  config.additional_args.push_back("-ForceExperienceForDeviceSwitcher");
+  config.additional_args.push_back("SyncedAndFirstDevice");
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  [self openPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // By default the address should be selected. Tapping should open the system
+  // menu.
+  TapOnPreEditTextInOmnibox();
+
+  // Verify that the Copy button is displayed.
+  [[EarlGrey selectElementWithMatcher:CopyButton()]
+      assertWithMatcher:grey_notNil()];
+
+  // Tapping it should copy the URL.
+  [[EarlGrey selectElementWithMatcher:CopyButton()] performAction:grey_tap()];
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  DefocusOmnibox();
+
+  // Verify the share button IPH is shown.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:grey_accessibilityID(
+                                              @"BubbleViewLabelIdentifier")];
+}
+
+// Tests that copying in the omnibox will trigger the share button IPH to be
+// displayed, if certain conditions are met, when omnibox is at the top.
+- (void)testCopyInOmniboxTriggersShareButtonIPHWithTopOmnibox {
+  // Enable the IPH Demo Mode feature to ensure the IPH triggers
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.additional_args.push_back(
+      base::StringPrintf("--enable-features=%s:chosen_feature/"
+                         "IPH_iOSShareToolbarItemFeature,IPHForSafariSwitcher",
+                         feature_engagement::kIPHDemoMode.name));
+  // Force the conditions that allow the iph to show.
+  config.additional_args.push_back("-ForceExperienceForDeviceSwitcher");
+  config.additional_args.push_back("SyncedAndFirstDevice");
+  config.additional_args.push_back(
+      base::StringPrintf("--disable-features=BottomOmniboxSteadyState"));
+
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  [self openPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // By default the address should be selected. Tapping should open the system
+  // menu.
+  TapOnPreEditTextInOmnibox();
+
+  // Verify that the Copy button is displayed.
+  [[EarlGrey selectElementWithMatcher:CopyButton()]
+      assertWithMatcher:grey_notNil()];
+
+  // Tapping it should copy the URL.
+  [[EarlGrey selectElementWithMatcher:CopyButton()] performAction:grey_tap()];
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  DefocusOmnibox();
+
+  // Verify the share button IPH is shown.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:grey_accessibilityID(
+                                              @"BubbleViewLabelIdentifier")];
+}
+
 @end
 
 #pragma mark - Steady state tests
@@ -469,6 +648,12 @@ void FocusFakebox() {
 @end
 
 @implementation LocationBarSteadyStateTestCase
+
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  return config;
+}
 
 - (void)setUp {
   [super setUp];
@@ -540,9 +725,12 @@ void FocusFakebox() {
   // Verify that system text selection callout is not displayed.
   [[EarlGrey selectElementWithMatcher:VisitCopiedLinkContextMenuButton()]
       assertWithMatcher:grey_nil()];
-  [[EarlGrey selectElementWithMatcher:SearchCopiedTextButton()]
+  [[EarlGrey selectElementWithMatcher:SearchCopiedTextContextMenuButton()]
       assertWithMatcher:grey_nil()];
-  [[EarlGrey selectElementWithMatcher:PasteButton()]
+  [[EarlGrey selectElementWithMatcher:SearchCopiedImageContextMenuButton()]
+      assertWithMatcher:grey_nil()];
+  [[EarlGrey
+      selectElementWithMatcher:SearchCopiedImageWithLensContextMenuButton()]
       assertWithMatcher:grey_nil()];
 
   [self checkLocationBarSteadyState];
@@ -569,6 +757,136 @@ void FocusFakebox() {
 
   [ChromeEarlGrey waitForPageToFinishLoading];
   [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+}
+
+// Tests that copying the location bar by long pressing will trigger the share
+// button IPH to be displayed, if certain conditions are met, with the omnibox
+// at the bottom. Runs for phone factor only.
+- (void)testCopyLocationBarTriggersShareButtonIPHWithBottomOmnibox {
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad (no bottom omnibox in tablet)");
+  }
+  // Enable the IPH Demo Mode feature to ensure the IPH triggers
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.additional_args.push_back(
+      base::StringPrintf("--enable-features=%s:chosen_feature/"
+                         "IPH_iOSShareToolbarItemFeature,IPHForSafariSwitcher",
+                         feature_engagement::kIPHDemoMode.name));
+  // Force the conditions that allow the iph to show.
+  config.additional_args.push_back("-ForceExperienceForDeviceSwitcher");
+  config.additional_args.push_back("SyncedAndFirstDevice");
+
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  GREYAssertTrue([ChromeEarlGrey isBottomOmniboxSteadyStateEnabled],
+                 @"Test case should have ran in bottom omnibox environment");
+
+  [self openPage1];
+
+  // Long pressing should allow copying.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
+      performAction:grey_longPress()];
+
+  // Verify that the Copy button is displayed.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      assertWithMatcher:grey_notNil()];
+
+  // Tapping it should copy the URL.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      performAction:grey_tap()];
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  // Verify the share button IPH is shown.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:grey_accessibilityID(
+                                              @"BubbleViewLabelIdentifier")];
+}
+
+// Tests that copying the location bar by long pressing will trigger the share
+// button IPH to be displayed, if certain conditions are met, with the omnibox
+// at the top.
+- (void)testCopyLocationBarTriggersShareButtonIPHWithTopOmnibox {
+  // Enable the IPH Demo Mode feature to ensure the IPH triggers
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.additional_args.push_back(
+      base::StringPrintf("--enable-features=%s:chosen_feature/"
+                         "IPH_iOSShareToolbarItemFeature,IPHForSafariSwitcher",
+                         feature_engagement::kIPHDemoMode.name));
+  // Force the conditions that allow the iph to show.
+  config.additional_args.push_back("-ForceExperienceForDeviceSwitcher");
+  config.additional_args.push_back("SyncedAndFirstDevice");
+  config.additional_args.push_back(
+      base::StringPrintf("--disable-features=BottomOmniboxSteadyState"));
+
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  [self openPage1];
+
+  // Long pressing should allow copying.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
+      performAction:grey_longPress()];
+
+  // Verify that the Copy button is displayed.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      assertWithMatcher:grey_notNil()];
+
+  // Tapping it should copy the URL.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      performAction:grey_tap()];
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  // Verify the share button IPH is shown.
+  GREYAssert([ChromeEarlGrey testUIElementAppearanceWithMatcher:
+                                 chrome_test_util::TabShareButton()],
+             @"The share button is not found");
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:grey_accessibilityID(
+                                              @"BubbleViewLabelIdentifier")];
+}
+
+// Tests that copying the location bar by long pressing will NOT trigger the
+// share button IPH to be displayed, if the share button is disabled because the
+// url is not sharable.
+- (void)testCopyLocationBarNotTriggersShareButtonIPHWhenButtonDisabled {
+  // Enable the IPH Demo Mode feature to ensure the IPH triggers
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.additional_args.push_back(
+      base::StringPrintf("--enable-features=%s:chosen_feature/"
+                         "IPH_iOSShareToolbarItemFeature,IPHForSafariSwitcher",
+                         feature_engagement::kIPHDemoMode.name));
+  // Force the conditions that allow the iph to show.
+  config.additional_args.push_back("-ForceExperienceForDeviceSwitcher");
+  config.additional_args.push_back("SyncedAndFirstDevice");
+  config.additional_args.push_back(
+      base::StringPrintf("--disable-features=BottomOmniboxSteadyState"));
+
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  [ChromeEarlGrey loadURL:GURL("chrome://version")];
+
+  // Long pressing should allow copying.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
+      performAction:grey_longPress()];
+
+  // Verify that the Copy button is displayed.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      assertWithMatcher:grey_notNil()];
+
+  // Tapping it should copy the URL.
+  [[EarlGrey selectElementWithMatcher:CopyContextMenuButton()]
+      performAction:grey_tap()];
+  [ChromeEarlGrey
+      verifyStringCopied:base::SysUTF8ToNSString("chrome://version")];
+
+  // Verify the share button is shown but the IPH is not shown.
+  GREYAssert([ChromeEarlGrey testUIElementAppearanceWithMatcher:
+                                 chrome_test_util::TabShareButton()],
+             @"The share button is not found");
+  GREYAssert(
+      ![ChromeEarlGrey
+          testUIElementAppearanceWithMatcher:grey_accessibilityID(
+                                                 @"BubbleViewLabelIdentifier")],
+      @"The share button IPH is displayed");
 }
 
 - (void)testDismissesEditMenu {
@@ -601,104 +919,20 @@ void FocusFakebox() {
                  @"Context menu is still visible.");
 }
 
-// Copies and pastes a URL, then performs an undo of the paste, and attempts to
-// perform a second undo.
-// TODO(crbug.com/1041478): This test is flaky.
-- (void)FLAKY_testCopyPasteUndo {
-  [self openPage1];
-
-  [ChromeEarlGreyUI focusOmnibox];
-  [self checkLocationBarEditState];
-
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"C"
-                                          flags:UIKeyModifierCommand];
-
-  // Edit menu takes a while to copy, and not waiting here will cause Page 2 to
-  // load before the copy happens, so Page 2 URL may be copied.
-  GREYCondition* copyCondition = [GREYCondition
-      conditionWithName:@"page1 URL copied condition"
-                  block:^BOOL {
-                    return [UIPasteboard.generalPasteboard.string
-                        hasSuffix:base::SysUTF8ToNSString(kPage1URL)];
-                  }];
-  // Wait for copy to happen or timeout after 5 seconds.
-  GREYAssertTrue([copyCondition waitWithTimeout:5],
-                 @"Copying page 1 URL failed");
-
-  // Defocus the omnibox.
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    // This won't defocus the omnibox, it would only dismiss the keyboard.
-    id<GREYMatcher> typingShield = grey_accessibilityID(@"Typing Shield");
-    [[EarlGrey selectElementWithMatcher:typingShield] performAction:grey_tap()];
-  } else {
-    [[EarlGrey selectElementWithMatcher:grey_buttonTitle(@"Cancel")]
-        performAction:grey_tap()];
-  }
-
-  [self openPage2];
-
-  [ChromeEarlGreyUI focusOmnibox];
-
-  // Attempt to paste.
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"V"
-                                          flags:UIKeyModifierCommand];
-
-  // Verify that paste happened.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage1URL)];
-
-  // Attempt to undo.
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"Z"
-                                          flags:UIKeyModifierCommand];
-
-  // Verify that undo happened.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage2URL)];
-
-  // Attempt to undo again. Nothing should happen. In the past this could lead
-  // to a crash.
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"Z"
-                                          flags:UIKeyModifierCommand];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage2URL)];
-}
-
-// Focus the omnibox and hit "cmd+X". This should remove all text from the
-// omnibox and put it in the clipboard. This had been broken before because of
-// the preedit state complexity. Paste to verify that the URL was indeed copied.
-// TODO(crbug.com/1049603): Re-enable this test.
-- (void)DISABLED_testCutInPreedit {
-  [self openPage1];
-
-  [ChromeEarlGreyUI focusOmnibox];
-  [self checkLocationBarEditState];
-
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"X"
-                                          flags:UIKeyModifierCommand];
-  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
-
-  // Verify that the omnibox is empty.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxText("")];
-
-  // Attempt to paste.
-  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"V"
-                                          flags:UIKeyModifierCommand];
-
-  // Verify that paste happened.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage1URL)];
-}
-
+// Tests that the omnibox defocuses when switching to another tab.
 - (void)testOmniboxDefocusesOnTabSwitch {
+  [ChromeEarlGrey closeAllTabs];
+
+  [ChromeEarlGrey openNewTab];
   [self openPage1];
+
   [ChromeEarlGrey openNewTab];
   [ChromeEarlGrey waitForMainTabCount:2];
   [self openPage2];
 
   [ChromeEarlGreyUI focusOmnibox];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText(@"Obama")];
+      performAction:grey_replaceText(@"Obama")];
 
   // The popup should open.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxPopupList()]
@@ -714,13 +948,10 @@ void FocusFakebox() {
       assertWithMatcher:grey_notVisible()];
 }
 
+// Tests that the omnibox defocuses when switching to another incognito tab.
 - (void)testOmniboxDefocusesOnTabSwitchIncognito {
-#if !TARGET_IPHONE_SIMULATOR
-  // Test flaky, see TODO:(crbug.com/1211373).
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Test disable on iPad device.");
-  }
-#endif
+  [ChromeEarlGrey closeAllTabs];
+
   [ChromeEarlGrey openNewIncognitoTab];
   [ChromeEarlGrey waitForIncognitoTabCount:1];
   [self openPage1];
@@ -731,7 +962,7 @@ void FocusFakebox() {
 
   [ChromeEarlGreyUI focusOmnibox];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText(@"Obama")];
+      performAction:grey_replaceText(@"Obama")];
 
   // The popup should open.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxPopupList()]
@@ -745,6 +976,9 @@ void FocusFakebox() {
   [self checkLocationBarSteadyState];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxPopupList()]
       assertWithMatcher:grey_notVisible()];
+
+  // Exit incognito.
+  [ChromeEarlGrey closeAllTabs];
 }
 
 #pragma mark - Helpers
@@ -786,6 +1020,12 @@ void FocusFakebox() {
   GURL _URL;
 }
 
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  return config;
+}
+
 - (void)setUp {
   [super setUp];
 
@@ -805,6 +1045,7 @@ void FocusFakebox() {
 - (void)tearDown {
   // Clear the pasteboard after every test.
   [ChromeEarlGrey clearPasteboard];
+  [super tearDown];
 }
 
 // Tests that tapping on steady view on webpage and starting typing a query
@@ -819,7 +1060,7 @@ void FocusFakebox() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
       assertWithMatcher:chrome_test_util::OmniboxText(_URL.GetContent())];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText(@"hello")];
+      performAction:grey_replaceText(@"hello")];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
       assertWithMatcher:chrome_test_util::OmniboxText("hello")];
 }
@@ -841,8 +1082,7 @@ void FocusFakebox() {
   [ChromeEarlGrey copyTextToPasteboard:@"hello"];
 
   // Tap on Omnibox on pre edit state.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+  TapOnPreEditTextInOmnibox();
 
   // Wait for callout copy button to be displayed.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
@@ -872,8 +1112,7 @@ void FocusFakebox() {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Tap on Omnibox on pre edit state.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+  TapOnPreEditTextInOmnibox();
 
   // Wait for callout cut button to be displayed.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
@@ -905,8 +1144,7 @@ void FocusFakebox() {
   [ChromeEarlGrey copyTextToPasteboard:@"hello"];
 
   // Tap on Omnibox on pre edit state.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+  TapOnPreEditTextInOmnibox();
 
   // Wait for callout paste button to be displayed.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
@@ -930,6 +1168,12 @@ void FocusFakebox() {
 @end
 
 @implementation LocationBarEditStateTestCase
+
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  return config;
+}
 
 - (void)setUp {
   [super setUp];
@@ -956,7 +1200,7 @@ void FocusFakebox() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
       assertWithMatcher:grey_sufficientlyVisible()];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+      performAction:grey_longPress()];
 
   // Pressing should not allow copying when omnibox is empty.
   // Wait for Copy button to appear or timeout after 2 seconds.
@@ -994,11 +1238,11 @@ void FocusFakebox() {
 
   // Writing in the omnibox field.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText(@"this is a test")];
+      performAction:grey_replaceText(@"this is a test")];
 
-  // Click on the omnibox.
+  // Long press on the omnibox.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+      performAction:grey_longPress()];
 
   // SelectAll the omnibox field.
   GREYCondition* SelectAllButtonIsDisplayed = [GREYCondition
@@ -1064,10 +1308,10 @@ void FocusFakebox() {
       assertWithMatcher:grey_sufficientlyVisible()];
   // Write in the omnibox field.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_typeText(@"this is a test")];
+      performAction:grey_replaceText(@"this is a test")];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_tap()];
+      performAction:grey_longPress()];
 
   // Pressing should allow select and selectAll.
   // Wait for UIMenuController to appear or timeout after 2 seconds.
@@ -1162,6 +1406,226 @@ void FocusFakebox() {
       performAction:grey_tap()];
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
+}
+
+@end
+
+#pragma mark - Hardware keyboard simulation interaction with omnibox
+
+@interface OmniboxHardwareKeyboardInteractionTestCase : ChromeTestCase
+@end
+
+@implementation OmniboxHardwareKeyboardInteractionTestCase {
+  GURL _URL1;
+  GURL _URL2;
+}
+
+- (void)setUp {
+  [super setUp];
+
+  [ChromeEarlGrey clearBrowsingHistory];
+
+  // Start a server to be able to navigate to a web page.
+  self.testServer->RegisterRequestHandler(
+      base::BindRepeating(&StandardResponse));
+  GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
+
+  _URL1 = self.testServer->GetURL(kPage1URL);
+  _URL2 = self.testServer->GetURL(kPage2URL);
+
+  // Clear the pasteboard in case there is a URL copied.
+  [ChromeEarlGrey clearPasteboard];
+}
+
+- (void)tearDown {
+  [super tearDown];
+  // HW keyboard simulation can mess up the SW keyboard simulator state.
+  // Relaunching resets the state.
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+}
+
+// Tests that in SRP/webpage state, pressing on forward delete HW key would
+// erase the selected url.
+- (void)testHardwareBackspaceKey {
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+  // Omnibox contains the page url.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxText(_URL1.GetContent())];
+
+  // Press the backspace HW keyboard key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\b" flags:0];
+
+  // Omnibox now should be empty.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:chrome_test_util::OmniboxText("")];
+}
+
+// Tests that in SRP/webpage state, pressing Left/right arrows HW keyboard keys
+// would exit pre-edit state and put the cursor to the end (right arrow) or to
+// the begining (left arrow)
+- (void)testHardwareLeftRightArrowKey {
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+  // Omnibox contains the page url.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxText(_URL1.GetContent())];
+
+  // Simulate press the HW right arrow key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"rightArrow" flags:0];
+
+  // Type something
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"hello" flags:0];
+
+  // Omnibox now should contain the page url suffixed with 'hello'
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+
+      assertWithMatcher:chrome_test_util::OmniboxText(_URL1.GetContent() +
+                                                      "hello")];
+
+  DefocusOmnibox();
+
+  [ChromeEarlGreyUI focusOmnibox];
+  // Omnibox contains the page url.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxText(_URL1.GetContent())];
+  // Simulate press the HW right arrow key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"leftArrow" flags:0];
+
+  // Type something
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"hello" flags:0];
+
+  // Omnibox now should contain the page url prefixed with 'hello'
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxText("hello" +
+                                                      _URL1.GetContent())];
+}
+
+// Copies and pastes a URL, then performs an undo of the paste, and attempts to
+// perform a second undo.
+- (void)testCopyPasteUndo {
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"C"
+                                          flags:UIKeyModifierCommand];
+
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  // Defocus the omnibox.
+  DefocusOmnibox();
+
+  [ChromeEarlGrey loadURL:_URL2];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage2];
+
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // Attempt to paste.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"V"
+                                          flags:UIKeyModifierCommand];
+
+  // Verify that paste happened.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage1URL)];
+
+  // Attempt to undo.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"Z"
+                                          flags:UIKeyModifierCommand];
+
+  // Verify that undo happened.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage2URL)];
+
+  // Attempt to undo again. Nothing should happen. In the past this could lead
+  // to a crash.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"Z"
+                                          flags:UIKeyModifierCommand];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage2URL)];
+}
+
+// Focus the omnibox and hit "cmd+X". This should remove all text from the
+// omnibox and put it in the clipboard. This had been broken before because of
+// the preedit state complexity. Paste to verify that the URL was indeed copied.
+- (void)testCutInPreedit {
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+
+  [ChromeEarlGreyUI focusOmnibox];
+
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"X"
+                                          flags:UIKeyModifierCommand];
+  [ChromeEarlGrey verifyStringCopied:base::SysUTF8ToNSString(_URL1.spec())];
+
+  // Verify that the omnibox is empty.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxText("")];
+
+  // Attempt to paste.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"V"
+                                          flags:UIKeyModifierCommand];
+
+  // Verify that paste happened.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      assertWithMatcher:chrome_test_util::OmniboxContainingText(kPage1URL)];
+}
+
+// Tests that pressing spacebar key when having an autocomplete, removes it.
+- (void)testHWspacebarKeyOnAutocomplete {
+  // Relaunch the app with new textfield disabled, as autocomplete label exists
+  // only on legacy implementation.
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.features_disabled.push_back(kIOSNewOmniboxImplementation);
+  auto bundledConfig = std::string("OmniboxBundledExperimentV1");
+  config.additional_args.push_back("--enable-features=" + bundledConfig + "<" +
+                                   bundledConfig);
+  config.additional_args.push_back("--force-fieldtrials=" + bundledConfig +
+                                   "/Test");
+  // Disable all autocomplete providers except the history url provider.
+  config.additional_args.push_back(
+      "--force-fieldtrial-params=" + bundledConfig +
+      ".Test:" + "DisableProviders" + "/" + "524279");
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  [self populateHistory];
+
+  // Clears the url and replace it with local url prefix.
+  // TODO(crbug.com/1454516): This should use grey_typeText when fixed.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
+      performAction:grey_replaceText(@"127")];
+
+  // We expect to have an autocomplete.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:
+                      chrome_test_util::OmniboxAutocompleteLabel()];
+
+  // Pressing spacebar.
+  // TODO(crbug.com/1454516): This should use grey_typeText when fixed.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@" " flags:0];
+
+  // Autocomplete removed.
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:
+                      chrome_test_util::OmniboxAutocompleteLabel()];
+}
+
+#pragma mark - Helpers
+
+// Populate history by visiting the 2 different pages.
+- (void)populateHistory {
+  // Add all the pages to the history.
+  [ChromeEarlGrey loadURL:_URL1];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage1];
+  [ChromeEarlGrey loadURL:_URL2];
+  [ChromeEarlGrey waitForWebStateContainingText:kPage2];
 }
 
 @end

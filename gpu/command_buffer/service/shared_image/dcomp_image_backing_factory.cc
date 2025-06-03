@@ -38,8 +38,10 @@ constexpr uint32_t kSupportedUsage = kDXGISwapChainUsage | kDCompSurfaceUsage;
 
 }  // namespace
 
-DCompImageBackingFactory::DCompImageBackingFactory()
-    : SharedImageBackingFactory(kSupportedUsage) {}
+DCompImageBackingFactory::DCompImageBackingFactory(
+    scoped_refptr<SharedContextState> context_state)
+    : SharedImageBackingFactory(kSupportedUsage),
+      context_state_(std::move(context_state)) {}
 
 DCompImageBackingFactory::~DCompImageBackingFactory() = default;
 
@@ -55,6 +57,7 @@ std::unique_ptr<SharedImageBacking> DCompImageBackingFactory::CreateSharedImage(
     std::string debug_label,
     bool is_thread_safe) {
   DCHECK(!is_thread_safe);
+  CHECK(alpha_type == kOpaque_SkAlphaType || alpha_type == kPremul_SkAlphaType);
 
   // DXGI only supports a handful of formats for scan-out, so we map the
   // requested format to a supported compatible DXGI format.
@@ -66,9 +69,9 @@ std::unique_ptr<SharedImageBacking> DCompImageBackingFactory::CreateSharedImage(
                                             size, color_space, surface_origin,
                                             alpha_type, usage);
   } else {
-    return DXGISwapChainImageBacking::Create(mailbox, format, internal_format,
-                                             size, color_space, surface_origin,
-                                             alpha_type, usage);
+    return DXGISwapChainImageBacking::Create(
+        context_state_->GetD3D11Device(), mailbox, format, internal_format,
+        size, color_space, surface_origin, alpha_type, usage);
   }
 }
 
@@ -84,6 +87,19 @@ std::unique_ptr<SharedImageBacking> DCompImageBackingFactory::CreateSharedImage(
     base::span<const uint8_t> pixel_data) {
   NOTREACHED();
   return nullptr;
+}
+
+std::unique_ptr<SharedImageBacking> DCompImageBackingFactory::CreateSharedImage(
+    const Mailbox& mailbox,
+    viz::SharedImageFormat format,
+    const gfx::Size& size,
+    const gfx::ColorSpace& color_space,
+    GrSurfaceOrigin surface_origin,
+    SkAlphaType alpha_type,
+    uint32_t usage,
+    std::string debug_label,
+    gfx::GpuMemoryBufferHandle handle) {
+  NOTREACHED_NORETURN();
 }
 
 std::unique_ptr<SharedImageBacking> DCompImageBackingFactory::CreateSharedImage(

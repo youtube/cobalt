@@ -14,7 +14,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/global_error/global_error_bubble_view_base.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "extensions/browser/blocklist_extension_prefs.h"
@@ -189,7 +189,9 @@ class ExtensionGlobalError : public GlobalErrorWithStandardBubble {
   }
 
   void BubbleViewCancelButtonPressed(Browser* browser) override {
-    NOTREACHED();
+    // Even though there is no cancel button, users can still cancel the dialog
+    // by pressing escape.
+    delegate_->OnAlertClosed();
   }
 
   void BubbleViewDetailsButtonPressed(Browser* browser) override {
@@ -197,7 +199,7 @@ class ExtensionGlobalError : public GlobalErrorWithStandardBubble {
   }
 
   raw_ptr<ExtensionErrorUI::Delegate> delegate_;
-  raw_ptr<ManagementPolicy> management_policy_;
+  raw_ptr<ManagementPolicy, DanglingUntriaged> management_policy_;
   int app_count_ = 0;
   int extension_count_ = 0;
   bool item_blocked_by_policy_exists_ = false;

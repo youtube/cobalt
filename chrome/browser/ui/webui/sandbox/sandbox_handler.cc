@@ -86,9 +86,15 @@ base::Value::List FetchSandboxFeatures() {
   features.Append(
       FeatureToValue(sandbox::policy::features::kRendererAppContainer));
   features.Append(
-      FeatureToValue(sandbox::policy::features::kWinSboxAllowSystemFonts));
+      FeatureToValue(sandbox::policy::features::kWinSboxRendererCloseKsecDD));
   features.Append(FeatureToValue(
       sandbox::policy::features::kWinSboxDisableExtensionPoints));
+  features.Append(
+      FeatureToValue(sandbox::policy::features::kWinSboxWarmupProcessPrng));
+  features.Append(
+      FeatureToValue(sandbox::policy::features::kWinSboxZeroAppShim));
+  features.Append(
+      FeatureToValue(sandbox::policy::features::kWinSboxFsctlLockdown));
   return features;
 }
 

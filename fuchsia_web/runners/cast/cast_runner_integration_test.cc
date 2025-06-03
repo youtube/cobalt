@@ -6,12 +6,12 @@
 #include <fuchsia/camera3/cpp/fidl.h>
 #include <fuchsia/legacymetrics/cpp/fidl.h>
 #include <fuchsia/media/cpp/fidl.h>
+#include <fuchsia/ui/views/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fdio/directory.h>
 #include <lib/fidl/cpp/binding.h>
 #include <lib/sys/cpp/component_context.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
-#include <lib/ui/scenic/cpp/view_token_pair.h>
+#include <lib/zx/eventpair.h>
 
 #include <utility>
 #include <vector>
@@ -24,7 +24,6 @@
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
@@ -33,6 +32,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "components/fuchsia_component_support/dynamic_component_host.h"
@@ -96,8 +96,9 @@ class FakeUrlRequestRewriteRulesProvider final
   void GetUrlRequestRewriteRules(
       GetUrlRequestRewriteRulesCallback callback) override {
     // Only send the rules once. They do not expire
-    if (rules_sent_)
+    if (rules_sent_) {
       return;
+    }
     rules_sent_ = true;
 
     std::vector<fuchsia::web::UrlRequestRewrite> rewrites;
@@ -239,7 +240,7 @@ class TestCastComponent {
     component_.emplace(
         test_realm_services_.Connect<fuchsia::component::Realm>(),
         test::CastRunnerLauncher::kTestCollectionName,
-        base::GUID::GenerateRandomV4().AsLowercaseString(), component_url,
+        base::Uuid::GenerateRandomV4().AsLowercaseString(), component_url,
         base::BindOnce(&TestCastComponent::OnComponentTeardown,
                        base::Unretained(this)),
         std::move(services));
@@ -595,9 +596,9 @@ TEST_F(CastRunnerIntegrationTest, RemoteDebugging) {
       GetDevToolsListFromPort(CastRunner::kRemoteDebuggingPort);
   EXPECT_EQ(devtools_list.size(), 1u);
 
-  base::Value* devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), app_url.spec());
+  const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+  ASSERT_TRUE(devtools_url);
+  EXPECT_EQ(*devtools_url, app_url.spec());
 }
 
 TEST_F(CastRunnerIntegrationTest, IsolatedContext) {
@@ -787,20 +788,34 @@ TEST_F(HeadlessCastRunnerIntegrationTest, Headless) {
   app_config_manager().AddApp(kTestAppId, animation_url);
 
   component.StartCastComponentWithQueryApi();
-  auto tokens = scenic::ViewTokenPair::New();
-  auto view_ref_pair = scenic::ViewRefPair::New();
+
+  fuchsia::ui::views::ViewToken view_token;
+  fuchsia::ui::views::ViewHolderToken view_holder_token;
+  auto status =
+      zx::eventpair::create(0u, &view_token.value, &view_holder_token.value);
+  CHECK_EQ(ZX_OK, status);
+
+  fuchsia::ui::views::ViewRefControl view_ref_control;
+  fuchsia::ui::views::ViewRef view_ref;
+  status = zx::eventpair::create(
+      /*options*/ 0u, &view_ref_control.reference, &view_ref.reference);
+  CHECK_EQ(ZX_OK, status);
+  view_ref_control.reference.replace(
+      ZX_DEFAULT_EVENTPAIR_RIGHTS & (~ZX_RIGHT_DUPLICATE),
+      &view_ref_control.reference);
+  view_ref.reference.replace(ZX_RIGHTS_BASIC, &view_ref.reference);
 
   // Create a view.
   auto view_provider = component.exposed_by_component()
                            .Connect<fuchsia::ui::app::ViewProvider>();
-  view_provider->CreateViewWithViewRef(
-      std::move(tokens.view_holder_token.value),
-      std::move(view_ref_pair.control_ref), std::move(view_ref_pair.view_ref));
+  view_provider->CreateViewWithViewRef(std::move(view_holder_token.value),
+                                       std::move(view_ref_control),
+                                       std::move(view_ref));
 
   component.api_bindings().RunAndReturnConnectedPort("animation_finished");
 
   // Verify that dropped "view" EventPair is handled properly.
-  tokens.view_token.value.reset();
+  view_token.value.reset();
   component.api_bindings().RunAndReturnConnectedPort("view_hidden");
 }
 
@@ -1044,9 +1059,11 @@ TEST_F(CastRunnerIntegrationTest, FrameHostDebugging) {
   base::Value::List devtools_list =
       GetDevToolsListFromPort(remote_debugging_port);
   EXPECT_EQ(devtools_list.size(), 1u);
-  base::Value* devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), url);
+  {
+    const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+    ASSERT_TRUE(devtools_url);
+    EXPECT_EQ(*devtools_url, url);
+  }
 
   // Create a new `FrameHost` client, and immediately close it. The DevTools
   // port should remain open regardless.
@@ -1063,9 +1080,11 @@ TEST_F(CastRunnerIntegrationTest, FrameHostDebugging) {
 
   devtools_list = GetDevToolsListFromPort(remote_debugging_port);
   EXPECT_EQ(devtools_list.size(), 1u);
-  devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), url2);
+  {
+    const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+    ASSERT_TRUE(devtools_url);
+    EXPECT_EQ(*devtools_url, url2);
+  }
 }
 
 #if defined(ARCH_CPU_ARM_FAMILY)

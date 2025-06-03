@@ -53,9 +53,6 @@ extern const char kGooglePlayMusicAppId[];
 // The extension id of the Google+ application.
 extern const char kGooglePlusAppId[];
 
-// The extension id of the Identity API UI application.
-extern const char kIdentityApiUiAppId[];
-
 // The extension id of the Text Editor application.
 extern const char kTextEditorAppId[];
 
@@ -173,6 +170,8 @@ extern const char kDeskApiExtensionId[];
 extern const char kBruSecurityKeyForwarderExtensionId[];
 // The extension id of the OneDrive FS external component extension.
 extern const char kODFSExtensionId[];
+// The extension id of Perfetto UI extension.
+extern const char kPerfettoUIExtensionId[];
 #endif
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 // The extension id of the Accessibility Common extension.
@@ -218,8 +217,12 @@ extern const char kSwitchAccessExtensionId[];
 extern const char kSwitchAccessExtensionPath[];
 // The manifest filename of the Switch Access extension.
 extern const char kSwitchAccessManifestFilename[];
+// The manifest v3 filename of the Switch Access extension.
+extern const char kSwitchAccessManifestV3Filename[];
 // The guest manifest filename of the Switch Access extension.
 extern const char kSwitchAccessGuestManifestFilename[];
+// The guest manifest v3 filename of the Switch Access extension.
+extern const char kSwitchAccessGuestManifestV3Filename[];
 // Name of the manifest file in an extension when a special manifest is used
 // for guest mode.
 extern const char kGuestManifestFilename[];
@@ -239,7 +242,20 @@ extern const char kEspeakSpeechSynthesisExtensionId[];
 extern const char kEspeakSpeechSynthesisOptionsPath[];
 // The extension id of official HelpApp extension.
 extern const char kHelpAppExtensionId[];
-#endif
+#elif BUILDFLAG(IS_CHROMEOS_LACROS)
+// The extension id of the Lacros accessibility helper extension.
+extern const char kEmbeddedA11yHelperExtensionId[];
+// The path to the Lacros accessibility helper extension.
+extern const char kEmbeddedA11yHelperExtensionPath[];
+// The name of the manifest file for the Lacros accessibility helper extension.
+extern const char kEmbeddedA11yHelperManifestFilename[];
+// The extension id of the Lacros ChromeVox helper extension.
+extern const char kChromeVoxHelperExtensionId[];
+// The path to the Lacros ChromeVox helper extension.
+extern const char kChromeVoxHelperExtensionPath[];
+// The name of the manifest file for the Lacros ChromeVox helper extension.
+extern const char kChromeVoxHelperManifestFilename[];
+#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 // What causes an extension to be installed? Used in histograms, so don't
 // change existing values.

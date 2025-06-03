@@ -1295,12 +1295,12 @@ TEST(ContentSecurityPolicy, NavigateToChecks) {
           std::move(test.form_action_list);
     }
 
-    EXPECT_EQ(test.expected,
+    EXPECT_EQ(CSPCheckResult(test.expected),
               CheckContentSecurityPolicy(
                   policy, CSPDirectiveName::NavigateTo, *test.url, GURL(), true,
                   test.is_response_check, &context, SourceLocation(),
                   test.is_form_submission));
-    EXPECT_EQ(test.expected,
+    EXPECT_EQ(CSPCheckResult(test.expected),
               CheckContentSecurityPolicy(
                   policy, CSPDirectiveName::NavigateTo, *test.url, GURL(),
                   false, test.is_response_check, &context, SourceLocation(),
@@ -2056,20 +2056,26 @@ TEST(ContentSecurityPolicy, AllowsBlanketEnforcementOfRequiredCSP) {
           "http://example.com",
       },
       {
-          "Same origin allows",
+          "Same origin does not allow",
           "http://example.com",
           "http://example.com",
           nullptr,
+          false,
+      },
+      {
+          "Same origin with right header allows",
+          "http://example.com",
+          "http://example.com",
+          "http://example.com",
           true,
           "http://example.com",
       },
       {
-          "Same origin allows independently of header",
+          "Same origin with wrong header does not allow",
           "http://example.com",
           "http://example.com",
           "http://not-example.com",
-          true,
-          "http://example.com",
+          false,
       },
       {
           "Different origin does not allow",
@@ -2235,7 +2241,8 @@ TEST(ContentSecurityPolicy, FencedFrameSrcOpaqueURL) {
       policy, CSPDirectiveName::FencedFrameSrc, GURL("https://a.com"), GURL(),
       /*has_followed_redirect=*/false,
       /*is_response_check=*/false, &context, SourceLocation(),
-      /*is_form_submission=*/false, /*is_opaque_fenced_frame=*/true));
+      /*is_form_submission=*/false,
+      /*is_opaque_fenced_frame=*/true));
   ASSERT_EQ(1u, context.violations().size());
   const char kConsoleMessage[] =
       "Refused to frame 'urn:uuid' as a fenced frame because it violates the "

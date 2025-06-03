@@ -11,12 +11,15 @@
 #include "android_webview/browser/gfx/gpu_service_webview.h"
 #include "android_webview/browser/gfx/skia_output_surface_dependency_webview.h"
 #include "android_webview/browser/gfx/task_queue_webview.h"
+#include "android_webview/common/crash_reporter/crash_keys.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
+#include "components/crash/core/common/crash_key.h"
 #include "components/viz/common/features.h"
 #include "components/viz/service/display_embedder/skia_output_surface_impl.h"
 #include "gpu/command_buffer/service/feature_info.h"
@@ -76,16 +79,23 @@ GLSurfaceContextPair GetRealContextForVulkan() {
   return std::make_pair(std::move(surface), std::move(context));
 }
 
-void OnContextLost(std::unique_ptr<bool> expect_loss, bool synthetic_loss) {
+void OnContextLost(std::unique_ptr<bool> expect_loss,
+                   bool synthetic_loss,
+                   gpu::error::ContextLostReason context_lost_reason) {
   if (expect_loss && *expect_loss)
     return;
+
+  static ::crash_reporter::CrashKeyString<10> reason_key(
+      crash_keys::kContextLossReason);
+  reason_key.Set(base::NumberToString(static_cast<int>(context_lost_reason)));
+
   // TODO(https://crbug.com/1112841): Debugging contexts losts. WebView will
   // intentionally crash in HardwareRenderer::OnViz::DisplayOutputSurface
   // that will happen after this callback. That crash happens on viz thread and
   // doesn't have any useful information. Crash here on RenderThread to
   // understand the reason of context losts.
   // If this implementation changes, need to ensure `expect_loss` access from
-  // MarkExpectContextLoss is still valid.
+  // MarkAllowContextLoss is still valid.
   LOG(FATAL) << "Non owned context lost!";
 }
 
@@ -123,6 +133,13 @@ OutputSurfaceProviderWebView::~OutputSurfaceProviderWebView() {
   if (gl_surface_->is_angle()) {
     shared_context_state_->MakeCurrent(nullptr);
   }
+  // Given this surface is held by gl::GLContext as a default surface, releasing
+  // it here doesn't result in destruction of the GL objects (namely the stencil
+  // buffer) when it's released. As a result, when the surface is finally
+  // destroyed (happens when the context that also holds that is destroyed), the
+  // stencil buffer is destroyed on a wrong context resulting in a no context
+  // crash. Thus, explicitly ask to destroy the fb here.
+  gl_surface_->DestroyExternalStencilFramebuffer();
   gl_surface_.reset();
 }
 
@@ -165,7 +182,6 @@ void OutputSurfaceProviderWebView::InitializeContext() {
     // EGL context and restore state of the native EGL context when releasing
     // the ANGLE context.
     attribs.angle_create_from_external_context = is_angle;
-    attribs.angle_restore_external_context_state = is_angle;
 
     if (is_angle && display->ext->b_EGL_ANGLE_create_context_client_arrays) {
       // By default client arrays are disabled as they are not supported by
@@ -231,7 +247,7 @@ OutputSurfaceProviderWebView::CreateOutputSurface(
       display_compositor_controller, renderer_settings_, debug_settings());
 }
 
-void OutputSurfaceProviderWebView::MarkExpectContextLoss() {
+void OutputSurfaceProviderWebView::MarkAllowContextLoss() {
   // This is safe because either the OnContextLost callback has run and we've
   // already crashed or it has not run and this pointer is still valid.
   if (expect_context_loss_)

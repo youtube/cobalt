@@ -10,6 +10,8 @@
 
 #include "chrome/browser/ui/views/webid/identity_provider_display_data.h"
 
+using TokenError = content::IdentityCredentialTokenError;
+
 namespace content {
 struct IdentityRequestAccount;
 }  // namespace content
@@ -44,6 +46,14 @@ class AccountSelectionBubbleViewInterface {
       const absl::optional<std::u16string>& iframe_for_display,
       const std::u16string& idp_for_display,
       const content::IdentityProviderMetadata& idp_metadata) = 0;
+
+  // Updates the FedCM bubble to show the "error" sheet.
+  virtual void ShowErrorDialog(
+      const std::u16string& top_frame_for_display,
+      const absl::optional<std::u16string>& iframe_for_display,
+      const std::u16string& idp_for_display,
+      const content::IdentityProviderMetadata& idp_metadata,
+      const absl::optional<TokenError>& error) = 0;
 
   virtual std::string GetDialogTitle() const = 0;
   virtual absl::optional<std::string> GetDialogSubtitle() const = 0;

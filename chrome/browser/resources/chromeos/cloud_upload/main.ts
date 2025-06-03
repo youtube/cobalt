@@ -3,13 +3,21 @@
 // found in the LICENSE file.
 
 import './cloud_upload_dialog.js';
+import './connect_onedrive.js';
 import './file_handler_page.js';
+import './strings.m.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {DialogPage} from './cloud_upload.mojom-webui.js';
 import {CloudUploadBrowserProxy} from './cloud_upload_browser_proxy.js';
 import {CloudProvider, MoveConfirmationPageElement} from './move_confirmation_page.js';
+
+
+window.addEventListener('load', () => {
+  ColorChangeUpdater.forDocument().start();
+});
 
 const dialogArgs =
     await CloudUploadBrowserProxy.getInstance().handler.getDialogArgs();
@@ -26,16 +34,22 @@ switch (dialogArgs.args.dialogPage) {
   }
   case DialogPage.kMoveConfirmationOneDrive: {
     const movePage = new MoveConfirmationPageElement();
-    movePage.setNumFiles(dialogArgs.args.fileNames.length);
-    await movePage.setCloudProvider(CloudProvider.ONE_DRIVE);
+    await movePage.setDialogAttributes(
+        dialogArgs.args.fileNames.length, dialogArgs.args.operationType,
+        CloudProvider.ONE_DRIVE);
     document.body.append(movePage);
     break;
   }
   case DialogPage.kMoveConfirmationGoogleDrive: {
     const movePage = new MoveConfirmationPageElement();
-    movePage.setNumFiles(dialogArgs.args.fileNames.length);
-    await movePage.setCloudProvider(CloudProvider.GOOGLE_DRIVE);
+    await movePage.setDialogAttributes(
+        dialogArgs.args.fileNames.length, dialogArgs.args.operationType,
+        CloudProvider.GOOGLE_DRIVE);
     document.body.append(movePage);
+    break;
+  }
+  case DialogPage.kConnectToOneDrive: {
+    document.body.append(document.createElement('connect-onedrive'));
     break;
   }
 }

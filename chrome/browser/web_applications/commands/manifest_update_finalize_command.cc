@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -16,19 +15,19 @@
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/manifest_update_utils.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_finalizer.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
 ManifestUpdateFinalizeCommand::ManifestUpdateFinalizeCommand(
     const GURL& url,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     WebAppInstallInfo install_info,
     ManifestWriteCallback write_callback,
     std::unique_ptr<ScopedKeepAlive> keep_alive,
@@ -40,7 +39,10 @@ ManifestUpdateFinalizeCommand::ManifestUpdateFinalizeCommand(
       install_info_(std::move(install_info)),
       write_callback_(std::move(write_callback)),
       keep_alive_(std::move(keep_alive)),
-      profile_keep_alive_(std::move(profile_keep_alive)) {}
+      profile_keep_alive_(std::move(profile_keep_alive)) {
+  CHECK(install_info_.manifest_id.is_valid());
+  CHECK(install_info_.start_url.is_valid());
+}
 
 ManifestUpdateFinalizeCommand::~ManifestUpdateFinalizeCommand() = default;
 
@@ -67,6 +69,12 @@ void ManifestUpdateFinalizeCommand::StartWithLock(
   // Preserve the user's choice of form factor to open the app with.
   install_info_.user_display_mode =
       lock_->registrar().GetAppUserDisplayMode(app_id_);
+
+  // ManifestUpdateCheckCommand must have already done validation of origin
+  // association data needed by this app and set validated_scope_extensions even
+  // if it is empty.
+  CHECK(install_info_.validated_scope_extensions.has_value());
+
   lock_->install_finalizer().FinalizeUpdate(
       install_info_,
       base::BindOnce(&ManifestUpdateFinalizeCommand::OnInstallationComplete,
@@ -74,7 +82,7 @@ void ManifestUpdateFinalizeCommand::StartWithLock(
 }
 
 void ManifestUpdateFinalizeCommand::OnInstallationComplete(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     webapps::InstallResultCode code,
     OsHooksErrors os_hooks_errors) {
   if (!IsSuccess(code)) {

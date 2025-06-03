@@ -32,7 +32,7 @@ import org.chromium.chrome.browser.history_clusters.HistoryClusterView.ClusterVi
 import org.chromium.chrome.browser.history_clusters.HistoryClustersItemProperties.ItemType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tabmodel.TabCreator;
+import org.chromium.chrome.browser.tabmodel.AsyncTabLauncher;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
 import org.chromium.components.browser_ui.widget.MoreProgressButton.State;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
@@ -44,11 +44,11 @@ import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.util.AccessibilityUtil;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -108,7 +108,6 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
     private final HistoryClustersMetricsLogger mMetricsLogger;
     private final Map<String, PropertyModel> mLabelToModelMap = new LinkedHashMap<>();
     private final Map<ClusterVisit, VisitMetadata> mVisitMetadataMap = new HashMap<>();
-    private final AccessibilityUtil mAccessibilityUtil;
     private final Callback<String> mAnnounceForAccessibilityCallback;
     private final Handler mHandler;
     private final DestroyChecker mDestroyChecker = new DestroyChecker();
@@ -130,7 +129,6 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
      * @param selectionDelegate Delegate that gives us information about the currently selected
      *         items in the list we're displaying.
      * @param metricsLogger Object that records metrics about user interactions.
-     * @param accessibilityUtil Utility object that tells us about the current accessibility state.
      * @param announceForAccessibilityCallback Callback that announces the given string for a11y.
      * @param handler Handler object on which deferred tasks can be posted.
      */
@@ -139,7 +137,7 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
             @NonNull ModelList modelList, @NonNull PropertyModel toolbarModel,
             HistoryClustersDelegate historyClustersDelegate, Clock clock,
             TemplateUrlService templateUrlService, SelectionDelegate selectionDelegate,
-            HistoryClustersMetricsLogger metricsLogger, AccessibilityUtil accessibilityUtil,
+            HistoryClustersMetricsLogger metricsLogger,
             Callback<String> announceForAccessibilityCallback, Handler handler) {
         mHistoryClustersBridge = historyClustersBridge;
         mLargeIconBridge = largeIconBridge;
@@ -155,7 +153,6 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
         mTemplateUrlService = templateUrlService;
         mSelectionDelegate = selectionDelegate;
         mMetricsLogger = metricsLogger;
-        mAccessibilityUtil = accessibilityUtil;
         mAnnounceForAccessibilityCallback = announceForAccessibilityCallback;
         mHandler = handler;
 
@@ -175,8 +172,9 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
         mClearBrowsingDataItem = new ListItem(ItemType.CLEAR_BROWSING_DATA, clearBrowsingDataModel);
         mDelegate.shouldShowClearBrowsingDataSupplier().addObserver(show -> ensureHeaders());
 
-        mIsScrollToLoadDisabled = mAccessibilityUtil.isAccessibilityEnabled()
-                || AccessibilityUtil.isHardwareKeyboardAttached(mResources.getConfiguration());
+        mIsScrollToLoadDisabled = AccessibilityState.isTouchExplorationEnabled()
+                || AccessibilityState.isPerformGesturesEnabled()
+                || UiUtils.isHardwareKeyboardAttached();
         @State
         int buttonState = mIsScrollToLoadDisabled ? State.BUTTON : State.LOADING;
         PropertyModel moreProgressModel =
@@ -257,6 +255,8 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
     void continueQuery(HistoryClustersResult previousResult) {
         mDestroyChecker.checkNotDestroyed();
         if (!previousResult.canLoadMore()) return;
+        if (isStaleResult(previousResult)) return;
+
         mPromise = mHistoryClustersBridge.loadMoreClusters(previousResult.getQuery());
         mPromise.then(
                 mCallbackController.makeCancelable(this::queryComplete), this::onPromiseRejected);
@@ -272,7 +272,9 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
                     new Uri.Builder()
                             .scheme(UrlConstants.CHROME_SCHEME)
                             .authority(UrlConstants.HISTORY_HOST)
-                            .path(HistoryClustersConstants.JOURNEYS_PATH)
+                            .path(mDelegate.isRenameEnabled()
+                                            ? HistoryClustersConstants.GROUPS_PATH
+                                            : HistoryClustersConstants.JOURNEYS_PATH)
                             .appendQueryParameter(
                                     HistoryClustersConstants.HISTORY_CLUSTERS_QUERY_KEY, query)
                             .build();
@@ -314,13 +316,16 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
                     isIncognito, true, inTabGroup, additionalUrls);
             ContextUtils.getApplicationContext().startActivity(intent);
         } else {
-            Tab parent = createNewTab(visits.get(0).getNormalizedUrl(), isIncognito, null,
+            createNewTab(
+                    visits.get(0).getNormalizedUrl(),
+                    isIncognito,
+                    null,
                     TabLaunchType.FROM_CHROME_UI);
             @TabLaunchType
             int tabLaunchType = inTabGroup ? TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP
                                            : TabLaunchType.FROM_CHROME_UI;
             for (int i = 1; i < visits.size(); i++) {
-                createNewTab(visits.get(i).getNormalizedUrl(), isIncognito, parent, tabLaunchType);
+                createNewTab(visits.get(i).getNormalizedUrl(), isIncognito, null, tabLaunchType);
             }
         }
     }
@@ -403,21 +408,23 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
         mVisitMetadataMap.remove(visit);
     }
 
-    private Tab createNewTab(GURL gurl, boolean incognito, Tab parentTab, int tabLaunchType) {
-        TabCreator tabCreator = mDelegate.getTabCreator(incognito);
+    private void createNewTab(GURL gurl, boolean incognito, Tab parentTab, int tabLaunchType) {
+        AsyncTabLauncher tabCreator = mDelegate.getTabLauncher(incognito);
         assert tabCreator != null;
-        return tabCreator.createNewTab(new LoadUrlParams(gurl), tabLaunchType, parentTab);
+        tabCreator.launchNewTab(new LoadUrlParams(gurl), tabLaunchType, parentTab);
     }
 
     private void queryComplete(HistoryClustersResult result) {
+        if (isStaleResult(result)) return;
+
         if (result.isContinuation() && result.getClusters().size() > 0) {
             setDividerVisibilityForLastItem(true);
         }
         boolean showClustersAsSearchSuggestions =
                 !mQueryState.isSearching() || mQueryState.getQuery().isEmpty();
         if (showClustersAsSearchSuggestions) {
-            ensureHeaders();
             addClustersAsSearchSuggestions(result);
+            ensureHeaders();
         } else {
             addExpandedClusters(result);
         }
@@ -740,6 +747,16 @@ class HistoryClustersMediator extends RecyclerView.OnScrollListener implements S
         }
 
         return spannableString;
+    }
+
+    /**
+     * Returns true if the given result is from a now invalid query and should be ignored. This can
+     * happen because, e.g., rejection of chained promises isn't synchronous.
+     */
+    private boolean isStaleResult(HistoryClustersResult previousResult) {
+        return (mQueryState.isSearching()
+                        && !previousResult.getQuery().equals(mQueryState.getQuery())
+                || !mQueryState.isSearching() && !previousResult.getQuery().isEmpty());
     }
 
     private void onPromiseRejected(Exception e) {}

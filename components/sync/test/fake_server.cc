@@ -486,8 +486,12 @@ bool FakeServer::ModifyEntitySpecifics(
     const std::string& id,
     const sync_pb::EntitySpecifics& updated_specifics) {
   OnWillCommit();
-  if (!loopback_server_->ModifyEntitySpecifics(id, updated_specifics)) {
-    return false;
+
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    if (!loopback_server_->ModifyEntitySpecifics(id, updated_specifics)) {
+      return false;
+    }
   }
 
   // Notify observers so invalidations are mimic-ed.
@@ -503,9 +507,12 @@ bool FakeServer::ModifyBookmarkEntity(
     const std::string& parent_id,
     const sync_pb::EntitySpecifics& updated_specifics) {
   OnWillCommit();
-  if (!loopback_server_->ModifyBookmarkEntity(id, parent_id,
-                                              updated_specifics)) {
-    return false;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    if (!loopback_server_->ModifyBookmarkEntity(id, parent_id,
+                                                updated_specifics)) {
+      return false;
+    }
   }
 
   // Notify observers so invalidations are mimic-ed.
@@ -683,6 +690,13 @@ void FakeServer::LogForTestFailure(const base::Location& location,
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableFakeServerFailureOutput)) {
     return;
+  }
+  if (gtest_scoped_traces_.empty()) {
+    gtest_scoped_traces_.push_back(std::make_unique<testing::ScopedTrace>(
+        location.file_name(), location.line_number(),
+        base::StringPrintf(
+            "Add --%s to hide verbose logs from the fake server.",
+            switches::kDisableFakeServerFailureOutput)));
   }
   gtest_scoped_traces_.push_back(std::make_unique<testing::ScopedTrace>(
       location.file_name(), location.line_number(),

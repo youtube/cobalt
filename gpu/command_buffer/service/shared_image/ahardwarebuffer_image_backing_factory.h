@@ -5,8 +5,6 @@
 #ifndef GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_AHARDWAREBUFFER_IMAGE_BACKING_FACTORY_H_
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_AHARDWAREBUFFER_IMAGE_BACKING_FACTORY_H_
 
-#include <dawn/dawn_proc_table.h>
-
 #include "base/containers/flat_map.h"
 #include "gpu/command_buffer/service/gles2_cmd_validation.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing_factory.h"
@@ -67,6 +65,16 @@ class GPU_GLES2_EXPORT AHardwareBufferImageBackingFactory
       base::span<const uint8_t> pixel_data) override;
   std::unique_ptr<SharedImageBacking> CreateSharedImage(
       const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      std::string debug_label,
+      gfx::GpuMemoryBufferHandle handle) override;
+  std::unique_ptr<SharedImageBacking> CreateSharedImage(
+      const Mailbox& mailbox,
       gfx::GpuMemoryBufferHandle handle,
       gfx::BufferFormat format,
       gfx::BufferPlane plane,
@@ -105,7 +113,8 @@ class GPU_GLES2_EXPORT AHardwareBufferImageBackingFactory
   // be a supported format.
   static FormatInfo FormatInfoForSupportedFormat(
       viz::SharedImageFormat format,
-      const gles2::Validators* validators);
+      const gles2::Validators* validators,
+      bool use_half_float_oes);
 
   bool ValidateUsage(uint32_t usage,
                      const gfx::Size& size,
@@ -135,8 +144,8 @@ class GPU_GLES2_EXPORT AHardwareBufferImageBackingFactory
   // Used to limit the max size of AHardwareBuffer.
   int32_t max_gl_texture_size_ = 0;
 
-  scoped_refptr<base::RefCountedData<DawnProcTable>> dawn_procs_;
   const bool use_passthrough_;
+  const bool use_half_float_oes_;
 };
 
 }  // namespace gpu

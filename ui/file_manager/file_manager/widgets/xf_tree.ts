@@ -5,8 +5,8 @@
 import {isRTL} from 'chrome://resources/ash/common/util.js';
 
 import {css, customElement, html, query, state, XfBase} from './xf_base.js';
-import {TreeItemCollapsedEvent, TreeItemExpandedEvent, XfTreeItem} from './xf_tree_item.js';
-import {isTreeItem} from './xf_tree_util.js';
+import {type TreeItemCollapsedEvent, XfTreeItem} from './xf_tree_item.js';
+import {handleTreeSlotChange, isTreeItem} from './xf_tree_util.js';
 
 /**
  * <xf-tree> is the container of the <xf-tree-item> elements. An example
@@ -22,9 +22,23 @@ import {isTreeItem} from './xf_tree_util.js';
  * The selection and focus of <xf-tree-item> is controlled in <xf-tree>,
  * this is because we need to make sure only one item is being selected or
  * focused.
+ *
+ * TODO(b/285977941): Remove the closure annotation here.
+ * @constructor
  */
 @customElement('xf-tree')
 export class XfTree extends XfBase {
+  // Inside the tree, there's at most 1 tree item is focusable (tabindex = 0)
+  // "delegatesFocus = true" will make sure when the tree is focused (either
+  // via click or focus() call on the host element), the only focusable tree
+  // item will get the focus.
+  static override get shadowRootOptions() {
+    return {
+      ...XfBase.shadowRootOptions,
+      delegatesFocus: true,
+    };
+  }
+
   static get events() {
     return {
       /** Triggers when a tree item has been selected. */
@@ -45,7 +59,7 @@ export class XfTree extends XfBase {
     return this.focusedItem_;
   }
   set focusedItem(item: XfTreeItem|null) {
-    this.focusItem_(item);
+    this.makeItemFocusable_(item);
   }
 
   /** The child tree items. */
@@ -86,15 +100,22 @@ export class XfTree extends XfBase {
         class="tree"
         role="tree"
         aria-setsize=${this.ariaSetSize_}
-        @click=${this.onTreeClicked_}
-        @dblclick=${this.onTreeDblClicked_}
-        @keydown=${this.onTreeKeyDown_}
-        @tree_item_expanded=${this.onTreeItemExpanded_}
         @tree_item_collapsed=${this.onTreeItemCollapsed_}
       >
         <slot @slotchange=${this.onSlotChanged_}></slot>
       </ul>
     `;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    // Binding all these events at the host element level because the blank
+    // space of the tree doesn't belong to the root <ul> element.
+    this.addEventListener('contextmenu', this.onHostContextMenu_.bind(this));
+    this.addEventListener('click', this.onHostClicked_.bind(this));
+    this.addEventListener('dblclick', this.onHostDblClicked_.bind(this));
+    this.addEventListener('mousedown', this.onHostMouseDown_.bind(this));
+    this.addEventListener('keydown', this.onHostKeyDown_.bind(this));
   }
 
   private onSlotChanged_() {
@@ -104,24 +125,8 @@ export class XfTree extends XfBase {
     this.items_ = this.$childrenSlot_.assignedElements().filter(isTreeItem);
     this.ariaSetSize_ = this.tabbableItems.length;
 
-    if (this.selectedItem_) {
-      const newItems = new Set(this.items_);
-      if (oldItems.has(this.selectedItem_) &&
-          !newItems.has(this.selectedItem_)) {
-        // If the currently selected item exists in `oldItems` but not in
-        // `newItems`, it means it's being removed from the children slot,
-        // we need to mark the selected item as null.
-        this.selectedItem = null;
-      }
-    }
-  }
-
-  /**
-   * Handles the expanded event of the tree item.
-   */
-  private onTreeItemExpanded_(e: TreeItemExpandedEvent) {
-    const treeItem = e.detail.item;
-    (treeItem as any).scrollIntoViewIfNeeded(false);
+    const newItems = new Set(this.items_);
+    handleTreeSlotChange(this, oldItems, newItems);
   }
 
   /**
@@ -135,16 +140,26 @@ export class XfTree extends XfBase {
     if (this.focusedItem_ !== treeItem) {
       const oldFocusedItem = this.focusedItem_;
       if (oldFocusedItem && treeItem.contains(oldFocusedItem)) {
-        this.focusItem_(treeItem);
+        this.makeItemFocusable_(treeItem);
       }
     }
   }
 
-  /** Called when the user clicks on a tree item. */
-  private async onTreeClicked_(e: MouseEvent) {
+  /** Called when the user clicks within the host element. */
+  private onHostClicked_(e: MouseEvent) {
+    // Mouse right click won't trigger click event, so this check is not
+    // necessary in real scenario. This is mainly for the browser test because
+    // waitAndRightClickEvent will actually trigger a click event with button=2.
+    if (e.button === 2) {
+      return;
+    }
+
     // Stop if the the click target is not a tree item.
     const treeItem = e.target as XfTreeItem;
     if (treeItem && !isTreeItem(treeItem)) {
+      // Clicking the non tree item area should focus the whole tree, which will
+      // delegate the focus to the currently focusable child tree item.
+      this.focus();
       return;
     }
 
@@ -162,13 +177,19 @@ export class XfTree extends XfBase {
     } else {
       treeItem.selected = true;
     }
+    this.makeItemFocusable_(treeItem);
+    treeItem.focus();
   }
 
-  /** Called when the user double clicks on a tree item. */
-  private async onTreeDblClicked_(e: MouseEvent) {
+  /** Called when the user double clicks within the host element. */
+  private onHostDblClicked_(e: MouseEvent) {
     // Stop if the the click target is not a tree item.
     const treeItem = e.target as XfTreeItem;
     if (treeItem && !isTreeItem(treeItem)) {
+      // Double clicking the non tree item area should focus the whole tree,
+      // which will delegate the focus to the currently focusable child tree
+      // item.
+      this.focus();
       return;
     }
 
@@ -184,14 +205,62 @@ export class XfTree extends XfBase {
     if (innerClickTarget.className !== 'expand-icon' &&
         treeItem.hasChildren()) {
       treeItem.expanded = !treeItem.expanded;
+      this.makeItemFocusable_(treeItem);
+      treeItem.focus();
+    }
+  }
+
+  /** Called when mouse down event happens within the host element. */
+  private onHostMouseDown_(e: MouseEvent) {
+    // Only handle the right click here, left click is handled by the click
+    // handler above.
+    if (e.button !== 2) {
+      return;
+    }
+
+    // Stop if the the click target is not a tree item.
+    const treeItem = e.target as XfTreeItem;
+    if (treeItem && !isTreeItem(treeItem)) {
+      // Right clicking the non tree item area should focus the whole tree,
+      // which will delegate the focus to the currently focusable child tree
+      // item.
+      this.focus();
+      return;
+    }
+
+    if (treeItem.disabled) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
+
+    this.makeItemFocusable_(treeItem);
+    treeItem.focus();
+  }
+
+  /** Called when a context menu event happens within the host element. */
+  private onHostContextMenu_(e: MouseEvent) {
+    // Delegate the tree level contextmenu event to the focused child tree item.
+    // Note: tree item contextmenu event will never arrive here because the
+    // event listener registered in ContextMenuHandler stops propagation after
+    // showing the context menu. So the handler here is only for right clicking
+    // on the blank space area (e.g. outside the root <ul> element).
+    if (this.focusedItem_) {
+      const domRect = this.focusedItem_.getRectForContextMenu();
+      // Calculate the center point of the tree item, so <xf-tree-item> knows
+      // where to show the context menu pop-up.
+      const x = domRect.x + (domRect.width / 2);
+      const y = domRect.y + (domRect.height / 2);
+      this.focusedItem_.dispatchEvent(
+          new PointerEvent(e.type, {...e, clientX: x, clientY: y}));
     }
   }
 
   /**
-   * Handle the keydown within the tree, this mainly handles the navigation
-   * and the selection with the keyboard.
+   * Handle the keydown within the host element, this mainly handles the
+   * navigation and the selection with the keyboard.
    */
-  private onTreeKeyDown_(e: KeyboardEvent) {
+  private onHostKeyDown_(e: KeyboardEvent) {
     if (e.ctrlKey || e.repeat) {
       return;
     }
@@ -207,7 +276,7 @@ export class XfTree extends XfBase {
     let itemToFocus: XfTreeItem|null|undefined = null;
     switch (e.key) {
       case 'Enter':
-      case 'Space':
+      case ' ':
         this.selectItem_(this.focusedItem_);
         break;
       case 'ArrowUp':
@@ -247,7 +316,8 @@ export class XfTree extends XfBase {
     }
 
     if (itemToFocus) {
-      this.focusItem_(itemToFocus);
+      this.makeItemFocusable_(itemToFocus);
+      itemToFocus.focus();
       e.preventDefault();
     }
   }
@@ -326,8 +396,11 @@ export class XfTree extends XfBase {
     this.selectedItem_ = itemToSelect;
     if (this.selectedItem_) {
       this.selectedItem_.selected = true;
-      this.focusItem_(this.selectedItem_);
-      (this.selectedItem_ as any).scrollIntoViewIfNeeded(false);
+      // When tree item gets selected programmatically (e.g. not through
+      // mouse/keyboard), there might be other elements on the page which have
+      // the focus, we don't want to steal the focus, so all we do here is to
+      // make the item focusable.
+      this.makeItemFocusable_(this.selectedItem_);
     }
     const selectionChangeEvent: TreeSelectedChangedEvent =
         new CustomEvent(XfTree.events.TREE_SELECTION_CHANGED, {
@@ -342,20 +415,24 @@ export class XfTree extends XfBase {
   }
 
   /**
-   * Make `itemToFocus` become the focused item in the tree, this will
-   * also unfocus the previously focused tree item.
+   * Make `itemToFocus` become the focusable, this will also make the previously
+   * focused item non-focusable so we can make sure only 1 tree item is
+   * focusable, this is essential for "delegatesFocus" to work.
+   *
+   * Note: this method only make the item to be focusable, it won't actually
+   * focus the item, we need to call `.focus()` after to focus it.
    */
-  private focusItem_(itemToFocus: XfTreeItem|null) {
+  private makeItemFocusable_(itemToFocus: XfTreeItem|null) {
     const previousFocusedItem = this.focusedItem_;
     if (previousFocusedItem === itemToFocus) {
       return;
     }
     if (previousFocusedItem) {
-      previousFocusedItem.blur();
+      previousFocusedItem.toggleFocusable(false);
     }
     this.focusedItem_ = itemToFocus;
     if (this.focusedItem_) {
-      this.focusedItem_.focus();
+      this.focusedItem_.toggleFocusable(true);
     }
   }
 }

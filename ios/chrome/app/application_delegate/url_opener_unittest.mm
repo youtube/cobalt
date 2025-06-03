@@ -14,13 +14,13 @@
 #import "ios/chrome/app/application_delegate/startup_information.h"
 #import "ios/chrome/app/application_delegate/url_opener_params.h"
 #import "ios/chrome/app/startup/chrome_app_startup_parameters.h"
-#import "ios/chrome/browser/browser_state/test_chrome_browser_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/fake_connection_information.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/browser_state/test_chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/url_loading/url_loading_params.h"
-#import "ios/chrome/browser/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/testing/open_url_context.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "net/base/mac/url_conversions.h"
@@ -28,10 +28,6 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // URLOpenerTest is parameterized on this enum to test with
 // enabled and disabled kExternalFilesLoadedInWebState feature flag.

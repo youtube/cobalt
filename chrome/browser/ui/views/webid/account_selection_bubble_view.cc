@@ -41,6 +41,7 @@
 #include "ui/views/controls/separator.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
@@ -72,6 +73,13 @@ constexpr int kRightMargin = 40;
 constexpr int kTopMargin = 16;
 
 constexpr char kImageFetcherUmaClient[] = "FedCMAccountChooser";
+
+// Error codes.
+constexpr char kInvalidRequest[] = "invalid_request";
+constexpr char kUnauthorizedClient[] = "unauthorized_client";
+constexpr char kAccessDenied[] = "access_denied";
+constexpr char kTemporarilyUnavailable[] = "temporarily_unavailable";
+constexpr char kServerError[] = "server_error";
 
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("fedcm_account_profile_image_fetcher",
@@ -188,6 +196,7 @@ class CircleCroppedImageSkiaSource : public gfx::CanvasImageSource {
 //   contrasts sufficiently with `brand_background_color`.
 class ContinueButton : public views::MdTextButton {
  public:
+  METADATA_HEADER(ContinueButton);
   ContinueButton(views::MdTextButton::PressedCallback callback,
                  const std::u16string& text,
                  AccountSelectionBubbleView* bubble_view,
@@ -213,11 +222,12 @@ class ContinueButton : public views::MdTextButton {
     const SkColor dialog_background_color = bubble_view_->GetBackgroundColor();
     if (color_utils::GetContrastRatio(dialog_background_color,
                                       *brand_background_color_) <
-        color_utils::kMinimumReadableContrastRatio) {
+        color_utils::kMinimumVisibleContrastRatio) {
       SetBgColorOverride(absl::nullopt);
       SetEnabledTextColors(absl::nullopt);
       return;
     }
+
     SetBgColorOverride(*brand_background_color_);
     SkColor text_color;
     if (brand_text_color_) {
@@ -233,13 +243,17 @@ class ContinueButton : public views::MdTextButton {
   }
 
  private:
-  base::raw_ptr<AccountSelectionBubbleView> bubble_view_;
+  raw_ptr<AccountSelectionBubbleView> bubble_view_;
   absl::optional<SkColor> brand_background_color_;
   absl::optional<SkColor> brand_text_color_;
 };
 
+BEGIN_METADATA(ContinueButton, views::MdTextButton)
+END_METADATA
+
 class AccountImageView : public views::ImageView {
  public:
+  METADATA_HEADER(AccountImageView);
   AccountImageView() = default;
 
   AccountImageView(const AccountImageView&) = delete;
@@ -284,10 +298,14 @@ class AccountImageView : public views::ImageView {
   base::WeakPtrFactory<AccountImageView> weak_ptr_factory_{this};
 };
 
+BEGIN_METADATA(AccountImageView, views::ImageView)
+END_METADATA
+
 // Wrapper around ImageViews for IDP icons. Used to ensure that the fetch
 // callback is not run when the ImageView has been deleted.
 class IdpImageView : public views::ImageView {
  public:
+  METADATA_HEADER(IdpImageView);
   explicit IdpImageView(AccountSelectionBubbleView* bubble_view)
       : bubble_view_(bubble_view) {}
 
@@ -327,10 +345,13 @@ class IdpImageView : public views::ImageView {
 
   // The AccountSelectionBubbleView outlives IdpImageView so it is safe to store
   // a raw pointer to it.
-  base::raw_ptr<AccountSelectionBubbleView> bubble_view_;
+  raw_ptr<AccountSelectionBubbleView> bubble_view_;
 
   base::WeakPtrFactory<IdpImageView> weak_ptr_factory_{this};
 };
+
+BEGIN_METADATA(IdpImageView, views::ImageView)
+END_METADATA
 
 void SendAccessibilityEvent(views::Widget* widget,
                             std::u16string announcement) {
@@ -422,6 +443,73 @@ std::u16string GetAccessibleTitle(
   return iframe_for_display.has_value()
              ? title + u" " + GetSubtitle(top_frame_for_display)
              : title;
+}
+
+std::pair<std::u16string, std::u16string> GetErrorDialogText(
+    const absl::optional<TokenError>& error,
+    const std::u16string& top_frame_for_display,
+    const std::u16string& idp_for_display) {
+  std::string code = error ? error->code : "";
+  GURL url = error ? error->url : GURL();
+
+  std::u16string summary;
+  std::u16string description;
+
+  if (code == kInvalidRequest) {
+    summary = l10n_util::GetStringFUTF16(
+        IDS_SIGNIN_INVALID_REQUEST_ERROR_DIALOG_SUMMARY, top_frame_for_display,
+        idp_for_display);
+    description = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_INVALID_REQUEST_ERROR_DIALOG_DESCRIPTION);
+  } else if (code == kUnauthorizedClient) {
+    summary = l10n_util::GetStringFUTF16(
+        IDS_SIGNIN_UNAUTHORIZED_CLIENT_ERROR_DIALOG_SUMMARY,
+        top_frame_for_display, idp_for_display);
+    description = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_UNAUTHORIZED_CLIENT_ERROR_DIALOG_DESCRIPTION);
+  } else if (code == kAccessDenied) {
+    summary = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_ACCESS_DENIED_ERROR_DIALOG_SUMMARY);
+    description = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_ACCESS_DENIED_ERROR_DIALOG_DESCRIPTION);
+  } else if (code == kTemporarilyUnavailable) {
+    summary = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_TEMPORARILY_UNAVAILABLE_ERROR_DIALOG_SUMMARY);
+    description = l10n_util::GetStringFUTF16(
+        IDS_SIGNIN_TEMPORARILY_UNAVAILABLE_ERROR_DIALOG_DESCRIPTION,
+        idp_for_display);
+  } else if (code == kServerError) {
+    summary = l10n_util::GetStringUTF16(IDS_SIGNIN_SERVER_ERROR_DIALOG_SUMMARY);
+    description = l10n_util::GetStringFUTF16(
+        IDS_SIGNIN_SERVER_ERROR_DIALOG_DESCRIPTION, top_frame_for_display);
+    // Extra description is not needed for kServerError.
+    return {summary, description};
+  } else {
+    summary = l10n_util::GetStringFUTF16(
+        IDS_SIGNIN_GENERIC_ERROR_DIALOG_SUMMARY, idp_for_display);
+    description =
+        l10n_util::GetStringUTF16(IDS_SIGNIN_GENERIC_ERROR_DIALOG_DESCRIPTION);
+    // Extra description is not needed for the generic error dialog.
+    return {summary, description};
+  }
+
+  if (url.is_empty()) {
+    description +=
+        u" " + l10n_util::GetStringFUTF16(
+                   code == kTemporarilyUnavailable
+                       ? IDS_SIGNIN_ERROR_DIALOG_TRY_OTHER_WAYS_RETRY_PROMPT
+                       : IDS_SIGNIN_ERROR_DIALOG_TRY_OTHER_WAYS_PROMPT,
+                   top_frame_for_display);
+    return {summary, description};
+  }
+
+  description +=
+      u" " + l10n_util::GetStringFUTF16(
+                 code == kTemporarilyUnavailable
+                     ? IDS_SIGNIN_ERROR_DIALOG_MORE_DETAILS_RETRY_PROMPT
+                     : IDS_SIGNIN_ERROR_DIALOG_MORE_DETAILS_PROMPT,
+                 idp_for_display);
+  return {summary, description};
 }
 
 }  // namespace
@@ -572,39 +660,119 @@ void AccountSelectionBubbleView::ShowFailureDialog(
     const absl::optional<std::u16string>& iframe_for_display,
     const std::u16string& idp_for_display,
     const content::IdentityProviderMetadata& idp_metadata) {
-  int subtitleLeftPadding = 2 * kLeftRightPadding;
-  if (header_icon_view_) {
-    ConfigureIdpBrandImageView(header_icon_view_, idp_metadata);
-    subtitleLeftPadding += kDesiredIdpIconSize;
-  }
-
-  std::u16string frame_in_title =
-      iframe_for_display.value_or(top_frame_for_display);
-  const std::u16string title =
-      l10n_util::GetStringFUTF16(IDS_IDP_SIGNIN_STATUS_FAILURE_DIALOG_TITLE,
-                                 frame_in_title, idp_for_display);
-  title_label_->SetText(title);
-
-  if (subtitle_label_) {
-    subtitle_label_->SetText(subtitle_);
-    subtitle_label_->SetBorder(views::CreateEmptyBorder(
-        gfx::Insets::TLBR(-kTopBottomPadding, subtitleLeftPadding,
-                          kTopBottomPadding, kLeftRightPadding)));
-  }
+  std::u16string title = GetTitle(top_frame_for_display, iframe_for_display,
+                                  idp_for_display, rp_context_);
+  UpdateHeader(idp_metadata, title, subtitle_,
+               /*show_back_button=*/false);
 
   RemoveNonHeaderChildViews();
+  AddChildView(std::make_unique<views::Separator>());
+  auto row = std::make_unique<views::View>();
+  row->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kVertical,
+      gfx::Insets::VH(0, kLeftRightPadding)));
+
+  // Add body.
+  views::Label* const body = row->AddChildView(std::make_unique<views::Label>(
+      l10n_util::GetStringFUTF16(IDS_IDP_SIGNIN_STATUS_MISMATCH_DIALOG_BODY,
+                                 idp_for_display),
+      views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY));
+  body->SetMultiLine(true);
+  body->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+  constexpr int kBodyLineHeight = 20;
+  body->SetLineHeight(kBodyLineHeight);
+
+  // Add space between the body and the separator and the body and the continue
+  // button.
+  constexpr int kBottomSpacing = 16;
+  body->SetBorder(views::CreateEmptyBorder(
+      gfx::Insets::TLBR(kVerticalSpacing, 0, kBottomSpacing, 0)));
+
+  // Add continue button.
+  auto button = std::make_unique<ContinueButton>(
+      base::BindRepeating(&Observer::OnSigninToIdP,
+                          base::Unretained(observer_)),
+      l10n_util::GetStringUTF16(IDS_IDP_SIGNIN_STATUS_MISMATCH_DIALOG_CONTINUE),
+      this, idp_metadata);
+  row->AddChildView(std::move(button));
+  AddChildView(std::move(row));
+
+  SizeToContents();
+  PreferredSizeChanged();
+
+  has_sheet_ = true;
+}
+
+void AccountSelectionBubbleView::ShowErrorDialog(
+    const std::u16string& top_frame_for_display,
+    const absl::optional<std::u16string>& iframe_for_display,
+    const std::u16string& idp_for_display,
+    const content::IdentityProviderMetadata& idp_metadata,
+    const absl::optional<TokenError>& error) {
+  std::u16string title = GetTitle(top_frame_for_display, iframe_for_display,
+                                  idp_for_display, rp_context_);
+  UpdateHeader(idp_metadata, title, subtitle_,
+               /*show_back_button=*/false);
+
+  RemoveNonHeaderChildViews();
+  AddChildView(std::make_unique<views::Separator>());
   auto row = std::make_unique<views::View>();
   row->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical,
       gfx::Insets::VH(kTopBottomPadding, kLeftRightPadding)));
-  auto button = std::make_unique<ContinueButton>(
-      base::BindRepeating(&Observer::ShowModalDialogView,
-                          base::Unretained(observer_),
-                          idp_metadata.idp_signin_url),
-      l10n_util::GetStringUTF16(IDS_IDP_SIGNIN_STATUS_FAILURE_DIALOG_CONTINUE),
-      this, idp_metadata);
-  signin_to_idp_button_ = row->AddChildView(std::move(button));
+
+  std::u16string summary_text;
+  std::u16string description_text;
+  std::tie(summary_text, description_text) =
+      GetErrorDialogText(error, top_frame_for_display, idp_for_display);
+
+  // Add error summary.
+  views::Label* const summary =
+      row->AddChildView(std::make_unique<views::Label>(
+          summary_text, views::style::CONTEXT_DIALOG_TITLE,
+          views::style::STYLE_PRIMARY));
+  summary->SetMultiLine(true);
+  summary->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+  constexpr int kSummaryLineHeight = 22;
+  summary->SetLineHeight(kSummaryLineHeight);
+
+  // Add error description.
+  views::Label* const description =
+      row->AddChildView(std::make_unique<views::Label>(
+          description_text, views::style::CONTEXT_DIALOG_BODY_TEXT,
+          views::style::STYLE_SECONDARY));
+  description->SetMultiLine(true);
+  description->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
+  constexpr int kDescriptionLineHeight = 20;
+  description->SetLineHeight(kDescriptionLineHeight);
+
   AddChildView(std::move(row));
+
+  // Add row for buttons.
+  auto button_row = std::make_unique<views::BoxLayoutView>();
+  button_row->SetMainAxisAlignment(views::BoxLayout::MainAxisAlignment::kEnd);
+  constexpr int kButtonRowTopPadding = 6;
+  button_row->SetInsideBorderInsets(
+      gfx::Insets::TLBR(kButtonRowTopPadding, 0, 0, kLeftRightPadding));
+  constexpr int kButtonRowChildSpacing = 8;
+  button_row->SetBetweenChildSpacing(kButtonRowChildSpacing);
+
+  // Add more details button.
+  if (error && !error->url.is_empty()) {
+    auto more_details_button = std::make_unique<views::MdTextButton>(
+        base::BindRepeating(&Observer::OnMoreDetails,
+                            base::Unretained(observer_)),
+        l10n_util::GetStringUTF16(IDS_SIGNIN_ERROR_DIALOG_MORE_DETAILS_BUTTON));
+    button_row->AddChildView(std::move(more_details_button));
+  }
+
+  // Add got it button.
+  auto got_it_button = std::make_unique<views::MdTextButton>(
+      base::BindRepeating(&Observer::OnGotIt, base::Unretained(observer_)),
+      l10n_util::GetStringUTF16(IDS_SIGNIN_ERROR_DIALOG_GOT_IT_BUTTON));
+  button_row->AddChildView(std::move(got_it_button));
+
+  AddChildView(std::move(button_row));
 
   SizeToContents();
   PreferredSizeChanged();
@@ -986,6 +1154,10 @@ void AccountSelectionBubbleView::ConfigureIdpBrandImageView(
 }
 
 void AccountSelectionBubbleView::RemoveNonHeaderChildViews() {
+  // Make sure not to keep dangling pointers around first.
+  continue_button_ = nullptr;
+  auto_reauthn_checkbox_ = nullptr;
+
   const std::vector<views::View*> child_views = children();
   for (views::View* child_view : child_views) {
     if (child_view != header_view_) {
@@ -993,8 +1165,6 @@ void AccountSelectionBubbleView::RemoveNonHeaderChildViews() {
       delete child_view;
     }
   }
-
-  continue_button_ = nullptr;
 }
 
 BEGIN_METADATA(AccountSelectionBubbleView, views::BubbleDialogDelegateView)

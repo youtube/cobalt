@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser;
 
-import android.accounts.Account;
 import android.app.backup.BackupDataInput;
 import android.app.backup.BackupDataOutput;
 import android.app.backup.BackupManager;
@@ -14,11 +13,12 @@ import android.os.ParcelFileDescriptor;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PathUtils;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -317,13 +317,18 @@ public class ChromeBackupAgentImpl extends ChromeBackupAgent.Impl {
         // if it were called from the UI thread the broadcast would not be received until after it
         // exited.
         final CountDownLatch latch = new CountDownLatch(1);
-        PostTask.runSynchronously(TaskTraits.UI_DEFAULT, () -> {
-            // Chrome library loading depends on PathUtils.
-            PathUtils.setPrivateDataDirectorySuffix(
-                    SplitCompatApplication.PRIVATE_DATA_DIRECTORY_SUFFIX);
-            createAsyncInitTaskRunner(latch).startBackgroundTasks(
-                    false /* allocateChildConnection */, true /* initVariationSeed */);
-        });
+        PostTask.runSynchronously(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    // TODO(crbug.com/1489226): Wait for AccountManagerFacade to load accounts.
+                    // Chrome library loading depends on PathUtils.
+                    PathUtils.setPrivateDataDirectorySuffix(
+                            SplitCompatApplication.PRIVATE_DATA_DIRECTORY_SUFFIX);
+                    createAsyncInitTaskRunner(latch)
+                            .startBackgroundTasks(
+                                    false /* allocateChildConnection */,
+                                    true /* initVariationSeed */);
+                });
 
         try {
             // Ignore result. It will only be false if it times out. Problems with fetching the
@@ -415,13 +420,19 @@ public class ChromeBackupAgentImpl extends ChromeBackupAgent.Impl {
         };
     }
 
-    private boolean accountExistsOnDevice(String accountName) {
-        return PostTask.runSynchronously(TaskTraits.UI_DEFAULT, () -> {
-            List<Account> accounts = AccountUtils.getAccountsIfFulfilledOrEmpty(
-                    AccountManagerFacadeProvider.getInstance().getAccounts());
-            return accountName != null
-                    && AccountUtils.findAccountByName(accounts, accountName) != null;
-        });
+    private boolean accountExistsOnDevice(String accountEmail) {
+        return PostTask.runSynchronously(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    List<CoreAccountInfo> coreAccountInfos =
+                            AccountUtils.getCoreAccountInfosIfFulfilledOrEmpty(
+                                    AccountManagerFacadeProvider.getInstance()
+                                            .getCoreAccountInfos());
+                    return accountEmail != null
+                            && AccountUtils.findCoreAccountInfoByEmail(
+                                            coreAccountInfos, accountEmail)
+                                    != null;
+                });
     }
 
     /**
@@ -430,8 +441,7 @@ public class ChromeBackupAgentImpl extends ChromeBackupAgent.Impl {
      * @return the restore status, a RestoreStatus value.
      */
     @VisibleForTesting
-    @RestoreStatus
-    static int getRestoreStatus() {
+    static @RestoreStatus int getRestoreStatus() {
         return ContextUtils.getAppSharedPreferences().getInt(
                 RESTORE_STATUS, RestoreStatus.NO_RESTORE);
     }

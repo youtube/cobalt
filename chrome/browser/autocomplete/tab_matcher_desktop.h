@@ -30,8 +30,8 @@ class TabMatcherDesktop : public TabMatcher {
       const bool keep_search_intent_params,
       const bool normalize_search_terms) const;
 
-  base::raw_ptr<const TemplateURLService> template_url_service_;
-  raw_ptr<Profile> profile_{};
+  raw_ptr<const TemplateURLService> template_url_service_;
+  raw_ptr<Profile> profile_ = nullptr;
 };
 
 #endif  // CHROME_BROWSER_AUTOCOMPLETE_TAB_MATCHER_DESKTOP_H_

@@ -28,6 +28,9 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
 #include "components/signin/public/identity_manager/scope_set.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -235,8 +238,11 @@ TailoredSecurityService::Request::~Request() = default;
 
 TailoredSecurityService::TailoredSecurityService(
     signin::IdentityManager* identity_manager,
+    syncer::SyncService* sync_service,
     PrefService* prefs)
-    : identity_manager_(identity_manager), prefs_(prefs) {
+    : identity_manager_(identity_manager),
+      sync_service_(sync_service),
+      prefs_(prefs) {
   // `prefs` can be nullptr in unit tests.
   if (prefs_) {
     pref_registrar_.Init(prefs_);
@@ -279,8 +285,12 @@ TailoredSecurityService::GetNumberOfPendingTailoredSecurityServiceRequests() {
   return pending_tailored_security_requests_.size();
 }
 
-void TailoredSecurityService::AddQueryRequest() {
+bool TailoredSecurityService::AddQueryRequest() {
   DCHECK(!is_shut_down_);
+  if (!can_query_) {
+    return false;
+  }
+
   active_query_request_++;
   if (active_query_request_ == 1) {
     if (base::Time::Now() - last_updated_ <=
@@ -301,6 +311,7 @@ void TailoredSecurityService::AddQueryRequest() {
           &TailoredSecurityService::QueryTailoredSecurityBit);
     }
   }
+  return true;
 }
 
 void TailoredSecurityService::RemoveQueryRequest() {
@@ -321,6 +332,10 @@ void TailoredSecurityService::QueryTailoredSecurityBit() {
 void TailoredSecurityService::StartRequest(
     QueryTailoredSecurityBitCallback callback) {
   DCHECK(!is_shut_down_);
+  if (!can_query_) {
+    saved_callback_ = std::move(callback);
+    return;
+  }
 
   // Wrap the original callback into a generic completion callback.
   CompletionCallback completion_callback =
@@ -389,10 +404,10 @@ void TailoredSecurityService::MaybeNotifySyncUser(bool is_enabled,
   if (!base::FeatureList::IsEnabled(kTailoredSecurityIntegration))
     return;
 
-  if (!identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
+  if (!HistorySyncEnabledForUser()) {
     if (is_enabled) {
       RecordEnabledNotificationResult(
-          TailoredSecurityNotificationResult::kAccountNotConsented);
+          TailoredSecurityNotificationResult::kHistoryNotSynced);
     }
     return;
   }
@@ -424,6 +439,12 @@ void TailoredSecurityService::MaybeNotifySyncUser(bool is_enabled,
       observer.OnSyncNotificationMessageRequest(false);
     }
   }
+}
+
+bool TailoredSecurityService::HistorySyncEnabledForUser() {
+  return sync_service_ &&
+         sync_service_->GetUserSettings()->GetSelectedTypes().Has(
+             syncer::UserSelectableType::kHistory);
 }
 
 void TailoredSecurityService::
@@ -462,9 +483,8 @@ void TailoredSecurityService::SetTailoredSecurityBitForTesting(
   std::unique_ptr<Request> request =
       CreateRequest(url, std::move(completion_callback), traffic_annotation);
 
-  base::Value enable_tailored_security_service(base::Value::Type::DICT);
-  enable_tailored_security_service.SetBoolKey("history_recording_enabled",
-                                              is_enabled);
+  auto enable_tailored_security_service =
+      base::Value::Dict().Set("history_recording_enabled", is_enabled);
   std::string post_data;
   base::JSONWriter::Write(enable_tailored_security_service, &post_data);
   request->SetPostData(post_data);
@@ -494,11 +514,38 @@ void TailoredSecurityService::Shutdown() {
   pending_tailored_security_requests_.clear();
   timer_.Stop();
   is_shut_down_ = true;
+  identity_manager_ = nullptr;
+  sync_service_ = nullptr;
 }
 
 void TailoredSecurityService::TailoredSecurityTimestampUpdateCallback() {
+  if (base::FeatureList::IsEnabled(
+          safe_browsing::kTailoredSecurityRetryForSyncUsers)) {
+    // TODO(crbug.com/1469133): remove sync flow last user interaction pref.
+    prefs_->SetInteger(prefs::kTailoredSecuritySyncFlowLastUserInteractionState,
+                       TailoredSecurityRetryState::UNKNOWN);
+    prefs_->SetTime(prefs::kTailoredSecuritySyncFlowLastRunTime,
+                    base::Time::Now());
+    // If this method fails, then a retry is needed. If it succeeds, the
+    // ChromeTailoredSecurityService will set this value to NO_RETRY_NEEDED for
+    // us.
+    prefs_->SetInteger(prefs::kTailoredSecuritySyncFlowRetryState,
+                       TailoredSecurityRetryState::RETRY_NEEDED);
+  }
+
   StartRequest(base::BindOnce(&TailoredSecurityService::MaybeNotifySyncUser,
                               weak_ptr_factory_.GetWeakPtr()));
+}
+
+void TailoredSecurityService::SetCanQuery(bool can_query) {
+  can_query_ = can_query;
+  if (can_query) {
+    if (!saved_callback_.is_null()) {
+      StartRequest(std::move(saved_callback_));
+    }
+  } else {
+    timer_.Stop();
+  }
 }
 
 }  // namespace safe_browsing

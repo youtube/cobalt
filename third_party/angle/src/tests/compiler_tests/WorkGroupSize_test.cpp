@@ -9,7 +9,7 @@
 
 #include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
-#include "compiler/translator/TranslatorESSL.h"
+#include "compiler/translator/glsl/TranslatorESSL.h"
 #include "gtest/gtest.h"
 #include "tests/test_utils/compiler_test.h"
 
@@ -36,7 +36,6 @@ class WorkGroupSizeTest : public testing::Test
     bool compile(const std::string &shaderString)
     {
         ShCompileOptions compileOptions = {};
-        compileOptions.variables        = true;
         compileOptions.intermediateTree = true;
 
         const char *shaderStrings[] = {shaderString.c_str()};

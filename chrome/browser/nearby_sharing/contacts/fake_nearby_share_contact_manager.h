@@ -66,16 +66,23 @@ class FakeNearbyShareContactManager : public NearbyShareContactManager {
 
     std::vector<FakeNearbyShareContactManager*> instances_;
     raw_ptr<PrefService, ExperimentalAsh> latest_pref_service_ = nullptr;
-    raw_ptr<NearbyShareClientFactory, ExperimentalAsh>
+    raw_ptr<NearbyShareClientFactory, DanglingUntriaged | ExperimentalAsh>
         latest_http_client_factory_ = nullptr;
-    raw_ptr<NearbyShareLocalDeviceDataManager, ExperimentalAsh>
+    raw_ptr<NearbyShareLocalDeviceDataManager,
+            DanglingUntriaged | ExperimentalAsh>
         latest_local_device_data_manager_ = nullptr;
-    raw_ptr<NearbyShareProfileInfoProvider, ExperimentalAsh>
+    raw_ptr<NearbyShareProfileInfoProvider, DanglingUntriaged | ExperimentalAsh>
         latest_profile_info_provider_ = nullptr;
   };
 
   FakeNearbyShareContactManager();
   ~FakeNearbyShareContactManager() override;
+
+  // NearbyShareContactsManager:
+  void DownloadContacts() override;
+  void SetAllowedContacts(
+      const std::set<std::string>& allowed_contact_ids) override;
+  std::set<std::string> GetAllowedContacts() const override;
 
   size_t num_download_contacts_calls() const {
     return num_download_contacts_calls_;
@@ -92,9 +99,6 @@ class FakeNearbyShareContactManager : public NearbyShareContactManager {
 
  private:
   // NearbyShareContactsManager:
-  void DownloadContacts() override;
-  void SetAllowedContacts(
-      const std::set<std::string>& allowed_contact_ids) override;
   void OnStart() override;
   void OnStop() override;
   void Bind(mojo::PendingReceiver<nearby_share::mojom::ContactManager> receiver)

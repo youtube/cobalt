@@ -29,8 +29,10 @@
 #include "chrome/browser/status_icons/status_tray.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_browser_process_platform_part.h"
+#include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
 #include "components/metrics/metrics_service.h"
 #include "components/network_time/network_time_tracker.h"
+#include "components/os_crypt/async/browser/test_utils.h"
 #include "components/permissions/permissions_client.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/prefs/pref_service.h"
@@ -69,11 +71,12 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/hid/hid_pinned_notification.h"
+#include "chrome/browser/usb/usb_pinned_notification.h"
 #else
 #include "chrome/browser/hid/hid_status_icon.h"
+#include "chrome/browser/usb/usb_status_icon.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/serial/serial_policy_allowed_ports.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
@@ -110,7 +113,7 @@ void TestingBrowserProcess::CreateInstance() {
       std::make_unique<device::FakeGeolocationManager>();
   fake_geolocation_manager->SetSystemPermission(
       device::LocationSystemPermissionStatus::kAllowed);
-  process->SetGeolocationManager(std::move(fake_geolocation_manager));
+  device::GeolocationManager::SetInstance(std::move(fake_geolocation_manager));
 #endif
 }
 
@@ -138,7 +141,8 @@ void TestingBrowserProcess::TearDownAndDeleteInstance() {
 
 TestingBrowserProcess::TestingBrowserProcess()
     : app_locale_("en"),
-      platform_part_(std::make_unique<TestingBrowserProcessPlatformPart>()) {
+      platform_part_(std::make_unique<TestingBrowserProcessPlatformPart>()),
+      os_crypt_async_(os_crypt_async::GetTestOSCryptAsyncForTesting()) {
   // TestingBrowserProcess is used in unit_tests which sets this up through
   // content::UnitTestTestSuite but also through other test binaries which don't
   // use that test suite in which case we have to set it up.
@@ -186,8 +190,10 @@ void TestingBrowserProcess::Init() {
   KeepAliveRegistry::GetInstance()->SetIsShuttingDown(false);
 #if BUILDFLAG(IS_CHROMEOS)
   hid_system_tray_icon_ = std::make_unique<HidPinnedNotification>();
+  usb_system_tray_icon_ = std::make_unique<UsbPinnedNotification>();
 #else
   hid_system_tray_icon_ = std::make_unique<HidStatusIcon>();
+  usb_system_tray_icon_ = std::make_unique<UsbStatusIcon>();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
@@ -211,8 +217,13 @@ metrics::MetricsService* TestingBrowserProcess::metrics_service() {
   return metrics_service_;
 }
 
-device::GeolocationManager* TestingBrowserProcess::geolocation_manager() {
-  return geolocation_manager_.get();
+embedder_support::OriginTrialsSettingsStorage*
+TestingBrowserProcess::GetOriginTrialsSettingsStorage() {
+  if (!origin_trials_settings_storage_) {
+    origin_trials_settings_storage_ =
+        std::make_unique<embedder_support::OriginTrialsSettingsStorage>();
+  }
+  return origin_trials_settings_storage_.get();
 }
 
 SystemNetworkContextManager*
@@ -325,11 +336,6 @@ void TestingBrowserProcess::set_background_mode_manager_for_test(
   NOTREACHED();
 }
 #endif
-
-void TestingBrowserProcess::SetGeolocationManager(
-    std::unique_ptr<device::GeolocationManager> geolocation_manager) {
-  geolocation_manager_ = std::move(geolocation_manager);
-}
 
 StatusTray* TestingBrowserProcess::status_tray() {
   return status_tray_.get();
@@ -503,18 +509,18 @@ SerialPolicyAllowedPorts* TestingBrowserProcess::serial_policy_allowed_ports() {
   return serial_policy_allowed_ports_.get();
 }
 
-HidPolicyAllowedDevices* TestingBrowserProcess::hid_policy_allowed_devices() {
-  if (!hid_policy_allowed_devices_) {
-    hid_policy_allowed_devices_ =
-        std::make_unique<HidPolicyAllowedDevices>(local_state());
-  }
-  return hid_policy_allowed_devices_.get();
-}
-
 HidSystemTrayIcon* TestingBrowserProcess::hid_system_tray_icon() {
   return hid_system_tray_icon_.get();
 }
+
+UsbSystemTrayIcon* TestingBrowserProcess::usb_system_tray_icon() {
+  return usb_system_tray_icon_.get();
+}
 #endif
+
+os_crypt_async::OSCryptAsync* TestingBrowserProcess::os_crypt_async() {
+  return os_crypt_async_.get();
+}
 
 BuildState* TestingBrowserProcess::GetBuildState() {
 #if !BUILDFLAG(IS_ANDROID)
@@ -562,7 +568,6 @@ void TestingBrowserProcess::SetLocalState(PrefService* local_state) {
 #endif
 #if !BUILDFLAG(IS_ANDROID)
     serial_policy_allowed_ports_.reset();
-    hid_policy_allowed_devices_.reset();
 #endif
     ShutdownBrowserPolicyConnector();
     created_browser_policy_connector_ = false;
@@ -616,6 +621,11 @@ void TestingBrowserProcess::SetStatusTray(
 void TestingBrowserProcess::SetHidSystemTrayIcon(
     std::unique_ptr<HidSystemTrayIcon> hid_system_tray_icon) {
   hid_system_tray_icon_ = std::move(hid_system_tray_icon);
+}
+
+void TestingBrowserProcess::SetUsbSystemTrayIcon(
+    std::unique_ptr<UsbSystemTrayIcon> usb_system_tray_icon) {
+  usb_system_tray_icon_ = std::move(usb_system_tray_icon);
 }
 #endif
 

@@ -12,12 +12,13 @@ import android.webkit.WebView;
 import androidx.annotation.IntDef;
 
 import com.android.webview.chromium.CallbackConverter;
+import com.android.webview.chromium.ProfileStore;
 import com.android.webview.chromium.SharedStatics;
 import com.android.webview.chromium.SharedTracingControllerAdapter;
 import com.android.webview.chromium.WebViewChromiumAwInit;
 import com.android.webview.chromium.WebkitToSharedGlueConverter;
 
-import org.chromium.android_webview.AwDebug;
+import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.support_lib_boundary.StaticsBoundaryInterface;
 import org.chromium.support_lib_boundary.WebViewProviderFactoryBoundaryInterface;
@@ -36,7 +37,6 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
     // SupportLibWebkitToCompatConverterAdapter
     private final InvocationHandler mCompatConverterAdapter;
     private final WebViewChromiumAwInit mAwInit;
-    // clang-format off
     private final String[] mWebViewSupportedFeatures =
             new String[] {
                     Features.VISUAL_STATE_CALLBACK,
@@ -81,17 +81,18 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
                     Features.FORCE_DARK,
                     Features.FORCE_DARK_BEHAVIOR,
                     Features.WEB_MESSAGE_LISTENER,
-                    Features.SET_SUPPORT_LIBRARY_VERSION + Features.DEV_SUFFIX,
                     Features.DOCUMENT_START_SCRIPT,
                     Features.PROXY_OVERRIDE_REVERSE_BYPASS,
                     Features.GET_VARIATIONS_HEADER,
                     Features.ALGORITHMIC_DARKENING,
                     Features.ENTERPRISE_AUTHENTICATION_APP_LINK_POLICY,
                     Features.GET_COOKIE_INFO,
-                    Features.WEB_MESSAGE_ARRAY_BUFFER + Features.DEV_SUFFIX,
+                    Features.WEB_MESSAGE_ARRAY_BUFFER,
                     Features.REQUESTED_WITH_HEADER_ALLOW_LIST,
-                    Features.IMAGE_DRAG_DROP + Features.DEV_SUFFIX,
-                    Features.RESTRICT_SENSITIVE_WEB_CONTENT + Features.DEV_SUFFIX,
+                    Features.IMAGE_DRAG_DROP,
+                    Features.USER_AGENT_METADATA,
+                    Features.MULTI_PROFILE,
+                    Features.ATTRIBUTION_BEHAVIOR,
                     // Add new features above. New features must include `+ Features.DEV_SUFFIX`
                     // when they're initially added (this can be removed in a future CL). The final
                     // feature should have a trailing comma for cleaner diffs.
@@ -172,8 +173,29 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
             ApiCall.SERVICE_WORKER_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST,
             ApiCall.SERVICE_WORKER_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST,
             ApiCall.GET_IMAGE_DRAG_DROP_IMPLEMENTATION,
-            ApiCall.RESTRICT_SENSITIVE_WEB_CONTENT,
             ApiCall.JS_REPLY_POST_MESSAGE_WITH_PAYLOAD,
+            ApiCall.WEB_SETTINGS_SET_USER_AGENT_METADATA,
+            ApiCall.WEB_SETTINGS_GET_USER_AGENT_METADATA,
+            ApiCall.SERVICE_WORKER_CLIENT_SHOULD_INTERCEPT_REQUEST,
+            ApiCall.WEB_SETTINGS_SET_ALGORITHMIC_DARKENING_ALLOWED,
+            ApiCall.WEB_SETTINGS_IS_ALGORITHMIC_DARKENING_ALLOWED,
+            ApiCall.CREATE_WEB_MESSAGE_CHANNEL,
+            ApiCall.CREATE_WEBVIEW,
+            ApiCall.GET_STATICS,
+            ApiCall.GET_PROFILE_STORE,
+            ApiCall.GET_OR_CREATE_PROFILE,
+            ApiCall.GET_PROFILE,
+            ApiCall.GET_ALL_PROFILE_NAMES,
+            ApiCall.DELETE_PROFILE,
+            ApiCall.GET_PROFILE_NAME,
+            ApiCall.GET_PROFILE_COOKIE_MANAGER,
+            ApiCall.GET_PROFILE_WEB_STORAGE,
+            ApiCall.GET_PROFILE_GEO_LOCATION_PERMISSIONS,
+            ApiCall.GET_PROFILE_SERVICE_WORKER_CONTROLLER,
+            ApiCall.SET_WEBVIEW_PROFILE,
+            ApiCall.GET_WEBVIEW_PROFILE,
+            ApiCall.SET_ATTRIBUTION_BEHAVIOR,
+            ApiCall.GET_ATTRIBUTION_BEHAVIOR,
             // Add new constants above. The final constant should have a trailing comma for cleaner
             // diffs.
             ApiCall.COUNT, // Added to suppress WrongConstant in #recordApiCall
@@ -256,12 +278,35 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
         int SERVICE_WORKER_SETTINGS_SET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 70;
         int SERVICE_WORKER_SETTINGS_GET_REQUESTED_WITH_HEADER_ORIGIN_ALLOWLIST = 71;
         int GET_IMAGE_DRAG_DROP_IMPLEMENTATION = 72;
+        @Deprecated
         int RESTRICT_SENSITIVE_WEB_CONTENT = 73;
         int JS_REPLY_POST_MESSAGE_WITH_PAYLOAD = 74;
+        int WEB_SETTINGS_SET_USER_AGENT_METADATA = 75;
+        int WEB_SETTINGS_GET_USER_AGENT_METADATA = 76;
+        int SERVICE_WORKER_CLIENT_SHOULD_INTERCEPT_REQUEST = 77;
+        int WEB_SETTINGS_SET_ALGORITHMIC_DARKENING_ALLOWED = 78;
+        int WEB_SETTINGS_IS_ALGORITHMIC_DARKENING_ALLOWED = 79;
+        int CREATE_WEB_MESSAGE_CHANNEL = 80;
+        int CREATE_WEBVIEW = 81;
+        int GET_STATICS = 82;
+        int GET_PROFILE_STORE = 83;
+        int GET_OR_CREATE_PROFILE = 84;
+        int GET_PROFILE = 85;
+        int GET_ALL_PROFILE_NAMES = 86;
+        int DELETE_PROFILE = 87;
+        int GET_PROFILE_NAME = 88;
+        int GET_PROFILE_COOKIE_MANAGER = 89;
+        int GET_PROFILE_WEB_STORAGE = 90;
+        int GET_PROFILE_GEO_LOCATION_PERMISSIONS = 91;
+        int GET_PROFILE_SERVICE_WORKER_CONTROLLER = 92;
+
+        int SET_WEBVIEW_PROFILE = 93;
+        int GET_WEBVIEW_PROFILE = 94;
+        int SET_ATTRIBUTION_BEHAVIOR = 95;
+        int GET_ATTRIBUTION_BEHAVIOR = 96;
         // Remember to update AndroidXWebkitApiCall in enums.xml when adding new values here
-        int COUNT = 75;
+        int COUNT = 97;
     }
-    // clang-format on
 
     public static void recordApiCall(@ApiCall int apiCall) {
         RecordHistogram.recordEnumeratedHistogram(
@@ -274,6 +319,7 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
     private InvocationHandler mTracingController;
     private InvocationHandler mProxyController;
     private InvocationHandler mDropDataProvider;
+    private InvocationHandler mProfileStore;
 
     public SupportLibWebViewChromiumFactory() {
         mCompatConverterAdapter = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
@@ -283,8 +329,11 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
 
     @Override
     public /* WebViewProvider */ InvocationHandler createWebView(WebView webView) {
-        return BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                new SupportLibWebViewChromium(webView));
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.CREATE_WEBVIEW")) {
+            recordApiCall(ApiCall.CREATE_WEBVIEW);
+            return BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                    new SupportLibWebViewChromium(webView));
+        }
     }
 
     @Override
@@ -301,53 +350,75 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
 
         @Override
         public void initSafeBrowsing(Context context, ValueCallback<Boolean> callback) {
-            recordApiCall(ApiCall.INIT_SAFE_BROWSING);
-            mSharedStatics.initSafeBrowsing(context, CallbackConverter.fromValueCallback(callback));
+            try (TraceEvent event =
+                            TraceEvent.scoped("WebView.APICall.AndroidX.INIT_SAFE_BROWSING")) {
+                recordApiCall(ApiCall.INIT_SAFE_BROWSING);
+                mSharedStatics.initSafeBrowsing(
+                        context, CallbackConverter.fromValueCallback(callback));
+            }
         }
 
         @Override
         public void setSafeBrowsingAllowlist(Set<String> hosts, ValueCallback<Boolean> callback) {
-            recordApiCall(ApiCall.SET_SAFE_BROWSING_ALLOWLIST);
-            mSharedStatics.setSafeBrowsingAllowlist(
-                    new ArrayList<>(hosts), CallbackConverter.fromValueCallback(callback));
+            try (TraceEvent event = TraceEvent.scoped(
+                         "WebView.APICall.AndroidX.SET_SAFE_BROWSING_ALLOWLIST")) {
+                recordApiCall(ApiCall.SET_SAFE_BROWSING_ALLOWLIST);
+                mSharedStatics.setSafeBrowsingAllowlist(
+                        new ArrayList<>(hosts), CallbackConverter.fromValueCallback(callback));
+            }
         }
 
         @Override
         public void setSafeBrowsingWhitelist(List<String> hosts, ValueCallback<Boolean> callback) {
-            recordApiCall(ApiCall.SET_SAFE_BROWSING_ALLOWLIST_DEPRECATED_NAME);
-            mSharedStatics.setSafeBrowsingAllowlist(
-                    hosts, CallbackConverter.fromValueCallback(callback));
+            try (TraceEvent event = TraceEvent.scoped(
+                         "WebView.APICall.AndroidX.SET_SAFE_BROWSING_ALLOWLIST_DEPRECATED_NAME")) {
+                recordApiCall(ApiCall.SET_SAFE_BROWSING_ALLOWLIST_DEPRECATED_NAME);
+                mSharedStatics.setSafeBrowsingAllowlist(
+                        hosts, CallbackConverter.fromValueCallback(callback));
+            }
         }
 
         @Override
         public Uri getSafeBrowsingPrivacyPolicyUrl() {
-            recordApiCall(ApiCall.GET_SAFE_BROWSING_PRIVACY_POLICY_URL);
-            return mSharedStatics.getSafeBrowsingPrivacyPolicyUrl();
+            try (TraceEvent event = TraceEvent.scoped(
+                         "WebView.APICall.AndroidX.GET_SAFE_BROWSING_PRIVACY_POLICY_URL")) {
+                recordApiCall(ApiCall.GET_SAFE_BROWSING_PRIVACY_POLICY_URL);
+                return mSharedStatics.getSafeBrowsingPrivacyPolicyUrl();
+            }
         }
 
         @Override
         public boolean isMultiProcessEnabled() {
-            recordApiCall(ApiCall.IS_MULTI_PROCESS_ENABLED);
-            return mSharedStatics.isMultiProcessEnabled();
+            try (TraceEvent event = TraceEvent.scoped(
+                         "WebView.APICall.AndroidX.IS_MULTI_PROCESS_ENABLED")) {
+                recordApiCall(ApiCall.IS_MULTI_PROCESS_ENABLED);
+                return mSharedStatics.isMultiProcessEnabled();
+            }
         }
 
         @Override
         public String getVariationsHeader() {
-            recordApiCall(ApiCall.GET_VARIATIONS_HEADER);
-            return mSharedStatics.getVariationsHeader();
+            try (TraceEvent event =
+                            TraceEvent.scoped("WebView.APICall.AndroidX.GET_VARIATIONS_HEADER")) {
+                recordApiCall(ApiCall.GET_VARIATIONS_HEADER);
+                return mSharedStatics.getVariationsHeader();
+            }
         }
     }
 
     @Override
     public InvocationHandler getStatics() {
-        synchronized (mAwInit.getLock()) {
-            if (mStatics == null) {
-                mStatics = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                        new StaticsAdapter(
-                                WebkitToSharedGlueConverter.getGlobalAwInit().getStatics()));
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.GET_STATICS")) {
+            recordApiCall(ApiCall.GET_STATICS);
+            synchronized (mAwInit.getLock()) {
+                if (mStatics == null) {
+                    mStatics = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                            new StaticsAdapter(
+                                    WebkitToSharedGlueConverter.getGlobalAwInit().getStatics()));
+                }
             }
+            return mStatics;
         }
-        return mStatics;
     }
 
     @Override
@@ -357,58 +428,80 @@ class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryBoundary
 
     @Override
     public InvocationHandler getServiceWorkerController() {
-        recordApiCall(ApiCall.GET_SERVICE_WORKER_CONTROLLER);
-        synchronized (mAwInit.getLock()) {
-            if (mServiceWorkerController == null) {
-                mServiceWorkerController =
-                        BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                                new SupportLibServiceWorkerControllerAdapter(
-                                        mAwInit.getServiceWorkerController()));
+        try (TraceEvent event = TraceEvent.scoped(
+                     "WebView.APICall.AndroidX.GET_SERVICE_WORKER_CONTROLLER")) {
+            recordApiCall(ApiCall.GET_SERVICE_WORKER_CONTROLLER);
+            synchronized (mAwInit.getLock()) {
+                if (mServiceWorkerController == null) {
+                    mServiceWorkerController =
+                            BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                                    new SupportLibServiceWorkerControllerAdapter(
+                                            mAwInit.getDefaultServiceWorkerController()));
+                }
             }
+            return mServiceWorkerController;
         }
-        return mServiceWorkerController;
     }
 
     @Override
     public InvocationHandler getTracingController() {
-        recordApiCall(ApiCall.GET_TRACING_CONTROLLER);
-        synchronized (mAwInit.getLock()) {
-            if (mTracingController == null) {
-                mTracingController = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                        new SupportLibTracingControllerAdapter(new SharedTracingControllerAdapter(
-                                mAwInit.getRunQueue(), mAwInit.getAwTracingController())));
+        try (TraceEvent event =
+                        TraceEvent.scoped("WebView.APICall.AndroidX.GET_TRACING_CONTROLLER")) {
+            recordApiCall(ApiCall.GET_TRACING_CONTROLLER);
+            synchronized (mAwInit.getLock()) {
+                if (mTracingController == null) {
+                    mTracingController = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                            new SupportLibTracingControllerAdapter(
+                                    new SharedTracingControllerAdapter(mAwInit.getRunQueue(),
+                                            mAwInit.getAwTracingController())));
+                }
             }
+            return mTracingController;
         }
-        return mTracingController;
     }
 
     @Override
     public InvocationHandler getProxyController() {
-        recordApiCall(ApiCall.GET_PROXY_CONTROLLER);
-        synchronized (mAwInit.getLock()) {
-            if (mProxyController == null) {
-                mProxyController = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                        new SupportLibProxyControllerAdapter(
-                                mAwInit.getRunQueue(), mAwInit.getAwProxyController()));
+        try (TraceEvent event =
+                        TraceEvent.scoped("WebView.APICall.AndroidX.GET_PROXY_CONTROLLER")) {
+            recordApiCall(ApiCall.GET_PROXY_CONTROLLER);
+            synchronized (mAwInit.getLock()) {
+                if (mProxyController == null) {
+                    mProxyController = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                            new SupportLibProxyControllerAdapter(
+                                    mAwInit.getRunQueue(), mAwInit.getAwProxyController()));
+                }
             }
+            return mProxyController;
         }
-        return mProxyController;
-    }
-
-    @Override
-    public void setSupportLibraryVersion(String version) {
-        AwDebug.setSupportLibraryWebkitVersionCrashKey(version);
     }
 
     @Override
     public InvocationHandler getDropDataProvider() {
-        recordApiCall(ApiCall.GET_IMAGE_DRAG_DROP_IMPLEMENTATION);
-        synchronized (mAwInit.getLock()) {
-            if (mDropDataProvider == null) {
-                mDropDataProvider = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
-                        new SupportLibDropDataContentProviderAdapter());
+        try (TraceEvent event = TraceEvent.scoped(
+                     "WebView.APICall.AndroidX.GET_IMAGE_DRAG_DROP_IMPLEMENTATION")) {
+            recordApiCall(ApiCall.GET_IMAGE_DRAG_DROP_IMPLEMENTATION);
+            synchronized (mAwInit.getLock()) {
+                if (mDropDataProvider == null) {
+                    mDropDataProvider = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                            new SupportLibDropDataContentProviderAdapter());
+                }
             }
+            return mDropDataProvider;
         }
-        return mDropDataProvider;
+    }
+
+    @Override
+    public InvocationHandler getProfileStore() {
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.GET_PROFILE_STORE")) {
+            recordApiCall(ApiCall.GET_PROFILE_STORE);
+            synchronized (mAwInit.getLock()) {
+                if (mProfileStore == null) {
+                    mProfileStore = BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                            new SupportLibProfileStore(ProfileStore.getInstance()));
+                }
+            }
+            return mProfileStore;
+        }
     }
 }

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/fetch/fetch_request_data.h"
 
+#include "base/unguessable_token.h"
 #include "net/base/request_priority.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -106,18 +107,22 @@ FetchRequestData* FetchRequestData::Create(
 
   if (fetch_api_request->blob) {
     DCHECK(fetch_api_request->body.IsEmpty());
-    request->SetBuffer(BodyStreamBuffer::Create(
-        script_state,
-        MakeGarbageCollected<BlobBytesConsumer>(
-            ExecutionContext::From(script_state), fetch_api_request->blob),
-        nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr));
+    request->SetBuffer(
+        BodyStreamBuffer::Create(
+            script_state,
+            MakeGarbageCollected<BlobBytesConsumer>(
+                ExecutionContext::From(script_state), fetch_api_request->blob),
+            nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr),
+        fetch_api_request->blob->size());
   } else if (fetch_api_request->body.FormBody()) {
-    request->SetBuffer(BodyStreamBuffer::Create(
-        script_state,
-        MakeGarbageCollected<FormDataBytesConsumer>(
-            ExecutionContext::From(script_state),
-            fetch_api_request->body.FormBody()),
-        nullptr /* AbortSignal */, /*cached_metadata_handler=*/nullptr));
+    request->SetBuffer(
+        BodyStreamBuffer::Create(script_state,
+                                 MakeGarbageCollected<FormDataBytesConsumer>(
+                                     ExecutionContext::From(script_state),
+                                     fetch_api_request->body.FormBody()),
+                                 nullptr /* AbortSignal */,
+                                 /*cached_metadata_handler=*/nullptr),
+        fetch_api_request->body.FormBody()->SizeInBytes());
   } else if (fetch_api_request->body.StreamBody()) {
     mojo::ScopedDataPipeConsumerHandle readable;
     mojo::ScopedDataPipeProducerHandle writable;
@@ -205,6 +210,11 @@ FetchRequestData* FetchRequestData::Create(
   request->SetAttributionReportingEligibility(
       fetch_api_request->attribution_reporting_eligibility);
 
+  if (fetch_api_request->service_worker_race_network_request_token) {
+    request->SetServiceWorkerRaceNetworkRequestToken(
+        fetch_api_request->service_worker_race_network_request_token.value());
+  }
+
   return request;
 }
 
@@ -231,17 +241,25 @@ FetchRequestData* FetchRequestData::CloneExceptBody() {
   request->original_destination_ = original_destination_;
   request->keepalive_ = keepalive_;
   request->browsing_topics_ = browsing_topics_;
+  request->ad_auction_headers_ = ad_auction_headers_;
+  request->shared_storage_writable_ = shared_storage_writable_;
   request->is_history_navigation_ = is_history_navigation_;
   request->window_id_ = window_id_;
   request->trust_token_params_ = trust_token_params_;
   request->attribution_reporting_eligibility_ =
       attribution_reporting_eligibility_;
+  request->service_worker_race_network_request_token_ =
+      service_worker_race_network_request_token_;
   return request;
 }
 
 FetchRequestData* FetchRequestData::Clone(ScriptState* script_state,
                                           ExceptionState& exception_state) {
   FetchRequestData* request = FetchRequestData::CloneExceptBody();
+  if (request->service_worker_race_network_request_token_) {
+    request->service_worker_race_network_request_token_ =
+        base::UnguessableToken::Null();
+  }
   if (buffer_) {
     BodyStreamBuffer* new1 = nullptr;
     BodyStreamBuffer* new2 = nullptr;
@@ -250,6 +268,7 @@ FetchRequestData* FetchRequestData::Clone(ScriptState* script_state,
       return nullptr;
     buffer_ = new1;
     request->buffer_ = new2;
+    request->buffer_byte_length_ = buffer_byte_length_;
   }
   if (url_loader_factory_.is_bound()) {
     url_loader_factory_->Clone(
@@ -260,14 +279,17 @@ FetchRequestData* FetchRequestData::Clone(ScriptState* script_state,
   return request;
 }
 
-FetchRequestData* FetchRequestData::Pass(ScriptState* script_state) {
+FetchRequestData* FetchRequestData::Pass(ScriptState* script_state,
+                                         ExceptionState& exception_state) {
   FetchRequestData* request = FetchRequestData::CloneExceptBody();
   if (buffer_) {
     request->buffer_ = buffer_;
+    request->buffer_byte_length_ = buffer_byte_length_;
     buffer_ = BodyStreamBuffer::Create(
         script_state, BytesConsumer::CreateClosed(), nullptr /* AbortSignal */,
         /*cached_metadata_handler=*/nullptr);
-    buffer_->CloseAndLockAndDisturb();
+    buffer_->CloseAndLockAndDisturb(exception_state);
+    buffer_byte_length_ = 0;
   }
   request->url_loader_factory_ = std::move(url_loader_factory_);
   return request;

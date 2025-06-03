@@ -4,19 +4,7 @@
 
 import {assertEquals, assertGT, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 
-import {FileOperationHandler} from './file_operation_handler.js';
-import {fileOperationUtil} from './file_operation_util.js';
-import {MockFileOperationManager} from './mock_file_operation_manager.js';
-import {MockProgressCenter} from './mock_progress_center.js';
-
-/** @type {!MockFileOperationManager} */
-let fileOperationManager;
-
-/** @type {!MockProgressCenter} */
-let progressCenter;
-
-/** @type {!FileOperationHandler} */
-let fileOperationHandler;
+import {Speedometer} from './file_operation_util.js';
 
 /**
  * Mock JS Date.
@@ -26,8 +14,8 @@ let fileOperationHandler;
 class MockDate {
   constructor() {
     this.originalNow = Date.now;
-    Date.tick_ = 0;
-    Date.now = this.now;
+    this.tick_ = 0;
+    Date.now = this.now.bind(this);
   }
 
   /**
@@ -36,14 +24,14 @@ class MockDate {
    * @param {number} msec Milliseconds to add to the current timestamp.
    */
   tick(msec) {
-    Date.tick_ += msec;
+    this.tick_ += msec;
   }
 
   /**
    * @returns {number} Current timestamp of the mock object.
    */
   now() {
-    return Date.tick_;
+    return this.tick_;
   }
 
   /**
@@ -54,23 +42,11 @@ class MockDate {
   }
 }
 
-// Set up the test components.
-export function setUp() {
-  // Create mock items needed for FileOperationHandler.
-  fileOperationManager = new MockFileOperationManager();
-  progressCenter = new MockProgressCenter();
-
-  // Create FileOperationHandler. Note: the file operation handler is
-  // required, but not used directly, by the unittests.
-  fileOperationHandler =
-      new FileOperationHandler(fileOperationManager, progressCenter);
-}
-
 /**
  * Tests Speedometer's speed calculations.
  */
 export function testSpeedometerMovingAverage() {
-  const speedometer = new fileOperationUtil.Speedometer();
+  const speedometer = new Speedometer();
   const mockDate = new MockDate();
 
   speedometer.setTotalBytes(2000);
@@ -141,7 +117,7 @@ export function testSpeedometerMovingAverage() {
  */
 export function testSpeedometerBufferRing() {
   const maxSamples = 20;
-  const speedometer = new fileOperationUtil.Speedometer(maxSamples);
+  const speedometer = new Speedometer(maxSamples);
   const mockDate = new MockDate();
 
   speedometer.setTotalBytes(20000);

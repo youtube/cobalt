@@ -4,7 +4,6 @@
 
 """Presubmit script for Chromium browser code."""
 
-USE_PYTHON3 = True
 
 import re
 
@@ -73,6 +72,7 @@ def _RunHistogramChecks(input_api, output_api, histogram_name):
   finally:
     sys.path = original_sys_path
 
+
 def _CheckUnwantedDependencies(input_api, output_api):
   problems = []
   for f in input_api.AffectedFiles():
@@ -92,6 +92,72 @@ def _CheckUnwantedDependencies(input_api, output_api):
       'Use blink/public/common instead.',
       items=problems)]
 
+
+def _CheckNoInteractiveUiTestLibInNonInteractiveUiTest(input_api, output_api):
+  """Makes sure that ui_controls related API are used only in
+  interactive_in_tests.
+  """
+  problems = []
+  # There are interactive tests whose name ends with `_browsertest.cc`
+  # or `_browser_test.cc`.
+  files_to_skip = ((r'.*interactive_.*test\.cc',) +
+                   input_api.DEFAULT_FILES_TO_SKIP)
+  def FileFilter(affected_file):
+    """Check non interactive_uitests only."""
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(
+            r'.*browsertest\.cc',
+            r'.*unittest\.cc'),
+        files_to_skip=files_to_skip)
+
+  ui_controls_includes =(
+    input_api.re.compile(
+        r'#include.*/(ui_controls.*h|interactive_test_utils.h)"'))
+
+  for f in input_api.AffectedFiles(include_deletes=False,
+                                   file_filter=FileFilter):
+    for line_num, line in f.ChangedContents():
+      m = re.search(ui_controls_includes, line)
+      if m:
+        problems.append('  %s:%d:%s' % (f.LocalPath(), line_num, m.group(0)))
+
+  if not problems:
+    return []
+
+  WARNING_MSG ="""
+  ui_controls API can be used only in interactive_ui_tests.
+  If the test is in the interactive_ui_tests, please consider renaming
+  to xxx_interactive_uitest.cc"""
+  return [output_api.PresubmitPromptWarning(WARNING_MSG, items=problems)]
+
+
+def _CheckForUselessExterns(input_api, output_api):
+  """Makes sure developers don't copy "extern const char kFoo[]" from
+  foo.h to foo.cc.
+  """
+  problems = []
+  BAD_PATTERN = input_api.re.compile(r'^extern const')
+
+  def FileFilter(affected_file):
+    """Check only a particular list of files"""
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=[r'chrome[/\\]browser[/\\]flag_descriptions\.cc']);
+
+  for f in input_api.AffectedFiles(include_deletes=False,
+                                   file_filter=FileFilter):
+    for _, line in f.ChangedContents():
+      if BAD_PATTERN.search(line):
+        problems.append(f)
+
+  if not problems:
+    return []
+
+  WARNING_MSG ="""Do not write "extern const char" in these .cc files:"""
+  return [output_api.PresubmitPromptWarning(WARNING_MSG, items=problems)]
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
@@ -101,6 +167,9 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(_RunHistogramChecks(input_api, output_api,
                  "BadMessageReasonChrome"))
+  results.extend(_CheckNoInteractiveUiTestLibInNonInteractiveUiTest(
+      input_api, output_api))
+  results.extend(_CheckForUselessExterns(input_api, output_api))
   return results
 
 def CheckChangeOnUpload(input_api, output_api):

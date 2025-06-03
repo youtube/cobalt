@@ -18,13 +18,13 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "content/browser/media/media_devices_permission_checker.h"
 #include "content/browser/renderer_host/media/in_process_video_capture_provider.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/browser/renderer_host/media/media_stream_ui_proxy.h"
 #include "content/browser/renderer_host/media/video_capture_manager.h"
-#include "content/public/browser/media_device_id.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
 #include "media/audio/audio_device_description.h"
@@ -132,7 +132,7 @@ class MediaDevicesDispatcherHostTest
     host_ = std::make_unique<MediaDevicesDispatcherHost>(
         kProcessId, kRenderId, media_stream_manager_.get());
     media_stream_manager_->media_devices_manager()
-        ->set_salt_and_origin_callback_for_testing(base::BindRepeating(
+        ->set_get_salt_and_origin_cb_for_testing(base::BindRepeating(
             &MediaDevicesDispatcherHostTest::GetSaltAndOrigin,
             base::Unretained(this)));
     host_->SetBadMessageCallbackForTesting(
@@ -180,11 +180,11 @@ class MediaDevicesDispatcherHostTest
     base::RunLoop run_loop;
     MediaDevicesManager::BoolDeviceTypes devices_to_enumerate;
     devices_to_enumerate[static_cast<size_t>(
-        MediaDeviceType::MEDIA_AUDIO_INPUT)] = true;
+        MediaDeviceType::kMediaAudioInput)] = true;
     devices_to_enumerate[static_cast<size_t>(
-        MediaDeviceType::MEDIA_VIDEO_INPUT)] = true;
+        MediaDeviceType::kMediaVideoInput)] = true;
     devices_to_enumerate[static_cast<size_t>(
-        MediaDeviceType::MEDIA_AUDIO_OUTPUT)] = true;
+        MediaDeviceType::kMediaAudioOuput)] = true;
     media_stream_manager_->media_devices_manager()->EnumerateDevices(
         devices_to_enumerate,
         base::BindOnce(&PhysicalDevicesEnumerated, run_loop.QuitClosure(),
@@ -192,15 +192,15 @@ class MediaDevicesDispatcherHostTest
     run_loop.Run();
 
     ASSERT_GT(physical_devices_[static_cast<size_t>(
-                                    MediaDeviceType::MEDIA_AUDIO_INPUT)]
+                                    MediaDeviceType::kMediaAudioInput)]
                   .size(),
               0u);
     ASSERT_GT(physical_devices_[static_cast<size_t>(
-                                    MediaDeviceType::MEDIA_VIDEO_INPUT)]
+                                    MediaDeviceType::kMediaVideoInput)]
                   .size(),
               0u);
     ASSERT_GT(physical_devices_[static_cast<size_t>(
-                                    MediaDeviceType::MEDIA_AUDIO_OUTPUT)]
+                                    MediaDeviceType::kMediaAudioOuput)]
                   .size(),
               0u);
   }
@@ -251,11 +251,12 @@ class MediaDevicesDispatcherHostTest
   void VideoInputCapabilitiesCallback(
       std::vector<blink::mojom::VideoInputDeviceCapabilitiesPtr> capabilities) {
     MockVideoInputCapabilitiesCallback();
-    MediaDeviceSaltAndOrigin salt_and_origin =
-        GetMediaDeviceSaltAndOrigin(-1, -1);
+    base::test::TestFuture<const MediaDeviceSaltAndOrigin&> future;
+    GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                                future.GetCallback());
+    MediaDeviceSaltAndOrigin salt_and_origin = future.Get();
     std::string expected_first_device_id =
-        GetHMACForMediaDeviceID(salt_and_origin.device_id_salt,
-                                salt_and_origin.origin, kDefaultVideoDeviceID);
+        GetHMACForRawMediaDeviceID(salt_and_origin, kDefaultVideoDeviceID);
     EXPECT_EQ(kNumFakeVideoDevices, capabilities.size());
     EXPECT_EQ(expected_first_device_id, capabilities[0]->device_id);
     for (const auto& capability : capabilities) {
@@ -281,11 +282,12 @@ class MediaDevicesDispatcherHostTest
     // MediaDevicesManager always returns 3 fake audio input devices.
     const size_t kNumExpectedEntries = 3;
     EXPECT_EQ(kNumExpectedEntries, capabilities.size());
-    MediaDeviceSaltAndOrigin salt_and_origin =
-        GetMediaDeviceSaltAndOrigin(-1, -1);
+    base::test::TestFuture<const MediaDeviceSaltAndOrigin&> future;
+    GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                                future.GetCallback());
+    MediaDeviceSaltAndOrigin salt_and_origin = future.Get();
     std::string expected_first_device_id =
-        GetHMACForMediaDeviceID(salt_and_origin.device_id_salt,
-                                salt_and_origin.origin, kDefaultAudioDeviceID);
+        GetHMACForRawMediaDeviceID(salt_and_origin, kDefaultAudioDeviceID);
     EXPECT_EQ(expected_first_device_id, capabilities[0]->device_id);
     for (const auto& capability : capabilities)
       EXPECT_TRUE(capability->parameters.IsValid());
@@ -337,31 +339,26 @@ class MediaDevicesDispatcherHostTest
     ASSERT_FALSE(enumerated_devices_.empty());
     if (enumerate_audio_input)
       EXPECT_FALSE(enumerated_devices_[static_cast<size_t>(
-                                           MediaDeviceType::MEDIA_AUDIO_INPUT)]
+                                           MediaDeviceType::kMediaAudioInput)]
                        .empty());
     if (enumerate_video_input)
       EXPECT_FALSE(enumerated_devices_[static_cast<size_t>(
-                                           MediaDeviceType::MEDIA_VIDEO_INPUT)]
+                                           MediaDeviceType::kMediaVideoInput)]
                        .empty());
     if (enumerate_audio_output)
       EXPECT_FALSE(enumerated_devices_[static_cast<size_t>(
-                                           MediaDeviceType::MEDIA_AUDIO_OUTPUT)]
+                                           MediaDeviceType::kMediaAudioOuput)]
                        .empty());
 
     EXPECT_FALSE(DoesContainRawIds(enumerated_devices_));
-#if BUILDFLAG(IS_ANDROID)
-    EXPECT_TRUE(DoesEveryDeviceMapToRawId(enumerated_devices_, origin_));
-#else
-    EXPECT_EQ(DoesEveryDeviceMapToRawId(enumerated_devices_, origin_),
+    EXPECT_EQ(DoesEveryDeviceMapToRawId(enumerated_devices_),
               permission_override_value);
-#endif
   }
 
   bool DoesContainRawIds(
       const std::vector<std::vector<blink::WebMediaDeviceInfo>>& enumeration) {
     for (size_t i = 0;
-         i < static_cast<size_t>(MediaDeviceType::NUM_MEDIA_DEVICE_TYPES);
-         ++i) {
+         i < static_cast<size_t>(MediaDeviceType::kNumMediaDeviceTypes); ++i) {
       for (const auto& device_info : enumeration[i]) {
         for (const auto& raw_device_info : physical_devices_[i]) {
           // Skip default and communications audio devices, whose IDs are not
@@ -381,19 +378,19 @@ class MediaDevicesDispatcherHostTest
   }
 
   bool DoesEveryDeviceMapToRawId(
-      const std::vector<std::vector<blink::WebMediaDeviceInfo>>& enumeration,
-      const url::Origin& origin) {
-    MediaDeviceSaltAndOrigin salt_and_origin =
-        GetMediaDeviceSaltAndOrigin(-1, -1);
+      const std::vector<std::vector<blink::WebMediaDeviceInfo>>& enumeration) {
+    base::test::TestFuture<const MediaDeviceSaltAndOrigin&> future;
+    GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                                future.GetCallback());
+    MediaDeviceSaltAndOrigin salt_and_origin = future.Get();
     for (size_t i = 0;
-         i < static_cast<size_t>(MediaDeviceType::NUM_MEDIA_DEVICE_TYPES);
-         ++i) {
+         i < static_cast<size_t>(MediaDeviceType::kNumMediaDeviceTypes); ++i) {
       for (const auto& device_info : enumeration[i]) {
         bool found_match = false;
         for (const auto& raw_device_info : physical_devices_[i]) {
-          if (DoesMediaDeviceIDMatchHMAC(
-                  salt_and_origin.device_id_salt, salt_and_origin.origin,
-                  device_info.device_id, raw_device_info.device_id)) {
+          if (DoesRawMediaDeviceIDMatchHMAC(salt_and_origin,
+                                            device_info.device_id,
+                                            raw_device_info.device_id)) {
             EXPECT_FALSE(found_match);
             found_match = true;
           }
@@ -449,13 +446,12 @@ class MediaDevicesDispatcherHostTest
         std::make_unique<MediaDevicesPermissionChecker>(has_permission));
     MockMediaDevicesListener device_change_listener;
     for (size_t i = 0;
-         i < static_cast<size_t>(MediaDeviceType::NUM_MEDIA_DEVICE_TYPES);
-         ++i) {
+         i < static_cast<size_t>(MediaDeviceType::kNumMediaDeviceTypes); ++i) {
       MediaDeviceType type = static_cast<MediaDeviceType>(i);
       host_->AddMediaDevicesListener(
-          type == MediaDeviceType::MEDIA_AUDIO_INPUT,
-          type == MediaDeviceType::MEDIA_VIDEO_INPUT,
-          type == MediaDeviceType::MEDIA_AUDIO_OUTPUT,
+          type == MediaDeviceType::kMediaAudioInput,
+          type == MediaDeviceType::kMediaVideoInput,
+          type == MediaDeviceType::kMediaAudioOuput,
           device_change_listener.CreatePendingRemoteAndBind());
       blink::WebMediaDeviceInfoArray changed_devices;
       EXPECT_CALL(device_change_listener, OnDevicesChanged(type, _))
@@ -475,9 +471,10 @@ class MediaDevicesDispatcherHostTest
     }
   }
 
-  MediaDeviceSaltAndOrigin GetSaltAndOrigin(int /* process_id */,
-                                            int /* frame_id */) {
-    return GetMediaDeviceSaltAndOrigin(-1, -1);
+  void GetSaltAndOrigin(GlobalRenderFrameHostId /* render_frame_host_id */,
+                        MediaDeviceSaltAndOriginCallback callback) {
+    GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                                std::move(callback));
   }
 
   // The order of these members is important on teardown:
@@ -578,11 +575,12 @@ TEST_P(MediaDevicesDispatcherHostTest, GetAllVideoInputDeviceFormats) {
   base::RunLoop run_loop;
   EXPECT_CALL(*this, MockAllVideoInputDeviceFormatsCallback())
       .WillOnce(InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
-  MediaDeviceSaltAndOrigin salt_and_origin =
-      GetMediaDeviceSaltAndOrigin(-1, -1);
+  base::test::TestFuture<const MediaDeviceSaltAndOrigin&> future;
+  GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                              future.GetCallback());
+  MediaDeviceSaltAndOrigin salt_and_origin = future.Get();
   host_->GetAllVideoInputDeviceFormats(
-      GetHMACForMediaDeviceID(salt_and_origin.device_id_salt,
-                              salt_and_origin.origin, kDefaultVideoDeviceID),
+      GetHMACForRawMediaDeviceID(salt_and_origin, kDefaultVideoDeviceID),
       base::BindOnce(
           &MediaDevicesDispatcherHostTest::AllVideoInputDeviceFormatsCallback,
           base::Unretained(this)));
@@ -593,11 +591,12 @@ TEST_P(MediaDevicesDispatcherHostTest, GetAvailableVideoInputDeviceFormats) {
   base::RunLoop run_loop;
   EXPECT_CALL(*this, MockAvailableVideoInputDeviceFormatsCallback())
       .WillOnce(InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
-  MediaDeviceSaltAndOrigin salt_and_origin =
-      GetMediaDeviceSaltAndOrigin(-1, -1);
+  base::test::TestFuture<const MediaDeviceSaltAndOrigin&> future;
+  GetMediaDeviceSaltAndOrigin(GlobalRenderFrameHostId(-1, -1),
+                              future.GetCallback());
+  MediaDeviceSaltAndOrigin salt_and_origin = future.Get();
   host_->GetAvailableVideoInputDeviceFormats(
-      GetHMACForMediaDeviceID(salt_and_origin.device_id_salt,
-                              salt_and_origin.origin, kNormalVideoDeviceID),
+      GetHMACForRawMediaDeviceID(salt_and_origin, kNormalVideoDeviceID),
       base::BindOnce(&MediaDevicesDispatcherHostTest::
                          AvailableVideoInputDeviceFormatsCallback,
                      base::Unretained(this)));
@@ -686,8 +685,6 @@ TEST_P(MediaDevicesDispatcherHostTest,
   ExpectVideoCaptureFormats({});
   EXPECT_CALL(*this, MockAvailableVideoInputDeviceFormatsCallback())
       .WillOnce(InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
-  MediaDeviceSaltAndOrigin salt_and_origin =
-      GetMediaDeviceSaltAndOrigin(-1, -1);
   host_->GetAvailableVideoInputDeviceFormats(
       "UnknownHashedDeviceId",
       base::BindOnce(&MediaDevicesDispatcherHostTest::
@@ -703,8 +700,6 @@ TEST_P(MediaDevicesDispatcherHostTest,
   ExpectVideoCaptureFormats({});
   EXPECT_CALL(*this, MockAvailableVideoInputDeviceFormatsCallback())
       .WillOnce(InvokeWithoutArgs([&run_loop]() { run_loop.Quit(); }));
-  MediaDeviceSaltAndOrigin salt_and_origin =
-      GetMediaDeviceSaltAndOrigin(-1, -1);
   host_->GetAllVideoInputDeviceFormats(
       "UnknownHashedDeviceId",
       base::BindOnce(&MediaDevicesDispatcherHostTest::

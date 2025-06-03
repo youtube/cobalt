@@ -45,7 +45,8 @@ QuickUnlockStorage* QuickUnlockFactory::GetForAccountId(
 
 // static
 QuickUnlockFactory* QuickUnlockFactory::GetInstance() {
-  return base::Singleton<QuickUnlockFactory>::get();
+  static base::NoDestructor<QuickUnlockFactory> instance;
+  return instance.get();
 }
 
 ash::auth::QuickUnlockStorageDelegate& QuickUnlockFactory::GetDelegate() {
@@ -107,11 +108,13 @@ QuickUnlockFactory::QuickUnlockFactory()
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-QuickUnlockFactory::~QuickUnlockFactory() {}
+QuickUnlockFactory::~QuickUnlockFactory() = default;
 
-KeyedService* QuickUnlockFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+QuickUnlockFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new QuickUnlockStorage(Profile::FromBrowserContext(context));
+  return std::make_unique<QuickUnlockStorage>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace quick_unlock

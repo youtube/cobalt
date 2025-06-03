@@ -5,6 +5,7 @@
 import("//build/config/android/channel.gni")
 import("//build/config/android/rules.gni")
 import("//build/util/process_version.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 _version_constants_java_file = "$target_gen_dir/java/org/chromium/components/version_info/VersionConstants.java"
 
@@ -18,9 +19,9 @@ android_library("version_constants_java") {
   ]
   deps = [
     ":generate_version_constants",
-    "//base:jni_java",
     "//build/android:build_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
   ]
   srcjar_deps = [ ":channel_enum_srcjar" ]
 }

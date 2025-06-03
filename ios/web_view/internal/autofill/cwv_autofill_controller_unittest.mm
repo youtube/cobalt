@@ -50,10 +50,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #include "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using autofill::FormRendererId;
 using autofill::FieldRendererId;
 using base::test::ios::kWaitForActionTimeout;
@@ -159,12 +155,13 @@ class CWVAutofillControllerTest : public web::WebTest {
 
 // Tests CWVAutofillController fetch suggestions for profiles.
 TEST_F(CWVAutofillControllerTest, FetchProfileSuggestions) {
-  FormSuggestion* suggestion =
-      [FormSuggestion suggestionWithValue:kTestFieldValue
-                       displayDescription:kTestDisplayDescription
-                                     icon:nil
-                               identifier:0
-                           requiresReauth:NO];
+  FormSuggestion* suggestion = [FormSuggestion
+      suggestionWithValue:kTestFieldValue
+       displayDescription:kTestDisplayDescription
+                     icon:nil
+              popupItemId:autofill::PopupItemId::kAutocompleteEntry
+        backendIdentifier:nil
+           requiresReauth:NO];
   [autofill_agent_ addSuggestion:suggestion
                      forFormName:kTestFormName
                  fieldIdentifier:kTestFieldIdentifier
@@ -205,12 +202,13 @@ TEST_F(CWVAutofillControllerTest, FetchProfileSuggestions) {
 
 // Tests CWVAutofillController fetch suggestions for passwords.
 TEST_F(CWVAutofillControllerTest, FetchPasswordSuggestions) {
-  FormSuggestion* suggestion =
-      [FormSuggestion suggestionWithValue:kTestFieldValue
-                       displayDescription:nil
-                                     icon:nil
-                               identifier:0
-                           requiresReauth:NO];
+  FormSuggestion* suggestion = [FormSuggestion
+      suggestionWithValue:kTestFieldValue
+       displayDescription:nil
+                     icon:nil
+              popupItemId:autofill::PopupItemId::kAutocompleteEntry
+        backendIdentifier:nil
+           requiresReauth:NO];
   OCMExpect([password_controller_
       checkIfSuggestionsAvailableForForm:[OCMArg any]
                           hasUserGesture:YES
@@ -254,12 +252,13 @@ TEST_F(CWVAutofillControllerTest, FetchPasswordSuggestions) {
 
 // Tests CWVAutofillController accepts suggestion.
 TEST_F(CWVAutofillControllerTest, AcceptSuggestion) {
-  FormSuggestion* form_suggestion =
-      [FormSuggestion suggestionWithValue:kTestFieldValue
-                       displayDescription:nil
-                                     icon:nil
-                               identifier:0
-                           requiresReauth:NO];
+  FormSuggestion* form_suggestion = [FormSuggestion
+      suggestionWithValue:kTestFieldValue
+       displayDescription:nil
+                     icon:nil
+              popupItemId:autofill::PopupItemId::kAutocompleteEntry
+        backendIdentifier:nil
+           requiresReauth:NO];
   CWVAutofillSuggestion* suggestion =
       [[CWVAutofillSuggestion alloc] initWithFormSuggestion:form_suggestion
                                                    formName:kTestFormName
@@ -473,11 +472,11 @@ TEST_F(CWVAutofillControllerTest, AutoSaveNewAutofillProfile) {
   __block BOOL decision_handler_called = NO;
   auto callback = base::BindOnce(
       ^(autofill::AutofillClient::SaveAddressProfileOfferUserDecision decision,
-        autofill::AutofillProfile profile) {
+        base::optional_ref<const autofill::AutofillProfile> profile) {
         EXPECT_EQ(autofill::AutofillClient::
                       SaveAddressProfileOfferUserDecision::kUserNotAsked,
                   decision);
-        EXPECT_EQ(new_profile, profile);
+        EXPECT_EQ(new_profile, profile.value());
         decision_handler_called = YES;
       });
   [autofill_controller_ confirmSaveAddressProfile:new_profile
@@ -510,11 +509,11 @@ TEST_F(CWVAutofillControllerTest, SaveNewAutofillProfile) {
   __block BOOL decision_handler_called = NO;
   auto callback = base::BindOnce(
       ^(autofill::AutofillClient::SaveAddressProfileOfferUserDecision decision,
-        autofill::AutofillProfile profile) {
+        base::optional_ref<const autofill::AutofillProfile> profile) {
         EXPECT_EQ(autofill::AutofillClient::
                       SaveAddressProfileOfferUserDecision::kAccepted,
                   decision);
-        EXPECT_EQ(new_profile, profile);
+        EXPECT_EQ(new_profile, profile.value());
         decision_handler_called = YES;
       });
   [autofill_controller_ confirmSaveAddressProfile:new_profile

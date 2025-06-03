@@ -5,8 +5,8 @@
 #include "chrome/browser/feature_guide/notifications/feature_notification_guide_service_factory.h"
 
 #include "base/feature_list.h"
-#include "base/memory/singleton.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/time/default_clock.h"
 #include "build/build_config.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
@@ -76,7 +76,8 @@ base::TimeDelta GetNotificationStartTimeDeltaFromVariations() {
 // static
 FeatureNotificationGuideServiceFactory*
 FeatureNotificationGuideServiceFactory::GetInstance() {
-  return base::Singleton<FeatureNotificationGuideServiceFactory>::get();
+  static base::NoDestructor<FeatureNotificationGuideServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -101,7 +102,8 @@ FeatureNotificationGuideServiceFactory::FeatureNotificationGuideServiceFactory()
       segmentation_platform::SegmentationPlatformServiceFactory::GetInstance());
 }
 
-KeyedService* FeatureNotificationGuideServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+FeatureNotificationGuideServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   auto* notification_scheduler =
@@ -123,7 +125,7 @@ KeyedService* FeatureNotificationGuideServiceFactory::BuildServiceInstanceFor(
 #if BUILDFLAG(IS_ANDROID)
   delegate.reset(new FeatureNotificationGuideBridge());
 #endif
-  return new FeatureNotificationGuideServiceImpl(
+  return std::make_unique<FeatureNotificationGuideServiceImpl>(
       std::move(delegate), config, notification_scheduler, tracker,
       segmentation_platform_service, base::DefaultClock::GetInstance());
 }

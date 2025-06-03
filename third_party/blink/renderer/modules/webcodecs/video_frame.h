@@ -16,7 +16,7 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/webcodecs/allow_shared_buffer_source_util.h"
+#include "third_party/blink/renderer/modules/webcodecs/array_buffer_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_handle.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -85,8 +85,8 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   uint32_t codedWidth() const;
   uint32_t codedHeight() const;
 
-  absl::optional<DOMRectReadOnly*> codedRect();
-  absl::optional<DOMRectReadOnly*> visibleRect();
+  DOMRectReadOnly* codedRect();
+  DOMRectReadOnly* visibleRect();
 
   uint32_t displayWidth() const;
   uint32_t displayHeight() const;
@@ -121,7 +121,7 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
  private:
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(
-      CanvasResourceProvider::FlushReason,
+      FlushReason,
       SourceImageStatus*,
       const gfx::SizeF&,
       const AlphaDisposition alpha_disposition = kPremultiplyAlpha) override;

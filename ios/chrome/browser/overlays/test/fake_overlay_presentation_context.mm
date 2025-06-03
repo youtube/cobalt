@@ -9,10 +9,6 @@
 #import "ios/chrome/browser/overlays/public/overlay_presentation_context_observer.h"
 #import "ios/chrome/browser/overlays/public/overlay_request_queue.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 FakeOverlayPresentationContext::FakeOverlayPresentationContext() = default;
 FakeOverlayPresentationContext::~FakeOverlayPresentationContext() = default;
 
@@ -118,6 +114,10 @@ void FakeOverlayPresentationContext::CancelOverlayUI(OverlayRequest* request) {
 }
 
 void FakeOverlayPresentationContext::SetUIDisabled(bool disabled) {}
+
+bool FakeOverlayPresentationContext::IsUIDisabled() {
+  return false;
+}
 
 void FakeOverlayPresentationContext::RunPresentedRequestDismissalCallback() {
   if (!dismissal_callbacks_enabled_ || !presented_request_)

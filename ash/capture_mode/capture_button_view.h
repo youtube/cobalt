@@ -20,6 +20,8 @@ class Separator;
 
 namespace ash {
 
+class CaptureModeBehavior;
+
 // Defines a view that will host the capture button which when pressed, the
 // screen capture operation will be performed. In the case of video recording,
 // if multiple recording formats are supported, it will display a drop down
@@ -30,7 +32,7 @@ class CaptureButtonView : public views::View {
 
   CaptureButtonView(views::Button::PressedCallback on_capture_button_pressed,
                     views::Button::PressedCallback on_drop_down_pressed,
-                    bool is_in_projector_mode);
+                    CaptureModeBehavior* active_behavior);
   CaptureButtonView(const CaptureButtonView&) = delete;
   CaptureButtonView& operator=(const CaptureButtonView&) = delete;
   ~CaptureButtonView() override = default;
@@ -59,9 +61,14 @@ class CaptureButtonView : public views::View {
   void SetupButton(views::Button* button);
 
   // Bound to callbacks that will create a path generator for both the capture
-  // and the drop down buttons.
+  // and the drop down buttons. If `use_zero_insets` is true, no insets will be
+  // added to the resulting path generator. This is useful when using the path
+  // generator for the ink drop highlight which should not have any insets,
+  // unlike the focus ring which should be insetted a little to be drawn within
+  // the bounds of the view.
   std::unique_ptr<views::HighlightPathGenerator> CreateFocusRingPath(
-      views::View* view);
+      views::View* view,
+      bool use_zero_insets);
 
   // The button which when pressed, screen capture will be performed.
   const raw_ptr<views::LabelButton, ExperimentalAsh> capture_button_;

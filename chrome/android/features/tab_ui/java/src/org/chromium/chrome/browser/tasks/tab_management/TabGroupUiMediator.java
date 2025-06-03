@@ -9,12 +9,12 @@ import android.os.Handler;
 import android.view.View;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -99,7 +99,7 @@ public class TabGroupUiMediator implements BackPressHandler {
     private final BottomControlsCoordinator
             .BottomControlsVisibilityController mVisibilityController;
     private final IncognitoStateProvider mIncognitoStateProvider;
-    private final OneshotSupplier<TabGridDialogMediator.DialogController>
+    private final LazyOneshotSupplier<TabGridDialogMediator.DialogController>
             mTabGridDialogControllerSupplier;
     private final IncognitoStateObserver mIncognitoStateObserver;
     private final TabModelSelectorObserver mTabModelSelectorObserver;
@@ -116,13 +116,18 @@ public class TabGroupUiMediator implements BackPressHandler {
     private boolean mIsTabGroupUiVisible;
     private boolean mIsShowingOverViewMode;
 
-    TabGroupUiMediator(Context context, BottomControlsVisibilityController visibilityController,
-            ResetHandler resetHandler, PropertyModel model, TabModelSelector tabModelSelector,
+    TabGroupUiMediator(
+            Context context,
+            BottomControlsVisibilityController visibilityController,
+            ResetHandler resetHandler,
+            PropertyModel model,
+            TabModelSelector tabModelSelector,
             TabCreatorManager tabCreatorManager,
             OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier,
             IncognitoStateProvider incognitoStateProvider,
-            @Nullable OneshotSupplier<TabGridDialogMediator.DialogController>
-                    dialogControllerSupplier,
+            @Nullable
+                    LazyOneshotSupplier<TabGridDialogMediator.DialogController>
+                            dialogControllerSupplier,
             ObservableSupplier<Boolean> omniboxFocusStateSupplier) {
         mContext = context;
         mResetHandler = resetHandler;
@@ -148,8 +153,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         mTabModelObserver = new TabModelObserver() {
             @Override
             public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
-                if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mContext)
-                        && getTabsToShowForId(lastId).contains(tab)) {
+                if (getTabsToShowForId(lastId).contains(tab)) {
                     return;
                 }
 
@@ -172,12 +176,8 @@ public class TabGroupUiMediator implements BackPressHandler {
             public void didAddTab(Tab tab, int type, @TabCreationState int creationState,
                     boolean markedForSelection) {
                 if (type == TabLaunchType.FROM_CHROME_UI || type == TabLaunchType.FROM_RESTORE
-                        || type == TabLaunchType.FROM_STARTUP) {
-                    return;
-                }
-
-                if (type == TabLaunchType.FROM_LONGPRESS_BACKGROUND
-                        && !TabUiFeatureUtilities.ENABLE_TAB_GROUP_AUTO_CREATION.getValue()) {
+                        || type == TabLaunchType.FROM_STARTUP
+                        || type == TabLaunchType.FROM_LONGPRESS_BACKGROUND) {
                     return;
                 }
 
@@ -216,7 +216,7 @@ public class TabGroupUiMediator implements BackPressHandler {
         };
         mLayoutStateObserver = new LayoutStateProvider.LayoutStateObserver() {
             @Override
-            public void onStartedShowing(@LayoutType int layoutType, boolean showToolbar) {
+            public void onStartedShowing(@LayoutType int layoutType) {
                 if (layoutType == LayoutType.TAB_SWITCHER
                         || layoutType == LayoutType.START_SURFACE) {
                     mIsShowingOverViewMode = true;
@@ -268,25 +268,23 @@ public class TabGroupUiMediator implements BackPressHandler {
             }
         };
 
-        if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mContext)) {
-            mTabGroupModelFilterObserver = new EmptyTabGroupModelFilterObserver() {
-                @Override
-                public void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {
-                    if (mIsTabGroupUiVisible && movedTab == mTabModelSelector.getCurrentTab()) {
-                        resetTabStripWithRelatedTabsForId(movedTab.getId());
-                    }
+        mTabGroupModelFilterObserver = new EmptyTabGroupModelFilterObserver() {
+            @Override
+            public void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {
+                if (mIsTabGroupUiVisible && movedTab == mTabModelSelector.getCurrentTab()) {
+                    resetTabStripWithRelatedTabsForId(movedTab.getId());
                 }
-            };
+            }
+        };
 
-            // TODO(995951): Add observer similar to TabModelSelectorTabModelObserver for
-            // TabModelFilter.
-            ((TabGroupModelFilter) mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
-                     false))
-                    .addTabGroupObserver(mTabGroupModelFilterObserver);
-            ((TabGroupModelFilter) mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
-                     true))
-                    .addTabGroupObserver(mTabGroupModelFilterObserver);
-        }
+        // TODO(995951): Add observer similar to TabModelSelectorTabModelObserver for
+        // TabModelFilter.
+        ((TabGroupModelFilter) mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
+                 false))
+                .addTabGroupObserver(mTabGroupModelFilterObserver);
+        ((TabGroupModelFilter) mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
+                 true))
+                .addTabGroupObserver(mTabGroupModelFilterObserver);
 
         mOmniboxFocusObserver = isFocus -> {
             // Hide tab strip when omnibox gains focus and try to re-show it when omnibox loses
@@ -348,13 +346,11 @@ public class TabGroupUiMediator implements BackPressHandler {
         View.OnClickListener rightButtonOnClickListener = view -> {
             Tab parentTabToAttach = null;
             Tab currentTab = mTabModelSelector.getCurrentTab();
-            if (TabUiFeatureUtilities.isTabGroupsAndroidEnabled(mContext)) {
-                List<Tab> relatedTabs = getTabsToShowForId(currentTab.getId());
+            List<Tab> relatedTabs = getTabsToShowForId(currentTab.getId());
 
-                assert relatedTabs.size() > 0;
+            assert relatedTabs.size() > 0;
 
-                parentTabToAttach = relatedTabs.get(relatedTabs.size() - 1);
-            }
+            parentTabToAttach = relatedTabs.get(relatedTabs.size() - 1);
             mTabCreatorManager.getTabCreator(currentTab.isIncognito())
                     .createNewTab(new LoadUrlParams(UrlConstants.NTP_URL),
                             TabLaunchType.FROM_TAB_GROUP_UI, parentTabToAttach);
@@ -377,6 +373,10 @@ public class TabGroupUiMediator implements BackPressHandler {
      *            not, associated tabs from #getTabsToShowForID will be showing in the tab strip.
      */
     private void resetTabStripWithRelatedTabsForId(int id) {
+        // TODO(crbug/1449465): PseudoTab#getRelatedTabList() requires the tab state to be
+        // initialized. If this is called before tab state is initialized just skip.
+        if (!mTabModelSelector.isTabStateInitialized()) return;
+
         // TODO(crbug.com/1090655): We should be able to guard this call behind some checks so that
         // we can assert here that 1) mIsShowingOverViewMode is false 2) mIsTabGroupUiVisible with
         // valid id is false.
@@ -468,7 +468,6 @@ public class TabGroupUiMediator implements BackPressHandler {
         mIncognitoStateProvider.removeObserver(mIncognitoStateObserver);
     }
 
-    @VisibleForTesting
     boolean getIsShowingOverViewModeForTesting() {
         return mIsShowingOverViewMode;
     }

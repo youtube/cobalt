@@ -10,8 +10,8 @@
 #include "chrome/browser/apps/app_service/browser_app_instance.h"
 #include "chrome/browser/apps/app_service/browser_app_instance_observer.h"
 #include "chrome/browser/apps/app_service/browser_app_instance_tracker.h"
+#include "chrome/browser/ash/system_web_apps/apps/crosh_system_web_app_info.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
-#include "chrome/browser/ash/web_applications/crosh_system_web_app_info.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
@@ -22,13 +22,13 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/common/constants.h"
@@ -264,8 +264,7 @@ class BrowserAppInstanceTrackerTest : public InProcessBrowserTest {
     params.disposition = disposition;
     Navigate(&params);
     auto* contents = params.navigated_or_inserted_contents;
-    DCHECK_EQ(chrome::FindBrowserWithWebContents(
-                  params.navigated_or_inserted_contents),
+    DCHECK_EQ(chrome::FindBrowserWithTab(params.navigated_or_inserted_contents),
               browser);
     content::TestNavigationObserver observer(contents);
     observer.Wait();
@@ -288,10 +287,10 @@ class BrowserAppInstanceTrackerTest : public InProcessBrowserTest {
                            WindowOpenDisposition::NEW_FOREGROUND_TAB);
   }
 
-  web_app::AppId InstallWebApp(
+  webapps::AppId InstallWebApp(
       const std::string& start_url,
       web_app::mojom::UserDisplayMode user_display_mode) {
-    auto info = std::make_unique<WebAppInstallInfo>();
+    auto info = std::make_unique<web_app::WebAppInstallInfo>();
     info->start_url = GURL(start_url);
     info->user_display_mode = user_display_mode;
     Profile* profile = ProfileManager::GetPrimaryUserProfile();
@@ -299,16 +298,16 @@ class BrowserAppInstanceTrackerTest : public InProcessBrowserTest {
     return app_id;
   }
 
-  web_app::AppId InstallWebAppOpeningAsTab(const std::string& start_url) {
+  webapps::AppId InstallWebAppOpeningAsTab(const std::string& start_url) {
     return InstallWebApp(start_url, web_app::mojom::UserDisplayMode::kBrowser);
   }
 
-  web_app::AppId InstallWebAppOpeningAsWindow(const std::string& start_url) {
+  webapps::AppId InstallWebAppOpeningAsWindow(const std::string& start_url) {
     return InstallWebApp(start_url,
                          web_app::mojom::UserDisplayMode::kStandalone);
   }
 
-  void UninstallWebApp(const web_app::AppId& app_id) {
+  void UninstallWebApp(const webapps::AppId& app_id) {
     Profile* profile = ProfileManager::GetPrimaryUserProfile();
     web_app::test::UninstallWebApp(profile, app_id);
   }
@@ -505,8 +504,13 @@ IN_PROC_BROWSER_TEST_F(BrowserAppInstanceTrackerTest, PopupBrowserWindow) {
     });
   }
 }
-
-IN_PROC_BROWSER_TEST_F(BrowserAppInstanceTrackerTest, DevtoolsWindow) {
+// Broken on ChromeOS <https://crbug.com/1493240>
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_DevtoolsWindow DISABLED_DevtoolsWindow
+#else
+#define MAYBE_DevtoolsWindow DevtoolsWindow
+#endif
+IN_PROC_BROWSER_TEST_F(BrowserAppInstanceTrackerTest, MAYBE_DevtoolsWindow) {
   Browser* browser = CreateBrowser();
   InsertForegroundTab(browser, "https://c.example.org");
   aura::Window* window1 = browser->window()->GetNativeWindow();

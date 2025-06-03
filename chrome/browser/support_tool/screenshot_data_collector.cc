@@ -155,7 +155,9 @@ void ScreenshotDataCollector::CollectDataAndDetectPII(
   DesktopMediaPickerController::DoneCallback callback =
       base::BindOnce(&ScreenshotDataCollector::OnSourceSelected,
                      weak_ptr_factory_.GetWeakPtr());
-  DesktopMediaPickerController::Params picker_params;
+  DesktopMediaPickerController::Params picker_params(
+      DesktopMediaPickerController::Params::RequestSource::
+          kScreenshotDataCollector);
   picker_params.web_contents = web_contents;
   picker_params.context = parent_window;
   picker_params.parent = parent_window;
@@ -186,7 +188,7 @@ void ScreenshotDataCollector::OnSourceSelected(const std::string& err,
     return;
   }
 #if BUILDFLAG(IS_CHROMEOS)
-  gfx::NativeWindow window = nullptr;
+  gfx::NativeWindow window = gfx::NativeWindow();
   switch (id.type) {
     case content::DesktopMediaID::Type::TYPE_WEB_CONTENTS: {
       window = content::RenderFrameHost::FromID(

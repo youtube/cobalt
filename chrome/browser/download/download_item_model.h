@@ -27,6 +27,12 @@ class WebContents;
 class DownloadItemModel : public DownloadUIModel,
                           public download::DownloadItem::Observer {
  public:
+#if !BUILDFLAG(IS_ANDROID)
+  // How long an ephemeral warning is displayed on the download bubble.
+  static constexpr base::TimeDelta kEphemeralWarningLifetimeOnBubble =
+      base::Minutes(5);
+#endif
+
   static DownloadUIModelPtr Wrap(download::DownloadItem* download);
   static DownloadUIModelPtr Wrap(
       download::DownloadItem* download,
@@ -130,6 +136,8 @@ class DownloadItemModel : public DownloadUIModel,
   void DetermineAndSetShouldPreferOpeningInBrowser(
       const base::FilePath& target_path,
       bool is_filetype_handled_safely) override;
+  bool IsEncryptedArchive() const override;
+  bool IsExtensionDownload() const override;
 
   // download::DownloadItem::Observer implementation.
   void OnDownloadUpdated(download::DownloadItem* download) override;
@@ -139,7 +147,6 @@ class DownloadItemModel : public DownloadUIModel,
  private:
   // DownloadUIModel implementation.
   std::string GetMimeType() const override;
-  bool IsExtensionDownload() const override;
 
   // The DownloadItem that this model represents. Note that DownloadItemModel
   // itself shouldn't maintain any state since there can be more than one

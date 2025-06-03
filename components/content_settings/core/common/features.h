@@ -32,6 +32,12 @@ namespace features {
 COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
 BASE_DECLARE_FEATURE(kSafetyCheckUnusedSitePermissions);
 
+// Lets the HostContentSettingsMap actively monitor when content settings expire
+// and delete them instantly. This also notifies observers that will, in turn,
+// terminate access to capabilities gated on those settings right away.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kActiveContentSettingExpiry);
+
 // Determines the frequency at which permissions of sites are checked whether
 // they are unused.
 COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
@@ -61,6 +67,58 @@ extern const base::FeatureParam<base::TimeDelta>
 COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
 extern const base::FeatureParam<base::TimeDelta>
     kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold;
+
+// Feature to enable the feedback button in the User Bypass UI.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kUserBypassFeedback);
+
+// Feature to enable the User Bypass UI.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kUserBypassUI);
+
+// Determines the time interval after which a user bypass exception expires.
+// Note that it affects only new exceptions, previously created exceptions won't
+// be updated to use a new expiration.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kUserBypassUIExceptionExpiration;
+
+// Determines how many refreshes within `kUserBypassUIReloadTime` are required
+// before a high confidence signal is returned.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const base::FeatureParam<int> kUserBypassUIReloadCount;
+
+// Determines how long a user has to make `kUserBypassUIReloadCount` refreshes
+// before a high confidence signal is returned.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta> kUserBypassUIReloadTime;
+
+// The reloading bubble will be shown until either the page full reloads or this
+// timeout is reached.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kUserBypassUIReloadBubbleTimeout;
+
+// Hide activity indicators if a permission is no longer used.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kImprovedSemanticsActivityIndicators);
+
+// Feature to enable redesigned tracking protection UX + prefs for 3PCD.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kTrackingProtection3pcd);
+
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const char kTpcdReadHeuristicsGrantsName[];
+
+// Enables writing and reading temporary storage access grants from 3PCD
+// heuristics.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+BASE_DECLARE_FEATURE(kTpcdHeuristicsGrants);
+
+// Whether 3PCD heuristics grants should be considered to override cookie access
+// behavior.
+COMPONENT_EXPORT(CONTENT_SETTINGS_FEATURES)
+extern const base::FeatureParam<bool> kTpcdReadHeuristicsGrants;
 
 }  // namespace features
 }  // namespace content_settings

@@ -93,7 +93,7 @@ StyleVariables::OptionalValue StyleVariables::GetValue(
     const AtomicString& name) const {
   auto i = values_->find(name);
   if (i != values_->end()) {
-    return i->value;
+    return i->value.Get();
   }
   return absl::nullopt;
 }
@@ -117,6 +117,19 @@ void StyleVariables::CollectNames(HashSet<AtomicString>& names) const {
   for (const auto& pair : data_) {
     names.insert(pair.key);
   }
+}
+
+std::ostream& operator<<(std::ostream& stream,
+                         const StyleVariables& variables) {
+  stream << "[";
+  for (const auto& [key, value] : variables.data_) {
+    stream << key << ": " << value->Serialize() << ", ";
+  }
+  stream << "][";
+  for (const auto& [key, value] : *variables.values_) {
+    stream << key << ": " << value->CssText() << ", ";
+  }
+  return stream << "]";
 }
 
 }  // namespace blink

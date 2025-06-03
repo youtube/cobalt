@@ -41,7 +41,7 @@ TEST_F(ProtoUtilsTest, PassEOSDecoderBuffer) {
 
   // 3. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> output_buffer =
-      ByteArrayToDecoderBuffer(data.data(), data.size());
+      ByteArrayToDecoderBuffer(data);
   DCHECK(output_buffer);
 
   ASSERT_TRUE(output_buffer->end_of_stream());
@@ -68,17 +68,18 @@ TEST_F(ProtoUtilsTest, PassValidDecoderBuffer) {
 
   // 1. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> input_buffer =
-      media::DecoderBuffer::CopyFrom(buffer, buffer_size, side_buffer,
-                                     side_buffer_size);
+      media::DecoderBuffer::CopyFrom(buffer, buffer_size);
   input_buffer->set_timestamp(pts);
   input_buffer->set_is_key_frame(true);
+  input_buffer->WritableSideData().alpha_data.assign(
+      side_buffer, side_buffer + side_buffer_size);
 
   // 2. To Byte Array
   std::vector<uint8_t> data = DecoderBufferToByteArray(*input_buffer);
 
   // 3. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> output_buffer =
-      ByteArrayToDecoderBuffer(data.data(), data.size());
+      ByteArrayToDecoderBuffer(data);
   DCHECK(output_buffer);
 
   ASSERT_FALSE(output_buffer->end_of_stream());
@@ -89,8 +90,10 @@ TEST_F(ProtoUtilsTest, PassValidDecoderBuffer) {
   for (size_t i = 0; i < buffer_size; i++) {
     ASSERT_EQ(output_data[i], buffer[i]);
   }
-  ASSERT_EQ(output_buffer->side_data_size(), side_buffer_size);
-  const uint8_t* output_side_data = output_buffer->side_data();
+  ASSERT_TRUE(output_buffer->has_side_data());
+  ASSERT_EQ(output_buffer->side_data()->alpha_data.size(), side_buffer_size);
+  const uint8_t* output_side_data =
+      output_buffer->side_data()->alpha_data.data();
   for (size_t i = 0; i < side_buffer_size; i++) {
     ASSERT_EQ(output_side_data[i], side_buffer[i]);
   }

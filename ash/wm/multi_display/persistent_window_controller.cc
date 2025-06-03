@@ -12,10 +12,12 @@
 #include "ash/wm/window_state.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "chromeos/ui/base/display_util.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/wm/core/coordinate_conversion.h"
 
 namespace ash {
 
@@ -49,6 +51,47 @@ bool ShouldProcessWindowList() {
 
 }  // namespace
 
+// -----------------------------------------------------------------------------
+// PersistentWindowController::WindowTracker:
+
+PersistentWindowController::WindowTracker::WindowTracker() = default;
+
+PersistentWindowController::WindowTracker::~WindowTracker() {
+  RemoveAll();
+}
+
+void PersistentWindowController::WindowTracker::Add(
+    aura::Window* window,
+    const gfx::Rect& restore_bounds_in_parent) {
+  if (window_restore_bounds_map_.emplace(window, restore_bounds_in_parent)
+          .second) {
+    window->AddObserver(this);
+  }
+}
+
+void PersistentWindowController::WindowTracker::RemoveAll() {
+  for (auto& item : window_restore_bounds_map_) {
+    item.first->RemoveObserver(this);
+  }
+  window_restore_bounds_map_.clear();
+}
+
+void PersistentWindowController::WindowTracker::Remove(aura::Window* window) {
+  auto iter = window_restore_bounds_map_.find(window);
+  if (iter != window_restore_bounds_map_.end()) {
+    iter->first->RemoveObserver(this);
+    window_restore_bounds_map_.erase(iter);
+  }
+}
+
+void PersistentWindowController::WindowTracker::OnWindowDestroying(
+    aura::Window* window) {
+  Remove(window);
+}
+
+// -----------------------------------------------------------------------------
+// PersistentWindowController:
+
 constexpr char
     PersistentWindowController::kNumOfWindowsRestoredOnDisplayAdded[];
 constexpr char
@@ -71,13 +114,24 @@ void PersistentWindowController::OnWillProcessDisplayChanges() {
     WindowState* window_state = WindowState::Get(window);
     // This implies that we keep the first persistent info until they're valid
     // to restore, or until they're cleared by user-invoked bounds change.
-    if (window_state->persistent_window_info_of_display_removal()) {
+    if (PersistentWindowInfo* info =
+            window_state->persistent_window_info_of_display_removal();
+        info) {
+      info->set_display_id_after_removal(
+          display::Screen::GetScreen()->GetDisplayNearestWindow(window).id());
       continue;
     }
     // Place the window that needs persistent window info into the temporary
     // set. The persistent window info will be created and set if a display is
-    // removed.
-    need_persistent_info_windows_.Add(window);
+    // removed. Store the window's restore bounds in parent here instead of
+    // `OnDisplayRemoved`. As the window's restore bounds in parent are
+    // converted from its restore bounds in screen, which relies on the
+    // displays' layout. And displays' layout will have been updated inside
+    // `OnDisplayRemoved`.
+    need_persistent_info_windows_.Add(
+        window, window_state->HasRestoreBounds()
+                    ? window_state->GetRestoreBoundsInParent()
+                    : gfx::Rect());
   }
 }
 
@@ -91,10 +145,12 @@ void PersistentWindowController::OnDisplayAdded(
 
 void PersistentWindowController::OnDisplayRemoved(
     const display::Display& old_display) {
-  for (aura::Window* window : need_persistent_info_windows_.windows()) {
+  for (const auto& [window, restore_bounds_in_parent] :
+       need_persistent_info_windows_.window_restore_bounds_map()) {
     WindowState* window_state = WindowState::Get(window);
-    window_state->SetPersistentWindowInfoOfDisplayRemoval(
-        PersistentWindowInfo(window, /*is_landscape_before_rotation=*/false));
+    window_state->CreatePersistentWindowInfo(
+        /*is_landscape_before_rotation=*/false, restore_bounds_in_parent,
+        /*for_display_removal=*/true);
   }
   need_persistent_info_windows_.RemoveAll();
   is_landscape_orientation_map_.erase(old_display.id());
@@ -108,8 +164,7 @@ void PersistentWindowController::OnDisplayMetricsChanged(
   }
 
   const bool was_landscape_before_rotation =
-      is_landscape_orientation_map_.find(display.id()) !=
-              is_landscape_orientation_map_.end()
+      base::Contains(is_landscape_orientation_map_, display.id())
           ? is_landscape_orientation_map_[display.id()]
           : false;
   for (auto* window : GetWindowList()) {
@@ -132,8 +187,10 @@ void PersistentWindowController::OnDisplayMetricsChanged(
         window_state->IsFullscreen()) {
       continue;
     }
-    window_state->SetPersistentWindowInfoOfScreenRotation(
-        PersistentWindowInfo(window, was_landscape_before_rotation));
+    window_state->CreatePersistentWindowInfo(
+        was_landscape_before_rotation,
+        /*restore_bounds_in_parent=*/gfx::Rect(),
+        /*for_display_removal=*/false);
   }
   screen_rotation_restore_callback_ =
       base::BindOnce(&PersistentWindowController::
@@ -187,9 +244,9 @@ void PersistentWindowController::
     if (!window_state->persistent_window_info_of_display_removal()) {
       continue;
     }
-    PersistentWindowInfo info =
-        *window_state->persistent_window_info_of_display_removal();
-    const int64_t persistent_display_id = info.display_id;
+    PersistentWindowInfo* info =
+        window_state->persistent_window_info_of_display_removal();
+    const int64_t persistent_display_id = info->display_id();
     auto* display_manager = GetDisplayManager();
     if (!display_manager->IsDisplayIdValid(persistent_display_id)) {
       continue;
@@ -197,28 +254,47 @@ void PersistentWindowController::
     const auto& display =
         display_manager->GetDisplayForId(persistent_display_id);
 
-    // Update |persistent_window_bounds| based on |persistent_display_bounds|'s
-    // position change. This ensures that |persistent_window_bounds| is
-    // associated with the right target display.
-    gfx::Rect persistent_window_bounds = info.window_bounds_in_screen;
-    const auto& persistent_display_bounds = info.display_bounds_in_screen;
+    const auto& persistent_display_bounds = info->display_bounds_in_screen();
     // It is possible to have display size change, such as changing cable, bad
     // cable signal etc., but it should be rare.
     if (display.bounds().size() != persistent_display_bounds.size()) {
       continue;
     }
-    const gfx::Vector2d offset = display.bounds().OffsetFromOrigin() -
-                                 persistent_display_bounds.OffsetFromOrigin();
-    persistent_window_bounds.Offset(offset);
+    const int64_t display_id_after_removal = info->display_id_after_removal();
+    const bool is_display_changed =
+        persistent_display_id != display_id_after_removal;
+    if (!is_display_changed) {
+      // Update based on the the window's current bounds if its physical display
+      // never changed. This will help keep the window's bounds to match its
+      // current window state.
+      gfx::Rect bounds = window->bounds();
+      wm::ConvertRectToScreen(
+          Shell::GetRootWindowForDisplayId(persistent_display_id), &bounds);
+      window->SetBoundsInScreen(bounds, display);
+    } else {
+      // Update |persistent_window_bounds| based on
+      // |persistent_display_bounds|'s position change. This ensures that
+      // |persistent_window_bounds| is associated with the right target display.
+      gfx::Rect persistent_window_bounds = info->window_bounds_in_screen();
+      const gfx::Vector2d offset = display.bounds().OffsetFromOrigin() -
+                                   persistent_display_bounds.OffsetFromOrigin();
+      persistent_window_bounds.Offset(offset);
+      window->SetBoundsInScreen(persistent_window_bounds, display);
+    }
 
-    window->SetBoundsInScreen(persistent_window_bounds, display);
-    if (info.restore_bounds_in_screen) {
-      gfx::Rect restore_bounds = *info.restore_bounds_in_screen;
-      restore_bounds.Offset(offset);
-      window_state->SetRestoreBoundsInScreen(restore_bounds);
+    // Set the restore bounds back if window's physical display changed, and now
+    // we are moving it back to its previous display. Or its physical display
+    // didn't change, and currently the window still has restore bounds set.
+    if ((is_display_changed || window_state->HasRestoreBounds()) &&
+        !info->restore_bounds_in_parent().IsEmpty()) {
+      const gfx::Rect restore_bounds = info->restore_bounds_in_parent();
+      // Use the stored window's restore bounds in parent to set the window's
+      // restore bounds in screen. The conversion from the bounds in parent to
+      // the bounds in screen will be based on the current displays' layout.
+      window_state->SetRestoreBoundsInParent(restore_bounds);
     }
     // Reset persistent window info every time the window bounds have restored.
-    window_state->ResetPersistentWindowInfoOfDisplayRemoval();
+    window_state->reset_persistent_window_info_of_display_removal();
 
     ++window_restored_count;
   }
@@ -242,9 +318,9 @@ void PersistentWindowController::
     if (!window_state->persistent_window_info_of_screen_rotation()) {
       continue;
     }
-    PersistentWindowInfo info =
-        *window_state->persistent_window_info_of_screen_rotation();
-    const int64_t display_id = info.display_id;
+    PersistentWindowInfo* info =
+        window_state->persistent_window_info_of_screen_rotation();
+    const int64_t display_id = info->display_id();
     auto* display_manager = GetDisplayManager();
     if (!display_manager->IsDisplayIdValid(display_id)) {
       continue;
@@ -256,8 +332,8 @@ void PersistentWindowController::
     // window's bounds should be the same in each landscape orientation. Same
     // for portrait screen orientation.
     if (chromeos::IsDisplayLayoutHorizontal(display_manager->GetDisplayForId(
-            display_id)) == info.is_landscape) {
-      window->SetBounds(info.window_bounds_in_screen);
+            display_id)) == info->is_landscape()) {
+      window->SetBounds(info->window_bounds_in_screen());
       ++window_restored_count;
     }
   }

@@ -5,7 +5,7 @@
 #ifndef IOS_WEB_PUBLIC_WEB_STATE_H_
 #define IOS_WEB_PUBLIC_WEB_STATE_H_
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 #include <stdint.h>
 
@@ -20,12 +20,14 @@
 #include "base/strings/string_piece.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"
+#include "build/blink_buildflags.h"
 #include "components/sessions/core/session_id.h"
-#include "ios/web/public/deprecated/url_verification_constants.h"
 #include "ios/web/public/js_messaging/content_world.h"
 #include "ios/web/public/navigation/referrer.h"
+#include "ios/web/public/web_state_id.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -48,6 +50,10 @@ class RectF;
 }
 
 namespace web {
+namespace proto {
+class WebStateStorage;
+class WebStateMetadataStorage;
+}  // namespace proto
 
 class BrowserState;
 struct FaviconStatus;
@@ -69,6 +75,13 @@ void IgnoreOverRealizationCheck();
 // Core interface for interaction with the web.
 class WebState : public base::SupportsUserData {
  public:
+  // Callback used to load the full information for the WebState when
+  // it will become realized.
+  using WebStateStorageLoader = base::OnceCallback<proto::WebStateStorage()>;
+
+  // Callback used to fetch the native session for the WebState.
+  using NativeSessionFetcher = base::OnceCallback<NSData*()>;
+
   // Parameters for the Create() method.
   struct CreateParams {
     explicit CreateParams(web::BrowserState* browser_state);
@@ -82,12 +95,17 @@ class WebState : public base::SupportsUserData {
     // WebState is allowed to be closed via window.close().
     bool created_with_opener;
 
+#if BUILDFLAG(USE_BLINK)
+    // If `created_with_opener`, a pointer to the opener WebState.
+    WebState* opener_web_state;
+#endif
+
     // Value used to set the last time the WebState was made active; this
     // is the value that will be returned by GetLastActiveTime(). If this
     // is left default initialized, then the value will not be passed on
     // to the WebState and GetLastActiveTime() will return the WebState's
     // creation time.
-    base::Time last_active_time;
+    absl::optional<base::Time> last_active_time;
   };
 
   // Parameters for the OpenURL() method.
@@ -176,26 +194,48 @@ class WebState : public base::SupportsUserData {
 
   // Creates a new WebState from a serialized representation of the session.
   // `session_storage` must not be nil.
+  // TODO(crbug.com/1383087): remove when the optimised serialisation feature
+  // has been fully launched.
   static std::unique_ptr<WebState> CreateWithStorageSession(
       const CreateParams& params,
       CRWSessionStorage* session_storage);
+
+  // Creates a new WebState from a serialized representation of the session.
+  // The callbacks are used to load the complete serialized data from disk
+  // when the WebState transition to the realized state.
+  static std::unique_ptr<WebState> CreateWithStorage(
+      BrowserState* browser_state,
+      WebStateID unique_identifier,
+      proto::WebStateMetadataStorage metadata,
+      WebStateStorageLoader storage_loader,
+      NativeSessionFetcher session_fetcher);
 
   WebState(const WebState&) = delete;
   WebState& operator=(const WebState&) = delete;
 
   ~WebState() override {}
 
+  // Serializes the object to `storage`. It is an error to call this method
+  // on a WebState that is not realized.
+  virtual void SerializeToProto(proto::WebStateStorage& storage) const = 0;
+
   // Gets/Sets the delegate.
   virtual WebStateDelegate* GetDelegate() = 0;
   virtual void SetDelegate(WebStateDelegate* delegate) = 0;
 
+  // Clones the current WebState. The newly returned WebState is realized and
+  // is a copy to the current instance but will have distinct identifiers. It
+  // is used to implement prerendering or preview as this allow to have a new
+  // WebState that shares the same navigation history.
+  virtual std::unique_ptr<WebState> Clone() const = 0;
+
   // Returns whether the WebState is realized.
   //
   // What does "realized" mean? When creating a WebState from session storage
-  // with `CreateWithStorageSession()`, it may not yet have been fully created.
-  // Instead, it has all information to fully instantiate it and its history
-  // available, but the underlying objects (WKWebView, NavigationManager, ...)
-  // have not been created.
+  // with `CreateWithStorageSession()` or `CreateWithStorage()`, it may not
+  // yet have been fully created. Instead, it has all information to fully
+  // instantiate it and its history available, but the underlying objects
+  // (WKWebView, NavigationManager, ...) have not been created.
   //
   // This is an optimisation to reduce the amount of memory consumed by tabs
   // that have been restored after the browser has been shutdown. If the user
@@ -302,7 +342,7 @@ class WebState : public base::SupportsUserData {
 
   // Creates a serializable representation of the session. The returned value
   // is autoreleased.
-  virtual CRWSessionStorage* BuildSessionStorage() = 0;
+  virtual CRWSessionStorage* BuildSessionStorage() const = 0;
 
   // Loads `data` of type `mime_type` and replaces last committed URL with the
   // given `url`.
@@ -327,7 +367,7 @@ class WebState : public base::SupportsUserData {
   // It is local to the device and not synchronized (but may be used by
   // the sync code to uniquely identify a session on the current device).
   // It can be used as a key to identify this WebState.
-  virtual SessionID GetUniqueIdentifier() const = 0;
+  virtual WebStateID GetUniqueIdentifier() const = 0;
 
   // Gets the contents MIME type.
   virtual const std::string& GetContentsMimeType() const = 0;
@@ -387,12 +427,9 @@ class WebState : public base::SupportsUserData {
   // displayed in this WebState. It represents the current security context.
   virtual const GURL& GetLastCommittedURL() const = 0;
 
-  // Returns the WebState view of the current URL. Moreover, this method
-  // will set the trustLevel enum to the appropriate level from a security point
-  // of view. The caller has to handle the case where `trust_level` is not
-  // appropriate.  Passing `null` will skip the trust check.
-  // TODO(crbug.com/457679): Figure out a clean API for this.
-  virtual GURL GetCurrentURL(URLVerificationTrustLevel* trust_level) const = 0;
+  // Returns the last committed URL if the correctness of this URL's origin is
+  // trusted, and absl::nullopt otherwise.
+  virtual absl::optional<GURL> GetLastCommittedURLIfTrusted() const = 0;
 
   // Returns the current CRWWebViewProxy object.
   virtual CRWWebViewProxyType GetWebViewProxy() const = 0;
@@ -494,6 +531,12 @@ class WebState : public base::SupportsUserData {
   // Get an opaque activity item that can be passed to a
   // UIActivityViewController to share the current URL.
   virtual id GetActivityItem() API_AVAILABLE(ios(16.4)) = 0;
+
+  // Returns the page theme color.
+  virtual UIColor* GetThemeColor() = 0;
+
+  // Returns the under page background color.
+  virtual UIColor* GetUnderPageBackgroundColor() = 0;
 
  protected:
   friend class WebStatePolicyDecider;

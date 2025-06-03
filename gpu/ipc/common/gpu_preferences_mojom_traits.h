@@ -103,8 +103,10 @@ struct GPU_EXPORT
     switch (input) {
       case gpu::WebGPUAdapterName::kDefault:
         return gpu::mojom::WebGPUAdapterName::kDefault;
-      case gpu::WebGPUAdapterName::kCompat:
-        return gpu::mojom::WebGPUAdapterName::kCompat;
+      case gpu::WebGPUAdapterName::kD3D11:
+        return gpu::mojom::WebGPUAdapterName::kD3D11;
+      case gpu::WebGPUAdapterName::kOpenGLES:
+        return gpu::mojom::WebGPUAdapterName::kOpenGLES;
       case gpu::WebGPUAdapterName::kSwiftShader:
         return gpu::mojom::WebGPUAdapterName::kSwiftShader;
     }
@@ -117,8 +119,11 @@ struct GPU_EXPORT
       case gpu::mojom::WebGPUAdapterName::kDefault:
         *out = gpu::WebGPUAdapterName::kDefault;
         return true;
-      case gpu::mojom::WebGPUAdapterName::kCompat:
-        *out = gpu::WebGPUAdapterName::kCompat;
+      case gpu::mojom::WebGPUAdapterName::kD3D11:
+        *out = gpu::WebGPUAdapterName::kD3D11;
+        return true;
+      case gpu::mojom::WebGPUAdapterName::kOpenGLES:
+        *out = gpu::WebGPUAdapterName::kOpenGLES;
         return true;
       case gpu::mojom::WebGPUAdapterName::kSwiftShader:
         *out = gpu::WebGPUAdapterName::kSwiftShader;
@@ -134,6 +139,8 @@ struct GPU_EXPORT
   static gpu::mojom::WebGPUPowerPreference ToMojom(
       gpu::WebGPUPowerPreference input) {
     switch (input) {
+      case gpu::WebGPUPowerPreference::kNone:
+        return gpu::mojom::WebGPUPowerPreference::kNone;
       case gpu::WebGPUPowerPreference::kDefaultLowPower:
         return gpu::mojom::WebGPUPowerPreference::kDefaultLowPower;
       case gpu::WebGPUPowerPreference::kDefaultHighPerformance:
@@ -144,12 +151,15 @@ struct GPU_EXPORT
         return gpu::mojom::WebGPUPowerPreference::kForceHighPerformance;
     }
     NOTREACHED();
-    return gpu::mojom::WebGPUPowerPreference::kDefaultHighPerformance;
+    return gpu::mojom::WebGPUPowerPreference::kNone;
   }
 
   static bool FromMojom(gpu::mojom::WebGPUPowerPreference input,
                         gpu::WebGPUPowerPreference* out) {
     switch (input) {
+      case gpu::mojom::WebGPUPowerPreference::kNone:
+        *out = gpu::WebGPUPowerPreference::kNone;
+        return true;
       case gpu::mojom::WebGPUPowerPreference::kDefaultLowPower:
         *out = gpu::WebGPUPowerPreference::kDefaultLowPower;
         return true;
@@ -277,12 +287,15 @@ struct GPU_EXPORT
         prefs.enable_gpu_benchmarking_extension();
     out->enable_webgpu = prefs.enable_webgpu();
     out->enable_unsafe_webgpu = prefs.enable_unsafe_webgpu();
+    out->enable_webgpu_developer_features =
+        prefs.enable_webgpu_developer_features();
     if (!prefs.ReadUseWebgpuAdapter(&out->use_webgpu_adapter))
       return false;
     if (!prefs.ReadUseWebgpuPowerPreference(
             &out->use_webgpu_power_preference)) {
       return false;
     }
+    out->force_webgpu_compat = prefs.force_webgpu_compat();
     if (!prefs.ReadEnableDawnBackendValidation(
             &out->enable_dawn_backend_validation))
       return false;
@@ -461,6 +474,10 @@ struct GPU_EXPORT
   static bool enable_unsafe_webgpu(const gpu::GpuPreferences& prefs) {
     return prefs.enable_unsafe_webgpu;
   }
+  static bool enable_webgpu_developer_features(
+      const gpu::GpuPreferences& prefs) {
+    return prefs.enable_webgpu_developer_features;
+  }
   static gpu::WebGPUAdapterName use_webgpu_adapter(
       const gpu::GpuPreferences& prefs) {
     return prefs.use_webgpu_adapter;
@@ -468,6 +485,9 @@ struct GPU_EXPORT
   static gpu::WebGPUPowerPreference use_webgpu_power_preference(
       const gpu::GpuPreferences& prefs) {
     return prefs.use_webgpu_power_preference;
+  }
+  static bool force_webgpu_compat(const gpu::GpuPreferences& prefs) {
+    return prefs.force_webgpu_compat;
   }
   static gpu::DawnBackendValidationLevel enable_dawn_backend_validation(
       const gpu::GpuPreferences& prefs) {

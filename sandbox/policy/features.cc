@@ -8,6 +8,10 @@
 #include "build/chromeos_buildflags.h"
 #include "sandbox/features.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
+
 namespace sandbox::policy::features {
 
 #if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
@@ -59,16 +63,50 @@ BASE_FEATURE(kRendererAppContainer,
              "RendererAppContainer",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Emergency "off switch" for renderer environment filtering, this feature can
-// be removed around the M113 timeline. See https://crbug.com/1403087.
-BASE_FEATURE(kRendererFilterEnvironment,
-             "RendererFilterEnvironment",
+// Enables very high job memory limits for sandboxed renderer processes. This
+// sets a limit of 1Tb, effectively removing the Job memory limits, except in
+// egregious cases.
+BASE_FEATURE(kWinSboxHighRendererJobMemoryLimits,
+             "WinSboxHighRendererJobMemoryLimits",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Emergency "off switch" for removal of direct system font access from
-// web renderer processes.
-BASE_FEATURE(kWinSboxAllowSystemFonts,
-             "WinSboxAllowSystemFonts",
+// Emergency "off switch" for closing the KsecDD handle in cryptbase.dll just
+// before sandbox lockdown in renderers.
+BASE_FEATURE(kWinSboxRendererCloseKsecDD,
+             "WinSboxRendererCloseKsecDD",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, only warm up `bcryptprimitives!ProcessPrng` - if disabled warms
+// up `advapi32!RtlGenRandom`.
+BASE_FEATURE(kWinSboxWarmupProcessPrng,
+             "WinSboxWarmupProcessPrng",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, launch the network service within an LPAC sandbox. If disabled,
+// the network service will run inside an App Container.
+BASE_FEATURE(kWinSboxNetworkServiceSandboxIsLPAC,
+             "WinSboxNetworkServiceSandboxIsLPAC",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, always launch the renderer process with Code Integrity Guard
+// enabled, regardless of the local policy configuration. If disabled, then
+// policy is respected. This acts as an emergency "off switch" for the
+// deprecation of the RendererCodeIntegrityEnabled policy.
+BASE_FEATURE(kWinSboxForceRendererCodeIntegrity,
+             "WinSboxForceRendererCodeIntegrity",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, modifies the child's PEB to stop further application of
+// appcompat in the child. Does not affect the browser or unsandboxed
+// processes.
+BASE_FEATURE(kWinSboxZeroAppShim,
+             "WinSboxZeroAppShim",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, applies the FSCTL syscall lockdown mitigation to all sandboxed
+// processes, if supported by the OS.
+BASE_FEATURE(kWinSboxFsctlLockdown,
+             "WinSboxFsctlLockdown",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -88,6 +126,20 @@ BASE_FEATURE(kForceSpectreVariant2Mitigation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// Enabling the kNetworkServiceSandbox feature automatically enables Spectre
+// variant 2 mitigations in the network service. This can lead to performance
+// regressions, so enabling this feature will turn off the Spectre Variant 2
+// mitigations.
+//
+// On ChromeOS Ash, this overrides the system-wide kSpectreVariant2Mitigation
+// feature above, but not the user-controlled kForceSpectreVariant2Mitigation
+// feature.
+BASE_FEATURE(kForceDisableSpectreVariant2MitigationInNetworkService,
+             "kForceDisableSpectreVariant2MitigationInNetworkService",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_MAC)
 // Enables caching compiled sandbox profiles. Only some profiles support this,
 // as controlled by CanCacheSandboxPolicy().
@@ -96,13 +148,46 @@ BASE_FEATURE(kCacheMacSandboxProfiles,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_ANDROID)
+// Enables the renderer on Android to use a separate seccomp policy.
+BASE_FEATURE(kUseRendererProcessPolicy,
+             "UseRendererProcessPolicy",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, this features restricts a set of syscalls in
+// BaselinePolicyAndroid that are used by RendererProcessPolicy.
+BASE_FEATURE(kRestrictRendererPoliciesInBaseline,
+             "RestrictRendererPoliciesInBaseline",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN)
+bool IsNetworkSandboxSupported() {
+  // Network service sandbox uses GetNetworkConnectivityHint which is only
+  // supported on Windows 10 Build 19041 (20H1) so versions before that wouldn't
+  // have a working network change notifier when running in the sandbox.
+  // TODO(crbug.com/1450754): Move this to an API that works earlier than 20H1
+  // and also works in the LPAC sandbox.
+  static const bool supported =
+      base::win::GetVersion() >= base::win::Version::WIN10_20H1;
+  if (!supported) {
+    return false;
+  }
+
+  // App container must be already supported on 20H1, but double check it here.
+  CHECK(sandbox::features::IsAppContainerSandboxSupported());
+
+  return true;
+}
+#endif  // BUILDFLAG(IS_WIN)
+
 bool IsNetworkSandboxEnabled() {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_FUCHSIA)
   return true;
 #else
 #if BUILDFLAG(IS_WIN)
-  if (!sandbox::features::IsAppContainerSandboxSupported())
+  if (!IsNetworkSandboxSupported()) {
     return false;
+  }
 #endif  // BUILDFLAG(IS_WIN)
   // Check feature status.
   return base::FeatureList::IsEnabled(kNetworkServiceSandbox);

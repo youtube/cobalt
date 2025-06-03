@@ -75,7 +75,8 @@ class OobeBaseTest : public MixinBasedInProcessBrowserTest {
   bool needs_background_networking_ = false;
 
   // Whether to use network screeen skip check or not. Note this is only
-  // effective when it is set before SetUpCommandLine is invoked.
+  // effective when it is set before SetUpCommandLine is invoked. Setting it to
+  // `true` also prevents default Shill environment from being set.
   bool needs_network_screen_skip_check_ = false;
 
   std::string gaia_frame_parent_ = "signin-frame";
@@ -86,8 +87,8 @@ class OobeBaseTest : public MixinBasedInProcessBrowserTest {
   void MaybeWaitForLoginScreenLoad();
 
  private:
-  raw_ptr<FakeUpdateEngineClient, ExperimentalAsh> update_engine_client_ =
-      nullptr;
+  raw_ptr<FakeUpdateEngineClient, DanglingUntriaged | ExperimentalAsh>
+      update_engine_client_ = nullptr;
 
   std::unique_ptr<LoginOrLockScreenVisibleWaiter> login_screen_load_observer_;
 };

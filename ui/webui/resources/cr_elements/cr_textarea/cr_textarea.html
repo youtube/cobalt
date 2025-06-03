@@ -18,6 +18,13 @@
     border-color: var(--cr-input-error-color);
   }
 
+  :host-context([chrome-refresh-2023]) #input {
+    padding-bottom: var(--cr-input-padding-bottom);
+    padding-inline-end: var(--cr-input-padding-end);
+    padding-inline-start: var(--cr-input-padding-start);
+    padding-top: var(--cr-input-padding-top);
+  }
+
   #footerContainer {
     border-top: 0;
     /* Components that use the footer should set this to "flex". */
@@ -73,8 +80,25 @@
     overflow-x: hidden;
     overflow-y: auto;
   }
+
+  :host-context([chrome-refresh-2023]) textarea {
+    /* Ensures content sits above the hover layer. */
+    position: relative;
+    z-index: 1;
+  }
+
+  :host-context([chrome-refresh-2023]):host([autogrow]) textarea {
+    position: absolute;
+  }
+
+  /* Must match textarea. */
+  :host-context([chrome-refresh-2023]) #mirror {
+    font-size: 12px;
+    line-height: 16px;
+  }
 </style>
-<div id="label" class="cr-form-field-label" hidden="[[!label]]">
+<div id="label" class="cr-form-field-label" hidden="[[!label]]"
+    aria-hidden="true">
   [[label]]
 </div>
 <div id="input-container">
@@ -84,12 +108,14 @@
   <!-- The textarea is limited to |rows| height. If the content exceeds the
        bounds, it scrolls by default unless autogrow is set. No space or
        comments are allowed before the closing tag. -->
+  <div id="hover-layer"></div>
   <textarea id="input" autofocus="[[autofocus]]" rows="[[rows]]"
       value="{{value::input}}" aria-label$="[[label]]"
       on-focus="onInputFocusChange_" on-blur="onInputFocusChange_"
       on-change="onInputChange_" disabled="[[disabled]]"
       maxlength$="[[maxlength]]" readonly$="[[readonly]]"
-      required$="[[required]]"></textarea>
+      required$="[[required]]" placeholder$="[[placeholder]]"></textarea>
+  <div id="underline-base"></div>
   <div id="underline"></div>
 </div>
 <div id="footerContainer" class="cr-row">

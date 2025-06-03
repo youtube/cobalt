@@ -12,8 +12,8 @@
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/predictors/preconnect_manager.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/subresource_filter/subresource_filter_browser_test_harness.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -48,13 +48,18 @@ class AnchorElementPreloaderBrowserTest
     return {};
   }
 
+  virtual base::FieldTrialParams GetNavigationPredictorFieldTrialParams() {
+    return {};
+  }
+
   void SetUp() override {
     feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kAnchorElementInteraction,
+        {{blink::features::kNavigationPredictor,
+          GetNavigationPredictorFieldTrialParams()},
+         {blink::features::kAnchorElementInteraction,
           GetAnchorElementInteractionFieldTrialParams()},
          {blink::features::kSpeculationRulesPointerDownHeuristics, {}}},
-        {blink::features::kSpeculationRulesPointerHoverHeuristics,
-         features::kPreloadingConfig});
+        {blink::features::kSpeculationRulesPointerHoverHeuristics});
     https_server_ = std::make_unique<net::EmbeddedTestServer>(
         net::EmbeddedTestServer::TYPE_HTTPS);
     https_server_->ServeFilesFromSourceDirectory("chrome/test/data/preload");
@@ -160,6 +165,8 @@ class AnchorElementPreloaderBrowserTest
   std::unique_ptr<content::test::PreloadingAttemptUkmEntryBuilder>
       ukm_entry_builder_;
   std::unique_ptr<base::ScopedMockElapsedTimersForTest> test_timer_;
+  // Disable sampling of UKM preloading logs.
+  content::test::PreloadingConfigOverride preloading_config_override_;
 };
 
 IN_PROC_BROWSER_TEST_F(AnchorElementPreloaderBrowserTest, OneAnchor) {
@@ -435,13 +442,8 @@ class AnchorElementPreloaderLimitedBrowserTest
 };
 
 // TODO(crbug.com/1383953): Re-enable this test
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_LimitExceeded DISABLED_LimitExceeded
-#else
-#define MAYBE_LimitExceeded LimitExceeded
-#endif
 IN_PROC_BROWSER_TEST_F(AnchorElementPreloaderLimitedBrowserTest,
-                       MAYBE_LimitExceeded) {
+                       DISABLED_LimitExceeded) {
   const GURL& url = GetTestURL("/many_anchors.html");
 
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -484,4 +486,51 @@ IN_PROC_BROWSER_TEST_F(AnchorElementPreloaderLimitedBrowserTest,
       << content::test::ActualVsExpectedUkmEntriesToString(ukm_entries,
                                                            expected_entries);
 }
+
+class AnchorElementSetIsNavigationInDomainBrowserTest
+    : public AnchorElementPreloaderBrowserTest {
+ public:
+  base::FieldTrialParams GetNavigationPredictorFieldTrialParams() override {
+    return {{"random_anchor_sampling_period", "1"}};
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(AnchorElementSetIsNavigationInDomainBrowserTest,
+                       TestPointerDownOnAnchor) {
+  base::HistogramTester histogram_tester;
+  GURL url = GetTestURL("/one_anchor.html");
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  // Add a new link and trigger a mouse down event.
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              R"(
+    let a = document.createElement("a");
+    a.id = "link";
+    a.href = "https://www.example.com";
+    a.innerHTML = '<div style="width:100vw;height:100vh;">Example<div>';
+    document.body.appendChild(a);
+    )"));
+  base::RunLoop().RunUntilIdle();
+  content::InputEventAckWaiter waiter(
+      web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost(),
+      blink::WebInputEvent::Type::kMouseDown);
+  SimulateMouseEvent(web_contents(), blink::WebInputEvent::Type::kMouseDown,
+                     blink::WebPointerProperties::Button::kLeft,
+                     gfx::Point(150, 150));
+  waiter.Wait();
+  // Add another link and click on it.
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              R"(
+    let google = document.createElement("a");
+    google.id = "link";
+    google.href = "https://www.google.com";
+    google.innerHTML = "google";
+    document.body.appendChild(google);
+    google.click();
+    )"));
+  base::RunLoop().RunUntilIdle();
+  histogram_tester.ExpectBucketCount(
+      "Preloading.Predictor.PointerDownOnAnchor.Recall",
+      /*content::PredictorConfusionMatrix::kFalseNegative*/ 3, 1);
+}
+
 }  // namespace

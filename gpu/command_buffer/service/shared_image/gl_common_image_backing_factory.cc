@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <list>
 
-#include "components/viz/common/resources/resource_format.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "base/feature_list.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/service/service_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/config/gpu_preferences.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
@@ -21,6 +21,13 @@
 namespace gpu {
 ///////////////////////////////////////////////////////////////////////////////
 // GLCommonImageBackingFactory
+
+namespace {
+// Kill switch for allowing using core ES3 format types for half float format.
+BASE_FEATURE(kAllowEs3F16CoreTypeForGlSi,
+             "AllowEs3F16CoreTypeForGlSi",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+}  // namespace
 
 GLCommonImageBackingFactory::GLCommonImageBackingFactory(
     uint32_t supported_usages,
@@ -45,27 +52,43 @@ GLCommonImageBackingFactory::GLCommonImageBackingFactory(
   bool enable_texture_storage =
       feature_info->feature_flags().ext_texture_storage;
   const gles2::Validators* validators = feature_info->validators();
-  for (int i = 0; i <= viz::RESOURCE_FORMAT_MAX; ++i) {
-    auto format = static_cast<viz::ResourceFormat>(i);
-    if (!viz::GLSupportsFormat(format))
+  for (auto format : viz::SinglePlaneFormat::kAll) {
+    // BG5_565 is not supported for historical reasons.
+    if (format == viz::SinglePlaneFormat::kBGR_565) {
       continue;
-    const GLuint image_internal_format = viz::GLInternalFormat(format);
-    const GLenum gl_format = viz::GLDataFormat(format);
-    const GLenum gl_type = viz::GLDataType(format);
+    }
+    const GLFormatDesc format_desc = ToGLFormatDescOverrideHalfFloatType(
+        format, /*plane_index=*/0,
+        feature_info->feature_flags().angle_rgbx_internal_format,
+        feature_info->oes_texture_float_available());
+    const GLuint image_internal_format = format_desc.image_internal_format;
+    const GLenum gl_format = format_desc.data_format;
+    CHECK_NE(gl_format, static_cast<GLenum>(GL_ZERO));
+    const GLenum gl_type = format_desc.data_type;
+
+    // kRGBA_F16 is a core part of ES3.
+    const bool at_least_es3 =
+        gl::g_current_gl_version->IsAtLeastGLES(3, 0) &&
+        base::FeatureList::IsEnabled(kAllowEs3F16CoreTypeForGlSi);
+    const bool supports_data_type =
+        (gl_type == GL_HALF_FLOAT && at_least_es3) ||
+        validators->pixel_type.IsValid(gl_type);
+    const bool supports_internal_format =
+        (image_internal_format == GL_RGBA16F && at_least_es3) ||
+        validators->texture_internal_format.IsValid(image_internal_format);
+
     const bool uncompressed_format_valid =
-        validators->texture_internal_format.IsValid(image_internal_format) &&
+        supports_internal_format &&
         validators->texture_format.IsValid(gl_format);
     const bool compressed_format_valid =
         validators->compressed_texture_format.IsValid(image_internal_format);
 
     if (!(uncompressed_format_valid || compressed_format_valid) ||
-        !validators->pixel_type.IsValid(gl_type)) {
+        !supports_data_type) {
       continue;
     }
 
-    FormatInfo& info =
-        supported_formats_[viz::SharedImageFormat::SinglePlane(format)]
-            .emplace_back();
+    FormatInfo& info = supported_formats_[format].emplace_back();
     info.is_compressed = compressed_format_valid;
     info.gl_format = gl_format;
     info.gl_type = gl_type;
@@ -73,14 +96,20 @@ GLCommonImageBackingFactory::GLCommonImageBackingFactory(
         gles2::TextureManager::GetCompatibilitySwizzle(feature_info, gl_format);
     info.image_internal_format = gles2::TextureManager::AdjustTexInternalFormat(
         feature_info, image_internal_format, gl_type);
-    info.storage_internal_format = viz::TextureStorageFormat(
-        format, feature_info->feature_flags().angle_rgbx_internal_format);
+    info.storage_internal_format = format_desc.storage_internal_format;
     info.adjusted_format =
         gles2::TextureManager::AdjustTexFormat(feature_info, gl_format);
 
     if (enable_texture_storage && !info.is_compressed &&
         validators->texture_internal_format_storage.IsValid(
             info.storage_internal_format)) {
+      // GL_ALPHA8 requires EXT_texture_storage even with ES3. We should not
+      // rely on validating command decoder logic that allows GL_ALPHA8, but
+      // working around here for now until proper fix.
+      if (info.storage_internal_format == GL_ALPHA8 && use_passthrough_) {
+        continue;
+      }
+
       info.supports_storage = true;
       info.adjusted_storage_internal_format =
           gles2::TextureManager::AdjustTexStorageFormat(

@@ -83,7 +83,15 @@ enum class PairFailure {
   // Failed to connect to discovered device after pairing when the device is
   // known to the adapter.
   kFailedToConnectAfterPairing = 30,
-  kMaxValue = kFailedToConnectAfterPairing,
+  // Failed to write to Additional Data characteristic.
+  kAdditionalDataCharacteristicWrite = 31,
+  // Failed to discover Additional Data Characteristic.
+  // Currently this failure is not emitted anywhere.
+  // TODO(b/279654454) measure this pair failure in some metric.
+  kAdditionalDataCharacteristicDiscovery = 32,
+  // Timed out while writing to Additional Data characteristic.
+  kAdditionalDataCharacteristicWriteTimeout = 33,
+  kMaxValue = kAdditionalDataCharacteristicWriteTimeout,
 };
 
 COMPONENT_EXPORT(QUICK_PAIR_COMMON)

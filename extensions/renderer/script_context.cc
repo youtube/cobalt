@@ -5,9 +5,11 @@
 #include "extensions/renderer/script_context.h"
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
@@ -23,6 +25,7 @@
 #include "extensions/common/manifest_handlers/sandboxed_page_info.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/renderer/dispatcher.h"
+#include "extensions/renderer/isolated_world_manager.h"
 #include "extensions/renderer/renderer_context_data.h"
 #include "extensions/renderer/renderer_extension_registry.h"
 #include "extensions/renderer/renderer_frame_context_data.h"
@@ -259,6 +262,9 @@ Feature::Availability ScriptContext::GetAvailability(
     const std::string& api_name,
     CheckAliasStatus check_alias) {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Special case #1: The `test` API depends on this being run in a test, in
+  // which case the kTestType switch is appended.
   if (base::StartsWith(api_name, "test", base::CompareCase::SENSITIVE)) {
     bool allowed = base::CommandLine::ForCurrentProcess()->
                        HasSwitch(::switches::kTestType);
@@ -267,6 +273,34 @@ Feature::Availability ScriptContext::GetAvailability(
     return Feature::Availability(result,
                                  allowed ? "" : "Only allowed in tests");
   }
+
+  // Special case #2: If it's a user script world, there are specific knobs for
+  // enabling or disabling APIs.
+  if (context_type_ == Feature::USER_SCRIPT_CONTEXT) {
+    CHECK(extension());
+
+    static const constexpr char* kMessagingApis[] = {
+        "runtime.onMessage",
+        "runtime.onConnect",
+        "runtime.sendMessage",
+        "runtime.connect",
+    };
+
+    if (base::ranges::find(kMessagingApis, api_name) !=
+        std::end(kMessagingApis)) {
+      bool is_available =
+          IsolatedWorldManager::GetInstance()
+              .IsMessagingEnabledInUserScriptWorlds(extension()->id());
+      if (!is_available) {
+        return Feature::Availability(
+            Feature::INVALID_CONTEXT,
+            "Messaging APIs are not enabled for this user script world.");
+      }
+    }
+
+    // Otherwise, continue through to the normal checks.
+  }
+
   // Hack: Hosted apps should have the availability of messaging APIs based on
   // the URL of the page (which might have access depending on some extension
   // with externally_connectable), not whether the app has access to messaging
@@ -392,8 +426,7 @@ bool ScriptContext::HasAPIPermission(mojom::APIPermissionID permission) const {
     // Only web page contexts may be granted content capabilities. Other
     // contexts are either privileged WebUI or extensions with their own set of
     // permissions.
-    if (content_capabilities_.find(permission) != content_capabilities_.end())
-      return true;
+    return base::Contains(content_capabilities_, permission);
   }
   return false;
 }
@@ -444,7 +477,7 @@ std::string ScriptContext::GetDebugString() const {
       "  context_type:           %s\n"
       "  effective extension id: %s\n"
       "  effective context type: %s",
-      extension_.get() ? extension_->id().c_str() : "(none)", web_frame_,
+      extension_.get() ? extension_->id().c_str() : "(none)", web_frame_.get(),
       url_.spec().c_str(), GetContextTypeDescription().c_str(),
       effective_extension_.get() ? effective_extension_->id().c_str()
                                  : "(none)",

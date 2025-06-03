@@ -417,14 +417,14 @@ void ArcBluetoothBridge::DeviceChanged(BluetoothAdapter* adapter,
     return;
 
   std::string addr = device->GetAddress();
-  if (discovered_devices_.insert(addr).second) {
+  if (IsDiscoveringOrScanning() && discovered_devices_.insert(addr).second) {
     auto* bluetooth_instance = ARC_GET_INSTANCE_FOR_METHOD(
         arc_bridge_service_->bluetooth(), OnDeviceFound);
     if (bluetooth_instance) {
       bluetooth_instance->OnDeviceFound(
           GetDeviceProperties(mojom::BluetoothPropertyType::ALL, device));
     }
-  } else {
+  } else if (discovered_devices_.contains(addr)) {
     auto* bluetooth_instance = ARC_GET_INSTANCE_FOR_METHOD(
         arc_bridge_service_->bluetooth(), OnDevicePropertiesChanged);
     if (bluetooth_instance) {
@@ -561,10 +561,15 @@ void ArcBluetoothBridge::DeviceAdvertisementReceived(
   mojom::BluetoothAddressPtr addr =
       mojom::BluetoothAddress::From(device->GetAddress());
 
-  auto* bluetooth_instance = ARC_GET_INSTANCE_FOR_METHOD(
-      arc_bridge_service_->bluetooth(), OnLEDeviceFound);
-  if (bluetooth_instance)
-    bluetooth_instance->OnLEDeviceFound(std::move(addr), rssi, eir);
+  if ((IsDiscoveringOrScanning() &&
+       scanned_devices_.insert(device->GetAddress()).second) ||
+      scanned_devices_.contains(device->GetAddress())) {
+    auto* bluetooth_instance = ARC_GET_INSTANCE_FOR_METHOD(
+        arc_bridge_service_->bluetooth(), OnLEDeviceFound);
+    if (bluetooth_instance) {
+      bluetooth_instance->OnLEDeviceFound(std::move(addr), rssi, eir);
+    }
+  }
 }
 
 void ArcBluetoothBridge::DeviceConnectedStateChanged(BluetoothAdapter* adapter,
@@ -610,6 +615,11 @@ void ArcBluetoothBridge::OnGetServiceRecordsFinished(
     mojom::BluetoothAddressPtr remote_addr,
     const BluetoothUUID& target_uuid,
     const std::vector<bluez::BluetoothServiceRecordBlueZ>& records_bluez) {
+  // TODO(b/288866953): ARCVM crashes if records are empty
+  if (records_bluez.size() == 0) {
+    return;
+  }
+
   auto* sdp_bluetooth_instance = ARC_GET_INSTANCE_FOR_METHOD(
       arc_bridge_service_->bluetooth(), OnGetSdpRecords);
   if (!sdp_bluetooth_instance) {
@@ -702,6 +712,26 @@ void ArcBluetoothBridge::GattDiscoveryCompleteForService(
   // Placeholder for GATT client functionality
 }
 
+void ArcBluetoothBridge::GattNeedsDiscovery(BluetoothDevice* device) {
+  if (!arc_bridge_service_->bluetooth()->IsConnected()) {
+    return;
+  }
+
+  // This is a bit of a misnomer from ARC side: OnServiceChanged needs to be
+  // called when we get the signal that something is changed on the peer side,
+  // so ARC can start to re-discover everything again.
+  // However, the GattServiceChanged below indicates we have updated a service,
+  // so it doesn't actually mean ARC needs to re-discover everything.
+  auto* btle_instance = ARC_GET_INSTANCE_FOR_METHOD(
+      arc_bridge_service_->bluetooth(), OnServiceChanged);
+  if (!btle_instance) {
+    return;
+  }
+  btle_instance->OnServiceChanged(
+      mojom::BluetoothAddress::From(device->GetAddress()));
+}
+
+// TODO(b/284429795) This is wrong. See GattNeedsDiscovery above.
 void ArcBluetoothBridge::GattServiceChanged(
     BluetoothAdapter* adapter,
     BluetoothRemoteGattService* service) {
@@ -1210,6 +1240,7 @@ void ArcBluetoothBridge::StartLEScanImpl() {
   if (le_scan_session_) {
     LOG(ERROR) << "Discovery session for LE scan already running.";
     StartLEScanOffTimer();
+    scanned_devices_.clear();
     discovery_queue_.Pop();
     return;
   }
@@ -1249,6 +1280,10 @@ void ArcBluetoothBridge::StartLEScanOffTimer() {
 
 void ArcBluetoothBridge::ResetLEScanSession() {
   le_scan_session_ = nullptr;
+}
+
+bool ArcBluetoothBridge::IsDiscoveringOrScanning() {
+  return discovery_session_ || le_scan_session_;
 }
 
 void ArcBluetoothBridge::StopLEScanImpl() {
@@ -1323,6 +1358,7 @@ void ArcBluetoothBridge::OnLEScanStarted(
 
   StartLEScanOffTimer();
   le_scan_session_ = std::move(session);
+  scanned_devices_.clear();
 
   // Android doesn't need a callback for discovery started event for a LE scan.
   discovery_queue_.Pop();

@@ -17,9 +17,9 @@ static_library("browser") {
     "bookmark_node.h",
     "bookmark_node_data.h",
     "bookmark_storage.h",
-    "bookmark_undo_delegate.h",
     "bookmark_undo_provider.h",
     "bookmark_utils.h",
+    "bookmark_uuids.h",
     "history_bookmark_model.h",
     "model_loader.h",
     "scoped_group_bookmark_actions.h",
@@ -41,6 +41,7 @@ static_library("browser") {
     "bookmark_node_data.cc",
     "bookmark_storage.cc",
     "bookmark_utils.cc",
+    "bookmark_uuids.cc",
     "model_loader.cc",
     "scoped_group_bookmark_actions.cc",
     "titled_url_index.cc",
@@ -49,6 +50,7 @@ static_library("browser") {
     "typed_count_sorter.h",
     "url_index.cc",
     "url_index.h",
+    "uuid_index.h",
   ]
 
   public_deps = [ "//components/bookmarks/common" ]

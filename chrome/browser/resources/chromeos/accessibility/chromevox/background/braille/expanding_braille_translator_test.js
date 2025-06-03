@@ -12,14 +12,18 @@ ChromeVoxExpandingBrailleTranslatorUnitTest =
   /** @override */
   async setUpDeferred() {
     await super.setUpDeferred();
-    await importModule(
-        'ExpandingBrailleTranslator',
-        '/chromevox/background/braille/expanding_braille_translator.js');
-    await importModule(
-        ['ExtraCellsSpan', 'ValueSelectionSpan', 'ValueSpan'],
-        '/chromevox/background/braille/spans.js');
-    await importModule('LibLouis', '/chromevox/background/braille/liblouis.js');
-    await importModule('Spannable', '/chromevox/common/spannable.js');
+
+    await Promise.all([
+      // Alphabetical by path.
+      importModule(
+          'ExpandingBrailleTranslator',
+          '/chromevox/background/braille/expanding_braille_translator.js'),
+      importModule(
+          ['ExtraCellsSpan', 'ValueSelectionSpan', 'ValueSpan'],
+          '/chromevox/background/braille/spans.js'),
+      importModule('LibLouis', '/chromevox/background/braille/liblouis.js'),
+      importModule('Spannable', '/chromevox/common/spannable.js'),
+    ]);
   }
 };
 
@@ -246,13 +250,14 @@ function createText(text, opt_selectionStart, opt_selectionEnd, opt_style) {
   const result = new Spannable(text);
 
   result.setSpan(new ValueSpan(), 0, text.length);
-  if (goog.isDef(opt_selectionStart)) {
+  if (opt_selectionStart !== undefined) {
     result.setSpan(
         new ValueSelectionSpan(), opt_selectionStart,
-        goog.isDef(opt_selectionEnd) ? opt_selectionEnd : opt_selectionStart);
+        (opt_selectionEnd !== undefined) ? opt_selectionEnd :
+                                           opt_selectionStart);
   }
 
-  if (goog.isDef(opt_style)) {
+  if (opt_style !== undefined) {
     result.setSpan(
         new BrailleTextStyleSpan(opt_style.formType), opt_style.start,
         opt_style.end);

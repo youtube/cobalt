@@ -184,6 +184,10 @@ class MockUDPSocket : public net::DatagramClientSocket {
     ADD_FAILURE() << "Called SetDoNotFragment()";
     return net::ERR_UNEXPECTED;
   }
+  int SetRecvEcn() override {
+    ADD_FAILURE() << "Called SetRecvEcn()";
+    return net::ERR_UNEXPECTED;
+  }
   void SetMsgConfirm(bool confirm) override {
     ADD_FAILURE() << "Called SetMsgConfirm()";
   }
@@ -263,7 +267,7 @@ class MockUDPSocket : public net::DatagramClientSocket {
   net::IPAddress local_ip_;
   net::Error connect_error_;
   bool connect_async_ = false;
-  raw_ptr<base::OnceClosure> connect_callback_;
+  raw_ptr<base::OnceClosure, DanglingUntriaged> connect_callback_;
 };
 
 class MockSocketFactory : public net::ClientSocketFactory {

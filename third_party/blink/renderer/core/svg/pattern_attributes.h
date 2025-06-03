@@ -22,6 +22,7 @@
 
 #include "third_party/blink/renderer/core/svg/svg_length.h"
 #include "third_party/blink/renderer/core/svg/svg_preserve_aspect_ratio.h"
+#include "third_party/blink/renderer/core/svg/svg_unit_types.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
 #include "ui/gfx/geometry/rect_f.h"
 
@@ -59,7 +60,7 @@ class PatternAttributes final {
   }
   AffineTransform PatternTransform() const { return pattern_transform_; }
   const SVGPatternElement* PatternContentElement() const {
-    return pattern_content_element_;
+    return pattern_content_element_.Get();
   }
 
   void SetX(const SVGLength* value) { x_ = value; }
@@ -89,16 +90,20 @@ class PatternAttributes final {
     pattern_content_element_ = value;
   }
 
-  bool HasX() const { return x_; }
-  bool HasY() const { return y_; }
-  bool HasWidth() const { return width_; }
-  bool HasHeight() const { return height_; }
+  bool HasX() const { return x_ != nullptr; }
+  bool HasY() const { return y_ != nullptr; }
+  bool HasWidth() const { return width_ != nullptr; }
+  bool HasHeight() const { return height_ != nullptr; }
   bool HasViewBox() const { return view_box_set_; }
-  bool HasPreserveAspectRatio() const { return preserve_aspect_ratio_; }
+  bool HasPreserveAspectRatio() const {
+    return preserve_aspect_ratio_ != nullptr;
+  }
   bool HasPatternUnits() const { return pattern_units_set_; }
   bool HasPatternContentUnits() const { return pattern_content_units_set_; }
   bool HasPatternTransform() const { return pattern_transform_set_; }
-  bool HasPatternContentElement() const { return pattern_content_element_; }
+  bool HasPatternContentElement() const {
+    return pattern_content_element_ != nullptr;
+  }
 
   void Trace(Visitor* visitor) const {
     visitor->Trace(x_);

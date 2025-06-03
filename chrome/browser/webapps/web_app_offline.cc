@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -104,7 +104,8 @@ content::mojom::AlternativeErrorPageOverrideInfoPtr GetOfflinePageInfo(
     content::BrowserContext* browser_context) {
   return ConstructWebAppErrorPage(
       url, render_frame_host, browser_context,
-      l10n_util::GetStringUTF16(IDS_ERRORPAGES_HEADING_YOU_ARE_OFFLINE));
+      l10n_util::GetStringUTF16(IDS_ERRORPAGES_HEADING_YOU_ARE_OFFLINE),
+      error_page::kOfflineIconId);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

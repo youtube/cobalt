@@ -15,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -98,7 +99,9 @@ class ASH_EXPORT AppListView : public views::WidgetDelegateView,
     ~ScopedContentsResetDisabler();
 
    private:
-    AppListView* const view_;
+    // This field is not a raw_ptr<> because it was filtered by the rewriter
+    // for: #union
+    RAW_PTR_EXCLUSION AppListView* const view_;
   };
 
   // Does not take ownership of |delegate|.
@@ -312,9 +315,10 @@ class ASH_EXPORT AppListView : public views::WidgetDelegateView,
   // from creating app list transition accessibility events. This is used to
   // prevent A11Y announcements when showing the assistant UI.
   int accessibility_event_disablers_ = 0;
-  raw_ptr<AppListMainView, ExperimentalAsh> app_list_main_view_ = nullptr;
+  raw_ptr<AppListMainView, DanglingUntriaged | ExperimentalAsh>
+      app_list_main_view_ = nullptr;
 
-  raw_ptr<SearchBoxView, ExperimentalAsh> search_box_view_ =
+  raw_ptr<SearchBoxView, DanglingUntriaged | ExperimentalAsh> search_box_view_ =
       nullptr;  // Owned by views hierarchy.
 
   // The time the AppListView was requested to be shown. Used for metrics.

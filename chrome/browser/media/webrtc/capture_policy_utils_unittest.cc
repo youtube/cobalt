@@ -281,8 +281,7 @@ class MultiCaptureTest
         HostContentSettingsMapFactory::GetForProfile(profile());
     for (const std::string& url : AllowedOrigins()) {
       content_settings->SetContentSettingDefaultScope(
-          GURL(url), GURL(url),
-          ContentSettingsType::GET_DISPLAY_MEDIA_SET_SELECT_ALL_SCREENS,
+          GURL(url), GURL(url), ContentSettingsType::ALL_SCREEN_CAPTURE,
           ContentSetting::CONTENT_SETTING_ALLOW);
     }
   }
@@ -321,15 +320,13 @@ class MultiCaptureTest
 
 TEST_P(MultiCaptureTest, IsMultiCaptureAllowedBasedOnPolicy) {
   EXPECT_EQ(ExpectedIsMultiCaptureAllowed(),
-            capture_policy::IsGetDisplayMediaSetSelectAllScreensAllowed(
-                profile(), GURL(CurrentOrigin())));
+            capture_policy::IsGetAllScreensMediaAllowed(profile(),
+                                                        GURL(CurrentOrigin())));
 }
 
 TEST_P(MultiCaptureTest, IsMultiCaptureAllowedForAnyUrl) {
-  EXPECT_EQ(
-      ExpectedIsMultiCaptureAllowedForAnyUrl(),
-      capture_policy::IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
-          profile()));
+  EXPECT_EQ(ExpectedIsMultiCaptureAllowedForAnyUrl(),
+            capture_policy::IsGetAllScreensMediaAllowedForAnySite(profile()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

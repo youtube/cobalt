@@ -8,8 +8,10 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "ui/base/default_style.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/theme_provider.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
@@ -26,23 +28,53 @@
 #include "ash/public/cpp/ash_typography.h"  // nogncheck
 #endif
 
-ui::ResourceBundle::FontDetails ChromeTypographyProvider::GetFontDetails(
+bool ChromeTypographyProvider::StyleAllowedForContext(int context,
+                                                      int style) const {
+  if (context == CONTEXT_TAB_HOVER_CARD_TITLE) {
+    return style == views::style::STYLE_PRIMARY ||
+           style == views::style::STYLE_BODY_3_EMPHASIS;
+  }
+
+  if (style == views::style::STYLE_EMPHASIZED ||
+      style == views::style::STYLE_EMPHASIZED_SECONDARY) {
+    // Limit emphasizing text to contexts where it's obviously correct. If you
+    // hit this check, ensure it's sane and UX-approved to extend it to your
+    // new case (e.g. don't add CONTEXT_BUTTON_MD).
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    // TODO(https://crbug.com/1352340): Limit more specific Ash contexts.
+    return true;
+#else
+    return context == views::style::CONTEXT_LABEL ||
+           context == views::style::CONTEXT_DIALOG_BODY_TEXT ||
+           context == CONTEXT_DIALOG_BODY_TEXT_SMALL ||
+           context == CONTEXT_DOWNLOAD_SHELF;
+#endif
+  }
+
+  return TypographyProvider::StyleAllowedForContext(context, style);
+}
+
+ui::ResourceBundle::FontDetails ChromeTypographyProvider::GetFontDetailsImpl(
     int context,
     int style) const {
+  if (style > views::style::STYLE_OVERRIDE_TYPOGRAPHY_START &&
+      style < views::style::STYLE_OVERRIDE_TYPOGRAPHY_END) {
+    return TypographyProvider::GetFontDetailsImpl(context, style);
+  }
+
   // "Target" font size constants.
   constexpr int kHeadlineSize = 20;
   constexpr int kTitleSize = 15;
   constexpr int kTouchableLabelSize = 14;
   constexpr int kBodyTextLargeSize = 13;
+  constexpr int kCR23ButtonTextSize = 13;
   constexpr int kDefaultSize = 12;
   constexpr int kStatusSize = 10;
   constexpr int kBadgeSize = 9;
 
-  DCHECK(StyleAllowedForContext(context, style))
-      << "context: " << context << " style: " << style;
-
   ui::ResourceBundle::FontDetails details;
-  details.size_delta = kDefaultSize - gfx::PlatformFont::kDefaultBaseFontSize;
+
+  details.size_delta = gfx::PlatformFont::GetFontSizeDelta(kDefaultSize);
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   ash::ApplyAshFontStyles(context, style, details);
@@ -52,32 +84,34 @@ ui::ResourceBundle::FontDetails ChromeTypographyProvider::GetFontDetails(
 
   switch (context) {
     case views::style::CONTEXT_BADGE:
-      details.size_delta = kBadgeSize - gfx::PlatformFont::kDefaultBaseFontSize;
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(kBadgeSize);
       details.weight = gfx::Font::Weight::BOLD;
       break;
     case views::style::CONTEXT_BUTTON_MD:
       details.weight = MediumWeightForUI();
+      details.size_delta =
+          features::IsChromeRefresh2023()
+              ? gfx::PlatformFont::GetFontSizeDelta(kCR23ButtonTextSize)
+              : ui::kLabelFontSizeDelta;
       break;
     case views::style::CONTEXT_DIALOG_TITLE:
-      details.size_delta = kTitleSize - gfx::PlatformFont::kDefaultBaseFontSize;
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(kTitleSize);
       break;
     case views::style::CONTEXT_TOUCH_MENU:
       details.size_delta =
-          kTouchableLabelSize - gfx::PlatformFont::kDefaultBaseFontSize;
+          gfx::PlatformFont::GetFontSizeDelta(kTouchableLabelSize);
       break;
     case views::style::CONTEXT_DIALOG_BODY_TEXT:
     case CONTEXT_TAB_HOVER_CARD_TITLE:
     case CONTEXT_DOWNLOAD_SHELF:
       details.size_delta =
-          kBodyTextLargeSize - gfx::PlatformFont::kDefaultBaseFontSize;
+          gfx::PlatformFont::GetFontSizeDelta(kBodyTextLargeSize);
       break;
     case CONTEXT_HEADLINE:
-      details.size_delta =
-          kHeadlineSize - gfx::PlatformFont::kDefaultBaseFontSize;
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(kHeadlineSize);
       break;
     case CONTEXT_DOWNLOAD_SHELF_STATUS:
-      details.size_delta =
-          kStatusSize - gfx::PlatformFont::kDefaultBaseFontSize;
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(kStatusSize);
       break;
     default:
       break;
@@ -118,7 +152,8 @@ ui::ResourceBundle::FontDetails ChromeTypographyProvider::GetFontDetails(
   return details;
 }
 
-ui::ColorId ChromeTypographyProvider::GetColorId(int context, int style) const {
+ui::ColorId ChromeTypographyProvider::GetColorIdImpl(int context,
+                                                     int style) const {
   // Body text styles are the same as for labels.
   if (context == views::style::CONTEXT_DIALOG_BODY_TEXT ||
       context == CONTEXT_DIALOG_BODY_TEXT_SMALL)
@@ -151,11 +186,16 @@ ui::ColorId ChromeTypographyProvider::GetColorId(int context, int style) const {
     case STYLE_GREEN:
       return ui::kColorAlertLowSeverity;
     default:
-      return TypographyProvider::GetColorId(context, style);
+      return TypographyProvider::GetColorIdImpl(context, style);
   }
 }
 
-int ChromeTypographyProvider::GetLineHeight(int context, int style) const {
+int ChromeTypographyProvider::GetLineHeightImpl(int context, int style) const {
+  if (style > views::style::STYLE_OVERRIDE_TYPOGRAPHY_START &&
+      style < views::style::STYLE_OVERRIDE_TYPOGRAPHY_END) {
+    return TypographyProvider::GetLineHeightImpl(context, style);
+  }
+
   // "Target" line height constants from the Harmony spec. A default OS
   // configuration should use these heights. However, if the user overrides OS
   // defaults, then GetLineHeight() should return the height that would add the
@@ -226,28 +266,4 @@ int ChromeTypographyProvider::GetLineHeight(int context, int style) const {
     default:
       return default_height;
   }
-}
-
-bool ChromeTypographyProvider::StyleAllowedForContext(int context,
-                                                      int style) const {
-  if (context == CONTEXT_TAB_HOVER_CARD_TITLE)
-    return style == views::style::STYLE_PRIMARY;
-
-  if (style == views::style::STYLE_EMPHASIZED ||
-      style == views::style::STYLE_EMPHASIZED_SECONDARY) {
-    // Limit emphasizing text to contexts where it's obviously correct. If you
-    // hit this check, ensure it's sane and UX-approved to extend it to your
-    // new case (e.g. don't add CONTEXT_BUTTON_MD).
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    // TODO(https://crbug.com/1352340): Limit more specific Ash contexts.
-    return true;
-#else
-    return context == views::style::CONTEXT_LABEL ||
-           context == views::style::CONTEXT_DIALOG_BODY_TEXT ||
-           context == CONTEXT_DIALOG_BODY_TEXT_SMALL ||
-           context == CONTEXT_DOWNLOAD_SHELF;
-#endif
-  }
-
-  return true;
 }

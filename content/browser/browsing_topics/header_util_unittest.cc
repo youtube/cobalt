@@ -4,16 +4,31 @@
 
 #include "content/browser/browsing_topics/header_util.h"
 
+#include "base/strings/strcat.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/web_contents_tester.h"
 #include "content/test/test_render_view_host.h"
+#include "services/network/public/mojom/parsed_headers.mojom.h"
 
 namespace content {
 
 namespace {
+
+blink::mojom::EpochTopicPtr CreateMojomTopic(int topic,
+                                             const std::string& model_version) {
+  auto mojom_topic = blink::mojom::EpochTopic::New();
+  mojom_topic->topic = topic;
+  mojom_topic->config_version = "chrome.1";
+  mojom_topic->taxonomy_version = "1";
+  mojom_topic->model_version = model_version;
+  mojom_topic->version = base::StrCat({mojom_topic->config_version, ":",
+                                       mojom_topic->taxonomy_version, ":",
+                                       mojom_topic->model_version});
+  return mojom_topic;
+}
 
 class TopicsInterceptingContentBrowserClient : public ContentBrowserClient {
  public:
@@ -28,6 +43,11 @@ class TopicsInterceptingContentBrowserClient : public ContentBrowserClient {
     last_get_topics_param_ = get_topics;
     last_observe_param_ = observe;
     return true;
+  }
+
+  int NumVersionsInTopicsEpochs(
+      content::RenderFrameHost* main_frame) const override {
+    return 1;
   }
 
   bool handle_topics_web_api_called() const {
@@ -74,87 +94,279 @@ class BrowsingTopicsUtilTest : public RenderViewHostTestHarness {
   raw_ptr<ContentBrowserClient> original_client_ = nullptr;
 };
 
-TEST_F(BrowsingTopicsUtilTest, DeriveTopicsHeaderValue_EmptyTopics) {
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_EmptyTopics_ZeroVersionInEpochs) {
   std::vector<blink::mojom::EpochTopicPtr> topics;
 
-  std::string header_value = DeriveTopicsHeaderValue(topics);
-
-  EXPECT_TRUE(header_value.empty());
-}
-
-TEST_F(BrowsingTopicsUtilTest, DeriveTopicsHeaderValue_OneTopic) {
-  std::vector<blink::mojom::EpochTopicPtr> topics;
-
-  blink::mojom::EpochTopicPtr topic0 = blink::mojom::EpochTopic::New();
-  topic0->topic = 1;
-  topic0->config_version = "chrome.1";
-  topic0->taxonomy_version = "1";
-  topic0->model_version = "2";
-  topic0->version = "chrome.1:1:2";
-
-  topics.push_back(std::move(topic0));
-
-  std::string header_value = DeriveTopicsHeaderValue(topics);
-
-  EXPECT_EQ(
-      header_value,
-      "1;version=\"chrome.1:1:2\";config_version=\"chrome.1\";model_version="
-      "\"2\";taxonomy_version=\"1\"");
-}
-
-TEST_F(BrowsingTopicsUtilTest, DeriveTopicsHeaderValue_TwoTopics) {
-  std::vector<blink::mojom::EpochTopicPtr> topics;
-
-  {
-    blink::mojom::EpochTopicPtr topic = blink::mojom::EpochTopic::New();
-    topic->topic = 1;
-    topic->config_version = "chrome.1";
-    topic->taxonomy_version = "1";
-    topic->model_version = "2";
-    topic->version = "chrome.1:1:2";
-    topics.push_back(std::move(topic));
-  }
-  {
-    blink::mojom::EpochTopicPtr topic = blink::mojom::EpochTopic::New();
-    topic->topic = 2;
-    topic->config_version = "chrome.1";
-    topic->taxonomy_version = "3";
-    topic->model_version = "4";
-    topic->version = "chrome.1:3:4";
-    topics.push_back(std::move(topic));
-  }
-
-  std::string header_value = DeriveTopicsHeaderValue(topics);
-
-  EXPECT_EQ(header_value,
-            "1;version=\"chrome.1:1:2\";config_version=\"chrome.1\";model_"
-            "version=\"2\";taxonomy_version=\"1\", "
-            "2;version=\"chrome.1:3:4\";config_version=\"chrome.1\";model_"
-            "version=\"4\";taxonomy_version=\"3\"");
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/0);
+  EXPECT_EQ(header_value, "();p=P0000000000000000000000000000000");
 }
 
 TEST_F(BrowsingTopicsUtilTest,
-       HandleTopicsEligibleResponse_NoObserveTopicsHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate("HTTP/1.1 200 OK\r\n");
+       DeriveTopicsHeaderValue_EmptyTopics_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
 
-  HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
-      *web_contents()->GetPrimaryMainFrame(),
-      browsing_topics::ApiCallerSource::kFetch);
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+  EXPECT_EQ(header_value, "();p=P0000000000000000000000000000000");
+}
 
-  EXPECT_FALSE(browser_client().handle_topics_web_api_called());
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_EmptyTopics_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+  EXPECT_EQ(header_value,
+            "();p=P00000000000000000000000000000000000000000000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_EmptyTopics_ThreeVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/3);
+  EXPECT_EQ(
+      header_value,
+      "();p="
+      "P000000000000000000000000000000000000000000000000000000000000000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_OneTopic_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(1);v=chrome.1:1:2, ();p=P00000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_OneTopic_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(1);v=chrome.1:1:2, ();p=P000000000000000000000000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_OneTopic_ThreeVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/3);
+
+  EXPECT_EQ(header_value,
+            "(1);v=chrome.1:1:2, "
+            "();p=P0000000000000000000000000000000000000000000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_OneThreeDigitTopic_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(123,
+                                    /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(123);v=chrome.1:1:2, ();p=P000000000");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_TwoTopics_SameTopicVersions_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(2, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(1 2);v=chrome.1:1:2, ();p=P000000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_TwoMixedDigitsTopics_SameTopicVersions_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(123, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(45, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(123 45);v=chrome.1:1:2, ();p=P000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_TwoTopics_SameTopicVersions_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(2, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(1 2);v=chrome.1:1:2, ();p=P0000000000000000000000000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_TwoTopics_DifferentTopicVersions_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"4"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(1);v=chrome.1:1:2, (1);v=chrome.1:1:4, ();p=P0000000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_TwoTopics_DifferentTopicVersions_ThreeVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"4"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/3);
+  EXPECT_EQ(header_value,
+            "(1);v=chrome.1:1:2, (1);v=chrome.1:1:4, "
+            "();p=P00000000000000000000000000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_ThreeTopics_SameTopicVersions_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(1, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(2, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(3, /*model_version=*/"2"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(1 2 3);v=chrome.1:1:2, ();p=P0000000");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_ThreeThreeDigitsTopics_SameTopicVersions_OneVersionInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"20"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"20"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"20"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/1);
+
+  EXPECT_EQ(header_value, "(100 200 300);v=chrome.1:1:20, ();p=P");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_ThreeThreeDigitsTopics_FirstTwoTopicVersionsSame_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"4"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(100 200);v=chrome.1:1:2, (300);v=chrome.1:1:4, ();p=P00");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_ThreeThreeDigitsTopics_LastTwoTopicVersionsSame_TwoVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"2"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"4"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"4"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(100);v=chrome.1:1:2, (200 300);v=chrome.1:1:4, ();p=P00");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_ThreeThreeDigitsTopics_ThreeTopicVersions) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"20"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"40"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"60"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/3);
+
+  EXPECT_EQ(header_value,
+            "(100);v=chrome.1:1:20, (200);v=chrome.1:1:40, "
+            "(300);v=chrome.1:1:60, ();p=P");
+}
+
+TEST_F(
+    BrowsingTopicsUtilTest,
+    DeriveTopicsHeaderValue_InconsistentNumTopicsVersionsAndNumVersionsInEpochs) {
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"20"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"40"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"60"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/2);
+
+  EXPECT_EQ(header_value,
+            "(100);v=chrome.1:1:20, (200);v=chrome.1:1:40, "
+            "(300);v=chrome.1:1:60, ();p=P");
+}
+
+TEST_F(BrowsingTopicsUtilTest,
+       DeriveTopicsHeaderValue_LengthExceedsDefaultMax_NoPadding) {
+  std::string config_version = base::StrCat(
+      {"chrome.",
+       base::NumberToString(browsing_topics::ConfigVersion::kMaxValue)});
+  std::string taxonomy_version = base::NumberToString(
+      blink::features::kBrowsingTopicsTaxonomyVersion.Get());
+
+  std::vector<blink::mojom::EpochTopicPtr> topics;
+  topics.push_back(CreateMojomTopic(100, /*model_version=*/"20"));
+  topics.push_back(CreateMojomTopic(200, /*model_version=*/"40"));
+  topics.push_back(CreateMojomTopic(300, /*model_version=*/"600"));
+
+  std::string header_value =
+      DeriveTopicsHeaderValue(topics, /*num_versions_in_epochs=*/3);
+
+  EXPECT_EQ(header_value,
+            "(100);v=chrome.1:1:20, (200);v=chrome.1:1:40, "
+            "(300);v=chrome.1:1:600, ();p=P");
 }
 
 TEST_F(BrowsingTopicsUtilTest,
        HandleTopicsEligibleResponse_TrueValueObserveTopicsHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: ?1\r\n");
-
+  network::mojom::ParsedHeadersPtr parsed_headers =
+      network::mojom::ParsedHeaders::New();
+  parsed_headers->observe_browsing_topics = true;
   HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      parsed_headers,
+      /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
       *web_contents()->GetPrimaryMainFrame(),
       browsing_topics::ApiCallerSource::kFetch);
 
@@ -165,60 +377,12 @@ TEST_F(BrowsingTopicsUtilTest,
 
 TEST_F(BrowsingTopicsUtilTest,
        HandleTopicsEligibleResponse_FalseValueObserveTopicsHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: ?0\r\n");
-
+  network::mojom::ParsedHeadersPtr parsed_headers =
+      network::mojom::ParsedHeaders::New();
+  parsed_headers->observe_browsing_topics = false;
   HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
-      *web_contents()->GetPrimaryMainFrame(),
-      browsing_topics::ApiCallerSource::kFetch);
-
-  EXPECT_FALSE(browser_client().handle_topics_web_api_called());
-}
-
-TEST_F(BrowsingTopicsUtilTest,
-       HandleTopicsEligibleResponse_NotBooleanObserveTopicsHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: 1\r\n");
-
-  HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
-      *web_contents()->GetPrimaryMainFrame(),
-      browsing_topics::ApiCallerSource::kFetch);
-
-  EXPECT_FALSE(browser_client().handle_topics_web_api_called());
-}
-
-TEST_F(BrowsingTopicsUtilTest,
-       HandleTopicsEligibleResponse_InvalidObserveTopicsHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: !!!\r\n");
-
-  HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
-      *web_contents()->GetPrimaryMainFrame(),
-      browsing_topics::ApiCallerSource::kFetch);
-
-  EXPECT_FALSE(browser_client().handle_topics_web_api_called());
-}
-
-TEST_F(
-    BrowsingTopicsUtilTest,
-    HandleTopicsEligibleResponse_MultipleObserveTopicsHeader_InvalidNormalizedHeader) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: ?1\r\n"
-          "Observe-Browsing-Topics: ?1\r\n");
-
-  HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
+      parsed_headers,
+      /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
       *web_contents()->GetPrimaryMainFrame(),
       browsing_topics::ApiCallerSource::kFetch);
 
@@ -226,19 +390,18 @@ TEST_F(
 }
 
 TEST_F(BrowsingTopicsUtilTest, HandleTopicsEligibleResponse_InactiveFrame) {
-  scoped_refptr<net::HttpResponseHeaders> headers =
-      net::HttpResponseHeaders::TryToCreate(
-          "HTTP/1.1 200 OK\r\n"
-          "Observe-Browsing-Topics: ?1\r\n");
-
+  network::mojom::ParsedHeadersPtr parsed_headers =
+      network::mojom::ParsedHeaders::New();
+  parsed_headers->observe_browsing_topics = true;
   RenderFrameHostImpl& rfh =
       static_cast<RenderFrameHostImpl&>(*web_contents()->GetPrimaryMainFrame());
   rfh.SetLifecycleState(
       RenderFrameHostImpl::LifecycleStateImpl::kReadyToBeDeleted);
 
   HandleTopicsEligibleResponse(
-      *headers, /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")),
-      rfh, browsing_topics::ApiCallerSource::kFetch);
+      parsed_headers,
+      /*caller_origin=*/url::Origin::Create(GURL("https://bar.com")), rfh,
+      browsing_topics::ApiCallerSource::kFetch);
 
   EXPECT_FALSE(browser_client().handle_topics_web_api_called());
 }

@@ -15,6 +15,8 @@
 #include "base/path_service.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/policy/core/device_policy_decoder.h"
 #include "chrome/browser/ash/policy/dev_mode/dev_mode_policy_util.h"
@@ -36,22 +38,6 @@ namespace {
 
 const char kDMTokenCheckHistogram[] = "Enterprise.EnrolledPolicyHasDMToken";
 const char kPolicyCheckHistogram[] = "Enterprise.EnrolledDevicePolicyPresent";
-
-void RecordDeviceIdValidityMetric(
-    const std::string& histogram_name,
-    const em::PolicyData& policy_data,
-    const ash::InstallAttributes& install_attributes) {
-  PolicyDeviceIdValidity device_id_validity = PolicyDeviceIdValidity::kMaxValue;
-  if (install_attributes.GetDeviceId().empty())
-    device_id_validity = PolicyDeviceIdValidity::kActualIdUnknown;
-  else if (policy_data.device_id().empty())
-    device_id_validity = PolicyDeviceIdValidity::kMissing;
-  else if (policy_data.device_id() != install_attributes.GetDeviceId())
-    device_id_validity = PolicyDeviceIdValidity::kInvalid;
-  else
-    device_id_validity = PolicyDeviceIdValidity::kValid;
-  base::UmaHistogramEnumeration(histogram_name, device_id_validity);
-}
 
 }  // namespace
 
@@ -219,10 +205,6 @@ void DeviceCloudPolicyStoreAsh::UpdateFromService() {
       DCHECK(policy_fetch_response);
       new_policy_fetch_response->MergeFrom(*policy_fetch_response);
       new_policy->MergeFrom(*policy_data);
-
-      RecordDeviceIdValidityMetric(
-          "Enterprise.CachedDevicePolicyDeviceIdValidity", *policy_data,
-          *install_attributes_);
     }
     SetPolicy(std::move(new_policy_fetch_response), std::move(new_policy));
 
@@ -284,11 +266,6 @@ void DeviceCloudPolicyStoreAsh::CheckDMToken() {
   }
   dm_token_checked_ = true;
 
-  // PolicyData from Active Directory doesn't contain a DM token.
-  if (install_attributes_->IsActiveDirectoryManaged()) {
-    return;
-  }
-
   const em::PolicyData* policy_data = device_settings_service_->policy_data();
   if (policy_data && policy_data->has_request_token()) {
     base::UmaHistogramBoolean(kDMTokenCheckHistogram, true);
@@ -307,15 +284,19 @@ void DeviceCloudPolicyStoreAsh::CheckDMToken() {
       debug_info << ", policy_type: " << policy_data->policy_type();
     }
   }
-  base::FilePath key_path;
-  bool path_found =
-      base::PathService::Get(chromeos::dbus_paths::FILE_OWNER_KEY, &key_path);
-  debug_info << ", has_key: " << (path_found && base::PathExists(key_path));
   debug_info << ", attrs mode: " << install_attributes_->GetMode()
              << ", is_locked: " << install_attributes_->IsDeviceLocked();
   LOG(ERROR) << "Device policy read on enrolled device yields "
              << "no DM token! Status: " << service_status
              << ", debug_info: " << debug_info.str() << ".";
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock()}, base::BindOnce([]() {
+        base::FilePath key_path;
+        bool path_found = base::PathService::Get(
+            chromeos::dbus_paths::FILE_OWNER_KEY, &key_path);
+        LOG(ERROR) << "Device policy has_key: "
+                   << (path_found && base::PathExists(key_path)) << ".";
+      }));
 
   // At the time LoginDisplayHostWebUI decides whether enrollment flow is to
   // be started, policy hasn't been read yet.  To work around this, once the

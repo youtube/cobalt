@@ -4,13 +4,15 @@
 
 #include "chrome/browser/ash/crosapi/networking_attributes_ash.h"
 
+#include <cstddef>
+
 #include "base/logging.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/dbus/shill/shill_device_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_profile_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_property_changed_observer.h"
@@ -88,28 +90,33 @@ class NetworkingAttributesAshTest : public testing::Test {
   ~NetworkingAttributesAshTest() override = default;
 
   void SetUp() override {
-    auto fake_user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     networking_attributes_ash_ = std::make_unique<NetworkingAttributesAsh>();
     networking_attributes_ash_->BindReceiver(
         networking_attributes_remote_.BindNewPipeAndPassReceiver());
+
+    profile_manager_ = std::make_unique<TestingProfileManager>(
+        TestingBrowserProcess::GetGlobal(), &local_state_);
+    ASSERT_TRUE(profile_manager_->SetUp());
+    profile_ = profile_manager_->CreateTestingProfile(
+        TestingProfile::kDefaultProfileUserName);
   }
 
-  void TearDown() override { networking_attributes_ash_.reset(); }
+  void TearDown() override {
+    networking_attributes_ash_.reset();
+    profile_ = nullptr;
+    profile_manager_->DeleteAllTestingProfiles();
+  }
 
   void AddUser(bool is_affiliated = true) {
-    AccountId account_id = AccountId::FromUserEmail("user@test.com");
-    ash::FakeChromeUserManager* user_manager =
-        static_cast<ash::FakeChromeUserManager*>(
-            user_manager::UserManager::Get());
+    AccountId account_id =
+        AccountId::FromUserEmail(TestingProfile::kDefaultProfileUserName);
     const user_manager::User* user =
-        user_manager->AddUserWithAffiliation(account_id, is_affiliated);
-    user_manager->UserLoggedIn(account_id, user->username_hash(),
-                               /*browser_restart=*/false, /*is_child=*/false);
-    user_manager->SimulateUserProfileLoad(account_id);
-    ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
-                                                                 &profile_);
+        fake_user_manager_->AddUserWithAffiliation(account_id, is_affiliated);
+    fake_user_manager_->UserLoggedIn(account_id, user->username_hash(),
+                                     /*browser_restart=*/false,
+                                     /*is_child=*/false);
+    fake_user_manager_->SimulateUserProfileLoad(account_id);
   }
 
   void SetUpShillState() {
@@ -192,8 +199,10 @@ class NetworkingAttributesAshTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  TestingProfile profile_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
+  std::unique_ptr<TestingProfileManager> profile_manager_;
+  raw_ptr<TestingProfile> profile_;
   mojo::Remote<mojom::NetworkingAttributes> networking_attributes_remote_;
   std::unique_ptr<NetworkingAttributesAsh> networking_attributes_ash_;
   ash::NetworkHandlerTestHelper network_handler_test_helper_;

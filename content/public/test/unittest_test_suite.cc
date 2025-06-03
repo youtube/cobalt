@@ -16,6 +16,7 @@
 #include "components/breadcrumbs/core/breadcrumb_manager.h"
 #include "components/breadcrumbs/core/crash_reporter_breadcrumb_observer.h"
 #include "content/app/mojo/mojo_init.h"
+#include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/browser/network_service_instance_impl.h"
 #include "content/browser/notification_service_impl.h"
 #include "content/browser/storage_partition_impl.h"
@@ -36,6 +37,10 @@
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ui/gfx/linux/gbm_util.h"  // nogncheck
 #endif
 
 namespace content {
@@ -118,6 +123,8 @@ UnitTestTestSuite::CreateTestContentClients() {
   return clients;
 }
 
+static UnitTestTestSuite* g_test_suite = nullptr;
+
 UnitTestTestSuite::UnitTestTestSuite(
     base::TestSuite* test_suite,
     base::RepeatingCallback<std::unique_ptr<ContentClients>()> create_clients,
@@ -139,6 +146,10 @@ UnitTestTestSuite::UnitTestTestSuite(
 
   scoped_feature_list_.InitFromCommandLine(enabled, disabled);
 
+#if BUILDFLAG(IS_CHROMEOS)
+  ui::EnsureIntelMediaCompressionEnvVarIsSet();
+#endif
+
   mojo::core::InitFeatures();
   if (command_line->HasSwitch(switches::kTestChildProcess)) {
     // Note that in the main test process, TestBlinkWebUnitTestSupport
@@ -150,9 +161,14 @@ UnitTestTestSuite::UnitTestTestSuite(
 
   DCHECK(test_suite);
   test_host_resolver_ = std::make_unique<TestHostResolver>();
+  browser_accessibility_state_ = BrowserAccessibilityStateImpl::Create();
+  g_test_suite = this;
 }
 
-UnitTestTestSuite::~UnitTestTestSuite() = default;
+UnitTestTestSuite::~UnitTestTestSuite() {
+  CHECK(g_test_suite == this);
+  g_test_suite = nullptr;
+}
 
 int UnitTestTestSuite::Run() {
 #if defined(USE_AURA)
@@ -193,6 +209,12 @@ void UnitTestTestSuite::OnFirstTestStartComplete() {
   // At this point ContentClient and ResourceBundle will be initialized, which
   // this needs.
   blink_test_support_ = std::make_unique<TestBlinkWebUnitTestSupport>();
+}
+
+v8::Isolate* UnitTestTestSuite::MainThreadIsolateForUnitTestSuite() {
+  CHECK(g_test_suite);
+  CHECK(g_test_suite->blink_test_support_);
+  return g_test_suite->blink_test_support_->MainThreadIsolate();
 }
 
 }  // namespace content

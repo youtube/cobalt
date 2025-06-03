@@ -14,6 +14,7 @@
 #include "ash/constants/app_types.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/session/test_session_controller_client.h"
+#include "ash/system/privacy_hub/sensor_disabled_notification_delegate.h"
 #include "ash/test/pixel/ash_pixel_test_init_params.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/overview/overview_types.h"
@@ -123,8 +124,8 @@ class AshTestBase : public testing::Test {
 
   // Update the display configuration as given in |display_specs|.
   // See ash::DisplayManagerTestApi::UpdateDisplay for more details.
-  // Note: To add rounded-corners properly upon startup, set it via
-  // specifying the command line switch `ash-host-window-bounds`.
+  // Note: To properly specify the radii of display's panel upon startup, set it
+  // via specifying the command line switch `ash-host-window-bounds`.
   void UpdateDisplay(const std::string& display_specs);
 
   // Returns a root Window. Usually this is the active root Window, but that
@@ -236,6 +237,21 @@ class AshTestBase : public testing::Test {
   bool ExitOverview(
       OverviewEnterExitType type = OverviewEnterExitType::kNormal);
 
+  // Sets shelf animation duration for all displays.
+  void SetShelfAnimationDuration(base::TimeDelta duration);
+
+  // Waits for shelf animation in all displays.
+  void WaitForShelfAnimation();
+
+  // Execute a list of tasks during a drag and drop sequence in the apps grid.
+  // This method should be called after the drag is initiated by long pressing
+  // over an app but before actually moving the pointer to drag the item. When
+  // the drag and drop sequence is not handled by DragDropController, the list
+  // of tasks is just run sequentially outside the loop
+  void MaybeRunDragAndDropSequenceForAppList(
+      std::list<base::OnceClosure>* tasks,
+      bool is_touch);
+
  protected:
   enum UserSessionBlockReason {
     FIRST_BLOCK_REASON,
@@ -258,9 +274,14 @@ class AshTestBase : public testing::Test {
       const;
 
   void set_start_session(bool start_session) { start_session_ = start_session; }
+
   void set_create_global_cras_audio_handler(
       bool create_global_cras_audio_handler) {
     create_global_cras_audio_handler_ = create_global_cras_audio_handler;
+  }
+
+  void set_create_quick_pair_mediator(bool create_quick_pair_mediator) {
+    create_quick_pair_mediator_ = create_quick_pair_mediator;
   }
 
   base::test::TaskEnvironment* task_environment() {
@@ -301,33 +322,23 @@ class AshTestBase : public testing::Test {
   // behavior where |AccountId|s are compared, prefer the method of the same
   // name that takes an |AccountId| created with a valid storage key instead.
   // See the documentation for|AccountId::GetUserEmail| for discussion.
-  // NOTE: call `StabilizeUIForPixelTest()` after using this function in a pixel
-  // test.
   void SimulateUserLogin(
       const std::string& user_email,
       user_manager::UserType user_type = user_manager::USER_TYPE_REGULAR);
 
   // Simulates a user sign-in. It creates a new user session, adds it to
   // existing user sessions and makes it the active user session.
-  // NOTE: call `StabilizeUIForPixelTest()` after using this function in a pixel
-  // test.
   void SimulateUserLogin(
       const AccountId& account_id,
       user_manager::UserType user_type = user_manager::USER_TYPE_REGULAR);
 
   // Simular to SimulateUserLogin but for a newly created user first ever login.
-  // NOTE: call `StabilizeUIForPixelTest()` after using this function in a pixel
-  // test.
   void SimulateNewUserFirstLogin(const std::string& user_email);
 
   // Similar to SimulateUserLogin but for a guest user.
-  // NOTE: call `StabilizeUIForPixelTest()` after using this function in a pixel
-  // test.
   void SimulateGuestLogin();
 
   // Simulates kiosk mode. |user_type| must correlate to a kiosk type user.
-  // NOTE: call `StabilizeUIForPixelTest()` after using this function in a pixel
-  // test.
   void SimulateKioskMode(user_manager::UserType user_type);
 
   // Simulates setting height of the accessibility panel.
@@ -380,6 +391,10 @@ class AshTestBase : public testing::Test {
   // set to false.
   bool create_global_cras_audio_handler_ = true;
 
+  // `SetUp()` doesn't create a global `QuickPairMediator` instance if this is
+  // set to false.
+  bool create_quick_pair_mediator_ = true;
+
   // |task_environment_| is initialized-once at construction time but
   // subclasses may elect to provide their own.
   std::unique_ptr<base::test::TaskEnvironment> task_environment_;
@@ -397,6 +412,9 @@ class AshTestBase : public testing::Test {
   std::unique_ptr<AshTestHelper> ash_test_helper_;
 
   std::unique_ptr<ui::test::EventGenerator> event_generator_;
+
+  std::unique_ptr<ScopedSensorDisabledNotificationDelegateForTest>
+      scoped_disabled_notification_delegate_;
 };
 
 class NoSessionAshTestBase : public AshTestBase {

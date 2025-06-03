@@ -53,22 +53,37 @@ class GPU_EXPORT ClientSharedImageInterface : public SharedImageInterface {
                             uint32_t usage,
                             base::StringPiece debug_label,
                             gpu::SurfaceHandle surface_handle) override;
-  Mailbox CreateSharedImage(viz::SharedImageFormat format,
-                            const gfx::Size& size,
-                            const gfx::ColorSpace& color_space,
-                            GrSurfaceOrigin surface_origin,
-                            SkAlphaType alpha_type,
-                            uint32_t usage,
-                            base::StringPiece debug_label,
-                            base::span<const uint8_t> pixel_data) override;
-  Mailbox CreateSharedImage(viz::SharedImageFormat format,
-                            const gfx::Size& size,
-                            const gfx::ColorSpace& color_space,
-                            GrSurfaceOrigin surface_origin,
-                            SkAlphaType alpha_type,
-                            uint32_t usage,
-                            base::StringPiece debug_label,
-                            gfx::GpuMemoryBufferHandle buffer_handle) override;
+  scoped_refptr<ClientSharedImage> CreateSharedImage(
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      base::StringPiece debug_label,
+      base::span<const uint8_t> pixel_data) override;
+  scoped_refptr<ClientSharedImage> CreateSharedImage(
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      base::StringPiece debug_label,
+      gpu::SurfaceHandle surface_handle,
+      gfx::BufferUsage buffer_usage) override;
+  scoped_refptr<ClientSharedImage> CreateSharedImage(
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      uint32_t usage,
+      base::StringPiece debug_label,
+      gfx::GpuMemoryBufferHandle buffer_handle) override;
+  // NOTE: The below method is DEPRECATED for `gpu_memory_buffer` only with
+  // single planar eg. RGB BufferFormats. Please use the equivalent method above
+  // taking in single planar SharedImageFormat with GpuMemoryBufferHandle.
   Mailbox CreateSharedImage(gfx::GpuMemoryBuffer* gpu_memory_buffer,
                             GpuMemoryBufferManager* gpu_memory_buffer_manager,
                             gfx::BufferPlane plane,
@@ -95,6 +110,11 @@ class GPU_EXPORT ClientSharedImageInterface : public SharedImageInterface {
   void AddReferenceToSharedImage(const SyncToken& sync_token,
                                  const Mailbox& mailbox,
                                  uint32_t usage) override;
+
+  std::unique_ptr<SharedImageInterface::ScopedMapping> MapSharedImage(
+      const Mailbox& mailbox) override;
+
+  const SharedImageCapabilities& GetCapabilities() override;
 
  private:
   Mailbox AddMailbox(const Mailbox& mailbox);

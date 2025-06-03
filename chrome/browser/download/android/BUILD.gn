@@ -4,6 +4,7 @@
 
 import("//build/config/android/rules.gni")
 import("//chrome/android/features/android_library_factory_tmpl.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 # Minimal Java library for the DownloadFileProvider which will be included in
 # the base module.
@@ -67,7 +68,6 @@ android_library("java") {
     ":file_provider_java",
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
@@ -96,14 +96,17 @@ android_library("java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_fragment_fragment_java",
     "//third_party/androidx:androidx_preference_preference_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//url:gurl_java",
   ]
 
-  srcjar_deps = [ "//chrome:download_enum_javagen" ]
+  srcjar_deps = [
+    ":jni_headers",
+    "//chrome:download_enum_javagen",
+  ]
 
   resources_package = "org.chromium.chrome.browser.download"
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 android_library_factory("factory_java") {
@@ -169,6 +172,7 @@ android_library("download_java_tests") {
     "//content/public/test/android:content_java_test_support",
     "//third_party/android_deps:espresso_java",
     "//third_party/androidx:androidx_preference_preference_java",
+    "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/junit",
@@ -196,6 +200,7 @@ robolectric_library("junit_tests") {
     "//components/offline_items_collection/core:core_java",
     "//components/prefs/android:java",
     "//net/android:net_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_full_java",

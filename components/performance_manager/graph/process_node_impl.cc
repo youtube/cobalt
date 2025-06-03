@@ -22,48 +22,44 @@ namespace performance_manager {
 
 namespace {
 
-void FireBackgroundTracingTriggerOnUI(
-    const std::string& trigger_name,
-    content::BackgroundTracingManager& manager) {
+void FireBackgroundTracingTriggerOnUI(const std::string& trigger_name) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // Don't fire a trigger unless we're in an active tracing scenario.
-  // Renderer-initiated background tracing triggers are always "preemptive"
-  // traces so we expect a scenario to be active.
-  if (!manager.HasActiveScenario())
-    return;
-
-  // Actually fire the trigger. We don't need to know when the trace is being
-  // finalized so pass an empty callback.
-  manager.EmitNamedTrigger(
+  content::BackgroundTracingManager::EmitNamedTrigger(
       content::BackgroundTracingManager::kContentTriggerConfig);
 }
 
 }  // namespace
 
 ProcessNodeImpl::ProcessNodeImpl(BrowserProcessNodeTag tag)
-    : process_type_(content::PROCESS_TYPE_BROWSER) {
-  weak_this_ = weak_factory_.GetWeakPtr();
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-}
+    : ProcessNodeImpl(content::PROCESS_TYPE_BROWSER,
+                      AnyChildProcessHostProxy{}) {}
 
 ProcessNodeImpl::ProcessNodeImpl(
     RenderProcessHostProxy render_process_host_proxy)
-    : process_type_(content::PROCESS_TYPE_RENDERER),
-      child_process_host_proxy_(std::move(render_process_host_proxy)) {
-  weak_this_ = weak_factory_.GetWeakPtr();
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-}
+    : ProcessNodeImpl(
+          content::PROCESS_TYPE_RENDERER,
+          AnyChildProcessHostProxy(std::move(render_process_host_proxy))) {}
 
 ProcessNodeImpl::ProcessNodeImpl(
     content::ProcessType process_type,
     BrowserChildProcessHostProxy browser_child_process_host_proxy)
-    : process_type_(process_type),
-      child_process_host_proxy_(std::move(browser_child_process_host_proxy)) {
+    : ProcessNodeImpl(process_type,
+                      AnyChildProcessHostProxy(
+                          std::move(browser_child_process_host_proxy))) {
   DCHECK_NE(process_type, content::PROCESS_TYPE_BROWSER);
   DCHECK_NE(process_type, content::PROCESS_TYPE_RENDERER);
-  weak_this_ = weak_factory_.GetWeakPtr();
+}
+
+ProcessNodeImpl::ProcessNodeImpl(content::ProcessType process_type,
+                                 AnyChildProcessHostProxy proxy)
+    : process_type_(process_type), child_process_host_proxy_(std::move(proxy)) {
+  // Nodes are created on the UI thread, then accessed on the PM sequence.
+  // `weak_this_` can be returned from GetWeakPtrOnUIThread() and dereferenced
+  // on the PM sequence.
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DETACH_FROM_SEQUENCE(sequence_checker_);
+  weak_this_ = weak_factory_.GetWeakPtr();
 }
 
 ProcessNodeImpl::~ProcessNodeImpl() {
@@ -166,9 +162,7 @@ void ProcessNodeImpl::FireBackgroundTracingTrigger(
   DCHECK_EQ(process_type_, content::PROCESS_TYPE_RENDERER);
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &FireBackgroundTracingTriggerOnUI, trigger_name,
-          std::ref(content::BackgroundTracingManager::GetInstance())));
+      base::BindOnce(&FireBackgroundTracingTriggerOnUI, trigger_name));
 }
 
 void ProcessNodeImpl::SetProcessExitStatus(int32_t exit_status) {
@@ -228,6 +222,11 @@ PageNodeImpl* ProcessNodeImpl::GetPageNodeIfExclusive() const {
   return page_node;
 }
 
+resource_attribution::ProcessContext ProcessNodeImpl::resource_context() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_attribution::ProcessContext::FromProcessNode(this);
+}
+
 RenderProcessHostId ProcessNodeImpl::GetRenderProcessId() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return render_process_host_proxy().render_process_host_id();
@@ -274,13 +273,12 @@ void ProcessNodeImpl::add_hosted_content_type(ContentType content_type) {
 
 // static
 void ProcessNodeImpl::FireBackgroundTracingTriggerOnUIForTesting(
-    const std::string& trigger_name,
-    content::BackgroundTracingManager& manager) {
-  FireBackgroundTracingTriggerOnUI(trigger_name, manager);
+    const std::string& trigger_name) {
+  FireBackgroundTracingTriggerOnUI(trigger_name);
 }
 
 base::WeakPtr<ProcessNodeImpl> ProcessNodeImpl::GetWeakPtrOnUIThread() {
-  // TODO(siggi): Validate thread context.
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   return weak_this_;
 }
 
@@ -327,6 +325,12 @@ const base::Process& ProcessNodeImpl::GetProcess() const {
   return process();
 }
 
+resource_attribution::ProcessContext ProcessNodeImpl::GetResourceContext()
+    const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return resource_context();
+}
+
 base::TimeTicks ProcessNodeImpl::GetLaunchTime() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return launch_time();
@@ -348,6 +352,18 @@ bool ProcessNodeImpl::VisitFrameNodes(const FrameNodeVisitor& visitor) const {
   for (auto* frame_impl : frame_nodes()) {
     const FrameNode* frame = frame_impl;
     if (!visitor(frame)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ProcessNodeImpl::VisitWorkerNodes(const WorkerNodeVisitor& visitor) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK_EQ(process_type_, content::PROCESS_TYPE_RENDERER);
+  for (auto* worker_impl : worker_nodes_) {
+    const WorkerNode* worker = worker_impl;
+    if (!visitor(worker)) {
       return false;
     }
   }
@@ -415,6 +431,22 @@ void ProcessNodeImpl::OnAllFramesInProcessFrozen() {
   DCHECK_EQ(process_type_, content::PROCESS_TYPE_RENDERER);
   for (auto* observer : GetObservers())
     observer->OnAllFramesInProcessFrozen(this);
+}
+
+void ProcessNodeImpl::OnJoiningGraph() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Make sure all weak pointers, even `weak_this_` that was created on the UI
+  // thread in the constructor, can only be dereferenced on the graph sequence.
+  //
+  // If this is the first pointer dereferenced, it will bind all pointers from
+  // `weak_factory_` to the current sequence. If not, get() will DCHECK.
+  // DCHECK'ing the return value of get() prevents the compiler from optimizing
+  // it away.
+  //
+  // TODO(crbug.com/1134162): Use WeakPtrFactory::BindToCurrentSequence for this
+  // (it's clearer but currently not exposed publicly).
+  DCHECK(GetWeakPtr().get());
 }
 
 void ProcessNodeImpl::OnBeforeLeavingGraph() {

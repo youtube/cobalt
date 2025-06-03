@@ -21,6 +21,7 @@
 #include "components/sync/base/model_type.h"
 #include "components/sync/model/model_type_store.h"
 #include "components/sync/model/model_type_sync_bridge.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace syncer {
 class ModelTypeChangeProcessor;
@@ -73,7 +74,7 @@ class DeskSyncBridge : public syncer::ModelTypeSyncBridge, public DeskModel {
   size_t GetDeskTemplateEntryCount() const override;
   size_t GetMaxSaveAndRecallDeskEntryCount() const override;
   size_t GetMaxDeskTemplateEntryCount() const override;
-  std::vector<base::Uuid> GetAllEntryUuids() const override;
+  std::set<base::Uuid> GetAllEntryUuids() const override;
   bool IsReady() const override;
   // Whether this sync bridge is syncing local data to sync. This sync bridge
   // still allows user to save desk templates locally when users disable syncing
@@ -85,9 +86,10 @@ class DeskSyncBridge : public syncer::ModelTypeSyncBridge, public DeskModel {
       ash::DeskTemplateType type,
       const base::Uuid& uuid) const override;
 
+  std::string GetCacheGuid() override;
+
   // Other helper methods.
   bool HasUuid(const base::Uuid& uuid) const;
-
   const ash::DeskTemplate* GetUserEntryByUUID(const base::Uuid& uuid) const;
 
  private:
@@ -101,8 +103,8 @@ class DeskSyncBridge : public syncer::ModelTypeSyncBridge, public DeskModel {
   // Notify all observers that the model is loaded;
   void NotifyDeskModelLoaded();
 
-  // Notify all observers of any `new_entries` when they are added/updated via
-  // sync.
+  // Notify all observers of any `new_entries` when they are added/updated
+  // via sync.
   void NotifyRemoteDeskTemplateAddedOrUpdated(
       const std::vector<const ash::DeskTemplate*>& new_entries);
 
@@ -136,7 +138,8 @@ class DeskSyncBridge : public syncer::ModelTypeSyncBridge, public DeskModel {
   // is ready to be accessed.
   bool is_ready_;
 
-  // In charge of actually persisting changes to disk, or loading previous data.
+  // In charge of actually persisting changes to disk, or loading previous
+  // data.
   std::unique_ptr<syncer::ModelTypeStore> store_;
 
   // Account ID of the user this class will sync data for.

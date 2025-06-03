@@ -4,6 +4,7 @@
 
 package org.chromium.components.background_task_scheduler;
 
+import android.app.Notification;
 import android.content.Context;
 
 import androidx.annotation.IntDef;
@@ -46,9 +47,6 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
      */
     private boolean mRunningInMinimalBrowserMode;
 
-    /** Make sure that we do not double record task finished metric */
-    private boolean mFinishMetricRecorded;
-
     /** Loads native and handles initialization. */
     private NativeBackgroundTaskDelegate mDelegate;
 
@@ -70,11 +68,18 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
 
         mTaskId = taskParameters.getTaskId();
 
-        TaskFinishedCallback wrappedCallback = needsReschedule -> {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> {
-                recordTaskFinishedMetric();
-                callback.taskFinished(needsReschedule);
-            });
+        TaskFinishedCallback wrappedCallback = new TaskFinishedCallback() {
+            @Override
+            public void taskFinished(boolean needsReschedule) {
+                PostTask.runOrPostTask(
+                        TaskTraits.UI_DEFAULT, () -> { callback.taskFinished(needsReschedule); });
+            }
+
+            @Override
+            public void setNotification(int notificationId, Notification notification) {
+                PostTask.runOrPostTask(TaskTraits.UI_DEFAULT,
+                        () -> callback.setNotification(notificationId, notification));
+            }
         };
 
         // WrappedCallback will only be called when the work is done or in onStopTask. If the task
@@ -107,7 +112,6 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
         assert mDelegate != null;
 
         mTaskStopped = true;
-        recordTaskFinishedMetric();
         if (isNativeLoadedInFullBrowserMode()) {
             return onStopTaskWithNative(context, taskParameters);
         } else {
@@ -129,14 +133,12 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
             final Runnable startWithNativeRunnable, final Runnable rescheduleRunnable) {
         if (isNativeLoadedInFullBrowserMode()) {
             mRunningInMinimalBrowserMode = false;
-            getUmaReporter().reportNativeTaskStarted(mTaskId, mRunningInMinimalBrowserMode);
             PostTask.postTask(TaskTraits.UI_DEFAULT, startWithNativeRunnable);
             return;
         }
 
         boolean wasInMinimalBrowserMode = isNativeLoadedInMinimalBrowserMode();
         mRunningInMinimalBrowserMode = supportsMinimalBrowser();
-        getUmaReporter().reportNativeTaskStarted(mTaskId, mRunningInMinimalBrowserMode);
 
         PostTask.postTask(TaskTraits.UI_DEFAULT, new Runnable() {
             @Override
@@ -148,7 +150,7 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
                 // to Full Browser mode, but not cases in which Minimal Browser Mode was
                 // already started.
                 if (!wasInMinimalBrowserMode) {
-                    getUmaReporter().reportTaskStartedNative(mTaskId, mRunningInMinimalBrowserMode);
+                    getUmaReporter().reportTaskStartedNative(mTaskId);
                 }
 
                 // Start native initialization.
@@ -234,14 +236,6 @@ public abstract class NativeBackgroundTask implements BackgroundTask {
 
     protected BrowserStartupController getBrowserStartupController() {
         return BrowserStartupController.getInstance();
-    }
-
-    private void recordTaskFinishedMetric() {
-        ThreadUtils.assertOnUiThread();
-        if (!mFinishMetricRecorded) {
-            mFinishMetricRecorded = true;
-            getUmaReporter().reportNativeTaskFinished(mTaskId, mRunningInMinimalBrowserMode);
-        }
     }
 
     private BackgroundTaskSchedulerExternalUma getUmaReporter() {

@@ -34,12 +34,15 @@ class VpxEncoder final : public VideoTrackRecorder::Encoder {
   VpxEncoder(const VpxEncoder&) = delete;
   VpxEncoder& operator=(const VpxEncoder&) = delete;
 
-  base::WeakPtr<Encoder> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
+  base::WeakPtr<Encoder> GetWeakPtr() override {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   // VideoTrackRecorder::Encoder implementation.
   void EncodeFrame(scoped_refptr<media::VideoFrame> frame,
-                   base::TimeTicks capture_timestamp) override;
+                   base::TimeTicks capture_timestamp,
+                   bool request_keyframe) override;
   bool CanEncodeAlphaChannel() const override;
 
   [[nodiscard]] bool ConfigureEncoder(const gfx::Size& size,

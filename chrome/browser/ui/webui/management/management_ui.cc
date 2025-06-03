@@ -30,7 +30,7 @@
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "ui/chromeos/devicetype_utils.h"
 #else  // BUILDFLAG(IS_CHROMEOS_ASH)
 #include "chrome/browser/browser_process.h"
@@ -38,9 +38,9 @@
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/chromeos/policy/dlp/dlp_reporting_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
 
 namespace {
@@ -96,6 +96,10 @@ content::WebUIDataSource* CreateAndAddManagementUIHtmlSource(Profile* profile) {
     {kManagementScreenCaptureEvent, IDS_MANAGEMENT_SCREEN_CAPTURE_EVENT},
     {kManagementScreenCaptureData, IDS_MANAGEMENT_SCREEN_CAPTURE_DATA},
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    {kManagementDeviceSignalsDisclosure,
+     IDS_MANAGEMENT_DEVICE_SIGNALS_DISCLOSURE},
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     {"browserReporting", IDS_MANAGEMENT_BROWSER_REPORTING},
     {"browserReportingExplanation",
      IDS_MANAGEMENT_BROWSER_REPORTING_EXPLANATION},
@@ -103,6 +107,10 @@ content::WebUIDataSource* CreateAndAddManagementUIHtmlSource(Profile* profile) {
     {"extensionReportingTitle", IDS_MANAGEMENT_EXTENSIONS_INSTALLED},
     {"extensionName", IDS_MANAGEMENT_EXTENSIONS_NAME},
     {"extensionPermissions", IDS_MANAGEMENT_EXTENSIONS_PERMISSIONS},
+    {"applicationReporting", IDS_MANAGEMENT_APPLICATION_REPORTING},
+    {"applicationReportingTitle", IDS_MANAGEMENT_APPLICATIONS_INSTALLED},
+    {"applicationName", IDS_MANAGEMENT_APPLICATIONS_NAME},
+    {"applicationPermissions", IDS_MANAGEMENT_APPLICATIONS_PERMISSIONS},
     {"title", IDS_MANAGEMENT_TITLE},
     {"toolbarTitle", IDS_MANAGEMENT_TOOLBAR_TITLE},
     {"searchPrompt", IDS_SETTINGS_SEARCH_PROMPT},
@@ -145,6 +153,7 @@ content::WebUIDataSource* CreateAndAddManagementUIHtmlSource(Profile* profile) {
     {kManagementOnPageVisitedEvent, IDS_MANAGEMENT_PAGE_VISITED_EVENT},
     {kManagementOnPageVisitedVisibleData,
      IDS_MANAGEMENT_PAGE_VISITED_VISIBLE_DATA},
+    {kManagementLegacyTechReport, IDS_MANAGEMENT_LEGACY_TECH_REPORT},
   };
 
   source->AddLocalizedStrings(kLocalizedStrings);
@@ -204,8 +213,6 @@ std::u16string ManagementUI::GetManagementPageSubtitle(Profile* profile) {
   std::string account_manager = connector->GetEnterpriseDomainManager();
 
   if (account_manager.empty())
-    account_manager = connector->GetRealm();
-  if (account_manager.empty())
     account_manager =
         chrome::GetAccountManagerIdentity(profile).value_or(std::string());
   if (account_manager.empty()) {
@@ -216,21 +223,7 @@ std::u16string ManagementUI::GetManagementPageSubtitle(Profile* profile) {
                                     l10n_util::GetStringUTF16(device_type),
                                     base::UTF8ToUTF16(account_manager));
 #else   // BUILDFLAG(IS_CHROMEOS_ASH)
-  const auto account_manager =
-      chrome::GetAccountManagerIdentity(profile).value_or(std::string());
-  const auto managed =
-      profile->GetProfilePolicyConnector()->IsManaged() ||
-      g_browser_process->browser_policy_connector()->HasMachineLevelPolicies();
-  if (account_manager.empty()) {
-    return l10n_util::GetStringUTF16(managed
-                                         ? IDS_MANAGEMENT_SUBTITLE
-                                         : IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE);
-  }
-  if (managed) {
-    return l10n_util::GetStringFUTF16(IDS_MANAGEMENT_SUBTITLE_MANAGED_BY,
-                                      base::UTF8ToUTF16(account_manager));
-  }
-  return l10n_util::GetStringUTF16(IDS_MANAGEMENT_NOT_MANAGED_SUBTITLE);
+  return chrome::GetManagementPageSubtitle(profile);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 }
 

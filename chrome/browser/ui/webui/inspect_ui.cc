@@ -91,6 +91,9 @@ void CreateAndAddInspectUIHTMLSource(Profile* profile) {
   source->AddResourcePath("inspect.css", IDR_INSPECT_CSS);
   source->AddResourcePath("inspect.js", IDR_INSPECT_JS);
   source->SetDefaultResource(IDR_INSPECT_HTML);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 }
 
 // DevToolsFrontEndObserver ----------------------------------------
@@ -585,10 +588,8 @@ void InspectUI::InspectBrowserWithCustomFrontend(
 
 void InspectUI::InspectDevices(Browser* browser) {
   base::RecordAction(base::UserMetricsAction("InspectDevices"));
-  NavigateParams params(GetSingletonTabNavigateParams(
-      browser, GURL(chrome::kChromeUIInspectURL)));
-  params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
-  ShowSingletonTabOverwritingNTP(browser, &params);
+  ShowSingletonTabOverwritingNTP(browser, GURL(chrome::kChromeUIInspectURL),
+                                 NavigateParams::IGNORE_AND_NAVIGATE);
 }
 
 void InspectUI::WebContentsDestroyed() {

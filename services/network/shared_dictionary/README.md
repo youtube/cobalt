@@ -36,11 +36,13 @@ When `SharedDictionaryWriter` finishes writing the body,
 memory. `SharedDictionaryStorageOnDisk` will stores the dictionary information
 to the storage database (Note: Not implemented yet).
 
-## Using dictionaries
+### Limitations
 
-TODO(crbug.com/1413922): Update this section when we implement this logic.
+We currently set a size limit of 100 MiB per dictionary. This is intended to
+protect the network services from out-of-memory denial-of-service attacks.
 
 ## Flags
+
 The feature of Compression dictionary transport with Shared Brotli is currently
 controlled by two flags.
 
@@ -69,7 +71,8 @@ controlled by two flags.
       - HTMLLinkElement.relList.supports('dictionary') will return true.
         (Note: Not implemented yet.)
 
-# Links
+## Links
+
 - [Explainer](https://github.com/WICG/compression-dictionary-transport)
 - [Crbug](httpe://crbug.com/1413922)
 - [Chrome Status](https://chromestatus.com/feature/5124977788977152)

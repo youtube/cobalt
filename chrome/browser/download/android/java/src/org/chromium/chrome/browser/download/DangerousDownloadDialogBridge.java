@@ -6,9 +6,11 @@ package org.chromium.chrome.browser.download;
 
 import android.app.Activity;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.chrome.browser.download.dialogs.DangerousDownloadDialog;
+import org.chromium.chrome.browser.download.interstitial.NewDownloadTab;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
 
@@ -45,7 +47,7 @@ public class DangerousDownloadDialogBridge {
             long totalBytes, int iconId) {
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) {
-            onCancel(guid);
+            onCancel(guid, windowAndroid);
             return;
         }
 
@@ -55,7 +57,7 @@ public class DangerousDownloadDialogBridge {
                     if (accepted) {
                         onAccepted(guid);
                     } else {
-                        onCancel(guid);
+                        onCancel(guid, windowAndroid);
                     }
                 });
     }
@@ -69,9 +71,10 @@ public class DangerousDownloadDialogBridge {
         DangerousDownloadDialogBridgeJni.get().accepted(mNativeDangerousDownloadDialogBridge, guid);
     }
 
-    private void onCancel(String guid) {
+    private void onCancel(String guid, WindowAndroid windowAndroid) {
         DangerousDownloadDialogBridgeJni.get().cancelled(
                 mNativeDangerousDownloadDialogBridge, guid);
+        NewDownloadTab.closeExistingNewDownloadTab(windowAndroid);
     }
 
     @NativeMethods

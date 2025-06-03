@@ -22,20 +22,17 @@
 #import "components/optimization_guide/core/prediction_manager.h"
 #import "components/optimization_guide/core/top_host_provider.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/variations/synthetic_trials.h"
-#import "ios/chrome/browser/application_context/application_context.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/metrics/ios_chrome_metrics_service_accessor.h"
 #import "ios/chrome/browser/optimization_guide/ios_chrome_hints_manager.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/optimization_guide/tab_url_provider_impl.h"
-#import "ios/chrome/browser/paths/paths.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -72,16 +69,20 @@ OptimizationGuideService::OptimizationGuideService(
     PrefService* pref_service,
     BrowserList* browser_list,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    BackgroundDownloadServiceProvider background_download_service_provider)
+    BackgroundDownloadServiceProvider background_download_service_provider,
+    signin::IdentityManager* identity_manager)
     : pref_service_(pref_service), off_the_record_(off_the_record) {
   DCHECK(optimization_guide::features::IsOptimizationHintsEnabled());
 
   // In off the record profile, the stores of normal profile should be
   // passed to the constructor. In normal profile, they will be created.
   DCHECK(!off_the_record_ || hint_store);
-  DCHECK(
-      !off_the_record_ || prediction_model_and_features_store ||
-      !optimization_guide::features::IsOptimizationTargetPredictionEnabled());
+  if (off_the_record_ &&
+      optimization_guide::features::IsOptimizationTargetPredictionEnabled()) {
+    DCHECK(prediction_model_and_features_store ||
+           optimization_guide::features::IsInstallWideModelStoreEnabled());
+  }
+  base::FilePath models_dir;
   if (!off_the_record_) {
     // Only create a top host provider from the command line if provided.
     top_host_provider_ =
@@ -99,13 +100,22 @@ OptimizationGuideService::OptimizationGuideService(
                   pref_service)
             : nullptr;
     hint_store = hint_store_ ? hint_store_->AsWeakPtr() : nullptr;
-    if (optimization_guide::features::IsOptimizationTargetPredictionEnabled()) {
+    if (optimization_guide::features::IsOptimizationTargetPredictionEnabled() &&
+        !optimization_guide::features::IsInstallWideModelStoreEnabled()) {
+      // Do not explicitly hand off the model downloads directory to
+      // off-the-record profiles. Underneath the hood, this variable is only
+      // used in non off-the-record profiles to know where to download the model
+      // files to. Off-the-record profiles read the model locations from the
+      // original profiles they are associated with.
+      models_dir = profile_path.Append(
+          optimization_guide::kOptimizationGuidePredictionModelDownloads);
       prediction_model_and_features_store_ =
           std::make_unique<optimization_guide::OptimizationGuideStore>(
               proto_db_provider,
               profile_path.Append(
                   optimization_guide::
                       kOptimizationGuidePredictionModelMetadataStore),
+              models_dir,
               base::ThreadPool::CreateSequencedTaskRunner(
                   {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
               pref_service);
@@ -117,26 +127,19 @@ OptimizationGuideService::OptimizationGuideService(
   hints_manager_ = std::make_unique<optimization_guide::IOSChromeHintsManager>(
       off_the_record_, application_locale, pref_service, hint_store,
       top_host_provider_.get(), tab_url_provider_.get(), url_loader_factory,
-      optimization_guide_logger_.get());
+      identity_manager, optimization_guide_logger_.get());
 
-  base::FilePath models_dir;
-  if (!off_the_record_) {
-    // Do not explicitly hand off the model downloads directory to
-    // off-the-record profiles. Underneath the hood, this variable is only used
-    // in non off-the-record profiles to know where to download the model files
-    // to. Off-the-record profiles read the model locations from the original
-    // profiles they are associated with.
-    models_dir = profile_path.Append(
-        optimization_guide::kOptimizationGuidePredictionModelDownloads);
-  }
   if (optimization_guide::features::IsOptimizationTargetPredictionEnabled()) {
-    // TODO(crbug.com/1284363): Support the new prediction model store.
     prediction_manager_ =
         std::make_unique<optimization_guide::PredictionManager>(
-            prediction_model_and_features_store,
-            /*prediction_model_store=*/nullptr, url_loader_factory,
-            pref_service, off_the_record_, application_locale, models_dir,
-            optimization_guide_logger_.get(),
+            optimization_guide::features::IsInstallWideModelStoreEnabled()
+                ? nullptr
+                : prediction_model_and_features_store,
+            optimization_guide::features::IsInstallWideModelStoreEnabled()
+                ? optimization_guide::PredictionModelStore::GetInstance()
+                : nullptr,
+            url_loader_factory, pref_service, off_the_record_,
+            application_locale, models_dir, optimization_guide_logger_.get(),
             std::move(background_download_service_provider),
             base::BindRepeating([]() {
               return GetApplicationContext()->GetLocalState()->GetBoolean(
@@ -165,7 +168,8 @@ OptimizationGuideService::~OptimizationGuideService() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-void OptimizationGuideService::DoFinalInit() {
+void OptimizationGuideService::DoFinalInit(
+    download::BackgroundDownloadService* background_download_service) {
   if (!off_the_record_) {
     bool optimization_guide_fetching_enabled =
         optimization_guide::IsUserPermittedToFetchFromRemoteOptimizationGuide(
@@ -176,6 +180,11 @@ void OptimizationGuideService::DoFinalInit() {
         "SyntheticOptimizationGuideRemoteFetching",
         optimization_guide_fetching_enabled ? "Enabled" : "Disabled",
         variations::SyntheticTrialAnnotationMode::kCurrentLog);
+    if (optimization_guide::features::IsInstallWideModelStoreEnabled() &&
+        background_download_service) {
+      prediction_manager_->MaybeInitializeModelDownloads(
+          background_download_service);
+    }
   }
 }
 
@@ -219,9 +228,6 @@ void OptimizationGuideService::RegisterOptimizationTypes(
   hints_manager_->RegisterOptimizationTypes(optimization_types);
 }
 
-// WARNING: This API is not quite ready for general use. Use
-// CanApplyOptimizationAsync or CanApplyOptimization using NavigationHandle
-// instead.
 void OptimizationGuideService::CanApplyOptimization(
     const GURL& url,
     optimization_guide::proto::OptimizationType optimization_type,
@@ -247,16 +253,6 @@ OptimizationGuideService::CanApplyOptimization(
   return optimization_guide::HintsManager::
       GetOptimizationGuideDecisionFromOptimizationTypeDecision(
           optimization_type_decision);
-}
-
-void OptimizationGuideService::CanApplyOptimizationAsync(
-    web::NavigationContext* navigation_context,
-    optimization_guide::proto::OptimizationType optimization_type,
-    optimization_guide::OptimizationGuideDecisionCallback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  hints_manager_->CanApplyOptimizationAsync(
-      navigation_context->GetUrl(), optimization_type, std::move(callback));
 }
 
 void OptimizationGuideService::CanApplyOptimizationOnDemand(

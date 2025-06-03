@@ -25,6 +25,7 @@
 #include "base/trace_event/memory_dump_provider.h"
 #include "build/build_config.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/client/gles2_cmd_helper.h"
 #include "gpu/command_buffer/client/gles2_trace_implementation.h"
 #include "gpu/command_buffer/client/gpu_switches.h"
@@ -57,7 +58,6 @@ namespace viz {
 
 ContextProviderCommandBuffer::ContextProviderCommandBuffer(
     scoped_refptr<gpu::GpuChannelHost> channel,
-    gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
     int32_t stream_id,
     gpu::SchedulingPriority stream_priority,
     gpu::SurfaceHandle surface_handle,
@@ -69,7 +69,9 @@ ContextProviderCommandBuffer::ContextProviderCommandBuffer(
     const gpu::ContextCreationAttribs& attributes,
     command_buffer_metrics::ContextType type,
     base::SharedMemoryMapper* buffer_mapper)
-    : stream_id_(stream_id),
+    : base::subtle::RefCountedThreadSafeBase(
+          base::subtle::GetRefCountPreference<ContextProviderCommandBuffer>()),
+      stream_id_(stream_id),
       stream_priority_(stream_priority),
       surface_handle_(surface_handle),
       active_url_(active_url),
@@ -80,16 +82,13 @@ ContextProviderCommandBuffer::ContextProviderCommandBuffer(
       attributes_(attributes),
       context_type_(type),
       channel_(std::move(channel)),
-      gpu_memory_buffer_manager_(gpu_memory_buffer_manager),
-      impl_(nullptr),
       buffer_mapper_(buffer_mapper) {
-  DCHECK(main_thread_checker_.CalledOnValidThread());
+  DETACH_FROM_SEQUENCE(context_sequence_checker_);
   DCHECK(channel_);
-  context_sequence_checker_.DetachFromSequence();
 }
 
 ContextProviderCommandBuffer::~ContextProviderCommandBuffer() {
-  DCHECK(context_sequence_checker_.CalledOnValidSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(context_sequence_checker_);
 
   if (bind_tried_ && bind_result_ == gpu::ContextResult::kSuccess) {
     // Clear the lock to avoid DCHECKs that the lock is being held during
@@ -108,42 +107,51 @@ ContextProviderCommandBuffer::GetCommandBufferProxy() {
   return command_buffer_.get();
 }
 
-uint32_t ContextProviderCommandBuffer::GetCopyTextureInternalFormat() {
-  if (attributes_.alpha_size > 0)
-    return GL_RGBA;
-  DCHECK_NE(attributes_.red_size, 0);
-  DCHECK_NE(attributes_.green_size, 0);
-  DCHECK_NE(attributes_.blue_size, 0);
-  return GL_RGB;
-}
-
 void ContextProviderCommandBuffer::AddRef() const {
-  base::RefCountedThreadSafe<ContextProviderCommandBuffer>::AddRef();
+  base::subtle::RefCountedThreadSafeBase::AddRefWithCheck();
 }
 
 void ContextProviderCommandBuffer::Release() const {
-  base::RefCountedThreadSafe<ContextProviderCommandBuffer>::Release();
+  if (base::subtle::RefCountedThreadSafeBase::Release()) {
+    if (default_task_runner_ &&
+        !default_task_runner_->RunsTasksInCurrentSequence()) {
+      default_task_runner_->DeleteSoon(FROM_HERE, this);
+    } else {
+      delete this;
+    }
+  }
 }
 
 gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
-  // This is called on the thread the context will be used.
-  DCHECK(context_sequence_checker_.CalledOnValidSequence());
+  // This is called on the sequence the context will be used.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(context_sequence_checker_);
+  CHECK(channel_);
 
   if (bind_tried_)
     return bind_result_;
 
   bind_tried_ = true;
+
+  // This is for no swiftshader and no software rasterization.
+  // Return kFatalFailure to indicate no retry is necessary. Should update
+  // Renderer Thread Impl or Blink so it won't keep retrying
+  // BindToCurrentSequence.
+  if (channel_->gpu_info().gl_implementation_parts.gl ==
+      gl::kGLImplementationDisabled) {
+    bind_result_ = gpu::ContextResult::kFatalFailure;
+    return bind_result_;
+  }
+
   // Any early-out should set this to a failure code and return it.
   bind_result_ = gpu::ContextResult::kSuccess;
 
-  scoped_refptr<base::SequencedTaskRunner> task_runner = default_task_runner_;
-  if (!task_runner)
-    task_runner = base::SequencedTaskRunner::GetCurrentDefault();
+  if (!default_task_runner_) {
+    default_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  }
   // This command buffer is a client-side proxy to the command buffer in the
   // GPU process.
   command_buffer_ = std::make_unique<gpu::CommandBufferProxyImpl>(
-      channel_, gpu_memory_buffer_manager_, stream_id_, task_runner,
-      buffer_mapper_);
+      channel_, stream_id_, default_task_runner_, buffer_mapper_);
   bind_result_ = command_buffer_->Initialize(
       surface_handle_, /*shared_command_buffer=*/nullptr, stream_priority_,
       attributes_, active_url_);
@@ -168,13 +176,13 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     }
 
     // The transfer buffer is used to serialize Dawn commands
-    transfer_buffer_ =
+    auto transfer_buffer =
         std::make_unique<gpu::TransferBuffer>(webgpu_helper.get());
 
     // The WebGPUImplementation exposes the WebGPUInterface, as well as the
     // gpu::ContextSupport interface.
     auto webgpu_impl = std::make_unique<gpu::webgpu::WebGPUImplementation>(
-        webgpu_helper.get(), transfer_buffer_.get(), command_buffer_.get());
+        webgpu_helper.get(), transfer_buffer.get(), command_buffer_.get());
     bind_result_ = webgpu_impl->Initialize(memory_limits_);
     if (bind_result_ != gpu::ContextResult::kSuccess) {
       DLOG(ERROR) << "Failed to initialize WebGPUImplementation.";
@@ -186,8 +194,11 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     std::string unique_context_name =
         base::StringPrintf("%s-%p", type_name.c_str(), webgpu_impl.get());
 
+    // IMPORTANT: These hold raw_ptrs to each other, so must be set together.
+    // See note in the header (and keep it up to date if things change).
     impl_ = webgpu_impl.get();
     webgpu_interface_ = std::move(webgpu_impl);
+    transfer_buffer_ = std::move(transfer_buffer);
     helper_ = std::move(webgpu_helper);
   } else if (attributes_.enable_raster_interface &&
              !attributes_.enable_gles2_interface &&
@@ -205,14 +216,14 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     }
     // The transfer buffer is used to copy resources between the client
     // process and the GPU process.
-    transfer_buffer_ =
+    auto transfer_buffer =
         std::make_unique<gpu::TransferBuffer>(raster_helper.get());
 
     // The RasterImplementation exposes the RasterInterface, as well as the
     // gpu::ContextSupport interface.
     DCHECK(channel_);
     auto raster_impl = std::make_unique<gpu::raster::RasterImplementation>(
-        raster_helper.get(), transfer_buffer_.get(),
+        raster_helper.get(), transfer_buffer.get(),
         attributes_.bind_generates_resource,
         attributes_.lose_context_when_out_of_memory, command_buffer_.get(),
         channel_->image_decode_accelerator_proxy());
@@ -229,8 +240,11 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
     raster_impl->TraceBeginCHROMIUM("gpu_toplevel",
                                     unique_context_name.c_str());
 
+    // IMPORTANT: These hold raw_ptrs to each other, so must be set together.
+    // See note in the header (and keep it up to date if things change).
     impl_ = raster_impl.get();
     raster_interface_ = std::move(raster_impl);
+    transfer_buffer_ = std::move(transfer_buffer);
     helper_ = std::move(raster_helper);
   } else {
     // The GLES2 helper writes the command buffer protocol.
@@ -245,7 +259,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
 
     // The transfer buffer is used to copy resources between the client
     // process and the GPU process.
-    transfer_buffer_ =
+    auto transfer_buffer =
         std::make_unique<gpu::TransferBuffer>(gles2_helper.get());
 
     // The GLES2Implementation exposes the OpenGLES2 API, as well as the
@@ -258,13 +272,13 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
       // we only use it if grcontext_support was requested.
       gles2_impl = std::make_unique<
           skia_bindings::GLES2ImplementationWithGrContextSupport>(
-          gles2_helper.get(), /*share_group=*/nullptr, transfer_buffer_.get(),
+          gles2_helper.get(), /*share_group=*/nullptr, transfer_buffer.get(),
           attributes_.bind_generates_resource,
           attributes_.lose_context_when_out_of_memory,
           support_client_side_arrays, command_buffer_.get());
     } else {
       gles2_impl = std::make_unique<gpu::gles2::GLES2Implementation>(
-          gles2_helper.get(), /*share_group=*/nullptr, transfer_buffer_.get(),
+          gles2_helper.get(), /*share_group=*/nullptr, transfer_buffer.get(),
           attributes_.bind_generates_resource,
           attributes_.lose_context_when_out_of_memory,
           support_client_side_arrays, command_buffer_.get());
@@ -275,8 +289,11 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
       return bind_result_;
     }
 
+    // IMPORTANT: These hold raw_ptrs to each other, so must be set together.
+    // See note in the header (and keep it up to date if things change).
     impl_ = gles2_impl.get();
     gles2_impl_ = std::move(gles2_impl);
+    transfer_buffer_ = std::move(transfer_buffer);
     helper_ = std::move(gles2_helper);
   }
 
@@ -291,7 +308,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
   }
 
   cache_controller_ =
-      std::make_unique<ContextCacheController>(impl_, task_runner);
+      std::make_unique<ContextCacheController>(impl_, default_task_runner_);
 
   // TODO(crbug.com/868192): SetLostContextCallback should probably work on
   // WebGPU contexts too.
@@ -310,6 +327,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
             switches::kEnableGpuClientTracing)) {
       // This wraps the real GLES2Implementation and we should always use this
       // instead when it's present.
+      // IMPORTANT: This holds a raw_ptr to gles2_impl_.
       trace_impl_ = std::make_unique<gpu::gles2::GLES2TraceImplementation>(
           gles2_impl_.get());
       gl = trace_impl_.get();
@@ -338,7 +356,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
 
   base::trace_event::MemoryDumpManager::GetInstance()
       ->RegisterDumpProviderWithSequencedTaskRunner(
-          this, "ContextProviderCommandBuffer", std::move(task_runner),
+          this, "ContextProviderCommandBuffer", default_task_runner_,
           base::trace_event::MemoryDumpProvider::Options());
   return bind_result_;
 }
@@ -443,6 +461,7 @@ ContextCacheController* ContextProviderCommandBuffer::CacheController() {
 void ContextProviderCommandBuffer::SetDefaultTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> default_task_runner) {
   DCHECK(!bind_tried_);
+  DCHECK(!default_task_runner_);
   default_task_runner_ = std::move(default_task_runner);
 }
 
@@ -503,6 +522,12 @@ void ContextProviderCommandBuffer::RemoveObserver(ContextLostObserver* obs) {
   observers_.RemoveObserver(obs);
 }
 
+unsigned int ContextProviderCommandBuffer::GetGrGLTextureFormat(
+    SharedImageFormat format) const {
+  return SharedImageFormatRestrictedSinglePlaneUtils::ToGLTextureStorageFormat(
+      format, ContextCapabilities().angle_rgbx_internal_format);
+}
+
 gpu::webgpu::WebGPUInterface* ContextProviderCommandBuffer::WebGPUInterface() {
   DCHECK(bind_tried_);
   DCHECK_EQ(bind_result_, gpu::ContextResult::kSuccess);
@@ -523,10 +548,8 @@ bool ContextProviderCommandBuffer::OnMemoryDump(
   helper_->OnMemoryDump(args, pmd);
 
   if (gr_context_) {
-    context_sequence_checker_.DetachFromSequence();
     gpu::raster::DumpGrMemoryStatistics(gr_context_->get(), pmd,
                                         gles2_impl_->ShareGroupTracingGUID());
-    context_sequence_checker_.DetachFromSequence();
   }
   return true;
 }

@@ -7,15 +7,11 @@
 #import "base/task/sequenced_task_runner.h"
 #import "base/task/single_thread_task_runner.h"
 #import "components/optimization_guide/core/optimization_guide_features.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/optimization_guide_service_factory.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 IOSOptimizationGuideNavigationData::IOSOptimizationGuideNavigationData(
     int64_t navigation_id)

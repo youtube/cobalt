@@ -9,6 +9,8 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/chromeos_buildflags.h"
+#include "components/safe_browsing/core/browser/hashprefix_realtime/hash_realtime_utils.h"
+#include "components/safe_browsing/core/common/features.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/api/extensions_api_client.h"
@@ -26,8 +28,10 @@
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/blink/public/common/loader/resource_type_util.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 using extensions::PermissionsData;
 
@@ -211,8 +215,9 @@ bool IsSensitiveGoogleClientUrl(const extensions::WebRequestInfo& request) {
            i = host.begin() + pos + kClientLength,
            end = host.end() - (kGoogleComLength + 1);
        i != end; ++i) {
-    if (!isdigit(*i))
+    if (!absl::ascii_isdigit(static_cast<unsigned char>(*i))) {
       return false;
+    }
   }
 
   return true;
@@ -336,6 +341,12 @@ bool WebRequestPermissions::HideRequest(
       extension_urls::IsBlocklistUpdateUrl(url) ||
       extension_urls::IsSafeBrowsingUrl(url::Origin::Create(url),
                                         url.path_piece()) ||
+      // TODO(crbug.com/1476651): The following check should ideally be within
+      // IsSafeBrowsingUrl. This will be possible if hash_realtime_utils is
+      // moved to live within /content instead of /browser.
+      (safe_browsing::hash_realtime_utils::
+           IsHashRealTimeLookupEligibleInSession() &&
+       url == safe_browsing::kHashPrefixRealTimeLookupsRelayUrl.Get()) ||
       (url.DomainIs("chrome.google.com") &&
        base::StartsWith(url.path_piece(), "/webstore",
                         base::CompareCase::SENSITIVE)) ||

@@ -23,6 +23,7 @@ import("//build_overrides/build.gni")
 # once the support is available.
 if (is_ios) {
   import("//build/config/ios/config.gni")
+  import("//build/config/ios/ios_sdk.gni")
 }
 
 assert((target_os == "ios" && host_os == "mac") || host_os != "win")
@@ -45,12 +46,14 @@ _can_use_hermetic_swift =
     build_with_chromium && is_ios && target_environment != "catalyst"
 
 if (swift_toolchain_path == -1) {
-  if (_can_use_hermetic_swift) {
+  # TODO(crbug.com/1451611) The custom swift toolchain not does currently work
+  # with Xcode 15 beta 1.
+  if (_can_use_hermetic_swift && !(is_ios && xcode_version_int >= 1500)) {
     # Version of the hermetic compiler. Needs to be updated when a new version of
     # the compiler is rolled to ensure that all outputs are regenerated. It must
     # be kept in sync with the `version` of `third_party/swift-toolchain` in
     # //DEPS.
-    swiftc_version = "swift-5.7-release"
+    swiftc_version = "swift-5.8-release"
 
     # Use the hermetic swift toolchain.
     swift_toolchain_path = "//third_party/swift-toolchain/"
@@ -87,8 +90,8 @@ tool_versions =
 # Shared toolchain definition. Invocations should set current_os to set the
 # build args in this definition. This is titled "single_apple_toolchain"
 # because it makes exactly one toolchain. Callers will normally want to
-# invoke instead "apple_toolchain" which may make an additional toolchain
-# without sanitizers.
+# invoke instead "apple_toolchain" which makes an additional toolchain for
+# Rust targets that are build-time artificts such as proc macros.
 template("single_apple_toolchain") {
   toolchain(target_name) {
     # When invoking this toolchain not as the default one, these args will be
@@ -104,10 +107,6 @@ template("single_apple_toolchain") {
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
       host_toolchain = host_toolchain
-
-      # Similarly for the host toolchain which can be used to make .dylibs
-      # that will successfully load into prebuilt tools.
-      host_toolchain_no_sanitizers = host_toolchain_no_sanitizers
     }
 
     # When the invoker has explicitly overridden use_goma or cc_wrapper in the
@@ -215,14 +214,15 @@ template("single_apple_toolchain") {
       cxx = "$python_path $_coverage_wrapper ${cxx}"
     }
 
+    linker_driver_env = "TOOL_VERSION=${tool_versions.linker_driver}"
     linker_driver =
-        "TOOL_VERSION=${tool_versions.linker_driver} " +
         rebase_path("//build/toolchain/apple/linker_driver.py", root_build_dir)
+    linker_driver_args = "-Wcrl,driver,$ld"
 
     # Specify an explicit path for the strip binary.
     _strippath = invoker.bin_path + "strip"
     _installnametoolpath = invoker.bin_path + "install_name_tool"
-    linker_driver += " -Wcrl,strippath,${_strippath} -Wcrl,installnametoolpath,${_installnametoolpath}"
+    linker_driver_args += " -Wcrl,strippath,${_strippath} -Wcrl,installnametoolpath,${_installnametoolpath}"
     _enable_dsyms = enable_dsyms
     _save_unstripped_output = save_unstripped_output
 
@@ -261,10 +261,11 @@ template("single_apple_toolchain") {
       if (!defined(rust_compiler_prefix)) {
         rust_compiler_prefix = ""
       }
-      rustc_bin = rebase_path("${rust_sysroot}/bin/rustc", root_build_dir)
+      rust_sysroot_relative = rebase_path(rust_sysroot, root_build_dir)
+      rustc_bin = "$rust_sysroot_relative/bin/rustc"
       rustc = "$rust_compiler_prefix${rustc_bin}"
-      rust_sysroot_relative_to_out = rebase_path(rust_sysroot, root_out_dir)
-      rustc_wrapper = rebase_path("//build/rust/rustc_wrapper.py")
+      rustc_wrapper =
+          rebase_path("//build/rust/rustc_wrapper.py", root_build_dir)
 
       tool("rust_staticlib") {
         libname = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
@@ -280,9 +281,9 @@ template("single_apple_toolchain") {
         # TODO(danakj): When `!toolchain_uses_lld` do we need to specify a path
         # to libtool like the "alink" rule?
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"$_cxx\" $rustc_common_args --emit=dep-info=$depfile,link -o $libname LDFLAGS RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_rlib") {
@@ -291,11 +292,8 @@ template("single_apple_toolchain") {
         # actually liblibc.rlib).
         rlibname =
             "{{output_dir}}/lib{{target_output_name}}{{output_extension}}"
+        rspfile = "$rlibname.rsp"
         depfile = "$rlibname.d"
-
-        # Do not use rsp files in this (common) case because they occupy the
-        # ninja main thread, and {{rlibs}} have shorter command lines than
-        # fully linked targets.
 
         default_output_extension = ".rlib"
 
@@ -305,8 +303,9 @@ template("single_apple_toolchain") {
         description = "RUST {{output}}"
         outputs = [ rlibname ]
 
-        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile -- -Clinker=\"$_cxx\" $rustc_common_args {{rustdeps}} {{externs}} --emit=dep-info=$depfile,link -o $rlibname LDFLAGS RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
+        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"$_cxx\" $rustc_common_args {{rustdeps}} {{externs}} --emit=dep-info=$depfile,link -o $rlibname LDFLAGS RUSTENV {{rustenv}}"
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_bin") {
@@ -331,9 +330,9 @@ template("single_apple_toolchain") {
         #   outputs += [ _unstripped_output ]
         # }
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
-        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${_cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $exename LDFLAGS {{ldflags}} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
+        command = "$linker_driver_env \"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"$linker_driver\" $rustc_common_args --emit=dep-info=$depfile,link -o $exename LDFLAGS $linker_driver_args {{ldflags}} RUSTENV {{rustenv}}"
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_cdylib") {
@@ -360,9 +359,9 @@ template("single_apple_toolchain") {
         #   outputs += [ _unstripped_output ]
         # }
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
-        command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${_cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $dllname LDFLAGS {{ldflags}} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
+        command = "$linker_driver_env \"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"$linker_driver\" $rustc_common_args --emit=dep-info=$depfile,link -o $dllname LDFLAGS $linker_driver_args {{ldflags}} RUSTENV {{rustenv}}"
+        rust_sysroot = rust_sysroot_relative
       }
 
       tool("rust_macro") {
@@ -389,9 +388,9 @@ template("single_apple_toolchain") {
         #   outputs += [ _unstripped_output ]
         # }
 
-        rspfile_content = "{{rustdeps}} {{externs}}"
+        rspfile_content = "{{rustdeps}} {{externs}} SOURCES {{sources}}"
         command = "\"$python_path\" \"$rustc_wrapper\" --rustc=$rustc --depfile=$depfile --rsp=$rspfile -- -Clinker=\"${_cxx}\" $rustc_common_args --emit=dep-info=$depfile,link -o $dllname LDFLAGS {{ldflags}} RUSTENV {{rustenv}}"
-        rust_sysroot = rust_sysroot_relative_to_out
+        rust_sysroot = rust_sysroot_relative
       }
     }
 
@@ -498,19 +497,21 @@ template("single_apple_toolchain") {
 
       does_reexport_command = "[ ! -e \"$dylib\" -o ! -e \"$tocname\" ] || $otool -l \"$dylib\" | grep -q LC_REEXPORT_DYLIB"
 
-      link_command = "$linker_driver $ld -shared "
+      link_command =
+          "$linker_driver_env $linker_driver $linker_driver_args -shared "
       if (toolchain_is_component_build) {
         link_command += " -Wl,-install_name,@rpath/\"{{target_output_name}}{{output_extension}}\" "
       }
       link_command += dsym_switch
-      link_command += "{{ldflags}} -o \"$dylib\" \"@$rspfile\""
+      link_command += "{{ldflags}} -o \"$dylib\" \"@$rspfile\" {{rlibs}}"
 
       replace_command = "if ! cmp -s \"$temporary_tocname\" \"$tocname\"; then mv \"$temporary_tocname\" \"$tocname\""
       extract_toc_command = "{ $otool -l \"$dylib\" | grep LC_ID_DYLIB -A 5; $nm -gPp \"$dylib\" | cut -f1-2 -d' ' | grep -v U\$\$; true; }"
 
       command = "if $does_reexport_command ; then $link_command && $extract_toc_command > \"$tocname\"; else $link_command && $extract_toc_command > \"$temporary_tocname\" && $replace_command ; fi; fi"
 
-      rspfile_content = "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}} {{rlibs}}"
+      rspfile_content =
+          "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}}"
 
       description = "SOLINK {{output}}"
 
@@ -550,12 +551,12 @@ template("single_apple_toolchain") {
       rspfile = sofile + ".rsp"
       pool = "//build/toolchain:link_pool($default_toolchain)"
 
-      link_command =
-          "$linker_driver $ld -bundle {{ldflags}} -o \"$sofile\" \"@$rspfile\""
+      link_command = "$linker_driver_env $linker_driver $linker_driver_args -bundle {{ldflags}} -o \"$sofile\" \"@$rspfile\" {{rlibs}}"
       link_command += dsym_switch
       command = link_command
 
-      rspfile_content = "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}} {{rlibs}}"
+      rspfile_content =
+          "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}}"
 
       description = "SOLINK_MODULE {{output}}"
 
@@ -580,9 +581,10 @@ template("single_apple_toolchain") {
       rspfile = "$outfile.rsp"
       pool = "//build/toolchain:link_pool($default_toolchain)"
 
-      command = "$linker_driver $ld $dsym_switch {{ldflags}} -o \"$outfile\" \"@$rspfile\""
+      command = "$linker_driver_env $linker_driver $linker_driver_args $dsym_switch {{ldflags}} -o \"$outfile\" \"@$rspfile\" {{rlibs}}"
       description = "LINK $outfile"
-      rspfile_content = "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}} {{rlibs}}"
+      rspfile_content =
+          "{{inputs}} {{frameworks}} {{swiftmodules}} {{solibs}} {{libs}}"
       outputs = [ outfile ]
 
       if (_enable_dsyms) {
@@ -757,6 +759,7 @@ template("single_apple_toolchain") {
             "-depfile {{target_out_dir}}/{{module_name}}.d " +
             "-bridge-header {{bridge_header}} $_extra_flags " +
             "{{swiftflags}} {{include_dirs}} {{module_dirs}} {{inputs}}"
+        description = "SWIFT {{output}}"
       }
     }
 
@@ -792,8 +795,9 @@ template("single_apple_toolchain") {
   }
 }
 
-# Makes a single Apple toolchain, or possibly two if we need a
-# sanitizer-free equivalent.
+# Makes an Apple toolchain for the target, and an equivalent toolchain with the
+# prebuilt Rust stdlib for building proc macros (and other for-build-use
+# artifacts).
 template("apple_toolchain") {
   single_apple_toolchain(target_name) {
     assert(defined(invoker.toolchain_args),
@@ -809,9 +813,16 @@ template("apple_toolchain") {
     # toolchains, but presubmit checks require that we explicitly exclude them
   }
 
-  if (using_sanitizer) {
-    # Make an additional toolchain with no sanitizers.
-    single_apple_toolchain("${target_name}_no_sanitizers") {
+  if (enable_rust && current_toolchain == default_toolchain) {
+    # Make an additional toolchain which is used for making tools that are run
+    # on the host machine as part of the build process (such as proc macros
+    # and Cargo build scripts). This toolchain uses the prebuilt stdlib that
+    # comes with the compiler, so it doesn't have to wait for the stdlib to be
+    # built before building other stuff. And this ensures its proc macro
+    # outputs have the right ABI to be loaded by the compiler, and it can be
+    # used to compile build scripts that are part of the stdlib that is built
+    # for the default toolchain.
+    single_apple_toolchain("${target_name}_for_rust_host_build_tools") {
       assert(defined(invoker.toolchain_args),
              "Toolchains must declare toolchain_args")
       forward_variables_from(invoker,
@@ -824,7 +835,16 @@ template("apple_toolchain") {
       toolchain_args = {
         # Populate toolchain args from the invoker.
         forward_variables_from(invoker.toolchain_args, "*")
-        toolchain_disables_sanitizers = true
+        toolchain_for_rust_host_build_tools = true
+
+        # The host build tools are static release builds to make the Chromium
+        # build faster. They do not need PGO etc, so no official builds.
+        is_debug = false
+        is_component_build = false
+        is_official_build = false
+        use_clang_coverage = false
+        use_sanitizer_coverage = false
+        generate_linker_map = false
       }
     }
   }

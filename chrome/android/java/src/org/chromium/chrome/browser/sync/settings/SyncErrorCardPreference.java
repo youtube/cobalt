@@ -13,14 +13,13 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
-import org.chromium.chrome.browser.sync.SyncService;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils.SyncError;
 import org.chromium.chrome.browser.ui.signin.PersonalizedSigninPromoView;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
+import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.sync.SyncService;
 
 public class SyncErrorCardPreference extends Preference
         implements SyncService.SyncStateChangedListener, ProfileDataCache.Observer {
@@ -46,26 +45,39 @@ public class SyncErrorCardPreference extends Preference
         void onSyncErrorCardSecondaryButtonClicked();
     }
 
-    private final ProfileDataCache mProfileDataCache;
+    private ProfileDataCache mProfileDataCache;
+    private SyncService mSyncService;
+    private IdentityManager mIdentityManager;
     private SyncErrorCardPreferenceListener mListener;
     private @SyncError int mSyncError;
 
     public SyncErrorCardPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        mProfileDataCache = ProfileDataCache.createWithDefaultImageSize(
-                context, R.drawable.ic_sync_badge_error_20dp);
         setLayoutResource(R.layout.sync_promo_view_settings);
         mSyncError = SyncError.NO_ERROR;
+    }
+
+    /**
+     * Initialize the dependencies for the SyncErrorCardPreference.
+     *
+     * Must be called before the preference is attached, which is called from the containing
+     * settings screen's onViewCreated method.
+     */
+    public void initialize(ProfileDataCache profileDataCache, SyncService syncService,
+            IdentityManager identityManager, SyncErrorCardPreferenceListener listener) {
+        mProfileDataCache = profileDataCache;
+        mSyncService = syncService;
+        mIdentityManager = identityManager;
+        mListener = listener;
     }
 
     @Override
     public void onAttached() {
         super.onAttached();
         mProfileDataCache.addObserver(this);
-        SyncService syncService = SyncService.get();
-        if (syncService != null) {
-            syncService.addSyncStateChangedListener(this);
+        if (mSyncService != null) {
+            mSyncService.addSyncStateChangedListener(this);
         }
         update();
     }
@@ -74,9 +86,8 @@ public class SyncErrorCardPreference extends Preference
     public void onDetached() {
         super.onDetached();
         mProfileDataCache.removeObserver(this);
-        SyncService syncService = SyncService.get();
-        if (syncService != null) {
-            syncService.removeSyncStateChangedListener(this);
+        if (mSyncService != null) {
+            mSyncService.removeSyncStateChangedListener(this);
         }
     }
 
@@ -94,7 +105,7 @@ public class SyncErrorCardPreference extends Preference
     }
 
     private void update() {
-        mSyncError = SyncSettingsUtils.getSyncError();
+        mSyncError = SyncSettingsUtils.getSyncError(mSyncService);
         boolean suppressSyncSetupIncompleteFromSigninPage =
                 (mSyncError == SyncError.SYNC_SETUP_INCOMPLETE)
                 && mListener.shouldSuppressSyncSetupIncomplete();
@@ -108,9 +119,7 @@ public class SyncErrorCardPreference extends Preference
 
     private void setupSyncErrorCardView(PersonalizedSigninPromoView errorCardView) {
         String signedInAccount = CoreAccountInfo.getEmailFrom(
-                IdentityServicesProvider.get()
-                        .getIdentityManager(Profile.getLastUsedRegularProfile())
-                        .getPrimaryAccountInfo(ConsentLevel.SYNC));
+                mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SYNC));
         // May happen if account is removed from the device while this screen is shown.
         // ManageSyncSettings will take care of finishing the activity in such case.
         if (signedInAccount == null) {
@@ -143,10 +152,6 @@ public class SyncErrorCardPreference extends Preference
         } else {
             errorCardView.getSecondaryButton().setVisibility(View.GONE);
         }
-    }
-
-    public void setSyncErrorCardPreferenceListener(SyncErrorCardPreferenceListener listener) {
-        mListener = listener;
     }
 
     public @SyncError int getSyncError() {

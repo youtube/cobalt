@@ -66,7 +66,6 @@ void OobeTestAPIHandler::DeclareJSCallbacks() {
 void OobeTestAPIHandler::GetAdditionalParameters(base::Value::Dict* dict) {
   login::NetworkStateHelper helper_;
   dict->Set("testapi_shouldSkipNetworkFirstShow",
-            features::IsOobeNetworkScreenSkipEnabled() &&
                 !switches::IsOOBENetworkScreenSkippingDisabledForTesting() &&
                 helper_.IsConnectedToEthernet());
 
@@ -77,13 +76,9 @@ void OobeTestAPIHandler::GetAdditionalParameters(base::Value::Dict* dict) {
   dict->Set("testapi_isFingerprintSupported",
             quick_unlock::IsFingerprintSupported());
 
-  dict->Set("testapi_isLibAssistantEnabled",
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-            true
-#else
-            false
-#endif
-  );
+  dict->Set("testapi_shouldSkipAssistant",
+            features::IsOobeSkipAssistantEnabled() ||
+                !BUILDFLAG(ENABLE_CROS_LIBASSISTANT));
 
   dict->Set("testapi_isBrandedBuild",
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -103,6 +98,7 @@ void OobeTestAPIHandler::GetAdditionalParameters(base::Value::Dict* dict) {
 
 void OobeTestAPIHandler::LoginWithPin(const std::string& username,
                                       const std::string& pin) {
+  VLOG(1) << "LoginWithPin";
   LoginScreenClientImpl::Get()->AuthenticateUserWithPasswordOrPin(
       AccountId::FromUserEmail(username), pin, /*authenticated_by_pin=*/true,
       base::BindOnce([](bool success) {
@@ -111,10 +107,12 @@ void OobeTestAPIHandler::LoginWithPin(const std::string& username,
 }
 
 void OobeTestAPIHandler::AdvanceToScreen(const std::string& screen) {
+  VLOG(1) << "AdvanceToScreen(" << screen << ")";
   LoginDisplayHost::default_host()->StartWizard(OobeScreenId(screen));
 }
 
 void OobeTestAPIHandler::SkipToLoginForTesting() {
+  VLOG(1) << "SkipToLoginForTesting";
   WizardController* controller = WizardController::default_controller();
   if (!controller || !controller->is_initialized()) {
     LOG(ERROR)
@@ -129,6 +127,7 @@ void OobeTestAPIHandler::EmulateDevicesConnectedForTesting() {
   HIDDetectionScreen* screen_ = static_cast<HIDDetectionScreen*>(
       WizardController::default_controller()->GetScreen(
           HIDDetectionView::kScreenId));
+  VLOG(1) << "EmulateDevicesConnectedForTesting";
   auto touchscreen = device::mojom::InputDeviceInfo::New();
   touchscreen->id = "fake_touchscreen";
   touchscreen->subsystem = device::mojom::InputDeviceSubsystem::SUBSYSTEM_INPUT;
@@ -152,11 +151,13 @@ void OobeTestAPIHandler::EmulateDevicesConnectedForTesting() {
 }
 
 void OobeTestAPIHandler::SkipPostLoginScreens() {
+  VLOG(1) << "SkipPostLoginScreens";
   WizardController::default_controller()
       ->SkipPostLoginScreensForTesting();  // IN-TEST
 }
 
 void OobeTestAPIHandler::LoginAsGuest() {
+  VLOG(1) << "LoginAsGuest";
   WizardController::default_controller()->SkipToLoginForTesting();  // IN-TEST
   CHECK(ExistingUserController::current_controller());
   UserContext context(user_manager::USER_TYPE_GUEST, EmptyAccountId());
@@ -165,6 +166,7 @@ void OobeTestAPIHandler::LoginAsGuest() {
 }
 
 void OobeTestAPIHandler::ShowGaiaDialog() {
+  VLOG(1) << "ShowGaiaDialog";
   LoginDisplayHost::default_host()->ShowGaiaDialog(EmptyAccountId());
 }
 

@@ -8,23 +8,26 @@
 
 #include "ash/components/arc/arc_util.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/login_accelerators.h"
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/i18n/time_formatting.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/time/time_to_iso8601.h"
+#include "base/test/scoped_run_loop_timeout.h"
+#include "base/test/test_timeouts.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/ash/login/demo_mode/demo_mode_test_utils.h"
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
-#include "chrome/browser/ash/login/demo_mode/demo_setup_test_utils.h"
 #include "chrome/browser/ash/login/mock_network_state_helper.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/screens/demo_setup_screen.h"
@@ -49,7 +52,6 @@
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/network_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/dbus/shill/shill_service_client.h"
@@ -100,6 +102,8 @@ const test::UIPath kDemoPreferencesNext = {kDemoPrefsId, "nextButton"};
 const test::UIPath kNetworkScreen = {kNetworkId};
 const test::UIPath kNetworkNextButton = {kNetworkId, "nextButton"};
 const test::UIPath kNetworkBackButton = {kNetworkId, "backButton"};
+const test::UIPath kNetworkQuickStartButton = {kNetworkId,
+                                               "quick-start-network-button"};
 
 const test::UIPath kDemoSetupProgressDialog = {kDemoSetupId,
                                                "demoSetupProgressDialog"};
@@ -283,7 +287,7 @@ class DemoSetupTestBase : public OobeBaseTest {
   void SetFakeTimeForMultiTapDetector(base::Time fake_time) {
     const std::string query =
         base::StrCat({"MultiTapDetector.setFakeTimeForTests(new Date('",
-                      base::TimeToISO8601(fake_time), "'));"});
+                      base::TimeFormatAsIso8601(fake_time), "'));"});
     test::ExecuteOobeJS(query);
   }
 
@@ -422,6 +426,7 @@ class DemoSetupArcSupportedTest : public DemoSetupTestBase {
 
 IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest,
                        ShowConfirmationDialogAndProceed) {
+  WaitForOobeUI();
   IsConfirmationDialogHidden();
 
   InvokeDemoModeWithAccelerator();
@@ -434,6 +439,7 @@ IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest,
 
 IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest,
                        ShowConfirmationDialogAndCancel) {
+  WaitForOobeUI();
   IsConfirmationDialogHidden();
 
   InvokeDemoModeWithAccelerator();
@@ -446,6 +452,7 @@ IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest,
 }
 
 IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, InvokeWithTaps) {
+  WaitForOobeUI();
   // Use fake time to avoid flakiness.
   SetFakeTimeForMultiTapDetector(base::Time::UnixEpoch());
   IsConfirmationDialogHidden();
@@ -711,7 +718,9 @@ IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, OfflineDemoModeUnavailable) {
   test::OobeJS().ExpectDisabledPath(kNetworkNextButton);
 }
 
-IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, ClickNetworkOnNetworkScreen) {
+// Flaky. https://crbug.com/1453362.
+IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest,
+                       DISABLED_ClickNetworkOnNetworkScreen) {
   TriggerDemoModeOnWelcomeScreen();
   test::WaitForNetworkSelectionScreen();
 
@@ -753,7 +762,7 @@ IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, BackOnNetworkScreen) {
   test::WaitForNetworkSelectionScreen();
 
   test::OobeJS().ClickOnPath(kNetworkBackButton);
-  OobeScreenWaiter(WelcomeView::kScreenId).Wait();
+  test::WaitForWelcomeScreen();
 }
 
 IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, BackOnTermsScreen) {
@@ -798,7 +807,7 @@ IN_PROC_BROWSER_TEST_F(DemoSetupArcSupportedTest, BackOnErrorScreen) {
   test::OobeJS().ExpectEnabledPath(kDemoSetupErrorDialogBack);
   test::OobeJS().ClickOnPath(kDemoSetupErrorDialogBack);
 
-  OobeScreenWaiter(WelcomeView::kScreenId).Wait();
+  test::WaitForWelcomeScreen();
 }
 
 // TODO(crbug.com/1399073): Flaky on ChromeOS.
@@ -1041,8 +1050,16 @@ class DemoSetupRegionCodeNotExistTest : public DemoSetupArcSupportedTest {
   }
 };
 
+// TODO(crbug.com/1486991): Flaky under dbg and asan.
+#if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#define MAYBE_RegionCodeNotExistPlaceholderIsSet \
+  DISABLED_RegionCodeNotExistPlaceholderIsSet
+#else
+#define MAYBE_RegionCodeNotExistPlaceholderIsSet \
+  RegionCodeNotExistPlaceholderIsSet
+#endif
 IN_PROC_BROWSER_TEST_F(DemoSetupRegionCodeNotExistTest,
-                       RegionCodeNotExistPlaceholderIsSet) {
+                       MAYBE_RegionCodeNotExistPlaceholderIsSet) {
   // Simulate successful online setup.
   enrollment_helper_.ExpectEnrollmentMode(
       policy::EnrollmentConfig::MODE_ATTESTATION);
@@ -1083,6 +1100,14 @@ class DemoSetupBlazeyDeviceTest : public DemoSetupArcSupportedTest {
 #endif
 IN_PROC_BROWSER_TEST_F(DemoSetupBlazeyDeviceTest,
                        MAYBE_DeviceIsBlazeyEnabledDevice) {
+  // `LoginOrLockScreenVisibleWaiter::WaitImpl` has a time out equals to
+  // `TestTimeouts::test_launcher_timeout()` (which is equals to 135s in this
+  // test), but sometimes it might be longer than 2 minutes, which left 15s for
+  // this test to run. Increase the timeout of this test so that it has enough
+  // time.
+  base::test::ScopedRunLoopTimeout increase_timeout(
+      FROM_HERE, TestTimeouts::test_launcher_timeout() + base::Seconds(60));
+
   // Simulate successful online setup.
   enrollment_helper_.ExpectEnrollmentMode(
       policy::EnrollmentConfig::MODE_ATTESTATION);
@@ -1108,6 +1133,30 @@ IN_PROC_BROWSER_TEST_F(DemoSetupBlazeyDeviceTest,
 
   EXPECT_TRUE(StartupUtils::IsOobeCompleted());
   EXPECT_TRUE(StartupUtils::IsDeviceRegistered());
+}
+
+/**
+ * Test case of Quick Start enabled device, where quick start button should not
+ * show for demo mode.
+ */
+class DemoSetupQuickStartEnabledTest : public DemoSetupArcSupportedTest {
+ public:
+  ~DemoSetupQuickStartEnabledTest() override = default;
+
+  DemoSetupQuickStartEnabledTest() {
+    feature_list_.InitAndEnableFeature(features::kOobeQuickStart);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(DemoSetupQuickStartEnabledTest, QuickStartButton) {
+  SimulateNetworkDisconnected();
+
+  TriggerDemoModeOnWelcomeScreen();
+
+  test::OobeJS().ExpectHiddenPath(kNetworkQuickStartButton);
 }
 
 }  // namespace

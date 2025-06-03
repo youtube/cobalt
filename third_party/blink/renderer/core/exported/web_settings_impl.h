@@ -58,6 +58,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetLCDTextPreference(LCDTextPreference) override;
   void SetAccessibilityPasswordValuesEnabled(bool) override;
   void SetAllowFileAccessFromFileURLs(bool) override;
+  void SetAccessibilityFontWeightAdjustment(int size) override;
   void SetAllowCustomScrollbarInMainFrame(bool) override;
   void SetAllowGeolocationOnInsecureOrigins(bool) override;
   void SetAllowRunningOfInsecureContent(bool) override;
@@ -70,7 +71,6 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetClobberUserAgentInitialScaleQuirk(bool) override;
   void SetCookieEnabled(bool) override;
   void SetCaretBrowsingEnabled(bool) override;
-  void SetNavigateOnDragDrop(bool) override;
   void SetCursiveFontFamily(const WebString&,
                             UScriptCode = USCRIPT_COMMON) override;
   void SetDNSPrefetchingEnabled(bool) override;
@@ -88,6 +88,8 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetEditingBehavior(mojom::blink::EditingBehavior) override;
   void SetEnableScrollAnimator(bool) override;
   void SetPrefersReducedMotion(bool) override;
+  void SetPrefersReducedTransparency(bool) override;
+  void SetInvertedColors(bool) override;
   void SetWebGL1Enabled(bool) override;
   void SetWebGL2Enabled(bool) override;
   void SetFantasyFontFamily(const WebString&,
@@ -107,7 +109,6 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetIgnoreMainFrameOverflowHiddenQuirk(bool) override;
   void SetImageAnimationPolicy(mojom::blink::ImageAnimationPolicy) override;
   void SetImagesEnabled(bool) override;
-  void SetInlineTextBoxAccessibilityEnabled(bool) override;
   void SetJavaScriptCanAccessClipboard(bool) override;
   void SetJavaScriptEnabled(bool) override;
   void SetLoadsImagesAutomatically(bool) override;
@@ -168,6 +169,7 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetTextAreasAreResizable(bool) override;
   void SetTextAutosizingEnabled(bool) override;
   void SetAccessibilityFontScaleFactor(float) override;
+  void SetAccessibilityTextSizeContrastFactor(int) override;
   void SetAccessibilityAlwaysShowFocus(bool) override;
   void SetTextTrackKindUserPreference(TextTrackKindUserPreference) override;
   void SetTextTrackBackgroundColor(const WebString&) override;
@@ -180,7 +182,6 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetTextTrackTextSize(const WebString&) override;
   void SetTextTrackWindowColor(const WebString&) override;
   void SetTextTrackWindowRadius(const WebString&) override;
-  void SetThreadedScrollingEnabled(bool) override;
   void SetTouchDragDropEnabled(bool) override;
   void SetTouchDragEndContextMenu(bool) override;
   void SetBarrelButtonForDragEnabled(bool) override;

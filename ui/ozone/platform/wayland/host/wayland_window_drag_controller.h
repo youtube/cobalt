@@ -8,9 +8,11 @@
 #include <cstdint>
 #include <iosfwd>
 #include <memory>
+#include <ostream>
 #include <string>
 
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-forward.h"
@@ -85,20 +87,42 @@ class WaylandWindowDragController : public WaylandDataDevice::DragDelegate,
   // Tells if "extended drag" extension is available.
   bool IsExtendedDragAvailable() const;
 
+  // Returns true if there there is currently an active drag-and-drop session.
+  // This is true if the `data_source_` exists (the session ends when this is
+  // destroyed).
+  bool IsActiveDragAndDropSession() const;
+
+  void DumpState(std::ostream& out) const;
+
   // Makes IsExtendedDragAvailable() always return true.
   void set_extended_drag_available_for_testing(bool available) {
     extended_drag_available_for_testing_ = available;
   }
 
+  WaylandWindow* drag_target_window_for_testing() {
+    return drag_target_window_;
+  }
+  WaylandWindow* dragged_window_for_testing() { return dragged_window_; }
   WaylandWindow* origin_window_for_testing() { return origin_window_; }
+  WaylandWindow* pointer_grab_owner_for_testing() {
+    return pointer_grab_owner_;
+  }
 
   absl::optional<mojom::DragEventSource> drag_source() { return drag_source_; }
+
+  const gfx::Vector2d& drag_offset_for_testing() const { return drag_offset_; }
 
  private:
   class ExtendedDragSource;
 
   FRIEND_TEST_ALL_PREFIXES(WaylandWindowDragControllerTest,
                            HandleDraggedWindowDestructionAfterMoveLoop);
+  FRIEND_TEST_ALL_PREFIXES(WaylandWindowDragControllerTest,
+                           HandleWindowsDestructionDuringMoveLoop);
+  FRIEND_TEST_ALL_PREFIXES(WaylandWindowDragControllerTest,
+                           HandleTargetWindowDestruction_DetachedState);
+  FRIEND_TEST_ALL_PREFIXES(WaylandWindowDragControllerTest,
+                           HandleTargetWindowDestruction_AttachedState);
   FRIEND_TEST_ALL_PREFIXES(WaylandWindowDragControllerTest, GetSerial);
 
   // WaylandDataDevice::DragDelegate:
@@ -114,8 +138,9 @@ class WaylandWindowDragController : public WaylandDataDevice::DragDelegate,
   const WaylandWindow* GetDragTarget() const override;
 
   // WaylandDataSource::Delegate
-  void OnDataSourceFinish(bool completed) override;
-  void OnDataSourceSend(const std::string& mime_type,
+  void OnDataSourceFinish(WaylandDataSource* source, bool completed) override;
+  void OnDataSourceSend(WaylandDataSource* source,
+                        const std::string& mime_type,
                         std::string* contents) override;
 
   // PlatformEventDispatcher
@@ -181,7 +206,7 @@ class WaylandWindowDragController : public WaylandDataDevice::DragDelegate,
   // pointer focus when the session was initiated.
   raw_ptr<WaylandWindow> origin_window_ = nullptr;
 
-  raw_ptr<WaylandWindow> drag_target_window_ = nullptr;
+  raw_ptr<WaylandWindow, DanglingUntriaged> drag_target_window_ = nullptr;
 
   // The |origin_window_| can be destroyed during the DND session. If this
   // happens, |origin_surface_| takes ownership of its surface and ensure it

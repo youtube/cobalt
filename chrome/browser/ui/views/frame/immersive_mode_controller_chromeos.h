@@ -49,6 +49,8 @@ class ImmersiveModeControllerChromeos
       const gfx::Rect& new_visible_bounds_in_screen) override;
   bool ShouldStayImmersiveAfterExitingFullscreen() override;
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
+  int GetMinimumContentOffset() const override;
+  int GetExtraInfobarOffset() const override;
 
  private:
   // Updates the browser root view's layout including window caption controls.

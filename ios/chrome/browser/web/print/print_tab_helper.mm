@@ -5,14 +5,10 @@
 #import "ios/chrome/browser/web/print/print_tab_helper.h"
 
 #import "components/prefs/pref_service.h"
-#import "ios/chrome/browser/browser_state/chrome_browser_state.h"
-#import "ios/chrome/browser/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/model/browser_state/chrome_browser_state.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/web/print/web_state_printer.h"
 #import "ios/web/public/browser_state.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 PrintTabHelper::PrintTabHelper(web::WebState* web_state)
     : web_state_(web_state) {}

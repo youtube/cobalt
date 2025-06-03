@@ -10,8 +10,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
-#include "base/threading/thread_checker.h"
 #include "components/autofill/core/browser/webdata/autofill_change.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_backend.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
@@ -63,21 +63,22 @@ class AutocompleteSyncBridge
   std::string GetStorageKey(const syncer::EntityData& entity_data) override;
 
   // AutofillWebDataServiceObserverOnDBSequence implementation.
-  void AutofillEntriesChanged(const AutofillChangeList& changes) override;
+  void AutocompleteEntriesChanged(
+      const AutocompleteChangeList& changes) override;
 
  private:
   // Returns the table associated with the |web_data_backend_|.
   AutofillTable* GetAutofillTable() const;
 
-  // Respond to local autofill entries changing by notifying sync of the
+  // Respond to local autocomplete entries changing by notifying sync of the
   // changes.
-  void ActOnLocalChanges(const AutofillChangeList& changes);
+  void ActOnLocalChanges(const AutocompleteChangeList& changes);
 
   // Synchronously load sync metadata from the autofill table and pass it to the
   // processor so that it can start tracking changes.
   void LoadMetadata();
 
-  base::ThreadChecker thread_checker_;
+  SEQUENCE_CHECKER(sequence_checker_);
 
   // AutocompleteSyncBridge is owned by |web_data_backend_| through
   // SupportsUserData, so it's guaranteed to outlive |this|.

@@ -11,6 +11,10 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/accelerators/accelerator.h"
 
+namespace ui {
+struct KeyboardDevice;
+}
+
 namespace ash {
 
 // AcceleratorAliasConverter class creates alias for given accelerators,
@@ -33,21 +37,21 @@ class ASH_EXPORT AcceleratorAliasConverter {
       const ui::Accelerator& accelerator) const;
 
  private:
-  // Create accelerator alias for |top_row_key| for all currently connected
-  // keyboards.
-  std::vector<ui::Accelerator> CreateTopRowAliases(
+  // Create accelerator alias for |top_row_key| for the given |keyboard|.
+  absl::optional<ui::Accelerator> CreateTopRowAliases(
+      const ui::KeyboardDevice& keyboard,
+      const ui::Accelerator& accelerator) const;
+
+  // Create accelerator alias for |function_key| for the given |keyboard|.
+  absl::optional<ui::Accelerator> CreateFunctionKeyAliases(
+      const ui::KeyboardDevice& keyboard,
       const ui::Accelerator& accelerator) const;
 
   // Create accelerator alias for |six_pack_key|. Result could be either zero or
   // one alias found. Use a vector to be more consistent and cleaner.
   std::vector<ui::Accelerator> CreateSixPackAliases(
-      const ui::Accelerator& accelerator) const;
-
-  // Create reversed six pack alias for |reversed_six_pack_key|. Result could be
-  // either zero or one alias found. Use a vector to be more consistent and
-  // cleaner.
-  std::vector<ui::Accelerator> CreateReversedSixPackAliases(
-      const ui::Accelerator& accelerator) const;
+      const ui::Accelerator& accelerator,
+      absl::optional<int> device_id) const;
 
   // Given a list of accelerators, filter out those accelerators that have
   // unsupported keys. Return a list of filtered accelerators with supported

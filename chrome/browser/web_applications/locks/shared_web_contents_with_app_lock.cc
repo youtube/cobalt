@@ -14,7 +14,8 @@
 namespace web_app {
 
 SharedWebContentsWithAppLockDescription::
-    SharedWebContentsWithAppLockDescription(base::flat_set<AppId> app_ids)
+    SharedWebContentsWithAppLockDescription(
+        base::flat_set<webapps::AppId> app_ids)
     : LockDescription(std::move(app_ids),
                       LockDescription::Type::kAppAndWebContents) {}
 SharedWebContentsWithAppLockDescription::
@@ -24,7 +25,7 @@ SharedWebContentsWithAppLock::SharedWebContentsWithAppLock(
     base::WeakPtr<WebAppLockManager> lock_manager,
     std::unique_ptr<content::PartitionedLockHolder> holder,
     content::WebContents& shared_web_contents)
-    : Lock(std::move(holder)),
+    : Lock(std::move(holder), lock_manager),
       WithSharedWebContentsResources(lock_manager, shared_web_contents),
       WithAppResources(lock_manager) {}
 

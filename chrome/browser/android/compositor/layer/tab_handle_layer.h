@@ -33,6 +33,7 @@ class TabHandleLayer : public Layer {
 
   void SetProperties(int id,
                      ui::Resource* close_button_resource,
+                     ui::Resource* close_button_background_resource,
                      ui::Resource* divider_resource,
                      ui::NinePatchResource* tab_handle_resource,
                      ui::NinePatchResource* tab_handle_outline_resource,
@@ -43,10 +44,10 @@ class TabHandleLayer : public Layer {
                      float y,
                      float width,
                      float height,
-                     float content_offset_x,
                      float content_offset_y,
                      float divider_offset_x,
-                     float bottom_offset_y,
+                     float bottom_margin,
+                     float top_margin,
                      float close_button_padding,
                      float close_button_alpha,
                      bool is_start_divider_visible,
@@ -68,6 +69,7 @@ class TabHandleLayer : public Layer {
   scoped_refptr<cc::slim::Layer> layer_;
   scoped_refptr<cc::slim::Layer> tab_;
   scoped_refptr<cc::slim::UIResourceLayer> close_button_;
+  scoped_refptr<cc::slim::UIResourceLayer> close_button_hover_highlight_;
   scoped_refptr<cc::slim::UIResourceLayer> start_divider_;
   scoped_refptr<cc::slim::UIResourceLayer> end_divider_;
   scoped_refptr<cc::slim::NinePatchLayer> decoration_tab_;

@@ -6,7 +6,7 @@ import {Size} from 'chrome://resources/mojo/ui/gfx/geometry/mojom/geometry.mojom
 import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
 export interface CategoryData {
-  name: string;
+  name: CategoryEnum;
   icon: string;
   active: boolean;
 }
@@ -19,7 +19,7 @@ export interface CategoryData {
 export interface Emoji {
   string?: string;
   visualContent?: VisualContent;
-  name: string;
+  name?: string;
   keywords?: string[];
 }
 

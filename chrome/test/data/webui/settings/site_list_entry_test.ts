@@ -37,6 +37,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.USER_POLICY,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
       incognito: false,
       isEmbargoed: false,
@@ -60,27 +61,6 @@ suite('SiteListEntry', function() {
     });
   });
 
-  // <if expr="chromeos_ash">
-  test('shows androidSms note', function() {
-    testElement.model = {
-      category: ContentSettingsTypes.NOTIFICATIONS,
-      controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
-      displayName: '',
-      embeddingOrigin: '',
-      enforcement: null,
-      incognito: false,
-      isEmbargoed: false,
-      origin: 'http://example.com',
-      setting: ContentSetting.DEFAULT,
-      showAndroidSmsNote: true,
-    };
-    flush();
-    const siteDescription = testElement.$$('#siteDescription')!;
-    assertEquals(
-        loadTimeData.getString('androidSmsNote'), siteDescription.textContent);
-  });
-  // </if>
-
   // Verify that with GEOLOCATION, the "embedded on any host" text is shown.
   // Regression test for crbug.com/1205103
   test('location embedded on any host', function() {
@@ -89,6 +69,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -109,6 +90,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.USER_POLICY,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
       incognito: false,
       isEmbargoed: false,
@@ -138,6 +120,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.USER_POLICY,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
       incognito: false,
       isEmbargoed: false,
@@ -170,6 +153,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: 'http://example.com',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -192,6 +176,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: 'http://example.com',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -212,6 +197,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: 'http://example1.com',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -239,6 +225,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -255,6 +242,7 @@ suite('SiteListEntry', function() {
       controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
       displayName: '',
       embeddingOrigin: '',
+      description: '',
       enforcement: null,
       incognito: false,
       isEmbargoed: false,
@@ -265,5 +253,23 @@ suite('SiteListEntry', function() {
     const siteDescription = testElement.$$('#siteDescription')!;
     assertEquals(
         'ID: mhabknllooicelmdboebjilbohdbihln', siteDescription.textContent);
+  });
+
+  test('description field applies and overrides others', function() {
+    testElement.model = {
+      category: ContentSettingsTypes.GEOLOCATION,  // Usually has description.
+      controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
+      displayName: '',
+      embeddingOrigin: 'http://bar',
+      description: 'foo',
+      enforcement: null,
+      incognito: false,
+      isEmbargoed: true,
+      origin: 'https://example.com',
+      setting: ContentSetting.DEFAULT,
+    };
+    flush();
+    const siteDescription = testElement.$$('#siteDescription')!;
+    assertEquals('foo', siteDescription.textContent);
   });
 });

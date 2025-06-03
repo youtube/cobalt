@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/modules/mediastream/media_constraints_impl.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_track_video_stats.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_utils.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/overconstrained_error.h"
@@ -170,6 +171,14 @@ MediaTrackSettings* TransferredMediaStreamTrack::getSettings() const {
   return MediaTrackSettings::Create();
 }
 
+MediaStreamTrackVideoStats* TransferredMediaStreamTrack::stats() {
+  if (track_) {
+    return track_->stats();
+  }
+  // TODO(https://crbug.com/1288839): return the transferred value.
+  return nullptr;
+}
+
 CaptureHandle* TransferredMediaStreamTrack::getCaptureHandle() const {
   if (track_) {
     return track_->getCaptureHandle();
@@ -194,7 +203,8 @@ void TransferredMediaStreamTrack::applyConstraints(
     ScriptPromiseResolver* resolver,
     const MediaTrackConstraints* constraints) {
   setter_call_order_.push_back(APPLY_CONSTRAINTS);
-  constraints_list_.push_back(std::make_pair(resolver, constraints));
+  constraints_list_.push_back(
+      MakeGarbageCollected<ConstraintsPair>(resolver, constraints));
 }
 
 void TransferredMediaStreamTrack::SetImplementation(MediaStreamTrack* track) {
@@ -206,7 +216,7 @@ void TransferredMediaStreamTrack::SetImplementation(MediaStreamTrack* track) {
     switch (setter_function) {
       case APPLY_CONSTRAINTS: {
         const auto& entry = constraints_list_.front();
-        track->applyConstraints(entry.first, entry.second);
+        track->applyConstraints(entry->resolver, entry->constraints);
         constraints_list_.pop_front();
         break;
       }
@@ -277,7 +287,7 @@ MediaStreamComponent* TransferredMediaStreamTrack::Component() const {
   if (track_) {
     return track_->Component();
   }
-  return transferred_component_;
+  return transferred_component_.Get();
 }
 
 bool TransferredMediaStreamTrack::Ended() const {
@@ -310,7 +320,7 @@ const AtomicString& TransferredMediaStreamTrack::InterfaceName() const {
 }
 
 ExecutionContext* TransferredMediaStreamTrack::GetExecutionContext() const {
-  return execution_context_;
+  return execution_context_.Get();
 }
 
 void TransferredMediaStreamTrack::AddedEventListener(
@@ -413,7 +423,19 @@ void TransferredMediaStreamTrack::Trace(Visitor* visitor) const {
   visitor->Trace(execution_context_);
   visitor->Trace(event_propagator_);
   visitor->Trace(observers_);
+  visitor->Trace(constraints_list_);
   visitor->Trace(clone_list_);
+}
+
+TransferredMediaStreamTrack::ConstraintsPair::ConstraintsPair(
+    ScriptPromiseResolver* resolver,
+    const MediaTrackConstraints* constraints)
+    : resolver(resolver), constraints(constraints) {}
+
+void TransferredMediaStreamTrack::ConstraintsPair::Trace(
+    Visitor* visitor) const {
+  visitor->Trace(resolver);
+  visitor->Trace(constraints);
 }
 
 }  // namespace blink

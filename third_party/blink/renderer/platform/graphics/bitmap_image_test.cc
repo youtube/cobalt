@@ -166,6 +166,16 @@ class BitmapImageTest : public testing::Test {
     image_->SetData(image_data, true);
   }
 
+  void LoadBlinkWebTestsImage(const char* relative_path) {
+    CreateImage();
+
+    String file_path = test::BlinkWebTestsImagesTestDataPath(relative_path);
+    scoped_refptr<SharedBuffer> image_data = test::ReadFromFile(file_path);
+    ASSERT_TRUE(image_data.get());
+
+    image_->SetData(image_data, true);
+  }
+
   SkBitmap GenerateBitmap(size_t frame_index) {
     SkBitmap bitmap;
     GenerateBitmapForPaintImage(image_->PaintImageForTesting(), frame_index,
@@ -641,7 +651,7 @@ TEST_F(BitmapImageTestWithMockDecoder, ImageMetadataTracking) {
   ASSERT_TRUE(image);
   EXPECT_EQ(image.FrameCount(), frame_count_);
   EXPECT_EQ(image.completion_state(),
-            PaintImage::CompletionState::PARTIALLY_DONE);
+            PaintImage::CompletionState::kPartiallyDone);
   EXPECT_EQ(image.repetition_count(), repetition_count_);
   for (size_t i = 0; i < image.GetFrameMetadata().size(); ++i) {
     const auto& data = image.GetFrameMetadata()[i];
@@ -662,7 +672,7 @@ TEST_F(BitmapImageTestWithMockDecoder, ImageMetadataTracking) {
   image = image_->PaintImageForCurrentFrame();
   ASSERT_TRUE(image);
   EXPECT_EQ(image.FrameCount(), frame_count_);
-  EXPECT_EQ(image.completion_state(), PaintImage::CompletionState::DONE);
+  EXPECT_EQ(image.completion_state(), PaintImage::CompletionState::kDone);
   EXPECT_EQ(image.repetition_count(), repetition_count_);
   for (size_t i = 0; i < image.GetFrameMetadata().size(); ++i) {
     const auto& data = image.GetFrameMetadata()[i];
@@ -837,14 +847,25 @@ TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
     // Test images that don't report any density metrics.
     base::HistogramTester histogram_tester;
     LoadImage("rgb-jpeg-red.jpg");           // 64x64
+    // 500x500 but animation is not reported.
+    LoadBlinkWebTestsImage("webp-animated-large.webp");
+#if BUILDFLAG(ENABLE_AV1_DECODER)
     LoadImage("red-full-ranged-8bpc.avif");  // 3x3
+    // 159x159 but animation is not reported.
+    LoadBlinkWebTestsImage("avif/star-animated-8bpc.avif");
+    // 800x800 but 10-bit images are not reported.
+    LoadBlinkWebTestsImage(
+        "avif/red-at-12-oclock-with-color-profile-10bpc.avif");
+#endif
     LoadImage("animated-10color.gif");       // 100x100 but GIF is not reported.
     histogram_tester.ExpectTotalCount(
         "Blink.DecodedImage.JpegDensity.KiBWeighted", 0);
     histogram_tester.ExpectTotalCount(
-        "Blink.DecodedImage.WebPDensity.KiBWeighted", 0);
+        "Blink.DecodedImage.WebPDensity.KiBWeighted2", 0);
+#if BUILDFLAG(ENABLE_AV1_DECODER)
     histogram_tester.ExpectTotalCount(
-        "Blink.DecodedImage.AvifDensity.KiBWeighted", 0);
+        "Blink.DecodedImage.AvifDensity.KiBWeighted2", 0);
+#endif
   }
 
   // 439x154, 23220 bytes --> 2.74 bpp, 23 KiB (rounded up)
@@ -859,8 +880,14 @@ TEST_F(BitmapHistogramTest, DecodedImageDensityKiBWeighted) {
 
   // 800x800, 19436 bytes --> 0.24, 19 KiB
   ExpectImageRecordsSample("webp-color-profile-lossy.webp",
-                           "Blink.DecodedImage.WebPDensity.KiBWeighted", 24,
+                           "Blink.DecodedImage.WebPDensity.KiBWeighted2", 24,
                            19);
+
+#if BUILDFLAG(ENABLE_AV1_DECODER)
+  // 840x1120, 18769 bytes --> 0.16, 18 KiB
+  ExpectImageRecordsSample(
+      "happy_dog.avif", "Blink.DecodedImage.AvifDensity.KiBWeighted2", 16, 18);
+#endif  // BUILDFLAG(ENABLE_AV1_DECODER)
 }
 
 }  // namespace blink

@@ -21,7 +21,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser.h"
@@ -40,13 +39,12 @@
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/user_education/reopen_tab_in_product_help.h"
-#include "chrome/browser/ui/user_education/reopen_tab_in_product_help_factory.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
@@ -61,7 +59,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/peak_gpu_memory_tracker.h"
 #include "content/public/browser/web_contents.h"
 #include "ipc/ipc_message.h"
@@ -318,7 +315,7 @@ void BrowserTabStripController::AddSelectionFromAnchorTo(int model_index) {
 
 bool BrowserTabStripController::BeforeCloseTab(int model_index,
                                                CloseTabSource source) {
-  if (!model_->IsTabClosable(model_index)) {
+  if (!web_app::IsTabClosable(model_, model_index)) {
     return false;
   }
 
@@ -467,14 +464,6 @@ void BrowserTabStripController::OnDropIndexUpdate(
 }
 
 void BrowserTabStripController::CreateNewTab() {
-  // This must be called before AddTabAt() so that OmniboxFocused is called
-  // after NewTabOpened. TODO(collinbaker): remove omnibox focusing from
-  // triggering conditions (since it is always focused for new tabs) and move
-  // this after AddTabAt() call.
-  auto* reopen_tab_iph = ReopenTabInProductHelpFactory::GetForProfile(
-      browser_view_->browser()->profile());
-  reopen_tab_iph->NewTabOpened();
-
   model_->delegate()->AddTabAt(GURL(), -1, true);
 }
 
@@ -581,10 +570,6 @@ bool BrowserTabStripController::EverHasVisibleBackgroundTabShapes() const {
   return GetFrameView()->EverHasVisibleBackgroundTabShapes();
 }
 
-bool BrowserTabStripController::ShouldPaintAsActiveFrame() const {
-  return GetFrameView()->ShouldPaintAsActive();
-}
-
 bool BrowserTabStripController::CanDrawStrokes() const {
   return GetFrameView()->CanDrawStrokes();
 }
@@ -602,7 +587,7 @@ absl::optional<int> BrowserTabStripController::GetCustomBackgroundId(
 std::u16string BrowserTabStripController::GetAccessibleTabName(
     const Tab* tab) const {
   return browser_view_->GetAccessibleTabLabel(
-      false /* include_app_name */, tabstrip_->GetModelIndexOf(tab).value());
+      tabstrip_->GetModelIndexOf(tab).value(), /*is_for_tab=*/true);
 }
 
 Profile* BrowserTabStripController::GetProfile() const {
@@ -794,14 +779,6 @@ void BrowserTabStripController::AddTab(WebContents* contents, int index) {
   hover_tab_selector_.CancelTabTransition();
 
   tabstrip_->AddTabAt(index, TabRendererData::FromTabInModel(model_, index));
-  // Try to show tab groups IPH if needed.
-  if (tabstrip_->GetTabCount() >= 6) {
-    browser_view_->NotifyFeatureEngagementEvent(
-        feature_engagement::events::kSixthTabOpened);
-
-    browser_view_->MaybeShowFeaturePromo(
-        feature_engagement::kIPHDesktopTabGroupsNewGroupFeature);
-  }
 
   // Try to show tab search IPH if needed.
   constexpr int kTabSearchIPHTriggerThreshold = 8;

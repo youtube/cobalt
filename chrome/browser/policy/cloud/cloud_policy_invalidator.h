@@ -121,7 +121,7 @@ class CloudPolicyInvalidator : public invalidation::InvalidationHandler,
   // invalidation::InvalidationHandler:
   void OnInvalidatorStateChange(invalidation::InvalidatorState state) override;
   void OnIncomingInvalidation(
-      const invalidation::TopicInvalidationMap& invalidation_map) override;
+      const invalidation::Invalidation& invalidation) override;
   std::string GetOwnerName() const override;
   bool IsPublicTopic(const invalidation::Topic& topic) const override;
 
@@ -201,7 +201,7 @@ class CloudPolicyInvalidator : public invalidation::InvalidationHandler,
   raw_ptr<base::Clock> clock_;
 
   // The invalidation service.
-  raw_ptr<invalidation::InvalidationService, DanglingUntriaged>
+  raw_ptr<invalidation::InvalidationService, AcrossTasksDanglingUntriaged>
       invalidation_service_;
 
   // Whether the invalidator currently has the ability to receive invalidations.
@@ -230,11 +230,6 @@ class CloudPolicyInvalidator : public invalidation::InvalidationHandler,
   // the invalidation version of policy stored to determine when the
   // invalidated policy is up to date.
   int64_t invalidation_version_;
-
-  // The number of invalidations with unknown version received. Since such
-  // invalidations do not provide a version number, this count is used to set
-  // invalidation_version_ when such invalidations occur.
-  int unknown_version_invalidation_count_;
 
   // The highest invalidation version that was handled already.
   int64_t highest_handled_invalidation_version_;

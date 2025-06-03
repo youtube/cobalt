@@ -5,7 +5,6 @@
 import("//build/config/chrome_build.gni")
 
 source_set("identity_chooser") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "identity_chooser_coordinator.h",
     "identity_chooser_coordinator.mm",
@@ -17,9 +16,9 @@ source_set("identity_chooser") {
     ":identity_chooser_ui",
     "//base",
     "//components/prefs",
-    "//ios/chrome/browser/browser_state",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser_state",
     "//ios/chrome/browser/signin",
     "//ios/chrome/browser/signin:system_identity",
     "//ios/chrome/browser/ui/authentication/cells",
@@ -27,7 +26,6 @@ source_set("identity_chooser") {
 }
 
 source_set("identity_chooser_ui") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "identity_chooser_add_account_item.h",
     "identity_chooser_add_account_item.mm",
@@ -68,16 +66,15 @@ source_set("identity_chooser_ui") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "identity_chooser_coordinator_unittest.mm" ]
   deps = [
     ":identity_chooser",
     "//base",
     "//base/test:test_support",
-    "//ios/chrome/browser/application_context",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/main:test_support",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/browser_state:test_support",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/signin:fake_system_identity",
     "//ios/chrome/browser/signin:fake_system_identity_manager",

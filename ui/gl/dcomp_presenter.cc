@@ -17,7 +17,6 @@
 #include "ui/gl/dc_layer_tree.h"
 #include "ui/gl/direct_composition_child_surface_win.h"
 #include "ui/gl/direct_composition_support.h"
-#include "ui/gl/gl_angle_util_win.h"
 #include "ui/gl/gl_surface_egl.h"
 #include "ui/gl/vsync_thread_win.h"
 
@@ -51,8 +50,10 @@ DCompPresenter::DCompPresenter(
       max_pending_frames_(settings.max_pending_frames),
       layer_tree_(std::make_unique<DCLayerTree>(
           settings.disable_nv12_dynamic_textures,
+          settings.disable_vp_auto_hdr,
           settings.disable_vp_scaling,
           settings.disable_vp_super_resolution,
+          settings.force_dcomp_triple_buffer_video_swap_chain,
           settings.no_downscaled_overlay_promotion)) {}
 
 DCompPresenter::~DCompPresenter() {
@@ -65,11 +66,11 @@ bool DCompPresenter::Initialize() {
     return false;
   }
 
-  d3d11_device_ = QueryD3D11DeviceObjectFromANGLE();
+  d3d11_device_ = GetDirectCompositionD3D11Device();
 
   child_window_.Initialize();
 
-  if (!layer_tree_->Initialize(window())) {
+  if (!layer_tree_->Initialize(window(), d3d11_device_)) {
     return false;
   }
 
@@ -103,13 +104,7 @@ bool DCompPresenter::Resize(const gfx::Size& size,
     return false;
   }
 
-  // Force a resize and redraw (but not a move, activate, etc.).
-  if (!SetWindowPos(window(), nullptr, 0, 0, size.width(), size.height(),
-                    SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOCOPYBITS |
-                        SWP_NOOWNERZORDER | SWP_NOZORDER)) {
-    return false;
-  }
-  return true;
+  return child_window_.Resize(size);
 }
 
 gfx::VSyncProvider* DCompPresenter::GetVSyncProvider() {
@@ -174,6 +169,10 @@ bool DCompPresenter::SetDrawRectangle(const gfx::Rect& rect) {
   // Do not create query for empty damage so that 3D engine is not used when
   // only presenting video in overlay.
   create_query_this_frame_ = !rect.IsEmpty();
+  return true;
+}
+
+bool DCompPresenter::SupportsViewporter() const {
   return true;
 }
 

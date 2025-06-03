@@ -7,7 +7,7 @@
 
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,6 +17,12 @@ namespace internal {
 
 class BytecodeArray;
 class CodeDesc;
+class Factory;
+template <typename Impl>
+class FactoryBase;
+class LocalFactory;
+class SafepointEntry;
+class RootVisitor;
 
 enum class Builtin;
 
@@ -47,7 +53,10 @@ enum class Builtin;
 //  |                          |  <-- MS + unwinding_info_offset()
 //  +--------------------------+  <-- MetadataEnd()
 //
-class Code : public HeapObject {
+// When the sandbox is enabled, Code objects are allocated outside the sandbox
+// and referenced through indirect pointers, so they need to inherit from
+// ExposedTrustedObject.
+class Code : public ExposedTrustedObject {
  public:
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -60,12 +69,12 @@ class Code : public HeapObject {
   // object is InReadOnlySpace. That may only be the case for Code objects
   // representing builtins, or in other words, Code objects for which
   // has_instruction_stream() is never true.
-  DECL_GETTER(instruction_stream, InstructionStream)
-  DECL_RELAXED_GETTER(instruction_stream, InstructionStream)
-  DECL_ACCESSORS(raw_instruction_stream, Object)
-  DECL_RELAXED_GETTER(raw_instruction_stream, Object)
+  DECL_GETTER(instruction_stream, Tagged<InstructionStream>)
+  DECL_RELAXED_GETTER(instruction_stream, Tagged<InstructionStream>)
+  DECL_ACCESSORS(raw_instruction_stream, Tagged<Object>)
+  DECL_RELAXED_GETTER(raw_instruction_stream, Tagged<Object>)
   // An unchecked accessor to be used during GC.
-  inline InstructionStream unchecked_instruction_stream() const;
+  inline Tagged<InstructionStream> unchecked_instruction_stream() const;
 
   // Whether this Code object has an associated InstructionStream (embedded
   // builtins don't).
@@ -79,15 +88,15 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
+  inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void SetInstructionStreamAndInstructionStart(
-      Isolate* isolate_for_sandbox, InstructionStream code,
+      Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                                    Address entry);
-  inline void SetInstructionStartForSerialization(Isolate* isolate,
-                                                  Address entry);
+  inline void ClearInstructionStartForSerialization(Isolate* isolate);
   inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
-                                     InstructionStream istream);
+                                     Tagged<InstructionStream> istream);
 
   inline void initialize_flags(CodeKind kind, bool is_turbofanned,
                                int stack_slots);
@@ -111,16 +120,16 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, FixedArray)
+  DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  DECL_ACCESSORS(bytecode_or_interpreter_data, HeapObject)
+  DECL_ACCESSORS(bytecode_or_interpreter_data, Tagged<HeapObject>)
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
-  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
-  DECL_ACCESSORS(bytecode_offset_table, ByteArray)
+  DECL_ACCESSORS(bytecode_offset_table, Tagged<ByteArray>)
   DECL_PRIMITIVE_ACCESSORS(inlined_bytecode_size, unsigned)
   DECL_PRIMITIVE_ACCESSORS(osr_offset, BytecodeOffset)
   // [code_comments_offset]: Offset of the code comment section.
@@ -129,7 +138,7 @@ class Code : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(constant_pool_offset, int)
 
   // Unchecked accessors to be used during GC.
-  inline FixedArray unchecked_deoptimization_data() const;
+  inline Tagged<FixedArray> unchecked_deoptimization_data() const;
 
   DECL_RELAXED_UINT32_ACCESSORS(flags)
 
@@ -170,8 +179,8 @@ class Code : public HeapObject {
   // reserved in the code prologue; otherwise 0.
   inline int stack_slots() const;
 
-  inline ByteArray SourcePositionTable(Isolate* isolate,
-                                       SharedFunctionInfo sfi) const;
+  inline Tagged<ByteArray> SourcePositionTable(
+      Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
 
   inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;
@@ -184,7 +193,8 @@ class Code : public HeapObject {
   inline Address constant_pool() const;
   // An accessor to be used during GC if the instruction_stream moved and the
   // field was not updated yet.
-  inline Address constant_pool(InstructionStream instruction_stream) const;
+  inline Address constant_pool(
+      Tagged<InstructionStream> instruction_stream) const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
@@ -197,8 +207,8 @@ class Code : public HeapObject {
   inline int unwinding_info_size() const;
   inline bool has_unwinding_info() const;
 
-  inline byte* relocation_start() const;
-  inline byte* relocation_end() const;
+  inline uint8_t* relocation_start() const;
+  inline uint8_t* relocation_end() const;
   inline int relocation_size() const;
 
   inline int safepoint_table_offset() const { return 0; }
@@ -243,9 +253,10 @@ class Code : public HeapObject {
   void SetMarkedForDeoptimization(Isolate* isolate, const char* reason);
 
   inline bool CanContainWeakObjects();
-  inline bool IsWeakObject(HeapObject object);
-  static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
-  static inline bool IsWeakObjectInDeoptimizationLiteralArray(Object object);
+  inline bool IsWeakObject(Tagged<HeapObject> object);
+  static inline bool IsWeakObjectInOptimizedCode(Tagged<HeapObject> object);
+  static inline bool IsWeakObjectInDeoptimizationLiteralArray(
+      Tagged<Object> object);
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -257,20 +268,16 @@ class Code : public HeapObject {
   inline bool embedded_objects_cleared() const;
   inline void set_embedded_objects_cleared(bool flag);
 
-  // Migrate code from desc without flushing the instruction cache.
-  void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
-  void RelocateFromDesc(Heap* heap, const CodeDesc& desc);
-
   bool IsIsolateIndependent(Isolate* isolate);
 
-  inline uintptr_t GetBaselineStartPCForBytecodeOffset(int bytecode_offset,
-                                                       BytecodeArray bytecodes);
+  inline uintptr_t GetBaselineStartPCForBytecodeOffset(
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
-  inline uintptr_t GetBaselineEndPCForBytecodeOffset(int bytecode_offset,
-                                                     BytecodeArray bytecodes);
+  inline uintptr_t GetBaselineEndPCForBytecodeOffset(
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
   // Returns true if the function is inlined in the code.
-  bool Inlines(SharedFunctionInfo sfi);
+  bool Inlines(Tagged<SharedFunctionInfo> sfi);
 
   // Returns the PC of the next bytecode in execution order.
   // If the bytecode at the given offset is JumpLoop, the PC of the jump target
@@ -278,19 +285,23 @@ class Code : public HeapObject {
   // For other bytecodes this is equivalent to
   // GetBaselineEndPCForBytecodeOffset.
   inline uintptr_t GetBaselinePCForNextExecutedBytecode(
-      int bytecode_offset, BytecodeArray bytecodes);
+      int bytecode_offset, Tagged<BytecodeArray> bytecodes);
 
   inline int GetBytecodeOffsetForBaselinePC(Address baseline_pc,
-                                            BytecodeArray bytecodes);
+                                            Tagged<BytecodeArray> bytecodes);
 
   inline void IterateDeoptimizationLiterals(RootVisitor* v);
 
-  static inline Code FromTargetAddress(Address address);
+  static inline Tagged<Code> FromTargetAddress(Address address);
 
 #ifdef ENABLE_DISASSEMBLER
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
                                      Isolate* isolate,
                                      Address current_pc = kNullAddress);
+  V8_EXPORT_PRIVATE void DisassembleOnlyCode(const char* name, std::ostream& os,
+                                             Isolate* isolate,
+                                             Address current_pc,
+                                             size_t range_limit);
 #endif  // ENABLE_DISASSEMBLER
 
 #ifdef OBJECT_PRINT
@@ -312,7 +323,12 @@ class Code : public HeapObject {
   V(kInstructionStreamOffset, kTaggedSize)                                    \
   V(kEndOfStrongFieldsOffset, 0)                                              \
   /* Untagged data not directly visited by GC starts here. */                 \
-  V(kInstructionStartOffset, kSystemPointerSize)                              \
+  /* When the sandbox is off, the instruction_start field contains a raw */   \
+  /* pointer to the first instruction of this Code. */                        \
+  /* If the sandbox is on, this field does not exist. Instead, the */         \
+  /* instruction_start is stored in this Code's code pointer table entry */   \
+  /* referenced via the kSelfIndirectPointerOffset field */                   \
+  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize) \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \
@@ -330,7 +346,9 @@ class Code : public HeapObject {
   /* Total size. */                                                           \
   V(kSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize,
+                                CODE_DATA_FIELDS)
+
 #undef CODE_DATA_FIELDS
 
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -363,19 +381,19 @@ class Code : public HeapObject {
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
       MarkedForDeoptimizationField::kShift;
+  static const int kIsTurbofannedBit = IsTurbofannedField::kShift;
 
   // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 2;
 
  private:
-  inline void init_instruction_start(Isolate* isolate, Address initial_value);
   inline void set_instruction_start(Isolate* isolate, Address value);
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  HeapObject raw_deoptimization_data_or_interpreter_data() const;
-  ByteArray raw_position_table() const;
+  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<ByteArray> raw_position_table() const;
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
@@ -384,18 +402,17 @@ class Code : public HeapObject {
     // of non-topmost frame).
     kPcAtEndOfBytecode
   };
-  inline uintptr_t GetBaselinePCForBytecodeOffset(int bytecode_offset,
-                                                  BytecodeToPCPosition position,
-                                                  BytecodeArray bytecodes);
+  inline uintptr_t GetBaselinePCForBytecodeOffset(
+      int bytecode_offset, BytecodeToPCPosition position,
+      Tagged<BytecodeArray> bytecodes);
 
   template <typename IsolateT>
   friend class Deserializer;
-  friend class ReadOnlyDeserializer;  // For init_instruction_start.
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
 
-  OBJECT_CONSTRUCTORS(Code, HeapObject);
+  OBJECT_CONSTRUCTORS(Code, ExposedTrustedObject);
 };
 
 // A Code object when used in situations where gc might be in progress. The
@@ -422,7 +439,7 @@ class GcSafeCode : public HeapObject {
 
   // Use with care, this casts away knowledge that we're dealing with a
   // special-semantics object.
-  inline Code UnsafeCastToCode() const;
+  inline Tagged<Code> UnsafeCastToCode() const;
 
   // Safe accessors (these just forward to Code methods).
   inline Address instruction_start() const;
@@ -438,9 +455,9 @@ class GcSafeCode : public HeapObject {
   inline bool is_turbofanned() const;
   inline bool has_tagged_outgoing_params() const;
   inline bool marked_for_deoptimization() const;
-  inline Object raw_instruction_stream() const;
+  inline Tagged<Object> raw_instruction_stream() const;
   inline Address constant_pool() const;
-  inline Address constant_pool(InstructionStream istream) const;
+  inline Address constant_pool(Tagged<InstructionStream> istream) const;
   inline Address safepoint_table_address() const;
   inline int stack_slots() const;
 
@@ -448,7 +465,8 @@ class GcSafeCode : public HeapObject {
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
-  inline Object raw_instruction_stream(PtrComprCageBase code_cage_base) const;
+  inline Tagged<Object> raw_instruction_stream(
+      PtrComprCageBase code_cage_base) const;
 
  private:
   OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);

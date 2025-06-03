@@ -47,17 +47,17 @@ found in the LICENSE file.
                 android:ellipsize="none"
                 android:singleLine="true"
                 android:textAppearance="@style/TextAppearance.TextMediumThick.Primary"/>
-            <org.chromium.chrome.browser.tasks.tab_management.TabGridThumbnailView
+            <org.chromium.chrome.browser.tasks.tab_management.TabThumbnailView
                 android:id="@+id/tab_thumbnail"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_below="@id/tab_title"
                 android:layout_marginLeft="@dimen/tab_grid_card_thumbnail_margin"
                 android:layout_marginRight="@dimen/tab_grid_card_thumbnail_margin"
                 android:layout_marginBottom="@dimen/tab_grid_card_thumbnail_margin"
                 android:gravity="center_horizontal"
                 android:scaleType="fitCenter"
-                android:adjustViewBounds="true"
+                android:adjustViewBounds="false"
                 android:importantForAccessibility="no"
                 android:src="@color/thumbnail_placeholder_on_primary_bg"
                 app:cornerRadiusTopStart="@dimen/tab_grid_card_thumbnail_corner_radius_top"

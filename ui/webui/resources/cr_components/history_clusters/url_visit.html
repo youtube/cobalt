@@ -6,6 +6,10 @@
     min-height: 64px;
   }
 
+  :host-context([chrome-refresh-2023]):host([in-side-panel_]) {
+    min-height: 48px;
+  }
+
   :host(:hover) {
     background-color: var(--cr-hover-background-color);
   }
@@ -25,6 +29,20 @@
 
   .hide-visit-icon {
     --cr-icon-image: url(chrome://resources/cr_components/history_clusters/hide_source_gm_grey_24dp.svg);
+  }
+
+  :host([in-side-panel_]) .hide-visit-icon {
+    --cr-icon-button-icon-size: 16px;
+    --cr-icon-button-size: 24px;
+  }
+
+  .icon-more-vert {
+    --cr-icon-button-margin-start: 0;
+  }
+
+  :host([in-side-panel_]) .icon-more-vert {
+    --cr-icon-button-icon-size: 16px;
+    --cr-icon-button-size: 24px;
   }
 
   #header {
@@ -58,8 +76,15 @@
     margin-inline-end: 0;
   }
 
+  :host-context([chrome-refresh-2023]):host([in-side-panel_]) #icon {
+    background-color: var(--color-list-item-url-favicon-background,
+      var(--cr-fallback-color-neutral-container));
+    height: 40px;
+    width: 40px;
+  }
+
   :host-context(.focus-outline-visible) #link-container:focus {
-    box-shadow: inset 0 0 0 2px var(--cr-focus-outline-color);
+    box-shadow: 0 0 0 2px var(--cr-focus-outline-color);
   }
 
   #page-info {
@@ -100,6 +125,11 @@
     line-height: calc(20/13);  /* 20px */
   }
 
+  :host-context([chrome-refresh-2023]):host([in-side-panel_]) #title {
+    font-size: .75rem; /* 12px */
+    font-weight: 500;
+  }
+
   #url {
     color: var(--url-color);
     line-height: 1.5;  /* 24px */
@@ -109,6 +139,11 @@
     color: var(--side-panel-url-color);
     font-size: .75rem;  /* 12px */
     line-height: calc(5/3);  /* 20px */
+  }
+
+  :host-context([chrome-refresh-2023]):host([in-side-panel_]) #url {
+    color: var(--color-history-clusters-side-panel-card-secondary-foreground);
+    font-size: .6875rem; /* 11px */
   }
 
   #debug-info {
@@ -136,11 +171,11 @@
     <cr-icon-button class="hide-visit-icon"
         title$="[[i18n('hideFromCluster')]]"
         on-click="onHideSelfButtonClick_"
-        hidden="[[!showHideVisitIcon_]]"></cr-icon-button>
+        hidden="[[!fromPersistence]]"></cr-icon-button>
     <cr-icon-button id="actionMenuButton" class="icon-more-vert"
         title$="[[i18n('actionMenuDescription')]]" aria-haspopup="menu"
         on-click="onActionMenuButtonClick_"
-        hidden="[[!showActionMenuButton_]]">
+        hidden="[[!allowDeletingHistory_]]">
     </cr-icon-button>
   </div>
 </div>
@@ -148,10 +183,6 @@
 <cr-lazy-render id="actionMenu">
   <template>
     <cr-action-menu role-description="[[i18n('actionMenuDescription')]]">
-      <button id="hideSelfButton" class="dropdown-item" hidden="[[!showHideVisitMenu_]]"
-          on-click="onHideSelfButtonClick_">
-        [[i18n('hideFromCluster')]]
-      </button>
       <button id="removeSelfButton" class="dropdown-item" hidden="[[!allowDeletingHistory_]]"
           on-click="onRemoveSelfButtonClick_">
         [[i18n('removeFromHistory')]]

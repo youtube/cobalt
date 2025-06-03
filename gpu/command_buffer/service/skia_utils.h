@@ -6,7 +6,7 @@
 #define GPU_COMMAND_BUFFER_SERVICE_SKIA_UTILS_H_
 
 #include "base/functional/callback_forward.h"
-#include "components/viz/common/resources/resource_format.h"
+#include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/gpu_gles2_export.h"
 #include "gpu/ipc/common/vulkan_ycbcr_info.h"
@@ -16,10 +16,7 @@
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/GrTypes.h"
-
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
 #include "third_party/skia/include/gpu/graphite/ContextOptions.h"
-#endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
 #include "third_party/skia/include/gpu/vk/GrVkTypes.h"
@@ -36,11 +33,16 @@ class SkImage;
 
 namespace gfx {
 class Size;
+class ColorSpace;
 }  // namespace gfx
 
 namespace viz {
 class VulkanContextProvider;
 }  // namespace viz
+
+namespace skgpu::graphite {
+struct InsertRecordingInfo;
+}  // namespace skgpu::graphite
 
 namespace gpu {
 
@@ -57,10 +59,8 @@ class SharedContextState;
 // Returns default GrContextOptions.
 GPU_GLES2_EXPORT GrContextOptions GetDefaultGrContextOptions();
 
-#if BUILDFLAG(ENABLE_SKIA_GRAPHITE)
 GPU_GLES2_EXPORT skgpu::graphite::ContextOptions
-GetDefaultGraphiteContextOptions();
-#endif
+GetDefaultGraphiteContextOptions(const GpuDriverBugWorkarounds& workarounds);
 
 // Returns internal gl format of texture for Skia for given `gl_storage_format`.
 GPU_GLES2_EXPORT GLuint GetGrGLBackendTextureFormat(
@@ -83,6 +83,11 @@ GPU_GLES2_EXPORT bool GetGrBackendTexture(
 GPU_GLES2_EXPORT void AddCleanupTaskForSkiaFlush(base::OnceClosure task,
                                                  GrFlushInfo* flush_info);
 
+// Adds a task to be executed when the recording in |info| finishes on the GPU.
+GPU_GLES2_EXPORT void AddCleanupTaskForGraphiteRecording(
+    base::OnceClosure task,
+    skgpu::graphite::InsertRecordingInfo* info);
+
 // Helper which associates cleanup callbacks with a Skia GrFlushInfo's callback.
 // Is a no-op if |context_provider| is null.
 GPU_GLES2_EXPORT void AddVulkanCleanupTaskForSkiaFlush(
@@ -100,11 +105,14 @@ GPU_GLES2_EXPORT void DeleteSkSurface(SharedContextState* context_state,
                                       sk_sp<SkSurface> sk_surface);
 
 #if BUILDFLAG(ENABLE_VULKAN)
-GPU_GLES2_EXPORT GrVkImageInfo CreateGrVkImageInfo(VulkanImage* image);
+GPU_GLES2_EXPORT GrVkImageInfo
+CreateGrVkImageInfo(VulkanImage* image, const gfx::ColorSpace& color_space);
 
 GPU_GLES2_EXPORT GrVkYcbcrConversionInfo CreateGrVkYcbcrConversionInfo(
     VkPhysicalDevice physical_device,
     VkImageTiling tiling,
+    VkFormat format,
+    const gfx::ColorSpace& color_space,
     const absl::optional<VulkanYCbCrInfo>& ycbcr_info);
 #endif  // BUILDFLAG(ENABLE_VULKAN)
 

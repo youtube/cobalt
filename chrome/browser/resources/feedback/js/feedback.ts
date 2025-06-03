@@ -2,8 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {$, getRequiredElement} from 'chrome://resources/js/util_ts.js';
+// <if expr="chromeos_ash">
+import './jelly_colors.js';
+
+// </if>
+
+import {assert} from 'chrome://resources/js/assert.js';
+import {$, getRequiredElement} from 'chrome://resources/js/util.js';
 
 import {FEEDBACK_LANDING_PAGE, FEEDBACK_LANDING_PAGE_TECHSTOP, FEEDBACK_LEGAL_HELP_URL, FEEDBACK_PRIVACY_POLICY_URL, FEEDBACK_TERM_OF_SERVICE_URL, openUrlInAppWindow} from './feedback_util.js';
 import {domainQuestions, questionnaireBegin, questionnaireNotification} from './questionnaire.js';
@@ -199,6 +204,21 @@ const thunderboltRegEx = buildWordMatcher([
 ]);
 
 /**
+ * Regular expression to check for Audio-related keywords.
+ */
+ const audioRegEx = buildWordMatcher([
+  'audio',
+  'sound',
+  'mic',
+  'speaker',
+  'headphone',
+  'headset',
+  'recording',
+  'volume',
+  'earbud',
+]);
+
+/**
  * Regular expression to check for all strings indicating that a user can't
  * connect to a HID or Audio device. This is also a likely indication of a
  * Bluetooth related issue.
@@ -370,6 +390,10 @@ function checkForShowQuestionnaire(inputEvent: Event) {
 
   if (displayRegEx.test(matchedText)) {
     toAppend.push(...domainQuestions['display']);
+  }
+
+  if (audioRegEx.test(matchedText)) {
+    toAppend.push(...domainQuestions['audio']);
   }
 
   if (thunderboltRegEx.test(matchedText)) {
@@ -684,6 +708,8 @@ function initialize() {
 
       // Now we can unhide the user email section:
       getRequiredElement('user-email').hidden = false;
+      // Only show email consent checkbox when an email address exists.
+      getRequiredElement('consent-container').hidden = false;
     });
 
     // An extension called us with an attached file.

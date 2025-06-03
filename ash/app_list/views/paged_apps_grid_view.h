@@ -106,6 +106,7 @@ class ASH_EXPORT PagedAppsGridView : public AppsGridView,
   int GetNumberOfPulsingBlocksToShow(int item_count) const override;
   void MaybeStartCardifiedView() override;
   void MaybeEndCardifiedView() override;
+  bool IsAnimatingCardifiedState() const override;
   bool MaybeStartPageFlip() override;
   void MaybeStopPageFlip() override;
   bool MaybeAutoScroll() override;
@@ -123,7 +124,7 @@ class ASH_EXPORT PagedAppsGridView : public AppsGridView,
   void EnsureViewVisible(const GridIndex& index) override;
   absl::optional<VisibleItemIndexRange> GetVisibleItemIndexRange()
       const override;
-  base::ScopedClosureRunner LockAppsGridOpacity() override;
+  bool ShouldContainerHandleDragEvents() override;
 
   // PaginationModelObserver:
   void SelectedPageChanged(int old_selected, int new_selected) override;
@@ -347,8 +348,8 @@ class ASH_EXPORT PagedAppsGridView : public AppsGridView,
 
   void StackCardsAtBottom() override;
 
-  // If true, ignore the calls on `UpdateOpacity()`.
-  bool lock_opacity_ = false;
+  // Whether the apps grid is currently animating  the cardified state.
+  bool is_animating_cardified_state_ = false;
 
   // The callback that runs once cardified state is ended.
   base::RepeatingClosure cardified_state_ended_test_callback_;

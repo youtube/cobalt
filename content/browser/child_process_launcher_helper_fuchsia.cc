@@ -40,6 +40,8 @@ const char* ProcessNameFromSandboxType(sandbox::mojom::Sandbox sandbox_type) {
       return "audio";
     case sandbox::mojom::Sandbox::kCdm:
       return "cdm";
+    case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
+      return "on-device-model-execution";
     case sandbox::mojom::Sandbox::kPrintCompositor:
       return "print-compositor";
     case sandbox::mojom::Sandbox::kSpeechRecognition:
@@ -53,9 +55,9 @@ const char* ProcessNameFromSandboxType(sandbox::mojom::Sandbox sandbox_type) {
 
 }  // namespace
 
-void ChildProcessLauncherHelper::SetProcessBackgroundedOnLauncherThread(
+void ChildProcessLauncherHelper::SetProcessPriorityOnLauncherThread(
     base::Process process,
-    bool is_background) {
+    base::Process::Priority priority) {
   DCHECK(CurrentlyOnProcessLauncherTaskRunner());
   // TODO(https://crbug.com/926583): Fuchsia does not currently support this.
 }

@@ -5,11 +5,14 @@ include_rules = [
   "+base",
   "+base/component_export.h",
   "+chromeos/ash/components/feature_usage",
+  "+chromeos/ash/components/install_attributes",
   "+chromeos/ash/components/login/login_state",
   "+chromeos/ash/components/dbus",
   "+chromeos/ash/services/hotspot_config/public",
   "+chromeos/ash/services/network_config/public",
+  "+chromeos/ash/services/cellular_setup/public",
   "+chromeos/components/onc",
+  "+chromeos/ash/components/cryptohome",
   "+chromeos/dbus",
   "+chromeos/services/network_config/public",
   "+chromeos/test",
@@ -30,6 +33,7 @@ include_rules = [
   "+services/preferences/public/cpp",
   "+testing",
   "+third_party/cros_system_api",
+  "+third_party/re2",
   "+url",
 
   # Abseil is allowed by default, but some features are banned. See
@@ -38,6 +42,7 @@ include_rules = [
   '+third_party/abseil-cpp',
   '-third_party/abseil-cpp/absl/algorithm/container.h',
   '-third_party/abseil-cpp/absl/container',
+  '+third_party/abseil-cpp/absl/container/inlined_vector.h',
   '-third_party/abseil-cpp/absl/crc',
   '-third_party/abseil-cpp/absl/flags',
   '-third_party/abseil-cpp/absl/functional/any_invocable.h',
@@ -59,10 +64,17 @@ specific_include_rules = {
  "ui_proxy_config_service_unittest.cc": [
     "+components/sync_preferences/testing_pref_service_syncable.h"
   ],
+ "managed_network_configuration_handler_impl.cc": [
+    "+ash/components/arc/arc_prefs.h"
+ ],
  "managed_network_configuration_handler_unittest.cc": [
+    "+ash/components/arc/arc_prefs.h",
     "+components/sync_preferences/testing_pref_service_syncable.h"
   ],
  "cellular_policy_handler_unittest.cc": [
+    "+components/sync_preferences/testing_pref_service_syncable.h"
+  ],
+ "cellular_policy_handler_unittest_legacy.cc": [
     "+components/sync_preferences/testing_pref_service_syncable.h"
   ],
  "network_metadata_store_unittest.cc": [

@@ -16,9 +16,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/task_environment.h"
+#include "components/password_manager/core/browser/affiliation/fake_affiliation_service.h"
 #include "components/password_manager/core/browser/affiliation/mock_affiliation_service.h"
-#include "components/password_manager/core/browser/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_check_factory.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_request_utils.h"
 #include "components/password_manager/core/browser/leak_detection/mock_leak_detection_check_factory.h"
@@ -94,7 +95,7 @@ struct MockBulkLeakCheck : BulkLeakCheck {
 
 using NiceMockBulkLeakCheck = ::testing::NiceMock<MockBulkLeakCheck>;
 
-class BulkLeakCheckServiceAdapterTest : public ::testing::Test {
+class BulkLeakCheckServiceAdapterTest : public testing::Test {
  public:
   BulkLeakCheckServiceAdapterTest() {
     auto factory = std::make_unique<MockLeakDetectionCheckFactory>();
@@ -128,7 +129,7 @@ class BulkLeakCheckServiceAdapterTest : public ::testing::Test {
   signin::IdentityTestEnvironment identity_test_env_;
   scoped_refptr<TestPasswordStore> store_ =
       base::MakeRefCounted<TestPasswordStore>();
-  MockAffiliationService affiliation_service_;
+  FakeAffiliationService affiliation_service_;
   SavedPasswordsPresenter presenter_{&affiliation_service_, store_,
                                      /*account_store=*/nullptr};
   BulkLeakCheckService service_{

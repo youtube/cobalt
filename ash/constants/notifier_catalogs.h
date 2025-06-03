@@ -167,7 +167,7 @@ enum class NotificationCatalogName {
   kArcLowDiskSpacePostStop = 152,
   kMultiCapture = 153,
   kPrivacyHubCamera = 154,
-  kPrivacyHubHWCameraSwitchOffSWCameraSwitchOn = 155,
+  // [Deprecated] kPrivacyHubHWCameraSwitchOffSWCameraSwitchOn = 155,
   kEcheAppNetworkSetting = 156,
   kPrivacyHubMicAndCamera = 157,
   kArcVmDataMigration = 158,
@@ -184,7 +184,13 @@ enum class NotificationCatalogName {
   kHotspot = 169,
   kGeolocationSwitch = 170,
   kMultiCaptureOnLogin = 171,
-  kMaxValue = kMultiCaptureOnLogin
+  kFloatingWorkspace = 172,
+  kScalableIphNotification = 173,
+  kUpdateNotification = 174,
+  kSubAppsUninstall = 175,
+  kNetworkCarrierUnlock = 176,
+  kCoralFeature = 177,
+  kMaxValue = kCoralFeature
 };
 
 // A living catalog that registers system nudges.
@@ -204,7 +210,19 @@ enum class NudgeCatalogName {
   kClipboardHistoryZeroState = 7,
   kClipboardHistoryOnboarding = 8,
   kDisableDiacritics = 9,
-  kMaxValue = kDisableDiacritics,
+  kClipboardHistoryDuplicateCopy = 10,
+  kVideoConferenceTraySpeakOnMuteDetected = 11,
+  kVideoConferenceTrayMicrophoneUseWhileHWDisabled = 12,
+  kVideoConferenceTrayMicrophoneUseWhileSWDisabled = 13,
+  kVideoConferenceTrayCameraUseWhileHWDisabled = 14,
+  kVideoConferenceTrayCameraUseWhileSWDisabled = 15,
+  kVideoConferenceTraySpeakOnMuteOptIn = 16,
+  // [Deprecated] kVideoConferenceTraySpeakOnMuteOptInConfirmation = 17,
+  kScalableIphBubble = 18,
+  kVideoConferenceTrayCameraMicrophoneUseWhileDisabled = 19,
+  kMultitaskMenuClamshell = 20,
+  kMultitaskMenuTablet = 21,
+  kMaxValue = kMultitaskMenuTablet
 };
 
 // A living catalog that registers toasts.
@@ -227,7 +245,7 @@ enum class ToastCatalogName {
   kEncourageUnlock = 12,
   kNetworkAutoConnect = 13,
   kAssistantLoading = 14,
-  kToastManagerUnittest = 15,
+  kTestCatalogName = 15,
   kMaximumDeskLaunchTemplate = 16,
   kEnterOverviewGesture = 17,
   kExitOverviewGesture = 18,
@@ -252,11 +270,16 @@ enum class ToastCatalogName {
   kEcheTrayCopyPasteNotImplemented = 37,
   kEcheTrayTabletModeNotSupported = 38,
   kNotificationCenterTrayNoNotifications = 39,
-  kCopyToClipboardAction = 40,
-  kVideoConferenceTraySpeakOnMuteDetected = 41,
+  // [Deprecated] kCopyToClipboardAction = 40,
+  // [Deprecated] kVideoConferenceTraySpeakOnMuteDetected = 41,
   kCopyGifToClipboardAction = 42,
-  kVideoConferenceTrayUseWhileDisabled = 43,
-  kMaxValue = kVideoConferenceTrayUseWhileDisabled,
+  // [Deprecated] kVideoConferenceTrayUseWhileDisabled = 43,
+  kBatterySaverDisabled = 44,
+  kDictationNoFocusedTextField = 45,
+  kBatterySaverEnabled = 46,
+  kDictationMicMuted = 47,
+  kVideoConferenceTraySpeakOnMuteOptInConfirmation = 48,
+  kMaxValue = kVideoConferenceTraySpeakOnMuteOptInConfirmation
 };
 
 }  // namespace ash

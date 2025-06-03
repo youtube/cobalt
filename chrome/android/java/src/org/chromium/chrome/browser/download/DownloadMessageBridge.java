@@ -4,8 +4,16 @@
 
 package org.chromium.chrome.browser.download;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import android.content.Context;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManagerProvider;
+import org.chromium.ui.base.WindowAndroid;
 
 public class DownloadMessageBridge {
     private long mNativeDownloadMessageBridge;
@@ -30,6 +38,20 @@ public class DownloadMessageBridge {
                         /*otrProfileID=*/null);
         messageUiController.showIncognitoDownloadMessage(
                 (accepted) -> { onConfirmed(callbackId, accepted); });
+    }
+
+    @CalledByNative
+    public void showUnsupportedDownloadMessage(WindowAndroid window) {
+        SnackbarManager snackbarManager = SnackbarManagerProvider.from(window);
+        if (snackbarManager == null) return;
+
+        Context context = window.getContext().get();
+        Snackbar snackbar =
+                Snackbar.make(context.getString(R.string.download_file_type_not_supported), null,
+                        Snackbar.TYPE_NOTIFICATION, Snackbar.UMA_AUTO_LOGIN);
+        snackbar.setAction(context.getString(R.string.ok), null);
+        snackbar.setSingleLine(false);
+        snackbarManager.showSnackbar(snackbar);
     }
 
     @CalledByNative

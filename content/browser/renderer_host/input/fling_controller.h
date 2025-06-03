@@ -7,9 +7,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "content/browser/renderer_host/input/touchpad_tap_suppression_controller.h"
-#include "content/browser/renderer_host/input/touchscreen_tap_suppression_controller.h"
 #include "content/common/content_export.h"
+#include "content/common/input/touchpad_tap_suppression_controller.h"
+#include "content/common/input/touchscreen_tap_suppression_controller.h"
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
 #include "ui/events/blink/fling_booster.h"
 
@@ -165,7 +165,7 @@ class CONTENT_EXPORT FlingController {
   raw_ptr<FlingControllerEventSenderClient, DanglingUntriaged>
       event_sender_client_;
 
-  raw_ptr<FlingControllerSchedulerClient> scheduler_client_;
+  raw_ptr<FlingControllerSchedulerClient, DanglingUntriaged> scheduler_client_;
 
   // An object tracking the state of touchpad on the delivery of mouse events to
   // the renderer to filter mouse immediately after a touchpad fling canceling

@@ -133,6 +133,11 @@ class CONTENT_EXPORT MediaStreamManager
   // logging from webrtcLoggingPrivate API. Safe to call from any thread.
   static void SendMessageToNativeLog(const std::string& message);
 
+  // Returns the current MediaStreamManager instance. This is used to get access
+  // to the getters that return objects owned by MediaStreamManager.
+  // Must be called on the IO thread.
+  static MediaStreamManager* GetInstance();
+
   explicit MediaStreamManager(media::AudioSystem* audio_system);
 
   // |audio_system| is required but defaults will be used if either
@@ -173,21 +178,21 @@ class CONTENT_EXPORT MediaStreamManager
 
   // Creates a new media access request which is identified by a unique string
   // that's returned to the caller. This will trigger the infobar and ask users
-  // for access to the device. |render_process_id| and |render_frame_id| are
-  // used to determine where the infobar will appear to the user. |callback| is
-  // used to send the selected device to the clients. An empty list of device
-  // will be returned if the users deny the access.
-  std::string MakeMediaAccessRequest(int render_process_id,
-                                     int render_frame_id,
-                                     int requester_id,
-                                     int page_request_id,
-                                     const blink::StreamControls& controls,
-                                     const url::Origin& security_origin,
-                                     MediaAccessRequestCallback callback);
+  // for access to the device. `render_frame_host_id` is used to determine where
+  // the infobar will appear to the user. |callback| is used to send the
+  // selected device to the clients. An empty list of device will be returned if
+  // the users deny the access.
+  std::string MakeMediaAccessRequest(
+      GlobalRenderFrameHostId render_frame_host_id,
+      int requester_id,
+      int page_request_id,
+      const blink::StreamControls& controls,
+      const url::Origin& security_origin,
+      MediaAccessRequestCallback callback);
 
   // GenerateStream opens new media devices according to |controls|. It creates
   // a new request which is identified by a unique string that's returned to the
-  // caller. |render_process_id| and |render_frame_id| are used to determine
+  // caller. `render_frame_host_id` is used to determine
   // where the infobar will appear to the user. |device_stopped_cb| is set to
   // receive device stopped notifications. |device_changed_cb| is set to receive
   // device changed notifications. |device_request_state_change_cb| is used to
@@ -195,8 +200,7 @@ class CONTENT_EXPORT MediaStreamManager
   // TODO(crbug.com/1288839): Package device-related callbacks into a single
   // struct.
   void GenerateStreams(
-      int render_process_id,
-      int render_frame_id,
+      GlobalRenderFrameHostId render_frame_host_id,
       int requester_id,
       int page_request_id,
       const blink::StreamControls& controls,
@@ -217,8 +221,7 @@ class CONTENT_EXPORT MediaStreamManager
   void GetOpenDevice(
       const base::UnguessableToken& device_session_id,
       const base::UnguessableToken& transfer_id,
-      int render_process_id,
-      int render_frame_id,
+      GlobalRenderFrameHostId requesting_render_frame_host_id,
       int requester_id,
       int page_request_id,
       MediaDeviceSaltAndOrigin salt_and_origin,
@@ -232,8 +235,7 @@ class CONTENT_EXPORT MediaStreamManager
 
   // Cancel an open request identified by |page_request_id| for the given frame.
   // Must be called on the IO thread.
-  void CancelRequest(int render_process_id,
-                     int render_frame_id,
+  void CancelRequest(GlobalRenderFrameHostId render_frame_host_id,
                      int requester_id,
                      int page_request_id);
 
@@ -241,10 +243,9 @@ class CONTENT_EXPORT MediaStreamManager
   // thread.
   void CancelRequest(const std::string& label);
 
-  // Cancel all requests for the given |render_process_id| and
-  // |render_frame_id|. Must be called on the IO thread.
-  void CancelAllRequests(int render_process_id,
-                         int render_frame_id,
+  // Cancel all requests for the given `render_frame_host_id`. Must be called on
+  // the IO thread.
+  void CancelAllRequests(GlobalRenderFrameHostId render_frame_host_id,
                          int requester_id);
 
   // Closes the stream device for a certain render frame. The stream must have
@@ -253,8 +254,7 @@ class CONTENT_EXPORT MediaStreamManager
   // GetOpenDevice, doesn't affect the original MediaStreamDevice it was created
   // from. Similarly, closing the original MediaStreamDevice, created by
   // GenerateStream, doesn't affect the cloned device.
-  void StopStreamDevice(int render_process_id,
-                        int render_frame_id,
+  void StopStreamDevice(GlobalRenderFrameHostId render_frame_host_id,
                         int requester_id,
                         const std::string& device_id,
                         const base::UnguessableToken& session_id);
@@ -263,8 +263,7 @@ class CONTENT_EXPORT MediaStreamManager
   // MEDIA_DEVICE_AUDIO_CAPTURE or MEDIA_DEVICE_VIDEO_CAPTURE.
   // |device_stopped_cb| is set to receive device stopped notifications. The
   // request is identified using string returned to the caller.
-  void OpenDevice(int render_process_id,
-                  int render_frame_id,
+  void OpenDevice(GlobalRenderFrameHostId render_frame_host_id,
                   int requester_id,
                   int page_request_id,
                   const std::string& device_id,
@@ -272,20 +271,6 @@ class CONTENT_EXPORT MediaStreamManager
                   MediaDeviceSaltAndOrigin salt_and_origin,
                   OpenDeviceCallback open_device_cb,
                   DeviceStoppedCallback device_stopped_cb);
-
-  // Finds and returns the device id and group id corresponding to the given
-  // |source_id|. Returns true if there was a raw device id that matched the
-  // given |source_id|, false if nothing matched it and leaves the |device_id|
-  // and |group_id| unchanged.
-  // TODO(guidou): Update to provide a callback-based interface.
-  // See http://crbug.com/648155.
-  bool TranslateSourceIdToDeviceIdAndGroupId(
-      blink::mojom::MediaStreamType stream_type,
-      const std::string& salt,
-      const url::Origin& security_origin,
-      const std::string& source_id,
-      std::string* device_id,
-      absl::optional<std::string>* group_id) const;
 
   // Find |device_id| in the list of |requests_|, and returns its session id,
   // or an empty base::UnguessableToken if not found. Must be called on the IO
@@ -337,42 +322,6 @@ class CONTENT_EXPORT MediaStreamManager
       base::RepeatingCallback<void(const std::string&)> callback);
   static void UnregisterNativeLogCallback(int renderer_host_id);
 
-  // Generates a hash of a device's unique ID usable by one
-  // particular security origin.
-  static std::string GetHMACForMediaDeviceID(const std::string& salt,
-                                             const url::Origin& security_origin,
-                                             const std::string& raw_unique_id);
-
-  // Convenience method to check if |device_guid| is an HMAC of
-  // |raw_device_id| for |security_origin|.
-  static bool DoesMediaDeviceIDMatchHMAC(const std::string& salt,
-                                         const url::Origin& security_origin,
-                                         const std::string& device_guid,
-                                         const std::string& raw_unique_id);
-
-  // Convenience method to get the raw device ID from the HMAC |hmac_device_id|
-  // for the given |security_origin| and |salt|. |stream_type| must be
-  // blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE or
-  // blink::mojom::MediaStreamType::DEVICE_VIDEO_CAPTURE. The result will
-  // be returned via |callback| on the given |task_runner|.
-  static void GetMediaDeviceIDForHMAC(
-      blink::mojom::MediaStreamType stream_type,
-      std::string salt,
-      url::Origin security_origin,
-      std::string hmac_device_id,
-      scoped_refptr<base::SequencedTaskRunner> task_runner,
-      base::OnceCallback<void(const absl::optional<std::string>&)> callback);
-  // Overload that allows for a blink::mojom::MediaDeviceType to be specified
-  // instead of a blink::mojom::MediaStreamType. This allows for getting the raw
-  // device ID from the HMAC of an audio output device.
-  static void GetMediaDeviceIDForHMAC(
-      blink::mojom::MediaDeviceType device_type,
-      std::string salt,
-      url::Origin security_origin,
-      std::string hmac_device_id,
-      scoped_refptr<base::SequencedTaskRunner> task_runner,
-      base::OnceCallback<void(const absl::optional<std::string>&)> callback);
-
   // Returns true if the renderer process identified with |render_process_id|
   // is allowed to access |origin|.
   static bool IsOriginAllowed(int render_process_id, const url::Origin& origin);
@@ -409,8 +358,7 @@ class CONTENT_EXPORT MediaStreamManager
   // Keeps MediaStreamDevice alive to allow transferred tracks to successfully
   // find and clone it. Returns whether the specified device was found and
   // successfully kept alive.
-  bool KeepDeviceAliveForTransfer(int render_process_id,
-                                  int render_frame_id,
+  bool KeepDeviceAliveForTransfer(GlobalRenderFrameHostId render_frame_host_id,
                                   int requester_id,
                                   const base::UnguessableToken& session_id,
                                   const base::UnguessableToken& transfer_id);
@@ -583,8 +531,7 @@ class CONTENT_EXPORT MediaStreamManager
 
   DesktopMediaID ResolveTabCaptureDeviceIdOnUIThread(
       const std::string& capture_device_id,
-      int requesting_process_id,
-      int requesting_frame_id,
+      GlobalRenderFrameHostId render_frame_host_id,
       const GURL& origin);
 
   // Prepare |request| of type MEDIA_GUM_TAB_AUDIO_CAPTURE and/or
@@ -608,7 +555,7 @@ class CONTENT_EXPORT MediaStreamManager
       const absl::optional<media::AudioParameters>& output_parameters);
 
   // Returns true if a device with |device_id| has already been requested with
-  // a render procecss_id and render_frame_id and type equal to the the values
+  // a render_frame_host_id and type equal to the the values
   // in |request|. If it has been requested, |device_info| contain information
   // about the device.
   bool FindExistingRequestedDevice(
@@ -687,8 +634,7 @@ class CONTENT_EXPORT MediaStreamManager
   // Get the permission controller for a particular RFH. Must be called on the
   // UI thread.
   static PermissionControllerImpl* GetPermissionController(
-      int requesting_process_id,
-      int requesting_frame_id);
+      GlobalRenderFrameHostId render_frame_host_id);
 
   void SubscribeToPermissionController(const std::string& label,
                                        const DeviceRequest* request);
@@ -697,38 +643,36 @@ class CONTENT_EXPORT MediaStreamManager
   // permission updates for a particular DeviceRequest. All the additional
   // information is needed because `FindRequest` can't be called on the UI
   // thread.
-  void SubscribeToPermissionControllerOnUIThread(const std::string& label,
-                                                 int requesting_process_id,
-                                                 int requesting_frame_id,
-                                                 int requester_id,
-                                                 int page_request_id,
-                                                 bool is_audio_request,
-                                                 bool is_video_request,
-                                                 const GURL& origin);
+  void SubscribeToPermissionControllerOnUIThread(
+      const std::string& label,
+      GlobalRenderFrameHostId requesting_render_frame_host_id,
+      int requester_id,
+      int page_request_id,
+      bool is_audio_request,
+      bool is_video_request,
+      const GURL& origin);
 
   // Store the subscription ids on a DeviceRequest in order to allow
   // unsubscribing when the request is deleted.
   void SetPermissionSubscriptionIDs(
       const std::string& label,
-      int requesting_process_id,
-      int requesting_frame_id,
+      GlobalRenderFrameHostId requesting_render_frame_host_id,
       PermissionController::SubscriptionId audio_subscription_id,
       PermissionController::SubscriptionId video_subscription_id);
 
   // Unsubscribe from following permission updates for the two specified
   // subscription IDs. Called when a request is deleted.
   static void UnsubscribeFromPermissionControllerOnUIThread(
-      int requesting_process_id,
-      int requesting_frame_id,
+      GlobalRenderFrameHostId requesting_render_frame_host_id,
       PermissionController::SubscriptionId audio_subscription_id,
       PermissionController::SubscriptionId video_subscription_id);
 
   // Callback that the PermissionController calls when a permission is updated.
-  void PermissionChangedCallback(int requesting_process_id,
-                                 int requesting_frame_id,
-                                 int requester_id,
-                                 int page_request_id,
-                                 blink::mojom::PermissionStatus status);
+  void PermissionChangedCallback(
+      GlobalRenderFrameHostId requesting_render_frame_host_id,
+      int requester_id,
+      int page_request_id,
+      blink::mojom::PermissionStatus status);
 
   // Start tracking capture-handle changes for tab-capture.
   void MaybeStartTrackingCaptureHandleConfig(
@@ -764,7 +708,8 @@ class CONTENT_EXPORT MediaStreamManager
   const base::TimeDelta conditional_focus_window_;
 #endif
 
-  const raw_ptr<media::AudioSystem> audio_system_;  // not owned
+  const raw_ptr<media::AudioSystem, DanglingUntriaged>
+      audio_system_;  // not owned
   scoped_refptr<AudioInputDeviceManager> audio_input_device_manager_;
   scoped_refptr<VideoCaptureManager> video_capture_manager_;
 
