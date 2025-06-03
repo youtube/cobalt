@@ -80,7 +80,7 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable remote Devtools access.
         {switches::kRemoteDebuggingPort, "9222"},
         {switches::kRemoteAllowOrigins, "http://localhost:9222"},
-        // kEnableLowEndDeviceMode set MSAA to 4 (and not 8, the default). But
+        // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
         // we set it explicitly just in case.
         {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
   });
