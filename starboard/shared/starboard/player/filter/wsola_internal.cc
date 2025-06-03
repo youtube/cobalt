@@ -339,7 +339,7 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
                     energy_candidate_blocks.get());
 }
 
-void GetSymmetricHanningWindow(int window_length, float* window) {
+void GetPeriodicHanningWindow(int window_length, float* window) {
   const float scale = static_cast<float>(2.0 * M_PI) / window_length;
   for (int n = 0; n < window_length; ++n) {
     window[n] = 0.5f * (1.0f - cosf(n * scale));
