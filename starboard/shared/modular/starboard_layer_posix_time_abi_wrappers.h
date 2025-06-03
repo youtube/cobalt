@@ -203,8 +203,6 @@ SB_EXPORT int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
                                          const struct musl_timespec* ts,
                                          struct musl_timespec* remain);
 
-SB_EXPORT int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc);
-
 SB_EXPORT struct musl_tm* __abi_wrap_gmtime_r(
     const int64_t* /* time_t* */ musl_timer,
     struct musl_tm* musl_result);
