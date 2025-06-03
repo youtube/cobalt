@@ -23,6 +23,7 @@ import pathlib
 RUN_MARKER = '[ RUN      ]'
 OK_MARKER = '[       OK ]'
 FAILED_MARKER = '[  FAILED  ]'
+SKIPPED_MARKER = '[  SKIPPED ]'
 
 
 def _parse_log_file(log_path: pathlib.Path) -> tuple[str, str]:
@@ -34,21 +35,28 @@ def _parse_log_file(log_path: pathlib.Path) -> tuple[str, str]:
   with log_path.open('r', encoding='utf-8', errors='replace') as f:
     lines = f.readlines()
   last_run_line = ''
-  log_tail = ''
+  log_tail = []
   for i in range(len(lines) - 1, -1, -1):
-    if OK_MARKER in lines[i] or FAILED_MARKER in lines[i]:
+    if OK_MARKER in lines[i] or \
+        FAILED_MARKER in lines[i] or \
+        SKIPPED_MARKER in lines[i]:
       # The last test in the log ran to completion.
       last_run_line = ''
-      log_tail = 'No crashed test in the log. Last test ran to completion.'
+      log_tail = [
+          'Unable to detect the crashed test. Last test ran to completion.'
+      ]
+      break
     if RUN_MARKER in lines[i]:
       last_run_line = lines[i].strip()
       break
-    log_tail = lines[i] + log_tail
+    log_tail.insert(0, lines[i])
   else:
     # Loop ran to the end, run line was not found.
     last_run_line = ''
-    log_tail = 'Unable to detect the crashed test. RUN line not found in log.'
-  return last_run_line, log_tail
+    log_tail_lines = [
+        'Unable to detect the crashed test. RUN line not found in log.'
+    ]
+  return last_run_line, ''.join(log_tail_lines)
 
 
 def _extract_test_details(last_run_line: str) -> tuple[str, str]:
