@@ -30,7 +30,7 @@ InputBuffer::~InputBuffer() {
 }
 
 void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
-  SB_DCHECK(decrypted_content.size() == static_cast<size_t>(size_));
+  SB_DCHECK_EQ(decrypted_content.size(), static_cast<size_t>(size_));
   DeallocateSampleBuffer(data_);
 
   if (decrypted_content.empty()) {
@@ -54,7 +54,7 @@ std::string InputBuffer::ToString() const {
        << audio_stream_info().mime << "'\n";
     ss << audio_stream_info().samples_per_second << '\n';
   } else {
-    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK_EQ(sample_type(), kSbMediaTypeVideo);
 
     ss << "codec: " << video_stream_info().codec << ", mime: '"
        << video_stream_info().mime << "'"
