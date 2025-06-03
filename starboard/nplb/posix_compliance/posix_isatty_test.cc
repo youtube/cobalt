@@ -113,7 +113,8 @@ TEST_F(PosixIsattyTest, HandlesDuplicatesOfNonTtyDevices) {
   errno = 0;
 
   int fd_copy = dup(fd);
-  ASSERT_NE(-1, fd_copy) << "Failed to create duplicate fd: " << strerror(errno);
+  ASSERT_NE(-1, fd_copy) << "Failed to create duplicate fd: "
+                         << strerror(errno);
   EXPECT_FALSE(isatty(fd_copy));
   EXPECT_EQ(ENOTTY, errno) << "Expected ENOTTY, got " << strerror(errno);
 
