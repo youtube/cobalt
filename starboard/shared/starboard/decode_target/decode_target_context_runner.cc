@@ -16,10 +16,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace decode_target {
+namespace starboard::shared::starboard::decode_target {
 
 namespace {
 
@@ -45,6 +42,4 @@ void DecodeTargetContextRunner::RunOnGlesContext(
 }
 
 }  // namespace decode_target
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::decode_target
