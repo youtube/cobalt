@@ -32,8 +32,8 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-      // Enable Blink to work in overlay video mode
-      switches::kForceVideoOverlays,
+    // Enable Blink to work in overlay video mode
+    switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
       // Hide content shell toolbar.
