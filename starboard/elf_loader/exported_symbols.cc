@@ -28,6 +28,7 @@
 #include <ifaddrs.h>
 #include <malloc.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -260,7 +261,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
+  REGISTER_SYMBOL(poll);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(ppoll);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
   REGISTER_SYMBOL(raise);
@@ -275,6 +278,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
