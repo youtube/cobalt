@@ -6,6 +6,7 @@
 
 /.github/  # no owners
 /cobalt/  # no owners
+/starboard/  # no default owners
 /starboard/*.h  @youtube/cobalt-starboard-owners
 /starboard/sabi @youtube/cobalt-starboard-owners
 /starboard/elf_loader @youtube/cobalt-starboard-owners

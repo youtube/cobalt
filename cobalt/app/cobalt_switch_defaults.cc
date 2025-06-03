@@ -20,9 +20,11 @@
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -52,6 +54,13 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
+      // Rasterize Tiles directly to GPU memory.
+      blink::switches::kEnableZeroCopy,
+      // Enable low-end device mode. This comes with a load of memory and CPU
+      // saving goodies but can degrade the experience considerably. One of the
+      // known regressions is 4444 textures, which are then disabled explicitly.
+      switches::kEnableLowEndDeviceMode,
+      blink::switches::kDisableRGBA4444Textures,
 });
 
 // Map of switches with parameters and their defaults.
@@ -59,8 +68,16 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
     {switches::kDisableFeatures, "Vulkan"},
-        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
+        // The Renderer Compositor (a.k.a. "cc" see //docs/how_cc_works.md) has
+        // two important parts re. memory consumption, one is the image decode
+        // cache whose size is specified by the LimitImageDecodeCacheSize flag
+        // and the tile manager cache of rasterized content (i.e. content that
+        // has been rastered already or pre-rastered and is kept for later fast
+        // (re)use) that can be overwritten with the kForceGpuMemAvailableMb
+        // switch.
+        // TODO(mcasas): Ideally configure depending on policy.
+        {switches::kForceGpuMemAvailableMb, "32"},
+        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/24"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
@@ -72,6 +89,9 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable remote Devtools access.
         {switches::kRemoteDebuggingPort, "9222"},
         {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+        // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
+        // we set it explicitly just in case.
+        {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
   });
   return cobalt_param_switch_defaults;
 }
