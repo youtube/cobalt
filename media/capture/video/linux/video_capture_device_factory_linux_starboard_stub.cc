@@ -27,23 +27,23 @@ namespace media {
 
 VideoCaptureDeviceFactoryLinux::VideoCaptureDeviceFactoryLinux(
     scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner) {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
 }
 
 VideoCaptureDeviceFactoryLinux::~VideoCaptureDeviceFactoryLinux() {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
 }
 
 VideoCaptureErrorOrDevice VideoCaptureDeviceFactoryLinux::CreateDevice(
     const VideoCaptureDeviceDescriptor& device_descriptor) {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
   return VideoCaptureErrorOrDevice(
       VideoCaptureError::kVideoCaptureControllerInvalid);
 }
 
 void VideoCaptureDeviceFactoryLinux::GetDevicesInfo(
     GetDevicesInfoCallback callback) {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
 }
 
 }  // namespace media
