@@ -155,6 +155,8 @@ class InPlaceReuseAllocatorBase : public Allocator {
   struct FallbackAllocation {
     void* address;
     size_t size;
+
+    FallbackAllocation(void* addr, size_t s) : address(addr), size(s) {}
   };
 
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
