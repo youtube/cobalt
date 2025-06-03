@@ -35,6 +35,7 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::ToJavaByteArray;
 
 const char kNoUrl[] = "";
 
@@ -196,55 +197,86 @@ MediaDrmBridge::~MediaDrmBridge() {
   }
 }
 
-jboolean MediaDrmBridge::IsSuccess(const base::android::JavaRef<jobject>& obj) {
+void MediaDrmBridge::CreateSession(int ticket,
+                                   const std::vector<const uint8_t>& init_data,
+                                   const std::string& mime) const {
   JNIEnv* env = AttachCurrentThread();
-  return Java_UpdateSessionResult_isSuccess(env, obj);
+
+  JniIntWrapper j_ticket = static_cast<jint>(ticket);
+  ScopedJavaLocalRef<jbyteArray> j_init_data = ScopedJavaLocalRef(
+      ToJavaByteArray(env, init_data.data(), init_data.size()));
+  ScopedJavaLocalRef<jstring> j_mime =
+      ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime.c_str()));
+
+  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
+                                    j_init_data, j_mime);
 }
 
-ScopedJavaLocalRef<jstring> MediaDrmBridge::GetErrorMessage(
-    const base::android::JavaRef<jobject>& obj) {
+bool MediaDrmBridge::UpdateSession(int ticket,
+                                   const void* key,
+                                   int key_size,
+                                   const void* session_id,
+                                   int session_id_size,
+                                   std::string* error_msg) const {
   JNIEnv* env = AttachCurrentThread();
-  return Java_UpdateSessionResult_getErrorMessage(env, obj);
-}
 
-void MediaDrmBridge::CreateSession(
-    JniIntWrapper ticket,
-    const base::android::JavaRef<jbyteArray>& initData,
-    const base::android::JavaRef<jstring>& mime) const {
-  JNIEnv* env = AttachCurrentThread();
-  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, ticket, initData,
-                                    mime);
-}
+  ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
+      env, static_cast<const uint8_t*>(session_id), session_id_size));
+  ScopedJavaLocalRef<jbyteArray> j_response(
+      ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
+  JniIntWrapper j_ticket = JniIntWrapper(ticket);
 
-ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
-    JniIntWrapper ticket,
-    const JavaRef<jbyteArray>& sessionId,
-    const JavaRef<jbyteArray>& response) {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
-                                           sessionId, response);
+  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
+      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
+  *error_msg = ConvertJavaStringToUTF8(
+      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
+
+  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
 }
 
 void MediaDrmBridge::CloseSession(
-    const base::android::JavaRef<jbyteArray>& sessionId) {
+    std::vector<const uint8_t>& session_id) const {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, sessionId);
+
+  ScopedJavaLocalRef<jbyteArray> j_session_id =
+      ToJavaByteArray(env, session_id.data(), session_id.size());
+
+  Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
 
-base::android::ScopedJavaLocalRef<jbyteArray>
-MediaDrmBridge::GetMetricsInBase64() {
+const void* MediaDrmBridge::GetMetrics(int* size) {
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
+
+  ScopedJavaLocalRef<jbyteArray> j_metrics =
+      Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
+
+  if (j_metrics.is_null()) {
+    *size = 0;
+    return nullptr;
+  }
+
+  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), nullptr);
+  jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
+  SB_DCHECK(metrics_elements);
+
+  metrics_.assign(metrics_elements, metrics_elements + metrics_size);
+
+  env->ReleaseByteArrayElements(j_metrics.obj(), metrics_elements, JNI_ABORT);
+  *size = static_cast<int>(metrics_.size());
+
+  return metrics_.data();
 }
 
 bool MediaDrmBridge::CreateMediaCryptoSession() {
   JNIEnv* env = AttachCurrentThread();
+
   bool result =
       Java_MediaDrmBridge_createMediaCryptoSession(env, j_media_drm_bridge_);
   if (!result && !j_media_crypto_.is_null()) {
     j_media_crypto_.Reset();
     return false;
   }
+
   return true;
 }
 

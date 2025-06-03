@@ -26,7 +26,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/mutex.h"
@@ -34,8 +33,6 @@
 #include "starboard/types.h"
 
 namespace starboard::android::shared {
-
-using base::android::ScopedJavaGlobalRef;
 
 class DrmSystem : public ::SbDrmSystemPrivate,
                   private Thread,
@@ -104,9 +101,9 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
 
    private:
-    jint j_ticket_;
-    ScopedJavaGlobalRef<jbyteArray> j_init_data_;
-    ScopedJavaGlobalRef<jstring> j_mime_;
+    int ticket_;
+    std::vector<const uint8_t> init_data_;
+    std::string mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
@@ -128,8 +125,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
-
-  std::vector<uint8_t> metrics_;
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 };

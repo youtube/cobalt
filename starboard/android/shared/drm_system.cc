@@ -14,25 +14,15 @@
 
 #include "starboard/android/shared/drm_system.h"
 
-#include <jni.h>
-
 #include <memory>
 #include <utility>
 
-#include "base/android/jni_array.h"
-#include "base/android/jni_int_wrapper.h"
-#include "base/android/jni_string.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::ConvertJavaStringToUTF8;
-using base::android::ConvertUTF8ToJavaString;
-using base::android::ScopedJavaLocalRef;
-using base::android::ToJavaByteArray;
 using starboard::android::shared::DrmSystem;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
@@ -102,18 +92,18 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     const char* type,
     const void* initialization_data,
     int initialization_data_size) {
-  JNIEnv* env = AttachCurrentThread();
-  j_ticket_ = static_cast<jint>(ticket);
-  j_init_data_ = ScopedJavaGlobalRef(
-      ToJavaByteArray(env, static_cast<const uint8_t*>(initialization_data),
-                      initialization_data_size));
-  j_mime_ = ScopedJavaGlobalRef(ConvertUTF8ToJavaString(env, type));
+  ticket_ = ticket;
+  init_data_ = std::vector<const uint8_t>(
+      static_cast<const uint8_t*>(initialization_data),
+      static_cast<const uint8_t*>(initialization_data) +
+          initialization_data_size);
+  mime_ = type;
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_DCHECK(media_drm_bridge);
-  media_drm_bridge->CreateSession(j_ticket_, j_init_data_, j_mime_);
+  media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -140,30 +130,19 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
-      env, static_cast<const uint8_t*>(session_id), session_id_size));
-  ScopedJavaLocalRef<jbyteArray> j_response(
-      ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
-
-  JniIntWrapper j_ticket = JniIntWrapper(ticket);
-  ScopedJavaLocalRef<jobject> update_result(
-      media_drm_bridge_->UpdateSession(j_ticket, j_session_id, j_response));
-  jboolean update_success = media_drm_bridge_->IsSuccess(update_result);
-  ScopedJavaLocalRef<jstring> error_msg_java(
-      media_drm_bridge_->GetErrorMessage(update_result));
-  std::string error_msg = ConvertJavaStringToUTF8(env, error_msg_java);
-  session_updated_callback_(this, context_, ticket,
-                            update_success == JNI_TRUE
-                                ? kSbDrmStatusSuccess
-                                : kSbDrmStatusUnknownError,
-                            error_msg.c_str(), session_id, session_id_size);
+  std::string error_msg;
+  bool update_success = media_drm_bridge_->UpdateSession(
+      ticket, key, key_size, session_id, session_id_size, &error_msg);
+  session_updated_callback_(
+      this, context_, ticket,
+      update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
+      error_msg.c_str(), session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> j_session_id = ToJavaByteArray(
-      env, static_cast<const uint8_t*>(session_id), session_id_size);
+  std::vector<const uint8_t> session_id_copy(
+      static_cast<const uint8_t*>(session_id),
+      static_cast<const uint8_t*>(session_id) + session_id_size);
   std::string session_id_as_string(
       static_cast<const char*>(session_id),
       static_cast<const char*>(session_id) + session_id_size);
@@ -175,7 +154,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
       cached_drm_key_ids_.erase(iter);
     }
   }
-  media_drm_bridge_->CloseSession(j_session_id);
+  media_drm_bridge_->CloseSession(session_id_copy);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -191,24 +170,7 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
 }
 
 const void* DrmSystem::GetMetrics(int* size) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> j_metrics =
-      media_drm_bridge_->GetMetricsInBase64();
-
-  if (j_metrics.is_null()) {
-    *size = 0;
-    return nullptr;
-  }
-
-  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), nullptr);
-  jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
-  SB_DCHECK(metrics_elements);
-
-  metrics_.assign(metrics_elements, metrics_elements + metrics_size);
-
-  env->ReleaseByteArrayElements(j_metrics.obj(), metrics_elements, JNI_ABORT);
-  *size = static_cast<int>(metrics_.size());
-  return metrics_.data();
+  return media_drm_bridge_->GetMetrics(size);
 }
 
 void DrmSystem::CallUpdateRequestCallback(int ticket,

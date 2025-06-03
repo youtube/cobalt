@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <string>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -67,18 +68,18 @@ class MediaDrmBridge {
 
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
-  jboolean IsSuccess(const base::android::JavaRef<jobject>& obj);
-  ScopedJavaLocalRef<jstring> GetErrorMessage(
-      const base::android::JavaRef<jobject>& obj);
-  void CreateSession(JniIntWrapper ticket,
-                     const base::android::JavaRef<jbyteArray>& initData,
-                     const base::android::JavaRef<jstring>& mime) const;
-  ScopedJavaLocalRef<jobject> UpdateSession(
-      JniIntWrapper ticket,
-      const JavaRef<jbyteArray>& sessionId,
-      const JavaRef<jbyteArray>& response);
-  void CloseSession(const base::android::JavaRef<jbyteArray>& sessionId);
-  base::android::ScopedJavaLocalRef<jbyteArray> GetMetricsInBase64();
+  void CreateSession(int ticket,
+                     const std::vector<const uint8_t>& init_data,
+                     const std::string& mime) const;
+  // Updates the session. Returns true on success.
+  bool UpdateSession(int ticket,
+                     const void* key,
+                     int key_size,
+                     const void* session_id,
+                     int session_id_size,
+                     std::string* error_msg) const;
+  void CloseSession(std::vector<const uint8_t>& session_id) const;
+  const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
   static bool IsWidevineSupported(JNIEnv* env);
@@ -86,6 +87,8 @@ class MediaDrmBridge {
 
  private:
   raw_ptr<MediaDrmBridge::Host> host_;
+  std::vector<uint8_t> metrics_;
+
   ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
