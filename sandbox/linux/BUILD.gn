@@ -374,7 +374,7 @@ component("sandbox_services") {
     ]
   }
 
-  if (!is_android) {
+  if (!is_android && !is_starboard) {
     sources += [
       "services/libc_interceptor.cc",
       "services/libc_interceptor.h",
