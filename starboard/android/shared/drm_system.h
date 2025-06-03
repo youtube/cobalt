@@ -28,7 +28,7 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/log.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
@@ -37,7 +37,9 @@ namespace starboard::android::shared {
 
 using base::android::ScopedJavaGlobalRef;
 
-class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
+class DrmSystem : public ::SbDrmSystemPrivate,
+                  private Thread,
+                  private MediaDrmBridge::Host {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -64,24 +66,25 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
+  jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
+
+  // MediaDrmBridge::Host methods.
   void CallUpdateRequestCallback(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  const void* session_id,
                                  int session_id_size,
                                  const void* content,
                                  int content_size,
-                                 const char* url);
+                                 const char* url) override;
   void CallDrmSessionKeyStatusesChangedCallback(
       const void* session_id,
       int session_id_size,
       const std::vector<SbDrmKeyId>& drm_key_ids,
-      const std::vector<SbDrmKeyStatus>& drm_key_statuses);
+      const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
+
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const {
-    return !j_media_drm_bridge_.is_null() && !j_media_crypto_.is_null();
-  }
+  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
@@ -98,7 +101,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                          int initialization_data_size);
     ~SessionUpdateRequest() = default;
 
-    void Generate(ScopedJavaGlobalRef<jobject> j_media_drm_bridge) const;
+    void Generate(const MediaDrmBridge* media_drm_bridge) const;
 
    private:
     jint j_ticket_;
@@ -118,9 +121,6 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
-  ScopedJavaGlobalRef<jobject> j_media_crypto_;
-
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
@@ -130,6 +130,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::atomic_bool created_media_crypto_session_{false};
 
   std::vector<uint8_t> metrics_;
+
+  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 };
 
 }  // namespace starboard::android::shared

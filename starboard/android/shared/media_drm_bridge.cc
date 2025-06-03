@@ -19,7 +19,10 @@
 #include <cstring>
 #include <vector>
 
-#include "starboard/android/shared/drm_system.h"
+#include "base/android/jni_array.h"
+#include "base/android/jni_int_wrapper.h"
+#include "base/android/jni_string.h"
+#include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
@@ -28,7 +31,10 @@ namespace starboard {
 namespace android {
 namespace shared {
 namespace {
-using starboard::android::shared::DrmSystem;
+
+using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 
 const char kNoUrl[] = "";
 
@@ -80,9 +86,10 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmSessionMessage(
   SB_DCHECK(session_id_elements);
   SB_DCHECK(message_elements);
 
-  DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(mediaDrmBridge);
-  SB_DCHECK(drm_system);
-  drm_system->CallUpdateRequestCallback(
+  MediaDrmBridge* media_drm_bridge =
+      reinterpret_cast<MediaDrmBridge*>(mediaDrmBridge);
+  SB_DCHECK(media_drm_bridge);
+  media_drm_bridge->host()->CallUpdateRequestCallback(
       ticket, SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(requestType),
       session_id_elements, session_id_size, message_elements, message_size,
       kNoUrl);
@@ -111,7 +118,7 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
   jmethodID getKeyIdMethod =
       env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
   jmethodID getStatusCodeMethod =
-        env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
+      env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
     jbyteArray j_key_id = static_cast<jbyteArray>(
@@ -143,33 +150,102 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
     }
   }
 
-  DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(mediaDrmBridge);
-  SB_DCHECK(drm_system);
-  drm_system->CallDrmSessionKeyStatusesChangedCallback(
+  MediaDrmBridge* media_drm_bridge =
+      reinterpret_cast<MediaDrmBridge*>(mediaDrmBridge);
+  SB_DCHECK(media_drm_bridge);
+  media_drm_bridge->host()->CallDrmSessionKeyStatusesChangedCallback(
       session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
 
   env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
 }
 
-// static
-jboolean MediaDrmBridge::IsSuccess(JNIEnv* env,
-                                   const base::android::JavaRef<jobject>& obj) {
+MediaDrmBridge::MediaDrmBridge(MediaDrmBridge::Host* host,
+                               const char* key_system)
+    : host_(host), j_media_drm_bridge_(nullptr), j_media_crypto_(nullptr) {
+  SB_DCHECK(host_);
+
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jstring> j_key_system(
+      ConvertUTF8ToJavaString(env, key_system));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
+      env, j_key_system, reinterpret_cast<jlong>(this)));
+
+  if (j_media_drm_bridge.is_null()) {
+    SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
+    return;
+  }
+
+  ScopedJavaLocalRef<jobject> j_media_crypto(
+      Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge));
+
+  if (j_media_crypto.is_null()) {
+    SB_LOG(ERROR) << "Failed to create MediaCrypto.";
+    return;
+  }
+
+  j_media_drm_bridge_.Reset(env, j_media_drm_bridge.obj());
+  j_media_crypto_.Reset(env, j_media_crypto.obj());
+
+  SB_LOG(INFO) << "Created MediaDrmBridge.";
+}
+
+MediaDrmBridge::~MediaDrmBridge() {
+  if (!j_media_drm_bridge_.is_null()) {
+    JNIEnv* env = AttachCurrentThread();
+    Java_MediaDrmBridge_destroy(env, j_media_drm_bridge_);
+  }
+}
+
+jboolean MediaDrmBridge::IsSuccess(const base::android::JavaRef<jobject>& obj) {
+  JNIEnv* env = AttachCurrentThread();
   return Java_UpdateSessionResult_isSuccess(env, obj);
 }
 
-// static
 ScopedJavaLocalRef<jstring> MediaDrmBridge::GetErrorMessage(
-    JNIEnv* env,
     const base::android::JavaRef<jobject>& obj) {
+  JNIEnv* env = AttachCurrentThread();
   return Java_UpdateSessionResult_getErrorMessage(env, obj);
 }
 
-// static
-ScopedJavaLocalRef<jobject> MediaDrmBridge::CreateJavaMediaDrmBridge(
-    JNIEnv* env,
-    const JavaRef<jstring>& keySystem,
-    jlong nativeMediaDrmBridge) {
-  return Java_MediaDrmBridge_create(env, keySystem, nativeMediaDrmBridge);
+void MediaDrmBridge::CreateSession(
+    JniIntWrapper ticket,
+    const base::android::JavaRef<jbyteArray>& initData,
+    const base::android::JavaRef<jstring>& mime) const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, ticket, initData,
+                                    mime);
+}
+
+ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
+    JniIntWrapper ticket,
+    const JavaRef<jbyteArray>& sessionId,
+    const JavaRef<jbyteArray>& response) {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                           sessionId, response);
+}
+
+void MediaDrmBridge::CloseSession(
+    const base::android::JavaRef<jbyteArray>& sessionId) {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, sessionId);
+}
+
+base::android::ScopedJavaLocalRef<jbyteArray>
+MediaDrmBridge::GetMetricsInBase64() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
+}
+
+bool MediaDrmBridge::CreateMediaCryptoSession() {
+  JNIEnv* env = AttachCurrentThread();
+  bool result =
+      Java_MediaDrmBridge_createMediaCryptoSession(env, j_media_drm_bridge_);
+  if (!result && !j_media_crypto_.is_null()) {
+    j_media_crypto_.Reset();
+    return false;
+  }
+  return true;
 }
 
 // static
@@ -180,62 +256,6 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
-}
-
-// static
-void MediaDrmBridge::Destroy(JNIEnv* env,
-                             const base::android::JavaRef<jobject>& obj) {
-  Java_MediaDrmBridge_destroy(env, obj);
-}
-
-// static
-void MediaDrmBridge::CreateSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj,
-    JniIntWrapper ticket,
-    const base::android::JavaRef<jbyteArray>& initData,
-    const base::android::JavaRef<jstring>& mime) {
-  Java_MediaDrmBridge_createSession(env, obj, ticket, initData, mime);
-}
-
-// static
-ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
-    JNIEnv* env,
-    const JavaRef<jobject>& obj,
-    JniIntWrapper ticket,
-    const JavaRef<jbyteArray>& sessionId,
-    const JavaRef<jbyteArray>& response) {
-  return Java_MediaDrmBridge_updateSession(env, obj, ticket, sessionId,
-                                           response);
-}
-
-// static
-void MediaDrmBridge::CloseSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj,
-    const base::android::JavaRef<jbyteArray>& sessionId) {
-  Java_MediaDrmBridge_closeSession(env, obj, sessionId);
-}
-
-// static
-base::android::ScopedJavaLocalRef<jbyteArray>
-MediaDrmBridge::GetMetricsInBase64(JNIEnv* env,
-                                   const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_getMetricsInBase64(env, obj);
-}
-
-// static
-base::android::ScopedJavaLocalRef<jobject> MediaDrmBridge::GetMediaCrypto(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_getMediaCrypto(env, obj);
-}
-
-// static
-bool MediaDrmBridge::CreateMediaCryptoSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_createMediaCryptoSession(env, obj);
 }
 
 }  // namespace shared

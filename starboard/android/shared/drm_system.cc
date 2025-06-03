@@ -23,7 +23,6 @@
 #include "base/android/jni_int_wrapper.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
@@ -65,27 +64,11 @@ DrmSystem::DrmSystem(
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
-      j_media_drm_bridge_(nullptr),
-      j_media_crypto_(nullptr),
       hdcp_lost_(false) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef j_key_system(ConvertUTF8ToJavaString(env, key_system));
-  j_media_drm_bridge_ =
-      ScopedJavaGlobalRef(MediaDrmBridge::CreateJavaMediaDrmBridge(
-          env, j_key_system, reinterpret_cast<jlong>(this)));
-
-  if (j_media_drm_bridge_.is_null()) {
-    SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
-    return;
-  }
-
-  j_media_crypto_ = ScopedJavaGlobalRef(
-      MediaDrmBridge::GetMediaCrypto(env, j_media_drm_bridge_));
-
-  if (j_media_crypto_.is_null()) {
-    SB_LOG(ERROR) << "Failed to create MediaCrypto.";
+  media_drm_bridge_.reset(new MediaDrmBridge(this, key_system));
+  if (!media_drm_bridge_->is_valid()) {
     return;
   }
 
@@ -93,21 +76,17 @@ DrmSystem::DrmSystem(
 }
 
 void DrmSystem::Run() {
-  JNIEnv* env = AttachCurrentThread();
-  bool result =
-      MediaDrmBridge::CreateMediaCryptoSession(env, j_media_drm_bridge_);
-  if (result) {
+  if (media_drm_bridge_->CreateMediaCryptoSession()) {
     created_media_crypto_session_.store(true);
-  }
-  if (!result && !j_media_crypto_.is_null()) {
-    j_media_crypto_.Reset();
+  } else {
+    SB_LOG(INFO) << "Could not create media crypto session";
     return;
   }
 
   ScopedLock scoped_lock(mutex_);
   if (!deferred_session_update_requests_.empty()) {
     for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(j_media_drm_bridge_);
+      update_request->Generate(media_drm_bridge_.get());
     }
     deferred_session_update_requests_.clear();
   }
@@ -116,11 +95,6 @@ void DrmSystem::Run() {
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
   Join();
-
-  if (!j_media_drm_bridge_.is_null()) {
-    JNIEnv* env = AttachCurrentThread();
-    MediaDrmBridge::Destroy(env, j_media_drm_bridge_);
-  }
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
@@ -137,10 +111,9 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
-    ScopedJavaGlobalRef<jobject> j_media_drm_bridge) const {
-  JNIEnv* env = AttachCurrentThread();
-  MediaDrmBridge::CreateSession(env, j_media_drm_bridge, j_ticket_,
-                                j_init_data_, j_mime_);
+    const MediaDrmBridge* media_drm_bridge) const {
+  SB_DCHECK(media_drm_bridge);
+  media_drm_bridge->CreateSession(j_ticket_, j_init_data_, j_mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -151,7 +124,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
       new SessionUpdateRequest(ticket, type, initialization_data,
                                initialization_data_size));
   if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(j_media_drm_bridge_);
+    session_update_request->Generate(media_drm_bridge_.get());
   } else {
     // Defer generating the update request.
     ScopedLock scoped_lock(mutex_);
@@ -174,11 +147,11 @@ void DrmSystem::UpdateSession(int ticket,
       ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
 
   JniIntWrapper j_ticket = JniIntWrapper(ticket);
-  ScopedJavaLocalRef<jobject> update_result(MediaDrmBridge::UpdateSession(
-      env, j_media_drm_bridge_, j_ticket, j_session_id, j_response));
-  jboolean update_success = MediaDrmBridge::IsSuccess(env, update_result);
+  ScopedJavaLocalRef<jobject> update_result(
+      media_drm_bridge_->UpdateSession(j_ticket, j_session_id, j_response));
+  jboolean update_success = media_drm_bridge_->IsSuccess(update_result);
   ScopedJavaLocalRef<jstring> error_msg_java(
-      MediaDrmBridge::GetErrorMessage(env, update_result));
+      media_drm_bridge_->GetErrorMessage(update_result));
   std::string error_msg = ConvertJavaStringToUTF8(env, error_msg_java);
   session_updated_callback_(this, context_, ticket,
                             update_success == JNI_TRUE
@@ -202,13 +175,13 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
       cached_drm_key_ids_.erase(iter);
     }
   }
-  MediaDrmBridge::CloseSession(env, j_media_drm_bridge_, j_session_id);
+  media_drm_bridge_->CloseSession(j_session_id);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-  SB_DCHECK(j_media_crypto_);
+  SB_DCHECK(media_drm_bridge_->GetMediaCrypto());
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
@@ -220,7 +193,7 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
 const void* DrmSystem::GetMetrics(int* size) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_metrics =
-      MediaDrmBridge::GetMetricsInBase64(env, j_media_drm_bridge_);
+      media_drm_bridge_->GetMetricsInBase64();
 
   if (j_metrics.is_null()) {
     *size = 0;
