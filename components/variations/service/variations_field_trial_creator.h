@@ -42,7 +42,16 @@ class VariationsFieldTrialCreator : public VariationsFieldTrialCreatorBase {
   // Returns whether the map of the cached UI strings to override is empty.
   bool IsOverrideResourceMapEmpty() override;
 
+#if !BUILDFLAG(IS_COBALT)
  protected:
+<<<<<<< HEAD
+=======
+#endif  // !BUILDFLAG(IS_COBALT)
+  // Get the platform we're running on, respecting OverrideVariationsPlatform().
+  // Protected for testing.
+  Study::Platform GetPlatform();
+
+>>>>>>> a80acfde33e (Fix missing Feature flags initialization (#5897))
   // Overrides the string resource specified by |hash| with |str| in the
   // resource bundle. Protected for testing.
   void OverrideUIString(uint32_t hash, const std::u16string& str) override;
