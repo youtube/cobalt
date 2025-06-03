@@ -22,8 +22,6 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
-  has_pedantic_warnings = true
-
   sources = [
     "//starboard/linux/shared/configuration_constants.cc",
     "//starboard/linux/shared/configuration_public.h",
@@ -219,12 +217,15 @@ static_library("starboard_platform_sources") {
     sources += [ "//starboard/raspi/shared/main.cc" ]
   }
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    "//starboard/build/config:pedantic_warnings",
+  ]
 
   public_deps = [
-    ":starboard_base_symbolize",
     "//starboard:starboard_headers_only",
     "//starboard/common",
+    "//starboard/linux/shared:starboard_base_symbolize",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
@@ -234,38 +235,4 @@ static_library("starboard_platform_sources") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
-
-  if (sb_evergreen_compatible_use_libunwind) {
-    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
-  }
-
-  if (sb_is_evergreen_compatible) {
-    sources += [
-      "//starboard/shared/starboard/loader_app_metrics.cc",
-      "//starboard/shared/starboard/loader_app_metrics.h",
-    ]
-
-    public_deps += [
-      "//starboard/elf_loader:constants",
-      "//starboard/elf_loader:evergreen_config",
-      "//starboard/loader_app:pending_restart",
-    ]
-    deps += [ "//starboard/crashpad_wrapper" ]
-  } else {
-    deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-  }
-}
-
-static_library("starboard_base_symbolize") {
-  sources = [
-    "//base/third_party/symbolize/demangle.cc",
-    "//base/third_party/symbolize/symbolize.cc",
-  ]
-  deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common:common_headers_only",
-  ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    public_deps = [ "//starboard/elf_loader:evergreen_info" ]
-  }
 }
