@@ -25,8 +25,6 @@ class CobaltSecureNavigationThrottleTest : public ::testing::Test {
   content::NavigationThrottle::ThrottleCheckResult RunWillStartRequest(
       const GURL& url) {
     mock_navigation_handle_.set_url(url);
-    //    EXPECT_CALL(mock_navigation_handle_,
-    //    GetURL()).WillRepeatedly(ReturnRef(url));
     throttle_ = std::make_unique<CobaltSecureNavigationThrottle>(
         &mock_navigation_handle_);
     return throttle_->WillStartRequest();
