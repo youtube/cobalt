@@ -97,8 +97,8 @@ class MediaDrmBridge {
   const raw_ptr<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
-  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_{nullptr};
-  ScopedJavaGlobalRef<jobject> j_media_crypto_{nullptr};
+  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+  ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
 }  // namespace starboard::android::shared

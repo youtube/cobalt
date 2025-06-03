@@ -40,16 +40,16 @@ const char kNoUrl[] = "";
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
 // android.media.MediaDrm.KeyStatus.
-const jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
-const jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
-const jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
-const jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
-const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
+constexpr jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
+constexpr jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
+constexpr jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
+constexpr jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
+constexpr jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 
 // They must have the same values as defined in MediaDrm.KeyRequest.
-const jint REQUEST_TYPE_INITIAL = 0;
-const jint REQUEST_TYPE_RENEWAL = 1;
-const jint REQUEST_TYPE_RELEASE = 2;
+constexpr jint REQUEST_TYPE_INITIAL = 0;
+constexpr jint REQUEST_TYPE_RENEWAL = 1;
+constexpr jint REQUEST_TYPE_RELEASE = 2;
 
 SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
     jint request_type) {
@@ -190,10 +190,10 @@ void MediaDrmBridge::OnSessionMessage(JNIEnv* env,
                                       const JavaParamRef<jbyteArray>& sessionId,
                                       jint requestType,
                                       const JavaParamRef<jbyteArray>& message) {
-  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, NULL);
+  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, nullptr);
   jsize session_id_size = env->GetArrayLength(sessionId);
 
-  jbyte* message_elements = env->GetByteArrayElements(message, NULL);
+  jbyte* message_elements = env->GetByteArrayElements(message, nullptr);
   jsize message_size = env->GetArrayLength(message);
 
   SB_DCHECK(session_id_elements);
@@ -211,14 +211,14 @@ void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& sessionId,
     const JavaParamRef<jobjectArray>& keyInformation) {
-  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, NULL);
+  jbyte* session_id_elements = env->GetByteArrayElements(sessionId, nullptr);
   jsize session_id_size = env->GetArrayLength(sessionId);
 
   SB_DCHECK(session_id_elements);
 
-  // NULL array indicates key status isn't supported (i.e. Android API < 23)
+  // nullptr array indicates key status isn't supported (i.e. Android API < 23)
   jsize length =
-      (keyInformation == NULL) ? 0 : env->GetArrayLength(keyInformation);
+      (keyInformation == nullptr) ? 0 : env->GetArrayLength(keyInformation);
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
@@ -239,7 +239,7 @@ void MediaDrmBridge::OnKeyStatusChange(
     jbyteArray j_key_id = static_cast<jbyteArray>(
         env->CallObjectMethod(j_key_status, getKeyIdMethod));
 
-    jbyte* key_id_elements = env->GetByteArrayElements(j_key_id, NULL);
+    jbyte* key_id_elements = env->GetByteArrayElements(j_key_id, nullptr);
     jsize key_id_size = env->GetArrayLength(j_key_id);
     SB_DCHECK(key_id_elements);
 
