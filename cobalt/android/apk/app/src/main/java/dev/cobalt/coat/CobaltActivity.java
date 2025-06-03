@@ -101,24 +101,31 @@ public abstract class CobaltActivity extends Activity {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
+
+      String[] commandLineOverrides =
+          getCommandLineParamsFromIntent(
+              getIntent(), COMMAND_LINE_ARGS_KEY);
+      String[] v8CommandLineOverrides =
+          getCommandLineParamsFromIntent(
+              getIntent(), COMMAND_LINE_V8_ENABLE_FEATURES_KEY);
+      String[] enableFeaturesCommandLineOverrides =
+          getCommandLineParamsFromIntent(
+              getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
+      String[] disableFeaturesCommandLineOverrides =
+          getCommandLineParamsFromIntent(
+              getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
+      String[] blinkEnableFeaturesCommandLineOverrides =
+          getCommandLineParamsFromIntent(
+              getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(),
-              /* commandLineOverrides= */
-                  getCommandLineParamsFromIntent(
-                    getIntent(), COMMAND_LINE_ARGS_KEY),
-              /* v8CommandLineOverrides= */
-                  getCommandLineParamsFromIntent(
-                      getIntent(), COMMAND_LINE_V8_ENABLE_FEATURES_KEY),
-              /* enableFeaturesCommandLineOverrides= */
-              getCommandLineParamsFromIntent(
-                  getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY),
-              /* disableFeaturesCommandLineOverrides= */
-              getCommandLineParamsFromIntent(
-                  getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY),
-              /* blinkEnableFeaturesCommandLineOverrides= */
-              getCommandLineParamsFromIntent(
-                  getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY)
+              shouldSetJNIPrefix,
+              VersionInfo.isOfficialBuild(),
+              commandLineOverrides,
+              v8CommandLineOverrides,
+              enableFeaturesCommandLineOverrides,
+              disableFeaturesCommandLineOverrides,
+              blinkEnableFeaturesCommandLineOverrides
         ));
     }
 

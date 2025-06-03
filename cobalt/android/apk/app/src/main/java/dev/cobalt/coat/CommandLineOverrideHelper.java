@@ -16,6 +16,7 @@ package dev.cobalt.coat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 
 /** Helper class to provide commandLine Overrides. */
@@ -81,44 +82,42 @@ public final class CommandLineOverrideHelper {
         return paramOverrides;
     }
 
-    public static StringBuilder getDefaultV8OverridesList() {
-        StringBuilder paramOverrides = new StringBuilder();
+    public static StringJoiner getDefaultV8OverridesList() {
+        StringJoiner paramOverrides = new StringJoiner(",");
 
         // Trades a little V8 performance for significant memory savings.
-        paramOverrides.append("--optimize_for_size=true");
-        paramOverrides.append(",");
+        paramOverrides.add("--optimize_for_size=true");
         // Disable concurrent-marking due to b/415843979
-        paramOverrides.append("--concurrent_marking=false");
+        paramOverrides.add("--concurrent_marking=false");
 
         return paramOverrides;
     }
 
-    public static StringBuilder getDefaultEnableFeatureOverridesList() {
-        StringBuilder paramOverrides = new StringBuilder();
+    public static StringJoiner getDefaultEnableFeatureOverridesList() {
+        StringJoiner paramOverrides = new StringJoiner(",");
 
         // Pass javascript console log to adb log.
-        paramOverrides.append("LogJsConsoleMessages");
-        paramOverrides.append(",");
+        paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.
-        paramOverrides.append("LimitImageDecodeCacheSize:mb/32");
+        paramOverrides.add("LimitImageDecodeCacheSize:mb/32");
 
         return paramOverrides;
     }
 
-    public static StringBuilder getDefaultDisableFeatureOverridesList() {
-        StringBuilder paramOverrides = new StringBuilder();
+    public static StringJoiner getDefaultDisableFeatureOverridesList() {
+        StringJoiner paramOverrides = new StringJoiner(",");
 
         // Use SurfaceTexture for decode-to-texture mode.
-        paramOverrides.append("AImageReader");
+        paramOverrides.add("AImageReader");
 
         return paramOverrides;
     }
 
-    public static StringBuilder getDefaultBlinkEnableFeatureOverridesList() {
-        StringBuilder paramOverrides = new StringBuilder();
+    public static StringJoiner getDefaultBlinkEnableFeatureOverridesList() {
+        StringJoiner paramOverrides = new StringJoiner(",");
 
         // Align with MSE spec for MediaSource.duration.
-        paramOverrides.append("MediaSourceNewAbortAndDuration");
+        paramOverrides.add("MediaSourceNewAbortAndDuration");
 
         return paramOverrides;
     }
@@ -127,13 +126,13 @@ public final class CommandLineOverrideHelper {
         CommandLineOverrideHelperParams params) {
         List<String> cliOverrides =
             getDefaultCommandLineOverridesList();
-        StringBuilder v8ParamOverrides =
+        StringJoiner v8ParamOverrides =
             getDefaultV8OverridesList();
-        StringBuilder enableFeatureOverrides =
+        StringJoiner enableFeatureOverrides =
             getDefaultEnableFeatureOverridesList();
-        StringBuilder disableFeatureOverrides =
+        StringJoiner disableFeatureOverrides =
             getDefaultDisableFeatureOverridesList();
-        StringBuilder blinkEnableFeatureOverrides =
+        StringJoiner blinkEnableFeatureOverrides =
             getDefaultBlinkEnableFeatureOverridesList();
 
         if (params != null) {
@@ -157,10 +156,7 @@ public final class CommandLineOverrideHelper {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    if (v8ParamOverrides.length() > 0) {
-                        v8ParamOverrides.append(",");
-                    }
-                    v8ParamOverrides.append(param);
+                    v8ParamOverrides.add(param);
                 }
             }
             if (params.mEnableFeaturesCommandLineOverrides != null) {
@@ -168,10 +164,7 @@ public final class CommandLineOverrideHelper {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    if (enableFeatureOverrides.length() > 0) {
-                        enableFeatureOverrides.append(",");
-                    }
-                    enableFeatureOverrides.append(param);
+                    enableFeatureOverrides.add(param);
                 }
             }
 
@@ -180,10 +173,7 @@ public final class CommandLineOverrideHelper {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    if (disableFeatureOverrides.length() > 0) {
-                        disableFeatureOverrides.append(",");
-                    }
-                    disableFeatureOverrides.append(param);
+                    disableFeatureOverrides.add(param);
                 }
             }
             if (params.mBlinkEnableFeaturesCommandLineOverrides != null) {
@@ -191,10 +181,7 @@ public final class CommandLineOverrideHelper {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    if (blinkEnableFeatureOverrides.length() > 0) {
-                        blinkEnableFeatureOverrides.append(",");
-                    }
-                    blinkEnableFeatureOverrides.append(param);
+                    blinkEnableFeatureOverrides.add(param);
                 }
             }
         }
